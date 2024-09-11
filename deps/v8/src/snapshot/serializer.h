@@ -249,7 +249,7 @@ class Serializer : public SerializerDeserializer {
                         SerializerReference reference);
   void PutAttachedReference(SerializerReference reference);
   void PutNextChunk(SnapshotSpace space);
-  void PutRepeat(int repeat_count);
+  void PutRepeatRoot(int repeat_count, RootIndex root_index);
 
   // Emit a marker noting that this slot is a forward reference to the an
   // object which has not yet been serialized.
@@ -497,6 +497,8 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
                              ProtectedPointerSlot slot) override;
   void VisitCppHeapPointer(Tagged<HeapObject> host,
                            CppHeapPointerSlot slot) override;
+  void VisitJSDispatchTableEntry(Tagged<HeapObject> host,
+                                 JSDispatchHandle handle) override;
 
   Isolate* isolate() { return isolate_; }
 

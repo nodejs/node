@@ -143,7 +143,8 @@ BUILTIN(ShadowRealmPrototypeEvaluate) {
     // 12. Set evalContext's ScriptOrModule to null.
     // 13. Set evalContext's VariableEnvironment to varEnv.
     // 14. Set evalContext's LexicalEnvironment to lexEnv.
-    // 15. Push evalContext onto the execution context stack; evalContext is now
+    // 15. Set evalContext's PrivateEnvironment to null.
+    // 16. Push evalContext onto the execution context stack; evalContext is now
     // the running execution context.
     SaveAndSwitchContext save(isolate, *eval_context);
 
@@ -173,17 +174,17 @@ BUILTIN(ShadowRealmPrototypeEvaluate) {
     } else {
       function = maybe_function.ToHandleChecked();
 
-      // 16. Let result be EvalDeclarationInstantiation(body, varEnv,
+      // 17. Let result be EvalDeclarationInstantiation(body, varEnv,
       // lexEnv, null, strictEval).
-      // 17. If result.[[Type]] is normal, then
-      // 20a. Set result to the result of evaluating body.
-      // 18. If result.[[Type]] is normal and result.[[Value]] is empty, then
-      // 21a. Set result to NormalCompletion(undefined).
+      // 18. If result.[[Type]] is normal, then
+      // 18a. a. Set result to Completion(Evaluation of body).
+      // 19. If result.[[Type]] is normal and result.[[Value]] is empty, then
+      // 19a. Set result to NormalCompletion(undefined).
       result =
           Execution::Call(isolate, function, eval_global_proxy, 0, nullptr);
 
-      // 19. Suspend evalContext and remove it from the execution context stack.
-      // 20. Resume the context that is now on the top of the execution context
+      // 20. Suspend evalContext and remove it from the execution context stack.
+      // 21. Resume the context that is now on the top of the execution context
       // stack as the running execution context. Done by the scope.
     }
   }
@@ -200,14 +201,17 @@ BUILTIN(ShadowRealmPrototypeEvaluate) {
       return isolate->ReThrow(
           *factory->NewError(isolate->syntax_error_function(), message));
     }
-    // 21. If result.[[Type]] is not normal, throw a TypeError exception.
+    // 22. If result.[[Type]] is not NORMAL, then
+    // 22a. Let copiedError be CreateTypeErrorCopy(callerRealm,
+    // result.[[Value]]). 22b. Return ThrowCompletion(copiedError).
     DirectHandle<String> string =
         Object::NoSideEffectsToString(isolate, exception);
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate,
-        NewTypeError(MessageTemplate::kCallShadowRealmEvaluateThrew, string));
+        ShadowRealmNewTypeErrorCopy(
+            exception, MessageTemplate::kCallShadowRealmEvaluateThrew, string));
   }
-  // 22. Return ? GetWrappedValue(callerRealm, result.[[Value]]).
+  // 23. Return ? GetWrappedValue(callerRealm, result.[[Value]]).
   Handle<Object> wrapped_result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, wrapped_result,

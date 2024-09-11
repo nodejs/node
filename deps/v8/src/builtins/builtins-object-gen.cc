@@ -4,6 +4,8 @@
 
 #include "src/builtins/builtins-object-gen.h"
 
+#include <optional>
+
 #include "src/builtins/builtins-constructor-gen.h"
 #include "src/builtins/builtins-inl.h"
 #include "src/builtins/builtins-utils-gen.h"
@@ -17,9 +19,12 @@
 #include "src/objects/property-descriptor-object.h"
 #include "src/objects/property-details.h"
 #include "src/objects/shared-function-info.h"
+#include "src/objects/transitions.h"
 
 namespace v8 {
 namespace internal {
+
+#include "src/codegen/define-code-stub-assembler-macros.inc"
 
 class ObjectEntriesValuesBuiltinsAssembler : public ObjectBuiltinsAssembler {
  public:
@@ -284,7 +289,7 @@ TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(
         TNode<JSArray> array;
         TNode<FixedArrayBase> elements;
         std::tie(array, elements) = AllocateUninitializedJSArrayWithElements(
-            PACKED_ELEMENTS, array_map, SmiConstant(2), base::nullopt,
+            PACKED_ELEMENTS, array_map, SmiConstant(2), std::nullopt,
             IntPtrConstant(2));
         StoreFixedArrayElement(CAST(elements), 0, next_key, SKIP_WRITE_BARRIER);
         StoreFixedArrayElement(CAST(elements), 1, value, SKIP_WRITE_BARRIER);
@@ -409,7 +414,6 @@ TF_BUILTIN(ObjectAssign, ObjectBuiltinsAssembler) {
   TNode<IntPtrT> args_length = args.GetLengthWithoutReceiver();
   GotoIf(UintPtrLessThanOrEqual(args_length, IntPtrConstant(1)), &done);
 
-#ifdef V8_OBJECT_ASSIGN_FASTCASE
   // First let's try a fastpath specifically for when the target objects is an
   // empty object literal.
   // TODO(olivf): For the cases where we could detect that the object literal
@@ -486,31 +490,78 @@ TF_BUILTIN(ObjectAssign, ObjectBuiltinsAssembler) {
     GotoIfNot(TaggedEqual(LoadElements(CAST(to)), EmptyFixedArrayConstant()),
               &slow_path);
 
+    Label continue_fast_path(this), runtime_map_lookup(this, Label::kDeferred);
+
     // Check if our particular source->target combination is fast clonable.
     // E.g., this ensures that we only have fast properties and in general that
     // the binary layout is compatible for `FastCloneJSObject`.
-    // TODO(olivf): Add a fastcase to read the cached target map from the
-    // transition array without going through the runtime.
-    Label continue_fast_path(this);
+    // If suche a clone map exists then it can be found in the transition array
+    // with object_assign_clone_transition_symbol as a key. If this transition
+    // slot is cleared, then the map is not clonable. If the key is missing
+    // from the transitions we rely on the runtime function
+    // ObjectAssignTryFastcase that does the actual computation.
+    TVARIABLE(Map, clone_map);
+    {
+      // First check if we have a transition array.
+      TNode<MaybeObject> maybe_transitions = LoadMaybeWeakObjectField(
+          from_map, Map::kTransitionsOrPrototypeInfoOffset);
+      TNode<HeapObject> maybe_transitions2 =
+          GetHeapObjectIfStrong(maybe_transitions, &runtime_map_lookup);
+      GotoIfNot(IsTransitionArrayMap(LoadMap(maybe_transitions2)),
+                &runtime_map_lookup);
+      TNode<WeakFixedArray> transitions = CAST(maybe_transitions2);
+      TNode<Object> side_step_transitions = CAST(LoadWeakFixedArrayElement(
+          transitions,
+          IntPtrConstant(TransitionArray::kSideStepTransitionsIndex)));
+      GotoIf(TaggedIsSmi(side_step_transitions), &runtime_map_lookup);
+      TNode<MaybeObject> maybe_target_map = LoadWeakFixedArrayElement(
+          CAST(side_step_transitions),
+          IntPtrConstant(SideStepTransition::index_of(
+              SideStepTransition::Kind::kObjectAssign)));
+      GotoIf(TaggedEqual(maybe_target_map,
+                         SmiConstant(SideStepTransition::Unreachable)),
+             &slow_path);
+      GotoIf(
+          TaggedEqual(maybe_target_map, SmiConstant(SideStepTransition::Empty)),
+          &runtime_map_lookup);
+      TNode<Map> target_map =
+          CAST(GetHeapObjectAssumeWeak(maybe_target_map, &runtime_map_lookup));
+      GotoIf(IsDeprecatedMap(target_map), &runtime_map_lookup);
+      TNode<MaybeObject> maybe_validity_cell = LoadWeakFixedArrayElement(
+          CAST(side_step_transitions),
+          IntPtrConstant(SideStepTransition::index_of(
+              SideStepTransition::Kind::kObjectAssignValidityCell)));
+      TNode<Cell> validity_cell = CAST(
+          GetHeapObjectAssumeWeak(maybe_validity_cell, &runtime_map_lookup));
+      GotoIfNot(TaggedEqual(LoadCellValue(validity_cell),
+                            SmiConstant(Map::kPrototypeChainValid)),
+                &runtime_map_lookup);
+      clone_map = target_map;
+    }
+    Goto(&continue_fast_path);
+
+    BIND(&runtime_map_lookup);
     TNode<HeapObject> maybe_clone_map =
         CAST(CallRuntime(Runtime::kObjectAssignTryFastcase, context, from, to));
     GotoIf(TaggedEqual(maybe_clone_map, UndefinedConstant()), &slow_path);
     GotoIf(TaggedEqual(maybe_clone_map, TrueConstant()), &done_fast_path);
     CSA_DCHECK(this, IsMap(maybe_clone_map));
+    clone_map = CAST(maybe_clone_map);
     Goto(&continue_fast_path);
 
     BIND(&continue_fast_path);
-    TNode<Map> clone_map = CAST(maybe_clone_map);
-    CSA_DCHECK(this, IntPtrEqual(LoadMapInstanceSizeInWords(to_map),
-                                 LoadMapInstanceSizeInWords(clone_map)));
     CSA_DCHECK(this,
-               IntPtrEqual(LoadMapInobjectPropertiesStartInWords(to_map),
-                           LoadMapInobjectPropertiesStartInWords(clone_map)));
+               IntPtrEqual(LoadMapInstanceSizeInWords(to_map),
+                           LoadMapInstanceSizeInWords(clone_map.value())));
+    CSA_DCHECK(
+        this,
+        IntPtrEqual(LoadMapInobjectPropertiesStartInWords(to_map),
+                    LoadMapInobjectPropertiesStartInWords(clone_map.value())));
     FastCloneJSObject(
-        from, from_map, clone_map,
+        from, from_map, clone_map.value(),
         [&](TNode<Map> map, TNode<HeapObject> properties,
             TNode<FixedArray> elements) {
-          StoreMap(to, clone_map);
+          StoreMap(to, clone_map.value());
           StoreJSReceiverPropertiesOrHash(to, properties);
           StoreJSObjectElements(CAST(to), elements);
           return to;
@@ -527,14 +578,13 @@ TF_BUILTIN(ObjectAssign, ObjectBuiltinsAssembler) {
            &done);
   }
   BIND(&slow_path);
-#endif  // V8_OBJECT_ASSIGN_FASTCASE
 
   // 3. Let sources be the List of argument values starting with the
   //    second argument.
   // 4. For each element nextSource of sources, in ascending index order,
   {
     args.ForEach(
-        [=](TNode<Object> next_source) {
+        [=, this](TNode<Object> next_source) {
           CallBuiltin(Builtin::kSetDataProperties, context, to, next_source);
         },
         slow_path_index.value());
@@ -599,7 +649,7 @@ TF_BUILTIN(ObjectKeys, ObjectBuiltinsAssembler) {
     TNode<IntPtrT> object_enum_length_intptr = Signed(object_enum_length);
     TNode<Smi> array_length = SmiTag(object_enum_length_intptr);
     std::tie(array, elements) = AllocateUninitializedJSArrayWithElements(
-        PACKED_ELEMENTS, array_map, array_length, base::nullopt,
+        PACKED_ELEMENTS, array_map, array_length, std::nullopt,
         object_enum_length_intptr);
     CopyFixedArrayElements(PACKED_ELEMENTS, object_enum_keys, elements,
                            object_enum_length_intptr, SKIP_WRITE_BARRIER);
@@ -729,7 +779,7 @@ TF_BUILTIN(ObjectGetOwnPropertyNames, ObjectBuiltinsAssembler) {
     TNode<IntPtrT> object_enum_length_intptr = Signed(object_enum_length);
     TNode<Smi> array_length = SmiTag(object_enum_length_intptr);
     std::tie(array, elements) = AllocateUninitializedJSArrayWithElements(
-        PACKED_ELEMENTS, array_map, array_length, base::nullopt,
+        PACKED_ELEMENTS, array_map, array_length, std::nullopt,
         object_enum_length_intptr);
     CopyFixedArrayElements(PACKED_ELEMENTS, object_enum_keys, elements,
                            object_enum_length_intptr, SKIP_WRITE_BARRIER);
@@ -1110,12 +1160,12 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
     TNode<Object> receiver_is_array =
         CallRuntime(Runtime::kArrayIsArray, context, receiver_heap_object);
     TNode<String> builtin_tag = Select<String>(
-        IsTrue(receiver_is_array), [=] { return ArrayStringConstant(); },
-        [=] {
+        IsTrue(receiver_is_array), [=, this] { return ArrayStringConstant(); },
+        [=, this] {
           return Select<String>(
               IsCallableMap(receiver_map),
-              [=] { return FunctionStringConstant(); },
-              [=] { return ObjectStringConstant(); });
+              [=, this] { return FunctionStringConstant(); },
+              [=, this] { return ObjectStringConstant(); });
         });
 
     // Lookup the @@toStringTag property on the {receiver_heap_object}.
@@ -1352,7 +1402,7 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
                           IntPtrConstant(0), size, RootIndex::kUndefinedValue);
   // TODO(cbruni): support start_offset to avoid double initialization.
   TNode<JSObject> result =
-      AllocateJSObjectFromMap(map, base::nullopt, base::nullopt,
+      AllocateJSObjectFromMap(map, std::nullopt, std::nullopt,
                               AllocationFlag::kNone, kWithSlackTracking);
   StoreObjectFieldNoWriteBarrier(result, JSGeneratorObject::kFunctionOffset,
                                  closure);
@@ -1664,5 +1714,8 @@ TNode<HeapObject> ObjectBuiltinsAssembler::GetAccessorOrUndefined(
   BIND(&return_result);
   return result.value();
 }
+
+#include "src/codegen/undef-code-stub-assembler-macros.inc"
+
 }  // namespace internal
 }  // namespace v8

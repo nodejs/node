@@ -5,6 +5,8 @@
 #ifndef V8_COMPILER_TURBOSHAFT_PIPELINES_H_
 #define V8_COMPILER_TURBOSHAFT_PIPELINES_H_
 
+#include <optional>
+
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/backend/register-allocator-verifier.h"
 #include "src/compiler/basic-block-instrumentor.h"
@@ -123,7 +125,7 @@ class Pipeline {
 
     BeginPhaseKind("V8.TFGraphCreation");
     turboshaft::Tracing::Scope tracing_scope(data_->info());
-    base::Optional<BailoutReason> bailout =
+    std::optional<BailoutReason> bailout =
         Run<turboshaft::MaglevGraphBuildingPhase>();
     EndPhaseKind();
 
@@ -146,7 +148,7 @@ class Pipeline {
     turboshaft::Tracing::Scope tracing_scope(data_->info());
 
     DCHECK(!v8_flags.turboshaft_from_maglev);
-    if (base::Optional<BailoutReason> bailout =
+    if (std::optional<BailoutReason> bailout =
             Run<turboshaft::BuildGraphPhase>(turbofan_data, linkage)) {
       info()->AbortOptimization(*bailout);
       return false;
@@ -287,7 +289,7 @@ class Pipeline {
       code_tracer = data_->GetCodeTracer();
     }
 
-    if (base::Optional<BailoutReason> bailout = Run<InstructionSelectionPhase>(
+    if (std::optional<BailoutReason> bailout = Run<InstructionSelectionPhase>(
             call_descriptor, linkage, code_tracer)) {
       data_->info()->AbortOptimization(*bailout);
       EndPhaseKind();

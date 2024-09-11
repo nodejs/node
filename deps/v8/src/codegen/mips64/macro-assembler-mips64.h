@@ -9,6 +9,8 @@
 #ifndef V8_CODEGEN_MIPS64_MACRO_ASSEMBLER_MIPS64_H_
 #define V8_CODEGEN_MIPS64_MACRO_ASSEMBLER_MIPS64_H_
 
+#include <optional>
+
 #include "src/codegen/assembler.h"
 #include "src/codegen/mips64/assembler-mips64.h"
 #include "src/common/globals.h"
@@ -938,6 +940,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadReceiver(Register dest) { Ld(dest, MemOperand(sp, 0)); }
   void StoreReceiver(Register rec) { Sd(rec, MemOperand(sp, 0)); }
 
+#ifdef V8_ENABLE_LEAPTIERING
+  // Load the entrypoint pointer of a JSDispatchTable entry.
+  void LoadCodeEntrypointFromJSDispatchTable(Register destination,
+                                             MemOperand field_operand);
+#endif  // V8_ENABLE_LEAPTIERING
+
   bool IsNear(Label* L, Condition cond, int rs_reg);
 
   // Swap two registers.  If the scratch register is omitted then a slightly
@@ -1321,9 +1329,9 @@ struct MoveCycleState {
   // {MoveToTempLocation}.
   RegList scratch_regs;
   // Available scratch registers during the move cycle resolution scope.
-  base::Optional<UseScratchRegisterScope> temps;
+  std::optional<UseScratchRegisterScope> temps;
   // Scratch register picked by {MoveToTempLocation}.
-  base::Optional<Register> scratch_reg;
+  std::optional<Register> scratch_reg;
 };
 
 // Provides access to exit frame parameters (GC-ed).

@@ -128,7 +128,6 @@ std::vector<ExecutionResult> PerformReferenceRun(
 
   NearHeapLimitCallbackScope near_heap_limit(isolate);
   for (uint32_t i = 0; i < callees.size(); ++i) {
-
     arguments[0] = handle(Smi::FromInt(i), isolate);
     std::unique_ptr<const char[]> exception;
     int32_t result = testing::CallWasmFunctionForTesting(
@@ -166,9 +165,11 @@ std::vector<ExecutionResult> PerformReferenceRun(
 }
 
 int FuzzIt(base::Vector<const uint8_t> data) {
-  int deopt_count_before = GetWasmEngine()->GetDeoptsExecutedCount();
   v8_fuzzer::FuzzerSupport* support = v8_fuzzer::FuzzerSupport::Get();
   v8::Isolate* isolate = support->GetIsolate();
+
+  // Strictly enforce the input size limit as in wasm-fuzzer-common.h.
+  if (data.size() > kMaxFuzzerInputSize) return 0;
 
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
   v8::Isolate::Scope isolate_scope(isolate);
@@ -177,7 +178,7 @@ int FuzzIt(base::Vector<const uint8_t> data) {
   // are saved as recursive groups as part of the type canonicalizer, but types
   // from previous runs just waste memory.
   GetTypeCanonicalizer()->EmptyStorageForTesting();
-  i_isolate->heap()->ClearWasmCanonicalRttsForTesting();
+  TypeCanonicalizer::ClearWasmCanonicalTypesForTesting(i_isolate);
 
   v8::HandleScope handle_scope(isolate);
   v8::Context::Scope context_scope(support->GetContext());
@@ -250,7 +251,7 @@ int FuzzIt(base::Vector<const uint8_t> data) {
           ->SyncInstantiate(i_isolate, &thrower, module_object, {}, {})
           .ToHandleChecked();
 
-  Handle<WasmExportedFunction> main_function =
+  DirectHandle<WasmExportedFunction> main_function =
       testing::GetExportedFunction(i_isolate, instance, "main")
           .ToHandleChecked();
   int function_to_optimize =
@@ -263,6 +264,8 @@ int FuzzIt(base::Vector<const uint8_t> data) {
     function_to_optimize--;
   }
 
+  int deopt_count_begin = GetWasmEngine()->GetDeoptsExecutedCount();
+  int deopt_count_previous_iteration = deopt_count_begin;
   size_t num_callees = reference_results.size();
   for (uint32_t i = 0; i < num_callees; ++i) {
     auto arguments = base::OwnedVector<Handle<Object>>::New(1);
@@ -284,15 +287,21 @@ int FuzzIt(base::Vector<const uint8_t> data) {
       UNREACHABLE();
     }
 
+    int deopt_count = GetWasmEngine()->GetDeoptsExecutedCount();
+    if (i != 0 && deopt_count == deopt_count_previous_iteration) {
+      // No deopt triggered. Skip the rest of the run as it won't provide
+      // meaningful coverage for the deoptimizer.
+      // Return -1 to prevent adding this case to the corpus if not a single
+      // deopt was executed.
+      return deopt_count == deopt_count_begin ? -1 : 0;
+    }
+    deopt_count_previous_iteration = deopt_count;
+
     TierUpNowForTesting(i_isolate, instance->trusted_data(i_isolate),
                         function_to_optimize);
   }
 
-  // If no deopt was triggered, return -1 to prevent adding this case to the
-  // corpus.
-  bool deopt_triggered =
-      GetWasmEngine()->GetDeoptsExecutedCount() != deopt_count_before;
-  return deopt_triggered ? 0 : -1;
+  return 0;
 }
 
 }  // anonymous namespace

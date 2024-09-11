@@ -4,7 +4,11 @@
 
 #include "src/wasm/canonical-types.h"
 
+#include "src/execution/isolate.h"
+#include "src/handles/handles-inl.h"
+#include "src/heap/heap-inl.h"
 #include "src/init/v8.h"
+#include "src/roots/roots-inl.h"
 #include "src/utils/utils.h"
 #include "src/wasm/std-object-sizes.h"
 #include "src/wasm/wasm-engine.h"
@@ -17,14 +21,25 @@ TypeCanonicalizer* GetTypeCanonicalizer() {
 
 TypeCanonicalizer::TypeCanonicalizer() { AddPredefinedArrayTypes(); }
 
-// For convenience, limit canonicalized type indices to Smi range.
-// We could squeeze out a few more bits if necessary by passing them
-// from compiled wrappers to runtime functions as Smi-tagged unsigned ints.
-// That would give us "uint31" range on 32-bit platforms, and allow
-// uint32_t (or even more) on 64-bit platforms. But we probably don't want
-// to store that many types in the TypeCanonicalizer anyway.
-static constexpr size_t kMaxCanonicalTypes = kSmiMaxValue;
+// Inside the TypeCanonicalizer, we use ValueType instances constructed
+// from canonical type indices, so we can't let them get bigger than what
+// we have storage space for. Code outside the TypeCanonicalizer already
+// supports up to Smi range for canonical type indices.
+// TODO(jkummerow): Raise this limit. Possible options:
+// - increase the size of ValueType::HeapTypeField, using currently-unused bits.
+// - change the encoding of ValueType: one bit says whether it's a ref type,
+//   the other bits then encode the index or the kind of non-ref type.
+// - refactor the TypeCanonicalizer's internals to no longer use ValueTypes
+//   and related infrastructure, and use a wider encoding of canonicalized
+//   type indices only here.
+// - wait for 32-bit platforms to no longer be relevant, and increase the
+//   size of ValueType to 64 bits.
+// None of this seems urgent, as we have no evidence of the current limit
+// being an actual limitation in practice.
+static constexpr size_t kMaxCanonicalTypes = kV8MaxWasmTypes;
+// We don't want any valid modules to fail canonicalization.
 static_assert(kMaxCanonicalTypes >= kV8MaxWasmTypes);
+// We want the invalid index to fail any range checks.
 static_assert(kInvalidCanonicalIndex > kMaxCanonicalTypes);
 
 void TypeCanonicalizer::CheckMaxCanonicalIndex() const {
@@ -215,6 +230,7 @@ ValueType TypeCanonicalizer::CanonicalizeValueType(
     const WasmModule* module, ValueType type,
     uint32_t recursive_group_start) const {
   if (!type.has_index()) return type;
+  static_assert(kMaxCanonicalTypes <= (1u << ValueType::kHeapTypeBits));
   return type.ref_index() >= recursive_group_start
              ? ValueType::CanonicalWithRelativeIndex(
                    type.kind(), type.ref_index() - recursive_group_start)
@@ -342,11 +358,11 @@ int TypeCanonicalizer::FindCanonicalGroup(const CanonicalSingletonGroup& group,
 }
 
 size_t TypeCanonicalizer::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(TypeCanonicalizer, 312);
-  size_t result = ContentSize(canonical_supertypes_);
+  UPDATE_WHEN_CLASS_CHANGES(TypeCanonicalizer, 296);
   // The storage of the canonical group's types is accounted for via the
   // allocator below (which tracks the zone memory).
   base::MutexGuard mutex_guard(&mutex_);
+  size_t result = ContentSize(canonical_supertypes_);
   result += ContentSize(canonical_groups_);
   result += ContentSize(canonical_singleton_groups_);
   result += ContentSize(canonical_sigs_);
@@ -360,6 +376,49 @@ size_t TypeCanonicalizer::EstimateCurrentMemoryConsumption() const {
 size_t TypeCanonicalizer::GetCurrentNumberOfTypes() const {
   base::MutexGuard mutex_guard(&mutex_);
   return canonical_supertypes_.size();
+}
+
+// static
+void TypeCanonicalizer::PrepareForCanonicalTypeId(Isolate* isolate, int id) {
+  Heap* heap = isolate->heap();
+  // {2 * (id + 1)} needs to fit in an int.
+  CHECK_LE(id, kMaxInt / 2 - 1);
+  // Canonical types and wrappers are zero-indexed.
+  const int length = id + 1;
+  // The fast path is non-handlified.
+  Tagged<WeakFixedArray> old_rtts_raw = heap->wasm_canonical_rtts();
+  Tagged<WeakFixedArray> old_wrappers_raw = heap->js_to_wasm_wrappers();
+
+  // Fast path: Lengths are sufficient.
+  int old_length = old_rtts_raw->length();
+  DCHECK_EQ(old_length, old_wrappers_raw->length());
+  if (old_length >= length) return;
+
+  // Allocate bigger WeakFixedArrays for rtts and wrappers. Grow them
+  // exponentially.
+  const int new_length = std::max(old_length * 3 / 2, length);
+  CHECK_LT(old_length, new_length);
+
+  // Allocation can invalidate previous unhandled pointers.
+  Handle<WeakFixedArray> old_rtts{old_rtts_raw, isolate};
+  Handle<WeakFixedArray> old_wrappers{old_wrappers_raw, isolate};
+  old_rtts_raw = old_wrappers_raw = {};
+
+  Handle<WeakFixedArray> new_rtts =
+      WeakFixedArray::New(isolate, new_length, AllocationType::kOld);
+  WeakFixedArray::CopyElements(isolate, *new_rtts, 0, *old_rtts, 0, old_length);
+  Handle<WeakFixedArray> new_wrappers =
+      WeakFixedArray::New(isolate, new_length, AllocationType::kOld);
+  WeakFixedArray::CopyElements(isolate, *new_wrappers, 0, *old_wrappers, 0,
+                               old_length);
+  heap->SetWasmCanonicalRttsAndJSToWasmWrappers(*new_rtts, *new_wrappers);
+}
+
+// static
+void TypeCanonicalizer::ClearWasmCanonicalTypesForTesting(Isolate* isolate) {
+  ReadOnlyRoots roots(isolate);
+  isolate->heap()->SetWasmCanonicalRttsAndJSToWasmWrappers(
+      roots.empty_weak_fixed_array(), roots.empty_weak_fixed_array());
 }
 
 }  // namespace v8::internal::wasm

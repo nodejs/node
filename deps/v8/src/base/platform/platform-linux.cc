@@ -33,6 +33,7 @@
 #include <cmath>
 #include <cstdio>
 #include <memory>
+#include <optional>
 
 #include "src/base/logging.h"
 #include "src/base/memory.h"
@@ -139,7 +140,7 @@ std::optional<OS::MemoryRange> OS::GetFirstFreeMemoryRangeWithin(
 }
 
 //  static
-base::Optional<MemoryRegion> MemoryRegion::FromMapsLine(const char* line) {
+std::optional<MemoryRegion> MemoryRegion::FromMapsLine(const char* line) {
   MemoryRegion region;
   unsigned dev_major = 0, dev_minor = 0;
   uintptr_t inode = 0;
@@ -157,7 +158,7 @@ base::Optional<MemoryRegion> MemoryRegion::FromMapsLine(const char* line) {
              " %x:%x %" V8PRIdPTR " %n",
              &region.start, &region.end, region.permissions, &offset,
              &dev_major, &dev_minor, &inode, &path_index) < 7) {
-    return base::nullopt;
+    return std::nullopt;
   }
   region.permissions[4] = '\0';
   region.inode = inode;
@@ -204,8 +205,7 @@ std::unique_ptr<std::vector<MemoryRegion>> ParseProcSelfMaps(
     if (line.get()[line_length - 1] != '\n') break;
     line.get()[line_length - 1] = '\0';
 
-    base::Optional<MemoryRegion> region =
-        MemoryRegion::FromMapsLine(line.get());
+    std::optional<MemoryRegion> region = MemoryRegion::FromMapsLine(line.get());
     if (!region) {
       break;
     }

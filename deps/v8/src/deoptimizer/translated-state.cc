@@ -7,6 +7,7 @@
 #include <inttypes.h>
 
 #include <iomanip>
+#include <optional>
 
 #include "src/base/memory.h"
 #include "src/common/assert-scope.h"
@@ -516,7 +517,7 @@ Float64 TranslatedValue::double_value() const {
 }
 
 Simd128 TranslatedValue::simd_value() const {
-  DCHECK_EQ(kind(), kSimd128);
+  CHECK_EQ(kind(), kSimd128);
   return simd128_value_;
 }
 
@@ -860,7 +861,7 @@ TranslatedFrame TranslatedFrame::WasmInlinedIntoJSFrame(
 
 TranslatedFrame TranslatedFrame::JSToWasmBuiltinContinuationFrame(
     BytecodeOffset bytecode_offset, Tagged<SharedFunctionInfo> shared_info,
-    int height, base::Optional<wasm::ValueKind> return_kind) {
+    int height, std::optional<wasm::ValueKind> return_kind) {
   TranslatedFrame frame(kJSToWasmBuiltinContinuation, shared_info, height);
   frame.bytecode_offset_ = bytecode_offset;
   frame.return_kind_ = return_kind;
@@ -1101,7 +1102,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
           literal_array.get_on_heap_literals()->get(iterator->NextOperand()));
       int height = iterator->NextOperand();
       int return_kind_code = iterator->NextOperand();
-      base::Optional<wasm::ValueKind> return_kind;
+      std::optional<wasm::ValueKind> return_kind;
       if (return_kind_code != kNoWasmReturnKind) {
         return_kind = static_cast<wasm::ValueKind>(return_kind_code);
       }
@@ -2429,6 +2430,18 @@ void TranslatedState::InitializeJSObjectAt(
     int offset = i * kTaggedSize;
     uint8_t marker = object_storage->ReadField<uint8_t>(offset);
 #ifdef V8_ENABLE_SANDBOX
+#ifdef V8_ENABLE_LEAPTIERING
+    if (InstanceTypeChecker::IsJSFunction(map->instance_type()) &&
+        offset == JSFunction::kDispatchHandleOffset) {
+      // The JSDispatchHandle will be materialized as a number, but we need
+      // the raw value here. TODO(saelo): can we implement "proper" support
+      // for JSDispatchHandles in the deoptimizer?
+      DirectHandle<Object> field_value = slot->GetValue();
+      CHECK(IsNumber(*field_value));
+      JSDispatchHandle handle = Object::NumberValue(Cast<Number>(*field_value));
+      object_storage->WriteField<JSDispatchHandle>(
+          JSFunction::kDispatchHandleOffset, handle);
+#else
     if (InstanceTypeChecker::IsJSFunction(map->instance_type()) &&
         offset == JSFunction::kCodeOffset) {
       // We're materializing a JSFunction's reference to a Code object. This is
@@ -2442,6 +2455,25 @@ void TranslatedState::InitializeJSObjectAt(
           .Relaxed_Store(value);
       INDIRECT_POINTER_WRITE_BARRIER(*object_storage, offset,
                                      kCodeIndirectPointerTag, value);
+#endif  // V8_ENABLE_LEAPTIERING
+    } else if (InstanceTypeChecker::IsJSRegExp(map->instance_type()) &&
+               offset == JSRegExp::kDataOffset) {
+      DirectHandle<HeapObject> field_value = slot->storage();
+      // If the value comes from the DeoptimizationLiteralArray, it is a
+      // RegExpDataWrapper as we can't store TrustedSpace values in a FixedArray
+      // directly.
+      Tagged<RegExpData> value;
+      if (Is<RegExpDataWrapper>(*field_value)) {
+        value = Cast<RegExpDataWrapper>(*field_value)->data(isolate());
+      } else {
+        CHECK(IsRegExpData(*field_value));
+        value = Cast<RegExpData>(*field_value);
+      }
+      object_storage
+          ->RawIndirectPointerField(offset, kRegExpDataIndirectPointerTag)
+          .Relaxed_Store(value);
+      INDIRECT_POINTER_WRITE_BARRIER(*object_storage, offset,
+                                     kRegExpDataIndirectPointerTag, value);
     } else if (marker == kStoreHeapObject) {
 #else
     if (marker == kStoreHeapObject) {
@@ -2498,7 +2530,7 @@ void TranslatedState::InitializeObjectWithTaggedFieldsAt(
     slot = GetResolvedSlotAndAdvance(frame, value_index);
     int offset = i * kTaggedSize;
     uint8_t marker = object_storage->ReadField<uint8_t>(offset);
-    Handle<Object> field_value;
+    DirectHandle<Object> field_value;
     if (i > 1 && marker == kStoreHeapObject) {
       field_value = slot->storage();
     } else {
@@ -2706,7 +2738,7 @@ bool TranslatedState::DoUpdateFeedback() {
   if (!feedback_vector_handle_.is_null()) {
     CHECK(!feedback_slot_.IsInvalid());
     isolate()->CountUsage(v8::Isolate::kDeoptimizerDisableSpeculation);
-    FeedbackNexus nexus(feedback_vector_handle_, feedback_slot_);
+    FeedbackNexus nexus(isolate(), feedback_vector_handle_, feedback_slot_);
     nexus.SetSpeculationMode(SpeculationMode::kDisallowSpeculation);
     return true;
   }

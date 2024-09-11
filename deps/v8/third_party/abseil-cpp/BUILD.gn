@@ -57,10 +57,12 @@ component("absl") {
 
 group("absl_component_deps") {
   public_deps = [
+    "//third_party/abseil-cpp/absl/algorithm",
     "//third_party/abseil-cpp/absl/algorithm:container",
     "//third_party/abseil-cpp/absl/base",
     "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/base:core_headers",
+    "//third_party/abseil-cpp/absl/base:log_severity",
     "//third_party/abseil-cpp/absl/base:no_destructor",
     "//third_party/abseil-cpp/absl/base:nullability",
     "//third_party/abseil-cpp/absl/base:prefetch",
@@ -82,7 +84,13 @@ group("absl_component_deps") {
     "//third_party/abseil-cpp/absl/hash",
     "//third_party/abseil-cpp/absl/log:absl_check",
     "//third_party/abseil-cpp/absl/log:absl_log",
+    "//third_party/abseil-cpp/absl/log:absl_vlog_is_on",
     "//third_party/abseil-cpp/absl/log:die_if_null",
+    "//third_party/abseil-cpp/absl/log:globals",
+    "//third_party/abseil-cpp/absl/log:initialize",
+    "//third_party/abseil-cpp/absl/log:log_entry",
+    "//third_party/abseil-cpp/absl/log:log_sink",
+    "//third_party/abseil-cpp/absl/log:log_sink_registry",
     "//third_party/abseil-cpp/absl/memory",
     "//third_party/abseil-cpp/absl/meta:type_traits",
     "//third_party/abseil-cpp/absl/numeric:bits",
@@ -102,6 +110,16 @@ group("absl_component_deps") {
     "//third_party/abseil-cpp/absl/types:span",
     "//third_party/abseil-cpp/absl/types:variant",
     "//third_party/abseil-cpp/absl/utility",
+  ]
+
+  # Dependencies that preferably shouldn't be public in chromium.
+  public_deps += [
+    # public in abseil, but deprecated in chromium, yet used.
+    "//third_party/abseil-cpp/absl/base:dynamic_annotations",
+
+    # base/logging.cc uses this non-public absl dependency while there no better
+    # alternative to inject abort hook. See notes in `base/logging.cc`.
+    "//third_party/abseil-cpp/absl/base:raw_logging_internal",
   ]
 
   if (is_component_build) {
@@ -137,6 +155,9 @@ source_set("absl_full") {
 
   if (build_with_chromium) {
     visibility = [
+      # Used by some test executables, but not by anything that is a
+      # part of Chrome.
+      "//components/optimization_guide/internal/*",
       "//third_party/fuzztest:*",
 
       # GoogleTest doesn't actually need absl_full, but this makes gn check
@@ -268,9 +289,12 @@ if (absl_build_tests) {
         "absl/algorithm:container_test",
         "absl/base:config_test",
         "absl/base:no_destructor_test",
+        "absl/base:nullability_default_nonnull_test",
         "absl/base:nullability_test",
         "absl/base:poison_test",
         "absl/base:prefetch_test",
+        "absl/base:tracing_internal_strong_test",
+        "absl/base:tracing_internal_weak_test",
         "absl/cleanup:cleanup_test",
 
         # TODO(mbonadei): Fix issue with EXPECT_DEATH and uncomment.
@@ -358,7 +382,11 @@ if (absl_build_tests) {
         "absl/strings:str_format_test",
         "absl/strings:str_replace_test",
         "absl/strings:string_view_test",
+        "absl/synchronization:barrier_test",
+        "absl/synchronization:graphcycles_test",
         "absl/synchronization:kernel_timeout_internal_test",
+        "absl/synchronization:mutex_test",
+        "absl/synchronization:per_thread_sem_test",
         "absl/synchronization:waiter_test",
         "absl/time:time_test",
         "absl/types:optional_test",

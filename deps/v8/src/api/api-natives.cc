@@ -85,7 +85,7 @@ MaybeHandle<Object> DefineAccessorProperty(Isolate* isolate,
         isolate, getter,
         InstantiateFunction(isolate, Cast<FunctionTemplateInfo>(getter)));
     DirectHandle<Code> trampoline = BUILTIN_CODE(isolate, DebugBreakTrampoline);
-    Cast<JSFunction>(getter)->set_code(*trampoline);
+    Cast<JSFunction>(getter)->UpdateCode(*trampoline);
   }
   if (IsFunctionTemplateInfo(*setter) &&
       Cast<FunctionTemplateInfo>(*setter)->BreakAtEntry(isolate)) {
@@ -93,7 +93,7 @@ MaybeHandle<Object> DefineAccessorProperty(Isolate* isolate,
         isolate, setter,
         InstantiateFunction(isolate, Cast<FunctionTemplateInfo>(setter)));
     DirectHandle<Code> trampoline = BUILTIN_CODE(isolate, DebugBreakTrampoline);
-    Cast<JSFunction>(setter)->set_code(*trampoline);
+    Cast<JSFunction>(setter)->UpdateCode(*trampoline);
   }
   RETURN_ON_EXCEPTION(isolate, JSObject::DefineOwnAccessorIgnoreAttributes(
                                    object, name, getter, setter, attributes));
@@ -131,7 +131,8 @@ MaybeHandle<Object> DefineDataProperty(Isolate* isolate,
 void DisableAccessChecks(Isolate* isolate, DirectHandle<JSObject> object) {
   Handle<Map> old_map(object->map(), isolate);
   // Copy map so it won't interfere constructor's initial map.
-  Handle<Map> new_map = Map::Copy(isolate, old_map, "DisableAccessChecks");
+  DirectHandle<Map> new_map =
+      Map::Copy(isolate, old_map, "DisableAccessChecks");
   new_map->set_is_access_check_needed(false);
   JSObject::MigrateToMap(isolate, object, new_map);
 }
@@ -139,7 +140,7 @@ void DisableAccessChecks(Isolate* isolate, DirectHandle<JSObject> object) {
 void EnableAccessChecks(Isolate* isolate, DirectHandle<JSObject> object) {
   Handle<Map> old_map(object->map(), isolate);
   // Copy map so it won't interfere constructor's initial map.
-  Handle<Map> new_map = Map::Copy(isolate, old_map, "EnableAccessChecks");
+  DirectHandle<Map> new_map = Map::Copy(isolate, old_map, "EnableAccessChecks");
   new_map->set_is_access_check_needed(true);
   new_map->set_may_have_interesting_properties(true);
   JSObject::MigrateToMap(isolate, object, new_map);

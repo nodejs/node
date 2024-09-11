@@ -678,43 +678,6 @@ static void AssertCodeIsBaseline(MacroAssembler* masm, Register code,
   return AssertCodeIsBaselineAllowClobber(masm, code, scratch);
 }
 
-// Equivalent of SharedFunctionInfo::GetData
-static void GetSharedFunctionInfoData(MacroAssembler* masm, Register data,
-                                      Register sfi, Register scratch) {
-#ifdef V8_ENABLE_SANDBOX
-  DCHECK(!AreAliased(data, scratch));
-  DCHECK(!AreAliased(sfi, scratch));
-  // Use trusted_function_data if non-empy, otherwise the regular function_data.
-  Label use_tagged_field, done;
-  __ movl(scratch,
-          FieldOperand(sfi, SharedFunctionInfo::kTrustedFunctionDataOffset));
-
-  __ testl(scratch, scratch);
-  __ j(zero, &use_tagged_field, Label::kNear);
-  __ ResolveIndirectPointerHandle(data, scratch, kUnknownIndirectPointerTag);
-  __ jmp(&done);
-
-  __ bind(&use_tagged_field);
-  __ LoadTaggedField(
-      data, FieldOperand(sfi, SharedFunctionInfo::kFunctionDataOffset));
-
-  __ bind(&done);
-#else
-  __ LoadTaggedField(
-      data, FieldOperand(sfi, SharedFunctionInfo::kFunctionDataOffset));
-#endif  // V8_ENABLE_SANDBOX
-}
-
-#ifdef V8_ENABLE_WEBASSEMBLY
-// Equivalent of SharedFunctionInfo::wasm_resume_data()
-static void GetSharedFunctionInfoWasmResumeData(MacroAssembler* masm,
-                                                Register resume_data,
-                                                Register sfi) {
-  __ LoadTaggedField(
-      resume_data, FieldOperand(sfi, SharedFunctionInfo::kFunctionDataOffset));
-}
-#endif  // V8_ENABLE_WEBASSEMBLY
-
 static void CheckSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
                                                       Register data,
                                                       Register scratch,
@@ -752,19 +715,9 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
   Label done;
 
   Register data = bytecode;
-#ifdef V8_ENABLE_SANDBOX
-  // In this case, the bytecode array must be referenced via a trusted pointer.
-  // Loading it from the tagged function_data field would not be safe.
-  __ movl(scratch1,
-          FieldOperand(sfi, SharedFunctionInfo::kTrustedFunctionDataOffset));
-
-  __ testl(scratch1, scratch1);
-  __ j(zero, is_unavailable);
-  __ ResolveIndirectPointerHandle(data, scratch1, kUnknownIndirectPointerTag);
-#else
-  __ LoadTaggedField(
-      data, FieldOperand(sfi, SharedFunctionInfo::kFunctionDataOffset));
-#endif  // V8_ENABLE_SANDBOX
+  __ LoadTrustedPointerField(
+      data, FieldOperand(sfi, SharedFunctionInfo::kTrustedFunctionDataOffset),
+      kUnknownIndirectPointerTag, scratch1);
 
   if (V8_JITLESS_BOOL) {
     __ IsObjectType(data, INTERPRETER_DATA_TYPE, scratch1);
@@ -1300,6 +1253,12 @@ void Builtins::Generate_InterpreterEntryTrampoline(
     __ CheckFeedbackVectorFlagsAndJumpIfNeedsProcessing(
         feedback_vector, CodeKind::BASELINE, &flags_need_processing);
 
+#ifndef V8_ENABLE_LEAPTIERING
+    // TODO(olivf, 42204201): This fastcase is difficult to support with the
+    // sandbox as it requires getting write access to the dispatch table. See
+    // `JSFunction::UpdateCode`. We might want to remove it for all
+    // configurations as it does not seem to be performance sensitive.
+
     // Load the baseline code into the closure.
     __ Move(rcx, kInterpreterBytecodeArrayRegister);
     static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
@@ -1307,6 +1266,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
         rcx, closure, kInterpreterBytecodeArrayRegister,
         WriteBarrierDescriptor::SlotAddressRegister());
     __ JumpCodeObject(rcx, kJSEntrypointTag);
+#endif  // V8_ENABLE_LEAPTIERING
 
     __ bind(&install_baseline_code);
     __ GenerateTailCallToReturnedCode(Runtime::kInstallBaselineCode);
@@ -1712,7 +1672,11 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ LoadTaggedField(shared_function_info,
                      FieldOperand(rbx, JSFunction::kSharedFunctionInfoOffset));
 
-  GetSharedFunctionInfoData(masm, rbx, shared_function_info, kScratchRegister);
+  __ LoadTrustedPointerField(
+      rbx,
+      FieldOperand(shared_function_info,
+                   SharedFunctionInfo::kTrustedFunctionDataOffset),
+      kUnknownIndirectPointerTag, kScratchRegister);
   __ IsObjectType(rbx, INTERPRETER_DATA_TYPE, kScratchRegister);
   __ j(not_equal, &builtin_trampoline, Label::kNear);
   __ LoadProtectedPointerField(
@@ -2865,10 +2829,10 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
 namespace {
 
 void Generate_OSREntry(MacroAssembler* masm, Register entry_address) {
-  // Overwrite the return address on the stack and "return" to the OSR entry
+  // Drop the return address on the stack and jump to the OSR entry
   // point of the function.
-  __ movq(Operand(rsp, 0), entry_address);
-  __ ret(0);
+  __ Drop(1);
+  __ jmp(entry_address);
 }
 
 enum class OsrSourceTier {
@@ -2882,8 +2846,9 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
   Label jump_to_optimized_code;
   {
     // If maybe_target_code is not null, no need to call into runtime. A
-    // precondition here is: if maybe_target_code is a InstructionStream object,
-    // it must NOT be marked_for_deoptimization (callers must ensure this).
+    // precondition here is: if maybe_target_code is an InstructionStream
+    // object, it must NOT be marked_for_deoptimization (callers must ensure
+    // this).
     __ testq(maybe_target_code, maybe_target_code);
     __ j(not_equal, &jump_to_optimized_code, Label::kNear);
   }
@@ -3052,11 +3017,11 @@ void RestoreWasmParams(MacroAssembler* masm, int offset) {
 // When this builtin is called, the topmost stack entry is the calling pc.
 // This is replaced with the following:
 //
-// [    calling pc     ]  <-- rsp; popped by {ret}.
-// [  feedback vector  ]
-// [   Wasm instance   ]
-// [ WASM frame marker ]
-// [    saved rbp      ]  <-- rbp; this is where "calling pc" used to be.
+// [    calling pc      ]  <-- rsp; popped by {ret}.
+// [  feedback vector   ]
+// [ Wasm instance data ]
+// [ WASM frame marker  ]
+// [    saved rbp       ]  <-- rbp; this is where "calling pc" used to be.
 void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   Register func_index = wasm::kLiftoffFrameSetupFunctionReg;
   Register vector = r15;
@@ -3067,14 +3032,14 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   __ Move(rbp, rsp);
   __ Push(Immediate(StackFrame::TypeToMarker(StackFrame::WASM)));
   __ LoadTaggedField(
-      vector, FieldOperand(kWasmInstanceRegister,
+      vector, FieldOperand(kWasmImplicitArgRegister,
                            WasmTrustedInstanceData::kFeedbackVectorsOffset));
   __ LoadTaggedField(vector, FieldOperand(vector, func_index, times_tagged_size,
                                           FixedArray::kHeaderSize));
   Label allocate_vector, done;
   __ JumpIfSmi(vector, &allocate_vector);
   __ bind(&done);
-  __ Push(kWasmInstanceRegister);
+  __ Push(kWasmImplicitArgRegister);
   __ Push(vector);
   __ Push(calling_pc);
   __ ret(0);
@@ -3087,7 +3052,7 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   //
   // [ reserved slot for NativeModule ]  <-- arg[2]
   // [  ("declared") function index   ]  <-- arg[1] for runtime func.
-  // [         Wasm instance          ]  <-- arg[0]
+  // [       Wasm instance data       ]  <-- arg[0]
   // [ ...spilled Wasm parameters...  ]
   // [           calling pc           ]
   // [   WASM_LIFTOFF_SETUP marker    ]
@@ -3098,8 +3063,8 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   __ Push(calling_pc);
   int offset = SaveWasmParams(masm);
 
-  // Arguments to the runtime function: instance, func_index.
-  __ Push(kWasmInstanceRegister);
+  // Arguments to the runtime function: instance data, func_index.
+  __ Push(kWasmImplicitArgRegister);
   __ SmiTag(func_index);
   __ Push(func_index);
   // Allocate a stack slot where the runtime function can spill a pointer
@@ -3130,7 +3095,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     int offset = SaveWasmParams(masm);
 
     // Push arguments for the runtime function.
-    __ Push(kWasmInstanceRegister);
+    __ Push(kWasmImplicitArgRegister);
     __ Push(r15);
     // Initialize the JavaScript context with 0. CEntry will use it to
     // set the current context on the isolate.
@@ -3142,10 +3107,10 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     __ movq(r15, kReturnRegister0);
 
     RestoreWasmParams(masm, offset);
-    // After the instance register has been restored, we can add the jump table
-    // start to the jump table offset already stored in r15.
+    // After the instance data register has been restored, we can add the jump
+    // table start to the jump table offset already stored in r15.
     __ addq(r15,
-            MemOperand(kWasmInstanceRegister,
+            MemOperand(kWasmImplicitArgRegister,
                        wasm::ObjectAccess::ToTagged(
                            WasmTrustedInstanceData::kJumpTableStartOffset)));
   }
@@ -3324,21 +3289,21 @@ void ReloadParentContinuation(MacroAssembler* masm, Register promise,
   SwitchStacks(masm, active_continuation, promise, return_value, context);
 }
 
-// Loads the context field of the WasmTrustedInstanceData or WasmApiFunctionRef
-// depending on the ref's type, and places the result in the input register.
-void GetContextFromRef(MacroAssembler* masm, Register ref) {
+// Loads the context field of the WasmTrustedInstanceData or WasmImportData
+// depending on the data's type, and places the result in the input register.
+void GetContextFromImplicitArg(MacroAssembler* masm, Register data) {
   __ LoadTaggedField(kScratchRegister,
-                     FieldOperand(ref, HeapObject::kMapOffset));
+                     FieldOperand(data, HeapObject::kMapOffset));
   __ CmpInstanceType(kScratchRegister, WASM_TRUSTED_INSTANCE_DATA_TYPE);
   Label instance;
   Label end;
   __ j(equal, &instance);
-  __ LoadTaggedField(
-      ref, FieldOperand(ref, WasmApiFunctionRef::kNativeContextOffset));
+  __ LoadTaggedField(data,
+                     FieldOperand(data, WasmImportData::kNativeContextOffset));
   __ jmp(&end);
   __ bind(&instance);
   __ LoadTaggedField(
-      ref, FieldOperand(ref, WasmTrustedInstanceData::kNativeContextOffset));
+      data, FieldOperand(data, WasmTrustedInstanceData::kNativeContextOffset));
   __ bind(&end);
 }
 
@@ -3374,7 +3339,7 @@ void RestoreParentSuspender(MacroAssembler* masm, Register tmp1,
 
 void ResetStackSwitchFrameStackSlots(MacroAssembler* masm) {
   __ Move(kScratchRegister, Smi::zero());
-  __ movq(MemOperand(rbp, StackSwitchFrameConstants::kRefOffset),
+  __ movq(MemOperand(rbp, StackSwitchFrameConstants::kImplicitArgOffset),
           kScratchRegister);
   __ movq(MemOperand(rbp, StackSwitchFrameConstants::kResultArrayOffset),
           kScratchRegister);
@@ -3391,7 +3356,7 @@ void SwitchToAllocatedStack(MacroAssembler* masm, Register wasm_instance,
       parent_continuation,
       FieldOperand(parent_continuation, WasmContinuationObject::kParentOffset));
   SaveState(masm, parent_continuation, scratch, suspend);
-  SwitchStacks(masm, no_reg, kWasmInstanceRegister, wrapper_buffer);
+  SwitchStacks(masm, no_reg, kWasmImplicitArgRegister, wrapper_buffer);
   parent_continuation = no_reg;
   Register target_continuation = scratch;
   __ LoadRoot(target_continuation, RootIndex::kActiveContinuation);
@@ -3446,8 +3411,8 @@ void SwitchBackAndReturnPromise(MacroAssembler* masm, Register tmp1,
   __ LoadTaggedField(
       promise, FieldOperand(promise, WasmSuspenderObject::kPromiseOffset));
   __ movq(kContextRegister,
-          MemOperand(rbp, StackSwitchFrameConstants::kRefOffset));
-  GetContextFromRef(masm, kContextRegister);
+          MemOperand(rbp, StackSwitchFrameConstants::kImplicitArgOffset));
+  GetContextFromImplicitArg(masm, kContextRegister);
 
   ReloadParentContinuation(masm, promise, return_value, kContextRegister, tmp1,
                            tmp2);
@@ -3492,8 +3457,8 @@ void GenerateExceptionHandlingLandingPad(MacroAssembler* masm,
   __ LoadTaggedField(
       promise, FieldOperand(promise, WasmSuspenderObject::kPromiseOffset));
   __ movq(kContextRegister,
-          MemOperand(rbp, StackSwitchFrameConstants::kRefOffset));
-  GetContextFromRef(masm, kContextRegister);
+          MemOperand(rbp, StackSwitchFrameConstants::kImplicitArgOffset));
+  GetContextFromImplicitArg(masm, kContextRegister);
 
   ReloadParentContinuation(masm, promise, reason, kContextRegister, r8, rdi);
   RestoreParentSuspender(masm, r8, rdi);
@@ -3519,24 +3484,25 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
   __ AllocateStackSpace(StackSwitchFrameConstants::kNumSpillSlots *
                         kSystemPointerSize);
 
+  // Load the implicit argument (instance data or import data) from the frame.
+  __ movq(kWasmImplicitArgRegister,
+          MemOperand(rbp, JSToWasmWrapperFrameConstants::kImplicitArgOffset));
+
   Register wrapper_buffer =
       WasmJSToWasmWrapperDescriptor::WrapperBufferRegister();
-  __ movq(kWasmInstanceRegister,
-          MemOperand(rbp, JSToWasmWrapperFrameConstants::kRefParamOffset));
-
   Register original_fp = stack_switch ? r9 : rbp;
   Register new_wrapper_buffer = stack_switch ? rbx : wrapper_buffer;
   Label suspend;
   if (stack_switch) {
-    SwitchToAllocatedStack(masm, kWasmInstanceRegister, wrapper_buffer,
+    SwitchToAllocatedStack(masm, kWasmImplicitArgRegister, wrapper_buffer,
                            original_fp, new_wrapper_buffer, rax, &suspend);
   }
 
   __ movq(MemOperand(rbp, JSToWasmWrapperFrameConstants::kWrapperBufferOffset),
           new_wrapper_buffer);
   if (stack_switch) {
-    __ movq(MemOperand(rbp, StackSwitchFrameConstants::kRefOffset),
-            kWasmInstanceRegister);
+    __ movq(MemOperand(rbp, StackSwitchFrameConstants::kImplicitArgOffset),
+            kWasmImplicitArgRegister);
     Register result_array = kScratchRegister;
     __ movq(result_array,
             MemOperand(original_fp,
@@ -3574,7 +3540,7 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
 
   Register last_stack_param = rcx;
 
-  // The first GP parameter is the ref, which we handle specially.
+  // The first GP parameter is the data, which we handle specially.
   int stack_params_offset =
       (arraysize(wasm::kGpParamRegisters) - 1) * kSystemPointerSize +
       arraysize(wasm::kFpParamRegisters) * kDoubleSize;
@@ -3661,15 +3627,16 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
   if (stack_switch) {
     __ movq(rbx,
             MemOperand(rbp, StackSwitchFrameConstants::kResultArrayOffset));
-    __ movq(rax, MemOperand(rbp, StackSwitchFrameConstants::kRefOffset));
+    __ movq(rax,
+            MemOperand(rbp, StackSwitchFrameConstants::kImplicitArgOffset));
   } else {
     __ movq(rbx,
             MemOperand(rbp,
                        JSToWasmWrapperFrameConstants::kResultArrayParamOffset));
     __ movq(rax,
-            MemOperand(rbp, JSToWasmWrapperFrameConstants::kRefParamOffset));
+            MemOperand(rbp, JSToWasmWrapperFrameConstants::kImplicitArgOffset));
   }
-  GetContextFromRef(masm, rax);
+  GetContextFromImplicitArg(masm, rax);
   __ CallBuiltin(Builtin::kJSToWasmHandleReturns);
 
   Label return_promise;
@@ -3718,18 +3685,7 @@ void Builtins::Generate_WasmToJsWrapperAsm(MacroAssembler* masm) {
   for (size_t i = arraysize(wasm::kGpParamRegisters) - 1; i > 0; --i) {
     __ pushq(wasm::kGpParamRegisters[i]);
   }
-  // Reserve fixed slots for the CSA wrapper.
-  // Two slots for stack-switching (central stack pointer and secondary stack
-  // limit):
-  static_assert(WasmImportWrapperFrameConstants::kCentralStackSPOffset ==
-                WasmImportWrapperFrameConstants::kWasmInstanceOffset -
-                    kSystemPointerSize);
-  __ pushq(Immediate(kNullAddress));
-  static_assert(WasmImportWrapperFrameConstants::kSecondaryStackLimitOffset ==
-                WasmImportWrapperFrameConstants::kCentralStackSPOffset -
-                    kSystemPointerSize);
-  __ pushq(Immediate(kNullAddress));
-  // One slot for the signature:
+  // Signature slot.
   __ pushq(rax);
   // Push the return address again.
   __ pushq(kScratchRegister);
@@ -3861,7 +3817,9 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
           closure,
           wasm::ObjectAccess::SharedFunctionInfoOffsetInTaggedJSFunction()));
   Register resume_data = sfi;
-  GetSharedFunctionInfoWasmResumeData(masm, resume_data, sfi);
+  __ LoadTaggedField(
+      resume_data,
+      FieldOperand(sfi, SharedFunctionInfo::kUntrustedFunctionDataOffset));
 
   // The write barrier uses a fixed register for the host object (rdi). The next
   // barrier is on the suspender, so load it in rdi directly.
@@ -4085,19 +4043,18 @@ void SwitchFromTheCentralStackIfNeeded(MacroAssembler* masm,
 }  // namespace
 
 void Builtins::Generate_WasmToOnHeapWasmToJsTrampoline(MacroAssembler* masm) {
-  // Load the code pointer from the WasmApiFunctionRef and tail-call there.
-  Register api_function_ref = wasm::kGpParamRegisters[0];
+  // Load the code pointer from the WasmImportData and tail-call there.
+  Register import_data = wasm::kGpParamRegisters[0];
 #ifdef V8_ENABLE_SANDBOX
   Register call_target = r11;  // Anything not in kGpParamRegisters.
   __ LoadCodeEntrypointViaCodePointer(
-      call_target,
-      FieldOperand(api_function_ref, WasmApiFunctionRef::kCodeOffset),
+      call_target, FieldOperand(import_data, WasmImportData::kCodeOffset),
       kWasmEntrypointTag);
   __ jmp(call_target);
 #else
   Register code = r11;  // Anything not in kGpParamRegisters.
-  __ LoadTaggedField(
-      code, FieldOperand(api_function_ref, WasmApiFunctionRef::kCodeOffset));
+  __ LoadTaggedField(code,
+                     FieldOperand(import_data, WasmImportData::kCodeOffset));
   __ jmp(FieldOperand(code, Code::kInstructionStartOffset));
 #endif
 }
@@ -4302,6 +4259,12 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
           masm->ExternalReferenceAsOperand(pending_handler_entrypoint_address));
   __ jmp(rdi);
 }
+
+#if V8_ENABLE_WEBASSEMBLY
+void Builtins::Generate_WasmHandleStackOverflow(MacroAssembler* masm) {
+  __ Trap();
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   Label check_negative, process_64_bits, done;
@@ -4612,7 +4575,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   DCHECK(!AreAliased(api_function_address, property_callback_info_arg, name_arg,
                      callback, scratch));
 
-#ifdef V8_ENABLE_DIRECT_LOCAL
+#ifdef V8_ENABLE_DIRECT_HANDLE
   // name_arg = Local<Name>(name), name value was pushed to GC-ed stack space.
   //__ movq(name_arg, name);
   // |name_arg| is already initialized above.
@@ -4882,8 +4845,11 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
     ResetSharedFunctionInfoAge(masm, shared_function_info);
   }
 
-  GetSharedFunctionInfoData(masm, code_obj, shared_function_info,
-                            kScratchRegister);
+  __ LoadTrustedPointerField(
+      code_obj,
+      FieldOperand(shared_function_info,
+                   SharedFunctionInfo::kTrustedFunctionDataOffset),
+      kUnknownIndirectPointerTag, kScratchRegister);
 
   // Check if we have baseline code. For OSR entry it is safe to assume we
   // always have baseline code.

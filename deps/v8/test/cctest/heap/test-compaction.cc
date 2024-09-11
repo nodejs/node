@@ -215,7 +215,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageIntraAbortedPointers) {
   heap->AddNearHeapLimitCallback(reset_oom, heap);
   {
     HandleScope scope1(isolate);
-    Handle<FixedArray> root_array =
+    IndirectHandle<FixedArray> root_array =
         isolate->factory()->NewFixedArray(10, AllocationType::kOld);
 
     heap::SealCurrentObjects(heap);
@@ -269,10 +269,10 @@ HEAP_TEST(CompactionPartiallyAbortedPageIntraAbortedPointers) {
       // The following check makes sure that we compacted "some" objects, while
       // leaving others in place.
       bool in_place = true;
-      Handle<FixedArray> current = root_array;
+      IndirectHandle<FixedArray> current = root_array;
       while (current->get(0) != ReadOnlyRoots(heap).undefined_value()) {
-        current =
-            Handle<FixedArray>(Cast<FixedArray>(current->get(0)), isolate);
+        current = IndirectHandle<FixedArray>(Cast<FixedArray>(current->get(0)),
+                                             isolate);
         CHECK(IsFixedArray(*current));
         if (PageMetadata::FromHeapObject(*current) != to_be_aborted_page) {
           in_place = false;
@@ -321,7 +321,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithRememberedSetEntries) {
   heap->AddNearHeapLimitCallback(reset_oom, heap);
   {
     HandleScope scope1(isolate);
-    Handle<FixedArray> root_array =
+    IndirectHandle<FixedArray> root_array =
         isolate->factory()->NewFixedArray(10, AllocationType::kOld);
     heap::SealCurrentObjects(heap);
 
@@ -380,10 +380,10 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithRememberedSetEntries) {
       // The following check makes sure that we compacted "some" objects, while
       // leaving others in place.
       bool in_place = true;
-      Handle<FixedArray> current = root_array;
+      IndirectHandle<FixedArray> current = root_array;
       while (current->get(0) != ReadOnlyRoots(heap).undefined_value()) {
-        current =
-            Handle<FixedArray>(Cast<FixedArray>(current->get(0)), isolate);
+        current = IndirectHandle<FixedArray>(Cast<FixedArray>(current->get(0)),
+                                             isolate);
         CHECK(!Heap::InYoungGeneration(*current));
         CHECK(IsFixedArray(*current));
         if (PageMetadata::FromHeapObject(*current) != to_be_aborted_page) {
@@ -401,16 +401,16 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithRememberedSetEntries) {
       CheckInvariantsOfAbortedPage(to_be_aborted_page);
 
       // Allocate a new object in new space.
-      DirectHandle<FixedArray> holder =
+      IndirectHandle<FixedArray> holder =
           isolate->factory()->NewFixedArray(10, AllocationType::kYoung);
       // Create a broken address that looks like a tagged pointer to a new space
       // object.
       Address broken_address = holder->address() + 2 * kTaggedSize + 1;
       // Convert it to a vector to create a string from it.
-      base::Vector<const uint8_t> string_to_broken_addresss(
+      base::Vector<const uint8_t> string_to_broken_address(
           reinterpret_cast<const uint8_t*>(&broken_address), kTaggedSize);
 
-      Handle<String> string;
+      IndirectHandle<String> string;
       do {
         // We know that the interesting slot will be on the aborted page and
         // hence we allocate until we get our string on the aborted page.
@@ -418,7 +418,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithRememberedSetEntries) {
         // the first word in the string. Since the first object definitely
         // migrated we can just allocate until we hit the aborted page.
         string = isolate->factory()
-                     ->NewStringFromOneByte(string_to_broken_addresss,
+                     ->NewStringFromOneByte(string_to_broken_address,
                                             AllocationType::kOld)
                      .ToHandleChecked();
       } while (PageMetadata::FromHeapObject(*string) != to_be_aborted_page);

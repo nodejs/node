@@ -157,7 +157,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
                                       Tagged<ScopeInfo> scope_info,
                                       DeclarationScope* script_scope,
                                       AstValueFactory* ast_value_factory,
-                                      DeserializationMode deserialization_mode);
+                                      DeserializationMode deserialization_mode,
+                                      ParseInfo* info = nullptr);
 
   template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
@@ -389,6 +390,15 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   bool has_using_declaration() const { return has_using_declaration_; }
   bool has_await_using_declaration() const {
     return has_await_using_declaration_;
+  }
+
+  bool is_wrapped_function() const {
+    DCHECK_IMPLIES(is_wrapped_function_, is_function_scope());
+    return is_wrapped_function_;
+  }
+  void set_is_wrapped_function() {
+    DCHECK(is_function_scope());
+    is_wrapped_function_ = true;
   }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -855,6 +865,10 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // If declarations include any `using` or `await using` declarations.
   bool has_using_declaration_ : 1;
   bool has_await_using_declaration_ : 1;
+
+  // If the scope was generated for wrapped function syntax, which will affect
+  // its UniqueIdInScript.
+  bool is_wrapped_function_ : 1;
 };
 
 class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
@@ -901,7 +915,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
     // so we don't care that it calls sloppy eval.
     if (is_script_scope()) return;
 
-    // Sloppy eval in a eval scope can only introduce variables into the outer
+    // Sloppy eval in an eval scope can only introduce variables into the outer
     // (non-eval) declaration scope, not into this eval scope.
     if (is_eval_scope()) {
 #ifdef DEBUG
@@ -1164,7 +1178,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   // Does nothing if ScopeInfo is already allocated.
   template <typename IsolateT>
   V8_EXPORT_PRIVATE static void AllocateScopeInfos(ParseInfo* info,
-                                                   Handle<Script> script,
+                                                   DirectHandle<Script> script,
                                                    IsolateT* isolate);
 
   // Determine if we can use lazy compilation for this scope.

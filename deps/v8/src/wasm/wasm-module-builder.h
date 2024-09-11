@@ -9,6 +9,8 @@
 #ifndef V8_WASM_WASM_MODULE_BUILDER_H_
 #define V8_WASM_WASM_MODULE_BUILDER_H_
 
+#include <optional>
+
 #include "src/base/memory.h"
 #include "src/base/platform/wrappers.h"
 #include "src/base/vector.h"
@@ -486,7 +488,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
     bool has_maximum = false;
     bool is_shared = false;
     bool is_table64 = false;
-    base::Optional<WasmInitExpr> init = {};
+    std::optional<WasmInitExpr> init = {};
   };
 
   struct WasmMemory {

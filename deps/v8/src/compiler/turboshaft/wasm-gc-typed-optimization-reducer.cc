@@ -208,7 +208,7 @@ void WasmGCTypeAnalyzer::ProcessIsNull(const IsNullOp& is_null) {
 }
 
 void WasmGCTypeAnalyzer::ProcessParameter(const ParameterOp& parameter) {
-  if (parameter.parameter_index != wasm::kWasmInstanceParameterIndex) {
+  if (parameter.parameter_index != wasm::kWasmInstanceDataParameterIndex) {
     RefineTypeKnowledge(graph_.Index(parameter),
                         signature_->GetParam(parameter.parameter_index - 1));
   }

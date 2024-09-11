@@ -7,6 +7,7 @@
 
 #include "src/base/bit-field.h"
 #include "src/objects/fixed-array.h"
+#include "src/objects/objects-body-descriptors.h"
 #include "src/objects/struct.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -108,24 +109,40 @@ class ArrayBoilerplateDescription
   TQ_OBJECT_CONSTRUCTORS(ArrayBoilerplateDescription)
 };
 
-class RegExpBoilerplateDescription
-    : public TorqueGeneratedRegExpBoilerplateDescription<
-          RegExpBoilerplateDescription, Struct> {
+class RegExpBoilerplateDescription : public Struct {
  public:
   // Dispatched behavior.
   void BriefPrintDetails(std::ostream& os);
 
-  using BodyDescriptor = StructBodyDescriptor;
+  DECL_TRUSTED_POINTER_ACCESSORS(data, RegExpData)
+  DECL_ACCESSORS(source, Tagged<String>)
+  DECL_INT_ACCESSORS(flags)
+
+  DECL_PRINTER(RegExpBoilerplateDescription)
+  DECL_VERIFIER(RegExpBoilerplateDescription)
+
+#define FIELD_LIST(V)                 \
+  V(kDataOffset, kTrustedPointerSize) \
+  V(kSourceOffset, kTaggedSize)       \
+  V(kFlagsOffset, kTaggedSize)        \
+  V(kHeaderSize, 0)                   \
+  V(kSize, 0)
+  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, FIELD_LIST)
+#undef FIELD_LIST
+
+  using BodyDescriptor = StackedBodyDescriptor<
+      StructBodyDescriptor,
+      WithStrongTrustedPointer<kDataOffset, kRegExpDataIndirectPointerTag>>;
 
  private:
-  TQ_OBJECT_CONSTRUCTORS(RegExpBoilerplateDescription)
+  OBJECT_CONSTRUCTORS(RegExpBoilerplateDescription, Struct);
 };
 
 class ClassBoilerplate : public Struct {
   OBJECT_CONSTRUCTORS(ClassBoilerplate, Struct);
 
  public:
-  enum ValueKind { kData, kGetter, kSetter };
+  enum ValueKind { kData, kGetter, kSetter, kAutoAccessor };
 
   struct ComputedEntryFlags {
 #define COMPUTED_ENTRY_BIT_FIELDS(V, _) \

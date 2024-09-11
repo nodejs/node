@@ -132,10 +132,11 @@ struct IsUnorderedContainer<std::unordered_set<Key, Hash, KeyEqual, Allocator>>
 // Container-based version of absl::linear_search() for performing a linear
 // search within a container.
 template <typename C, typename EqualityComparable>
-bool c_linear_search(const C& c, EqualityComparable&& value) {
-  return linear_search(container_algorithm_internal::c_begin(c),
-                       container_algorithm_internal::c_end(c),
-                       std::forward<EqualityComparable>(value));
+ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20 bool c_linear_search(
+    const C& c, EqualityComparable&& value) {
+  return absl::linear_search(container_algorithm_internal::c_begin(c),
+                             container_algorithm_internal::c_end(c),
+                             std::forward<EqualityComparable>(value));
 }
 
 //------------------------------------------------------------------------------
@@ -163,7 +164,7 @@ ABSL_INTERNAL_CONSTEXPR_SINCE_CXX17
 // Container-based version of the <algorithm> `std::all_of()` function to
 // test if all elements within a container satisfy a condition.
 template <typename C, typename Pred>
-bool c_all_of(const C& c, Pred&& pred) {
+ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20 bool c_all_of(const C& c, Pred&& pred) {
   return std::all_of(container_algorithm_internal::c_begin(c),
                      container_algorithm_internal::c_end(c),
                      std::forward<Pred>(pred));
@@ -174,7 +175,7 @@ bool c_all_of(const C& c, Pred&& pred) {
 // Container-based version of the <algorithm> `std::any_of()` function to
 // test if any element in a container fulfills a condition.
 template <typename C, typename Pred>
-bool c_any_of(const C& c, Pred&& pred) {
+ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20 bool c_any_of(const C& c, Pred&& pred) {
   return std::any_of(container_algorithm_internal::c_begin(c),
                      container_algorithm_internal::c_end(c),
                      std::forward<Pred>(pred));
@@ -185,7 +186,7 @@ bool c_any_of(const C& c, Pred&& pred) {
 // Container-based version of the <algorithm> `std::none_of()` function to
 // test if no elements in a container fulfill a condition.
 template <typename C, typename Pred>
-bool c_none_of(const C& c, Pred&& pred) {
+ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20 bool c_none_of(const C& c, Pred&& pred) {
   return std::none_of(container_algorithm_internal::c_begin(c),
                       container_algorithm_internal::c_end(c),
                       std::forward<Pred>(pred));
@@ -196,7 +197,8 @@ bool c_none_of(const C& c, Pred&& pred) {
 // Container-based version of the <algorithm> `std::for_each()` function to
 // apply a function to a container's elements.
 template <typename C, typename Function>
-decay_t<Function> c_for_each(C&& c, Function&& f) {
+ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20 decay_t<Function> c_for_each(C&& c,
+                                                                 Function&& f) {
   return std::for_each(container_algorithm_internal::c_begin(c),
                        container_algorithm_internal::c_end(c),
                        std::forward<Function>(f));
@@ -207,7 +209,9 @@ decay_t<Function> c_for_each(C&& c, Function&& f) {
 // Container-based version of the <algorithm> `std::find()` function to find
 // the first element containing the passed value within a container value.
 template <typename C, typename T>
-container_algorithm_internal::ContainerIter<C> c_find(C& c, T&& value) {
+ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20
+    container_algorithm_internal::ContainerIter<C>
+    c_find(C& c, T&& value) {
   return std::find(container_algorithm_internal::c_begin(c),
                    container_algorithm_internal::c_end(c),
                    std::forward<T>(value));
@@ -218,7 +222,8 @@ container_algorithm_internal::ContainerIter<C> c_find(C& c, T&& value) {
 // Container-based version of the <algorithm> `std::ranges::contains()` C++23
 // function to search a container for a value.
 template <typename Sequence, typename T>
-bool c_contains(const Sequence& sequence, T&& value) {
+ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20 bool c_contains(const Sequence& sequence,
+                                                    T&& value) {
   return absl::c_find(sequence, std::forward<T>(value)) !=
          container_algorithm_internal::c_end(sequence);
 }
@@ -228,7 +233,9 @@ bool c_contains(const Sequence& sequence, T&& value) {
 // Container-based version of the <algorithm> `std::find_if()` function to find
 // the first element in a container matching the given condition.
 template <typename C, typename Pred>
-container_algorithm_internal::ContainerIter<C> c_find_if(C& c, Pred&& pred) {
+ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20
+    container_algorithm_internal::ContainerIter<C>
+    c_find_if(C& c, Pred&& pred) {
   return std::find_if(container_algorithm_internal::c_begin(c),
                       container_algorithm_internal::c_end(c),
                       std::forward<Pred>(pred));
@@ -239,8 +246,9 @@ container_algorithm_internal::ContainerIter<C> c_find_if(C& c, Pred&& pred) {
 // Container-based version of the <algorithm> `std::find_if_not()` function to
 // find the first element in a container not matching the given condition.
 template <typename C, typename Pred>
-container_algorithm_internal::ContainerIter<C> c_find_if_not(C& c,
-                                                             Pred&& pred) {
+ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20
+    container_algorithm_internal::ContainerIter<C>
+    c_find_if_not(C& c, Pred&& pred) {
   return std::find_if_not(container_algorithm_internal::c_begin(c),
                           container_algorithm_internal::c_end(c),
                           std::forward<Pred>(pred));
@@ -251,8 +259,9 @@ container_algorithm_internal::ContainerIter<C> c_find_if_not(C& c,
 // Container-based version of the <algorithm> `std::find_end()` function to
 // find the last subsequence within a container.
 template <typename Sequence1, typename Sequence2>
-container_algorithm_internal::ContainerIter<Sequence1> c_find_end(
-    Sequence1& sequence, Sequence2& subsequence) {
+ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20
+    container_algorithm_internal::ContainerIter<Sequence1>
+    c_find_end(Sequence1& sequence, Sequence2& subsequence) {
   return std::find_end(container_algorithm_internal::c_begin(sequence),
                        container_algorithm_internal::c_end(sequence),
                        container_algorithm_internal::c_begin(subsequence),
@@ -262,8 +271,10 @@ container_algorithm_internal::ContainerIter<Sequence1> c_find_end(
 // Overload of c_find_end() for using a predicate evaluation other than `==` as
 // the function's test condition.
 template <typename Sequence1, typename Sequence2, typename BinaryPredicate>
-container_algorithm_internal::ContainerIter<Sequence1> c_find_end(
-    Sequence1& sequence, Sequence2& subsequence, BinaryPredicate&& pred) {
+ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20
+    container_algorithm_internal::ContainerIter<Sequence1>
+    c_find_end(Sequence1& sequence, Sequence2& subsequence,
+               BinaryPredicate&& pred) {
   return std::find_end(container_algorithm_internal::c_begin(sequence),
                        container_algorithm_internal::c_end(sequence),
                        container_algorithm_internal::c_begin(subsequence),
@@ -277,8 +288,9 @@ container_algorithm_internal::ContainerIter<Sequence1> c_find_end(
 // find the first element within the container that is also within the options
 // container.
 template <typename C1, typename C2>
-container_algorithm_internal::ContainerIter<C1> c_find_first_of(C1& container,
-                                                                C2& options) {
+ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20
+    container_algorithm_internal::ContainerIter<C1>
+    c_find_first_of(C1& container, C2& options) {
   return std::find_first_of(container_algorithm_internal::c_begin(container),
                             container_algorithm_internal::c_end(container),
                             container_algorithm_internal::c_begin(options),
@@ -288,8 +300,9 @@ container_algorithm_internal::ContainerIter<C1> c_find_first_of(C1& container,
 // Overload of c_find_first_of() for using a predicate evaluation other than
 // `==` as the function's test condition.
 template <typename C1, typename C2, typename BinaryPredicate>
-container_algorithm_internal::ContainerIter<C1> c_find_first_of(
-    C1& container, C2& options, BinaryPredicate&& pred) {
+ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20
+    container_algorithm_internal::ContainerIter<C1>
+    c_find_first_of(C1& container, C2& options, BinaryPredicate&& pred) {
   return std::find_first_of(container_algorithm_internal::c_begin(container),
                             container_algorithm_internal::c_end(container),
                             container_algorithm_internal::c_begin(options),
@@ -302,8 +315,9 @@ container_algorithm_internal::ContainerIter<C1> c_find_first_of(
 // Container-based version of the <algorithm> `std::adjacent_find()` function to
 // find equal adjacent elements within a container.
 template <typename Sequence>
-container_algorithm_internal::ContainerIter<Sequence> c_adjacent_find(
-    Sequence& sequence) {
+ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20
+    container_algorithm_internal::ContainerIter<Sequence>
+    c_adjacent_find(Sequence& sequence) {
   return std::adjacent_find(container_algorithm_internal::c_begin(sequence),
                             container_algorithm_internal::c_end(sequence));
 }
@@ -311,8 +325,9 @@ container_algorithm_internal::ContainerIter<Sequence> c_adjacent_find(
 // Overload of c_adjacent_find() for using a predicate evaluation other than
 // `==` as the function's test condition.
 template <typename Sequence, typename BinaryPredicate>
-container_algorithm_internal::ContainerIter<Sequence> c_adjacent_find(
-    Sequence& sequence, BinaryPredicate&& pred) {
+ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20
+    container_algorithm_internal::ContainerIter<Sequence>
+    c_adjacent_find(Sequence& sequence, BinaryPredicate&& pred) {
   return std::adjacent_find(container_algorithm_internal::c_begin(sequence),
                             container_algorithm_internal::c_end(sequence),
                             std::forward<BinaryPredicate>(pred));
@@ -323,8 +338,9 @@ container_algorithm_internal::ContainerIter<Sequence> c_adjacent_find(
 // Container-based version of the <algorithm> `std::count()` function to count
 // values that match within a container.
 template <typename C, typename T>
-container_algorithm_internal::ContainerDifferenceType<const C> c_count(
-    const C& c, T&& value) {
+ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20
+    container_algorithm_internal::ContainerDifferenceType<const C>
+    c_count(const C& c, T&& value) {
   return std::count(container_algorithm_internal::c_begin(c),
                     container_algorithm_internal::c_end(c),
                     std::forward<T>(value));
@@ -335,8 +351,9 @@ container_algorithm_internal::ContainerDifferenceType<const C> c_count(
 // Container-based version of the <algorithm> `std::count_if()` function to
 // count values matching a condition within a container.
 template <typename C, typename Pred>
-container_algorithm_internal::ContainerDifferenceType<const C> c_count_if(
-    const C& c, Pred&& pred) {
+ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20
+    container_algorithm_internal::ContainerDifferenceType<const C>
+    c_count_if(const C& c, Pred&& pred) {
   return std::count_if(container_algorithm_internal::c_begin(c),
                        container_algorithm_internal::c_end(c),
                        std::forward<Pred>(pred));
@@ -348,8 +365,9 @@ container_algorithm_internal::ContainerDifferenceType<const C> c_count_if(
 // return the first element where two ordered containers differ. Applies `==` to
 // the first N elements of `c1` and `c2`, where N = min(size(c1), size(c2)).
 template <typename C1, typename C2>
-container_algorithm_internal::ContainerIterPairType<C1, C2> c_mismatch(C1& c1,
-                                                                       C2& c2) {
+ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20
+    container_algorithm_internal::ContainerIterPairType<C1, C2>
+    c_mismatch(C1& c1, C2& c2) {
   return std::mismatch(container_algorithm_internal::c_begin(c1),
                        container_algorithm_internal::c_end(c1),
                        container_algorithm_internal::c_begin(c2),
@@ -360,8 +378,9 @@ container_algorithm_internal::ContainerIterPairType<C1, C2> c_mismatch(C1& c1,
 // the function's test condition. Applies `pred`to the first N elements of `c1`
 // and `c2`, where N = min(size(c1), size(c2)).
 template <typename C1, typename C2, typename BinaryPredicate>
-container_algorithm_internal::ContainerIterPairType<C1, C2> c_mismatch(
-    C1& c1, C2& c2, BinaryPredicate pred) {
+ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20
+    container_algorithm_internal::ContainerIterPairType<C1, C2>
+    c_mismatch(C1& c1, C2& c2, BinaryPredicate pred) {
   return std::mismatch(container_algorithm_internal::c_begin(c1),
                        container_algorithm_internal::c_end(c1),
                        container_algorithm_internal::c_begin(c2),
@@ -373,7 +392,7 @@ container_algorithm_internal::ContainerIterPairType<C1, C2> c_mismatch(
 // Container-based version of the <algorithm> `std::equal()` function to
 // test whether two containers are equal.
 template <typename C1, typename C2>
-bool c_equal(const C1& c1, const C2& c2) {
+ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20 bool c_equal(const C1& c1, const C2& c2) {
   return std::equal(container_algorithm_internal::c_begin(c1),
                     container_algorithm_internal::c_end(c1),
                     container_algorithm_internal::c_begin(c2),
@@ -383,7 +402,8 @@ bool c_equal(const C1& c1, const C2& c2) {
 // Overload of c_equal() for using a predicate evaluation other than `==` as
 // the function's test condition.
 template <typename C1, typename C2, typename BinaryPredicate>
-bool c_equal(const C1& c1, const C2& c2, BinaryPredicate&& pred) {
+ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20 bool c_equal(const C1& c1, const C2& c2,
+                                                 BinaryPredicate&& pred) {
   return std::equal(container_algorithm_internal::c_begin(c1),
                     container_algorithm_internal::c_end(c1),
                     container_algorithm_internal::c_begin(c2),
@@ -396,7 +416,8 @@ bool c_equal(const C1& c1, const C2& c2, BinaryPredicate&& pred) {
 // Container-based version of the <algorithm> `std::is_permutation()` function
 // to test whether a container is a permutation of another.
 template <typename C1, typename C2>
-bool c_is_permutation(const C1& c1, const C2& c2) {
+ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20 bool c_is_permutation(const C1& c1,
+                                                          const C2& c2) {
   return std::is_permutation(container_algorithm_internal::c_begin(c1),
                              container_algorithm_internal::c_end(c1),
                              container_algorithm_internal::c_begin(c2),
@@ -406,7 +427,8 @@ bool c_is_permutation(const C1& c1, const C2& c2) {
 // Overload of c_is_permutation() for using a predicate evaluation other than
 // `==` as the function's test condition.
 template <typename C1, typename C2, typename BinaryPredicate>
-bool c_is_permutation(const C1& c1, const C2& c2, BinaryPredicate&& pred) {
+ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20 bool c_is_permutation(
+    const C1& c1, const C2& c2, BinaryPredicate&& pred) {
   return std::is_permutation(container_algorithm_internal::c_begin(c1),
                              container_algorithm_internal::c_end(c1),
                              container_algorithm_internal::c_begin(c2),
@@ -419,8 +441,9 @@ bool c_is_permutation(const C1& c1, const C2& c2, BinaryPredicate&& pred) {
 // Container-based version of the <algorithm> `std::search()` function to search
 // a container for a subsequence.
 template <typename Sequence1, typename Sequence2>
-container_algorithm_internal::ContainerIter<Sequence1> c_search(
-    Sequence1& sequence, Sequence2& subsequence) {
+ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20
+    container_algorithm_internal::ContainerIter<Sequence1>
+    c_search(Sequence1& sequence, Sequence2& subsequence) {
   return std::search(container_algorithm_internal::c_begin(sequence),
                      container_algorithm_internal::c_end(sequence),
                      container_algorithm_internal::c_begin(subsequence),
@@ -430,8 +453,10 @@ container_algorithm_internal::ContainerIter<Sequence1> c_search(
 // Overload of c_search() for using a predicate evaluation other than
 // `==` as the function's test condition.
 template <typename Sequence1, typename Sequence2, typename BinaryPredicate>
-container_algorithm_internal::ContainerIter<Sequence1> c_search(
-    Sequence1& sequence, Sequence2& subsequence, BinaryPredicate&& pred) {
+ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20
+    container_algorithm_internal::ContainerIter<Sequence1>
+    c_search(Sequence1& sequence, Sequence2& subsequence,
+             BinaryPredicate&& pred) {
   return std::search(container_algorithm_internal::c_begin(sequence),
                      container_algorithm_internal::c_end(sequence),
                      container_algorithm_internal::c_begin(subsequence),
@@ -444,7 +469,8 @@ container_algorithm_internal::ContainerIter<Sequence1> c_search(
 // Container-based version of the <algorithm> `std::ranges::contains_subrange()`
 // C++23 function to search a container for a subsequence.
 template <typename Sequence1, typename Sequence2>
-bool c_contains_subrange(Sequence1& sequence, Sequence2& subsequence) {
+ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20 bool c_contains_subrange(
+    Sequence1& sequence, Sequence2& subsequence) {
   return absl::c_search(sequence, subsequence) !=
          container_algorithm_internal::c_end(sequence);
 }
@@ -452,8 +478,8 @@ bool c_contains_subrange(Sequence1& sequence, Sequence2& subsequence) {
 // Overload of c_contains_subrange() for using a predicate evaluation other than
 // `==` as the function's test condition.
 template <typename Sequence1, typename Sequence2, typename BinaryPredicate>
-bool c_contains_subrange(Sequence1& sequence, Sequence2& subsequence,
-                         BinaryPredicate&& pred) {
+ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20 bool c_contains_subrange(
+    Sequence1& sequence, Sequence2& subsequence, BinaryPredicate&& pred) {
   return absl::c_search(sequence, subsequence,
                         std::forward<BinaryPredicate>(pred)) !=
          container_algorithm_internal::c_end(sequence);
@@ -464,8 +490,9 @@ bool c_contains_subrange(Sequence1& sequence, Sequence2& subsequence,
 // Container-based version of the <algorithm> `std::search_n()` function to
 // search a container for the first sequence of N elements.
 template <typename Sequence, typename Size, typename T>
-container_algorithm_internal::ContainerIter<Sequence> c_search_n(
-    Sequence& sequence, Size count, T&& value) {
+ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20
+    container_algorithm_internal::ContainerIter<Sequence>
+    c_search_n(Sequence& sequence, Size count, T&& value) {
   return std::search_n(container_algorithm_internal::c_begin(sequence),
                        container_algorithm_internal::c_end(sequence), count,
                        std::forward<T>(value));
@@ -475,8 +502,10 @@ container_algorithm_internal::ContainerIter<Sequence> c_search_n(
 // `==` as the function's test condition.
 template <typename Sequence, typename Size, typename T,
           typename BinaryPredicate>
-container_algorithm_internal::ContainerIter<Sequence> c_search_n(
-    Sequence& sequence, Size count, T&& value, BinaryPredicate&& pred) {
+ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20
+    container_algorithm_internal::ContainerIter<Sequence>
+    c_search_n(Sequence& sequence, Size count, T&& value,
+               BinaryPredicate&& pred) {
   return std::search_n(container_algorithm_internal::c_begin(sequence),
                        container_algorithm_internal::c_end(sequence), count,
                        std::forward<T>(value),

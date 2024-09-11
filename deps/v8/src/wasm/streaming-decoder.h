@@ -18,9 +18,8 @@
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-result.h"
 
-namespace v8 {
-namespace internal {
-namespace wasm {
+namespace v8::internal::wasm {
+
 class NativeModule;
 
 // This class is an interface for the StreamingDecoder to start the processing
@@ -129,8 +128,6 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
   base::Vector<const uint8_t> compiled_module_bytes_;
 };
 
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::wasm
 
 #endif  // V8_WASM_STREAMING_DECODER_H_

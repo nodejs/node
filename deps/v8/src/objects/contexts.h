@@ -54,6 +54,7 @@ enum ContextLookupFlags {
     async_module_evaluate_internal)                                            \
   V(REFLECT_APPLY_INDEX, JSFunction, reflect_apply)                            \
   V(REFLECT_CONSTRUCT_INDEX, JSFunction, reflect_construct)                    \
+  V(PERFORM_PROMISE_THEN_INDEX, JSFunction, perform_promise_then)              \
   V(PROMISE_THEN_INDEX, JSFunction, promise_then)                              \
   V(PROMISE_RESOLVE_INDEX, JSFunction, promise_resolve)                        \
   V(FUNCTION_PROTOTYPE_APPLY_INDEX, JSFunction, function_prototype_apply)      \
@@ -84,6 +85,10 @@ enum ContextLookupFlags {
   V(RAB_GSAB_BIGINT64_ARRAY_MAP_INDEX, Map, rab_gsab_bigint64_array_map)       \
   V(RAB_GSAB_FLOAT16_ARRAY_MAP_INDEX, Map, rab_gsab_float16_array_map)         \
   /* Below is alpha-sorted */                                                  \
+  V(ABSTRACT_MODULE_SOURCE_FUNCTION_INDEX, JSFunction,                         \
+    abstract_module_source_function)                                           \
+  V(ABSTRACT_MODULE_SOURCE_PROTOTYPE_INDEX, JSObject,                          \
+    abstract_module_source_prototype)                                          \
   V(ACCESSOR_PROPERTY_DESCRIPTOR_MAP_INDEX, Map,                               \
     accessor_property_descriptor_map)                                          \
   V(ALLOW_CODE_GEN_FROM_STRINGS_INDEX, Object, allow_code_gen_from_strings)    \
@@ -199,6 +204,8 @@ enum ContextLookupFlags {
     js_array_template_literal_object_map)                                      \
   V(JS_DISPOSABLE_STACK_FUNCTION_INDEX, JSFunction,                            \
     js_disposable_stack_function)                                              \
+  V(JS_ASYNC_DISPOSABLE_STACK_FUNCTION_INDEX, JSFunction,                      \
+    js_async_disposable_stack_function)                                        \
   V(JS_DISPOSABLE_STACK_MAP_INDEX, Map, js_disposable_stack_map)               \
   V(JS_MAP_FUN_INDEX, JSFunction, js_map_fun)                                  \
   V(JS_MAP_MAP_INDEX, Map, js_map_map)                                         \

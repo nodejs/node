@@ -185,7 +185,7 @@ void LiftoffAssembler::AlignFrameSize() {}
 
 void LiftoffAssembler::PatchPrepareStackFrame(
     int offset, SafepointTableBuilder* safepoint_table_builder,
-    bool feedback_vector_slot) {
+    bool feedback_vector_slot, size_t stack_param_slots) {
   int frame_size =
       GetTotalFrameSize() -
       (V8_EMBEDDED_CONSTANT_POOL_BOOL ? 3 : 2) * kSystemPointerSize;
@@ -311,6 +311,13 @@ void LiftoffAssembler::CheckTierUp(int declared_func_index, int budget_used,
   StoreU32(budget, budget_addr, r0);
   pop(budget);
   blt(ool_label, cr0);
+}
+
+Register LiftoffAssembler::LoadOldFramePointer() { return fp; }
+
+void LiftoffAssembler::CheckStackShrink() {
+  // TODO(irezvov): 42202153
+  UNIMPLEMENTED();
 }
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value) {
@@ -968,7 +975,8 @@ void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
 
 void LiftoffAssembler::StoreCallerFrameSlot(LiftoffRegister src,
                                             uint32_t caller_slot_idx,
-                                            ValueKind kind) {
+                                            ValueKind kind,
+                                            Register frame_pointer) {
   int32_t offset = (caller_slot_idx + 1) * kSystemPointerSize;
   switch (kind) {
     case kI32: {
@@ -2220,6 +2228,84 @@ SIMD_RELAXED_UNOP_LIST(SIMD_VISIT_RELAXED_UNOP)
 #undef SIMD_VISIT_RELAXED_UNOP
 #undef SIMD_RELAXED_UNOP_LIST
 
+#define F16_UNOP_LIST(V)     \
+  V(f16x8_splat)             \
+  V(f16x8_abs)               \
+  V(f16x8_neg)               \
+  V(f16x8_sqrt)              \
+  V(f16x8_ceil)              \
+  V(f16x8_floor)             \
+  V(f16x8_trunc)             \
+  V(f16x8_nearest_int)       \
+  V(i16x8_sconvert_f16x8)    \
+  V(i16x8_uconvert_f16x8)    \
+  V(f16x8_sconvert_i16x8)    \
+  V(f16x8_uconvert_i16x8)    \
+  V(f16x8_demote_f32x4_zero) \
+  V(f32x4_promote_low_f16x8) \
+  V(f16x8_demote_f64x2_zero)
+
+#define VISIT_F16_UNOP(name)                                \
+  bool LiftoffAssembler::emit_##name(LiftoffRegister dst,   \
+                                     LiftoffRegister src) { \
+    return false;                                           \
+  }
+F16_UNOP_LIST(VISIT_F16_UNOP)
+#undef VISIT_F16_UNOP
+#undef F16_UNOP_LIST
+
+#define F16_BINOP_LIST(V) \
+  V(f16x8_eq)             \
+  V(f16x8_ne)             \
+  V(f16x8_lt)             \
+  V(f16x8_le)             \
+  V(f16x8_add)            \
+  V(f16x8_sub)            \
+  V(f16x8_mul)            \
+  V(f16x8_div)            \
+  V(f16x8_min)            \
+  V(f16x8_max)            \
+  V(f16x8_pmin)           \
+  V(f16x8_pmax)
+
+#define VISIT_F16_BINOP(name)                                                  \
+  bool LiftoffAssembler::emit_##name(LiftoffRegister dst, LiftoffRegister lhs, \
+                                     LiftoffRegister rhs) {                    \
+    return false;                                                              \
+  }
+F16_BINOP_LIST(VISIT_F16_BINOP)
+#undef VISIT_F16_BINOP
+#undef F16_BINOP_LIST
+
+bool LiftoffAssembler::emit_f16x8_extract_lane(LiftoffRegister dst,
+                                               LiftoffRegister lhs,
+                                               uint8_t imm_lane_idx) {
+  return false;
+}
+
+bool LiftoffAssembler::emit_f16x8_replace_lane(LiftoffRegister dst,
+                                               LiftoffRegister src1,
+                                               LiftoffRegister src2,
+                                               uint8_t imm_lane_idx) {
+  return false;
+}
+
+bool LiftoffAssembler::emit_f16x8_qfma(LiftoffRegister dst,
+                                       LiftoffRegister src1,
+                                       LiftoffRegister src2,
+                                       LiftoffRegister src3) {
+  return false;
+}
+
+bool LiftoffAssembler::emit_f16x8_qfms(LiftoffRegister dst,
+                                       LiftoffRegister src1,
+                                       LiftoffRegister src2,
+                                       LiftoffRegister src3) {
+  return false;
+}
+
+bool LiftoffAssembler::supports_f16_mem_access() { return false; }
+
 void LiftoffAssembler::emit_f64x2_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
   F64x2Splat(dst.fp().toSimd(), src.fp(), r0);
@@ -2620,24 +2706,6 @@ void LiftoffAssembler::emit_i32x4_uconvert_i16x8_high(LiftoffRegister dst,
                                                       LiftoffRegister src) {
   I32x4UConvertI16x8High(dst.fp().toSimd(), src.fp().toSimd(), r0,
                          kScratchSimd128Reg);
-}
-
-bool LiftoffAssembler::emit_f16x8_splat(LiftoffRegister dst,
-                                        LiftoffRegister src) {
-  return false;
-}
-
-bool LiftoffAssembler::emit_f16x8_extract_lane(LiftoffRegister dst,
-                                               LiftoffRegister lhs,
-                                               uint8_t imm_lane_idx) {
-  return false;
-}
-
-bool LiftoffAssembler::emit_f16x8_replace_lane(LiftoffRegister dst,
-                                               LiftoffRegister src1,
-                                               LiftoffRegister src2,
-                                               uint8_t imm_lane_idx) {
-  return false;
 }
 
 void LiftoffAssembler::set_trap_on_oob_mem64(Register index, uint64_t oob_size,

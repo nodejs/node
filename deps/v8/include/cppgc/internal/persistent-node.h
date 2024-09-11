@@ -158,6 +158,12 @@ class V8_EXPORT PersistentRegion final : public PersistentRegionBase {
     PersistentRegionBase::FreeNode(node);
   }
 
+  // During GC, nodes can be freed from a concurrent thread, so no thread check
+  // takes place here.
+  V8_INLINE void FreeNodeFromGC(PersistentNode* node) {
+    PersistentRegionBase::FreeNode(node);
+  }
+
  private:
   bool IsCreationThread();
 

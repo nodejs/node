@@ -14,7 +14,7 @@ namespace v8 {
 // reasons: better performance and a simpler ABI for generated code and fast
 // API calls.
 ASSERT_TRIVIALLY_COPYABLE(api_internal::IndirectHandleBase);
-#ifdef V8_ENABLE_DIRECT_LOCAL
+#ifdef V8_ENABLE_DIRECT_HANDLE
 ASSERT_TRIVIALLY_COPYABLE(api_internal::DirectHandleBase);
 #endif
 ASSERT_TRIVIALLY_COPYABLE(LocalBase<Object>);
@@ -123,6 +123,14 @@ bool CanOptimizeFastSignature(const CFunctionInfo* c_signature) {
   }
 #endif
 
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+  if (!v8_flags.fast_api_allow_float_in_sim &&
+      (c_signature->ReturnInfo().GetType() == CTypeInfo::Type::kFloat32 ||
+       c_signature->ReturnInfo().GetType() == CTypeInfo::Type::kFloat64)) {
+    return false;
+  }
+#endif
+
 #ifndef V8_TARGET_ARCH_64_BIT
   if (c_signature->ReturnInfo().GetType() == CTypeInfo::Type::kInt64 ||
       c_signature->ReturnInfo().GetType() == CTypeInfo::Type::kUint64) {
@@ -131,8 +139,16 @@ bool CanOptimizeFastSignature(const CFunctionInfo* c_signature) {
 #endif
 
   for (unsigned int i = 0; i < c_signature->ArgumentCount(); ++i) {
-    USE(i);
-
+    // So far we do not support string parameters for API functions with return
+    // values. The reason is that with string parameters it is possible that the
+    // backup regular API call is used but does not throw an exception. However,
+    // return values of regular API calls cannot be handled correctly at the
+    // moment.
+    if (c_signature->ArgumentInfo(i).GetType() ==
+            CTypeInfo::Type::kSeqOneByteString &&
+        c_signature->ReturnInfo().GetType() != CTypeInfo::Type::kVoid) {
+      return false;
+    }
 #ifdef V8_TARGET_ARCH_X64
     // Clamp lowering in EffectControlLinearizer uses rounding.
     uint8_t flags = uint8_t(c_signature->ArgumentInfo(i).GetFlags());
@@ -144,6 +160,14 @@ bool CanOptimizeFastSignature(const CFunctionInfo* c_signature) {
 #ifndef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
     if (c_signature->ArgumentInfo(i).GetType() == CTypeInfo::Type::kFloat32 ||
         c_signature->ArgumentInfo(i).GetType() == CTypeInfo::Type::kFloat64) {
+      return false;
+    }
+#endif
+
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+    if (!v8_flags.fast_api_allow_float_in_sim &&
+        (c_signature->ArgumentInfo(i).GetType() == CTypeInfo::Type::kFloat32 ||
+         c_signature->ArgumentInfo(i).GetType() == CTypeInfo::Type::kFloat64)) {
       return false;
     }
 #endif
@@ -348,14 +372,8 @@ Node* FastApiCallBuilder::Build(const FastApiCallFunctionVector& c_functions,
     // If this check fails, you've probably added new fields to
     // v8::FastApiCallbackOptions, which means you'll need to write code
     // that initializes and reads from them too.
-    static_assert(kSize == sizeof(uintptr_t) * 4);
+    static_assert(kSize == sizeof(uintptr_t) * 2);
     stack_slot = __ StackSlot(kSize, kAlign);
-
-    __ Store(
-        StoreRepresentation(MachineRepresentation::kWord32, kNoWriteBarrier),
-        stack_slot,
-        static_cast<int>(offsetof(v8::FastApiCallbackOptions, fallback)),
-        __ Int32Constant(0));
 
     __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
                                  kNoWriteBarrier),
@@ -405,25 +423,11 @@ Node* FastApiCallBuilder::Build(const FastApiCallFunctionVector& c_functions,
   Node* fast_call_result = convert_return_value_(c_signature, c_call_result);
 
   auto merge = __ MakeLabel(MachineRepresentation::kTagged);
-  if (c_signature->HasOptions()) {
-    DCHECK_NOT_NULL(stack_slot);
-    Node* load = __ Load(
-        MachineType::Int32(), stack_slot,
-        static_cast<int>(offsetof(v8::FastApiCallbackOptions, fallback)));
+  __ Goto(&if_success);
 
-    Node* is_zero = __ Word32Equal(load, __ Int32Constant(0));
-    __ Branch(is_zero, &if_success, &if_error);
-  } else {
-    __ Goto(&if_success);
-  }
-
-  // We need to generate a fallback (both fast and slow call) in case:
-  // 1) the generated code might fail, in case e.g. a Smi was passed where
-  // a JSObject was expected and an error must be thrown or
-  // 2) the embedder requested fallback possibility via providing options arg.
-  // None of the above usually holds true for Wasm functions with primitive
-  // types only, so we avoid generating an extra branch here.
-  DCHECK_IMPLIES(c_signature->HasOptions(), if_error.IsUsed());
+  // We need to generate a fallback (both fast and slow call) in case
+  // the generated code might fail, in case e.g. a Smi was passed where
+  // a JSObject was expected and an error must be thrown
   if (if_error.IsUsed()) {
     // Generate direct slow call.
     __ Bind(&if_error);

@@ -4,6 +4,8 @@
 
 #include "src/json/json-parser.h"
 
+#include <optional>
+
 #include "src/base/strings.h"
 #include "src/builtins/builtins.h"
 #include "src/common/assert-scope.h"
@@ -357,7 +359,7 @@ bool JsonParser<Char>::IsSpecialString() {
 
 template <typename Char>
 MessageTemplate JsonParser<Char>::GetErrorMessageWithEllipses(
-    Handle<Object>& arg, Handle<Object>& arg2, int pos) {
+    DirectHandle<Object>& arg, DirectHandle<Object>& arg2, int pos) {
   MessageTemplate message;
   Factory* factory = this->factory();
   arg = factory->LookupSingleCharacterStringFromCode(*cursor_);
@@ -398,7 +400,8 @@ MessageTemplate JsonParser<Char>::GetErrorMessageWithEllipses(
 
 template <typename Char>
 MessageTemplate JsonParser<Char>::LookUpErrorMessageForJsonToken(
-    JsonToken token, Handle<Object>& arg, Handle<Object>& arg2, int pos) {
+    JsonToken token, DirectHandle<Object>& arg, DirectHandle<Object>& arg2,
+    int pos) {
   MessageTemplate message;
   switch (token) {
     case JsonToken::EOS:
@@ -424,8 +427,8 @@ MessageTemplate JsonParser<Char>::LookUpErrorMessageForJsonToken(
 }
 
 template <typename Char>
-void JsonParser<Char>::CalculateFileLocation(Handle<Object>& line,
-                                             Handle<Object>& column) {
+void JsonParser<Char>::CalculateFileLocation(DirectHandle<Object>& line,
+                                             DirectHandle<Object>& column) {
   // JSON allows only \r and \n as line terminators.
   // (See https://www.json.org/json-en.html - "whitespace")
   int line_number = 1;
@@ -449,13 +452,13 @@ void JsonParser<Char>::CalculateFileLocation(Handle<Object>& line,
     }
   }
   int column_number = 1 + static_cast<int>(cursor - last_line_break);
-  line = handle(Smi::FromInt(line_number), isolate());
-  column = handle(Smi::FromInt(column_number), isolate());
+  line = direct_handle(Smi::FromInt(line_number), isolate());
+  column = direct_handle(Smi::FromInt(column_number), isolate());
 }
 
 template <typename Char>
 void JsonParser<Char>::ReportUnexpectedToken(
-    JsonToken token, base::Optional<MessageTemplate> errorMessage) {
+    JsonToken token, std::optional<MessageTemplate> errorMessage) {
   // Some exception (for example stack overflow) was already thrown.
   if (isolate_->has_exception()) return;
 
@@ -465,9 +468,9 @@ void JsonParser<Char>::ReportUnexpectedToken(
                    ? Cast<SlicedString>(*original_source_)->offset()
                    : 0;
   int pos = position() - offset;
-  Handle<Object> arg(Smi::FromInt(pos), isolate());
-  Handle<Object> arg2;
-  Handle<Object> arg3;
+  DirectHandle<Object> arg(Smi::FromInt(pos), isolate());
+  DirectHandle<Object> arg2;
+  DirectHandle<Object> arg3;
   CalculateFileLocation(arg2, arg3);
 
   MessageTemplate message =
@@ -1961,10 +1964,9 @@ Handle<Object> JsonParser<Char>::ParseJsonNumber() {
     }
 
     base::Vector<const Char> chars(start, cursor_ - start);
-    number =
-        StringToDouble(chars,
-                       NO_CONVERSION_FLAGS,  // Hex, octal or trailing junk.
-                       std::numeric_limits<double>::quiet_NaN());
+    number = StringToDouble(chars,
+                            NO_CONVERSION_FLAG,  // Hex, octal or trailing junk.
+                            std::numeric_limits<double>::quiet_NaN());
 
     DCHECK(!std::isnan(number));
   }

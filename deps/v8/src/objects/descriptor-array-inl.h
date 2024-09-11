@@ -223,6 +223,7 @@ Tagged<FieldType> DescriptorArray::GetFieldType(
 
 void DescriptorArray::Set(InternalIndex descriptor_number, Tagged<Name> key,
                           Tagged<MaybeObject> value, PropertyDetails details) {
+  CHECK_LT(descriptor_number.as_int(), number_of_descriptors());
   SetKey(descriptor_number, key);
   SetDetails(descriptor_number, details);
   SetValue(descriptor_number, value);

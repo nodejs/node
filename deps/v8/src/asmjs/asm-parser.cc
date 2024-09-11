@@ -8,10 +8,10 @@
 #include <string.h>
 
 #include <algorithm>
+#include <optional>
 
 #include "src/asmjs/asm-js.h"
 #include "src/asmjs/asm-types.h"
-#include "src/base/optional.h"
 #include "src/base/overflowing-math.h"
 #include "src/flags/flags.h"
 #include "src/numbers/conversions-inl.h"
@@ -24,22 +24,22 @@ namespace internal {
 namespace wasm {
 
 #ifdef DEBUG
-#define FAIL_AND_RETURN(ret, msg)                                        \
-  failed_ = true;                                                        \
-  failure_message_ = msg;                                                \
-  failure_location_ = static_cast<int>(scanner_.Position());             \
-  if (v8_flags.trace_asm_parser) {                                       \
-    PrintF("[asm.js failure: %s, token: '%s', see: %s:%d]\n", msg,       \
-           scanner_.Name(scanner_.Token()).c_str(), __FILE__, __LINE__); \
-  }                                                                      \
-  return ret;
+#define TRACE_ASM_PARSER(...)      \
+  if (v8_flags.trace_asm_parser) { \
+    PrintF(__VA_ARGS__);           \
+  }
 #else
-#define FAIL_AND_RETURN(ret, msg)                            \
-  failed_ = true;                                            \
-  failure_message_ = msg;                                    \
-  failure_location_ = static_cast<int>(scanner_.Position()); \
-  return ret;
+#define TRACE_ASM_PARSER(...)
 #endif
+
+#define FAIL_AND_RETURN(ret, msg)                                          \
+  failed_ = true;                                                          \
+  failure_message_ = msg;                                                  \
+  failure_location_ = static_cast<int>(scanner_.Position());               \
+  TRACE_ASM_PARSER("[asm.js failure: %s, token: '%s', see: %s:%d]\n", msg, \
+                   scanner_.Name(scanner_.Token()).c_str(), __FILE__,      \
+                   __LINE__);                                              \
+  return ret;
 
 #define FAIL(msg) FAIL_AND_RETURN(, msg)
 #define FAILn(msg) FAIL_AND_RETURN(nullptr, msg)
@@ -2119,7 +2119,7 @@ AsmType* AsmJsParser::ValidateCall() {
   // both cases we might be seeing the {function_name} for the first time and
   // hence allocate a {VarInfo} here, all subsequent uses of the same name then
   // need to match the information stored at this point.
-  base::Optional<TemporaryVariableScope> tmp_scope;
+  std::optional<TemporaryVariableScope> tmp_scope;
   if (Check('[')) {
     AsmType* index = nullptr;
     RECURSEn(index = EqualityExpression());
@@ -2572,8 +2572,18 @@ void AsmJsParser::GatherCases(ZoneVector<int32_t>* cases) {
   scanner_.Seek(start);
 }
 
+#undef TOK
+#undef RECURSEn
+#undef RECURSE
+#undef RECURSE_OR_RETURN
+#undef EXPECT_TOKENn
+#undef EXPECT_TOKEN
+#undef EXPECT_TOKEN_OR_RETURN
+#undef FAILn
+#undef FAIL
+#undef FAIL_AND_RETURN
+#undef TRACE_ASM_PARSER
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
-
-#undef RECURSE

@@ -31,7 +31,8 @@ void reportError(v8::Local<v8::Context> context, const v8::TryCatch& tryCatch) {
       static_cast<V8InspectorImpl*>(v8::debug::GetInspector(isolate));
   int contextId = InspectedContext::contextId(context);
   int groupId = inspector->contextGroupId(contextId);
-  v8::Local<v8::String> message = tryCatch.Message()->Get();
+  v8::Local<v8::String> message = toV8String(isolate, "<no message available>");
+  if (!tryCatch.Message().IsEmpty()) message = tryCatch.Message()->Get();
   v8::Local<v8::String> prefix =
       toV8String(isolate, "Custom Formatter Failed: ");
   message = v8::String::Concat(isolate, prefix, message);

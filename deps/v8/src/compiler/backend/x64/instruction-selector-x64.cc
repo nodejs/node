@@ -5,11 +5,11 @@
 #include <algorithm>
 #include <cstdint>
 #include <limits>
+#include <optional>
 
 #include "src/base/bounds.h"
 #include "src/base/iterator.h"
 #include "src/base/logging.h"
-#include "src/base/optional.h"
 #include "src/base/overflowing-math.h"
 #include "src/codegen/cpu-features.h"
 #include "src/codegen/machine-type.h"
@@ -104,6 +104,69 @@ bool LhsIsNotOnlyConstant(turboshaft::Graph* graph,
 
 }  // namespace
 
+bool ValueFitsIntoImmediate(int64_t value) {
+  // int32_t min will overflow if displacement mode is kNegativeDisplacement.
+  constexpr int64_t kImmediateMin = std::numeric_limits<int32_t>::min() + 1;
+  constexpr int64_t kImmediateMax = std::numeric_limits<int32_t>::max();
+  static_assert(kImmediateMin ==
+                turboshaft::LoadStoreSimplificationConfiguration::kMinOffset);
+  static_assert(kImmediateMax ==
+                turboshaft::LoadStoreSimplificationConfiguration::kMaxOffset);
+  return kImmediateMin <= value && value <= kImmediateMax;
+}
+
+template <typename Adapter>
+bool CanBeImmediate(InstructionSelectorT<Adapter>* selector,
+                    typename Adapter::node_t node) {
+  // TODO(dmercadier): this is not in sync with GetImmediateIntegerValue, which
+  // is surprising because we often use the pattern
+  // `if (CanBeImmediate()) { GetImmediateIntegerValue }`. We should make sure
+  // that both functions are in sync.
+  if (!selector->is_constant(node)) return false;
+  auto constant = selector->constant_view(node);
+  if (constant.is_compressed_heap_object()) {
+    if (!COMPRESS_POINTERS_BOOL) return false;
+    // For builtin code we need static roots
+    if (selector->isolate()->bootstrapper() && !V8_STATIC_ROOTS_BOOL) {
+      return false;
+    }
+    const RootsTable& roots_table = selector->isolate()->roots_table();
+    RootIndex root_index;
+    Handle<HeapObject> value = constant.heap_object_value();
+    if (roots_table.IsRootHandle(value, &root_index)) {
+      return RootsTable::IsReadOnly(root_index);
+    }
+    return false;
+  }
+  if (constant.is_int32() || constant.is_relocatable_int32()) {
+    const int32_t value = constant.int32_value();
+    // int32_t min will overflow if displacement mode is
+    // kNegativeDisplacement.
+    return value != std::numeric_limits<int32_t>::min();
+  }
+  if (constant.is_int64()) {
+    const int64_t value = constant.int64_value();
+    return ValueFitsIntoImmediate(value);
+  }
+  if (constant.is_number_zero()) {
+    return true;
+  }
+  return false;
+}
+
+template <typename Adapter>
+int32_t GetImmediateIntegerValue(InstructionSelectorT<Adapter>* selector,
+                                 typename Adapter::node_t node) {
+  DCHECK(CanBeImmediate(selector, node));
+  auto constant = selector->constant_view(node);
+  if (constant.is_int32()) return constant.int32_value();
+  if (constant.is_int64()) {
+    return static_cast<int32_t>(constant.int64_value());
+  }
+  DCHECK(constant.is_number_zero());
+  return 0;
+}
+
 template <typename Adapter>
 struct ScaledIndexMatch {
   using node_t = typename Adapter::node_t;
@@ -114,11 +177,11 @@ struct ScaledIndexMatch {
 };
 
 template <typename ScaleMatcher>
-base::Optional<ScaledIndexMatch<TurbofanAdapter>> TryMatchScaledIndex(
+std::optional<ScaledIndexMatch<TurbofanAdapter>> TryMatchScaledIndex(
     InstructionSelectorT<TurbofanAdapter>* selector, Node* node,
     bool allow_power_of_two_plus_one) {
   ScaleMatcher m(node, allow_power_of_two_plus_one);
-  if (!m.matches()) return base::nullopt;
+  if (!m.matches()) return std::nullopt;
   ScaledIndexMatch<TurbofanAdapter> match;
   match.index = node->InputAt(0);
   match.base = m.power_of_two_plus_one() ? match.index : nullptr;
@@ -126,14 +189,14 @@ base::Optional<ScaledIndexMatch<TurbofanAdapter>> TryMatchScaledIndex(
   return match;
 }
 
-base::Optional<ScaledIndexMatch<TurbofanAdapter>> TryMatchScaledIndex32(
+std::optional<ScaledIndexMatch<TurbofanAdapter>> TryMatchScaledIndex32(
     InstructionSelectorT<TurbofanAdapter>* selector, Node* node,
     bool allow_power_of_two_plus_one) {
   return TryMatchScaledIndex<Int32ScaleMatcher>(selector, node,
                                                 allow_power_of_two_plus_one);
 }
 
-base::Optional<ScaledIndexMatch<TurbofanAdapter>> TryMatchScaledIndex64(
+std::optional<ScaledIndexMatch<TurbofanAdapter>> TryMatchScaledIndex64(
     InstructionSelectorT<TurbofanAdapter>* selector, Node* node,
     bool allow_power_of_two_plus_one) {
   return TryMatchScaledIndex<Int64ScaleMatcher>(selector, node,
@@ -197,7 +260,7 @@ bool MatchScaledIndex(InstructionSelectorT<TurboshaftAdapter>* selector,
   return false;
 }
 
-base::Optional<ScaledIndexMatch<TurboshaftAdapter>> TryMatchScaledIndex(
+std::optional<ScaledIndexMatch<TurboshaftAdapter>> TryMatchScaledIndex(
     InstructionSelectorT<TurboshaftAdapter>* selector, turboshaft::OpIndex node,
     bool allow_power_of_two_plus_one) {
   ScaledIndexMatch<TurboshaftAdapter> match;
@@ -207,16 +270,16 @@ base::Optional<ScaledIndexMatch<TurboshaftAdapter>> TryMatchScaledIndex(
     match.base = plus_one ? match.index : turboshaft::OpIndex{};
     return match;
   }
-  return base::nullopt;
+  return std::nullopt;
 }
 
-base::Optional<ScaledIndexMatch<TurboshaftAdapter>> TryMatchScaledIndex32(
+std::optional<ScaledIndexMatch<TurboshaftAdapter>> TryMatchScaledIndex32(
     InstructionSelectorT<TurboshaftAdapter>* selector, turboshaft::OpIndex node,
     bool allow_power_of_two_plus_one) {
   return TryMatchScaledIndex(selector, node, allow_power_of_two_plus_one);
 }
 
-base::Optional<ScaledIndexMatch<TurboshaftAdapter>> TryMatchScaledIndex64(
+std::optional<ScaledIndexMatch<TurboshaftAdapter>> TryMatchScaledIndex64(
     InstructionSelectorT<TurboshaftAdapter>* selector, turboshaft::OpIndex node,
     bool allow_power_of_two_plus_one) {
   return TryMatchScaledIndex(selector, node, allow_power_of_two_plus_one);
@@ -234,7 +297,7 @@ struct BaseWithScaledIndexAndDisplacementMatch {
 };
 
 template <typename BaseWithIndexAndDisplacementMatcher>
-base::Optional<BaseWithScaledIndexAndDisplacementMatch<TurbofanAdapter>>
+std::optional<BaseWithScaledIndexAndDisplacementMatch<TurbofanAdapter>>
 TryMatchBaseWithScaledIndexAndDisplacement(
     InstructionSelectorT<TurbofanAdapter>* selector, Node* node) {
   BaseWithScaledIndexAndDisplacementMatch<TurbofanAdapter> result;
@@ -256,29 +319,29 @@ TryMatchBaseWithScaledIndexAndDisplacement(
     result.displacement_mode = m.displacement_mode();
     return result;
   }
-  return base::nullopt;
+  return std::nullopt;
 }
 
-base::Optional<BaseWithScaledIndexAndDisplacementMatch<TurbofanAdapter>>
+std::optional<BaseWithScaledIndexAndDisplacementMatch<TurbofanAdapter>>
 TryMatchBaseWithScaledIndexAndDisplacement64(
     InstructionSelectorT<TurbofanAdapter>* selector, Node* node) {
   return TryMatchBaseWithScaledIndexAndDisplacement<
       BaseWithIndexAndDisplacement64Matcher>(selector, node);
 }
 
-base::Optional<BaseWithScaledIndexAndDisplacementMatch<TurbofanAdapter>>
+std::optional<BaseWithScaledIndexAndDisplacementMatch<TurbofanAdapter>>
 TryMatchBaseWithScaledIndexAndDisplacement32(
     InstructionSelectorT<TurbofanAdapter>* selector, Node* node) {
   return TryMatchBaseWithScaledIndexAndDisplacement<
       BaseWithIndexAndDisplacement32Matcher>(selector, node);
 }
 
-base::Optional<BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter>>
+std::optional<BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter>>
 TryMatchBaseWithScaledIndexAndDisplacement64ForWordBinop(
     InstructionSelectorT<TurboshaftAdapter>* selector, turboshaft::OpIndex left,
     turboshaft::OpIndex right, bool is_commutative);
 
-base::Optional<BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter>>
+std::optional<BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter>>
 TryMatchBaseWithScaledIndexAndDisplacement64(
     InstructionSelectorT<TurboshaftAdapter>* selector,
     turboshaft::OpIndex node) {
@@ -333,10 +396,18 @@ TryMatchBaseWithScaledIndexAndDisplacement64(
   } else if (const Simd128LoadTransformOp* load_transform =
                  op.TryCast<Simd128LoadTransformOp>()) {
     result.base = load_transform->base();
-    result.index = load_transform->index();
     DCHECK_EQ(load_transform->offset, 0);
+
+    if (CanBeImmediate(selector, load_transform->index())) {
+      result.index = {};
+      result.displacement =
+          GetImmediateIntegerValue(selector, load_transform->index());
+    } else {
+      result.index = load_transform->index();
+      result.displacement = 0;
+    }
+
     result.scale = 0;
-    result.displacement = 0;
     DCHECK(!load_transform->load_kind.tagged_base);
     return result;
 #if V8_ENABLE_WASM_SIMD256_REVEC
@@ -352,7 +423,7 @@ TryMatchBaseWithScaledIndexAndDisplacement64(
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 #endif  // V8_ENABLE_WEBASSEMBLY
   } else {
-    return base::nullopt;
+    return std::nullopt;
   }
 
   const WordBinopOp& binop = op.Cast<WordBinopOp>();
@@ -362,7 +433,7 @@ TryMatchBaseWithScaledIndexAndDisplacement64(
       selector, left, right, binop.IsCommutative());
 }
 
-base::Optional<BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter>>
+std::optional<BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter>>
 TryMatchBaseWithScaledIndexAndDisplacement64ForWordBinop(
     InstructionSelectorT<TurboshaftAdapter>* selector, turboshaft::OpIndex left,
     turboshaft::OpIndex right, bool is_commutative) {
@@ -383,7 +454,7 @@ TryMatchBaseWithScaledIndexAndDisplacement64ForWordBinop(
 
   // Helper to check (S + ...)
   auto match_S_plus = [&selector](OpIndex left, OpIndex right)
-      -> base::Optional<
+      -> std::optional<
           BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter>> {
     BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter> result;
     result.displacement_mode = kPositiveDisplacement;
@@ -400,7 +471,7 @@ TryMatchBaseWithScaledIndexAndDisplacement64ForWordBinop(
         if (right_binop->kind == WordBinopOp::Kind::kSub) {
           if (!selector->MatchSignedIntegralConstant(right_binop->right(),
                                                      &result.displacement)) {
-            return base::nullopt;
+            return std::nullopt;
           }
           result.base = right_binop->left();
           result.displacement_mode = kNegativeDisplacement;
@@ -437,7 +508,7 @@ TryMatchBaseWithScaledIndexAndDisplacement64ForWordBinop(
       return result;
     }
 
-    return base::nullopt;
+    return std::nullopt;
   };
 
   // Helper to check ((S + ...) + ...)
@@ -445,7 +516,7 @@ TryMatchBaseWithScaledIndexAndDisplacement64ForWordBinop(
                                        turboshaft::OpIndex right,
                                        turboshaft::OpIndex left_add_left,
                                        turboshaft::OpIndex left_add_right)
-      -> base::Optional<
+      -> std::optional<
           BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter>> {
     using namespace turboshaft;  // NOLINT(build/namespaces)
     DCHECK_EQ(selector->Get(left).Cast<WordBinopOp>().kind,
@@ -475,13 +546,13 @@ TryMatchBaseWithScaledIndexAndDisplacement64ForWordBinop(
       DCHECK_EQ(result.displacement, 0);
       return result;
     }
-    return base::nullopt;
+    return std::nullopt;
   };
 
   // Helper to check ((... + ...) + ...)
   auto match_plus_plus = [&selector, &match_S_plus_plus](OpIndex left,
                                                          OpIndex right)
-      -> base::Optional<
+      -> std::optional<
           BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter>> {
     BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter> result;
     result.displacement_mode = kPositiveDisplacement;
@@ -500,7 +571,7 @@ TryMatchBaseWithScaledIndexAndDisplacement64ForWordBinop(
       if (maybe_res) return maybe_res;
     }
 
-    return base::nullopt;
+    return std::nullopt;
   };
 
   // Check (S + ...)
@@ -542,7 +613,7 @@ TryMatchBaseWithScaledIndexAndDisplacement64ForWordBinop(
   return result;
 }
 
-base::Optional<BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter>>
+std::optional<BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter>>
 TryMatchBaseWithScaledIndexAndDisplacement32(
     InstructionSelectorT<TurboshaftAdapter>* selector,
     turboshaft::OpIndex node) {
@@ -564,58 +635,22 @@ class X64OperandGeneratorT final : public OperandGeneratorT<Adapter> {
   }
 
   bool CanBeImmediate(node_t node) {
-    if (!this->is_constant(node)) return false;
-    auto constant = this->constant_view(node);
-    if (constant.is_compressed_heap_object()) {
-      if (!COMPRESS_POINTERS_BOOL) return false;
-      // For builtin code we need static roots
-      if (selector()->isolate()->bootstrapper() && !V8_STATIC_ROOTS_BOOL) {
-        return false;
-      }
-      const RootsTable& roots_table = selector()->isolate()->roots_table();
-      RootIndex root_index;
-      Handle<HeapObject> value = constant.heap_object_value();
-      if (roots_table.IsRootHandle(value, &root_index)) {
-        return RootsTable::IsReadOnly(root_index);
-      }
-      return false;
-    }
-    if (constant.is_int32() || constant.is_relocatable_int32()) {
-      const int32_t value = constant.int32_value();
-      // int32_t min will overflow if displacement mode is
-      // kNegativeDisplacement.
-      return value != std::numeric_limits<int32_t>::min();
-    }
-    if (constant.is_int64()) {
-      const int64_t value = constant.int64_value();
-      return std::numeric_limits<int32_t>::min() < value &&
-             value <= std::numeric_limits<int32_t>::max();
-    }
-    if (constant.is_number()) {
-      const double value = constant.number_value();
-      return base::bit_cast<int64_t>(value) == 0;
-    }
-    return false;
+    return compiler::CanBeImmediate(this->selector(), node);
   }
 
   int32_t GetImmediateIntegerValue(node_t node) {
-    DCHECK(CanBeImmediate(node));
-    auto constant = this->constant_view(node);
-    if (constant.is_int32()) return constant.int32_value();
-    if (constant.is_int64()) {
-      return static_cast<int32_t>(constant.int64_value());
-    }
-    DCHECK(constant.is_number());
-    return static_cast<int32_t>(constant.number_value());
+    return compiler::GetImmediateIntegerValue(this->selector(), node);
   }
 
   bool CanBeMemoryOperand(InstructionCode opcode, node_t node, node_t input,
                           int effect_level) {
     if (!this->IsLoadOrLoadImmutable(input)) return false;
     if (!selector()->CanCover(node, input)) return false;
+
     if (effect_level != selector()->GetEffectLevel(input)) {
       return false;
     }
+
     MachineRepresentation rep =
         this->load_view(input).loaded_rep().representation();
     switch (opcode) {
@@ -663,17 +698,6 @@ class X64OperandGeneratorT final : public OperandGeneratorT<Adapter> {
         break;
     }
     return false;
-  }
-
-  bool ValueFitsIntoImmediate(int64_t value) const {
-    // int32_t min will overflow if displacement mode is kNegativeDisplacement.
-    constexpr int64_t kImmediateMin = std::numeric_limits<int32_t>::min() + 1;
-    constexpr int64_t kImmediateMax = std::numeric_limits<int32_t>::max();
-    static_assert(kImmediateMin ==
-                  turboshaft::LoadStoreSimplificationConfiguration::kMinOffset);
-    static_assert(kImmediateMax ==
-                  turboshaft::LoadStoreSimplificationConfiguration::kMaxOffset);
-    return kImmediateMin <= value && value <= kImmediateMax;
   }
 
   bool IsZeroIntConstant(node_t node) const {
@@ -844,7 +868,7 @@ class X64OperandGeneratorT final : public OperandGeneratorT<Adapter> {
   }
 
   bool CanBeBetterLeftOperand(node_t node) const {
-    return !selector()->IsLive(node);
+    return !selector()->IsReallyLive(node);
   }
 };
 
@@ -1032,7 +1056,8 @@ ArchOpcode GetLoadOpcode(turboshaft::MemoryRepresentation loaded_rep,
       DCHECK_EQ(result_rep, RegisterRepresentation::Word64());
       return kX64Movq;
     case MemoryRepresentation::Float16():
-      UNIMPLEMENTED();
+      DCHECK_EQ(result_rep, RegisterRepresentation::Float32());
+      return kX64Movsh;
     case MemoryRepresentation::Float32():
       DCHECK_EQ(result_rep, RegisterRepresentation::Float32());
       return kX64Movss;
@@ -1084,6 +1109,9 @@ ArchOpcode GetLoadOpcode(turboshaft::MemoryRepresentation loaded_rep,
 ArchOpcode GetLoadOpcode(LoadRepresentation load_rep) {
   ArchOpcode opcode;
   switch (load_rep.representation()) {
+    case MachineRepresentation::kFloat16:
+      opcode = kX64Movsh;
+      break;
     case MachineRepresentation::kFloat32:
       opcode = kX64Movss;
       break;
@@ -1137,8 +1165,6 @@ ArchOpcode GetLoadOpcode(LoadRepresentation load_rep) {
     case MachineRepresentation::kSimd256:  // Fall through.
       opcode = kX64Movdqu256;
       break;
-    case MachineRepresentation::kFloat16:
-      UNIMPLEMENTED();
     case MachineRepresentation::kNone:     // Fall through.
     case MachineRepresentation::kMapWord:  // Fall through.
     case MachineRepresentation::kIndirectPointer:  // Fall through.
@@ -1163,7 +1189,7 @@ ArchOpcode GetStoreOpcode(turboshaft::MemoryRepresentation stored_rep) {
     case MemoryRepresentation::Uint64():
       return kX64Movq;
     case MemoryRepresentation::Float16():
-      UNIMPLEMENTED();
+      return kX64Movsh;
     case MemoryRepresentation::Float32():
       return kX64Movss;
     case MemoryRepresentation::Float64():
@@ -1192,6 +1218,8 @@ ArchOpcode GetStoreOpcode(turboshaft::MemoryRepresentation stored_rep) {
 
 ArchOpcode GetStoreOpcode(StoreRepresentation store_rep) {
   switch (store_rep.representation()) {
+    case MachineRepresentation::kFloat16:
+      return kX64Movsh;
     case MachineRepresentation::kFloat32:
       return kX64Movss;
     case MachineRepresentation::kFloat64:
@@ -1224,8 +1252,6 @@ ArchOpcode GetStoreOpcode(StoreRepresentation store_rep) {
       return kX64Movdqu;
     case MachineRepresentation::kSimd256:
       return kX64Movdqu256;
-    case MachineRepresentation::kFloat16:
-      UNIMPLEMENTED();
     case MachineRepresentation::kNone:
     case MachineRepresentation::kMapWord:
     case MachineRepresentation::kProtectedPointer:
@@ -1859,7 +1885,7 @@ void VisitStoreCommon(InstructionSelectorT<Adapter>* selector,
   node_t value = store.value();
   int32_t displacement = store.displacement();
   uint8_t element_size_log2 = store.element_size_log2();
-  base::Optional<AtomicMemoryOrder> atomic_order = store.memory_order();
+  std::optional<AtomicMemoryOrder> atomic_order = store.memory_order();
   MemoryAccessKind acs_kind = store.access_kind();
 
   const StoreRepresentation store_rep = store.stored_rep();
@@ -1958,7 +1984,7 @@ void VisitStoreCommon(InstructionSelectorT<Adapter>* selector,
         inputs[input_count++] = g.GetEffectiveIndexOperand(
             selector->value(index), &addressing_mode);
       } else if (displacement != 0) {
-        DCHECK(g.ValueFitsIntoImmediate(displacement));
+        DCHECK(ValueFitsIntoImmediate(displacement));
         inputs[input_count++] = g.UseImmediate(displacement);
         addressing_mode = kMode_MRI;
       } else {
@@ -2167,16 +2193,16 @@ static void VisitBinop(InstructionSelectorT<Adapter>* selector,
 }
 
 // Shared routine for multiple binary operations.
-base::Optional<int32_t> GetWord32Constant(
+std::optional<int32_t> GetWord32Constant(
     InstructionSelectorT<TurbofanAdapter>* selector, Node* node,
     bool allow_implicit_int64_truncation =
         TurbofanAdapter::AllowsImplicitWord64ToWord32Truncation) {
   DCHECK(!allow_implicit_int64_truncation);
-  if (node->opcode() != IrOpcode::kInt32Constant) return base::nullopt;
+  if (node->opcode() != IrOpcode::kInt32Constant) return std::nullopt;
   return OpParameter<int32_t>(node->op());
 }
 
-base::Optional<int32_t> GetWord32Constant(
+std::optional<int32_t> GetWord32Constant(
     InstructionSelectorT<TurboshaftAdapter>* selector, turboshaft::OpIndex node,
     bool allow_implicit_int64_truncation =
         TurboshaftAdapter::AllowsImplicitWord64ToWord32Truncation) {
@@ -2189,7 +2215,7 @@ base::Optional<int32_t> GetWord32Constant(
       return static_cast<int32_t>(constant->word64());
     }
   }
-  return base::nullopt;
+  return std::nullopt;
 }
 
 template <typename Adapter>
@@ -2234,14 +2260,14 @@ void InstructionSelectorT<Adapter>::VisitWord32And(node_t node) {
   VisitBinop(this, node, kX64And32);
 }
 
-base::Optional<uint64_t> TryGetRightWordConstant(
+std::optional<uint64_t> TryGetRightWordConstant(
     InstructionSelectorT<TurbofanAdapter>* selector, Node* node) {
   Uint64BinopMatcher m(node);
-  if (!m.right().HasResolvedValue()) return base::nullopt;
+  if (!m.right().HasResolvedValue()) return std::nullopt;
   return static_cast<uint64_t>(m.right().ResolvedValue());
 }
 
-base::Optional<uint64_t> TryGetRightWordConstant(
+std::optional<uint64_t> TryGetRightWordConstant(
     InstructionSelectorT<TurboshaftAdapter>* selector,
     turboshaft::OpIndex node) {
   if (const turboshaft::WordBinopOp* binop =
@@ -2251,13 +2277,13 @@ base::Optional<uint64_t> TryGetRightWordConstant(
       return value;
     }
   }
-  return base::nullopt;
+  return std::nullopt;
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord64And(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
-  if (base::Optional<uint64_t> constant = TryGetRightWordConstant(this, node)) {
+  if (std::optional<uint64_t> constant = TryGetRightWordConstant(this, node)) {
     auto left = this->input_at(node, 0);
     if (*constant == 0xFF) {
       Emit(kX64Movzxbq, g.DefineAsRegister(node), g.Use(left));
@@ -2291,7 +2317,7 @@ void InstructionSelectorT<Adapter>::VisitWord64Or(node_t node) {
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32Xor(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
-  if (base::Optional<uint64_t> constant = TryGetRightWordConstant(this, node)) {
+  if (std::optional<uint64_t> constant = TryGetRightWordConstant(this, node)) {
     if (*constant == static_cast<uint64_t>(-1)) {
       Emit(kX64Not32, g.DefineSameAsFirst(node),
            g.UseRegister(this->input_at(node, 0)));
@@ -2304,7 +2330,7 @@ void InstructionSelectorT<Adapter>::VisitWord32Xor(node_t node) {
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord64Xor(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
-  if (base::Optional<uint64_t> constant = TryGetRightWordConstant(this, node)) {
+  if (std::optional<uint64_t> constant = TryGetRightWordConstant(this, node)) {
     if (*constant == static_cast<uint64_t>(-1)) {
       Emit(kX64Not, g.DefineSameAsFirst(node),
            g.UseRegister(this->input_at(node, 0)));
@@ -2655,7 +2681,7 @@ bool TryEmitLoadForLoadWord64AndShiftRight(
     auto m =
         TryMatchBaseWithScaledIndexAndDisplacement64(selector, shift.left());
     if (m.has_value() &&
-        (m->displacement == 0 || g.ValueFitsIntoImmediate(m->displacement))) {
+        (m->displacement == 0 || ValueFitsIntoImmediate(m->displacement))) {
 #ifdef V8_IS_TSAN
       // On TSAN builds we require one scratch register. Because of this we also
       // have to modify the inputs to take into account possible aliasing and
@@ -2849,7 +2875,7 @@ template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitInt32Add(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
 
-  base::Optional<BaseWithScaledIndexAndDisplacementMatch<Adapter>> m;
+  std::optional<BaseWithScaledIndexAndDisplacementMatch<Adapter>> m;
   if constexpr (Adapter::IsTurbofan) {
     DCHECK_EQ(node->InputCount(), 2);
     Node* left = node->InputAt(0);
@@ -2882,7 +2908,7 @@ void InstructionSelectorT<Adapter>::VisitInt32Add(node_t node) {
   }
 
   if (m.has_value()) {
-    if (g.ValueFitsIntoImmediate(m->displacement)) {
+    if (ValueFitsIntoImmediate(m->displacement)) {
       EmitLea(this, kX64Lea32, node, m->index, m->scale, m->base,
               m->displacement, m->displacement_mode);
       return;
@@ -2898,7 +2924,7 @@ void InstructionSelectorT<Adapter>::VisitInt64Add(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
   // Try to match the Add to a leaq pattern
   if (auto match = TryMatchBaseWithScaledIndexAndDisplacement64(this, node)) {
-    if (g.ValueFitsIntoImmediate(match->displacement)) {
+    if (ValueFitsIntoImmediate(match->displacement)) {
       EmitLea(this, kX64Lea, node, match->index, match->scale, match->base,
               match->displacement, match->displacement_mode);
       return;
@@ -3012,7 +3038,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitInt64Sub(node_t node) {
   }
   if (auto constant = TryGetRightWordConstant(this, node)) {
     int64_t immediate_value = -*constant;
-    if (g.ValueFitsIntoImmediate(immediate_value)) {
+    if (ValueFitsIntoImmediate(immediate_value)) {
       // Turn subtractions of constant values into immediate "leaq" instructions
       // by negating the value.
       Emit(kX64Lea | AddressingModeField::encode(kMode_MRI),
@@ -3617,6 +3643,7 @@ void VisitFloatBinop(InstructionSelectorT<Adapter>* selector,
   size_t input_count = 0;
   InstructionOperand outputs[1];
   size_t output_count = 0;
+  typename Adapter::node_t trapping_load = {};
 
   if (left == right) {
     // If both inputs refer to the same operand, enforce allocating a register
@@ -3644,6 +3671,24 @@ void VisitFloatBinop(InstructionSelectorT<Adapter>* selector,
           g.GetEffectiveAddressMemoryOperand(right, inputs, &input_count);
       avx_opcode |= AddressingModeField::encode(addressing_mode);
       sse_opcode |= AddressingModeField::encode(addressing_mode);
+      if constexpr (Adapter::IsTurboshaft) {
+        if (g.IsProtectedLoad(right) &&
+            selector->CanCoverProtectedLoad(node, right)) {
+          // In {CanBeMemoryOperand} we have already checked that
+          // CanCover(node, right) succeds, which means that there is no
+          // instruction with Effects required_when_unused or
+          // produces.control_flow between right and node, and that the node has
+          // no other uses. Therefore, we can record the fact that 'right' was
+          // embedded in 'node' and we can later delete the Load instruction.
+          selector->MarkAsProtected(node);
+          avx_opcode |=
+              AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+          sse_opcode |=
+              AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+          selector->SetProtectedLoadToRemove(right);
+          trapping_load = right;
+        }
+      }
     } else {
       inputs[input_count++] = g.UseRegister(left);
       inputs[input_count++] = g.Use(right);
@@ -3652,17 +3697,16 @@ void VisitFloatBinop(InstructionSelectorT<Adapter>* selector,
 
   DCHECK_NE(0u, input_count);
   DCHECK_GE(arraysize(inputs), input_count);
-
-  if (selector->IsSupported(AVX)) {
-    outputs[output_count++] = g.DefineAsRegister(node);
-    DCHECK_EQ(1u, output_count);
-    DCHECK_GE(arraysize(outputs), output_count);
-    selector->Emit(avx_opcode, output_count, outputs, input_count, inputs);
-  } else {
-    outputs[output_count++] = g.DefineSameAsFirst(node);
-    DCHECK_EQ(1u, output_count);
-    DCHECK_GE(arraysize(outputs), output_count);
-    selector->Emit(sse_opcode, output_count, outputs, input_count, inputs);
+  InstructionCode code = selector->IsSupported(AVX) ? avx_opcode : sse_opcode;
+  outputs[output_count++] = selector->IsSupported(AVX)
+                                ? g.DefineAsRegister(node)
+                                : g.DefineSameAsFirst(node);
+  DCHECK_EQ(1u, output_count);
+  DCHECK_GE(arraysize(outputs), output_count);
+  Instruction* instr =
+      selector->Emit(code, output_count, outputs, input_count, inputs);
+  if (selector->valid(trapping_load)) {
+    selector->UpdateSourcePosition(instr, trapping_load);
   }
 }
 
@@ -3721,6 +3765,10 @@ void VisitFloatUnop(InstructionSelectorT<Adapter>* selector,
 
 #ifdef V8_ENABLE_WEBASSEMBLY
 #define RR_OP_T_LIST_WEBASSEMBLY(V)                                       \
+  V(F16x8Ceil, kX64F16x8Round | MiscField::encode(kRoundUp))              \
+  V(F16x8Floor, kX64F16x8Round | MiscField::encode(kRoundDown))           \
+  V(F16x8Trunc, kX64F16x8Round | MiscField::encode(kRoundToZero))         \
+  V(F16x8NearestInt, kX64F16x8Round | MiscField::encode(kRoundToNearest)) \
   V(F32x4Ceil, kX64F32x4Round | MiscField::encode(kRoundUp))              \
   V(F32x4Floor, kX64F32x4Round | MiscField::encode(kRoundDown))           \
   V(F32x4Trunc, kX64F32x4Round | MiscField::encode(kRoundToZero))         \
@@ -5883,6 +5931,18 @@ VISIT_ATOMIC_BINOP(Xor)
   V(S128Xor, SXor, kL8, kV128)                              \
   V(S256Xor, SXor, kL8, kV256)
 
+#define SIMD_F16x8_BINOP_LIST(V) \
+  V(F16x8Add, FAdd)              \
+  V(F16x8Sub, FSub)              \
+  V(F16x8Mul, FMul)              \
+  V(F16x8Div, FDiv)              \
+  V(F16x8Min, FMin)              \
+  V(F16x8Max, FMax)              \
+  V(F16x8Eq, FEq)                \
+  V(F16x8Ne, FNe)                \
+  V(F16x8Lt, FLt)                \
+  V(F16x8Le, FLe)
+
 #define SIMD_BINOP_LANE_SIZE_VECTOR_LENGTH_LIST(V) \
   V(F64x2Min, FMin, kL64, kV128)                   \
   V(F32x4Min, FMin, kL32, kV128)                   \
@@ -5926,6 +5986,12 @@ VISIT_ATOMIC_BINOP(Xor)
   V(F32x8SConvertI32x8)     \
   V(F32x4DemoteF64x2Zero)   \
   V(F32x4DemoteF64x4)       \
+  V(I16x8SConvertF16x8)     \
+  V(I16x8UConvertF16x8)     \
+  V(F16x8SConvertI16x8)     \
+  V(F16x8UConvertI16x8)     \
+  V(F16x8DemoteF32x4Zero)   \
+  V(F32x4PromoteLowF16x8)   \
   V(I64x2SConvertI32x4Low)  \
   V(I64x2SConvertI32x4High) \
   V(I64x4SConvertI32x4)     \
@@ -5948,14 +6014,17 @@ VISIT_ATOMIC_BINOP(Xor)
 #define SIMD_UNOP_LANE_SIZE_VECTOR_LENGTH_LIST(V) \
   V(F32x4Abs, FAbs, kL32, kV128)                  \
   V(I32x4Abs, IAbs, kL32, kV128)                  \
+  V(F16x8Abs, FAbs, kL16, kV128)                  \
   V(I16x8Abs, IAbs, kL16, kV128)                  \
   V(I8x16Abs, IAbs, kL8, kV128)                   \
   V(F32x4Neg, FNeg, kL32, kV128)                  \
   V(I32x4Neg, INeg, kL32, kV128)                  \
+  V(F16x8Neg, FNeg, kL16, kV128)                  \
   V(I16x8Neg, INeg, kL16, kV128)                  \
   V(I8x16Neg, INeg, kL8, kV128)                   \
   V(F64x2Sqrt, FSqrt, kL64, kV128)                \
   V(F32x4Sqrt, FSqrt, kL32, kV128)                \
+  V(F16x8Sqrt, FSqrt, kL16, kV128)                \
   V(I64x2BitMask, IBitMask, kL64, kV128)          \
   V(I32x4BitMask, IBitMask, kL32, kV128)          \
   V(I16x8BitMask, IBitMask, kL16, kV128)          \
@@ -6082,6 +6151,15 @@ void InstructionSelectorT<Adapter>::VisitF32x4Splat(node_t node) {
 }
 
 template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF16x8Splat(node_t node) {
+  X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 1);
+  Emit(kX64FSplat | LaneSizeField::encode(kL16) |
+           VectorLengthField::encode(kV128),
+       g.DefineAsRegister(node), g.UseRegister(this->input_at(node, 0)));
+}
+
+template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitF64x4Splat(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
   DCHECK_EQ(this->value_input_count(node), 1);
@@ -6126,6 +6204,7 @@ void InstructionSelectorT<Adapter>::VisitF32x8Splat(node_t node) {
 
 SIMD_VISIT_EXTRACT_LANE(F, F64x2, , kL64, kV128)
 SIMD_VISIT_EXTRACT_LANE(F, F32x4, , kL32, kV128)
+SIMD_VISIT_EXTRACT_LANE(F, F16x8, , kL16, kV128)
 SIMD_VISIT_EXTRACT_LANE(I, I64x2, , kL64, kV128)
 SIMD_VISIT_EXTRACT_LANE(I, I32x4, , kL32, kV128)
 SIMD_VISIT_EXTRACT_LANE(I, I16x8, S, kL16, kV128)
@@ -6161,6 +6240,26 @@ void InstructionSelectorT<Adapter>::VisitI8x16ExtractLaneU(node_t node) {
     int32_t lane = OpParameter<int32_t>(node->op());
     Emit(kX64Pextrb, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
          g.UseImmediate(lane));
+  }
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF16x8ReplaceLane(node_t node) {
+  X64OperandGeneratorT<Adapter> g(this);
+  if constexpr (Adapter::IsTurboshaft) {
+    auto& op =
+        this->Get(node).template Cast<turboshaft::Simd128ReplaceLaneOp>();
+    Emit(kX64FReplaceLane | LaneSizeField::encode(kL16) |
+             VectorLengthField::encode(kV128),
+         g.DefineSameAsFirst(node), g.UseRegister(op.into()),
+         g.UseImmediate(op.lane), g.Use(op.new_lane()));
+
+  } else {
+    int32_t lane = OpParameter<int32_t>(node->op());
+    Emit(kX64FReplaceLane | LaneSizeField::encode(kL16) |
+             VectorLengthField::encode(kV128),
+         g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)),
+         g.UseImmediate(lane), g.Use(node->InputAt(1)));
   }
 }
 
@@ -6376,6 +6475,25 @@ SIMD_BINOP_SSE_AVX_LANE_SIZE_VECTOR_LENGTH_LIST(
 #undef VISIT_SIMD_BINOP_LANE_SIZE_VECTOR_LENGTH
 #undef SIMD_BINOP_SSE_AVX_LANE_SIZE_VECTOR_LENGTH_LIST
 
+#define VISIT_SIMD_F16x8_BINOP(Name, Opcode)                               \
+  template <typename Adapter>                                              \
+  void InstructionSelectorT<Adapter>::Visit##Name(node_t node) {           \
+    X64OperandGeneratorT<Adapter> g(this);                                 \
+    DCHECK_EQ(this->value_input_count(node), 2);                           \
+    InstructionOperand temps[] = {g.TempSimd256Register(),                 \
+                                  g.TempSimd256Register()};                \
+    size_t temp_count = arraysize(temps);                                  \
+    Emit(kX64##Opcode | LaneSizeField::encode(kL16) |                      \
+             VectorLengthField::encode(kV128),                             \
+         g.DefineAsRegister(node),                                         \
+         g.UseUniqueRegister(this->input_at(node, 0)),                     \
+         g.UseUniqueRegister(this->input_at(node, 1)), temp_count, temps); \
+  }
+
+SIMD_F16x8_BINOP_LIST(VISIT_SIMD_F16x8_BINOP)
+#undef VISIT_SIMD_F16x8_BINOP
+#undef SIMD_F16x8_BINOP_LIST
+
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitV128AnyTrue(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
@@ -6557,8 +6675,25 @@ VISIT_SIMD_QFMOP(F32x8Qfms)
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 #undef VISIT_SIMD_QFMOP
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI64x2Neg(node_t node) {
+#define VISIT_SIMD_F16x8_QFMOP(Opcode)                                   \
+  template <typename Adapter>                                            \
+  void InstructionSelectorT<Adapter>::Visit##Opcode(node_t node) {       \
+    X64OperandGeneratorT<Adapter> g(this);                               \
+    DCHECK_EQ(this->value_input_count(node), 3);                         \
+    InstructionOperand temps[] = {g.TempSimd256Register(),               \
+                                  g.TempSimd256Register()};              \
+    Emit(kX64##Opcode, g.UseRegister(node),                              \
+         g.UseUniqueRegister(this->input_at(node, 0)),                   \
+         g.UseUniqueRegister(this->input_at(node, 1)),                   \
+         g.UseUniqueRegister(this->input_at(node, 2)), arraysize(temps), \
+         temps);                                                         \
+  }
+
+VISIT_SIMD_F16x8_QFMOP(F16x8Qfma) VISIT_SIMD_F16x8_QFMOP(F16x8Qfms)
+#undef VISIT_SIMD_F16x8_QFMOP
+
+    template <typename Adapter>
+    void InstructionSelectorT<Adapter>::VisitI64x2Neg(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
   DCHECK_EQ(this->value_input_count(node), 1);
   // If AVX unsupported, make sure dst != src to avoid a move.
@@ -7074,6 +7209,46 @@ void InstructionSelectorT<Adapter>::VisitI64x4RelaxedLaneSelect(node_t node) {
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF16x8Pmin(node_t node) {
+  X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 2);
+  InstructionOperand dst = g.DefineAsRegister(node);
+  InstructionCode instr_code = kX64Minph | VectorLengthField::encode(kV128);
+  InstructionOperand temps[] = {g.TempSimd256Register(),
+                                g.TempSimd256Register()};
+  size_t temp_count = arraysize(temps);
+
+  Emit(instr_code, dst, g.UseUniqueRegister(this->input_at(node, 1)),
+       g.UseUniqueRegister(this->input_at(node, 0)), temp_count, temps);
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF16x8Pmax(node_t node) {
+  X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 2);
+  InstructionOperand dst = g.DefineAsRegister(node);
+  InstructionCode instr_code = kX64Maxph | VectorLengthField::encode(kV128);
+  InstructionOperand temps[] = {g.TempSimd256Register(),
+                                g.TempSimd256Register()};
+  size_t temp_count = arraysize(temps);
+
+  Emit(instr_code, dst, g.UseUniqueRegister(this->input_at(node, 1)),
+       g.UseUniqueRegister(this->input_at(node, 0)), temp_count, temps);
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF16x8DemoteF64x2Zero(node_t node) {
+  X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 1);
+  InstructionOperand temps[] = {g.TempRegister(), g.TempSimd128Register(),
+                                g.TempSimd128Register()};
+  size_t temp_count = arraysize(temps);
+
+  Emit(kX64F16x8DemoteF64x2Zero, g.DefineAsRegister(node),
+       g.UseUniqueRegister(this->input_at(node, 0)), temp_count, temps);
+}
+
+template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitF32x4Pmin(node_t node) {
   VisitMinOrMax<Adapter, kV128>(this, node, kX64Minps, true);
 }
@@ -7364,15 +7539,36 @@ void InstructionSelectorT<Adapter>::VisitI64x2Abs(node_t node) {
   }
 }
 
+template <>
+bool InstructionSelectorT<TurboshaftAdapter>::CanOptimizeF64x2PromoteLowF32x4(
+    node_t node) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  DCHECK(this->Get(node).Is<Opmask::kSimd128F64x2PromoteLowF32x4>());
+  V<Simd128> input = this->input_at(node, 0);
+  return this->Get(input).template Is<Opmask::kSimd128LoadTransform64Zero>() &&
+         CanCover(node, input);
+}
+
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitF64x2PromoteLowF32x4(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
   DCHECK_EQ(this->value_input_count(node), 1);
   InstructionCode code = kX64F64x2PromoteLowF32x4;
   if constexpr (Adapter::IsTurboshaft) {
-    // TODO(nicohartmann@): Implement this special case for turboshaft. Note
-    // that this special case may require adaptions in instruction-selector.cc
-    // in `FinishEmittedInstructions`, similar to what exists for TurboFan.
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    if (CanOptimizeF64x2PromoteLowF32x4(node)) {
+      V<Simd128> input = this->input_at(node, 0);
+      const Simd128LoadTransformOp& load_transform =
+          this->Get(input).template Cast<Simd128LoadTransformOp>();
+      if (load_transform.load_kind.with_trap_handler) {
+        code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+      }
+      // LoadTransforms cannot be eliminated, so they are visited even if
+      // unused. Mark it as defined so that we don't visit it.
+      MarkAsDefined(input);
+      VisitLoad(node, input, code);
+      return;
+    }
   } else {
     node_t input = this->input_at(node, 0);
     LoadTransformMatcher m(input);
@@ -7497,6 +7693,10 @@ InstructionSelector::SupportedMachineOperatorFlags() {
              MachineOperatorBuilder::kFloat64RoundTruncate |
              MachineOperatorBuilder::kFloat32RoundTiesEven |
              MachineOperatorBuilder::kFloat64RoundTiesEven;
+  }
+  if (CpuFeatures::IsSupported(F16C)) {
+    flags |= MachineOperatorBuilder::kFloat16 |
+             MachineOperatorBuilder::kFloat64ToFloat16;
   }
   return flags;
 }

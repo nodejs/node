@@ -6,8 +6,8 @@
 #define V8_MAGLEV_MAGLEV_COMPILATION_INFO_H_
 
 #include <memory>
+#include <optional>
 
-#include "src/base/optional.h"
 #include "src/handles/handles.h"
 #include "src/handles/maybe-handles.h"
 #include "src/utils/utils.h"
@@ -130,8 +130,8 @@ class MaglevCompilationInfo final {
  private:
   MaglevCompilationInfo(
       Isolate* isolate, Handle<JSFunction> function, BytecodeOffset osr_offset,
-      base::Optional<compiler::JSHeapBroker*> broker = base::nullopt,
-      base::Optional<bool> specialize_to_function_context = base::nullopt,
+      std::optional<compiler::JSHeapBroker*> broker = std::nullopt,
+      std::optional<bool> specialize_to_function_context = std::nullopt,
       bool for_turboshaft_frontend = false);
 
   // Storing the raw pointer to the CanonicalHandlesMap is generally not safe.

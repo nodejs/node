@@ -350,7 +350,7 @@ TEST_F(ConstantArrayBuilderTest, ReservationsAtAllScales) {
   CHECK_EQ(constant_array->length(), 65537);
   int count = 1;
   for (int i = 0; i < constant_array->length(); ++i) {
-    Handle<Object> expected;
+    DirectHandle<Object> expected;
     if (i == 0 || i == 256 || i == 65536) {
       expected = isolate()->factory()->NewNumber(count++);
     } else {

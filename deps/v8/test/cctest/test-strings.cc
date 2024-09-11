@@ -1339,6 +1339,7 @@ class OneByteVectorResource : public v8::String::ExternalOneByteStringResource {
 
 TEST(InternalizeExternal) {
   v8_flags.stress_incremental_marking = false;
+  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   i::Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -1505,7 +1506,7 @@ TEST(SliceFromSlice) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Value> result;
-  Handle<String> string;
+  DirectHandle<String> string;
   const char* init = "var str = 'abcdefghijklmnopqrstuvwxyz';";
   const char* slice = "var slice = ''; slice = str.slice(1,-1); slice";
   const char* slice_from_slice = "slice.slice(1,-1);";
@@ -1513,14 +1514,14 @@ TEST(SliceFromSlice) {
   CompileRun(init);
   result = CompileRun(slice);
   CHECK(result->IsString());
-  string = v8::Utils::OpenHandle(v8::String::Cast(*result));
+  string = v8::Utils::OpenDirectHandle(v8::String::Cast(*result));
   CHECK(IsSlicedString(*string));
   CHECK(IsSeqString(Cast<SlicedString>(*string)->parent()));
   CHECK_EQ(0, strcmp("bcdefghijklmnopqrstuvwxy", string->ToCString().get()));
 
   result = CompileRun(slice_from_slice);
   CHECK(result->IsString());
-  string = v8::Utils::OpenHandle(v8::String::Cast(*result));
+  string = v8::Utils::OpenDirectHandle(v8::String::Cast(*result));
   CHECK(IsSlicedString(*string));
   CHECK(IsSeqString(Cast<SlicedString>(*string)->parent()));
   CHECK_EQ(0, strcmp("cdefghijklmnopqrstuvwx", string->ToCString().get()));
@@ -1637,11 +1638,25 @@ static void CheckCanonicalEquivalence(uint16_t c, uint16_t test) {
   CHECK_EQ(expect, test);
 }
 
+static inline uint16_t TryConvertToLatin1(uint16_t c) {
+  switch (c) {
+    // This are equivalent characters in unicode.
+    case 0x39c:
+    case 0x3bc:
+      return 0xb5;
+    // This is an uppercase of a Latin-1 character
+    // outside of Latin-1.
+    case 0x178:
+      return 0xff;
+  }
+  return c;
+}
+
 TEST(Latin1IgnoreCase) {
   for (uint16_t c = unibrow::Latin1::kMaxChar + 1; c != 0; c++) {
     uint16_t lower = ConvertLatin1<unibrow::ToLowercase, false>(c);
     uint16_t upper = ConvertLatin1<unibrow::ToUppercase, false>(c);
-    uint16_t test = unibrow::Latin1::TryConvertToLatin1(c);
+    uint16_t test = TryConvertToLatin1(c);
     // Filter out all character whose upper is not their lower or vice versa.
     if (lower == 0 && upper == 0) {
       CheckCanonicalEquivalence(c, test);

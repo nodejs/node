@@ -1146,7 +1146,7 @@ WASM_EXEC_TEST(I16x8Splat) {
     }
   }
 
-  // Test values that do not fit in a int16.
+  // Test values that do not fit in an int16.
   FOR_INT32_INPUTS(x) {
     r.Call(x);
     int16_t expected = truncate_to_int16(x);
@@ -1283,7 +1283,7 @@ WASM_EXEC_TEST(I8x16Splat) {
     }
   }
 
-  // Test values that do not fit in a int16.
+  // Test values that do not fit in an int16.
   FOR_INT16_INPUTS(x) {
     r.Call(x);
     int8_t expected = truncate_to_int8(x);
@@ -4938,6 +4938,39 @@ TEST(RunWasmTurbofan_LoadStoreExtractRevec) {
   r.builder().WriteMemory(&memory[6], 2.0f);
   CHECK_EQ(5.0f, r.Call(0, 32));
 }
+
+#ifdef V8_TARGET_ARCH_X64
+TEST(RunWasmTurbofan_LoadStoreExtract2Revec) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<float, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+  float* memory =
+      r.builder().AddMemoryElems<float>(kWasmPageSize / sizeof(float));
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  constexpr uint8_t offset = 16;
+  {
+    TSSimd256VerifyScope ts_scope(r.zone());
+    // Load two F32x4 vectors, store to memory, and sum up the two F32x4
+    // vectors. Revectorization still succeeds as we can omit the lane 0
+    // extract on x64.
+    r.Build({WASM_LOCAL_SET(temp1, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1))),
+             WASM_LOCAL_SET(temp2, WASM_SIMD_LOAD_MEM_OFFSET(
+                                       offset, WASM_LOCAL_GET(param1))),
+             WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param2), WASM_LOCAL_GET(temp1)),
+             WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param2),
+                                        WASM_LOCAL_GET(temp2)),
+             WASM_SIMD_F32x4_EXTRACT_LANE(
+                 1, WASM_SIMD_BINOP(kExprF32x4Add, WASM_LOCAL_GET(temp1),
+                                    WASM_LOCAL_GET(temp2)))});
+  }
+  r.builder().WriteMemory(&memory[1], 1.0f);
+  r.builder().WriteMemory(&memory[5], 2.0f);
+  CHECK_EQ(3.0f, r.Call(0, 32));
+}
+#endif  // V8_TARGET_ARCH_X64
 
 TEST(RunWasmTurbofan_ReversedLoadStoreExtractRevec) {
   EXPERIMENTAL_FLAG_SCOPE(revectorize);

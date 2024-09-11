@@ -4,6 +4,8 @@
 
 #include "src/compiler/load-elimination.h"
 
+#include <optional>
+
 #include "src/compiler/access-builder.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/js-graph.h"
@@ -671,7 +673,7 @@ LoadElimination::FieldInfo const* LoadElimination::AbstractState::LookupField(
     ConstFieldInfo const_field_info) const {
   // Check if all the indices in {index_range} contain identical information.
   // If not, a partially overlapping access has invalidated part of the value.
-  base::Optional<LoadElimination::FieldInfo const*> result;
+  std::optional<LoadElimination::FieldInfo const*> result;
   for (int index : index_range) {
     LoadElimination::FieldInfo const* info = nullptr;
     if (const_field_info.IsConst()) {

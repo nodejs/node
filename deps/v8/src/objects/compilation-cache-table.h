@@ -147,11 +147,11 @@ class CompilationCacheTable
       DirectHandle<Context> native_context,
       DirectHandle<FeedbackCell> feedback_cell, int position);
 
-  // The RegExp cache contains JSRegExp::data fixed arrays.
+  // The RegExp cache contains RegExpData objects.
   Handle<Object> LookupRegExp(Handle<String> source, JSRegExp::Flags flags);
   static Handle<CompilationCacheTable> PutRegExp(
       Isolate* isolate, Handle<CompilationCacheTable> cache, Handle<String> src,
-      JSRegExp::Flags flags, DirectHandle<FixedArray> value);
+      JSRegExp::Flags flags, DirectHandle<RegExpData> value);
 
   void Remove(Tagged<Object> value);
   void RemoveEntry(InternalIndex entry);

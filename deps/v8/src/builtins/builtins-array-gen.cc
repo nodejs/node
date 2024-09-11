@@ -4,6 +4,8 @@
 
 #include "src/builtins/builtins-array-gen.h"
 
+#include <optional>
+
 #include "src/builtins/builtins-constructor-gen.h"
 #include "src/builtins/builtins-constructor.h"
 #include "src/builtins/builtins-iterator-gen.h"
@@ -23,6 +25,8 @@
 
 namespace v8 {
 namespace internal {
+
+#include "src/codegen/define-code-stub-assembler-macros.inc"
 
 ArrayBuiltinsAssembler::ArrayBuiltinsAssembler(
     compiler::CodeAssemblerState* state)
@@ -462,7 +466,7 @@ TF_BUILTIN(ArrayPrototypePush, CodeStubAssembler) {
   BIND(&default_label);
   {
     args.ForEach(
-        [=](TNode<Object> arg) {
+        [=, this](TNode<Object> arg) {
           TNode<Number> length = LoadJSArrayLength(array_receiver);
           SetPropertyStrict(context, array_receiver, length, arg);
         },
@@ -520,7 +524,7 @@ TF_BUILTIN(CloneFastJSArrayFillingHoles, ArrayBuiltinsAssembler) {
                           LoadElementsKind(array))),
                       Word32BinaryNot(IsNoElementsProtectorCellInvalid())));
 
-  Return(CloneFastJSArray(context, array, base::nullopt,
+  Return(CloneFastJSArray(context, array, std::nullopt,
                           HoleConversionMode::kConvertToUndefined));
 }
 
@@ -1600,7 +1604,7 @@ void ArrayBuiltinsAssembler::TailCallArrayConstructorStub(
 void ArrayBuiltinsAssembler::CreateArrayDispatchNoArgument(
     TNode<Context> context, TNode<JSFunction> target, TNode<Int32T> argc,
     AllocationSiteOverrideMode mode,
-    base::Optional<TNode<AllocationSite>> allocation_site) {
+    std::optional<TNode<AllocationSite>> allocation_site) {
   if (mode == DISABLE_ALLOCATION_SITES) {
     Callable callable = CodeFactory::ArrayNoArgumentConstructor(
         isolate(), GetInitialFastElementsKind(), mode);
@@ -1638,7 +1642,7 @@ void ArrayBuiltinsAssembler::CreateArrayDispatchNoArgument(
 void ArrayBuiltinsAssembler::CreateArrayDispatchSingleArgument(
     TNode<Context> context, TNode<JSFunction> target, TNode<Int32T> argc,
     AllocationSiteOverrideMode mode,
-    base::Optional<TNode<AllocationSite>> allocation_site) {
+    std::optional<TNode<AllocationSite>> allocation_site) {
   if (mode == DISABLE_ALLOCATION_SITES) {
     ElementsKind initial = GetInitialFastElementsKind();
     ElementsKind holey_initial = GetHoleyElementsKind(initial);
@@ -1708,7 +1712,7 @@ void ArrayBuiltinsAssembler::CreateArrayDispatchSingleArgument(
 void ArrayBuiltinsAssembler::GenerateDispatchToArrayStub(
     TNode<Context> context, TNode<JSFunction> target, TNode<Int32T> argc,
     AllocationSiteOverrideMode mode,
-    base::Optional<TNode<AllocationSite>> allocation_site) {
+    std::optional<TNode<AllocationSite>> allocation_site) {
   CodeStubArguments args(this, argc);
   Label check_one_case(this), fallthrough(this);
   GotoIfNot(IntPtrEqual(args.GetLengthWithoutReceiver(), IntPtrConstant(0)),
@@ -1799,7 +1803,7 @@ void ArrayBuiltinsAssembler::GenerateConstructor(
       TNode<JSArray> array = AllocateJSArray(
           elements_kind, array_map, array_size_smi, array_size_smi,
           mode == DONT_TRACK_ALLOCATION_SITE
-              ? base::Optional<TNode<AllocationSite>>(base::nullopt)
+              ? std::optional<TNode<AllocationSite>>(std::nullopt)
               : CAST(allocation_site));
       Return(array);
     }
@@ -1819,10 +1823,10 @@ void ArrayBuiltinsAssembler::GenerateArrayNoArgumentConstructor(
       Parameter<HeapObject>(Descriptor::kFunction), JSFunction::kContextOffset);
   bool track_allocation_site =
       AllocationSite::ShouldTrack(kind) && mode != DISABLE_ALLOCATION_SITES;
-  base::Optional<TNode<AllocationSite>> allocation_site =
+  std::optional<TNode<AllocationSite>> allocation_site =
       track_allocation_site
           ? Parameter<AllocationSite>(Descriptor::kAllocationSite)
-          : base::Optional<TNode<AllocationSite>>(base::nullopt);
+          : std::optional<TNode<AllocationSite>>(std::nullopt);
   TNode<Map> array_map = LoadJSArrayElementsMap(kind, native_context);
   TNode<JSArray> array = AllocateJSArray(
       kind, array_map, IntPtrConstant(JSArray::kPreallocatedArrayElements),
@@ -2241,6 +2245,8 @@ TF_BUILTIN(CreateObjectFromSlowBoilerplateHelper,
     Return(UndefinedConstant(), UndefinedConstant());
   }
 }
+
+#include "src/codegen/undef-code-stub-assembler-macros.inc"
 
 }  // namespace internal
 }  // namespace v8

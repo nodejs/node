@@ -44,7 +44,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   // Trigger tierup.
   %WasmTierUpFunction(wasm.main);
   assertEquals(42, wasm.main(12, 30, wasm.add));
-  if (%IsolateCountForTesting() == 1) {
+  if (%IsWasmTieringPredictable()) {
     assertTrue(%IsTurboFanFunction(wasm.main));
   }
   // Trigger deopt which then calls a target that throws, i.e. the stack trace
@@ -55,7 +55,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   } catch (error) {
     verifyException(error);
   }
-  if (%IsolateCountForTesting() == 1) {
+  if (%IsWasmTieringPredictable()) {
     assertFalse(%IsTurboFanFunction(wasm.main));
   }
   // Rerun unoptimized which should produce the same result.
@@ -73,7 +73,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   } catch (error) {
     verifyException(error);
   }
-  if (%IsolateCountForTesting() == 1) {
+  if (%IsWasmTieringPredictable()) {
     assertTrue(%IsTurboFanFunction(wasm.main));
   }
 

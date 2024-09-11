@@ -172,6 +172,7 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void Cvttss2uiq(Register dst, XMMRegister src, Label* fail = nullptr);
   void Cvttss2ui(Register dst, Operand src, Label* fail = nullptr);
   void Cvttss2ui(Register dst, XMMRegister src, Label* fail = nullptr);
+  void Cvtpd2ph(XMMRegister dst, XMMRegister src, Register tmp);
 
   // cvtsi2sd and cvtsi2ss instructions only write to the low 64/32-bit of dst
   // register, which hinders register renaming and makes dependence chains
@@ -235,6 +236,10 @@ class V8_EXPORT_PRIVATE MacroAssembler
                 YMMRegister scratch);
   void F32x8Max(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,
                 YMMRegister scratch);
+  void F16x8Min(YMMRegister dst, XMMRegister lhs, XMMRegister rhs,
+                YMMRegister scratch, YMMRegister scratch2);
+  void F16x8Max(YMMRegister dst, XMMRegister lhs, XMMRegister rhs,
+                YMMRegister scratch, YMMRegister scratch2);
   void I64x4ExtMul(YMMRegister dst, XMMRegister src1, XMMRegister src2,
                    YMMRegister scratch, bool is_signed);
   void I32x8ExtMul(YMMRegister dst, XMMRegister src1, XMMRegister src2,
@@ -255,9 +260,13 @@ class V8_EXPORT_PRIVATE MacroAssembler
 
   void I32x8SConvertF32x8(YMMRegister dst, YMMRegister src, YMMRegister tmp,
                           Register scratch);
-  void I16x8SConvertF16x8(YMMRegister dst, YMMRegister src, YMMRegister tmp,
+  void I16x8SConvertF16x8(YMMRegister dst, XMMRegister src, YMMRegister tmp,
                           Register scratch);
-  void I16x8TruncF16x8U(YMMRegister dst, YMMRegister src, YMMRegister tmp);
+  void I16x8TruncF16x8U(YMMRegister dst, XMMRegister src, YMMRegister tmp);
+  void F16x8Qfma(YMMRegister dst, XMMRegister src1, XMMRegister src2,
+                 XMMRegister src3, YMMRegister tmp, YMMRegister tmp2);
+  void F16x8Qfms(YMMRegister dst, XMMRegister src1, XMMRegister src2,
+                 XMMRegister src3, YMMRegister tmp, YMMRegister tmp2);
 
   void S256Not(YMMRegister dst, YMMRegister src, YMMRegister scratch);
   void S256Select(YMMRegister dst, YMMRegister mask, YMMRegister src1,
@@ -362,14 +371,21 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // src is always unchanged.
   SmiIndex SmiToIndex(Register dst, Register src, int shift);
 
-  void JumpIfEqual(Register a, int32_t b, Label* dest) {
+  void JumpIf(Condition cond, Register a, int32_t b, Label* dest) {
     cmpl(a, Immediate(b));
-    j(equal, dest);
+    j(cond, dest);
+  }
+
+  void JumpIfEqual(Register a, int32_t b, Label* dest) {
+    JumpIf(equal, a, b, dest);
   }
 
   void JumpIfLessThan(Register a, int32_t b, Label* dest) {
-    cmpl(a, Immediate(b));
-    j(less, dest);
+    JumpIf(less, a, b, dest);
+  }
+
+  void JumpIfUnsignedLessThan(Register a, int32_t b, Label* dest) {
+    JumpIf(below, a, b, dest);
   }
 
   // Caution: if {reg} is a 32-bit negative int, it should be sign-extended to
@@ -806,6 +822,12 @@ class V8_EXPORT_PRIVATE MacroAssembler
                                         CodeEntrypointTag tag);
 #endif  // V8_ENABLE_SANDBOX
 
+#ifdef V8_ENABLE_LEAPTIERING
+  // Load the entrypoint pointer of a JSDispatchTable entry.
+  void LoadCodeEntrypointFromJSDispatchTable(Register destination,
+                                             Operand field_operand);
+#endif  // V8_ENABLE_LEAPTIERING
+
   void LoadProtectedPointerField(Register destination, Operand field_operand);
 
   // Loads and stores the value of an external reference.
@@ -861,6 +883,7 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void RecordWriteField(
       Register object, int offset, Register value, Register slot_address,
       SaveFPRegsMode save_fp, SmiCheck smi_check = SmiCheck::kInline,
+      ReadOnlyCheck ro_check = ReadOnlyCheck::kInline,
       SlotDescriptor slot = SlotDescriptor::ForDirectPointerSlot());
 
   // For page containing |object| mark region covering |address|
@@ -871,6 +894,7 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void RecordWrite(
       Register object, Register slot_address, Register value,
       SaveFPRegsMode save_fp, SmiCheck smi_check = SmiCheck::kInline,
+      ReadOnlyCheck ro_check = ReadOnlyCheck::kInline,
       SlotDescriptor slot = SlotDescriptor::ForDirectPointerSlot());
 
   // Allocates an EXIT/BUILTIN_EXIT/API_CALLBACK_EXIT frame with given number
@@ -938,6 +962,12 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // Variant of the above, which only guarantees to set the correct
   // equal/not_equal flag. Map might not be loaded.
   void IsObjectType(Register heap_object, InstanceType type, Register scratch);
+  // Variant of the above, which compares against a type range rather than a
+  // single type (lower_limit and higher_limit are inclusive).
+  //
+  // Always use unsigned comparisons: below for a positive result.
+  void IsObjectTypeInRange(Register heap_object, InstanceType low,
+                           InstanceType high, Register scratch);
 #if V8_STATIC_ROOTS_BOOL
   // Fast variant which is guaranteed to not actually load the instance type
   // from the map.

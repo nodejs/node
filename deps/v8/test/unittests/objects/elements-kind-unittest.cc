@@ -314,7 +314,7 @@ TEST_F(ElementsKindTest, JSArrayAddingElementsGeneralizingiFastSmiElements) {
 
   Handle<JSArray> array =
       factory->NewJSArray(ElementsKind::PACKED_SMI_ELEMENTS, 0, 0);
-  Handle<Map> previous_map(array->map(), i_isolate());
+  DirectHandle<Map> previous_map(array->map(), i_isolate());
   CHECK_EQ(PACKED_SMI_ELEMENTS, previous_map->elements_kind());
   CHECK_EQ(0, Smi::ToInt(array->length()));
 
@@ -384,7 +384,7 @@ TEST_F(ElementsKindTest, JSArrayAddingElementsGeneralizingFastElements) {
 
   Handle<JSArray> array =
       factory->NewJSArray(ElementsKind::PACKED_ELEMENTS, 0, 0);
-  Handle<Map> previous_map(array->map(), i_isolate());
+  DirectHandle<Map> previous_map(array->map(), i_isolate());
   CHECK_EQ(PACKED_ELEMENTS, previous_map->elements_kind());
   CHECK_EQ(0, Smi::ToInt(array->length()));
 
@@ -431,7 +431,7 @@ TEST_F(ElementsKindTest, JSArrayAddingElementsGeneralizingiFastDoubleElements) {
 
   Handle<JSArray> array =
       factory->NewJSArray(ElementsKind::PACKED_SMI_ELEMENTS, 0, 0);
-  Handle<Map> previous_map(array->map(), i_isolate());
+  DirectHandle<Map> previous_map(array->map(), i_isolate());
 
   // `array[0] = value_double` changes |elements_kind| to PACKED_DOUBLE_ELEMENTS
   name = MakeString("0");

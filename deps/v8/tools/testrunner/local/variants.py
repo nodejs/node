@@ -14,7 +14,7 @@ ALL_VARIANT_FLAGS = {
     "interpreted_regexp": [["--regexp-interpret-all"]],
     "stress_regexp_jit": [["--regexp-tier-up-ticks=0"]],
     "experimental_regexp": [["--default-to-experimental-regexp-engine"]],
-    "jitless": [["--jitless"]],
+    "jitless": [["--jitless", "--wasm-jitless-if-available-for-testing"]],
     "sparkplug": [["--sparkplug"]],
     "maglev": [["--maglev"]],
     "maglev_future": [["--maglev", "--maglev-future"]],
@@ -55,6 +55,7 @@ ALL_VARIANT_FLAGS = {
     ]],
     "minor_ms": [["--minor-ms"]],
     "no_lfa": [["--no-lazy-feedback-allocation"]],
+    "no_memory_protection_keys": [["--no-memory-protection-keys"]],
     # No optimization means disable all optimizations. OptimizeFunctionOnNextCall
     # would not force optimization too. It turns into a Nop. Please see
     # https://chromium-review.googlesource.com/c/452620/ for more discussion.

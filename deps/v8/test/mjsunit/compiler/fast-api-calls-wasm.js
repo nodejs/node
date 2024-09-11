@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --turbo-fast-api-calls --expose-fast-api
+// Flags: --fast-api-allow-float-in-sim
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 

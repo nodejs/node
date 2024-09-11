@@ -286,8 +286,6 @@ class UnifiedHeapWithCustomSpaceTest : public UnifiedHeapTest {
 }  // namespace
 
 TEST_F(UnifiedHeapWithCustomSpaceTest, CollectCustomSpaceStatisticsAtLastGC) {
-  // TPH does not support kIncrementalAndConcurrent yet.
-  if (v8_flags.enable_third_party_heap) return;
   StatisticsReceiver::num_calls_ = 0;
   // Initial state.
   cpp_heap().CollectCustomSpaceStatisticsAtLastGC(
@@ -482,6 +480,7 @@ class GCedWithHeapRef final : public cppgc::GarbageCollected<GCedWithHeapRef> {
 V8_NOINLINE void StackToHeapTest(v8::Isolate* v8_isolate, Operation op,
                                  TargetHandling target_handling) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  i::ManualGCScope manual_gc_scope(i_isolate);
   v8::Global<v8::Object> observer;
   v8::TracedReference<v8::Value> stack_handle;
   v8::CppHeap* cpp_heap = v8_isolate->GetCppHeap();
@@ -530,6 +529,7 @@ V8_NOINLINE void StackToHeapTest(v8::Isolate* v8_isolate, Operation op,
 V8_NOINLINE void HeapToStackTest(v8::Isolate* v8_isolate, Operation op,
                                  TargetHandling target_handling) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  i::ManualGCScope manual_gc_scope(i_isolate);
   v8::Global<v8::Object> observer;
   v8::TracedReference<v8::Value> stack_handle;
   v8::CppHeap* cpp_heap = v8_isolate->GetCppHeap();
@@ -578,6 +578,7 @@ V8_NOINLINE void HeapToStackTest(v8::Isolate* v8_isolate, Operation op,
 V8_NOINLINE void StackToStackTest(v8::Isolate* v8_isolate, Operation op,
                                   TargetHandling target_handling) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  i::ManualGCScope manual_gc_scope(i_isolate);
   v8::Global<v8::Object> observer;
   v8::TracedReference<v8::Value> stack_handle1;
   v8::TracedReference<v8::Value> stack_handle2;

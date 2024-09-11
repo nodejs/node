@@ -5,6 +5,8 @@
 #ifndef V8_COMPILER_BACKEND_INSTRUCTION_SELECTOR_ADAPTER_H_
 #define V8_COMPILER_BACKEND_INSTRUCTION_SELECTOR_ADAPTER_H_
 
+#include <optional>
+
 #include "src/codegen/machine-type.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/common-operator.h"
@@ -109,20 +111,20 @@ struct TurbofanAdapter {
     bool is_number() const {
       return node_->opcode() == IrOpcode::kNumberConstant;
     }
-    double number_value() const {
-      DCHECK(is_number());
-      return OpParameter<double>(node_->op());
+    bool is_number_zero() const {
+      if (!is_number()) return false;
+      return base::bit_cast<uint64_t>(OpParameter<double>(node_->op())) == 0;
     }
     bool is_float() const {
       return node_->opcode() == IrOpcode::kFloat32Constant ||
              node_->opcode() == IrOpcode::kFloat64Constant;
     }
-    double float_value() const {
-      DCHECK(is_float());
+    bool is_float_zero() const {
+      if (!is_float()) return false;
       if (node_->opcode() == IrOpcode::kFloat32Constant) {
-        return OpParameter<float>(node_->op());
+        return base::bit_cast<uint32_t>(OpParameter<float>(node_->op())) == 0;
       } else {
-        return OpParameter<double>(node_->op());
+        return base::bit_cast<uint64_t>(OpParameter<double>(node_->op())) == 0;
       }
     }
 
@@ -259,14 +261,14 @@ struct TurbofanAdapter {
           UNREACHABLE();
       }
     }
-    base::Optional<AtomicMemoryOrder> memory_order() const {
+    std::optional<AtomicMemoryOrder> memory_order() const {
       switch (node_->opcode()) {
         case IrOpcode::kStore:
         case IrOpcode::kProtectedStore:
         case IrOpcode::kStoreTrapOnNull:
         case IrOpcode::kStoreIndirectPointer:
         case IrOpcode::kUnalignedStore:
-          return base::nullopt;
+          return std::nullopt;
         case IrOpcode::kWord32AtomicStore:
         case IrOpcode::kWord64AtomicStore:
           return AtomicStoreParametersOf(node_->op()).order();
@@ -716,19 +718,19 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
       return op_->handle();
     }
     bool is_number() const { return op_->kind == Kind::kNumber; }
-    double number_value() const {
-      DCHECK(is_number());
-      return op_->number();
+    bool is_number_zero() const {
+      if (!is_number()) return false;
+      return op_->number().get_bits() == 0;
     }
     bool is_float() const {
       return op_->kind == Kind::kFloat32 || op_->kind == Kind::kFloat64;
     }
-    double float_value() const {
-      DCHECK(is_float());
+    bool is_float_zero() const {
+      if (!is_float()) return false;
       if (op_->kind == Kind::kFloat32) {
-        return op_->float32();
+        return op_->float32().get_bits() == 0;
       } else {
-        return op_->float64();
+        return op_->float64().get_bits() == 0;
       }
     }
 
@@ -996,10 +998,10 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
     turboshaft::MemoryRepresentation ts_stored_rep() const {
       return op_->stored_rep;
     }
-    base::Optional<AtomicMemoryOrder> memory_order() const {
+    std::optional<AtomicMemoryOrder> memory_order() const {
       // TODO(nicohartmann@): Currently we don't support memory orders.
       if (op_->kind.is_atomic) return AtomicMemoryOrder::kSeqCst;
-      return base::nullopt;
+      return std::nullopt;
     }
     MemoryAccessKind access_kind() const {
       return op_->kind.with_trap_handler ? MemoryAccessKind::kProtected
@@ -1266,6 +1268,23 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
   }
   bool IsLoadOrLoadImmutable(node_t node) const {
     return graph_->Get(node).opcode == turboshaft::Opcode::kLoad;
+  }
+  bool IsProtectedLoad(node_t node) const {
+#if V8_ENABLE_WEBASSEMBLY
+    if (graph_->Get(node).opcode == turboshaft::Opcode::kSimd128LoadTransform) {
+      return true;
+    }
+#if V8_ENABLE_WASM_SIMD256_REVEC
+    if (graph_->Get(node).opcode == turboshaft::Opcode::kSimd256LoadTransform) {
+      return true;
+    }
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+    if (!IsLoadOrLoadImmutable(node)) return false;
+
+    bool traps_on_null;
+    return LoadView(graph_, node).is_protected(&traps_on_null);
   }
 
   int value_input_count(node_t node) const {

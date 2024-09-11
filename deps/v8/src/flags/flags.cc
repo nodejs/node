@@ -12,6 +12,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <iomanip>
+#include <optional>
 #include <set>
 #include <sstream>
 
@@ -34,7 +35,7 @@
 namespace v8::internal {
 
 // Define {v8_flags}, declared in flags.h.
-FlagValues v8_flags;
+FlagValues v8_flags PERMISSION_MUTABLE_SECTION;
 
 // {v8_flags} needs to be aligned to a memory page, and the size needs to be a
 // multiple of a page size. This is required for memory-protection of the memory
@@ -61,7 +62,7 @@ int FlagHelpers::FlagNamesCmp(const char* a, const char* b) {
     if (ac > bc) return 1;
     i++;
   } while (ac != '\0');
-  DCHECK(bc == '\0');
+  DCHECK_EQ(bc, '\0');
   return 0;
 }
 
@@ -265,7 +266,7 @@ void Flag::Reset() {
       set_bool_variable(bool_default(), SetBy::kDefault);
       break;
     case TYPE_MAYBE_BOOL:
-      set_maybe_bool_variable(base::nullopt, SetBy::kDefault);
+      set_maybe_bool_variable(std::nullopt, SetBy::kDefault);
       break;
     case TYPE_INT:
       set_int_variable(int_default(), SetBy::kDefault);

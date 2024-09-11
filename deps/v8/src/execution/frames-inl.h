@@ -5,6 +5,8 @@
 #ifndef V8_EXECUTION_FRAMES_INL_H_
 #define V8_EXECUTION_FRAMES_INL_H_
 
+#include <optional>
+
 #include "src/base/memory.h"
 #include "src/execution/frame-constants.h"
 #include "src/execution/frames.h"
@@ -19,7 +21,7 @@ class InnerPointerToCodeCache final {
  public:
   struct InnerPointerToCodeCacheEntry {
     Address inner_pointer;
-    base::Optional<Tagged<GcSafeCode>> code;
+    std::optional<Tagged<GcSafeCode>> code;
     union {
       SafepointEntry safepoint_entry;
       MaglevSafepointEntry maglev_safepoint_entry;
@@ -328,8 +330,18 @@ inline BuiltinFrame::BuiltinFrame(StackFrameIteratorBase* iterator)
 inline WasmFrame::WasmFrame(StackFrameIteratorBase* iterator)
     : TypedFrame(iterator) {}
 
+inline WasmSegmentStartFrame::WasmSegmentStartFrame(
+    StackFrameIteratorBase* iterator)
+    : WasmFrame(iterator) {}
+
 inline WasmExitFrame::WasmExitFrame(StackFrameIteratorBase* iterator)
     : WasmFrame(iterator) {}
+
+#if V8_ENABLE_DRUMBRAKE
+inline WasmInterpreterEntryFrame::WasmInterpreterEntryFrame(
+    StackFrameIteratorBase* iterator)
+    : WasmFrame(iterator) {}
+#endif  // V8_ENABLE_DRUMBRAKE
 
 inline WasmDebugBreakFrame::WasmDebugBreakFrame(
     StackFrameIteratorBase* iterator)
@@ -404,6 +416,13 @@ bool DebuggableStackFrameIterator::is_javascript() const {
 bool DebuggableStackFrameIterator::is_wasm() const {
   return frame()->is_wasm();
 }
+
+#if V8_ENABLE_DRUMBRAKE
+bool DebuggableStackFrameIterator::is_wasm_interpreter_entry() const {
+  return frame()->is_wasm_interpreter_entry();
+}
+#endif  // V8_ENABLE_DRUMBRAKE
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 JavaScriptFrame* DebuggableStackFrameIterator::javascript_frame() const {
@@ -413,6 +432,9 @@ JavaScriptFrame* DebuggableStackFrameIterator::javascript_frame() const {
 // static
 inline bool StackFrameIteratorForProfiler::IsValidFrameType(
     StackFrame::Type type) {
+#if V8_ENABLE_WEBASSEMBLY
+  DCHECK_NE(type, StackFrame::C_WASM_ENTRY);
+#endif  // V8_ENABLE_WEBASSEMBLY
   return StackFrame::IsJavaScript(type) || type == StackFrame::EXIT ||
          type == StackFrame::BUILTIN_EXIT ||
          type == StackFrame::API_ACCESSOR_EXIT ||
@@ -420,6 +442,10 @@ inline bool StackFrameIteratorForProfiler::IsValidFrameType(
 #if V8_ENABLE_WEBASSEMBLY
          type == StackFrame::WASM || type == StackFrame::WASM_TO_JS ||
          type == StackFrame::JS_TO_WASM ||
+         type == StackFrame::WASM_SEGMENT_START ||
+#if V8_ENABLE_DRUMBRAKE
+         type == StackFrame::WASM_INTERPRETER_ENTRY ||
+#endif  // V8_ENABLE_DRUMBRAKE
 #endif  // V8_ENABLE_WEBASSEMBLY
          false;
 }

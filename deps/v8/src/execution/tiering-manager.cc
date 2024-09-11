@@ -4,6 +4,8 @@
 
 #include "src/execution/tiering-manager.h"
 
+#include <optional>
+
 #include "src/base/platform/platform.h"
 #include "src/baseline/baseline.h"
 #include "src/codegen/assembler.h"
@@ -174,16 +176,15 @@ bool TieringOrTieredUpToOptimizedTier(Tagged<FeedbackVector> vector) {
 }
 
 bool TiersUpToMaglev(CodeKind code_kind) {
-  // TODO(v8:7700): Flip the UNLIKELY when appropriate.
-  return V8_UNLIKELY(maglev::IsMaglevEnabled()) &&
+  return V8_LIKELY(maglev::IsMaglevEnabled()) &&
          CodeKindIsUnoptimizedJSFunction(code_kind);
 }
 
-bool TiersUpToMaglev(base::Optional<CodeKind> code_kind) {
+bool TiersUpToMaglev(std::optional<CodeKind> code_kind) {
   return code_kind.has_value() && TiersUpToMaglev(code_kind.value());
 }
 
-int InterruptBudgetFor(base::Optional<CodeKind> code_kind,
+int InterruptBudgetFor(std::optional<CodeKind> code_kind,
                        TieringState tiering_state,
                        CachedTieringDecision cached_tiering_decision,
                        int bytecode_length) {
@@ -198,19 +199,24 @@ int InterruptBudgetFor(base::Optional<CodeKind> code_kind,
     return v8_flags.invocation_count_for_maglev_osr * bytecode_length;
   }
   if (TiersUpToMaglev(code_kind) && tiering_state == TieringState::kNone) {
-    if (v8_flags.profile_guided_optimization &&
-        (cached_tiering_decision == CachedTieringDecision::kEarlyMaglev ||
-         cached_tiering_decision == CachedTieringDecision::kEarlyTurbofan)) {
-      return v8_flags.invocation_count_for_early_optimization * bytecode_length;
+    if (v8_flags.profile_guided_optimization) {
+      switch (cached_tiering_decision) {
+        case CachedTieringDecision::kDelayMaglev:
+          return (std::max(v8_flags.invocation_count_for_maglev,
+                           v8_flags.minimum_invocations_after_ic_update) +
+                  v8_flags.invocation_count_for_maglev_with_delay) *
+                 bytecode_length;
+        case CachedTieringDecision::kEarlyMaglev:
+        case CachedTieringDecision::kEarlyTurbofan:
+          return v8_flags.invocation_count_for_early_optimization *
+                 bytecode_length;
+        case CachedTieringDecision::kPending:
+        case CachedTieringDecision::kEarlySparkplug:
+        case CachedTieringDecision::kNormal:
+          return v8_flags.invocation_count_for_maglev * bytecode_length;
+      }
     }
     return v8_flags.invocation_count_for_maglev * bytecode_length;
-  }
-  // kEarlyMaglev implies the function has not been tiered up to Turbofan, we
-  // delay turbofan compilation in this case.
-  if (cached_tiering_decision == CachedTieringDecision::kEarlyMaglev) {
-    return v8_flags
-               .invocation_count_for_turbofan_if_profile_guided_non_turbofan *
-           bytecode_length;
   }
   return v8_flags.invocation_count_for_turbofan * bytecode_length;
 }
@@ -220,7 +226,7 @@ int InterruptBudgetFor(base::Optional<CodeKind> code_kind,
 // static
 int TieringManager::InterruptBudgetFor(
     Isolate* isolate, Tagged<JSFunction> function,
-    base::Optional<CodeKind> override_active_tier) {
+    std::optional<CodeKind> override_active_tier) {
   DCHECK(function->shared()->is_compiled());
   const int bytecode_length =
       function->shared()->GetBytecodeArray(isolate)->length();
@@ -414,6 +420,24 @@ OptimizationDecision TieringManager::ShouldOptimize(
   return OptimizationDecision::TurbofanHotAndStable();
 }
 
+namespace {
+
+bool ShouldResetInterruptBudgetByICChange(
+    CachedTieringDecision cached_tiering_decision) {
+  switch (cached_tiering_decision) {
+    case CachedTieringDecision::kEarlyMaglev:
+    case CachedTieringDecision::kEarlyTurbofan:
+      return false;
+    case CachedTieringDecision::kPending:
+    case CachedTieringDecision::kEarlySparkplug:
+    case CachedTieringDecision::kDelayMaglev:
+    case CachedTieringDecision::kNormal:
+      return true;
+  }
+}
+
+}  // namespace
+
 void TieringManager::NotifyICChanged(Tagged<FeedbackVector> vector) {
   CodeKind code_kind = vector->has_optimized_code()
                            ? vector->optimized_code(isolate_)->kind()
@@ -439,8 +463,8 @@ void TieringManager::NotifyICChanged(Tagged<FeedbackVector> vector) {
     int new_budget = invocations * bytecodes;
     int current_budget = cell->interrupt_budget();
     if (v8_flags.profile_guided_optimization &&
-        shared->cached_tiering_decision() <
-            CachedTieringDecision::kEarlyMaglevPending) {
+        shared->cached_tiering_decision() <=
+            CachedTieringDecision::kEarlySparkplug) {
       if (TieringOrTieredUpToOptimizedTier(vector)) {
         shared->set_cached_tiering_decision(CachedTieringDecision::kNormal);
       } else {
@@ -452,7 +476,7 @@ void TieringManager::NotifyICChanged(Tagged<FeedbackVector> vector) {
           // v8_flags.minimum_invocations_after_ic_update * bytecodes
           int new_consumed_budget = new_budget - current_budget;
           new_invocation_count_before_stable =
-              vector->invocation_count_before_stable() +
+              vector->invocation_count_before_stable(kRelaxedLoad) +
               std::ceil(static_cast<float>(new_consumed_budget) / bytecodes);
         } else {
           // Initial interrupt budget is
@@ -466,6 +490,8 @@ void TieringManager::NotifyICChanged(Tagged<FeedbackVector> vector) {
           new_invocation_count_before_stable =
               std::ceil(static_cast<float>(total_consumed_budget) / bytecodes);
         }
+        DCHECK_LT(v8_flags.invocation_count_for_early_optimization,
+                  FeedbackVector::kInvocationCountBeforeStableDeoptSentinel);
         if (new_invocation_count_before_stable >
             v8_flags.invocation_count_for_early_optimization) {
           shared->set_cached_tiering_decision(CachedTieringDecision::kNormal);
@@ -476,9 +502,8 @@ void TieringManager::NotifyICChanged(Tagged<FeedbackVector> vector) {
       }
     }
     if (!v8_flags.profile_guided_optimization ||
-        shared->cached_tiering_decision() <
-            CachedTieringDecision::kEarlyMaglevPending ||
-        shared->cached_tiering_decision() == CachedTieringDecision::kNormal) {
+        ShouldResetInterruptBudgetByICChange(
+            shared->cached_tiering_decision())) {
       if (new_budget > current_budget) {
         if (v8_flags.trace_opt_verbose) {
           PrintF("[delaying optimization of %s, IC changed]\n",
@@ -496,7 +521,7 @@ TieringManager::OnInterruptTickScope::OnInterruptTickScope() {
                "V8.MarkCandidatesForOptimization");
 }
 
-void TieringManager::OnInterruptTick(Handle<JSFunction> function,
+void TieringManager::OnInterruptTick(DirectHandle<JSFunction> function,
                                      CodeKind code_kind) {
   IsCompiledScope is_compiled_scope(
       function->shared()->is_compiled_scope(isolate_));

@@ -15,7 +15,6 @@
 #include "src/roots/roots.h"
 #include "src/sandbox/code-pointer-table.h"
 #include "src/sandbox/cppheap-pointer-table.h"
-#include "src/sandbox/external-buffer-table.h"
 #include "src/sandbox/external-pointer-table.h"
 #include "src/sandbox/trusted-pointer-table.h"
 #include "src/utils/utils.h"
@@ -36,6 +35,57 @@ class Isolate;
   V(kFastCCallAlignmentPaddingOffset, kSystemPointerSize, \
     fast_c_call_alignment_padding)
 #endif  // V8_HOST_ARCH_64_BIT
+
+#ifdef V8_ENABLE_LEAPTIERING
+
+#define BUILTINS_WITH_DISPATCH_ADAPTER(V, CamelName, underscore_name, ...) \
+  V(CamelName, CamelName##SharedFun)
+
+#define BUILTINS_WITH_DISPATCH_LIST(V) \
+  BUILTINS_WITH_SFI_LIST_GENERATOR(BUILTINS_WITH_DISPATCH_ADAPTER, V)
+
+struct JSBuiltinDispatchHandleRoot {
+  enum Idx {
+#define CASE(builtin_name, ...) k##builtin_name,
+    BUILTINS_WITH_DISPATCH_LIST(CASE)
+
+        kCount,
+    kFirst = 0
+#undef CASE
+  };
+
+  static inline Builtin to_builtin(Idx idx) {
+#define CASE(builtin_name, ...) Builtin::k##builtin_name,
+    return std::array<Builtin, Idx::kCount>{
+        BUILTINS_WITH_DISPATCH_LIST(CASE)}[idx];
+#undef CASE
+  }
+  static inline Idx to_idx(Builtin builtin) {
+    switch (builtin) {
+#define CASE(builtin_name, ...)  \
+  case Builtin::k##builtin_name: \
+    return Idx::k##builtin_name;
+      BUILTINS_WITH_DISPATCH_LIST(CASE)
+#undef CASE
+      default:
+        UNREACHABLE();
+    }
+  }
+
+  static inline Idx to_idx(RootIndex root_idx) {
+    switch (root_idx) {
+#define CASE(builtin_name, shared_fun_name, ...) \
+  case RootIndex::k##shared_fun_name:            \
+    return Idx::k##builtin_name;
+      BUILTINS_WITH_DISPATCH_LIST(CASE)
+#undef CASE
+      default:
+        UNREACHABLE();
+    }
+  }
+};
+
+#endif  // V8_ENABLE_LEAPTIERING
 
 // IsolateData fields, defined as: V(CamelName, Size, hacker_name)
 #define ISOLATE_DATA_FIELDS(V)                                                 \
@@ -91,11 +141,9 @@ class Isolate;
 #endif  // V8_COMPRESS_POINTERS
 
 #ifdef V8_ENABLE_SANDBOX
-#define ISOLATE_DATA_FIELDS_SANDBOX(V)                                      \
-  V(TrustedCageBase, kSystemPointerSize, trusted_cage_base)                 \
-  V(TrustedPointerTable, TrustedPointerTable::kSize, trusted_pointer_table) \
-  V(ExternalBufferTable, ExternalBufferTable::kSize, external_buffer_table) \
-  V(SharedExternalBufferTable, kSystemPointerSize, shared_external_buffer_table)
+#define ISOLATE_DATA_FIELDS_SANDBOX(V)                      \
+  V(TrustedCageBase, kSystemPointerSize, trusted_cage_base) \
+  V(TrustedPointerTable, TrustedPointerTable::kSize, trusted_pointer_table)
 #else
 #define ISOLATE_DATA_FIELDS_SANDBOX(V)
 #endif  // V8_ENABLE_SANDBOX
@@ -372,8 +420,6 @@ class IsolateData final {
   const Address trusted_cage_base_;
 
   TrustedPointerTable trusted_pointer_table_;
-  ExternalBufferTable external_buffer_table_;
-  ExternalBufferTable* shared_external_buffer_table_;
 #endif  // V8_ENABLE_SANDBOX
 
   // This is a storage for an additional argument for the Api callback thunk

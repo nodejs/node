@@ -35,6 +35,10 @@ Handle<Object> DeoptimizationLiteral::Reify(Isolate* isolate) const {
     case DeoptimizationLiteralKind::kUnsignedBigInt64: {
       return BigInt::FromUint64(isolate, uint64_);
     }
+    case DeoptimizationLiteralKind::kHoleNaN: {
+      // Hole NaNs that made it to here represent the undefined value.
+      return isolate->factory()->undefined_value();
+    }
     case DeoptimizationLiteralKind::kWasmI31Ref:
     case DeoptimizationLiteralKind::kWasmInt32:
     case DeoptimizationLiteralKind::kWasmFloat32:

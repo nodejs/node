@@ -114,6 +114,8 @@ void StaticRootsTableGen::write(Isolate* isolate, const char* file) {
   }
 
   out << "\n";
+  out << "  static constexpr Tagged_t kFirstAllocatedRoot = 0x" << std::hex
+      << gen.sorted_roots().cbegin()->first << std::dec << ";\n";
   out << "  static constexpr Tagged_t kLastAllocatedRoot = 0x" << std::hex
       << gen.sorted_roots().crbegin()->first << std::dec << ";\n";
   out << "};\n";

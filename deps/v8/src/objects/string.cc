@@ -712,93 +712,16 @@ bool String::LooksValid() {
   // TODO(leszeks): Maybe remove this check entirely, Heap::Contains uses
   // basically the same logic as the way we access the heap in the first place.
   // RO_SPACE objects should always be valid.
-  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return true;
   if (ReadOnlyHeap::Contains(this)) return true;
   MemoryChunkMetadata* chunk = MemoryChunkMetadata::FromHeapObject(this);
   if (chunk->heap() == nullptr) return false;
   return chunk->heap()->Contains(this);
 }
 
-namespace {
-
-bool AreDigits(const uint8_t* s, int from, int to) {
-  for (int i = from; i < to; i++) {
-    if (s[i] < '0' || s[i] > '9') return false;
-  }
-
-  return true;
-}
-
-int ParseDecimalInteger(const uint8_t* s, int from, int to) {
-  DCHECK_LT(to - from, 10);  // Overflow is not possible.
-  DCHECK(from < to);
-  int d = s[from] - '0';
-
-  for (int i = from + 1; i < to; i++) {
-    d = 10 * d + (s[i] - '0');
-  }
-
-  return d;
-}
-
-}  // namespace
-
 // static
 Handle<Number> String::ToNumber(Isolate* isolate, Handle<String> subject) {
-  // Flatten {subject} string first.
-  subject = String::Flatten(isolate, subject);
-
-  // Fast array index case.
-  uint32_t index;
-  if (subject->AsArrayIndex(&index)) {
-    return isolate->factory()->NewNumberFromUint(index);
-  }
-
-  // Fast case: short integer or some sorts of junk values.
-  if (IsSeqOneByteString(*subject)) {
-    int len = subject->length();
-    if (len == 0) return handle(Smi::zero(), isolate);
-
-    DisallowGarbageCollection no_gc;
-    uint8_t const* data = Cast<SeqOneByteString>(subject)->GetChars(no_gc);
-    bool minus = (data[0] == '-');
-    int start_pos = (minus ? 1 : 0);
-
-    if (start_pos == len) {
-      return isolate->factory()->nan_value();
-    } else if (data[start_pos] > '9') {
-      // Fast check for a junk value. A valid string may start from a
-      // whitespace, a sign ('+' or '-'), the decimal point, a decimal digit
-      // or the 'I' character ('Infinity'). All of that have codes not greater
-      // than '9' except 'I' and &nbsp;.
-      if (data[start_pos] != 'I' && data[start_pos] != 0xA0) {
-        return isolate->factory()->nan_value();
-      }
-    } else if (len - start_pos < 10 && AreDigits(data, start_pos, len)) {
-      // The maximal/minimal smi has 10 digits. If the string has less digits
-      // we know it will fit into the smi-data type.
-      int d = ParseDecimalInteger(data, start_pos, len);
-      if (minus) {
-        if (d == 0) return isolate->factory()->minus_zero_value();
-        d = -d;
-      } else if (!subject->HasHashCode() && len <= String::kMaxArrayIndexSize &&
-                 (len == 1 || data[0] != '0')) {
-        // String hash is not calculated yet but all the data are present.
-        // Update the hash field to speed up sequential convertions.
-        uint32_t raw_hash_field = StringHasher::MakeArrayIndexHash(d, len);
-#ifdef DEBUG
-        subject->EnsureHash();  // Force hash calculation.
-        DCHECK_EQ(subject->raw_hash_field(), raw_hash_field);
-#endif
-        subject->set_raw_hash_field_if_empty(raw_hash_field);
-      }
-      return handle(Smi::FromInt(d), isolate);
-    }
-  }
-
-  // Slower case.
-  int flags = ALLOW_HEX | ALLOW_OCTAL | ALLOW_BINARY;
-  return isolate->factory()->NewNumber(StringToDouble(isolate, subject, flags));
+  return isolate->factory()->NewNumber(
+      StringToDouble(isolate, subject, ALLOW_NON_DECIMAL_PREFIX));
 }
 
 String::FlatContent String::SlowGetFlatContent(

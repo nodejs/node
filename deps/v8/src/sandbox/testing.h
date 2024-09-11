@@ -5,6 +5,8 @@
 #ifndef V8_SANDBOX_TESTING_H_
 #define V8_SANDBOX_TESTING_H_
 
+#include <unordered_map>
+
 #include "src/common/globals.h"
 #include "src/objects/instance-type.h"
 

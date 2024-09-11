@@ -137,7 +137,7 @@ class ObjectVisitor {
                              ObjectSlot end) = 0;
   virtual void VisitPointers(Tagged<HeapObject> host, MaybeObjectSlot start,
                              MaybeObjectSlot end) = 0;
-  // When V8_EXTERNAL_CODE_SPACE is enabled, visits a InstructionStream pointer
+  // When V8_EXTERNAL_CODE_SPACE is enabled, visits an InstructionStream pointer
   // slot. The values may be modified on return. Not used when
   // V8_EXTERNAL_CODE_SPACE is not enabled (the InstructionStream pointer slots
   // are visited as a part of on-heap slot visitation - via VisitPointers()).
@@ -262,7 +262,7 @@ class ClientRootVisitor final : public RootVisitor {
                          FullObjectSlot start, FullObjectSlot end) final {
     for (FullObjectSlot p = start; p < end; ++p) {
       Tagged<Object> object = *p;
-#ifdef V8_ENABLE_DIRECT_LOCAL
+#ifdef V8_ENABLE_DIRECT_HANDLE
       if (object.ptr() == ValueHelper::kTaggedNullAddress) continue;
 #endif
       if (!IsSharedHeapObject(object)) continue;

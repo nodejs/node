@@ -56,6 +56,8 @@ class V8_EXPORT_PRIVATE BackgroundMergeTask {
     return state_ == kPendingForegroundWork;
   }
 
+  static void ForceGCDuringNextMergeForTesting();
+
  private:
   std::unique_ptr<PersistentHandles> persistent_handles_;
 

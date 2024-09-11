@@ -7,6 +7,7 @@
 #include <iterator>
 #include <map>
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "include/v8-callbacks.h"
@@ -630,9 +631,6 @@ class ELF {
 #elif V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_64_BIT || \
     V8_TARGET_ARCH_PPC64 && V8_TARGET_LITTLE_ENDIAN
     const uint8_t ident[16] = {0x7F, 'E', 'L', 'F', 2, 1, 1, 0,
-                               0,    0,   0,   0,   0, 0, 0, 0};
-#elif V8_TARGET_ARCH_PPC64 && V8_TARGET_BIG_ENDIAN && V8_OS_LINUX
-    const uint8_t ident[16] = {0x7F, 'E', 'L', 'F', 2, 2, 1, 0,
                                0,    0,   0,   0,   0, 0, 0, 0};
 #elif V8_TARGET_ARCH_S390X
     const uint8_t ident[16] = {0x7F, 'E', 'L', 'F', 2, 2, 1, 3,
@@ -1916,7 +1914,7 @@ static void AddUnwindInfo(CodeDescription* desc) {
 
 static base::LazyMutex mutex = LAZY_MUTEX_INITIALIZER;
 
-static base::Optional<std::pair<CodeMap::iterator, CodeMap::iterator>>
+static std::optional<std::pair<CodeMap::iterator, CodeMap::iterator>>
 GetOverlappingRegions(CodeMap* map, const base::AddressRegion region) {
   DCHECK_LT(region.begin(), region.end());
 

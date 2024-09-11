@@ -230,7 +230,7 @@ BUILTIN(AtomicsMutexAsyncUnlockResolveHandler) {
   DCHECK(v8_flags.harmony_struct);
   HandleScope scope(isolate);
 
-  Handle<Object> previous_result = args.atOrUndefined(isolate, 1);
+  DirectHandle<Object> previous_result = args.atOrUndefined(isolate, 1);
   Handle<JSPromise> js_unlock_promise =
       UnlockAsyncLockedMutexFromPromiseHandler(isolate);
 

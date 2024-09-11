@@ -297,7 +297,7 @@ RUNTIME_FUNCTION(Runtime_AddPrivateBrand) {
   DCHECK_EQ(args.length(), 4);
   Handle<JSReceiver> receiver = args.at<JSReceiver>(0);
   Handle<Symbol> brand = args.at<Symbol>(1);
-  Handle<Context> context = args.at<Context>(2);
+  DirectHandle<Context> context = args.at<Context>(2);
   int depth = args.smi_value_at(3);
   DCHECK(brand->is_private_name());
 
@@ -474,7 +474,7 @@ RUNTIME_FUNCTION(Runtime_InternalSetPrototype) {
 RUNTIME_FUNCTION(Runtime_OptimizeObjectForAddingMultipleProperties) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<JSObject> object = args.at<JSObject>(0);
+  DirectHandle<JSObject> object = args.at<JSObject>(0);
   int properties = args.smi_value_at(1);
   // Conservative upper limit to prevent fuzz tests from going OOM.
   if (properties > 100000) return isolate->ThrowIllegalOperation();
@@ -898,7 +898,7 @@ RUNTIME_FUNCTION(Runtime_CompleteInobjectSlackTrackingForMap) {
 RUNTIME_FUNCTION(Runtime_TryMigrateInstance) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<JSObject> js_object = args.at<JSObject>(0);
+  DirectHandle<JSObject> js_object = args.at<JSObject>(0);
   // It could have been a DCHECK but we call this function directly from tests.
   if (!js_object->map()->is_deprecated()) return Smi::zero();
   // This call must not cause lazy deopts, because it's called from deferred
@@ -925,9 +925,9 @@ RUNTIME_FUNCTION(Runtime_DefineAccessorPropertyUnchecked) {
   Handle<JSObject> obj = args.at<JSObject>(0);
   CHECK(!IsNull(*obj, isolate));
   Handle<Name> name = args.at<Name>(1);
-  Handle<Object> getter = args.at(2);
+  DirectHandle<Object> getter = args.at(2);
   CHECK(IsValidAccessor(isolate, getter));
-  Handle<Object> setter = args.at(3);
+  DirectHandle<Object> setter = args.at(3);
   CHECK(IsValidAccessor(isolate, setter));
   auto attrs = PropertyAttributesFromInt(args.smi_value_at(4));
 
@@ -970,7 +970,7 @@ RUNTIME_FUNCTION(Runtime_DefineKeyedOwnPropertyInLiteral) {
     DCHECK(IsName(*name));
     DCHECK(IsFeedbackVector(*maybe_vector));
     Handle<FeedbackVector> vector = Cast<FeedbackVector>(maybe_vector);
-    FeedbackNexus nexus(vector, FeedbackVector::ToSlot(index));
+    FeedbackNexus nexus(isolate, vector, FeedbackVector::ToSlot(index));
     if (nexus.ic_state() == InlineCacheState::UNINITIALIZED) {
       if (IsUniqueName(*name)) {
         nexus.ConfigureMonomorphic(Cast<Name>(name),

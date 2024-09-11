@@ -94,7 +94,7 @@ transitioning javascript builtin TypedArrayFrom(
             // Check that the iterator function is exactly
             // Builtin::kArrayPrototypeValues.
             if (!TaggedEqual(
-                    iteratorFn.shared_function_info.function_data,
+                    iteratorFn.shared_function_info.untrusted_function_data,
                     SmiConstant(kArrayPrototypeValues))) {
               goto UseUserProvidedIterator;
             }
@@ -113,7 +113,7 @@ transitioning javascript builtin TypedArrayFrom(
             // Check that the iterator function is exactly
             // Builtin::kTypedArrayPrototypeValues.
             if (!TaggedEqual(
-                    iteratorFn.shared_function_info.function_data,
+                    iteratorFn.shared_function_info.untrusted_function_data,
                     SmiConstant(kTypedArrayPrototypeValues)))
               goto UseUserProvidedIterator;
 
@@ -126,7 +126,7 @@ transitioning javascript builtin TypedArrayFrom(
             // Check that the iterator function is exactly
             // Builtin::kSetPrototypeValues.
             if (!TaggedEqual(
-                    iteratorFn.shared_function_info.function_data,
+                    iteratorFn.shared_function_info.untrusted_function_data,
                     SmiConstant(kSetPrototypeValues))) {
               goto UseUserProvidedIterator;
             }

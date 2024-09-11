@@ -119,9 +119,6 @@ MarkerBase::IncrementalMarkingTask::Post(cppgc::TaskRunner* runner,
                      HeapBase::StackSupport::kSupportsConservativeStackScan,
                  runner->NonNestableTasksEnabled());
 
-  const bool should_use_delayed_task =
-      !marker->config_.incremental_task_delay.IsZero() &&
-      marker->IsAheadOfSchedule();
   const bool non_nestable_tasks_enabled = runner->NonNestableTasksEnabled();
 
   auto task = std::make_unique<IncrementalMarkingTask>(
@@ -129,19 +126,9 @@ MarkerBase::IncrementalMarkingTask::Post(cppgc::TaskRunner* runner,
                                          : StackState::kMayContainHeapPointers);
   auto handle = task->handle_;
   if (non_nestable_tasks_enabled) {
-    if (should_use_delayed_task) {
-      runner->PostNonNestableDelayedTask(
-          std::move(task), marker->config_.incremental_task_delay.InSecondsF());
-    } else {
-      runner->PostNonNestableTask(std::move(task));
-    }
+    runner->PostNonNestableTask(std::move(task));
   } else {
-    if (should_use_delayed_task) {
-      runner->PostDelayedTask(
-          std::move(task), marker->config_.incremental_task_delay.InSecondsF());
-    } else {
-      runner->PostTask(std::move(task));
-    }
+    runner->PostTask(std::move(task));
   }
   return handle;
 }
@@ -391,6 +378,33 @@ class WeakCallbackJobTask final : public cppgc::JobTask {
   LivenessBroker& broker_;
 };
 
+class WeakPersistentJobTask final : public cppgc::JobTask {
+ public:
+  WeakPersistentJobTask(MarkerBase* marker,
+                        RootMarkingVisitor* root_marking_visitor)
+      : marker_(marker),
+        root_marking_visitor_(root_marking_visitor),
+        pending_(true) {}
+
+  void Run(JobDelegate* delegate) override {
+    StatsCollector::EnabledConcurrentScope stats_scope(
+        marker_->heap().stats_collector(),
+        StatsCollector::kConcurrentWeakPersistent);
+    marker_->heap().GetWeakPersistentRegion().Iterate(*root_marking_visitor_);
+    pending_.store(false);
+  }
+
+  size_t GetMaxConcurrency(size_t worker_count) const override {
+    return std::min(static_cast<size_t>(1),
+                    (pending_.load() ? 1 : 0) + worker_count);
+  }
+
+ private:
+  MarkerBase* marker_;
+  RootMarkingVisitor* root_marking_visitor_;
+  std::atomic<bool> pending_;
+};
+
 void MarkerBase::ProcessWeakness() {
   DCHECK_EQ(MarkingConfig::MarkingType::kAtomic, config_.marking_type);
 
@@ -406,21 +420,43 @@ void MarkerBase::ProcessWeakness() {
   heap().GetWeakCrossThreadPersistentRegion().Iterate(root_marking_visitor);
   g_process_mutex.Pointer()->Unlock();
 
-  // Launch the parallel job before anything else to provide the maximum time
-  // slice for processing.
+  // Launch two parallel jobs before anything else to provide the maximum time
+  // slice for processing: one for weak callbacks and one for same-thread weak
+  // persistents.
   LivenessBroker broker = LivenessBrokerFactory::Create();
-  std::unique_ptr<cppgc::JobHandle> job_handle{nullptr};
+  std::unique_ptr<cppgc::JobHandle> weak_callback_job_handle{nullptr};
+  std::unique_ptr<cppgc::JobHandle> weak_persistent_job_handle{nullptr};
   if (heap().marking_support() ==
       cppgc::Heap::MarkingType::kIncrementalAndConcurrent) {
-    job_handle = platform_->PostJob(
+    weak_callback_job_handle = platform_->PostJob(
         cppgc::TaskPriority::kUserBlocking,
         std::make_unique<WeakCallbackJobTask>(
             this, marking_worklists_.parallel_weak_callback_worklist(),
             broker));
+    weak_persistent_job_handle = platform_->PostJob(
+        cppgc::TaskPriority::kUserBlocking,
+        std::make_unique<WeakPersistentJobTask>(this, &root_marking_visitor));
   }
 
-  // Process same-thread roots.
-  heap().GetWeakPersistentRegion().Iterate(root_marking_visitor);
+  {
+    // Process weak container callbacks.
+    StatsCollector::EnabledScope stats_scope(
+        heap().stats_collector(),
+        StatsCollector::kWeakContainerCallbacksProcessing);
+    MarkingWorklists::WeakCallbackItem item;
+    MarkingWorklists::WeakCallbackWorklist::Local& collections_local =
+        mutator_marking_state_.weak_container_callback_worklist();
+    while (collections_local.Pop(&item)) {
+      item.callback(broker, item.parameter);
+    }
+  }
+
+  // Finish processing same-thread WeakPersistents.
+  if (weak_persistent_job_handle) {
+    weak_persistent_job_handle->Join();
+  } else {
+    heap().GetWeakPersistentRegion().Iterate(root_marking_visitor);
+  }
 
   // Call weak callbacks on objects that may now be pointing to dead objects.
 #if defined(CPPGC_YOUNG_GENERATION)
@@ -443,19 +479,10 @@ void MarkerBase::ProcessWeakness() {
 #endif  // defined(CPPGC_YOUNG_GENERATION)
 
   {
-    // First, process weak container callbacks.
-    StatsCollector::EnabledScope stats_scope(
-        heap().stats_collector(),
-        StatsCollector::kWeakContainerCallbacksProcessing);
-    MarkingWorklists::WeakCallbackItem item;
-    MarkingWorklists::WeakCallbackWorklist::Local& collections_local =
-        mutator_marking_state_.weak_container_callback_worklist();
-    while (collections_local.Pop(&item)) {
-      item.callback(broker, item.parameter);
-    }
-  }
-  {
-    // Then, process custom weak callbacks.
+    // Process custom weak callbacks.
+    // Processing same-thread WeakPersistents must be finished before this, as
+    // custom weak callbacks may allocate new WeakPersistents, thus leading to
+    // data races.
     StatsCollector::EnabledScope stats_scope(
         heap().stats_collector(), StatsCollector::kCustomCallbacksProcessing);
     MarkingWorklists::WeakCallbackItem item;
@@ -470,8 +497,9 @@ void MarkerBase::ProcessWeakness() {
     }
   }
 
-  if (job_handle) {
-    job_handle->Join();
+  // Finish processing parallel weak callbacks.
+  if (weak_callback_job_handle) {
+    weak_callback_job_handle->Join();
   } else {
     MarkingWorklists::WeakCallbackItem item;
     MarkingWorklists::WeakCallbackWorklist::Local& local =

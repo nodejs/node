@@ -248,7 +248,8 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
         PrivateNameLookupSkipsOuterClassBit::encode(
             scope->private_name_lookup_skips_outer_class()) |
         HasContextExtensionSlotBit::encode(scope->HasContextExtensionSlot()) |
-        HasLocalsBlockListBit::encode(false);
+        IsHiddenBit::encode(scope->is_hidden()) |
+        IsWrappedFunctionBit::encode(scope->is_wrapped_function());
     scope_info->set_flags(flags);
 
     scope_info->set_parameter_count(parameter_count);
@@ -449,8 +450,8 @@ Handle<ScopeInfo> ScopeInfo::CreateForWithScope(
       IsDebugEvaluateScopeBit::encode(false) |
       ForceContextAllocationBit::encode(false) |
       PrivateNameLookupSkipsOuterClassBit::encode(false) |
-      HasContextExtensionSlotBit::encode(true) |
-      HasLocalsBlockListBit::encode(false);
+      HasContextExtensionSlotBit::encode(true) | IsHiddenBit::encode(false) |
+      IsWrappedFunctionBit::encode(false);
   scope_info->set_flags(flags);
 
   scope_info->set_parameter_count(0);
@@ -543,7 +544,7 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
       PrivateNameLookupSkipsOuterClassBit::encode(false) |
       HasContextExtensionSlotBit::encode(is_native_context ||
                                          has_const_tracking_let_side_data) |
-      HasLocalsBlockListBit::encode(false);
+      IsHiddenBit::encode(false) | IsWrappedFunctionBit::encode(false);
   Tagged<ScopeInfo> raw_scope_info = *scope_info;
   raw_scope_info->set_flags(flags);
   raw_scope_info->set_parameter_count(parameter_count);
@@ -640,41 +641,6 @@ int ScopeInfo::length() const {
   return (AllocatedSize() - HeapObject::kHeaderSize) / kTaggedSize;
 }
 
-// static
-Handle<ScopeInfo> ScopeInfo::RecreateWithBlockList(
-    Isolate* isolate, Handle<ScopeInfo> original,
-    DirectHandle<StringSet> blocklist) {
-  DCHECK(!original.is_null());
-  if (original->HasLocalsBlockList()) return original;
-
-  int length = original->length() + 1;
-  Handle<ScopeInfo> scope_info = isolate->factory()->NewScopeInfo(length);
-
-  // Copy the static part first and update the flags to include the
-  // blocklist field, so {LocalsBlockListIndex} returns the correct value.
-  scope_info->CopyElements(isolate, 0, *original, 0, kVariablePartIndex,
-                           WriteBarrierMode::UPDATE_WRITE_BARRIER);
-  scope_info->set_flags(
-      HasLocalsBlockListBit::update(scope_info->Flags(), true));
-  scope_info->set_position_info_start(original->position_info_start());
-  scope_info->set_position_info_end(original->position_info_end());
-
-  // Copy the dynamic part including the provided blocklist:
-  //   1) copy all the fields up to the blocklist index
-  //   2) add the blocklist
-  //   3) copy the remaining fields
-  scope_info->CopyElements(
-      isolate, kVariablePartIndex, *original, kVariablePartIndex,
-      scope_info->LocalsBlockListIndex() - kVariablePartIndex,
-      WriteBarrierMode::UPDATE_WRITE_BARRIER);
-  scope_info->set_locals_block_list(*blocklist);
-  scope_info->CopyElements(isolate, scope_info->LocalsBlockListIndex() + 1,
-                           *original, scope_info->LocalsBlockListIndex(),
-                           length - scope_info->LocalsBlockListIndex() - 1,
-                           WriteBarrierMode::UPDATE_WRITE_BARRIER);
-  return scope_info;
-}
-
 Tagged<ScopeInfo> ScopeInfo::Empty(Isolate* isolate) {
   return ReadOnlyRoots(isolate).empty_scope_info();
 }
@@ -726,12 +692,19 @@ int ScopeInfo::ContextLength() const {
          (function_name_context_slot ? 1 : 0);
 }
 
-// Needs to be kept in sync with Scope::UniqueIdInScript.
+// Needs to be kept in sync with Scope::UniqueIdInScript and
+// SharedFunctionInfo::UniqueIdInScript.
 int ScopeInfo::UniqueIdInScript() const {
+  DCHECK(!IsHiddenCatchScope());
   // Script scopes start "before" the script to avoid clashing with a scope that
   // starts on character 0.
   if (is_script_scope() || scope_type() == EVAL_SCOPE ||
       scope_type() == MODULE_SCOPE) {
+    return -2;
+  }
+  // Wrapped functions start before the function body, but after the script
+  // start, to avoid clashing with a scope starting on character 0.
+  if (IsWrappedFunctionScope()) {
     return -1;
   }
   // Default constructors have the same start position as their parent class
@@ -823,13 +796,14 @@ bool ScopeInfo::IsReplModeScope() const {
   return scope_type() == REPL_MODE_SCOPE;
 }
 
-bool ScopeInfo::HasLocalsBlockList() const {
-  return HasLocalsBlockListBit::decode(Flags());
+bool ScopeInfo::IsHiddenCatchScope() const {
+  return IsHiddenBit::decode(Flags()) && scope_type() == CATCH_SCOPE;
 }
 
-Tagged<StringSet> ScopeInfo::LocalsBlockList() const {
-  DCHECK(HasLocalsBlockList());
-  return Cast<StringSet>(locals_block_list());
+bool ScopeInfo::IsWrappedFunctionScope() const {
+  DCHECK_IMPLIES(IsWrappedFunctionBit::decode(Flags()),
+                 scope_type() == FUNCTION_SCOPE);
+  return IsWrappedFunctionBit::decode(Flags());
 }
 
 bool ScopeInfo::HasContext() const { return ContextLength() > 0; }
@@ -1080,10 +1054,6 @@ int ScopeInfo::InferredFunctionNameIndex() const {
 
 int ScopeInfo::OuterScopeInfoIndex() const {
   return ConvertOffsetToIndex(OuterScopeInfoOffset());
-}
-
-int ScopeInfo::LocalsBlockListIndex() const {
-  return ConvertOffsetToIndex(LocalsBlockListOffset());
 }
 
 int ScopeInfo::ModuleInfoIndex() const {

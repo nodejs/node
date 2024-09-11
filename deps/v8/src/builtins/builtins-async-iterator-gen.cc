@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/base/optional.h"
+#include <optional>
+
 #include "src/builtins/builtins-async-gen.h"
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
@@ -11,6 +12,8 @@
 
 namespace v8 {
 namespace internal {
+
+#include "src/codegen/define-code-stub-assembler-macros.inc"
 
 namespace {
 class AsyncFromSyncBuiltinsAssembler : public AsyncBuiltinsAssembler {
@@ -35,7 +38,7 @@ class AsyncFromSyncBuiltinsAssembler : public AsyncBuiltinsAssembler {
       const UndefinedMethodHandler& if_method_undefined,
       const char* operation_name, CloseOnRejectionOption close_on_rejection,
       Label::Type reject_label_type = Label::kDeferred,
-      base::Optional<TNode<Object>> initial_exception_value = base::nullopt);
+      std::optional<TNode<Object>> initial_exception_value = std::nullopt);
 
   void Generate_AsyncFromSyncIteratorMethod(
       CodeStubArguments* args, const TNode<Context> context,
@@ -43,8 +46,8 @@ class AsyncFromSyncBuiltinsAssembler : public AsyncBuiltinsAssembler {
       Handle<String> name, const UndefinedMethodHandler& if_method_undefined,
       const char* operation_name, CloseOnRejectionOption close_on_rejection,
       Label::Type reject_label_type = Label::kDeferred,
-      base::Optional<TNode<Object>> initial_exception_value = base::nullopt) {
-    auto get_method = [=](const TNode<JSReceiver> sync_iterator) {
+      std::optional<TNode<Object>> initial_exception_value = std::nullopt) {
+    auto get_method = [=, this](const TNode<JSReceiver> sync_iterator) {
       return GetProperty(context, sync_iterator, name);
     };
     return Generate_AsyncFromSyncIteratorMethod(
@@ -89,7 +92,7 @@ void AsyncFromSyncBuiltinsAssembler::Generate_AsyncFromSyncIteratorMethod(
     const UndefinedMethodHandler& if_method_undefined,
     const char* operation_name, CloseOnRejectionOption close_on_rejection,
     Label::Type reject_label_type,
-    base::Optional<TNode<Object>> initial_exception_value) {
+    std::optional<TNode<Object>> initial_exception_value) {
   const TNode<NativeContext> native_context = LoadNativeContext(context);
   const TNode<JSPromise> promise = NewJSPromise(context);
 
@@ -174,8 +177,8 @@ void AsyncFromSyncBuiltinsAssembler::Generate_AsyncFromSyncIteratorMethod(
   TNode<Object> on_rejected;
   if (close_on_rejection == kCloseOnRejection) {
     on_rejected = Select<Object>(
-        IsTrue(done), [=] { return UndefinedConstant(); },
-        [=] {
+        IsTrue(done), [=, this] { return UndefinedConstant(); },
+        [=, this] {
           return CreateAsyncFromSyncIteratorCloseSyncAndRethrowClosure(
               native_context, sync_iterator);
         });
@@ -296,15 +299,12 @@ AsyncFromSyncBuiltinsAssembler::LoadIteratorResult(
 TNode<JSFunction> AsyncFromSyncBuiltinsAssembler::
     CreateAsyncFromSyncIteratorCloseSyncAndRethrowClosure(
         TNode<NativeContext> native_context, TNode<JSReceiver> sync_iterator) {
-  const TNode<Map> map = CAST(LoadContextElement(
-      native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX));
-  const TNode<SharedFunctionInfo> on_rejected_shared =
-      AsyncFromSyncIteratorCloseSyncAndRethrowSharedFunConstant();
   const TNode<Context> closure_context =
       AllocateAsyncFromSyncIteratorCloseSyncAndRethrowContext(native_context,
                                                               sync_iterator);
-  return AllocateFunctionWithMapAndContext(map, on_rejected_shared,
-                                           closure_context);
+  return AllocateRootFunctionWithContext(
+      RootIndex::kAsyncFromSyncIteratorCloseSyncAndRethrowSharedFun,
+      closure_context, native_context);
 }
 
 TNode<Context> AsyncFromSyncBuiltinsAssembler::
@@ -330,7 +330,7 @@ TF_BUILTIN(AsyncFromSyncIteratorPrototypeNext, AsyncFromSyncBuiltinsAssembler) {
   const TNode<Object> value = args.GetOptionalArgumentValue(kValueOrReasonArg);
   const auto context = Parameter<Context>(Descriptor::kContext);
 
-  auto get_method = [=](const TNode<JSReceiver> unused) {
+  auto get_method = [=, this](const TNode<JSReceiver> unused) {
     return LoadObjectField(CAST(iterator),
                            JSAsyncFromSyncIterator::kNextOffset);
   };
@@ -350,7 +350,7 @@ TF_BUILTIN(AsyncFromSyncIteratorPrototypeReturn,
   const TNode<Object> value = args.GetOptionalArgumentValue(kValueOrReasonArg);
   const auto context = Parameter<Context>(Descriptor::kContext);
 
-  auto if_return_undefined = [=, &args](
+  auto if_return_undefined = [=, this, &args](
                                  const TNode<NativeContext> native_context,
                                  const TNode<JSPromise> promise,
                                  const TNode<JSReceiver> sync_iterator,
@@ -386,9 +386,10 @@ TF_BUILTIN(AsyncFromSyncIteratorPrototypeThrow,
 
   // 8. If throw is undefined, then
   auto if_throw_undefined =
-      [=, &args](const TNode<NativeContext> native_context,
-                 const TNode<JSPromise> promise,
-                 const TNode<JSReceiver> sync_iterator, Label* if_exception) {
+      [=, this, &args](const TNode<NativeContext> native_context,
+                       const TNode<JSPromise> promise,
+                       const TNode<JSReceiver> sync_iterator,
+                       Label* if_exception) {
         // a. NOTE: If syncIterator does not have a `throw` method, close it to
         //    give it a chance to clean up before we reject the capability.
         // b. Let closeCompletion be NormalCompletion(~empty~).
@@ -448,6 +449,8 @@ TF_BUILTIN(AsyncFromSyncIteratorCloseSyncAndRethrow,
   IteratorCloseOnException(context, sync_iterator_record);
   Return(CallRuntime(Runtime::kReThrow, context, error));
 }
+
+#include "src/codegen/undef-code-stub-assembler-macros.inc"
 
 }  // namespace internal
 }  // namespace v8

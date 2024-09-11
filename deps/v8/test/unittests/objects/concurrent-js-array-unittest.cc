@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <optional>
+
 #include "src/api/api.h"
 #include "src/base/platform/semaphore.h"
 #include "src/handles/handles-inl.h"
@@ -63,7 +65,7 @@ class BackgroundThread final : public v8::base::Thread {
         continue;
       }
 
-      base::Optional<Tagged<Object>> result =
+      std::optional<Tagged<Object>> result =
           ConcurrentLookupIterator::TryGetOwnCowElement(
               isolate, Cast<FixedArray>(*elements), elements_kind,
               Smi::ToInt(x->length(isolate, kRelaxedLoad)), kIndex);

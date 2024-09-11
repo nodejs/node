@@ -120,7 +120,7 @@ class NodeHashMapPolicy;
 template <class Key, class Value, class Hash = DefaultHashContainerHash<Key>,
           class Eq = DefaultHashContainerEq<Key>,
           class Alloc = std::allocator<std::pair<const Key, Value>>>
-class ABSL_INTERNAL_ATTRIBUTE_OWNER node_hash_map
+class ABSL_ATTRIBUTE_OWNER node_hash_map
     : public absl::container_internal::raw_hash_map<
           absl::container_internal::NodeHashMapPolicy<Key, Value>, Hash, Eq,
           Alloc> {
@@ -417,8 +417,7 @@ class ABSL_INTERNAL_ATTRIBUTE_OWNER node_hash_map
   // node_hash_map::swap(node_hash_map& other)
   //
   // Exchanges the contents of this `node_hash_map` with those of the `other`
-  // node hash map, avoiding invocation of any move, copy, or swap operations on
-  // individual elements.
+  // node hash map.
   //
   // All iterators and references on the `node_hash_map` remain valid, excepting
   // for the past-the-end iterator, which is invalidated.
@@ -556,6 +555,21 @@ template <typename K, typename V, typename H, typename E, typename A,
 typename node_hash_map<K, V, H, E, A>::size_type erase_if(
     node_hash_map<K, V, H, E, A>& c, Predicate pred) {
   return container_internal::EraseIf(pred, &c);
+}
+
+// swap(node_hash_map<>, node_hash_map<>)
+//
+// Swaps the contents of two `node_hash_map` containers.
+//
+// NOTE: we need to define this function template in order for
+// `flat_hash_set::swap` to be called instead of `std::swap`. Even though we
+// have `swap(raw_hash_set&, raw_hash_set&)` defined, that function requires a
+// derived-to-base conversion, whereas `std::swap` is a function template so
+// `std::swap` will be preferred by compiler.
+template <typename K, typename V, typename H, typename E, typename A>
+void swap(node_hash_map<K, V, H, E, A>& x,
+          node_hash_map<K, V, H, E, A>& y) noexcept(noexcept(x.swap(y))) {
+  return x.swap(y);
 }
 
 namespace container_internal {

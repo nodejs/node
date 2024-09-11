@@ -6,6 +6,7 @@
 #define V8_COMPILER_TURBOSHAFT_VARIABLE_REDUCER_H_
 
 #include <algorithm>
+#include <optional>
 
 #include "src/base/logging.h"
 #include "src/codegen/machine-type.h"
@@ -97,7 +98,7 @@ class VariableReducer : public RequiredOptimizationReducer<AfterNext> {
 
     predecessors_.clear();
     for (const Block* pred : new_block->PredecessorsIterable()) {
-      base::Optional<Snapshot> pred_snapshot =
+      std::optional<Snapshot> pred_snapshot =
           block_to_snapshot_mapping_[pred->index()];
       DCHECK(pred_snapshot.has_value());
       predecessors_.push_back(pred_snapshot.value());
@@ -198,7 +199,8 @@ class VariableReducer : public RequiredOptimizationReducer<AfterNext> {
   void Set(Variable var, V<Rep> value) {
     DCHECK(!is_temporary_);
     if (V8_UNLIKELY(__ generating_unreachable_operations())) return;
-    DCHECK(Rep::allows_representation(RegisterRepresentation(var.data().rep)));
+    DCHECK(
+        V<Rep>::allows_representation(RegisterRepresentation(var.data().rep)));
     table_.Set(var, value);
   }
 
@@ -308,8 +310,8 @@ class VariableReducer : public RequiredOptimizationReducer<AfterNext> {
 
   VariableTable table_{__ phase_zone()};
   const Block* current_block_ = nullptr;
-  GrowingBlockSidetable<base::Optional<Snapshot>> block_to_snapshot_mapping_{
-      __ input_graph().block_count(), base::nullopt, __ phase_zone()};
+  GrowingBlockSidetable<std::optional<Snapshot>> block_to_snapshot_mapping_{
+      __ input_graph().block_count(), std::nullopt, __ phase_zone()};
   bool is_temporary_ = false;
 
   // {predecessors_} is used during merging, but we use an instance variable for
@@ -319,7 +321,7 @@ class VariableReducer : public RequiredOptimizationReducer<AfterNext> {
   // Map from loop headers to the pending loop phis in these headers which have
   // to be patched on backedges.
   ZoneAbslFlatHashMap<BlockIndex,
-                      base::Optional<ZoneVector<std::pair<Variable, OpIndex>>>>
+                      std::optional<ZoneVector<std::pair<Variable, OpIndex>>>>
       loop_pending_phis_{__ phase_zone()};
 };
 

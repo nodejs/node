@@ -40,13 +40,8 @@ Register GetRegisterThatIsNotOneOf(Register reg1, Register reg2 = no_reg,
                                    Register reg6 = no_reg);
 
 // These exist to provide portability between 32 and 64bit
-#if V8_TARGET_ARCH_PPC64
 #define ClearLeftImm clrldi
 #define ClearRightImm clrrdi
-#else
-#define ClearLeftImm clrlwi
-#define ClearRightImm clrrwi
-#endif
 
 class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
  public:
@@ -73,30 +68,23 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // a float, storing the result in |dst|
   void ConvertUnsignedIntToFloat(Register src, DoubleRegister dst);
 
-#if V8_TARGET_ARCH_PPC64
   void ConvertInt64ToFloat(Register src, DoubleRegister double_dst);
   void ConvertInt64ToDouble(Register src, DoubleRegister double_dst);
   void ConvertUnsignedInt64ToFloat(Register src, DoubleRegister double_dst);
   void ConvertUnsignedInt64ToDouble(Register src, DoubleRegister double_dst);
-#endif
 
   // Converts the double_input to an integer.  Note that, upon return,
   // the contents of double_dst will also hold the fixed point representation.
   void ConvertDoubleToInt64(const DoubleRegister double_input,
-#if !V8_TARGET_ARCH_PPC64
-                            const Register dst_hi,
-#endif
                             const Register dst, const DoubleRegister double_dst,
                             FPRoundingMode rounding_mode = kRoundToZero);
 
-#if V8_TARGET_ARCH_PPC64
   // Converts the double_input to an unsigned integer.  Note that, upon return,
   // the contents of double_dst will also hold the fixed point representation.
   void ConvertDoubleToUnsignedInt64(
       const DoubleRegister double_input, const Register dst,
       const DoubleRegister double_dst,
       FPRoundingMode rounding_mode = kRoundToZero);
-#endif
 
   // Activation support.
   void EnterFrame(StackFrame::Type type,
@@ -691,21 +679,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Print a message to stdout and abort execution.
   void Abort(AbortReason reason);
 
-#if !V8_TARGET_ARCH_PPC64
-  void ShiftLeftPair(Register dst_low, Register dst_high, Register src_low,
-                     Register src_high, Register scratch, Register shift);
-  void ShiftLeftPair(Register dst_low, Register dst_high, Register src_low,
-                     Register src_high, uint32_t shift);
-  void ShiftRightPair(Register dst_low, Register dst_high, Register src_low,
-                      Register src_high, Register scratch, Register shift);
-  void ShiftRightPair(Register dst_low, Register dst_high, Register src_low,
-                      Register src_high, uint32_t shift);
-  void ShiftRightAlgPair(Register dst_low, Register dst_high, Register src_low,
-                         Register src_high, Register scratch, Register shift);
-  void ShiftRightAlgPair(Register dst_low, Register dst_high, Register src_low,
-                         Register src_high, uint32_t shift);
-#endif
-
   void LoadFromConstantsTable(Register destination, int constant_index) final;
   void LoadRootRegisterOffset(Register destination, intptr_t offset) final;
   void LoadRootRelative(Register destination, int32_t offset) final;
@@ -782,22 +755,14 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void MovUnsignedIntToDouble(DoubleRegister dst, Register src,
                               Register scratch);
   void MovInt64ToDouble(DoubleRegister dst,
-#if !V8_TARGET_ARCH_PPC64
-                        Register src_hi,
-#endif
                         Register src);
-#if V8_TARGET_ARCH_PPC64
   void MovInt64ComponentsToDouble(DoubleRegister dst, Register src_hi,
                                   Register src_lo, Register scratch);
-#endif
   void InsertDoubleLow(DoubleRegister dst, Register src, Register scratch);
   void InsertDoubleHigh(DoubleRegister dst, Register src, Register scratch);
   void MovDoubleLowToInt(Register dst, DoubleRegister src);
   void MovDoubleHighToInt(Register dst, DoubleRegister src);
   void MovDoubleToInt64(
-#if !V8_TARGET_ARCH_PPC64
-      Register dst_hi,
-#endif
       Register dst, DoubleRegister src);
   void MovIntToFloat(DoubleRegister dst, Register src, Register scratch);
   void MovFloatToInt(Register dst, DoubleRegister src, DoubleRegister scratch);
@@ -865,12 +830,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
       // Prefer faster andi when applicable.
       andi(dst, src, Operand(((1 << width) - 1) << rangeEnd));
     } else {
-#if V8_TARGET_ARCH_PPC64
       rldicl(dst, src, rotate, kBitsPerSystemPointer - width, rc);
-#else
-      rlwinm(dst, src, rotate, kBitsPerSystemPointer - width,
-             kBitsPerSystemPointer - 1, rc);
-#endif
     }
   }
 
@@ -939,21 +899,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadFeedbackVector(Register dst, Register closure, Register scratch,
                           Label* fbv_undef);
 
-#if V8_TARGET_ARCH_PPC64
   inline void TestIfInt32(Register value, Register scratch,
                           CRegister cr = cr7) {
     // High bits must be identical to fit into an 32-bit integer
     extsw(scratch, value);
     CmpS64(scratch, value, cr);
   }
-#else
-  inline void TestIfInt32(Register hi_word, Register lo_word, Register scratch,
-                          CRegister cr = cr7) {
-    // High bits must be identical to fit into an 32-bit integer
-    srawi(scratch, lo_word, 31);
-    CmpS64(scratch, hi_word, cr);
-  }
-#endif
 
   // Overflow handling functions.
   // Usage: call the appropriate arithmetic function and then call one of the
@@ -1681,6 +1632,15 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Type_reg can be no_reg. In that case ip is used.
   void CompareObjectType(Register heap_object, Register map, Register type_reg,
                          InstanceType type);
+  // Variant of the above, which compares against a type range rather than a
+  // single type (lower_limit and higher_limit are inclusive).
+  //
+  // Always use unsigned comparisons: ls for a positive result.
+  void CompareObjectTypeRange(Register heap_object, Register map,
+                              Register type_reg, Register scratch,
+                              InstanceType lower_limit,
+                              InstanceType higher_limit);
+
   // Variant of the above, which only guarantees to set the correct eq/ne flag.
   // Neither map, nor type_reg might be set to any particular value.
   void IsObjectType(Register heap_object, Register scratch1, Register scratch2,
@@ -1717,7 +1677,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   //
   // Always use unsigned comparisons: ls for a positive result.
   void CompareInstanceTypeRange(Register map, Register type_reg,
-                                InstanceType lower_limit,
+                                Register scratch, InstanceType lower_limit,
                                 InstanceType higher_limit);
 
   // Compare the object in a register to a value from the root list.
@@ -1744,9 +1704,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // Checks if value is in range [lower_limit, higher_limit] using a single
   // comparison.
-  void CompareRange(Register value, unsigned lower_limit,
+  void CompareRange(Register value, Register scratch, unsigned lower_limit,
                     unsigned higher_limit);
-  void JumpIfIsInRange(Register value, unsigned lower_limit,
+  void JumpIfIsInRange(Register value, Register scratch, unsigned lower_limit,
                        unsigned higher_limit, Label* on_in_range);
 
   void JumpIfJSAnyIsNotPrimitive(

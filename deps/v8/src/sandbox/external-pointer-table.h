@@ -240,12 +240,13 @@ class V8_EXPORT_PRIVATE ExternalPointerTable
 #else
   static_assert(kMaxExternalPointers == kMaxCapacity);
 #endif
+  static_assert(kSupportsCompaction);
 
  public:
   using EvacuateMarkMode = ExternalPointerTableEntry::EvacuateMarkMode;
 
   // Size of an ExternalPointerTable, for layout computation in IsolateData.
-  static int constexpr kSize = 2 * kSystemPointerSize;
+  static constexpr int kSize = 2 * kSystemPointerSize;
 
   ExternalPointerTable() = default;
   ExternalPointerTable(const ExternalPointerTable&) = delete;
@@ -349,6 +350,10 @@ class V8_EXPORT_PRIVATE ExternalPointerTable
                                       Counters* counters);
   uint32_t SweepAndCompact(Space* space, Counters* counters);
   uint32_t Sweep(Space* space, Counters* counters);
+
+  // Updates all evacuation entries with new handle locations. The function
+  // takes the old hanlde location and returns the new one.
+  void UpdateAllEvacuationEntries(Space*, std::function<Address(Address)>);
 
   inline bool Contains(Space* space, ExternalPointerHandle handle) const;
 

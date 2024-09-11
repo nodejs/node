@@ -548,7 +548,7 @@ class Int64LoweringReducer : public Next {
         builder.AddInput(data->machine_types[machine_type_index], inputs[i]);
       }
     }
-    Zone* zone = Asm().data()->shared_zone();
+    Zone* zone = Asm().data()->compilation_zone();
     auto* function_info_lowered = zone->New<compiler::FrameStateFunctionInfo>(
         compiler::FrameStateType::kLiftoffFunction, lowered_parameter_count,
         function_info->max_arguments(), lowered_local_count,

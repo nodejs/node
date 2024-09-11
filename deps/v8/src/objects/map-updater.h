@@ -5,6 +5,8 @@
 #ifndef V8_OBJECTS_MAP_UPDATER_H_
 #define V8_OBJECTS_MAP_UPDATER_H_
 
+#include <optional>
+
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
 #include "src/objects/elements-kind.h"
@@ -12,8 +14,7 @@
 #include "src/objects/map.h"
 #include "src/objects/property-details.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 // The |MapUpdater| class implements all sorts of map reconfigurations
 // including changes of elements kind, property attributes, property kind,
@@ -80,7 +81,7 @@ class V8_EXPORT_PRIVATE MapUpdater {
 
   // As above but does not mutate maps; instead, we attempt to replay existing
   // transitions to find an updated map. No lock is taken.
-  static base::Optional<Tagged<Map>> TryUpdateNoLock(
+  static std::optional<Tagged<Map>> TryUpdateNoLock(
       Isolate* isolate, Tagged<Map> old_map,
       ConcurrencyMode cmode) V8_WARN_UNUSED_RESULT;
 
@@ -255,7 +256,6 @@ class V8_EXPORT_PRIVATE MapUpdater {
   Handle<Object> new_value_;
 };
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #endif  // V8_OBJECTS_MAP_UPDATER_H_

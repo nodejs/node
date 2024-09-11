@@ -43,13 +43,13 @@ void TrustedObject::WriteProtectedPointerField(int offset,
       *this, offset, value);
 }
 
-bool TrustedObject::IsProtectedPointerFieldCleared(int offset) const {
+bool TrustedObject::IsProtectedPointerFieldEmpty(int offset) const {
   return TaggedField<Object, 0, TrustedSpaceCompressionScheme>::load(
              *this, offset) == Smi::zero();
 }
 
-bool TrustedObject::IsProtectedPointerFieldCleared(int offset,
-                                                   AcquireLoadTag) const {
+bool TrustedObject::IsProtectedPointerFieldEmpty(int offset,
+                                                 AcquireLoadTag) const {
   return TaggedField<Object, 0, TrustedSpaceCompressionScheme>::Acquire_Load(
              *this, offset) == Smi::zero();
 }

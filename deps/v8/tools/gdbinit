@@ -63,7 +63,7 @@ class PrintV8LocalCommand(PrintV8HandleCommand):
     # Before https://crrev.com/c/4335544, v8::Local contained a val_.
     if gdb.types.has_field(value.type, "val_"):
       return self.print_indirect(value["val_"], from_tty)
-    # With v8_enable_direct_local=true, v8::Local contains a ptr_.
+    # With v8_enable_direct_handle=true, v8::Local contains a ptr_.
     if gdb.types.has_field(value.type, "ptr_"):
       return self.print_direct(value["ptr_"], from_tty)
     # We don't know how to print this...
@@ -282,7 +282,7 @@ except gdb.error:
 end
 
 # Configuring ASLR may not be possible on some platforms, such running via the
-# `rr` debuggger.
+# `rr` debugger.
 python
 try:
   gdb.execute("set disable-randomization off")

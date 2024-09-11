@@ -8,6 +8,7 @@
 #include "src/common/ptr-compr-inl.h"
 #include "src/objects/deoptimization-data.h"
 #include "src/objects/fixed-array-inl.h"
+#include "src/objects/js-regexp-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -75,7 +76,7 @@ inline Tagged<Object> DeoptimizationLiteralArray::get(
   // literal goes away, then whatever code needed it should be unreachable. The
   // exception is currently running InstructionStream: in that case, the
   // deoptimization literals array might be the only thing keeping the target
-  // object alive. Thus, when a InstructionStream is running, we strongly mark
+  // object alive. Thus, when an InstructionStream is running, we strongly mark
   // all of its deoptimization literals.
   CHECK(!maybe.IsCleared());
 
@@ -94,6 +95,14 @@ inline void DeoptimizationLiteralArray::set(int index, Tagged<Object> value) {
     // a fixed array. However, we can use the BytecodeArray's wrapper object,
     // which exists for exactly this purpose.
     maybe = Cast<BytecodeArray>(value)->wrapper();
+#ifdef V8_ENABLE_SANDBOX
+  } else if (IsRegExpData(value)) {
+    // Store the RegExpData wrapper if the sandbox is enabled, as data lives in
+    // trusted space. We can't store a tagged value to a trusted space object
+    // inside the sandbox, we'd need to go through the trusted pointer table.
+    // Otherwise we can store the RegExpData object directly.
+    maybe = Cast<RegExpData>(value)->wrapper();
+#endif
   } else if (Code::IsWeakObjectInDeoptimizationLiteralArray(value)) {
     maybe = MakeWeak(maybe);
   }

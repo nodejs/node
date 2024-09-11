@@ -960,8 +960,6 @@ TEST_F(TurboshaftInstructionSelectorTest, AddSignedExtendHalfwordOnLeft) {
   }
 }
 
-#if 0
-
 #if V8_ENABLE_WEBASSEMBLY
 enum PairwiseAddSide { LEFT, RIGHT };
 
@@ -986,8 +984,8 @@ std::ostream& operator<<(std::ostream& os,
             << ", isSigned: " << sw.isSigned << " }";
 }
 
-using InstructionSelectorAddWithPairwiseAddTest =
-    InstructionSelectorTestWithParam<AddWithPairwiseAddSideAndWidth>;
+using TurboshaftInstructionSelectorAddWithPairwiseAddTest =
+    TurboshaftInstructionSelectorTestWithParam<AddWithPairwiseAddSideAndWidth>;
 
 TEST_P(TurboshaftInstructionSelectorAddWithPairwiseAddTest,
        AddWithPairwiseAdd) {
@@ -997,21 +995,26 @@ TEST_P(TurboshaftInstructionSelectorAddWithPairwiseAddTest,
 
   OpIndex x = m.Parameter(0);
   OpIndex y = m.Parameter(1);
-  const Operator* pairwiseAddOp;
+  OpIndex pairwiseAdd;
   if (params.width == 32 && params.isSigned) {
-    pairwiseAddOp = m.machine()->I32x4ExtAddPairwiseI16x8S();
+    pairwiseAdd = m.I32x4ExtAddPairwiseI16x8S(x);
   } else if (params.width == 16 && params.isSigned) {
-    pairwiseAddOp = m.machine()->I16x8ExtAddPairwiseI8x16S();
+    pairwiseAdd = m.I16x8ExtAddPairwiseI8x16S(x);
   } else if (params.width == 32 && !params.isSigned) {
-    pairwiseAddOp = m.machine()->I32x4ExtAddPairwiseI16x8U();
+    pairwiseAdd = m.I32x4ExtAddPairwiseI16x8U(x);
   } else {
-    pairwiseAddOp = m.machine()->I16x8ExtAddPairwiseI8x16U();
+    pairwiseAdd = m.I16x8ExtAddPairwiseI8x16U(x);
   }
-  OpIndex pairwiseAdd = m.AddNode(pairwiseAddOp, x);
-  const Operator* addOp =
-      params.width == 32 ? m.machine()->I32x4Add() : m.machine()->I16x8Add();
-  OpIndex add = params.side == LEFT ? m.AddNode(addOp, pairwiseAdd, y)
-                                    : m.AddNode(addOp, y, pairwiseAdd);
+
+  OpIndex add;
+  if (params.width == 32) {
+    add = params.side == LEFT ? m.I32x4Add(pairwiseAdd, y)
+                              : m.I32x4Add(y, pairwiseAdd);
+  } else {
+    add = params.side == LEFT ? m.I16x8Add(pairwiseAdd, y)
+                              : m.I16x8Add(y, pairwiseAdd);
+  }
+
   m.Return(add);
   Stream s = m.Build();
 
@@ -1028,11 +1031,9 @@ const AddWithPairwiseAddSideAndWidth kAddWithPairAddTestCases[] = {
     {LEFT, 32, false}, {RIGHT, 32, false}};
 
 INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
-                         InstructionSelectorAddWithPairwiseAddTest,
+                         TurboshaftInstructionSelectorAddWithPairwiseAddTest,
                          ::testing::ValuesIn(kAddWithPairAddTestCases));
 #endif  // V8_ENABLE_WEBASSEMBLY
-
-#endif
 
 // -----------------------------------------------------------------------------
 // Data processing controlled branches.
@@ -2226,16 +2227,72 @@ INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
                          TurboshaftInstructionSelectorIntDPWithIntMulTest,
                          ::testing::ValuesIn(kMulDPInstructions));
 
-#if 0
-
 #if V8_ENABLE_WEBASSEMBLY
+
+TEST_F(TurboshaftInstructionSelectorTest, AddReduce) {
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Simd128());
+    V<Simd128> reduce = m.I8x16AddReduce(m.Parameter(0));
+    m.Return(reduce);
+    Stream s = m.Build();
+    EXPECT_EQ(kArm64I8x16Addv, s[0]->arch_opcode());
+    EXPECT_EQ(1U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Simd128());
+    V<Simd128> reduce = m.I16x8AddReduce(m.Parameter(0));
+    m.Return(reduce);
+    Stream s = m.Build();
+    EXPECT_EQ(kArm64I16x8Addv, s[0]->arch_opcode());
+    EXPECT_EQ(1U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Simd128());
+    V<Simd128> reduce = m.I32x4AddReduce(m.Parameter(0));
+    m.Return(reduce);
+    Stream s = m.Build();
+    EXPECT_EQ(kArm64I32x4Addv, s[0]->arch_opcode());
+    EXPECT_EQ(1U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  {
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Simd128());
+    V<Simd128> reduce = m.I64x2AddReduce(m.Parameter(0));
+    m.Return(reduce);
+    Stream s = m.Build();
+    EXPECT_EQ(kArm64I64x2AddPair, s[0]->arch_opcode());
+    EXPECT_EQ(1U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  {
+    StreamBuilder m(this, MachineType::Float32(), MachineType::Simd128());
+    V<Simd128> reduce = m.F32x4AddReduce(m.Parameter(0));
+    m.Return(reduce);
+    Stream s = m.Build();
+    EXPECT_EQ(kArm64F32x4AddReducePairwise, s[0]->arch_opcode());
+    EXPECT_EQ(1U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  {
+    StreamBuilder m(this, MachineType::Float64(), MachineType::Simd128());
+    V<Simd128> reduce = m.F64x2AddReduce(m.Parameter(0));
+    m.Return(reduce);
+    Stream s = m.Build();
+    EXPECT_EQ(kArm64F64x2AddPair, s[0]->arch_opcode());
+    EXPECT_EQ(1U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+}
+
 namespace {
 
 struct SIMDMulDPInst {
   const char* mul_constructor_name;
-  const Operator* (MachineOperatorBuilder::*mul_operator)(void);
-  const Operator* (MachineOperatorBuilder::*add_operator)(void);
-  const Operator* (MachineOperatorBuilder::*sub_operator)(void);
+  TSBinop mul_operator;
+  TSBinop add_operator;
+  TSBinop sub_operator;
   ArchOpcode multiply_add_arch_opcode;
   ArchOpcode multiply_sub_arch_opcode;
   MachineType machine_type;
@@ -2249,24 +2306,21 @@ std::ostream& operator<<(std::ostream& os, const SIMDMulDPInst& inst) {
 }  // namespace
 
 static const SIMDMulDPInst kSIMDMulDPInstructions[] = {
-    {"I32x4Mul", &MachineOperatorBuilder::I32x4Mul,
-     &MachineOperatorBuilder::I32x4Add, &MachineOperatorBuilder::I32x4Sub,
+    {"I32x4Mul", TSBinop::kI32x4Mul, TSBinop::kI32x4Add, TSBinop::kI32x4Sub,
      kArm64Mla, kArm64Mls, MachineType::Simd128(), 32},
-    {"I16x8Mul", &MachineOperatorBuilder::I16x8Mul,
-     &MachineOperatorBuilder::I16x8Add, &MachineOperatorBuilder::I16x8Sub,
+    {"I16x8Mul", TSBinop::kI16x8Mul, TSBinop::kI16x8Add, TSBinop::kI16x8Sub,
      kArm64Mla, kArm64Mls, MachineType::Simd128(), 16}};
 
-using InstructionSelectorSIMDDPWithSIMDMulTest =
-    InstructionSelectorTestWithParam<SIMDMulDPInst>;
+using TurboshaftInstructionSelectorSIMDDPWithSIMDMulTest =
+    TurboshaftInstructionSelectorTestWithParam<SIMDMulDPInst>;
 
 TEST_P(TurboshaftInstructionSelectorSIMDDPWithSIMDMulTest, AddWithMul) {
   const SIMDMulDPInst mdpi = GetParam();
   const MachineType type = mdpi.machine_type;
   {
     StreamBuilder m(this, type, type, type, type);
-    OpIndex n = m.AddNode((m.machine()->*mdpi.mul_operator)(), m.Parameter(1),
-                          m.Parameter(2));
-    m.Return(m.AddNode((m.machine()->*mdpi.add_operator)(), m.Parameter(0), n));
+    OpIndex n = m.Emit(mdpi.mul_operator, m.Parameter(1), m.Parameter(2));
+    m.Return(m.Emit(mdpi.add_operator, m.Parameter(0), n));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(mdpi.multiply_add_arch_opcode, s[0]->arch_opcode());
@@ -2276,9 +2330,8 @@ TEST_P(TurboshaftInstructionSelectorSIMDDPWithSIMDMulTest, AddWithMul) {
   }
   {
     StreamBuilder m(this, type, type, type, type);
-    OpIndex n = m.AddNode((m.machine()->*mdpi.mul_operator)(), m.Parameter(0),
-                          m.Parameter(1));
-    m.Return(m.AddNode((m.machine()->*mdpi.add_operator)(), n, m.Parameter(2)));
+    OpIndex n = m.Emit(mdpi.mul_operator, m.Parameter(0), m.Parameter(1));
+    m.Return(m.Emit(mdpi.add_operator, n, m.Parameter(2)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(mdpi.multiply_add_arch_opcode, s[0]->arch_opcode());
@@ -2293,9 +2346,8 @@ TEST_P(TurboshaftInstructionSelectorSIMDDPWithSIMDMulTest, SubWithMul) {
   const MachineType type = mdpi.machine_type;
   {
     StreamBuilder m(this, type, type, type, type);
-    OpIndex n = m.AddNode((m.machine()->*mdpi.mul_operator)(), m.Parameter(1),
-                          m.Parameter(2));
-    m.Return(m.AddNode((m.machine()->*mdpi.sub_operator)(), m.Parameter(0), n));
+    OpIndex n = m.Emit(mdpi.mul_operator, m.Parameter(1), m.Parameter(2));
+    m.Return(m.Emit(mdpi.sub_operator, m.Parameter(0), n));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(mdpi.multiply_sub_arch_opcode, s[0]->arch_opcode());
@@ -2306,16 +2358,16 @@ TEST_P(TurboshaftInstructionSelectorSIMDDPWithSIMDMulTest, SubWithMul) {
 }
 
 INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
-                         InstructionSelectorSIMDDPWithSIMDMulTest,
+                         TurboshaftInstructionSelectorSIMDDPWithSIMDMulTest,
                          ::testing::ValuesIn(kSIMDMulDPInstructions));
 
 namespace {
 
 struct SIMDShrAddInst {
   const char* shradd_constructor_name;
-  const Operator* (MachineOperatorBuilder::*shr_s_operator)();
-  const Operator* (MachineOperatorBuilder::*shr_u_operator)();
-  const Operator* (MachineOperatorBuilder::*add_operator)();
+  TSBinop shr_s_operator;
+  TSBinop shr_u_operator;
+  TSBinop add_operator;
   const int laneSize;
 };
 
@@ -2326,27 +2378,26 @@ std::ostream& operator<<(std::ostream& os, const SIMDShrAddInst& inst) {
 }  // namespace
 
 static const SIMDShrAddInst kSIMDShrAddInstructions[] = {
-    {"I64x2ShrAdd", &MachineOperatorBuilder::I64x2ShrS,
-     &MachineOperatorBuilder::I64x2ShrU, &MachineOperatorBuilder::I64x2Add, 64},
-    {"I32x4ShrAdd", &MachineOperatorBuilder::I32x4ShrS,
-     &MachineOperatorBuilder::I32x4ShrU, &MachineOperatorBuilder::I32x4Add, 32},
-    {"I16x8ShrAdd", &MachineOperatorBuilder::I16x8ShrS,
-     &MachineOperatorBuilder::I16x8ShrU, &MachineOperatorBuilder::I16x8Add, 16},
-    {"I8x16ShrAdd", &MachineOperatorBuilder::I8x16ShrS,
-     &MachineOperatorBuilder::I8x16ShrU, &MachineOperatorBuilder::I8x16Add, 8}};
+    {"I64x2ShrAdd", TSBinop::kI64x2ShrS, TSBinop::kI64x2ShrU,
+     TSBinop::kI64x2Add, 64},
+    {"I32x4ShrAdd", TSBinop::kI32x4ShrS, TSBinop::kI32x4ShrU,
+     TSBinop::kI32x4Add, 32},
+    {"I16x8ShrAdd", TSBinop::kI16x8ShrS, TSBinop::kI16x8ShrU,
+     TSBinop::kI16x8Add, 16},
+    {"I8x16ShrAdd", TSBinop::kI8x16ShrS, TSBinop::kI8x16ShrU,
+     TSBinop::kI8x16Add, 8}};
 
-using InstructionSelectorSIMDShrAddTest =
-    InstructionSelectorTestWithParam<SIMDShrAddInst>;
+using TurboshaftInstructionSelectorSIMDShrAddTest =
+    TurboshaftInstructionSelectorTestWithParam<SIMDShrAddInst>;
 
 TEST_P(TurboshaftInstructionSelectorSIMDShrAddTest, ShrAddS) {
   const SIMDShrAddInst param = GetParam();
   const MachineType type = MachineType::Simd128();
   {
     StreamBuilder m(this, type, type, type);
-    OpIndex n = m.AddNode((m.machine()->*param.shr_s_operator)(),
-                          m.Parameter(1), m.Int32Constant(1));
-    m.Return(
-        m.AddNode((m.machine()->*param.add_operator)(), m.Parameter(0), n));
+    OpIndex n =
+        m.Emit(param.shr_s_operator, m.Parameter(1), m.Int32Constant(1));
+    m.Return(m.Emit(param.add_operator, m.Parameter(0), n));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(kArm64Ssra, s[0]->arch_opcode());
@@ -2356,10 +2407,9 @@ TEST_P(TurboshaftInstructionSelectorSIMDShrAddTest, ShrAddS) {
   }
   {
     StreamBuilder m(this, type, type, type);
-    OpIndex n = m.AddNode((m.machine()->*param.shr_s_operator)(),
-                          m.Parameter(0), m.Int32Constant(1));
-    m.Return(
-        m.AddNode((m.machine()->*param.add_operator)(), n, m.Parameter(1)));
+    OpIndex n =
+        m.Emit(param.shr_s_operator, m.Parameter(0), m.Int32Constant(1));
+    m.Return(m.Emit(param.add_operator, n, m.Parameter(1)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(kArm64Ssra, s[0]->arch_opcode());
@@ -2374,10 +2424,9 @@ TEST_P(TurboshaftInstructionSelectorSIMDShrAddTest, ShrAddU) {
   const MachineType type = MachineType::Simd128();
   {
     StreamBuilder m(this, type, type, type);
-    OpIndex n = m.AddNode((m.machine()->*param.shr_u_operator)(),
-                          m.Parameter(1), m.Int32Constant(1));
-    m.Return(
-        m.AddNode((m.machine()->*param.add_operator)(), m.Parameter(0), n));
+    OpIndex n =
+        m.Emit(param.shr_u_operator, m.Parameter(1), m.Int32Constant(1));
+    m.Return(m.Emit(param.add_operator, m.Parameter(0), n));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(kArm64Usra, s[0]->arch_opcode());
@@ -2387,10 +2436,9 @@ TEST_P(TurboshaftInstructionSelectorSIMDShrAddTest, ShrAddU) {
   }
   {
     StreamBuilder m(this, type, type, type);
-    OpIndex n = m.AddNode((m.machine()->*param.shr_u_operator)(),
-                          m.Parameter(0), m.Int32Constant(1));
-    m.Return(
-        m.AddNode((m.machine()->*param.add_operator)(), n, m.Parameter(1)));
+    OpIndex n =
+        m.Emit(param.shr_u_operator, m.Parameter(0), m.Int32Constant(1));
+    m.Return(m.Emit(param.add_operator, n, m.Parameter(1)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(kArm64Usra, s[0]->arch_opcode());
@@ -2401,14 +2449,14 @@ TEST_P(TurboshaftInstructionSelectorSIMDShrAddTest, ShrAddU) {
 }
 
 INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
-                         InstructionSelectorSIMDShrAddTest,
+                         TurboshaftInstructionSelectorSIMDShrAddTest,
                          ::testing::ValuesIn(kSIMDShrAddInstructions));
 
 namespace {
 struct SIMDAddExtMulInst {
   const char* mul_constructor_name;
-  const Operator* (MachineOperatorBuilder::*mul_operator)();
-  const Operator* (MachineOperatorBuilder::*add_operator)();
+  TSBinop mul_operator;
+  TSBinop add_operator;
   ArchOpcode multiply_add_arch_opcode;
   MachineType machine_type;
   int lane_size;
@@ -2416,33 +2464,25 @@ struct SIMDAddExtMulInst {
 }  // namespace
 
 static const SIMDAddExtMulInst kSimdAddExtMulInstructions[] = {
-    {"I16x8ExtMulLowI8x16S", &MachineOperatorBuilder::I16x8ExtMulLowI8x16S,
-     &MachineOperatorBuilder::I16x8Add, kArm64Smlal, MachineType::Simd128(),
-     16},
-    {"I16x8ExtMulHighI8x16S", &MachineOperatorBuilder::I16x8ExtMulHighI8x16S,
-     &MachineOperatorBuilder::I16x8Add, kArm64Smlal2, MachineType::Simd128(),
-     16},
-    {"I16x8ExtMulLowI8x16U", &MachineOperatorBuilder::I16x8ExtMulLowI8x16U,
-     &MachineOperatorBuilder::I16x8Add, kArm64Umlal, MachineType::Simd128(),
-     16},
-    {"I16x8ExtMulHighI8x16U", &MachineOperatorBuilder::I16x8ExtMulHighI8x16U,
-     &MachineOperatorBuilder::I16x8Add, kArm64Umlal2, MachineType::Simd128(),
-     16},
-    {"I32x4ExtMulLowI16x8S", &MachineOperatorBuilder::I32x4ExtMulLowI16x8S,
-     &MachineOperatorBuilder::I32x4Add, kArm64Smlal, MachineType::Simd128(),
-     32},
-    {"I32x4ExtMulHighI16x8S", &MachineOperatorBuilder::I32x4ExtMulHighI16x8S,
-     &MachineOperatorBuilder::I32x4Add, kArm64Smlal2, MachineType::Simd128(),
-     32},
-    {"I32x4ExtMulLowI16x8U", &MachineOperatorBuilder::I32x4ExtMulLowI16x8U,
-     &MachineOperatorBuilder::I32x4Add, kArm64Umlal, MachineType::Simd128(),
-     32},
-    {"I32x4ExtMulHighI16x8U", &MachineOperatorBuilder::I32x4ExtMulHighI16x8U,
-     &MachineOperatorBuilder::I32x4Add, kArm64Umlal2, MachineType::Simd128(),
-     32}};
+    {"I16x8ExtMulLowI8x16S", TSBinop::kI16x8ExtMulLowI8x16S, TSBinop::kI16x8Add,
+     kArm64Smlal, MachineType::Simd128(), 16},
+    {"I16x8ExtMulHighI8x16S", TSBinop::kI16x8ExtMulHighI8x16S,
+     TSBinop::kI16x8Add, kArm64Smlal2, MachineType::Simd128(), 16},
+    {"I16x8ExtMulLowI8x16U", TSBinop::kI16x8ExtMulLowI8x16U, TSBinop::kI16x8Add,
+     kArm64Umlal, MachineType::Simd128(), 16},
+    {"I16x8ExtMulHighI8x16U", TSBinop::kI16x8ExtMulHighI8x16U,
+     TSBinop::kI16x8Add, kArm64Umlal2, MachineType::Simd128(), 16},
+    {"I32x4ExtMulLowI16x8S", TSBinop::kI32x4ExtMulLowI16x8S, TSBinop::kI32x4Add,
+     kArm64Smlal, MachineType::Simd128(), 32},
+    {"I32x4ExtMulHighI16x8S", TSBinop::kI32x4ExtMulHighI16x8S,
+     TSBinop::kI32x4Add, kArm64Smlal2, MachineType::Simd128(), 32},
+    {"I32x4ExtMulLowI16x8U", TSBinop::kI32x4ExtMulLowI16x8U, TSBinop::kI32x4Add,
+     kArm64Umlal, MachineType::Simd128(), 32},
+    {"I32x4ExtMulHighI16x8U", TSBinop::kI32x4ExtMulHighI16x8U,
+     TSBinop::kI32x4Add, kArm64Umlal2, MachineType::Simd128(), 32}};
 
-using InstructionSelectorSIMDAddExtMulTest =
-    InstructionSelectorTestWithParam<SIMDAddExtMulInst>;
+using TurboshaftInstructionSelectorSIMDAddExtMulTest =
+    TurboshaftInstructionSelectorTestWithParam<SIMDAddExtMulInst>;
 
 // TODO(zhin): This can be merged with InstructionSelectorSIMDDPWithSIMDMulTest
 // once sub+extmul matching is implemented.
@@ -2452,9 +2492,8 @@ TEST_P(TurboshaftInstructionSelectorSIMDAddExtMulTest, AddExtMul) {
   {
     // Test Add(x, ExtMul(y, z)).
     StreamBuilder m(this, type, type, type, type);
-    OpIndex n = m.AddNode((m.machine()->*mdpi.mul_operator)(), m.Parameter(1),
-                          m.Parameter(2));
-    m.Return(m.AddNode((m.machine()->*mdpi.add_operator)(), m.Parameter(0), n));
+    OpIndex n = m.Emit(mdpi.mul_operator, m.Parameter(1), m.Parameter(2));
+    m.Return(m.Emit(mdpi.add_operator, m.Parameter(0), n));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(mdpi.multiply_add_arch_opcode, s[0]->arch_opcode());
@@ -2465,9 +2504,8 @@ TEST_P(TurboshaftInstructionSelectorSIMDAddExtMulTest, AddExtMul) {
   {
     // Test Add(ExtMul(y, z), x), making sure it's commutative.
     StreamBuilder m(this, type, type, type, type);
-    OpIndex n = m.AddNode((m.machine()->*mdpi.mul_operator)(), m.Parameter(0),
-                          m.Parameter(1));
-    m.Return(m.AddNode((m.machine()->*mdpi.add_operator)(), n, m.Parameter(2)));
+    OpIndex n = m.Emit(mdpi.mul_operator, m.Parameter(0), m.Parameter(1));
+    m.Return(m.Emit(mdpi.add_operator, n, m.Parameter(2)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(mdpi.multiply_add_arch_opcode, s[0]->arch_opcode());
@@ -2478,7 +2516,7 @@ TEST_P(TurboshaftInstructionSelectorSIMDAddExtMulTest, AddExtMul) {
 }
 
 INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
-                         InstructionSelectorSIMDAddExtMulTest,
+                         TurboshaftInstructionSelectorSIMDAddExtMulTest,
                          ::testing::ValuesIn(kSimdAddExtMulInstructions));
 
 struct SIMDMulDupInst {
@@ -2530,17 +2568,17 @@ const SIMDMulDupInst kSIMDF32x4MulDuplInstructions[] = {
     },
 };
 
-using InstructionSelectorSimdF32x4MulWithDupTest =
-    InstructionSelectorTestWithParam<SIMDMulDupInst>;
+using TurboshaftInstructionSelectorSimdF32x4MulWithDupTest =
+    TurboshaftInstructionSelectorTestWithParam<SIMDMulDupInst>;
 
 TEST_P(TurboshaftInstructionSelectorSimdF32x4MulWithDupTest, MulWithDup) {
   const SIMDMulDupInst param = GetParam();
   const MachineType type = MachineType::Simd128();
   {
     StreamBuilder m(this, type, type, type, type);
-    OpIndex shuffle = m.AddNode(m.machine()->I8x16Shuffle(param.shuffle),
-                                m.Parameter(0), m.Parameter(1));
-    m.Return(m.AddNode(m.machine()->F32x4Mul(), m.Parameter(2), shuffle));
+    OpIndex shuffle =
+        m.Simd128Shuffle(m.Parameter(0), m.Parameter(1), param.shuffle);
+    m.Return(m.F32x4Mul(m.Parameter(2), shuffle));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(kArm64FMulElement, s[0]->arch_opcode());
@@ -2555,9 +2593,9 @@ TEST_P(TurboshaftInstructionSelectorSimdF32x4MulWithDupTest, MulWithDup) {
   // Multiplication operator should be commutative, so test shuffle op as lhs.
   {
     StreamBuilder m(this, type, type, type, type);
-    OpIndex shuffle = m.AddNode(m.machine()->I8x16Shuffle(param.shuffle),
-                                m.Parameter(0), m.Parameter(1));
-    m.Return(m.AddNode(m.machine()->F32x4Mul(), shuffle, m.Parameter(2)));
+    OpIndex shuffle =
+        m.Simd128Shuffle(m.Parameter(0), m.Parameter(1), param.shuffle);
+    m.Return(m.F32x4Mul(shuffle, m.Parameter(2)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(kArm64FMulElement, s[0]->arch_opcode());
@@ -2571,7 +2609,7 @@ TEST_P(TurboshaftInstructionSelectorSimdF32x4MulWithDupTest, MulWithDup) {
 }
 
 INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
-                         InstructionSelectorSimdF32x4MulWithDupTest,
+                         TurboshaftInstructionSelectorSimdF32x4MulWithDupTest,
                          ::testing::ValuesIn(kSIMDF32x4MulDuplInstructions));
 
 TEST_F(TurboshaftInstructionSelectorTest, SimdF32x4MulWithDupNegativeTest) {
@@ -2580,12 +2618,11 @@ TEST_F(TurboshaftInstructionSelectorTest, SimdF32x4MulWithDupNegativeTest) {
   const uint8_t mask[kSimd128Size] = {0};
   {
     StreamBuilder m(this, type, type, type, type);
-    OpIndex shuffle = m.AddNode((m.machine()->I8x16Shuffle(mask)),
-                                m.Parameter(0), m.Parameter(1));
-    m.Return(m.AddNode(m.machine()->F32x4Mul(), m.Parameter(2), shuffle));
+    OpIndex shuffle = m.Simd128Shuffle(m.Parameter(0), m.Parameter(1), mask);
+    m.Return(m.F32x4Mul(m.Parameter(2), shuffle));
     Stream s = m.Build();
     ASSERT_EQ(2U, s.size());
-    // The shuffle is a i8x16.dup of lane 0.
+    // The shuffle is an i8x16.dup of lane 0.
     EXPECT_EQ(kArm64S128Dup, s[0]->arch_opcode());
     EXPECT_EQ(3U, s[0]->InputCount());
     EXPECT_EQ(kArm64FMul, s[1]->arch_opcode());
@@ -2619,17 +2656,17 @@ const SIMDMulDupInst kSIMDF64x2MulDuplInstructions[] = {
     },
 };
 
-using InstructionSelectorSimdF64x2MulWithDupTest =
-    InstructionSelectorTestWithParam<SIMDMulDupInst>;
+using TurboshaftInstructionSelectorSimdF64x2MulWithDupTest =
+    TurboshaftInstructionSelectorTestWithParam<SIMDMulDupInst>;
 
 TEST_P(TurboshaftInstructionSelectorSimdF64x2MulWithDupTest, MulWithDup) {
   const SIMDMulDupInst param = GetParam();
   const MachineType type = MachineType::Simd128();
   {
     StreamBuilder m(this, type, type, type, type);
-    OpIndex shuffle = m.AddNode(m.machine()->I8x16Shuffle(param.shuffle),
-                                m.Parameter(0), m.Parameter(1));
-    m.Return(m.AddNode(m.machine()->F64x2Mul(), m.Parameter(2), shuffle));
+    OpIndex shuffle =
+        m.Simd128Shuffle(m.Parameter(0), m.Parameter(1), param.shuffle);
+    m.Return(m.F64x2Mul(m.Parameter(2), shuffle));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(kArm64FMulElement, s[0]->arch_opcode());
@@ -2644,9 +2681,9 @@ TEST_P(TurboshaftInstructionSelectorSimdF64x2MulWithDupTest, MulWithDup) {
   // Multiplication operator should be commutative, so test shuffle op as lhs.
   {
     StreamBuilder m(this, type, type, type, type);
-    OpIndex shuffle = m.AddNode(m.machine()->I8x16Shuffle(param.shuffle),
-                                m.Parameter(0), m.Parameter(1));
-    m.Return(m.AddNode(m.machine()->F64x2Mul(), shuffle, m.Parameter(2)));
+    OpIndex shuffle =
+        m.Simd128Shuffle(m.Parameter(0), m.Parameter(1), param.shuffle);
+    m.Return(m.F64x2Mul(shuffle, m.Parameter(2)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(kArm64FMulElement, s[0]->arch_opcode());
@@ -2669,8 +2706,7 @@ TEST_F(TurboshaftInstructionSelectorTest, ReverseShuffle32x4Test) {
       0, 1, 2, 3
     };
     StreamBuilder m(this, type, type, type, type);
-    m.Return(m.AddNode(m.machine()->I8x16Shuffle(shuffle),
-                         m.Parameter(0), m.Parameter(1)));
+    m.Return(m.Simd128Shuffle(m.Parameter(0), m.Parameter(1), shuffle));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(kArm64S32x4Reverse, s[0]->arch_opcode());
@@ -2685,8 +2721,7 @@ TEST_F(TurboshaftInstructionSelectorTest, ReverseShuffle32x4Test) {
       16, 17, 18, 19
     };
     StreamBuilder m(this, type, type, type, type);
-    m.Return(m.AddNode(m.machine()->I8x16Shuffle(shuffle),
-                         m.Parameter(0), m.Parameter(1)));
+    m.Return(m.Simd128Shuffle(m.Parameter(0), m.Parameter(1), shuffle));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(kArm64S32x4Reverse, s[0]->arch_opcode());
@@ -2696,7 +2731,7 @@ TEST_F(TurboshaftInstructionSelectorTest, ReverseShuffle32x4Test) {
 }
 
 INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
-                         InstructionSelectorSimdF64x2MulWithDupTest,
+                         TurboshaftInstructionSelectorSimdF64x2MulWithDupTest,
                          ::testing::ValuesIn(kSIMDF64x2MulDuplInstructions));
 
 TEST_F(TurboshaftInstructionSelectorTest, SimdF64x2MulWithDupNegativeTest) {
@@ -2705,12 +2740,11 @@ TEST_F(TurboshaftInstructionSelectorTest, SimdF64x2MulWithDupNegativeTest) {
   const uint8_t mask[kSimd128Size] = {0};
   {
     StreamBuilder m(this, type, type, type, type);
-    OpIndex shuffle = m.AddNode((m.machine()->I8x16Shuffle(mask)),
-                                m.Parameter(0), m.Parameter(1));
-    m.Return(m.AddNode(m.machine()->F64x2Mul(), m.Parameter(2), shuffle));
+    OpIndex shuffle = m.Simd128Shuffle(m.Parameter(0), m.Parameter(1), mask);
+    m.Return(m.F64x2Mul(m.Parameter(2), shuffle));
     Stream s = m.Build();
     ASSERT_EQ(2U, s.size());
-    // The shuffle is a i8x16.dup of lane 0.
+    // The shuffle is an i8x16.dup of lane 0.
     EXPECT_EQ(kArm64S128Dup, s[0]->arch_opcode());
     EXPECT_EQ(3U, s[0]->InputCount());
     EXPECT_EQ(kArm64FMul, s[1]->arch_opcode());
@@ -2731,8 +2765,7 @@ TEST_F(TurboshaftInstructionSelectorTest, OneLaneSwizzle32x4Test) {
       12, 13, 14, 15
     };
     StreamBuilder m(this, type, type, type, type);
-    m.Return(m.AddNode(m.machine()->I8x16Shuffle(shuffle),
-                         m.Parameter(0), m.Parameter(1)));
+    m.Return(m.Simd128Shuffle(m.Parameter(0), m.Parameter(1), shuffle));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(kArm64S32x4OneLaneSwizzle, s[0]->arch_opcode());
@@ -2747,8 +2780,7 @@ TEST_F(TurboshaftInstructionSelectorTest, OneLaneSwizzle32x4Test) {
       16, 17, 18, 19
     };
     StreamBuilder m(this, type, type, type, type);
-    m.Return(m.AddNode(m.machine()->I8x16Shuffle(shuffle),
-                         m.Parameter(0), m.Parameter(1)));
+    m.Return(m.Simd128Shuffle(m.Parameter(0), m.Parameter(1), shuffle));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(kArm64S32x4OneLaneSwizzle, s[0]->arch_opcode());
@@ -2758,8 +2790,6 @@ TEST_F(TurboshaftInstructionSelectorTest, OneLaneSwizzle32x4Test) {
 }
 
 #endif  // V8_ENABLE_WEBASSEMBLY
-
-#endif
 
 TEST_F(TurboshaftInstructionSelectorTest, Word32MulWithImmediate) {
   // x * (2^k + 1) -> x + (x << k)
@@ -5807,70 +5837,68 @@ TEST_F(TurboshaftInstructionSelectorTest, PokePairPrepareArgumentsSimd128) {
                expected_poke_pair, expected_poke);
 }
 
-#if 0
-
 struct SIMDConstZeroCmTest {
   const bool is_zero;
   const uint8_t lane_size;
-  const Operator* (MachineOperatorBuilder::*cm_operator)();
+  TSBinop cm_operator;
   const ArchOpcode expected_op_left;
   const ArchOpcode expected_op_right;
   const size_t size;
 };
 
 static const SIMDConstZeroCmTest SIMDConstZeroCmTests[] = {
-    {true, 8, &MachineOperatorBuilder::I8x16Eq, kArm64IEq, kArm64IEq, 1},
-    {true, 8, &MachineOperatorBuilder::I8x16Ne, kArm64INe, kArm64INe, 1},
-    {true, 8, &MachineOperatorBuilder::I8x16GeS, kArm64ILeS, kArm64IGeS, 1},
-    {true, 8, &MachineOperatorBuilder::I8x16GtS, kArm64ILtS, kArm64IGtS, 1},
-    {false, 8, &MachineOperatorBuilder::I8x16Eq, kArm64IEq, kArm64IEq, 2},
-    {false, 8, &MachineOperatorBuilder::I8x16Ne, kArm64INe, kArm64INe, 2},
-    {false, 8, &MachineOperatorBuilder::I8x16GeS, kArm64IGeS, kArm64IGeS, 2},
-    {false, 8, &MachineOperatorBuilder::I8x16GtS, kArm64IGtS, kArm64IGtS, 2},
-    {true, 16, &MachineOperatorBuilder::I16x8Eq, kArm64IEq, kArm64IEq, 1},
-    {true, 16, &MachineOperatorBuilder::I16x8Ne, kArm64INe, kArm64INe, 1},
-    {true, 16, &MachineOperatorBuilder::I16x8GeS, kArm64ILeS, kArm64IGeS, 1},
-    {true, 16, &MachineOperatorBuilder::I16x8GtS, kArm64ILtS, kArm64IGtS, 1},
-    {false, 16, &MachineOperatorBuilder::I16x8Eq, kArm64IEq, kArm64IEq, 2},
-    {false, 16, &MachineOperatorBuilder::I16x8Ne, kArm64INe, kArm64INe, 2},
-    {false, 16, &MachineOperatorBuilder::I16x8GeS, kArm64IGeS, kArm64IGeS, 2},
-    {false, 16, &MachineOperatorBuilder::I16x8GtS, kArm64IGtS, kArm64IGtS, 2},
-    {true, 32, &MachineOperatorBuilder::I32x4Eq, kArm64IEq, kArm64IEq, 1},
-    {true, 32, &MachineOperatorBuilder::I32x4Ne, kArm64INe, kArm64INe, 1},
-    {true, 32, &MachineOperatorBuilder::I32x4GeS, kArm64ILeS, kArm64IGeS, 1},
-    {true, 32, &MachineOperatorBuilder::I32x4GtS, kArm64ILtS, kArm64IGtS, 1},
-    {false, 32, &MachineOperatorBuilder::I32x4Eq, kArm64IEq, kArm64IEq, 2},
-    {false, 32, &MachineOperatorBuilder::I32x4Ne, kArm64INe, kArm64INe, 2},
-    {false, 32, &MachineOperatorBuilder::I32x4GeS, kArm64IGeS, kArm64IGeS, 2},
-    {false, 32, &MachineOperatorBuilder::I32x4GtS, kArm64IGtS, kArm64IGtS, 2},
-    {true, 64, &MachineOperatorBuilder::I64x2Eq, kArm64IEq, kArm64IEq, 1},
-    {true, 64, &MachineOperatorBuilder::I64x2Ne, kArm64INe, kArm64INe, 1},
-    {true, 64, &MachineOperatorBuilder::I64x2GeS, kArm64ILeS, kArm64IGeS, 1},
-    {true, 64, &MachineOperatorBuilder::I64x2GtS, kArm64ILtS, kArm64IGtS, 1},
-    {false, 64, &MachineOperatorBuilder::I64x2Eq, kArm64IEq, kArm64IEq, 2},
-    {false, 64, &MachineOperatorBuilder::I64x2Ne, kArm64INe, kArm64INe, 2},
-    {false, 64, &MachineOperatorBuilder::I64x2GeS, kArm64IGeS, kArm64IGeS, 2},
-    {false, 64, &MachineOperatorBuilder::I64x2GtS, kArm64IGtS, kArm64IGtS, 2},
-    {true, 64, &MachineOperatorBuilder::F64x2Eq, kArm64FEq, kArm64FEq, 1},
-    {true, 64, &MachineOperatorBuilder::F64x2Ne, kArm64FNe, kArm64FNe, 1},
-    {true, 64, &MachineOperatorBuilder::F64x2Lt, kArm64FGt, kArm64FLt, 1},
-    {true, 64, &MachineOperatorBuilder::F64x2Le, kArm64FGe, kArm64FLe, 1},
-    {false, 64, &MachineOperatorBuilder::F64x2Eq, kArm64FEq, kArm64FEq, 2},
-    {false, 64, &MachineOperatorBuilder::F64x2Ne, kArm64FNe, kArm64FNe, 2},
-    {false, 64, &MachineOperatorBuilder::F64x2Lt, kArm64FLt, kArm64FLt, 2},
-    {false, 64, &MachineOperatorBuilder::F64x2Le, kArm64FLe, kArm64FLe, 2},
-    {true, 32, &MachineOperatorBuilder::F32x4Eq, kArm64FEq, kArm64FEq, 1},
-    {true, 32, &MachineOperatorBuilder::F32x4Ne, kArm64FNe, kArm64FNe, 1},
-    {true, 32, &MachineOperatorBuilder::F32x4Lt, kArm64FGt, kArm64FLt, 1},
-    {true, 32, &MachineOperatorBuilder::F32x4Le, kArm64FGe, kArm64FLe, 1},
-    {false, 32, &MachineOperatorBuilder::F32x4Eq, kArm64FEq, kArm64FEq, 2},
-    {false, 32, &MachineOperatorBuilder::F32x4Ne, kArm64FNe, kArm64FNe, 2},
-    {false, 32, &MachineOperatorBuilder::F32x4Lt, kArm64FLt, kArm64FLt, 2},
-    {false, 32, &MachineOperatorBuilder::F32x4Le, kArm64FLe, kArm64FLe, 2},
+    {true, 8, TSBinop::kI8x16Eq, kArm64IEq, kArm64IEq, 1},
+    {true, 8, TSBinop::kI8x16Ne, kArm64INe, kArm64INe, 1},
+    {true, 8, TSBinop::kI8x16GeS, kArm64ILeS, kArm64IGeS, 1},
+    {true, 8, TSBinop::kI8x16GtS, kArm64ILtS, kArm64IGtS, 1},
+    {false, 8, TSBinop::kI8x16Eq, kArm64IEq, kArm64IEq, 2},
+    {false, 8, TSBinop::kI8x16Ne, kArm64INe, kArm64INe, 2},
+    {false, 8, TSBinop::kI8x16GeS, kArm64IGeS, kArm64IGeS, 2},
+    {false, 8, TSBinop::kI8x16GtS, kArm64IGtS, kArm64IGtS, 2},
+    {true, 16, TSBinop::kI16x8Eq, kArm64IEq, kArm64IEq, 1},
+    {true, 16, TSBinop::kI16x8Ne, kArm64INe, kArm64INe, 1},
+    {true, 16, TSBinop::kI16x8GeS, kArm64ILeS, kArm64IGeS, 1},
+    {true, 16, TSBinop::kI16x8GtS, kArm64ILtS, kArm64IGtS, 1},
+    {false, 16, TSBinop::kI16x8Eq, kArm64IEq, kArm64IEq, 2},
+    {false, 16, TSBinop::kI16x8Ne, kArm64INe, kArm64INe, 2},
+    {false, 16, TSBinop::kI16x8GeS, kArm64IGeS, kArm64IGeS, 2},
+    {false, 16, TSBinop::kI16x8GtS, kArm64IGtS, kArm64IGtS, 2},
+    {true, 32, TSBinop::kI32x4Eq, kArm64IEq, kArm64IEq, 1},
+    {true, 32, TSBinop::kI32x4Ne, kArm64INe, kArm64INe, 1},
+    {true, 32, TSBinop::kI32x4GeS, kArm64ILeS, kArm64IGeS, 1},
+    {true, 32, TSBinop::kI32x4GtS, kArm64ILtS, kArm64IGtS, 1},
+    {false, 32, TSBinop::kI32x4Eq, kArm64IEq, kArm64IEq, 2},
+    {false, 32, TSBinop::kI32x4Ne, kArm64INe, kArm64INe, 2},
+    {false, 32, TSBinop::kI32x4GeS, kArm64IGeS, kArm64IGeS, 2},
+    {false, 32, TSBinop::kI32x4GtS, kArm64IGtS, kArm64IGtS, 2},
+    {true, 64, TSBinop::kI64x2Eq, kArm64IEq, kArm64IEq, 1},
+    {true, 64, TSBinop::kI64x2Ne, kArm64INe, kArm64INe, 1},
+    {true, 64, TSBinop::kI64x2GeS, kArm64ILeS, kArm64IGeS, 1},
+    {true, 64, TSBinop::kI64x2GtS, kArm64ILtS, kArm64IGtS, 1},
+    {false, 64, TSBinop::kI64x2Eq, kArm64IEq, kArm64IEq, 2},
+    {false, 64, TSBinop::kI64x2Ne, kArm64INe, kArm64INe, 2},
+    {false, 64, TSBinop::kI64x2GeS, kArm64IGeS, kArm64IGeS, 2},
+    {false, 64, TSBinop::kI64x2GtS, kArm64IGtS, kArm64IGtS, 2},
+    {true, 64, TSBinop::kF64x2Eq, kArm64FEq, kArm64FEq, 1},
+    {true, 64, TSBinop::kF64x2Ne, kArm64FNe, kArm64FNe, 1},
+    {true, 64, TSBinop::kF64x2Lt, kArm64FGt, kArm64FLt, 1},
+    {true, 64, TSBinop::kF64x2Le, kArm64FGe, kArm64FLe, 1},
+    {false, 64, TSBinop::kF64x2Eq, kArm64FEq, kArm64FEq, 2},
+    {false, 64, TSBinop::kF64x2Ne, kArm64FNe, kArm64FNe, 2},
+    {false, 64, TSBinop::kF64x2Lt, kArm64FLt, kArm64FLt, 2},
+    {false, 64, TSBinop::kF64x2Le, kArm64FLe, kArm64FLe, 2},
+    {true, 32, TSBinop::kF32x4Eq, kArm64FEq, kArm64FEq, 1},
+    {true, 32, TSBinop::kF32x4Ne, kArm64FNe, kArm64FNe, 1},
+    {true, 32, TSBinop::kF32x4Lt, kArm64FGt, kArm64FLt, 1},
+    {true, 32, TSBinop::kF32x4Le, kArm64FGe, kArm64FLe, 1},
+    {false, 32, TSBinop::kF32x4Eq, kArm64FEq, kArm64FEq, 2},
+    {false, 32, TSBinop::kF32x4Ne, kArm64FNe, kArm64FNe, 2},
+    {false, 32, TSBinop::kF32x4Lt, kArm64FLt, kArm64FLt, 2},
+    {false, 32, TSBinop::kF32x4Le, kArm64FLe, kArm64FLe, 2},
 };
 
-using InstructionSelectorSIMDConstZeroCmTest =
-    InstructionSelectorTestWithParam<SIMDConstZeroCmTest>;
+using TurboshaftInstructionSelectorSIMDConstZeroCmTest =
+    TurboshaftInstructionSelectorTestWithParam<SIMDConstZeroCmTest>;
 
 TEST_P(TurboshaftInstructionSelectorSIMDConstZeroCmTest, ConstZero) {
   const SIMDConstZeroCmTest param = GetParam();
@@ -5879,9 +5907,8 @@ TEST_P(TurboshaftInstructionSelectorSIMDConstZeroCmTest, ConstZero) {
   // Const node on the left
   {
     StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128());
-    OpIndex cnst = m.S128Const(data);
-    OpIndex fcm =
-        m.AddNode((m.machine()->*param.cm_operator)(), cnst, m.Parameter(0));
+    OpIndex cnst = m.Simd128Constant(data);
+    OpIndex fcm = m.Emit(param.cm_operator, cnst, m.Parameter(0));
     m.Return(fcm);
     Stream s = m.Build();
     ASSERT_EQ(param.size, s.size());
@@ -5901,9 +5928,8 @@ TEST_P(TurboshaftInstructionSelectorSIMDConstZeroCmTest, ConstZero) {
   //  Const node on the right
   {
     StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128());
-    OpIndex cnst = m.S128Const(data);
-    OpIndex fcm =
-        m.AddNode((m.machine()->*param.cm_operator)(), m.Parameter(0), cnst);
+    OpIndex cnst = m.Simd128Constant(data);
+    OpIndex fcm = m.Emit(param.cm_operator, m.Parameter(0), cnst);
     m.Return(fcm);
     Stream s = m.Build();
     ASSERT_EQ(param.size, s.size());
@@ -5923,12 +5949,12 @@ TEST_P(TurboshaftInstructionSelectorSIMDConstZeroCmTest, ConstZero) {
 }
 
 INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
-                         InstructionSelectorSIMDConstZeroCmTest,
+                         TurboshaftInstructionSelectorSIMDConstZeroCmTest,
                          ::testing::ValuesIn(SIMDConstZeroCmTests));
 
 struct SIMDConstAndTest {
   const uint8_t data[16];
-  const Operator* (MachineOperatorBuilder::*simd_op)();
+  TSBinop simd_op;
   const ArchOpcode expected_op;
   const bool symmetrical;
   const uint8_t lane_size;
@@ -5940,7 +5966,7 @@ struct SIMDConstAndTest {
 static const SIMDConstAndTest SIMDConstAndTests[] = {
     {{0xFF, 0xFE, 0xFF, 0xFE, 0xFF, 0xFE, 0xFF, 0xFE, 0xFF, 0xFE, 0xFF, 0xFE,
       0xFF, 0xFE, 0xFF, 0xFE},
-     &MachineOperatorBuilder::S128And,
+     TSBinop::kS128And,
      kArm64S128AndNot,
      true,
      16,
@@ -5949,7 +5975,7 @@ static const SIMDConstAndTest SIMDConstAndTests[] = {
      1},
     {{0xFE, 0xFF, 0xFE, 0xFF, 0xFE, 0xFF, 0xFE, 0xFF, 0xFE, 0xFF, 0xFE, 0xFF,
       0xFE, 0xFF, 0xFE, 0xFF},
-     &MachineOperatorBuilder::S128And,
+     TSBinop::kS128And,
      kArm64S128AndNot,
      true,
      16,
@@ -5959,7 +5985,7 @@ static const SIMDConstAndTest SIMDConstAndTests[] = {
 
     {{0xFF, 0xFF, 0xFF, 0xFE, 0xFF, 0xFF, 0xFF, 0xFE, 0xFF, 0xFF, 0xFF, 0xFE,
       0xFF, 0xFF, 0xFF, 0xFE},
-     &MachineOperatorBuilder::S128And,
+     TSBinop::kS128And,
      kArm64S128AndNot,
      true,
      32,
@@ -5968,7 +5994,7 @@ static const SIMDConstAndTest SIMDConstAndTests[] = {
      1},
     {{0xFF, 0xFF, 0xFE, 0xFF, 0xFF, 0xFF, 0xFE, 0xFF, 0xFF, 0xFF, 0xFE, 0xFF,
       0xFF, 0xFF, 0xFE, 0xFF},
-     &MachineOperatorBuilder::S128And,
+     TSBinop::kS128And,
      kArm64S128AndNot,
      true,
      32,
@@ -5977,7 +6003,7 @@ static const SIMDConstAndTest SIMDConstAndTests[] = {
      1},
     {{0xFF, 0xFE, 0xFF, 0xFF, 0xFF, 0xFE, 0xFF, 0xFF, 0xFF, 0xFE, 0xFF, 0xFF,
       0xFF, 0xFE, 0xFF, 0xFF},
-     &MachineOperatorBuilder::S128And,
+     TSBinop::kS128And,
      kArm64S128AndNot,
      true,
      32,
@@ -5986,7 +6012,7 @@ static const SIMDConstAndTest SIMDConstAndTests[] = {
      1},
     {{0xFE, 0xFF, 0xFF, 0xFF, 0xFE, 0xFF, 0xFF, 0xFF, 0xFE, 0xFF, 0xFF, 0xFF,
       0xFE, 0xFF, 0xFF, 0xFF},
-     &MachineOperatorBuilder::S128And,
+     TSBinop::kS128And,
      kArm64S128AndNot,
      true,
      32,
@@ -5996,7 +6022,7 @@ static const SIMDConstAndTest SIMDConstAndTests[] = {
 
     {{0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE,
       0xEE, 0xEE, 0xEE, 0xEE},
-     &MachineOperatorBuilder::S128And,
+     TSBinop::kS128And,
      kArm64S128And,
      true,
      0,
@@ -6006,7 +6032,7 @@ static const SIMDConstAndTest SIMDConstAndTests[] = {
 
     {{0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01,
       0x00, 0x01, 0x00, 0x01},
-     &MachineOperatorBuilder::S128AndNot,
+     TSBinop::kS128AndNot,
      kArm64S128AndNot,
      false,
      16,
@@ -6015,7 +6041,7 @@ static const SIMDConstAndTest SIMDConstAndTests[] = {
      1},
     {{0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00,
       0x01, 0x00, 0x01, 0x00},
-     &MachineOperatorBuilder::S128AndNot,
+     TSBinop::kS128AndNot,
      kArm64S128AndNot,
      false,
      16,
@@ -6025,7 +6051,7 @@ static const SIMDConstAndTest SIMDConstAndTests[] = {
 
     {{0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
       0x00, 0x00, 0x00, 0x01},
-     &MachineOperatorBuilder::S128AndNot,
+     TSBinop::kS128AndNot,
      kArm64S128AndNot,
      false,
      32,
@@ -6034,7 +6060,7 @@ static const SIMDConstAndTest SIMDConstAndTests[] = {
      1},
     {{0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00,
       0x00, 0x00, 0x01, 0x00},
-     &MachineOperatorBuilder::S128AndNot,
+     TSBinop::kS128AndNot,
      kArm64S128AndNot,
      false,
      32,
@@ -6043,7 +6069,7 @@ static const SIMDConstAndTest SIMDConstAndTests[] = {
      1},
     {{0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00,
       0x00, 0x01, 0x00, 0x00},
-     &MachineOperatorBuilder::S128AndNot,
+     TSBinop::kS128AndNot,
      kArm64S128AndNot,
      false,
      32,
@@ -6052,7 +6078,7 @@ static const SIMDConstAndTest SIMDConstAndTests[] = {
      1},
     {{0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
       0x01, 0x00, 0x00, 0x00},
-     &MachineOperatorBuilder::S128AndNot,
+     TSBinop::kS128AndNot,
      kArm64S128AndNot,
      false,
      32,
@@ -6062,7 +6088,7 @@ static const SIMDConstAndTest SIMDConstAndTests[] = {
 
     {{0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE,
       0xEE, 0xEE, 0xEE, 0xEE},
-     &MachineOperatorBuilder::S128AndNot,
+     TSBinop::kS128AndNot,
      kArm64S128AndNot,
      false,
      0,
@@ -6071,17 +6097,16 @@ static const SIMDConstAndTest SIMDConstAndTests[] = {
      2},
 };
 
-using InstructionSelectorSIMDConstAndTest =
-    InstructionSelectorTestWithParam<SIMDConstAndTest>;
+using TurboshaftInstructionSelectorSIMDConstAndTest =
+    TurboshaftInstructionSelectorTestWithParam<SIMDConstAndTest>;
 
 TEST_P(TurboshaftInstructionSelectorSIMDConstAndTest, ConstAnd) {
   const SIMDConstAndTest param = GetParam();
   // Const node on the left
   {
     StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128());
-    OpIndex cnst = m.S128Const(param.data);
-    OpIndex op =
-        m.AddNode((m.machine()->*param.simd_op)(), cnst, m.Parameter(0));
+    OpIndex cnst = m.Simd128Constant(param.data);
+    OpIndex op = m.Emit(param.simd_op, cnst, m.Parameter(0));
     m.Return(op);
     Stream s = m.Build();
 
@@ -6105,9 +6130,8 @@ TEST_P(TurboshaftInstructionSelectorSIMDConstAndTest, ConstAnd) {
   //  Const node on the right
   {
     StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128());
-    OpIndex cnst = m.S128Const(param.data);
-    OpIndex op =
-        m.AddNode((m.machine()->*param.simd_op)(), m.Parameter(0), cnst);
+    OpIndex cnst = m.Simd128Constant(param.data);
+    OpIndex op = m.Emit(param.simd_op, m.Parameter(0), cnst);
     m.Return(op);
     Stream s = m.Build();
     ASSERT_EQ(param.size, s.size());
@@ -6128,10 +6152,8 @@ TEST_P(TurboshaftInstructionSelectorSIMDConstAndTest, ConstAnd) {
 }
 
 INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
-                         InstructionSelectorSIMDConstAndTest,
+                         TurboshaftInstructionSelectorSIMDConstAndTest,
                          ::testing::ValuesIn(SIMDConstAndTests));
 #endif  // V8_ENABLE_WEBASSEMBLY
-
-#endif
 
 }  // namespace v8::internal::compiler::turboshaft

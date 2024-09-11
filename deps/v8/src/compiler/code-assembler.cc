@@ -4,11 +4,13 @@
 
 #include "src/compiler/code-assembler.h"
 
+#include <optional>
 #include <ostream>
 
 #include "src/builtins/builtins-inl.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/machine-type.h"
+#include "src/codegen/tnode.h"
 #include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/js-graph.h"
@@ -1152,6 +1154,51 @@ Node* CodeAssembler::CallRuntimeImpl(
   return return_value;
 }
 
+Builtin CodeAssembler::builtin() { return state()->builtin_; }
+
+#if V8_ENABLE_WEBASSEMBLY
+TNode<RawPtrT> CodeAssembler::SwitchToTheCentralStack() {
+  TNode<ExternalReference> do_switch = ExternalConstant(
+      ExternalReference::wasm_switch_to_the_central_stack_for_js());
+  TNode<RawPtrT> central_stack_sp = TNode<RawPtrT>::UncheckedCast(CallCFunction(
+      do_switch, MachineType::Pointer(),
+      std::make_pair(MachineType::Pointer(),
+                     ExternalConstant(ExternalReference::isolate_address())),
+      std::make_pair(MachineType::Pointer(), LoadFramePointer())));
+
+  TNode<RawPtrT> old_sp = LoadStackPointer();
+  SetStackPointer(central_stack_sp);
+  return old_sp;
+}
+
+void CodeAssembler::SwitchFromTheCentralStack(TNode<RawPtrT> old_sp) {
+  TNode<ExternalReference> do_switch = ExternalConstant(
+      ExternalReference::wasm_switch_from_the_central_stack_for_js());
+  CodeAssemblerLabel skip(this);
+  GotoIf(IntPtrEqual(old_sp, UintPtrConstant(0)), &skip);
+  CallCFunction(
+      do_switch, MachineType::Pointer(),
+      std::make_pair(MachineType::Pointer(),
+                     ExternalConstant(ExternalReference::isolate_address())));
+  SetStackPointer(old_sp);
+  Goto(&skip);
+  Bind(&skip);
+}
+
+TNode<RawPtrT> CodeAssembler::SwitchToTheCentralStackIfNeeded() {
+  TVariable<RawPtrT> old_sp(PointerConstant(nullptr), this);
+  Label no_switch(this);
+  Label end(this);  // -> return value of the call (kTaggedPointer)
+  TNode<Uint8T> is_on_central_stack_flag = LoadUint8FromRootRegister(
+      IntPtrConstant(IsolateData::is_on_central_stack_flag_offset()));
+  GotoIf(is_on_central_stack_flag, &no_switch);
+  old_sp = SwitchToTheCentralStack();
+  Goto(&no_switch);
+  Bind(&no_switch);
+  return old_sp.value();
+}
+#endif
+
 void CodeAssembler::TailCallRuntimeImpl(
     Runtime::FunctionId function, TNode<Int32T> arity, TNode<Object> context,
     std::initializer_list<TNode<Object>> args) {
@@ -1269,7 +1316,7 @@ Node* CodeAssembler::CallStubRImpl(StubCallMode call_mode,
 Node* CodeAssembler::CallJSStubImpl(const CallInterfaceDescriptor& descriptor,
                                     TNode<Object> target, TNode<Object> context,
                                     TNode<Object> function,
-                                    base::Optional<TNode<Object>> new_target,
+                                    std::optional<TNode<Object>> new_target,
                                     TNode<Int32T> arity,
                                     std::initializer_list<Node*> args) {
   constexpr size_t kMaxNumArgs = 10;
@@ -1353,7 +1400,7 @@ Node* CodeAssembler::CallCFunctionN(Signature<MachineType>* signature,
 }
 
 Node* CodeAssembler::CallCFunction(
-    Node* function, base::Optional<MachineType> return_type,
+    Node* function, std::optional<MachineType> return_type,
     std::initializer_list<CodeAssembler::CFunctionArg> args) {
   return raw_assembler()->CallCFunction(function, return_type, args);
 }

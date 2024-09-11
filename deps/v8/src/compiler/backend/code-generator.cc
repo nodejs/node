@@ -4,6 +4,8 @@
 
 #include "src/compiler/backend/code-generator.h"
 
+#include <optional>
+
 #include "src/base/bounds.h"
 #include "src/base/iterator.h"
 #include "src/codegen/assembler-inl.h"
@@ -51,7 +53,7 @@ class CodeGenerator::JumpTable final : public ZoneObject {
 CodeGenerator::CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
                              InstructionSequence* instructions,
                              OptimizedCompilationInfo* info, Isolate* isolate,
-                             base::Optional<OsrHelper> osr_helper,
+                             std::optional<OsrHelper> osr_helper,
                              int start_source_position,
                              JumpOptimizationInfo* jump_opt,
                              const AssemblerOptions& options, Builtin builtin,
@@ -235,12 +237,14 @@ void CodeGenerator::AssembleCode() {
 
 #if V8_ENABLE_WEBASSEMBLY
   if (info->code_kind() == CodeKind::WASM_TO_JS_FUNCTION ||
-      info->builtin() == Builtin::kWasmToJsWrapperCSA) {
+      info->builtin() == Builtin::kWasmToJsWrapperCSA ||
+      wasm::BuiltinLookup::IsWasmBuiltinId(info->builtin())) {
     // By default the code generator can convert slot IDs to SP-relative memory
-    // operands depending on the offset. However, the SP may switch to the
-    // central stack at the beginning of the wrapper if the caller is on a
-    // secondary stack, and switch back at the end. So for the whole duration
-    // of the wrapper, only FP-relative addressing is valid.
+    // operands depending on the offset if the encoding is more efficient.
+    // However the SP may switch to the central stack for wasm-to-js wrappers
+    // and wasm builtins, so disable this optimization there.
+    // TODO(thibaudm): Disable this more selectively, only wasm builtins that
+    // call JS builtins can switch, and only around the call site.
     frame_access_state()->SetFPRelativeOnly(true);
   }
 #endif
@@ -536,9 +540,14 @@ MaybeHandle<Code> CodeGenerator::FinalizeCode() {
       .set_profiler_data(info()->profiler_data())
       .set_osr_offset(info()->osr_offset());
 
+  if (info()->function_context_specializing()) {
+    builder.set_is_context_specialized();
+  }
+
   if (CodeKindUsesDeoptimizationData(info()->code_kind())) {
     builder.set_deoptimization_data(GenerateDeoptimizationData());
-    DCHECK(info()->has_bytecode_array());
+    DCHECK(info()->has_bytecode_array() ||
+           info()->code_kind() == CodeKind::WASM_FUNCTION);
   }
 
   MaybeHandle<Code> maybe_code = builder.TryBuild();
@@ -933,10 +942,12 @@ bool CodeGenerator::GetSlotAboveSPBeforeTailCall(Instruction* instr,
 StubCallMode CodeGenerator::DetermineStubCallMode() const {
 #if V8_ENABLE_WEBASSEMBLY
   CodeKind code_kind = info()->code_kind();
-  if (code_kind == CodeKind::WASM_FUNCTION ||
-      code_kind == CodeKind::WASM_TO_CAPI_FUNCTION ||
-      code_kind == CodeKind::WASM_TO_JS_FUNCTION) {
+  if (code_kind == CodeKind::WASM_FUNCTION) {
     return StubCallMode::kCallWasmRuntimeStub;
+  }
+  if (code_kind == CodeKind::WASM_TO_CAPI_FUNCTION ||
+      code_kind == CodeKind::WASM_TO_JS_FUNCTION) {
+    return StubCallMode::kCallBuiltinPointer;
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   return StubCallMode::kCallCodeObject;
@@ -1101,6 +1112,12 @@ Label* CodeGenerator::AddJumpTable(Label** targets, size_t target_count) {
   jump_tables_ = zone()->New<JumpTable>(jump_tables_, targets, target_count);
   return jump_tables_->label();
 }
+
+#ifndef V8_TARGET_ARCH_X64
+void CodeGenerator::AssemblePlaceHolderForLazyDeopt(Instruction* instr) {
+  UNREACHABLE();
+}
+#endif
 
 void CodeGenerator::RecordCallPosition(Instruction* instr) {
   const bool needs_frame_state =
@@ -1530,8 +1547,12 @@ void CodeGenerator::AddTranslationForOperand(Instruction* instr,
       case Constant::kFloat64:
         DCHECK(type.representation() == MachineRepresentation::kFloat64 ||
                type.representation() == MachineRepresentation::kTagged);
-        DCHECK_NE(type, MachineType::HoleyFloat64());
-        literal = DeoptimizationLiteral(constant.ToFloat64().value());
+        if (type == MachineType::HoleyFloat64() &&
+            constant.ToFloat64().AsUint64() == kHoleNanInt64) {
+          literal = DeoptimizationLiteral::HoleNaN();
+        } else {
+          literal = DeoptimizationLiteral(constant.ToFloat64().value());
+        }
         break;
       case Constant::kHeapObject:
         DCHECK_EQ(MachineRepresentation::kTagged, type.representation());

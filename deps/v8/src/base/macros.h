@@ -23,6 +23,23 @@
 // Creates an unique identifier. Useful for scopes to avoid shadowing names.
 #define UNIQUE_IDENTIFIER(base) CONCAT(base, __COUNTER__)
 
+// COUNT_MACRO_ARGS(...) returns the number of arguments passed. Currently, up
+// to 8 arguments are supported.
+#define COUNT_MACRO_ARGS(...) \
+  EXPAND(COUNT_MACRO_ARGS_IMPL(__VA_ARGS__, 8, 7, 6, 5, 4, 3, 2, 1, 0))
+#define COUNT_MACRO_ARGS_IMPL(_8, _7, _6, _5, _4, _3, _2, _1, N, ...) N
+// GET_NTH_ARG(N, ...) returns the Nth argument in the list of arguments
+// following. Currently, up to N=8 is supported.
+#define GET_NTH_ARG(N, ...) CONCAT(GET_NTH_ARG_IMPL_, N)(__VA_ARGS__)
+#define GET_NTH_ARG_IMPL_0(_0, ...) _0
+#define GET_NTH_ARG_IMPL_1(_0, _1, ...) _1
+#define GET_NTH_ARG_IMPL_2(_0, _1, _2, ...) _2
+#define GET_NTH_ARG_IMPL_3(_0, _1, _2, _3, ...) _3
+#define GET_NTH_ARG_IMPL_4(_0, _1, _2, _3, _4, ...) _4
+#define GET_NTH_ARG_IMPL_5(_0, _1, _2, _3, _4, _5, ...) _5
+#define GET_NTH_ARG_IMPL_6(_0, _1, _2, _3, _4, _5, _6, ...) _6
+#define GET_NTH_ARG_IMPL_7(_0, _1, _2, _3, _4, _5, _6, _7, ...) _7
+
 // UNPAREN(x) removes a layer of nested parentheses on x, if any. This means
 // that both UNPAREN(x) and UNPAREN((x)) expand to x. This is helpful for macros
 // that want to support multi argument templates with commas, e.g.
@@ -406,9 +423,9 @@ bool is_inbounds(float_t v) {
 // Setup for Windows shared library export.
 #define V8_EXPORT_ENUM
 #ifdef BUILDING_V8_SHARED_PRIVATE
-#define V8_EXPORT_PRIVATE
+#define V8_EXPORT_PRIVATE __declspec(dllexport)
 #elif USING_V8_SHARED_PRIVATE
-#define V8_EXPORT_PRIVATE
+#define V8_EXPORT_PRIVATE __declspec(dllimport)
 #else
 #define V8_EXPORT_PRIVATE
 #endif  // BUILDING_V8_SHARED
@@ -418,8 +435,8 @@ bool is_inbounds(float_t v) {
 // Setup for Linux shared library export.
 #if V8_HAS_ATTRIBUTE_VISIBILITY
 #ifdef BUILDING_V8_SHARED_PRIVATE
-#define V8_EXPORT_PRIVATE
-#define V8_EXPORT_ENUM
+#define V8_EXPORT_PRIVATE __attribute__((visibility("default")))
+#define V8_EXPORT_ENUM V8_EXPORT_PRIVATE
 #else
 #define V8_EXPORT_PRIVATE
 #define V8_EXPORT_ENUM
@@ -439,6 +456,18 @@ bool is_inbounds(float_t v) {
 #else
 #define IF_WASM(V, ...)
 #endif  // V8_ENABLE_WEBASSEMBLY
+
+#ifdef V8_ENABLE_DRUMBRAKE
+#define IF_WASM_DRUMBRAKE(V, ...) EXPAND(V(__VA_ARGS__))
+#else
+#define IF_WASM_DRUMBRAKE(V, ...)
+#endif  // V8_ENABLE_DRUMBRAKE
+
+#if defined(V8_ENABLE_DRUMBRAKE) && !defined(V8_DRUMBRAKE_BOUNDS_CHECKS)
+#define IF_WASM_DRUMBRAKE_INSTR_HANDLER(V, ...) EXPAND(V(__VA_ARGS__))
+#else
+#define IF_WASM_DRUMBRAKE_INSTR_HANDLER(V, ...)
+#endif  // V8_ENABLE_DRUMBRAKE && !V8_DRUMBRAKE_BOUNDS_CHECKS
 
 // Defines IF_TSAN, to be used in macro lists for elements that should only be
 // there if TSAN is enabled.

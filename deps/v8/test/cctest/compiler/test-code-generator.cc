@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include <algorithm>
+#include <optional>
 
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen/assembler-inl.h"
@@ -583,7 +584,7 @@ class TestEnvironment : public HandleAndZoneScope {
     // Initialise random constants.
 
     // While constants do not know about Smis, we need to be able to
-    // differentiate between a pointer to a HeapNumber and a integer. For this
+    // differentiate between a pointer to a HeapNumber and an integer. For this
     // reason, we make sure all integers are Smis, including constants.
     for (int i = 0; i < kSmiConstantCount; i++) {
       intptr_t smi_value = static_cast<intptr_t>(
@@ -787,18 +788,18 @@ class TestEnvironment : public HandleAndZoneScope {
     if (from.IsConstant()) {
       Constant constant = instructions_.GetConstant(
           ConstantOperand::cast(from).virtual_register());
-      Handle<Object> constant_value;
+      DirectHandle<Object> constant_value;
       switch (constant.type()) {
         case Constant::kInt32:
           constant_value =
-              Handle<Smi>(Tagged<Smi>(static_cast<Address>(
-                              static_cast<intptr_t>(constant.ToInt32()))),
-                          main_isolate());
+              direct_handle(Tagged<Smi>(static_cast<Address>(
+                                static_cast<intptr_t>(constant.ToInt32()))),
+                            main_isolate());
           break;
         case Constant::kInt64:
-          constant_value =
-              Handle<Smi>(Tagged<Smi>(static_cast<Address>(constant.ToInt64())),
-                          main_isolate());
+          constant_value = direct_handle(
+              Tagged<Smi>(static_cast<Address>(constant.ToInt64())),
+              main_isolate());
           break;
         case Constant::kFloat32:
           constant_value = main_isolate()->factory()->NewHeapNumber(
@@ -1155,7 +1156,7 @@ class CodeGeneratorTester {
     generator_ = new CodeGenerator(
         environment->main_zone(), &frame_, &linkage_,
         environment->instructions(), &info_, environment->main_isolate(),
-        base::Optional<OsrHelper>(), kNoSourcePosition, nullptr,
+        std::optional<OsrHelper>(), kNoSourcePosition, nullptr,
         AssemblerOptions::Default(environment->main_isolate()),
         Builtin::kNoBuiltinId, kMaxUnoptimizedFrameHeight,
         kMaxPushedArgumentCount);
@@ -1228,7 +1229,7 @@ class CodeGeneratorTester {
                                  CodeGeneratorTester::PushTypeFlag push_type) {
     generator_->AssembleTailCallBeforeGap(instr, first_unused_stack_slot);
 #if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_S390) || \
-    defined(V8_TARGET_ARCH_PPC) || defined(V8_TARGET_ARCH_PPC64)
+    defined(V8_TARGET_ARCH_PPC64)
     // Only folding register pushes is supported on ARM.
     bool supported =
         ((int{push_type} & CodeGenerator::kRegisterPush) == push_type);
@@ -1295,7 +1296,7 @@ class CodeGeneratorTester {
     InstructionSequence* sequence = generator_->instructions();
 
     sequence->StartBlock(RpoNumber::FromInt(0));
-    // The environment expects this code to tail-call to it's first parameter
+    // The environment expects this code to tail-call to its first parameter
     // placed in `kReturnRegister0`.
     sequence->AddInstruction(Instruction::New(zone_, kArchPrepareTailCall));
 
@@ -1449,7 +1450,7 @@ TEST(FuzzAssembleMoveAndSwap) {
   TestEnvironment env;
 
   Handle<FixedArray> state_in = env.GenerateInitialState();
-  Handle<FixedArray> expected =
+  DirectHandle<FixedArray> expected =
       env.main_isolate()->factory()->NewFixedArray(state_in->length());
 
   // Test small and potentially large ranges separately.

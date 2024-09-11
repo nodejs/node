@@ -42,7 +42,7 @@ TEST(NativeContextInferrerJSFunction) {
       GetNativeContext(isolate, env.local());
   v8::Local<v8::Value> result = CompileRun("(function () { return 1; })");
   Handle<Object> object = Utils::OpenHandle(*result);
-  Handle<HeapObject> function = Cast<HeapObject>(object);
+  DirectHandle<HeapObject> function = Cast<HeapObject>(object);
   NativeContextInferrer inferrer;
   Address inferred_context = 0;
   CHECK(inferrer.Infer(isolate, function->map(), *function, &inferred_context));
@@ -57,7 +57,7 @@ TEST(NativeContextInferrerJSObject) {
       GetNativeContext(isolate, env.local());
   v8::Local<v8::Value> result = CompileRun("({a : 10})");
   Handle<Object> object = Utils::OpenHandle(*result);
-  Handle<HeapObject> function = Cast<HeapObject>(object);
+  DirectHandle<HeapObject> function = Cast<HeapObject>(object);
   NativeContextInferrer inferrer;
   Address inferred_context = 0;
   CHECK(inferrer.Infer(isolate, function->map(), *function, &inferred_context));
@@ -71,7 +71,8 @@ TEST(NativeContextStatsMerge) {
   DirectHandle<NativeContext> native_context =
       GetNativeContext(isolate, env.local());
   v8::Local<v8::Value> result = CompileRun("({a : 10})");
-  Handle<HeapObject> object = Cast<HeapObject>(Utils::OpenHandle(*result));
+  DirectHandle<HeapObject> object =
+      Cast<HeapObject>(Utils::OpenDirectHandle(*result));
   NativeContextStats stats1, stats2;
   stats1.IncrementSize(native_context->ptr(), object->map(), *object, 10);
   stats2.IncrementSize(native_context->ptr(), object->map(), *object, 20);
@@ -141,7 +142,7 @@ class MockPlatform : public TestPlatform {
   MockPlatform() : mock_task_runner_(new MockTaskRunner()) {}
 
   std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
-      v8::Isolate*) override {
+      v8::Isolate*, v8::TaskPriority priority) override {
     return mock_task_runner_;
   }
 

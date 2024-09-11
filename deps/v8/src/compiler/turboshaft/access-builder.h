@@ -9,6 +9,7 @@
 #include "src/common/globals.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/turboshaft/index.h"
+#include "src/compiler/type-cache.h"
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -55,17 +56,28 @@ class AccessBuilderTS : public AllStatic {
   }
   TF_FIELD_ACCESS(String, Word32, ForStringLength)
   TF_FIELD_ACCESS(Name, Word32, ForNameRawHashField)
+  TF_FIELD_ACCESS(HeapNumber, Float64, ForHeapNumberValue)
+  using HeapNumberOrOddballOrHole = Union<HeapNumber, Oddball, Hole>;
+  TF_FIELD_ACCESS(HeapNumberOrOddballOrHole, Float64,
+                  ForHeapNumberOrOddballOrHoleValue)
 #undef TF_ACCESS
   static FieldAccessTS<Object, Map> ForMap(
       WriteBarrierKind write_barrier = kMapWriteBarrier) {
     return FieldAccessTS<Object, Map>(
         compiler::AccessBuilder::ForMap(write_barrier));
   }
+  static FieldAccessTS<FeedbackVector, Word32> ForFeedbackVectorLength() {
+    return FieldAccessTS<FeedbackVector, Word32>(compiler::FieldAccess{
+        BaseTaggedness::kTaggedBase, FeedbackVector::kLengthOffset,
+        Handle<Name>(), OptionalMapRef(), TypeCache::Get()->kInt32,
+        MachineType::Int32(), WriteBarrierKind::kNoWriteBarrier});
+  }
 
 #define TF_ELEMENT_ACCESS(Class, T, name)                                     \
   static ElementAccessTS<Class, T> name() {                                   \
     return ElementAccessTS<Class, T>{compiler::AccessBuilder::name(), false}; \
   }
+  TF_ELEMENT_ACCESS(SeqOneByteString, Word32, ForSeqOneByteStringCharacter)
   TF_ELEMENT_ACCESS(SeqTwoByteString, Word32, ForSeqTwoByteStringCharacter)
 #undef TF_ELEMENT_ACCESS
 

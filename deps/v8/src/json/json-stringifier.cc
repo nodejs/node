@@ -47,7 +47,8 @@ class JsonStringifier {
   V8_WARN_UNUSED_RESULT MaybeHandle<Object> ApplyToJsonFunction(
       Handle<Object> object, Handle<Object> key);
   V8_WARN_UNUSED_RESULT MaybeHandle<Object> ApplyReplacerFunction(
-      Handle<Object> value, Handle<Object> key, Handle<Object> initial_holder);
+      Handle<Object> value, Handle<Object> key,
+      DirectHandle<Object> initial_holder);
 
   // Entry point to serialize the object.
   V8_INLINE Result SerializeObject(Handle<Object> obj) {
@@ -62,7 +63,7 @@ class JsonStringifier {
                              Handle<Object>(Smi::FromInt(i), isolate));
   }
 
-  // Serialize a object property.
+  // Serialize an object property.
   // The key may or may not be serialized depending on the property.
   // The key may also serve as argument for the toJSON function.
   V8_INLINE Result SerializeProperty(Handle<Object> object, bool deferred_comma,
@@ -213,7 +214,7 @@ class JsonStringifier {
   Result SerializeJSReceiverSlow(Handle<JSReceiver> object);
   template <ElementsKind kind>
   V8_INLINE Result SerializeFixedArrayWithInterruptCheck(
-      Handle<JSArray> array, uint32_t length, uint32_t* slow_path_index);
+      DirectHandle<JSArray> array, uint32_t length, uint32_t* slow_path_index);
   template <ElementsKind kind>
   V8_INLINE Result SerializeFixedArrayWithPossibleTransitions(
       DirectHandle<JSArray> array, uint32_t length, uint32_t* slow_path_index);
@@ -349,7 +350,7 @@ class JsonStringifier {
   V8_INLINE void Separator(bool first);
 
   Handle<JSReceiver> CurrentHolder(DirectHandle<Object> value,
-                                   Handle<Object> inital_holder);
+                                   DirectHandle<Object> inital_holder);
 
   Result StackPush(Handle<Object> object, Handle<Object> key);
   void StackPop();
@@ -612,7 +613,8 @@ MaybeHandle<Object> JsonStringifier::ApplyToJsonFunction(Handle<Object> object,
 }
 
 MaybeHandle<Object> JsonStringifier::ApplyReplacerFunction(
-    Handle<Object> value, Handle<Object> key, Handle<Object> initial_holder) {
+    Handle<Object> value, Handle<Object> key,
+    DirectHandle<Object> initial_holder) {
   HandleScope scope(isolate_);
   if (IsSmi(*key)) key = factory()->NumberToString(key);
   Handle<Object> argv[] = {key, value};
@@ -624,7 +626,7 @@ MaybeHandle<Object> JsonStringifier::ApplyReplacerFunction(
 }
 
 Handle<JSReceiver> JsonStringifier::CurrentHolder(
-    DirectHandle<Object> value, Handle<Object> initial_holder) {
+    DirectHandle<Object> value, DirectHandle<Object> initial_holder) {
   if (stack_.empty()) {
     Handle<JSObject> holder =
         factory()->NewJSObject(isolate_->object_function());
@@ -813,7 +815,7 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
     return EXCEPTION;
   }
 
-  Handle<Object> initial_value = object;
+  DirectHandle<Object> initial_value = object;
   PtrComprCageBase cage_base(isolate_);
   if (!IsSmi(*object)) {
     InstanceType instance_type =
@@ -1064,7 +1066,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSArray(
 
 template <ElementsKind kind>
 JsonStringifier::Result JsonStringifier::SerializeFixedArrayWithInterruptCheck(
-    Handle<JSArray> array, uint32_t length, uint32_t* slow_path_index) {
+    DirectHandle<JSArray> array, uint32_t length, uint32_t* slow_path_index) {
   static_assert(IsSmiElementsKind(kind) || IsDoubleElementsKind(kind));
   using ArrayT = typename std::conditional<IsDoubleElementsKind(kind),
                                            FixedDoubleArray, FixedArray>::type;

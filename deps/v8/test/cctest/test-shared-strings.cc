@@ -662,6 +662,7 @@ UNINITIALIZED_TEST(StringShare) {
 
   v8_flags.shared_string_table = true;
 
+  ManualGCScope manual_gc_scope;
   ExternalResourceFactory resource_factory;
   MultiClientIsolateTest test;
   Isolate* i_isolate = test.i_main_isolate();
@@ -1665,7 +1666,7 @@ void CreateExternalResources(Isolate* i_isolate,
   resources.reserve(strings->length());
   for (int i = 0; i < strings->length(); i++) {
     DirectHandle<String> input_string(Cast<String>(strings->get(i)), i_isolate);
-    CHECK(Utils::ToLocal(input_string, i_isolate)
+    CHECK(Utils::ToLocal(input_string)
               ->CanMakeExternal(v8::String::Encoding::ONE_BYTE_ENCODING));
     const int length = input_string->length();
     char* buffer = new char[length + 1];
@@ -2121,9 +2122,11 @@ UNINITIALIZED_TEST(SharedStringInClientGlobalHandle) {
 
 class ClientIsolateThreadForPagePromotions : public v8::base::Thread {
  public:
+  // Expects a ManualGCScope to be in scope while `Run()` is executed.
   ClientIsolateThreadForPagePromotions(const char* name,
                                        MultiClientIsolateTest* test,
-                                       Handle<String>* shared_string)
+                                       Handle<String>* shared_string,
+                                       const ManualGCScope& witness)
       : v8::base::Thread(base::Thread::Options(name)),
         test_(test),
         shared_string_(shared_string) {}
@@ -2208,7 +2211,8 @@ UNINITIALIZED_TEST(RegisterOldToSharedForPromotedPageFromClient) {
           raw_one_byte, AllocationType::kSharedOld);
   CHECK(shared_heap->Contains(*shared_string));
 
-  ClientIsolateThreadForPagePromotions thread("worker", &test, &shared_string);
+  ClientIsolateThreadForPagePromotions thread("worker", &test, &shared_string,
+                                              manual_gc_scope);
   CHECK(thread.Start());
 
   while (test.main_isolate_wakeup_counter() < 1) {
@@ -2263,7 +2267,8 @@ UNINITIALIZED_TEST(
                    i::GarbageCollectionReason::kTesting);
   }
 
-  ClientIsolateThreadForPagePromotions thread("worker", &test, &shared_string);
+  ClientIsolateThreadForPagePromotions thread("worker", &test, &shared_string,
+                                              manual_gc_scope);
   CHECK(thread.Start());
 
   while (test.main_isolate_wakeup_counter() < 1) {
@@ -2277,9 +2282,10 @@ UNINITIALIZED_TEST(
 
 class ClientIsolateThreadForRetainingByRememberedSet : public v8::base::Thread {
  public:
+  // Expects a ManualGCScope to be in scope while `Run()` is executed.
   ClientIsolateThreadForRetainingByRememberedSet(
       const char* name, MultiClientIsolateTest* test,
-      Persistent<v8::String>* weak_ref)
+      Persistent<v8::String>* weak_ref, const ManualGCScope& witness)
       : v8::base::Thread(base::Thread::Options(name)),
         test_(test),
         weak_ref_(weak_ref) {}
@@ -2418,8 +2424,8 @@ UNINITIALIZED_TEST(SharedObjectRetainedByClientRememberedSet) {
     dead_weak_ref.SetWeak();
   }
 
-  ClientIsolateThreadForRetainingByRememberedSet thread("worker", &test,
-                                                        &live_weak_ref);
+  ClientIsolateThreadForRetainingByRememberedSet thread(
+      "worker", &test, &live_weak_ref, manual_gc_scope);
   CHECK(thread.Start());
 
   // Wait for client isolate to allocate objects and start a GC.
@@ -2429,7 +2435,7 @@ UNINITIALIZED_TEST(SharedObjectRetainedByClientRememberedSet) {
         v8::platform::MessageLoopBehavior::kWaitForWork);
   }
 
-  // Do shared GC. The live weak ref should be kept alive via a OLD_TO_SHARED
+  // Do shared GC. The live weak ref should be kept alive via an OLD_TO_SHARED
   // slot in the client isolate.
   CHECK(!live_weak_ref.IsEmpty());
   CHECK(!dead_weak_ref.IsEmpty());

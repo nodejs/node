@@ -8,8 +8,13 @@
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/frame.h"
+#include "src/compiler/globals.h"
 #include "src/compiler/osr.h"
 #include "src/compiler/pipeline.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/compiler/wasm-compiler-definitions.h"
+#endif
 
 namespace v8 {
 namespace internal {
@@ -209,9 +214,8 @@ int CallDescriptor::CalculateFixedFrameSize(CodeKind code_kind) const {
       return TypedFrameConstants::kFixedSlotCount;
 #if V8_ENABLE_WEBASSEMBLY
     case kCallWasmFunction:
-      return WasmFrameConstants::kFixedSlotCount;
     case kCallWasmImportWrapper:
-      return WasmImportWrapperFrameConstants::kFixedSlotCount;
+      return WasmFrameConstants::kFixedSlotCount;
     case kCallWasmCapiFunction:
       return WasmExitFrameConstants::kFixedSlotCount;
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -254,6 +258,90 @@ void CallDescriptor::ComputeParamCounts() const {
     }
   }
 }
+
+#if V8_ENABLE_WEBASSEMBLY
+namespace {
+CallDescriptor* ReplaceTypeInCallDescriptorWith(
+    Zone* zone, const CallDescriptor* call_descriptor, size_t num_replacements,
+    MachineType from, MachineType to) {
+  // The last parameter may be the special callable parameter. In that case we
+  // have to preserve it as the last parameter, i.e. we allocate it in the new
+  // location signature again in the same register.
+  bool extra_callable_param =
+      (call_descriptor->GetInputLocation(call_descriptor->InputCount() - 1) ==
+       LinkageLocation::ForRegister(kJSFunctionRegister.code(),
+                                    MachineType::TaggedPointer()));
+
+  size_t return_count = call_descriptor->ReturnCount();
+  // To recover the function parameter count, disregard the instance parameter,
+  // and the extra callable parameter if present.
+  size_t parameter_count =
+      call_descriptor->ParameterCount() - (extra_callable_param ? 2 : 1);
+
+  // Precompute if the descriptor contains {from}.
+  bool needs_change = false;
+  for (size_t i = 0; !needs_change && i < return_count; i++) {
+    needs_change = call_descriptor->GetReturnType(i) == from;
+  }
+  for (size_t i = 1; !needs_change && i < parameter_count + 1; i++) {
+    needs_change = call_descriptor->GetParameterType(i) == from;
+  }
+  if (!needs_change) return const_cast<CallDescriptor*>(call_descriptor);
+
+  std::vector<MachineType> reps;
+
+  for (size_t i = 0, limit = return_count; i < limit; i++) {
+    MachineType initial_type = call_descriptor->GetReturnType(i);
+    if (initial_type == from) {
+      for (size_t j = 0; j < num_replacements; j++) reps.push_back(to);
+      return_count += num_replacements - 1;
+    } else {
+      reps.push_back(initial_type);
+    }
+  }
+
+  // Disregard the instance (first) parameter.
+  for (size_t i = 1, limit = parameter_count + 1; i < limit; i++) {
+    MachineType initial_type = call_descriptor->GetParameterType(i);
+    if (initial_type == from) {
+      for (size_t j = 0; j < num_replacements; j++) reps.push_back(to);
+      parameter_count += num_replacements - 1;
+    } else {
+      reps.push_back(initial_type);
+    }
+  }
+
+  MachineSignature sig(return_count, parameter_count, reps.data());
+
+  int parameter_slots;
+  int return_slots;
+  LocationSignature* location_sig = BuildLocations(
+      zone, &sig, extra_callable_param, &parameter_slots, &return_slots);
+
+  return zone->New<CallDescriptor>(               // --
+      call_descriptor->kind(),                    // kind
+      call_descriptor->tag(),                     // tag
+      call_descriptor->GetInputType(0),           // target MachineType
+      call_descriptor->GetInputLocation(0),       // target location
+      location_sig,                               // location_sig
+      parameter_slots,                            // parameter slot count
+      call_descriptor->properties(),              // properties
+      call_descriptor->CalleeSavedRegisters(),    // callee-saved registers
+      call_descriptor->CalleeSavedFPRegisters(),  // callee-saved fp regs
+      call_descriptor->flags(),                   // flags
+      call_descriptor->debug_name(),              // debug name
+      call_descriptor->GetStackArgumentOrder(),   // stack order
+      call_descriptor->AllocatableRegisters(),    // allocatable registers
+      return_slots);                              // return slot count
+}
+}  // namespace
+
+CallDescriptor* GetI32WasmCallDescriptor(
+    Zone* zone, const CallDescriptor* call_descriptor) {
+  return ReplaceTypeInCallDescriptorWith(
+      zone, call_descriptor, 2, MachineType::Int64(), MachineType::Int32());
+}
+#endif
 
 CallDescriptor* Linkage::ComputeIncoming(Zone* zone,
                                          OptimizedCompilationInfo* info) {
@@ -324,15 +412,20 @@ bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
 
 CallDescriptor* Linkage::GetRuntimeCallDescriptor(
     Zone* zone, Runtime::FunctionId function_id, int js_parameter_count,
-    Operator::Properties properties, CallDescriptor::Flags flags) {
+    Operator::Properties properties, CallDescriptor::Flags flags,
+    LazyDeoptOnThrow lazy_deopt_on_throw) {
   const Runtime::Function* function = Runtime::FunctionForId(function_id);
   const int return_count = function->result_size;
   const char* debug_name = function->name;
 
-  if (!Linkage::NeedsFrameStateInput(function_id)) {
+  if (lazy_deopt_on_throw == LazyDeoptOnThrow::kNo &&
+      !Linkage::NeedsFrameStateInput(function_id)) {
     flags = static_cast<CallDescriptor::Flags>(
         flags & ~CallDescriptor::kNeedsFrameState);
   }
+
+  DCHECK_IMPLIES(lazy_deopt_on_throw == LazyDeoptOnThrow::kYes,
+                 flags & CallDescriptor::kNeedsFrameState);
 
   return GetCEntryStubCallDescriptor(zone, return_count, js_parameter_count,
                                      debug_name, properties, flags);
@@ -647,7 +740,7 @@ bool Linkage::ParameterHasSecondaryLocation(int index) const {
 #if V8_ENABLE_WEBASSEMBLY
   if (incoming_->IsWasmFunctionCall()) {
     LinkageLocation loc = GetParameterLocation(index);
-    return IsTaggedReg(loc, kWasmInstanceRegister);
+    return IsTaggedReg(loc, kWasmImplicitArgRegister);
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   return false;
@@ -673,10 +766,11 @@ LinkageLocation Linkage::GetParameterSecondaryLocation(int index) const {
     }
   }
 #if V8_ENABLE_WEBASSEMBLY
-  static const int kWasmInstanceSlot = 3 + StandardFrameConstants::kCPSlotCount;
+  static const int kWasmInstanceDataSlot =
+      3 + StandardFrameConstants::kCPSlotCount;
   if (incoming_->IsWasmFunctionCall()) {
-    DCHECK(IsTaggedReg(loc, kWasmInstanceRegister));
-    return LinkageLocation::ForCalleeFrameSlot(kWasmInstanceSlot,
+    DCHECK(IsTaggedReg(loc, kWasmImplicitArgRegister));
+    return LinkageLocation::ForCalleeFrameSlot(kWasmInstanceDataSlot,
                                                MachineType::AnyTagged());
   }
 #endif  // V8_ENABLE_WEBASSEMBLY

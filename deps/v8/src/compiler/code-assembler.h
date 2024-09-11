@@ -8,6 +8,7 @@
 #include <initializer_list>
 #include <map>
 #include <memory>
+#include <optional>
 #include <sstream>
 #include <type_traits>
 
@@ -15,7 +16,6 @@
 // Do not include anything from src/compiler here!
 #include "include/cppgc/source-location.h"
 #include "src/base/macros.h"
-#include "src/base/optional.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/atomic-memory-order.h"
 #include "src/codegen/callable.h"
@@ -28,6 +28,10 @@
 #include "src/objects/objects.h"
 #include "src/runtime/runtime.h"
 #include "src/zone/zone-containers.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-builtin-list.h"
+#endif
 
 namespace v8 {
 namespace internal {
@@ -1262,16 +1266,42 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                                {implicit_cast<TNode<Object>>(args)...});
   }
 
+  Builtin builtin();
+
+  // If the current code is running on a secondary stack, move the stack pointer
+  // to the central stack (but not the frame pointer) and adjust the stack
+  // limit. Returns the old stack pointer, or nullptr if no switch was
+  // performed.
+  TNode<RawPtrT> SwitchToTheCentralStackIfNeeded();
+  TNode<RawPtrT> SwitchToTheCentralStack();
+  // Switch the SP back to the secondary stack after switching to the central
+  // stack.
+  void SwitchFromTheCentralStack(TNode<RawPtrT> old_sp);
+
   //
   // If context passed to CallBuiltin is nullptr, it won't be passed to the
   // builtin.
   //
-
   template <typename T = Object, class... TArgs>
   TNode<T> CallBuiltin(Builtin id, TNode<Object> context, TArgs... args) {
+    TNode<RawPtrT> old_sp;
+#if V8_ENABLE_WEBASSEMBLY
+    bool maybe_needs_switch = wasm::BuiltinLookup::IsWasmBuiltinId(builtin()) &&
+                              !wasm::BuiltinLookup::IsWasmBuiltinId(id);
+    if (maybe_needs_switch) {
+      old_sp = SwitchToTheCentralStackIfNeeded();
+    }
+#endif
     Callable callable = Builtins::CallableFor(isolate(), id);
     TNode<Code> target = HeapConstantNoHole(callable.code());
-    return CallStub<T>(callable.descriptor(), target, context, args...);
+    TNode<T> call =
+        CallStub<T>(callable.descriptor(), target, context, args...);
+#if V8_ENABLE_WEBASSEMBLY
+    if (maybe_needs_switch) {
+      SwitchFromTheCentralStack(old_sp);
+    }
+#endif
+    return call;
   }
 
   template <class... TArgs>
@@ -1341,7 +1371,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   template <class... TArgs>
   TNode<Object> CallJS(Builtin builtin, TNode<Context> context,
                        TNode<Object> function,
-                       base::Optional<TNode<Object>> new_target,
+                       std::optional<TNode<Object>> new_target,
                        TNode<Object> receiver, TArgs... args) {
     Callable callable = Builtins::CallableFor(isolate(), builtin);
     // CallTrampolineDescriptor doesn't have |new_target| parameter.
@@ -1384,7 +1414,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   // Call to a C function.
   template <class... CArgs>
-  Node* CallCFunction(Node* function, base::Optional<MachineType> return_type,
+  Node* CallCFunction(Node* function, std::optional<MachineType> return_type,
                       CArgs... cargs) {
     static_assert(
         std::conjunction_v<std::is_convertible<CArgs, CFunctionArg>...>,
@@ -1444,7 +1474,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
  private:
   void HandleException(Node* result);
 
-  Node* CallCFunction(Node* function, base::Optional<MachineType> return_type,
+  Node* CallCFunction(Node* function, std::optional<MachineType> return_type,
                       std::initializer_list<CFunctionArg> args);
 
   Node* CallCFunctionWithoutFunctionDescriptor(
@@ -1485,7 +1515,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Node* CallJSStubImpl(const CallInterfaceDescriptor& descriptor,
                        TNode<Object> target, TNode<Object> context,
                        TNode<Object> function,
-                       base::Optional<TNode<Object>> new_target,
+                       std::optional<TNode<Object>> new_target,
                        TNode<Int32T> arity, std::initializer_list<Node*> args);
 
   Node* CallStubN(StubCallMode call_mode,

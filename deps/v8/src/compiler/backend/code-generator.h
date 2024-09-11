@@ -6,8 +6,8 @@
 #define V8_COMPILER_BACKEND_CODE_GENERATOR_H_
 
 #include <memory>
+#include <optional>
 
-#include "src/base/optional.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/codegen/safepoint-table.h"
@@ -76,7 +76,7 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   explicit CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
                          InstructionSequence* instructions,
                          OptimizedCompilationInfo* info, Isolate* isolate,
-                         base::Optional<OsrHelper> osr_helper,
+                         std::optional<OsrHelper> osr_helper,
                          int start_source_position,
                          JumpOptimizationInfo* jump_opt,
                          const AssemblerOptions& options, Builtin builtin,
@@ -225,7 +225,7 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
 #if V8_TARGET_ARCH_X64
   void AssembleArchBinarySearchSwitchRange(
       Register input, RpoNumber def_block, std::pair<int32_t, Label*>* begin,
-      std::pair<int32_t, Label*>* end, base::Optional<int32_t>& last_cmp_value);
+      std::pair<int32_t, Label*>* end, std::optional<int32_t>& last_cmp_value);
 #else
   void AssembleArchBinarySearchSwitchRange(Register input, RpoNumber def_block,
                                            std::pair<int32_t, Label*>* begin,
@@ -243,6 +243,10 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   // because this code has already been deoptimized and needs to be unlinked
   // from the JS functions referring it.
   void BailoutIfDeoptimized();
+
+  // Assemble NOP instruction for lazy deoptimization. This place will be
+  // patched later as a jump instruction to deoptimization trampoline.
+  void AssemblePlaceHolderForLazyDeopt(Instruction* instr);
 
   // Generates an architecture-specific, descriptor-specific prologue
   // to set up a stack frame.
@@ -442,7 +446,7 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
 
   JumpTable* jump_tables_;
   OutOfLineCode* ools_;
-  base::Optional<OsrHelper> osr_helper_;
+  std::optional<OsrHelper> osr_helper_;
   int osr_pc_offset_;
   SourcePositionTableBuilder source_position_table_builder_;
 #if V8_ENABLE_WEBASSEMBLY

@@ -243,12 +243,10 @@ type ExternalPointer
     generates 'TNode<ExternalPointerT>' constexpr 'ExternalPointer_t';
 type CppHeapPointer
     generates 'TNode<CppHeapPointerT>' constexpr 'CppHeapPointer_t';
-type IndirectPointer
-    generates 'TNode<IndirectPointerHandleT>'
-    constexpr 'IndirectPointerHandle';
-// TODO(saelo): implement accessors and type checkers for these fields.
-type IndirectPointer<To : type extends ExposedTrustedObject> extends
-    IndirectPointer;
+type TrustedPointer
+    generates 'TNode<TrustedPointerT>' constexpr 'TrustedPointer_t';
+type TrustedPointer<To : type extends ExposedTrustedObject> extends
+    TrustedPointer;
 type ProtectedPointer extends Tagged;
 type ProtectedPointer<To : type extends TrustedObject> extends ProtectedPointer;
 extern class InstructionStream extends TrustedObject;

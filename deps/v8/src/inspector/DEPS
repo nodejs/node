@@ -7,7 +7,6 @@ include_rules = [
   "+src/base/lazy-instance.h",
   "+src/base/macros.h",
   "+src/base/memory.h",
-  "+src/base/optional.h",
   "+src/base/platform/mutex.h",
   "+src/base/platform/platform.h",
   "+src/base/platform/time.h",

@@ -29,7 +29,7 @@ class RegExpTest : public fuzztest::PerFuzzTestFixtureAdapter<TestWithContext> {
 
  protected:
   virtual i::Handle<i::String> CreateString(v8::base::Vector<const T>) = 0;
-  void Test(i::Handle<i::JSRegExp>, i::Handle<i::String>);
+  void Test(i::DirectHandle<i::JSRegExp>, i::Handle<i::String>);
 
   Local<Context> context_;
   Isolate* isolate_;
@@ -99,7 +99,7 @@ static fuzztest::Domain<std::vector<v8::base::uc16>> ArbitraryTwoBytes() {
 }
 
 template <class T>
-void RegExpTest<T>::Test(i::Handle<i::JSRegExp> regexp,
+void RegExpTest<T>::Test(i::DirectHandle<i::JSRegExp> regexp,
                          i::Handle<i::String> subject) {
   v8::TryCatch try_catch(isolate_);
   // Exceptions will be swallowed by the try/catch above.

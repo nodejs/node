@@ -119,7 +119,7 @@ static base::LazyInstance<IsolateMapType>::type isolate_map =
     LAZY_INSTANCE_INITIALIZER;
 
 using FilterDataType = std::string;
-// Used when Isolates are created during a ETW tracing session.
+// Used when Isolates are created during an ETW tracing session.
 static base::LazyInstance<FilterDataType>::type etw_filter_payload =
     LAZY_INSTANCE_INITIALIZER;
 
@@ -410,6 +410,14 @@ void EventHandler(const JitCodeEvent* event) {
     script->GetPositionInfo(sfi->StartPosition(), &info);
     script_line = info.line + 1;
     script_column = info.column + 1;
+  }
+
+  auto code = isolate->heap()->GcSafeTryFindCodeForInnerPointer(
+      Address(event->code_start));
+  if (code && code.value()->is_builtin()) {
+    // Skip logging functions with BuiltinIds as they are already present in
+    // the PDB.
+    return;
   }
 
   constexpr static auto method_load_event_meta =

@@ -5,17 +5,19 @@
 #ifndef V8_REGEXP_REGEXP_AST_H_
 #define V8_REGEXP_REGEXP_AST_H_
 
+#include <optional>
+
 #include "src/base/strings.h"
 #include "src/regexp/regexp-flags.h"
 #include "src/zone/zone-containers.h"
 #include "src/zone/zone-list.h"
 #include "src/zone/zone.h"
+
 #ifdef V8_INTL_SUPPORT
 #include "unicode/uniset.h"
 #endif  // V8_INTL_SUPPORT
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 #define FOR_EACH_REG_EXP_TREE_TYPE(VISIT) \
   VISIT(Disjunction)                      \
@@ -297,7 +299,7 @@ class CharacterSet final {
 
  private:
   ZoneList<CharacterRange>* ranges_ = nullptr;
-  base::Optional<StandardCharacterSet> standard_set_type_;
+  std::optional<StandardCharacterSet> standard_set_type_;
 };
 
 class RegExpClassRanges final : public RegExpTree {
@@ -736,8 +738,7 @@ class RegExpEmpty final : public RegExpTree {
   int max_match() override { return 0; }
 };
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #undef DECL_BOILERPLATE
 

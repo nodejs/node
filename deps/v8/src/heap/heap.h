@@ -75,11 +75,6 @@ class HeapTester;
 class TestMemoryAllocatorScope;
 }  // namespace heap
 
-namespace third_party_heap {
-class Heap;
-class Impl;
-}  // namespace third_party_heap
-
 class ArrayBufferCollector;
 class ArrayBufferSweeper;
 class BackingStore;
@@ -418,9 +413,17 @@ class Heap final {
 
   void NotifyBootstrapComplete();
 
-  void NotifyOldGenerationExpansion(LocalHeap* local_heap,
-                                    AllocationSpace space,
-                                    MutablePageMetadata* chunk);
+  enum class OldGenerationExpansionNotificationOrigin {
+    // Specifies that the notification is coming from the client heap.
+    kFromClientHeap,
+    // Specifies that the notification is done within the same heap.
+    kFromSameHeap,
+  };
+
+  void NotifyOldGenerationExpansion(
+      LocalHeap* local_heap, AllocationSpace space, MutablePageMetadata* chunk,
+      OldGenerationExpansionNotificationOrigin =
+          OldGenerationExpansionNotificationOrigin::kFromSameHeap);
 
   inline Address* NewSpaceAllocationTopAddress();
   inline Address* NewSpaceAllocationLimitAddress();
@@ -528,7 +531,7 @@ class Heap final {
   // Number of mark-sweeps.
   int ms_count() const { return ms_count_; }
 
-  // Checks whether the given object is allowed to be migrated from it's
+  // Checks whether the given object is allowed to be migrated from its
   // current space into the given destination space. Used for debugging.
   bool AllowedToBeMigrated(Tagged<Map> map, Tagged<HeapObject> object,
                            AllocationSpace dest);
@@ -689,13 +692,6 @@ class Heap final {
         std::min(max_old_generation_size(), std::max(heap_limit, min_limit)));
   }
 
-#if V8_ENABLE_WEBASSEMBLY
-  // TODO(manoskouk): Consider inlining/moving this if
-  // STRONG_MUTABLE_MOVABLE_ROOT_LIST setters become public.
-  V8_EXPORT_PRIVATE void EnsureWasmCanonicalRttsSize(int length);
-  V8_EXPORT_PRIVATE void ClearWasmCanonicalRttsForTesting();
-#endif
-
   // ===========================================================================
   // Initialization. ===========================================================
   // ===========================================================================
@@ -813,14 +809,13 @@ class Heap final {
 
   CodePointerTable::Space* code_pointer_space() { return &code_pointer_space_; }
 
+#endif  // V8_ENABLE_SANDBOX
+
+#ifdef V8_ENABLE_LEAPTIERING
   JSDispatchTable::Space* js_dispatch_table_space() {
     return &js_dispatch_table_space_;
   }
-
-  ExternalBufferTable::Space* external_buffer_space() {
-    return &external_buffer_space_;
-  }
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_ENABLE_LEAPTIERING
 
   // ===========================================================================
   // Getters to other components. ==============================================
@@ -891,6 +886,11 @@ class Heap final {
   V8_INLINE void SetMessageListeners(Tagged<ArrayList> value);
   V8_INLINE void SetFunctionsMarkedForManualOptimization(
       Tagged<Object> bytecode);
+
+#if V8_ENABLE_WEBASSEMBLY
+  V8_INLINE void SetWasmCanonicalRttsAndJSToWasmWrappers(
+      Tagged<WeakFixedArray> rtts, Tagged<WeakFixedArray> js_to_wasm_wrappers);
+#endif
 
   StrongRootsEntry* RegisterStrongRoots(const char* label, FullObjectSlot start,
                                         FullObjectSlot end);
@@ -1034,7 +1034,6 @@ class Heap final {
   uint8_t* IsMarkingFlagAddress();
   uint8_t* IsMinorMarkingFlagAddress();
 
-  void ClearRecordedSlot(Tagged<HeapObject> object, ObjectSlot slot);
   void ClearRecordedSlotRange(Address start, Address end);
   static int InsertIntoRememberedSetFromCode(MutablePageMetadata* chunk,
                                              size_t slot_offset);
@@ -1349,12 +1348,9 @@ class Heap final {
     survived_since_last_expansion_ += survived;
   }
 
-  void UpdateNewSpaceAllocationCounter();
+  V8_EXPORT_PRIVATE size_t NewSpaceAllocationCounter() const;
 
-  V8_EXPORT_PRIVATE size_t NewSpaceAllocationCounter();
-
-  // This should be used only for testing.
-  void set_new_space_allocation_counter(size_t new_value) {
+  void SetNewSpaceAllocationCounterForTesting(size_t new_value) {
     new_space_allocation_counter_ = new_value;
   }
 
@@ -1611,8 +1607,6 @@ class Heap final {
   // Calculates the nof entries for the full sized number to string cache.
   inline int MaxNumberToStringCacheSize() const;
 
-  static Isolate* GetIsolateFromWritableObject(Tagged<HeapObject> object);
-
   // Ensure that we have swept all spaces in such a way that we can iterate
   // over all objects.
   V8_EXPORT_PRIVATE void MakeHeapIterable();
@@ -1652,12 +1646,14 @@ class Heap final {
   // Returns the amount of external memory registered since last global gc.
   V8_EXPORT_PRIVATE uint64_t AllocatedExternalMemorySinceMarkCompact() const;
 
-  std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner() const;
+  std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
+      TaskPriority priority = TaskPriority::kUserBlocking) const;
 
   bool ShouldUseBackgroundThreads() const;
   bool ShouldUseIncrementalMarking() const;
 
   HeapAllocator* allocator() { return heap_allocator_; }
+  const HeapAllocator* allocator() const { return heap_allocator_; }
 
   bool use_new_space() const {
     DCHECK_IMPLIES(new_space(), !v8_flags.sticky_mark_bits);
@@ -1969,7 +1965,7 @@ class Heap final {
 
   bool ShouldExpandOldGenerationOnSlowAllocation(LocalHeap* local_heap,
                                                  AllocationOrigin origin);
-  bool ShouldExpandYoungGenerationOnSlowAllocation();
+  bool ShouldExpandYoungGenerationOnSlowAllocation(size_t allocation_size);
 
   HeapGrowingMode CurrentHeapGrowingMode();
 
@@ -2192,10 +2188,6 @@ class Heap final {
 
   // The space in the process-wide JSDispatchTable managed by this heap.
   JSDispatchTable::Space js_dispatch_table_space_;
-
-  // The space in the ExternalBufferTable containing entries owned by objects
-  // in this heap.
-  ExternalBufferTable::Space external_buffer_space_;
 #endif  // V8_ENABLE_SANDBOX
 
   LocalHeap* main_thread_local_heap_ = nullptr;
@@ -2405,8 +2397,6 @@ class Heap final {
 
   bool is_finalization_registry_cleanup_task_posted_ = false;
 
-  std::unique_ptr<third_party_heap::Heap> tp_heap_;
-
   MarkingState marking_state_;
   NonAtomicMarkingState non_atomic_marking_state_;
 
@@ -2469,14 +2459,14 @@ class Heap final {
   friend class Scavenger;
   friend class ScavengerCollector;
   friend class ScheduleMinorGCTaskObserver;
+  friend class SemiSpaceNewSpace;
+  friend class SemiSpaceNewSpaceAllocatorPolicy;
   friend class StressConcurrentAllocationObserver;
   friend class Space;
   friend class SpaceWithLinearArea;
   friend class Sweeper;
   friend class UnifiedHeapMarkingState;
   friend class heap::TestMemoryAllocatorScope;
-  friend class third_party_heap::Heap;
-  friend class third_party_heap::Impl;
 
   // The allocator interface.
   friend class Factory;

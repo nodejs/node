@@ -12,6 +12,8 @@
 #include "src/base/ieee754.h"
 #include "src/base/safe_conversions.h"
 #include "src/common/assert-scope.h"
+#include "src/execution/pointer-authentication.h"
+#include "src/numbers/conversions.h"
 #include "src/roots/roots-inl.h"
 #include "src/utils/memcopy.h"
 #include "src/wasm/float16.h"
@@ -35,6 +37,7 @@
 #endif
 
 #include "src/base/memory.h"
+#include "src/base/overflowing-math.h"
 #include "src/utils/utils.h"
 #include "src/wasm/wasm-external-refs.h"
 
@@ -406,6 +409,298 @@ void f32x4_nearest_int_wrapper(Address data) {
   simd_float_round_wrapper<float, &nearbyintf>(data);
 }
 
+Float16 f16_abs(Float16 a) {
+  return Float16::FromFloat32(std::abs(a.ToFloat32()));
+}
+
+void f16x8_abs_wrapper(Address data) {
+  simd_float_round_wrapper<Float16, &f16_abs>(data);
+}
+
+Float16 f16_neg(Float16 a) { return Float16::FromFloat32(-(a.ToFloat32())); }
+
+void f16x8_neg_wrapper(Address data) {
+  simd_float_round_wrapper<Float16, &f16_neg>(data);
+}
+
+Float16 f16_sqrt(Float16 a) {
+  return Float16::FromFloat32(std::sqrt(a.ToFloat32()));
+}
+
+void f16x8_sqrt_wrapper(Address data) {
+  simd_float_round_wrapper<Float16, &f16_sqrt>(data);
+}
+
+Float16 f16_ceil(Float16 a) {
+  return Float16::FromFloat32(ceilf(a.ToFloat32()));
+}
+
+void f16x8_ceil_wrapper(Address data) {
+  simd_float_round_wrapper<Float16, &f16_ceil>(data);
+}
+
+Float16 f16_floor(Float16 a) {
+  return Float16::FromFloat32(floorf(a.ToFloat32()));
+}
+
+void f16x8_floor_wrapper(Address data) {
+  simd_float_round_wrapper<Float16, &f16_floor>(data);
+}
+
+Float16 f16_trunc(Float16 a) {
+  return Float16::FromFloat32(truncf(a.ToFloat32()));
+}
+
+void f16x8_trunc_wrapper(Address data) {
+  simd_float_round_wrapper<Float16, &f16_trunc>(data);
+}
+
+Float16 f16_nearest_int(Float16 a) {
+  return Float16::FromFloat32(nearbyintf(a.ToFloat32()));
+}
+
+void f16x8_nearest_int_wrapper(Address data) {
+  simd_float_round_wrapper<Float16, &f16_nearest_int>(data);
+}
+
+template <typename R, R (*float_bin_op)(Float16, Float16)>
+void simd_float16_bin_wrapper(Address data) {
+  constexpr int n = kSimd128Size / sizeof(Float16);
+  for (int i = 0; i < n; i++) {
+    Float16 lhs = Float16::Read(data + (i * sizeof(Float16)));
+    Float16 rhs = Float16::Read(data + kSimd128Size + (i * sizeof(Float16)));
+    R value = float_bin_op(lhs, rhs);
+    WriteUnalignedValue<R>(data + (i * sizeof(R)), value);
+  }
+}
+
+int16_t f16_eq(Float16 a, Float16 b) {
+  return a.ToFloat32() == b.ToFloat32() ? -1 : 0;
+}
+
+void f16x8_eq_wrapper(Address data) {
+  simd_float16_bin_wrapper<int16_t, &f16_eq>(data);
+}
+
+int16_t f16_ne(Float16 a, Float16 b) {
+  return a.ToFloat32() != b.ToFloat32() ? -1 : 0;
+}
+
+void f16x8_ne_wrapper(Address data) {
+  simd_float16_bin_wrapper<int16_t, &f16_ne>(data);
+}
+
+int16_t f16_lt(Float16 a, Float16 b) {
+  return a.ToFloat32() < b.ToFloat32() ? -1 : 0;
+}
+
+void f16x8_lt_wrapper(Address data) {
+  simd_float16_bin_wrapper<int16_t, &f16_lt>(data);
+}
+
+int16_t f16_le(Float16 a, Float16 b) {
+  return a.ToFloat32() <= b.ToFloat32() ? -1 : 0;
+}
+
+void f16x8_le_wrapper(Address data) {
+  simd_float16_bin_wrapper<int16_t, &f16_le>(data);
+}
+
+Float16 f16_add(Float16 a, Float16 b) {
+  return Float16::FromFloat32(a.ToFloat32() + b.ToFloat32());
+}
+
+void f16x8_add_wrapper(Address data) {
+  simd_float16_bin_wrapper<Float16, &f16_add>(data);
+}
+
+Float16 f16_sub(Float16 a, Float16 b) {
+  return Float16::FromFloat32(a.ToFloat32() - b.ToFloat32());
+}
+
+void f16x8_sub_wrapper(Address data) {
+  simd_float16_bin_wrapper<Float16, &f16_sub>(data);
+}
+
+Float16 f16_mul(Float16 a, Float16 b) {
+  return Float16::FromFloat32(a.ToFloat32() * b.ToFloat32());
+}
+
+void f16x8_mul_wrapper(Address data) {
+  simd_float16_bin_wrapper<Float16, &f16_mul>(data);
+}
+
+Float16 f16_div(Float16 a, Float16 b) {
+  return Float16::FromFloat32(base::Divide(a.ToFloat32(), b.ToFloat32()));
+}
+
+void f16x8_div_wrapper(Address data) {
+  simd_float16_bin_wrapper<Float16, &f16_div>(data);
+}
+
+Float16 f16_min(Float16 a, Float16 b) {
+  return Float16::FromFloat32(JSMin(a.ToFloat32(), b.ToFloat32()));
+}
+
+void f16x8_min_wrapper(Address data) {
+  simd_float16_bin_wrapper<Float16, &f16_min>(data);
+}
+
+Float16 f16_max(Float16 a, Float16 b) {
+  return Float16::FromFloat32(JSMax(a.ToFloat32(), b.ToFloat32()));
+}
+
+void f16x8_max_wrapper(Address data) {
+  simd_float16_bin_wrapper<Float16, &f16_max>(data);
+}
+
+Float16 f16_pmin(Float16 a, Float16 b) {
+  return Float16::FromFloat32(std::min(a.ToFloat32(), b.ToFloat32()));
+}
+
+void f16x8_pmin_wrapper(Address data) {
+  simd_float16_bin_wrapper<Float16, &f16_pmin>(data);
+}
+
+Float16 f16_pmax(Float16 a, Float16 b) {
+  return Float16::FromFloat32(std::max(a.ToFloat32(), b.ToFloat32()));
+}
+
+void f16x8_pmax_wrapper(Address data) {
+  simd_float16_bin_wrapper<Float16, &f16_pmax>(data);
+}
+
+template <typename T, typename R, R (*float_un_op)(T)>
+void simd_float_un_wrapper(Address data) {
+  constexpr int n = kSimd128Size / sizeof(T);
+  for (int i = 0; i < n; i++) {
+    T input = ReadUnalignedValue<T>(data + (i * sizeof(T)));
+    R value = float_un_op(input);
+    WriteUnalignedValue<R>(data + (i * sizeof(T)), value);
+  }
+}
+
+int16_t ConvertToIntS(Float16 val) {
+  float f32 = val.ToFloat32();
+  if (std::isnan(f32)) return 0;
+  if (f32 > float{kMaxInt16}) return kMaxInt16;
+  if (f32 < float{kMinInt16}) return kMinInt16;
+  return static_cast<int16_t>(f32);
+}
+
+uint16_t ConvertToIntU(Float16 val) {
+  float f32 = val.ToFloat32();
+  if (std::isnan(f32)) return 0;
+  if (f32 > float{kMaxUInt16}) return kMaxUInt16;
+  if (f32 < float{0}) return 0;
+  return static_cast<uint16_t>(f32);
+}
+
+void i16x8_sconvert_f16x8_wrapper(Address data) {
+  simd_float_un_wrapper<Float16, int16_t, &ConvertToIntS>(data);
+}
+
+void i16x8_uconvert_f16x8_wrapper(Address data) {
+  simd_float_un_wrapper<Float16, uint16_t, &ConvertToIntU>(data);
+}
+
+Float16 ConvertToF16S(int16_t val) { return Float16::FromFloat32(val); }
+
+void f16x8_sconvert_i16x8_wrapper(Address data) {
+  simd_float_un_wrapper<int16_t, Float16, &ConvertToF16S>(data);
+}
+
+Float16 ConvertToF16U(uint16_t val) { return Float16::FromFloat32(val); }
+
+void f16x8_uconvert_i16x8_wrapper(Address data) {
+  simd_float_un_wrapper<uint16_t, Float16, &ConvertToF16U>(data);
+}
+
+void f32x4_promote_low_f16x8_wrapper(Address data) {
+  // Result is stored in the same buffer, so read all values to local
+  // stack variables first.
+  Float16 a = Float16::Read(data);
+  Float16 b = Float16::Read(data + sizeof(Float16));
+  Float16 c = Float16::Read(data + 2 * sizeof(Float16));
+  Float16 d = Float16::Read(data + 3 * sizeof(Float16));
+
+  WriteUnalignedValue<float>(data, a.ToFloat32());
+  WriteUnalignedValue<float>(data + sizeof(float), b.ToFloat32());
+  WriteUnalignedValue<float>(data + (2 * sizeof(float)), c.ToFloat32());
+  WriteUnalignedValue<float>(data + (3 * sizeof(float)), d.ToFloat32());
+}
+
+void f16x8_demote_f32x4_zero_wrapper(Address data) {
+#if V8_TARGET_BIG_ENDIAN
+  for (int i = 3, j = 7; i >= 0; i--, j--) {
+    float input = ReadUnalignedValue<float>(data + (i * sizeof(float)));
+    Float16::FromFloat32(input).Write(data + (j * sizeof(Float16)));
+  }
+  for (int i = 0; i < 4; i++) {
+    WriteUnalignedValue<Float16>(data + (i * sizeof(Float16)),
+                                 Float16::FromFloat32(0));
+  }
+#else
+  for (int i = 0; i < 4; i++) {
+    float input = ReadUnalignedValue<float>(data + (i * sizeof(float)));
+    Float16::FromFloat32(input).Write(data + (i * sizeof(Float16)));
+  }
+  for (int i = 4; i < 8; i++) {
+    WriteUnalignedValue<Float16>(data + (i * sizeof(Float16)),
+                                 Float16::FromFloat32(0));
+  }
+#endif
+}
+
+void f16x8_demote_f64x2_zero_wrapper(Address data) {
+#if V8_TARGET_BIG_ENDIAN
+  for (int i = 1, j = 7; i >= 0; i--, j--) {
+    double input = ReadUnalignedValue<double>(data + (i * sizeof(double)));
+    WriteUnalignedValue<uint16_t>(data + (j * sizeof(uint16_t)),
+                                  DoubleToFloat16(input));
+  }
+  for (int i = 0; i < 6; i++) {
+    WriteUnalignedValue<Float16>(data + (i * sizeof(Float16)),
+                                 Float16::FromFloat32(0));
+  }
+#else
+  for (int i = 0; i < 2; i++) {
+    double input = ReadUnalignedValue<double>(data + (i * sizeof(double)));
+    WriteUnalignedValue<uint16_t>(data + (i * sizeof(uint16_t)),
+                                  DoubleToFloat16(input));
+  }
+  for (int i = 2; i < 8; i++) {
+    WriteUnalignedValue<Float16>(data + (i * sizeof(Float16)),
+                                 Float16::FromFloat32(0));
+  }
+#endif
+}
+
+template <float (*float_fma_op)(float, float, float)>
+void simd_float16_fma_wrapper(Address data) {
+  constexpr int n = kSimd128Size / sizeof(Float16);
+  for (int i = 0; i < n; i++) {
+    Address offset = data + i * sizeof(Float16);
+    Float16 a = Float16::Read(offset);
+    Float16 b = Float16::Read(offset + kSimd128Size);
+    Float16 c = Float16::Read(offset + 2 * kSimd128Size);
+    float value = float_fma_op(a.ToFloat32(), b.ToFloat32(), c.ToFloat32());
+    Float16::FromFloat32(value).Write(offset);
+  }
+}
+
+float Qfma(float a, float b, float c) { return a * b + c; }
+
+void f16x8_qfma_wrapper(Address data) {
+  return simd_float16_fma_wrapper<&Qfma>(data);
+}
+
+float Qfms(float a, float b, float c) { return -(a * b) + c; }
+
+void f16x8_qfms_wrapper(Address data) {
+  return simd_float16_fma_wrapper<&Qfms>(data);
+}
+
 namespace {
 class V8_NODISCARD ThreadNotInWasmScope {
 // Asan on Windows triggers exceptions to allocate shadow memory lazily. When
@@ -675,19 +970,9 @@ void return_switch(Isolate* isolate, Address raw_continuation) {
 
   Tagged<WasmContinuationObject> continuation =
       Cast<WasmContinuationObject>(Tagged<Object>{raw_continuation});
-  size_t index = reinterpret_cast<StackMemory*>(continuation->stack())->index();
-  // We can only return from a stack that was still in the global list.
-  DCHECK_LT(index, isolate->wasm_stacks().size());
-  std::unique_ptr<StackMemory> stack = std::move(isolate->wasm_stacks()[index]);
-  if (index != isolate->wasm_stacks().size() - 1) {
-    isolate->wasm_stacks()[index] = std::move(isolate->wasm_stacks().back());
-    isolate->wasm_stacks()[index]->set_index(index);
-  }
-  isolate->wasm_stacks().pop_back();
-  for (size_t i = 0; i < isolate->wasm_stacks().size(); ++i) {
-    SLOW_DCHECK(isolate->wasm_stacks()[i]->index() == i);
-  }
-  isolate->stack_pool().Add(std::move(stack));
+  wasm::StackMemory* stack =
+      reinterpret_cast<StackMemory*>(continuation->stack());
+  isolate->RetireWasmStack(stack);
   isolate->SyncStackLimit();
 }
 
@@ -724,34 +1009,111 @@ void switch_from_the_central_stack(Isolate* isolate) {
   stack_guard->SetStackLimitForStackSwitching(secondary_stack_limit);
 }
 
-intptr_t switch_to_the_central_stack_for_js(Isolate* isolate,
-                                            uintptr_t* stack_limit_slot) {
-  // Set the suspender's {has_js_frames} field. The suspender contains JS
-  // frames iff it is currently on the central stack.
-  // The wasm-to-js wrapper checks this field when calling a suspending import
-  // and traps if the stack contains JS frames.
+intptr_t switch_to_the_central_stack_for_js(Isolate* isolate, Address fp) {
   auto active_suspender =
       Cast<WasmSuspenderObject>(isolate->root(RootIndex::kActiveSuspender));
-  active_suspender->set_has_js_frames(1);
   ThreadLocalTop* thread_local_top = isolate->thread_local_top();
   StackGuard* stack_guard = isolate->stack_guard();
-  *stack_limit_slot = stack_guard->real_jslimit();
+  auto* stack = reinterpret_cast<StackMemory*>(
+      Cast<WasmContinuationObject>(active_suspender->continuation())->stack());
+  stack->set_stack_switch_info(fp, thread_local_top->central_stack_sp_);
   stack_guard->SetStackLimitForStackSwitching(
       thread_local_top->central_stack_limit_);
   thread_local_top->is_on_central_stack_flag_ = true;
   return thread_local_top->central_stack_sp_;
 }
 
-void switch_from_the_central_stack_for_js(Isolate* isolate,
-                                          uintptr_t stack_limit) {
+void switch_from_the_central_stack_for_js(Isolate* isolate) {
   // The stack only contains wasm frames after this JS call.
   auto active_suspender =
       Cast<WasmSuspenderObject>(isolate->root(RootIndex::kActiveSuspender));
-  active_suspender->set_has_js_frames(0);
+  auto* stack = reinterpret_cast<StackMemory*>(
+      Cast<WasmContinuationObject>(active_suspender->continuation())->stack());
+  stack->clear_stack_switch_info();
   ThreadLocalTop* thread_local_top = isolate->thread_local_top();
   thread_local_top->is_on_central_stack_flag_ = false;
   StackGuard* stack_guard = isolate->stack_guard();
-  stack_guard->SetStackLimitForStackSwitching(stack_limit);
+  stack_guard->SetStackLimitForStackSwitching(
+      reinterpret_cast<uintptr_t>(stack->jslimit()));
+}
+
+// frame_size includes param slots area and extra frame slots above FP.
+Address grow_stack(Isolate* isolate, void* current_sp, size_t frame_size,
+                   size_t gap, Address current_fp) {
+  // Check if this is a real stack overflow.
+  StackLimitCheck check(isolate);
+  if (check.WasmHasOverflowed(gap)) {
+    Tagged<WasmContinuationObject> current_continuation =
+        Cast<WasmContinuationObject>(
+            isolate->root(RootIndex::kActiveContinuation));
+    // If there is no parent, then the current stack is the main isolate stack.
+    if (IsUndefined(current_continuation->parent())) {
+      return 0;
+    }
+    auto stack =
+        reinterpret_cast<wasm::StackMemory*>(current_continuation->stack());
+    DCHECK(stack->IsActive());
+    if (!stack->Grow(current_fp)) {
+      return 0;
+    }
+
+    Address new_sp = stack->base() - frame_size;
+    // Here we assume stack values don't refer other moved stack slots.
+    // A stack grow event happens right in the beginning of the function
+    // call so moved slots contain only incoming params and frame header.
+    // So, it is reasonable to assume no self references.
+    std::memcpy(reinterpret_cast<void*>(new_sp), current_sp, frame_size);
+
+#if V8_TARGET_ARCH_ARM64
+    Address new_fp =
+        new_sp + (current_fp - reinterpret_cast<Address>(current_sp));
+    Address old_pc_address = current_fp + CommonFrameConstants::kCallerPCOffset;
+    Address new_pc_address = new_fp + CommonFrameConstants::kCallerPCOffset;
+    Address old_signed_pc = base::Memory<Address>(old_pc_address);
+    Address new_signed_pc = PointerAuthentication::MoveSignedPC(
+        isolate, old_signed_pc, new_pc_address + kSystemPointerSize,
+        old_pc_address + kSystemPointerSize);
+    WriteUnalignedValue<Address>(new_pc_address, new_signed_pc);
+#endif
+
+    isolate->stack_guard()->SetStackLimitForStackSwitching(
+        reinterpret_cast<uintptr_t>(stack->jslimit()));
+    return new_sp;
+  }
+
+  return 0;
+}
+
+Address shrink_stack(Isolate* isolate) {
+  Tagged<WasmContinuationObject> current_continuation =
+      Cast<WasmContinuationObject>(
+          isolate->root(RootIndex::kActiveContinuation));
+  // If there is no parent, then the current stack is the main isolate stack.
+  if (IsUndefined(current_continuation->parent())) {
+    return 0;
+  }
+  auto stack =
+      reinterpret_cast<wasm::StackMemory*>(current_continuation->stack());
+  DCHECK(stack->IsActive());
+  Address old_fp = stack->Shrink();
+
+  isolate->stack_guard()->SetStackLimitForStackSwitching(
+      reinterpret_cast<uintptr_t>(stack->jslimit()));
+  return old_fp;
+}
+
+Address load_old_fp(Isolate* isolate) {
+  Tagged<WasmContinuationObject> current_continuation =
+      Cast<WasmContinuationObject>(
+          isolate->root(RootIndex::kActiveContinuation));
+  // If there is no parent, then the current stack is the main isolate stack.
+  if (IsUndefined(current_continuation->parent())) {
+    return 0;
+  }
+  auto stack =
+      reinterpret_cast<wasm::StackMemory*>(current_continuation->stack());
+  DCHECK_EQ(stack->jmpbuf()->state, wasm::JumpBuffer::Active);
+  return stack->old_fp();
 }
 
 }  // namespace v8::internal::wasm

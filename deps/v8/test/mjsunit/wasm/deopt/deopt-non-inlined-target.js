@@ -39,12 +39,12 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(30, wasm.main(10, 20, wasm.add));
   %WasmTierUpFunction(wasm.main);
   assertEquals(30, wasm.main(10, 20, wasm.add));
-  if (%IsolateCountForTesting() == 1) {
+  if (%IsWasmTieringPredictable()) {
     assertTrue(%IsTurboFanFunction(wasm.main));
   }
   // Call with new target causing a deopt.
   assertEquals(-10, wasm.main(10, 20, wasm.sub));
-  if (%IsolateCountForTesting() == 1) {
+  if (%IsWasmTieringPredictable()) {
     assertFalse(%IsTurboFanFunction(wasm.main));
   }
   // Re-opt. Due to the size of sub(), the target will not be inlined.
@@ -53,7 +53,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   %WasmTierUpFunction(wasm.main);
   // Calling with a new call target therefore doesn't trigger a deopt.
   assertEquals(200, wasm.main(10, 20, wasm.mul));
-  if (%IsolateCountForTesting() == 1) {
+  if (%IsWasmTieringPredictable()) {
     assertTrue(%IsTurboFanFunction(wasm.main));
   }
 })();

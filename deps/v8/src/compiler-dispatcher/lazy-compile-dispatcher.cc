@@ -94,7 +94,8 @@ namespace {
 void SetUncompiledDataJobPointer(LocalIsolate* isolate,
                                  DirectHandle<SharedFunctionInfo> shared_info,
                                  Address job_address) {
-  Tagged<UncompiledData> uncompiled_data = shared_info->uncompiled_data();
+  Tagged<UncompiledData> uncompiled_data =
+      shared_info->uncompiled_data(isolate);
   switch (uncompiled_data->map(isolate)->instance_type()) {
     // The easy cases -- we already have a job slot, so can write into it and
     // return.
@@ -161,7 +162,7 @@ void LazyCompileDispatcher::Enqueue(
   SetUncompiledDataJobPointer(isolate, shared_info,
                               reinterpret_cast<Address>(job));
 
-  // Post a a background worker task to perform the compilation on the worker
+  // Post a background worker task to perform the compilation on the worker
   // thread.
   {
     base::MutexGuard lock(&mutex_);
@@ -185,7 +186,7 @@ bool LazyCompileDispatcher::IsEnqueued(
     DirectHandle<SharedFunctionInfo> shared) const {
   if (!shared->HasUncompiledData()) return false;
   Job* job = nullptr;
-  Tagged<UncompiledData> data = shared->uncompiled_data();
+  Tagged<UncompiledData> data = shared->uncompiled_data(isolate_);
   if (IsUncompiledDataWithPreparseDataAndJob(data)) {
     job = reinterpret_cast<Job*>(
         Cast<UncompiledDataWithPreparseDataAndJob>(data)->job());
@@ -379,7 +380,7 @@ void LazyCompileDispatcher::AbortAll() {
 LazyCompileDispatcher::Job* LazyCompileDispatcher::GetJobFor(
     DirectHandle<SharedFunctionInfo> shared, const base::MutexGuard&) const {
   if (!shared->HasUncompiledData()) return nullptr;
-  Tagged<UncompiledData> data = shared->uncompiled_data();
+  Tagged<UncompiledData> data = shared->uncompiled_data(isolate_);
   if (IsUncompiledDataWithPreparseDataAndJob(data)) {
     return reinterpret_cast<Job*>(
         Cast<UncompiledDataWithPreparseDataAndJob>(data)->job());

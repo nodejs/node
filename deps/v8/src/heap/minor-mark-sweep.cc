@@ -132,7 +132,7 @@ class YoungGenerationMarkingVerifier : public MarkingVerifierBase {
         GetPtrComprCageBaseFromOnHeapAddress(start.address());
     for (TSlot slot = start; slot < end; ++slot) {
       typename TSlot::TObject object = slot.load(cage_base);
-#ifdef V8_ENABLE_DIRECT_LOCAL
+#ifdef V8_ENABLE_DIRECT_HANDLE
       if (object.ptr() == kTaggedNullAddress) continue;
 #endif
       Tagged<HeapObject> heap_object;
@@ -155,8 +155,13 @@ class YoungGenerationMarkingVerifier : public MarkingVerifierBase {
 
 namespace {
 int EstimateMaxNumberOfRemeberedSets(Heap* heap) {
+  // old space, lo space, trusted space and trusted lo space can have a maximum
+  // of two remembered sets (OLD_TO_NEW and OLD_TO_NEW_BACKGROUND).
+  // Code space and code lo space can have typed OLD_TO_NEW in addition.
   return 2 * (heap->old_space()->CountTotalPages() +
-              heap->lo_space()->PageCount()) +
+              heap->lo_space()->PageCount() +
+              heap->trusted_space()->CountTotalPages() +
+              heap->trusted_lo_space()->PageCount()) +
          3 * (heap->code_space()->CountTotalPages() +
               heap->code_lo_space()->PageCount());
 }

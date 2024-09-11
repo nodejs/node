@@ -256,7 +256,7 @@ class BasicPersistent final : public PersistentBase,
 
   void ClearFromGC() const {
     if (IsValid()) {
-      WeaknessPolicy::GetPersistentRegion(GetValue()).FreeNode(GetNode());
+      WeaknessPolicy::GetPersistentRegion(GetValue()).FreeNodeFromGC(GetNode());
       PersistentBase::ClearFromGC();
     }
   }

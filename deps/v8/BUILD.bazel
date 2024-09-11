@@ -43,7 +43,6 @@ load(":bazel/v8-non-pointer-compression.bzl", "v8_binary_non_pointer_compression
 # v8_enable_concurrent_marking
 # v8_enable_conservative_stack_scanning
 # v8_enable_direct_handle
-# v8_enable_direct_local
 # v8_enable_local_off_stack_check
 # v8_enable_ignition_dispatch_counting
 # v8_enable_builtins_optimization
@@ -60,8 +59,6 @@ load(":bazel/v8-non-pointer-compression.bzl", "v8_binary_non_pointer_compression
 # v8_enable_gdbjit
 # v8_check_header_includes
 # v8_enable_lazy_source_positions
-# v8_enable_third_party_heap
-# v8_third_party_heap_files
 # v8_disable_write_barriers
 # v8_enable_unconditional_write_barriers
 # v8_enable_single_generation
@@ -206,6 +203,49 @@ v8_flag(
 v8_flag(
     name = "v8_enable_webassembly",
     default = True,
+)
+
+v8_flag(
+    name = "v8_enable_drumbrake",
+    default = False,
+)
+
+v8_flag(
+    name = "v8_enable_drumbrake_tracing",
+    default = False,
+)
+
+selects.config_setting_group(
+    name = "enable_drumbrake_x64",
+    match_all = [
+        ":is_v8_enable_drumbrake",
+        "@v8//bazel/config:v8_target_x64",
+    ],
+)
+
+selects.config_setting_group(
+    name = "enable_drumbrake_arm64",
+    match_all = [
+        ":is_v8_enable_drumbrake",
+        "@v8//bazel/config:v8_target_arm64",
+    ],
+)
+
+selects.config_setting_group(
+    name = "is_drumbrake_trap_handling_platform",
+    match_any = [
+        "@v8//bazel/config:is_linux",
+        "@v8//bazel/config:is_macos",
+        "@v8//bazel/config:is_windows",
+    ],
+)
+
+selects.config_setting_group(
+    name = "v8_drumbrake_bounds_checks",
+    match_all = [
+        ":enable_drumbrake_x64",
+        ":is_drumbrake_trap_handling_platform",
+    ],
 )
 
 v8_flag(
@@ -411,6 +451,8 @@ v8_config(
         "v8_enable_verify_heap": "VERIFY_HEAP",
         "v8_enable_verify_predictable": "VERIFY_PREDICTABLE",
         "v8_enable_webassembly": "V8_ENABLE_WEBASSEMBLY",
+        "v8_enable_drumbrake": "V8_ENABLE_DRUMBRAKE",
+        "v8_enable_drumbrake_tracing": "V8_ENABLE_DRUMBRAKE_TRACING",
         "v8_jitless": "V8_JITLESS",
         "v8_enable_vtunejit": "ENABLE_VTUNE_JIT_INTERFACE",
     },
@@ -448,8 +490,7 @@ v8_config(
             ],
             "@v8//bazel/config:v8_target_ppc64le": [
                 # NOTE: Bazel rules for ppc64le weren't tested on a real system.
-                "V8_TARGET_ARCH_PPC64",
-                "V8_TARGET_ARCH_PPC_LE",
+                "V8_TARGET_ARCH_PPC64"
             ],
         },
         no_match_error = "Please specify a target cpu supported by v8",
@@ -518,7 +559,13 @@ v8_config(
             "V8_ENABLE_DOUBLE_CONST_STORE_CHECK",
         ],
         "//conditions:default": [],
+    }) + select({
+        "v8_drumbrake_bounds_checks": [
+            "V8_DRUMBRAKE_BOUNDS_CHECKS"
+        ],
+        "//conditions:default": [],
     }),
+
     deps = [":default"],
 )
 
@@ -757,7 +804,6 @@ filegroup(
         "src/base/numbers/strtod.h",
         "src/base/once.cc",
         "src/base/once.h",
-        "src/base/optional.h",
         "src/base/overflowing-math.h",
         "src/base/page-allocator.cc",
         "src/base/page-allocator.h",
@@ -1268,6 +1314,7 @@ filegroup(
         "src/builtins/builtins.cc",
         "src/builtins/builtins-inl.h",
         "src/builtins/builtins.h",
+        "src/builtins/builtins-abstract-module-source.cc",
         "src/builtins/builtins-api.cc",
         "src/builtins/builtins-array.cc",
         "src/builtins/builtins-arraybuffer.cc",
@@ -1402,6 +1449,8 @@ filegroup(
         "src/common/ptr-compr.cc",
         "src/common/ptr-compr.h",
         "src/common/ptr-compr-inl.h",
+        "src/common/segmented-table.h",
+        "src/common/segmented-table-inl.h",
         "src/common/simd128.h",
         "src/compiler-dispatcher/lazy-compile-dispatcher.cc",
         "src/compiler-dispatcher/lazy-compile-dispatcher.h",
@@ -1741,8 +1790,6 @@ filegroup(
         "src/heap/stress-scavenge-observer.h",
         "src/heap/sweeper.cc",
         "src/heap/sweeper.h",
-        "src/heap/third-party/heap-api.h",
-        "src/heap/third-party/heap-api-stub.cc",
         "src/heap/traced-handles-marking-visitor.cc",
         "src/heap/traced-handles-marking-visitor.h",
         "src/heap/weak-object-worklists.cc",
@@ -2284,6 +2331,7 @@ filegroup(
         "src/runtime/runtime-test.cc",
         "src/runtime/runtime-trace.cc",
         "src/runtime/runtime-typedarray.cc",
+        "src/runtime/runtime-utils.cc",
         "src/runtime/runtime-utils.h",
         "src/runtime/runtime-weak-refs.cc",
         "src/sandbox/bounded-size.h",
@@ -2837,7 +2885,6 @@ filegroup(
             "src/wasm/leb-helper.h",
             "src/wasm/local-decl-encoder.cc",
             "src/wasm/local-decl-encoder.h",
-            "src/wasm/memory-tracing.cc",
             "src/wasm/memory-tracing.h",
             "src/wasm/module-compiler.cc",
             "src/wasm/module-compiler.h",
@@ -2872,6 +2919,9 @@ filegroup(
             "src/wasm/wasm-builtin-list.h",
             "src/wasm/wasm-code-manager.cc",
             "src/wasm/wasm-code-manager.h",
+            "src/wasm/wasm-code-pointer-table.cc",
+            "src/wasm/wasm-code-pointer-table.h",
+            "src/wasm/wasm-code-pointer-table-inl.h",
             "src/wasm/wasm-debug.cc",
             "src/wasm/wasm-debug.h",
             "src/wasm/wasm-deopt-data.cc",
@@ -2914,6 +2964,21 @@ filegroup(
             "src/wasm/well-known-imports.cc",
             "src/wasm/well-known-imports.h",
             "src/wasm/wrappers.cc",
+        ],
+        "//conditions:default": [],
+    }) + select({
+        ":is_v8_enable_drumbrake": [
+            "src/wasm/interpreter/instruction-handlers.h",
+            "src/wasm/interpreter/wasm-interpreter.cc",
+            "src/wasm/interpreter/wasm-interpreter.h",
+            "src/wasm/interpreter/wasm-interpreter-inl.h",
+            "src/wasm/interpreter/wasm-interpreter-objects.cc",
+            "src/wasm/interpreter/wasm-interpreter-objects-inl.h",
+            "src/wasm/interpreter/wasm-interpreter-objects.h",
+            "src/wasm/interpreter/wasm-interpreter-runtime.cc",
+            "src/wasm/interpreter/wasm-interpreter-runtime-inl.h",
+            "src/wasm/interpreter/wasm-interpreter-runtime.h",
+            "src/wasm/interpreter/wasm-interpreter-simd.cc",
         ],
         "//conditions:default": [],
     }),
@@ -3215,6 +3280,8 @@ filegroup(
         "src/compiler/turboshaft/build-graph-phase.cc",
         "src/compiler/turboshaft/build-graph-phase.h",
         "src/compiler/turboshaft/builtin-call-descriptors.h",
+        "src/compiler/turboshaft/builtin-compiler.cc",
+        "src/compiler/turboshaft/builtin-compiler.h",
         "src/compiler/turboshaft/csa-optimize-phase.cc",
         "src/compiler/turboshaft/csa-optimize-phase.h",
         "src/compiler/turboshaft/dataview-lowering-reducer.h",
@@ -3236,6 +3303,7 @@ filegroup(
         "src/compiler/turboshaft/explicit-truncation-reducer.h",
         "src/compiler/turboshaft/fast-api-call-lowering-reducer.h",
         "src/compiler/turboshaft/fast-hash.h",
+        "src/compiler/turboshaft/field-macro.inc",
         "src/compiler/turboshaft/graph.cc",
         "src/compiler/turboshaft/graph.h",
         "src/compiler/turboshaft/graph-builder.cc",
@@ -3307,6 +3375,7 @@ filegroup(
         "src/compiler/turboshaft/store-store-elimination-phase.cc",
         "src/compiler/turboshaft/store-store-elimination-phase.h",
         "src/compiler/turboshaft/store-store-elimination-reducer-inl.h",
+        "src/compiler/turboshaft/string-view.h",
         "src/compiler/turboshaft/structural-optimization-reducer.h",
         "src/compiler/turboshaft/tracing.h",
         "src/compiler/turboshaft/type-assertions-phase.cc",
@@ -3520,6 +3589,7 @@ filegroup(
         "src/builtins/builtins-lazy-gen.h",
         "src/builtins/builtins-microtask-queue-gen.cc",
         "src/builtins/builtins-number-gen.cc",
+        "src/builtins/builtins-number-tsa.cc",
         "src/builtins/builtins-object-gen.cc",
         "src/builtins/builtins-object-gen.h",
         "src/builtins/builtins-promise-gen.cc",
@@ -3539,6 +3609,7 @@ filegroup(
         "src/builtins/builtins-utils-gen.h",
         "src/builtins/growable-fixed-array-gen.cc",
         "src/builtins/growable-fixed-array-gen.h",
+        "src/builtins/number-builtins-reducer-inl.h",
         "src/builtins/profile-data-reader.cc",
         "src/builtins/profile-data-reader.h",
         "src/builtins/setup-builtins-internal.cc",
@@ -3548,6 +3619,8 @@ filegroup(
         "third_party/v8/codegen/fp16-inl.h",
         "src/codegen/code-stub-assembler-inl.h",
         "src/codegen/code-stub-assembler.h",
+        "src/codegen/define-code-stub-assembler-macros.inc",
+        "src/codegen/undef-code-stub-assembler-macros.inc",
         "src/heap/setup-heap-internal.cc",
         "src/ic/accessor-assembler.cc",
         "src/ic/accessor-assembler.h",
@@ -3561,6 +3634,8 @@ filegroup(
         "src/interpreter/interpreter-assembler.h",
         "src/interpreter/interpreter-generator.cc",
         "src/interpreter/interpreter-generator.h",
+        "src/interpreter/interpreter-generator-tsa.cc",
+        "src/interpreter/interpreter-generator-tsa.h",
         "src/interpreter/interpreter-intrinsics-generator.cc",
         "src/interpreter/interpreter-intrinsics-generator.h",
         "src/numbers/integer-literal.h",
@@ -3577,6 +3652,14 @@ filegroup(
         ":is_v8_enable_webassembly": [
             "src/builtins/builtins-wasm-gen.cc",
             "src/builtins/builtins-wasm-gen.h",
+        ],
+        "//conditions:default": [],
+    }) + select({
+        ":enable_drumbrake_x64": [
+            "src/wasm/interpreter/x64/interpreter-builtins-x64.cc"
+        ],
+        ":enable_drumbrake_arm64": [
+            "src/wasm/interpreter/arm64/interpreter-builtins-arm64.cc"
         ],
         "//conditions:default": [],
     }),
@@ -3718,6 +3801,25 @@ filegroup(
         "@v8//bazel/config:is_msvc_asm_x64": ["src/heap/base/asm/x64/push_registers_masm.asm"],
         "@v8//bazel/config:is_msvc_asm_arm64": ["src/heap/base/asm/arm64/push_registers_masm.S"],
     }),
+)
+
+v8_library(
+  name = "lib_fast_float",
+  srcs = [
+    "third_party/fast_float/src/include/fast_float/ascii_number.h",
+    "third_party/fast_float/src/include/fast_float/bigint.h",
+    "third_party/fast_float/src/include/fast_float/constexpr_feature_detect.h",
+    "third_party/fast_float/src/include/fast_float/decimal_to_binary.h",
+    "third_party/fast_float/src/include/fast_float/digit_comparison.h",
+    "third_party/fast_float/src/include/fast_float/fast_float.h",
+    "third_party/fast_float/src/include/fast_float/fast_table.h",
+    "third_party/fast_float/src/include/fast_float/float_common.h",
+    "third_party/fast_float/src/include/fast_float/parse_number.h",
+    ],
+  hdrs = [ "third_party/fast_float/src/include/fast_float/fast_float.h" ],
+  includes = [
+    "third_party/fast_float/src/include",
+  ],
 )
 
 v8_library(
@@ -4223,6 +4325,7 @@ v8_library(
         ":noicu/generated_torque_definitions",
     ],
     deps = [
+        ":lib_fast_float",
         ":lib_fp16",
         ":v8_libbase",
         "//external:absl_btree",

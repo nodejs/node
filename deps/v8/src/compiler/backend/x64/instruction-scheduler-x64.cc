@@ -178,6 +178,18 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64F32x4Round:
     case kX64F32x4DemoteF64x2Zero:
     case kX64F32x4DemoteF64x4:
+    case kX64F16x8Round:
+    case kX64I16x8SConvertF16x8:
+    case kX64I16x8UConvertF16x8:
+    case kX64F16x8SConvertI16x8:
+    case kX64F16x8UConvertI16x8:
+    case kX64F16x8DemoteF32x4Zero:
+    case kX64F16x8DemoteF64x2Zero:
+    case kX64F32x4PromoteLowF16x8:
+    case kX64F16x8Qfma:
+    case kX64F16x8Qfms:
+    case kX64Minph:
+    case kX64Maxph:
     case kX64ISplat:
     case kX64IExtractLane:
     case kX64IAbs:
@@ -374,6 +386,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64Movq:
     case kX64Movsd:
     case kX64Movss:
+    case kX64Movsh:
     case kX64Movdqu:
     case kX64Movdqu256:
     case kX64S128Load8Splat:

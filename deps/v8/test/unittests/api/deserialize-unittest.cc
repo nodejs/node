@@ -391,7 +391,7 @@ class MergeDeserializedCodeTest : public DeserializeTest {
 
   static i::Tagged<i::Object> ExtractSharedFunctionInfoData(
       i::Tagged<i::SharedFunctionInfo> sfi, i::Isolate* i_isolate) {
-    i::Tagged<i::Object> data = sfi->GetData(i_isolate);
+    i::Tagged<i::Object> data = sfi->GetTrustedData(i_isolate);
     // BytecodeArrays live in trusted space and so cannot be referenced through
     // tagged/compressed pointers from e.g. a FixedArray. Instead, we need to
     // use their in-sandbox wrapper object for that purpose.
@@ -966,7 +966,7 @@ TEST_F(MergeDeserializedCodeTest, MergeThatStartsButDoesNotFinish) {
   // actually finish its merge; the others will abandon their in-progress merges
   // and instead use the result from the first script since it will be in the
   // Isolate compilation cache.
-  i::Handle<i::SharedFunctionInfo> first_script_sfi;
+  i::IndirectHandle<i::SharedFunctionInfo> first_script_sfi;
   for (int i = 0; i < kSimultaneousScripts; ++i) {
     ScriptCompiler::Source source(NewString(kSourceCode), default_origin,
                                   cached_data[i].release(), tasks[i].release());

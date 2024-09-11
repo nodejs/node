@@ -96,6 +96,32 @@ constexpr auto tuple_for_each_with_index_impl(const Tuple& tpl,
    ...);
 }
 
+template <typename Tuple, typename Function, size_t... Index>
+constexpr auto tuple_map_impl(Tuple&& tpl, const Function& function,
+                              std::index_sequence<Index...>) {
+  return std::make_tuple(
+      function(std::get<Index>(std::forward<Tuple>(tpl)))...);
+}
+
+template <typename TupleV, typename TupleU, typename Function, size_t... Index>
+constexpr auto tuple_map2_impl(TupleV&& tplv, TupleU&& tplu,
+                               const Function& function,
+                               std::index_sequence<Index...>) {
+  return std::make_tuple(
+      function(std::get<Index>(tplv), std::get<Index>(tplu))...);
+}
+
+template <size_t I, typename T, typename Tuple, typename Function>
+constexpr auto tuple_fold_impl(T&& initial, Tuple&& tpl, Function&& function) {
+  if constexpr (I == 0) {
+    return function(std::forward<T>(initial), std::get<0>(tpl));
+  } else {
+    return function(tuple_fold_impl<I - 1>(std::forward<T>(initial),
+                                           std::forward<Tuple>(tpl), function),
+                    std::get<I>(tpl));
+  }
+}
+
 }  // namespace detail
 
 // Get the first N elements from a tuple.
@@ -138,6 +164,34 @@ constexpr void tuple_for_each_with_index(Tuple&& tpl, Function&& function) {
   detail::tuple_for_each_with_index_impl(
       std::forward<Tuple>(tpl), function,
       std::make_index_sequence<std::tuple_size_v<std::decay_t<Tuple>>>());
+}
+
+// Calls `function(v)` for each `v` in the tuple and returns a new tuple with
+// all the results.
+template <typename Tuple, typename Function>
+constexpr auto tuple_map(Tuple&& tpl, Function&& function) {
+  return detail::tuple_map_impl(
+      std::forward<Tuple>(tpl), function,
+      std::make_index_sequence<std::tuple_size_v<std::decay_t<Tuple>>>());
+}
+
+// Calls `function(v, u)` for pairs `v<I>, u<I>` in the
+// tuples and returns a new tuple with all the results.
+template <typename TupleV, typename TupleU, typename Function>
+constexpr auto tuple_map2(TupleV&& tplv, TupleU&& tplu, Function&& function) {
+  constexpr size_t S = std::tuple_size_v<std::decay_t<TupleV>>;
+  static_assert(S == std::tuple_size_v<std::decay_t<TupleU>>);
+  return detail::tuple_map2_impl(std::forward<TupleV>(tplv),
+                                 std::forward<TupleU>(tplu), function,
+                                 std::make_index_sequence<S>());
+}
+
+// Left fold (reduce) the tuple starting with an initial value by applying
+// function(...function(initial, tpl<0>)..., tpl<size-1>)
+template <typename T, typename Tuple, typename Function>
+constexpr auto tuple_fold(T&& initial, Tuple&& tpl, Function&& function) {
+  return detail::tuple_fold_impl<std::tuple_size_v<std::decay_t<Tuple>> - 1>(
+      std::forward<T>(initial), std::forward<Tuple>(tpl), function);
 }
 
 #ifdef __clang__

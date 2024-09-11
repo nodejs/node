@@ -5,6 +5,8 @@
 #ifndef V8_INTERPRETER_BYTECODE_ARRAY_BUILDER_H_
 #define V8_INTERPRETER_BYTECODE_ARRAY_BUILDER_H_
 
+#include <optional>
+
 #include "src/ast/ast.h"
 #include "src/base/export-template.h"
 #include "src/common/globals.h"
@@ -528,10 +530,10 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
     SetStatementPosition(stmt->position());
   }
 
-  base::Optional<BytecodeSourceInfo> MaybePopSourcePosition(int scope_start) {
+  std::optional<BytecodeSourceInfo> MaybePopSourcePosition(int scope_start) {
     if (!latest_source_info_.is_valid() ||
         latest_source_info_.source_position() < scope_start) {
-      return base::nullopt;
+      return std::nullopt;
     }
     BytecodeSourceInfo source_info = latest_source_info_;
     latest_source_info_.set_invalid();
@@ -613,7 +615,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   V8_INLINE void Output##Name(Operands... operands);               \
   template <typename... Operands>                                  \
   V8_INLINE void Output##Name(BytecodeLabel* label, Operands... operands);
-  BYTECODE_LIST(DECLARE_BYTECODE_OUTPUT)
+  BYTECODE_LIST(DECLARE_BYTECODE_OUTPUT, DECLARE_BYTECODE_OUTPUT)
 #undef DECLARE_OPERAND_TYPE_INFO
 
   V8_INLINE void OutputJumpLoop(BytecodeLoopHeader* loop_header, int loop_depth,

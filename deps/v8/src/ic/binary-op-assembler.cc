@@ -11,6 +11,8 @@
 namespace v8 {
 namespace internal {
 
+#include "src/codegen/define-code-stub-assembler-macros.inc"
+
 namespace {
 
 inline bool IsBigInt64OpSupported(BinaryOpAssembler* assembler, Operation op) {
@@ -676,8 +678,8 @@ TNode<Object> BinaryOpAssembler::Generate_SubtractWithFeedback(
     const LazyNode<Context>& context, TNode<Object> lhs, TNode<Object> rhs,
     TNode<UintPtrT> slot_id, const LazyNode<HeapObject>& maybe_feedback_vector,
     UpdateFeedbackMode update_feedback_mode, bool rhs_known_smi) {
-  auto smiFunction = [=](TNode<Smi> lhs, TNode<Smi> rhs,
-                         TVariable<Smi>* var_type_feedback) {
+  auto smiFunction = [=, this](TNode<Smi> lhs, TNode<Smi> rhs,
+                               TVariable<Smi>* var_type_feedback) {
     Label end(this);
     TVARIABLE(Number, var_result);
     // If rhs is known to be an Smi (for SubSmi) we want to fast path Smi
@@ -700,7 +702,7 @@ TNode<Object> BinaryOpAssembler::Generate_SubtractWithFeedback(
     BIND(&end);
     return var_result.value();
   };
-  auto floatFunction = [=](TNode<Float64T> lhs, TNode<Float64T> rhs) {
+  auto floatFunction = [=, this](TNode<Float64T> lhs, TNode<Float64T> rhs) {
     return Float64Sub(lhs, rhs);
   };
   return Generate_BinaryOperationWithFeedback(
@@ -712,15 +714,15 @@ TNode<Object> BinaryOpAssembler::Generate_MultiplyWithFeedback(
     const LazyNode<Context>& context, TNode<Object> lhs, TNode<Object> rhs,
     TNode<UintPtrT> slot_id, const LazyNode<HeapObject>& maybe_feedback_vector,
     UpdateFeedbackMode update_feedback_mode, bool rhs_known_smi) {
-  auto smiFunction = [=](TNode<Smi> lhs, TNode<Smi> rhs,
-                         TVariable<Smi>* var_type_feedback) {
+  auto smiFunction = [=, this](TNode<Smi> lhs, TNode<Smi> rhs,
+                               TVariable<Smi>* var_type_feedback) {
     TNode<Number> result = SmiMul(lhs, rhs);
     *var_type_feedback = SelectSmiConstant(
         TaggedIsSmi(result), BinaryOperationFeedback::kSignedSmall,
         BinaryOperationFeedback::kNumber);
     return result;
   };
-  auto floatFunction = [=](TNode<Float64T> lhs, TNode<Float64T> rhs) {
+  auto floatFunction = [=, this](TNode<Float64T> lhs, TNode<Float64T> rhs) {
     return Float64Mul(lhs, rhs);
   };
   return Generate_BinaryOperationWithFeedback(
@@ -733,8 +735,8 @@ TNode<Object> BinaryOpAssembler::Generate_DivideWithFeedback(
     TNode<Object> divisor, TNode<UintPtrT> slot_id,
     const LazyNode<HeapObject>& maybe_feedback_vector,
     UpdateFeedbackMode update_feedback_mode, bool rhs_known_smi) {
-  auto smiFunction = [=](TNode<Smi> lhs, TNode<Smi> rhs,
-                         TVariable<Smi>* var_type_feedback) {
+  auto smiFunction = [=, this](TNode<Smi> lhs, TNode<Smi> rhs,
+                               TVariable<Smi>* var_type_feedback) {
     TVARIABLE(Object, var_result);
     // If rhs is known to be an Smi (for DivSmi) we want to fast path Smi
     // operation. For the normal Div operation, we want to fast path both
@@ -757,7 +759,7 @@ TNode<Object> BinaryOpAssembler::Generate_DivideWithFeedback(
     BIND(&end);
     return var_result.value();
   };
-  auto floatFunction = [=](TNode<Float64T> lhs, TNode<Float64T> rhs) {
+  auto floatFunction = [=, this](TNode<Float64T> lhs, TNode<Float64T> rhs) {
     return Float64Div(lhs, rhs);
   };
   return Generate_BinaryOperationWithFeedback(
@@ -770,15 +772,15 @@ TNode<Object> BinaryOpAssembler::Generate_ModulusWithFeedback(
     TNode<Object> divisor, TNode<UintPtrT> slot_id,
     const LazyNode<HeapObject>& maybe_feedback_vector,
     UpdateFeedbackMode update_feedback_mode, bool rhs_known_smi) {
-  auto smiFunction = [=](TNode<Smi> lhs, TNode<Smi> rhs,
-                         TVariable<Smi>* var_type_feedback) {
+  auto smiFunction = [=, this](TNode<Smi> lhs, TNode<Smi> rhs,
+                               TVariable<Smi>* var_type_feedback) {
     TNode<Number> result = SmiMod(lhs, rhs);
     *var_type_feedback = SelectSmiConstant(
         TaggedIsSmi(result), BinaryOperationFeedback::kSignedSmall,
         BinaryOperationFeedback::kNumber);
     return result;
   };
-  auto floatFunction = [=](TNode<Float64T> lhs, TNode<Float64T> rhs) {
+  auto floatFunction = [=, this](TNode<Float64T> lhs, TNode<Float64T> rhs) {
     return Float64Mod(lhs, rhs);
   };
   return Generate_BinaryOperationWithFeedback(
@@ -791,13 +793,14 @@ TNode<Object> BinaryOpAssembler::Generate_ExponentiateWithFeedback(
     TNode<Object> exponent, TNode<UintPtrT> slot_id,
     const LazyNode<HeapObject>& maybe_feedback_vector,
     UpdateFeedbackMode update_feedback_mode, bool rhs_known_smi) {
-  auto smiFunction = [=](TNode<Smi> base, TNode<Smi> exponent,
-                         TVariable<Smi>* var_type_feedback) {
+  auto smiFunction = [=, this](TNode<Smi> base, TNode<Smi> exponent,
+                               TVariable<Smi>* var_type_feedback) {
     *var_type_feedback = SmiConstant(BinaryOperationFeedback::kNumber);
     return AllocateHeapNumberWithValue(
         Float64Pow(SmiToFloat64(base), SmiToFloat64(exponent)));
   };
-  auto floatFunction = [=](TNode<Float64T> base, TNode<Float64T> exponent) {
+  auto floatFunction = [=, this](TNode<Float64T> base,
+                                 TNode<Float64T> exponent) {
     return Float64Pow(base, exponent);
   };
   return Generate_BinaryOperationWithFeedback(
@@ -1116,6 +1119,8 @@ BinaryOpAssembler::Generate_BitwiseBinaryOpWithSmiOperandAndOptionalFeedback(
   }
   return result.value();
 }
+
+#include "src/codegen/undef-code-stub-assembler-macros.inc"
 
 }  // namespace internal
 }  // namespace v8

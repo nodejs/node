@@ -79,8 +79,9 @@ bitfield struct ScopeFlags extends uint32 {
   force_context_allocation: bool: 1 bit;
   private_name_lookup_skips_outer_class: bool: 1 bit;
   has_context_extension_slot: bool: 1 bit;
-  has_locals_block_list: bool: 1 bit;
+  is_hidden: bool: 1 bit;
   is_empty: bool: 1 bit;
+  is_wrapped_function: bool: 1 bit;
 }
 
 struct PositionInfo {
@@ -167,11 +168,6 @@ extern class ScopeInfo extends HeapObject {
   inferred_function_name?[flags.has_inferred_function_name]: String|Undefined;
 
   outer_scope_info?[flags.has_outer_scope_info]: ScopeInfo|TheHole;
-
-  // List of stack allocated local variables. Used by debug evaluate to properly
-  // abort variable lookup when a name clashes with a stack allocated local that
-  // can't be materialized.
-  locals_block_list?[flags.has_locals_block_list]: HashTable;
 
   // For a module scope, this part contains the SourceTextModuleInfo and the
   // metadata of module-allocated variables. For non-module scopes it is empty.

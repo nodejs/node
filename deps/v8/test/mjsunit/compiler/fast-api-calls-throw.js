@@ -14,6 +14,7 @@
 // --wasm-lazy-compilation is needed so that wellknown imports work in the
 // absence of dynamic tiering.
 // Flags: --wasm-lazy-compilation
+// Flags: --fast-api-allow-float-in-sim
 
 load('test/mjsunit/wasm/wasm-module-builder.js');
 

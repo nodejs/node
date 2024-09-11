@@ -107,6 +107,7 @@ void TracedReferenceTest(v8::Isolate* isolate,
                          ModifierFunction modifier_function,
                          GCFunction gc_function, SurvivalMode survives) {
   auto i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  ManualGCScope manual_gc_scope(i_isolate);
   DisableConservativeStackScanningScopeForTesting no_stack_scanning(
       i_isolate->heap());
   v8::HandleScope scope(isolate);

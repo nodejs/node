@@ -184,9 +184,7 @@ V8_INLINE void DecodeError(Decoder* decoder, const uint8_t* pc, const char* str,
   // know this e.g. from the VALIDATE macro, but this assumption tells it again
   // that this path is impossible.
   V8_ASSUME(ValidationTag::validate);
-  if constexpr (!ValidationTag::full_validation) {
-    decoder->MarkError();
-  } else if constexpr (sizeof...(Args) == 0) {
+  if constexpr (sizeof...(Args) == 0) {
     decoder->error(pc, str);
   } else {
     decoder->errorf(pc, str, std::forward<Args>(args)...);
@@ -202,9 +200,7 @@ V8_INLINE void DecodeError(Decoder* decoder, const char* str, Args&&... args) {
   // know this e.g. from the VALIDATE macro, but this assumption tells it again
   // that this path is impossible.
   V8_ASSUME(ValidationTag::validate);
-  if constexpr (!ValidationTag::full_validation) {
-    decoder->MarkError();
-  } else if constexpr (sizeof...(Args) == 0) {
+  if constexpr (sizeof...(Args) == 0) {
     decoder->error(str);
   } else {
     decoder->errorf(str, std::forward<Args>(args)...);
@@ -497,11 +493,7 @@ struct BrOnCastImmediate {
   BrOnCastImmediate(Decoder* decoder, const uint8_t* pc, ValidationTag = {}) {
     raw_value = decoder->read_u8<ValidationTag>(pc, "br_on_cast flags");
     if (raw_value > (BrOnCastFlags::SRC_IS_NULL | BrOnCastFlags::RES_IS_NULL)) {
-      if constexpr (ValidationTag::full_validation) {
-        decoder->errorf(pc, "invalid br_on_cast flags %u", raw_value);
-      } else {
-        decoder->MarkError();
-      }
+      decoder->errorf(pc, "invalid br_on_cast flags %u", raw_value);
       return;
     }
     flags = BrOnCastFlags(raw_value);
@@ -617,11 +609,13 @@ struct SelectTypeImmediate {
   }
 };
 
+static constexpr uint32_t kInlineSignatureSentinel = UINT_MAX;
+
 struct BlockTypeImmediate {
   uint32_t length = 1;
   // After decoding, either {sig_index} is set XOR {sig} points to
   // {single_return_sig_storage}.
-  uint32_t sig_index;
+  uint32_t sig_index = kInlineSignatureSentinel;
   FunctionSig sig{0, 0, single_return_sig_storage};
   // Internal field, potentially pointed to by {sig}. Do not access directly.
   ValueType single_return_sig_storage[1];
@@ -987,9 +981,9 @@ struct StringConstImmediate {
   }
 };
 
-template <bool full_validation>
+template <bool validate>
 struct PcForErrors {
-  static_assert(full_validation == false);
+  static_assert(validate == false);
   explicit PcForErrors(const uint8_t* /* pc */) {}
 
   const uint8_t* pc() const { return nullptr; }
@@ -1006,11 +1000,11 @@ struct PcForErrors<true> {
 
 // An entry on the value stack.
 template <typename ValidationTag>
-struct ValueBase : public PcForErrors<ValidationTag::full_validation> {
+struct ValueBase : public PcForErrors<ValidationTag::validate> {
   ValueType type = kWasmVoid;
 
   ValueBase(const uint8_t* pc, ValueType type)
-      : PcForErrors<ValidationTag::full_validation>(pc), type(type) {}
+      : PcForErrors<ValidationTag::validate>(pc), type(type) {}
 };
 
 template <typename Value>
@@ -1055,7 +1049,7 @@ enum Reachability : uint8_t {
 
 // An entry on the control stack (i.e. if, block, loop, or try).
 template <typename Value, typename ValidationTag>
-struct ControlBase : public PcForErrors<ValidationTag::full_validation> {
+struct ControlBase : public PcForErrors<ValidationTag::validate> {
   ControlKind kind = kControlBlock;
   Reachability reachability = kReachable;
 
@@ -1079,7 +1073,7 @@ struct ControlBase : public PcForErrors<ValidationTag::full_validation> {
   ControlBase(Zone* zone, ControlKind kind, uint32_t stack_depth,
               uint32_t init_stack_depth, const uint8_t* pc,
               Reachability reachability)
-      : PcForErrors<ValidationTag::full_validation>(pc),
+      : PcForErrors<ValidationTag::validate>(pc),
         kind(kind),
         reachability(reachability),
         stack_depth(stack_depth),
@@ -1461,9 +1455,6 @@ class FastZoneVector {
 // lengths, etc.
 template <typename ValidationTag, DecodingMode decoding_mode = kFunctionBody>
 class WasmDecoder : public Decoder {
-  // {full_validation} implies {validate}.
-  static_assert(!ValidationTag::full_validation || ValidationTag::validate);
-
  public:
   WasmDecoder(Zone* zone, const WasmModule* module, WasmEnabledFeatures enabled,
               WasmDetectedFeatures* detected, const FunctionSig* sig,
@@ -2481,7 +2472,13 @@ class WasmDecoder : public Decoder {
                                          pc + length + flags_imm.length +
                                              branch.length + source_imm.length,
                                          validate);
+            (ios.BrOnCastFlags(flags_imm), ...);
             (ios.BranchDepth(branch), ...);
+            // This code has grown historically (while the GC proposal's design
+            // evolved), but it's convenient: for the text format, we want to
+            // pretend that we have two ValueTypes; whereas the mjsunit
+            // module builder format cares only about the encapsulated
+            // HeapTypes (and the raw flags value, see callback above).
             (ios.ValueType(source_imm, flags_imm.flags.src_is_null), ...);
             (ios.ValueType(target_imm, flags_imm.flags.res_is_null), ...);
             return length + flags_imm.length + branch.length +
@@ -4678,7 +4675,37 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       }
       case kExprS128Const:
         return SimdConstOp(opcode_length);
-      case kExprF16x8Splat: {
+      case kExprF16x8Splat:
+      case kExprF16x8Abs:
+      case kExprF16x8Neg:
+      case kExprF16x8Sqrt:
+      case kExprF16x8Ceil:
+      case kExprF16x8Floor:
+      case kExprF16x8Trunc:
+      case kExprF16x8NearestInt:
+      case kExprF16x8Eq:
+      case kExprF16x8Ne:
+      case kExprF16x8Lt:
+      case kExprF16x8Gt:
+      case kExprF16x8Le:
+      case kExprF16x8Ge:
+      case kExprF16x8Add:
+      case kExprF16x8Sub:
+      case kExprF16x8Mul:
+      case kExprF16x8Div:
+      case kExprF16x8Min:
+      case kExprF16x8Max:
+      case kExprF16x8Pmin:
+      case kExprF16x8Pmax:
+      case kExprI16x8SConvertF16x8:
+      case kExprI16x8UConvertF16x8:
+      case kExprF16x8SConvertI16x8:
+      case kExprF16x8UConvertI16x8:
+      case kExprF16x8DemoteF32x4Zero:
+      case kExprF16x8DemoteF64x2Zero:
+      case kExprF32x4PromoteLowF16x8:
+      case kExprF16x8Qfma:
+      case kExprF16x8Qfms: {
         if (!v8_flags.experimental_wasm_fp16) {
           this->DecodeError(
               "invalid simd opcode: 0x%x, "

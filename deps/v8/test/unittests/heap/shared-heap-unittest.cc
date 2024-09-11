@@ -2,11 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/base/optional.h"
+#include <optional>
+
 #include "src/base/platform/platform.h"
 #include "src/base/platform/semaphore.h"
 #include "src/heap/heap.h"
 #include "src/heap/parked-scope-inl.h"
+#include "src/objects/bytecode-array.h"
 #include "src/objects/fixed-array.h"
 #include "test/unittests/heap/heap-utils.h"
 #include "test/unittests/test-utils.h"
@@ -36,7 +38,7 @@ class SharedHeapNoClientsTest : public TestJSSharedMemoryWithPlatform {
 
  private:
   Isolate* shared_space_isolate_;
-  base::Optional<IsolateWrapper> shared_space_isolate_wrapper;
+  std::optional<IsolateWrapper> shared_space_isolate_wrapper;
 };
 
 namespace {
@@ -240,8 +242,9 @@ TEST_F(SharedHeapTest, TrustedToSharedTrustedPointer) {
   Isolate* isolate = i_isolate();
   Factory* factory = isolate->factory();
 
-  Handle<TrustedFixedArray> constant_pool = factory->NewTrustedFixedArray(0);
-  Handle<TrustedByteArray> handler_table =
+  DirectHandle<TrustedFixedArray> constant_pool =
+      factory->NewTrustedFixedArray(0);
+  DirectHandle<TrustedByteArray> handler_table =
       factory->NewTrustedByteArray(3, AllocationType::kSharedTrusted);
   CHECK_EQ(MemoryChunk::FromHeapObject(*handler_table)
                ->Metadata()
@@ -282,13 +285,13 @@ class TrustedToSharedTrustedPointerOnClient final : public ParkingThread {
                                             Isolate* i_client_isolate) {
       Factory* factory = i_client_isolate->factory();
       HandleScope scope(i_client_isolate);
-      Handle<BytecodeArray> keep_alive_bc;
+      DirectHandle<BytecodeArray> keep_alive_bc;
 
       {
         HandleScope nested_scope(i_client_isolate);
-        Handle<TrustedFixedArray> constant_pool =
+        DirectHandle<TrustedFixedArray> constant_pool =
             factory->NewTrustedFixedArray(0);
-        Handle<TrustedByteArray> handler_table =
+        DirectHandle<TrustedByteArray> handler_table =
             factory->NewTrustedByteArray(3, AllocationType::kSharedTrusted);
         CHECK_EQ(MemoryChunk::FromHeapObject(*handler_table)
                      ->Metadata()
@@ -678,7 +681,7 @@ namespace {
 // Testing the shared heap using ordinary (indirect) handles.
 
 struct StateWithHandle {
-  base::Optional<HandleScope> scope;
+  std::optional<HandleScope> scope;
   Handle<FixedArray> handle;
   Global<v8::FixedArray> weak;
 };
@@ -771,7 +774,7 @@ void AllocateWithRawPointer(Isolate* isolate, StateWithRawPointer* state) {
   DirectHandle<FixedArray> h =
       isolate->factory()->NewFixedArray(size, allocation);
   state->ptr = (*h).ptr();
-  Local<v8::FixedArray> l = Utils::FixedArrayToLocal(h, isolate);
+  Local<v8::FixedArray> l = Utils::FixedArrayToLocal(h);
   state->weak.Reset(reinterpret_cast<v8::Isolate*>(isolate), l);
   state->weak.SetWeak();
 }
@@ -834,6 +837,51 @@ TEST_ALL_SCENARIA(SharedHeapTestStateWithRawPointerUnparked, ToEachTheirOwn,
 
 #undef TEST_SCENARIO
 #undef TEST_ALL_SCENARIA
+
+TEST_F(SharedHeapTest, SharedUntrustedToSharedTrustedPointer) {
+  Isolate* isolate = i_isolate();
+  Factory* factory = isolate->factory();
+  ManualGCScope manual_gc_scope(isolate);
+
+  // Allocate an object in the shared trusted space.
+  // Use random bytes here since we don't ever run the bytecode.
+  constexpr uint8_t kRawBytes[] = {0x1, 0x2, 0x3, 0x4};
+  constexpr int kRawBytesSize = sizeof(kRawBytes);
+  constexpr int32_t kFrameSize = 32;
+  constexpr uint16_t kParameterCount = 2;
+  constexpr uint16_t kMaxArguments = 0;
+  Handle<TrustedFixedArray> constant_pool =
+      factory->NewTrustedFixedArray(0, AllocationType::kSharedTrusted);
+  Handle<TrustedByteArray> handler_table =
+      factory->NewTrustedByteArray(3, AllocationType::kSharedTrusted);
+  Handle<BytecodeArray> bytecode_array = factory->NewBytecodeArray(
+      kRawBytesSize, kRawBytes, kFrameSize, kParameterCount, kMaxArguments,
+      constant_pool, handler_table, AllocationType::kSharedTrusted);
+  CHECK_EQ(MemoryChunk::FromHeapObject(*bytecode_array)
+               ->Metadata()
+               ->owner()
+               ->identity(),
+           SHARED_TRUSTED_SPACE);
+
+  // Start incremental marking
+  isolate->heap()->StartIncrementalMarking(GCFlag::kNoFlags,
+                                           GarbageCollectionReason::kTesting);
+
+  // Allocate an object in the shared untrusted space.
+  Handle<BytecodeWrapper> bytecode_wrapper =
+      factory->NewBytecodeWrapper(AllocationType::kSharedOld);
+  CHECK_EQ(MemoryChunk::FromHeapObject(*bytecode_wrapper)
+               ->Metadata()
+               ->owner()
+               ->identity(),
+           SHARED_SPACE);
+
+  // Create a shared untrusted to shared trusted reference (with a write
+  // barrier)
+  bytecode_wrapper->set_bytecode(*bytecode_array);
+  bytecode_array->wrapper()->clear_bytecode();
+  bytecode_array->set_wrapper(*bytecode_wrapper);
+}
 
 }  // namespace internal
 }  // namespace v8

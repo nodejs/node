@@ -209,7 +209,6 @@ AllocationResult MainAllocator::AllocateRawSlow(int size_in_bytes,
 
 AllocationResult MainAllocator::AllocateRawSlowUnaligned(
     int size_in_bytes, AllocationOrigin origin) {
-  DCHECK(!v8_flags.enable_third_party_heap);
   if (!EnsureAllocation(size_in_bytes, kTaggedAligned, origin)) {
     return AllocationResult::Failure();
   }
@@ -225,7 +224,6 @@ AllocationResult MainAllocator::AllocateRawSlowUnaligned(
 
 AllocationResult MainAllocator::AllocateRawSlowAligned(
     int size_in_bytes, AllocationAlignment alignment, AllocationOrigin origin) {
-  DCHECK(!v8_flags.enable_third_party_heap);
   if (!EnsureAllocation(size_in_bytes, alignment, origin)) {
     return AllocationResult::Failure();
   }
@@ -460,7 +458,16 @@ bool SemiSpaceNewSpaceAllocatorPolicy::EnsureAllocation(
 
   std::optional<std::pair<Address, Address>> allocation_result =
       space_->Allocate(size_in_bytes, alignment);
-  if (!allocation_result) return false;
+  if (!allocation_result) {
+    if (!v8_flags.separate_gc_phases ||
+        !space_->heap()->ShouldExpandYoungGenerationOnSlowAllocation(
+            PageMetadata::kPageSize)) {
+      return false;
+    }
+    allocation_result =
+        space_->AllocateOnNewPageBeyondCapacity(size_in_bytes, alignment);
+    if (!allocation_result) return false;
+  }
 
   Address start = allocation_result->first;
   Address end = allocation_result->second;
@@ -610,7 +617,8 @@ bool IsPagedNewSpaceAtFullCapacity(const PagedNewSpace* space) {
 bool PagedNewSpaceAllocatorPolicy::TryAllocatePage(int size_in_bytes,
                                                    AllocationOrigin origin) {
   if (IsPagedNewSpaceAtFullCapacity(space_) &&
-      !space_->heap()->ShouldExpandYoungGenerationOnSlowAllocation())
+      !space_->heap()->ShouldExpandYoungGenerationOnSlowAllocation(
+          PageMetadata::kPageSize))
     return false;
   if (!space_->paged_space()->AllocatePage()) return false;
   return paged_space_allocator_policy_->TryAllocationFromFreeList(size_in_bytes,
@@ -658,6 +666,25 @@ bool PagedSpaceAllocatorPolicy::RefillLab(int size_in_bytes,
   if (TryExtendLAB(size_in_bytes)) return true;
 
   if (TryAllocationFromFreeList(size_in_bytes, origin)) return true;
+
+  // Don't steal pages from the shared space of the main isolate if running as a
+  // client. The issue is that the concurrent marker may be running on the main
+  // isolate and may reach the page and read its flags, which will then end up
+  // in a race, when the page of the compaction space will be merged back to the
+  // main space. For the same reason, don't take swept pages from the main
+  // shared space.
+  const bool running_from_client_isolate_and_allocating_in_shared_space =
+      (allocator_->identity() == SHARED_SPACE) &&
+      !isolate_heap()->isolate()->is_shared_space_isolate();
+  if (running_from_client_isolate_and_allocating_in_shared_space) {
+    // Avoid OOM crash in the GC in order to invoke NearHeapLimitCallback after
+    // GC and give it a chance to increase the heap limit.
+    if (!isolate_heap()->force_oom() &&
+        TryExpandAndAllocate(size_in_bytes, origin)) {
+      return true;
+    }
+    return false;
+  }
 
   // Sweeping is still in progress.
   if (space_heap()->sweeping_in_progress()) {

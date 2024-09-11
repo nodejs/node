@@ -576,8 +576,8 @@ class ExceptionHandlerTrampolineBuilder {
     EmitMaterialisationsAndPushResults(materialising_moves, save_accumulator);
 
     __ RecordComment("EmitMoves");
-    MaglevAssembler::ScratchRegisterScope temps(masm_);
-    Register scratch = temps.GetDefaultScratchRegister();
+    MaglevAssembler::TemporaryRegisterScope temps(masm_);
+    Register scratch = temps.AcquireScratch();
     direct_moves.EmitMoves(scratch);
     EmitPopMaterialisedResults(materialising_moves, save_accumulator, scratch);
     __ Jump(catch_block->label());
@@ -776,8 +776,9 @@ class MaglevCodeGeneratingNodeProcessor {
   }
 
   void PostProcessGraph(Graph* graph) {}
+  void PostPhiProcessing() {}
 
-  void PreProcessBasicBlock(BasicBlock* block) {
+  BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
     if (block->is_loop()) {
       __ LoopHeaderAlign();
     }
@@ -787,6 +788,7 @@ class MaglevCodeGeneratingNodeProcessor {
       __ RecordComment(ss.str());
     }
     __ BindBlock(block);
+    return BlockProcessResult::kContinue;
   }
 
   template <typename NodeT>
@@ -831,7 +833,7 @@ class MaglevCodeGeneratingNodeProcessor {
       }
     }
 
-    MaglevAssembler::ScratchRegisterScope scratch_scope(masm());
+    MaglevAssembler::TemporaryRegisterScope scratch_scope(masm());
     scratch_scope.Include(node->general_temporaries());
     scratch_scope.IncludeDouble(node->double_temporaries());
 
@@ -884,9 +886,9 @@ class MaglevCodeGeneratingNodeProcessor {
 
     int predecessor_id = state.block()->predecessor_id();
 
-    MaglevAssembler::ScratchRegisterScope temps(masm_);
-    Register scratch = temps.GetDefaultScratchRegister();
-    DoubleRegister double_scratch = temps.GetDefaultScratchDoubleRegister();
+    MaglevAssembler::TemporaryRegisterScope temps(masm_);
+    Register scratch = temps.AcquireScratch();
+    DoubleRegister double_scratch = temps.AcquireScratchDouble();
 
     // TODO(leszeks): Move these to fields, to allow their data structure
     // allocations to be reused. Will need some sort of state resetting.
@@ -1106,7 +1108,10 @@ class SafepointingNodeProcessor {
 
   void PreProcessGraph(Graph* graph) {}
   void PostProcessGraph(Graph* graph) {}
-  void PreProcessBasicBlock(BasicBlock* block) {}
+  BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
+    return BlockProcessResult::kContinue;
+  }
+  void PostPhiProcessing() {}
   ProcessResult Process(NodeBase* node, const ProcessingState& state) {
     local_isolate_->heap()->Safepoint();
     return ProcessResult::kContinue;
@@ -1522,7 +1527,7 @@ class MaglevFrameTranslationBuilder {
         GetDuplicatedId(reinterpret_cast<intptr_t>(object->allocation()));
     if (dup_id != kNotDuplicated) {
       translation_array_builder_->DuplicateObject(dup_id);
-      input_location += object->InputLocationSizeNeeded();
+      input_location += object->InputLocationSizeNeeded(virtual_objects);
       return;
     }
     if (object->type() == VirtualObject::kFixedDoubleArray) {
@@ -1553,7 +1558,8 @@ class MaglevFrameTranslationBuilder {
         BuildVirtualObject(vobject, input_location, virtual_objects);
         return;
       }
-      input_locations_to_advance += vobject->InputLocationSizeNeeded();
+      input_locations_to_advance +=
+          vobject->InputLocationSizeNeeded(virtual_objects);
     }
     if (input_location->operand().IsConstant()) {
       translation_array_builder_->StoreLiteral(
@@ -1682,6 +1688,8 @@ MaglevCodeGenerator::MaglevCodeGenerator(
       graph_(graph),
       deopt_literals_(isolate->heap()->heap()),
       retained_maps_(isolate->heap()),
+      is_context_specialized_(
+          compilation_info->specialize_to_function_context()),
       zone_(compilation_info->zone()) {
   DCHECK(maglev::IsMaglevEnabled());
   DCHECK_IMPLIES(compilation_info->toplevel_is_osr(),
@@ -1904,13 +1912,20 @@ MaybeHandle<Code> MaglevCodeGenerator::BuildCodeObject(
   CodeDesc desc;
   masm()->GetCode(local_isolate, &desc, &safepoint_table_builder_,
                   handler_table_offset_);
-  return Factory::CodeBuilder{local_isolate, desc, CodeKind::MAGLEV}
-      .set_stack_slots(stack_slot_count_with_fixed_frame())
-      .set_parameter_count(parameter_count())
-      .set_deoptimization_data(deopt_data)
-      .set_empty_source_position_table()
-      .set_osr_offset(code_gen_state_.compilation_info()->toplevel_osr_offset())
-      .TryBuild();
+  auto builder =
+      Factory::CodeBuilder{local_isolate, desc, CodeKind::MAGLEV}
+          .set_stack_slots(stack_slot_count_with_fixed_frame())
+          .set_parameter_count(parameter_count())
+          .set_deoptimization_data(deopt_data)
+          .set_empty_source_position_table()
+          .set_osr_offset(
+              code_gen_state_.compilation_info()->toplevel_osr_offset());
+
+  if (is_context_specialized_) {
+    builder.set_is_context_specialized();
+  }
+
+  return builder.TryBuild();
 }
 
 GlobalHandleVector<Map> MaglevCodeGenerator::CollectRetainedMaps(

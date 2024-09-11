@@ -27,6 +27,11 @@ void TrustedPointerTableEntry::MakeFreelistEntry(uint32_t next_entry_index) {
   payload_.store(payload, std::memory_order_relaxed);
 }
 
+void TrustedPointerTableEntry::MakeZappedEntry() {
+  auto payload = Payload::ForZappedEntry();
+  payload_.store(payload, std::memory_order_relaxed);
+}
+
 Address TrustedPointerTableEntry::GetPointer(IndirectPointerTag tag) const {
   DCHECK(!IsFreelistEntry());
   return payload_.load(std::memory_order_relaxed).Untag(tag);
@@ -134,6 +139,11 @@ void TrustedPointerTable::Mark(Space* space, TrustedPointerHandle handle) {
   DCHECK(space->Contains(index));
 
   at(index).Mark();
+}
+
+void TrustedPointerTable::Zap(TrustedPointerHandle handle) {
+  uint32_t index = HandleToIndex(handle);
+  at(index).MakeZappedEntry();
 }
 
 template <typename Callback>

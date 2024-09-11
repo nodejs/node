@@ -9,6 +9,7 @@
 #include <string_view>
 
 #include "v8-data.h"               // NOLINT(build/include_directory)
+#include "v8-exception.h"          // NOLINT(build/include_directory)
 #include "v8-function-callback.h"  // NOLINT(build/include_directory)
 #include "v8-local-handle.h"       // NOLINT(build/include_directory)
 #include "v8-memory-span.h"        // NOLINT(build/include_directory)
@@ -71,8 +72,6 @@ class V8_EXPORT Template : public Data {
    * \param name The name of the property for which an accessor is added.
    * \param getter The callback to invoke when getting the property.
    * \param setter The callback to invoke when setting the property.
-   * \param data A piece of data that will be passed to the getter and setter
-   *   callbacks whenever they are invoked.
    * \param attribute The attributes of the property for which an accessor
    *   is added.
    */
@@ -656,6 +655,18 @@ class V8_EXPORT FunctionTemplate : public Template {
    * FunctionTemplate as its constructor.
    */
   void SetClassName(Local<String> name);
+
+  /**
+   * Set the interface name of the FunctionTemplate. This is provided as
+   * contextual information in an ExceptionPropagationMessage to the embedder.
+   */
+  void SetInterfaceName(Local<String> name);
+
+  /**
+   * Provides information on the type of FunctionTemplate for embedder
+   * exception handling.
+   */
+  void SetExceptionContext(ExceptionContext context);
 
   /**
    * When set to true, no access check will be performed on the receiver of a

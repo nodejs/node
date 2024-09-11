@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <map>
 #include <memory>
+#include <optional>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -144,7 +145,7 @@ class NativeModuleCache {
   // before trying to get it from the cache.
   // By contrast, an expired {weak_ptr} indicates that the native module died
   // and will soon be cleaned up from the cache.
-  std::map<Key, base::Optional<std::weak_ptr<NativeModule>>> map_;
+  std::map<Key, std::optional<std::weak_ptr<NativeModule>>> map_;
 
   base::Mutex mutex_;
 
@@ -174,7 +175,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // asm.js module.
   MaybeHandle<AsmWasmData> SyncCompileTranslatedAsmJs(
       Isolate* isolate, ErrorThrower* thrower, ModuleWireBytes bytes,
-      Handle<Script> script,
+      DirectHandle<Script> script,
       base::Vector<const uint8_t> asm_js_offset_table_bytes,
       DirectHandle<HeapNumber> uses_bitset, LanguageMode language_mode);
   Handle<WasmModuleObject> FinalizeTranslatedAsmJs(
@@ -236,7 +237,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
       base::Vector<const char> source_url);
 
   // Flushes all Liftoff code and returns the sizes of the removed
-  // (executable) code and the removed meta data.
+  // (executable) code and the removed metadata.
   std::pair<size_t, size_t> FlushLiftoffCode();
 
   // Returns the code size of all Liftoff compiled functions in all modules.
@@ -251,7 +252,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   // Prints the gathered compilation statistics, then resets them.
   void DumpAndResetTurboStatistics();
-  // Same, but no reset.
+  // Prints the gathered compilation statistics (without resetting them).
   void DumpTurboStatistics();
 
   // Used to redirect tracing output from {stdout} to a file.
@@ -288,6 +289,10 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // access to the NativeModule containing this code. This method can be called
   // from background threads.
   void LogCode(base::Vector<WasmCode*>);
+  // Trigger code logging for the given code objects, which must be wrappers
+  // that are shared engine-wide. This method can be called from background
+  // threads.
+  void LogWrapperCode(base::Vector<WasmCode*>);
 
   // Enable code logging for the given Isolate. Initially, code logging is
   // enabled if {WasmCode::ShouldBeLogged(Isolate*)} returns true during
@@ -297,10 +302,6 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // This is called from the foreground thread of the Isolate to log all
   // outstanding code objects (added via {LogCode}).
   void LogOutstandingCodesForIsolate(Isolate*);
-
-  // Code logging is done via a separate task per isolate. This deregisters a
-  // task after execution (or destruction because of isolate shutdown).
-  void DeregisterCodeLoggingTask(LogCodesTask*);
 
   // Create a new NativeModule. The caller is responsible for its
   // lifetime. The native module will be given some memory for code,
@@ -381,8 +382,8 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   // Free dead code.
   using DeadCodeMap = std::unordered_map<NativeModule*, std::vector<WasmCode*>>;
-  void FreeDeadCode(const DeadCodeMap&);
-  void FreeDeadCodeLocked(const DeadCodeMap&);
+  void FreeDeadCode(const DeadCodeMap&, std::vector<WasmCode*>&);
+  void FreeDeadCodeLocked(const DeadCodeMap&, std::vector<WasmCode*>&);
 
   Handle<Script> GetOrCreateScript(Isolate*,
                                    const std::shared_ptr<NativeModule>&,
@@ -480,6 +481,15 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // Size of code that became dead since the last GC. If this exceeds a certain
   // threshold, a new GC is triggered.
   size_t new_potentially_dead_code_size_ = 0;
+  // Set of potentially dead code. This set holds one ref for each code object,
+  // until code is detected to be really dead. At that point, the ref count is
+  // decremented and code is moved to the {dead_code} set. If the code is
+  // finally deleted, it is also removed from {dead_code}.
+  std::unordered_set<WasmCode*> potentially_dead_code_;
+  // Code that is not being executed in any isolate any more, but the ref count
+  // did not drop to zero yet.
+  std::unordered_set<WasmCode*> dead_code_;
+  int8_t num_code_gcs_triggered_ = 0;
 
   // If an engine-wide GC is currently running, this pointer stores information
   // about that.
@@ -496,6 +506,10 @@ V8_EXPORT_PRIVATE WasmEngine* GetWasmEngine();
 
 // Returns a reference to the WasmCodeManager shared by the entire process.
 V8_EXPORT_PRIVATE WasmCodeManager* GetWasmCodeManager();
+
+// Returns a reference to the WasmImportWrapperCache shared by the entire
+// process.
+V8_EXPORT_PRIVATE WasmImportWrapperCache* GetWasmImportWrapperCache();
 
 }  // namespace wasm
 }  // namespace internal

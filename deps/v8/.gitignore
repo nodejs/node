@@ -68,6 +68,9 @@
 /third_party/colorama/src
 !/third_party/cpu_features
 /third_party/cpu_features/src
+!/third_party/fast_float
+/third_party/fast_float/src/*
+!/third_party/fast_float/src/include
 !/third_party/glibc
 !/third_party/googletest
 /third_party/googletest/src/*
@@ -88,8 +91,8 @@
 !/third_party/test262-harness
 !/third_party/v8
 !/third_party/wasm-api
-/tools/builtins-pgo/profiles/*.profile
-/tools/builtins-pgo/profiles/profiles_version
+/tools/builtins-pgo/profiles/*
+!/tools/builtins-pgo/profiles/.*
 /tools/clang
 /tools/gcmole/bootstrap
 /tools/gcmole/gcmole-tools

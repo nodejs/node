@@ -347,6 +347,9 @@ class V8_EXPORT_PRIVATE ParseInfo {
 
   void set_is_streaming_compilation() { is_streaming_compilation_ = true; }
 
+  bool has_module_in_scope_chain() const { return has_module_in_scope_chain_; }
+  void set_has_module_in_scope_chain() { has_module_in_scope_chain_ = true; }
+
   void SetCompileHintCallbackAndData(CompileHintCallback callback, void* data) {
     DCHECK_NULL(compile_hint_callback_);
     DCHECK_NULL(compile_hint_callback_data_);
@@ -399,6 +402,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
   LanguageMode language_mode_ : 1;
   bool is_background_compilation_ : 1;
   bool is_streaming_compilation_ : 1;
+  bool has_module_in_scope_chain_ : 1;
 };
 
 }  // namespace internal

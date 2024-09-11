@@ -20,6 +20,7 @@
 #include "src/logging/log.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/instance-type.h"
+#include "src/objects/js-regexp-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/oddball.h"
@@ -85,8 +86,8 @@ Handle<Code> FactoryBase<Impl>::NewCode(const NewCodeOptions& options) {
       AllocateRawWithImmortalMap(size, AllocationType::kTrusted, map));
   DisallowGarbageCollection no_gc;
   code->init_self_indirect_pointer(isolate());
-  code->initialize_flags(options.kind, options.is_turbofanned,
-                         options.stack_slots);
+  code->initialize_flags(options.kind, options.is_context_specialized,
+                         options.is_turbofanned, options.stack_slots);
   code->set_builtin_id(options.builtin);
   code->set_instruction_size(options.instruction_size);
   code->set_metadata_size(options.metadata_size);
@@ -173,11 +174,15 @@ Handle<FixedArray> FactoryBase<Impl>::NewFixedArray(int length,
 }
 
 template <typename Impl>
-Handle<TrustedFixedArray> FactoryBase<Impl>::NewTrustedFixedArray(int length) {
+Handle<TrustedFixedArray> FactoryBase<Impl>::NewTrustedFixedArray(
+    int length, AllocationType allocation) {
+  DCHECK(allocation == AllocationType::kTrusted ||
+         allocation == AllocationType::kSharedTrusted);
+
   // TODO(saelo): Move this check to TrustedFixedArray::New once we have a RO
   // trusted space.
   if (length == 0) return empty_trusted_fixed_array();
-  return TrustedFixedArray::New(isolate(), length);
+  return TrustedFixedArray::New(isolate(), length, allocation);
 }
 
 template <typename Impl>
@@ -294,30 +299,6 @@ Handle<TrustedByteArray> FactoryBase<Impl>::NewTrustedByteArray(
 }
 
 template <typename Impl>
-Handle<ExternalPointerArray> FactoryBase<Impl>::NewExternalPointerArray(
-    int length, AllocationType allocation) {
-  if (length < 0 || length > ExternalPointerArray::kMaxLength) {
-    FATAL("Fatal JavaScript invalid size error %d", length);
-    UNREACHABLE();
-  }
-  if (length == 0) return impl()->empty_external_pointer_array();
-  int size =
-      ALIGN_TO_ALLOCATION_ALIGNMENT(ExternalPointerArray::SizeFor(length));
-  Tagged<HeapObject> result = AllocateRawWithImmortalMap(
-      size, allocation, read_only_roots().external_pointer_array_map());
-  DisallowGarbageCollection no_gc;
-  Tagged<ExternalPointerArray> array = Cast<ExternalPointerArray>(result);
-  // ExternalPointerArrays must be initialized to zero so that when the sandbox
-  // is enabled, they contain all kNullExternalPointerHandle values.
-  static_assert(kNullExternalPointerHandle == 0);
-  Address data_start = array.address() + ExternalPointerArray::kHeaderSize;
-  size_t byte_length = length * kExternalPointerSlotSize;
-  memset(reinterpret_cast<uint8_t*>(data_start), 0, byte_length);
-  array->set_length(length);
-  return handle(array, isolate());
-}
-
-template <typename Impl>
 Handle<DeoptimizationLiteralArray>
 FactoryBase<Impl>::NewDeoptimizationLiteralArray(int length) {
   return Cast<DeoptimizationLiteralArray>(NewTrustedWeakFixedArray(length));
@@ -334,7 +315,9 @@ Handle<BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
     int length, const uint8_t* raw_bytecodes, int frame_size,
     uint16_t parameter_count, uint16_t max_arguments,
     DirectHandle<TrustedFixedArray> constant_pool,
-    DirectHandle<TrustedByteArray> handler_table) {
+    DirectHandle<TrustedByteArray> handler_table, AllocationType allocation) {
+  DCHECK(allocation == AllocationType::kTrusted ||
+         allocation == AllocationType::kSharedTrusted);
   if (length < 0 || length > BytecodeArray::kMaxLength) {
     FATAL("Fatal JavaScript invalid size error %d", length);
     UNREACHABLE();
@@ -342,7 +325,7 @@ Handle<BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
   DirectHandle<BytecodeWrapper> wrapper = NewBytecodeWrapper();
   int size = BytecodeArray::SizeFor(length);
   Tagged<HeapObject> result = AllocateRawWithImmortalMap(
-      size, AllocationType::kTrusted, read_only_roots().bytecode_array_map());
+      size, allocation, read_only_roots().bytecode_array_map());
   DisallowGarbageCollection no_gc;
   Tagged<BytecodeArray> instance = Cast<BytecodeArray>(result);
   instance->init_self_indirect_pointer(isolate());
@@ -364,53 +347,22 @@ Handle<BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
 }
 
 template <typename Impl>
-Handle<BytecodeWrapper> FactoryBase<Impl>::NewBytecodeWrapper() {
+Handle<BytecodeWrapper> FactoryBase<Impl>::NewBytecodeWrapper(
+    AllocationType allocation) {
+  DCHECK(allocation == AllocationType::kOld ||
+         allocation == AllocationType::kSharedOld);
+
   Handle<BytecodeWrapper> wrapper(
       Cast<BytecodeWrapper>(NewWithImmortalMap(
-          read_only_roots().bytecode_wrapper_map(), AllocationType::kOld)),
+          read_only_roots().bytecode_wrapper_map(), allocation)),
       isolate());
   // The BytecodeWrapper is typically created before the BytecodeArray it
   // wraps, so the bytecode field cannot yet be set. However, as a heap
   // verifier might see the wrapper before the field can be set, we need to
   // clear the field here.
   wrapper->clear_bytecode();
-  wrapper->clear_padding();
   return wrapper;
 }
-
-#if V8_ENABLE_WEBASSEMBLY
-template <typename Impl>
-Handle<WasmTrustedInstanceData>
-FactoryBase<Impl>::NewWasmTrustedInstanceData() {
-  Tagged<WasmTrustedInstanceData> result =
-      Cast<WasmTrustedInstanceData>(AllocateRawWithImmortalMap(
-          WasmTrustedInstanceData::kSize, AllocationType::kTrusted,
-          read_only_roots().wasm_trusted_instance_data_map()));
-  DisallowGarbageCollection no_gc;
-  result->init_self_indirect_pointer(isolate());
-  result->clear_padding();
-  for (int offset : WasmTrustedInstanceData::kTaggedFieldOffsets) {
-    result->RawField(offset).store(read_only_roots().undefined_value());
-  }
-  return handle(result, isolate());
-}
-
-template <typename Impl>
-Handle<WasmDispatchTable> FactoryBase<Impl>::NewWasmDispatchTable(int length) {
-  CHECK_LE(length, WasmDispatchTable::kMaxLength);
-  int bytes = WasmDispatchTable::SizeFor(length);
-  Tagged<WasmDispatchTable> result = UncheckedCast<WasmDispatchTable>(
-      AllocateRawWithImmortalMap(bytes, AllocationType::kTrusted,
-                                 read_only_roots().wasm_dispatch_table_map()));
-  result->WriteField<int>(WasmDispatchTable::kLengthOffset, length);
-  result->WriteField<int>(WasmDispatchTable::kCapacityOffset, length);
-  for (int i = 0; i < length; ++i) {
-    result->Clear(i);
-    result->clear_entry_padding(i);
-  }
-  return handle(result, isolate());
-}
-#endif  // V8_ENABLE_WEBASSEMBLY
 
 template <typename Impl>
 Handle<Script> FactoryBase<Impl>::NewScript(
@@ -492,8 +444,8 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfoForLiteral(
   shared->set_function_literal_id(literal->function_literal_id());
   literal->set_shared_function_info(shared);
   SharedFunctionInfo::InitFromFunctionLiteral(isolate(), literal, is_toplevel);
-  shared->SetScript(read_only_roots(), *script, literal->function_literal_id(),
-                    false);
+  shared->SetScript(isolate(), read_only_roots(), *script,
+                    literal->function_literal_id(), false);
   return shared;
 }
 
@@ -546,7 +498,7 @@ FactoryBase<Impl>::NewUncompiledDataWithoutPreparseData(
     Handle<String> inferred_name, int32_t start_position,
     int32_t end_position) {
   return TorqueGeneratedFactory<Impl>::NewUncompiledDataWithoutPreparseData(
-      inferred_name, start_position, end_position, AllocationType::kOld);
+      inferred_name, start_position, end_position, AllocationType::kTrusted);
 }
 
 template <typename Impl>
@@ -556,7 +508,7 @@ FactoryBase<Impl>::NewUncompiledDataWithPreparseData(
     Handle<PreparseData> preparse_data) {
   return TorqueGeneratedFactory<Impl>::NewUncompiledDataWithPreparseData(
       inferred_name, start_position, end_position, preparse_data,
-      AllocationType::kOld);
+      AllocationType::kTrusted);
 }
 
 template <typename Impl>
@@ -564,12 +516,10 @@ Handle<UncompiledDataWithoutPreparseDataWithJob>
 FactoryBase<Impl>::NewUncompiledDataWithoutPreparseDataWithJob(
     Handle<String> inferred_name, int32_t start_position,
     int32_t end_position) {
-  return TorqueGeneratedFactory<
-      Impl>::NewUncompiledDataWithoutPreparseDataWithJob(inferred_name,
-                                                         start_position,
-                                                         end_position,
-                                                         kNullAddress,
-                                                         AllocationType::kOld);
+  return TorqueGeneratedFactory<Impl>::
+      NewUncompiledDataWithoutPreparseDataWithJob(inferred_name, start_position,
+                                                  end_position, kNullAddress,
+                                                  AllocationType::kTrusted);
 }
 
 template <typename Impl>
@@ -579,7 +529,7 @@ FactoryBase<Impl>::NewUncompiledDataWithPreparseDataAndJob(
     Handle<PreparseData> preparse_data) {
   return TorqueGeneratedFactory<Impl>::NewUncompiledDataWithPreparseDataAndJob(
       inferred_name, start_position, end_position, preparse_data, kNullAddress,
-      AllocationType::kOld);
+      AllocationType::kTrusted);
 }
 
 template <typename Impl>
@@ -609,11 +559,11 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
     DCHECK(!Builtins::IsBuiltinId(builtin));
     DCHECK(!IsInstructionStream(*function_data));
     DCHECK(!IsCode(*function_data));
-    SharedFunctionInfo::DataType type =
-        IsExposedTrustedObject(*function_data)
-            ? SharedFunctionInfo::DataType::kTrusted
-            : SharedFunctionInfo::DataType::kRegular;
-    raw->SetData(*function_data, kReleaseStore, type);
+    if (IsExposedTrustedObject(*function_data)) {
+      raw->SetTrustedData(Cast<ExposedTrustedObject>(*function_data));
+    } else {
+      raw->SetUntrustedData(*function_data);
+    }
   } else if (Builtins::IsBuiltinId(builtin)) {
     raw->set_builtin_id(builtin);
   } else {
@@ -654,9 +604,19 @@ FactoryBase<Impl>::NewArrayBoilerplateDescription(
 }
 
 template <typename Impl>
+Handle<RegExpDataWrapper> FactoryBase<Impl>::NewRegExpDataWrapper() {
+  Handle<RegExpDataWrapper> wrapper(
+      Cast<RegExpDataWrapper>(NewWithImmortalMap(
+          read_only_roots().regexp_data_wrapper_map(), AllocationType::kOld)),
+      isolate());
+  wrapper->clear_data();
+  return wrapper;
+}
+
+template <typename Impl>
 Handle<RegExpBoilerplateDescription>
 FactoryBase<Impl>::NewRegExpBoilerplateDescription(
-    DirectHandle<FixedArray> data, DirectHandle<String> source,
+    DirectHandle<RegExpData> data, DirectHandle<String> source,
     Tagged<Smi> flags) {
   auto result = NewStructInternal<RegExpBoilerplateDescription>(
       REG_EXP_BOILERPLATE_DESCRIPTION_TYPE, AllocationType::kOld);
@@ -686,7 +646,7 @@ template <typename Impl>
 Handle<FeedbackMetadata> FactoryBase<Impl>::NewFeedbackMetadata(
     int slot_count, int create_closure_slot_count, AllocationType allocation) {
   DCHECK_LE(0, slot_count);
-  int size = FeedbackMetadata::SizeFor(slot_count);
+  int size = FeedbackMetadata::SizeFor(slot_count, create_closure_slot_count);
   Tagged<FeedbackMetadata> result =
       Cast<FeedbackMetadata>(AllocateRawWithImmortalMap(
           size, allocation, read_only_roots().feedback_metadata_map()));
@@ -1253,8 +1213,7 @@ template <typename Impl>
 Tagged<HeapObject> FactoryBase<Impl>::AllocateRawArray(
     int size, AllocationType allocation) {
   Tagged<HeapObject> result = AllocateRaw(size, allocation);
-  if (!V8_ENABLE_THIRD_PARTY_HEAP_BOOL &&
-      (size >
+  if ((size >
        isolate()->heap()->AsHeap()->MaxRegularHeapObjectSize(allocation)) &&
       v8_flags.use_marking_progress_bar) {
     LargePageMetadata::FromHeapObject(result)->ProgressBar().Enable();
@@ -1292,7 +1251,7 @@ template <typename Impl>
 Tagged<HeapObject> FactoryBase<Impl>::AllocateRawWithImmortalMap(
     int size, AllocationType allocation, Tagged<Map> map,
     AllocationAlignment alignment) {
-  // TODO(delphick): Potentially you could also pass a immortal immovable Map
+  // TODO(delphick): Potentially you could also pass an immortal immovable Map
   // from OLD_SPACE here, like external_map or message_object_map, but currently
   // no one does so this check is sufficient.
   DCHECK(ReadOnlyHeap::Contains(map));

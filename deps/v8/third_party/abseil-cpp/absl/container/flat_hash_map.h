@@ -125,7 +125,7 @@ struct FlatHashMapPolicy;
 template <class K, class V, class Hash = DefaultHashContainerHash<K>,
           class Eq = DefaultHashContainerEq<K>,
           class Allocator = std::allocator<std::pair<const K, V>>>
-class ABSL_INTERNAL_ATTRIBUTE_OWNER flat_hash_map
+class ABSL_ATTRIBUTE_OWNER flat_hash_map
     : public absl::container_internal::raw_hash_map<
           absl::container_internal::FlatHashMapPolicy<K, V>, Hash, Eq,
           Allocator> {
@@ -426,8 +426,7 @@ class ABSL_INTERNAL_ATTRIBUTE_OWNER flat_hash_map
   // flat_hash_map::swap(flat_hash_map& other)
   //
   // Exchanges the contents of this `flat_hash_map` with those of the `other`
-  // flat hash map, avoiding invocation of any move, copy, or swap operations on
-  // individual elements.
+  // flat hash map.
   //
   // All iterators and references on the `flat_hash_map` remain valid, excepting
   // for the past-the-end iterator, which is invalidated.
@@ -572,6 +571,21 @@ template <typename K, typename V, typename H, typename E, typename A,
 typename flat_hash_map<K, V, H, E, A>::size_type erase_if(
     flat_hash_map<K, V, H, E, A>& c, Predicate pred) {
   return container_internal::EraseIf(pred, &c);
+}
+
+// swap(flat_hash_map<>, flat_hash_map<>)
+//
+// Swaps the contents of two `flat_hash_map` containers.
+//
+// NOTE: we need to define this function template in order for
+// `flat_hash_set::swap` to be called instead of `std::swap`. Even though we
+// have `swap(raw_hash_set&, raw_hash_set&)` defined, that function requires a
+// derived-to-base conversion, whereas `std::swap` is a function template so
+// `std::swap` will be preferred by compiler.
+template <typename K, typename V, typename H, typename E, typename A>
+void swap(flat_hash_map<K, V, H, E, A>& x,
+          flat_hash_map<K, V, H, E, A>& y) noexcept(noexcept(x.swap(y))) {
+  x.swap(y);
 }
 
 namespace container_internal {

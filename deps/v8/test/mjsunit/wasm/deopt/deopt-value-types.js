@@ -80,12 +80,12 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEqualsDelta(expected, wasm.literals(wasm.nop1), delta);
   %WasmTierUpFunction(wasm.literals);
   assertEqualsDelta(expected, wasm.literals(wasm.nop1), delta);
-  if (%IsolateCountForTesting() == 1) {
+  if (%IsWasmTieringPredictable()) {
     assertTrue(%IsTurboFanFunction(wasm.literals));
   }
   // Deopt happened, the result should still be the same.
   assertEqualsDelta(expected, wasm.literals(wasm.nop2), delta);
-  if (%IsolateCountForTesting() == 1) {
+  if (%IsWasmTieringPredictable()) {
     assertFalse(%IsTurboFanFunction(wasm.literals));
   }
 })();
@@ -158,12 +158,12 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEqualsDelta(expected, wasm.literals(wasm.nop1), delta);
   %WasmTierUpFunction(wasm.literals);
   assertEqualsDelta(expected, wasm.literals(wasm.nop1), delta);
-  if (%IsolateCountForTesting() == 1) {
+  if (%IsWasmTieringPredictable()) {
     assertTrue(%IsTurboFanFunction(wasm.literals));
   }
   // Deopt happened, the result should still be the same.
   assertEqualsDelta(expected, wasm.literals(wasm.nop2), delta);
-  if (%IsolateCountForTesting() == 1) {
+  if (%IsWasmTieringPredictable()) {
     assertFalse(%IsTurboFanFunction(wasm.literals));
   }
 })();
@@ -234,12 +234,12 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEqualsDelta(42 * 7, wasm.locals(42, wasm.nop1), delta);
   %WasmTierUpFunction(wasm.locals);
   assertEqualsDelta(42 * 7, wasm.locals(42, wasm.nop1), delta);
-  if (%IsolateCountForTesting() == 1) {
+  if (%IsWasmTieringPredictable()) {
     assertTrue(%IsTurboFanFunction(wasm.locals));
   }
   // Deopt happened, the result should still be the same.
   assertEqualsDelta(42 * 7, wasm.locals(42, wasm.nop2), delta);
-  if (%IsolateCountForTesting() == 1) {
+  if (%IsWasmTieringPredictable()) {
     assertFalse(%IsTurboFanFunction(wasm.locals));
   }
 })();

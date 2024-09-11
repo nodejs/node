@@ -122,8 +122,10 @@ CodeProtectionInfo* CreateHandlerData(
   data->size = size;
   data->num_protected_instructions = num_protected_instructions;
 
-  memcpy(data->instructions, protected_instructions,
-         num_protected_instructions * sizeof(ProtectedInstructionData));
+  if (num_protected_instructions > 0) {
+    memcpy(data->instructions, protected_instructions,
+           num_protected_instructions * sizeof(ProtectedInstructionData));
+  }
 
   return data;
 }

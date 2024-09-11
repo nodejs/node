@@ -14,7 +14,7 @@
 #include <string>
 
 #include "v8-source-location.h"  // NOLINT(build/include_directory)
-#include "v8config.h"  // NOLINT(build/include_directory)
+#include "v8config.h"            // NOLINT(build/include_directory)
 
 namespace v8 {
 
@@ -79,9 +79,8 @@ class TaskRunner {
    *
    * Embedders should override PostTaskImpl instead of this.
    */
-  void PostTask(
-      std::unique_ptr<Task> task,
-      const SourceLocation& location = SourceLocation::Current()) {
+  void PostTask(std::unique_ptr<Task> task,
+                const SourceLocation& location = SourceLocation::Current()) {
     PostTaskImpl(std::move(task), location);
   }
 
@@ -552,6 +551,19 @@ class PageAllocator {
    * call to AllocatePages. Returns true on success, false otherwise.
    */
   virtual bool DecommitPages(void* address, size_t size) = 0;
+
+  /**
+   * Block any modifications to the given mapping such as changing permissions
+   * or unmapping the pages on supported platforms.
+   * The address space reservation will exist until the process ends, but it's
+   * possible to release the memory using DiscardSystemPages. Note that this
+   * might require write permissions to the page as e.g. on Linux, mseal will
+   * block discarding sealed anonymous memory.
+   */
+  virtual bool SealPages(void* address, size_t length) {
+    // TODO(360048056): make it pure once it's implemented on Chromium side.
+    return false;
+  }
 
   /**
    * INTERNAL ONLY: This interface has not been stabilised and may change
@@ -1028,18 +1040,6 @@ class VirtualAddressSpace {
 };
 
 /**
- * V8 Allocator used for allocating zone backings.
- */
-class ZoneBackingAllocator {
- public:
-  using MallocFn = void* (*)(size_t);
-  using FreeFn = void (*)(void*);
-
-  virtual MallocFn GetMallocFn() const { return ::malloc; }
-  virtual FreeFn GetFreeFn() const { return ::free; }
-};
-
-/**
  * Observer used by V8 to notify the embedder about entering/leaving sections
  * with high throughput of malloc/free operations.
  */
@@ -1073,14 +1073,6 @@ class Platform {
    */
   virtual ThreadIsolatedAllocator* GetThreadIsolatedAllocator() {
     return nullptr;
-  }
-
-  /**
-   * Allows the embedder to specify a custom allocator used for zones.
-   */
-  virtual ZoneBackingAllocator* GetZoneBackingAllocator() {
-    static ZoneBackingAllocator default_allocator;
-    return &default_allocator;
   }
 
   /**
@@ -1122,7 +1114,7 @@ class Platform {
    */
   virtual std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
       Isolate* isolate, TaskPriority priority) {
-    return nullptr;
+    return GetForegroundTaskRunner(isolate);
   }
 
   /**

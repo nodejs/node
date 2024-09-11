@@ -153,6 +153,7 @@ namespace internal {
   V(WasmJSToWasmWrapper)                             \
   V(WasmToJSWrapper)                                 \
   V(WasmSuspend)                                     \
+  V(WasmHandleStackOverflow)                         \
   V(WriteBarrier)                                    \
   V(IndirectPointerWriteBarrier)                     \
   IF_TSAN(V, TSANLoad)                               \
@@ -845,6 +846,20 @@ class WasmDummyWithJSLinkageDescriptor
   DEFINE_PARAMETERS()
   DEFINE_PARAMETER_TYPES()
   DECLARE_DESCRIPTOR(WasmDummyWithJSLinkageDescriptor)
+};
+
+class WasmHandleStackOverflowDescriptor
+    : public StaticCallInterfaceDescriptor<WasmHandleStackOverflowDescriptor> {
+ public:
+  INTERNAL_DESCRIPTOR()
+  DEFINE_PARAMETERS_NO_CONTEXT(kFrameBase, kGap)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result
+                                    MachineType::Pointer(),    // kFrameBase
+                                    MachineType::Uint32())     // kGap
+  DECLARE_DESCRIPTOR(WasmHandleStackOverflowDescriptor)
+
+  static constexpr inline Register FrameBaseRegister();
+  static constexpr inline Register GapRegister();
 };
 
 class AllocateDescriptor
@@ -2444,13 +2459,12 @@ class WasmToJSWrapperDescriptor final
     : public StaticCallInterfaceDescriptor<WasmToJSWrapperDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
-  DEFINE_RESULT_AND_PARAMETERS_NO_CONTEXT(4, kWasmApiFunctionRef)
-  DEFINE_RESULT_AND_PARAMETER_TYPES(
-      MachineType::IntPtr(),     // GP return 1
-      MachineType::IntPtr(),     // GP return 2
-      MachineType::Float64(),    // FP return 1
-      MachineType::Float64(),    // FP return 2
-      MachineType::AnyTagged())  // WasmApiFunctionRef
+  DEFINE_RESULT_AND_PARAMETERS_NO_CONTEXT(4, kWasmImportData)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::IntPtr(),     // GP return 1
+                                    MachineType::IntPtr(),     // GP return 2
+                                    MachineType::Float64(),    // FP return 1
+                                    MachineType::Float64(),    // FP return 2
+                                    MachineType::AnyTagged())  // WasmImportData
   DECLARE_DESCRIPTOR(WasmToJSWrapperDescriptor)
 
   static constexpr int kMaxRegisterParams = 1;

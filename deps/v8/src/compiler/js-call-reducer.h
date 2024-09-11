@@ -5,6 +5,8 @@
 #ifndef V8_COMPILER_JS_CALL_REDUCER_H_
 #define V8_COMPILER_JS_CALL_REDUCER_H_
 
+#include <optional>
+
 #include "src/base/flags.h"
 #include "src/compiler/globals.h"
 #include "src/compiler/graph-reducer.h"
@@ -71,10 +73,14 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Zone* ZoneForGraphAssembler() const { return temp_zone(); }
   JSGraph* JSGraphForGraphAssembler() const { return jsgraph(); }
 
-  bool has_wasm_calls() const { return has_wasm_calls_; }
+#if V8_ENABLE_WEBASSEMBLY
+  bool has_js_wasm_calls() const {
+    return wasm_module_for_inlining_ != nullptr;
+  }
   const wasm::WasmModule* wasm_module_for_inlining() const {
     return wasm_module_for_inlining_;
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   CompilationDependencies* dependencies() const;
   JSHeapBroker* broker() const { return broker_; }
@@ -237,7 +243,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceBigIntConstructor(Node* node);
   Reduction ReduceBigIntAsN(Node* node, Builtin builtin);
 
-  base::Optional<Reduction> TryReduceJSCallMathMinMaxWithArrayLike(Node* node);
+  std::optional<Reduction> TryReduceJSCallMathMinMaxWithArrayLike(Node* node);
   Reduction ReduceJSCallMathMinMaxWithArrayLike(Node* node, Builtin builtin);
 
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
@@ -296,8 +302,9 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   // For preventing infinite recursion via ReduceJSCallWithArrayLikeOrSpread.
   std::unordered_set<Node*> generated_calls_with_array_like_or_spread_;
 
-  bool has_wasm_calls_ = false;
+#if V8_ENABLE_WEBASSEMBLY
   const wasm::WasmModule* wasm_module_for_inlining_ = nullptr;
+#endif  // V8_ENABLE_WEBASSEMBLY
 };
 
 }  // namespace compiler

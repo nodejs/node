@@ -6,6 +6,8 @@
 #ifndef V8_COMPILER_PIPELINE_DATA_INL_H_
 #define V8_COMPILER_PIPELINE_DATA_INL_H_
 
+#include <optional>
+
 #include "src/builtins/profile-data-reader.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/optimized-compilation-info.h"
@@ -492,7 +494,7 @@ class TFPipelineData {
     assembler_options_.is_wasm =
         this->info()->IsWasm() || this->info()->IsWasmBuiltin();
 #endif
-    base::Optional<OsrHelper> osr_helper;
+    std::optional<OsrHelper> osr_helper;
     if (osr_helper_) osr_helper = *osr_helper_;
     code_generator_ = new CodeGenerator(
         codegen_zone(), frame(), linkage, sequence(), info(), isolate(),
@@ -531,20 +533,19 @@ class TFPipelineData {
     runtime_call_stats_ = stats;
   }
 
-  // Used to skip the "wasm-inlining" phase when there are no JS-to-Wasm calls.
-  bool has_js_wasm_calls() const { return has_js_wasm_calls_; }
-  void set_has_js_wasm_calls(bool has_js_wasm_calls) {
-    has_js_wasm_calls_ = has_js_wasm_calls;
-  }
-
 #if V8_ENABLE_WEBASSEMBLY
+  bool has_js_wasm_calls() const {
+    return wasm_module_for_inlining_ != nullptr;
+  }
   const wasm::WasmModule* wasm_module_for_inlining() const {
     return wasm_module_for_inlining_;
   }
   void set_wasm_module_for_inlining(const wasm::WasmModule* module) {
+    // We may only inline Wasm functions from at most one module, see below.
+    DCHECK_NULL(wasm_module_for_inlining_);
     wasm_module_for_inlining_ = module;
   }
-#endif
+#endif  // V8_ENABLE_WEBASSEMBLY
 
  private:
   Isolate* const isolate_;
@@ -624,8 +625,6 @@ class TFPipelineData {
 
   RuntimeCallStats* runtime_call_stats_ = nullptr;
   const ProfileDataFromFile* profile_data_ = nullptr;
-
-  bool has_js_wasm_calls_ = false;
 };
 
 }  // namespace v8::internal::compiler

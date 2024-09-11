@@ -10,8 +10,11 @@
 #include <iterator>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <type_traits>
+#include <utility>
 
+#include "include/v8-source-location.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/small-vector.h"
@@ -26,6 +29,7 @@
 #include "src/compiler/code-assembler.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/globals.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/turboshaft/access-builder.h"
 #include "src/compiler/turboshaft/builtin-call-descriptors.h"
@@ -49,6 +53,7 @@
 #include "src/objects/fixed-array.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/oddball.h"
+#include "src/objects/property-cell.h"
 #include "src/objects/scope-info.h"
 #include "src/objects/swiss-name-dictionary.h"
 #include "src/objects/tagged.h"
@@ -94,6 +99,239 @@ static_assert((ConditionalGotoStatus::kGotoDestination |
                ConditionalGotoStatus::kGotoEliminated) ==
               ConditionalGotoStatus::kBranch);
 
+#ifdef HAS_CPP_CONCEPTS
+
+template <typename It, typename A>
+concept ForeachIterable = requires(It iterator, A& assembler) {
+  { iterator.Begin(assembler) } -> std::same_as<typename It::iterator_type>;
+  {
+    iterator.IsEnd(assembler, typename It::iterator_type{})
+  } -> std::same_as<OptionalV<Word32>>;
+  {
+    iterator.Advance(assembler, typename It::iterator_type{})
+  } -> std::same_as<typename It::iterator_type>;
+  {
+    iterator.Dereference(assembler, typename It::iterator_type{})
+  } -> std::same_as<typename It::value_type>;
+};
+
+#endif
+
+// `Range<T>` implements the `ForeachIterable` concept to iterate over a range
+// of values inside a `FOREACH` loop. The range can be specified with a begin,
+// an (exclusive) end and an optional stride.
+//
+// Example:
+//
+//   FOREACH(offset, Range(start, end, 4)) {
+//     // Load the value at `offset`.
+//     auto value = __ Load(offset, LoadOp::Kind::RawAligned(), ...);
+//     // ...
+//   }
+//
+template <typename T>
+class Range {
+ public:
+  using value_type = V<T>;
+  using iterator_type = value_type;
+
+  Range(ConstOrV<T> begin, ConstOrV<T> end, ConstOrV<T> stride = 1)
+      : begin_(begin), end_(end), stride_(stride) {}
+
+  template <typename A>
+  iterator_type Begin(A& assembler) const {
+    return assembler.resolve(begin_);
+  }
+
+  template <typename A>
+  OptionalV<Word32> IsEnd(A& assembler, iterator_type current_iterator) const {
+    if constexpr (std::is_same_v<T, Word32>) {
+      return assembler.Uint32LessThanOrEqual(assembler.resolve(end_),
+                                             current_iterator);
+    } else {
+      static_assert(std::is_same_v<T, Word64>);
+      return assembler.Uint64LessThanOrEqual(assembler.resolve(end_),
+                                             current_iterator);
+    }
+  }
+
+  template <typename A>
+  iterator_type Advance(A& assembler, iterator_type current_iterator) const {
+    if constexpr (std::is_same_v<T, Word32>) {
+      return assembler.Word32Add(current_iterator, assembler.resolve(stride_));
+    } else {
+      static_assert(std::is_same_v<T, Word64>);
+      return assembler.Word64Add(current_iterator, assembler.resolve(stride_));
+    }
+  }
+
+  template <typename A>
+  value_type Dereference(A& assembler, iterator_type current_iterator) const {
+    return current_iterator;
+  }
+
+ private:
+  ConstOrV<T> begin_;
+  ConstOrV<T> end_;
+  ConstOrV<T> stride_;
+};
+
+// Deduction guides for `Range`.
+template <typename T>
+Range(V<T>, V<T>, V<T>) -> Range<T>;
+template <typename T>
+Range(V<T>, V<T>, typename ConstOrV<T>::constant_type) -> Range<T>;
+template <typename T>
+Range(V<T>, typename ConstOrV<T>::constant_type,
+      typename ConstOrV<T>::constant_type) -> Range<T>;
+
+// `IndexRange<T>` is a short hand for a Range<T> that iterates the range [0,
+// count) with steps of 1. This is the ideal iterator to generate a `for(int i =
+// 0; i < count; ++i) {}`-style loop.
+//
+//  Example:
+//
+//    FOREACH(i, IndexRange(count)) { ... }
+//
+template <typename T>
+class IndexRange : public Range<T> {
+ public:
+  using base = Range<T>;
+  using value_type = base::value_type;
+  using iterator_type = base::iterator_type;
+
+  explicit IndexRange(ConstOrV<T> count) : Range<T>(0, count, 1) {}
+};
+
+// `Sequence<T>` implements the `ForeachIterable` concept to iterate an
+// unlimited sequence of inside a `FOREACH` loop. The iteration begins at the
+// given start value and during each iteration the value is incremented by the
+// optional `stride` argument. Note that there is no termination condition, so
+// the end of the loop needs to be terminated in another way. This could be
+// either by a conditional break inside the loop or by combining the `Sequence`
+// iterator with another iterator that provides the termination condition (see
+// Zip below).
+//
+// Example:
+//
+//   FOREACH(index, Sequence<WordPtr>(0)) {
+//     // ...
+//     V<Object> value = __ Load(object, index, LoadOp::Kind::TaggedBase(),
+//                               offset, field_size);
+//     GOTO_IF(__ IsSmi(value), done, index);
+//   }
+//
+template <typename T>
+class Sequence : private Range<T> {
+  using base = Range<T>;
+
+ public:
+  using value_type = base::value_type;
+  using iterator_type = base::iterator_type;
+
+  explicit Sequence(ConstOrV<T> begin, ConstOrV<T> stride = 1)
+      : base(begin, 0, stride) {}
+
+  using base::Advance;
+  using base::Begin;
+  using base::Dereference;
+
+  template <typename A>
+  OptionalV<Word32> IsEnd(A&, iterator_type) const {
+    // Sequence doesn't have a termination condition.
+    return OptionalV<Word32>::Nullopt();
+  }
+};
+
+// Deduction guide for `Sequence`.
+template <typename T>
+Sequence(V<T>, V<T>) -> Sequence<T>;
+template <typename T>
+Sequence(V<T>, typename ConstOrV<T>::constant_type) -> Sequence<T>;
+template <typename T>
+Sequence(V<T>) -> Sequence<T>;
+
+// `Zip<T>` implements the `ForeachIterable` concept to iterate multiple
+// iterators at the same time inside a `FOREACH` loop. The loop terminates once
+// any of the zipped iterators signals end of iteration. The number of iteration
+// variables specified in the `FOREACH` loop has to match the number of zipped
+// iterators.
+//
+// Example:
+//
+//   FOREACH(offset, index, Zip(Range(start, end, 4),
+//                              Sequence<Word32>(0)) {
+//     // `offset` iterates [start, end) with steps of 4.
+//     // `index` counts 0, 1, 2, ...
+//   }
+//
+// NOTE: The generated loop is only controlled by the `offset < end` condition
+// as `Sequence` has no upper bound. Hence, the above loop resembles a loop like
+// (assuming start, end and therefore offset are WordPtr):
+//
+//   for(auto [offset, index] = {start, 0};
+//       offset < end;
+//       offset += 4, ++index) {
+//     // ...
+//   }
+//
+template <typename... Iterables>
+class Zip {
+ public:
+  using value_type = std::tuple<typename Iterables::value_type...>;
+  using iterator_type = std::tuple<typename Iterables::iterator_type...>;
+
+  explicit Zip(Iterables... iterables) : iterables_(std::move(iterables)...) {}
+
+  template <typename A>
+  iterator_type Begin(A& assembler) {
+    return base::tuple_map(
+        iterables_, [&assembler](auto& it) { return it.Begin(assembler); });
+  }
+
+  template <typename A>
+  OptionalV<Word32> IsEnd(A& assembler, iterator_type current_iterator) {
+    // TODO(nicohartmann): Currently we don't short-circuit the disjunction here
+    // because that's slightly more difficult to do with the current `IsEnd`
+    // predicate. We can consider making this more powerful if we see use cases.
+    auto results = base::tuple_map2(iterables_, current_iterator,
+                                    [&assembler](auto& it, auto current) {
+                                      return it.IsEnd(assembler, current);
+                                    });
+    return base::tuple_fold(
+        OptionalV<Word32>::Nullopt(), results,
+        [&assembler](OptionalV<Word32> acc, OptionalV<Word32> next) {
+          if (!next.has_value()) return acc;
+          if (!acc.has_value()) return next;
+          return OptionalV(
+              assembler.Word32BitwiseOr(acc.value(), next.value()));
+        });
+  }
+
+  template <typename A>
+  iterator_type Advance(A& assembler, iterator_type current_iterator) {
+    return base::tuple_map2(iterables_, current_iterator,
+                            [&assembler](auto& it, auto current) {
+                              return it.Advance(assembler, current);
+                            });
+  }
+
+  template <typename A>
+  value_type Dereference(A& assembler, iterator_type current_iterator) {
+    return base::tuple_map2(iterables_, current_iterator,
+                            [&assembler](auto& it, auto current) {
+                              return it.Dereference(assembler, current);
+                            });
+  }
+
+ private:
+  std::tuple<Iterables...> iterables_;
+};
+
+// Deduction guide for `Zip`.
+template <typename... Iterables>
+Zip(Iterables... iterables) -> Zip<Iterables...>;
+
 class ConditionWithHint final {
  public:
   ConditionWithHint(
@@ -136,6 +374,14 @@ template <typename T>
 using index_type_for_t = typename IndexTypeFor<T>::type;
 
 inline bool SuppressUnusedWarning(bool b) { return b; }
+template <typename T>
+auto unwrap_unary_tuple(std::tuple<T>&& tpl) {
+  return std::get<0>(std::forward<std::tuple<T>>(tpl));
+}
+template <typename T1, typename T2, typename... Rest>
+auto unwrap_unary_tuple(std::tuple<T1, T2, Rest...>&& tpl) {
+  return tpl;
+}
 }  // namespace detail
 
 template <bool loop, typename... Ts>
@@ -468,8 +714,24 @@ class LoopLabel : public LabelBase<true, Ts...> {
   }
 
   BlockData loop_header_data_;
-  base::Optional<values_t> pending_loop_phis_;
+  std::optional<values_t> pending_loop_phis_;
 };
+
+namespace detail {
+template <typename T>
+struct LoopLabelForHelper;
+template <typename T>
+struct LoopLabelForHelper<V<T>> {
+  using type = LoopLabel<T>;
+};
+template <typename... Ts>
+struct LoopLabelForHelper<std::tuple<V<Ts>...>> {
+  using type = LoopLabel<Ts...>;
+};
+}  // namespace detail
+
+template <typename T>
+using LoopLabelFor = detail::LoopLabelForHelper<T>::type;
 
 Handle<Code> BuiltinCodeHandle(Builtin builtin, Isolate* isolate);
 
@@ -499,7 +761,7 @@ class Uninitialized {
     return temp;
   }
 
-  base::Optional<V<T>> object_;
+  std::optional<V<T>> object_;
 };
 
 // Forward declarations
@@ -594,16 +856,13 @@ class GenericReducerBase;
 // TURBOSHAFT_REDUCER_GENERIC_BOILERPLATE should almost never be needed: it
 // should only be used by the IR-specific base class, while other reducers
 // should simply use `TURBOSHAFT_REDUCER_BOILERPLATE`.
-#define TURBOSHAFT_REDUCER_GENERIC_BOILERPLATE(Name)                          \
-  using ReducerList = typename Next::ReducerList;                             \
-  compiler::turboshaft::Assembler<ReducerList>& Asm() {                       \
-    return *static_cast<compiler::turboshaft::Assembler<ReducerList>*>(this); \
-  }                                                                           \
-  template <class T>                                                          \
-  using ScopedVar = compiler::turboshaft::ScopedVariable<                     \
-      T, compiler::turboshaft::Assembler<ReducerList>>;                       \
-  using CatchScope =                                                          \
-      CatchScopeImpl<compiler::turboshaft::Assembler<ReducerList>>;           \
+#define TURBOSHAFT_REDUCER_GENERIC_BOILERPLATE(Name)                    \
+  using ReducerList = typename Next::ReducerList;                       \
+  using assembler_t = compiler::turboshaft::Assembler<ReducerList>;     \
+  assembler_t& Asm() { return *static_cast<assembler_t*>(this); }       \
+  template <class T>                                                    \
+  using ScopedVar = compiler::turboshaft::ScopedVar<T, assembler_t>;    \
+  using CatchScope = compiler::turboshaft::CatchScopeImpl<assembler_t>; \
   static constexpr auto& ReducerName() { return #Name; }
 
 // Defines a few helpers to use the Assembler and its stack in Reducers.
@@ -613,30 +872,28 @@ class GenericReducerBase;
   using block_t = typename Next::block_t;
 
 template <class T, class Assembler>
-class ScopedVariable : Variable {
+class Var : protected Variable {
   using value_type = maybe_const_or_v_t<T>;
 
  public:
   template <typename Reducer>
-  explicit ScopedVariable(Reducer* reducer)
-      : Variable(reducer->Asm().NewVariable(
-            static_cast<const RegisterRepresentation&>(V<T>::rep))),
-        assembler_(reducer->Asm()) {}
+  explicit Var(Reducer* reducer) : Var(reducer->Asm()) {}
+
   template <typename Reducer>
-  ScopedVariable(Reducer* reducer, value_type initial_value)
-      : ScopedVariable(reducer) {
+  Var(Reducer* reducer, value_type initial_value) : Var(reducer) {
     assembler_.SetVariable(*this, assembler_.resolve(initial_value));
   }
 
-  ScopedVariable(const ScopedVariable&) = delete;
-  ScopedVariable(ScopedVariable&&) = delete;
-  ScopedVariable& operator=(const ScopedVariable) = delete;
-  ScopedVariable& operator=(ScopedVariable&&) = delete;
-  ~ScopedVariable() {
-    // Explicitly mark the variable as invalid to avoid the creation of
-    // unnecessary loop phis.
-    assembler_.SetVariable(*this, OpIndex::Invalid());
-  }
+  explicit Var(Assembler& assembler)
+      : Variable(assembler.NewVariable(
+            static_cast<const RegisterRepresentation&>(V<T>::rep))),
+        assembler_(assembler) {}
+
+  Var(const Var&) = delete;
+  Var(Var&&) = delete;
+  Var& operator=(const Var) = delete;
+  Var& operator=(Var&&) = delete;
+  ~Var() = default;
 
   void Set(value_type new_value) {
     assembler_.SetVariable(*this, assembler_.resolve(new_value));
@@ -666,8 +923,23 @@ class ScopedVariable : Variable {
   operator OpIndex() const { return Get(); }
   operator OptionalOpIndex() const { return Get(); }
 
- private:
+ protected:
   Assembler& assembler_;
+};
+
+template <typename T, typename Assembler>
+class ScopedVar : public Var<T, Assembler> {
+  using Base = Var<T, Assembler>;
+
+ public:
+  using Base::Base;
+  ~ScopedVar() {
+    // Explicitly mark the variable as invalid to avoid the creation of
+    // unnecessary loop phis.
+    this->assembler_.SetVariable(*this, OpIndex::Invalid());
+  }
+
+  using Base::operator=;
 };
 
 // LABEL_BLOCK is used in Reducers to have a single call forwarding to the next
@@ -714,7 +986,7 @@ class EmitProjectionReducer
     OpIndex new_idx = Continuation{this}.Reduce(args...);
     const Operation& op = Asm().output_graph().Get(new_idx);
     if constexpr (MayThrow(opcode)) {
-      // Operations that can throw are lowered to a Op+DidntThrow, and what we
+      // Operations that can throw are lowered to an Op+DidntThrow, and what we
       // get from Next::Reduce is the DidntThrow.
       return WrapInTupleIfNeeded(op.Cast<DidntThrowOp>(), new_idx);
     }
@@ -1017,6 +1289,23 @@ class GenericReducerBase : public ReducerBaseForwarder<Next> {
                             effects);
   }
 
+  OpIndex REDUCE(FastApiCall)(
+      V<FrameState> frame_state, V<Object> data_argument, V<Context> context,
+      base::Vector<const OpIndex> arguments,
+      const FastApiCallParameters* parameters,
+      base::Vector<const RegisterRepresentation> out_reps) {
+    OpIndex raw_call = Base::ReduceFastApiCall(
+        frame_state, data_argument, context, arguments, parameters, out_reps);
+    bool has_catch_block = CatchIfInCatchScope(raw_call);
+    return ReduceDidntThrow(raw_call, has_catch_block,
+                            &Asm()
+                                 .output_graph()
+                                 .Get(raw_call)
+                                 .template Cast<FastApiCallOp>()
+                                 .out_reps,
+                            OpEffects().CanCallAnything());
+  }
+
 #define REDUCE_THROWING_OP(Name)                                             \
   template <typename... Args>                                                \
   V<Any> Reduce##Name(Args... args) {                                        \
@@ -1060,6 +1349,45 @@ class GenericReducerBase : public ReducerBaseForwarder<Next> {
   }
 };
 
+namespace detail {
+
+template <typename LoopLabel, typename Iterable, typename Iterator,
+          typename ValueTuple, size_t... Indices>
+auto BuildResultTupleImpl(bool bound, Iterable&& iterable,
+                          LoopLabel&& loop_header, Label<> loop_exit,
+                          Iterator current_iterator, ValueTuple current_values,
+                          std::index_sequence<Indices...>) {
+  return std::make_tuple(bound, std::forward<Iterable>(iterable),
+                         std::forward<LoopLabel>(loop_header),
+                         std::move(loop_exit), current_iterator,
+                         std::get<Indices>(current_values)...);
+}
+
+template <typename LoopLabel, typename Iterable, typename Iterator,
+          typename Value>
+auto BuildResultTuple(bool bound, Iterable&& iterable, LoopLabel&& loop_header,
+                      Label<> loop_exit, Iterator current_iterator,
+                      Value current_value) {
+  return std::make_tuple(bound, std::forward<Iterable>(iterable),
+                         std::forward<LoopLabel>(loop_header),
+                         std::move(loop_exit), current_iterator, current_value);
+}
+
+template <typename LoopLabel, typename Iterable, typename Iterator,
+          typename... Values>
+auto BuildResultTuple(bool bound, Iterable&& iterable, LoopLabel&& loop_header,
+                      Label<> loop_exit, Iterator current_iterator,
+                      std::tuple<Values...> current_values) {
+  static_assert(std::tuple_size_v<Iterator> == sizeof...(Values));
+  return BuildResultTupleImpl(bound, std::forward<Iterable>(iterable),
+                              std::forward<LoopLabel>(loop_header),
+                              std::move(loop_exit), std::move(current_iterator),
+                              std::move(current_values),
+                              std::make_index_sequence<sizeof...(Values)>{});
+}
+
+}  // namespace detail
+
 template <class Next>
 class GenericAssemblerOpInterface : public Next {
  public:
@@ -1087,6 +1415,59 @@ class GenericAssemblerOpInterface : public Next {
   void ControlFlowHelper_EndLoop(L& label) {
     static_assert(L::is_loop);
     label.EndLoop(Asm());
+  }
+
+  template <CONCEPT(ForeachIterable<assembler_t>) It>
+  auto ControlFlowHelper_Foreach(It iterable) {
+    // We need to take ownership over the `iterable` instance as we need to make
+    // sure that the `ControlFlowHelper_Foreach` and
+    // `ControlFlowHelper_EndForeachLoop` functions operate on the same object.
+    // This can potentially involve copying the `iterable` if it is not moved to
+    // the `FOREACH` macro. `ForeachIterable`s should be cheap to copy and they
+    // MUST NOT emit any code in their constructors/destructors.
+#ifdef DEBUG
+    OpIndex next_index = Asm().output_graph().next_operation_index();
+    {
+      It temp_copy = iterable;
+      USE(temp_copy);
+    }
+    // Make sure we have not emitted any operations.
+    DCHECK_EQ(next_index, Asm().output_graph().next_operation_index());
+#endif
+
+    LoopLabelFor<typename It::iterator_type> loop_header(this);
+    Label<> loop_exit(this);
+
+    typename It::iterator_type begin = iterable.Begin(Asm());
+
+    ControlFlowHelper_Goto(loop_header, {begin});
+
+    auto bound_and_current_iterator = loop_header.BindLoop(Asm());
+    auto [bound] = base::tuple_head<1>(bound_and_current_iterator);
+    auto current_iterator = detail::unwrap_unary_tuple(
+        base::tuple_drop<1>(bound_and_current_iterator));
+    OptionalV<Word32> is_end = iterable.IsEnd(Asm(), current_iterator);
+    if (is_end.has_value()) {
+      ControlFlowHelper_GotoIf(is_end.value(), loop_exit, {});
+    }
+
+    typename It::value_type current_value =
+        iterable.Dereference(Asm(), current_iterator);
+
+    return detail::BuildResultTuple(
+        bound, std::move(iterable), std::move(loop_header),
+        std::move(loop_exit), current_iterator, current_value);
+  }
+
+  template <CONCEPT(ForeachIterable<assembler_t>) It>
+  void ControlFlowHelper_EndForeachLoop(
+      It iterable, LoopLabelFor<typename It::iterator_type>& header_label,
+      Label<>& exit_label, typename It::iterator_type current_iterator) {
+    typename It::iterator_type next_iterator =
+        iterable.Advance(Asm(), current_iterator);
+    ControlFlowHelper_Goto(header_label, {next_iterator});
+    ControlFlowHelper_EndLoop(header_label);
+    ControlFlowHelper_Bind(exit_label);
   }
 
   std::tuple<bool, LoopLabel<>, Label<>> ControlFlowHelper_While(
@@ -1337,6 +1718,10 @@ class TurboshaftAssemblerOpInterface
   DECL_SINGLE_REP_BINOP_V(Uint64MulOverflownBits, WordBinop,
                           UnsignedMulOverflownBits, Word64)
 
+  V<Word32> Word32BitwiseNot(ConstOrV<Word32> input) {
+    return Word32BitwiseXor(input, static_cast<uint32_t>(-1));
+  }
+
   V<Word> WordBinop(V<Word> left, V<Word> right, WordBinopOp::Kind kind,
                     WordRepresentation rep) {
     return ReduceIfReachableWordBinop(left, right, kind, rep);
@@ -1518,6 +1903,8 @@ class TurboshaftAssemblerOpInterface
                                Word32)
   DECL_SINGLE_REP_COMPARISON_V(Int64LessThanOrEqual, SignedLessThanOrEqual,
                                Word64)
+  DECL_SINGLE_REP_COMPARISON_V(IntPtrLessThanOrEqual, SignedLessThanOrEqual,
+                               WordPtr)
   DECL_MULTI_REP_BINOP(UintLessThanOrEqual, Comparison, RegisterRepresentation,
                        UnsignedLessThanOrEqual)
   DECL_SINGLE_REP_COMPARISON_V(Uint32LessThanOrEqual, UnsignedLessThanOrEqual,
@@ -1645,6 +2032,20 @@ class TurboshaftAssemblerOpInterface
                          SignExtend16, Word)
   DECL_SINGLE_REP_UNARY_V(Word32SignExtend16, WordUnary, SignExtend16, Word32)
   DECL_SINGLE_REP_UNARY_V(Word64SignExtend16, WordUnary, SignExtend16, Word64)
+
+  V<turboshaft::Tuple<Word, Word32>> OverflowCheckedUnary(
+      V<Word> input, OverflowCheckedUnaryOp::Kind kind,
+      WordRepresentation rep) {
+    return ReduceIfReachableOverflowCheckedUnary(input, kind, rep);
+  }
+
+  DECL_MULTI_REP_UNARY_V(IntAbsCheckOverflow, OverflowCheckedUnary,
+                         WordRepresentation, Abs, Word)
+  DECL_SINGLE_REP_UNARY_V(Int32AbsCheckOverflow, OverflowCheckedUnary, Abs,
+                          Word32)
+  DECL_SINGLE_REP_UNARY_V(Int64AbsCheckOverflow, OverflowCheckedUnary, Abs,
+                          Word64)
+
 #undef DECL_SINGLE_REP_UNARY_V
 #undef DECL_MULTI_REP_UNARY
 #undef DECL_MULTI_REP_UNARY_V
@@ -1872,6 +2273,12 @@ class TurboshaftAssemblerOpInterface
                                                           input_assumptions);
   }
 
+  V<Word32> TruncateNumberToInt32(V<Number> value) {
+    return V<Word32>::Cast(TruncateJSPrimitiveToUntagged(
+        value, TruncateJSPrimitiveToUntaggedOp::UntaggedKind::kInt32,
+        TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kNumberOrOddball));
+  }
+
   V<Word> TruncateJSPrimitiveToUntaggedOrDeopt(
       V<JSPrimitive> object, V<turboshaft::FrameState> frame_state,
       TruncateJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind kind,
@@ -1918,6 +2325,8 @@ class TurboshaftAssemblerOpInterface
     return UintPtrConstant(static_cast<uintptr_t>(value));
   }
   V<WordPtr> UintPtrConstant(uintptr_t value) { return WordPtrConstant(value); }
+  // TODO(nicohartmann): I would like to get rid of this overload as it is
+  // non-obvious that this doesnt perform Smi-tagging.
   V<Smi> SmiConstant(intptr_t value) {
     return SmiConstant(i::Tagged<Smi>(value));
   }
@@ -1925,13 +2334,35 @@ class TurboshaftAssemblerOpInterface
     return V<Smi>::Cast(
         ReduceIfReachableConstant(ConstantOp::Kind::kSmi, value));
   }
-  V<Float32> Float32Constant(float value) {
+  V<Float32> Float32Constant(i::Float32 value) {
     return ReduceIfReachableConstant(ConstantOp::Kind::kFloat32, value);
   }
-  V<Float64> Float64Constant(double value) {
+  V<Float32> Float32Constant(float value) {
+    // Passing the NaN Hole as input is allowed, but there is no guarantee that
+    // it will remain a hole (it will remain NaN though).
+    if (std::isnan(value)) {
+      return Float32Constant(
+          i::Float32::FromBits(base::bit_cast<uint32_t>(value)));
+    } else {
+      return Float32Constant(i::Float32(value));
+    }
+  }
+  V<Float64> Float64Constant(i::Float64 value) {
     return ReduceIfReachableConstant(ConstantOp::Kind::kFloat64, value);
   }
+  V<Float64> Float64Constant(double value) {
+    // Passing the NaN Hole as input is allowed, but there is no guarantee that
+    // it will remain a hole (it will remain NaN though).
+    if (std::isnan(value)) {
+      return Float64Constant(
+          i::Float64::FromBits(base::bit_cast<uint64_t>(value)));
+    } else {
+      return Float64Constant(i::Float64(value));
+    }
+  }
   OpIndex FloatConstant(double value, FloatRepresentation rep) {
+    // Passing the NaN Hole as input is allowed, but there is no guarantee that
+    // it will remain a hole (it will remain NaN though).
     switch (rep.value()) {
       case FloatRepresentation::Float32():
         return Float32Constant(static_cast<float>(value));
@@ -1939,8 +2370,18 @@ class TurboshaftAssemblerOpInterface
         return Float64Constant(value);
     }
   }
-  OpIndex NumberConstant(double value) {
+  OpIndex NumberConstant(i::Float64 value) {
     return ReduceIfReachableConstant(ConstantOp::Kind::kNumber, value);
+  }
+  OpIndex NumberConstant(double value) {
+    // Passing the NaN Hole as input is allowed, but there is no guarantee that
+    // it will remain a hole (it will remain NaN though).
+    if (std::isnan(value)) {
+      return NumberConstant(
+          i::Float64::FromBits(base::bit_cast<uint64_t>(value)));
+    } else {
+      return NumberConstant(i::Float64(value));
+    }
   }
   OpIndex TaggedIndexConstant(int32_t value) {
     return ReduceIfReachableConstant(ConstantOp::Kind::kTaggedIndex,
@@ -1954,10 +2395,14 @@ class TurboshaftAssemblerOpInterface
     return ReduceIfReachableConstant(ConstantOp::Kind::kHeapObject,
                                      ConstantOp::Storage{value});
   }
-  V<HeapObject> HeapConstantMaybeHole(Handle<HeapObject> value) {
+  template <typename T,
+            typename = std::enable_if_t<is_subtype_v<T, HeapObject>>>
+  V<T> HeapConstantMaybeHole(Handle<T> value) {
     return __ HeapConstant(value);
   }
-  V<HeapObject> HeapConstantNoHole(Handle<HeapObject> value) {
+  template <typename T,
+            typename = std::enable_if_t<is_subtype_v<T, HeapObject>>>
+  V<T> HeapConstantNoHole(Handle<T> value) {
     CHECK(!IsAnyHole(*value));
     return __ HeapConstant(value);
   }
@@ -1970,6 +2415,11 @@ class TurboshaftAssemblerOpInterface
   }
   OpIndex CompressedHeapConstant(Handle<HeapObject> value) {
     return ReduceIfReachableConstant(ConstantOp::Kind::kHeapObject, value);
+  }
+  OpIndex TrustedHeapConstant(Handle<HeapObject> value) {
+    DCHECK(IsTrustedObject(*value));
+    return ReduceIfReachableConstant(ConstantOp::Kind::kTrustedHeapObject,
+                                     value);
   }
   OpIndex ExternalConstant(ExternalReference value) {
     return ReduceIfReachableConstant(ConstantOp::Kind::kExternal, value);
@@ -2001,6 +2451,7 @@ class TurboshaftAssemblerOpInterface
   V<Context> NoContextConstant() {
     return V<Context>::Cast(TagSmi(Context::kNoContext));
   }
+
   // TODO(nicohartmann@): Might want to get rid of the isolate when supporting
   // Wasm.
   V<Code> CEntryStubConstant(Isolate* isolate, int result_size,
@@ -2488,8 +2939,10 @@ class TurboshaftAssemblerOpInterface
     return LoadFieldImpl<Rep>(raw_base, access);
   }
 
-  template <typename Class, typename T>
-  V<T> LoadField(V<Class> object, const FieldAccessTS<Class, T>& field) {
+  template <typename Obj, typename Class, typename T,
+            typename = std::enable_if_t<v_traits<
+                Class>::template implicitly_constructible_from<Obj>::value>>
+  V<T> LoadField(V<Obj> object, const FieldAccessTS<Class, T>& field) {
     return LoadFieldImpl<T>(object, field);
   }
 
@@ -2544,6 +2997,11 @@ class TurboshaftAssemblerOpInterface
   V<Word32> HasInstanceType(V<Object> object, InstanceType instance_type) {
     return Word32Equal(LoadInstanceTypeField(LoadMapField(object)),
                        Word32Constant(instance_type));
+  }
+
+  V<Float64> LoadHeapNumberValue(V<HeapNumber> heap_number) {
+    return __ template LoadField<HeapNumber, HeapNumber, Float64>(
+        heap_number, AccessBuilderTS::ForHeapNumberValue());
   }
 
   template <typename Type = Object,
@@ -2674,6 +3132,12 @@ class TurboshaftAssemblerOpInterface
   }
 
   template <typename Class, typename T>
+  void StoreElement(V<Class> object, const ElementAccessTS<Class, T>& access,
+                    ConstOrV<WordPtr> index, V<T> value) {
+    StoreElement(object, access, index, value, access.is_array_buffer_load);
+  }
+
+  template <typename Class, typename T>
   void InitializeElement(Uninitialized<Class>& object,
                          const ElementAccessTS<Class, T>& access,
                          ConstOrV<WordPtr> index, V<T> value) {
@@ -2736,12 +3200,13 @@ class TurboshaftAssemblerOpInterface
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-  void WasmStackCheck(WasmStackCheckOp::Kind kind) {
-    ReduceIfReachableWasmStackCheck(kind);
+  void WasmStackCheck(WasmStackCheckOp::Kind kind, int parameter_slots) {
+    ReduceIfReachableWasmStackCheck(kind, parameter_slots);
   }
 #endif
 
-  void JSStackCheck(V<Context> context, V<turboshaft::FrameState> frame_state,
+  void JSStackCheck(V<Context> context,
+                    OptionalV<turboshaft::FrameState> frame_state,
                     JSStackCheckOp::Kind kind) {
     ReduceIfReachableJSStackCheck(context, frame_state, kind);
   }
@@ -2778,7 +3243,7 @@ class TurboshaftAssemblerOpInterface
   }
 
   V<WordPtr> AdaptLocalArgument(V<Object> argument) {
-#ifdef V8_ENABLE_DIRECT_LOCAL
+#ifdef V8_ENABLE_DIRECT_HANDLE
     // With direct locals, the argument can be passed directly.
     return BitcastTaggedToWordPtr(argument);
 #else
@@ -3411,9 +3876,21 @@ class TurboshaftAssemblerOpInterface
     CallRuntime<typename RuntimeCallDescriptor::Abort>(isolate, context,
                                                        {reason});
   }
+  V<BigInt> CallRuntime_BigIntUnaryOp(Isolate* isolate, V<Context> context,
+                                      V<BigInt> input, ::Operation operation) {
+    DCHECK_EQ(operation,
+              any_of(::Operation::kBitwiseNot, ::Operation::kNegate,
+                     ::Operation::kIncrement, ::Operation::kDecrement));
+    return CallRuntime<typename RuntimeCallDescriptor::BigIntUnaryOp>(
+        isolate, context, {input, __ SmiConstant(Smi::FromEnum(operation))});
+  }
   V<Number> CallRuntime_DateCurrentTime(Isolate* isolate, V<Context> context) {
     return CallRuntime<typename RuntimeCallDescriptor::DateCurrentTime>(
         isolate, context, {});
+  }
+  void CallRuntime_DebugPrint(Isolate* isolate, V<Object> object) {
+    CallRuntime<typename RuntimeCallDescriptor::DebugPrint>(
+        isolate, NoContextConstant(), {object});
   }
   V<Object> CallRuntime_HandleNoHeapWritesInterrupts(
       Isolate* isolate, V<turboshaft::FrameState> frame_state,
@@ -3421,6 +3898,10 @@ class TurboshaftAssemblerOpInterface
     return CallRuntime<
         typename RuntimeCallDescriptor::HandleNoHeapWritesInterrupts>(
         isolate, frame_state, context, LazyDeoptOnThrow::kNo, {});
+  }
+  V<Object> CallRuntime_StackGuard(Isolate* isolate, V<Context> context) {
+    return CallRuntime<typename RuntimeCallDescriptor::StackGuard>(isolate,
+                                                                   context, {});
   }
   V<Object> CallRuntime_StackGuardWithGap(Isolate* isolate,
                                           V<turboshaft::FrameState> frame_state,
@@ -3539,7 +4020,7 @@ class TurboshaftAssemblerOpInterface
         {object, prototype});
   }
 
-  void TailCall(OpIndex callee, base::Vector<const OpIndex> arguments,
+  void TailCall(V<CallTarget> callee, base::Vector<const OpIndex> arguments,
                 const TSCallDescriptor* descriptor) {
     ReduceIfReachableTailCall(callee, arguments, descriptor);
   }
@@ -3688,6 +4169,76 @@ class TurboshaftAssemblerOpInterface
     CHECK(v8_flags.turboshaft_enable_debug_features);
     return ReduceIfReachableCheckTurboshaftTypeOf(input, rep, expected_type,
                                                   successful);
+  }
+
+  // This is currently only usable during graph building on the main thread.
+  void Dcheck(V<Word32> condition, const char* message, const char* file,
+              int line, const SourceLocation& loc = SourceLocation::Current()) {
+    Isolate* isolate = Asm().data()->isolate();
+    USE(isolate);
+    DCHECK_NOT_NULL(isolate);
+    DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+#ifdef DEBUG
+    if (v8_flags.debug_code) {
+      Check(condition, message, file, line, loc);
+    }
+#endif
+  }
+
+  // This is currently only usable during graph building on the main thread.
+  void Check(V<Word32> condition, const char* message, const char* file,
+             int line, const SourceLocation& loc = SourceLocation::Current()) {
+    Isolate* isolate = Asm().data()->isolate();
+    USE(isolate);
+    DCHECK_NOT_NULL(isolate);
+    DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+
+    if (message != nullptr) {
+      CodeComment({"[ Assert: ", loc}, message);
+    } else {
+      CodeComment({"[ Assert: ", loc});
+    }
+
+    IF_NOT (LIKELY(condition)) {
+      std::vector<FileAndLine> file_and_line;
+      if (file != nullptr) {
+        file_and_line.push_back({file, line});
+      }
+      FailAssert(message, file_and_line, loc);
+    }
+    CodeComment({"] Assert", SourceLocation()});
+  }
+
+  void FailAssert(const char* message,
+                  const std::vector<FileAndLine>& files_and_lines,
+                  const SourceLocation& loc) {
+    std::stringstream stream;
+    if (message) stream << message;
+    for (auto it = files_and_lines.rbegin(); it != files_and_lines.rend();
+         ++it) {
+      if (it->first != nullptr) {
+        stream << " [" << it->first << ":" << it->second << "]";
+#ifndef DEBUG
+        // To limit the size of these strings in release builds, we include only
+        // the innermost macro's file name and line number.
+        break;
+#endif
+      }
+    }
+
+    Isolate* isolate = Asm().data()->isolate();
+    DCHECK_NOT_NULL(isolate);
+    DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+    V<String> string_constant =
+        __ HeapConstantNoHole(isolate->factory()->NewStringFromAsciiChecked(
+            stream.str().c_str(), AllocationType::kOld));
+
+    AbortCSADcheck(string_constant);
+    Unreachable();
+  }
+
+  void AbortCSADcheck(V<String> message) {
+    ReduceIfReachableAbortCSADcheck(message);
   }
 
   // CatchBlockBegin should always be the 1st operation of a catch handler, and
@@ -3869,6 +4420,7 @@ class TurboshaftAssemblerOpInterface
 
   void DebugBreak() { ReduceIfReachableDebugBreak(); }
 
+  // TODO(nicohartmann): Maybe this can be unified with Dcheck?
   void AssertImpl(V<Word32> condition, const char* condition_string,
                   const char* file, int line) {
 #ifdef DEBUG
@@ -3876,7 +4428,7 @@ class TurboshaftAssemblerOpInterface
     // necessary.
     static constexpr size_t kMaxAssertCommentLength = 256;
     base::Vector<char> buffer =
-        Asm().data()->shared_zone()->template AllocateVector<char>(
+        Asm().data()->compilation_zone()->template AllocateVector<char>(
             kMaxAssertCommentLength);
     int result = base::SNPrintF(buffer, "Assert: %s    [%s:%d]",
                                 condition_string, file, line);
@@ -3895,18 +4447,21 @@ class TurboshaftAssemblerOpInterface
     CHECK(v8_flags.turboshaft_enable_debug_features);
     ReduceIfReachableDebugPrint(input, rep);
   }
+  void DebugPrint(V<Object> input) {
+    DebugPrint(input, RegisterRepresentation::Tagged());
+  }
   void DebugPrint(V<WordPtr> input) {
-    return DebugPrint(input, RegisterRepresentation::WordPtr());
+    DebugPrint(input, RegisterRepresentation::WordPtr());
   }
   void DebugPrint(V<Float64> input) {
-    return DebugPrint(input, RegisterRepresentation::Float64());
+    DebugPrint(input, RegisterRepresentation::Float64());
   }
 
   void Comment(const char* message) { ReduceIfReachableComment(message); }
   void Comment(const std::string& message) {
     size_t length = message.length() + 1;
     char* zone_buffer =
-        Asm().data()->shared_zone()->template AllocateArray<char>(length);
+        Asm().data()->compilation_zone()->template AllocateArray<char>(length);
     MemCopy(zone_buffer, message.c_str(), length);
     Comment(zone_buffer);
   }
@@ -4143,9 +4698,10 @@ class TurboshaftAssemblerOpInterface
   OpIndex FastApiCall(V<turboshaft::FrameState> frame_state,
                       V<Object> data_argument, V<Context> context,
                       base::Vector<const OpIndex> arguments,
-                      const FastApiCallParameters* parameters) {
+                      const FastApiCallParameters* parameters,
+                      base::Vector<const RegisterRepresentation> out_reps) {
     return ReduceIfReachableFastApiCall(frame_state, data_argument, context,
-                                        arguments, parameters);
+                                        arguments, parameters, out_reps);
   }
 
   void RuntimeAbort(AbortReason reason) {
@@ -4225,6 +4781,7 @@ class TurboshaftAssemblerOpInterface
     const TurboshaftPipelineKind kind = __ data() -> pipeline_kind();          \
     if (V8_UNLIKELY(kind == TurboshaftPipelineKind::kCSA ||                    \
                     kind == TurboshaftPipelineKind::kTSABuiltin)) {            \
+      DCHECK(RootsTable::IsImmortalImmovable(RootIndex::k##rootIndexName));    \
       return V<RemoveTagged<                                                   \
           decltype(std::declval<ReadOnlyRoots>().rootAccessorName())>::type>:: \
           Cast(__ LoadRoot(RootIndex::k##rootIndexName));                      \
@@ -4238,6 +4795,37 @@ class TurboshaftAssemblerOpInterface
   }
   HEAP_IMMUTABLE_IMMOVABLE_OBJECT_LIST(HEAP_CONSTANT_ACCESSOR)
 #undef HEAP_CONSTANT_ACCESSOR
+
+#define HEAP_CONSTANT_ACCESSOR(rootIndexName, rootAccessorName, name)       \
+  V<RemoveTagged<decltype(std::declval<Heap>().rootAccessorName())>::type>  \
+      name##Constant() {                                                    \
+    const TurboshaftPipelineKind kind = __ data() -> pipeline_kind();       \
+    if (V8_UNLIKELY(kind == TurboshaftPipelineKind::kCSA ||                 \
+                    kind == TurboshaftPipelineKind::kTSABuiltin)) {         \
+      DCHECK(RootsTable::IsImmortalImmovable(RootIndex::k##rootIndexName)); \
+      return V<                                                             \
+          RemoveTagged<decltype(std::declval<Heap>().rootAccessorName())>:: \
+              type>::Cast(__ LoadRoot(RootIndex::k##rootIndexName));        \
+    } else {                                                                \
+      Isolate* isolate = __ data() -> isolate();                            \
+      DCHECK_NOT_NULL(isolate);                                             \
+      Factory* factory = isolate->factory();                                \
+      DCHECK_NOT_NULL(factory);                                             \
+      return __ HeapConstant(factory->rootAccessorName());                  \
+    }                                                                       \
+  }
+  HEAP_MUTABLE_IMMOVABLE_OBJECT_LIST(HEAP_CONSTANT_ACCESSOR)
+#undef HEAP_CONSTANT_ACCESSOR
+
+#define HEAP_CONSTANT_TEST(rootIndexName, rootAccessorName, name) \
+  V<Word32> Is##name(V<Object> value) {                           \
+    return TaggedEqual(value, name##Constant());                  \
+  }                                                               \
+  V<Word32> IsNot##name(V<Object> value) {                        \
+    return TaggedNotEqual(value, name##Constant());               \
+  }
+  HEAP_IMMOVABLE_OBJECT_LIST(HEAP_CONSTANT_TEST)
+#undef HEAP_CONSTANT_TEST
 
 #ifdef V8_ENABLE_WEBASSEMBLY
   V<Any> GlobalGet(V<WasmTrustedInstanceData> trusted_instance_data,
@@ -4381,6 +4969,10 @@ class TurboshaftAssemblerOpInterface
     return ReduceIfReachableSimd128ExtractLane(input, kind, lane);
   }
 
+  V<Simd128> Simd128Reduce(V<Simd128> input, Simd128ReduceOp::Kind kind) {
+    return ReduceIfReachableSimd128Reduce(input, kind);
+  }
+
   V<Simd128> Simd128ReplaceLane(V<Simd128> into, V<Any> new_lane,
                                 Simd128ReplaceLaneOp::Kind kind, uint8_t lane) {
     return ReduceIfReachableSimd128ReplaceLane(into, new_lane, kind, lane);
@@ -4483,8 +5075,8 @@ class TurboshaftAssemblerOpInterface
 #endif  // V8_TARGET_ARCH_X64
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
-  V<WasmTrustedInstanceData> WasmInstanceParameter() {
-    return Parameter(wasm::kWasmInstanceParameterIndex,
+  V<WasmTrustedInstanceData> WasmInstanceDataParameter() {
+    return Parameter(wasm::kWasmInstanceDataParameterIndex,
                      RegisterRepresentation::Tagged());
   }
 
@@ -4875,7 +5467,7 @@ class Assembler : public AssemblerData,
     intermediate_block->SetOrigin(source->OriginForBlockEnd());
     // Inserting a Goto in {intermediate_block} to {destination}. This will
     // create the edge from {intermediate_block} to {destination}. Note that
-    // this will call AddPredecessor, but we've already removed the eventual
+    // this will call AddPredecessor, but we've already removed the possible
     // edge of {destination} that need splitting, so no risks of infinite
     // recursion here.
     this->Goto(destination);

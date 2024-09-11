@@ -4,6 +4,8 @@
 
 #include "src/objects/shared-function-info.h"
 
+#include <optional>
+
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/codegen/compilation-cache.h"
@@ -17,8 +19,7 @@
 #include "src/objects/shared-function-info-inl.h"
 #include "src/strings/string-builder-inl.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 V8_EXPORT_PRIVATE constexpr Tagged<Smi>
     SharedFunctionInfo::kNoSharedNameSentinel;
@@ -77,64 +78,76 @@ Tagged<Code> SharedFunctionInfo::GetCode(Isolate* isolate) const {
   // GetSharedFunctionInfoCode method in code-stub-assembler.cc.
   // ======
 
-  Tagged<Object> data = GetData(isolate);
-  if (IsSmi(data)) {
-    // Holding a Smi means we are a builtin.
-    DCHECK(HasBuiltinId());
-    return isolate->builtins()->code(builtin_id());
-  }
-  if (IsBytecodeArray(data)) {
-    // Having a bytecode array means we are a compiled, interpreted function.
-    DCHECK(HasBytecodeArray());
-    return isolate->builtins()->code(Builtin::kInterpreterEntryTrampoline);
-  }
-  if (IsCode(data)) {
-    // Having baseline Code means we are a compiled, baseline function.
-    DCHECK(HasBaselineCode());
-    return Cast<Code>(data);
-  }
-#if V8_ENABLE_WEBASSEMBLY
-  if (IsAsmWasmData(data)) {
-    // Having AsmWasmData means we are an asm.js/wasm function.
-    DCHECK(HasAsmWasmData());
-    return isolate->builtins()->code(Builtin::kInstantiateAsmJs);
-  }
-  if (IsWasmExportedFunctionData(data)) {
-    // Having a WasmExportedFunctionData means the code is in there.
-    DCHECK(HasWasmExportedFunctionData());
-    return wasm_exported_function_data()->wrapper_code(isolate);
-  }
-  if (IsWasmJSFunctionData(data)) {
-    return wasm_js_function_data()->wrapper_code(isolate);
-  }
-  if (IsWasmCapiFunctionData(data)) {
-    return wasm_capi_function_data()->wrapper_code(isolate);
-  }
-  if (IsWasmResumeData(data)) {
-    if (static_cast<wasm::OnResume>(wasm_resume_data()->on_resume()) ==
-        wasm::OnResume::kContinue) {
-      return isolate->builtins()->code(Builtin::kWasmResume);
-    } else {
-      return isolate->builtins()->code(Builtin::kWasmReject);
+  Tagged<Object> data = GetTrustedData(isolate);
+  if (data != Smi::zero()) {
+    DCHECK(HasTrustedData());
+
+    if (IsBytecodeArray(data)) {
+      // Having a bytecode array means we are a compiled, interpreted function.
+      DCHECK(HasBytecodeArray());
+      return isolate->builtins()->code(Builtin::kInterpreterEntryTrampoline);
     }
-  }
+    if (IsCode(data)) {
+      // Having baseline Code means we are a compiled, baseline function.
+      DCHECK(HasBaselineCode());
+      return Cast<Code>(data);
+    }
+    if (IsInterpreterData(data)) {
+      Tagged<Code> code = InterpreterTrampoline(isolate);
+      DCHECK(IsCode(code));
+      DCHECK(code->is_interpreter_trampoline_builtin());
+      return code;
+    }
+    if (IsUncompiledData(data)) {
+      // Having uncompiled data (with or without scope) means we need to
+      // compile.
+      DCHECK(HasUncompiledData());
+      return isolate->builtins()->code(Builtin::kCompileLazy);
+    }
+#if V8_ENABLE_WEBASSEMBLY
+    if (IsWasmExportedFunctionData(data)) {
+      // Having a WasmExportedFunctionData means the code is in there.
+      DCHECK(HasWasmExportedFunctionData());
+      return wasm_exported_function_data()->wrapper_code(isolate);
+    }
+    if (IsWasmJSFunctionData(data)) {
+      return wasm_js_function_data()->wrapper_code(isolate);
+    }
+    if (IsWasmCapiFunctionData(data)) {
+      return wasm_capi_function_data()->wrapper_code(isolate);
+    }
 #endif  // V8_ENABLE_WEBASSEMBLY
-  if (IsUncompiledData(data)) {
-    // Having uncompiled data (with or without scope) means we need to compile.
-    DCHECK(HasUncompiledData());
-    return isolate->builtins()->code(Builtin::kCompileLazy);
+  } else {
+    DCHECK(HasUntrustedData());
+    data = GetUntrustedData();
+
+    if (IsSmi(data)) {
+      // Holding a Smi means we are a builtin.
+      DCHECK(HasBuiltinId());
+      return isolate->builtins()->code(builtin_id());
+    }
+    if (IsFunctionTemplateInfo(data)) {
+      // Having a function template info means we are an API function.
+      DCHECK(IsApiFunction());
+      return isolate->builtins()->code(Builtin::kHandleApiCallOrConstruct);
+    }
+#if V8_ENABLE_WEBASSEMBLY
+    if (IsAsmWasmData(data)) {
+      // Having AsmWasmData means we are an asm.js/wasm function.
+      DCHECK(HasAsmWasmData());
+      return isolate->builtins()->code(Builtin::kInstantiateAsmJs);
+    }
+    if (IsWasmResumeData(data)) {
+      if (static_cast<wasm::OnResume>(wasm_resume_data()->on_resume()) ==
+          wasm::OnResume::kContinue) {
+        return isolate->builtins()->code(Builtin::kWasmResume);
+      } else {
+        return isolate->builtins()->code(Builtin::kWasmReject);
+      }
+    }
+#endif  // V8_ENABLE_WEBASSEMBLY
   }
-  if (IsFunctionTemplateInfo(data)) {
-    // Having a function template info means we are an API function.
-    DCHECK(IsApiFunction());
-    return isolate->builtins()->code(Builtin::kHandleApiCallOrConstruct);
-  }
-  if (IsInterpreterData(data)) {
-    Tagged<Code> code = InterpreterTrampoline(isolate);
-    DCHECK(IsCode(code));
-    DCHECK(code->is_interpreter_trampoline_builtin());
-    return code;
-  }
+
   UNREACHABLE();
 }
 
@@ -164,7 +177,8 @@ void SharedFunctionInfo::ScriptIterator::Reset(Isolate* isolate,
   index_ = 0;
 }
 
-void SharedFunctionInfo::SetScript(ReadOnlyRoots roots,
+void SharedFunctionInfo::SetScript(IsolateForSandbox isolate,
+                                   ReadOnlyRoots roots,
                                    Tagged<HeapObject> script_object,
                                    int function_literal_id,
                                    bool reset_preparsed_scope_data) {
@@ -173,7 +187,7 @@ void SharedFunctionInfo::SetScript(ReadOnlyRoots roots,
   if (script() == script_object) return;
 
   if (reset_preparsed_scope_data && HasUncompiledDataWithPreparseData()) {
-    ClearPreparseData();
+    ClearPreparseData(isolate);
   }
 
   // Add shared function info to new script's list. If a collection occurs,
@@ -217,17 +231,13 @@ void SharedFunctionInfo::SetScript(ReadOnlyRoots roots,
 
 void SharedFunctionInfo::CopyFrom(Tagged<SharedFunctionInfo> other,
                                   IsolateForSandbox isolate) {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-#ifdef V8_ENABLE_SANDBOX
-  if (other->has_trusted_function_data()) {
-    set_trusted_function_data(
-        other->trusted_function_data(isolate, kAcquireLoad), kReleaseStore);
+  if (other->HasTrustedData()) {
+    SetTrustedData(Cast<ExposedTrustedObject>(other->GetTrustedData(isolate)));
   } else {
-    clear_trusted_function_data(kReleaseStore);
+    SetUntrustedData(other->GetUntrustedData());
   }
-#endif
-  set_function_data(other->function_data(cage_base, kAcquireLoad),
-                    kReleaseStore);
+
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   set_name_or_scope_info(other->name_or_scope_info(cage_base, kAcquireLoad),
                          kReleaseStore);
   set_outer_scope_info_or_feedback_metadata(
@@ -265,11 +275,25 @@ bool SharedFunctionInfo::HasDebugInfo(Isolate* isolate) const {
   return isolate->debug()->HasDebugInfo(*this);
 }
 
+// Needs to be kept in sync with Scope::UniqueIdInScript and
+// ScopeInfo::UniqueIdInScript.
+int SharedFunctionInfo::UniqueIdInScript() const {
+  // Script scopes start "before" the script to avoid clashing with a scope that
+  // starts on character 0.
+  if (function_literal_id() == kFunctionLiteralIdTopLevel) return -2;
+  // Wrapped functions start before the function body, but after the script
+  // start, to avoid clashing with a scope starting on character 0.
+  if (syntax_kind() == FunctionSyntaxKind::kWrapped) return -1;
+  // Default constructors have the same start position as their parent class
+  // scope. Use the next char position to distinguish this scope.
+  return StartPosition() + IsDefaultConstructor(kind());
+}
+
 Tagged<DebugInfo> SharedFunctionInfo::GetDebugInfo(Isolate* isolate) const {
   return isolate->debug()->TryGetDebugInfo(*this).value();
 }
 
-base::Optional<Tagged<DebugInfo>> SharedFunctionInfo::TryGetDebugInfo(
+std::optional<Tagged<DebugInfo>> SharedFunctionInfo::TryGetDebugInfo(
     Isolate* isolate) const {
   return isolate->debug()->TryGetDebugInfo(*this);
 }
@@ -405,13 +429,13 @@ void SharedFunctionInfo::DiscardCompiled(
   if (shared_info->HasUncompiledDataWithPreparseData()) {
     // If this is uncompiled data with a pre-parsed scope data, we can just
     // clear out the scope data and keep the uncompiled data.
-    shared_info->ClearPreparseData();
+    shared_info->ClearPreparseData(isolate);
     DCHECK(data.is_null());
   } else {
     // Update the function data to point to the UncompiledData without preparse
     // data created above. Use the raw function data setter to avoid validity
     // checks, since we're performing the unusual task of decompiling.
-    shared_info->SetData(*data.ToHandleChecked(), kReleaseStore);
+    shared_info->SetTrustedData(*data.ToHandleChecked());
   }
 }
 
@@ -692,7 +716,7 @@ int SharedFunctionInfo::StartPosition() const {
   }
   if (HasUncompiledData()) {
     // Works with or without scope.
-    return uncompiled_data()->start_position();
+    return uncompiled_data(GetIsolateForSandbox(*this))->start_position();
   }
   if (IsApiFunction() || HasBuiltinId()) {
     DCHECK_IMPLIES(HasBuiltinId(), builtin_id() != Builtin::kCompileLazy);
@@ -720,7 +744,7 @@ int SharedFunctionInfo::EndPosition() const {
   }
   if (HasUncompiledData()) {
     // Works with or without scope.
-    return uncompiled_data()->end_position();
+    return uncompiled_data(GetIsolateForSandbox(*this))->end_position();
   }
   if (IsApiFunction() || HasBuiltinId()) {
     DCHECK_IMPLIES(HasBuiltinId(), builtin_id() != Builtin::kCompileLazy);
@@ -739,7 +763,7 @@ int SharedFunctionInfo::EndPosition() const {
 }
 
 void SharedFunctionInfo::UpdateFromFunctionLiteralForLiveEdit(
-    FunctionLiteral* lit) {
+    IsolateForSandbox isolate, FunctionLiteral* lit) {
   Tagged<Object> maybe_scope_info = name_or_scope_info(kAcquireLoad);
   if (IsScopeInfo(maybe_scope_info)) {
     // Updating the ScopeInfo is safe since they are identical modulo
@@ -750,10 +774,10 @@ void SharedFunctionInfo::UpdateFromFunctionLiteralForLiveEdit(
   } else if (!is_compiled()) {
     CHECK(HasUncompiledData());
     if (HasUncompiledDataWithPreparseData()) {
-      ClearPreparseData();
+      ClearPreparseData(isolate);
     }
-    uncompiled_data()->set_start_position(lit->start_position());
-    uncompiled_data()->set_end_position(lit->end_position());
+    uncompiled_data(isolate)->set_start_position(lit->start_position());
+    uncompiled_data(isolate)->set_end_position(lit->end_position());
 
     if (!is_toplevel()) {
       Scope* outer_scope = lit->scope()->GetOuterScopeWithContext();
@@ -797,7 +821,7 @@ void SharedFunctionInfo::EnsureBytecodeArrayAvailable(
 void SharedFunctionInfo::EnsureSourcePositionsAvailable(
     Isolate* isolate, Handle<SharedFunctionInfo> shared_info) {
   if (shared_info->CanCollectSourcePosition(isolate)) {
-    base::Optional<Isolate::ExceptionScope> exception_scope;
+    std::optional<Isolate::ExceptionScope> exception_scope;
     if (isolate->has_exception()) {
       exception_scope.emplace(isolate);
     }
@@ -866,5 +890,4 @@ bool SharedFunctionInfo::UniqueIdsAreUnique(Isolate* isolate) {
 }
 #endif  // DEBUG
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal

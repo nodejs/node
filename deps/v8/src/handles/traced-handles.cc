@@ -616,8 +616,8 @@ Tagged<Object> TracedHandles::MarkConservatively(
   return MarkObject(node.object(), node, mark_mode);
 }
 
-bool TracedHandles::IsValidInUseNode(Address* location) {
-  TracedNode* node = TracedNode::FromLocation(location);
+bool TracedHandles::IsValidInUseNode(const Address* location) {
+  const TracedNode* node = TracedNode::FromLocation(location);
   // This method is called after mark bits have been cleared.
   DCHECK(!node->markbit());
   CHECK_IMPLIES(node->is_in_use(), node->raw_object() != kGlobalHandleZapValue);

@@ -220,6 +220,25 @@ inline void IndirectPointerWriteBarrier(Tagged<HeapObject> host,
   WriteBarrier::Marking(host, slot);
 }
 
+inline void JSDispatchHandleWriteBarrier(Tagged<HeapObject> host,
+                                         JSDispatchHandle handle,
+                                         WriteBarrierMode mode) {
+  // TODO(saelo): expand this: we either need to separate write barriers for
+  // the table entry and the objects referenced from it, or a single barrier
+  // for both. Maybe the latter is easier.
+
+  DCHECK(V8_ENABLE_LEAPTIERING_BOOL);
+
+  if (mode == SKIP_WRITE_BARRIER) {
+    // TODO(saelo): once/if this write barrier handles both the table entry and
+    // the objects referenced by it, we should SLOW_DCHECK here that a barrier
+    // is not required.
+    return;
+  }
+
+  WriteBarrier::Marking(host, handle);
+}
+
 inline void ProtectedPointerWriteBarrier(Tagged<TrustedObject> host,
                                          ProtectedPointerSlot slot,
                                          Tagged<TrustedObject> value,
@@ -243,7 +262,6 @@ inline void ProtectedPointerWriteBarrier(Tagged<TrustedObject> host,
 inline void GenerationalBarrierForCode(Tagged<InstructionStream> host,
                                        RelocInfo* rinfo,
                                        Tagged<HeapObject> object) {
-  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return;
   if (!HeapObjectInYoungGeneration(object)) return;
   Heap_GenerationalBarrierForCodeSlow(host, rinfo, object);
 }
@@ -259,15 +277,12 @@ inline WriteBarrierMode GetWriteBarrierModeForObject(
 }
 
 inline bool ObjectInYoungGeneration(Tagged<Object> object) {
-  // TODO(rong): Fix caller of this function when we deploy
-  // v8_use_third_party_heap.
   if (v8_flags.single_generation) return false;
   if (object.IsSmi()) return false;
   return HeapObjectInYoungGeneration(Cast<HeapObject>(object));
 }
 
 inline bool IsReadOnlyHeapObject(Tagged<HeapObject> object) {
-  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return ReadOnlyHeap::Contains(object);
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
   return chunk->InReadOnlySpace();
 }
@@ -283,7 +298,6 @@ inline bool IsTrustedSpaceObject(Tagged<HeapObject> object) {
 }
 
 bool WriteBarrier::IsMarking(Tagged<HeapObject> object) {
-  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return false;
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
   return chunk->IsMarking();
 }
@@ -322,8 +336,6 @@ void WriteBarrier::Marking(Tagged<InstructionStream> host,
 
 void WriteBarrier::Shared(Tagged<InstructionStream> host, RelocInfo* reloc_info,
                           Tagged<HeapObject> value) {
-  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return;
-
   MemoryChunk* value_chunk = MemoryChunk::FromHeapObject(value);
   if (!value_chunk->InWritableSharedSpace()) return;
 
@@ -354,9 +366,13 @@ void WriteBarrier::Marking(Tagged<TrustedObject> host,
   MarkingSlow(host, slot, value);
 }
 
+void WriteBarrier::Marking(Tagged<HeapObject> host, JSDispatchHandle handle) {
+  if (!IsMarking(host)) return;
+  MarkingSlow(host, handle);
+}
+
 // static
 void WriteBarrier::MarkingFromGlobalHandle(Tagged<Object> value) {
-  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return;
   if (!value.IsHeapObject()) return;
   MarkingSlowFromGlobalHandle(Cast<HeapObject>(value));
 }
@@ -364,7 +380,6 @@ void WriteBarrier::MarkingFromGlobalHandle(Tagged<Object> value) {
 // static
 void WriteBarrier::CombinedBarrierForCppHeapPointer(Tagged<JSObject> host,
                                                     void* value) {
-  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return;
   if (V8_LIKELY(!IsMarking(host))) {
 #if defined(CPPGC_YOUNG_GENERATION)
     GenerationalBarrierForCppHeapPointer(host, value);

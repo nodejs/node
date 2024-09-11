@@ -657,7 +657,8 @@ class SmallOrderedHashSet : public SmallOrderedHashTable<SmallOrderedHashSet> {
   // table is created. The original |table| is returned if there is
   // capacity to store |value| otherwise the new table is returned.
   V8_EXPORT_PRIVATE static MaybeHandle<SmallOrderedHashSet> Add(
-      Isolate* isolate, Handle<SmallOrderedHashSet> table, Handle<Object> key);
+      Isolate* isolate, Handle<SmallOrderedHashSet> table,
+      DirectHandle<Object> key);
   V8_EXPORT_PRIVATE static bool Delete(Isolate* isolate,
                                        Tagged<SmallOrderedHashSet> table,
                                        Tagged<Object> key);
@@ -689,8 +690,8 @@ class SmallOrderedHashMap : public SmallOrderedHashTable<SmallOrderedHashMap> {
   // table is created. The original |table| is returned if there is
   // capacity to store |value| otherwise the new table is returned.
   V8_EXPORT_PRIVATE static MaybeHandle<SmallOrderedHashMap> Add(
-      Isolate* isolate, Handle<SmallOrderedHashMap> table, Handle<Object> key,
-      DirectHandle<Object> value);
+      Isolate* isolate, Handle<SmallOrderedHashMap> table,
+      DirectHandle<Object> key, DirectHandle<Object> value);
   V8_EXPORT_PRIVATE static bool Delete(Isolate* isolate,
                                        Tagged<SmallOrderedHashMap> table,
                                        Tagged<Object> key);
@@ -736,7 +737,7 @@ class V8_EXPORT_PRIVATE OrderedHashMapHandler
     : public OrderedHashTableHandler<SmallOrderedHashMap, OrderedHashMap> {
  public:
   static MaybeHandle<HeapObject> Add(Isolate* isolate, Handle<HeapObject> table,
-                                     Handle<Object> key,
+                                     DirectHandle<Object> key,
                                      DirectHandle<Object> value);
   static MaybeHandle<OrderedHashMap> AdjustRepresentation(
       Isolate* isolate, DirectHandle<SmallOrderedHashMap> table);
@@ -749,7 +750,7 @@ class V8_EXPORT_PRIVATE OrderedHashSetHandler
     : public OrderedHashTableHandler<SmallOrderedHashSet, OrderedHashSet> {
  public:
   static MaybeHandle<HeapObject> Add(Isolate* isolate, Handle<HeapObject> table,
-                                     Handle<Object> key);
+                                     DirectHandle<Object> key);
   static MaybeHandle<OrderedHashSet> AdjustRepresentation(
       Isolate* isolate, DirectHandle<SmallOrderedHashSet> table);
 };

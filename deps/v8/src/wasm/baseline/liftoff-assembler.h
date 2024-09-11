@@ -251,10 +251,10 @@ class LiftoffAssembler : public MacroAssembler {
       LiftoffRegList available_regs =
           kGpCacheRegList.MaskOut(pinned).MaskOut(used_registers);
       if (available_regs.is_empty()) return no_reg;
-      // Prefer the {kWasmInstanceRegister}, because that's where the instance
-      // initially is, and where it needs to be for calls.
-      Register new_cache_reg = available_regs.has(kWasmInstanceRegister)
-                                   ? kWasmInstanceRegister
+      // Prefer the {kWasmImplicitArgRegister}, because that's where the
+      // instance data initially is, and where it needs to be for calls.
+      Register new_cache_reg = available_regs.has(kWasmImplicitArgRegister)
+                                   ? kWasmImplicitArgRegister
                                    : available_regs.GetFirstRegSet().gp();
       SetInstanceCacheRegister(new_cache_reg);
       DCHECK_EQ(new_cache_reg, cached_instance_data);
@@ -675,7 +675,8 @@ class LiftoffAssembler : public MacroAssembler {
                               int stack_param_delta);
   inline void AlignFrameSize();
   inline void PatchPrepareStackFrame(int offset, SafepointTableBuilder*,
-                                     bool feedback_vector_slot);
+                                     bool feedback_vector_slot,
+                                     size_t stack_param_slots);
   inline void FinishCode();
   inline void AbortCompilation();
   inline static constexpr int StaticStackFrameSize();
@@ -684,6 +685,8 @@ class LiftoffAssembler : public MacroAssembler {
 
   inline void CheckTierUp(int declared_func_index, int budget_used,
                           Label* ool_label, const FreezeCacheState& frozen);
+  inline Register LoadOldFramePointer();
+  inline void CheckStackShrink();
   inline void LoadConstant(LiftoffRegister, WasmValue);
   inline void LoadInstanceDataFromFrame(Register dst);
   inline void LoadTrustedPointer(Register dst, Register src_addr, int offset,
@@ -776,7 +779,7 @@ class LiftoffAssembler : public MacroAssembler {
   inline void LoadCallerFrameSlot(LiftoffRegister, uint32_t caller_slot_idx,
                                   ValueKind);
   inline void StoreCallerFrameSlot(LiftoffRegister, uint32_t caller_slot_idx,
-                                   ValueKind);
+                                   ValueKind, Register frame_pointer);
   inline void LoadReturnStackSlot(LiftoffRegister, int offset, ValueKind);
   inline void MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
                              ValueKind);
@@ -1072,6 +1075,14 @@ class LiftoffAssembler : public MacroAssembler {
                               LiftoffRegister rhs);
   inline void emit_i64x2_ge_s(LiftoffRegister dst, LiftoffRegister lhs,
                               LiftoffRegister rhs);
+  inline bool emit_f16x8_eq(LiftoffRegister dst, LiftoffRegister lhs,
+                            LiftoffRegister rhs);
+  inline bool emit_f16x8_ne(LiftoffRegister dst, LiftoffRegister lhs,
+                            LiftoffRegister rhs);
+  inline bool emit_f16x8_lt(LiftoffRegister dst, LiftoffRegister lhs,
+                            LiftoffRegister rhs);
+  inline bool emit_f16x8_le(LiftoffRegister dst, LiftoffRegister lhs,
+                            LiftoffRegister rhs);
   inline void emit_f32x4_eq(LiftoffRegister dst, LiftoffRegister lhs,
                             LiftoffRegister rhs);
   inline void emit_f32x4_ne(LiftoffRegister dst, LiftoffRegister lhs,
@@ -1288,6 +1299,29 @@ class LiftoffAssembler : public MacroAssembler {
                                             LiftoffRegister src);
   inline void emit_i64x2_uconvert_i32x4_high(LiftoffRegister dst,
                                              LiftoffRegister src);
+  inline bool emit_f16x8_abs(LiftoffRegister dst, LiftoffRegister src);
+  inline bool emit_f16x8_neg(LiftoffRegister dst, LiftoffRegister src);
+  inline bool emit_f16x8_sqrt(LiftoffRegister dst, LiftoffRegister src);
+  inline bool emit_f16x8_ceil(LiftoffRegister dst, LiftoffRegister src);
+  inline bool emit_f16x8_floor(LiftoffRegister dst, LiftoffRegister src);
+  inline bool emit_f16x8_trunc(LiftoffRegister dst, LiftoffRegister src);
+  inline bool emit_f16x8_nearest_int(LiftoffRegister dst, LiftoffRegister src);
+  inline bool emit_f16x8_add(LiftoffRegister dst, LiftoffRegister lhs,
+                             LiftoffRegister rhs);
+  inline bool emit_f16x8_sub(LiftoffRegister dst, LiftoffRegister lhs,
+                             LiftoffRegister rhs);
+  inline bool emit_f16x8_mul(LiftoffRegister dst, LiftoffRegister lhs,
+                             LiftoffRegister rhs);
+  inline bool emit_f16x8_div(LiftoffRegister dst, LiftoffRegister lhs,
+                             LiftoffRegister rhs);
+  inline bool emit_f16x8_min(LiftoffRegister dst, LiftoffRegister lhs,
+                             LiftoffRegister rhs);
+  inline bool emit_f16x8_max(LiftoffRegister dst, LiftoffRegister lhs,
+                             LiftoffRegister rhs);
+  inline bool emit_f16x8_pmin(LiftoffRegister dst, LiftoffRegister lhs,
+                              LiftoffRegister rhs);
+  inline bool emit_f16x8_pmax(LiftoffRegister dst, LiftoffRegister lhs,
+                              LiftoffRegister rhs);
   inline void emit_f32x4_abs(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_f32x4_neg(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_f32x4_sqrt(LiftoffRegister dst, LiftoffRegister src);
@@ -1361,6 +1395,20 @@ class LiftoffAssembler : public MacroAssembler {
   inline void emit_f32x4_sconvert_i32x4(LiftoffRegister dst,
                                         LiftoffRegister src);
   inline void emit_f32x4_uconvert_i32x4(LiftoffRegister dst,
+                                        LiftoffRegister src);
+  inline bool emit_f16x8_demote_f32x4_zero(LiftoffRegister dst,
+                                           LiftoffRegister src);
+  inline bool emit_f16x8_demote_f64x2_zero(LiftoffRegister dst,
+                                           LiftoffRegister src);
+  inline bool emit_f32x4_promote_low_f16x8(LiftoffRegister dst,
+                                           LiftoffRegister src);
+  inline bool emit_i16x8_sconvert_f16x8(LiftoffRegister dst,
+                                        LiftoffRegister src);
+  inline bool emit_i16x8_uconvert_f16x8(LiftoffRegister dst,
+                                        LiftoffRegister src);
+  inline bool emit_f16x8_sconvert_i16x8(LiftoffRegister dst,
+                                        LiftoffRegister src);
+  inline bool emit_f16x8_uconvert_i16x8(LiftoffRegister dst,
                                         LiftoffRegister src);
   inline void emit_i8x16_sconvert_i16x8(LiftoffRegister dst,
                                         LiftoffRegister lhs,
@@ -1445,6 +1493,10 @@ class LiftoffAssembler : public MacroAssembler {
   inline void emit_f64x2_replace_lane(LiftoffRegister dst, LiftoffRegister src1,
                                       LiftoffRegister src2,
                                       uint8_t imm_lane_idx);
+  inline bool emit_f16x8_qfma(LiftoffRegister dst, LiftoffRegister src1,
+                              LiftoffRegister src2, LiftoffRegister src3);
+  inline bool emit_f16x8_qfms(LiftoffRegister dst, LiftoffRegister src1,
+                              LiftoffRegister src2, LiftoffRegister src3);
   inline void emit_f32x4_qfma(LiftoffRegister dst, LiftoffRegister src1,
                               LiftoffRegister src2, LiftoffRegister src3);
   inline void emit_f32x4_qfms(LiftoffRegister dst, LiftoffRegister src1,
@@ -1510,6 +1562,8 @@ class LiftoffAssembler : public MacroAssembler {
                                    Register tmp_gp, LiftoffRegister tmp_s128,
                                    ValueKind lane_kind);
 
+  inline bool supports_f16_mem_access();
+
   ////////////////////////////////////
   // End of platform-specific part. //
   ////////////////////////////////////
@@ -1545,7 +1599,8 @@ class LiftoffAssembler : public MacroAssembler {
   inline void bailout(LiftoffBailoutReason reason, const char* detail);
 
  private:
-  LiftoffRegister LoadI64HalfIntoRegister(VarState slot, RegPairHalf half);
+  LiftoffRegister LoadI64HalfIntoRegister(VarState slot, RegPairHalf half,
+                                          LiftoffRegList pinned);
 
   // Spill one of the candidate registers.
   V8_NOINLINE V8_PRESERVE_MOST LiftoffRegister

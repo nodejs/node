@@ -3,6 +3,9 @@
 // found in the LICENSE file.
 
 #include "src/ic/call-optimization.h"
+
+#include <optional>
+
 #include "src/objects/objects-inl.h"
 
 namespace v8 {
@@ -23,7 +26,7 @@ template CallOptimization::CallOptimization(Isolate* isolate,
 template CallOptimization::CallOptimization(LocalIsolate* isolate,
                                             Handle<Object> function);
 
-base::Optional<Tagged<NativeContext>> CallOptimization::GetAccessorContext(
+std::optional<Tagged<NativeContext>> CallOptimization::GetAccessorContext(
     Tagged<Map> holder_map) const {
   if (is_constant_call()) {
     return constant_function_->native_context();
@@ -42,7 +45,7 @@ bool CallOptimization::IsCrossContextLazyAccessorPair(
     Tagged<NativeContext> native_context, Tagged<Map> holder_map) const {
   DCHECK(IsNativeContext(native_context));
   if (is_constant_call()) return false;
-  base::Optional<Tagged<NativeContext>> maybe_context =
+  std::optional<Tagged<NativeContext>> maybe_context =
       GetAccessorContext(holder_map);
   if (!maybe_context.has_value()) {
     // The holder is a remote object which doesn't have a creation context.

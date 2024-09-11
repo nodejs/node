@@ -548,6 +548,7 @@ class V8_EXPORT Isolate {
     kDocumentAllLegacyCall = 141,
     kDocumentAllLegacyConstruct = 142,
     kConsoleContext = 143,
+    kWasmImportedStringsUtf8 = 144,
 
     // If you add new values here, you'll also need to update Chromium's:
     // web_feature.mojom, use_counter_callback.cc, and enums.xml. V8 changes to
@@ -936,6 +937,12 @@ class V8_EXPORT Isolate {
    * https://html.spec.whatwg.org/multipage/webappapis.html#incumbent
    */
   Local<Context> GetIncumbentContext();
+
+  /**
+   * Returns the host defined options set for currently running script or
+   * module, if available.
+   */
+  MaybeLocal<Data> GetCurrentHostDefinedOptions();
 
   /**
    * Schedules a v8::Exception::Error with the given message.

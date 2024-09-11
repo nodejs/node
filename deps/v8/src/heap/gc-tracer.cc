@@ -63,7 +63,7 @@ double BoundedAverageSpeed(
 }
 
 double BoundedAverageSpeed(const base::RingBuffer<BytesAndDuration>& buffer) {
-  return BoundedAverageSpeed(buffer, base::nullopt);
+  return BoundedAverageSpeed(buffer, std::nullopt);
 }
 
 }  // namespace
@@ -228,6 +228,8 @@ void GCTracer::StartCycle(GarbageCollector collector,
   DCHECK(!young_gc_while_full_gc_);
 
   young_gc_while_full_gc_ = current_.state != Event::State::NOT_RUNNING;
+  CHECK_IMPLIES(v8_flags.separate_gc_phases && young_gc_while_full_gc_,
+                current_.state == Event::State::SWEEPING);
   if (young_gc_while_full_gc_) {
     // The cases for interruption are: Scavenger, MinorMS interrupting sweeping.
     // In both cases we are fine with fetching background counters now and
@@ -1319,23 +1321,20 @@ double GCTracer::CombineSpeedsInBytesPerMillisecond(double default_speed,
 
 double GCTracer::NewSpaceAllocationThroughputInBytesPerMillisecond(
     std::optional<base::TimeDelta> selected_duration) const {
-  return BoundedAverageSpeed(
-      recorded_new_generation_allocations_,
-      selected_duration);
+  return BoundedAverageSpeed(recorded_new_generation_allocations_,
+                             selected_duration);
 }
 
 double GCTracer::OldGenerationAllocationThroughputInBytesPerMillisecond(
     std::optional<base::TimeDelta> selected_duration) const {
-  return BoundedAverageSpeed(
-      recorded_old_generation_allocations_,
-      selected_duration);
+  return BoundedAverageSpeed(recorded_old_generation_allocations_,
+                             selected_duration);
 }
 
 double GCTracer::EmbedderAllocationThroughputInBytesPerMillisecond(
     std::optional<base::TimeDelta> selected_duration) const {
-  return BoundedAverageSpeed(
-      recorded_embedder_generation_allocations_,
-      selected_duration);
+  return BoundedAverageSpeed(recorded_embedder_generation_allocations_,
+                             selected_duration);
 }
 
 double GCTracer::AllocationThroughputInBytesPerMillisecond(
@@ -1598,10 +1597,11 @@ void GCTracer::ReportFullCycleToRecorder() {
       event.main_thread_collection_weight_cpp_in_percent = 0;
     } else {
       event.collection_weight_cpp_in_percent =
-          event.total_cpp.total_wall_clock_duration_in_us /
+          static_cast<double>(event.total_cpp.total_wall_clock_duration_in_us) /
           total_duration_since_last_mark_compact_.InMicroseconds();
       event.main_thread_collection_weight_cpp_in_percent =
-          event.main_thread_cpp.total_wall_clock_duration_in_us /
+          static_cast<double>(
+              event.main_thread_cpp.total_wall_clock_duration_in_us) /
           total_duration_since_last_mark_compact_.InMicroseconds();
     }
   }
@@ -1701,7 +1701,7 @@ void GCTracer::ReportFullCycleToRecorder() {
     event.collection_rate_in_percent = 0;
   } else {
     event.collection_rate_in_percent =
-        static_cast<double>(event.objects.bytes_after) /
+        static_cast<double>(event.objects.bytes_freed) /
         event.objects.bytes_before;
   }
   // Efficiency:
@@ -1727,10 +1727,10 @@ void GCTracer::ReportFullCycleToRecorder() {
     event.main_thread_collection_weight_in_percent = 0;
   } else {
     event.collection_weight_in_percent =
-        event.total.total_wall_clock_duration_in_us /
+        static_cast<double>(event.total.total_wall_clock_duration_in_us) /
         total_duration_since_last_mark_compact_.InMicroseconds();
     event.main_thread_collection_weight_in_percent =
-        event.main_thread.total_wall_clock_duration_in_us /
+        static_cast<double>(event.main_thread.total_wall_clock_duration_in_us) /
         total_duration_since_last_mark_compact_.InMicroseconds();
   }
 

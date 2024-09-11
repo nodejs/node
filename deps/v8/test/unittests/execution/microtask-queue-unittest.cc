@@ -430,7 +430,7 @@ TEST_P(MicrotaskQueueTest, DetachGlobal_ResolveThenableForeignThen) {
       "result");
   Handle<JSFunction> then = RunJS<JSFunction>("() => { result[0] = true; }");
 
-  Handle<JSPromise> stale_promise;
+  DirectHandle<JSPromise> stale_promise;
 
   {
     // Create a context with its own microtask queue.
@@ -597,7 +597,7 @@ TEST_P(MicrotaskQueueTest, DetachGlobal_InactiveHandler) {
 
   Handle<JSArray> result;
   Handle<JSFunction> stale_handler;
-  Handle<JSPromise> stale_promise;
+  DirectHandle<JSPromise> stale_promise;
   {
     v8::Context::Scope scope(sub_context);
     result = RunJS<JSArray>("var result = [false, false]; result");

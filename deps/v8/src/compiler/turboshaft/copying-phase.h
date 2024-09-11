@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <utility>
 
 #include "src/base/iterator.h"
@@ -30,7 +31,7 @@
 
 namespace v8::internal::compiler::turboshaft {
 
-using MaybeVariable = base::Optional<Variable>;
+using MaybeVariable = std::optional<Variable>;
 
 V8_EXPORT_PRIVATE int CountDecimalDigits(uint32_t value);
 struct PaddingSpace {

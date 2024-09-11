@@ -5,6 +5,8 @@
 #ifndef V8_OBJECTS_FIXED_ARRAY_INL_H_
 #define V8_OBJECTS_FIXED_ARRAY_INL_H_
 
+#include <optional>
+
 #include "src/common/globals.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
@@ -25,8 +27,7 @@
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 #include "torque-generated/src/objects/fixed-array-tq-inl.inc"
 
@@ -305,7 +306,7 @@ Handle<FixedArray> FixedArray::New(IsolateT* isolate, int capacity,
     return isolate->factory()->empty_fixed_array();
   }
 
-  base::Optional<DisallowGarbageCollection> no_gc;
+  std::optional<DisallowGarbageCollection> no_gc;
   Handle<FixedArray> result =
       Cast<FixedArray>(Allocate(isolate, capacity, &no_gc, allocation));
   ReadOnlyRoots roots{isolate};
@@ -317,7 +318,11 @@ Handle<FixedArray> FixedArray::New(IsolateT* isolate, int capacity,
 // static
 template <class IsolateT>
 Handle<TrustedFixedArray> TrustedFixedArray::New(IsolateT* isolate,
-                                                 int capacity) {
+                                                 int capacity,
+                                                 AllocationType allocation) {
+  DCHECK(allocation == AllocationType::kTrusted ||
+         allocation == AllocationType::kSharedTrusted);
+
   if (V8_UNLIKELY(static_cast<unsigned>(capacity) >
                   TrustedFixedArray::kMaxLength)) {
     FATAL("Fatal JavaScript invalid size error %d (see crbug.com/1201626)",
@@ -328,9 +333,9 @@ Handle<TrustedFixedArray> TrustedFixedArray::New(IsolateT* isolate,
   // (mutable) empty_trusted_fixed_array will be created via this function.
   // The same is true for the other trusted-space arrays below.
 
-  base::Optional<DisallowGarbageCollection> no_gc;
-  Handle<TrustedFixedArray> result = Cast<TrustedFixedArray>(
-      Allocate(isolate, capacity, &no_gc, AllocationType::kTrusted));
+  std::optional<DisallowGarbageCollection> no_gc;
+  Handle<TrustedFixedArray> result =
+      Cast<TrustedFixedArray>(Allocate(isolate, capacity, &no_gc, allocation));
   MemsetTagged((*result)->RawFieldOfFirstElement(), Smi::zero(), capacity);
   return result;
 }
@@ -345,7 +350,7 @@ Handle<ProtectedFixedArray> ProtectedFixedArray::New(IsolateT* isolate,
           capacity);
   }
 
-  base::Optional<DisallowGarbageCollection> no_gc;
+  std::optional<DisallowGarbageCollection> no_gc;
   Handle<ProtectedFixedArray> result = Cast<ProtectedFixedArray>(
       Allocate(isolate, capacity, &no_gc, AllocationType::kTrusted));
   MemsetTagged((*result)->RawFieldOfFirstElement(), Smi::zero(), capacity);
@@ -357,7 +362,7 @@ template <class D, class S, class P>
 template <class IsolateT>
 Handle<D> TaggedArrayBase<D, S, P>::Allocate(
     IsolateT* isolate, int capacity,
-    base::Optional<DisallowGarbageCollection>* no_gc_out,
+    std::optional<DisallowGarbageCollection>* no_gc_out,
     AllocationType allocation) {
   // Note 0-capacity is explicitly allowed since not all subtypes can be
   // assumed to have canonical 0-capacity instances.
@@ -436,8 +441,6 @@ OBJECT_CONSTRUCTORS_IMPL(FixedDoubleArray, FixedDoubleArray::Super)
 OBJECT_CONSTRUCTORS_IMPL(ByteArray, ByteArray::Super)
 
 OBJECT_CONSTRUCTORS_IMPL(TrustedByteArray, TrustedByteArray::Super)
-
-OBJECT_CONSTRUCTORS_IMPL(ExternalPointerArray, FixedArrayBase)
 
 OBJECT_CONSTRUCTORS_IMPL(ArrayList, ArrayList::Super)
 
@@ -706,7 +709,7 @@ Handle<FixedArrayBase> FixedDoubleArray::New(IsolateT* isolate, int length,
     return isolate->factory()->empty_fixed_array();
   }
 
-  base::Optional<DisallowGarbageCollection> no_gc;
+  std::optional<DisallowGarbageCollection> no_gc;
   return Cast<FixedDoubleArray>(Allocate(isolate, length, &no_gc, allocation));
 }
 
@@ -715,7 +718,7 @@ template <class D, class S, class P>
 template <class IsolateT>
 Handle<D> PrimitiveArrayBase<D, S, P>::Allocate(
     IsolateT* isolate, int length,
-    base::Optional<DisallowGarbageCollection>* no_gc_out,
+    std::optional<DisallowGarbageCollection>* no_gc_out,
     AllocationType allocation) {
   // Note 0-length is explicitly allowed since not all subtypes can be
   // assumed to have canonical 0-length instances.
@@ -801,18 +804,21 @@ void FixedDoubleArray::FillWithHoles(int from, int to) {
 // static
 template <class IsolateT>
 Handle<WeakFixedArray> WeakFixedArray::New(IsolateT* isolate, int capacity,
-                                           AllocationType allocation) {
+                                           AllocationType allocation,
+                                           MaybeHandle<Object> initial_value) {
   CHECK_LE(static_cast<unsigned>(capacity), kMaxCapacity);
 
   if (V8_UNLIKELY(capacity == 0)) {
     return isolate->factory()->empty_weak_fixed_array();
   }
 
-  base::Optional<DisallowGarbageCollection> no_gc;
+  std::optional<DisallowGarbageCollection> no_gc;
   Handle<WeakFixedArray> result =
       Cast<WeakFixedArray>(Allocate(isolate, capacity, &no_gc, allocation));
   ReadOnlyRoots roots{isolate};
-  MemsetTagged((*result)->RawFieldOfFirstElement(), roots.undefined_value(),
+  MemsetTagged((*result)->RawFieldOfFirstElement(),
+               initial_value.is_null() ? roots.undefined_value()
+                                       : *initial_value.ToHandleChecked(),
                capacity);
   return result;
 }
@@ -826,7 +832,7 @@ Handle<TrustedWeakFixedArray> TrustedWeakFixedArray::New(IsolateT* isolate,
           capacity);
   }
 
-  base::Optional<DisallowGarbageCollection> no_gc;
+  std::optional<DisallowGarbageCollection> no_gc;
   Handle<TrustedWeakFixedArray> result = Cast<TrustedWeakFixedArray>(
       Allocate(isolate, capacity, &no_gc, AllocationType::kTrusted));
   MemsetTagged((*result)->RawFieldOfFirstElement(), Smi::zero(), capacity);
@@ -894,7 +900,7 @@ Handle<ArrayList> ArrayList::New(IsolateT* isolate, int capacity,
   DCHECK_GT(capacity, 0);
   DCHECK_LE(capacity, kMaxCapacity);
 
-  base::Optional<DisallowGarbageCollection> no_gc;
+  std::optional<DisallowGarbageCollection> no_gc;
   Handle<ArrayList> result =
       Cast<ArrayList>(Allocate(isolate, capacity, &no_gc, allocation));
   result->set_length(0);
@@ -914,7 +920,7 @@ Handle<ByteArray> ByteArray::New(IsolateT* isolate, int length,
     return isolate->factory()->empty_byte_array();
   }
 
-  base::Optional<DisallowGarbageCollection> no_gc;
+  std::optional<DisallowGarbageCollection> no_gc;
   Handle<ByteArray> result =
       Cast<ByteArray>(Allocate(isolate, length, &no_gc, allocation));
 
@@ -946,7 +952,7 @@ Handle<TrustedByteArray> TrustedByteArray::New(IsolateT* isolate, int length,
     FATAL("Fatal JavaScript invalid size error %d", length);
   }
 
-  base::Optional<DisallowGarbageCollection> no_gc;
+  std::optional<DisallowGarbageCollection> no_gc;
   Handle<TrustedByteArray> result = Cast<TrustedByteArray>(
       Allocate(isolate, length, &no_gc, allocation_type));
 
@@ -1026,24 +1032,6 @@ int FixedIntegerArrayBase<T, Base>::length() const {
   return Base::length() / sizeof(T);
 }
 
-template <ExternalPointerTag tag>
-inline Address ExternalPointerArray::get(int index, Isolate* isolate) {
-  return ReadExternalPointerField<tag>(OffsetOfElementAt(index), isolate);
-}
-
-template <ExternalPointerTag tag>
-inline void ExternalPointerArray::set(int index, Isolate* isolate,
-                                      Address value) {
-  WriteLazilyInitializedExternalPointerField<tag>(OffsetOfElementAt(index),
-                                                  isolate, value);
-}
-
-// static
-Handle<ExternalPointerArray> ExternalPointerArray::New(
-    Isolate* isolate, int length, AllocationType allocation) {
-  return isolate->factory()->NewExternalPointerArray(length, allocation);
-}
-
 template <class T, class Super>
 int PodArrayBase<T, Super>::length() const {
   return Super::length() / sizeof(T);
@@ -1099,8 +1087,7 @@ template <class T>
 TrustedPodArray<T>::TrustedPodArray(Address ptr)
     : PodArrayBase<T, TrustedByteArray>(ptr) {}
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #include "src/objects/object-macros-undef.h"
 

@@ -78,24 +78,26 @@ class TSSimd256VerifyScope {
 
     std::function<void(const compiler::turboshaft::Graph&)> handler;
 
-    handler = [&](const compiler::turboshaft::Graph& graph) {
+    handler = [=](const compiler::turboshaft::Graph& graph) {
       check_pass_ = raw_handler(graph);
     };
 
-    auto* verifier =
-        zone->New<compiler::turboshaft::WasmRevecVerifier>(handler);
-
-    Isolate* isolate = CcTest::InitIsolateOnce();
-
-    isolate->set_wasm_revec_verifier_for_test(verifier);
+    verifier_ =
+        std::make_unique<compiler::turboshaft::WasmRevecVerifier>(handler);
+    isolate_ = CcTest::InitIsolateOnce();
+    DCHECK_EQ(isolate_->wasm_revec_verifier_for_test(), nullptr);
+    isolate_->set_wasm_revec_verifier_for_test(verifier_.get());
   }
 
   ~TSSimd256VerifyScope() {
     SKIP_TEST_IF_NO_TURBOSHAFT;
+    isolate_->set_wasm_revec_verifier_for_test(nullptr);
     CHECK(check_pass_);
   }
 
   bool check_pass_ = false;
+  Isolate* isolate_ = nullptr;
+  std::unique_ptr<compiler::turboshaft::WasmRevecVerifier> verifier_;
 };
 
 class SIMD256NodeObserver : public compiler::NodeObserver {
@@ -313,6 +315,13 @@ bool IsExtreme(double x);
 bool IsCanonical(double actual);
 void CheckDoubleResult(double x, double y, double expected, double actual,
                        bool exact = true);
+
+void RunF16x8UnOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
+                      HalfUnOp expected_op, bool exact = true);
+void RunF16x8BinOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
+                       HalfBinOp expected_op);
+void RunF16x8CompareOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
+                           HalfCompareOp expected_op);
 
 void RunF32x4UnOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
                       FloatUnOp expected_op, bool exact = true);

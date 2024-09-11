@@ -4,6 +4,8 @@
 
 #include "src/heap/cppgc/gc-invoker.h"
 
+#include <optional>
+
 #include "include/cppgc/platform.h"
 #include "src/heap/cppgc/heap.h"
 #include "test/unittests/heap/cppgc/test-platform.h"
@@ -11,8 +13,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace cppgc {
-namespace internal {
+namespace cppgc::internal {
 
 namespace {
 
@@ -26,7 +27,7 @@ class MockGarbageCollector : public GarbageCollector {
   MOCK_METHOD(void, set_override_stack_state, (EmbedderStackState), (override));
   MOCK_METHOD(void, clear_overridden_stack_state, (), (override));
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
-  MOCK_METHOD(v8::base::Optional<int>, UpdateAllocationTimeout, (), (override));
+  MOCK_METHOD(std::optional<int>, UpdateAllocationTimeout, (), (override));
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 };
 
@@ -62,7 +63,8 @@ class MockPlatform : public cppgc::Platform {
   PageAllocator* GetPageAllocator() override { return nullptr; }
   double MonotonicallyIncreasingTime() override { return 0.0; }
 
-  std::shared_ptr<TaskRunner> GetForegroundTaskRunner() override {
+  std::shared_ptr<TaskRunner> GetForegroundTaskRunner(
+      TaskPriority priority) override {
     return runner_;
   }
 
@@ -147,5 +149,4 @@ TEST(GCInvokerTest, IncrementalGCIsStarted) {
       GCConfig::ConservativeIncrementalConfig());
 }
 
-}  // namespace internal
-}  // namespace cppgc
+}  // namespace cppgc::internal

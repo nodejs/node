@@ -545,7 +545,7 @@
   EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(holder, name, type, offset, \
                                                   tag)
 
-#define DECL_TRUSTED_POINTER_ACCESSORS(name, type)                           \
+#define DECL_TRUSTED_POINTER_GETTERS(name, type)                             \
   /* Trusted pointers currently always have release-acquire semantics. */    \
   /* However, we still expose explicit release-acquire accessors so it */    \
   /* can be made clear when they are required. */                            \
@@ -553,12 +553,23 @@
   /* routines for relaxed- and release-acquire semantics in the future. */   \
   inline Tagged<type> name(IsolateForSandbox isolate) const;                 \
   inline Tagged<type> name(IsolateForSandbox isolate, AcquireLoadTag) const; \
-  inline void set_##name(Tagged<type> value,                                 \
-                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);      \
-  inline void set_##name(Tagged<type> value, ReleaseStoreTag,                \
-                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);      \
-  inline bool has_##name() const;                                            \
+  inline bool has_##name() const;
+
+#define DECL_TRUSTED_POINTER_SETTERS(name, type)                           \
+  /* Trusted pointers currently always have release-acquire semantics. */  \
+  /* However, we still expose explicit release-acquire accessors so it */  \
+  /* can be made clear when they are required. */                          \
+  /* If desired, we could create separate {Read|Write}TrustedPointer */    \
+  /* routines for relaxed- and release-acquire semantics in the future. */ \
+  inline void set_##name(Tagged<type> value,                               \
+                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);    \
+  inline void set_##name(Tagged<type> value, ReleaseStoreTag,              \
+                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);    \
   inline void clear_##name();
+
+#define DECL_TRUSTED_POINTER_ACCESSORS(name, type) \
+  DECL_TRUSTED_POINTER_GETTERS(name, type)         \
+  DECL_TRUSTED_POINTER_SETTERS(name, type)
 
 #define TRUSTED_POINTER_ACCESSORS(holder, name, type, offset, tag)             \
   Tagged<type> holder::name(IsolateForSandbox isolate) const {                 \
@@ -578,7 +589,7 @@
                                               mode);                           \
   }                                                                            \
   bool holder::has_##name() const {                                            \
-    return !IsTrustedPointerFieldCleared(offset);                              \
+    return !IsTrustedPointerFieldEmpty(offset);                                \
   }                                                                            \
   void holder::clear_##name() { ClearTrustedPointerField(offset); }
 
@@ -608,7 +619,7 @@
     CONDITIONAL_PROTECTED_POINTER_WRITE_BARRIER(*this, offset, value, mode); \
   }                                                                          \
   bool holder::has_##name() const {                                          \
-    return !IsProtectedPointerFieldCleared(offset);                          \
+    return !IsProtectedPointerFieldEmpty(offset);                            \
   }                                                                          \
   void holder::clear_##name() { return ClearProtectedPointerField(offset); }
 
@@ -632,7 +643,7 @@
     CONDITIONAL_PROTECTED_POINTER_WRITE_BARRIER(*this, offset, value, mode); \
   }                                                                          \
   bool holder::has_##name(AcquireLoadTag tag) const {                        \
-    return !IsProtectedPointerFieldCleared(offset, tag);                     \
+    return !IsProtectedPointerFieldEmpty(offset, tag);                       \
   }                                                                          \
   void holder::clear_##name(ReleaseStoreTag tag) {                           \
     return ClearProtectedPointerField(offset, tag);                          \
@@ -696,24 +707,24 @@
 #define WRITE_BARRIER(object, offset, value)
 #define WRITE_BARRIER_CPP(object, offset, value)
 #else
-#define WRITE_BARRIER(object, offset, value)                        \
-  do {                                                              \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));             \
-    static_assert(kTaggedCanConvertToRawObjects);                   \
-    CombinedWriteBarrier(object, (object)->RawField(offset), value, \
-                         UPDATE_WRITE_BARRIER);                     \
+#define WRITE_BARRIER(object, offset, value)                              \
+  do {                                                                    \
+    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                   \
+    static_assert(kTaggedCanConvertToRawObjects);                         \
+    CombinedWriteBarrier(object, Tagged(object)->RawField(offset), value, \
+                         UPDATE_WRITE_BARRIER);                           \
   } while (false)
 #endif
 
 #ifdef V8_DISABLE_WRITE_BARRIERS
 #define WEAK_WRITE_BARRIER(object, offset, value)
 #else
-#define WEAK_WRITE_BARRIER(object, offset, value)                            \
-  do {                                                                       \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                      \
-    static_assert(kTaggedCanConvertToRawObjects);                            \
-    CombinedWriteBarrier(object, (object)->RawMaybeWeakField(offset), value, \
-                         UPDATE_WRITE_BARRIER);                              \
+#define WEAK_WRITE_BARRIER(object, offset, value)                           \
+  do {                                                                      \
+    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                     \
+    static_assert(kTaggedCanConvertToRawObjects);                           \
+    CombinedWriteBarrier(object, Tagged(object)->RawMaybeWeakField(offset), \
+                         value, UPDATE_WRITE_BARRIER);                      \
   } while (false)
 #endif
 
@@ -741,6 +752,16 @@
     IndirectPointerWriteBarrier(                                             \
         object, Tagged(object)->RawIndirectPointerField(offset, tag), value, \
         UPDATE_WRITE_BARRIER);                                               \
+  } while (false)
+#endif
+
+#ifdef V8_DISABLE_WRITE_BARRIERS
+#define JS_DISPATCH_HANDLE_WRITE_BARRIER(object, handle)
+#else
+#define JS_DISPATCH_HANDLE_WRITE_BARRIER(object, handle)                \
+  do {                                                                  \
+    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                 \
+    JSDispatchHandleWriteBarrier(object, handle, UPDATE_WRITE_BARRIER); \
   } while (false)
 #endif
 
@@ -803,7 +824,7 @@
 #define CONDITIONAL_TRUSTED_POINTER_WRITE_BARRIER(object, offset, tag, value, \
                                                   mode)                       \
   CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);
-#endif
+#endif  // V8_ENABLE_SANDBOX
 #define CONDITIONAL_CODE_POINTER_WRITE_BARRIER(object, offset, value, mode) \
   CONDITIONAL_TRUSTED_POINTER_WRITE_BARRIER(                                \
       object, offset, kCodeIndirectPointerTag, value, mode)
@@ -815,6 +836,16 @@
     ProtectedPointerWriteBarrier(                                          \
         object, (object).RawProtectedPointerField(offset), value, mode);   \
   } while (false)
+
+#ifdef V8_DISABLE_WRITE_BARRIERS
+#define CONDITIONAL_JS_DISPATCH_HANDLE_WRITE_BARRIER(object, handle, mode)
+#else
+#define CONDITIONAL_JS_DISPATCH_HANDLE_WRITE_BARRIER(object, handle, mode) \
+  do {                                                                     \
+    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                    \
+    JSDispatchHandleWriteBarrier(object, handle, mode);                    \
+  } while (false)
+#endif
 
 #define ACQUIRE_READ_INT8_FIELD(p, offset) \
   static_cast<int8_t>(base::Acquire_Load(  \

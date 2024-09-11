@@ -89,6 +89,10 @@ MaybeHandle<Object> DebugEvaluate::Local(Isolate* isolate,
   DebuggableStackFrameIterator it(isolate, frame_id);
 #if V8_ENABLE_WEBASSEMBLY
   if (it.is_wasm()) {
+#if V8_ENABLE_DRUMBRAKE
+    // TODO(paolosev@microsoft.com) - Not supported by Wasm interpreter.
+    if (it.is_wasm_interpreter_entry()) return {};
+#endif  // V8_ENABLE_DRUMBRAKE
     WasmFrame* frame = WasmFrame::cast(it.frame());
     Handle<SharedFunctionInfo> outer_info(
         isolate->native_context()->empty_function()->shared(), isolate);
@@ -691,6 +695,9 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     // DisposableStack builtins.
     case Builtin::kDisposableStackConstructor:
     case Builtin::kDisposableStackPrototypeGetDisposed:
+    // AsyncDisposableStack builtins.
+    case Builtin::kAsyncDisposableStackConstructor:
+    case Builtin::kAsyncDisposableStackPrototypeGetDisposed:
     // Map builtins.
     case Builtin::kMapConstructor:
     case Builtin::kMapGroupBy:
@@ -1012,6 +1019,12 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kDisposableStackPrototypeAdopt:
     case Builtin::kDisposableStackPrototypeDefer:
     case Builtin::kDisposableStackPrototypeMove:
+    // AsyncDisposableStack builtins.
+    case Builtin::kAsyncDisposableStackPrototypeUse:
+    case Builtin::kAsyncDisposableStackPrototypeDisposeAsync:
+    case Builtin::kAsyncDisposableStackPrototypeAdopt:
+    case Builtin::kAsyncDisposableStackPrototypeDefer:
+    case Builtin::kAsyncDisposableStackPrototypeMove:
     // RegExp builtins.
     case Builtin::kRegExpPrototypeTest:
     case Builtin::kRegExpPrototypeExec:
@@ -1030,6 +1043,11 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kRegExpPrototypeReplace:
     case Builtin::kRegExpPrototypeSearch:
       return DebugInfo::kRequiresRuntimeChecks;
+
+    // Debugging builtins.
+    case Builtin::kDebugPrintFloat64:
+    case Builtin::kDebugPrintWordPtr:
+      return DebugInfo::kHasNoSideEffect;
 
     default:
       if (v8_flags.trace_side_effect_free_debug_evaluate) {
@@ -1312,9 +1330,8 @@ void DebugEvaluate::VerifyTransitiveBuiltins(Isolate* isolate) {
     }
   }
   CHECK(!failed);
-#if defined(V8_TARGET_ARCH_PPC) || defined(V8_TARGET_ARCH_PPC64) ||      \
-    defined(V8_TARGET_ARCH_MIPS64) || defined(V8_TARGET_ARCH_RISCV32) || \
-    defined(V8_TARGET_ARCH_RISCV64)
+#if defined(V8_TARGET_ARCH_PPC64) || defined(V8_TARGET_ARCH_MIPS64) || \
+    defined(V8_TARGET_ARCH_RISCV32) || defined(V8_TARGET_ARCH_RISCV64)
   // Isolate-independent builtin calls and jumps do not emit reloc infos
   // on PPC. We try to avoid using PC relative code due to performance
   // issue with especially older hardwares.

@@ -5,8 +5,9 @@
 #ifndef V8_OBJECTS_DICTIONARY_H_
 #define V8_OBJECTS_DICTIONARY_H_
 
+#include <optional>
+
 #include "src/base/export-template.h"
-#include "src/base/optional.h"
 #include "src/common/globals.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/property-array.h"
@@ -16,8 +17,7 @@
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 #ifdef V8_ENABLE_SWISS_NAME_DICTIONARY
 class SwissNameDictionary;
@@ -41,7 +41,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
   inline Tagged<Object> ValueAt(PtrComprCageBase cage_base, InternalIndex entry,
                                 SeqCstAccessTag);
   // Returns {} if we would be reading out of the bounds of the object.
-  inline base::Optional<Tagged<Object>> TryValueAt(InternalIndex entry);
+  inline std::optional<Tagged<Object>> TryValueAt(InternalIndex entry);
 
   // Set the value for entry.
   inline void ValueAtPut(InternalIndex entry, Tagged<Object> value);
@@ -306,7 +306,7 @@ class V8_EXPORT_PRIVATE GlobalDictionary
   inline Tagged<Name> NameAt(PtrComprCageBase cage_base, InternalIndex entry);
   inline void ValueAtPut(InternalIndex entry, Tagged<Object> value);
 
-  base::Optional<Tagged<PropertyCell>>
+  std::optional<Tagged<PropertyCell>>
   TryFindPropertyCellForConcurrentLookupIterator(Isolate* isolate,
                                                  DirectHandle<Name> name,
                                                  RelaxedLoadTag tag);
@@ -453,8 +453,7 @@ struct EnumIndexComparator {
   Tagged<Dictionary> dict;
 };
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #include "src/objects/object-macros-undef.h"
 

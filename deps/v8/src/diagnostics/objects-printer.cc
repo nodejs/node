@@ -4,6 +4,7 @@
 
 #include <iomanip>
 #include <memory>
+#include <optional>
 
 #include "src/api/api-arguments.h"
 #include "src/common/globals.h"
@@ -34,8 +35,7 @@
 #include "src/wasm/wasm-objects-inl.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 namespace {
 constexpr char kUnavailableString[] = "unavailable";
@@ -515,7 +515,7 @@ void DoPrintElements(std::ostream& os, Tagged<Object> object, int length) {
 
 struct Fp16Printer {
   uint16_t val;
-  Fp16Printer(float f) : val(fp16_ieee_from_fp32_value(f)) {}
+  explicit Fp16Printer(float f) : val(fp16_ieee_from_fp32_value(f)) {}
   operator float() const { return fp16_ieee_to_fp32_value(val); }
 };
 
@@ -531,7 +531,7 @@ void PrintTypedArrayElements(std::ostream& os, const ElementType* data_ptr,
   }
 
   ElementType previous_value = data_ptr[0];
-  ElementType value = 0;
+  ElementType value{0};
   for (size_t i = 1; i <= length; i++) {
     if (i < length) value = data_ptr[i];
     if (i != length && previous_value == value) {
@@ -851,11 +851,67 @@ void JSPromise::JSPromisePrint(std::ostream& os) {
 
 void JSRegExp::JSRegExpPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSRegExp");
-  os << "\n - data: " << Brief(data());
+  Isolate* isolate = GetIsolateForSandbox(*this);
+  os << "\n - data: " << Brief(data(isolate));
   os << "\n - source: " << Brief(source());
   FlagsBuffer buffer;
   os << "\n - flags: " << JSRegExp::FlagsToString(flags(), &buffer);
   JSObjectPrintBody(os, *this);
+}
+
+void RegExpData::RegExpDataPrint(std::ostream& os) {
+  switch (type_tag()) {
+    case RegExpData::Type::ATOM:
+      PrintHeader(os, "AtomRegExpData");
+      break;
+    case RegExpData::Type::IRREGEXP:
+      PrintHeader(os, "IrRegExpData");
+      break;
+    case RegExpData::Type::EXPERIMENTAL:
+      PrintHeader(os, "IrRegExpData");
+      break;
+    default:
+      UNREACHABLE();
+  }
+  os << "\n - source: " << source();
+  JSRegExp::FlagsBuffer buffer;
+  os << "\n - flags: " << JSRegExp::FlagsToString(flags(), &buffer);
+}
+
+void AtomRegExpData::AtomRegExpDataPrint(std::ostream& os) {
+  RegExpDataPrint(os);
+  os << "\n - pattern: " << pattern();
+  os << "\n";
+}
+
+void IrRegExpData::IrRegExpDataPrint(std::ostream& os) {
+  Isolate* isolate = GetIsolateForSandbox(*this);
+  RegExpDataPrint(os);
+  if (has_latin1_bytecode()) {
+    os << "\n - latin1_bytecode: " << Brief(latin1_bytecode());
+  }
+  if (has_uc16_bytecode()) {
+    os << "\n - uc16_bytecode: " << Brief(uc16_bytecode());
+  }
+  if (has_latin1_code()) {
+    os << "\n - latin1_code: " << Brief(latin1_code(isolate));
+  }
+  if (has_uc16_code()) {
+    os << "\n - uc16_code: " << Brief(uc16_code(isolate));
+  }
+  os << "\n - capture_name_map: " << Brief(capture_name_map());
+  os << "\n - max_register_count: " << max_register_count();
+  os << "\n - capture_count: " << max_register_count();
+  os << "\n - ticks_until_tier_up: " << max_register_count();
+  os << "\n - backtrack_limit: " << max_register_count();
+  os << "\n";
+}
+
+void RegExpDataWrapper::RegExpDataWrapperPrint(std::ostream& os) {
+  PrintHeader(os, "RegExpDataWrapper");
+  Isolate* isolate = GetIsolateForSandbox(*this);
+  os << "\n    data: " << Brief(data(isolate));
+  os << "\n";
 }
 
 void JSRegExpStringIterator::JSRegExpStringIteratorPrint(std::ostream& os) {
@@ -967,6 +1023,16 @@ void ClassBoilerplate::ClassBoilerplatePrint(std::ostream& os) {
   os << "\n";
 }
 
+void RegExpBoilerplateDescription::RegExpBoilerplateDescriptionPrint(
+    std::ostream& os) {
+  Isolate* isolate = GetIsolateForSandbox((*this));
+  PrintHeader(os, "RegExpBoilerplate");
+  os << "\n - data: " << Brief(data(isolate));
+  os << "\n - source: " << source();
+  os << "\n - flags: " << flags();
+  os << "\n";
+}
+
 void EmbedderDataArray::EmbedderDataArrayPrint(std::ostream& os) {
   Isolate* isolate = GetIsolateForSandbox(*this);
   PrintHeader(os, "EmbedderDataArray");
@@ -1028,12 +1094,6 @@ void RegExpMatchInfo::RegExpMatchInfoPrint(std::ostream& os) {
       os, Tagged{*this}, capacity(), [](Tagged<RegExpMatchInfo> xs, int i) {
         return Cast<Object>(xs->get(i));
       });
-  os << "\n";
-}
-
-void ExternalPointerArray::ExternalPointerArrayPrint(std::ostream& os) {
-  PrintHeader(os, "ExternalPointerArray");
-  os << "\n - length: " << length();
   os << "\n";
 }
 
@@ -1540,7 +1600,7 @@ void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {
 }
 
 void FeedbackVector::FeedbackSlotPrint(std::ostream& os, FeedbackSlot slot) {
-  FeedbackNexus nexus(*this, slot);
+  FeedbackNexus nexus(GetIsolate(), *this, slot);
   nexus.Print(os);
 }
 
@@ -1593,7 +1653,8 @@ void FeedbackNexus::Print(std::ostream& os) {
       if (ic_state() == InlineCacheState::MONOMORPHIC) {
         os << "\n   " << Brief(GetFeedback()) << ": ";
         Tagged<Object> handler = GetFeedbackExtra().GetHeapObjectOrSmi();
-        if (IsWeakFixedArray(handler)) {
+        if (IsWeakFixedArray(handler) &&
+            !Cast<WeakFixedArray>(handler)->get(0).IsCleared()) {
           handler = Cast<WeakFixedArray>(handler)->get(0).GetHeapObjectOrSmi();
         }
         LoadHandler::PrintHandler(handler, os);
@@ -1620,10 +1681,14 @@ void FeedbackNexus::Print(std::ostream& os) {
     case FeedbackSlotKind::kSetKeyedSloppy:
     case FeedbackSlotKind::kSetKeyedStrict: {
       os << InlineCacheState2String(ic_state());
+      if (GetFeedback().IsCleared()) {
+        os << "\n   [cleared]";
+        break;
+      }
       if (ic_state() == InlineCacheState::MONOMORPHIC) {
         Tagged<HeapObject> feedback = GetFeedback().GetHeapObject();
         if (GetFeedbackExtra().IsCleared()) {
-          os << " <cleared>\n";
+          os << " [cleared]\n";
           break;
         }
         if (IsName(feedback)) {
@@ -1631,8 +1696,12 @@ void FeedbackNexus::Print(std::ostream& os) {
           Tagged<WeakFixedArray> array =
               Cast<WeakFixedArray>(GetFeedbackExtra().GetHeapObject());
           os << "\n   " << Brief(array->get(0)) << ": ";
-          Tagged<Object> handler = array->get(1).GetHeapObjectOrSmi();
-          StoreHandler::PrintHandler(handler, os);
+          if (array->get(1).IsCleared()) {
+            os << "[cleared]\n";
+          } else {
+            Tagged<Object> handler = array->get(1).GetHeapObjectOrSmi();
+            StoreHandler::PrintHandler(handler, os);
+          }
         } else {
           os << "\n   " << Brief(feedback) << ": ";
           StoreHandler::PrintHandler(GetFeedbackExtra().GetHeapObjectOrSmi(),
@@ -1908,6 +1977,9 @@ void JSDisposableStackBase::JSDisposableStackBasePrint(std::ostream& os) {
   os << "\n - stack: " << Brief(stack());
   os << "\n - length: " << length();
   os << "\n - state: " << state();
+  os << "\n - needsAwait: " << needsAwait();
+  os << "\n - hasAwaited: " << hasAwaited();
+  os << "\n - error: " << error();
   JSObjectPrintBody(os, *this);
 }
 
@@ -1916,6 +1988,9 @@ void JSAsyncDisposableStack::JSAsyncDisposableStackPrint(std::ostream& os) {
   os << "\n - stack: " << Brief(stack());
   os << "\n - length: " << length();
   os << "\n - state: " << state();
+  os << "\n - needsAwait: " << needsAwait();
+  os << "\n - hasAwaited: " << hasAwaited();
+  os << "\n - error: " << error();
   JSObjectPrintBody(os, *this);
 }
 
@@ -2084,6 +2159,9 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {
   os << "\n - kind: " << shared()->kind();
   os << "\n - context: " << Brief(context());
   os << "\n - code: " << Brief(code(isolate));
+#ifdef V8_ENABLE_LEAPTIERING
+  os << "\n - dispatch_handle: " << dispatch_handle();
+#endif  // V8_ENABLE_LEAPTIERING
   if (code(isolate)->kind() == CodeKind::FOR_TESTING) {
     os << "\n - FOR_TESTING";
   } else if (ActiveTierIsIgnition(isolate)) {
@@ -2161,7 +2239,9 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {
   os << "\n - expected_nof_properties: "
      << static_cast<int>(expected_nof_properties());
   os << "\n - language_mode: " << language_mode();
-  os << "\n - function_data: " << Brief(function_data(kAcquireLoad));
+  os << "\n - trusted_function_data: "
+     << Brief(GetTrustedData(GetIsolateForSandbox(*this)));
+  os << "\n - untrusted_function_data: " << Brief(GetUntrustedData());
   os << "\n - code (from function_data): ";
   Isolate* isolate;
   if (GetIsolateFromHeapObject(*this, &isolate)) {
@@ -2244,6 +2324,7 @@ void Code::CodePrint(std::ostream& os, const char* name, Address current_pc) {
   os << "\n - deoptimization_data_or_interpreter_data: "
      << Brief(raw_deoptimization_data_or_interpreter_data());
   os << "\n - position_table: " << Brief(raw_position_table());
+  os << "\n - parameter_count: " << parameter_count();
   os << "\n - instruction_stream: " << Brief(raw_instruction_stream());
   os << "\n - instruction_start: "
      << reinterpret_cast<void*>(instruction_start());
@@ -2289,7 +2370,8 @@ void Code::CodePrint(std::ostream& os, const char* name, Address current_pc) {
 
 void CodeWrapper::CodeWrapperPrint(std::ostream& os) {
   PrintHeader(os, "CodeWrapper");
-  os << "\n    code: " << Brief(code(Isolate::Current()));
+  os << "\n - code: " << Brief(code(Isolate::Current()));
+  os << "\n";
 }
 
 void Foreign::ForeignPrint(std::ostream& os) {
@@ -2559,7 +2641,6 @@ void WasmSuspenderObject::WasmSuspenderObjectPrint(std::ostream& os) {
   os << "\n - resume: " << resume();
   os << "\n - reject: " << reject();
   os << "\n - state: " << state();
-  os << "\n - has_js_frames: " << has_js_frames();
   os << "\n";
 }
 
@@ -2598,6 +2679,9 @@ void WasmTrustedInstanceData::WasmTrustedInstanceDataPrint(std::ostream& os) {
   PRINT_OPTIONAL_WASM_INSTANCE_FIELD(untagged_globals_buffer, Brief);
   PRINT_OPTIONAL_WASM_INSTANCE_FIELD(tagged_globals_buffer, Brief);
   PRINT_OPTIONAL_WASM_INSTANCE_FIELD(imported_mutable_globals_buffers, Brief);
+#if V8_ENABLE_DRUMBRAKE
+  PRINT_OPTIONAL_WASM_INSTANCE_FIELD(interpreter_object, Brief);
+#endif  // V8_ENABLE_DRUMBRAKE
   PRINT_OPTIONAL_WASM_INSTANCE_FIELD(tables, Brief);
   PRINT_WASM_INSTANCE_FIELD(dispatch_table0, Brief);
   PRINT_WASM_INSTANCE_FIELD(dispatch_tables, Brief);
@@ -2613,6 +2697,9 @@ void WasmTrustedInstanceData::WasmTrustedInstanceDataPrint(std::ostream& os) {
   PRINT_WASM_INSTANCE_FIELD(new_allocation_top_address, to_void_ptr);
   PRINT_WASM_INSTANCE_FIELD(old_allocation_limit_address, to_void_ptr);
   PRINT_WASM_INSTANCE_FIELD(old_allocation_top_address, to_void_ptr);
+#if V8_ENABLE_DRUMBRAKE
+  PRINT_WASM_INSTANCE_FIELD(imported_function_indices, Brief);
+#endif  // V8_ENABLE_DRUMBRAKE
   PRINT_WASM_INSTANCE_FIELD(globals_start, to_void_ptr);
   PRINT_WASM_INSTANCE_FIELD(imported_mutable_globals, Brief);
   PRINT_WASM_INSTANCE_FIELD(jump_table_start, to_void_ptr);
@@ -2639,7 +2726,7 @@ void WasmDispatchTable::WasmDispatchTablePrint(std::ostream& os) {
   for (int i = 0; i < printed; ++i) {
     os << "\n " << std::setw(8) << i << ": sig: " << sig(i)
        << "; target: " << AsHex::Address(target(i))
-       << "; ref: " << Brief(ref(i));
+       << "; implicit_arg: " << Brief(implicit_arg(i));
   }
   if (printed != len) os << "\n  [...]";
   os << "\n";
@@ -2678,8 +2765,8 @@ void WasmResumeData::WasmResumeDataPrint(std::ostream& os) {
   os << '\n';
 }
 
-void WasmApiFunctionRef::WasmApiFunctionRefPrint(std::ostream& os) {
-  PrintHeader(os, "WasmApiFunctionRef");
+void WasmImportData::WasmImportDataPrint(std::ostream& os) {
+  PrintHeader(os, "WasmImportData");
   Isolate* isolate = GetIsolateForSandbox(*this);
   os << "\n - native_context: " << Brief(native_context());
   os << "\n - callable: " << Brief(callable());
@@ -2699,7 +2786,7 @@ void WasmApiFunctionRef::WasmApiFunctionRefPrint(std::ostream& os) {
 void WasmInternalFunction::WasmInternalFunctionPrint(std::ostream& os) {
   PrintHeader(os, "WasmInternalFunction");
   os << "\n - call target: " << reinterpret_cast<void*>(call_target());
-  os << "\n - ref: " << Brief(ref());
+  os << "\n - implicit arg: " << Brief(implicit_arg());
   os << "\n - external: " << Brief(external());
   os << "\n";
 }
@@ -3088,9 +3175,6 @@ void ScopeInfo::ScopeInfoPrint(std::ostream& os) {
   if (HasOuterScopeInfo()) {
     os << "\n - outer scope info: " << Brief(OuterScopeInfo());
   }
-  if (HasLocalsBlockList()) {
-    os << "\n - locals blocklist: " << Brief(LocalsBlockList());
-  }
   if (HasFunctionName()) {
     os << "\n - function name: " << Brief(FunctionName());
   }
@@ -3272,10 +3356,6 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       break;
     case BYTECODE_ARRAY_TYPE:
       os << "<BytecodeArray[" << Cast<BytecodeArray>(*this)->length() << "]>";
-      break;
-    case EXTERNAL_POINTER_ARRAY_TYPE:
-      os << "<ExternalPointerArray["
-         << Cast<ExternalPointerArray>(*this)->length() << "]>";
       break;
     case DESCRIPTOR_ARRAY_TYPE:
       os << "<DescriptorArray["
@@ -3746,10 +3826,6 @@ void TransitionsAccessor::PrintOneTransition(std::ostream& os, Tagged<Name> key,
   } else if (key == roots.elements_transition_symbol()) {
     os << "(transition to " << ElementsKindToString(target->elements_kind())
        << ")";
-  } else if (key == roots.clone_object_ic_transition_symbol()) {
-    os << "(clone object ic dependency transition)";
-  } else if (key == roots.object_assign_clone_transition_symbol()) {
-    os << "(object assign clone cache transition)";
   } else if (key == roots.strict_function_transition_symbol()) {
     os << " (transition to strict function)";
   } else {
@@ -3826,10 +3902,9 @@ void TransitionsAccessor::PrintTransitionTree(
   ReadOnlyRoots roots = ReadOnlyRoots(isolate_);
   int pos = 0;
   int proto_pos = 0;
-  ForEachTransition(
+  ForEachTransitionWithKey(
       no_gc,
-      [&](Tagged<Map> target) {
-        Tagged<Name> key = GetKey(pos);
+      [&](Tagged<Name> key, Tagged<Map> target) {
         os << std::endl
            << "  " << level << "/" << pos << ":" << std::setw(level * 2 + 2)
            << " ";
@@ -3848,10 +3923,6 @@ void TransitionsAccessor::PrintTransitionTree(
           os << "to " << ElementsKindToString(target->elements_kind());
         } else if (key == roots.strict_function_transition_symbol()) {
           os << "to strict function";
-        } else if (key == roots.clone_object_ic_transition_symbol()) {
-          os << "clone object ic dependency";
-        } else if (key == roots.object_assign_clone_transition_symbol()) {
-          os << "object assign clone cache";
         } else {
 #ifdef OBJECT_PRINT
           key->NamePrint(os);
@@ -3882,7 +3953,17 @@ void TransitionsAccessor::PrintTransitionTree(
         TransitionsAccessor transitions(isolate_, target);
         transitions.PrintTransitionTree(os, level + 1, no_gc);
       },
-      TransitionsAccessor::IterationMode::kIncludeClearedSideStepTransitions);
+      [&](SideStepTransition::Kind kind, Tagged<Object> side_step) {
+        os << std::endl
+           << "  " << level << "/s:" << std::setw(level * 2 + 2) << " ";
+        std::stringstream ss;
+        ss << Brief(side_step);
+        os << std::left << std::setw(50) << ss.str() << ": sidestep " << kind;
+        if (!side_step.IsSmi()) {
+          TransitionsAccessor transitions(isolate_, Cast<Map>(side_step));
+          transitions.PrintTransitionTree(os, level + 1, no_gc);
+        }
+      });
 }
 
 void JSObject::PrintTransitions(std::ostream& os) {
@@ -3894,8 +3975,7 @@ void JSObject::PrintTransitions(std::ostream& os) {
 }
 
 #endif  // defined(DEBUG) || defined(OBJECT_PRINT)
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 namespace {
 
@@ -3977,7 +4057,7 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_Code(void* object) {
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  v8::base::Optional<i::Tagged<i::Code>> lookup_result =
+  std::optional<i::Tagged<i::Code>> lookup_result =
       isolate->heap()->TryFindCodeForInnerPointerForPrinting(address);
   if (!lookup_result.has_value()) {
     i::PrintF(
@@ -4012,7 +4092,7 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_OnlyCode(void* object,
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  v8::base::Optional<i::Tagged<i::Code>> lookup_result =
+  std::optional<i::Tagged<i::Code>> lookup_result =
       isolate->heap()->TryFindCodeForInnerPointerForPrinting(address);
   if (!lookup_result.has_value()) {
     i::PrintF(

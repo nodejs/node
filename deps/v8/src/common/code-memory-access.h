@@ -6,6 +6,7 @@
 #define V8_COMMON_CODE_MEMORY_ACCESS_H_
 
 #include <map>
+#include <optional>
 
 #include "include/v8-internal.h"
 #include "include/v8-platform.h"
@@ -191,7 +192,7 @@ class V8_EXPORT ThreadIsolation {
   // Check for a potential dead lock in case we want to lookup the jit
   // allocation from inside a signal handler.
   static bool CanLookupStartOfJitAllocationAt(Address inner_pointer);
-  static base::Optional<Address> StartOfJitAllocationAt(Address inner_pointer);
+  static std::optional<Address> StartOfJitAllocationAt(Address inner_pointer);
 
   // Write-protect a given range of memory. Address and size need to be page
   // aligned.
@@ -203,6 +204,7 @@ class V8_EXPORT ThreadIsolation {
 
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
   static int pkey() { return trusted_data_.pkey; }
+  static bool PkeyIsAvailable() { return trusted_data_.pkey != -1; }
 #endif
 
 #if DEBUG
@@ -356,11 +358,11 @@ class V8_EXPORT ThreadIsolation {
   // doesn't need to be the exact previously registered JitPage.
   static JitPageReference LookupJitPage(Address addr, size_t size);
   static JitPageReference LookupJitPageLocked(Address addr, size_t size);
-  static base::Optional<JitPageReference> TryLookupJitPage(Address addr,
-                                                           size_t size);
+  static std::optional<JitPageReference> TryLookupJitPage(Address addr,
+                                                          size_t size);
   // The caller needs to hold a lock of the jit_pages_mutex_
-  static base::Optional<JitPageReference> TryLookupJitPageLocked(Address addr,
-                                                                 size_t size);
+  static std::optional<JitPageReference> TryLookupJitPageLocked(Address addr,
+                                                                size_t size);
   static JitPageReference SplitJitPageLocked(Address addr, size_t size);
   static JitPageReference SplitJitPage(Address addr, size_t size);
   static std::pair<JitPageReference, JitPageReference> SplitJitPages(
@@ -442,8 +444,8 @@ class WritableJitAllocation {
   // The scope and page reference are optional in case we're creating a
   // WritableJitAllocation for off-heap memory. See ForNonExecutableMemory
   // above.
-  base::Optional<RwxMemoryWriteScope> write_scope_;
-  base::Optional<ThreadIsolation::JitPageReference> page_ref_;
+  std::optional<RwxMemoryWriteScope> write_scope_;
+  std::optional<ThreadIsolation::JitPageReference> page_ref_;
   const ThreadIsolation::JitAllocation allocation_;
 
   friend class ThreadIsolation;
@@ -574,6 +576,12 @@ class V8_NODISCARD RwxMemoryWriteScopeForTesting final
 using CFIMetadataWriteScope = NopRwxMemoryWriteScope;
 #else
 using CFIMetadataWriteScope = RwxMemoryWriteScope;
+#endif
+
+#ifdef V8_ENABLE_MEMORY_SEALING
+using DiscardSealedMemoryScope = RwxMemoryWriteScope;
+#else
+using DiscardSealedMemoryScope = NopRwxMemoryWriteScope;
 #endif
 
 }  // namespace internal

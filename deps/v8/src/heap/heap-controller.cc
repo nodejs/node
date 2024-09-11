@@ -162,9 +162,6 @@ size_t MemoryController<Trait>::CalculateAllocationLimit(
         "[%s] Limit: old size: %zu KB, new limit: %zu KB (%.1f)\n",
         Trait::kName, current_size / KB, result / KB, factor);
   }
-#if defined(V8_USE_PERFETTO)
-  TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"), Trait::kName, result);
-#endif
   return result;
 }
 

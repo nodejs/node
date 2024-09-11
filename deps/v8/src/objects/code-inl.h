@@ -120,7 +120,7 @@ inline void Code::clear_deoptimization_data_and_interpreter_data() {
 }
 
 inline bool Code::has_deoptimization_data_or_interpreter_data() const {
-  return !IsProtectedPointerFieldCleared(
+  return !IsProtectedPointerFieldEmpty(
       kDeoptimizationDataOrInterpreterDataOffset);
 }
 
@@ -412,6 +412,10 @@ inline bool Code::has_tagged_outgoing_params() const {
 #else
   return CodeKindHasTaggedOutgoingParams(kind());
 #endif
+}
+
+inline bool Code::is_context_specialized() const {
+  return IsContextSpecializedField::decode(flags(kRelaxedLoad));
 }
 
 inline bool Code::is_turbofanned() const {
@@ -765,11 +769,12 @@ void Code::clear_padding() {
 
 RELAXED_UINT32_ACCESSORS(Code, flags, kFlagsOffset)
 
-void Code::initialize_flags(CodeKind kind, bool is_turbofanned,
-                            int stack_slots) {
-  CHECK(0 <= stack_slots && stack_slots < StackSlotsField::kMax);
+void Code::initialize_flags(CodeKind kind, bool is_context_specialized,
+                            bool is_turbofanned, int stack_slots) {
+  CHECK(StackSlotsField::is_valid(stack_slots));
   DCHECK(!CodeKindIsInterpretedJSFunction(kind));
   uint32_t value = KindField::encode(kind) |
+                   IsContextSpecializedField::encode(is_context_specialized) |
                    IsTurbofannedField::encode(is_turbofanned) |
                    StackSlotsField::encode(stack_slots);
   static_assert(FIELD_SIZE(kFlagsOffset) == kInt32Size);

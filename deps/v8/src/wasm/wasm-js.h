@@ -74,6 +74,8 @@ class WasmJs {
   // - creates API objects and properties that depend on runtime-enabled flags.
   V8_EXPORT_PRIVATE static void Install(Isolate* isolate,
                                         bool exposed_on_global_object);
+  V8_EXPORT_PRIVATE static void InstallModule(Isolate* isolate,
+                                              Handle<JSObject> webassembly);
 
   V8_EXPORT_PRIVATE static void InstallConditionalFeatures(
       Isolate* isolate, Handle<NativeContext> context);

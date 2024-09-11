@@ -313,7 +313,8 @@ void MaglevPrintingVisitor::PreProcessGraph(Graph* graph) {
                      [](BasicBlock* block) { return block == nullptr; }));
 }
 
-void MaglevPrintingVisitor::PreProcessBasicBlock(BasicBlock* block) {
+BlockProcessResult MaglevPrintingVisitor::PreProcessBasicBlock(
+    BasicBlock* block) {
   size_t loop_position = static_cast<size_t>(-1);
   if (loop_headers_.erase(block) > 0) {
     loop_position = AddTarget(targets_, block);
@@ -370,6 +371,7 @@ void MaglevPrintingVisitor::PreProcessBasicBlock(BasicBlock* block) {
   os_ << "\n";
 
   MaglevPrintingVisitorOstream::cast(os_for_additional_info_)->set_padding(1);
+  return BlockProcessResult::kContinue;
 }
 
 namespace {
@@ -504,6 +506,20 @@ void PrintVirtualObjects(std::ostream& os, std::vector<BasicBlock*> targets,
   os << "}\n";
 }
 
+void PrintDeoptInfoInputLocation(std::ostream& os,
+                                 std::vector<BasicBlock*> targets,
+                                 DeoptInfo* deopt_info,
+                                 MaglevGraphLabeller* graph_labeller,
+                                 int max_node_id) {
+#ifdef DEBUG
+  if (!v8_flags.print_maglev_deopt_verbose) return;
+  PrintVerticalArrows(os, targets);
+  PrintPadding(os, graph_labeller, max_node_id, 0);
+  os << "  input locations: " << deopt_info->input_locations() << " ("
+     << deopt_info->input_location_count() << " slots)\n";
+#endif  // DEBUG
+}
+
 void RecursivePrintEagerDeopt(std::ostream& os,
                               std::vector<BasicBlock*> targets,
                               const DeoptFrame& frame,
@@ -532,6 +548,8 @@ void PrintEagerDeopt(std::ostream& os, std::vector<BasicBlock*> targets,
                      int max_node_id) {
   EagerDeoptInfo* deopt_info = node->eager_deopt_info();
   InputLocation* current_input_location = deopt_info->input_locations();
+  PrintDeoptInfoInputLocation(os, targets, deopt_info, graph_labeller,
+                              max_node_id);
   RecursivePrintEagerDeopt(os, targets, deopt_info->top_frame(), graph_labeller,
                            max_node_id, current_input_location);
 }
@@ -568,6 +586,10 @@ void PrintLazyDeopt(std::ostream& os, std::vector<BasicBlock*> targets,
                     int max_node_id) {
   LazyDeoptInfo* deopt_info = node->lazy_deopt_info();
   InputLocation* current_input_location = deopt_info->input_locations();
+
+  PrintDeoptInfoInputLocation(os, targets, deopt_info, graph_labeller,
+                              max_node_id);
+
   const DeoptFrame& top_frame = deopt_info->top_frame();
   if (top_frame.parent()) {
     RecursivePrintLazyDeopt(os, targets, *top_frame.parent(), graph_labeller,
@@ -759,6 +781,9 @@ ProcessResult MaglevPrintingVisitor::Process(Phi* phi,
     case ValueRepresentation::kIntPtr:
       UNREACHABLE();
   }
+  if (phi->uses_require_31_bit_value()) {
+    os_ << "ⁱ";
+  }
   if (phi->input_count() == 0) {
     os_ << "ₑ " << (phi->owner().is_valid() ? phi->owner().ToString() : "VO");
   } else {
@@ -935,6 +960,9 @@ ProcessResult MaglevPrintingVisitor::Process(ControlNode* control_node,
             break;
           case ValueRepresentation::kIntPtr:
             UNREACHABLE();
+        }
+        if (phi->uses_require_31_bit_value()) {
+          os_ << "ⁱ";
         }
         os_ << " " << (phi->owner().is_valid() ? phi->owner().ToString() : "VO")
             << " " << phi->result().operand() << "\n";

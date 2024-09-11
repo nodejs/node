@@ -4,6 +4,8 @@
 
 #include "src/codegen/external-reference.h"
 
+#include <optional>
+
 #include "include/v8-fast-api-calls.h"
 #include "src/api/api-inl.h"
 #include "src/base/bits.h"
@@ -329,6 +331,11 @@ ExternalReference ExternalReference::memory_chunk_metadata_table_address() {
   return ExternalReference(MemoryChunk::MetadataTableAddress());
 }
 
+ExternalReference ExternalReference::js_dispatch_table_address() {
+  // TODO(saelo): maybe rename to js_dispatch_table_base_address?
+  return ExternalReference(GetProcessWideJSDispatchTable()->base_address());
+}
+
 #endif  // V8_ENABLE_SANDBOX
 
 ExternalReference ExternalReference::interpreter_dispatch_table_address(
@@ -454,7 +461,7 @@ Address DebugGetCoverageInfo(Isolate* isolate, Address raw_sfi) {
   DisallowGarbageCollection no_gc;
   Tagged<SharedFunctionInfo> sfi =
       Cast<SharedFunctionInfo>(Tagged<Object>(raw_sfi));
-  base::Optional<Tagged<DebugInfo>> debug_info =
+  std::optional<Tagged<DebugInfo>> debug_info =
       isolate->debug()->TryGetDebugInfo(sfi);
   if (debug_info.has_value() && debug_info.value()->HasCoverageInfo()) {
     return debug_info.value()->coverage_info().ptr();
@@ -542,6 +549,9 @@ FUNCTION_REFERENCE(wasm_switch_to_the_central_stack_for_js,
                    wasm::switch_to_the_central_stack_for_js)
 FUNCTION_REFERENCE(wasm_switch_from_the_central_stack_for_js,
                    wasm::switch_from_the_central_stack_for_js)
+FUNCTION_REFERENCE(wasm_grow_stack, wasm::grow_stack)
+FUNCTION_REFERENCE(wasm_shrink_stack, wasm::shrink_stack)
+FUNCTION_REFERENCE(wasm_load_old_fp, wasm::load_old_fp)
 FUNCTION_REFERENCE(wasm_f32_trunc, wasm::f32_trunc_wrapper)
 FUNCTION_REFERENCE(wasm_f32_floor, wasm::f32_floor_wrapper)
 FUNCTION_REFERENCE(wasm_f32_ceil, wasm::f32_ceil_wrapper)
@@ -588,6 +598,41 @@ FUNCTION_REFERENCE(wasm_f32x4_ceil, wasm::f32x4_ceil_wrapper)
 FUNCTION_REFERENCE(wasm_f32x4_floor, wasm::f32x4_floor_wrapper)
 FUNCTION_REFERENCE(wasm_f32x4_trunc, wasm::f32x4_trunc_wrapper)
 FUNCTION_REFERENCE(wasm_f32x4_nearest_int, wasm::f32x4_nearest_int_wrapper)
+FUNCTION_REFERENCE(wasm_f16x8_abs, wasm::f16x8_abs_wrapper)
+FUNCTION_REFERENCE(wasm_f16x8_neg, wasm::f16x8_neg_wrapper)
+FUNCTION_REFERENCE(wasm_f16x8_sqrt, wasm::f16x8_sqrt_wrapper)
+FUNCTION_REFERENCE(wasm_f16x8_ceil, wasm::f16x8_ceil_wrapper)
+FUNCTION_REFERENCE(wasm_f16x8_floor, wasm::f16x8_floor_wrapper)
+FUNCTION_REFERENCE(wasm_f16x8_trunc, wasm::f16x8_trunc_wrapper)
+FUNCTION_REFERENCE(wasm_f16x8_nearest_int, wasm::f16x8_nearest_int_wrapper)
+FUNCTION_REFERENCE(wasm_f16x8_eq, wasm::f16x8_eq_wrapper)
+FUNCTION_REFERENCE(wasm_f16x8_ne, wasm::f16x8_ne_wrapper)
+FUNCTION_REFERENCE(wasm_f16x8_lt, wasm::f16x8_lt_wrapper)
+FUNCTION_REFERENCE(wasm_f16x8_le, wasm::f16x8_le_wrapper)
+FUNCTION_REFERENCE(wasm_f16x8_add, wasm::f16x8_add_wrapper)
+FUNCTION_REFERENCE(wasm_f16x8_sub, wasm::f16x8_sub_wrapper)
+FUNCTION_REFERENCE(wasm_f16x8_mul, wasm::f16x8_mul_wrapper)
+FUNCTION_REFERENCE(wasm_f16x8_div, wasm::f16x8_div_wrapper)
+FUNCTION_REFERENCE(wasm_f16x8_min, wasm::f16x8_min_wrapper)
+FUNCTION_REFERENCE(wasm_f16x8_max, wasm::f16x8_max_wrapper)
+FUNCTION_REFERENCE(wasm_f16x8_pmin, wasm::f16x8_pmin_wrapper)
+FUNCTION_REFERENCE(wasm_f16x8_pmax, wasm::f16x8_pmax_wrapper)
+FUNCTION_REFERENCE(wasm_i16x8_sconvert_f16x8,
+                   wasm::i16x8_sconvert_f16x8_wrapper)
+FUNCTION_REFERENCE(wasm_i16x8_uconvert_f16x8,
+                   wasm::i16x8_uconvert_f16x8_wrapper)
+FUNCTION_REFERENCE(wasm_f16x8_sconvert_i16x8,
+                   wasm::f16x8_sconvert_i16x8_wrapper)
+FUNCTION_REFERENCE(wasm_f16x8_uconvert_i16x8,
+                   wasm::f16x8_uconvert_i16x8_wrapper)
+FUNCTION_REFERENCE(wasm_f32x4_promote_low_f16x8,
+                   wasm::f32x4_promote_low_f16x8_wrapper)
+FUNCTION_REFERENCE(wasm_f16x8_demote_f32x4_zero,
+                   wasm::f16x8_demote_f32x4_zero_wrapper)
+FUNCTION_REFERENCE(wasm_f16x8_demote_f64x2_zero,
+                   wasm::f16x8_demote_f64x2_zero_wrapper)
+FUNCTION_REFERENCE(wasm_f16x8_qfma, wasm::f16x8_qfma_wrapper)
+FUNCTION_REFERENCE(wasm_f16x8_qfms, wasm::f16x8_qfms_wrapper)
 FUNCTION_REFERENCE(wasm_memory_init, wasm::memory_init_wrapper)
 FUNCTION_REFERENCE(wasm_memory_copy, wasm::memory_copy_wrapper)
 FUNCTION_REFERENCE(wasm_memory_fill, wasm::memory_fill_wrapper)
@@ -968,7 +1013,7 @@ ExternalReference ExternalReference::invoke_accessor_getter_callback() {
 #define re_stack_check_func RegExpMacroAssemblerARM64::CheckStackGuardState
 #elif V8_TARGET_ARCH_ARM
 #define re_stack_check_func RegExpMacroAssemblerARM::CheckStackGuardState
-#elif V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
+#elif V8_TARGET_ARCH_PPC64
 #define re_stack_check_func RegExpMacroAssemblerPPC::CheckStackGuardState
 #elif V8_TARGET_ARCH_MIPS64
 #define re_stack_check_func RegExpMacroAssemblerMIPS::CheckStackGuardState

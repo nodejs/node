@@ -5,9 +5,10 @@
 #ifndef V8_COMPILER_TURBOSHAFT_BRANCH_ELIMINATION_REDUCER_H_
 #define V8_COMPILER_TURBOSHAFT_BRANCH_ELIMINATION_REDUCER_H_
 
+#include <optional>
+
 #include "src/base/bits.h"
 #include "src/base/logging.h"
-#include "src/base/optional.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/layered-hash-map.h"
@@ -326,7 +327,7 @@ class BranchEliminationReducer : public Next {
       V<Word32> condition =
           __ template MapToNewGraph<true>(branch->condition());
       if (condition.valid()) {
-        base::Optional<bool> condition_value = known_conditions_.Get(condition);
+        std::optional<bool> condition_value = known_conditions_.Get(condition);
         if (!condition_value.has_value()) {
           // We've already visited the subsequent block's Branch condition, but
           // we don't know its value right now.
@@ -382,7 +383,7 @@ class BranchEliminationReducer : public Next {
     }
     if (ShouldSkipOptimizationStep()) goto no_change;
 
-    base::Optional<bool> condition_value = known_conditions_.Get(condition);
+    std::optional<bool> condition_value = known_conditions_.Get(condition);
     if (!condition_value.has_value()) {
       known_conditions_.InsertNewKey(condition, negated);
       goto no_change;
@@ -405,7 +406,7 @@ class BranchEliminationReducer : public Next {
     }
     if (ShouldSkipOptimizationStep()) goto no_change;
 
-    base::Optional<bool> condition_value = known_conditions_.Get(condition);
+    std::optional<bool> condition_value = known_conditions_.Get(condition);
     if (!condition_value.has_value()) {
       known_conditions_.InsertNewKey(condition, negated);
       goto no_change;

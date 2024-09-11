@@ -124,8 +124,8 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
   }
 
   if (InstanceTypeChecker::IsScript(instance_type)) {
-    Handle<FixedArray> host_options;
-    Handle<UnionOf<Smi, Symbol, Undefined>> context_data;
+    DirectHandle<FixedArray> host_options;
+    DirectHandle<UnionOf<Smi, Symbol, Undefined>> context_data;
     {
       DisallowGarbageCollection no_gc;
       Tagged<Script> script_obj = Cast<Script>(*obj);
@@ -140,10 +140,11 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
           raw_context_data != roots.uninitialized_symbol()) {
         script_obj->set_context_data(roots.undefined_value());
       }
-      context_data = handle(raw_context_data, isolate());
+      context_data = direct_handle(raw_context_data, isolate());
       // We don't want to serialize host options to avoid serializing
       // unnecessary object graph.
-      host_options = handle(script_obj->host_defined_options(), isolate());
+      host_options =
+          direct_handle(script_obj->host_defined_options(), isolate());
       script_obj->set_host_defined_options(roots.empty_fixed_array());
     }
     SerializeGeneric(obj, slot_type);
@@ -155,7 +156,7 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
     }
     return;
   } else if (InstanceTypeChecker::IsSharedFunctionInfo(instance_type)) {
-    Handle<DebugInfo> debug_info;
+    DirectHandle<DebugInfo> debug_info;
     CachedTieringDecision cached_tiering_decision;
     bool restore_bytecode = false;
     {
@@ -179,7 +180,10 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
       }
       if (v8_flags.profile_guided_optimization) {
         cached_tiering_decision = sfi->cached_tiering_decision();
-        sfi->set_cached_tiering_decision(CachedTieringDecision::kPending);
+        if (cached_tiering_decision > CachedTieringDecision::kEarlySparkplug) {
+          sfi->set_cached_tiering_decision(
+              CachedTieringDecision::kEarlySparkplug);
+        }
       }
     }
     SerializeGeneric(obj, slot_type);
@@ -189,7 +193,8 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
       sfi->SetActiveBytecodeArray(debug_info->DebugBytecodeArray(isolate()),
                                   isolate());
     }
-    if (v8_flags.profile_guided_optimization) {
+    if (v8_flags.profile_guided_optimization &&
+        cached_tiering_decision > CachedTieringDecision::kEarlySparkplug) {
       sfi->set_cached_tiering_decision(cached_tiering_decision);
     }
     return;
@@ -256,7 +261,7 @@ void CreateInterpreterDataForDeserializedCode(
     bool log_code_creation) {
   DCHECK_IMPLIES(log_code_creation, isolate->NeedsSourcePositions());
 
-  Handle<Script> script(Cast<Script>(result_sfi->script()), isolate);
+  DirectHandle<Script> script(Cast<Script>(result_sfi->script()), isolate);
   if (log_code_creation) Script::InitLineEnds(isolate, script);
 
   Tagged<String> name = ReadOnlyRoots(isolate).empty_string();
@@ -345,7 +350,7 @@ void FinalizeDeserialization(Isolate* isolate,
                                              log_code_creation);
   }
 
-  Handle<Script> script(Cast<Script>(result->script()), isolate);
+  DirectHandle<Script> script(Cast<Script>(result->script()), isolate);
   // Reset the script details, including host-defined options.
   {
     DisallowGarbageCollection no_gc;
@@ -492,7 +497,7 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
     BackgroundMergeTask merge;
     merge.SetUpOnMainThread(isolate, cached_script);
     CHECK(merge.HasPendingBackgroundWork());
-    Handle<Script> new_script = handle(Cast<Script>(result->script()), isolate);
+    DirectHandle<Script> new_script(Cast<Script>(result->script()), isolate);
     merge.BeginMergeInBackground(isolate->AsLocalIsolate(), new_script);
     CHECK(merge.HasPendingForegroundWork());
     result = merge.CompleteMergeInForeground(isolate, new_script);
@@ -618,7 +623,7 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::FinishOffThreadDeserialize(
   if (background_merge_task &&
       background_merge_task->HasPendingForegroundWork()) {
     DCHECK_EQ(data.scripts.size(), 1);
-    Handle<Script> new_script = data.scripts[0];
+    DirectHandle<Script> new_script = data.scripts[0];
     result =
         background_merge_task->CompleteMergeInForeground(isolate, new_script);
     DCHECK(Object::StrictEquals(Cast<Script>(result->script())->source(),
@@ -626,7 +631,7 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::FinishOffThreadDeserialize(
     DCHECK(isolate->factory()->script_list()->Contains(
         MakeWeak(result->script())));
   } else {
-    Handle<Script> script(Cast<Script>(result->script()), isolate);
+    DirectHandle<Script> script(Cast<Script>(result->script()), isolate);
     // Fix up the source on the script. This should be the only deserialized
     // script, and the off-thread deserializer should have set its source to
     // the empty string.

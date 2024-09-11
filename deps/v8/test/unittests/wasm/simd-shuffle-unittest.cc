@@ -43,6 +43,10 @@ class SimdShuffleTest : public ::testing::Test {
   static bool TryMatchSplat(const Shuffle<kSimd128Size>& shuffle, int* index) {
     return SimdShuffle::TryMatchSplat<LANES>(&shuffle[0], index);
   }
+  static bool TryMatch64x2Shuffle(const Shuffle<kSimd128Size>& shuffle,
+                                  uint8_t* shuffle64x2) {
+    return SimdShuffle::TryMatch64x2Shuffle(&shuffle[0], shuffle64x2);
+  }
   static bool TryMatch32x4Shuffle(const Shuffle<kSimd128Size>& shuffle,
                                   uint8_t* shuffle32x4) {
     return SimdShuffle::TryMatch32x4Shuffle(&shuffle[0], shuffle32x4);
@@ -372,6 +376,77 @@ TEST_F(SimdShuffleTest, TryMatchBlend) {
   // Even one lane out of place is not a blend.
   EXPECT_FALSE(TryMatchBlend(
       {{1, 17, 2, 19, 4, 21, 6, 23, 8, 25, 10, 27, 12, 29, 14, 31}}));
+}
+
+TEST_F(SimdShuffleTest, PairwiseReduce) {
+  uint8_t shuffle64x2[2];
+  EXPECT_TRUE(TryMatch64x2Shuffle(
+      {{8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7}}, shuffle64x2));
+  EXPECT_TRUE(SimdShuffle::TryMatch64x2Reduce(shuffle64x2));
+
+  constexpr uint8_t pairwise_32x4[] = {4,  5,  6,  7,  0, 1, 2, 3,
+                                       12, 13, 14, 15, 0, 1, 2, 3};
+  constexpr uint8_t pairwise_32x2[] = {8, 9, 10, 11, 0, 1, 2, 3,
+                                       0, 1, 2,  3,  0, 1, 2, 3};
+  EXPECT_TRUE(
+      SimdShuffle::TryMatch32x4PairwiseReduce(pairwise_32x4, pairwise_32x2));
+}
+
+TEST_F(SimdShuffleTest, UpperToLowerReduce) {
+  constexpr uint8_t upper_to_lower_32x4[] = {8, 9, 10, 11, 12, 13, 14, 15,
+                                             0, 1, 2,  3,  0,  1,  2,  3};
+  constexpr uint8_t upper_to_lower_32x2[] = {4, 5, 6, 7, 0, 1, 2, 3,
+                                             0, 1, 2, 3, 0, 1, 2, 3};
+  EXPECT_TRUE(SimdShuffle::TryMatch32x4UpperToLowerReduce(upper_to_lower_32x4,
+                                                          upper_to_lower_32x2));
+
+  constexpr uint8_t upper_to_lower_16x8[] = {8, 9, 10, 11, 12, 13, 14, 15, 0,
+                                             1, 0, 1,  0,  1,  0,  1,  0};
+  constexpr uint8_t upper_to_lower_16x4[] = {4, 5, 6, 7, 0, 1, 0, 1,
+                                             0, 1, 0, 1, 0, 1, 0, 1};
+  constexpr uint8_t upper_to_lower_16x2[] = {2, 3, 0, 1, 0, 1, 0, 1,
+                                             0, 1, 0, 1, 0, 1, 0, 1};
+  EXPECT_TRUE(SimdShuffle::TryMatch16x8UpperToLowerReduce(
+      upper_to_lower_16x8, upper_to_lower_16x4, upper_to_lower_16x2));
+
+  constexpr uint8_t upper_to_lower_8x16[] = {8, 9, 10, 11, 12, 13, 14, 15, 0,
+                                             1, 0, 1,  0,  1,  0,  1,  0};
+  constexpr uint8_t upper_to_lower_8x8[] = {4, 5, 6, 7, 0, 1, 0, 1,
+                                            0, 1, 0, 1, 0, 1, 0, 1};
+  constexpr uint8_t upper_to_lower_8x4[] = {2, 3, 0, 1, 0, 1, 0, 1,
+                                            0, 1, 0, 1, 0, 1, 0, 1};
+  constexpr uint8_t upper_to_lower_8x2[] = {1, 0, 0, 1, 0, 1, 0, 1,
+                                            0, 1, 0, 1, 0, 1, 0, 1};
+  EXPECT_TRUE(SimdShuffle::TryMatch8x16UpperToLowerReduce(
+      upper_to_lower_8x16, upper_to_lower_8x8, upper_to_lower_8x4,
+      upper_to_lower_8x2));
+}
+
+TEST_F(SimdShuffleTest, Shuffle64x2) {
+  constexpr uint8_t identity_64x2[] = {0, 1, 2,  3,  4,  5,  6,  7,
+                                       8, 9, 10, 11, 12, 13, 14, 15};
+  uint8_t shuffle64x2[2];
+  EXPECT_TRUE(SimdShuffle::TryMatch64x2Shuffle(identity_64x2, shuffle64x2));
+  EXPECT_EQ(shuffle64x2[0], 0);
+  EXPECT_EQ(shuffle64x2[1], 1);
+
+  constexpr uint8_t rev_64x2[] = {8, 9, 10, 11, 12, 13, 14, 15,
+                                  0, 1, 2,  3,  4,  5,  6,  7};
+  EXPECT_TRUE(SimdShuffle::TryMatch64x2Shuffle(rev_64x2, shuffle64x2));
+  EXPECT_EQ(shuffle64x2[0], 1);
+  EXPECT_EQ(shuffle64x2[1], 0);
+
+  constexpr uint8_t dup0_64x2[] = {0, 1, 2, 3, 4, 5, 6, 7,
+                                   0, 1, 2, 3, 4, 5, 6, 7};
+  EXPECT_TRUE(SimdShuffle::TryMatch64x2Shuffle(dup0_64x2, shuffle64x2));
+  EXPECT_EQ(shuffle64x2[0], 0);
+  EXPECT_EQ(shuffle64x2[1], 0);
+
+  constexpr uint8_t dup1_64x2[] = {8, 9, 10, 11, 12, 13, 14, 15,
+                                   8, 9, 10, 11, 12, 13, 14, 15};
+  EXPECT_TRUE(SimdShuffle::TryMatch64x2Shuffle(dup1_64x2, shuffle64x2));
+  EXPECT_EQ(shuffle64x2[0], 1);
+  EXPECT_EQ(shuffle64x2[1], 1);
 }
 
 TEST(SimdShufflePackTest, PackShuffle4) {

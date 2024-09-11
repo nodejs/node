@@ -6,11 +6,11 @@
 
 #include <limits>
 #include <numeric>
+#include <optional>
 #include <string_view>
 
 #include "src/base/container-utils.h"
 #include "src/base/logging.h"
-#include "src/base/optional.h"
 #include "src/base/safe_conversions.h"
 #include "src/base/small-vector.h"
 #include "src/base/vector.h"
@@ -37,6 +37,7 @@
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/representations.h"
+#include "src/compiler/turboshaft/variable-reducer.h"
 #include "src/flags/flags.h"
 #include "src/heap/factory-inl.h"
 #include "src/objects/map.h"
@@ -56,7 +57,7 @@ struct GraphBuilder {
   Isolate* isolate;
   JSHeapBroker* broker;
   Zone* graph_zone;
-  using AssemblerT = TSAssembler<ExplicitTruncationReducer>;
+  using AssemblerT = TSAssembler<ExplicitTruncationReducer, VariableReducer>;
   AssemblerT assembler;
   SourcePositionTable* source_positions;
   NodeOriginTable* origins;
@@ -83,7 +84,7 @@ struct GraphBuilder {
   ZoneVector<BlockData> block_mapping{schedule.RpoBlockCount(), phase_zone};
   bool inside_region = false;
 
-  base::Optional<BailoutReason> Run();
+  std::optional<BailoutReason> Run();
   AssemblerT& Asm() { return assembler; }
 
  private:
@@ -220,11 +221,11 @@ struct GraphBuilder {
   OpIndex Process(Node* node, BasicBlock* block,
                   const base::SmallVector<int, 16>& predecessor_permutation,
                   OpIndex& dominating_frame_state,
-                  base::Optional<BailoutReason>* bailout,
+                  std::optional<BailoutReason>* bailout,
                   bool is_final_control = false);
 };
 
-base::Optional<BailoutReason> GraphBuilder::Run() {
+std::optional<BailoutReason> GraphBuilder::Run() {
   for (BasicBlock* block : *schedule.rpo_order()) {
     block_mapping[block->rpo_number()].block =
         block->IsLoopHeader() ? __ NewLoopHeader() : __ NewBlock();
@@ -260,7 +261,7 @@ base::Optional<BailoutReason> GraphBuilder::Run() {
         }
       }
     }
-    base::Optional<BailoutReason> bailout = base::nullopt;
+    std::optional<BailoutReason> bailout = std::nullopt;
     for (Node* node : *block->nodes()) {
       if (V8_UNLIKELY(node->InputCount() >=
                       int{std::numeric_limits<
@@ -332,13 +333,13 @@ base::Optional<BailoutReason> GraphBuilder::Run() {
     }
   }
 
-  return base::nullopt;
+  return std::nullopt;
 }
 
 OpIndex GraphBuilder::Process(
     Node* node, BasicBlock* block,
     const base::SmallVector<int, 16>& predecessor_permutation,
-    OpIndex& dominating_frame_state, base::Optional<BailoutReason>* bailout,
+    OpIndex& dominating_frame_state, std::optional<BailoutReason>* bailout,
     bool is_final_control) {
   if (Asm().current_block() == nullptr) {
     return OpIndex::Invalid();
@@ -431,6 +432,8 @@ OpIndex GraphBuilder::Process(
       return __ HeapConstant(HeapConstantOf(op));
     case IrOpcode::kCompressedHeapConstant:
       return __ CompressedHeapConstant(HeapConstantOf(op));
+    case IrOpcode::kTrustedHeapConstant:
+      return __ TrustedHeapConstant(HeapConstantOf(op));
     case IrOpcode::kExternalConstant:
       return __ ExternalConstant(OpParameter<ExternalReference>(op));
     case IrOpcode::kRelocatableInt64Constant:
@@ -616,6 +619,8 @@ OpIndex GraphBuilder::Process(
       UNARY_CASE(SignExtendWord16ToInt32, Word32SignExtend16)
       UNARY_CASE(SignExtendWord8ToInt64, Word64SignExtend8)
       UNARY_CASE(SignExtendWord16ToInt64, Word64SignExtend16)
+      UNARY_CASE(Int32AbsWithOverflow, Int32AbsCheckOverflow)
+      UNARY_CASE(Int64AbsWithOverflow, Int64AbsCheckOverflow)
 
       UNARY_CASE(Float32Abs, Float32Abs)
       UNARY_CASE(Float64Abs, Float64Abs)
@@ -746,8 +751,32 @@ OpIndex GraphBuilder::Process(
     }
     case IrOpcode::kBitcastTaggedToWord:
       return __ BitcastTaggedToWordPtr(Map(node->InputAt(0)));
-    case IrOpcode::kBitcastWordToTagged:
+    case IrOpcode::kBitcastWordToTagged: {
+      V<WordPtr> input = Map(node->InputAt(0));
+      if (V8_UNLIKELY(pipeline_kind == TurboshaftPipelineKind::kCSA)) {
+        // TODO(nicohartmann@): This is currently required to properly compile
+        // builtins. We should fix them and remove this.
+        if (LoadOp* load = __ output_graph().Get(input).TryCast<LoadOp>()) {
+          CHECK_EQ(2, node->InputAt(0)->UseCount());
+          CHECK(base::all_equal(node->InputAt(0)->uses(), node));
+          // CSA produces the pattern
+          //   BitcastWordToTagged(Load<RawPtr>(...))
+          // which is not safe to translate to Turboshaft, because
+          // LateLoadElimination can potentially merge this with an identical
+          // untagged load that would be unsound in presence of a GC.
+          CHECK(load->loaded_rep == MemoryRepresentation::UintPtr() ||
+                load->loaded_rep == (Is64() ? MemoryRepresentation::Int64()
+                                            : MemoryRepresentation::Int32()));
+          CHECK_EQ(load->result_rep, RegisterRepresentation::WordPtr());
+          // In this case we turn the load into a tagged load directly...
+          load->loaded_rep = MemoryRepresentation::UncompressedTaggedPointer();
+          load->result_rep = RegisterRepresentation::Tagged();
+          // ... and skip the bitcast.
+          return input;
+        }
+      }
       return __ BitcastWordPtrToTagged(Map(node->InputAt(0)));
+    }
     case IrOpcode::kNumberIsFinite:
       return __ Float64Is(Map(node->InputAt(0)), NumericKind::kFinite);
     case IrOpcode::kNumberIsInteger:
@@ -1294,7 +1323,7 @@ OpIndex GraphBuilder::Process(
             node->InputAt(static_cast<int>(call_descriptor->InputCount()))};
         frame_state_idx = Map(frame_state);
       }
-      base::Optional<decltype(assembler)::CatchScope> catch_scope;
+      std::optional<decltype(assembler)::CatchScope> catch_scope;
       if (is_final_control) {
         Block* catch_block = Map(block->SuccessorAt(1));
         catch_scope.emplace(assembler, catch_block);
@@ -1576,7 +1605,7 @@ OpIndex GraphBuilder::Process(
 
       auto type_opt =
           Type::ParseFromString(std::string_view{pattern.get()}, graph_zone);
-      if (type_opt == base::nullopt) {
+      if (type_opt == std::nullopt) {
         FATAL(
             "String '%s' (of %d:CheckTurboshaftTypeOf) is not a valid type "
             "description!",
@@ -1952,7 +1981,7 @@ OpIndex GraphBuilder::Process(
         slow_call_arguments.push_back(Map(n.SlowCallArgument(i)));
       }
 
-      base::Optional<decltype(assembler)::CatchScope> catch_scope;
+      std::optional<decltype(assembler)::CatchScope> catch_scope;
       if (is_final_control) {
         Block* catch_block = Map(block->SuccessorAt(1));
         catch_scope.emplace(assembler, catch_block);
@@ -1970,14 +1999,7 @@ OpIndex GraphBuilder::Process(
               base::VectorOf(slow_call_arguments),
               TSCallDescriptor::Create(params.descriptor(), CanThrow::kYes,
                                        LazyDeoptOnThrow::kNo, __ graph_zone()));
-
-          if (is_final_control) {
-            // The `__ Call()` before has already created exceptional
-            // control flow and bound a new block for the success case. So we
-            // can just `Goto` the block that Turbofan designated as the
-            // `IfSuccess` successor.
-            __ Goto(Map(block->SuccessorAt(0)));
-          }
+          __ Unreachable();
           return result;
         }
       }
@@ -1994,18 +2016,48 @@ OpIndex GraphBuilder::Process(
       const FastApiCallParameters* parameters = FastApiCallParameters::Create(
           c_functions, resolution_result, __ graph_zone());
 
+      // There is one return in addition to the return value of the C function,
+      // which indicates if a fast API call actually happened.
+      CTypeInfo return_type = params.c_functions()[0].signature->ReturnInfo();
+      bool return_is_void = return_type.GetType() == CTypeInfo::Type::kVoid;
+      int return_count = 2;
+
+      const base::Vector<RegisterRepresentation> out_reps =
+          graph_zone->AllocateVector<RegisterRepresentation>(return_count);
+      out_reps[0] = RegisterRepresentation::Word32();
+
+      if (return_is_void ||
+          return_type.GetType() == CTypeInfo::Type::kPointer) {
+        out_reps[1] = RegisterRepresentation::Tagged();
+      } else if (return_type.GetType() == CTypeInfo::Type::kInt64 ||
+                 return_type.GetType() == CTypeInfo::Type::kUint64) {
+        if (params.c_functions()[0].signature->GetInt64Representation() ==
+            CFunctionInfo::Int64Representation::kBigInt) {
+          out_reps[1] = RegisterRepresentation::Word64();
+        } else {
+          DCHECK_EQ(params.c_functions()[0].signature->GetInt64Representation(),
+                    CFunctionInfo::Int64Representation::kNumber);
+          out_reps[1] = RegisterRepresentation::Float64();
+        }
+      } else {
+        out_reps[1] = RegisterRepresentation::FromMachineType(
+            MachineType::TypeForCType(return_type));
+      }
+
       Label<Object> done(this);
 
+      // Allocate the out_reps vector in the zone, so that it lives through the
+      // whole compilation.
       V<Tuple<Word32, Any>> fast_call_result =
           __ FastApiCall(dominating_frame_state, data_argument, context,
-                         base::VectorOf(arguments), parameters);
+                         base::VectorOf(arguments), parameters, out_reps);
 
       V<Word32> result_state = __ template Projection<0>(fast_call_result);
+      V<Any> result_value =
+          __ template Projection<1>(fast_call_result, out_reps[1]);
 
-      IF (LIKELY(__ Word32Equal(result_state, FastApiCallOp::kSuccessValue))) {
-        GOTO(done, V<Object>::Cast(__ template Projection<1>(
-                       fast_call_result, RegisterRepresentation::Tagged())));
-      } ELSE {
+      IF (UNLIKELY(
+              __ Word32Equal(result_state, FastApiCallOp::kFailureValue))) {
         // We need to generate a fallback (both fast and slow call) in case:
         // 1) the generated code might fail, in case e.g. a Smi was passed where
         // a JSObject was expected and an error must be thrown or
@@ -2013,14 +2065,27 @@ OpIndex GraphBuilder::Process(
         // arg. None of the above usually holds true for Wasm functions with
         // primitive types only, so we avoid generating an extra branch here.
 
-        V<Object> slow_call_result = V<Object>::Cast(__ Call(
+        __ Call(
             slow_call_callee, dominating_frame_state,
             base::VectorOf(slow_call_arguments),
             TSCallDescriptor::Create(params.descriptor(), CanThrow::kYes,
-                                     LazyDeoptOnThrow::kNo, __ graph_zone())));
-        GOTO(done, slow_call_result);
+                                     LazyDeoptOnThrow::kNo, __ graph_zone()));
+
+        // Currently we cannot handle return values of regular API calls here.
+        // Typically, regular API calls are only used when a parameter is
+        // invalid, so that the correct exception can be thrown by the regular
+        // API call. However, when a string is passed in the wrong format, the
+        // string is still a valid value, and the regular API call will succeed,
+        // even though a fast API call was not possible.
+        // TODO(ahaas): This issue could be solved by converting the return
+        // value of `__ CALL()` from Tagged to the correct type, and by
+        // introducing a `Variable` of the correct type to use the result of the
+        // regular API call and not unconditionally the return value of the fast
+        // API call.
+        if (!return_is_void) {
+          __ Unreachable();
+        }
       }
-      BIND(done, result);
       if (is_final_control) {
         // The `__ FastApiCall()` before has already created exceptional control
         // flow and bound a new block for the success case. So we can just
@@ -2028,7 +2093,7 @@ OpIndex GraphBuilder::Process(
         // successor.
         __ Goto(Map(block->SuccessorAt(0)));
       }
-      return result;
+      return result_value;
     }
 
     case IrOpcode::kRuntimeAbort:
@@ -2063,7 +2128,7 @@ OpIndex GraphBuilder::Process(
       V<TurbofanType> allocated_type;
       {
         DCHECK(isolate->CurrentLocalHeap()->is_main_thread());
-        base::Optional<UnparkedScope> unparked_scope;
+        std::optional<UnparkedScope> unparked_scope;
         if (isolate->CurrentLocalHeap()->IsParked()) {
           unparked_scope.emplace(isolate->main_thread_local_isolate());
         }
@@ -2415,8 +2480,8 @@ OpIndex GraphBuilder::Process(
 
 }  // namespace
 
-base::Optional<BailoutReason> BuildGraph(PipelineData* data, Schedule* schedule,
-                                         Zone* phase_zone, Linkage* linkage) {
+std::optional<BailoutReason> BuildGraph(PipelineData* data, Schedule* schedule,
+                                        Zone* phase_zone, Linkage* linkage) {
   GraphBuilder builder{data, phase_zone, *schedule, linkage};
 #if DEBUG
   data->graph().SetCreatedFromTurbofan();

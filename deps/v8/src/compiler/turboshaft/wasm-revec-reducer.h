@@ -354,6 +354,7 @@ class ShufflePackNode : public PackNode {
       return param_.shufps_control;
     }
 #endif  // V8_TARGET_ARCH_X64
+
    private:
     Kind kind_;
     Param param_;

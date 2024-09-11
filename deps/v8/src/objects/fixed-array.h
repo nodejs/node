@@ -5,6 +5,8 @@
 #ifndef V8_OBJECTS_FIXED_ARRAY_H_
 #define V8_OBJECTS_FIXED_ARRAY_H_
 
+#include <optional>
+
 #include "src/common/globals.h"
 #include "src/handles/maybe-handles.h"
 #include "src/objects/heap-object.h"
@@ -20,8 +22,7 @@
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 #include "torque-generated/src/objects/fixed-array-tq.inc"
 
@@ -159,7 +160,7 @@ class TaggedArrayBase : public Super {
   template <class IsolateT>
   static Handle<Derived> Allocate(
       IsolateT* isolate, int capacity,
-      base::Optional<DisallowGarbageCollection>* no_gc_out,
+      std::optional<DisallowGarbageCollection>* no_gc_out,
       AllocationType allocation = AllocationType::kYoung);
 
   static constexpr int NewCapacityForIndex(int index, int old_capacity);
@@ -280,7 +281,9 @@ class TrustedFixedArray
 
  public:
   template <class IsolateT>
-  static inline Handle<TrustedFixedArray> New(IsolateT* isolate, int capacity);
+  static inline Handle<TrustedFixedArray> New(
+      IsolateT* isolate, int capacity,
+      AllocationType allocation = AllocationType::kTrusted);
 
   DECL_PRINTER(TrustedFixedArray)
   DECL_VERIFIER(TrustedFixedArray)
@@ -448,7 +451,7 @@ class PrimitiveArrayBase : public Super {
   template <class IsolateT>
   static Handle<Derived> Allocate(
       IsolateT* isolate, int length,
-      base::Optional<DisallowGarbageCollection>* no_gc_out,
+      std::optional<DisallowGarbageCollection>* no_gc_out,
       AllocationType allocation = AllocationType::kYoung);
 
   inline bool IsInBounds(int index) const;
@@ -533,7 +536,8 @@ class WeakFixedArray
   template <class IsolateT>
   static inline Handle<WeakFixedArray> New(
       IsolateT* isolate, int capacity,
-      AllocationType allocation = AllocationType::kYoung);
+      AllocationType allocation = AllocationType::kYoung,
+      MaybeHandle<Object> initial_value = {});
 
   DECL_PRINTER(WeakFixedArray)
   DECL_VERIFIER(WeakFixedArray)
@@ -884,7 +888,7 @@ class FixedIntegerArrayBase : public Base {
 
   inline int length() const;
 
-  OBJECT_CONSTRUCTORS(FixedIntegerArrayBase<T LITERAL_COMMA Base>, Base);
+  OBJECT_CONSTRUCTORS(FixedIntegerArrayBase, Base);
 };
 
 using FixedInt8Array = FixedIntegerArrayBase<int8_t, ByteArray>;
@@ -897,8 +901,8 @@ using FixedInt64Array = FixedIntegerArrayBase<int64_t, ByteArray>;
 using FixedUInt64Array = FixedIntegerArrayBase<uint64_t, ByteArray>;
 
 // Use with care! Raw addresses on the heap are not safe in combination with
-// the sandbox. Use an ExternalPointerArray instead. However, this can for
-// example be used to store sandboxed pointers, which is safe.
+// the sandbox. However, this can for example be used to store sandboxed
+// pointers, which is safe.
 template <typename Base>
 class FixedAddressArrayBase : public FixedIntegerArrayBase<Address, Base> {
   using Underlying = FixedIntegerArrayBase<Address, Base>;
@@ -913,52 +917,11 @@ class FixedAddressArrayBase : public FixedIntegerArrayBase<Address, Base> {
   static inline Handle<FixedAddressArrayBase> New(Isolate* isolate, int length,
                                                   MoreArgs&&... more_args);
 
-  OBJECT_CONSTRUCTORS(FixedAddressArrayBase<Base>, Underlying);
+  OBJECT_CONSTRUCTORS(FixedAddressArrayBase, Underlying);
 };
 
 using FixedAddressArray = FixedAddressArrayBase<ByteArray>;
 using TrustedFixedAddressArray = FixedAddressArrayBase<TrustedByteArray>;
-
-// An array containing external pointers.
-// When the sandbox is off, this will simply contain system-pointer sized words.
-// Otherwise, it contains external pointer handles, i.e. indices into the
-// external pointer table.
-// This class uses lazily-initialized external pointer slots. As such, its
-// content can simply be zero-initialized, and the external pointer table
-// entries are only allocated when an element is written to for the first time.
-class ExternalPointerArray : public FixedArrayBase {
- public:
-  template <ExternalPointerTag tag>
-  inline Address get(int index, Isolate* isolate);
-  template <ExternalPointerTag tag>
-  inline void set(int index, Isolate* isolate, Address value);
-
-  static inline Handle<ExternalPointerArray> New(
-      Isolate* isolate, int length,
-      AllocationType allocation = AllocationType::kYoung);
-
-  static constexpr int SizeFor(int length) {
-    return kHeaderSize + length * kExternalPointerSlotSize;
-  }
-
-  static constexpr int OffsetOfElementAt(int index) {
-    return kHeaderSize + index * kExternalPointerSlotSize;
-  }
-
-  // Maximal length of a single ExternalPointerArray.
-  static const int kMaxLength = FixedArrayBase::kMaxSize - kHeaderSize;
-  static_assert(Internals::IsValidSmi(kMaxLength),
-                "ExternalPointerArray maxLength not a Smi");
-
-  class BodyDescriptor;
-
-  static constexpr int kPointersOffset = kHeaderSize;
-
-  DECL_PRINTER(ExternalPointerArray)
-  DECL_VERIFIER(ExternalPointerArray)
-
-  OBJECT_CONSTRUCTORS(ExternalPointerArray, FixedArrayBase);
-};
 
 template <class T, class Super>
 class PodArrayBase : public Super {
@@ -1010,7 +973,7 @@ class PodArray : public PodArrayBase<T, ByteArray> {
       LocalIsolate* isolate, int length,
       AllocationType allocation = AllocationType::kOld);
 
-  OBJECT_CONSTRUCTORS(PodArray<T>, PodArrayBase<T, ByteArray>);
+  OBJECT_CONSTRUCTORS(PodArray, PodArrayBase<T, ByteArray>);
 };
 
 template <class T>
@@ -1019,11 +982,10 @@ class TrustedPodArray : public PodArrayBase<T, TrustedByteArray> {
   static Handle<TrustedPodArray<T>> New(Isolate* isolate, int length);
   static Handle<TrustedPodArray<T>> New(LocalIsolate* isolate, int length);
 
-  OBJECT_CONSTRUCTORS(TrustedPodArray<T>, PodArrayBase<T, TrustedByteArray>);
+  OBJECT_CONSTRUCTORS(TrustedPodArray, PodArrayBase<T, TrustedByteArray>);
 };
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #include "src/objects/object-macros-undef.h"
 

@@ -4,6 +4,8 @@
 
 #include "src/debug/debug-wasm-objects.h"
 
+#include <optional>
+
 #include "src/api/api-inl.h"
 #include "src/api/api-natives.h"
 #include "src/base/strings.h"
@@ -235,8 +237,8 @@ struct NamedDebugProxy : IndexedDebugProxy<T, id, Provider> {
   }
 
   template <typename V>
-  static base::Optional<uint32_t> FindName(
-      Local<v8::Name> name, const PropertyCallbackInfo<V>& info) {
+  static std::optional<uint32_t> FindName(Local<v8::Name> name,
+                                          const PropertyCallbackInfo<V>& info) {
     if (!name->IsString()) return {};
     auto name_str = Utils::OpenHandle(*name.As<v8::String>());
     if (name_str->length() == 0 || name_str->Get(0) != '$') return {};
@@ -296,7 +298,7 @@ struct FunctionsProxy : NamedDebugProxy<FunctionsProxy, kFunctionsProxy> {
   static Handle<Object> Get(Isolate* isolate,
                             DirectHandle<WasmInstanceObject> instance,
                             uint32_t index) {
-    Handle<WasmTrustedInstanceData> trusted_data{
+    DirectHandle<WasmTrustedInstanceData> trusted_data{
         instance->trusted_data(isolate), isolate};
     DirectHandle<WasmFuncRef> func_ref =
         WasmTrustedInstanceData::GetOrCreateFuncRef(isolate, trusted_data,
@@ -621,7 +623,8 @@ class ContextProxy {
     auto object = isolate->factory()->NewSlowJSObjectWithNullProto();
     Handle<WasmInstanceObject> instance(frame->wasm_instance(), isolate);
     JSObject::AddProperty(isolate, object, "instance", instance, FROZEN);
-    Handle<WasmModuleObject> module_object(instance->module_object(), isolate);
+    DirectHandle<WasmModuleObject> module_object(instance->module_object(),
+                                                 isolate);
     JSObject::AddProperty(isolate, object, "module", module_object, FROZEN);
     auto locals = LocalsProxy::Create(frame);
     JSObject::AddProperty(isolate, object, "locals", locals, FROZEN);
@@ -685,7 +688,8 @@ class DebugWasmScopeIterator final : public debug::ScopeIterator {
         Handle<JSObject> object =
             isolate->factory()->NewSlowJSObjectWithNullProto();
         JSObject::AddProperty(isolate, object, "instance", instance, FROZEN);
-        Handle<JSObject> module_object(instance->module_object(), isolate);
+        DirectHandle<JSObject> module_object(instance->module_object(),
+                                             isolate);
         JSObject::AddProperty(isolate, object, "module", module_object, FROZEN);
         if (FunctionsProxy::Count(isolate, instance) != 0) {
           JSObject::AddProperty(
@@ -746,6 +750,97 @@ class DebugWasmScopeIterator final : public debug::ScopeIterator {
   WasmFrame* const frame_;
   ScopeType type_;
 };
+
+#if V8_ENABLE_DRUMBRAKE
+class DebugWasmInterpreterScopeIterator final : public debug::ScopeIterator {
+ public:
+  explicit DebugWasmInterpreterScopeIterator(WasmInterpreterEntryFrame* frame)
+      : frame_(frame), type_(debug::ScopeIterator::ScopeTypeModule) {
+    // TODO(paolosev@microsoft.com) -  Enable local scopes and expression stack
+    // scopes.
+  }
+
+  bool Done() override { return type_ == ScopeTypeWith; }
+
+  void Advance() override {
+    DCHECK(!Done());
+    switch (type_) {
+      case ScopeTypeModule:
+        // We use ScopeTypeWith type as marker for done.
+        type_ = debug::ScopeIterator::ScopeTypeWith;
+        break;
+      case ScopeTypeWasmExpressionStack:
+      case ScopeTypeLocal:
+      default:
+        UNREACHABLE();
+    }
+  }
+
+  ScopeType GetType() override { return type_; }
+
+  v8::Local<v8::Object> GetObject() override {
+    Isolate* isolate = frame_->isolate();
+    switch (type_) {
+      case debug::ScopeIterator::ScopeTypeModule: {
+        Handle<WasmInstanceObject> instance(frame_->wasm_instance(), isolate);
+        Handle<JSObject> object =
+            isolate->factory()->NewSlowJSObjectWithNullProto();
+        JSObject::AddProperty(isolate, object, "instance", instance, FROZEN);
+        Handle<JSObject> module_object(instance->module_object(), isolate);
+        JSObject::AddProperty(isolate, object, "module", module_object, FROZEN);
+        if (FunctionsProxy::Count(isolate, instance) != 0) {
+          JSObject::AddProperty(
+              isolate, object, "functions",
+              GetOrCreateInstanceProxy<FunctionsProxy>(isolate, instance),
+              FROZEN);
+        }
+        if (GlobalsProxy::Count(isolate, instance) != 0) {
+          JSObject::AddProperty(
+              isolate, object, "globals",
+              GetOrCreateInstanceProxy<GlobalsProxy>(isolate, instance),
+              FROZEN);
+        }
+        if (MemoriesProxy::Count(isolate, instance) != 0) {
+          JSObject::AddProperty(
+              isolate, object, "memories",
+              GetOrCreateInstanceProxy<MemoriesProxy>(isolate, instance),
+              FROZEN);
+        }
+        if (TablesProxy::Count(isolate, instance) != 0) {
+          JSObject::AddProperty(
+              isolate, object, "tables",
+              GetOrCreateInstanceProxy<TablesProxy>(isolate, instance), FROZEN);
+        }
+        return Utils::ToLocal(object);
+      }
+      case debug::ScopeIterator::ScopeTypeLocal:
+      case debug::ScopeIterator::ScopeTypeWasmExpressionStack:
+      default:
+        UNREACHABLE();
+    }
+  }
+  v8::Local<v8::Value> GetFunctionDebugName() override {
+    return Utils::ToLocal(frame_->isolate()->factory()->empty_string());
+  }
+
+  int GetScriptId() override { return -1; }
+
+  bool HasLocationInfo() override { return false; }
+
+  debug::Location GetStartLocation() override { return {}; }
+
+  debug::Location GetEndLocation() override { return {}; }
+
+  bool SetVariableValue(v8::Local<v8::String> name,
+                        v8::Local<v8::Value> value) override {
+    return false;
+  }
+
+ private:
+  WasmInterpreterEntryFrame* const frame_;
+  ScopeType type_;
+};
+#endif  // V8_ENABLE_DRUMBRAKE
 
 Handle<String> WasmSimd128ToString(Isolate* isolate, Simd128 s128) {
   // We use the canonical format as described in:
@@ -914,8 +1009,8 @@ struct ArrayProxy : IndexedDebugProxy<ArrayProxy, kArrayProxy, FixedArray> {
 Handle<WasmValueObject> WasmValueObject::New(
     Isolate* isolate, const wasm::WasmValue& value,
     Handle<WasmModuleObject> module_object) {
-  Handle<String> t;
-  Handle<Object> v;
+  DirectHandle<String> t;
+  DirectHandle<Object> v;
   switch (value.type().kind()) {
     case wasm::kI8: {
       // This can't be reached for most "top-level" things, only via nested
@@ -1003,9 +1098,9 @@ Handle<WasmValueObject> WasmValueObject::New(
         // `new WebAssembly.Function(...)`, a module for name resolution is not
         // available.
         if (module_object.is_null() &&
-            IsWasmTrustedInstanceData(internal_fct->ref())) {
+            IsWasmTrustedInstanceData(internal_fct->implicit_arg())) {
           module_object =
-              handle(Cast<WasmTrustedInstanceData>(internal_fct->ref())
+              handle(Cast<WasmTrustedInstanceData>(internal_fct->implicit_arg())
                          ->module_object(),
                      isolate);
         }
@@ -1045,6 +1140,13 @@ Handle<JSObject> GetWasmDebugProxy(WasmFrame* frame) {
 std::unique_ptr<debug::ScopeIterator> GetWasmScopeIterator(WasmFrame* frame) {
   return std::make_unique<DebugWasmScopeIterator>(frame);
 }
+
+#if V8_ENABLE_DRUMBRAKE
+std::unique_ptr<debug::ScopeIterator> GetWasmInterpreterScopeIterator(
+    WasmInterpreterEntryFrame* frame) {
+  return std::make_unique<DebugWasmInterpreterScopeIterator>(frame);
+}
+#endif  // V8_ENABLE_DRUMBRAKE
 
 Handle<String> GetWasmFunctionDebugName(
     Isolate* isolate, DirectHandle<WasmTrustedInstanceData> instance_data,

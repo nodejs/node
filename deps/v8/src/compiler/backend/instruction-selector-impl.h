@@ -387,6 +387,7 @@ class OperandGeneratorT : public Adapter {
             }
           case Kind::kHeapObject:
           case Kind::kCompressedHeapObject:
+          case Kind::kTrustedHeapObject:
             return Constant(constant->handle(),
                             constant->kind == Kind::kCompressedHeapObject);
           case Kind::kExternal:
@@ -394,9 +395,9 @@ class OperandGeneratorT : public Adapter {
           case Kind::kNumber:
             return Constant(constant->number());
           case Kind::kFloat32:
-            return Constant(constant->float32_preserve_nan());
+            return Constant(constant->float32());
           case Kind::kFloat64:
-            return Constant(constant->float64_preserve_nan());
+            return Constant(constant->float64());
           case Kind::kTaggedIndex: {
             // Unencoded index value.
             intptr_t value = static_cast<intptr_t>(constant->tagged_index());

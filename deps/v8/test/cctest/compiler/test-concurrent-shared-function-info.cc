@@ -32,7 +32,7 @@ enum class SfiState {
 void ExpectSharedFunctionInfoState(Isolate* isolate,
                                    Tagged<SharedFunctionInfo> sfi,
                                    SfiState expectedState) {
-  Tagged<Object> function_data = sfi->GetData(isolate);
+  Tagged<Object> function_data = sfi->GetTrustedData(isolate);
   Tagged<HeapObject> script = sfi->script(kAcquireLoad);
   switch (expectedState) {
     case SfiState::Compiled:
@@ -131,7 +131,7 @@ TEST(TestConcurrentSharedFunctionInfo) {
   OptimizedCompilationInfo f_info(&zone, isolate, f_sfi, f, CodeKind::TURBOFAN);
   DirectHandle<Code> f_code =
       Pipeline::GenerateCodeForTesting(&f_info, isolate).ToHandleChecked();
-  f->set_code(*f_code, kReleaseStore);
+  f->UpdateCode(*f_code);
   IsCompiledScope compiled_scope_f(*f_sfi, isolate);
   JSFunction::EnsureFeedbackVector(isolate, f, &compiled_scope_f);
 

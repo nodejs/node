@@ -7,6 +7,8 @@
 
 #if V8_TARGET_ARCH_X64
 
+#include <optional>
+
 #include "src/base/bits.h"
 #include "src/base/division-by-constant.h"
 #include "src/base/utils/random-number-generator.h"
@@ -426,12 +428,22 @@ void MacroAssembler::DecompressProtected(Register destination,
 void MacroAssembler::RecordWriteField(Register object, int offset,
                                       Register value, Register slot_address,
                                       SaveFPRegsMode save_fp,
-                                      SmiCheck smi_check, SlotDescriptor slot) {
+                                      SmiCheck smi_check,
+                                      ReadOnlyCheck ro_check,
+                                      SlotDescriptor slot) {
   ASM_CODE_COMMENT(this);
   DCHECK(!AreAliased(object, value, slot_address));
   // First, check if a write barrier is even needed. The tests below
-  // catch stores of Smis.
+  // catch stores of Smis and read-only objects.
   Label done;
+
+#if V8_STATIC_ROOTS_BOOL
+  if (ro_check == ReadOnlyCheck::kInline) {
+    // Quick check for Read-only and small Smi values.
+    static_assert(StaticReadOnlyRoot::kLastAllocatedRoot < kRegularPageSize);
+    JumpIfUnsignedLessThan(value, kRegularPageSize, &done);
+  }
+#endif  // V8_STATIC_ROOTS_BOOL
 
   // Skip barrier if writing a smi.
   if (smi_check == SmiCheck::kInline) {
@@ -452,7 +464,8 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
     bind(&ok);
   }
 
-  RecordWrite(object, slot_address, value, save_fp, SmiCheck::kOmit, slot);
+  RecordWrite(object, slot_address, value, save_fp, SmiCheck::kOmit,
+              ReadOnlyCheck::kOmit, slot);
 
   bind(&done);
 
@@ -657,6 +670,20 @@ void MacroAssembler::LoadCodeEntrypointViaCodePointer(Register destination,
 }
 #endif  // V8_ENABLE_SANDBOX
 
+#ifdef V8_ENABLE_LEAPTIERING
+void MacroAssembler::LoadCodeEntrypointFromJSDispatchTable(
+    Register destination, Operand field_operand) {
+  DCHECK(!AreAliased(destination, kScratchRegister));
+  DCHECK(!field_operand.AddressUsesRegister(kScratchRegister));
+  LoadAddress(kScratchRegister, ExternalReference::js_dispatch_table_address());
+  movl(destination, field_operand);
+  shrl(destination, Immediate(kJSDispatchHandleShift));
+  shll(destination, Immediate(kJSDispatchTableEntrySizeLog2));
+  movq(destination, Operand(kScratchRegister, destination, times_1,
+                            JSDispatchEntry::kEntrypointOffset));
+}
+#endif
+
 void MacroAssembler::LoadProtectedPointerField(Register destination,
                                                Operand field_operand) {
   DCHECK(root_array_available());
@@ -774,27 +801,18 @@ void MacroAssembler::CallTSANStoreStub(Register address, Register value,
   // Prepare argument registers for calling GetTSANStoreStub.
   MovePair(address_parameter, address, value_parameter, value);
 
-  if (isolate()) {
-    CallBuiltin(CodeFactory::GetTSANStoreStub(fp_mode, size, order));
-  }
 #if V8_ENABLE_WEBASSEMBLY
-  // There are two different kinds of wasm-to-js functions: one lives in the
-  // wasm code space, and another one lives on the heap. Both of them have the
-  // same CodeKind (WASM_TO_JS_FUNCTION), but depending on where they are they
-  // have to either use the wasm stub calls, or call the builtin using the
-  // isolate like JS does. In order to know which wasm-to-js function we are
-  // compiling right now, we check if the isolate is null.
-  // TODO(solanes, v8:11600): Split CodeKind::WASM_TO_JS_FUNCTION into two
-  // different CodeKinds and pass the CodeKind as a parameter so that we can use
-  // that instead of a nullptr check.
-  // NOLINTNEXTLINE(readability/braces)
-  else {
-    DCHECK_EQ(mode, StubCallMode::kCallWasmRuntimeStub);
-    // Use {near_call} for direct Wasm call within a module.
+  if (mode != StubCallMode::kCallWasmRuntimeStub) {
+    // JS functions and Wasm wrappers.
+    CallBuiltin(CodeFactory::GetTSANStoreStub(fp_mode, size, order));
+  } else {
+    // Wasm functions should call builtins through their far jump table.
     auto wasm_target = static_cast<intptr_t>(
         wasm::WasmCode::GetTSANStoreBuiltin(fp_mode, size, order));
     near_call(wasm_target, RelocInfo::WASM_STUB_CALL);
   }
+#else
+  CallBuiltin(CodeFactory::GetTSANStoreStub(fp_mode, size, order));
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   PopAll(registers);
@@ -814,27 +832,18 @@ void MacroAssembler::CallTSANRelaxedLoadStub(Register address,
   // Prepare argument registers for calling TSANRelaxedLoad.
   Move(address_parameter, address);
 
-  if (isolate()) {
-    CallBuiltin(CodeFactory::GetTSANRelaxedLoadStub(fp_mode, size));
-  }
 #if V8_ENABLE_WEBASSEMBLY
-  // There are two different kinds of wasm-to-js functions: one lives in the
-  // wasm code space, and another one lives on the heap. Both of them have the
-  // same CodeKind (WASM_TO_JS_FUNCTION), but depending on where they are they
-  // have to either use the wasm stub calls, or call the builtin using the
-  // isolate like JS does. In order to know which wasm-to-js function we are
-  // compiling right now, we check if the isolate is null.
-  // TODO(solanes, v8:11600): Split CodeKind::WASM_TO_JS_FUNCTION into two
-  // different CodeKinds and pass the CodeKind as a parameter so that we can use
-  // that instead of a nullptr check.
-  // NOLINTNEXTLINE(readability/braces)
-  else {
-    DCHECK_EQ(mode, StubCallMode::kCallWasmRuntimeStub);
-    // Use {near_call} for direct Wasm call within a module.
+  if (mode != StubCallMode::kCallWasmRuntimeStub) {
+    // JS functions and Wasm wrappers.
+    CallBuiltin(CodeFactory::GetTSANRelaxedLoadStub(fp_mode, size));
+  } else {
+    // Wasm functions should call builtins through their far jump table.
     auto wasm_target = static_cast<intptr_t>(
         wasm::WasmCode::GetTSANRelaxedLoadBuiltin(fp_mode, size));
     near_call(wasm_target, RelocInfo::WASM_STUB_CALL);
   }
+#else
+  CallBuiltin(CodeFactory::GetTSANRelaxedLoadStub(fp_mode, size));
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   PopAll(registers);
@@ -843,7 +852,8 @@ void MacroAssembler::CallTSANRelaxedLoadStub(Register address,
 
 void MacroAssembler::RecordWrite(Register object, Register slot_address,
                                  Register value, SaveFPRegsMode fp_mode,
-                                 SmiCheck smi_check, SlotDescriptor slot) {
+                                 SmiCheck smi_check, ReadOnlyCheck ro_check,
+                                 SlotDescriptor slot) {
   ASM_CODE_COMMENT(this);
   DCHECK(!AreAliased(object, slot_address, value));
   AssertNotSmi(object);
@@ -876,8 +886,17 @@ void MacroAssembler::RecordWrite(Register object, Register slot_address,
   }
 
   // First, check if a write barrier is even needed. The tests below
-  // catch stores of smis and stores into the young generation.
+  // catch stores of smis and read-only objects, as well as stores into the
+  // young generation.
   Label done;
+
+#if V8_STATIC_ROOTS_BOOL
+  if (ro_check == ReadOnlyCheck::kInline) {
+    // Quick check for Read-only and small Smi values.
+    static_assert(StaticReadOnlyRoot::kLastAllocatedRoot < kRegularPageSize);
+    JumpIfUnsignedLessThan(value, kRegularPageSize, &done);
+  }
+#endif  // V8_STATIC_ROOTS_BOOL
 
   if (smi_check == SmiCheck::kInline) {
     // Skip barrier if writing a smi.
@@ -1061,6 +1080,8 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& ext,
 
 namespace {
 
+#ifndef V8_ENABLE_LEAPTIERING
+// Only used when leaptiering is disabled.
 void TailCallOptimizedCodeSlot(MacroAssembler* masm,
                                Register optimized_code_entry, Register closure,
                                Register scratch1, Register scratch2,
@@ -1107,6 +1128,7 @@ void TailCallOptimizedCodeSlot(MacroAssembler* masm,
   __ bind(&heal_optimized_code_slot);
   __ GenerateTailCallToReturnedCode(Runtime::kHealOptimizedCodeSlot, jump_mode);
 }
+#endif  // V8_ENABLE_LEAPTIERING
 
 }  // namespace
 
@@ -1163,6 +1185,10 @@ void MacroAssembler::ReplaceClosureCodeWithOptimizedCode(
   ASM_CODE_COMMENT(this);
   DCHECK(!AreAliased(optimized_code, closure, scratch1, slot_address));
   DCHECK_EQ(closure, kJSFunctionRegister);
+
+#ifdef V8_ENABLE_LEAPTIERING
+  UNREACHABLE();
+#else
   // Store the optimized code in the closure.
   AssertCode(optimized_code);
   StoreCodePointerField(FieldOperand(closure, JSFunction::kCodeOffset),
@@ -1174,7 +1200,8 @@ void MacroAssembler::ReplaceClosureCodeWithOptimizedCode(
 
   RecordWriteField(closure, JSFunction::kCodeOffset, value, slot_address,
                    SaveFPRegsMode::kIgnore, SmiCheck::kOmit,
-                   SlotDescriptor::ForCodePointerSlot());
+                   ReadOnlyCheck::kOmit, SlotDescriptor::ForCodePointerSlot());
+#endif  // V8_ENABLE_LEAPTIERING
 }
 
 // Read off the flags in the feedback vector and check if there
@@ -1183,14 +1210,10 @@ Condition MacroAssembler::CheckFeedbackVectorFlagsNeedsProcessing(
     Register feedback_vector, CodeKind current_code_kind) {
   ASM_CODE_COMMENT(this);
   DCHECK(CodeKindCanTierUp(current_code_kind));
-  uint32_t kFlagsMask = FeedbackVector::kFlagsTieringStateIsAnyRequested |
-                        FeedbackVector::kFlagsMaybeHasTurbofanCode |
-                        FeedbackVector::kFlagsLogNextExecution;
-  if (current_code_kind != CodeKind::MAGLEV) {
-    kFlagsMask |= FeedbackVector::kFlagsMaybeHasMaglevCode;
-  }
+  uint32_t flag_mask =
+      FeedbackVector::FlagMaskForNeedsProcessingCheckFrom(current_code_kind);
   testw(FieldOperand(feedback_vector, FeedbackVector::kFlagsOffset),
-        Immediate(kFlagsMask));
+        Immediate(flag_mask));
   return not_zero;
 }
 
@@ -1206,6 +1229,21 @@ void MacroAssembler::OptimizeCodeOrTailCallOptimizedCodeSlot(
     Register feedback_vector, Register closure, JumpMode jump_mode) {
   ASM_CODE_COMMENT(this);
   DCHECK(!AreAliased(feedback_vector, closure));
+
+#ifdef V8_ENABLE_LEAPTIERING
+  // In the leaptiering case, we don't load optimized code from the feedback
+  // vector so only need to call CompileOptimized or FunctionLogNextExecution
+  // here. See also CheckFeedbackVectorFlagsNeedsProcessing above.
+  Label needs_logging;
+  testw(FieldOperand(feedback_vector, FeedbackVector::kFlagsOffset),
+        Immediate(FeedbackVector::kFlagsTieringStateIsAnyRequested));
+  j(zero, &needs_logging);
+
+  GenerateTailCallToReturnedCode(Runtime::kCompileOptimized, jump_mode);
+
+  bind(&needs_logging);
+  GenerateTailCallToReturnedCode(Runtime::kFunctionLogNextExecution, jump_mode);
+#else
   Label maybe_has_optimized_code, maybe_needs_logging;
   // Check if optimized code is available.
   testw(FieldOperand(feedback_vector, FeedbackVector::kFlagsOffset),
@@ -1228,6 +1266,7 @@ void MacroAssembler::OptimizeCodeOrTailCallOptimizedCodeSlot(
   TailCallOptimizedCodeSlot(this, optimized_code_entry, closure, r9,
                             WriteBarrierDescriptor::SlotAddressRegister(),
                             jump_mode);
+#endif  // V8_ENABLE_LEAPTIERING
 }
 
 int MacroAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
@@ -1608,6 +1647,53 @@ void MacroAssembler::Cvttsd2siq(Register dst, Operand src) {
   }
 }
 
+void MacroAssembler::Cvtpd2ph(XMMRegister dst, XMMRegister src, Register tmp) {
+  ASM_CODE_COMMENT(this);
+  CpuFeatureScope f16c_scope(this, F16C);
+  Register tmp2 = kScratchRegister;
+  DCHECK_NE(tmp, tmp2);
+  DCHECK_NE(dst, src);
+
+  // Conversion algo from
+  // https://github.com/tc39/proposal-float16array/issues/12#issuecomment-2256642971
+  Label f32tof16;
+  // Convert Float64 -> Float32.
+  Cvtsd2ss(dst, src);
+  vmovd(tmp, dst);
+  // Mask off sign bit.
+  andl(tmp, Immediate(kFP32WithoutSignMask));
+  // Underflow to zero.
+  cmpl(tmp, Immediate(kFP32MinFP16ZeroRepresentable));
+  j(below, &f32tof16);
+  // Overflow to infinity.
+  cmpl(tmp, Immediate(kFP32MaxFP16Representable));
+  j(above_equal, &f32tof16);
+  // Detection of subnormal numbers.
+  cmpl(tmp, Immediate(kFP32SubnormalThresholdOfFP16));
+  setcc(above_equal, tmp2);
+  movzxbl(tmp2, tmp2);
+  // Compute 0x1000 for normal and 0x0000 for denormal numbers.
+  shll(tmp2, Immediate(12));
+  // Look at the last thirteen bits of the mantissa which will be shifted out
+  // when converting from float32 to float16. (The round and sticky bits.)
+  // Normal numbers: If the round bit is set and sticky bits are zero, then
+  // adjust the float32 mantissa.
+  // Denormal numbers: If all bits are zero, then adjust the mantissa.
+  andl(tmp, Immediate(0x1fff));
+  // Check round and sticky bits.
+  cmpl(tmp, tmp2);
+  j(not_equal, &f32tof16);
+
+  // Adjust mantissa by -1/0/+1.
+  Move(kScratchDoubleReg, static_cast<uint32_t>(1));
+  psignd(kScratchDoubleReg, src);
+  paddd(dst, kScratchDoubleReg);
+
+  bind(&f32tof16);
+  // Convert Float32 -> Float16.
+  vcvtps2ph(dst, dst, 4);
+}
+
 namespace {
 template <typename OperandOrXMMRegister, bool is_double>
 void ConvertFloatToUint64(MacroAssembler* masm, Register dst,
@@ -1897,6 +1983,53 @@ void MacroAssembler::F32x8Max(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,
   vandnps(dst, dst, scratch);
 }
 
+void MacroAssembler::F16x8Min(YMMRegister dst, XMMRegister lhs, XMMRegister rhs,
+                              YMMRegister scratch, YMMRegister scratch2) {
+  ASM_CODE_COMMENT(this);
+  CpuFeatureScope f16c_scope(this, F16C);
+  CpuFeatureScope avx_scope(this, AVX);
+  CpuFeatureScope avx2_scope(this, AVX2);
+  vcvtph2ps(scratch, lhs);
+  vcvtph2ps(scratch2, rhs);
+  // The minps instruction doesn't propagate NaNs and +0's in its first
+  // operand. Perform minps in both orders, merge the results, and adjust.
+  vminps(dst, scratch, scratch2);
+  vminps(scratch, scratch2, scratch);
+  // Propagate -0's and NaNs, which may be non-canonical.
+  vorps(scratch, scratch, dst);
+  // Canonicalize NaNs by quieting and clearing the payload.
+  vcmpunordps(dst, dst, scratch);
+  vorps(scratch, scratch, dst);
+  vpsrld(dst, dst, uint8_t{10});
+  vandnps(dst, dst, scratch);
+  vcvtps2ph(dst, dst, 0);
+}
+
+void MacroAssembler::F16x8Max(YMMRegister dst, XMMRegister lhs, XMMRegister rhs,
+                              YMMRegister scratch, YMMRegister scratch2) {
+  ASM_CODE_COMMENT(this);
+  CpuFeatureScope f16c_scope(this, F16C);
+  CpuFeatureScope avx_scope(this, AVX);
+  CpuFeatureScope avx2_scope(this, AVX2);
+  vcvtph2ps(scratch, lhs);
+  vcvtph2ps(scratch2, rhs);
+  // The maxps instruction doesn't propagate NaNs and +0's in its first
+  // operand. Perform maxps in both orders, merge the results, and adjust.
+  vmaxps(dst, scratch, scratch2);
+  vmaxps(scratch, scratch2, scratch);
+  // Find discrepancies.
+  vxorps(dst, dst, scratch);
+  // Propagate NaNs, which may be non-canonical.
+  vorps(scratch, scratch, dst);
+  // Propagate sign discrepancy and (subtle) quiet NaNs.
+  vsubps(scratch, scratch, dst);
+  // Canonicalize NaNs by clearing the payload. Sign is non-deterministic.
+  vcmpunordps(dst, dst, scratch);
+  vpsrld(dst, dst, uint8_t{10});
+  vandnps(dst, dst, scratch);
+  vcvtps2ph(dst, dst, 0);
+}
+
 // 1. Zero extend 4 packed 32-bit integers in src1 to 4 packed 64-bit integers
 // in scratch
 // 2. Zero extend 4 packed 32-bit integers in src2 to 4 packed 64-bit integers
@@ -2024,7 +2157,7 @@ void MacroAssembler::I32x8SConvertF32x8(YMMRegister dst, YMMRegister src,
   vpxor(dst, dst, tmp);
 }
 
-void MacroAssembler::I16x8SConvertF16x8(YMMRegister dst, YMMRegister src,
+void MacroAssembler::I16x8SConvertF16x8(YMMRegister dst, XMMRegister src,
                                         YMMRegister tmp, Register scratch) {
   ASM_CODE_COMMENT(this);
   DCHECK(CpuFeatures::IsSupported(AVX) && CpuFeatures::IsSupported(AVX2) &&
@@ -2033,14 +2166,27 @@ void MacroAssembler::I16x8SConvertF16x8(YMMRegister dst, YMMRegister src,
   CpuFeatureScope f16c_scope(this, F16C);
   CpuFeatureScope avx_scope(this, AVX);
   CpuFeatureScope avx2_scope(this, AVX2);
+
+  Operand op = ExternalReferenceAsOperand(
+      ExternalReference::address_of_wasm_i32x8_int32_overflow_as_float(),
+      scratch);
   // Convert source f16 to f32.
   vcvtph2ps(dst, src);
   // Compare it to itself, NaNs are turn to 0s because don't equal to itself.
   vcmpeqps(tmp, dst, dst);
   // Reset NaNs.
   vandps(dst, dst, tmp);
+  // Detect positive Infinity as an overflow above MAX_INT32.
+  vcmpgeps(tmp, dst, op);
   // Convert f32 to i32.
   vcvttps2dq(dst, dst);
+  // cvttps2dq sets all out of range lanes to 0x8000'0000,
+  // but as soon as source values are result of conversion from f16,
+  // and so less than MAX_INT32, only +Infinity is an issue.
+  // Convert all infinities to MAX_INT32 and let vpackssdw
+  // clamp it to MAX_INT16 later.
+  // 0x8000'0000 xor 0xffff'ffff(from 2 steps before) = 0x7fff'ffff (MAX_INT32)
+  vpxor(dst, dst, tmp);
   // We now have 8 i32 values. Using one character per 16 bits:
   // dst: [AABBCCDDEEFFGGHH]
   // Create a copy of the upper four values in the lower half of {tmp}
@@ -2060,7 +2206,7 @@ void MacroAssembler::I16x8SConvertF16x8(YMMRegister dst, YMMRegister src,
   //         └────────────── from upper half of {tmp} (ignored)
 }
 
-void MacroAssembler::I16x8TruncF16x8U(YMMRegister dst, YMMRegister src,
+void MacroAssembler::I16x8TruncF16x8U(YMMRegister dst, XMMRegister src,
                                       YMMRegister tmp) {
   ASM_CODE_COMMENT(this);
   DCHECK(CpuFeatures::IsSupported(AVX) && CpuFeatures::IsSupported(AVX2) &&
@@ -2069,65 +2215,80 @@ void MacroAssembler::I16x8TruncF16x8U(YMMRegister dst, YMMRegister src,
   CpuFeatureScope f16c_scope(this, F16C);
   CpuFeatureScope avx_scope(this, AVX);
   CpuFeatureScope avx2_scope(this, AVX2);
+
+  Operand op = ExternalReferenceAsOperand(
+      ExternalReference::address_of_wasm_i32x8_int32_overflow_as_float(),
+      kScratchRegister);
   vcvtph2ps(dst, src);
   // NAN->0, negative->0.
   vpxor(tmp, tmp, tmp);
   vmaxps(dst, dst, tmp);
+  // Detect positive Infinity as an overflow above MAX_INT32.
+  vcmpgeps(tmp, dst, op);
   // Convert to int.
   vcvttps2dq(dst, dst);
+  // cvttps2dq sets all out of range lanes to 0x8000'0000,
+  // but as soon as source values are result of conversion from f16,
+  // and so less than MAX_INT32, only +Infinity is an issue.
+  // Convert all infinities to MAX_INT32 and let vpackusdw
+  // clamp it to MAX_INT16 later.
+  // 0x8000'0000 xor 0xffff'ffff(from 2 steps before) = 0x7fff'ffff (MAX_INT32)
+  vpxor(dst, dst, tmp);
   // Move high part to a spare register.
   // See detailed comment in {I16x8SConvertF16x8} for how this works.
   vpermq(tmp, dst, 0x4E);  // 0b01001110
   vpackusdw(dst, dst, tmp);
 }
 
-// Helper macro to define qfma macro-assembler. This takes care of every
-// possible case of register aliasing to minimize the number of instructions.
-#define QFMA(ps_or_pd)                        \
-  if (CpuFeatures::IsSupported(FMA3)) {       \
-    CpuFeatureScope fma3_scope(this, FMA3);   \
-    if (dst == src1) {                        \
-      vfmadd213##ps_or_pd(dst, src2, src3);   \
-    } else if (dst == src2) {                 \
-      vfmadd213##ps_or_pd(dst, src1, src3);   \
-    } else if (dst == src3) {                 \
-      vfmadd231##ps_or_pd(dst, src2, src1);   \
-    } else {                                  \
-      CpuFeatureScope avx_scope(this, AVX);   \
-      vmovups(dst, src1);                     \
-      vfmadd213##ps_or_pd(dst, src2, src3);   \
-    }                                         \
-  } else if (CpuFeatures::IsSupported(AVX)) { \
-    CpuFeatureScope avx_scope(this, AVX);     \
-    vmul##ps_or_pd(tmp, src1, src2);          \
-    vadd##ps_or_pd(dst, tmp, src3);           \
-  } else {                                    \
-    UNREACHABLE();                            \
-  }
+void MacroAssembler::F16x8Qfma(YMMRegister dst, XMMRegister src1,
+                               XMMRegister src2, XMMRegister src3,
+                               YMMRegister tmp, YMMRegister tmp2) {
+  CpuFeatureScope fma3_scope(this, FMA3);
+  CpuFeatureScope f16c_scope(this, F16C);
 
-// Helper macro to define qfms macro-assembler. This takes care of every
-// possible case of register aliasing to minimize the number of instructions.
-#define QFMS(ps_or_pd)                        \
-  if (CpuFeatures::IsSupported(FMA3)) {       \
-    CpuFeatureScope fma3_scope(this, FMA3);   \
-    if (dst == src1) {                        \
-      vfnmadd213##ps_or_pd(dst, src2, src3);  \
-    } else if (dst == src2) {                 \
-      vfnmadd213##ps_or_pd(dst, src1, src3);  \
-    } else if (dst == src3) {                 \
-      vfnmadd231##ps_or_pd(dst, src2, src1);  \
-    } else {                                  \
-      CpuFeatureScope avx_scope(this, AVX);   \
-      vmovups(dst, src1);                     \
-      vfnmadd213##ps_or_pd(dst, src2, src3);  \
-    }                                         \
-  } else if (CpuFeatures::IsSupported(AVX)) { \
-    CpuFeatureScope avx_scope(this, AVX);     \
-    vmul##ps_or_pd(tmp, src1, src2);          \
-    vsub##ps_or_pd(dst, src3, tmp);           \
-  } else {                                    \
-    UNREACHABLE();                            \
+  if (dst.code() == src2.code()) {
+    vcvtph2ps(dst, dst);
+    vcvtph2ps(tmp, src1);
+    vcvtph2ps(tmp2, src3);
+    vfmadd213ps(dst, tmp, tmp2);
+  } else if (dst.code() == src3.code()) {
+    vcvtph2ps(dst, dst);
+    vcvtph2ps(tmp, src2);
+    vcvtph2ps(tmp2, src1);
+    vfmadd231ps(dst, tmp, tmp2);
+  } else {
+    vcvtph2ps(dst, src1);
+    vcvtph2ps(tmp, src2);
+    vcvtph2ps(tmp2, src3);
+    vfmadd213ps(dst, tmp, tmp2);
   }
+  vcvtps2ph(dst, dst, 0);
+}
+
+void MacroAssembler::F16x8Qfms(YMMRegister dst, XMMRegister src1,
+                               XMMRegister src2, XMMRegister src3,
+                               YMMRegister tmp, YMMRegister tmp2) {
+  CpuFeatureScope fma3_scope(this, FMA3);
+  CpuFeatureScope f16c_scope(this, F16C);
+
+  if (dst.code() == src2.code()) {
+    vcvtph2ps(dst, dst);
+    vcvtph2ps(tmp, src1);
+    vcvtph2ps(tmp2, src3);
+    vfnmadd213ps(dst, tmp, tmp2);
+  } else if (dst.code() == src3.code()) {
+    vcvtph2ps(dst, dst);
+    vcvtph2ps(tmp, src2);
+    vcvtph2ps(tmp2, src1);
+    vfnmadd231ps(dst, tmp, tmp2);
+  } else {
+    vcvtph2ps(dst, src1);
+    vcvtph2ps(tmp, src2);
+    vcvtph2ps(tmp2, src3);
+    vfnmadd213ps(dst, tmp, tmp2);
+  }
+  vcvtps2ph(dst, dst, 0);
+}
 
 void MacroAssembler::F32x8Qfma(YMMRegister dst, YMMRegister src1,
                                YMMRegister src2, YMMRegister src3,
@@ -3024,7 +3185,11 @@ void MacroAssembler::JumpCodeObject(Register code_object, CodeEntrypointTag tag,
 
 void MacroAssembler::CallJSFunction(Register function_object) {
   static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_ENABLE_LEAPTIERING
+  LoadCodeEntrypointFromJSDispatchTable(
+      rcx, FieldOperand(function_object, JSFunction::kDispatchHandleOffset));
+  call(rcx);
+#elif V8_ENABLE_SANDBOX
   // When the sandbox is enabled, we can directly fetch the entrypoint pointer
   // from the code pointer table instead of going through the Code object. In
   // this way, we avoid one memory load on this code path.
@@ -3041,7 +3206,12 @@ void MacroAssembler::CallJSFunction(Register function_object) {
 void MacroAssembler::JumpJSFunction(Register function_object,
                                     JumpMode jump_mode) {
   static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_ENABLE_LEAPTIERING
+  LoadCodeEntrypointFromJSDispatchTable(
+      rcx, FieldOperand(function_object, JSFunction::kDispatchHandleOffset));
+  DCHECK_EQ(jump_mode, JumpMode::kJump);
+  jmp(rcx);
+#elif V8_ENABLE_SANDBOX
   // When the sandbox is enabled, we can directly fetch the entrypoint pointer
   // from the code pointer table instead of going through the Code object. In
   // this way, we avoid one memory load on this code path.
@@ -3307,7 +3477,7 @@ void MacroAssembler::IncsspqIfSupported(Register number_of_words,
 #if V8_STATIC_ROOTS_BOOL
 void MacroAssembler::CompareInstanceTypeWithUniqueCompressedMap(
     Register map, InstanceType type) {
-  base::Optional<RootIndex> expected =
+  std::optional<RootIndex> expected =
       InstanceTypeChecker::UniqueMapOfInstanceType(type);
   CHECK(expected);
   Tagged_t expected_ptr = ReadOnlyRootPtr(*expected);
@@ -3333,6 +3503,23 @@ void MacroAssembler::IsObjectType(Register heap_object, InstanceType type,
   }
 #endif  // V8_STATIC_ROOTS_BOOL
   CmpObjectType(heap_object, type, map);
+}
+
+void MacroAssembler::IsObjectTypeInRange(Register heap_object,
+                                         InstanceType lower_limit,
+                                         InstanceType higher_limit,
+                                         Register scratch) {
+  DCHECK_LT(lower_limit, higher_limit);
+#if V8_STATIC_ROOTS_BOOL
+  if (auto range = InstanceTypeChecker::UniqueMapRangeOfInstanceTypeRange(
+          lower_limit, higher_limit)) {
+    LoadCompressedMap(scratch, heap_object);
+    CompareRange(scratch, range->first, range->second);
+    return;
+  }
+#endif  // V8_STATIC_ROOTS_BOOL
+  LoadMap(scratch, heap_object);
+  CmpInstanceTypeRange(scratch, scratch, lower_limit, higher_limit);
 }
 
 void MacroAssembler::JumpIfJSAnyIsNotPrimitive(Register heap_object,
@@ -3910,7 +4097,7 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
     Push(Immediate(StackFrame::TypeToMarker(type)));
   }
 #if V8_ENABLE_WEBASSEMBLY
-  if (type == StackFrame::WASM) Push(kWasmInstanceRegister);
+  if (type == StackFrame::WASM) Push(kWasmImplicitArgRegister);
 #endif  // V8_ENABLE_WEBASSEMBLY
 }
 

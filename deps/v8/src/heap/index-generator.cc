@@ -21,7 +21,7 @@ std::optional<size_t> IndexGenerator::GetNext() {
     first_use_ = false;
     return 0;
   }
-  if (ranges_to_split_.empty()) return base::nullopt;
+  if (ranges_to_split_.empty()) return std::nullopt;
 
   // Split the oldest running range in 2 and return the middle index as
   // starting point.

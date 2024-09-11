@@ -5,6 +5,7 @@
 #include "src/objects/backing-store.h"
 
 #include <cstring>
+#include <optional>
 
 #include "src/base/bits.h"
 #include "src/execution/isolate.h"
@@ -26,8 +27,7 @@
     if (v8_flags.trace_backing_store) PrintF(__VA_ARGS__); \
   } while (false)
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 namespace {
 
@@ -471,9 +471,9 @@ std::unique_ptr<BackingStore> BackingStore::CopyWasmMemory(
 }
 
 // Try to grow the size of a wasm memory in place, without realloc + copy.
-base::Optional<size_t> BackingStore::GrowWasmMemoryInPlace(Isolate* isolate,
-                                                           size_t delta_pages,
-                                                           size_t max_pages) {
+std::optional<size_t> BackingStore::GrowWasmMemoryInPlace(Isolate* isolate,
+                                                          size_t delta_pages,
+                                                          size_t max_pages) {
   // This function grows wasm memory by
   // * changing the permissions of additional {delta_pages} pages to kReadWrite;
   // * increment {byte_length_};
@@ -911,7 +911,6 @@ void GlobalBackingStoreRegistry::UpdateSharedWasmMemoryObjects(
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #undef TRACE_BS

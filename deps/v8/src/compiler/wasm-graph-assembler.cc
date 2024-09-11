@@ -307,13 +307,12 @@ Node* WasmGraphAssembler::LoadFixedArrayElement(Node* fixed_array,
   return LoadFromObject(type, fixed_array, offset);
 }
 
-Node* WasmGraphAssembler::LoadWeakArrayListElement(Node* fixed_array,
-                                                   Node* index_intptr,
-                                                   MachineType type) {
-  Node* offset = IntAdd(
-      IntMul(index_intptr, IntPtrConstant(kTaggedSize)),
-      IntPtrConstant(wasm::ObjectAccess::ToTagged(WeakArrayList::kHeaderSize)));
-  return LoadFromObject(type, fixed_array, offset);
+Node* WasmGraphAssembler::LoadWeakFixedArrayElement(Node* fixed_array,
+                                                    Node* index_intptr) {
+  Node* offset = IntAdd(IntMul(index_intptr, IntPtrConstant(kTaggedSize)),
+                        IntPtrConstant(wasm::ObjectAccess::ToTagged(
+                            WeakFixedArray::kHeaderSize)));
+  return LoadFromObject(MachineType::AnyTagged(), fixed_array, offset);
 }
 
 Node* WasmGraphAssembler::LoadImmutableFixedArrayElement(Node* fixed_array,
@@ -353,21 +352,6 @@ Node* WasmGraphAssembler::LoadByteArrayElement(Node* byte_array,
       IntMul(index_intptr, IntPtrConstant(element_size)),
       IntPtrConstant(wasm::ObjectAccess::ToTagged(ByteArray::kHeaderSize)));
   return LoadFromObject(type, byte_array, offset);
-}
-
-Node* WasmGraphAssembler::LoadExternalPointerArrayElement(
-    Node* array, Node* index_intptr, ExternalPointerTag tag,
-    Node* isolate_root) {
-  Node* offset = IntAdd(
-      IntMul(index_intptr, IntPtrConstant(kExternalPointerSlotSize)),
-      IntPtrConstant(
-          wasm::ObjectAccess::ToTagged(ExternalPointerArray::kHeaderSize)));
-#ifdef V8_ENABLE_SANDBOX
-  Node* handle = LoadFromObject(MachineType::Uint32(), array, offset);
-  return BuildDecodeSandboxedExternalPointer(handle, tag, isolate_root);
-#else
-  return LoadFromObject(MachineType::Pointer(), array, offset);
-#endif
 }
 
 Node* WasmGraphAssembler::LoadImmutableTrustedPointerFromObject(
@@ -428,15 +412,11 @@ Node* WasmGraphAssembler::LoadContextFromJSFunction(Node* js_function) {
 
 Node* WasmGraphAssembler::LoadFunctionDataFromJSFunction(Node* js_function) {
   Node* shared = LoadSharedFunctionInfo(js_function);
-#if V8_ENABLE_SANDBOX
-    static constexpr int kOffset =
-        SharedFunctionInfo::kTrustedFunctionDataOffset;
-#else
-    static constexpr int kOffset = SharedFunctionInfo::kFunctionDataOffset;
-#endif
-  return LoadTrustedPointerFromObject(shared,
-                                      wasm::ObjectAccess::ToTagged(kOffset),
-                                      kWasmFunctionDataIndirectPointerTag);
+  return LoadTrustedPointerFromObject(
+      shared,
+      wasm::ObjectAccess::ToTagged(
+          SharedFunctionInfo::kTrustedFunctionDataOffset),
+      kWasmFunctionDataIndirectPointerTag);
 }
 
 Node* WasmGraphAssembler::LoadExportedFunctionIndexAsSmi(

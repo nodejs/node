@@ -446,6 +446,94 @@ void CheckFloat16LaneResult(float x, float y, float z, uint16_t expected,
   }
 }
 
+void RunF16x8UnOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
+                      HalfUnOp expected_op, bool exact) {
+  WasmRunner<int32_t, float> r(execution_tier);
+  // Global to hold output.
+  uint16_t* g = r.builder().AddGlobal<uint16_t>(kWasmS128);
+  // Build fn to splat test value, perform unop, and write the result.
+  uint8_t value = 0;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  r.Build({WASM_LOCAL_SET(temp1, WASM_SIMD_F16x8_SPLAT(WASM_LOCAL_GET(value))),
+           WASM_GLOBAL_SET(0, WASM_SIMD_UNOP(opcode, WASM_LOCAL_GET(temp1))),
+           WASM_ONE});
+
+  FOR_FLOAT32_INPUTS(x) {
+    if (!PlatformCanRepresent(x)) continue;
+    // Extreme values have larger errors so skip them for approximation tests.
+    if (!exact && IsExtreme(x)) continue;
+    uint16_t expected = expected_op(fp16_ieee_from_fp32_value(x));
+    if (!PlatformCanRepresent(expected)) continue;
+    r.Call(x);
+    for (int i = 0; i < 8; i++) {
+      uint16_t actual = LANE(g, i);
+      CheckFloat16LaneResult(x, x, expected, actual, exact);
+    }
+  }
+}
+
+void RunF16x8BinOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
+                       HalfBinOp expected_op) {
+  WasmRunner<int32_t, float, float> r(execution_tier);
+  // Global to hold output.
+  uint16_t* g = r.builder().AddGlobal<uint16_t>(kWasmS128);
+  // Build fn to splat test values, perform binop, and write the result.
+  uint8_t value1 = 0, value2 = 1;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  r.Build({WASM_LOCAL_SET(temp1, WASM_SIMD_F16x8_SPLAT(WASM_LOCAL_GET(value1))),
+           WASM_LOCAL_SET(temp2, WASM_SIMD_F16x8_SPLAT(WASM_LOCAL_GET(value2))),
+           WASM_GLOBAL_SET(0, WASM_SIMD_BINOP(opcode, WASM_LOCAL_GET(temp1),
+                                              WASM_LOCAL_GET(temp2))),
+           WASM_ONE});
+
+  FOR_FLOAT32_INPUTS(x) {
+    if (!PlatformCanRepresent(x)) continue;
+    FOR_FLOAT32_INPUTS(y) {
+      if (!PlatformCanRepresent(y)) continue;
+      uint16_t expected = expected_op(fp16_ieee_from_fp32_value(x),
+                                      fp16_ieee_from_fp32_value(y));
+      if (!PlatformCanRepresent(expected)) continue;
+      r.Call(x, y);
+      for (int i = 0; i < 8; i++) {
+        uint16_t actual = LANE(g, i);
+        CheckFloat16LaneResult(x, y, expected, actual, true /* exact */);
+      }
+    }
+  }
+}
+
+void RunF16x8CompareOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
+                           HalfCompareOp expected_op) {
+  WasmRunner<int32_t, float, float> r(execution_tier);
+  // Set up global to hold mask output.
+  int16_t* g = r.builder().AddGlobal<int16_t>(kWasmS128);
+  // Build fn to splat test values, perform compare op, and write the result.
+  uint8_t value1 = 0, value2 = 1;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  r.Build({WASM_LOCAL_SET(temp1, WASM_SIMD_F16x8_SPLAT(WASM_LOCAL_GET(value1))),
+           WASM_LOCAL_SET(temp2, WASM_SIMD_F16x8_SPLAT(WASM_LOCAL_GET(value2))),
+           WASM_GLOBAL_SET(0, WASM_SIMD_BINOP(opcode, WASM_LOCAL_GET(temp1),
+                                              WASM_LOCAL_GET(temp2))),
+           WASM_ONE});
+
+  FOR_FLOAT32_INPUTS(x) {
+    if (!PlatformCanRepresent(x)) continue;
+    FOR_FLOAT32_INPUTS(y) {
+      if (!PlatformCanRepresent(y)) continue;
+      float diff = x - y;  // Model comparison as subtraction.
+      if (!PlatformCanRepresent(diff)) continue;
+      r.Call(x, y);
+      int16_t expected = expected_op(fp16_ieee_from_fp32_value(x),
+                                     fp16_ieee_from_fp32_value(y));
+      for (int i = 0; i < 8; i++) {
+        CHECK_EQ(expected, LANE(g, i));
+      }
+    }
+  }
+}
+
 bool IsExtreme(float x) {
   float abs_x = std::fabs(x);
   const float kSmallFloatThreshold = 1.0e-32f;
@@ -872,7 +960,7 @@ void RunI16x16UnOpRevecTest(WasmOpcode opcode, Int16UnOp expected_op,
   if (!CpuFeatures::IsSupported(AVX2)) return;
   WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
   int16_t* memory = r.builder().AddMemoryElems<int16_t>(32);
-  // Build fn to load a I16x16 vector with test value, perform unop, and write
+  // Build fn to load an I16x16 vector with test value, perform unop, and write
   // the result to another array.
   uint8_t param1 = 0;
   uint8_t param2 = 1;
@@ -1035,7 +1123,7 @@ void RunI32x8UnOpRevecTest(WasmOpcode opcode, Int32UnOp expected_op,
   if (!CpuFeatures::IsSupported(AVX2)) return;
   WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
   int32_t* memory = r.builder().AddMemoryElems<int32_t>(16);
-  // Build fn to load a I32x8 vector with test value, perform unop, and write
+  // Build fn to load an I32x8 vector with test value, perform unop, and write
   // the result to another array.
   uint8_t param1 = 0;
   uint8_t param2 = 1;
@@ -1598,7 +1686,7 @@ void RunI8x32UnOpRevecTest(WasmOpcode opcode, Int8UnOp expected_op,
   if (!CpuFeatures::IsSupported(AVX2)) return;
   WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
   int8_t* memory = r.builder().AddMemoryElems<int8_t>(64);
-  // Build fn to load a I8x32 vector with test value, perform unop, and write
+  // Build fn to load an I8x32 vector with test value, perform unop, and write
   // the result to another array.
   uint8_t param1 = 0;
   uint8_t param2 = 1;

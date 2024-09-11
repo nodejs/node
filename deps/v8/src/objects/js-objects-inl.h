@@ -5,6 +5,8 @@
 #ifndef V8_OBJECTS_JS_OBJECTS_INL_H_
 #define V8_OBJECTS_JS_OBJECTS_INL_H_
 
+#include <optional>
+
 #include "src/common/globals.h"
 #include "src/heap/heap-write-barrier.h"
 #include "src/objects/dictionary.h"
@@ -33,8 +35,7 @@
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 #include "torque-generated/src/objects/js-objects-tq-inl.inc"
 
@@ -245,7 +246,7 @@ void JSObject::EnsureCanContainElements(Handle<JSObject> object,
 }
 
 void JSObject::SetMapAndElements(DirectHandle<JSObject> object,
-                                 Handle<Map> new_map,
+                                 DirectHandle<Map> new_map,
                                  DirectHandle<FixedArrayBase> value) {
   Isolate* isolate = object->GetIsolate();
   JSObject::MigrateToMap(isolate, object, new_map);
@@ -394,7 +395,7 @@ Tagged<JSAny> JSObject::RawFastPropertyAt(PtrComprCageBase cage_base,
   }
 }
 
-base::Optional<Tagged<Object>> JSObject::RawInobjectPropertyAt(
+std::optional<Tagged<Object>> JSObject::RawInobjectPropertyAt(
     PtrComprCageBase cage_base, Tagged<Map> original_map,
     FieldIndex index) const {
   CHECK(index.is_inobject());
@@ -710,20 +711,19 @@ DEF_GETTER(JSObject, GetElementsKind, ElementsKind) {
   if (ElementsAreSafeToExamine(cage_base)) {
     Tagged<Map> map = fixed_array->map(cage_base);
     if (IsSmiOrObjectElementsKind(kind)) {
-      DCHECK(map == GetReadOnlyRoots(cage_base).fixed_array_map() ||
-             map == GetReadOnlyRoots(cage_base).fixed_cow_array_map());
+      CHECK(map == GetReadOnlyRoots(cage_base).fixed_array_map() ||
+            map == GetReadOnlyRoots(cage_base).fixed_cow_array_map());
     } else if (IsDoubleElementsKind(kind)) {
-      DCHECK(IsFixedDoubleArray(fixed_array, cage_base) ||
-             fixed_array == GetReadOnlyRoots(cage_base).empty_fixed_array());
+      CHECK(IsFixedDoubleArray(fixed_array, cage_base) ||
+            fixed_array == GetReadOnlyRoots(cage_base).empty_fixed_array());
     } else if (kind == DICTIONARY_ELEMENTS) {
-      DCHECK(IsFixedArray(fixed_array, cage_base));
-      DCHECK(IsNumberDictionary(fixed_array, cage_base));
+      CHECK(IsFixedArray(fixed_array, cage_base));
+      CHECK(IsNumberDictionary(fixed_array, cage_base));
     } else {
-      DCHECK(kind > DICTIONARY_ELEMENTS ||
-             IsAnyNonextensibleElementsKind(kind));
+      CHECK(kind > DICTIONARY_ELEMENTS || IsAnyNonextensibleElementsKind(kind));
     }
-    DCHECK(!IsSloppyArgumentsElementsKind(kind) ||
-           IsSloppyArgumentsElements(elements(cage_base)));
+    CHECK_IMPLIES(IsSloppyArgumentsElementsKind(kind),
+                  IsSloppyArgumentsElements(elements(cage_base)));
   }
 #endif
   return kind;
@@ -906,7 +906,7 @@ DEF_GETTER(JSReceiver, property_array, Tagged<PropertyArray>) {
   return Cast<PropertyArray>(prop);
 }
 
-base::Optional<Tagged<NativeContext>> JSReceiver::GetCreationContext() {
+std::optional<Tagged<NativeContext>> JSReceiver::GetCreationContext() {
   DisallowGarbageCollection no_gc;
   Tagged<Map> meta_map = map()->map();
   DCHECK(IsMapMap(meta_map));
@@ -918,7 +918,7 @@ base::Optional<Tagged<NativeContext>> JSReceiver::GetCreationContext() {
 
 MaybeHandle<NativeContext> JSReceiver::GetCreationContext(Isolate* isolate) {
   DisallowGarbageCollection no_gc;
-  base::Optional<Tagged<NativeContext>> maybe_context = GetCreationContext();
+  std::optional<Tagged<NativeContext>> maybe_context = GetCreationContext();
   if (!maybe_context.has_value()) return {};
   return handle(maybe_context.value(), isolate);
 }
@@ -1041,8 +1041,7 @@ static inline bool ShouldConvertToSlowElements(Tagged<JSObject> object,
                                      *new_capacity);
 }
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #include "src/objects/object-macros-undef.h"
 

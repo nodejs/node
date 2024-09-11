@@ -5,6 +5,8 @@
 #ifndef V8_MAGLEV_MAGLEV_INTERPRETER_FRAME_STATE_H_
 #define V8_MAGLEV_MAGLEV_INTERPRETER_FRAME_STATE_H_
 
+#include <optional>
+
 #include "src/base/threaded-list.h"
 #include "src/compiler/bytecode-analysis.h"
 #include "src/compiler/bytecode-liveness-map.h"
@@ -217,15 +219,17 @@ class NodeInfo {
   }
 
   void SetPossibleMaps(const PossibleMaps& possible_maps,
-                       bool any_map_is_unstable, NodeType possible_type) {
+                       bool any_map_is_unstable, NodeType possible_type,
+                       compiler::JSHeapBroker* broker) {
     possible_maps_ = possible_maps;
     possible_maps_are_known_ = true;
     any_map_is_unstable_ = any_map_is_unstable;
 #ifdef DEBUG
     if (possible_maps.size()) {
-      NodeType expected = StaticTypeForMap(*possible_maps.begin());
+      NodeType expected = StaticTypeForMap(*possible_maps.begin(), broker);
       for (auto map : possible_maps) {
-        expected = maglev::IntersectType(StaticTypeForMap(map), expected);
+        expected =
+            maglev::IntersectType(StaticTypeForMap(map, broker), expected);
       }
       // Ensure the claimed type is not narrower than what can be learned from
       // the map checks.
@@ -287,6 +291,8 @@ struct KnownNodeAspects {
   KnownNodeAspects* CloneForLoopHeader(Zone* zone,
                                        bool optimistic_initial_state,
                                        LoopEffects* loop_effects) const;
+
+  void ClearUnstableNodeAspects();
 
   void ClearUnstableMaps() {
     // A side effect could change existing objects' maps. For stable maps we
@@ -369,18 +375,27 @@ struct KnownNodeAspects {
       // kName must be zero so that pointers are unaffected.
       kName = 0,
       kElements,
-      kTypedArrayLength
+      kTypedArrayLength,
+      // TODO(leszeks): We could probably share kStringLength with
+      // kTypedArrayLength if needed.
+      kStringLength
     };
     static constexpr int kTypeMask = 0x3;
     static_assert((kName & ~kTypeMask) == 0);
+    static_assert((kElements & ~kTypeMask) == 0);
     static_assert((kTypedArrayLength & ~kTypeMask) == 0);
+    static_assert((kStringLength & ~kTypeMask) == 0);
+
+    static LoadedPropertyMapKey Elements() {
+      return LoadedPropertyMapKey(kElements);
+    }
 
     static LoadedPropertyMapKey TypedArrayLength() {
       return LoadedPropertyMapKey(kTypedArrayLength);
     }
 
-    static LoadedPropertyMapKey Elements() {
-      return LoadedPropertyMapKey(kElements);
+    static LoadedPropertyMapKey StringLength() {
+      return LoadedPropertyMapKey(kStringLength);
     }
 
     // Allow implicit conversion from NameRef to key, so that callers in the
@@ -726,6 +741,7 @@ class CompactInterpreterFrameState {
 
 class MergePointRegisterState {
 #ifdef V8_ENABLE_MAGLEV
+
  public:
   bool is_initialized() const { return values_[0].GetPayload().is_initialized; }
 
@@ -791,6 +807,7 @@ class MergePointInterpreterFrameState {
                       InterpreterFrameState& unmerged, BasicBlock* predecessor,
                       bool optimistic_initial_state = false,
                       LoopEffects* loop_effects = nullptr);
+  void InitializeWithBasicBlock(BasicBlock* current_block);
 
   // Merges an unmerged framestate with a possibly merged framestate into |this|
   // framestate.
@@ -801,6 +818,8 @@ class MergePointInterpreterFrameState {
                  MaglevCompilationUnit& compilation_unit,
                  InterpreterFrameState& loop_end_state,
                  BasicBlock* loop_end_block);
+  void set_loop_effects(LoopEffects* loop_effects);
+  const LoopEffects* loop_effects();
   // Merges a frame-state that might not be mergable, in which case we need to
   // re-compile the loop again. Calls FinishBlock only if the merge succeeded.
   bool TryMergeLoop(MaglevGraphBuilder* graph_builder,
@@ -931,11 +950,14 @@ class MergePointInterpreterFrameState {
   DeoptFrame* backedge_deopt_frame() const { return backedge_deopt_frame_; }
 
   const compiler::LoopInfo* loop_info() const {
-    DCHECK(loop_info_.has_value());
-    return loop_info_.value();
+    DCHECK(loop_metadata_.has_value());
+    DCHECK_NOT_NULL(loop_metadata_->loop_info);
+    return loop_metadata_->loop_info;
   }
-  void ClearLoopInfo() { loop_info_.reset(); }
-  bool HasLoopInfo() const { return loop_info_.has_value(); }
+  void ClearLoopInfo() { loop_metadata_->loop_info = nullptr; }
+  bool HasLoopInfo() const {
+    return loop_metadata_.has_value() && loop_metadata_->loop_info;
+  }
 
   interpreter::Register catch_block_context_register() const {
     DCHECK(is_exception_handler());
@@ -1008,9 +1030,10 @@ class MergePointInterpreterFrameState {
                           const KnownNodeAspects& unmerged_aspects,
                           VirtualObject* merged, VirtualObject* unmerged);
 
-  ValueNode* MergeVirtualObjectValue(const MaglevGraphBuilder* graph_builder,
-                                     const KnownNodeAspects& unmerged_aspects,
-                                     ValueNode* merged, ValueNode* unmerged);
+  std::optional<ValueNode*> MergeVirtualObjectValue(
+      const MaglevGraphBuilder* graph_builder,
+      const KnownNodeAspects& unmerged_aspects, ValueNode* merged,
+      ValueNode* unmerged);
 
   void MergeLoopValue(MaglevGraphBuilder* graph_builder,
                       interpreter::Register owner,
@@ -1057,21 +1080,53 @@ class MergePointInterpreterFrameState {
     interpreter::Register catch_block_context_register_;
   };
 
-  base::Optional<const compiler::LoopInfo*> loop_info_ = base::nullopt;
+  struct LoopMetadata {
+    const compiler::LoopInfo* loop_info;
+    const LoopEffects* loop_effects;
+  };
+  std::optional<LoopMetadata> loop_metadata_ = std::nullopt;
 };
 
 struct LoopEffects {
-  explicit LoopEffects(Zone* zone)
-      : context_slot_written(zone), objects_written(zone), keys_cleared(zone) {}
+  explicit LoopEffects(int loop_header, Zone* zone)
+      :
+#ifdef DEBUG
+        loop_header(loop_header),
+#endif
+        context_slot_written(zone),
+        objects_written(zone),
+        keys_cleared(zone),
+        allocations(zone) {
+  }
+#ifdef DEBUG
+  int loop_header;
+#endif
   ZoneSet<KnownNodeAspects::LoadedContextSlotsKey> context_slot_written;
   ZoneSet<ValueNode*> objects_written;
   ZoneSet<KnownNodeAspects::LoadedPropertyMapKey> keys_cleared;
+  ZoneSet<InlinedAllocation*> allocations;
   bool unstable_aspects_cleared = false;
+  bool may_have_aliasing_contexts = false;
   void Clear() {
     context_slot_written.clear();
     objects_written.clear();
     keys_cleared.clear();
+    allocations.clear();
     unstable_aspects_cleared = false;
+  }
+  void Merge(const LoopEffects* other) {
+    if (!unstable_aspects_cleared) {
+      unstable_aspects_cleared = other->unstable_aspects_cleared;
+    }
+    if (!may_have_aliasing_contexts) {
+      may_have_aliasing_contexts = other->may_have_aliasing_contexts;
+    }
+    context_slot_written.insert(other->context_slot_written.begin(),
+                                other->context_slot_written.end());
+    objects_written.insert(other->objects_written.begin(),
+                           other->objects_written.end());
+    keys_cleared.insert(other->keys_cleared.begin(), other->keys_cleared.end());
+    allocations.insert(other->allocations.begin(), other->allocations.end());
   }
 };
 

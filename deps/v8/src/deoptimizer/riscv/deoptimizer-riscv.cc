@@ -10,6 +10,11 @@ namespace internal {
 const int Deoptimizer::kEagerDeoptExitSize = 2 * kInstrSize;
 const int Deoptimizer::kLazyDeoptExitSize = 2 * kInstrSize;
 
+// static
+void Deoptimizer::PatchJumpToTrampoline(Address pc, Address new_pc) {
+  UNREACHABLE();
+}
+
 Float32 RegisterValues::GetFloatRegister(unsigned n) const {
   return Float32::FromBits(
       static_cast<uint32_t>(double_registers_[n].get_bits()));
@@ -37,9 +42,7 @@ void FrameDescription::SetCallerConstantPool(unsigned offset, intptr_t value) {
   UNREACHABLE();
 }
 
-void FrameDescription::SetPc(intptr_t pc, bool skip_validity_check) {
-  pc_ = pc;
-}
+void FrameDescription::SetPc(intptr_t pc) { pc_ = pc; }
 
 }  // namespace internal
 }  // namespace v8

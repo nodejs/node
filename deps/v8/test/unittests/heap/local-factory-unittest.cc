@@ -116,7 +116,7 @@ class LocalFactoryTest : public TestWithIsolateAndZone {
 TEST_F(LocalFactoryTest, OneByteInternalizedString_IsAddedToStringTable) {
   base::Vector<const uint8_t> string_vector = base::StaticOneByteVector("foo");
 
-  Handle<String> string;
+  DirectHandle<String> string;
   {
     LocalHandleScope handle_scope(local_isolate());
 
@@ -144,8 +144,8 @@ TEST_F(LocalFactoryTest, OneByteInternalizedString_IsAddedToStringTable) {
 TEST_F(LocalFactoryTest, OneByteInternalizedString_DuplicateIsDeduplicated) {
   base::Vector<const uint8_t> string_vector = base::StaticOneByteVector("foo");
 
-  Handle<String> string_1;
-  Handle<String> string_2;
+  DirectHandle<String> string_1;
+  DirectHandle<String> string_2;
   {
     LocalHandleScope handle_scope(local_isolate());
 
@@ -169,7 +169,7 @@ TEST_F(LocalFactoryTest, AstRawString_IsInternalized) {
 
   const AstRawString* raw_string = ast_value_factory.GetOneByteString("foo");
 
-  Handle<String> string;
+  DirectHandle<String> string;
   {
     LocalHandleScope handle_scope(local_isolate());
 
@@ -186,7 +186,7 @@ TEST_F(LocalFactoryTest, AstConsString_CreatesConsString) {
   AstValueFactory ast_value_factory(zone(), isolate()->ast_string_constants(),
                                     HashSeed(isolate()));
 
-  Handle<String> string;
+  DirectHandle<String> string;
   {
     LocalHandleScope handle_scope(local_isolate());
 
@@ -210,7 +210,7 @@ TEST_F(LocalFactoryTest, AstConsString_CreatesConsString) {
 TEST_F(LocalFactoryTest, EmptyScript) {
   FunctionLiteral* program = ParseProgram("");
 
-  Handle<SharedFunctionInfo> shared;
+  DirectHandle<SharedFunctionInfo> shared;
   {
     LocalHandleScope handle_scope(local_isolate());
 
@@ -231,7 +231,7 @@ TEST_F(LocalFactoryTest, LazyFunction) {
                               ->AsFunctionDeclaration()
                               ->fun();
 
-  Handle<SharedFunctionInfo> shared;
+  DirectHandle<SharedFunctionInfo> shared;
   {
     LocalHandleScope handle_scope(local_isolate());
 
@@ -257,7 +257,7 @@ TEST_F(LocalFactoryTest, EagerFunction) {
                                ->value()
                                ->AsFunctionLiteral();
 
-  Handle<SharedFunctionInfo> shared;
+  DirectHandle<SharedFunctionInfo> shared;
   {
     LocalHandleScope handle_scope(local_isolate());
 
@@ -288,7 +288,7 @@ TEST_F(LocalFactoryTest, ImplicitNameFunction) {
                                        ->value()
                                        ->AsFunctionLiteral();
 
-  Handle<SharedFunctionInfo> shared;
+  DirectHandle<SharedFunctionInfo> shared;
   {
     LocalHandleScope handle_scope(local_isolate());
 
@@ -316,7 +316,7 @@ TEST_F(LocalFactoryTest, GCDuringPublish) {
                                        ->value()
                                        ->AsFunctionLiteral();
 
-  Handle<SharedFunctionInfo> shared;
+  DirectHandle<SharedFunctionInfo> shared;
   {
     LocalHandleScope handle_scope(local_isolate());
 

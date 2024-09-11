@@ -13,9 +13,11 @@
 
 namespace v8::internal {
 
+#include "src/codegen/define-code-stub-assembler-macros.inc"
+
 TNode<WasmTrustedInstanceData>
 WasmBuiltinsAssembler::LoadInstanceDataFromFrame() {
-  return CAST(LoadFromParentFrame(WasmFrameConstants::kWasmInstanceOffset));
+  return CAST(LoadFromParentFrame(WasmFrameConstants::kWasmInstanceDataOffset));
 }
 
 TNode<WasmTrustedInstanceData>
@@ -28,32 +30,32 @@ WasmBuiltinsAssembler::LoadTrustedDataFromInstance(
 
 TNode<NativeContext> WasmBuiltinsAssembler::LoadContextFromWasmOrJsFrame() {
   static_assert(BuiltinFrameConstants::kFunctionOffset ==
-                WasmFrameConstants::kWasmInstanceOffset);
+                WasmFrameConstants::kWasmInstanceDataOffset);
   TVARIABLE(NativeContext, context_result);
   TNode<HeapObject> function_or_instance =
-      CAST(LoadFromParentFrame(WasmFrameConstants::kWasmInstanceOffset));
-  Label js(this);
-  Label apifunc(this);
+      CAST(LoadFromParentFrame(WasmFrameConstants::kWasmInstanceDataOffset));
+  Label is_js_function(this);
+  Label is_import_data(this);
   Label done(this);
   TNode<Uint16T> instance_type =
       LoadMapInstanceType(LoadMap(function_or_instance));
-  GotoIf(IsJSFunctionInstanceType(instance_type), &js);
-  GotoIf(Word32Equal(instance_type, Int32Constant(WASM_API_FUNCTION_REF_TYPE)),
-         &apifunc);
+  GotoIf(IsJSFunctionInstanceType(instance_type), &is_js_function);
+  GotoIf(Word32Equal(instance_type, Int32Constant(WASM_IMPORT_DATA_TYPE)),
+         &is_import_data);
   context_result = LoadContextFromInstanceData(CAST(function_or_instance));
   Goto(&done);
 
-  BIND(&js);
+  BIND(&is_js_function);
   TNode<JSFunction> function = CAST(function_or_instance);
   TNode<Context> context =
       LoadObjectField<Context>(function, JSFunction::kContextOffset);
   context_result = LoadNativeContext(context);
   Goto(&done);
 
-  BIND(&apifunc);
-  TNode<WasmApiFunctionRef> apiref = CAST(function_or_instance);
+  BIND(&is_import_data);
+  TNode<WasmImportData> import_data = CAST(function_or_instance);
   context_result = LoadObjectField<NativeContext>(
-      apiref, WasmApiFunctionRef::kNativeContextOffset);
+      import_data, WasmImportData::kNativeContextOffset);
   Goto(&done);
 
   BIND(&done);
@@ -161,19 +163,21 @@ TF_BUILTIN(JSToWasmLazyDeoptContinuation, WasmBuiltinsAssembler) {
 
 TF_BUILTIN(WasmToJsWrapperCSA, WasmBuiltinsAssembler) {
   TorqueStructWasmToJSResult result = WasmToJSWrapper(
-      UncheckedParameter<WasmApiFunctionRef>(Descriptor::kWasmApiFunctionRef));
+      UncheckedParameter<WasmImportData>(Descriptor::kWasmImportData));
   PopAndReturn(result.popCount, result.result0, result.result1, result.result2,
                result.result3);
 }
 
 TF_BUILTIN(WasmToJsWrapperInvalidSig, WasmBuiltinsAssembler) {
-  TNode<WasmApiFunctionRef> ref =
-      UncheckedParameter<WasmApiFunctionRef>(Descriptor::kWasmApiFunctionRef);
+  TNode<WasmImportData> data =
+      UncheckedParameter<WasmImportData>(Descriptor::kWasmImportData);
   TNode<Context> context =
-      LoadObjectField<Context>(ref, WasmApiFunctionRef::kNativeContextOffset);
+      LoadObjectField<Context>(data, WasmImportData::kNativeContextOffset);
 
   CallRuntime(Runtime::kWasmThrowJSTypeError, context);
   Unreachable();
 }
+
+#include "src/codegen/undef-code-stub-assembler-macros.inc"
 
 }  // namespace v8::internal

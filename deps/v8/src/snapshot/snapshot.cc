@@ -242,8 +242,12 @@ void Snapshot::ClearReconstructableDataForSerialization(
           }
         } else if (IsJSRegExp(o, cage_base)) {
           i::Tagged<i::JSRegExp> regexp = i::Cast<i::JSRegExp>(o);
-          if (regexp->HasCompiledCode()) {
-            regexp->DiscardCompiledCodeForSerialization();
+          if (regexp->has_data()) {
+            i::Tagged<i::RegExpData> data = regexp->data(isolate);
+            if (data->HasCompiledCode()) {
+              DCHECK(Is<IrRegExpData>(regexp->data(isolate)));
+              Cast<IrRegExpData>(data)->DiscardCompiledCodeForSerialization();
+            }
           }
         }
       }
@@ -251,10 +255,10 @@ void Snapshot::ClearReconstructableDataForSerialization(
 
 #if V8_ENABLE_WEBASSEMBLY
     // Clear the cached js-to-wasm wrappers.
-    DirectHandle<WeakArrayList> wrappers(isolate->heap()->js_to_wasm_wrappers(),
-                                         isolate);
-    for (int i = 0; i < wrappers->length(); ++i) {
-      wrappers->Set(i, Tagged<MaybeObject>{});
+    DirectHandle<WeakFixedArray> wrappers(
+        isolate->heap()->js_to_wasm_wrappers(), isolate);
+    for (int i = 0, e = wrappers->length(); i < e; ++i) {
+      wrappers->set(i, Tagged<MaybeObject>{});
     }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -284,7 +288,7 @@ void Snapshot::ClearReconstructableDataForSerialization(
 
       // Also, clear out feedback vectors and recompilable code.
       if (fun->CanDiscardCompiled(isolate)) {
-        fun->set_code(*BUILTIN_CODE(isolate, CompileLazy));
+        fun->UpdateCode(*BUILTIN_CODE(isolate, CompileLazy));
       }
       if (!IsUndefined(fun->raw_feedback_cell(cage_base)->value(cage_base))) {
         fun->raw_feedback_cell(cage_base)->set_value(

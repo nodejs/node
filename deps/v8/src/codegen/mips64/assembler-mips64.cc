@@ -534,7 +534,7 @@ bool Assembler::IsMov(Instr instr, Register rd, Register rs) {
   uint32_t rd_reg = static_cast<uint32_t>(rd.code());
   uint32_t rs_reg = static_cast<uint32_t>(rs.code());
   uint32_t function_field = GetFunctionField(instr);
-  // Checks if the instruction is a OR with zero_reg argument (aka MOV).
+  // Checks if the instruction is an OR with zero_reg argument (aka MOV).
   bool res = opcode == SPECIAL && function_field == OR && rd_field == rd_reg &&
              rs_field == rs_reg && rt_field == 0;
   return res;

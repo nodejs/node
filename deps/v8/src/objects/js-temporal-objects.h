@@ -1092,9 +1092,9 @@ MaybeHandle<JSTemporalTimeZone> CreateTemporalTimeZone(
 // #sec-temporal-createtemporalinstant
 V8_WARN_UNUSED_RESULT MaybeHandle<JSTemporalInstant> CreateTemporalInstant(
     Isolate* isolate, Handle<JSFunction> target, Handle<HeapObject> new_target,
-    Handle<BigInt> epoch_nanoseconds);
+    DirectHandle<BigInt> epoch_nanoseconds);
 V8_WARN_UNUSED_RESULT MaybeHandle<JSTemporalInstant> CreateTemporalInstant(
-    Isolate* isolate, Handle<BigInt> epoch_nanoseconds);
+    Isolate* isolate, DirectHandle<BigInt> epoch_nanoseconds);
 
 // #sec-temporal-calendaryear
 #define DECLARE_CALENDAR_ABSTRACT_INT_OPERATION(Name)    \
@@ -1133,7 +1133,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<JSTemporalPlainDateTime>
 BuiltinTimeZoneGetPlainDateTimeFor(Isolate* isolate,
                                    Handle<JSReceiver> time_zone,
                                    Handle<JSTemporalInstant> instant,
-                                   Handle<JSReceiver> calendar,
+                                   DirectHandle<JSReceiver> calendar,
                                    const char* method_name);
 
 V8_WARN_UNUSED_RESULT MaybeHandle<Object> InvokeCalendarMethod(

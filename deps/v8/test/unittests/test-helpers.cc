@@ -50,7 +50,8 @@ Handle<SharedFunctionInfo> CreateSharedFunctionInfo(
   // Make sure we have an outer scope info, even though it's empty
   shared->set_raw_outer_scope_info_or_feedback_metadata(
       ScopeInfo::Empty(isolate));
-  shared->SetScript(ReadOnlyRoots(isolate), *script, function_literal_id);
+  shared->SetScript(isolate, ReadOnlyRoots(isolate), *script,
+                    function_literal_id);
   return scope.CloseAndEscape(shared);
 }
 

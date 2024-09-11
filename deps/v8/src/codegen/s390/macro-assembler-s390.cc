@@ -1531,7 +1531,7 @@ void MacroAssembler::EnterFrame(StackFrame::Type type,
   }
   PushCommonFrame(scratch);
 #if V8_ENABLE_WEBASSEMBLY
-  if (type == StackFrame::WASM) Push(kWasmInstanceRegister);
+  if (type == StackFrame::WASM) Push(kWasmImplicitArgRegister);
 #endif  // V8_ENABLE_WEBASSEMBLY
 }
 
@@ -1932,13 +1932,20 @@ void MacroAssembler::IsObjectType(Register object, Register scratch1,
   CompareObjectType(object, scratch1, scratch2, type);
 }
 
-void MacroAssembler::CompareRange(Register value, unsigned lower_limit,
-                                  unsigned higher_limit) {
+void MacroAssembler::CompareObjectTypeRange(Register object, Register map,
+                                            Register type_reg, Register scratch,
+                                            InstanceType lower_limit,
+                                            InstanceType upper_limit) {
+  ASM_CODE_COMMENT(this);
+  LoadMap(map, object);
+  CompareInstanceTypeRange(map, type_reg, scratch, lower_limit, upper_limit);
+}
+
+void MacroAssembler::CompareRange(Register value, Register scratch,
+                                  unsigned lower_limit, unsigned higher_limit) {
   ASM_CODE_COMMENT(this);
   DCHECK_LT(lower_limit, higher_limit);
   if (lower_limit != 0) {
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
     mov(scratch, value);
     slgfi(scratch, Operand(lower_limit));
     CmpU64(scratch, Operand(higher_limit - lower_limit));
@@ -1948,11 +1955,12 @@ void MacroAssembler::CompareRange(Register value, unsigned lower_limit,
 }
 
 void MacroAssembler::CompareInstanceTypeRange(Register map, Register type_reg,
+                                              Register scratch,
                                               InstanceType lower_limit,
                                               InstanceType higher_limit) {
   DCHECK_LT(lower_limit, higher_limit);
   LoadU16(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
-  CompareRange(type_reg, lower_limit, higher_limit);
+  CompareRange(type_reg, scratch, lower_limit, higher_limit);
 }
 
 void MacroAssembler::CompareRoot(Register obj, RootIndex index) {
@@ -1978,10 +1986,11 @@ void MacroAssembler::CompareTaggedRoot(Register obj, RootIndex index) {
   CompareTagged(obj, MemOperand(kRootRegister, offset));
 }
 
-void MacroAssembler::JumpIfIsInRange(Register value, unsigned lower_limit,
+void MacroAssembler::JumpIfIsInRange(Register value, Register scratch,
+                                     unsigned lower_limit,
                                      unsigned higher_limit,
                                      Label* on_in_range) {
-  CompareRange(value, lower_limit, higher_limit);
+  CompareRange(value, scratch, lower_limit, higher_limit);
   ble(on_in_range);
 }
 
@@ -2427,7 +2436,7 @@ void MacroAssembler::AssertFunction(Register object) {
     Check(ne, AbortReason::kOperandIsASmiAndNotAFunction, cr0);
     push(object);
     LoadMap(object, object);
-    CompareInstanceTypeRange(object, object, FIRST_JS_FUNCTION_TYPE,
+    CompareInstanceTypeRange(object, object, object, FIRST_JS_FUNCTION_TYPE,
                              LAST_JS_FUNCTION_TYPE);
     pop(object);
     Check(le, AbortReason::kOperandIsNotAFunction);
@@ -2442,7 +2451,8 @@ void MacroAssembler::AssertCallableFunction(Register object) {
   Check(ne, AbortReason::kOperandIsASmiAndNotAFunction);
   push(object);
   LoadMap(object, object);
-  CompareInstanceTypeRange(object, object, FIRST_CALLABLE_JS_FUNCTION_TYPE,
+  CompareInstanceTypeRange(object, object, object,
+                           FIRST_CALLABLE_JS_FUNCTION_TYPE,
                            LAST_CALLABLE_JS_FUNCTION_TYPE);
   pop(object);
   Check(le, AbortReason::kOperandIsNotACallableFunction);
@@ -2471,8 +2481,9 @@ void MacroAssembler::AssertGeneratorObject(Register object) {
   LoadMap(map, object);
 
   // Check if JSGeneratorObject
-  Register instance_type = object;
-  CompareInstanceTypeRange(map, instance_type, FIRST_JS_GENERATOR_OBJECT_TYPE,
+  Register scratch = object;
+  CompareInstanceTypeRange(map, scratch, scratch,
+                           FIRST_JS_GENERATOR_OBJECT_TYPE,
                            LAST_JS_GENERATOR_OBJECT_TYPE);
   // Restore generator object to register and perform assertion
   pop(object);

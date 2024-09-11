@@ -56,6 +56,7 @@
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine.h"
+#include "src/wasm/wasm-import-wrapper-cache.h"
 #include "src/wasm/wasm-objects-inl.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -738,8 +739,6 @@ void LowLevelLogger::LogCodeInfo() {
   const char arch[] = "x64";
 #elif V8_TARGET_ARCH_ARM
   const char arch[] = "arm";
-#elif V8_TARGET_ARCH_PPC
-  const char arch[] = "ppc";
 #elif V8_TARGET_ARCH_PPC64
   const char arch[] = "ppc64";
 #elif V8_TARGET_ARCH_LOONG64
@@ -1603,10 +1602,14 @@ void V8FileLogger::CodeCreateEvent(CodeTag tag, const wasm::WasmCode* code,
   // We have to add two extra fields that allow the tick processor to group
   // events for the same wasm function, even if it gets compiled again. For
   // normal JS functions, we use the shared function info. For wasm, the pointer
-  // to the native module + function index works well enough.
+  // to the native module + function index works well enough. For Wasm wrappers,
+  // just use the address of the WasmCode.
   // TODO(herhut) Clean up the tick processor code instead.
-  void* tag_ptr =
-      reinterpret_cast<uint8_t*>(code->native_module()) + code->index();
+  const void* tag_ptr =
+      code->native_module() != nullptr
+          ? reinterpret_cast<uint8_t*>(code->native_module()) + code->index()
+          : reinterpret_cast<const uint8_t*>(code);
+
   msg << kNext << tag_ptr << kNext << ComputeMarker(code);
   msg.WriteToLogFile();
 }
@@ -2107,10 +2110,10 @@ EnumerateCompiledFunctions(Heap* heap) {
       } else if (WasmJSFunction::IsWasmJSFunction(function)) {
         Tagged<WasmInternalFunction> internal_function =
             function->shared()->wasm_js_function_data()->internal();
-        Tagged<WasmApiFunctionRef> api_function_ref =
-            Cast<WasmApiFunctionRef>(internal_function->ref());
+        Tagged<WasmImportData> import_data =
+            Cast<WasmImportData>(internal_function->implicit_arg());
         record(function->shared(),
-               Cast<AbstractCode>(api_function_ref->code(isolate)));
+               Cast<AbstractCode>(import_data->code(isolate)));
 #endif  // V8_ENABLE_WEBASSEMBLY
       }
     }
@@ -2616,6 +2619,7 @@ void ExistingCodeLogger::LogCompiledFunctions(
     module_object->native_module()->LogWasmCodes(isolate_,
                                                  module_object->script());
   }
+  wasm::GetWasmImportWrapperCache()->LogForIsolate(isolate_);
 #endif  // V8_ENABLE_WEBASSEMBLY
 }
 
@@ -2623,7 +2627,7 @@ void ExistingCodeLogger::LogExistingFunction(Handle<SharedFunctionInfo> shared,
                                              Handle<AbstractCode> code,
                                              CodeTag tag) {
   if (IsScript(shared->script())) {
-    Handle<Script> script(Cast<Script>(shared->script()), isolate_);
+    DirectHandle<Script> script(Cast<Script>(shared->script()), isolate_);
     Script::PositionInfo info;
     Script::GetPositionInfo(script, shared->StartPosition(), &info);
     int line_num = info.line + 1;
@@ -2661,7 +2665,7 @@ void ExistingCodeLogger::LogExistingFunction(Handle<SharedFunctionInfo> shared,
       int c_functions_count = fun_data->GetCFunctionsCount();
       for (int i = 0; i < c_functions_count; i++) {
         CALL_CODE_EVENT_HANDLER(
-            CallbackEvent(fun_name, fun_data->GetCFunction(i)))
+            CallbackEvent(fun_name, fun_data->GetCFunction(isolate_, i)))
       }
     }
 #if V8_ENABLE_WEBASSEMBLY

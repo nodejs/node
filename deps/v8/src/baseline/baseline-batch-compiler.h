@@ -24,7 +24,7 @@ class BaselineBatchCompiler {
   explicit BaselineBatchCompiler(Isolate* isolate);
   ~BaselineBatchCompiler();
   // Enqueues SharedFunctionInfo of |function| for compilation.
-  void EnqueueFunction(Handle<JSFunction> function);
+  void EnqueueFunction(DirectHandle<JSFunction> function);
   void EnqueueSFI(Tagged<SharedFunctionInfo> shared);
 
   void set_enabled(bool enabled) { enabled_ = enabled; }
@@ -47,7 +47,7 @@ class BaselineBatchCompiler {
   bool ShouldCompileBatch(Tagged<SharedFunctionInfo> shared);
 
   // Compiles the current batch.
-  void CompileBatch(Handle<JSFunction> function);
+  void CompileBatch(DirectHandle<JSFunction> function);
 
   // Compiles the current batch concurrently.
   void CompileBatchConcurrent(Tagged<SharedFunctionInfo> shared);

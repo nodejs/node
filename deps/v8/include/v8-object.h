@@ -690,14 +690,17 @@ class V8_EXPORT Object : public Value {
   int GetIdentityHash();
 
   /**
-   * Clone this object with a fast but shallow copy.  Values will point
-   * to the same values as the original object.
+   * Clone this object with a fast but shallow copy. Values will point to the
+   * same values as the original object.
+   *
+   * Prefer using version with Isolate parameter.
    */
-  // TODO(dcarney): take an isolate and optionally bail out?
+  Local<Object> Clone(v8::Isolate* isolate);
   Local<Object> Clone();
 
   /**
    * Returns the context in which the object was created.
+   *
    * Prefer using version with Isolate parameter.
    */
   MaybeLocal<Context> GetCreationContext(v8::Isolate* isolate);
@@ -705,6 +708,7 @@ class V8_EXPORT Object : public Value {
 
   /**
    * Shortcut for GetCreationContext(...).ToLocalChecked().
+   *
    * Prefer using version with Isolate parameter.
    **/
   Local<Context> GetCreationContextChecked(v8::Isolate* isolate);

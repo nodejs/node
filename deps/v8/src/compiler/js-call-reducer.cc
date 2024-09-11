@@ -5,6 +5,7 @@
 #include "src/compiler/js-call-reducer.h"
 
 #include <functional>
+#include <optional>
 
 #include "src/base/container-utils.h"
 #include "src/base/small-vector.h"
@@ -272,16 +273,18 @@ class JSCallReducerAssembler : public JSGraphAssembler {
 
   ForBuilder0 ForZeroUntil(TNode<Number> excluded_limit) {
     TNode<Number> initial_value = ZeroConstant();
-    auto cond = [=](TNode<Number> i) {
+    auto cond = [=, this](TNode<Number> i) {
       return NumberLessThan(i, excluded_limit);
     };
-    auto step = [=](TNode<Number> i) { return NumberAdd(i, OneConstant()); };
+    auto step = [=, this](TNode<Number> i) {
+      return NumberAdd(i, OneConstant());
+    };
     return {this, initial_value, cond, step};
   }
 
   ForBuilder0 Forever(TNode<Number> initial_value, const StepFunction1& step) {
-    return {this, initial_value, [=](TNode<Number>) { return TrueConstant(); },
-            step};
+    return {this, initial_value,
+            [=, this](TNode<Number>) { return TrueConstant(); }, step};
   }
 
   using For1BodyFunction = std::function<void(TNode<Number>, TNode<Object>*)>;
@@ -354,10 +357,12 @@ class JSCallReducerAssembler : public JSGraphAssembler {
   ForBuilder1 For1ZeroUntil(TNode<Number> excluded_limit,
                             TNode<Object> initial_arg0) {
     TNode<Number> initial_value = ZeroConstant();
-    auto cond = [=](TNode<Number> i) {
+    auto cond = [=, this](TNode<Number> i) {
       return NumberLessThan(i, excluded_limit);
     };
-    auto step = [=](TNode<Number> i) { return NumberAdd(i, OneConstant()); };
+    auto step = [=, this](TNode<Number> i) {
+      return NumberAdd(i, OneConstant());
+    };
     return {this, initial_value, cond, step, initial_arg0};
   }
 
@@ -872,7 +877,7 @@ TNode<Object> JSCallReducerAssembler::CopyNode() {
 TNode<JSArray> JSCallReducerAssembler::CreateArrayNoThrow(
     TNode<Object> ctor, TNode<Number> size, FrameState frame_state) {
   return AddNode<JSArray>(
-      graph()->NewNode(javascript()->CreateArray(1, base::nullopt), ctor, ctor,
+      graph()->NewNode(javascript()->CreateArray(1, std::nullopt), ctor, ctor,
                        size, ContextInput(), frame_state, effect(), control()));
 }
 
@@ -1752,7 +1757,7 @@ struct MapFrameStateParams {
   TNode<Object> receiver;
   TNode<Object> callback;
   TNode<Object> this_arg;
-  base::Optional<TNode<JSArray>> a;
+  std::optional<TNode<JSArray>> a;
   TNode<Object> original_length;
 };
 
@@ -2701,7 +2706,7 @@ Reduction JSCallReducer::ReduceArrayConstructor(Node* node) {
   NodeProperties::ReplaceValueInput(node, target, 0);
   NodeProperties::ReplaceValueInput(node, target, 1);
   NodeProperties::ChangeOp(node,
-                           javascript()->CreateArray(arity, base::nullopt));
+                           javascript()->CreateArray(arity, std::nullopt));
   return Changed(node);
 }
 
@@ -3821,9 +3826,6 @@ Reduction JSCallReducer::ReduceCallWasmFunction(Node* node,
     return NoChange();
   }
 
-  // Signal TurboFan that it should run the 'wasm-inlining' phase.
-  has_wasm_calls_ = true;
-
   const wasm::WasmModule* wasm_module = shared.wasm_module();
   if (wasm_module_for_inlining_ == nullptr) {
     wasm_module_for_inlining_ = wasm_module;
@@ -3833,10 +3835,13 @@ Reduction JSCallReducer::ReduceCallWasmFunction(Node* node,
   if (shared.object()->HasWasmExportedFunctionData()) {
     // TODO(jkummerow): Introduce a pointer from WasmExportedFunctionData
     // to WasmTrustedInstanceData.
-    Tagged<TrustedObject> ref =
-        shared.object()->wasm_exported_function_data()->internal()->ref();
-    if (!IsWasmTrustedInstanceData(ref)) return NoChange();
-    native_module = Cast<WasmTrustedInstanceData>(ref)->native_module();
+    Tagged<TrustedObject> implicit_arg = shared.object()
+                                             ->wasm_exported_function_data()
+                                             ->internal()
+                                             ->implicit_arg();
+    if (!IsWasmTrustedInstanceData(implicit_arg)) return NoChange();
+    native_module =
+        Cast<WasmTrustedInstanceData>(implicit_arg)->native_module();
   }
   // TODO(mliedtke): We should be able to remove module, signature, native
   // module and function index from the SharedFunctionInfoRef. However, for some
@@ -3877,19 +3882,15 @@ Reduction JSCallReducer::ReduceCallWasmFunction(Node* node,
 // Given a FunctionTemplateInfo, checks whether the fast API call can be
 // optimized, applying the initial step of the overload resolution algorithm:
 // Given an overload set function_template_info.c_signatures, and a list of
-// arguments of size argc:
-// 1. Let max_arg be the length of the longest type list of the entries in
-//    function_template_info.c_signatures.
-// 2. Let argc be the size of the arguments list.
-// 3. Initialize arg_count = min(max_arg, argc).
-// 4. Remove from the set all entries whose type list is not of length
+// arguments of size arg_count:
+// 1. Remove from the set all entries whose type list is not of length
 //    arg_count.
 // Returns an array with the indexes of the remaining entries in S, which
 // represents the set of "optimizable" function overloads.
 
 FastApiCallFunctionVector CanOptimizeFastCall(
     JSHeapBroker* broker, Zone* zone,
-    FunctionTemplateInfoRef function_template_info, size_t argc) {
+    FunctionTemplateInfoRef function_template_info, size_t arg_count) {
   FastApiCallFunctionVector result(zone);
   if (!v8_flags.turbo_fast_api_calls) return result;
 
@@ -3899,18 +3900,6 @@ FastApiCallFunctionVector CanOptimizeFastCall(
   ZoneVector<const CFunctionInfo*> signatures =
       function_template_info.c_signatures(broker);
   const size_t overloads_count = signatures.size();
-
-  // Calculates the length of the longest type list of the entries in
-  // function_template_info.
-  size_t max_arg = 0;
-  for (size_t i = 0; i < overloads_count; i++) {
-    const CFunctionInfo* c_signature = signatures[i];
-    // C arguments should include the receiver at index 0.
-    DCHECK_GE(c_signature->ArgumentCount(), kReceiver);
-    const size_t len = c_signature->ArgumentCount() - kReceiver;
-    if (len > max_arg) max_arg = len;
-  }
-  const size_t arg_count = std::min(max_arg, argc);
 
   // Only considers entries whose type list length matches arg_count.
   for (size_t i = 0; i < overloads_count; i++) {
@@ -4967,6 +4956,12 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
     case Builtin::kDataViewPrototypeGetFloat64:
       return ReduceDataViewAccess(node, DataViewAccess::kGet,
                                   ExternalArrayType::kExternalFloat64Array);
+    case Builtin::kDataViewPrototypeGetBigInt64:
+      return ReduceDataViewAccess(node, DataViewAccess::kGet,
+                                  ExternalArrayType::kExternalBigInt64Array);
+    case Builtin::kDataViewPrototypeGetBigUint64:
+      return ReduceDataViewAccess(node, DataViewAccess::kGet,
+                                  ExternalArrayType::kExternalBigUint64Array);
     case Builtin::kDataViewPrototypeSetUint8:
       return ReduceDataViewAccess(node, DataViewAccess::kSet,
                                   ExternalArrayType::kExternalUint8Array);
@@ -4991,6 +4986,12 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
     case Builtin::kDataViewPrototypeSetFloat64:
       return ReduceDataViewAccess(node, DataViewAccess::kSet,
                                   ExternalArrayType::kExternalFloat64Array);
+    case Builtin::kDataViewPrototypeSetBigInt64:
+      return ReduceDataViewAccess(node, DataViewAccess::kSet,
+                                  ExternalArrayType::kExternalBigInt64Array);
+    case Builtin::kDataViewPrototypeSetBigUint64:
+      return ReduceDataViewAccess(node, DataViewAccess::kSet,
+                                  ExternalArrayType::kExternalBigUint64Array);
     case Builtin::kTypedArrayPrototypeByteLength:
       return ReduceArrayBufferViewByteLengthAccessor(node, JS_TYPED_ARRAY_TYPE);
     case Builtin::kTypedArrayPrototypeByteOffset:
@@ -5205,7 +5206,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-  if ((flags() & kInlineJSToWasmCalls) && shared.wasm_function_signature()) {
+  if ((flags() & kInlineJSToWasmCalls) && shared.wasm_function_signature() &&
+      !shared.is_promising_wasm_export()) {
     return ReduceCallWasmFunction(node, shared);
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -5301,7 +5303,7 @@ Reduction JSCallReducer::ReduceJSCallWithArrayLike(Node* node) {
     return NoChange();
   }
 
-  base::Optional<Reduction> maybe_result =
+  std::optional<Reduction> maybe_result =
       TryReduceJSCallMathMinMaxWithArrayLike(node);
   if (maybe_result.has_value()) {
     return maybe_result.value();
@@ -5438,7 +5440,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
           node->ReplaceInput(n.NewTargetIndex(), new_target);
           node->RemoveInput(n.FeedbackVectorIndex());
           NodeProperties::ChangeOp(
-              node, javascript()->CreateArray(arity, base::nullopt));
+              node, javascript()->CreateArray(arity, std::nullopt));
           return Changed(node);
         }
         case Builtin::kObjectConstructor: {
@@ -7056,7 +7058,7 @@ Reduction JSCallReducer::ReduceStringPrototypeLocaleCompare(Node* node) {
   }
 
   {
-    Handle<Object> locales;
+    DirectHandle<Object> locales;
     {
       HeapObjectMatcher m(n.ArgumentOrUndefined(1, jsgraph()));
       if (!m.HasResolvedValue()) return NoChange();
@@ -7066,7 +7068,7 @@ Reduction JSCallReducer::ReduceStringPrototypeLocaleCompare(Node* node) {
         ObjectRef ref = m.Ref(broker());
         if (!ref.IsString()) return NoChange();
         StringRef sref = ref.AsString();
-        if (base::Optional<Handle<String>> maybe_locales =
+        if (std::optional<Handle<String>> maybe_locales =
                 sref.ObjectIfContentAccessible(broker())) {
           locales = *maybe_locales;
         } else {
@@ -8399,6 +8401,12 @@ Reduction JSCallReducer::ReduceDataViewAccess(Node* node, DataViewAccess access,
   Node* receiver = n.receiver();
   Node* offset = n.ArgumentOr(0, jsgraph()->ZeroConstant());
   Node* value = nullptr;
+
+  if (!Is64() && (element_type == kExternalBigInt64Array ||
+                  element_type == kExternalBigUint64Array)) {
+    return NoChange();
+  }
+
   if (access == DataViewAccess::kSet) {
     value = n.ArgumentOrUndefined(1, jsgraph());
   }
@@ -8461,13 +8469,21 @@ Reduction JSCallReducer::ReduceDataViewAccess(Node* node, DataViewAccess access,
 
   // Coerce {value} to Number.
   if (access == DataViewAccess::kSet) {
-    value = effect = graph()->NewNode(
-        simplified()->SpeculativeToNumber(NumberOperationHint::kNumberOrOddball,
-                                          p.feedback()),
-        value, effect, control);
+    if (element_type == kExternalBigInt64Array ||
+        element_type == kExternalBigUint64Array) {
+      value = effect =
+          graph()->NewNode(simplified()->SpeculativeToBigInt(
+                               BigIntOperationHint::kBigInt, p.feedback()),
+                           value, effect, control);
+    } else {
+      value = effect = graph()->NewNode(
+          simplified()->SpeculativeToNumber(
+              NumberOperationHint::kNumberOrOddball, p.feedback()),
+          value, effect, control);
+    }
   }
 
-  // We need to retain either the {receiver} itself or it's backing
+  // We need to retain either the {receiver} itself or its backing
   // JSArrayBuffer to make sure that the GC doesn't collect the raw
   // memory. We default to {receiver} here, and only use the buffer
   // if we anyways have to load it (to reduce register pressure).
@@ -8639,7 +8655,7 @@ Reduction JSCallReducer::ReduceNumberParseInt(Node* node) {
       return Replace(value);
     }
 
-    base::Optional<double> number = input_value.ToInt(broker(), radix_value);
+    std::optional<double> number = input_value.ToInt(broker(), radix_value);
     if (number.has_value()) {
       Node* result = graph()->NewNode(common()->NumberConstant(number.value()));
       ReplaceWithValue(node, result);
@@ -8834,9 +8850,9 @@ Reduction JSCallReducer::ReduceBigIntAsN(Node* node, Builtin builtin) {
   return NoChange();
 }
 
-base::Optional<Reduction> JSCallReducer::TryReduceJSCallMathMinMaxWithArrayLike(
+std::optional<Reduction> JSCallReducer::TryReduceJSCallMathMinMaxWithArrayLike(
     Node* node) {
-  if (!v8_flags.turbo_optimize_math_minmax) return base::nullopt;
+  if (!v8_flags.turbo_optimize_math_minmax) return std::nullopt;
 
   JSCallWithArrayLikeNode n(node);
   CallParameters const& p = n.Parameters();
@@ -8845,15 +8861,15 @@ base::Optional<Reduction> JSCallReducer::TryReduceJSCallMathMinMaxWithArrayLike(
   Control control = n.control();
 
   if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
-    return base::nullopt;
+    return std::nullopt;
   }
 
   if (n.ArgumentCount() != 1) {
-    return base::nullopt;
+    return std::nullopt;
   }
 
   if (!dependencies()->DependOnNoElementsProtector()) {
-    return base::nullopt;
+    return std::nullopt;
   }
 
   // These ops are handled by ReduceCallOrConstructWithArrayLikeOrSpread.
@@ -8862,7 +8878,7 @@ base::Optional<Reduction> JSCallReducer::TryReduceJSCallMathMinMaxWithArrayLike(
   Node* arguments_list = n.Argument(0);
   if (arguments_list->opcode() == IrOpcode::kJSCreateLiteralArray ||
       arguments_list->opcode() == IrOpcode::kJSCreateArguments) {
-    return base::nullopt;
+    return std::nullopt;
   }
 
   HeapObjectMatcher m(target);
@@ -8873,7 +8889,7 @@ base::Optional<Reduction> JSCallReducer::TryReduceJSCallMathMinMaxWithArrayLike(
 
       // Don't inline cross native context.
       if (!function.native_context(broker()).equals(native_context())) {
-        return base::nullopt;
+        return std::nullopt;
       }
 
       SharedFunctionInfoRef shared = function.shared(broker());
@@ -8882,7 +8898,7 @@ base::Optional<Reduction> JSCallReducer::TryReduceJSCallMathMinMaxWithArrayLike(
       if (builtin == Builtin::kMathMax || builtin == Builtin::kMathMin) {
         return ReduceJSCallMathMinMaxWithArrayLike(node, builtin);
       } else {
-        return base::nullopt;
+        return std::nullopt;
       }
     }
   }
@@ -8894,7 +8910,7 @@ base::Optional<Reduction> JSCallReducer::TryReduceJSCallMathMinMaxWithArrayLike(
     ProcessedFeedback const& feedback =
         broker()->GetFeedbackForCall(p.feedback());
     if (feedback.IsInsufficient()) {
-      return base::nullopt;
+      return std::nullopt;
     }
     OptionalHeapObjectRef feedback_target = feedback.AsCall().target();
     if (feedback_target.has_value() &&
@@ -8903,7 +8919,7 @@ base::Optional<Reduction> JSCallReducer::TryReduceJSCallMathMinMaxWithArrayLike(
           jsgraph()->ConstantNoHole(*feedback_target, broker());
       ObjectRef target_ref = feedback_target.value();
       if (!target_ref.IsJSFunction()) {
-        return base::nullopt;
+        return std::nullopt;
       }
       JSFunctionRef function = target_ref.AsJSFunction();
       SharedFunctionInfoRef shared = function.shared(broker());
@@ -8928,7 +8944,7 @@ base::Optional<Reduction> JSCallReducer::TryReduceJSCallMathMinMaxWithArrayLike(
     }
   }
 
-  return base::nullopt;
+  return std::nullopt;
 }
 
 Reduction JSCallReducer::ReduceJSCallMathMinMaxWithArrayLike(Node* node,
