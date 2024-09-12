@@ -486,10 +486,7 @@ bool ECDHBitsTraits::DeriveBits(Environment* env,
     case EVP_PKEY_X25519:
       // Fall through
     case EVP_PKEY_X448: {
-      EVPKeyCtxPointer ctx = nullptr;
-      {
-        ctx.reset(EVP_PKEY_CTX_new(m_privkey.get(), nullptr));
-      }
+      EVPKeyCtxPointer ctx = m_privkey.newCtx();
       Mutex::ScopedLock pub_lock(params.public_.mutex());
       if (EVP_PKEY_derive_init(ctx.get()) <= 0 ||
           EVP_PKEY_derive_set_peer(
@@ -568,7 +565,7 @@ EVPKeyCtxPointer EcKeyGenTraits::Setup(EcKeyPairGenConfig* params) {
         return EVPKeyCtxPointer();
       }
       EVPKeyPointer key_params(raw_params);
-      key_ctx.reset(EVP_PKEY_CTX_new(key_params.get(), nullptr));
+      key_ctx = key_params.newCtx();
     }
   }
 
@@ -626,29 +623,23 @@ WebCryptoKeyExportStatus EC_Raw_Export(const KeyObjectData& key_data,
 
   const EC_KEY* ec_key = EVP_PKEY_get0_EC_KEY(m_pkey.get());
 
-  size_t len = 0;
-
   if (ec_key == nullptr) {
-    typedef int (*export_fn)(const EVP_PKEY*, unsigned char*, size_t* len);
-    export_fn fn = nullptr;
     switch (key_data.GetKeyType()) {
-      case kKeyTypePrivate:
-        fn = EVP_PKEY_get_raw_private_key;
+      case kKeyTypePrivate: {
+        auto data = m_pkey.rawPrivateKey();
+        if (!data) return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
+        *out = ByteSource::Allocated(data.release());
         break;
-      case kKeyTypePublic:
-        fn = EVP_PKEY_get_raw_public_key;
+      }
+      case kKeyTypePublic: {
+        auto data = m_pkey.rawPublicKey();
+        if (!data) return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
+        *out = ByteSource::Allocated(data.release());
         break;
+      }
       case kKeyTypeSecret:
         UNREACHABLE();
     }
-    CHECK_NOT_NULL(fn);
-    // Get the size of the raw key data
-    if (fn(m_pkey.get(), nullptr, &len) == 0)
-      return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
-    ByteSource::Builder data(len);
-    if (fn(m_pkey.get(), data.data<unsigned char>(), &len) == 0)
-      return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
-    *out = std::move(data).release(len);
   } else {
     if (key_data.GetKeyType() != kKeyTypePublic)
       return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
@@ -657,7 +648,7 @@ WebCryptoKeyExportStatus EC_Raw_Export(const KeyObjectData& key_data,
     point_conversion_form_t form = POINT_CONVERSION_UNCOMPRESSED;
 
     // Get the allocated data size...
-    len = EC_POINT_point2oct(group, point, form, nullptr, 0, nullptr);
+    size_t len = EC_POINT_point2oct(group, point, form, nullptr, 0, nullptr);
     if (len == 0)
       return WebCryptoKeyExportStatus::FAILED;
     ByteSource::Builder data(len);
@@ -700,7 +691,7 @@ WebCryptoKeyExportStatus ECKeyExportTraits::DoExport(
         return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
 
       const auto& m_pkey = key_data.GetAsymmetricKey();
-      if (EVP_PKEY_id(m_pkey.get()) != EVP_PKEY_EC) {
+      if (m_pkey.id() != EVP_PKEY_EC) {
         return PKEY_SPKI_Export(key_data, out);
       } else {
         // Ensure exported key is in uncompressed point format.
@@ -730,12 +721,10 @@ WebCryptoKeyExportStatus ECKeyExportTraits::DoExport(
                                     data.size(),
                                     nullptr));
         CHECK_EQ(1, EC_KEY_set_public_key(ec.get(), uncompressed.get()));
-        EVPKeyPointer pkey(EVP_PKEY_new());
+        auto pkey = EVPKeyPointer::New();
         CHECK_EQ(1, EVP_PKEY_set1_EC_KEY(pkey.get(), ec.get()));
-        auto bio = BIOPointer::NewMem();
-        CHECK(bio);
-        if (!i2d_PUBKEY_bio(bio.get(), pkey.get()))
-          return WebCryptoKeyExportStatus::FAILED;
+        auto bio = pkey.derPublicKey();
+        if (!bio) return WebCryptoKeyExportStatus::FAILED;
         *out = ByteSource::FromBIO(bio);
         return WebCryptoKeyExportStatus::OK;
       }
@@ -750,7 +739,7 @@ Maybe<void> ExportJWKEcKey(Environment* env,
                            Local<Object> target) {
   Mutex::ScopedLock lock(key.mutex());
   const auto& m_pkey = key.GetAsymmetricKey();
-  CHECK_EQ(EVP_PKEY_id(m_pkey.get()), EVP_PKEY_EC);
+  CHECK_EQ(m_pkey.id(), EVP_PKEY_EC);
 
   const EC_KEY* ec = EVP_PKEY_get0_EC_KEY(m_pkey.get());
   CHECK_NOT_NULL(ec);
@@ -835,67 +824,49 @@ Maybe<void> ExportJWKEdKey(Environment* env,
   Mutex::ScopedLock lock(key.mutex());
   const auto& pkey = key.GetAsymmetricKey();
 
-  const char* curve = nullptr;
-  switch (EVP_PKEY_id(pkey.get())) {
-    case EVP_PKEY_ED25519:
-      curve = "Ed25519";
-      break;
-    case EVP_PKEY_ED448:
-      curve = "Ed448";
-      break;
-    case EVP_PKEY_X25519:
-      curve = "X25519";
-      break;
-    case EVP_PKEY_X448:
-      curve = "X448";
-      break;
-    default:
-      UNREACHABLE();
-  }
-  if (target->Set(
-          env->context(),
-          env->jwk_crv_string(),
-          OneByteString(env->isolate(), curve)).IsNothing()) {
-    return Nothing<void>();
-  }
-
-  size_t len = 0;
-  Local<Value> encoded;
-  Local<Value> error;
-
-  if (!EVP_PKEY_get_raw_public_key(pkey.get(), nullptr, &len))
-    return Nothing<void>();
-
-  ByteSource::Builder out(len);
-
-  if (key.GetKeyType() == kKeyTypePrivate) {
-    if (!EVP_PKEY_get_raw_private_key(
-            pkey.get(), out.data<unsigned char>(), &len) ||
-        !StringBytes::Encode(
-             env->isolate(), out.data<const char>(), len, BASE64URL, &error)
-             .ToLocal(&encoded) ||
-        !target->Set(env->context(), env->jwk_d_string(), encoded).IsJust()) {
-      if (!error.IsEmpty())
-        env->isolate()->ThrowException(error);
-      return Nothing<void>();
+  const char* curve = ([&] {
+    switch (pkey.id()) {
+      case EVP_PKEY_ED25519:
+        return "Ed25519";
+      case EVP_PKEY_ED448:
+        return "Ed448";
+      case EVP_PKEY_X25519:
+        return "X25519";
+      case EVP_PKEY_X448:
+        return "X448";
+      default:
+        UNREACHABLE();
     }
-  }
+  })();
 
-  if (!EVP_PKEY_get_raw_public_key(
-          pkey.get(), out.data<unsigned char>(), &len) ||
-      !StringBytes::Encode(
-           env->isolate(), out.data<const char>(), len, BASE64URL, &error)
-           .ToLocal(&encoded) ||
-      !target->Set(env->context(), env->jwk_x_string(), encoded).IsJust()) {
-    if (!error.IsEmpty())
-      env->isolate()->ThrowException(error);
-    return Nothing<void>();
-  }
+  static constexpr auto trySetKey = [](Environment* env,
+                                       ncrypto::DataPointer data,
+                                       Local<Object> target,
+                                       Local<String> key) {
+    Local<Value> encoded;
+    Local<Value> error;
+    if (!data) return false;
+    const ncrypto::Buffer<const char> out = data;
+    if (!StringBytes::Encode(
+             env->isolate(), out.data, out.len, BASE64URL, &error)
+             .ToLocal(&encoded) ||
+        target->Set(env->context(), key, encoded).IsNothing()) {
+      if (!error.IsEmpty()) env->isolate()->ThrowException(error);
+      return false;
+    }
+    return true;
+  };
 
-  if (target->Set(
-          env->context(),
-          env->jwk_kty_string(),
-          env->jwk_okp_string()).IsNothing()) {
+  if (target
+          ->Set(env->context(),
+                env->jwk_crv_string(),
+                OneByteString(env->isolate(), curve))
+          .IsNothing() ||
+      (key.GetKeyType() == kKeyTypePrivate &&
+       !trySetKey(env, pkey.rawPrivateKey(), target, env->jwk_d_string())) ||
+      !trySetKey(env, pkey.rawPublicKey(), target, env->jwk_x_string()) ||
+      target->Set(env->context(), env->jwk_kty_string(), env->jwk_okp_string())
+          .IsNothing()) {
     return Nothing<void>();
   }
 
@@ -959,7 +930,7 @@ KeyObjectData ImportJWKEcKey(Environment* env,
     }
   }
 
-  EVPKeyPointer pkey(EVP_PKEY_new());
+  auto pkey = EVPKeyPointer::New();
   CHECK_EQ(EVP_PKEY_set1_EC_KEY(pkey.get(), ec.get()), 1);
 
   return KeyObjectData::CreateAsymmetric(type, std::move(pkey));
@@ -970,7 +941,7 @@ Maybe<void> GetEcKeyDetail(Environment* env,
                            Local<Object> target) {
   Mutex::ScopedLock lock(key.mutex());
   const auto& m_pkey = key.GetAsymmetricKey();
-  CHECK_EQ(EVP_PKEY_id(m_pkey.get()), EVP_PKEY_EC);
+  CHECK_EQ(m_pkey.id(), EVP_PKEY_EC);
 
   const EC_KEY* ec = EVP_PKEY_get0_EC_KEY(m_pkey.get());
   CHECK_NOT_NULL(ec);
