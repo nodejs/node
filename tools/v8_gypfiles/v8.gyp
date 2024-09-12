@@ -1890,7 +1890,31 @@
           ['enable_lto=="true"', {
             'cflags_cc': [ '-fno-lto' ],
           }],
-          ['clang==1 or OS!="win"', {
+          # Chnges in push_registers_asm.cc in V8 v12.8 requires using
+          # push_registers_masm on Windows even with ClangCL on x64
+          ['OS=="win"', {
+            'conditions': [
+              ['_toolset == "host" and host_arch == "x64" or _toolset == "target" and target_arch=="x64"', {
+                'sources': [
+                  '<(V8_ROOT)/src/heap/base/asm/x64/push_registers_masm.asm',
+                ],
+              }],
+              ['_toolset == "host" and host_arch == "arm64" or _toolset == "target" and target_arch=="arm64"', {
+                'conditions': [
+                  ['clang==1', {
+                    'sources': [
+                      '<(V8_ROOT)/src/heap/base/asm/arm64/push_registers_asm.cc',
+                    ],
+                  }],
+                  ['clang==0', {
+                    'sources': [
+                      '<(V8_ROOT)/src/heap/base/asm/arm64/push_registers_masm.S',
+                    ],
+                  }],
+                ],
+              }],
+            ],
+          }, { # 'OS!="win"'
             'conditions': [
               ['_toolset == "host" and host_arch == "x64" or _toolset == "target" and target_arch=="x64"', {
                 'sources': [
@@ -1938,20 +1962,6 @@
                 ],
               }],
             ]
-          }],
-          ['OS=="win" and clang==0', {
-            'conditions': [
-              ['_toolset == "host" and host_arch == "x64" or _toolset == "target" and target_arch=="x64"', {
-                'sources': [
-                  '<(V8_ROOT)/src/heap/base/asm/x64/push_registers_masm.asm',
-                ],
-              }],
-              ['_toolset == "host" and host_arch == "arm64" or _toolset == "target" and target_arch=="arm64"', {
-                'sources': [
-                  '<(V8_ROOT)/src/heap/base/asm/arm64/push_registers_masm.S',
-                ],
-              }],
-            ],
           }],
         ],
       },

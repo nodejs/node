@@ -567,7 +567,9 @@ Maybe<bool> Message::Serialize(Environment* env,
     if (host_object &&
         host_object->GetTransferMode() == TransferMode::kTransferable) {
       delegate.AddHostObject(host_object);
-      continue;
+    } else {
+      ThrowDataCloneException(context, env->clone_untransferable_str());
+      return Nothing<bool>();
     }
   }
   if (delegate.AddNestedHostObjects().IsNothing())

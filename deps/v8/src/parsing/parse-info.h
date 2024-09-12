@@ -328,8 +328,10 @@ class V8_EXPORT_PRIVATE ParseInfo {
     return flags().function_syntax_kind() == FunctionSyntaxKind::kWrapped;
   }
 
-  int max_info_id() const { return max_info_id_; }
-  void set_max_info_id(int max_info_id) { max_info_id_ = max_info_id; }
+  int max_function_literal_id() const { return max_function_literal_id_; }
+  void set_max_function_literal_id(int max_function_literal_id) {
+    max_function_literal_id_ = max_function_literal_id;
+  }
 
   void AllocateSourceRangeMap();
   SourceRangeMap* source_range_map() const { return source_range_map_; }
@@ -378,7 +380,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
   DeclarationScope* script_scope_;
   uintptr_t stack_limit_;
   int parameters_end_pos_;
-  int max_info_id_;
+  int max_function_literal_id_;
 
   v8::CompileHintCallback compile_hint_callback_ = nullptr;
   void* compile_hint_callback_data_ = nullptr;

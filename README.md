@@ -285,7 +285,7 @@ For information about the governance of the Node.js project, see
 * [addaleax](https://github.com/addaleax) -
   **Anna Henningsen** <<anna@addaleax.net>> (she/her)
 * [aduh95](https://github.com/aduh95) -
-  **Antoine du Hamel** <<duhamelantoine1995@gmail.com>> (he/him)
+  **Antoine du Hamel** <<duhamelantoine1995@gmail.com>> (he/him) - [Support me](https://github.com/sponsors/aduh95)
 * [anonrig](https://github.com/anonrig) -
   **Yagiz Nizipli** <<yagiz@nizipli.com>> (he/him) - [Support me](https://github.com/sponsors/anonrig)
 * [apapirovski](https://github.com/apapirovski) -
@@ -385,13 +385,13 @@ For information about the governance of the Node.js project, see
 * [Lxxyx](https://github.com/Lxxyx) -
   **Zijian Liu** <<lxxyxzj@gmail.com>> (he/him)
 * [marco-ippolito](https://github.com/marco-ippolito) -
-  **Marco Ippolito** <<marcoippolito54@gmail.com>> (he/him)
+  **Marco Ippolito** <<marcoippolito54@gmail.com>> (he/him) - [Support me](https://github.com/sponsors/marco-ippolito)
 * [marsonya](https://github.com/marsonya) -
   **Akhil Marsonya** <<akhil.marsonya27@gmail.com>> (he/him)
 * [MattiasBuelens](https://github.com/MattiasBuelens) -
   **Mattias Buelens** <<mattias@buelens.com>> (he/him)
 * [mcollina](https://github.com/mcollina) -
-  **Matteo Collina** <<matteo.collina@gmail.com>> (he/him)
+  **Matteo Collina** <<matteo.collina@gmail.com>> (he/him) - [Support me](https://github.com/sponsors/mcollina)
 * [meixg](https://github.com/meixg) -
   **Xuguang Mei** <<meixuguang@gmail.com>> (he/him)
 * [mhdawson](https://github.com/mhdawson) -

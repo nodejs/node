@@ -682,8 +682,8 @@ void SourceTextModule::GatherAvailableAncestors(
 
       // a. If execList does not contain m and
       //    m.[[CycleRoot]].[[EvaluationError]] is empty, then
-      if (exec_list->find(m) == exec_list->end() &&
-          m->GetCycleRoot(isolate)->status() != kErrored) {
+      if (m->GetCycleRoot(isolate)->status() != kErrored &&
+          exec_list->find(m) == exec_list->end()) {
         // i. Assert: m.[[Status]] is EVALUATING-ASYNC.
         // ii. Assert: m.[[EvaluationError]] is empty.
         DCHECK_EQ(m->status(), kEvaluatingAsync);
@@ -769,7 +769,8 @@ bool SourceTextModule::MaybeHandleEvaluationException(
 // ES#sec-moduleevaluation
 MaybeHandle<Object> SourceTextModule::Evaluate(
     Isolate* isolate, Handle<SourceTextModule> module) {
-  CHECK(module->status() == kLinked || module->status() == kEvaluated);
+  CHECK(module->status() == kLinked || module->status() == kEvaluatingAsync ||
+        module->status() == kEvaluated);
 
   // 5. Let stack be a new empty List.
   Zone zone(isolate->allocator(), ZONE_NAME);

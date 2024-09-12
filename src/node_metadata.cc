@@ -127,8 +127,10 @@ Metadata::Versions::Versions() {
   cjs_module_lexer = CJS_MODULE_LEXER_VERSION;
   uvwasi = UVWASI_VERSION_STRING;
 
+#ifndef NODE_SHARED_BUILTIN_AMARO_DIST_INDEX_PATH
 #if HAVE_AMARO
   amaro = AMARO_VERSION;
+#endif
 #endif
 
 #if HAVE_OPENSSL

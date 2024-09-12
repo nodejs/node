@@ -80,7 +80,7 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
       name, function_scope, body, expected_property_count, parameter_count,
       parameter_count, FunctionLiteral::kNoDuplicateParameters,
       FunctionSyntaxKind::kAnonymousExpression, default_eager_compile_hint(),
-      pos, true, GetNextInfoId());
+      pos, true, GetNextFunctionLiteralId());
   return function_literal;
 }
 
@@ -601,7 +601,7 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
   DCHECK_NULL(scope_);
 
   ParsingModeScope mode(this, allow_lazy_ ? PARSE_LAZILY : PARSE_EAGERLY);
-  ResetInfoId();
+  ResetFunctionLiteralId();
 
   FunctionLiteral* result = nullptr;
   {
@@ -706,7 +706,7 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
     result->set_suspend_count(function_state.suspend_count());
   }
 
-  info->set_max_info_id(GetLastInfoId());
+  info->set_max_function_literal_id(GetLastFunctionLiteralId());
 
   if (has_error()) return nullptr;
 
@@ -896,7 +896,7 @@ void Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
     result = ParseClassForMemberInitialization(
         function_kind, start_position, function_literal_id, end_position,
         info->function_name());
-    info->set_max_info_id(GetLastInfoId());
+
   } else if (V8_UNLIKELY(shared_info->private_name_lookup_skips_outer_class() &&
                          original_scope_->is_class_scope())) {
     // If the function skips the outer class and the outer scope is a class, the
@@ -937,9 +937,9 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
   DCHECK(ast_value_factory());
   fni_.PushEnclosingName(raw_name);
 
-  ResetInfoId();
+  ResetFunctionLiteralId();
   DCHECK_LT(0, function_literal_id);
-  SkipInfos(function_literal_id - 1);
+  SkipFunctionLiterals(function_literal_id - 1);
 
   ParsingModeScope parsing_mode(this, PARSE_EAGERLY);
 
@@ -973,7 +973,7 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
         }
       }
 
-      CHECK_EQ(function_literal_id, GetNextInfoId());
+      CHECK_EQ(function_literal_id, GetNextFunctionLiteralId());
 
       // TODO(adamk): We should construct this scope from the ScopeInfo.
       DeclarationScope* scope = NewFunctionScope(kind);
@@ -1046,8 +1046,6 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
         flags().has_static_private_methods_or_accessors());
   }
 
-  info->set_max_info_id(GetLastInfoId());
-
   DCHECK_IMPLIES(result, function_literal_id == result->function_literal_id());
   return result;
 }
@@ -1066,8 +1064,8 @@ FunctionLiteral* Parser::ParseClassForMemberInitialization(
   FunctionState function_state(&function_state_, &scope_, nearest_decl_scope);
 
   // We will reindex the function literals later.
-  ResetInfoId();
-  SkipInfos(initializer_id - 1);
+  ResetFunctionLiteralId();
+  SkipFunctionLiterals(initializer_id - 1);
 
   // We preparse the class members that are not fields with initializers
   // in order to collect the function literal ids.
@@ -2732,7 +2730,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   int num_parameters = -1;
   int function_length = -1;
   bool has_duplicate_parameters = false;
-  int function_literal_id = GetNextInfoId();
+  int function_literal_id = GetNextFunctionLiteralId();
   ProducedPreparseData* produced_preparse_data = nullptr;
 
   // Inner functions will be parsed using a temporary Zone. After parsing, we
@@ -2846,7 +2844,7 @@ bool Parser::SkipFunction(const AstRawString* function_name, FunctionKind kind,
   if (consumed_preparse_data_) {
     int end_position;
     LanguageMode language_mode;
-    int num_inner_infos;
+    int num_inner_functions;
     bool uses_super_property;
     if (stack_overflow()) return true;
     {
@@ -2854,7 +2852,7 @@ bool Parser::SkipFunction(const AstRawString* function_name, FunctionKind kind,
       *produced_preparse_data =
           consumed_preparse_data_->GetDataForSkippableFunction(
               main_zone(), function_scope->start_position(), &end_position,
-              num_parameters, function_length, &num_inner_infos,
+              num_parameters, function_length, &num_inner_functions,
               &uses_super_property, &language_mode);
     }
 
@@ -2867,7 +2865,7 @@ bool Parser::SkipFunction(const AstRawString* function_name, FunctionKind kind,
     if (uses_super_property) {
       function_scope->RecordSuperPropertyUsage();
     }
-    SkipInfos(num_inner_infos);
+    SkipFunctionLiterals(num_inner_functions);
     function_scope->ResetAfterPreparsing(ast_value_factory_, false);
     return true;
   }
@@ -2924,7 +2922,7 @@ bool Parser::SkipFunction(const AstRawString* function_name, FunctionKind kind,
         function_scope->end_position() - function_scope->start_position();
     *num_parameters = logger->num_parameters();
     *function_length = logger->function_length();
-    SkipInfos(logger->num_inner_infos());
+    SkipFunctionLiterals(logger->num_inner_functions());
     if (!private_name_scope_iter.Done()) {
       private_name_scope_iter.GetScope()->MigrateUnresolvedPrivateNameTail(
           factory(), unresolved_private_tail);
@@ -2967,13 +2965,8 @@ Block* Parser::BuildParameterInitializationBlock(
   return factory()->NewBlock(true, init_statements);
 }
 
-// TODO(verwaest): Consider building these try/catches in the bytecode generator
-// without hidden scopes.
 Scope* Parser::NewHiddenCatchScope() {
-  DCHECK(scope()->is_declaration_scope());
   Scope* catch_scope = NewScopeWithParent(scope(), CATCH_SCOPE);
-  catch_scope->set_start_position(position());
-  catch_scope->set_end_position(end_position());
   bool was_added;
   catch_scope->DeclareLocal(ast_value_factory()->dot_catch_string(),
                             VariableMode::kVar, NORMAL_VARIABLE, &was_added);
@@ -3093,7 +3086,7 @@ void Parser::ParseFunction(
         }
       }
       Expect(Token::kRightParen);
-      int formals_end_position = end_position();
+      int formals_end_position = scanner()->location().end_pos;
 
       CheckArityRestrictions(formals.arity, kind, formals.has_rest,
                              function_scope->start_position(),
@@ -3631,15 +3624,7 @@ void Parser::RewriteAsyncFunctionBody(ScopedPtrList<Statement>* body,
   block->statements()->Add(factory()->NewSyntheticAsyncReturnStatement(
                                return_value, return_value->position()),
                            zone());
-  if (block->statements()->length() > 1 ||
-      !(return_value->IsLiteral() &&
-        return_value->AsLiteral()->type() == Literal::kUndefined)) {
-    // We only build a promise reject try/catch if there's actually a body that
-    // can throw. Otherwise we might try to create two catch blocks with the
-    // same source position, which doesn't work for scope_info reuse through
-    // source-position-based unique scope IDs.
-    block = BuildRejectPromiseOnException(block, repl_mode);
-  }
+  block = BuildRejectPromiseOnException(block, repl_mode);
   body->Add(block);
 }
 

@@ -581,9 +581,10 @@ class PreParserFactory {
   }
   PreParserExpression NewCall(PreParserExpression expression,
                               const PreParserExpressionList& arguments, int pos,
-                              bool has_spread, int eval_scope_info_index = 0,
+                              bool has_spread,
+                              Call::PossiblyEval possibly_eval = Call::NOT_EVAL,
                               bool optional_chain = false) {
-    if (eval_scope_info_index > 0) {
+    if (possibly_eval == Call::IS_POSSIBLY_EVAL) {
       DCHECK(expression.IsIdentifier() && expression.AsIdentifier().IsEval());
       DCHECK(!optional_chain);
       return PreParserExpression::CallEval();
@@ -1176,7 +1177,7 @@ class PreParser : public ParserBase<PreParser> {
       function_scope->set_start_position(pos);
       function_scope->set_end_position(pos);
       FunctionState function_state(&function_state_, &scope_, function_scope);
-      GetNextInfoId();
+      GetNextFunctionLiteralId();
     }
     return PreParserExpression::Default();
   }

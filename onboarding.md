@@ -117,7 +117,7 @@ The project has a venue for real-time discussion:
   * You can always refer to the
     [full moderation policy](https://github.com/nodejs/admin/blob/main/Moderation-Policy.md).
   * You can contact someone in the
-    [full list of moderation team members](https://github.com/nodejs/moderation#moderation-team-members).
+    [full list of moderation team members](https://github.com/nodejs/admin/blob/main/Moderation-Policy.md#current-members-of-moderation-team).
 
 ## Reviewing pull requests
 

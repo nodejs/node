@@ -2085,6 +2085,14 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
     return exception;
   };
 
+#if V8_ENABLE_WEBASSEMBLY
+  Tagged<Object> maybe_continuation = root(RootIndex::kActiveContinuation);
+  Tagged<WasmContinuationObject> continuation;
+  if (!IsUndefined(maybe_continuation)) {
+    continuation = Cast<WasmContinuationObject>(maybe_continuation);
+  }
+#endif
+
   // Special handling of termination exceptions, uncatchable by JavaScript and
   // Wasm code, we unwind the handlers until the top ENTRY handler is found.
   bool catchable_by_js = is_catchable_by_javascript(exception);
@@ -2103,15 +2111,25 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
   for (StackFrameIterator iter(this);; iter.Advance(), visited_frames++) {
 #if V8_ENABLE_WEBASSEMBLY
     if (iter.frame()->type() == StackFrame::STACK_SWITCH) {
-      Tagged<Code> code =
-          builtins()->code(Builtin::kWasmReturnPromiseOnSuspendAsm);
-      HandlerTable table(code);
-      Address instruction_start =
-          code->InstructionStart(this, iter.frame()->pc());
-      int handler_offset = table.LookupReturn(0);
-      return FoundHandler(Context(), instruction_start, handler_offset,
-                          kNullAddress, iter.frame()->sp(), iter.frame()->fp(),
-                          visited_frames);
+      if (catchable_by_js) {
+        Tagged<Code> code =
+            builtins()->code(Builtin::kWasmReturnPromiseOnSuspendAsm);
+        HandlerTable table(code);
+        Address instruction_start =
+            code->InstructionStart(this, iter.frame()->pc());
+        int handler_offset = table.LookupReturn(0);
+        return FoundHandler(Context(), instruction_start, handler_offset,
+                            kNullAddress, iter.frame()->sp(),
+                            iter.frame()->fp(), visited_frames);
+      } else {
+        // We reached the base of the wasm stack. Follow the chain of
+        // continuations to find the parent stack and reset the iterator.
+        DCHECK(!continuation.is_null());
+        continuation = Cast<WasmContinuationObject>(continuation->parent());
+        wasm::StackMemory* stack =
+            reinterpret_cast<wasm::StackMemory*>(continuation->stack());
+        iter.Reset(thread_local_top(), stack);
+      }
     }
 #endif
     // Handler must exist.

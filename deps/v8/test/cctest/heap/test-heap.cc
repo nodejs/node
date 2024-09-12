@@ -1782,7 +1782,7 @@ void CompilationCacheRegeneration(bool retain_root_sfi, bool flush_root_sfi,
     DirectHandle<Script> script(Cast<Script>(lazy_sfi->script()), isolate);
     bool root_sfi_still_exists = false;
     Tagged<MaybeObject> maybe_root_sfi =
-        script->infos()->get(kFunctionLiteralIdTopLevel);
+        script->shared_function_infos()->get(kFunctionLiteralIdTopLevel);
     if (Tagged<HeapObject> sfi_or_undefined;
         maybe_root_sfi.GetHeapObject(&sfi_or_undefined)) {
       root_sfi_still_exists = !IsUndefined(sfi_or_undefined);

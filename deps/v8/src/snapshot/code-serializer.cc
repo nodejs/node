@@ -618,9 +618,8 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::FinishOffThreadDeserialize(
   if (background_merge_task &&
       background_merge_task->HasPendingForegroundWork()) {
     DCHECK_EQ(data.scripts.size(), 1);
-    Handle<Script> new_script = data.scripts[0];
-    result =
-        background_merge_task->CompleteMergeInForeground(isolate, new_script);
+    Handle<Script> script = data.scripts[0];
+    result = background_merge_task->CompleteMergeInForeground(isolate, script);
     DCHECK(Object::StrictEquals(Cast<Script>(result->script())->source(),
                                 *source));
     DCHECK(isolate->factory()->script_list()->Contains(

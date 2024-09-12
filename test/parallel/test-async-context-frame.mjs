@@ -42,7 +42,8 @@ const tests = testSets.reduce((m, v) => {
 }, []);
 
 describe('AsyncContextFrame', {
-  concurrency: tests.length
+  // TODO(qard): I think high concurrency causes memory problems on Windows
+  // concurrency: tests.length
 }, () => {
   for (const test of tests) {
     it(test, async () => {

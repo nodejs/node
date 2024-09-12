@@ -443,7 +443,8 @@ Handle<Script> FactoryBase<Impl>::NewScriptWithId(
     raw->set_eval_from_shared_or_wrapped_arguments(roots.undefined_value(),
                                                    SKIP_WRITE_BARRIER);
     raw->set_eval_from_position(0);
-    raw->set_infos(roots.empty_weak_fixed_array(), SKIP_WRITE_BARRIER);
+    raw->set_shared_function_infos(roots.empty_weak_fixed_array(),
+                                   SKIP_WRITE_BARRIER);
     raw->set_flags(0);
     raw->set_host_defined_options(roots.empty_fixed_array(),
                                   SKIP_WRITE_BARRIER);

@@ -361,31 +361,31 @@ class CryptoJob : public AsyncWrap, public ThreadPoolWork {
     v8::HandleScope handle_scope(env->isolate());
     v8::Context::Scope context_scope(env->context());
 
-    // TODO(tniessen): Remove the exception handling logic here as soon as we
-    // can verify that no code path in ToResult will ever throw an exception.
     v8::Local<v8::Value> exception;
     v8::Local<v8::Value> args[2];
     {
       node::errors::TryCatchScope try_catch(env);
-      v8::Maybe<bool> ret = ptr->ToResult(&args[0], &args[1]);
-      if (!ret.IsJust()) {
+      // If ToResult returns Nothing, then an exception should have been
+      // thrown and we should have caught it. Otherwise, args[0] and args[1]
+      // both should have been set to a value, even if the value is undefined.
+      if (ptr->ToResult(&args[0], &args[1]).IsNothing()) {
         CHECK(try_catch.HasCaught());
+        CHECK(try_catch.CanContinue());
         exception = try_catch.Exception();
-      } else if (!ret.FromJust()) {
-        return;
       }
     }
 
-    if (exception.IsEmpty()) {
-      ptr->MakeCallback(env->ondone_string(), arraysize(args), args);
-    } else {
+    if (!exception.IsEmpty()) {
       ptr->MakeCallback(env->ondone_string(), 1, &exception);
+    } else {
+      CHECK(!args[0].IsEmpty());
+      CHECK(!args[1].IsEmpty());
+      ptr->MakeCallback(env->ondone_string(), arraysize(args), args);
     }
   }
 
-  virtual v8::Maybe<bool> ToResult(
-      v8::Local<v8::Value>* err,
-      v8::Local<v8::Value>* result) = 0;
+  virtual v8::Maybe<void> ToResult(v8::Local<v8::Value>* err,
+                                   v8::Local<v8::Value>* result) = 0;
 
   CryptoJobMode mode() const { return mode_; }
 
@@ -413,8 +413,9 @@ class CryptoJob : public AsyncWrap, public ThreadPoolWork {
     v8::Local<v8::Value> ret[2];
     env->PrintSyncTrace();
     job->DoThreadPoolWork();
-    v8::Maybe<bool> result = job->ToResult(&ret[0], &ret[1]);
-    if (result.IsJust() && result.FromJust()) {
+    if (job->ToResult(&ret[0], &ret[1]).IsJust()) {
+      CHECK(!ret[0].IsEmpty());
+      CHECK(!ret[1].IsEmpty());
       args.GetReturnValue().Set(
           v8::Array::New(env->isolate(), ret, arraysize(ret)));
     }
@@ -504,26 +505,29 @@ class DeriveBitsJob final : public CryptoJob<DeriveBitsTraits> {
     success_ = true;
   }
 
-  v8::Maybe<bool> ToResult(
-      v8::Local<v8::Value>* err,
-      v8::Local<v8::Value>* result) override {
+  v8::Maybe<void> ToResult(v8::Local<v8::Value>* err,
+                           v8::Local<v8::Value>* result) override {
     Environment* env = AsyncWrap::env();
     CryptoErrorStore* errors = CryptoJob<DeriveBitsTraits>::errors();
     if (success_) {
       CHECK(errors->Empty());
       *err = v8::Undefined(env->isolate());
-      return DeriveBitsTraits::EncodeOutput(
-          env,
-          *CryptoJob<DeriveBitsTraits>::params(),
-          &out_,
-          result);
+      if (!DeriveBitsTraits::EncodeOutput(
+               env, *CryptoJob<DeriveBitsTraits>::params(), &out_)
+               .ToLocal(result)) {
+        return v8::Nothing<void>();
+      }
+    } else {
+      if (errors->Empty()) errors->Capture();
+      CHECK(!errors->Empty());
+      *result = v8::Undefined(env->isolate());
+      if (!errors->ToException(env).ToLocal(err)) {
+        return v8::Nothing<void>();
+      }
     }
-
-    if (errors->Empty())
-      errors->Capture();
-    CHECK(!errors->Empty());
-    *result = v8::Undefined(env->isolate());
-    return v8::Just(errors->ToException(env).ToLocal(err));
+    CHECK(!result->IsEmpty());
+    CHECK(!err->IsEmpty());
+    return v8::JustVoid();
   }
 
   SET_SELF_SIZE(DeriveBitsJob)

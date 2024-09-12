@@ -50,6 +50,13 @@ BuiltinLoader::BuiltinLoader()
   AddExternalizedBuiltin("internal/deps/undici/undici",
                          STRINGIFY(NODE_SHARED_BUILTIN_UNDICI_UNDICI_PATH));
 #endif  // NODE_SHARED_BUILTIN_UNDICI_UNDICI_PATH
+
+#if HAVE_AMARO
+#ifdef NODE_SHARED_BUILTIN_AMARO_DIST_INDEX_PATH
+  AddExternalizedBuiltin("internal/deps/amaro/dist/index",
+                         STRINGIFY(NODE_SHARED_BUILTIN_AMARO_DIST_INDEX_PATH));
+#endif  // NODE_SHARED_BUILTIN_AMARO_DIST_INDEX_PATH
+#endif  // HAVE_AMARO
 }
 
 bool BuiltinLoader::Exists(const char* id) {

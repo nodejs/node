@@ -50,7 +50,7 @@ void SharedFunctionInfo::Init(ReadOnlyRoots ro_roots, int unique_id) {
   set_raw_outer_scope_info_or_feedback_metadata(ro_roots.the_hole_value(),
                                                 SKIP_WRITE_BARRIER);
   set_script(ro_roots.undefined_value(), kReleaseStore, SKIP_WRITE_BARRIER);
-  set_function_literal_id(kInvalidInfoId);
+  set_function_literal_id(kFunctionLiteralIdInvalid);
   set_unique_id(unique_id);
 
   // Set integer fields (smi or int, depending on the architecture).
@@ -140,17 +140,17 @@ Tagged<Code> SharedFunctionInfo::GetCode(Isolate* isolate) const {
 
 SharedFunctionInfo::ScriptIterator::ScriptIterator(Isolate* isolate,
                                                    Tagged<Script> script)
-    : ScriptIterator(handle(script->infos(), isolate)) {}
+    : ScriptIterator(handle(script->shared_function_infos(), isolate)) {}
 
-SharedFunctionInfo::ScriptIterator::ScriptIterator(Handle<WeakFixedArray> infos)
-    : infos_(infos), index_(0) {}
+SharedFunctionInfo::ScriptIterator::ScriptIterator(
+    Handle<WeakFixedArray> shared_function_infos)
+    : shared_function_infos_(shared_function_infos), index_(0) {}
 
 Tagged<SharedFunctionInfo> SharedFunctionInfo::ScriptIterator::Next() {
-  while (index_ < infos_->length()) {
-    Tagged<MaybeObject> raw = infos_->get(index_++);
+  while (index_ < shared_function_infos_->length()) {
+    Tagged<MaybeObject> raw = shared_function_infos_->get(index_++);
     Tagged<HeapObject> heap_object;
-    if (!raw.GetHeapObject(&heap_object) ||
-        !IsSharedFunctionInfo(heap_object)) {
+    if (!raw.GetHeapObject(&heap_object) || IsUndefined(heap_object)) {
       continue;
     }
     return Cast<SharedFunctionInfo>(heap_object);
@@ -160,7 +160,7 @@ Tagged<SharedFunctionInfo> SharedFunctionInfo::ScriptIterator::Next() {
 
 void SharedFunctionInfo::ScriptIterator::Reset(Isolate* isolate,
                                                Tagged<Script> script) {
-  infos_ = handle(script->infos(), isolate);
+  shared_function_infos_ = handle(script->shared_function_infos(), isolate);
   index_ = 0;
 }
 
@@ -183,7 +183,7 @@ void SharedFunctionInfo::SetScript(ReadOnlyRoots roots,
   if (IsScript(script_object)) {
     DCHECK(!IsScript(script()));
     Tagged<Script> script = Cast<Script>(script_object);
-    Tagged<WeakFixedArray> list = script->infos();
+    Tagged<WeakFixedArray> list = script->shared_function_infos();
 #ifdef DEBUG
     DCHECK_LT(function_literal_id, list->length());
     Tagged<MaybeObject> maybe_object = list->get(function_literal_id);
@@ -201,12 +201,14 @@ void SharedFunctionInfo::SetScript(ReadOnlyRoots roots,
 
     // Due to liveedit, it might happen that the old_script doesn't know
     // about the SharedFunctionInfo, so we have to guard against that.
-    Tagged<WeakFixedArray> infos = old_script->infos();
+    Tagged<WeakFixedArray> infos = old_script->shared_function_infos();
     if (function_literal_id < infos->length()) {
-      Tagged<MaybeObject> raw = old_script->infos()->get(function_literal_id);
+      Tagged<MaybeObject> raw =
+          old_script->shared_function_infos()->get(function_literal_id);
       Tagged<HeapObject> heap_object;
       if (raw.GetHeapObjectIfWeak(&heap_object) && heap_object == *this) {
-        old_script->infos()->set(function_literal_id, roots.undefined_value());
+        old_script->shared_function_infos()->set(function_literal_id,
+                                                 roots.undefined_value());
       }
     }
   }

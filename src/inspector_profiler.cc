@@ -556,6 +556,21 @@ static void StopCoverage(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+static void EndCoverage(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  V8CoverageConnection* connection = env->coverage_connection();
+
+  Debug(env,
+        DebugCategory::INSPECTOR_PROFILER,
+        "EndCoverage, connection %s nullptr\n",
+        connection == nullptr ? "==" : "!=");
+
+  if (connection != nullptr) {
+    Debug(env, DebugCategory::INSPECTOR_PROFILER, "Ending coverage\n");
+    connection->End();
+  }
+}
+
 static void Initialize(Local<Object> target,
                        Local<Value> unused,
                        Local<Context> context,
@@ -565,6 +580,7 @@ static void Initialize(Local<Object> target,
       context, target, "setSourceMapCacheGetter", SetSourceMapCacheGetter);
   SetMethod(context, target, "takeCoverage", TakeCoverage);
   SetMethod(context, target, "stopCoverage", StopCoverage);
+  SetMethod(context, target, "endCoverage", EndCoverage);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
@@ -572,6 +588,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(SetSourceMapCacheGetter);
   registry->Register(TakeCoverage);
   registry->Register(StopCoverage);
+  registry->Register(EndCoverage);
 }
 
 }  // namespace profiler
