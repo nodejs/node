@@ -3,6 +3,7 @@
 const common = require('../common');
 const fs = require('fs');
 const path = require('path');
+const assert = require('node:assert');
 
 const benchmarkDirectory = path.resolve(__dirname, '..', '..');
 
@@ -20,11 +21,12 @@ async function main(config) {
   const fullPath = path.resolve(benchmarkDirectory, config.dir);
   const { pattern, recursive, useAsync } = config;
 
+  let noDead;
   bench.start();
 
   for (let i = 0; i < config.n; i++) {
     if (useAsync) {
-      await new Promise((resolve, reject) => {
+      noDead = await new Promise((resolve, reject) => {
         fs.glob(pattern, { cwd: fullPath, recursive }, (err, files) => {
           if (err) {
             reject(err);
@@ -34,9 +36,10 @@ async function main(config) {
         });
       });
     } else {
-      fs.globSync(pattern, { cwd: fullPath, recursive });
+      noDead = fs.globSync(pattern, { cwd: fullPath, recursive });
     }
   }
 
   bench.end(config.n);
+  assert.ok(noDead);
 }
