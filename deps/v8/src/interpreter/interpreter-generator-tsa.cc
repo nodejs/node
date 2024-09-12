@@ -330,6 +330,8 @@ class TurboshaftBytecodeHandlerAssembler
 using NumberBuiltinsBytecodeHandlerAssembler =
     TurboshaftBytecodeHandlerAssembler<NumberBuiltinsReducer>;
 
+using Block = v8::internal::compiler::turboshaft::Block;
+
 IGNITION_HANDLER_TS(BitwiseNot, NumberBuiltinsBytecodeHandlerAssembler) {
   V<Object> value = GetAccumulator();
   V<Context> context = GetContext();
