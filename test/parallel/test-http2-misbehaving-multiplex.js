@@ -11,35 +11,18 @@ const h2 = require('http2');
 const net = require('net');
 const { NghttpError } = require('internal/http2/util');
 const h2test = require('../common/http2');
-let client;
 
 const server = h2.createServer();
-let gotFirstStreamId1;
 server.on('stream', common.mustCall((stream) => {
   stream.respond();
   stream.end('ok');
 
-  // Http2Server should be fast enough to respond to and close
-  // the first streams with ID 1 and ID 3 without errors.
-
-  // Test for errors in 'close' event to ensure no errors on some streams.
-  stream.on('error', () => {});
-  stream.on('close', (err) => {
-    if (stream.id === 1) {
-      if (gotFirstStreamId1) {
-        // We expect our outgoing frames to fail on Stream ID 1 the second time
-        // because a stream with ID 1 was already closed before.
-        common.expectsError({
-          constructor: NghttpError,
-          code: 'ERR_HTTP2_ERROR',
-          message: 'Stream was already closed or invalid'
-        });
-        return;
-      }
-      gotFirstStreamId1 = true;
-    }
-    assert.strictEqual(err, undefined);
-  });
+  stream.on('error', common.expectsError({
+    code: 'ERR_HTTP2_ERROR',
+    constructor: NghttpError,
+    message: 'Stream was already closed or invalid'
+  }));
+  stream.on('close', common.mustCall());
 
   // Stream ID 5 should never reach the server
   assert.notStrictEqual(stream.id, 5);
@@ -62,7 +45,7 @@ const id3 = new h2test.HeadersFrame(3, h2test.kFakeRequestHeaders, 0, true);
 const id5 = new h2test.HeadersFrame(5, h2test.kFakeRequestHeaders, 0, true);
 
 server.listen(0, () => {
-  client = net.connect(server.address().port, () => {
+  const client = net.connect(server.address().port, () => {
     client.write(h2test.kClientMagic, () => {
       client.write(settings.data, () => {
         client.write(settingsAck.data);
