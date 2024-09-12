@@ -158,17 +158,17 @@ Depending on the host platform, the selection of toolchains may vary.
 
 Binaries at <https://nodejs.org/download/release/> are produced on:
 
-| Binary package          | Platform and Toolchain                                                                                        |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------- |
-| aix-ppc64               | AIX 7.2 TL04 on PPC64BE with GCC 12[^5]                                                                       |
-| darwin-x64              | macOS 11, Xcode 13 with -mmacosx-version-min=11.0                                                             |
-| darwin-arm64 (and .pkg) | macOS 11 (arm64), Xcode 13 with -mmacosx-version-min=11.0                                                     |
-| linux-arm64             | RHEL 8 with GCC 10[^6]                                                                                        |
-| linux-armv7l            | Cross-compiled on RHEL 8 x64 with a [custom GCC toolchain](https://github.com/rvagg/rpi-newer-crosstools)[^7] |
-| linux-ppc64le           | RHEL 8 with gcc-toolset-10[^6]                                                                                |
-| linux-s390x             | RHEL 8 with gcc-toolset-10[^6]                                                                                |
-| linux-x64               | RHEL 8 with gcc-toolset-10[^6]                                                                                |
-| win-x64                 | Windows Server 2022 (x64) with Visual Studio 2022                                                             |
+| Binary package          | Platform and Toolchain                                                                                      |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------- |
+| aix-ppc64               | AIX 7.2 TL04 on PPC64BE with GCC 12[^5]                                                                     |
+| darwin-x64              | macOS 11, Xcode 13 with -mmacosx-version-min=11.0                                                           |
+| darwin-arm64 (and .pkg) | macOS 11 (arm64), Xcode 13 with -mmacosx-version-min=11.0                                                   |
+| linux-arm64             | RHEL 8 with GCC 10[^6]                                                                                      |
+| linux-armv7l            | Cross-compiled on RHEL 8 x64 with [custom GCC toolchain](https://github.com/rvagg/rpi-newer-crosstools)[^7] |
+| linux-ppc64le           | RHEL 8 with gcc-toolset-10[^6]                                                                              |
+| linux-s390x             | RHEL 8 with gcc-toolset-10[^6]                                                                              |
+| linux-x64               | RHEL 8 with gcc-toolset-10[^6]                                                                              |
+| win-x64                 | Windows Server 2022 (x64) with Visual Studio 2022                                                           |
 
 <!--lint disable final-definition-->
 
