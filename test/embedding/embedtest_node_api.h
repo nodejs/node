@@ -6,6 +6,7 @@
 
 #ifdef __cplusplus
 
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -37,6 +38,28 @@ extern const char* main_script;
 
 napi_status AddUtf8String(std::string& str, napi_env env, napi_value value);
 
+void GetAndThrowLastErrorMessage(napi_env env);
+
+inline node_embedding_exit_code InvokeNodeApi(
+    node_embedding_runtime runtime, const std::function<void(napi_env)>& func) {
+  return node_embedding_runtime_invoke_node_api(
+      runtime,
+      [](void* cb_data, napi_env env) {
+        auto func = static_cast<std::function<void(napi_env)>*>(cb_data);
+        (*func)(env);
+      },
+      const_cast<std::function<void(napi_env)>*>(&func));
+}
+
+#define NODE_API_CALL(expr)                                                    \
+  do {                                                                         \
+    if ((expr) != napi_ok) {                                                   \
+      GetAndThrowLastErrorMessage(env);                                        \
+      exit_code = 1;                                                           \
+      return;                                                                  \
+    }                                                                          \
+  } while (0)
+
 #define CHECK(expr)                                                            \
   do {                                                                         \
     if ((expr) != node_embedding_exit_code_ok) {                               \
@@ -44,6 +67,17 @@ napi_status AddUtf8String(std::string& str, napi_env env, napi_value value);
       fprintf(stderr, "File: %s\n", __FILE__);                                 \
       fprintf(stderr, "Line: %d\n", __LINE__);                                 \
       return 1;                                                                \
+    }                                                                          \
+  } while (0)
+
+#define CHECK_RETURN_VOID(expr)                                                \
+  do {                                                                         \
+    if ((expr) != node_embedding_exit_code_ok) {                               \
+      fprintf(stderr, "Failed: %s\n", #expr);                                  \
+      fprintf(stderr, "File: %s\n", __FILE__);                                 \
+      fprintf(stderr, "Line: %d\n", __LINE__);                                 \
+      exit_code = 1;                                                           \
+      return;                                                                  \
     }                                                                          \
   } while (0)
 
@@ -57,10 +91,28 @@ napi_status AddUtf8String(std::string& str, napi_env env, napi_value value);
     }                                                                          \
   } while (0)
 
+#define CHECK_TRUE_RETURN_VOID(expr)                                           \
+  do {                                                                         \
+    if (!(expr)) {                                                             \
+      fprintf(stderr, "Failed: %s\n", #expr);                                  \
+      fprintf(stderr, "File: %s\n", __FILE__);                                 \
+      fprintf(stderr, "Line: %d\n", __LINE__);                                 \
+      exit_code = 1;                                                           \
+      return;                                                                  \
+    }                                                                          \
+  } while (0)
+
 #define FAIL(...)                                                              \
   do {                                                                         \
     fprintf(stderr, __VA_ARGS__);                                              \
     return 1;                                                                  \
+  } while (0)
+
+#define FAIL_RETURN_VOID(...)                                                  \
+  do {                                                                         \
+    fprintf(stderr, __VA_ARGS__);                                              \
+    exit_code = 1;                                                             \
+    return;                                                                    \
   } while (0)
 
 #define CHECK_EXIT_CODE(code)                                                  \

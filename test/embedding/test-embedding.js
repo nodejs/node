@@ -31,20 +31,6 @@ function runTest(testName, spawn, ...args) {
   console.log('ok');
 }
 
-runTest(
-  'nodejs-main-node-api: run Node.js CLI',
-  spawnSyncAndAssert,
-  [
-    'nodejs-main-node-api', // This parameter is removed before invoking the API
-    '--eval',
-    'console.log("Hello World")',
-  ],
-  {
-    trim: true,
-    stdout: 'Hello World',
-  }
-);
-
 function runCommonApiTests(apiType) {
   runTest(
     `${apiType}: console.log`,
@@ -252,6 +238,16 @@ runSnapshotTests('snapshot-node-api');
 
 // Node-API specific tests
 {
+  runTest(
+    'nodejs-main-node-api: run Node.js CLI',
+    spawnSyncAndAssert,
+    ['nodejs-main-node-api', '--eval', 'console.log("Hello World")'],
+    {
+      trim: true,
+      stdout: 'Hello World',
+    }
+  );
+
   runTest(
     `node-api: callMe`,
     spawnSyncAndAssert,

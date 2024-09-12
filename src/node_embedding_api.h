@@ -197,6 +197,9 @@ typedef napi_value(NAPI_CDECL* node_embedding_initialize_module_callback)(
 typedef bool(NAPI_CDECL* node_embedding_event_loop_predicate)(
     void* predicate_data, bool has_work);
 
+typedef void(NAPI_CDECL* node_embedding_node_api_callback)(void* cb_data,
+                                                           napi_env env);
+
 //==============================================================================
 // Functions
 //==============================================================================
@@ -370,19 +373,12 @@ NAPI_EXTERN node_embedding_exit_code NAPI_CDECL
 node_embedding_runtime_set_node_api_version(node_embedding_runtime runtime,
                                             int32_t node_api_version);
 
-// Gets the Node-API environment associated with the initialized Node.js
-// runtime.
+// Invokes Node-API code.
 NAPI_EXTERN node_embedding_exit_code NAPI_CDECL
-node_embedding_runtime_get_node_api_env(node_embedding_runtime runtime,
-                                        napi_env* env);
-
-// Opens a new Node-API scope for the current thread.
-NAPI_EXTERN node_embedding_exit_code NAPI_CDECL
-node_embedding_runtime_open_scope(node_embedding_runtime runtime);
-
-// Closes the current Node-API scope for the current thread.
-NAPI_EXTERN node_embedding_exit_code NAPI_CDECL
-node_embedding_runtime_close_scope(node_embedding_runtime runtime);
+node_embedding_runtime_invoke_node_api(
+    node_embedding_runtime runtime,
+    node_embedding_node_api_callback node_api_cb,
+    void* node_api_cb_data);
 
 EXTERN_C_END
 

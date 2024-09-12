@@ -45,39 +45,57 @@ napi_status AddUtf8String(std::string& str, napi_env env, napi_value value) {
   return status;
 }
 
-int32_t callMe(napi_env env) {
-  napi_value global;
-  napi_value cb;
-  napi_value key;
-
-  CHECK(napi_get_global(env, &global));
-  CHECK(napi_create_string_utf8(env, "callMe", NAPI_AUTO_LENGTH, &key));
-  CHECK(napi_get_property(env, global, key, &cb));
-
-  napi_valuetype cb_type;
-  CHECK(napi_typeof(env, cb, &cb_type));
-
-  // Only evaluate callMe if it was registered as a function.
-  if (cb_type == napi_function) {
-    napi_value undef;
-    CHECK(napi_get_undefined(env, &undef));
-    napi_value arg;
-    CHECK(napi_create_string_utf8(env, "called", NAPI_AUTO_LENGTH, &arg));
-    napi_value result;
-    CHECK(napi_call_function(env, undef, cb, 1, &arg, &result));
-
-    char buf[32];
-    size_t len;
-    CHECK(napi_get_value_string_utf8(env, result, buf, 32, &len));
-    if (strcmp(buf, "called you") != 0) {
-      FAIL("Invalid value received: %s\n", buf);
-    }
-    printf("%s", buf);
-  } else if (cb_type != napi_undefined) {
-    FAIL("Invalid callMe value\n");
+void GetAndThrowLastErrorMessage(napi_env env) {
+  const napi_extended_error_info* error_info;
+  napi_get_last_error_info((env), &error_info);
+  bool is_pending;
+  const char* err_message = error_info->error_message;
+  napi_is_exception_pending((env), &is_pending);
+  /* If an exception is already pending, don't rethrow it */
+  if (!is_pending) {
+    const char* error_message =
+        err_message != nullptr ? err_message : "empty error message";
+    napi_throw_error((env), nullptr, error_message);
   }
+}
 
-  return 0;
+int32_t callMe(node_embedding_runtime runtime) {
+  int32_t exit_code = 0;
+  CHECK(InvokeNodeApi(runtime, [&](napi_env env) {
+    napi_value global;
+    napi_value cb;
+    napi_value key;
+
+    NODE_API_CALL(napi_get_global(env, &global));
+    NODE_API_CALL(
+        napi_create_string_utf8(env, "callMe", NAPI_AUTO_LENGTH, &key));
+    NODE_API_CALL(napi_get_property(env, global, key, &cb));
+
+    napi_valuetype cb_type;
+    NODE_API_CALL(napi_typeof(env, cb, &cb_type));
+
+    // Only evaluate callMe if it was registered as a function.
+    if (cb_type == napi_function) {
+      napi_value undef;
+      NODE_API_CALL(napi_get_undefined(env, &undef));
+      napi_value arg;
+      NODE_API_CALL(
+          napi_create_string_utf8(env, "called", NAPI_AUTO_LENGTH, &arg));
+      napi_value result;
+      NODE_API_CALL(napi_call_function(env, undef, cb, 1, &arg, &result));
+
+      char buf[32];
+      size_t len;
+      NODE_API_CALL(napi_get_value_string_utf8(env, result, buf, 32, &len));
+      if (strcmp(buf, "called you") != 0) {
+        FAIL_RETURN_VOID("Invalid value received: %s\n", buf);
+      }
+      printf("%s", buf);
+    } else if (cb_type != napi_undefined) {
+      FAIL_RETURN_VOID("Invalid callMe value\n");
+    }
+  }));
+  return exit_code;
 }
 
 char callback_buf[32];
@@ -91,104 +109,112 @@ napi_value c_cb(napi_env env, napi_callback_info info) {
   return NULL;
 }
 
-int32_t waitMe(napi_env env, node_embedding_runtime runtime) {
-  napi_value global;
-  napi_value cb;
-  napi_value key;
+int32_t waitMe(node_embedding_runtime runtime) {
+  int32_t exit_code = 0;
+  CHECK(InvokeNodeApi(runtime, [&](napi_env env) {
+    napi_value global;
+    napi_value cb;
+    napi_value key;
 
-  CHECK(napi_get_global(env, &global));
-  CHECK(napi_create_string_utf8(env, "waitMe", NAPI_AUTO_LENGTH, &key));
-  CHECK(napi_get_property(env, global, key, &cb));
+    NODE_API_CALL(napi_get_global(env, &global));
+    NODE_API_CALL(
+        napi_create_string_utf8(env, "waitMe", NAPI_AUTO_LENGTH, &key));
+    NODE_API_CALL(napi_get_property(env, global, key, &cb));
 
-  napi_valuetype cb_type;
-  CHECK(napi_typeof(env, cb, &cb_type));
+    napi_valuetype cb_type;
+    NODE_API_CALL(napi_typeof(env, cb, &cb_type));
 
-  // Only evaluate waitMe if it was registered as a function.
-  if (cb_type == napi_function) {
-    napi_value undef;
-    CHECK(napi_get_undefined(env, &undef));
-    napi_value args[2];
-    CHECK(napi_create_string_utf8(env, "waited", NAPI_AUTO_LENGTH, &args[0]));
-    CHECK(napi_create_function(
-        env, "wait_cb", strlen("wait_cb"), c_cb, NULL, &args[1]));
+    // Only evaluate waitMe if it was registered as a function.
+    if (cb_type == napi_function) {
+      napi_value undef;
+      NODE_API_CALL(napi_get_undefined(env, &undef));
+      napi_value args[2];
+      NODE_API_CALL(
+          napi_create_string_utf8(env, "waited", NAPI_AUTO_LENGTH, &args[0]));
+      NODE_API_CALL(napi_create_function(
+          env, "wait_cb", strlen("wait_cb"), c_cb, NULL, &args[1]));
 
-    napi_value result;
-    memset(callback_buf, 0, 32);
-    CHECK(napi_call_function(env, undef, cb, 2, args, &result));
-    if (strcmp(callback_buf, "waited you") == 0) {
-      FAIL("Anachronism detected: %s\n", callback_buf);
+      napi_value result;
+      memset(callback_buf, 0, 32);
+      NODE_API_CALL(napi_call_function(env, undef, cb, 2, args, &result));
+      if (strcmp(callback_buf, "waited you") == 0) {
+        FAIL_RETURN_VOID("Anachronism detected: %s\n", callback_buf);
+      }
+
+      CHECK_RETURN_VOID(node_embedding_runtime_run_event_loop(runtime));
+
+      if (strcmp(callback_buf, "waited you") != 0) {
+        FAIL_RETURN_VOID("Invalid value received: %s\n", callback_buf);
+      }
+      printf("%s", callback_buf);
+    } else if (cb_type != napi_undefined) {
+      FAIL_RETURN_VOID("Invalid waitMe value\n");
     }
-
-    CHECK(node_embedding_runtime_run_event_loop(runtime));
-
-    if (strcmp(callback_buf, "waited you") != 0) {
-      FAIL("Invalid value received: %s\n", callback_buf);
-    }
-    printf("%s", callback_buf);
-  } else if (cb_type != napi_undefined) {
-    FAIL("Invalid waitMe value\n");
-  }
-
-  return 0;
+  }));
+  return exit_code;
 }
 
-int32_t waitMeWithCheese(napi_env env, node_embedding_runtime runtime) {
-  napi_value global;
-  napi_value cb;
-  napi_value key;
+int32_t waitMeWithCheese(node_embedding_runtime runtime) {
+  int32_t exit_code = 0;
+  CHECK(InvokeNodeApi(runtime, [&](napi_env env) {
+    napi_value global;
+    napi_value cb;
+    napi_value key;
 
-  CHECK(napi_get_global(env, &global));
-  CHECK(napi_create_string_utf8(env, "waitPromise", NAPI_AUTO_LENGTH, &key));
-  CHECK(napi_get_property(env, global, key, &cb));
+    NODE_API_CALL(napi_get_global(env, &global));
+    NODE_API_CALL(
+        napi_create_string_utf8(env, "waitPromise", NAPI_AUTO_LENGTH, &key));
+    NODE_API_CALL(napi_get_property(env, global, key, &cb));
 
-  napi_valuetype cb_type;
-  CHECK(napi_typeof(env, cb, &cb_type));
+    napi_valuetype cb_type;
+    NODE_API_CALL(napi_typeof(env, cb, &cb_type));
 
-  // Only evaluate waitPromise if it was registered as a function.
-  if (cb_type == napi_function) {
-    napi_value undef;
-    napi_get_undefined(env, &undef);
-    napi_value arg;
-    bool result_type;
+    // Only evaluate waitPromise if it was registered as a function.
+    if (cb_type == napi_function) {
+      napi_value undef;
+      napi_get_undefined(env, &undef);
+      napi_value arg;
+      bool result_type;
 
-    CHECK(napi_create_string_utf8(env, "waited", NAPI_AUTO_LENGTH, &arg));
+      NODE_API_CALL(
+          napi_create_string_utf8(env, "waited", NAPI_AUTO_LENGTH, &arg));
 
-    memset(callback_buf, 0, 32);
-    napi_value promise;
-    napi_value result;
-    CHECK(napi_call_function(env, undef, cb, 1, &arg, &promise));
+      memset(callback_buf, 0, 32);
+      napi_value promise;
+      napi_value result;
+      NODE_API_CALL(napi_call_function(env, undef, cb, 1, &arg, &promise));
 
-    if (strcmp(callback_buf, "waited with cheese") == 0) {
-      FAIL("Anachronism detected: %s\n", callback_buf);
+      if (strcmp(callback_buf, "waited with cheese") == 0) {
+        FAIL_RETURN_VOID("Anachronism detected: %s\n", callback_buf);
+      }
+
+      NODE_API_CALL(napi_is_promise(env, promise, &result_type));
+
+      if (!result_type) {
+        FAIL_RETURN_VOID("Result is not a Promise\n");
+      }
+
+      node_embedding_promise_state promise_state;
+      CHECK_RETURN_VOID(node_embedding_runtime_await_promise(
+          runtime, promise, &promise_state, &result, nullptr));
+
+      const char* expected;
+      if (promise_state == node_embedding_promise_state_fulfilled)
+        expected = "waited with cheese";
+      else
+        expected = "waited without cheese";
+
+      NODE_API_CALL(napi_get_value_string_utf8(
+          env, result, callback_buf, 32, &callback_buf_len));
+      if (strcmp(callback_buf, expected) != 0) {
+        FAIL_RETURN_VOID("Invalid value received: %s\n", callback_buf);
+      }
+      printf("%s", callback_buf);
+    } else if (cb_type != napi_undefined) {
+      FAIL_RETURN_VOID("Invalid waitPromise value\n");
     }
-
-    CHECK(napi_is_promise(env, promise, &result_type));
-
-    if (!result_type) {
-      FAIL("Result is not a Promise\n");
-    }
-
-    node_embedding_promise_state promise_state;
-    CHECK(node_embedding_runtime_await_promise(
-        runtime, promise, &promise_state, &result, nullptr));
-
-    const char* expected;
-    if (promise_state == node_embedding_promise_state_fulfilled)
-      expected = "waited with cheese";
-    else
-      expected = "waited without cheese";
-
-    CHECK(napi_get_value_string_utf8(
-        env, result, callback_buf, 32, &callback_buf_len));
-    if (strcmp(callback_buf, expected) != 0) {
-      FAIL("Invalid value received: %s\n", callback_buf);
-    }
-    printf("%s", callback_buf);
-  } else if (cb_type != napi_undefined) {
-    FAIL("Invalid waitPromise value\n");
-  }
-
-  return 0;
+  }));
+  return exit_code;
 }
 
 int32_t RunNodeInstance(node_embedding_platform platform) {
@@ -196,14 +222,10 @@ int32_t RunNodeInstance(node_embedding_platform platform) {
   CHECK(node_embedding_create_runtime(platform, &runtime));
   CHECK(node_embedding_runtime_set_node_api_version(runtime, NAPI_VERSION));
   CHECK(node_embedding_runtime_initialize(runtime, main_script));
-  napi_env env;
-  CHECK(node_embedding_runtime_get_node_api_env(runtime, &env));
 
-  CHECK(node_embedding_runtime_open_scope(runtime));
-  CHECK_EXIT_CODE(callMe(env));
-  CHECK_EXIT_CODE(waitMe(env, runtime));
-  CHECK_EXIT_CODE(waitMeWithCheese(env, runtime));
-  CHECK(node_embedding_runtime_close_scope(runtime));
+  CHECK_EXIT_CODE(callMe(runtime));
+  CHECK_EXIT_CODE(waitMe(runtime));
+  CHECK_EXIT_CODE(waitMeWithCheese(runtime));
 
   CHECK(node_embedding_delete_runtime(runtime));
 

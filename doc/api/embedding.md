@@ -1310,6 +1310,29 @@ Returns `node_embedding_exit_code_ok` if there were no issues.
 
 ### JavaScript/Native interop APIs
 
+#### Callback types
+
+##### `node_embedding_node_api_callback`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+```c
+typedef void(NAPI_CDECL* node_embedding_node_api_callback)(
+    void* cb_data,
+    napi_env env);
+```
+
+Function pointer type for callback that invokes Node-API code.
+
+The callback parameters:
+
+- `[in] cb_data`: The user data associated with this callback.
+- `[in] env`: Node-API environment.
+
 #### Functions
 
 ##### `node_embedding_runtime_set_node_api_version`
@@ -1335,7 +1358,7 @@ Returns `node_embedding_exit_code_ok` if there were no issues.
 
 By default it is using the Node-API version 8.
 
-##### `node_embedding_runtime_get_node_api_env`
+##### `node_embedding_runtime_invoke_node_api`
 
 <!-- YAML
 added: REPLACEME
@@ -1343,71 +1366,25 @@ added: REPLACEME
 
 > Stability: 1 - Experimental
 
-Gets `napi_env` associated with the Node.js runtime instance.
+Invokes a callback that runs Node-API code.
 
 ```c
 node_embedding_exit_code NAPI_CDECL
-node_embedding_runtime_get_node_api_env(node_runtime embedding_runtime,
-                                        napi_env* env);
-```
-
-- `[in] runtime`: The Node.js runtime instance.
-- `[out] env`: An instance of Node API environment.
-
-Returns `node_embedding_exit_code_ok` if there were no issues.
-
-##### `node_embedding_runtime_open_scope`
-
-<!-- YAML
-added: REPLACEME
--->
-
-> Stability: 1 - Experimental
-
-Opens V8 Isolate and Context scope associated with the Node.js runtime instance.
-
-```c
-node_embedding_exit_code NAPI_CDECL
-node_embedding_runtime_open_scope(node_embedding_runtime runtime);
-```
-
-- `[in] runtime`: The Node.js runtime instance.
-
-Returns `node_embedding_exit_code_ok` if there were no issues.
-
-Any Node-API function call requires the runtime scope to be opened for the
-current thread.
-
-This function lets the V8 Isolate enter the current thread and open the scope.
-Then, it opens the V8 Handle scope and the V8 Context scope.
-It enables use of V8 API and the Node APIs which is a C API on top of
-the V8 API.
-
-##### `node_runtime_close_scope`
-
-<!-- YAML
-added: REPLACEME
--->
-
-> Stability: 1 - Experimental
-
-Closes V8 Isolate and Context scope associated with the Node.js
-runtime instance.
-
-```c
-node_embedding_exit_code NAPI_CDECL
-node_embedding_runtime_close_scope(node_embedding_runtime runtime);
+node_embedding_runtime_invoke_node_api(
+    node_embedding_runtime runtime,
+    node_embedding_node_api_callback node_api_cb,
+    void* node_api_cb_data);
 ```
 
 - `[in] runtime`: The Node.js embedding_runtime instance.
+- `[in] node_api_cb`: The callback that executes Node-API code.
+- `[in] node_api_cb_data`: The data associated with the callback.
 
 Returns `node_embedding_exit_code_ok` if there were no issues.
 
-Any Node-API function call requires the runtime scope to be opened for the
-current thread. Each opened runtime scoped must be closed in the end.
-
-This function closes V8 Context scope, V8 Handle scope, V8 Isolate scope, and
-then makes the V8 Isolate leave the current thread.
+The function invokes the callback that runs Node-API code in the V8 Isolate
+scope, V8 Handle scope, and V8 Context scope. Then, it triggers the uncaught
+exception handler if there were any unhandled errors.
 
 ## Examples
 
