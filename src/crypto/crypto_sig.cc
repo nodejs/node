@@ -34,11 +34,11 @@ namespace crypto {
 namespace {
 bool ValidateDSAParameters(EVP_PKEY* key) {
   /* Validate DSA2 parameters from FIPS 186-4 */
+  auto id = EVPKeyPointer::base_id(key);
 #if OPENSSL_VERSION_MAJOR >= 3
-  if (EVP_default_properties_is_fips_enabled(nullptr) &&
-      EVP_PKEY_DSA == EVP_PKEY_base_id(key)) {
+  if (EVP_default_properties_is_fips_enabled(nullptr) && EVP_PKEY_DSA == id) {
 #else
-  if (FIPS_mode() && EVP_PKEY_DSA == EVP_PKEY_base_id(key)) {
+  if (FIPS_mode() && EVP_PKEY_DSA == id) {
 #endif
     const DSA* dsa = EVP_PKEY_get0_DSA(key);
     const BIGNUM* p;
@@ -60,9 +60,8 @@ bool ApplyRSAOptions(const EVPKeyPointer& pkey,
                      EVP_PKEY_CTX* pkctx,
                      int padding,
                      const Maybe<int>& salt_len) {
-  if (EVP_PKEY_id(pkey.get()) == EVP_PKEY_RSA ||
-      EVP_PKEY_id(pkey.get()) == EVP_PKEY_RSA2 ||
-      EVP_PKEY_id(pkey.get()) == EVP_PKEY_RSA_PSS) {
+  int id = pkey.id();
+  if (id == EVP_PKEY_RSA || id == EVP_PKEY_RSA2 || id == EVP_PKEY_RSA_PSS) {
     if (EVP_PKEY_CTX_set_rsa_padding(pkctx, padding) <= 0)
       return false;
     if (padding == RSA_PKCS1_PSS_PADDING && salt_len.IsJust()) {
@@ -85,15 +84,13 @@ std::unique_ptr<BackingStore> Node_SignFinal(Environment* env,
   if (!EVP_DigestFinal_ex(mdctx.get(), m, &m_len))
     return nullptr;
 
-  int signed_sig_len = EVP_PKEY_size(pkey.get());
-  CHECK_GE(signed_sig_len, 0);
-  size_t sig_len = static_cast<size_t>(signed_sig_len);
+  size_t sig_len = pkey.size();
   std::unique_ptr<BackingStore> sig;
   {
     NoArrayBufferZeroFillScope no_zero_fill_scope(env->isolate_data());
     sig = ArrayBuffer::NewBackingStore(env->isolate(), sig_len);
   }
-  EVPKeyCtxPointer pkctx(EVP_PKEY_CTX_new(pkey.get(), nullptr));
+  EVPKeyCtxPointer pkctx = pkey.newCtx();
   if (pkctx && EVP_PKEY_sign_init(pkctx.get()) > 0 &&
       ApplyRSAOptions(pkey, pkctx.get(), padding, pss_salt_len) &&
       EVP_PKEY_CTX_set_signature_md(pkctx.get(), EVP_MD_CTX_md(mdctx.get())) >
@@ -120,12 +117,12 @@ std::unique_ptr<BackingStore> Node_SignFinal(Environment* env,
 }
 
 int GetDefaultSignPadding(const EVPKeyPointer& m_pkey) {
-  return EVP_PKEY_id(m_pkey.get()) == EVP_PKEY_RSA_PSS ? RSA_PKCS1_PSS_PADDING :
-                                                         RSA_PKCS1_PADDING;
+  return m_pkey.id() == EVP_PKEY_RSA_PSS ? RSA_PKCS1_PSS_PADDING
+                                         : RSA_PKCS1_PADDING;
 }
 
 unsigned int GetBytesOfRS(const EVPKeyPointer& pkey) {
-  int bits, base_id = EVP_PKEY_base_id(pkey.get());
+  int bits, base_id = pkey.base_id();
 
   if (base_id == EVP_PKEY_DSA) {
     const DSA* dsa_key = EVP_PKEY_get0_DSA(pkey.get());
@@ -274,23 +271,12 @@ void CheckThrow(Environment* env, SignBase::Error error) {
 }
 
 bool IsOneShot(const EVPKeyPointer& key) {
-  switch (EVP_PKEY_id(key.get())) {
-    case EVP_PKEY_ED25519:
-    case EVP_PKEY_ED448:
-      return true;
-    default:
-      return false;
-  }
+  return key.id() == EVP_PKEY_ED25519 || key.id() == EVP_PKEY_ED448;
 }
 
 bool UseP1363Encoding(const EVPKeyPointer& key, const DSASigEnc& dsa_encoding) {
-  switch (EVP_PKEY_id(key.get())) {
-    case EVP_PKEY_EC:
-    case EVP_PKEY_DSA:
-      return dsa_encoding == kSigEncP1363;
-    default:
-      return false;
-  }
+  return (key.id() == EVP_PKEY_EC || key.id() == EVP_PKEY_DSA) &&
+         dsa_encoding == kSigEncP1363;
 }
 }  // namespace
 
@@ -530,7 +516,7 @@ SignBase::Error Verify::VerifyFinal(const EVPKeyPointer& pkey,
   if (!EVP_DigestFinal_ex(mdctx.get(), m, &m_len))
     return kSignPublicKey;
 
-  EVPKeyCtxPointer pkctx(EVP_PKEY_CTX_new(pkey.get(), nullptr));
+  EVPKeyCtxPointer pkctx = pkey.newCtx();
   if (pkctx) {
     const int init_ret = EVP_PKEY_verify_init(pkctx.get());
     if (init_ret == -2) {

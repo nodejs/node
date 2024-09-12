@@ -996,7 +996,7 @@ bool PublicKeyCipher::Cipher(
     const ArrayBufferOrViewContents<unsigned char>& oaep_label,
     const ArrayBufferOrViewContents<unsigned char>& data,
     std::unique_ptr<BackingStore>* out) {
-  EVPKeyCtxPointer ctx(EVP_PKEY_CTX_new(pkey.get(), nullptr));
+  EVPKeyCtxPointer ctx = pkey.newCtx();
   if (!ctx)
     return false;
   if (EVP_PKEY_cipher_init(ctx.get()) <= 0)
@@ -1072,7 +1072,7 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
 
   if (EVP_PKEY_cipher == EVP_PKEY_decrypt &&
       operation == PublicKeyCipher::kPrivate && padding == RSA_PKCS1_PADDING) {
-    EVPKeyCtxPointer ctx(EVP_PKEY_CTX_new(pkey.get(), nullptr));
+    EVPKeyCtxPointer ctx = pkey.newCtx();
     CHECK(ctx);
 
     if (EVP_PKEY_decrypt_init(ctx.get()) <= 0) {

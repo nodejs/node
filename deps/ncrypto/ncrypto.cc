@@ -1425,4 +1425,213 @@ DataPointer pbkdf2(const EVP_MD* md,
   return {};
 }
 
+// ============================================================================
+
+EVPKeyPointer EVPKeyPointer::New() {
+  return EVPKeyPointer(EVP_PKEY_new());
+}
+
+EVPKeyPointer EVPKeyPointer::NewRawPublic(int id, const Buffer<const unsigned char>& data) {
+  if (id == 0) return {};
+  return EVPKeyPointer(EVP_PKEY_new_raw_public_key(id, nullptr, data.data, data.len));
+}
+
+EVPKeyPointer EVPKeyPointer::NewRawPrivate(int id, const Buffer<const unsigned char>& data) {
+  if (id == 0) return {};
+  return EVPKeyPointer(EVP_PKEY_new_raw_private_key(id, nullptr, data.data, data.len));
+}
+
+EVPKeyPointer::EVPKeyPointer(EVP_PKEY* pkey) : pkey_(pkey) {}
+
+EVPKeyPointer::EVPKeyPointer(EVPKeyPointer&& other) noexcept
+    : pkey_(other.release()) {}
+
+EVPKeyPointer& EVPKeyPointer::operator=(EVPKeyPointer&& other) noexcept {
+  if (this == &other) return *this;
+  this->~EVPKeyPointer();
+  return *new (this) EVPKeyPointer(std::move(other));
+}
+
+EVPKeyPointer::~EVPKeyPointer() { reset(); }
+
+void EVPKeyPointer::reset(EVP_PKEY* pkey) {
+  pkey_.reset(pkey);
+}
+
+EVP_PKEY* EVPKeyPointer::release() {
+  return pkey_.release();
+}
+
+int EVPKeyPointer::id(const EVP_PKEY* key) {
+  if (key == nullptr) return 0;
+  return EVP_PKEY_id(key);
+}
+
+int EVPKeyPointer::base_id(const EVP_PKEY* key) {
+  if (key == nullptr) return 0;
+  return EVP_PKEY_base_id(key);
+}
+
+int EVPKeyPointer::id() const {
+  return id(get());
+}
+
+int EVPKeyPointer::base_id() const {
+  return base_id(get());
+}
+
+int EVPKeyPointer::bits() const {
+  if (get() == nullptr) return 0;
+  return EVP_PKEY_bits(get());
+}
+
+size_t EVPKeyPointer::size() const {
+  if (get() == nullptr) return 0;
+  return EVP_PKEY_size(get());
+}
+
+EVPKeyCtxPointer EVPKeyPointer::newCtx() const {
+  if (!pkey_) return {};
+  return EVPKeyCtxPointer(EVP_PKEY_CTX_new(get(), nullptr));
+}
+
+size_t EVPKeyPointer::rawPublicKeySize() const {
+  if (!pkey_) return 0;
+  size_t len = 0;
+  if (EVP_PKEY_get_raw_public_key(get(), nullptr, &len) == 1) return len;
+  return 0;
+}
+
+size_t EVPKeyPointer::rawPrivateKeySize() const {
+  if (!pkey_) return 0;
+  size_t len = 0;
+  if (EVP_PKEY_get_raw_private_key(get(), nullptr, &len) == 1) return len;
+  return 0;
+}
+
+DataPointer EVPKeyPointer::rawPublicKey() const {
+  if (!pkey_) return {};
+  if (auto data = DataPointer::Alloc(rawPublicKeySize())) {
+    const Buffer<unsigned char> buf = data;
+    size_t len = data.size();
+    if (EVP_PKEY_get_raw_public_key(get(),
+            buf.data,
+            &len) != 1) return {};
+    return data;
+  }
+  return {};
+}
+
+DataPointer EVPKeyPointer::rawPrivateKey() const {
+  if (!pkey_) return {};
+  if (auto data = DataPointer::Alloc(rawPrivateKeySize())) {
+    const Buffer<unsigned char> buf = data;
+    size_t len = data.size();
+    if (EVP_PKEY_get_raw_private_key(get(),
+            buf.data,
+            &len) != 1) return {};
+    return data;
+  }
+  return {};
+}
+
+BIOPointer EVPKeyPointer::derPublicKey() const {
+  if (!pkey_) return {};
+  auto bio = BIOPointer::NewMem();
+  if (!bio) return {};
+  if (!i2d_PUBKEY_bio(bio.get(), get())) return {};
+  return bio;
+}
+
+namespace {
+EVPKeyPointer::ParseKeyResult TryParsePublicKeyInner(
+    const BIOPointer& bp,
+    const char* name,
+    auto&& parse) {
+  if (!bp.resetBio()) {
+    return EVPKeyPointer::ParseKeyResult(EVPKeyPointer::PKParseError::FAILED);
+  }
+  unsigned char* der_data;
+  long der_len;
+
+  // This skips surrounding data and decodes PEM to DER.
+  {
+    MarkPopErrorOnReturn mark_pop_error_on_return;
+    if (PEM_bytes_read_bio(&der_data, &der_len, nullptr, name,
+                           bp.get(), nullptr, nullptr) != 1)
+      return EVPKeyPointer::ParseKeyResult(EVPKeyPointer::PKParseError::NOT_RECOGNIZED);
+  }
+  DataPointer data(der_data, der_len);
+
+  // OpenSSL might modify the pointer, so we need to make a copy before parsing.
+  const unsigned char* p = der_data;
+  EVPKeyPointer pkey(parse(&p, der_len));
+  if (!pkey) return EVPKeyPointer::ParseKeyResult(EVPKeyPointer::PKParseError::FAILED);
+  return EVPKeyPointer::ParseKeyResult(std::move(pkey));
+}
+
+EVPKeyPointer::ParseKeyResult TryParsePublicKeyPEM(
+    const Buffer<const unsigned char>& buffer) {
+  auto bp = BIOPointer::New(buffer.data, buffer.len);
+  if (!bp)
+    return EVPKeyPointer::ParseKeyResult(EVPKeyPointer::PKParseError::FAILED);
+
+  // Try parsing as SubjectPublicKeyInfo (SPKI) first.
+  if (auto ret = TryParsePublicKeyInner(bp, "PUBLIC KEY",
+      [](const unsigned char** p, long l) {  // NOLINT(runtime/int)
+        return d2i_PUBKEY(nullptr, p, l);
+      })) {
+    return ret;
+  }
+
+  // Maybe it is PKCS#1.
+  if (auto ret = TryParsePublicKeyInner(bp, "RSA PUBLIC KEY",
+      [](const unsigned char** p, long l) {  // NOLINT(runtime/int)
+        return d2i_PublicKey(EVP_PKEY_RSA, nullptr, p, l);
+      })) {
+    return ret;
+  }
+
+  // X.509 fallback.
+  if (auto ret = TryParsePublicKeyInner(bp, "CERTIFICATE",
+      [](const unsigned char** p, long l) {  // NOLINT(runtime/int)
+        X509Pointer x509(d2i_X509(nullptr, p, l));
+        return x509 ? X509_get_pubkey(x509.get()) : nullptr;
+      })) {
+    return ret;
+  };
+
+  return EVPKeyPointer::ParseKeyResult(EVPKeyPointer::PKParseError::NOT_RECOGNIZED);
+}
+}  // namespace
+
+EVPKeyPointer::ParseKeyResult EVPKeyPointer::TryParsePublicKey(
+    PKFormatType format,
+    PKEncodingType encoding,
+    const Buffer<const unsigned char>& buffer) {
+  if (format == PKFormatType::PEM) {
+    return TryParsePublicKeyPEM(buffer);
+  }
+
+  if (format != PKFormatType::DER) {
+    return ParseKeyResult(PKParseError::FAILED);
+  }
+
+  const unsigned char* start = buffer.data;
+
+  EVP_PKEY* key = nullptr;
+
+  if (encoding == PKEncodingType::PKCS1 &&
+      (key = d2i_PublicKey(EVP_PKEY_RSA, nullptr, &start, buffer.len))) {
+    return EVPKeyPointer::ParseKeyResult(EVPKeyPointer(key));
+  }
+
+  if (encoding == PKEncodingType::SPKI &&
+      (key = d2i_PUBKEY(nullptr, &start, buffer.len))) {
+    return EVPKeyPointer::ParseKeyResult(EVPKeyPointer(key));
+  }
+
+  return ParseKeyResult(PKParseError::FAILED);
+}
+
 }  // namespace ncrypto

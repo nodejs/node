@@ -18,21 +18,23 @@
 
 namespace node {
 namespace crypto {
+// TODO(@jasnell): These static casts are temporarily while this code
+// is being shifted over into ncrypto
 enum PKEncodingType {
   // RSAPublicKey / RSAPrivateKey according to PKCS#1.
-  kKeyEncodingPKCS1,
+  kKeyEncodingPKCS1 = static_cast<int>(EVPKeyPointer::PKEncodingType::PKCS1),
   // PrivateKeyInfo or EncryptedPrivateKeyInfo according to PKCS#8.
-  kKeyEncodingPKCS8,
+  kKeyEncodingPKCS8 = static_cast<int>(EVPKeyPointer::PKEncodingType::PKCS8),
   // SubjectPublicKeyInfo according to X.509.
-  kKeyEncodingSPKI,
+  kKeyEncodingSPKI = static_cast<int>(EVPKeyPointer::PKEncodingType::SPKI),
   // ECPrivateKey according to SEC1.
-  kKeyEncodingSEC1
+  kKeyEncodingSEC1 = static_cast<int>(EVPKeyPointer::PKEncodingType::SEC1),
 };
 
 enum PKFormatType {
-  kKeyFormatDER,
-  kKeyFormatPEM,
-  kKeyFormatJWK
+  kKeyFormatDER = static_cast<int>(EVPKeyPointer::PKFormatType::DER),
+  kKeyFormatPEM = static_cast<int>(EVPKeyPointer::PKFormatType::PEM),
+  kKeyFormatJWK = static_cast<int>(EVPKeyPointer::PKFormatType::JWK),
 };
 
 enum KeyType {
@@ -48,16 +50,18 @@ enum KeyEncodingContext {
 };
 
 enum class ParseKeyResult {
+  kParseKeyNotRecognized =
+      static_cast<int>(EVPKeyPointer::PKParseError::NOT_RECOGNIZED),
+  kParseKeyNeedPassphrase =
+      static_cast<int>(EVPKeyPointer::PKParseError::NEED_PASSPHRASE),
+  kParseKeyFailed = static_cast<int>(EVPKeyPointer::PKParseError::FAILED),
   kParseKeyOk,
-  kParseKeyNotRecognized,
-  kParseKeyNeedPassphrase,
-  kParseKeyFailed
 };
 
 struct AsymmetricKeyEncodingConfig {
   bool output_key_object_ = false;
   PKFormatType format_ = kKeyFormatDER;
-  v8::Maybe<PKEncodingType> type_ = v8::Nothing<PKEncodingType>();
+  std::optional<PKEncodingType> type_ = std::nullopt;
 };
 
 using PublicKeyEncodingConfig = AsymmetricKeyEncodingConfig;

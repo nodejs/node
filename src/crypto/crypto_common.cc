@@ -449,15 +449,14 @@ MaybeLocal<Object> GetEphemeralKey(Environment* env, const SSLPointer& ssl) {
   Local<Context> context = env->context();
   crypto::EVPKeyPointer key(raw_key);
 
-  int kid = EVP_PKEY_id(key.get());
-  int bits = EVP_PKEY_bits(key.get());
+  int kid = key.id();
   switch (kid) {
     case EVP_PKEY_DH:
       if (!Set<String>(context, info, env->type_string(), env->dh_string()) ||
           !Set<Integer>(context,
-               info,
-               env->size_string(),
-               Integer::New(env->isolate(), bits))) {
+                        info,
+                        env->size_string(),
+                        Integer::New(env->isolate(), key.bits()))) {
         return MaybeLocal<Object>();
       }
       break;
@@ -473,18 +472,16 @@ MaybeLocal<Object> GetEphemeralKey(Environment* env, const SSLPointer& ssl) {
         } else {
           curve_name = OBJ_nid2sn(kid);
         }
-        if (!Set<String>(context,
-                         info,
-                         env->type_string(),
-                         env->ecdh_string()) ||
+        if (!Set<String>(
+                context, info, env->type_string(), env->ecdh_string()) ||
             !Set<String>(context,
-                info,
-                env->name_string(),
-                OneByteString(env->isolate(), curve_name)) ||
+                         info,
+                         env->name_string(),
+                         OneByteString(env->isolate(), curve_name)) ||
             !Set<Integer>(context,
-                 info,
-                 env->size_string(),
-                 Integer::New(env->isolate(), bits))) {
+                          info,
+                          env->size_string(),
+                          Integer::New(env->isolate(), key.bits()))) {
           return MaybeLocal<Object>();
         }
       }

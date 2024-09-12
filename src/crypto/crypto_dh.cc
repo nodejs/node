@@ -395,7 +395,7 @@ EVPKeyCtxPointer DhKeyGenTraits::Setup(DhKeyPairGenConfig* params) {
     auto dh = DHPointer::New(std::move(prime), std::move(bn_g));
     if (!dh) return {};
 
-    key_params = EVPKeyPointer(EVP_PKEY_new());
+    key_params = EVPKeyPointer::New();
     CHECK(key_params);
     CHECK_EQ(EVP_PKEY_assign_DH(key_params.get(), dh.release()), 1);
   } else if (int* prime_size = std::get_if<int>(&params->params.prime)) {
@@ -418,7 +418,7 @@ EVPKeyCtxPointer DhKeyGenTraits::Setup(DhKeyPairGenConfig* params) {
     UNREACHABLE();
   }
 
-  EVPKeyCtxPointer ctx(EVP_PKEY_CTX_new(key_params.get(), nullptr));
+  EVPKeyCtxPointer ctx = key_params.newCtx();
   if (!ctx || EVP_PKEY_keygen_init(ctx.get()) <= 0) return {};
 
   return ctx;
@@ -533,7 +533,7 @@ bool DHBitsTraits::DeriveBits(
 Maybe<void> GetDhKeyDetail(Environment* env,
                            const KeyObjectData& key,
                            Local<Object> target) {
-  CHECK_EQ(EVP_PKEY_id(key.GetAsymmetricKey().get()), EVP_PKEY_DH);
+  CHECK_EQ(key.GetAsymmetricKey().id(), EVP_PKEY_DH);
   return JustVoid();
 }
 
