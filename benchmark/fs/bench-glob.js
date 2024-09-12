@@ -16,25 +16,29 @@ const configs = {
 
 const bench = common.createBenchmark(main, configs);
 
-async function main(conf) {
-  const fullPath = path.resolve(benchmarkDirectory, conf.dir);
-  const globPattern = conf.pattern;
-  const recursive = conf.recursive === 'true';
+async function main(config) {
+  const fullPath = path.resolve(benchmarkDirectory, config.dir);
+  const { pattern, recursive, mode } = config;
 
   bench.start();
 
   let counter = 0;
-  for (let i = 0; i < conf.n; i++) {
-    if (conf.mode === 'async') {
+
+  for (let i = 0; i < config.n; i++) {
+    if (mode === 'async') {
       const matches = await new Promise((resolve, reject) => {
-        fs.glob(globPattern, { cwd: fullPath, recursive }, (err, files) => {
-          if (err) reject(err);
-          else resolve(files);
+        fs.glob(pattern, { cwd: fullPath, recursive }, (err, files) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve(files);
+          };
         });
       });
+
       counter += matches.length;
-    } else if (conf.mode === 'sync') {
-      const matches = fs.globSync(globPattern, { cwd: fullPath, recursive });
+    } else {
+      const matches = fs.globSync(pattern, { cwd: fullPath, recursive });
       counter += matches.length;
     }
   }
