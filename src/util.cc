@@ -109,7 +109,7 @@ static void MakeUtf8String(Isolate* isolate,
   if (value_view.is_one_byte()) {
     auto const_char = reinterpret_cast<const char*>(value_view.data8());
     auto expected_length =
-        target->capacity() > (static_cast<size_t>(value_length) * 2 + 1)
+        target->capacity() < (static_cast<size_t>(value_length) * 2 + 1)
             ? simdutf::utf8_length_from_latin1(const_char, value_length)
             : value_length * 2;
 
