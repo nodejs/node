@@ -43,9 +43,12 @@ const dheCipher = 'DHE-RSA-AES128-SHA256';
 const ecdheCipher = 'ECDHE-RSA-AES128-SHA256';
 const ciphers = `${dheCipher}:${ecdheCipher}`;
 
-// Test will emit a warning because the DH parameter size is < 2048 bits
-common.expectWarning('SecurityWarning',
-                     'DH parameter is less than 2048 bits');
+if (!common.hasOpenSSL(3, 2)) {
+  // Test will emit a warning because the DH parameter size is < 2048 bits
+  // when the test is run on versions lower than OpenSSL32
+  common.expectWarning('SecurityWarning',
+                       'DH parameter is less than 2048 bits');
+}
 
 function loadDHParam(n) {
   const keyname = `dh${n}.pem`;
