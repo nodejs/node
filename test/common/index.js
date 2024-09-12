@@ -299,96 +299,19 @@ function platformTimeout(ms) {
 }
 
 let knownGlobals = [
-  AbortController,
-  atob,
-  btoa,
-  clearImmediate,
-  clearInterval,
-  clearTimeout,
-  global,
-  setImmediate,
-  setInterval,
-  setTimeout,
-  queueMicrotask,
-];
-
-if (global.gc) {
-  knownGlobals.push(global.gc);
-}
-
-if (global.navigator) {
-  knownGlobals.push(global.navigator);
-}
-
-if (global.Navigator) {
-  knownGlobals.push(global.Navigator);
-}
-
-if (global.Performance) {
-  knownGlobals.push(global.Performance);
-}
-if (global.performance) {
-  knownGlobals.push(global.performance);
-}
-if (global.PerformanceMark) {
-  knownGlobals.push(global.PerformanceMark);
-}
-if (global.PerformanceMeasure) {
-  knownGlobals.push(global.PerformanceMeasure);
-}
-
-// TODO(@ethan-arrowood): Similar to previous checks, this can be temporary
-// until v16.x is EOL. Once all supported versions have structuredClone we
-// can add this to the list above instead.
-if (global.structuredClone) {
-  knownGlobals.push(global.structuredClone);
-}
-
-if (global.EventSource) {
-  knownGlobals.push(EventSource);
-}
-
-if (global.fetch) {
-  knownGlobals.push(fetch);
-}
-if (hasCrypto && global.crypto) {
-  knownGlobals.push(global.crypto);
-  knownGlobals.push(global.Crypto);
-  knownGlobals.push(global.CryptoKey);
-  knownGlobals.push(global.SubtleCrypto);
-}
-if (global.CustomEvent) {
-  knownGlobals.push(global.CustomEvent);
-}
-if (global.ReadableStream) {
-  knownGlobals.push(
-    global.ReadableStream,
-    global.ReadableStreamDefaultReader,
-    global.ReadableStreamBYOBReader,
-    global.ReadableStreamBYOBRequest,
-    global.ReadableByteStreamController,
-    global.ReadableStreamDefaultController,
-    global.TransformStream,
-    global.TransformStreamDefaultController,
-    global.WritableStream,
-    global.WritableStreamDefaultWriter,
-    global.WritableStreamDefaultController,
-    global.ByteLengthQueuingStrategy,
-    global.CountQueuingStrategy,
-    global.TextEncoderStream,
-    global.TextDecoderStream,
-    global.CompressionStream,
-    global.DecompressionStream,
-  );
-}
-
-if (global.Storage) {
-  knownGlobals.push(
-    global.localStorage,
-    global.sessionStorage,
-    global.Storage,
-  );
-}
+  AbortController, atob, btoa, clearImmediate, clearInterval, clearTimeout, global,
+  setImmediate, setInterval, setTimeout, queueMicrotask, structuredClone, global.gc,
+  global.navigator, global.Navigator, global.Performance, global.performance,
+  global.PerformanceMeasure, global.EventSource, global.fetch, global.PerformanceMark,
+  global.ReadableStream, global.ReadableStreamDefaultReader, global.ReadableStreamBYOBReader,
+  global.ReadableStreamBYOBRequest, global.ReadableByteStreamController, global.TransformStream,
+  global.ReadableStreamDefaultController, global.TransformStreamDefaultController,
+  global.WritableStream, global.WritableStreamDefaultWriter, global.WritableStreamDefaultController,
+  global.ByteLengthQueuingStrategy, global.CountQueuingStrategy, global.TextEncoderStream,
+  global.TextDecoderStream, global.CompressionStream, global.DecompressionStream, global.crypto,
+  global.Crypto, global.CryptoKey, global.SubtleCrypto, global.CustomEvent, global.Storage,
+  global.localStorage, global.sessionStorage,
+].filter((g) => g !== undefined);
 
 function allowGlobals(...allowlist) {
   knownGlobals = knownGlobals.concat(allowlist);
