@@ -144,49 +144,50 @@ extern "C" int32_t test_main_modules_node_api(int32_t argc, char* argv[]) {
   CHECK(node_embedding_create_runtime(platform, &runtime));
   CHECK(node_embedding_runtime_set_node_api_version(runtime, NAPI_VERSION));
   CHECK(node_embedding_runtime_initialize(runtime, nullptr));
-  napi_env env;
-  CHECK(node_embedding_runtime_get_node_api_env(runtime, &env));
+  int32_t exit_code = 0;
+  CHECK(InvokeNodeApi(runtime, [&](napi_env env) {
+    napi_value global, import_name, require_name, import, require, cjs, es6,
+        value;
+    NODE_API_CALL(napi_get_global(env, &global));
+    NODE_API_CALL(
+        napi_create_string_utf8(env, "import", strlen("import"), &import_name));
+    NODE_API_CALL(napi_create_string_utf8(
+        env, "require", strlen("require"), &require_name));
+    NODE_API_CALL(napi_get_property(env, global, import_name, &import));
+    NODE_API_CALL(napi_get_property(env, global, require_name, &require));
 
-  CHECK(node_embedding_runtime_open_scope(runtime));
+    NODE_API_CALL(napi_create_string_utf8(env, argv[1], strlen(argv[1]), &cjs));
+    NODE_API_CALL(napi_create_string_utf8(env, argv[2], strlen(argv[2]), &es6));
+    NODE_API_CALL(
+        napi_create_string_utf8(env, "value", strlen("value"), &value));
 
-  napi_value global, import_name, require_name, import, require, cjs, es6,
-      value;
-  CHECK(napi_get_global(env, &global));
-  CHECK(napi_create_string_utf8(env, "import", strlen("import"), &import_name));
-  CHECK(napi_create_string_utf8(
-      env, "require", strlen("require"), &require_name));
-  CHECK(napi_get_property(env, global, import_name, &import));
-  CHECK(napi_get_property(env, global, require_name, &require));
+    napi_value es6_module, es6_promise, cjs_module, es6_result, cjs_result;
+    char buffer[32];
+    size_t bufferlen;
 
-  CHECK(napi_create_string_utf8(env, argv[1], strlen(argv[1]), &cjs));
-  CHECK(napi_create_string_utf8(env, argv[2], strlen(argv[2]), &es6));
-  CHECK(napi_create_string_utf8(env, "value", strlen("value"), &value));
+    NODE_API_CALL(
+        napi_call_function(env, global, import, 1, &es6, &es6_promise));
+    node_embedding_promise_state es6_promise_state;
+    CHECK_RETURN_VOID(node_embedding_runtime_await_promise(
+        runtime, es6_promise, &es6_promise_state, &es6_module, nullptr));
 
-  napi_value es6_module, es6_promise, cjs_module, es6_result, cjs_result;
-  char buffer[32];
-  size_t bufferlen;
+    NODE_API_CALL(napi_get_property(env, es6_module, value, &es6_result));
+    NODE_API_CALL(napi_get_value_string_utf8(
+        env, es6_result, buffer, sizeof(buffer), &bufferlen));
+    if (strncmp(buffer, "genuine", bufferlen) != 0) {
+      FAIL_RETURN_VOID("Unexpected value: %s\n", buffer);
+    }
 
-  CHECK(napi_call_function(env, global, import, 1, &es6, &es6_promise));
-  node_embedding_promise_state es6_promise_state;
-  CHECK(node_embedding_runtime_await_promise(
-      runtime, es6_promise, &es6_promise_state, &es6_module, nullptr));
-
-  CHECK(napi_get_property(env, es6_module, value, &es6_result));
-  CHECK(napi_get_value_string_utf8(
-      env, es6_result, buffer, sizeof(buffer), &bufferlen));
-  if (strncmp(buffer, "genuine", bufferlen) != 0) {
-    FAIL("Unexpected value: %s\n", buffer);
-  }
-
-  CHECK(napi_call_function(env, global, require, 1, &cjs, &cjs_module));
-  CHECK(napi_get_property(env, cjs_module, value, &cjs_result));
-  CHECK(napi_get_value_string_utf8(
-      env, cjs_result, buffer, sizeof(buffer), &bufferlen));
-  if (strncmp(buffer, "original", bufferlen) != 0) {
-    FAIL("Unexpected value: %s\n", buffer);
-  }
-
-  CHECK(node_embedding_runtime_close_scope(runtime));
+    NODE_API_CALL(
+        napi_call_function(env, global, require, 1, &cjs, &cjs_module));
+    NODE_API_CALL(napi_get_property(env, cjs_module, value, &cjs_result));
+    NODE_API_CALL(napi_get_value_string_utf8(
+        env, cjs_result, buffer, sizeof(buffer), &bufferlen));
+    if (strncmp(buffer, "original", bufferlen) != 0) {
+      FAIL_RETURN_VOID("Unexpected value: %s\n", buffer);
+    }
+  }));
+  CHECK(exit_code);
   CHECK(node_embedding_delete_runtime(runtime));
   CHECK(node_embedding_delete_platform(platform));
   return 0;
