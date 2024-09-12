@@ -80,7 +80,8 @@ test('expect error when executing a TypeScript file with imports with no extensi
   strictEqual(result.code, 1);
 });
 
-test('expect error when executing a TypeScript file with imports with no extensions with default-type module', async () => {
+test('expect error when executing a TypeScript file with imports with no extensions with default-type module',
+  async () => {
   const result = await spawnPromisified(process.execPath, [
     '--experimental-strip-types',
     '--experimental-default-type=module',
@@ -313,7 +314,8 @@ test('execute a TypeScript file with CommonJS syntax requiring .mts with require
   strictEqual(result.code, 0);
 });
 
-test('execute a TypeScript file with CommonJS syntax requiring .mts with require-module with default-type commonjs', async () => {
+test('execute a TypeScript file with CommonJS syntax requiring .mts with require-module with default-type commonjs',
+  async () => {
   const result = await spawnPromisified(process.execPath, [
     '--experimental-strip-types',
     '--experimental-default-type=commonjs',
