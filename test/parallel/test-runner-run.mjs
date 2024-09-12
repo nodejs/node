@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { describe, it, run } from 'node:test';
 import { dot, spec, tap } from 'node:test/reporters';
 import assert from 'node:assert';
+import util from 'node:util';
 
 const testFixtures = fixtures.path('test-runner');
 
@@ -76,10 +77,10 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     const result = await run({
       files: [join(testFixtures, 'default-behavior/test/random.cjs')]
     }).compose(dot).toArray();
-    assert.deepStrictEqual(result, [
-      '.',
-      '\n',
-    ]);
+
+    assert.strictEqual(result.length, 2);
+    assert.strictEqual(util.stripVTControlCharacters(result[0]), '.');
+    assert.strictEqual(result[1], '\n');
   });
 
   describe('should be piped with spec reporter', () => {
