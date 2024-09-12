@@ -24,7 +24,7 @@ async function main(config) {
 
   for (let i = 0; i < config.n; i++) {
     if (useAsync) {
-      const matches = await new Promise((resolve, reject) => {
+      await new Promise((resolve, reject) => {
         fs.glob(pattern, { cwd: fullPath, recursive }, (err, files) => {
           if (err) {
             reject(err);
@@ -34,7 +34,7 @@ async function main(config) {
         });
       });
     } else {
-      const matches = fs.globSync(pattern, { cwd: fullPath, recursive });
+      fs.globSync(pattern, { cwd: fullPath, recursive });
     }
   }
 
