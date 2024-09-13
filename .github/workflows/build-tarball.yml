@@ -54,7 +54,7 @@ jobs:
         with:
           version: v0.8.1
       - name: Environment Information
-        run: npx envinfo
+        run: npx envinfo@7.11.0
       - name: Make tarball
         run: |
           export DISTTYPE=nightly
@@ -84,7 +84,7 @@ jobs:
         with:
           version: v0.8.1
       - name: Environment Information
-        run: npx envinfo
+        run: npx envinfo@7.11.0
       - name: Download tarball
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16  # v4.1.8
         with:

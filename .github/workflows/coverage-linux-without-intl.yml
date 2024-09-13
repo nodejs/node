@@ -58,7 +58,7 @@ jobs:
         with:
           version: v0.8.1
       - name: Environment Information
-        run: npx envinfo
+        run: npx envinfo@7.11.0
       - name: Install gcovr
         run: pip install gcovr==7.2
       - name: Build
@@ -68,7 +68,7 @@ jobs:
       - name: Test
         run: NODE_V8_COVERAGE=coverage/tmp make test-cov -j4 V=1 TEST_CI_ARGS="-p dots --node-args='--test-reporter=spec' --measure-flakiness 9" || exit 0
       - name: Report JS
-        run: npx c8 report --check-coverage
+        run: npx c8@8.0.1 report --check-coverage
         env:
           NODE_OPTIONS: --max-old-space-size=8192
       - name: Report C++
