@@ -81,7 +81,7 @@ using v8::Value;
 
 namespace {
 
-class CallbackInfo {
+class CallbackInfo : public Cleanable {
  public:
   static inline Local<ArrayBuffer> CreateTrackedArrayBuffer(
       Environment* env,
@@ -94,7 +94,7 @@ class CallbackInfo {
   CallbackInfo& operator=(const CallbackInfo&) = delete;
 
  private:
-  static void CleanupHook(void* data);
+  void Clean();
   inline void OnBackingStoreFree();
   inline void CallAndResetCallback();
   inline CallbackInfo(Environment* env,
@@ -108,7 +108,6 @@ class CallbackInfo {
   void* const hint_;
   Environment* const env_;
 };
-
 
 Local<ArrayBuffer> CallbackInfo::CreateTrackedArrayBuffer(
     Environment* env,
@@ -149,25 +148,23 @@ CallbackInfo::CallbackInfo(Environment* env,
       data_(data),
       hint_(hint),
       env_(env) {
-  env->AddCleanupHook(CleanupHook, this);
+  env->cleanable_queue()->PushFront(this);
   env->isolate()->AdjustAmountOfExternalAllocatedMemory(sizeof(*this));
 }
 
-void CallbackInfo::CleanupHook(void* data) {
-  CallbackInfo* self = static_cast<CallbackInfo*>(data);
-
+void CallbackInfo::Clean() {
   {
-    HandleScope handle_scope(self->env_->isolate());
-    Local<ArrayBuffer> ab = self->persistent_.Get(self->env_->isolate());
+    HandleScope handle_scope(env_->isolate());
+    Local<ArrayBuffer> ab = persistent_.Get(env_->isolate());
     if (!ab.IsEmpty() && ab->IsDetachable()) {
       ab->Detach(Local<Value>()).Check();
-      self->persistent_.Reset();
+      persistent_.Reset();
     }
   }
 
   // Call the callback in this case, but don't delete `this` yet because the
   // BackingStore deleter callback will do so later.
-  self->CallAndResetCallback();
+  CallAndResetCallback();
 }
 
 void CallbackInfo::CallAndResetCallback() {
@@ -179,7 +176,7 @@ void CallbackInfo::CallAndResetCallback() {
   }
   if (callback != nullptr) {
     // Clean up all Environment-related state and run the callback.
-    env_->RemoveCleanupHook(CleanupHook, this);
+    cleanable_queue_.Remove();
     int64_t change_in_bytes = -static_cast<int64_t>(sizeof(*this));
     env_->isolate()->AdjustAmountOfExternalAllocatedMemory(change_in_bytes);
 
