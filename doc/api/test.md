@@ -2814,6 +2814,11 @@ are defined, while others are emitted in the order that the tests execute.
         numbers and the number of times they were covered.
         * `line` {number} The line number.
         * `count` {number} The number of times the line was covered.
+    * `thresholds` {Object} An object containing whether or not the coverage for
+      each coverage type.
+      * `function` {number} The function coverage threshold.
+      * `branch` {number} The branch coverage threshold.
+      * `line` {number} The line coverage threshold.
     * `totals` {Object} An object containing a summary of coverage for all
       files.
       * `totalLineCount` {number} The total number of lines.
