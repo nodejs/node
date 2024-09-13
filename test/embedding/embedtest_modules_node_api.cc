@@ -112,7 +112,7 @@ extern "C" int32_t test_main_linked_modules_node_api(int32_t argc,
                                           &replicatorModuleInitCallCount,
                                           NAPI_VERSION));
 
-  CHECK(node_embedding_runtime_initialize(runtime, main_script));
+  CHECK(node_embedding_runtime_initialize_from_script(runtime, main_script));
 
   CHECK(node_embedding_delete_runtime(runtime));
   CHECK(node_embedding_delete_platform(platform));
@@ -143,7 +143,7 @@ extern "C" int32_t test_main_modules_node_api(int32_t argc, char* argv[]) {
   node_embedding_runtime runtime;
   CHECK(node_embedding_create_runtime(platform, &runtime));
   CHECK(node_embedding_runtime_set_node_api_version(runtime, NAPI_VERSION));
-  CHECK(node_embedding_runtime_initialize(runtime, nullptr));
+  CHECK(node_embedding_runtime_initialize_from_script(runtime, nullptr));
   int32_t exit_code = 0;
   CHECK(InvokeNodeApi(runtime, [&](napi_env env) {
     napi_value global, import_name, require_name, import, require, cjs, es6,

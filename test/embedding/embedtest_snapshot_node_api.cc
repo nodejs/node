@@ -75,7 +75,8 @@ int32_t RunNodeInstance(node_embedding_platform platform) {
   // embedtest arg1 arg2...
 
   std::vector<std::string> args;
-  CHECK(node_embedding_platform_get_args(platform, GetArgsVector, &args));
+  CHECK(node_embedding_platform_get_parsed_args(
+      platform, GetArgsVector, &args, nullptr, nullptr));
 
   std::vector<std::string> filtered_args;
   bool is_building_snapshot = false;
@@ -103,6 +104,7 @@ int32_t RunNodeInstance(node_embedding_platform platform) {
   node_embedding_runtime runtime;
   CHECK(node_embedding_create_runtime(platform, &runtime));
 
+  std::vector<uint8_t> snapshot;
   bool use_snapshot = false;
   if (!snapshot_blob_path.empty() && !is_building_snapshot) {
     use_snapshot = true;
@@ -113,14 +115,12 @@ int32_t RunNodeInstance(node_embedding_platform platform) {
     size_t filesize = static_cast<size_t>(ftell(fp));
     fseek(fp, 0, SEEK_SET);
 
-    std::vector<uint8_t> vec(filesize);
-    size_t read = fread(vec.data(), filesize, 1, fp);
+    snapshot.resize(filesize);
+    size_t read = fread(snapshot.data(), filesize, 1, fp);
     assert(read == 1);
     assert(snapshot);
     int32_t ret = fclose(fp);
     assert(ret == 0);
-
-    CHECK(node_embedding_runtime_use_snapshot(runtime, vec.data(), vec.size()));
   }
 
   if (is_building_snapshot) {
@@ -133,8 +133,11 @@ int32_t RunNodeInstance(node_embedding_platform platform) {
   }
 
   CStringArray filtered_args_arr(filtered_args);
-  CHECK(node_embedding_runtime_set_args(
-      runtime, filtered_args_arr.size(), filtered_args_arr.c_strs()));
+  CHECK(node_embedding_runtime_set_args(runtime,
+                                        filtered_args_arr.size(),
+                                        filtered_args_arr.c_strs(),
+                                        0,
+                                        nullptr));
 
   if (!snapshot_blob_path.empty() && is_building_snapshot) {
     CHECK(node_embedding_runtime_on_create_snapshot(
@@ -155,11 +158,12 @@ int32_t RunNodeInstance(node_embedding_platform platform) {
   }
 
   if (use_snapshot) {
-    CHECK(node_embedding_runtime_initialize(runtime, nullptr));
+    CHECK(node_embedding_runtime_initialize_from_snapshot(
+        runtime, snapshot.data(), snapshot.size()));
   } else if (is_building_snapshot) {
     // Environment created for snapshotting must set process.argv[1] to
     // the name of the main script, which was inserted above.
-    CHECK(node_embedding_runtime_initialize(
+    CHECK(node_embedding_runtime_initialize_from_script(
         runtime,
         "const assert = require('assert');"
         "assert(require('v8').startupSnapshot.isBuildingSnapshot());"
@@ -167,7 +171,7 @@ int32_t RunNodeInstance(node_embedding_platform platform) {
         "globalThis.require = require;"
         "require('vm').runInThisContext(process.argv[2]);"));
   } else {
-    CHECK(node_embedding_runtime_initialize(runtime, main_script));
+    CHECK(node_embedding_runtime_initialize_from_script(runtime, main_script));
   }
 
   CHECK(node_embedding_delete_runtime(runtime));
