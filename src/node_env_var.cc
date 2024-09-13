@@ -198,7 +198,7 @@ Local<Array> RealEnvStore::Enumerate(Isolate* isolate) const {
   CHECK_EQ(uv_os_environ(&items, &count), 0);
 
   LocalVector<Value> env_v(isolate, count);
-  int env_v_index = 0;
+  size_t env_v_index = 0;
   for (int i = 0; i < count; i++) {
 #ifdef _WIN32
     // If the key starts with '=' it is a hidden environment variable.

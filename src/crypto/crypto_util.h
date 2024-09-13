@@ -547,7 +547,8 @@ void ThrowCryptoError(Environment* env,
 
 class CipherPushContext {
  public:
-  inline explicit CipherPushContext(Environment* env) : env_(env) {}
+  inline explicit CipherPushContext(Environment* env)
+      : list_(env->isolate()), env_(env) {}
 
   inline void push_back(const char* str) {
     list_.emplace_back(OneByteString(env_->isolate(), str));
@@ -558,7 +559,7 @@ class CipherPushContext {
   }
 
  private:
-  std::vector<v8::Local<v8::Value>> list_;
+  v8::LocalVector<v8::Value> list_;
   Environment* env_;
 };
 
