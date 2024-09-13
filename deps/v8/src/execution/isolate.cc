@@ -2125,10 +2125,16 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
         // We reached the base of the wasm stack. Follow the chain of
         // continuations to find the parent stack and reset the iterator.
         DCHECK(!continuation.is_null());
-        continuation = Cast<WasmContinuationObject>(continuation->parent());
         wasm::StackMemory* stack =
             reinterpret_cast<wasm::StackMemory*>(continuation->stack());
-        iter.Reset(thread_local_top(), stack);
+        RetireWasmStack(stack);
+        continuation = Cast<WasmContinuationObject>(continuation->parent());
+        wasm::StackMemory* parent =
+            reinterpret_cast<wasm::StackMemory*>(continuation->stack());
+        parent->jmpbuf()->state = wasm::JumpBuffer::Active;
+        roots_table().slot(RootIndex::kActiveContinuation).store(continuation);
+        SyncStackLimit();
+        iter.Reset(thread_local_top(), parent);
       }
     }
 #endif
@@ -3640,6 +3646,25 @@ void Isolate::UpdateCentralStackInfo() {
       updated_central_stack = true;
     }
   }
+}
+
+void Isolate::RetireWasmStack(wasm::StackMemory* stack) {
+  stack->jmpbuf()->state = wasm::JumpBuffer::Retired;
+  size_t index = stack->index();
+  // We can only return from a stack that was still in the global list.
+  DCHECK_LT(index, wasm_stacks().size());
+  std::unique_ptr<wasm::StackMemory> stack_ptr =
+      std::move(wasm_stacks()[index]);
+  DCHECK_EQ(stack_ptr.get(), stack);
+  if (index != wasm_stacks().size() - 1) {
+    wasm_stacks()[index] = std::move(wasm_stacks().back());
+    wasm_stacks()[index]->set_index(index);
+  }
+  wasm_stacks().pop_back();
+  for (size_t i = 0; i < wasm_stacks().size(); ++i) {
+    SLOW_DCHECK(wasm_stacks()[i]->index() == i);
+  }
+  stack_pool().Add(std::move(stack_ptr));
 }
 
 wasm::WasmOrphanedGlobalHandle* Isolate::NewWasmOrphanedGlobalHandle() {
