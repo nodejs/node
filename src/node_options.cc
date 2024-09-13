@@ -406,6 +406,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "Source Map V3 support for stack traces",
             &EnvironmentOptions::enable_source_maps,
             kAllowedInEnvvar);
+  AddOption("--entry-url",
+            "Treat the entrypoint as a URL",
+            &EnvironmentOptions::entry_is_url,
+            kAllowedInEnvvar);
   AddOption("--experimental-abortcontroller", "", NoOp{}, kAllowedInEnvvar);
   AddOption("--experimental-eventsource",
             "experimental EventSource API",

@@ -795,6 +795,28 @@ when `Error.stack` is accessed. If you access `Error.stack` frequently
 in your application, take into account the performance implications
 of `--enable-source-maps`.
 
+### `--entry-url`
+
+<!-- YAML
+added:
+  - REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+When present, Node.js will interpret the entry point as a URL, rather than a
+path.
+
+Follows [ECMAScript module][] resolution rules.
+
+Any query parameter or hash in the URL will be accessible via [`import.meta.url`][].
+
+```bash
+node --entry-url 'file:///path/to/file.js?queryparams=work#and-hashes-too'
+node --entry-url --experimental-strip-types 'file.ts?query#hash'
+node --entry-url 'data:text/javascript,console.log("Hello")'
+```
+
 ### `--env-file=config`
 
 > Stability: 1.1 - Active development
@@ -3024,6 +3046,7 @@ one is included in the list below.
 * `--enable-fips`
 * `--enable-network-family-autoselection`
 * `--enable-source-maps`
+* `--entry-url`
 * `--experimental-abortcontroller`
 * `--experimental-async-context-frame`
 * `--experimental-default-type`
@@ -3623,6 +3646,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`dns.lookup()`]: dns.md#dnslookuphostname-options-callback
 [`dns.setDefaultResultOrder()`]: dns.md#dnssetdefaultresultorderorder
 [`dnsPromises.lookup()`]: dns.md#dnspromiseslookuphostname-options
+[`import.meta.url`]: esm.md#importmetaurl
 [`import` specifier]: esm.md#import-specifiers
 [`net.getDefaultAutoSelectFamilyAttemptTimeout()`]: net.md#netgetdefaultautoselectfamilyattempttimeout
 [`node:sqlite`]: sqlite.md
