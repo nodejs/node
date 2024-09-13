@@ -44,6 +44,22 @@ for (const isolation of ['none', 'process']) {
   }
 
   {
+    // Should match files with "-test.(c|m)js" suffix.
+    const args = ['--test', '--test-reporter=tap',
+                  `--experimental-test-isolation=${isolation}`];
+    const child = spawnSync(process.execPath, args, { cwd: join(testFixtures, 'matching-patterns') });
+
+    assert.strictEqual(child.status, 0);
+    assert.strictEqual(child.signal, null);
+    assert.strictEqual(child.stderr.toString(), '');
+    const stdout = child.stdout.toString();
+
+    assert.match(stdout, /ok 1 - this should pass/);
+    assert.match(stdout, /ok 2 - this should pass/);
+    assert.match(stdout, /ok 3 - this should pass/);
+  }
+
+  {
     // Same but with a prototype mutation in require scripts.
     const args = [
       '--require', join(testFixtures, 'protoMutation.js'),
@@ -360,4 +376,23 @@ for (const isolation of ['none', 'process']) {
   assert.match(stdout, /# pass 5/);
   assert.match(stdout, /# fail 0/);
   assert.match(stdout, /# skipped 0/);
+}
+
+{
+  // Should not match files like latest.js
+  const args = ['--test', '--test-reporter=tap'];
+  const child = spawnSync(process.execPath, args, { cwd: join(testFixtures, 'issue-54726') });
+
+  assert.strictEqual(child.status, 0);
+  assert.strictEqual(child.signal, null);
+  assert.strictEqual(child.stderr.toString(), '');
+  const stdout = child.stdout.toString();
+
+  assert.match(stdout, /tests 0/);
+  assert.match(stdout, /suites 0/);
+  assert.match(stdout, /pass 0/);
+  assert.match(stdout, /fail 0/);
+  assert.match(stdout, /cancelled 0/);
+  assert.match(stdout, /skipped 0/);
+  assert.match(stdout, /todo 0/);
 }
