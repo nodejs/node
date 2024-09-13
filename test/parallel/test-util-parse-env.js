@@ -52,6 +52,7 @@ const fs = require('node:fs');
     SINGLE_QUOTES_INSIDE_DOUBLE: "single 'quotes' work inside double quotes",
     SINGLE_QUOTES_SPACED: '    single quotes    ',
     SPACED_KEY: 'parsed',
+    SPACE_BEFORE_DOUBLE_QUOTES: 'space before double quotes',
     TRIM_SPACE_FROM_UNQUOTED: 'some spaced out string',
   });
 }
