@@ -324,9 +324,7 @@ class SocketAddressBlockList : public MemoryRetainer {
   SET_SELF_SIZE(SocketAddressBlockList)
 
  private:
-  bool ListRules(
-      Environment* env,
-      v8::LocalVector<v8::Value>* vec);
+  bool ListRules(Environment* env, v8::LocalVector<v8::Value>* vec);
 
   std::shared_ptr<SocketAddressBlockList> parent_;
   std::list<std::unique_ptr<Rule>> rules_;

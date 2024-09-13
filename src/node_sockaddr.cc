@@ -510,9 +510,8 @@ MaybeLocal<Array> SocketAddressBlockList::ListRules(Environment* env) {
   return Array::New(env->isolate(), rules.data(), rules.size());
 }
 
-bool SocketAddressBlockList::ListRules(
-    Environment* env,
-    LocalVector<Value>* rules) {
+bool SocketAddressBlockList::ListRules(Environment* env,
+                                       LocalVector<Value>* rules) {
   if (parent_ && !parent_->ListRules(env, rules))
     return false;
   for (const auto& rule : rules_) {
