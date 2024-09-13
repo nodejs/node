@@ -37,6 +37,7 @@ using v8::HandleScope;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
+using v8::LocalVector;
 using v8::MaybeLocal;
 using v8::Null;
 using v8::Number;
@@ -212,7 +213,7 @@ static MaybeLocal<Array> DirentListToArray(
     int num,
     enum encoding encoding,
     Local<Value>* err_out) {
-  MaybeStackBuffer<Local<Value>, 64> entries(num * 2);
+  LocalVector<Value> entries(env->isolate(), num * 2);
 
   // Return an array of all read filenames.
   int j = 0;
@@ -233,7 +234,7 @@ static MaybeLocal<Array> DirentListToArray(
     entries[j++] = Integer::New(env->isolate(), ents[i].type);
   }
 
-  return Array::New(env->isolate(), entries.out(), j);
+  return Array::New(env->isolate(), entries.data(), entries.size());
 }
 
 static void AfterDirRead(uv_fs_t* req) {

@@ -19,6 +19,7 @@ using v8::HandleScope;
 using v8::Int32;
 using v8::Isolate;
 using v8::Local;
+using v8::LocalVector;
 using v8::Object;
 using v8::Value;
 
@@ -97,7 +98,7 @@ ssize_t JSUDPWrap::Send(uv_buf_t* bufs,
   int64_t value_int = JS_EXCEPTION_PENDING;
   size_t total_len = 0;
 
-  MaybeStackBuffer<Local<Value>, 16> buffers(nbufs);
+  LocalVector<Value> buffers(env()->isolate(), nbufs);
   for (size_t i = 0; i < nbufs; i++) {
     buffers[i] = Buffer::Copy(env(), bufs[i].base, bufs[i].len)
         .ToLocalChecked();
@@ -108,9 +109,9 @@ ssize_t JSUDPWrap::Send(uv_buf_t* bufs,
   if (!AddressToJS(env(), addr).ToLocal(&address)) return value_int;
 
   Local<Value> args[] = {
-    listener()->CreateSendWrap(total_len)->object(),
-    Array::New(env()->isolate(), buffers.out(), nbufs),
-    address,
+      listener()->CreateSendWrap(total_len)->object(),
+      Array::New(env()->isolate(), buffers.data(), buffers.size()),
+      address,
   };
 
   if (!MakeCallback(env()->onwrite_string(), arraysize(args), args)

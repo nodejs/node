@@ -12,6 +12,7 @@ using v8::Function;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
+using v8::LocalVector;
 using v8::MaybeLocal;
 using v8::Object;
 using v8::String;
@@ -215,14 +216,14 @@ MaybeLocal<Value> InternalMakeCallback(Environment* env,
 
   Local<Context> context = env->context();
   if (use_async_hooks_trampoline) {
-    MaybeStackBuffer<Local<Value>, 16> args(3 + argc);
+    LocalVector<Value> args(env->isolate(), 3 + argc);
     args[0] = v8::Number::New(env->isolate(), asyncContext.async_id);
     args[1] = resource;
     args[2] = callback;
     for (int i = 0; i < argc; i++) {
       args[i + 3] = argv[i];
     }
-    ret = hook_cb->Call(context, recv, args.length(), &args[0]);
+    ret = hook_cb->Call(context, recv, args.size(), args.data());
   } else {
     ret = callback->Call(context, recv, argc, argv);
   }

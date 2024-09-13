@@ -17,6 +17,7 @@ namespace worker {
 class MessagePortData;
 class MessagePort;
 
+// TODO(@jasnell): Can this be implemented in terms of v8::LocalVector instead
 typedef MaybeStackBuffer<v8::Local<v8::Value>, 8> TransferList;
 
 // Used to represent the in-flight structure of an object that is being

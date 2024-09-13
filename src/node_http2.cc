@@ -37,6 +37,7 @@ using v8::HandleScope;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
+using v8::LocalVector;
 using v8::MaybeLocal;
 using v8::NewStringType;
 using v8::Number;
@@ -1447,8 +1448,8 @@ void Http2Session::HandleHeadersFrame(const nghttp2_frame* frame) {
   // this way for performance reasons (it's faster to generate and pass an
   // array than it is to generate and pass the object).
 
-  MaybeStackBuffer<Local<Value>, 64> headers_v(stream->headers_count() * 2);
-  MaybeStackBuffer<Local<Value>, 32> sensitive_v(stream->headers_count());
+  LocalVector<Value> headers_v(isolate, stream->headers_count() * 2);
+  LocalVector<Value> sensitive_v(isolate, stream->headers_count());
   size_t sensitive_count = 0;
 
   stream->TransferHeaders([&](const Http2Header& header, size_t i) {
@@ -1463,12 +1464,12 @@ void Http2Session::HandleHeadersFrame(const nghttp2_frame* frame) {
   stream->current_headers_length_ = 0;
 
   Local<Value> args[] = {
-    stream->object(),
-    Integer::New(isolate, id),
-    Integer::New(isolate, stream->headers_category()),
-    Integer::New(isolate, frame->hd.flags),
-    Array::New(isolate, headers_v.out(), headers_v.length()),
-    Array::New(isolate, sensitive_v.out(), sensitive_count),
+      stream->object(),
+      Integer::New(isolate, id),
+      Integer::New(isolate, stream->headers_category()),
+      Integer::New(isolate, frame->hd.flags),
+      Array::New(isolate, headers_v.data(), headers_v.size()),
+      Array::New(isolate, sensitive_v.data(), sensitive_count),
   };
   MakeCallback(env()->http2session_on_headers_function(),
                arraysize(args), args);

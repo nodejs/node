@@ -19,6 +19,7 @@ using v8::HandleScope;
 using v8::Int32;
 using v8::Isolate;
 using v8::Local;
+using v8::LocalVector;
 using v8::Object;
 using v8::TryCatch;
 using v8::Value;
@@ -117,16 +118,15 @@ int JSStream::DoWrite(WriteWrap* w,
   HandleScope scope(env()->isolate());
   Context::Scope context_scope(env()->context());
 
-  MaybeStackBuffer<Local<Value>, 16> bufs_arr(count);
+  LocalVector<Value> bufs_arr(env()->isolate(), count);
   for (size_t i = 0; i < count; i++) {
     bufs_arr[i] =
         Buffer::Copy(env(), bufs[i].base, bufs[i].len).ToLocalChecked();
   }
 
   Local<Value> argv[] = {
-    w->object(),
-    Array::New(env()->isolate(), bufs_arr.out(), count)
-  };
+      w->object(),
+      Array::New(env()->isolate(), bufs_arr.data(), bufs_arr.size())};
 
   TryCatchScope try_catch(env());
   Local<Value> value;

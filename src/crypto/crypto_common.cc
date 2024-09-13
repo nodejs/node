@@ -34,6 +34,7 @@ using v8::Context;
 using v8::EscapableHandleScope;
 using v8::Integer;
 using v8::Local;
+using v8::LocalVector;
 using v8::MaybeLocal;
 using v8::Object;
 using v8::String;
@@ -387,7 +388,7 @@ MaybeLocal<Array> GetClientHelloCiphers(
   const unsigned char* buf;
   size_t len = SSL_client_hello_get0_ciphers(ssl.get(), &buf);
   size_t count = len / 2;
-  MaybeStackBuffer<Local<Value>, 16> ciphers(count);
+  LocalVector<Value> ciphers(env->isolate(), count);
   int j = 0;
   for (size_t n = 0; n < len; n += 2) {
     const SSL_CIPHER* cipher = SSL_CIPHER_find(ssl.get(), buf);
@@ -409,8 +410,8 @@ MaybeLocal<Array> GetClientHelloCiphers(
     }
     ciphers[j++] = obj;
   }
-  Local<Array> ret = Array::New(env->isolate(), ciphers.out(), count);
-  return scope.Escape(ret);
+  return scope.Escape(
+      Array::New(env->isolate(), ciphers.data(), ciphers.size()));
 }
 
 

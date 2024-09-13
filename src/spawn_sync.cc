@@ -42,6 +42,7 @@ using v8::Integer;
 using v8::Isolate;
 using v8::Just;
 using v8::Local;
+using v8::LocalVector;
 using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Nothing;
@@ -735,7 +736,7 @@ Local<Array> SyncProcessRunner::BuildOutputArray() {
   CHECK(!stdio_pipes_.empty());
 
   EscapableHandleScope scope(env()->isolate());
-  MaybeStackBuffer<Local<Value>, 8> js_output(stdio_pipes_.size());
+  LocalVector<Value> js_output(env()->isolate(), stdio_pipes_.size());
 
   for (uint32_t i = 0; i < stdio_pipes_.size(); i++) {
     SyncProcessStdioPipe* h = stdio_pipes_[i].get();
@@ -746,7 +747,7 @@ Local<Array> SyncProcessRunner::BuildOutputArray() {
   }
 
   return scope.Escape(
-      Array::New(env()->isolate(), js_output.out(), js_output.length()));
+      Array::New(env()->isolate(), js_output.data(), js_output.size()));
 }
 
 Maybe<int> SyncProcessRunner::ParseOptions(Local<Value> js_value) {

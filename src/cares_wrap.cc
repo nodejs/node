@@ -68,6 +68,7 @@ using v8::Isolate;
 using v8::Just;
 using v8::JustVoid;
 using v8::Local;
+using v8::LocalVector;
 using v8::Maybe;
 using v8::Nothing;
 using v8::Null;
@@ -193,11 +194,11 @@ Local<Array> AddrTTLToArray(
     Environment* env,
     const T* addrttls,
     size_t naddrttls) {
-  MaybeStackBuffer<Local<Value>, 8> ttls(naddrttls);
+  LocalVector<Value> ttls(env->isolate(), naddrttls);
   for (size_t i = 0; i < naddrttls; i++)
     ttls[i] = Integer::NewFromUnsigned(env->isolate(), addrttls[i].ttl);
 
-  return Array::New(env->isolate(), ttls.out(), naddrttls);
+  return Array::New(env->isolate(), ttls.data(), ttls.size());
 }
 
 int ParseGeneralReply(

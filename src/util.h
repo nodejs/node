@@ -784,6 +784,7 @@ constexpr inline bool IsBigEndian() {
 static_assert(IsLittleEndian() || IsBigEndian(),
               "Node.js does not support mixed-endian systems");
 
+// TODO(@jasnell): Can this be implement in terms of v8::LocalVector instead?
 class SlicedArguments : public MaybeStackBuffer<v8::Local<v8::Value>> {
  public:
   inline explicit SlicedArguments(

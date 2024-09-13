@@ -45,6 +45,7 @@ using v8::HandleScope;
 using v8::Integer;
 using v8::Just;
 using v8::Local;
+using v8::LocalVector;
 using v8::Maybe;
 using v8::Nothing;
 using v8::Object;
@@ -1705,8 +1706,7 @@ void Session::EmitVersionNegotiation(const ngtcp2_pkt_hd& hd,
   // version() is the version that was actually configured for this session.
 
   // versions are the versions requested by the peer.
-  MaybeStackBuffer<Local<Value>, 5> versions;
-  versions.AllocateSufficientStorage(nsv);
+  LocalVector<Value> versions(isolate, nsv);
   for (size_t n = 0; n < nsv; n++) versions[n] = to_integer(sv[n]);
 
   // supported are the versons we acutually support expressed as a range.
@@ -1717,7 +1717,7 @@ void Session::EmitVersionNegotiation(const ngtcp2_pkt_hd& hd,
   Local<Value> argv[] = {// The version configured for this session.
                          to_integer(version()),
                          // The versions requested.
-                         Array::New(isolate, versions.out(), nsv),
+                         Array::New(isolate, versions.data(), versions.size()),
                          // The versions we actually support.
                          Array::New(isolate, supported, arraysize(supported))};
 

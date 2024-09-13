@@ -22,6 +22,7 @@ using v8::Isolate;
 using v8::Just;
 using v8::JustVoid;
 using v8::Local;
+using v8::LocalVector;
 using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Name;
@@ -196,7 +197,7 @@ Local<Array> RealEnvStore::Enumerate(Isolate* isolate) const {
   auto cleanup = OnScopeLeave([&]() { uv_os_free_environ(items, count); });
   CHECK_EQ(uv_os_environ(&items, &count), 0);
 
-  MaybeStackBuffer<Local<Value>, 256> env_v(count);
+  LocalVector<Value> env_v(isolate, count);
   int env_v_index = 0;
   for (int i = 0; i < count; i++) {
 #ifdef _WIN32
@@ -211,7 +212,8 @@ Local<Array> RealEnvStore::Enumerate(Isolate* isolate) const {
     env_v[env_v_index++] = str.ToLocalChecked();
   }
 
-  return Array::New(isolate, env_v.out(), env_v_index);
+  CHECK_LE(env_v_index, env_v.size());
+  return Array::New(isolate, env_v.data(), env_v_index);
 }
 
 std::shared_ptr<KVStore> KVStore::Clone(Isolate* isolate) const {

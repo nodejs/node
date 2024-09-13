@@ -29,6 +29,7 @@ using v8::FunctionTemplate;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
+using v8::LocalVector;
 using v8::MaybeLocal;
 using v8::NewStringType;
 using v8::Object;
@@ -265,7 +266,7 @@ MaybeLocal<Value> GetKeyUsage(Environment* env, const ncrypto::X509View& cert) {
       X509_get_ext_d2i(cert.get(), NID_ext_key_usage, nullptr, nullptr)));
   if (eku) {
     const int count = sk_ASN1_OBJECT_num(eku.get());
-    MaybeStackBuffer<Local<Value>, 16> ext_key_usage(count);
+    LocalVector<Value> ext_key_usage(env->isolate(), count);
     char buf[256];
 
     int j = 0;
@@ -276,7 +277,8 @@ MaybeLocal<Value> GetKeyUsage(Environment* env, const ncrypto::X509View& cert) {
       }
     }
 
-    return Array::New(env->isolate(), ext_key_usage.out(), count);
+    return Array::New(
+        env->isolate(), ext_key_usage.data(), ext_key_usage.size());
   }
 
   return Undefined(env->isolate());

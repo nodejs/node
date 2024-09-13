@@ -52,6 +52,7 @@ using v8::HandleScope;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
+using v8::LocalVector;
 using v8::MaybeLocal;
 using v8::Null;
 using v8::Object;
@@ -1869,7 +1870,7 @@ void TLSWrap::GetSharedSigalgs(const FunctionCallbackInfo<Value>& args) {
   SSL* ssl = w->ssl_.get();
   int nsig = SSL_get_shared_sigalgs(ssl, 0, nullptr, nullptr, nullptr, nullptr,
                                     nullptr);
-  MaybeStackBuffer<Local<Value>, 16> ret_arr(nsig);
+  LocalVector<Value> ret_arr(env->isolate(), nsig);
 
   for (int i = 0; i < nsig; i++) {
     int hash_nid;
@@ -1937,7 +1938,7 @@ void TLSWrap::GetSharedSigalgs(const FunctionCallbackInfo<Value>& args) {
   }
 
   args.GetReturnValue().Set(
-                 Array::New(env->isolate(), ret_arr.out(), ret_arr.length()));
+      Array::New(env->isolate(), ret_arr.data(), ret_arr.size()));
 }
 
 void TLSWrap::ExportKeyingMaterial(const FunctionCallbackInfo<Value>& args) {
