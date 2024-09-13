@@ -11,21 +11,21 @@ const configs = {
   n: [1e3],
   dir: ['lib', 'test/parallel', 'benchmark'],
   pattern: ['**/*', '*.js', '**/**.js'],
-  useAsync: [true, false],
-  recursive: [true, false],
+  mode: ['async', 'sync'],
+  recursive: ['true', 'false'],
 };
 
 const bench = common.createBenchmark(main, configs);
 
 async function main(config) {
   const fullPath = path.resolve(benchmarkDirectory, config.dir);
-  const { pattern, recursive, useAsync } = config;
+  const { pattern, recursive, mode } = config;
 
   let noDead;
   bench.start();
 
   for (let i = 0; i < config.n; i++) {
-    if (useAsync) {
+    if (mode === 'async') {
       noDead = await new Promise((resolve, reject) => {
         fs.glob(pattern, { cwd: fullPath, recursive }, (err, files) => {
           if (err) {
