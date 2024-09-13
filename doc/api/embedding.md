@@ -616,40 +616,22 @@ Gets the parsed list of non-Node.js arguments.
 
 ```c
 node_embedding_exit_code NAPI_CDECL
-node_embedding_platform_get_args(node_embedding_platform platform,
-                                 node_embedding_get_args_callback get_args_cb,
-                                 void* get_args_cb_data);
+node_embedding_platform_get_parsed_args(
+    node_embedding_platform platform,
+    node_embedding_get_args_callback get_args_cb,
+    void* get_args_cb_data,
+    node_embedding_get_args_callback get_exec_args_cb,
+    void* get_exec_args_cb_data);
 ```
 
 - `[in] platform`: The Node.js platform instance.
 - `[in] get_args_cb`: The callback to receive non-Node.js arguments.
 - `[in] get_args_cb_data`: Optional. The callback data that will be passed to
   the `get_args_cb` callback. It can be deleted right after the function call.
-
-Returns `node_embedding_exit_code_ok` if there were no issues.
-
-##### `node_embedding_platform_get_exec_args`
-
-<!-- YAML
-added: REPLACEME
--->
-
-> Stability: 1 - Experimental
-
-Gets the parsed list of Node.js arguments.
-
-```c
-node_embedding_exit_code NAPI_CDECL
-node_embedding_platform_get_exec_args(
-    node_embedding_platform platform,
-    node_embedding_get_args_callback get_args_cb,
-    void* get_args_cb_data);
-```
-
-- `[in] platform`: The Node.js platform instance.
-- `[in] get_args_cb`: The callback to receive Node.js arguments.
-- `[in] get_args_cb_data`: Optional. The callback data that will be passed to
-  the `get_args_cb` callback. It can be deleted right after the function call.
+- `[in] get_exec_args_cb`: The callback to receive Node.js arguments.
+- `[in] get_exec_args_cb_data`: Optional. The callback data that will be passed
+  to the `get_exec_args_cb` callback. It can be deleted right after the function
+  call.
 
 Returns `node_embedding_exit_code_ok` if there were no issues.
 
@@ -969,29 +951,16 @@ Sets the non-Node.js arguments for the Node.js runtime instance.
 node_embedding_exit_code NAPI_CDECL
 node_embedding_runtime_set_args(node_embedding_runtime runtime,
                                 int32_t argc,
-                                const char* argv[]);
+                                const char* argv[],
+                                int32_t exec_argc,
+                                const char* exec_argv[]);
 ```
 
 - `[in] runtime`: The Node.js runtime instance to configure.
 - `[in] argc`: Number of items in the `argv` array.
 - `[in] argv`: non-Node.js arguments as an array of zero terminating strings.
-
-Returns `node_embedding_exit_code_ok` if there were no issues.
-
-##### `node_embedding_runtime_set_exec_args`
-
-Sets the Node.js arguments for the Node.js runtime instance.
-
-```c
-node_embedding_exit_code NAPI_CDECL
-node_embedding_runtime_set_exec_args(node_embedding_runtime runtime,
-                                     int32_t argc,
-                                     const char* argv[]);
-```
-
-- `[in] runtime`: The Node.js runtime instance to configure.
-- `[in] argc`: Number of items in the `argv` array.
-- `[in] argv`: Node.js arguments as an array of zero terminating strings.
+- `[in] exec_argc`: Number of items in the `exec_argv` array.
+- `[in] exec_argv`: Node.js arguments as an array of zero terminating strings.
 
 Returns `node_embedding_exit_code_ok` if there were no issues.
 
@@ -1019,59 +988,6 @@ node_embedding_runtime_on_preload(
 - `[in] preload_cb_data`: Optional. The preload callback data that will be
   passed to the `preload_cb` callback. It can be removed after the
   `node_embedding_delete_runtime` call.
-
-Returns `node_embedding_exit_code_ok` if there were no issues.
-
-##### `node_embedding_runtime_use_snapshot`
-
-<!-- YAML
-added: REPLACEME
--->
-
-> Stability: 1 - Experimental
-
-Use a snapshot blob to load this Node.js runtime instance.
-
-```c
-node_embedding_exit_code NAPI_CDECL
-node_embedding_runtime_use_snapshot(node_embedding_runtime runtime,
-                                    const uint8_t* snapshot,
-                                    size_t size);
-```
-
-- `[in] runtime`: The Node.js runtime instance.
-- `[in] snapshot`: Start of the snapshot memory span.
-- `[in] size`: Size of the snapshot memory span.
-
-Returns `node_embedding_exit_code_ok` if there were no issues.
-
-##### `node_embedding_runtime_on_create_snapshot`
-
-<!-- YAML
-added: REPLACEME
--->
-
-> Stability: 1 - Experimental
-
-Sets a callback to store created snapshot when Node.js runtime instance
-finished execution.
-
-```c
-node_embedding_exit_code NAPI_CDECL
-node_embedding_runtime_on_create_snapshot(
-    node_embedding_runtime runtime,
-    node_embedding_store_blob_callback store_blob_cb,
-    void* store_blob_cb_data,
-    node_embedding_snapshot_flags snapshot_flags);
-```
-
-- `[in] runtime`: The Node.js runtime instance.
-- `[in] store_blob_cb`: The store blob callback to be called before Node.js
-  runtime instance is deleted.
-- `[in] store_blob_cb_data`: Optional. The store blob callback data that will be
-  passed to the `store_blob_cb` callback. It can be removed after the
-  `node_embedding_delete_runtime` call.
-- `[in] snapshot_flags`: The flags controlling the snapshot creation.
 
 Returns `node_embedding_exit_code_ok` if there were no issues.
 
@@ -1108,7 +1024,37 @@ The registered module can be accessed in JavaScript as
 `process._linkedBinding(module_name)` in the main JS and in the related
 worker threads.
 
-##### `node_embedding_runtime_initialize`
+##### `node_embedding_runtime_on_create_snapshot`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Sets a callback to store created snapshot when Node.js runtime instance
+finished execution.
+
+```c
+node_embedding_exit_code NAPI_CDECL
+node_embedding_runtime_on_create_snapshot(
+    node_embedding_runtime runtime,
+    node_embedding_store_blob_callback store_blob_cb,
+    void* store_blob_cb_data,
+    node_embedding_snapshot_flags snapshot_flags);
+```
+
+- `[in] runtime`: The Node.js runtime instance.
+- `[in] store_blob_cb`: The store blob callback to be called before Node.js
+  runtime instance is deleted.
+- `[in] store_blob_cb_data`: Optional. The store blob callback data that will be
+  passed to the `store_blob_cb` callback. It can be removed after the
+  `node_embedding_delete_runtime` call.
+- `[in] snapshot_flags`: The flags controlling the snapshot creation.
+
+Returns `node_embedding_exit_code_ok` if there were no issues.
+
+##### `node_embedding_runtime_initialize_from_script`
 
 <!-- YAML
 added: REPLACEME
@@ -1120,12 +1066,41 @@ Initializes the Node.js runtime instance.
 
 ```c
 node_embedding_exit_code NAPI_CDECL
-node_embedding_runtime_initialize(node_embedding_runtime runtime,
-                                  const char* main_script);
+node_embedding_runtime_initialize_from_script(node_embedding_runtime runtime,
+                                              const char* main_script);
 ```
 
 - `[in] runtime`: The Node.js runtime instance to initialize.
 - `[in] main_script`: The main script to run.
+
+Returns `node_embedding_exit_code_ok` if there were no issues.
+
+The Node.js runtime initialization creates new Node.js environment associated
+with a V8 `Isolate` and V8 `Context`.
+
+After the initialization is completed the Node.js runtime settings cannot be
+changed anymore.
+
+##### `node_embedding_runtime_initialize_from_snapshot`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Initializes the Node.js runtime instance.
+
+```c
+node_embedding_exit_code NAPI_CDECL
+node_embedding_runtime_initialize_from_snapshot(node_embedding_runtime runtime,
+                                                const uint8_t* snapshot,
+                                                size_t size);
+```
+
+- `[in] runtime`: The Node.js runtime instance to initialize.
+- `[in] snapshot`: Start of the snapshot memory span.
+- `[in] size`: Size of the snapshot memory span.
 
 Returns `node_embedding_exit_code_ok` if there were no issues.
 

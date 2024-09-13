@@ -34,7 +34,7 @@ extern "C" int32_t test_main_concurrent_node_api(int32_t argc, char* argv[]) {
                 node_embedding_runtime_no_create_inspector));
         CHECK(
             node_embedding_runtime_set_node_api_version(runtime, NAPI_VERSION));
-        CHECK(node_embedding_runtime_initialize(runtime, main_script));
+        CHECK(node_embedding_runtime_initialize_from_script(runtime, main_script));
         CHECK(InvokeNodeApi(runtime, [&](napi_env env) {
           napi_value global, my_count;
           NODE_API_CALL(napi_get_global(env, &global));
@@ -92,7 +92,7 @@ extern "C" int32_t test_main_multi_env_node_api(int32_t argc, char* argv[]) {
         node_embedding_runtime_default_flags |
             node_embedding_runtime_no_create_inspector));
     CHECK(node_embedding_runtime_set_node_api_version(runtime, NAPI_VERSION));
-    CHECK(node_embedding_runtime_initialize(runtime, main_script));
+    CHECK(node_embedding_runtime_initialize_from_script(runtime, main_script));
     runtimes.push_back(runtime);
 
     int32_t exit_code = 0;
@@ -176,7 +176,7 @@ extern "C" int32_t test_main_multi_thread_node_api(int32_t argc, char* argv[]) {
   node_embedding_runtime runtime;
   CHECK(node_embedding_create_runtime(platform, &runtime));
   CHECK(node_embedding_runtime_set_node_api_version(runtime, NAPI_VERSION));
-  CHECK(node_embedding_runtime_initialize(runtime, main_script));
+  CHECK(node_embedding_runtime_initialize_from_script(runtime, main_script));
 
   // Use mutex to synchronize access to the runtime.
   std::mutex mutex;

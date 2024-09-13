@@ -31,7 +31,7 @@ extern "C" int32_t test_main_preload_node_api(int32_t argc, char* argv[]) {
         napi_set_named_property(env, global, "preloadValue", value);
       },
       nullptr));
-  CHECK(node_embedding_runtime_initialize(runtime, main_script));
+  CHECK(node_embedding_runtime_initialize_from_script(runtime, main_script));
   CHECK(node_embedding_delete_runtime(runtime));
   CHECK(node_embedding_delete_platform(platform));
 

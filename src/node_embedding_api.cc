@@ -164,11 +164,11 @@ class EmbeddedPlatform {
 
   node_embedding_exit_code Initialize(bool* early_return);
 
-  node_embedding_exit_code GetArgs(node_embedding_get_args_callback get_args,
-                                   void* get_args_data);
-
-  node_embedding_exit_code GetExecArgs(
-      node_embedding_get_args_callback get_args, void* get_args_data);
+  node_embedding_exit_code GetParsedArgs(
+      node_embedding_get_args_callback get_args_cb,
+      void* get_args_cb_data,
+      node_embedding_get_args_callback get_exec_args_cb,
+      void* get_exec_args_cb_data);
 
   node_embedding_exit_code CreateRuntime(node_embedding_runtime* result);
 
@@ -229,20 +229,13 @@ class EmbeddedRuntime {
 
   node_embedding_exit_code SetFlags(node_embedding_runtime_flags flags);
 
-  node_embedding_exit_code SetArgs(int32_t argc, const char* argv[]);
+  node_embedding_exit_code SetArgs(int32_t argc,
+                                   const char* argv[],
+                                   int32_t exec_argc,
+                                   const char* exec_argv[]);
 
-  node_embedding_exit_code SetExecArgs(int32_t argc, const char* argv[]);
-
-  node_embedding_exit_code SetPreloadCallback(
+  node_embedding_exit_code OnPreloadCallback(
       node_embedding_preload_callback preload_cb, void* preload_cb_data);
-
-  node_embedding_exit_code SetSnapshotBlob(const uint8_t* snapshot,
-                                           size_t size);
-
-  node_embedding_exit_code OnCreateSnapshotBlob(
-      node_embedding_store_blob_callback store_blob_cb,
-      void* store_blob_cb_data,
-      node_embedding_snapshot_flags snapshot_flags);
 
   node_embedding_exit_code AddModule(
       const char* module_name,
@@ -250,7 +243,19 @@ class EmbeddedRuntime {
       void* init_module_cb_data,
       int32_t module_node_api_version);
 
-  node_embedding_exit_code Initialize(const char* main_script);
+  node_embedding_exit_code OnCreateSnapshotBlob(
+      node_embedding_store_blob_callback store_blob_cb,
+      void* store_blob_cb_data,
+      node_embedding_snapshot_flags snapshot_flags);
+
+  template <typename TCreateEnvSetup, typename TLoadEnv>
+  node_embedding_exit_code Initialize(TCreateEnvSetup&& createEnvSetup,
+                                      TLoadEnv&& loadEnv);
+
+  node_embedding_exit_code InitializeFromScript(const char* main_script);
+
+  node_embedding_exit_code InitializeFromSnapshot(const uint8_t* snapshot,
+                                                  size_t size);
 
   node_embedding_exit_code RunEventLoop();
 
@@ -312,7 +317,7 @@ class EmbeddedRuntime {
   std::vector<std::string> args_;
   std::vector<std::string> exec_args_;
   node::EmbedderPreloadCallback preload_cb_{};
-  node::EmbedderSnapshotData::Pointer snapshot_;
+  node::EmbedderSnapshotData::Pointer snapshot_{};
   std::function<void(const node::EmbedderSnapshotData*)> create_snapshot_;
   node::SnapshotConfig snapshot_config_{};
   int32_t node_api_version_{0};
@@ -475,25 +480,22 @@ node_embedding_exit_code EmbeddedPlatform::Initialize(bool* early_return) {
   return node_embedding_exit_code_ok;
 }
 
-node_embedding_exit_code EmbeddedPlatform::GetArgs(
-    node_embedding_get_args_callback get_args_cb, void* get_args_cb_data) {
-  ARG_NOT_NULL(get_args_cb);
+node_embedding_exit_code EmbeddedPlatform::GetParsedArgs(
+    node_embedding_get_args_callback get_args_cb,
+    void* get_args_cb_data,
+    node_embedding_get_args_callback get_exec_args_cb,
+    void* get_exec_args_cb_data) {
   ASSERT(is_initialized_);
 
-  v8impl::CStringArray args(init_result_->args());
-  get_args_cb(get_args_cb_data, args.argc(), args.argv());
+  if (get_args_cb != nullptr) {
+    v8impl::CStringArray args(init_result_->args());
+    get_args_cb(get_args_cb_data, args.argc(), args.argv());
+  }
 
-  return node_embedding_exit_code_ok;
-}
-
-node_embedding_exit_code EmbeddedPlatform::GetExecArgs(
-    node_embedding_get_args_callback get_args_cb, void* get_args_cb_data) {
-  ARG_NOT_NULL(get_args_cb);
-  ASSERT(is_initialized_);
-
-  v8impl::CStringArray args(init_result_->exec_args());
-  get_args_cb(get_args_cb_data, args.argc(), args.argv());
-
+  if (get_exec_args_cb != nullptr) {
+    v8impl::CStringArray exec_args(init_result_->exec_args());
+    get_exec_args_cb(get_exec_args_cb_data, exec_args.argc(), exec_args.argv());
+  }
   return node_embedding_exit_code_ok;
 }
 
@@ -607,24 +609,22 @@ node_embedding_exit_code EmbeddedRuntime::SetFlags(
 }
 
 node_embedding_exit_code EmbeddedRuntime::SetArgs(int32_t argc,
-                                                  const char* argv[]) {
-  ARG_NOT_NULL(argv);
+                                                  const char* argv[],
+                                                  int32_t exec_argc,
+                                                  const char* exec_argv[]) {
   ASSERT(!is_initialized_);
-  args_.assign(argv, argv + argc);
-  optional_bits_.args = true;
+  if (argv != nullptr) {
+    args_.assign(argv, argv + argc);
+    optional_bits_.args = true;
+  }
+  if (exec_argv != nullptr) {
+    exec_args_.assign(exec_argv, exec_argv + exec_argc);
+    optional_bits_.exec_args = true;
+  }
   return node_embedding_exit_code_ok;
 }
 
-node_embedding_exit_code EmbeddedRuntime::SetExecArgs(int32_t argc,
-                                                      const char* argv[]) {
-  ARG_NOT_NULL(argv);
-  ASSERT(!is_initialized_);
-  exec_args_.assign(argv, argv + argc);
-  optional_bits_.exec_args = true;
-  return node_embedding_exit_code_ok;
-}
-
-node_embedding_exit_code EmbeddedRuntime::SetPreloadCallback(
+node_embedding_exit_code EmbeddedRuntime::OnPreloadCallback(
     node_embedding_preload_callback preload_cb, void* preload_cb_data) {
   ASSERT(!is_initialized_);
 
@@ -644,40 +644,6 @@ node_embedding_exit_code EmbeddedRuntime::SetPreloadCallback(
         });
   } else {
     preload_cb_ = {};
-  }
-
-  return node_embedding_exit_code_ok;
-}
-
-node_embedding_exit_code EmbeddedRuntime::SetSnapshotBlob(
-    const uint8_t* snapshot, size_t size) {
-  ARG_NOT_NULL(snapshot);
-  ASSERT(!is_initialized_);
-
-  snapshot_ = node::EmbedderSnapshotData::FromBlob(
-      std::string_view(reinterpret_cast<const char*>(snapshot), size));
-  return node_embedding_exit_code_ok;
-}
-
-node_embedding_exit_code EmbeddedRuntime::OnCreateSnapshotBlob(
-    node_embedding_store_blob_callback store_blob_cb,
-    void* store_blob_cb_data,
-    node_embedding_snapshot_flags snapshot_flags) {
-  ARG_NOT_NULL(store_blob_cb);
-  ASSERT(!is_initialized_);
-
-  create_snapshot_ = [store_blob_cb, store_blob_cb_data](
-                         const node::EmbedderSnapshotData* snapshot) {
-    std::vector<char> blob = snapshot->ToBlob();
-    store_blob_cb(store_blob_cb_data,
-                  reinterpret_cast<const uint8_t*>(blob.data()),
-                  blob.size());
-  };
-
-  if ((snapshot_flags & node_embedding_snapshot_no_code_cache) != 0) {
-    snapshot_config_.flags = static_cast<node::SnapshotFlags>(
-        static_cast<uint32_t>(snapshot_config_.flags) |
-        static_cast<uint32_t>(node::SnapshotFlags::kWithoutCodeCache));
   }
 
   return node_embedding_exit_code_ok;
@@ -707,7 +673,33 @@ node_embedding_exit_code EmbeddedRuntime::AddModule(
   return node_embedding_exit_code_ok;
 }
 
-node_embedding_exit_code EmbeddedRuntime::Initialize(const char* main_script) {
+node_embedding_exit_code EmbeddedRuntime::OnCreateSnapshotBlob(
+    node_embedding_store_blob_callback store_blob_cb,
+    void* store_blob_cb_data,
+    node_embedding_snapshot_flags snapshot_flags) {
+  ARG_NOT_NULL(store_blob_cb);
+  ASSERT(!is_initialized_);
+
+  create_snapshot_ = [store_blob_cb, store_blob_cb_data](
+                         const node::EmbedderSnapshotData* snapshot) {
+    std::vector<char> blob = snapshot->ToBlob();
+    store_blob_cb(store_blob_cb_data,
+                  reinterpret_cast<const uint8_t*>(blob.data()),
+                  blob.size());
+  };
+
+  if ((snapshot_flags & node_embedding_snapshot_no_code_cache) != 0) {
+    snapshot_config_.flags = static_cast<node::SnapshotFlags>(
+        static_cast<uint32_t>(snapshot_config_.flags) |
+        static_cast<uint32_t>(node::SnapshotFlags::kWithoutCodeCache));
+  }
+
+  return node_embedding_exit_code_ok;
+}
+
+template <typename TCreateEnvSetup, typename TLoadEnv>
+node_embedding_exit_code EmbeddedRuntime::Initialize(
+    TCreateEnvSetup&& createEnvSetup, TLoadEnv&& loadEnv) {
   ASSERT(!is_initialized_);
 
   is_initialized_ = true;
@@ -725,16 +717,7 @@ node_embedding_exit_code EmbeddedRuntime::Initialize(const char* main_script) {
                                : platform_->init_result()->exec_args();
 
   std::vector<std::string> errors;
-  if (snapshot_) {
-    env_setup_ = node::CommonEnvironmentSetup::CreateFromSnapshot(
-        platform, &errors, snapshot_.get(), args, exec_args, flags);
-  } else if (create_snapshot_) {
-    env_setup_ = node::CommonEnvironmentSetup::CreateForSnapshotting(
-        platform, &errors, args, exec_args, snapshot_config_);
-  } else {
-    env_setup_ = node::CommonEnvironmentSetup::Create(
-        platform, &errors, args, exec_args, flags);
-  }
+  env_setup_ = createEnvSetup(platform, &errors, args, exec_args, flags);
 
   if (env_setup_ == nullptr || !errors.empty()) {
     return EmbeddedErrorHandling::HandleError(
@@ -751,15 +734,50 @@ node_embedding_exit_code EmbeddedRuntime::Initialize(const char* main_script) {
 
   RegisterModules();
 
-  v8::MaybeLocal<v8::Value> ret =
-      snapshot_
-          ? node::LoadEnvironment(node_env, node::StartExecutionCallback{})
-          : node::LoadEnvironment(
-                node_env, std::string_view(main_script), preload_cb_);
-
+  v8::MaybeLocal<v8::Value> ret = loadEnv(node_env);
   if (ret.IsEmpty()) return node_embedding_exit_code_generic_user_error;
 
   return node_embedding_exit_code_ok;
+}
+
+node_embedding_exit_code EmbeddedRuntime::InitializeFromScript(
+    const char* main_script) {
+  return Initialize(
+      [&](node::MultiIsolatePlatform* platform,
+          std::vector<std::string>* errors,
+          const std::vector<std::string>& args,
+          const std::vector<std::string>& exec_args,
+          node::EnvironmentFlags::Flags flags) {
+        if (create_snapshot_) {
+          return node::CommonEnvironmentSetup::CreateForSnapshotting(
+              platform, errors, args, exec_args, snapshot_config_);
+        } else {
+          return node::CommonEnvironmentSetup::Create(
+              platform, errors, args, exec_args, flags);
+        }
+      },
+      [&](node::Environment* node_env) {
+        return node::LoadEnvironment(
+            node_env, std::string_view(main_script), preload_cb_);
+      });
+}
+
+node_embedding_exit_code EmbeddedRuntime::InitializeFromSnapshot(
+    const uint8_t* snapshot, size_t size) {
+  return Initialize(
+      [&](node::MultiIsolatePlatform* platform,
+          std::vector<std::string>* errors,
+          const std::vector<std::string>& args,
+          const std::vector<std::string>& exec_args,
+          node::EnvironmentFlags::Flags flags) {
+        snapshot_ = node::EmbedderSnapshotData::FromBlob(
+            std::string_view(reinterpret_cast<const char*>(snapshot), size));
+        return node::CommonEnvironmentSetup::CreateFromSnapshot(
+            platform, errors, snapshot_.get(), args, exec_args, flags);
+      },
+      [&](node::Environment* node_env) {
+        return node::LoadEnvironment(node_env, node::StartExecutionCallback{});
+      });
 }
 
 node_embedding_exit_code EmbeddedRuntime::RunEventLoop() {
@@ -1054,18 +1072,14 @@ node_embedding_exit_code NAPI_CDECL node_embedding_platform_initialize(
   return EMBEDDED_PLATFORM(platform)->Initialize(early_return);
 }
 
-node_embedding_exit_code NAPI_CDECL
-node_embedding_platform_get_args(node_embedding_platform platform,
-                                 node_embedding_get_args_callback get_args,
-                                 void* get_args_data) {
-  return EMBEDDED_PLATFORM(platform)->GetArgs(get_args, get_args_data);
-}
-
-node_embedding_exit_code NAPI_CDECL
-node_embedding_platform_get_exec_args(node_embedding_platform platform,
-                                      node_embedding_get_args_callback get_args,
-                                      void* get_args_data) {
-  return EMBEDDED_PLATFORM(platform)->GetExecArgs(get_args, get_args_data);
+node_embedding_exit_code NAPI_CDECL node_embedding_platform_get_parsed_args(
+    node_embedding_platform platform,
+    node_embedding_get_args_callback get_args_cb,
+    void* get_args_cb_data,
+    node_embedding_get_args_callback get_exec_args_cb,
+    void* get_exec_args_cb_data) {
+  return EMBEDDED_PLATFORM(platform)->GetParsedArgs(
+      get_args_cb, get_args_cb_data, get_exec_args_cb, get_exec_args_cb_data);
 }
 
 node_embedding_exit_code NAPI_CDECL node_embedding_create_runtime(
@@ -1088,36 +1102,21 @@ node_embedding_exit_code NAPI_CDECL node_embedding_runtime_set_flags(
   return EMBEDDED_RUNTIME(runtime)->SetFlags(flags);
 }
 
-node_embedding_exit_code NAPI_CDECL node_embedding_runtime_set_args(
-    node_embedding_runtime runtime, int32_t argc, const char* argv[]) {
-  return EMBEDDED_RUNTIME(runtime)->SetArgs(argc, argv);
-}
-
-node_embedding_exit_code NAPI_CDECL node_embedding_runtime_set_exec_args(
-    node_embedding_runtime runtime, int32_t argc, const char* argv[]) {
-  return EMBEDDED_RUNTIME(runtime)->SetExecArgs(argc, argv);
+node_embedding_exit_code NAPI_CDECL
+node_embedding_runtime_set_args(node_embedding_runtime runtime,
+                                int32_t argc,
+                                const char* argv[],
+                                int32_t exec_argc,
+                                const char* exec_argv[]) {
+  return EMBEDDED_RUNTIME(runtime)->SetArgs(argc, argv, exec_argc, exec_argv);
 }
 
 node_embedding_exit_code NAPI_CDECL
 node_embedding_runtime_on_preload(node_embedding_runtime runtime,
                                   node_embedding_preload_callback preload_cb,
                                   void* preload_cb_data) {
-  return EMBEDDED_RUNTIME(runtime)->SetPreloadCallback(preload_cb,
-                                                       preload_cb_data);
-}
-
-node_embedding_exit_code NAPI_CDECL node_embedding_runtime_use_snapshot(
-    node_embedding_runtime runtime, const uint8_t* snapshot, size_t size) {
-  return EMBEDDED_RUNTIME(runtime)->SetSnapshotBlob(snapshot, size);
-}
-
-node_embedding_exit_code NAPI_CDECL node_embedding_runtime_on_create_snapshot(
-    node_embedding_runtime runtime,
-    node_embedding_store_blob_callback store_blob_cb,
-    void* store_blob_cb_data,
-    node_embedding_snapshot_flags snapshot_flags) {
-  return EMBEDDED_RUNTIME(runtime)->OnCreateSnapshotBlob(
-      store_blob_cb, store_blob_cb_data, snapshot_flags);
+  return EMBEDDED_RUNTIME(runtime)->OnPreloadCallback(preload_cb,
+                                                      preload_cb_data);
 }
 
 node_embedding_exit_code NAPI_CDECL node_embedding_runtime_add_module(
@@ -1132,9 +1131,26 @@ node_embedding_exit_code NAPI_CDECL node_embedding_runtime_add_module(
                                               module_node_api_version);
 }
 
-node_embedding_exit_code NAPI_CDECL node_embedding_runtime_initialize(
-    node_embedding_runtime runtime, const char* main_script) {
-  return EMBEDDED_RUNTIME(runtime)->Initialize(main_script);
+node_embedding_exit_code NAPI_CDECL node_embedding_runtime_on_create_snapshot(
+    node_embedding_runtime runtime,
+    node_embedding_store_blob_callback store_blob_cb,
+    void* store_blob_cb_data,
+    node_embedding_snapshot_flags snapshot_flags) {
+  return EMBEDDED_RUNTIME(runtime)->OnCreateSnapshotBlob(
+      store_blob_cb, store_blob_cb_data, snapshot_flags);
+}
+
+node_embedding_exit_code NAPI_CDECL
+node_embedding_runtime_initialize_from_script(node_embedding_runtime runtime,
+                                              const char* main_script) {
+  return EMBEDDED_RUNTIME(runtime)->InitializeFromScript(main_script);
+}
+
+node_embedding_exit_code NAPI_CDECL
+node_embedding_runtime_initialize_from_snapshot(node_embedding_runtime runtime,
+                                                const uint8_t* snapshot,
+                                                size_t size) {
+  return EMBEDDED_RUNTIME(runtime)->InitializeFromSnapshot(snapshot, size);
 }
 
 node_embedding_exit_code NAPI_CDECL
