@@ -187,13 +187,6 @@ Returns an instance of all possible `ArrayBufferView`s of the provided Buffer.
 Returns an instance of all possible `BufferSource`s of the provided Buffer,
 consisting of all `ArrayBufferView` and an `ArrayBuffer`.
 
-### `getCallSite(func)`
-
-* `func` [\<Function>][<Function>]
-* return [\<string>][<string>]
-
-Returns the file name and line number for the provided Function.
-
 ### `getTTYfd()`
 
 Attempts to get a valid TTY file descriptor. Returns `-1` if it fails.
