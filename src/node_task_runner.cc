@@ -207,7 +207,7 @@ void ProcessRunner::OnExit(int64_t exit_status, int term_signal) {
 void ProcessRunner::Run() {
   // keeps the string alive until destructor
   auto cwd = package_json_path_.parent_path();
-  options_.cwd = cwd.c_str();
+  options_.cwd = cwd.string().c_str();
   if (int r = uv_spawn(loop_, &process_, &options_)) {
     fprintf(stderr, "Error: %s\n", uv_strerror(r));
   }
@@ -256,7 +256,9 @@ void RunTask(std::shared_ptr<InitializationResultImpl> result,
   auto package_json = FindPackageJson(cwd);
 
   if (!package_json.has_value()) {
-    fprintf(stderr, "Can't find package.json for directory %s\n", cwd.c_str());
+    fprintf(stderr,
+            "Can't find package.json for directory %s\n",
+            cwd.string().c_str());
     result->exit_code_ = ExitCode::kGenericUserError;
     return;
   }
@@ -273,7 +275,7 @@ void RunTask(std::shared_ptr<InitializationResultImpl> result,
   simdjson::error_code error = json_parser.iterate(raw_json).get(document);
 
   if (error) {
-    fprintf(stderr, "Can't parse %s\n", path.c_str());
+    fprintf(stderr, "Can't parse %s\n", path.string().c_str());
     result->exit_code_ = ExitCode::kGenericUserError;
     return;
   }
@@ -283,9 +285,9 @@ void RunTask(std::shared_ptr<InitializationResultImpl> result,
     if (root_error == simdjson::error_code::INCORRECT_TYPE) {
       fprintf(stderr,
               "Root value unexpected not an object for %s\n\n",
-              path.c_str());
+              path.string().c_str());
     } else {
-      fprintf(stderr, "Can't parse %s\n", path.c_str());
+      fprintf(stderr, "Can't parse %s\n", path.string().c_str());
     }
     result->exit_code_ = ExitCode::kGenericUserError;
     return;
@@ -294,7 +296,8 @@ void RunTask(std::shared_ptr<InitializationResultImpl> result,
   // If package_json object doesn't have "scripts" field, throw an error.
   simdjson::ondemand::object scripts_object;
   if (main_object["scripts"].get_object().get(scripts_object)) {
-    fprintf(stderr, "Can't find \"scripts\" field in %s\n", path.c_str());
+    fprintf(
+        stderr, "Can't find \"scripts\" field in %s\n", path.string().c_str());
     result->exit_code_ = ExitCode::kGenericUserError;
     return;
   }
@@ -308,13 +311,13 @@ void RunTask(std::shared_ptr<InitializationResultImpl> result,
               "Script \"%.*s\" is unexpectedly not a string for %s\n\n",
               static_cast<int>(command_id.size()),
               command_id.data(),
-              path.c_str());
+              path.string().c_str());
     } else {
       fprintf(stderr,
               "Missing script: \"%.*s\" for %s\n\n",
               static_cast<int>(command_id.size()),
               command_id.data(),
-              path.c_str());
+              path.string().c_str());
       fprintf(stderr, "Available scripts are:\n");
 
       // Reset the object to iterate over it again
