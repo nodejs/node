@@ -26,15 +26,7 @@ async function main(config) {
 
   for (let i = 0; i < config.n; i++) {
     if (mode === 'async') {
-      noDead = await new Promise((resolve, reject) => {
-        fs.glob(pattern, { cwd: fullPath, recursive }, (err, files) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve(files);
-          };
-        });
-      });
+      noDead = await fs.promises.glob(pattern, { cwd: fullPath, recursive });
     } else {
       noDead = fs.globSync(pattern, { cwd: fullPath, recursive });
     }
