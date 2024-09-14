@@ -115,10 +115,9 @@ static void MakeUtf8String(Isolate* isolate,
 
     // Add +1 for null termination.
     target->AllocateSufficientStorage(expected_length + 1);
-    target->SetLengthAndZeroTerminate(expected_length);
-    auto actual_length = simdutf::convert_latin1_to_utf8(
+    const auto actual_length = simdutf::convert_latin1_to_utf8(
         const_char, value_length, target->out());
-    target->SetLength(actual_length);
+    target->SetLengthAndZeroTerminate(actual_length);
     return;
   }
 
