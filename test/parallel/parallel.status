@@ -30,8 +30,6 @@ test-runner-watch-mode-complex: PASS, FLAKY
 test-async-context-frame: PASS, FLAKY
 # https://github.com/nodejs/node/issues/54534
 test-runner-run-watch: PASS, FLAKY
-# https://github.com/nodejs/node/issues/54819
-test-http2-socket-close: PASS, FLAKY
 
 # Windows on x86
 [$system==win32 && $arch==ia32]
