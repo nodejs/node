@@ -1888,6 +1888,103 @@ a code.
 Specifying a code to [`process.exit(code)`][`process.exit()`] will override any
 previous setting of `process.exitCode`.
 
+## `process.features.cached_builtins`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+A boolean value that is `true` if the current Node.js build is caching builtin modules.
+
+## `process.features.debug`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+A boolean value that is `true` if the current Node.js build is a debug build.
+
+## `process.features.inspector`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+A boolean value that is `true` if the current Node.js build includes the inspector.
+
+## `process.features.ipv6`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+A boolean value that is `true` if the current Node.js build includes support for IPv6.
+
+## `process.features.tls`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+A boolean value that is `true` if the current Node.js build includes support for TLS.
+
+## `process.features.tls_alpn`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+A boolean value that is `true` if the current Node.js build includes support for ALPN in TLS.
+
+***
+
+## `process.features.tls_ocsp`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+A boolean value that is `true` if the current Node.js build includes support for OCSP in TLS.
+
+***
+
+## `process.features.tls_sni`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+A boolean value that is `true` if the current Node.js build includes support for SNI in TLS.
+
+***
+
+## `process.features.uv`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+A boolean value that is `true` if the current Node.js build includes support for libuv.
+Since it's currently not possible to build Node.js without libuv, this value is always `true`.
+
 ## `process.finalization.register(ref, callback)`
 
 <!-- YAML
