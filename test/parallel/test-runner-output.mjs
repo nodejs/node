@@ -235,8 +235,8 @@ const tests = [
     name: 'test-runner/output/coverage-width-80.mjs',
     flags: ['--test-reporter=tap'],
   } : false,
-  process.features.inspector ? {
-    name: 'test-runner/output/coverage-width-80-tty.mjs',
+  process.features.inspector && !skipForceColors ? {
+    name: 'test-runner/output/coverage-width-80-color.mjs',
     transform: specTransform,
     tty: true
   } : false,
@@ -260,8 +260,8 @@ const tests = [
     name: 'test-runner/output/coverage-width-100-uncovered-lines.mjs',
     flags: ['--test-reporter=tap'],
   } : false,
-  process.features.inspector ? {
-    name: 'test-runner/output/coverage-width-80-uncovered-lines-tty.mjs',
+  process.features.inspector && !skipForceColors ? {
+    name: 'test-runner/output/coverage-width-80-uncovered-lines-color.mjs',
     transform: specTransform,
     tty: true
   } : false,

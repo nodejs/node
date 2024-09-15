@@ -3,10 +3,10 @@
 // Unused imports are here in order to populate the coverage report
 import * as a from '../coverage-snap/b.js';
 import * as b from '../coverage-snap/a.js';
-import * as c from '../coverage-snap/many-uncovered-lines.js';
 
 import { test } from 'node:test';
 
-process.stdout.columns = 100;
+process.env.FORCE_COLOR = '3';
+process.stdout.columns = 80;
 
 test(`Coverage Print Fixed Width ${process.stdout.columns}`);
