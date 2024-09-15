@@ -225,7 +225,7 @@ const tests = [
   } : false,
   {
     name: 'test-runner/output/test-diagnostic-warning-without-test-only-flag.js',
-    flags: ['--test-reporter=tap'],
+    flags: ['--test', '--test-reporter=tap'],
   },
   process.features.inspector ? {
     name: 'test-runner/output/coverage-width-80.mjs',
