@@ -149,7 +149,7 @@ std::string EscapeShell(const std::string_view input) {
 #endif
   }
 
-  static const std::string_view forbidden_characters =
+  static constexpr std::string_view forbidden_characters =
       "[\t\n\r \"#$&'()*;<>?\\\\`|~]";
 
   // Check if input contains any forbidden characters
@@ -191,7 +191,7 @@ std::string EscapeShell(const std::string_view input) {
 void ProcessRunner::ExitCallback(uv_process_t* handle,
                                  int64_t exit_status,
                                  int term_signal) {
-  auto self = reinterpret_cast<ProcessRunner*>(handle->data);
+  const auto self = static_cast<ProcessRunner*>(handle->data);
   uv_close(reinterpret_cast<uv_handle_t*>(handle), nullptr);
   self->OnExit(exit_status, term_signal);
 }
@@ -206,8 +206,8 @@ void ProcessRunner::OnExit(int64_t exit_status, int term_signal) {
 
 void ProcessRunner::Run() {
   // keeps the string alive until destructor
-  auto cwd = package_json_path_.parent_path();
-  options_.cwd = cwd.string().c_str();
+  cwd = package_json_path_.parent_path().string();
+  options_.cwd = cwd.c_str();
   if (int r = uv_spawn(loop_, &process_, &options_)) {
     fprintf(stderr, "Error: %s\n", uv_strerror(r));
   }
@@ -249,7 +249,7 @@ FindPackageJson(const std::filesystem::path& cwd) {
   return {{package_json_path, raw_content, path_env_var}};
 }
 
-void RunTask(std::shared_ptr<InitializationResultImpl> result,
+void RunTask(const std::shared_ptr<InitializationResultImpl>& result,
              std::string_view command_id,
              const std::vector<std::string_view>& positional_args) {
   auto cwd = std::filesystem::current_path();
@@ -272,16 +272,14 @@ void RunTask(std::shared_ptr<InitializationResultImpl> result,
   simdjson::ondemand::parser json_parser;
   simdjson::ondemand::document document;
   simdjson::ondemand::object main_object;
-  simdjson::error_code error = json_parser.iterate(raw_json).get(document);
 
-  if (error) {
+  if (json_parser.iterate(raw_json).get(document)) {
     fprintf(stderr, "Can't parse %s\n", path.string().c_str());
     result->exit_code_ = ExitCode::kGenericUserError;
     return;
   }
   // If document is not an object, throw an error.
-  auto root_error = document.get_object().get(main_object);
-  if (root_error) {
+  if (auto root_error = document.get_object().get(main_object)) {
     if (root_error == simdjson::error_code::INCORRECT_TYPE) {
       fprintf(stderr,
               "Root value unexpected not an object for %s\n\n",
@@ -304,8 +302,8 @@ void RunTask(std::shared_ptr<InitializationResultImpl> result,
 
   // If the command_id is not found in the scripts object, throw an error.
   std::string_view command;
-  auto command_error = scripts_object[command_id].get_string().get(command);
-  if (command_error) {
+  if (auto command_error =
+          scripts_object[command_id].get_string().get(command)) {
     if (command_error == simdjson::error_code::INCORRECT_TYPE) {
       fprintf(stderr,
               "Script \"%.*s\" is unexpectedly not a string for %s\n\n",

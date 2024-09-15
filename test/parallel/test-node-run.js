@@ -56,7 +56,7 @@ describe('node --run [command]', () => {
     assert.strictEqual(child.code, 0);
   });
 
-  it.only('chdirs into package directory', async () => {
+  it('chdirs into package directory', async () => {
     const child = await common.spawnPromisified(
       process.execPath,
       [ '--no-warnings', '--run', `pwd${envSuffix}`],
@@ -218,7 +218,7 @@ describe('node --run [command]', () => {
       [ '--no-warnings', '--run', 'test'],
       { cwd: fixtures.path('run-script/cannot-parse') },
     );
-    assert.match(child.stderr, /Can't parse package\.json/);
+    assert.match(child.stderr, /Can't parse/);
     assert.strictEqual(child.stdout, '');
     assert.strictEqual(child.code, 1);
   });
@@ -229,7 +229,7 @@ describe('node --run [command]', () => {
       [ '--no-warnings', '--run', 'test'],
       { cwd: fixtures.path('run-script/cannot-find-script') },
     );
-    assert.match(child.stderr, /Can't find "scripts" field in package\.json/);
+    assert.match(child.stderr, /Can't find "scripts" field in/);
     assert.strictEqual(child.stdout, '');
     assert.strictEqual(child.code, 1);
   });
