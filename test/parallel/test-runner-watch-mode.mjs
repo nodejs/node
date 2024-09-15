@@ -194,12 +194,13 @@ describe('test runner watch mode', () => {
         await testWatch({ fileToUpdate: 'test.js', action: 'delete', isolation });
       });
 
-      if (isolation !== 'none') {
-        // This test is failing if isolation is set to none
-        it('should run new tests when a new file is created in the watched directory', async () => {
-          await testWatch({ action: 'create', fileToCreate: 'new-test-file.test.js', isolation });
-        });
-      }
+      it('should run new tests when a new file is created in the watched directory', {
+        todo: isolation === 'none' ?
+          'This test is failing when isolation is set to none and must be fixed' :
+          undefined,
+      }, async () => {
+        await testWatch({ action: 'create', fileToCreate: 'new-test-file.test.js', isolation });
+      });
     });
   }
 });
