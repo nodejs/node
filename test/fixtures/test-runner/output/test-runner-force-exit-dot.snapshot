@@ -1,0 +1,24 @@
+X.X
+
+Failed tests:
+
+✖ Failing test (*ms)
+  AssertionError [ERR_ASSERTION]: Failed
+      *
+      *
+      *
+      *
+      *
+      *
+      at new Promise (<anonymous>)
+      *
+      *
+      at Array.map (<anonymous>) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail'
+  }
+✖ Suite (*ms)
+  '1 subtest failed'

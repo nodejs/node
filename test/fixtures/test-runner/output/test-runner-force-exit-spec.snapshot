@@ -1,0 +1,52 @@
+▶ Suite
+  ✖ Failing test (*ms)
+    AssertionError [ERR_ASSERTION]: Failed
+        *
+        *
+        *
+        *
+        *
+        *
+        at new Promise (<anonymous>)
+        *
+        *
+        at Array.map (<anonymous>) {
+      generatedMessage: true,
+      code: 'ERR_ASSERTION',
+      actual: undefined,
+      expected: undefined,
+      operator: 'fail'
+    }
+
+  ✔ Passing test (*ms)
+▶ Suite (*ms)
+ℹ tests 2
+ℹ suites 1
+ℹ pass 1
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms *
+
+✖ failing tests:
+
+*
+✖ Failing test (*ms)
+  AssertionError [ERR_ASSERTION]: Failed
+      *
+      *
+      *
+      *
+      *
+      *
+      at new Promise (<anonymous>)
+      *
+      *
+      at Array.map (<anonymous>) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail'
+  }

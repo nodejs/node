@@ -1,0 +1,48 @@
+TAP version 13
+# Subtest: Suite
+    # Subtest: Failing test
+    not ok 1 - Failing test
+      ---
+      duration_ms: *
+      location: '/test/fixtures/test-runner/output/test-runner-force-exit.js:(LINE):5'
+      failureType: 'testCodeFailure'
+      error: 'Failed'
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      operator: 'fail'
+      stack: |-
+        *
+        *
+        *
+        *
+        *
+        *
+        new Promise (<anonymous>)
+        *
+        *
+        Array.map (<anonymous>)
+      ...
+    # Subtest: Passing test
+    ok 2 - Passing test
+      ---
+      duration_ms: *
+      ...
+    1..2
+not ok 1 - Suite
+  ---
+  duration_ms: *
+  type: 'suite'
+  location: '/test/fixtures/test-runner/output/test-runner-force-exit.js:(LINE):1'
+  failureType: 'subtestsFailed'
+  error: '1 subtest failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+1..1
+# tests 2
+# suites 1
+# pass 1
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms *

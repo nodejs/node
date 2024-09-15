@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+	<testsuite name="Suite" time="*" disabled="0" errors="0" tests="2" failures="1" skipped="0" hostname="HOSTNAME">
+		<testcase name="Failing test" time="*" classname="test" failure="Failed">
+			<failure type="testCodeFailure" message="Failed">
+Error [ERR_TEST_FAILURE]: Failed
+    at new Promise (&lt;anonymous>)
+    at Array.map (&lt;anonymous>) {
+  code: 'ERR_TEST_FAILURE',
+  failureType: 'testCodeFailure',
+  cause: AssertionError [ERR_ASSERTION]: Failed
+      *
+      *
+      *
+      *
+      *
+      *
+      at new Promise (&lt;anonymous>)
+      *
+      *
+      at Array.map (&lt;anonymous>) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail'
+  }
+}
+			</failure>
+		</testcase>
+		<testcase name="Passing test" time="*" classname="test"/>
+	</testsuite>
+	<!-- tests 2 -->
+	<!-- suites 1 -->
+	<!-- pass 1 -->
+	<!-- fail 1 -->
+	<!-- cancelled 0 -->
+	<!-- skipped 0 -->
+	<!-- todo 0 -->
+	<!-- duration_ms * -->
+</testsuites>
