@@ -259,6 +259,10 @@ const tests = [
     name: 'test-runner/output/coverage-width-infinity-uncovered-lines.mjs',
     flags: ['--test-reporter=tap'],
   } : false,
+  process.features.inspector ? { name: 'test-runner/output/coverage-width-80-tty.mjs', tty: true } : false,
+  process.features.inspector ?
+  { name: 'test-runner/output/coverage-width-80-uncovered-lines-tty.mjs', tty: true } :
+  false,
 ]
 .filter(Boolean)
 .map(({ flags, name, tty, transform }) => ({
