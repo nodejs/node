@@ -513,3 +513,38 @@ test('properly accounts for line endings in source maps', skipIfNoInspector, () 
   assert(result.stdout.toString().includes(report));
   assert.strictEqual(result.status, 0);
 });
+
+test('correctly prints the coverage report of files contained in parent directories', skipIfNoInspector, () => {
+  let report = [
+    '# start of coverage report',
+    '# --------------------------------------------------------------------------------------------',
+    '# file              | line % | branch % | funcs % | uncovered lines',
+    '# --------------------------------------------------------------------------------------------',
+    '# ..                |        |          |         | ',
+    '#  coverage.js      |  78.65 |    38.46 |   60.00 | 12-13 16-22 27 39 43-44 61-62 66-67 71-72',
+    '#  invalid-tap.js   | 100.00 |   100.00 |  100.00 | ',
+    '#  ..               |        |          |         | ',
+    '#   v8-coverage     |        |          |         | ',
+    '#    throw.js       |  71.43 |    50.00 |  100.00 | 5-6',
+    '# --------------------------------------------------------------------------------------------',
+    '# all files         |  78.35 |    43.75 |   60.00 | ',
+    '# --------------------------------------------------------------------------------------------',
+    '# end of coverage report',
+  ].join('\n');
+
+  if (common.isWindows) {
+    report = report.replaceAll('/', '\\');
+  }
+  const fixture = fixtures.path('test-runner', 'coverage.js');
+  const args = [
+    '--test', '--experimental-test-coverage', '--test-reporter', 'tap', fixture,
+  ];
+  const result = spawnSync(process.execPath, args, {
+    env: { ...process.env, NODE_TEST_TMPDIR: tmpdir.path },
+    cwd: fixtures.path('test-runner', 'coverage'),
+  });
+
+  assert.strictEqual(result.stderr.toString(), '');
+  assert(result.stdout.toString().includes(report));
+  assert.strictEqual(result.status, 0);
+});
