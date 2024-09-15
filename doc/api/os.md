@@ -1373,7 +1373,7 @@ The following process scheduling constants are exported by
   </tr>
 </table>
 
-[Android building]: https://github.com/nodejs/node/blob/HEAD/BUILDING.md#androidandroid-based-devices-eg-firefox-os
+[Android building]: https://github.com/nodejs/node/blob/HEAD/BUILDING.md#android
 [EUID]: https://en.wikipedia.org/wiki/User_identifier#Effective_user_ID
 [`SystemError`]: errors.md#class-systemerror
 [`process.arch`]: process.md#processarch
