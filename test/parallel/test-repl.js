@@ -129,6 +129,17 @@ const strictModeTests = [
   },
 ];
 
+const possibleTokensAfterIdentifierWithLineBreak = [
+  '(\n)',
+  '[\n0]',
+  '+\n1', '- \n1', '* \n1', '/ \n1', '% \n1', '** \n1',
+  '== \n1', '=== \n1', '!= \n1', '!== \n1', '< \n1', '> \n1', '<= \n1', '>= \n1',
+  '&& \n1', '|| \n1', '?? \n1',
+  '= \n1', '+= \n1', '-= \n1', '*= \n1', '/= \n1', '%= \n1',
+  ': \n',
+  '? \n1: 1',
+];
+
 const errorTests = [
   // Uncaught error throws and prints out
   {
@@ -380,6 +391,16 @@ const errorTests = [
       '(Press Ctrl+D to exit.)',
     ]
   },
+  {
+    send: 'let npm = () => {};',
+    expect: 'undefined'
+  },
+  ...possibleTokensAfterIdentifierWithLineBreak.map((token) => (
+    {
+      send: `npm ${token}; undefined`,
+      expect: '... undefined'
+    }
+  )),
   {
     send: '(function() {\n\nreturn 1;\n})()',
     expect: '... ... ... 1'
