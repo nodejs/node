@@ -227,7 +227,7 @@ const tests = [
     name: 'test-runner/output/test-diagnostic-warning-without-test-only-flag.js',
     flags: ['--test-reporter=tap'],
   },
-  process.features.inspector ? { 
+  process.features.inspector ? {
     name: 'test-runner/output/coverage-width-40.mjs',
     flags: ['--test-reporter=tap'],
   } : false,
@@ -235,7 +235,7 @@ const tests = [
     name: 'test-runner/output/coverage-width-80.mjs',
     flags: ['--test-reporter=tap'],
   } : false,
-  process.features.inspector ? { 
+  process.features.inspector ? {
     name: 'test-runner/output/coverage-width-80-tty.mjs',
     transform: specTransform,
     tty: true
@@ -263,7 +263,7 @@ const tests = [
   process.features.inspector ? {
     name: 'test-runner/output/coverage-width-80-uncovered-lines-tty.mjs',
     transform: specTransform,
-    tty: true 
+    tty: true
   } : false,
   process.features.inspector ? {
     name: 'test-runner/output/coverage-width-150-uncovered-lines.mjs',
