@@ -190,9 +190,9 @@ describe('test runner watch mode', () => {
         await testWatch({ fileToUpdate: 'test.js', action: 'rename', isolation });
       });
 
-  it('should not throw when delete a watched test file', async () => {
-    await testWatch({ fileToUpdate: 'test.js', action: 'delete' });
-  });
+      it('should not throw when delete a watched test file', async () => {
+        await testWatch({ fileToUpdate: 'test.js', action: 'delete', isolation });
+      });
 
       if (isolation !== 'none') {
         // This test is failing if isolation is set to none
