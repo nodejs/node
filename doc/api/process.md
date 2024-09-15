@@ -4029,7 +4029,7 @@ cases:
   code will be `128` + `6`, or `134`.
 
 [Advanced serialization for `child_process`]: child_process.md#advanced-serialization
-[Android building]: https://github.com/nodejs/node/blob/HEAD/BUILDING.md#androidandroid-based-devices-eg-firefox-os
+[Android building]: https://github.com/nodejs/node/blob/HEAD/BUILDING.md#android
 [Child Process]: child_process.md
 [Cluster]: cluster.md
 [Duplex]: stream.md#duplex-and-transform-streams
