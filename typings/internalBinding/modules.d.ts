@@ -8,6 +8,9 @@ export type PackageConfig = {
   exports?: string | string[] | Record<string, unknown>
   imports?: string | string[] | Record<string, unknown>
 }
+export type FullPackageConfig = PackageConfig & {
+  [key: string]: unknown,
+}
 export type SerializedPackageConfig = [
   PackageConfig['name'],
   PackageConfig['main'],
@@ -23,4 +26,5 @@ export interface ModulesBinding {
   getNearestParentPackageJSONType(path: string): PackageConfig['type']
   getPackageScopeConfig(path: string): SerializedPackageConfig | undefined
   getPackageJSONScripts(): string | undefined
+  findNearestPackageJSON(origin: URL['pathname']): URL['pathname'] | undefined
 }
