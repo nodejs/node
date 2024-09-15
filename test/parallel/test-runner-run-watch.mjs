@@ -199,7 +199,7 @@ describe('test runner watch mode', () => {
     await testWatch({ fileToUpdate: 'test.js', action: 'rename' });
   });
 
-  it('should not throw when deleting a watched test file', { skip: common.isAIX }, async () => {
+  it('should not throw when deleting a watched test file', async () => {
     await testWatch({ fileToUpdate: 'test.js', action: 'delete' });
   });
 
