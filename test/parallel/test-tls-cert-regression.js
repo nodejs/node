@@ -34,13 +34,13 @@ let cert = fixtures.readKey('rsa_cert.crt');
 // This test validates that we accept certificates and keys which
 // do not end with a newline. If a newline exists at the end
 // of the key or cert being used remove it
-if (key[key.length - 1] === 0x0A) {
-  key = key.slice(0, key.length - 1);
-}
+let i = 0;
+while (key[key.length - 1 - i] === 0x0a) i++;
+if (i !== 0) key = key.slice(0, key.length - i);
 
-if (cert[cert.length - 1] === 0x0A) {
-  cert = cert.slice(0, cert.length - 1);
-}
+i = 0;
+while (cert[cert.length - 1 - i] === 0x0a) i++;
+if (i !== 0) cert = cert.slice(0, cert.length - i);
 
 function test(cert, key, cb) {
   const server = tls.createServer({
