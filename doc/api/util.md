@@ -369,7 +369,7 @@ util.formatWithOptions({ colors: true }, 'See object %O', { foo: 42 });
 > Stability: 1.1 - Active development
 
 <!-- YAML
-added: REPLACEME
+added: v22.9.0
 -->
 
 * `frames` {number} Number of frames returned in the stacktrace.
