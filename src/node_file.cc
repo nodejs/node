@@ -3052,7 +3052,14 @@ static void CpSyncCheckPaths(const FunctionCallbackInfo<Value>& args) {
                         ? std::filesystem::symlink_status(src_path, error_code)
                         : std::filesystem::status(src_path, error_code);
   if (error_code) {
-    return env->ThrowUVException(EEXIST, "lstat", nullptr, src.out());
+#ifdef _WIN32
+    int errorno = uv_translate_sys_error(error_code.value());
+#else
+    int errorno =
+        error_code.value() > 0 ? -error_code.value() : error_code.value();
+#endif
+    return env->ThrowUVException(
+        errorno, dereference ? "stat" : "lstat", nullptr, src.out());
   }
   auto dest_status =
       dereference ? std::filesystem::symlink_status(dest_path, error_code)

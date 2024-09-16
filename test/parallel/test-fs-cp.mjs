@@ -419,6 +419,26 @@ if (!isWindows) {
   );
 }
 
+// It throws an error when attempting to copy a file with a name that is too long.
+{
+  const src = 'a'.repeat(5000);
+  const dest = nextdir();
+  assert.throws(
+    () => cpSync(src, dest),
+    { code: isWindows ? 'ENOENT' : 'ENAMETOOLONG' }
+  );
+}
+
+// It throws an error when attempting to copy a dir that does not exist.
+{
+  const src = nextdir();
+  const dest = nextdir();
+  assert.throws(
+    () => cpSync(src, dest, mustNotMutateObjectDeep({ recursive: true })),
+    { code: 'ENOENT' }
+  );
+}
+
 // It makes file writeable when updating timestamp, if not writeable.
 {
   const src = nextdir();
