@@ -1854,7 +1854,7 @@ argument.
 <!-- YAML
 added: v0.11.13
 changes:
-  - version: REPLACEME
+  - version: v22.9.0
     pr-url: https://github.com/nodejs/node/pull/54790
     description: The `allowPartialTrustChain` option has been added.
   - version: v22.4.0

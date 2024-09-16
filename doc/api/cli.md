@@ -474,7 +474,7 @@ added:
   - v12.19.0
 changes:
   - version:
-    - REPLACEME
+    - v22.9.0
     pr-url: https://github.com/nodejs/node/pull/54209
     description: The flag is no longer experimental.
 -->
@@ -1773,7 +1773,7 @@ Node.js which is `nodejs_conf` and is default when this option is not used.
 ### `--env-file-if-exists=config`
 
 <!-- YAML
-added: REPLACEME
+added: v22.9.0
 -->
 
 Behavior is the same as [`--env-file`][], but an error is not thrown if the file

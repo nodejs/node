@@ -3659,7 +3659,7 @@ and [`crypto.setEngine()`][] all depend on this functionality from OpenSSL.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v22.9.0
     pr-url: https://github.com/nodejs/node/pull/54708
     description: Documentation-only deprecation.
 -->
@@ -3674,7 +3674,7 @@ It is recommended to use the `new` qualifier instead. This applies to all Zlib c
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v22.9.0
     pr-url: https://github.com/nodejs/node/pull/54842
     description: Documentation-only deprecation.
 -->
