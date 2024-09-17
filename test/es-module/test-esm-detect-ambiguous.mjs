@@ -255,7 +255,7 @@ describe('Module syntax detection', { concurrency: !process.env.TEST_PARALLEL },
     it('reports unfinished top-level `await`', async () => {
       const { stdout, stderr, code, signal } = await spawnPromisified(process.execPath, [
         '--no-warnings',
-        fixtures.path('es-modules/tla/unresolved.js')
+        fixtures.path('es-modules/tla/unresolved.js'),
       ]);
 
       strictEqual(stderr, '');
