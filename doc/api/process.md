@@ -1880,7 +1880,7 @@ previous setting of `process.exitCode`.
 ## `process.features.cached_builtins`
 
 <!-- YAML
-added: REPLACEME
+added: v12.0.0
 -->
 
 * {boolean}
@@ -1890,7 +1890,7 @@ A boolean value that is `true` if the current Node.js build is caching builtin m
 ## `process.features.debug`
 
 <!-- YAML
-added: REPLACEME
+added: v0.5.5
 -->
 
 * {boolean}
@@ -1900,7 +1900,7 @@ A boolean value that is `true` if the current Node.js build is a debug build.
 ## `process.features.inspector`
 
 <!-- YAML
-added: REPLACEME
+added: v11.10.0
 -->
 
 * {boolean}
@@ -1910,7 +1910,7 @@ A boolean value that is `true` if the current Node.js build includes the inspect
 ## `process.features.ipv6`
 
 <!-- YAML
-added: REPLACEME
+added: v0.5.3
 -->
 
 * {boolean}
@@ -1920,7 +1920,7 @@ A boolean value that is `true` if the current Node.js build includes support for
 ## `process.features.tls`
 
 <!-- YAML
-added: REPLACEME
+added: v0.5.3
 -->
 
 * {boolean}
@@ -1930,7 +1930,7 @@ A boolean value that is `true` if the current Node.js build includes support for
 ## `process.features.tls_alpn`
 
 <!-- YAML
-added: REPLACEME
+added: v4.8.0
 -->
 
 * {boolean}
@@ -1942,7 +1942,7 @@ A boolean value that is `true` if the current Node.js build includes support for
 ## `process.features.tls_ocsp`
 
 <!-- YAML
-added: REPLACEME
+added: v0.11.13
 -->
 
 * {boolean}
@@ -1954,7 +1954,7 @@ A boolean value that is `true` if the current Node.js build includes support for
 ## `process.features.tls_sni`
 
 <!-- YAML
-added: REPLACEME
+added: v0.5.3
 -->
 
 * {boolean}
@@ -1966,7 +1966,7 @@ A boolean value that is `true` if the current Node.js build includes support for
 ## `process.features.uv`
 
 <!-- YAML
-added: REPLACEME
+added: v0.5.3
 -->
 
 * {boolean}
