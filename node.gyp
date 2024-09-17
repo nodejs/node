@@ -1269,14 +1269,13 @@
       'sources': [
         'src/node_snapshot_stub.cc',
         'test/embedding/embedtest.cc',
-        'test/embedding/embedtest_concurrent_node_api.cc',
         'test/embedding/embedtest_main.cc',
         'test/embedding/embedtest_modules_node_api.cc',
         'test/embedding/embedtest_node_api.cc',
         'test/embedding/embedtest_node_api.h',
         'test/embedding/embedtest_nodejs_main_node_api.cc',
         'test/embedding/embedtest_preload_node_api.cc',
-        'test/embedding/embedtest_snapshot_node_api.cc',
+        'test/embedding/embedtest_threading_node_api.cc',
       ],
 
       'conditions': [

@@ -44,7 +44,7 @@ inline node_embedding_exit_code InvokeNodeApi(
     node_embedding_runtime runtime, const std::function<void(napi_env)>& func) {
   return node_embedding_runtime_invoke_node_api(
       runtime,
-      [](void* cb_data, napi_env env) {
+      [](node_embedding_runtime runtime, void* cb_data, napi_env env) {
         auto func = static_cast<std::function<void(napi_env)>*>(cb_data);
         (*func)(env);
       },
@@ -128,4 +128,5 @@ inline node_embedding_exit_code InvokeNodeApi(
 // TODO(vmoroz): Enable the test_main_modules_node_api test.
 // TODO(vmoroz): Test failure in Preload callback.
 // TODO(vmoroz): Test failure in linked modules.
+// TODO(vmoroz): Add a test that handles JS errors.
 // TODO(vmoroz): Make sure that delete call matches the create call.

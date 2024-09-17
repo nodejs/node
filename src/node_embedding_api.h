@@ -145,29 +145,16 @@ typedef enum {
 } node_embedding_runtime_flags;
 
 typedef enum {
-  node_embedding_snapshot_no_flags = 0,
-  // Whether code cache should be generated as part of the snapshot.
-  // Code cache reduces the time spent on compiling functions included
-  // in the snapshot at the expense of a bigger snapshot size and
-  // potentially breaking portability of the snapshot.
-  node_embedding_snapshot_no_code_cache = 1 << 0,
-} node_embedding_snapshot_flags;
-
-typedef enum {
+  // Run the event loop until it is completed.
+  // It matches the UV_RUN_DEFAULT behavior.
+  node_embedding_event_loop_run_default = 0,
   // Run the event loop once and wait if there are no items.
   // It matches the UV_RUN_ONCE behavior.
   node_embedding_event_loop_run_once = 1,
-
   // Run the event loop once and do not wait if there are no items.
   // It matches the UV_RUN_NOWAIT behavior.
   node_embedding_event_loop_run_nowait = 2,
 } node_embedding_event_loop_run_mode;
-
-typedef enum {
-  node_embedding_promise_state_pending = 0,
-  node_embedding_promise_state_fulfilled = 1,
-  node_embedding_promise_state_rejected = 2,
-} node_embedding_promise_state;
 
 //==============================================================================
 // Callbacks
@@ -183,22 +170,25 @@ typedef void(NAPI_CDECL* node_embedding_get_args_callback)(void* cb_data,
                                                            int32_t argc,
                                                            const char* argv[]);
 
-typedef void(NAPI_CDECL* node_embedding_preload_callback)(void* cb_data,
-                                                          napi_env env,
-                                                          napi_value process,
-                                                          napi_value require);
-
-typedef void(NAPI_CDECL* node_embedding_store_blob_callback)(
-    void* cb_data, const uint8_t* blob, size_t size);
+typedef void(NAPI_CDECL* node_embedding_preload_callback)(
+    node_embedding_runtime runtime,
+    void* cb_data,
+    napi_env env,
+    napi_value process,
+    napi_value require);
 
 typedef napi_value(NAPI_CDECL* node_embedding_initialize_module_callback)(
-    void* cb_data, napi_env env, const char* module_name, napi_value exports);
+    node_embedding_runtime runtime,
+    void* cb_data,
+    napi_env env,
+    const char* module_name,
+    napi_value exports);
 
-typedef bool(NAPI_CDECL* node_embedding_event_loop_predicate)(
-    void* predicate_data, bool has_work);
+typedef void(NAPI_CDECL* node_embedding_event_loop_handler)(
+    node_embedding_runtime runtime, void* handler_data);
 
-typedef void(NAPI_CDECL* node_embedding_node_api_callback)(void* cb_data,
-                                                           napi_env env);
+typedef void(NAPI_CDECL* node_embedding_node_api_callback)(
+    node_embedding_runtime runtime, void* cb_data, napi_env env);
 
 //==============================================================================
 // Functions
@@ -311,53 +301,36 @@ node_embedding_runtime_add_module(
     void* init_module_cb_data,
     int32_t module_node_api_version);
 
-// Sets the snapshot creation parameters for the Node.js runtime initialization.
-NAPI_EXTERN node_embedding_exit_code NAPI_CDECL
-node_embedding_runtime_on_create_snapshot(
-    node_embedding_runtime runtime,
-    node_embedding_store_blob_callback store_blob_cb,
-    void* store_blob_cb_data,
-    node_embedding_snapshot_flags snapshot_flags);
-
 // Initializes the Node.js runtime.
 NAPI_EXTERN node_embedding_exit_code NAPI_CDECL
-node_embedding_runtime_initialize_from_script(node_embedding_runtime runtime,
-                                              const char* main_script);
-
-// Sets the snapshot for the Node.js runtime initialization.
-NAPI_EXTERN node_embedding_exit_code NAPI_CDECL
-node_embedding_runtime_initialize_from_snapshot(node_embedding_runtime runtime,
-                                                const uint8_t* snapshot,
-                                                size_t size);
+node_embedding_runtime_initialize(node_embedding_runtime runtime,
+                                  const char* main_script);
 
 //------------------------------------------------------------------------------
 // Node.js runtime functions for the event loop.
 //------------------------------------------------------------------------------
 
-// Runs the Node.js runtime event loop.
-// It does not block the calling thread.
+// Initializes the runtime to call the provided handler when the runtime event
+// loop has some work to do. It starts an observer thread that is stopped by the
+// `node_embedding_runtime_complete_event_loop` function call. This function
+// helps to integrate the Node.js runtime event loop with the host UI loop.
 NAPI_EXTERN node_embedding_exit_code NAPI_CDECL
-node_embedding_runtime_run_event_loop(node_embedding_runtime runtime);
-
-// Runs the Node.js runtime event loop until the predicate returns false.
-// It may block the calling thread depending on the is_thread_blocking
-// parameter.
-NAPI_EXTERN node_embedding_exit_code NAPI_CDECL
-node_embedding_runtime_run_event_loop_while(
+node_embedding_runtime_on_event_loop_run_request(
     node_embedding_runtime runtime,
-    node_embedding_event_loop_predicate predicate,
-    void* predicate_data,
+    node_embedding_event_loop_handler event_loop_handler,
+    void* event_loop_handler_data);
+
+// Runs the Node.js runtime event loop.
+NAPI_EXTERN node_embedding_exit_code NAPI_CDECL
+node_embedding_runtime_run_event_loop(
+    node_embedding_runtime runtime,
     node_embedding_event_loop_run_mode run_mode,
     bool* has_more_work);
 
-// Runs the Node.js runtime event loop until the promise is resolved.
-// It may block the calling thread.
+// Runs the Node.js runtime event loop in node_embedding_event_loop_run_default
+// mode and finishes it with emitting the beforeExit and exit process events.
 NAPI_EXTERN node_embedding_exit_code NAPI_CDECL
-node_embedding_runtime_await_promise(node_embedding_runtime runtime,
-                                     napi_value promise,
-                                     node_embedding_promise_state* state,
-                                     napi_value* result,
-                                     bool* has_more_work);
+node_embedding_runtime_complete_event_loop(node_embedding_runtime runtime);
 
 //------------------------------------------------------------------------------
 // Node.js runtime functions for the Node-API interop.
@@ -395,31 +368,31 @@ inline constexpr node_embedding_runtime_flags operator|(
                                                    static_cast<int32_t>(rhs));
 }
 
-inline constexpr node_embedding_snapshot_flags operator|(
-    node_embedding_snapshot_flags lhs, node_embedding_snapshot_flags rhs) {
-  return static_cast<node_embedding_snapshot_flags>(static_cast<int32_t>(lhs) |
-                                                    static_cast<int32_t>(rhs));
-}
-
 #endif
 
 #endif  // SRC_NODE_EMBEDDING_API_H_
 
+// TODO(vmoroz): Allow running Node.js uv_loop from UI loop. Follow the Electron
+//               implementation. - Complete implementation for non-Windows.
+// TODO(vmoroz): Can we use some kind of waiter concept instead of the
+//               observer thread?
 // TODO(vmoroz): Add startup callback with process and require parameters.
 // TODO(vmoroz): Generate the main script based on the runtime settings.
-// TODO(vmoroz): Set the global inspector for a specific environment.
+// TODO(vmoroz): Set the global Inspector for he main runtime.
 // TODO(vmoroz): Start workers from C++.
-// TODO(vmoroz): Worker to inherit parent inspector.
-// TODO(vmoroz): Cancel pending tasks on delete env.
-// TODO(vmoroz): The runtime delete must avoid pumping tasks.
+// TODO(vmoroz): Worker to inherit parent Inspector.
+// TODO(vmoroz): Cancel pending tasks on runtime deletion.
 // TODO(vmoroz): Can we initialize platform again if it returns early?
-// TODO(vmoroz): Add simpler threading model - without open/close scope.
 // TODO(vmoroz): Simplify API use for simple default cases.
 // TODO(vmoroz): Test passing the V8 thread pool size.
 // TODO(vmoroz): Make the args story simpler or clear named.
 // TODO(vmoroz): Single runtime by default vs multiple runtimes on demand.
 // TODO(vmoroz): Add a way to terminate the runtime.
 // TODO(vmoroz): Allow to provide custom thread pool from the app.
-// TODO(vmoroz): Follow the UV example that integrates UV loop with QT loop.
 // TODO(vmoroz): Consider adding a v-table for the API functions to simplify
 //               binding with other languages.
+// TODO(vmoroz): libuv setup for the platform.
+// TODO(vmoroz): Augment the node_embedding_run_nodejs_main with callbacks to
+//               setup platform, setup runtime, and to run runtime.
+// TODO(vmoroz): We must not exit the process on node::Environment errors.
+// TODO(vmoroz): Be explicit about the recoverable errors.

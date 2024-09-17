@@ -234,7 +234,6 @@ function runSnapshotTests(apiType) {
 }
 
 runSnapshotTests('cpp-api');
-runSnapshotTests('snapshot-node-api');
 
 // Node-API specific tests
 {
@@ -292,9 +291,9 @@ runSnapshotTests('snapshot-node-api');
   );
 
   runTest(
-    `concurrent-node-api: run 12 environments concurrently`,
+    `threading-runtime-per-thread-node-api: run 12 environments concurrently`,
     spawnSyncAndAssert,
-    ['concurrent-node-api', 'myCount = 1'],
+    ['threading-runtime-per-thread-node-api', 'myCount = 1'],
     {
       trim: true,
       stdout: '12',
@@ -302,10 +301,10 @@ runSnapshotTests('snapshot-node-api');
   );
 
   runTest(
-    'multi-env-node-api: run 12 environments in the same thread',
+    'threading-several-runtimes-per-thread-node-api: run 12 environments in the same thread',
     spawnSyncAndAssert,
     [
-      'multi-env-node-api',
+      'threading-several-runtimes-per-thread-node-api',
       'myCount = 0; ' +
         'function incMyCount() { ' +
         '  ++myCount; ' +
@@ -319,10 +318,27 @@ runSnapshotTests('snapshot-node-api');
   );
 
   runTest(
-    'multi-thread-node-api: run and environment from multiple threads',
+    'threading-runtime-in-several-threads-node-api: run and environment from multiple threads',
     spawnSyncAndAssert,
     [
-      'multi-thread-node-api',
+      'threading-runtime-in-several-threads-node-api',
+      'myCount = 0; ' +
+        'function incMyCount() { ' +
+        '  ++myCount; ' +
+        '  if (myCount < 5) setTimeout(incMyCount, 1); ' +
+        '}',
+    ],
+    {
+      trim: true,
+      stdout: '5',
+    }
+  );
+
+  runTest(
+    'threading-runtime-in-ui-thread-node-api: run and environment from multiple threads',
+    spawnSyncAndAssert,
+    [
+      'threading-runtime-in-ui-thread-node-api',
       'myCount = 0; ' +
         'function incMyCount() { ' +
         '  ++myCount; ' +

@@ -25,20 +25,18 @@ enum class SpinEventLoopCleanupMode {
 };
 
 /**
- * Spin the event loop until there are no pending callbacks and
- * then shutdown the environment. Returns a reference to the
- * exit value or an empty reference on unexpected exit.
- * If cleanupMode is kNoCleanup, then the environment will not be cleaned up.
- * If shouldContinue is an invocable that returns bool, then the loop will
- * break after shouldContinue returns false.
+ * Spin the event loop with the provided run_mode.
+ * For the UV_RUN_DEFAULT it will spin it until there are no pending callbacks
+ * and then shutdown the environment. Returns a reference to the exit value or
+ * an empty reference on unexpected exit. If the cleanup_mode is kNoCleanup,
+ * then the environment will not be cleaned up.
+ * For the UV_RUN_ONCE and UV_RUN_NOWAIT modes, the cleanup_mode is ignored and
+ * the environment is not cleaned up.
  */
 template <
-    SpinEventLoopCleanupMode cleanupMode = SpinEventLoopCleanupMode::kNormal,
-    typename ShouldContinuePredicate = int>
-Maybe<ExitCode> SpinEventLoopInternalImpl(
-    Environment* env,
     uv_run_mode run_mode = UV_RUN_DEFAULT,
-    const ShouldContinuePredicate& shouldContinue = 0) {
+    SpinEventLoopCleanupMode cleanup_mode = SpinEventLoopCleanupMode::kNormal>
+Maybe<ExitCode> SpinEventLoopInternalImpl(Environment* env) {
   CHECK_NOT_NULL(env);
   MultiIsolatePlatform* platform = GetMultiIsolatePlatform(env);
   CHECK_NOT_NULL(platform);
@@ -50,7 +48,6 @@ Maybe<ExitCode> SpinEventLoopInternalImpl(
 
   if (env->is_stopping()) return Nothing<ExitCode>();
 
-  // Run the UV loop
   {
     env->set_trace_sync_io(env->options()->trace_sync_io);
     auto clear_set_trace_sync_io =
@@ -65,23 +62,19 @@ Maybe<ExitCode> SpinEventLoopInternalImpl(
 
     bool more;
     do {
-      if constexpr (std::
-                        is_invocable_r_v<bool, ShouldContinuePredicate, bool>) {
-        do {
-          if (env->is_stopping()) break;
-          more = uv_run(env->event_loop(), run_mode);
-        } while (more && shouldContinue(more));
-      } else {
-        if (env->is_stopping()) break;
-        uv_run(env->event_loop(), UV_RUN_DEFAULT);
-      }
       if (env->is_stopping()) break;
+      uv_run(env->event_loop(), run_mode);
+      if (env->is_stopping()) break;
+
+      if constexpr (run_mode != UV_RUN_DEFAULT) {
+        break;
+      }
 
       platform->DrainTasks(isolate);
 
       more = uv_loop_alive(env->event_loop());
-      if constexpr (cleanupMode == SpinEventLoopCleanupMode::kNormal) {
-        if (more) continue;
+      if constexpr (cleanup_mode == SpinEventLoopCleanupMode::kNormal) {
+        if (more && !env->is_stopping()) continue;
 
         if (EmitProcessBeforeExit(env).IsNothing()) break;
 
@@ -96,11 +89,12 @@ Maybe<ExitCode> SpinEventLoopInternalImpl(
         // emitting event, or after running some callbacks.
         more = uv_loop_alive(env->event_loop());
       }
-    } while (more);
+    } while (more == true && !env->is_stopping());
   }
   if (env->is_stopping()) return Nothing<ExitCode>();
 
-  if constexpr (cleanupMode == SpinEventLoopCleanupMode::kNormal) {
+  if constexpr (run_mode == UV_RUN_DEFAULT &&
+                cleanup_mode == SpinEventLoopCleanupMode::kNormal) {
     // Clear the serialize callback even though the JS-land queue should
     // be empty this point so that the deserialized instance won't
     // attempt to call into JS again.
@@ -126,16 +120,21 @@ Maybe<int> SpinEventLoop(Environment* env) {
   return ExitCodeToInt(SpinEventLoopInternalImpl(env));
 }
 
-v8::Maybe<ExitCode> SpinEventLoopWithoutCleanup(Environment* env) {
-  return SpinEventLoopInternalImpl<SpinEventLoopCleanupMode::kNoCleanup>(env);
-}
-
-v8::Maybe<ExitCode> SpinEventLoopWithoutCleanup(
-    Environment* env,
-    uv_run_mode run_mode,
-    const std::function<bool(bool)>& shouldContinue) {
-  return SpinEventLoopInternalImpl<SpinEventLoopCleanupMode::kNoCleanup>(
-      env, run_mode, shouldContinue);
+v8::Maybe<ExitCode> SpinEventLoopWithoutCleanup(Environment* env,
+                                                uv_run_mode run_mode) {
+  if (run_mode == UV_RUN_DEFAULT) {
+    return SpinEventLoopInternalImpl<UV_RUN_DEFAULT,
+                                     SpinEventLoopCleanupMode::kNoCleanup>(env);
+  } else if (run_mode == UV_RUN_ONCE) {
+    return SpinEventLoopInternalImpl<UV_RUN_ONCE,
+                                     SpinEventLoopCleanupMode::kNoCleanup>(env);
+  } else if (run_mode == UV_RUN_NOWAIT) {
+    return SpinEventLoopInternalImpl<UV_RUN_NOWAIT,
+                                     SpinEventLoopCleanupMode::kNoCleanup>(env);
+  } else {
+    CHECK(false && "Invalid run_mode");
+    return Nothing<ExitCode>();
+  }
 }
 
 struct CommonEnvironmentSetup::Impl {

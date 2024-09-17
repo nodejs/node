@@ -1,6 +1,4 @@
-#include <assert.h>
 #include "executable_wrapper.h"
-#include "node.h"
 
 extern "C" int32_t test_main_cpp_api(int32_t argc, char* argv[]);
 extern "C" int32_t test_main_node_api(int32_t argc, char* argv[]);
@@ -8,11 +6,11 @@ extern "C" int32_t test_main_nodejs_main_node_api(int32_t argc, char* argv[]);
 extern "C" int32_t test_main_modules_node_api(int32_t argc, char* argv[]);
 extern "C" int32_t test_main_linked_modules_node_api(int32_t argc,
                                                      char* argv[]);
-extern "C" int32_t test_main_concurrent_node_api(int32_t argc, char* argv[]);
-extern "C" int32_t test_main_multi_env_node_api(int32_t argc, char* argv[]);
-extern "C" int32_t test_main_multi_thread_node_api(int32_t argc, char* argv[]);
+extern "C" int32_t test_main_threading_runtime_per_thread_node_api(int32_t argc, char* argv[]);
+extern "C" int32_t test_main_threading_several_runtimes_per_thread_node_api(int32_t argc, char* argv[]);
+extern "C" int32_t test_main_threading_runtime_in_several_threads_node_api(int32_t argc, char* argv[]);
+extern "C" int32_t test_main_threading_runtime_in_ui_thread_node_api(int32_t argc, char* argv[]);
 extern "C" int32_t test_main_preload_node_api(int32_t argc, char* argv[]);
-extern "C" int32_t test_main_snapshot_node_api(int32_t argc, char* argv[]);
 
 typedef int32_t (*main_callback)(int32_t argc, char* argv[]);
 
@@ -40,16 +38,16 @@ NODE_MAIN(int32_t argc, node::argv_type raw_argv[]) {
       return CallWithoutArg1(test_main_modules_node_api, argc, argv);
     } else if (strcmp(arg1, "linked-modules-node-api") == 0) {
       return CallWithoutArg1(test_main_linked_modules_node_api, argc, argv);
-    } else if (strcmp(arg1, "concurrent-node-api") == 0) {
-      return CallWithoutArg1(test_main_concurrent_node_api, argc, argv);
-    } else if (strcmp(arg1, "multi-env-node-api") == 0) {
-      return CallWithoutArg1(test_main_multi_env_node_api, argc, argv);
-    } else if (strcmp(arg1, "multi-thread-node-api") == 0) {
-      return CallWithoutArg1(test_main_multi_thread_node_api, argc, argv);
+    } else if (strcmp(arg1, "threading-runtime-per-thread-node-api") == 0) {
+      return CallWithoutArg1(test_main_threading_runtime_per_thread_node_api, argc, argv);
+    } else if (strcmp(arg1, "threading-several-runtimes-per-thread-node-api") == 0) {
+      return CallWithoutArg1(test_main_threading_several_runtimes_per_thread_node_api, argc, argv);
+    } else if (strcmp(arg1, "threading-runtime-in-several-threads-node-api") == 0) {
+      return CallWithoutArg1(test_main_threading_runtime_in_several_threads_node_api, argc, argv);
+    } else if (strcmp(arg1, "threading-runtime-in-ui-thread-node-api") == 0) {
+      return CallWithoutArg1(test_main_threading_runtime_in_ui_thread_node_api, argc, argv);
     } else if (strcmp(arg1, "preload-node-api") == 0) {
       return CallWithoutArg1(test_main_preload_node_api, argc, argv);
-    } else if (strcmp(arg1, "snapshot-node-api") == 0) {
-      return CallWithoutArg1(test_main_snapshot_node_api, argc, argv);
     }
   }
   return test_main_cpp_api(argc, argv);
