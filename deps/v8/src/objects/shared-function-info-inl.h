@@ -584,16 +584,9 @@ void SharedFunctionInfo::SetScopeInfo(Tagged<ScopeInfo> scope_info,
     name = Cast<UnionOf<Smi, String>>(name_or_scope_info);
   }
   DCHECK(IsString(name) || name == kNoSharedNameSentinel);
-  // ScopeInfo can get promoted to read-only space. Now that we reuse them after
-  // flushing bytecode, we'll actually reinstall read-only scopeinfos on
-  // SharedFunctionInfos if they required a context. The read-only scopeinfos
-  // should already be fully initialized though, and hence will already have the
-  // right FunctionName (and InferredName if relevant).
-  if (scope_info->FunctionName() != name) {
-    scope_info->SetFunctionName(name);
-  }
-  if (HasInferredName() && inferred_name()->length() != 0 &&
-      scope_info->InferredFunctionName() != inferred_name()) {
+  // Only set the function name for function scopes.
+  scope_info->SetFunctionName(name);
+  if (HasInferredName() && inferred_name()->length() != 0) {
     scope_info->SetInferredFunctionName(inferred_name());
   }
   set_name_or_scope_info(scope_info, kReleaseStore, mode);

@@ -35,7 +35,7 @@ Handle<SharedFunctionInfo> CreateSharedFunctionInfo(
                                     .ToHandleChecked();
   DirectHandle<Script> script = isolate->factory()->NewScript(source);
   DirectHandle<WeakFixedArray> infos = isolate->factory()->NewWeakFixedArray(3);
-  script->set_infos(*infos);
+  script->set_shared_function_infos(*infos);
   Handle<SharedFunctionInfo> shared =
       isolate->factory()->NewSharedFunctionInfoForBuiltin(
           isolate->factory()->NewStringFromAsciiChecked("f"),

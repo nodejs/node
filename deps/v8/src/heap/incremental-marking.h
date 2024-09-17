@@ -102,6 +102,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   bool Stop();
 
   void UpdateMarkingWorklistAfterScavenge();
+  void UpdateExternalPointerTableAfterScavenge();
   void UpdateMarkedBytesAfterScavenge(size_t dead_bytes_in_new_space);
 
   // Performs incremental marking step and finalizes marking if complete.

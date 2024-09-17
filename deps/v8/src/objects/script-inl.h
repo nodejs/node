@@ -32,7 +32,7 @@ ACCESSORS_CHECKED(Script, wasm_breakpoint_infos, Tagged<FixedArray>,
 ACCESSORS_CHECKED(Script, wasm_managed_native_module, Tagged<Object>,
                   kEvalFromPositionOffset, this->type() == Type::kWasm)
 ACCESSORS_CHECKED(Script, wasm_weak_instance_list, Tagged<WeakArrayList>,
-                  kInfosOffset, this->type() == Type::kWasm)
+                  kSharedFunctionInfosOffset, this->type() == Type::kWasm)
 #define CHECK_SCRIPT_NOT_WASM this->type() != Type::kWasm
 #else
 #define CHECK_SCRIPT_NOT_WASM true
@@ -87,21 +87,26 @@ Tagged<FixedArray> Script::wrapped_arguments() const {
   return Cast<FixedArray>(eval_from_shared_or_wrapped_arguments());
 }
 
-DEF_GETTER(Script, infos, Tagged<WeakFixedArray>) {
+DEF_GETTER(Script, shared_function_infos, Tagged<WeakFixedArray>) {
 #if V8_ENABLE_WEBASSEMBLY
   if (type() == Type::kWasm) {
     return ReadOnlyRoots(GetHeap()).empty_weak_fixed_array();
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
-  return TaggedField<WeakFixedArray, kInfosOffset>::load(*this);
+  return TaggedField<WeakFixedArray, kSharedFunctionInfosOffset>::load(*this);
 }
 
-void Script::set_infos(Tagged<WeakFixedArray> value, WriteBarrierMode mode) {
+void Script::set_shared_function_infos(Tagged<WeakFixedArray> value,
+                                       WriteBarrierMode mode) {
 #if V8_ENABLE_WEBASSEMBLY
   DCHECK_NE(Type::kWasm, type());
 #endif  // V8_ENABLE_WEBASSEMBLY
-  TaggedField<WeakFixedArray, kInfosOffset>::store(*this, value);
-  CONDITIONAL_WRITE_BARRIER(*this, kInfosOffset, value, mode);
+  TaggedField<WeakFixedArray, kSharedFunctionInfosOffset>::store(*this, value);
+  CONDITIONAL_WRITE_BARRIER(*this, kSharedFunctionInfosOffset, value, mode);
+}
+
+int Script::shared_function_info_count() const {
+  return shared_function_infos()->length();
 }
 
 #if V8_ENABLE_WEBASSEMBLY

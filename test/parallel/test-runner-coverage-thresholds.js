@@ -44,10 +44,7 @@ function getTapCoverageFixtureReport() {
 }
 
 const fixture = fixtures.path('test-runner', 'coverage.js');
-const neededArguments = [
-  '--experimental-test-coverage',
-  '--test-reporter', 'tap',
-];
+const reporter = fixtures.fileURL('test-runner/custom_reporters/coverage.mjs');
 
 const coverages = [
   { flag: '--test-coverage-lines', name: 'line', actual: 78.35 },
@@ -56,10 +53,12 @@ const coverages = [
 ];
 
 for (const coverage of coverages) {
-  test(`test passing ${coverage.flag}`, async (t) => {
+  test(`test passing ${coverage.flag}`, () => {
     const result = spawnSync(process.execPath, [
-      ...neededArguments,
+      '--test',
+      '--experimental-test-coverage',
       `${coverage.flag}=25`,
+      '--test-reporter', 'tap',
       fixture,
     ]);
 
@@ -70,10 +69,27 @@ for (const coverage of coverages) {
     assert(!findCoverageFileForPid(result.pid));
   });
 
-  test(`test failing ${coverage.flag}`, async (t) => {
+  test(`test passing ${coverage.flag} with custom reporter`, () => {
     const result = spawnSync(process.execPath, [
-      ...neededArguments,
+      '--test',
+      '--experimental-test-coverage',
+      `${coverage.flag}=25`,
+      '--test-reporter', reporter,
+      fixture,
+    ]);
+
+    const stdout = JSON.parse(result.stdout.toString());
+    assert.strictEqual(stdout.summary.thresholds[coverage.name], 25);
+    assert.strictEqual(result.status, 0);
+    assert(!findCoverageFileForPid(result.pid));
+  });
+
+  test(`test failing ${coverage.flag}`, () => {
+    const result = spawnSync(process.execPath, [
+      '--test',
+      '--experimental-test-coverage',
       `${coverage.flag}=99`,
+      '--test-reporter', 'tap',
       fixture,
     ]);
 
@@ -84,9 +100,25 @@ for (const coverage of coverages) {
     assert(!findCoverageFileForPid(result.pid));
   });
 
-  test(`test out-of-range ${coverage.flag} (too high)`, async (t) => {
+  test(`test failing ${coverage.flag} with custom reporter`, () => {
     const result = spawnSync(process.execPath, [
-      ...neededArguments,
+      '--test',
+      '--experimental-test-coverage',
+      `${coverage.flag}=99`,
+      '--test-reporter', reporter,
+      fixture,
+    ]);
+
+    const stdout = JSON.parse(result.stdout.toString());
+    assert.strictEqual(stdout.summary.thresholds[coverage.name], 99);
+    assert.strictEqual(result.status, 1);
+    assert(!findCoverageFileForPid(result.pid));
+  });
+
+  test(`test out-of-range ${coverage.flag} (too high)`, () => {
+    const result = spawnSync(process.execPath, [
+      '--test',
+      '--experimental-test-coverage',
       `${coverage.flag}=101`,
       fixture,
     ]);
@@ -96,9 +128,10 @@ for (const coverage of coverages) {
     assert(!findCoverageFileForPid(result.pid));
   });
 
-  test(`test out-of-range ${coverage.flag} (too low)`, async (t) => {
+  test(`test out-of-range ${coverage.flag} (too low)`, () => {
     const result = spawnSync(process.execPath, [
-      ...neededArguments,
+      '--test',
+      '--experimental-test-coverage',
       `${coverage.flag}=-1`,
       fixture,
     ]);

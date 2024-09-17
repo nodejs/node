@@ -2,11 +2,4 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax
-
-let c = class {
-  x = eval("");
-};
-new c;
-%ForceFlush(%GetInitializerFunction(c));
-new c;
+assertThrowsAsync(import('./modules-skip-async-error-parent.mjs'));

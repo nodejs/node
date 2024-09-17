@@ -395,7 +395,7 @@ function exampleFunction() {
     console.log(`CallSite ${index + 1}:`);
     console.log(`Function Name: ${callSite.functionName}`);
     console.log(`Script Name: ${callSite.scriptName}`);
-    console.log(`Line Number: ${callSite.lineNumer}`);
+    console.log(`Line Number: ${callSite.lineNumber}`);
     console.log(`Column Number: ${callSite.column}`);
   });
   // CallSite 1:

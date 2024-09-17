@@ -326,16 +326,14 @@ class MergeDeserializedCodeTest : public DeserializeTest {
   // The source code used in these tests.
   static constexpr char kSourceCode[] = R"(
     // Looks like an IIFE but isn't, to get eagerly parsed:
-    { let captured = 10;
-      var eager = (function () {
-        // Actual IIFE, also eagerly parsed:
-        return (function iife() {
-          return captured, 42;
-        })();
-      });
-      // Lazily parsed:
-      var lazy = function () { return eager(); };
-    }
+    var eager = (function () {
+      // Actual IIFE, also eagerly parsed:
+      return (function iife() {
+        return 42;
+      })();
+    });
+    // Lazily parsed:
+    var lazy = function () { return eager(); };
   )";
 
   // Objects from the Script's object graph whose lifetimes and connectedness
@@ -415,7 +413,7 @@ class MergeDeserializedCodeTest : public DeserializeTest {
                WeakOrSmi(toplevel_sfi->feedback_metadata()));
     i::Tagged<i::Script> script = i::Cast<i::Script>(toplevel_sfi->script());
     array->set(kScript, WeakOrSmi(script));
-    i::Tagged<i::WeakFixedArray> sfis = script->infos();
+    i::Tagged<i::WeakFixedArray> sfis = script->shared_function_infos();
     CHECK_EQ(sfis->length(), 4);
     CHECK_EQ(sfis->get(0), WeakOrSmi(toplevel_sfi));
     i::Tagged<i::SharedFunctionInfo> eager =

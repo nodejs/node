@@ -3150,7 +3150,7 @@ class DebugScopingListener : public v8::debug::DebugDelegate {
 
     auto scopes = stack_traces->GetScopeIterator();
     CHECK_EQ(v8::debug::ScopeIterator::ScopeTypeWith, scopes->GetType());
-    CHECK_EQ(19, scopes->GetStartLocation().GetColumnNumber());
+    CHECK_EQ(20, scopes->GetStartLocation().GetColumnNumber());
     CHECK_EQ(31, scopes->GetEndLocation().GetColumnNumber());
 
     scopes->Advance();

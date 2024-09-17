@@ -675,19 +675,9 @@ void return_switch(Isolate* isolate, Address raw_continuation) {
 
   Tagged<WasmContinuationObject> continuation =
       Cast<WasmContinuationObject>(Tagged<Object>{raw_continuation});
-  size_t index = reinterpret_cast<StackMemory*>(continuation->stack())->index();
-  // We can only return from a stack that was still in the global list.
-  DCHECK_LT(index, isolate->wasm_stacks().size());
-  std::unique_ptr<StackMemory> stack = std::move(isolate->wasm_stacks()[index]);
-  if (index != isolate->wasm_stacks().size() - 1) {
-    isolate->wasm_stacks()[index] = std::move(isolate->wasm_stacks().back());
-    isolate->wasm_stacks()[index]->set_index(index);
-  }
-  isolate->wasm_stacks().pop_back();
-  for (size_t i = 0; i < isolate->wasm_stacks().size(); ++i) {
-    SLOW_DCHECK(isolate->wasm_stacks()[i]->index() == i);
-  }
-  isolate->stack_pool().Add(std::move(stack));
+  wasm::StackMemory* stack =
+      reinterpret_cast<StackMemory*>(continuation->stack());
+  isolate->RetireWasmStack(stack);
   isolate->SyncStackLimit();
 }
 

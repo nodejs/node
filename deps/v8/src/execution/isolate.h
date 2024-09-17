@@ -2173,6 +2173,12 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void UpdateCentralStackInfo();
 
   void SyncStackLimit();
+
+  // To be called when returning from {stack}, or when an exception crosses the
+  // stack boundary. This updates the {StackMemory} object and the global
+  // {wasm_stacks_} list. This does *not* update the ActiveContinuation root and
+  // the stack limit.
+  void RetireWasmStack(wasm::StackMemory* stack);
 #else
   bool IsOnCentralStack() { return true; }
 #endif

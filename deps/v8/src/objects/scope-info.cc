@@ -464,8 +464,7 @@ Handle<ScopeInfo> ScopeInfo::CreateForWithScope(
   DCHECK_EQ(index, scope_info->InferredFunctionNameIndex());
   DCHECK(index == scope_info->OuterScopeInfoIndex());
   if (has_outer_scope_info) {
-    Tagged<ScopeInfo> outer = *outer_scope.ToHandleChecked();
-    scope_info->set(index++, outer);
+    scope_info->set(index++, *outer_scope.ToHandleChecked());
   }
   DCHECK_EQ(index, scope_info->length());
   DCHECK_EQ(0, scope_info->ParameterCount());
@@ -724,19 +723,6 @@ int ScopeInfo::ContextLength() const {
   if (!has_context) return 0;
   return ContextHeaderLength() + context_locals +
          (function_name_context_slot ? 1 : 0);
-}
-
-// Needs to be kept in sync with Scope::UniqueIdInScript.
-int ScopeInfo::UniqueIdInScript() const {
-  // Script scopes start "before" the script to avoid clashing with a scope that
-  // starts on character 0.
-  if (is_script_scope() || scope_type() == EVAL_SCOPE ||
-      scope_type() == MODULE_SCOPE) {
-    return -1;
-  }
-  // Default constructors have the same start position as their parent class
-  // scope. Use the next char position to distinguish this scope.
-  return StartPosition() + IsDefaultConstructor(function_kind());
 }
 
 bool ScopeInfo::HasContextExtensionSlot() const {

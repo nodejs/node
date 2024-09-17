@@ -218,7 +218,7 @@ bool Module::Instantiate(Isolate* isolate, Handle<Module> module,
     return false;
   }
   DCHECK(module->status() == kLinked || module->status() == kEvaluated ||
-         module->status() == kErrored);
+         module->status() == kEvaluatingAsync || module->status() == kErrored);
   DCHECK(stack.empty());
   return true;
 }

@@ -14,27 +14,27 @@ class PreParserLogger final {
       : end_(-1),
         num_parameters_(-1),
         function_length_(-1),
-        num_inner_infos_(-1) {}
+        num_inner_functions_(-1) {}
 
   void LogFunction(int end, int num_parameters, int function_length,
-                   int num_inner_infos) {
+                   int num_inner_functions) {
     end_ = end;
     num_parameters_ = num_parameters;
     function_length_ = function_length;
-    num_inner_infos_ = num_inner_infos;
+    num_inner_functions_ = num_inner_functions;
   }
 
   int end() const { return end_; }
   int num_parameters() const { return num_parameters_; }
   int function_length() const { return function_length_; }
-  int num_inner_infos() const { return num_inner_infos_; }
+  int num_inner_functions() const { return num_inner_functions_; }
 
  private:
   int end_;
   // For function entries.
   int num_parameters_;
   int function_length_;
-  int num_inner_infos_;
+  int num_inner_functions_;
 };
 
 }  // namespace internal

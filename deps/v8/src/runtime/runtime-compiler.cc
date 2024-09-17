@@ -626,7 +626,7 @@ static Tagged<Object> CompileGlobalEval(Isolate* isolate,
                                         Handle<i::Object> source_object,
                                         Handle<SharedFunctionInfo> outer_info,
                                         LanguageMode language_mode,
-                                        int eval_scope_info_index,
+                                        int eval_scope_position,
                                         int eval_position) {
   Handle<NativeContext> native_context = isolate->native_context();
 
@@ -655,21 +655,11 @@ static Tagged<Object> CompileGlobalEval(Isolate* isolate,
   static const ParseRestriction restriction = NO_PARSE_RESTRICTION;
   Handle<JSFunction> compiled;
   Handle<Context> context(isolate->context(), isolate);
-  if (!Is<NativeContext>(*context) && v8_flags.reuse_scope_infos) {
-    Tagged<WeakFixedArray> array = Cast<Script>(outer_info->script())->infos();
-    Tagged<ScopeInfo> stored_info;
-    if (array->get(eval_scope_info_index)
-            .GetHeapObjectIfWeak(isolate, &stored_info)) {
-      CHECK_EQ(stored_info, context->scope_info());
-    } else {
-      array->set(eval_scope_info_index, MakeWeak(context->scope_info()));
-    }
-  }
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, compiled,
-      Compiler::GetFunctionFromEval(source.ToHandleChecked(), outer_info,
-                                    context, language_mode, restriction,
-                                    kNoSourcePosition, eval_position),
+      Compiler::GetFunctionFromEval(
+          source.ToHandleChecked(), outer_info, context, language_mode,
+          restriction, kNoSourcePosition, eval_scope_position, eval_position),
       ReadOnlyRoots(isolate).exception());
   return *compiled;
 }

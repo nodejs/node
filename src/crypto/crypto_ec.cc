@@ -26,10 +26,10 @@ using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::Int32;
 using v8::Isolate;
-using v8::Just;
 using v8::JustVoid;
 using v8::Local;
 using v8::Maybe;
+using v8::MaybeLocal;
 using v8::Nothing;
 using v8::Object;
 using v8::String;
@@ -437,16 +437,13 @@ void ECDHBitsConfig::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("private", private_);
 }
 
-Maybe<bool> ECDHBitsTraits::EncodeOutput(
-    Environment* env,
-    const ECDHBitsConfig& params,
-    ByteSource* out,
-    v8::Local<v8::Value>* result) {
-  *result = out->ToArrayBuffer(env);
-  return Just(!result->IsEmpty());
+MaybeLocal<Value> ECDHBitsTraits::EncodeOutput(Environment* env,
+                                               const ECDHBitsConfig& params,
+                                               ByteSource* out) {
+  return out->ToArrayBuffer(env);
 }
 
-Maybe<bool> ECDHBitsTraits::AdditionalConfig(
+Maybe<void> ECDHBitsTraits::AdditionalConfig(
     CryptoJobMode mode,
     const FunctionCallbackInfo<Value>& args,
     unsigned int offset,
@@ -462,28 +459,28 @@ Maybe<bool> ECDHBitsTraits::AdditionalConfig(
 
   Utf8Value name(env->isolate(), args[offset]);
 
-  ASSIGN_OR_RETURN_UNWRAP(&public_key, args[offset + 1], Nothing<bool>());
-  ASSIGN_OR_RETURN_UNWRAP(&private_key, args[offset + 2], Nothing<bool>());
+  ASSIGN_OR_RETURN_UNWRAP(&public_key, args[offset + 1], Nothing<void>());
+  ASSIGN_OR_RETURN_UNWRAP(&private_key, args[offset + 2], Nothing<void>());
 
-  if (private_key->Data()->GetKeyType() != kKeyTypePrivate ||
-      public_key->Data()->GetKeyType() != kKeyTypePublic) {
+  if (private_key->Data().GetKeyType() != kKeyTypePrivate ||
+      public_key->Data().GetKeyType() != kKeyTypePublic) {
     THROW_ERR_CRYPTO_INVALID_KEYTYPE(env);
-    return Nothing<bool>();
+    return Nothing<void>();
   }
 
   params->id_ = GetOKPCurveFromName(*name);
-  params->private_ = private_key->Data();
-  params->public_ = public_key->Data();
+  params->private_ = private_key->Data().addRef();
+  params->public_ = public_key->Data().addRef();
 
-  return Just(true);
+  return JustVoid();
 }
 
 bool ECDHBitsTraits::DeriveBits(Environment* env,
                                 const ECDHBitsConfig& params,
                                 ByteSource* out) {
   size_t len = 0;
-  ManagedEVPPKey m_privkey = params.private_->GetAsymmetricKey();
-  ManagedEVPPKey m_pubkey = params.public_->GetAsymmetricKey();
+  const auto& m_privkey = params.private_.GetAsymmetricKey();
+  const auto& m_pubkey = params.public_.GetAsymmetricKey();
 
   switch (params.id_) {
     case EVP_PKEY_X25519:
@@ -493,7 +490,7 @@ bool ECDHBitsTraits::DeriveBits(Environment* env,
       {
         ctx.reset(EVP_PKEY_CTX_new(m_privkey.get(), nullptr));
       }
-      Mutex::ScopedLock pub_lock(*m_pubkey.mutex());
+      Mutex::ScopedLock pub_lock(params.public_.mutex());
       if (EVP_PKEY_derive_init(ctx.get()) <= 0 ||
           EVP_PKEY_derive_set_peer(
               ctx.get(),
@@ -515,11 +512,11 @@ bool ECDHBitsTraits::DeriveBits(Environment* env,
     default: {
       const EC_KEY* private_key;
       {
-        Mutex::ScopedLock priv_lock(*m_privkey.mutex());
+        Mutex::ScopedLock priv_lock(params.private_.mutex());
         private_key = EVP_PKEY_get0_EC_KEY(m_privkey.get());
       }
 
-      Mutex::ScopedLock pub_lock(*m_pubkey.mutex());
+      Mutex::ScopedLock pub_lock(params.public_.mutex());
       const EC_KEY* public_key = EVP_PKEY_get0_EC_KEY(m_pubkey.get());
 
       const EC_GROUP* group = EC_KEY_get0_group(private_key);
@@ -591,7 +588,7 @@ EVPKeyCtxPointer EcKeyGenTraits::Setup(EcKeyPairGenConfig* params) {
 //   7. Private Type
 //   8. Cipher
 //   9. Passphrase
-Maybe<bool> EcKeyGenTraits::AdditionalConfig(
+Maybe<void> EcKeyGenTraits::AdditionalConfig(
     CryptoJobMode mode,
     const FunctionCallbackInfo<Value>& args,
     unsigned int* offset,
@@ -604,29 +601,28 @@ Maybe<bool> EcKeyGenTraits::AdditionalConfig(
   params->params.curve_nid = GetCurveFromName(*curve_name);
   if (params->params.curve_nid == NID_undef) {
     THROW_ERR_CRYPTO_INVALID_CURVE(env);
-    return Nothing<bool>();
+    return Nothing<void>();
   }
 
   params->params.param_encoding = args[*offset + 1].As<Int32>()->Value();
   if (params->params.param_encoding != OPENSSL_EC_NAMED_CURVE &&
       params->params.param_encoding != OPENSSL_EC_EXPLICIT_CURVE) {
     THROW_ERR_OUT_OF_RANGE(env, "Invalid param_encoding specified");
-    return Nothing<bool>();
+    return Nothing<void>();
   }
 
   *offset += 2;
 
-  return Just(true);
+  return JustVoid();
 }
 
 namespace {
-WebCryptoKeyExportStatus EC_Raw_Export(
-    KeyObjectData* key_data,
-    const ECKeyExportConfig& params,
-    ByteSource* out) {
-  ManagedEVPPKey m_pkey = key_data->GetAsymmetricKey();
+WebCryptoKeyExportStatus EC_Raw_Export(const KeyObjectData& key_data,
+                                       const ECKeyExportConfig& params,
+                                       ByteSource* out) {
+  const auto& m_pkey = key_data.GetAsymmetricKey();
   CHECK(m_pkey);
-  Mutex::ScopedLock lock(*m_pkey.mutex());
+  Mutex::ScopedLock lock(key_data.mutex());
 
   const EC_KEY* ec_key = EVP_PKEY_get0_EC_KEY(m_pkey.get());
 
@@ -635,7 +631,7 @@ WebCryptoKeyExportStatus EC_Raw_Export(
   if (ec_key == nullptr) {
     typedef int (*export_fn)(const EVP_PKEY*, unsigned char*, size_t* len);
     export_fn fn = nullptr;
-    switch (key_data->GetKeyType()) {
+    switch (key_data.GetKeyType()) {
       case kKeyTypePrivate:
         fn = EVP_PKEY_get_raw_private_key;
         break;
@@ -654,7 +650,7 @@ WebCryptoKeyExportStatus EC_Raw_Export(
       return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
     *out = std::move(data).release(len);
   } else {
-    if (key_data->GetKeyType() != kKeyTypePublic)
+    if (key_data.GetKeyType() != kKeyTypePublic)
       return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
     const EC_GROUP* group = EC_KEY_get0_group(ec_key);
     const EC_POINT* point = EC_KEY_get0_public_key(ec_key);
@@ -678,41 +674,41 @@ WebCryptoKeyExportStatus EC_Raw_Export(
 }
 }  // namespace
 
-Maybe<bool> ECKeyExportTraits::AdditionalConfig(
+Maybe<void> ECKeyExportTraits::AdditionalConfig(
     const FunctionCallbackInfo<Value>& args,
     unsigned int offset,
     ECKeyExportConfig* params) {
-  return Just(true);
+  return JustVoid();
 }
 
 WebCryptoKeyExportStatus ECKeyExportTraits::DoExport(
-    std::shared_ptr<KeyObjectData> key_data,
+    const KeyObjectData& key_data,
     WebCryptoKeyFormat format,
     const ECKeyExportConfig& params,
     ByteSource* out) {
-  CHECK_NE(key_data->GetKeyType(), kKeyTypeSecret);
+  CHECK_NE(key_data.GetKeyType(), kKeyTypeSecret);
 
   switch (format) {
     case kWebCryptoKeyFormatRaw:
-      return EC_Raw_Export(key_data.get(), params, out);
+      return EC_Raw_Export(key_data, params, out);
     case kWebCryptoKeyFormatPKCS8:
-      if (key_data->GetKeyType() != kKeyTypePrivate)
+      if (key_data.GetKeyType() != kKeyTypePrivate)
         return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
-      return PKEY_PKCS8_Export(key_data.get(), out);
+      return PKEY_PKCS8_Export(key_data, out);
     case kWebCryptoKeyFormatSPKI: {
-      if (key_data->GetKeyType() != kKeyTypePublic)
+      if (key_data.GetKeyType() != kKeyTypePublic)
         return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
 
-      ManagedEVPPKey m_pkey = key_data->GetAsymmetricKey();
+      const auto& m_pkey = key_data.GetAsymmetricKey();
       if (EVP_PKEY_id(m_pkey.get()) != EVP_PKEY_EC) {
-        return PKEY_SPKI_Export(key_data.get(), out);
+        return PKEY_SPKI_Export(key_data, out);
       } else {
         // Ensure exported key is in uncompressed point format.
         // The temporary EC key is so we can have i2d_PUBKEY_bio() write out
         // the header but it is a somewhat silly hoop to jump through because
         // the header is for all practical purposes a static 26 byte sequence
         // where only the second byte changes.
-        Mutex::ScopedLock lock(*m_pkey.mutex());
+        Mutex::ScopedLock lock(key_data.mutex());
         const EC_KEY* ec_key = EVP_PKEY_get0_EC_KEY(m_pkey.get());
         const EC_GROUP* group = EC_KEY_get0_group(ec_key);
         const EC_POINT* point = EC_KEY_get0_public_key(ec_key);
@@ -749,12 +745,11 @@ WebCryptoKeyExportStatus ECKeyExportTraits::DoExport(
   }
 }
 
-Maybe<void> ExportJWKEcKey(
-    Environment* env,
-    std::shared_ptr<KeyObjectData> key,
-    Local<Object> target) {
-  ManagedEVPPKey m_pkey = key->GetAsymmetricKey();
-  Mutex::ScopedLock lock(*m_pkey.mutex());
+Maybe<void> ExportJWKEcKey(Environment* env,
+                           const KeyObjectData& key,
+                           Local<Object> target) {
+  Mutex::ScopedLock lock(key.mutex());
+  const auto& m_pkey = key.GetAsymmetricKey();
   CHECK_EQ(EVP_PKEY_id(m_pkey.get()), EVP_PKEY_EC);
 
   const EC_KEY* ec = EVP_PKEY_get0_EC_KEY(m_pkey.get());
@@ -826,7 +821,7 @@ Maybe<void> ExportJWKEcKey(
     return Nothing<void>();
   }
 
-  if (key->GetKeyType() == kKeyTypePrivate) {
+  if (key.GetKeyType() == kKeyTypePrivate) {
     const BIGNUM* pvt = EC_KEY_get0_private_key(ec);
     return SetEncodedValue(env, target, env->jwk_d_string(), pvt, degree_bytes);
   }
@@ -835,10 +830,10 @@ Maybe<void> ExportJWKEcKey(
 }
 
 Maybe<void> ExportJWKEdKey(Environment* env,
-                           std::shared_ptr<KeyObjectData> key,
+                           const KeyObjectData& key,
                            Local<Object> target) {
-  ManagedEVPPKey pkey = key->GetAsymmetricKey();
-  Mutex::ScopedLock lock(*pkey.mutex());
+  Mutex::ScopedLock lock(key.mutex());
+  const auto& pkey = key.GetAsymmetricKey();
 
   const char* curve = nullptr;
   switch (EVP_PKEY_id(pkey.get())) {
@@ -873,7 +868,7 @@ Maybe<void> ExportJWKEdKey(Environment* env,
 
   ByteSource::Builder out(len);
 
-  if (key->GetKeyType() == kKeyTypePrivate) {
+  if (key.GetKeyType() == kKeyTypePrivate) {
     if (!EVP_PKEY_get_raw_private_key(
             pkey.get(), out.data<unsigned char>(), &len) ||
         !StringBytes::Encode(
@@ -907,18 +902,17 @@ Maybe<void> ExportJWKEdKey(Environment* env,
   return JustVoid();
 }
 
-std::shared_ptr<KeyObjectData> ImportJWKEcKey(
-    Environment* env,
-    Local<Object> jwk,
-    const FunctionCallbackInfo<Value>& args,
-    unsigned int offset) {
+KeyObjectData ImportJWKEcKey(Environment* env,
+                             Local<Object> jwk,
+                             const FunctionCallbackInfo<Value>& args,
+                             unsigned int offset) {
   CHECK(args[offset]->IsString());  // curve name
   Utf8Value curve(env->isolate(), args[offset].As<String>());
 
   int nid = GetCurveFromName(*curve);
   if (nid == NID_undef) {  // Unknown curve
     THROW_ERR_CRYPTO_INVALID_CURVE(env);
-    return std::shared_ptr<KeyObjectData>();
+    return {};
   }
 
   Local<Value> x_value;
@@ -928,14 +922,14 @@ std::shared_ptr<KeyObjectData> ImportJWKEcKey(
   if (!jwk->Get(env->context(), env->jwk_x_string()).ToLocal(&x_value) ||
       !jwk->Get(env->context(), env->jwk_y_string()).ToLocal(&y_value) ||
       !jwk->Get(env->context(), env->jwk_d_string()).ToLocal(&d_value)) {
-    return std::shared_ptr<KeyObjectData>();
+    return {};
   }
 
   if (!x_value->IsString() ||
       !y_value->IsString() ||
       (!d_value->IsUndefined() && !d_value->IsString())) {
     THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK EC key");
-    return std::shared_ptr<KeyObjectData>();
+    return {};
   }
 
   KeyType type = d_value->IsString() ? kKeyTypePrivate : kKeyTypePublic;
@@ -943,7 +937,7 @@ std::shared_ptr<KeyObjectData> ImportJWKEcKey(
   ECKeyPointer ec(EC_KEY_new_by_curve_name(nid));
   if (!ec) {
     THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK EC key");
-    return std::shared_ptr<KeyObjectData>();
+    return {};
   }
 
   ByteSource x = ByteSource::FromEncodedString(env, x_value.As<String>());
@@ -954,29 +948,28 @@ std::shared_ptr<KeyObjectData> ImportJWKEcKey(
           x.ToBN().get(),
           y.ToBN().get())) {
     THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK EC key");
-    return std::shared_ptr<KeyObjectData>();
+    return {};
   }
 
   if (type == kKeyTypePrivate) {
     ByteSource d = ByteSource::FromEncodedString(env, d_value.As<String>());
     if (!EC_KEY_set_private_key(ec.get(), d.ToBN().get())) {
       THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK EC key");
-      return std::shared_ptr<KeyObjectData>();
+      return {};
     }
   }
 
   EVPKeyPointer pkey(EVP_PKEY_new());
   CHECK_EQ(EVP_PKEY_set1_EC_KEY(pkey.get(), ec.get()), 1);
 
-  return KeyObjectData::CreateAsymmetric(type, ManagedEVPPKey(std::move(pkey)));
+  return KeyObjectData::CreateAsymmetric(type, std::move(pkey));
 }
 
-Maybe<bool> GetEcKeyDetail(
-    Environment* env,
-    std::shared_ptr<KeyObjectData> key,
-    Local<Object> target) {
-  ManagedEVPPKey m_pkey = key->GetAsymmetricKey();
-  Mutex::ScopedLock lock(*m_pkey.mutex());
+Maybe<void> GetEcKeyDetail(Environment* env,
+                           const KeyObjectData& key,
+                           Local<Object> target) {
+  Mutex::ScopedLock lock(key.mutex());
+  const auto& m_pkey = key.GetAsymmetricKey();
   CHECK_EQ(EVP_PKEY_id(m_pkey.get()), EVP_PKEY_EC);
 
   const EC_KEY* ec = EVP_PKEY_get0_EC_KEY(m_pkey.get());
@@ -985,10 +978,14 @@ Maybe<bool> GetEcKeyDetail(
   const EC_GROUP* group = EC_KEY_get0_group(ec);
   int nid = EC_GROUP_get_curve_name(group);
 
-  return target->Set(
-      env->context(),
-      env->named_curve_string(),
-      OneByteString(env->isolate(), OBJ_nid2sn(nid)));
+  if (target
+          ->Set(env->context(),
+                env->named_curve_string(),
+                OneByteString(env->isolate(), OBJ_nid2sn(nid)))
+          .IsNothing()) {
+    return Nothing<void>();
+  }
+  return JustVoid();
 }
 
 // WebCrypto requires a different format for ECDSA signatures than
@@ -996,7 +993,7 @@ Maybe<bool> GetEcKeyDetail(
 // implementation here is a adapted from Chromium's impl here:
 // https://github.com/chromium/chromium/blob/7af6cfd/components/webcrypto/algorithms/ecdsa.cc
 
-size_t GroupOrderSize(const ManagedEVPPKey& key) {
+size_t GroupOrderSize(const EVPKeyPointer& key) {
   const EC_KEY* ec = EVP_PKEY_get0_EC_KEY(key.get());
   CHECK_NOT_NULL(ec);
   const EC_GROUP* group = EC_KEY_get0_group(ec);

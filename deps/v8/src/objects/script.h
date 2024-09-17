@@ -83,9 +83,11 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
   // code from which eval was called, as negative integer.
   DECL_INT_ACCESSORS(eval_from_position)
 
-  // [infos]: weak fixed array containing all shared function infos and scope
-  // infos for eval created from this script.
-  DECL_ACCESSORS(infos, Tagged<WeakFixedArray>)
+  // [shared_function_infos]: weak fixed array containing all shared
+  // function infos created from this script.
+  DECL_ACCESSORS(shared_function_infos, Tagged<WeakFixedArray>)
+
+  inline int shared_function_info_count() const;
 
 #if V8_ENABLE_WEBASSEMBLY
   // [wasm_breakpoint_infos]: the list of {BreakPointInfo} objects describing

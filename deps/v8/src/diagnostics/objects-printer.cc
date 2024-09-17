@@ -2862,7 +2862,7 @@ void Script::ScriptPrint(std::ostream& os) {
     }
     os << "\n - eval from position: " << eval_from_position();
   }
-  os << "\n - infos: " << Brief(infos());
+  os << "\n - shared function infos: " << Brief(shared_function_infos());
   os << "\n";
 }
 

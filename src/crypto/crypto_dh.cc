@@ -23,7 +23,7 @@ using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::Int32;
 using v8::Isolate;
-using v8::Just;
+using v8::JustVoid;
 using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
@@ -338,7 +338,7 @@ void Check(const FunctionCallbackInfo<Value>& args) {
 //   * Private type
 //   * Cipher
 //   * Passphrase
-Maybe<bool> DhKeyGenTraits::AdditionalConfig(
+Maybe<void> DhKeyGenTraits::AdditionalConfig(
     CryptoJobMode mode,
     const FunctionCallbackInfo<Value>& args,
     unsigned int* offset,
@@ -350,7 +350,7 @@ Maybe<bool> DhKeyGenTraits::AdditionalConfig(
     auto group = DHPointer::FindGroup(group_name.ToStringView());
     if (!group) {
       THROW_ERR_CRYPTO_UNKNOWN_DH_GROUP(env);
-      return Nothing<bool>();
+      return Nothing<void>();
     }
 
     static constexpr int kStandardizedGenerator = 2;
@@ -363,14 +363,14 @@ Maybe<bool> DhKeyGenTraits::AdditionalConfig(
       int size = args[*offset].As<Int32>()->Value();
       if (size < 0) {
         THROW_ERR_OUT_OF_RANGE(env, "Invalid prime size");
-        return Nothing<bool>();
+        return Nothing<void>();
       }
       params->params.prime = size;
     } else {
       ArrayBufferOrViewContents<unsigned char> input(args[*offset]);
       if (UNLIKELY(!input.CheckSizeInt32())) {
         THROW_ERR_OUT_OF_RANGE(env, "prime is too big");
-        return Nothing<bool>();
+        return Nothing<void>();
       }
       params->params.prime = BignumPointer(input.data(), input.size());
     }
@@ -380,7 +380,7 @@ Maybe<bool> DhKeyGenTraits::AdditionalConfig(
     *offset += 2;
   }
 
-  return Just(true);
+  return JustVoid();
 }
 
 EVPKeyCtxPointer DhKeyGenTraits::Setup(DhKeyPairGenConfig* params) {
@@ -424,38 +424,38 @@ EVPKeyCtxPointer DhKeyGenTraits::Setup(DhKeyPairGenConfig* params) {
   return ctx;
 }
 
-Maybe<bool> DHKeyExportTraits::AdditionalConfig(
+Maybe<void> DHKeyExportTraits::AdditionalConfig(
     const FunctionCallbackInfo<Value>& args,
     unsigned int offset,
     DHKeyExportConfig* params) {
-  return Just(true);
+  return JustVoid();
 }
 
 WebCryptoKeyExportStatus DHKeyExportTraits::DoExport(
-    std::shared_ptr<KeyObjectData> key_data,
+    const KeyObjectData& key_data,
     WebCryptoKeyFormat format,
     const DHKeyExportConfig& params,
     ByteSource* out) {
-  CHECK_NE(key_data->GetKeyType(), kKeyTypeSecret);
+  CHECK_NE(key_data.GetKeyType(), kKeyTypeSecret);
 
   switch (format) {
     case kWebCryptoKeyFormatPKCS8:
-      if (key_data->GetKeyType() != kKeyTypePrivate)
+      if (key_data.GetKeyType() != kKeyTypePrivate)
         return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
-      return PKEY_PKCS8_Export(key_data.get(), out);
+      return PKEY_PKCS8_Export(key_data, out);
     case kWebCryptoKeyFormatSPKI:
-      if (key_data->GetKeyType() != kKeyTypePublic)
+      if (key_data.GetKeyType() != kKeyTypePublic)
         return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
-      return PKEY_SPKI_Export(key_data.get(), out);
+      return PKEY_SPKI_Export(key_data, out);
     default:
       UNREACHABLE();
   }
 }
 
 namespace {
-ByteSource StatelessDiffieHellmanThreadsafe(const ManagedEVPPKey& our_key,
-                                            const ManagedEVPPKey& their_key) {
-  auto dp = DHPointer::stateless(our_key.pkey(), their_key.pkey());
+ByteSource StatelessDiffieHellmanThreadsafe(const EVPKeyPointer& our_key,
+                                            const EVPKeyPointer& their_key) {
+  auto dp = DHPointer::stateless(our_key, their_key);
   if (!dp) return {};
 
   return ByteSource::Allocated(dp.release());
@@ -467,13 +467,13 @@ void Stateless(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsObject() && args[1]->IsObject());
   KeyObjectHandle* our_key_object;
   ASSIGN_OR_RETURN_UNWRAP(&our_key_object, args[0].As<Object>());
-  CHECK_EQ(our_key_object->Data()->GetKeyType(), kKeyTypePrivate);
+  CHECK_EQ(our_key_object->Data().GetKeyType(), kKeyTypePrivate);
   KeyObjectHandle* their_key_object;
   ASSIGN_OR_RETURN_UNWRAP(&their_key_object, args[1].As<Object>());
-  CHECK_NE(their_key_object->Data()->GetKeyType(), kKeyTypeSecret);
+  CHECK_NE(their_key_object->Data().GetKeyType(), kKeyTypeSecret);
 
-  ManagedEVPPKey our_key = our_key_object->Data()->GetAsymmetricKey();
-  ManagedEVPPKey their_key = their_key_object->Data()->GetAsymmetricKey();
+  const auto& our_key = our_key_object->Data().GetAsymmetricKey();
+  const auto& their_key = their_key_object->Data().GetAsymmetricKey();
 
   Local<Value> out;
   if (!StatelessDiffieHellmanThreadsafe(our_key, their_key)
@@ -487,7 +487,7 @@ void Stateless(const FunctionCallbackInfo<Value>& args) {
 }
 }  // namespace
 
-Maybe<bool> DHBitsTraits::AdditionalConfig(
+Maybe<void> DHBitsTraits::AdditionalConfig(
     CryptoJobMode mode,
     const FunctionCallbackInfo<Value>& args,
     unsigned int offset,
@@ -500,47 +500,41 @@ Maybe<bool> DHBitsTraits::AdditionalConfig(
   KeyObjectHandle* private_key;
   KeyObjectHandle* public_key;
 
-  ASSIGN_OR_RETURN_UNWRAP(&public_key, args[offset], Nothing<bool>());
-  ASSIGN_OR_RETURN_UNWRAP(&private_key, args[offset + 1], Nothing<bool>());
+  ASSIGN_OR_RETURN_UNWRAP(&public_key, args[offset], Nothing<void>());
+  ASSIGN_OR_RETURN_UNWRAP(&private_key, args[offset + 1], Nothing<void>());
 
-  if (private_key->Data()->GetKeyType() != kKeyTypePrivate ||
-      public_key->Data()->GetKeyType() != kKeyTypePublic) {
+  if (private_key->Data().GetKeyType() != kKeyTypePrivate ||
+      public_key->Data().GetKeyType() != kKeyTypePublic) {
     THROW_ERR_CRYPTO_INVALID_KEYTYPE(env);
-    return Nothing<bool>();
+    return Nothing<void>();
   }
 
-  params->public_key = public_key->Data();
-  params->private_key = private_key->Data();
+  params->public_key = public_key->Data().addRef();
+  params->private_key = private_key->Data().addRef();
 
-  return Just(true);
+  return JustVoid();
 }
 
-Maybe<bool> DHBitsTraits::EncodeOutput(
-    Environment* env,
-    const DHBitsConfig& params,
-    ByteSource* out,
-    v8::Local<v8::Value>* result) {
-  *result = out->ToArrayBuffer(env);
-  return Just(!result->IsEmpty());
+MaybeLocal<Value> DHBitsTraits::EncodeOutput(Environment* env,
+                                             const DHBitsConfig& params,
+                                             ByteSource* out) {
+  return out->ToArrayBuffer(env);
 }
 
 bool DHBitsTraits::DeriveBits(
     Environment* env,
     const DHBitsConfig& params,
     ByteSource* out) {
-  *out = StatelessDiffieHellmanThreadsafe(
-      params.private_key->GetAsymmetricKey(),
-      params.public_key->GetAsymmetricKey());
+  *out = StatelessDiffieHellmanThreadsafe(params.private_key.GetAsymmetricKey(),
+                                          params.public_key.GetAsymmetricKey());
   return true;
 }
 
-Maybe<bool> GetDhKeyDetail(
-    Environment* env,
-    std::shared_ptr<KeyObjectData> key,
-    Local<Object> target) {
-  ManagedEVPPKey pkey = key->GetAsymmetricKey();
-  CHECK_EQ(EVP_PKEY_id(pkey.get()), EVP_PKEY_DH);
-  return Just(true);
+Maybe<void> GetDhKeyDetail(Environment* env,
+                           const KeyObjectData& key,
+                           Local<Object> target) {
+  CHECK_EQ(EVP_PKEY_id(key.GetAsymmetricKey().get()), EVP_PKEY_DH);
+  return JustVoid();
 }
 
 void DiffieHellman::Initialize(Environment* env, Local<Object> target) {

@@ -434,7 +434,8 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   // Asm.js modules are expected to have "normal" scripts, not Wasm scripts.
   if (is_asmjs_module(native_module->module())) {
     script->set_type(Script::Type::kNormal);
-    script->set_infos(ReadOnlyRoots{isolate_}.empty_weak_fixed_array());
+    script->set_shared_function_infos(
+        ReadOnlyRoots{isolate_}.empty_weak_fixed_array());
   }
 
   DirectHandle<WasmModuleObject> module_object =
