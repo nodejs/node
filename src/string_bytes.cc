@@ -388,21 +388,21 @@ Maybe<size_t> StringBytes::StorageSize(Isolate* isolate,
                                        Local<Value> val,
                                        enum encoding encoding) {
   HandleScope scope(isolate);
-  size_t data_size = 0;
-  bool is_buffer = Buffer::HasInstance(val);
 
-  if (is_buffer && (encoding == BUFFER || encoding == LATIN1)) {
+  if (Buffer::HasInstance(val) && (encoding == BUFFER || encoding == LATIN1)) {
     return Just(Buffer::Length(val));
   }
 
   Local<String> str;
   if (!val->ToString(isolate->GetCurrentContext()).ToLocal(&str))
     return Nothing<size_t>();
+  String::ValueView view(isolate, str);
+  size_t data_size = 0;
 
   switch (encoding) {
     case ASCII:
     case LATIN1:
-      data_size = str->Length();
+      data_size = view.length();
       break;
 
     case BUFFER:
@@ -410,25 +410,25 @@ Maybe<size_t> StringBytes::StorageSize(Isolate* isolate,
       // A single UCS2 codepoint never takes up more than 3 utf8 bytes.
       // It is an exercise for the caller to decide when a string is
       // long enough to justify calling Size() instead of StorageSize()
-      data_size = 3 * str->Length();
+      data_size = 3 * view.length();
       break;
 
     case UCS2:
-      data_size = str->Length() * sizeof(uint16_t);
+      data_size = view.length() * sizeof(uint16_t);
       break;
 
     case BASE64URL:
-      data_size = simdutf::base64_length_from_binary(str->Length(),
+      data_size = simdutf::base64_length_from_binary(view.length(),
                                                      simdutf::base64_url);
       break;
 
     case BASE64:
-      data_size = simdutf::base64_length_from_binary(str->Length());
+      data_size = simdutf::base64_length_from_binary(view.length());
       break;
 
     case HEX:
-      CHECK(str->Length() % 2 == 0 && "invalid hex string length");
-      data_size = str->Length() / 2;
+      CHECK(view.length() % 2 == 0 && "invalid hex string length");
+      data_size = view.length() / 2;
       break;
 
     default:
@@ -449,32 +449,36 @@ Maybe<size_t> StringBytes::Size(Isolate* isolate,
   Local<String> str;
   if (!val->ToString(isolate->GetCurrentContext()).ToLocal(&str))
     return Nothing<size_t>();
+  String::ValueView view(isolate, str);
 
   switch (encoding) {
     case ASCII:
     case LATIN1:
-      return Just<size_t>(str->Length());
+      return Just<size_t>(view.length());
 
     case BUFFER:
     case UTF8:
-      return Just<size_t>(str->Utf8Length(isolate));
+      if (view.is_one_byte()) {
+        return Just<size_t>(simdutf::utf8_length_from_latin1(
+            reinterpret_cast<const char*>(view.data8()), view.length()));
+      }
+      return Just<size_t>(simdutf::utf8_length_from_utf16(
+          reinterpret_cast<const char16_t*>(view.data16()), view.length()));
 
     case UCS2:
-      return Just(str->Length() * sizeof(uint16_t));
+      return Just(view.length() * sizeof(uint16_t));
 
     case BASE64URL: {
-      String::Value value(isolate, str);
-      return Just(simdutf::base64_length_from_binary(value.length(),
+      return Just(simdutf::base64_length_from_binary(view.length(),
                                                      simdutf::base64_url));
     }
 
     case BASE64: {
-      String::Value value(isolate, str);
-      return Just(simdutf::base64_length_from_binary(value.length()));
+      return Just(simdutf::base64_length_from_binary(view.length()));
     }
 
     case HEX:
-      return Just<size_t>(str->Length() / 2);
+      return Just<size_t>(view.length() / 2);
   }
 
   UNREACHABLE();
