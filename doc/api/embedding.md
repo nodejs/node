@@ -726,32 +726,6 @@ Node.js runtime initialization.
   during the runtime creation. It's used to call `node::Stop(env)` on a Worker
   thread that is waiting for the events.
 
-##### `node_embedding_snapshot_flags`
-
-<!-- YAML
-added: REPLACEME
--->
-
-> Stability: 1 - Experimental
-
-Flags are used to create a Node.js runtime JavaScript snapshot.
-
-```c
-typedef enum {
-  node_embedding_snapshot_no_flags = 0,
-  node_embedding_snapshot_no_code_cache = 1 << 0,
-} node_embedding_snapshot_flags;
-```
-
-These flags match to the C++ `node::SnapshotFlags` and control the
-Node.js runtime snapshot creation.
-
-- `node_embedding_snapshot_no_flags` - No flags set.
-- `node_embedding_snapshot_no_code_cache` - Whether code cache should be
-  generated as part of the snapshot. Code cache reduces the time spent on
-  compiling functions included in the snapshot at the expense of a bigger
-  snapshot size and potentially breaking portability of the snapshot.
-
 #### Callback types
 
 ##### `node_embedding_runtime_preload_callback`
@@ -764,6 +738,7 @@ added: REPLACEME
 
 ```c
 typedef void(NAPI_CDECL* node_embedding_runtime_preload_callback)(
+    node_embedding_runtime runtime,
     void* cb_data,
     napi_env env,
     napi_value process,
@@ -775,34 +750,11 @@ runtime initially loads the JavaScript code.
 
 The callback parameters:
 
+- `[in] runtime`: The runtime owning the callback.
 - `[in] cb_data`: The user data associated with this callback.
 - `[in] env`: Node-API environmentStart of the blob memory span.
 - `[in] process`: The Node.js `process` object.
 - `[in] require`: The internal `require` function.
-
-##### `node_embedding_store_blob_callback`
-
-<!-- YAML
-added: REPLACEME
--->
-
-> Stability: 1 - Experimental
-
-```c
-typedef void(NAPI_CDECL* node_embedding_store_blob_callback)(
-    void* cb_data,
-    const uint8_t* blob,
-    size_t size);
-```
-
-Function pointer type for user-provided native function that is called when the
-runtime needs to store the snapshot blob.
-
-The callback parameters:
-
-- `[in] cb_data`: The user data associated with this callback.
-- `[in] blob`: Start of the blob memory span.
-- `[in] size`: Size of the blob memory span.
 
 ##### `node_embedding_initialize_module_callback`
 
@@ -814,6 +766,7 @@ added: REPLACEME
 
 ```c
 typedef napi_value(NAPI_CDECL* node_embedding_initialize_module_callback)(
+    node_embedding_runtime runtime,
     void* cb_data,
     napi_env env,
     const char* module_name,
@@ -825,6 +778,7 @@ in the embedder executable.
 
 The callback parameters:
 
+- `[in] runtime`: The runtime owning the callback.
 - `[in] cb_data`: The user data associated with this callback.
 - `[in] env`: Node API environment.
 - `[in] module_name`: Name of the module.
@@ -1024,37 +978,7 @@ The registered module can be accessed in JavaScript as
 `process._linkedBinding(module_name)` in the main JS and in the related
 worker threads.
 
-##### `node_embedding_runtime_on_create_snapshot`
-
-<!-- YAML
-added: REPLACEME
--->
-
-> Stability: 1 - Experimental
-
-Sets a callback to store created snapshot when Node.js runtime instance
-finished execution.
-
-```c
-node_embedding_exit_code NAPI_CDECL
-node_embedding_runtime_on_create_snapshot(
-    node_embedding_runtime runtime,
-    node_embedding_store_blob_callback store_blob_cb,
-    void* store_blob_cb_data,
-    node_embedding_snapshot_flags snapshot_flags);
-```
-
-- `[in] runtime`: The Node.js runtime instance.
-- `[in] store_blob_cb`: The store blob callback to be called before Node.js
-  runtime instance is deleted.
-- `[in] store_blob_cb_data`: Optional. The store blob callback data that will be
-  passed to the `store_blob_cb` callback. It can be removed after the
-  `node_embedding_delete_runtime` call.
-- `[in] snapshot_flags`: The flags controlling the snapshot creation.
-
-Returns `node_embedding_exit_code_ok` if there were no issues.
-
-##### `node_embedding_runtime_initialize_from_script`
+##### `node_embedding_runtime_initialize`
 
 <!-- YAML
 added: REPLACEME
@@ -1066,41 +990,12 @@ Initializes the Node.js runtime instance.
 
 ```c
 node_embedding_exit_code NAPI_CDECL
-node_embedding_runtime_initialize_from_script(node_embedding_runtime runtime,
-                                              const char* main_script);
+node_embedding_runtime_initialize(node_embedding_runtime runtime,
+                                  const char* main_script);
 ```
 
 - `[in] runtime`: The Node.js runtime instance to initialize.
 - `[in] main_script`: The main script to run.
-
-Returns `node_embedding_exit_code_ok` if there were no issues.
-
-The Node.js runtime initialization creates new Node.js environment associated
-with a V8 `Isolate` and V8 `Context`.
-
-After the initialization is completed the Node.js runtime settings cannot be
-changed anymore.
-
-##### `node_embedding_runtime_initialize_from_snapshot`
-
-<!-- YAML
-added: REPLACEME
--->
-
-> Stability: 1 - Experimental
-
-Initializes the Node.js runtime instance.
-
-```c
-node_embedding_exit_code NAPI_CDECL
-node_embedding_runtime_initialize_from_snapshot(node_embedding_runtime runtime,
-                                                const uint8_t* snapshot,
-                                                size_t size);
-```
-
-- `[in] runtime`: The Node.js runtime instance to initialize.
-- `[in] snapshot`: Start of the snapshot memory span.
-- `[in] size`: Size of the snapshot memory span.
 
 Returns `node_embedding_exit_code_ok` if there were no issues.
 
@@ -1126,50 +1021,25 @@ The event loop run mode.
 
 ```c
 typedef enum {
+  node_embedding_event_loop_run_default = 0,
   node_embedding_event_loop_run_once = 1,
   node_embedding_event_loop_run_nowait = 2,
 } node_embedding_event_loop_run_mode;
 ```
 
 These values match to UV library `uv_run_mode` enum and control the event loop
-beahvior.
+behavior.
 
+- `node_embedding_event_loop_run_default` - RRun the event loop until it is
+  completed. It matches the `UV_RUN_DEFAULT` behavior.
 - `node_embedding_event_loop_run_once` - Run the event loop once and wait if
   there are no items. It matches the `UV_RUN_ONCE` behavior.
 - `node_embedding_event_loop_run_nowait` - Run the event loop once and do not
   wait if there are no items. It matches the `UV_RUN_NOWAIT` behavior.
 
-##### `node_embedding_promise_state`
-
-<!-- YAML
-added: REPLACEME
--->
-
-> Stability: 1 - Experimental
-
-The state of the completed `Promise`.
-
-```c
-typedef enum {
-  node_embedding_promise_state_pending = 0,
-  node_embedding_promise_state_fulfilled = 1,
-  node_embedding_promise_state_rejected = 2,
-} node_embedding_promise_state;
-```
-
-These values match to `v8::Promise::PromiseState` enum and indicate the internal
-state of a `Promise` object.
-
-- `node_embedding_promise_state_pending` - The Promise is still awaiting to
-  be completed.
-- `node_embedding_promise_state_fulfilled` - The Promise was successfully
-  fulfilled.
-- `node_embedding_promise_state_rejected` - The Promise was rejected due an
-  error.
-
 #### Callback types
 
-##### `node_embedding_event_loop_predicate`
+##### `node_embedding_event_loop_handler`
 
 <!-- YAML
 added: REPLACEME
@@ -1178,22 +1048,52 @@ added: REPLACEME
 > Stability: 1 - Experimental
 
 ```c
-typedef bool(NAPI_CDECL* node_embedding_event_loop_predicate)(
-    void* predicate_data,
-    bool has_work);
+typedef void(NAPI_CDECL* node_embedding_event_loop_handler)(
+    node_embedding_runtime runtime,
+    void* handler_data);
 ```
 
-Function pointer type for user-provided predicate function that is checked
-before each task execution in the Node.js runtime event loop.
+Function pointer type for a handler that is called from the event loop observer
+thread when the runtime event loop has some work to do.
 
 The callback parameters:
 
-- `[in] predicate_data`: The user data associated with this predicate callback.
-- `[in] has_work`: `true` if the event loop has work to do.
-
-Returns `true` if the runtime loop must continue to run.
+- `[in] runtime`: The runtime owning the callback.
+- `[in] handler_data`: The data associated with the callback.
 
 #### Functions
+
+##### `node_embedding_runtime_on_event_loop_run_request`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Configures the runtime event loop to use a separate observer thread that calls
+the `event_loop_handler` when the runtime event loop has some work to do.
+
+```c
+node_embedding_exit_code NAPI_CDECL
+node_embedding_runtime_on_event_loop_run_request(
+    node_embedding_runtime runtime,
+    node_embedding_event_loop_handler event_loop_handler,
+    void* event_loop_handler_data);
+```
+
+- `[in] runtime`: The Node.js runtime instance.
+- `[in] event_loop_handler`: The handler called from the observer thread when
+  the runtime event loop has some work to do.
+- `[in] event_loop_handler_data`: The data associated with the
+  `event_loop_handler`.
+
+Returns `node_embedding_exit_code_ok` if there were no issues.
+
+This function enables running Node.js runtime event loop from the host
+application UI event loop. The `event_loop_handler` typically schedules work in
+the UI event loop that runs the Node.js event loop. The UI event loop thread and
+the observer thread can be stopped until they have something to process.
 
 ##### `node_embedding_runtime_run_event_loop`
 
@@ -1207,16 +1107,22 @@ Runs Node.js runtime instance event loop.
 
 ```c
 node_embedding_exit_code NAPI_CDECL
-node_embedding_runtime_run_event_loop(node_embedding_runtime runtime);
+node_embedding_runtime_run_event_loop(
+  node_embedding_runtime runtime,
+  node_embedding_event_loop_run_mode run_mode,
+  bool* has_more_work);
 ```
 
 - `[in] runtime`: The Node.js runtime instance.
+- `[in] run_mode`: The mode for running the runtime event loop.
+- `[out] has_more_work`: `true` if the event loop has more work to do.
 
 Returns `node_embedding_exit_code_ok` if there were no issues.
 
-The function exits when there are no more tasks to process in the loop.
+The function does not complete the Node.js runtime event loop if there are no
+more tasks to run.
 
-##### `node_embedding_runtime_run_event_loop_while`
+##### `node_embedding_runtime_complete_event_loop`
 
 <!-- YAML
 added: REPLACEME
@@ -1224,64 +1130,25 @@ added: REPLACEME
 
 > Stability: 1 - Experimental
 
-Runs Node.js runtime instance event loop while there tasks to process and
-the provided predicate returns true.
+Completes the Node.js runtime instance event loop.
+It includes completing all current tasks, emitting `beforeExit` event,
+completing the new tasks if they added, and emitting `exit` event in the end.
 
 ```c
 node_embedding_exit_code NAPI_CDECL
-node_embedding_runtime_run_event_loop_while(
-    node_embedding_runtime runtime,
-    node_embedding_runtime_event_loop_predicate predicate,
-    void* predicate_data,
-    node_embedding_event_loop_run_mode run_mode,
-    bool* has_more_work);
+node_embedding_runtime_complete_event_loop(
+    node_embedding_runtime runtime);
 ```
 
 - `[in] runtime`: The Node.js runtime instance.
-- `[in] predicate`: The predicate to check before each runtime event loop
-  task invocation.
-- `[in] predicate_data`: Optional. The predicate data that will be
-  passed to the `predicate` callback. It can be removed right after this
-  function call.
-- `[in] run_mode`: Specifies behavior in case if the event loop does not have
-  items to process. The `node_embedding_event_loop_run_once` will block the
-  current thread and the `node_embedding_event_loop_run_nowait` will not wait
-  and exit.
-- `[out] has_more_work`: `true` if the runtime event loop has more tasks after
-  returning from the function.
 
 Returns `node_embedding_exit_code_ok` if there were no issues.
 
-##### `node_embedding_runtime_await_promise`
-
-<!-- YAML
-added: REPLACEME
--->
-
-> Stability: 1 - Experimental
-
-Runs Node.js runtime instance event loop until the provided promise is completed
-with a success of a failure. It blocks the thread if there are to tasks in the
-loop and the promise is not completed.
-
-```c
-node_embedding_exit_code NAPI_CDECL
-node_embedding_runtime_await_promise(node_embedding_runtime runtime,
-                                     napi_value promise,
-                                     node_embedding_promise_state* state,
-                                     napi_value* result,
-                                     bool* has_more_work);
-```
-
-- `[in] runtime`: The Node.js runtime instance.
-- `[in] promise`: The promise to complete.
-- `[out] state`: The state of the `promise` upon the return from the function.
-- `[out] result`: Result of the `promise` completion. It is either fulfilled or
-  rejected value depending on `state`.
-- `[out] has_more_work`: `true` if the runtime event loop has more tasks after
-  returning from the function.
-
-Returns `node_embedding_exit_code_ok` if there were no issues.
+Note that if new tasks are added in the `beforeExit` event handler, then after
+processing these tasks, the `beforeExit` is raised again, and the loop is
+continued until the `beforeExit` stops producing new tasks. Only after that the
+`exit` event is emitted. No new tasks can be added in the `exit` event handler
+or after that.
 
 ### JavaScript/Native interop APIs
 
@@ -1297,6 +1164,7 @@ added: REPLACEME
 
 ```c
 typedef void(NAPI_CDECL* node_embedding_node_api_callback)(
+    node_embedding_runtime runtime
     void* cb_data,
     napi_env env);
 ```
@@ -1305,6 +1173,7 @@ Function pointer type for callback that invokes Node-API code.
 
 The callback parameters:
 
+- `[in] runtime`: The Node.js runtime invoking this callback.
 - `[in] cb_data`: The user data associated with this callback.
 - `[in] env`: Node-API environment.
 
