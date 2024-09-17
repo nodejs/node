@@ -187,9 +187,11 @@ let kSig_l_l = makeSig([kWasmI64], [kWasmI64]);
 let kSig_i_l = makeSig([kWasmI64], [kWasmI32]);
 let kSig_i_ii = makeSig([kWasmI32, kWasmI32], [kWasmI32]);
 let kSig_i_iii = makeSig([kWasmI32, kWasmI32, kWasmI32], [kWasmI32]);
+let kSig_i_iiii = makeSig([kWasmI32, kWasmI32, kWasmI32, kWasmI32], [kWasmI32]);
 let kSig_v_iiii = makeSig([kWasmI32, kWasmI32, kWasmI32, kWasmI32], []);
 let kSig_l_i = makeSig([kWasmI32], [kWasmI64]);
 let kSig_f_ff = makeSig([kWasmF32, kWasmF32], [kWasmF32]);
+let kSig_f_ffff = makeSig([kWasmF32, kWasmF32, kWasmF32, kWasmF32], [kWasmF32]);
 let kSig_d_dd = makeSig([kWasmF64, kWasmF64], [kWasmF64]);
 let kSig_l_ll = makeSig([kWasmI64, kWasmI64], [kWasmI64]);
 let kSig_i_dd = makeSig([kWasmF64, kWasmF64], [kWasmI32]);
@@ -2316,20 +2318,6 @@ let [wasmBrOnCast, wasmBrOnCastFail] = (function() {
 
 function getOpcodeName(opcode) {
   return globalThis.kWasmOpcodeNames?.[opcode] ?? 'unknown';
-}
-
-// Make a wasm export "promising" using JS Promise Integration.
-function ToPromising(wasm_export) {
-  let sig = wasm_export.type();
-  assertTrue(sig.parameters.length > 0);
-  assertEquals('externref', sig.parameters[0]);
-  let wrapper_sig = {
-    parameters: sig.parameters.slice(1),
-    results: ['externref']
-  };
-  return new WebAssembly.Function(
-      wrapper_sig, wasm_export, {promising: 'first'});
-
 }
 
 function wasmF32ConstSignalingNaN() {

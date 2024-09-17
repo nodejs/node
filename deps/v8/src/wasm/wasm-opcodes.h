@@ -550,7 +550,37 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const FunctionSig* sig);
   V(I16x8RelaxedQ15MulRS, 0xfd111, s_ss, "i16x8.relaxed_q15mulr_s")        \
   V(I16x8DotI8x16I7x16S, 0xfd112, s_ss, "i16x8.dot_i8x16_i7x16_s")         \
   V(I32x4DotI8x16I7x16AddS, 0xfd113, s_sss, "i32x4.dot_i8x16_i7x16_add_s") \
-  V(F16x8Splat, 0xfd120, s_f, "f16x8.splat")
+  V(F16x8Splat, 0xfd120, s_f, "f16x8.splat")                               \
+  V(F16x8Abs, 0xfd130, s_s, "f16x8.abs")                                   \
+  V(F16x8Neg, 0xfd131, s_s, "f16x8.neg")                                   \
+  V(F16x8Sqrt, 0xfd132, s_s, "f16x8.sqrt")                                 \
+  V(F16x8Ceil, 0xfd133, s_s, "f16x8.ceil")                                 \
+  V(F16x8Floor, 0xfd134, s_s, "f16x8.floor")                               \
+  V(F16x8Trunc, 0xfd135, s_s, "f16x8.trunc")                               \
+  V(F16x8NearestInt, 0xfd136, s_s, "f16x8.nearest")                        \
+  V(F16x8Eq, 0xfd137, s_ss, "f16x8.eq")                                    \
+  V(F16x8Ne, 0xfd138, s_ss, "f16x8.ne")                                    \
+  V(F16x8Lt, 0xfd139, s_ss, "f16x8.lt")                                    \
+  V(F16x8Gt, 0xfd13a, s_ss, "f16x8.gt")                                    \
+  V(F16x8Le, 0xfd13b, s_ss, "f16x8.le")                                    \
+  V(F16x8Ge, 0xfd13c, s_ss, "f16x8.ge")                                    \
+  V(F16x8Add, 0xfd13d, s_ss, "f16x8.add")                                  \
+  V(F16x8Sub, 0xfd13e, s_ss, "f16x8.sub")                                  \
+  V(F16x8Mul, 0xfd13f, s_ss, "f16x8.mul")                                  \
+  V(F16x8Div, 0xfd140, s_ss, "f16x8.div")                                  \
+  V(F16x8Min, 0xfd141, s_ss, "f16x8.min")                                  \
+  V(F16x8Max, 0xfd142, s_ss, "f16x8.max")                                  \
+  V(F16x8Pmin, 0xfd143, s_ss, "f16x8.pmin")                                \
+  V(F16x8Pmax, 0xfd144, s_ss, "f16x8.pmax")                                \
+  V(I16x8SConvertF16x8, 0xfd145, s_s, "i16x8.trunc_sat_f16x8_s")           \
+  V(I16x8UConvertF16x8, 0xfd146, s_s, "i16x8.trunc_sat_f16x8_u")           \
+  V(F16x8SConvertI16x8, 0xfd147, s_s, "f16x8.convert_i16x8_s")             \
+  V(F16x8UConvertI16x8, 0xfd148, s_s, "f16x8.convert_i16x8_u")             \
+  V(F16x8DemoteF32x4Zero, 0xfd149, s_s, "f16x8.demote_f32x4_zero")         \
+  V(F16x8DemoteF64x2Zero, 0xfd14a, s_s, "f16x8.demote_f64x2_zero")         \
+  V(F32x4PromoteLowF16x8, 0xfd14b, s_s, "f32x4.promote_low_f16x8")         \
+  V(F16x8Qfma, 0xfd14e, s_sss, "f16x8.madd")                               \
+  V(F16x8Qfms, 0xfd14f, s_sss, "f16x8.nmadd")
 
 #define FOREACH_SIMD_1_OPERAND_1_PARAM_OPCODE(V)          \
   V(I8x16ExtractLaneS, 0xfd15, _, "i8x16.extract_lane_s") \

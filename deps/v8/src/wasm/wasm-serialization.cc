@@ -564,8 +564,11 @@ bool NativeModuleSerializer::Write(Writer* writer) {
   for (WasmCode* code : code_table_) {
     WriteCode(code, writer);
   }
-  // If not a single function was written, serialization was not successful.
-  if (num_turbofan_functions_ == 0) return false;
+  // No TurboFan-compiled functions in jitless mode.
+  if (!v8_flags.wasm_jitless) {
+    // If not a single function was written, serialization was not successful.
+    if (num_turbofan_functions_ == 0) return false;
+  }
 
   // Make sure that the serialized total code size was correct.
   CHECK_EQ(total_written_code_, total_code_size);
@@ -1065,7 +1068,7 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
     wasm_engine->UpdateNativeModuleCache(error, shared_native_module, isolate);
   }
 
-  Handle<Script> script =
+  DirectHandle<Script> script =
       wasm_engine->GetOrCreateScript(isolate, shared_native_module, source_url);
   Handle<WasmModuleObject> module_object =
       WasmModuleObject::New(isolate, shared_native_module, script);

@@ -5,6 +5,7 @@
 #include "src/baseline/baseline-compiler.h"
 
 #include <algorithm>
+#include <optional>
 #include <type_traits>
 
 #include "src/base/bits.h"
@@ -502,7 +503,7 @@ void BaselineCompiler::VisitSingleBytecode() {
     interpreter::Bytecode bytecode = iterator().current_bytecode();
 
 #ifdef DEBUG
-    base::Optional<EnsureAccumulatorPreservedScope> accumulator_preserved_scope;
+    std::optional<EnsureAccumulatorPreservedScope> accumulator_preserved_scope;
     // We should make sure to preserve the accumulator whenever the bytecode
     // isn't registered as writing to it. We can't do this for jumps or switches
     // though, since the control flow would not match the control flow of this

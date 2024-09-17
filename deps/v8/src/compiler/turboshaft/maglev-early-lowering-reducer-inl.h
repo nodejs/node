@@ -5,6 +5,8 @@
 #ifndef V8_COMPILER_TURBOSHAFT_MAGLEV_EARLY_LOWERING_REDUCER_INL_H_
 #define V8_COMPILER_TURBOSHAFT_MAGLEV_EARLY_LOWERING_REDUCER_INL_H_
 
+#include <optional>
+
 #include "src/compiler/feedback-source.h"
 #include "src/compiler/globals.h"
 #include "src/compiler/turboshaft/assembler.h"
@@ -44,7 +46,7 @@ class MaglevEarlyLoweringReducer : public Next {
     if (first_instance_type == last_instance_type) {
 #if V8_STATIC_ROOTS_BOOL
       if (InstanceTypeChecker::UniqueMapOfInstanceType(first_instance_type)) {
-        base::Optional<RootIndex> expected_index =
+        std::optional<RootIndex> expected_index =
             InstanceTypeChecker::UniqueMapOfInstanceType(first_instance_type);
         CHECK(expected_index.has_value());
         Handle<HeapObject> expected_map =
@@ -352,6 +354,119 @@ class MaglevEarlyLoweringReducer : public Next {
 
     BIND(done, result);
     return result;
+  }
+
+  V<Map> MigrateMapIfNeeded(V<HeapObject> object, V<Map> map,
+                            V<FrameState> frame_state,
+                            const FeedbackSource& feedback) {
+    ScopedVar<Map> result(this, map);
+
+    V<Word32> bitfield3 =
+        __ template LoadField<Word32>(map, AccessBuilder::ForMapBitField3());
+    IF (UNLIKELY(__ Word32BitwiseAnd(bitfield3,
+                                     Map::Bits3::IsDeprecatedBit::kMask))) {
+      V<Object> result = __ CallRuntime_TryMigrateInstance(
+          isolate_, __ NoContextConstant(), object);
+      __ DeoptimizeIf(__ ObjectIsSmi(result), frame_state,
+                      DeoptimizeReason::kInstanceMigrationFailed, feedback);
+      // Reload the map since TryMigrateInstance might have changed it.
+      result = __ LoadMapField(V<HeapObject>::Cast(result));
+    }
+
+    return result;
+  }
+
+  V<PropertyArray> ExtendPropertiesBackingStore(
+      V<PropertyArray> old_property_array, V<JSObject> object, int old_length,
+      V<FrameState> frame_state, const FeedbackSource& feedback) {
+    // Allocate new PropertyArray.
+    int new_length = old_length + JSObject::kFieldsAdded;
+    Uninitialized<PropertyArray> new_property_array =
+        __ template Allocate<PropertyArray>(
+            __ IntPtrConstant(PropertyArray::SizeFor(new_length)),
+            AllocationType::kYoung);
+    __ InitializeField(new_property_array, AccessBuilder::ForMap(),
+                       __ HeapConstant(factory_->property_array_map()));
+
+    // Copy existing properties over.
+    for (int i = 0; i < old_length; i++) {
+      V<Object> old_value = __ template LoadField<Object>(
+          old_property_array, AccessBuilder::ForPropertyArraySlot(i));
+      __ InitializeField(new_property_array,
+                         AccessBuilder::ForPropertyArraySlot(i), old_value);
+    }
+
+    // Initialize new properties to undefined.
+    V<Undefined> undefined = __ HeapConstant(factory_->undefined_value());
+    for (int i = 0; i < JSObject::kFieldsAdded; ++i) {
+      __ InitializeField(new_property_array,
+                         AccessBuilder::ForPropertyArraySlot(old_length + i),
+                         undefined);
+    }
+
+    // Read the hash.
+    ScopedVar<Word32> hash(this);
+    if (old_length == 0) {
+      // The object might still have a hash, stored in properties_or_hash. If
+      // properties_or_hash is a SMI, then it's the hash. It can also be an
+      // empty PropertyArray.
+      V<Object> hash_obj = __ template LoadField<Object>(
+          object, AccessBuilder::ForJSObjectPropertiesOrHash());
+      IF (__ IsSmi(hash_obj)) {
+        hash = __ Word32ShiftLeft(__ UntagSmi(V<Smi>::Cast(hash_obj)),
+                                  PropertyArray::HashField::kShift);
+      } ELSE {
+        hash = __ Word32Constant(PropertyArray::kNoHashSentinel);
+      }
+    } else {
+      V<Smi> hash_smi = __ template LoadField<Smi>(
+          old_property_array, AccessBuilder::ForPropertyArrayLengthAndHash());
+      hash = __ Word32BitwiseAnd(__ UntagSmi(hash_smi),
+                                 PropertyArray::HashField::kMask);
+    }
+
+    // Add the new length and write the length-and-hash field.
+    static_assert(PropertyArray::LengthField::kShift == 0);
+    V<Word32> length_and_hash = __ Word32BitwiseOr(hash, new_length);
+    __ InitializeField(new_property_array,
+                       AccessBuilder::ForPropertyArrayLengthAndHash(),
+                       __ TagSmi(length_and_hash));
+
+    V<PropertyArray> initialized_new_property_array =
+        __ FinishInitialization(std::move(new_property_array));
+
+    // Replace the old property array in {object}.
+    __ StoreField(object, AccessBuilder::ForJSObjectPropertiesOrHash(),
+                  initialized_new_property_array);
+
+    return initialized_new_property_array;
+  }
+
+  void GeneratorStore(V<Context> context, V<JSGeneratorObject> generator,
+                      base::SmallVector<OpIndex, 32> parameters_and_registers,
+                      int suspend_id, int bytecode_offset) {
+    V<FixedArray> array = __ template LoadTaggedField<FixedArray>(
+        generator, JSGeneratorObject::kParametersAndRegistersOffset);
+    for (int i = 0; static_cast<size_t>(i) < parameters_and_registers.size();
+         i++) {
+      __ Store(array, parameters_and_registers[i], StoreOp::Kind::TaggedBase(),
+               MemoryRepresentation::AnyTagged(),
+               WriteBarrierKind::kFullWriteBarrier,
+               FixedArray::OffsetOfElementAt(i));
+    }
+    __ Store(generator, __ SmiConstant(Smi::FromInt(suspend_id)),
+             StoreOp::Kind::TaggedBase(), MemoryRepresentation::TaggedSigned(),
+             WriteBarrierKind::kNoWriteBarrier,
+             JSGeneratorObject::kContinuationOffset);
+    __ Store(generator, __ SmiConstant(Smi::FromInt(bytecode_offset)),
+             StoreOp::Kind::TaggedBase(), MemoryRepresentation::TaggedSigned(),
+             WriteBarrierKind::kNoWriteBarrier,
+             JSGeneratorObject::kInputOrDebugPosOffset);
+
+    __ Store(generator, context, StoreOp::Kind::TaggedBase(),
+             MemoryRepresentation::AnyTagged(),
+             WriteBarrierKind::kFullWriteBarrier,
+             JSGeneratorObject::kContextOffset);
   }
 
  private:

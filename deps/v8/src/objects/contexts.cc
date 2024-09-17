@@ -4,6 +4,8 @@
 
 #include "src/objects/contexts.h"
 
+#include <optional>
+
 #include "src/ast/modules.h"
 #include "src/debug/debug.h"
 #include "src/execution/isolate-inl.h"
@@ -12,8 +14,7 @@
 #include "src/objects/module-inl.h"
 #include "src/objects/string-set-inl.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 // static
 Handle<ScriptContextTable> ScriptContextTable::New(Isolate* isolate,
@@ -24,7 +25,7 @@ Handle<ScriptContextTable> ScriptContextTable::New(Isolate* isolate,
 
   auto names = NameToIndexHashTable::New(isolate, 16);
 
-  base::Optional<DisallowGarbageCollection> no_gc;
+  std::optional<DisallowGarbageCollection> no_gc;
   Handle<ScriptContextTable> result =
       Allocate(isolate, capacity, &no_gc, allocation);
   result->set_length(0, kReleaseStore);
@@ -699,5 +700,4 @@ void NativeContext::RunPromiseHook(PromiseHookType type,
 }
 #endif
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal

@@ -5,6 +5,8 @@
 #ifndef V8_COMPILER_TURBOSHAFT_INSTRUCTION_SELECTION_PHASE_H_
 #define V8_COMPILER_TURBOSHAFT_INSTRUCTION_SELECTION_PHASE_H_
 
+#include <optional>
+
 #include "src/compiler/turboshaft/phase.h"
 
 namespace v8::internal {
@@ -126,9 +128,9 @@ struct InstructionSelectionPhase {
   DECL_TURBOSHAFT_PHASE_CONSTANTS(InstructionSelection)
   static constexpr bool kOutputIsTraceableGraph = false;
 
-  base::Optional<BailoutReason> Run(PipelineData* data, Zone* temp_zone,
-                                    const CallDescriptor* call_descriptor,
-                                    Linkage* linkage, CodeTracer* code_tracer);
+  std::optional<BailoutReason> Run(PipelineData* data, Zone* temp_zone,
+                                   const CallDescriptor* call_descriptor,
+                                   Linkage* linkage, CodeTracer* code_tracer);
 };
 
 }  // namespace v8::internal::compiler::turboshaft

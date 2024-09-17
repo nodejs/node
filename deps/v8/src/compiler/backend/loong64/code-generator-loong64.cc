@@ -1851,11 +1851,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kLoong64ByteSwap64: {
-      __ ByteSwapSigned(i.OutputRegister(0), i.InputRegister(0), 8);
+      __ ByteSwap(i.OutputRegister(0), i.InputRegister(0), 8);
       break;
     }
     case kLoong64ByteSwap32: {
-      __ ByteSwapSigned(i.OutputRegister(0), i.InputRegister(0), 4);
+      __ ByteSwap(i.OutputRegister(0), i.InputRegister(0), 4);
       break;
     }
     case kAtomicLoadInt8:
@@ -2450,7 +2450,7 @@ void CodeGenerator::AssembleConstructFrame() {
           call_descriptor->IsWasmImportWrapper() ||
           call_descriptor->IsWasmCapiFunction()) {
         // For import wrappers and C-API functions, this stack slot is only used
-        // for printing stack traces in V8. Also, it holds a WasmApiFunctionRef
+        // for printing stack traces in V8. Also, it holds a WasmImportData
         // instead of the instance itself, which is taken care of in the frames
         // accessors.
         __ Push(kWasmInstanceRegister);

@@ -89,6 +89,10 @@ MaybeHandle<Object> DebugEvaluate::Local(Isolate* isolate,
   DebuggableStackFrameIterator it(isolate, frame_id);
 #if V8_ENABLE_WEBASSEMBLY
   if (it.is_wasm()) {
+#if V8_ENABLE_DRUMBRAKE
+    // TODO(paolosev@microsoft.com) - Not supported by Wasm interpreter.
+    if (it.is_wasm_interpreter_entry()) return {};
+#endif  // V8_ENABLE_DRUMBRAKE
     WasmFrame* frame = WasmFrame::cast(it.frame());
     Handle<SharedFunctionInfo> outer_info(
         isolate->native_context()->empty_function()->shared(), isolate);
@@ -175,10 +179,10 @@ MaybeHandle<Object> DebugEvaluate::Evaluate(
   Handle<JSFunction> eval_fun;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, eval_fun,
-      Compiler::GetFunctionFromEval(
-          source, outer_info, context, LanguageMode::kSloppy,
-          NO_PARSE_RESTRICTION, kNoSourcePosition, kNoSourcePosition,
-          kNoSourcePosition, ParsingWhileDebugging::kYes));
+      Compiler::GetFunctionFromEval(source, outer_info, context,
+                                    LanguageMode::kSloppy, NO_PARSE_RESTRICTION,
+                                    kNoSourcePosition, kNoSourcePosition,
+                                    ParsingWhileDebugging::kYes));
 
   Handle<Object> result;
   bool success = false;
@@ -1030,6 +1034,11 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kRegExpPrototypeReplace:
     case Builtin::kRegExpPrototypeSearch:
       return DebugInfo::kRequiresRuntimeChecks;
+
+    // Debugging builtins.
+    case Builtin::kDebugPrintFloat64:
+    case Builtin::kDebugPrintWordPtr:
+      return DebugInfo::kHasNoSideEffect;
 
     default:
       if (v8_flags.trace_side_effect_free_debug_evaluate) {

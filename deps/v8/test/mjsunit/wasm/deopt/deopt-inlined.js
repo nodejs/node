@@ -81,24 +81,24 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     // Tier up.
     %WasmTierUpFunction(fct);
     assertEquals(46, fct(12, 30, wasm.add));
-    if (%IsolateCountForTesting() == 1) {
+    if (%IsWasmTieringPredictable()) {
       assertTrue(%IsTurboFanFunction(fct));
     }
     // Cause deopt.
     assertEquals(14 * 32, fct(12, 30, wasm.mul));
     // Deopt happened.
-    if (%IsolateCountForTesting() == 1) assertFalse(%IsTurboFanFunction(fct));
+    if (%IsWasmTieringPredictable()) assertFalse(%IsTurboFanFunction(fct));
     assertEquals(46, fct(12, 30, wasm.add));
     // Trigger re-opt.
     %WasmTierUpFunction(fct);
     // Both call targets are used in the re-optimized function, so they don't
     // trigger new deopts.
     assertEquals(46, fct(12, 30, wasm.add));
-    if (%IsolateCountForTesting() == 1) {
+    if (%IsWasmTieringPredictable()) {
       assertTrue(%IsTurboFanFunction(fct));
     }
     assertEquals(14 * 32, fct(12, 30, wasm.mul));
-    if (%IsolateCountForTesting() == 1) {
+    if (%IsWasmTieringPredictable()) {
       assertTrue(%IsTurboFanFunction(fct));
     }
   }

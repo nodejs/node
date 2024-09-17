@@ -198,7 +198,7 @@ ParseInfo::ParseInfo(const UnoptimizedCompileFlags flags,
       script_scope_(nullptr),
       stack_limit_(stack_limit),
       parameters_end_pos_(kNoSourcePosition),
-      max_function_literal_id_(kFunctionLiteralIdInvalid),
+      max_info_id_(kInvalidInfoId),
       character_stream_(nullptr),
       function_name_(nullptr),
       runtime_call_stats_(runtime_call_stats),
@@ -210,7 +210,8 @@ ParseInfo::ParseInfo(const UnoptimizedCompileFlags flags,
 #endif  // V8_ENABLE_WEBASSEMBLY
       language_mode_(flags.outer_language_mode()),
       is_background_compilation_(false),
-      is_streaming_compilation_(false) {
+      is_streaming_compilation_(false),
+      has_module_in_scope_chain_(flags.is_module()) {
   if (flags.block_coverage_enabled()) {
     AllocateSourceRangeMap();
   }

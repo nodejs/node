@@ -52,6 +52,54 @@ Tagged<WeakFixedArray> TransitionArray::GetPrototypeTransitions() {
   return Cast<WeakFixedArray>(prototype_transitions);
 }
 
+bool TransitionArray::HasSideStepTransitions() {
+  return get(kSideStepTransitionsIndex) != Smi::zero();
+}
+
+bool TransitionsAccessor::HasSideStepTransitions() {
+  if (encoding() != kFullTransitionArray) {
+    return false;
+  }
+  return transitions()->HasSideStepTransitions();
+}
+
+Tagged<Object> TransitionsAccessor::GetSideStepTransition(
+    SideStepTransition::Kind kind) {
+  DCHECK(HasSideStepTransitions());
+  auto res = transitions()->GetSideStepTransitions()->get(
+      SideStepTransition::index_of(kind));
+  if (res.IsSmi()) {
+    DCHECK(res == SideStepTransition::Empty ||
+           res == SideStepTransition::Unreachable);
+    return res.ToSmi();
+  }
+  Tagged<HeapObject> target;
+  if (res.GetHeapObjectIfWeak(&target)) return target;
+  DCHECK(res.IsCleared());
+  return SideStepTransition::Empty;
+}
+
+void TransitionsAccessor::SetSideStepTransition(SideStepTransition::Kind kind,
+                                                Tagged<Object> object) {
+  DCHECK(HasSideStepTransitions());
+  DCHECK(object == SideStepTransition::Unreachable || IsMap(object) ||
+         IsCell(object));
+  DCHECK_IMPLIES(IsCell(object),
+                 kind == SideStepTransition::Kind::kObjectAssignValidityCell);
+  DCHECK_LT(SideStepTransition::index_of(kind), SideStepTransition::kSize);
+  DCHECK_GE(SideStepTransition::index_of(kind), 0);
+  transitions()->GetSideStepTransitions()->set(
+      SideStepTransition::index_of(kind),
+      object.IsSmi() ? object : MakeWeak(object));
+}
+
+Tagged<WeakFixedArray> TransitionArray::GetSideStepTransitions() {
+  DCHECK(HasSideStepTransitions());  // Callers must check first.
+  Tagged<Object> transitions =
+      get(kSideStepTransitionsIndex).GetHeapObjectAssumeStrong();
+  return Cast<WeakFixedArray>(transitions);
+}
+
 HeapObjectSlot TransitionArray::GetKeySlot(int transition_number) {
   DCHECK(transition_number < number_of_transitions());
   return HeapObjectSlot(RawFieldOfElementAt(ToKeyIndex(transition_number)));
@@ -167,10 +215,7 @@ void TransitionArray::SetRawTarget(int transition_number,
   DCHECK(transition_number < number_of_transitions());
   DCHECK(value.IsWeakOrCleared());
   DCHECK(value.IsCleared() || IsMap(value.GetHeapObjectAssumeWeak()));
-  DCHECK_IMPLIES(value.IsCleared(),
-                 TransitionsAccessor::IsSpecialSidestepTransition(
-                     ReadOnlyRoots(GetIsolateFromWritableObject(*this)),
-                     GetKey(transition_number)));
+  DCHECK(!value.IsCleared());
   WeakFixedArray::set(ToTargetIndex(transition_number), value);
 }
 
@@ -188,9 +233,6 @@ bool TransitionArray::GetTargetIfExists(int transition_number, Isolate* isolate,
   }
   if (raw.GetHeapObjectIfStrong(&heap_object) &&
       IsUndefined(heap_object, isolate)) {
-    return false;
-  }
-  if (raw.IsCleared()) {
     return false;
   }
   *target = TransitionsAccessor::GetTargetFromRaw(raw);
@@ -281,12 +323,12 @@ MaybeHandle<Map> TransitionsAccessor::SearchTransition(
 }
 
 // static
-std::optional<Handle<Map>> TransitionsAccessor::SearchSpecial(
-    Isolate* isolate, DirectHandle<Map> map, Tagged<Symbol> name) {
-  if (auto result = TransitionsAccessor(isolate, *map).SearchSpecial(name)) {
-    return handle(*result, isolate);
-  }
-  return {};
+MaybeHandle<Map> TransitionsAccessor::SearchSpecial(Isolate* isolate,
+                                                    DirectHandle<Map> map,
+                                                    Tagged<Symbol> name) {
+  Tagged<Map> result = TransitionsAccessor(isolate, *map).SearchSpecial(name);
+  if (result.is_null()) return {};
+  return MaybeHandle<Map>(result, isolate);
 }
 
 int TransitionArray::number_of_transitions() const {
@@ -411,10 +453,12 @@ std::pair<Handle<String>, Handle<Map>> TransitionsAccessor::ExpectedTransition(
   UNREACHABLE();
 }
 
-template <typename Callback, typename ProtoCallback, bool with_key>
+template <typename Callback, typename ProtoCallback, typename SideStepCallback,
+          bool with_key>
 void TransitionsAccessor::ForEachTransitionWithKey(
     DisallowGarbageCollection* no_gc, Callback callback,
-    ProtoCallback proto_transition_callback, IterationMode filter) {
+    ProtoCallback proto_transition_callback,
+    SideStepCallback side_step_transition_callback) {
   switch (encoding()) {
     case kPrototypeInfo:
     case kUninitialized:
@@ -437,33 +481,11 @@ void TransitionsAccessor::ForEachTransitionWithKey(
       int num_transitions = transition_array->number_of_transitions();
       ReadOnlyRoots roots(isolate_);
       for (int i = 0; i < num_transitions; ++i) {
-        if (filter == IterationMode::kDefault &&
-            IsSpecialSidestepTransition(roots, transition_array->GetKey(i))) {
-          continue;
-        }
-        DCHECK_IMPLIES(
-            IsSpecialSidestepTransition(roots, transition_array->GetKey(i)),
-            filter == IterationMode::kIncludeSideStepTransitions ||
-                filter == IterationMode::kIncludeClearedSideStepTransitions);
-        Tagged<MaybeObject> target = transition_array->GetRawTarget(i);
-        if (target.IsCleared()) {
-          DCHECK(
-              IsSpecialSidestepTransition(roots, transition_array->GetKey(i)));
-          if (filter == IterationMode::kIncludeClearedSideStepTransitions) {
-            if constexpr (with_key) {
-              Tagged<Name> key = transition_array->GetKey(i);
-              callback(key, Tagged<Map>());
-            } else {
-              callback(Tagged<Map>());
-            }
-          }
-          continue;
-        }
         if constexpr (with_key) {
           Tagged<Name> key = transition_array->GetKey(i);
-          callback(key, TransitionsAccessor::GetTargetFromRaw(target));
+          callback(key, GetTarget(i));
         } else {
-          callback(TransitionsAccessor::GetTargetFromRaw(target));
+          callback(GetTarget(i));
         }
       }
       if constexpr (!std::is_same<ProtoCallback, std::nullptr_t>::value) {
@@ -472,7 +494,7 @@ void TransitionsAccessor::ForEachTransitionWithKey(
               transitions()->GetPrototypeTransitions();
           int length = TransitionArray::NumberOfPrototypeTransitions(cache);
           for (int i = 0; i < length; i++) {
-            auto target =
+            Tagged<MaybeObject> target =
                 cache->get(TransitionArray::kProtoTransitionHeaderSize + i);
             Tagged<HeapObject> heap_object;
             if (target.GetHeapObjectIfWeak(&heap_object)) {
@@ -481,6 +503,26 @@ void TransitionsAccessor::ForEachTransitionWithKey(
           }
         }
       }
+      if constexpr (!std::is_same<SideStepCallback, std::nullptr_t>::value) {
+        if (transitions()->HasSideStepTransitions()) {
+          Tagged<WeakFixedArray> cache =
+              transitions()->GetSideStepTransitions();
+          for (uint32_t i = SideStepTransition::kFirstMapIdx;
+               i <= SideStepTransition::kLastMapIdx; i++) {
+            Tagged<MaybeObject> target = cache->get(i);
+            if (target.IsWeak() || target == SideStepTransition::Unreachable) {
+              if constexpr (with_key) {
+                side_step_transition_callback(
+                    static_cast<SideStepTransition::Kind>(i),
+                    target.GetHeapObjectOrSmi());
+              } else {
+                side_step_transition_callback(target.GetHeapObjectOrSmi());
+              }
+            }
+          }
+        }
+      }
+
       return;
     }
   }

@@ -140,7 +140,7 @@ Handle<JSObject> JSSegmenter::ResolvedOptions(
   //     [[Locale]]                    "locale"
   //     [[SegmenterGranularity]]      "granularity"
 
-  Handle<String> locale(segmenter->locale(), isolate);
+  DirectHandle<String> locale(segmenter->locale(), isolate);
   JSObject::AddProperty(isolate, result, factory->locale_string(), locale,
                         NONE);
   JSObject::AddProperty(isolate, result, factory->granularity_string(),

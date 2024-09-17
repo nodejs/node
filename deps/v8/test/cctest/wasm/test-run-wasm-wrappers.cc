@@ -17,8 +17,9 @@ namespace test_run_wasm_wrappers {
 
 using testing::CompileAndInstantiateForTesting;
 
-#if V8_COMPRESS_POINTERS && (V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || \
-                             V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM)
+#if V8_COMPRESS_POINTERS &&                                               \
+    (V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_IA32 || \
+     V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_LOONG64)
 namespace {
 Handle<WasmInstanceObject> CompileModule(Zone* zone, Isolate* isolate,
                                          WasmModuleBuilder* builder) {
@@ -160,11 +161,11 @@ TEST(WrapperReplacement) {
 
     // Call the exported Wasm function as many times as required to almost
     // exhaust the remaining budget for using the generic wrapper.
-    Handle<Code> wrapper_before_call;
+    DirectHandle<Code> wrapper_before_call;
     for (int i = remaining_budget; i > 0; --i) {
       // Verify that the wrapper to be used is the generic one.
       wrapper_before_call =
-          handle(main_function_data->wrapper_code(isolate), isolate);
+          direct_handle(main_function_data->wrapper_code(isolate), isolate);
       CHECK(IsGeneric(*wrapper_before_call));
       // Call the function.
       Handle<Object> params[1] = {SmiHandle(isolate, i)};

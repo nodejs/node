@@ -365,6 +365,9 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
       vl(dst.fp().toV(), src_reg, 0, E8);
       break;
     }
+    case LoadType::kF32LoadF16:
+      UNIMPLEMENTED();
+      break;
     default:
       UNREACHABLE();
   }
@@ -2328,6 +2331,8 @@ void LiftoffStackSlots::Construct(int param_slots) {
     }
   }
 }
+
+bool LiftoffAssembler::supports_f16_mem_access() { return false; }
 
 }  // namespace v8::internal::wasm
 

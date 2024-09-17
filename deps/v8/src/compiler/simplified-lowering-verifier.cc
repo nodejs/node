@@ -477,6 +477,7 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
       CASE(NumberConstant)
       CASE(PointerConstant)
       CASE(CompressedHeapConstant)
+      CASE(TrustedHeapConstant)
       CASE(RelocatableInt32Constant)
       CASE(RelocatableInt64Constant)
       // Inner operators

@@ -844,7 +844,7 @@ std::optional<std::pair<Address, Address>> SemiSpaceNewSpace::Allocate(
     return std::pair(start, end);
   }
 
-  return base::nullopt;
+  return std::nullopt;
 }
 
 void SemiSpaceNewSpace::Free(Address start, Address end) {

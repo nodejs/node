@@ -497,6 +497,8 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
                              ProtectedPointerSlot slot) override;
   void VisitCppHeapPointer(Tagged<HeapObject> host,
                            CppHeapPointerSlot slot) override;
+  void VisitJSDispatchTableEntry(Tagged<HeapObject> host,
+                                 JSDispatchHandle handle) override;
 
   Isolate* isolate() { return isolate_; }
 

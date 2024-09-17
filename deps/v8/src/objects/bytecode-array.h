@@ -162,21 +162,13 @@ class BytecodeWrapper : public Struct {
   DECL_PRINTER(BytecodeWrapper)
   DECL_VERIFIER(BytecodeWrapper)
 
-  // When flushing bytecode, we in-place convert the wrapper object to an
-  // UncompiledData object (we cannot convert the BytecodeArray itself as that
-  // lives in trusted space). As such, the wrapper object must be at least as
-  // large as an UncompiledData object and therefore requires padding.
 #define FIELD_LIST(V)                     \
   V(kBytecodeOffset, kTrustedPointerSize) \
-  V(kPadding1Offset, kInt32Size)          \
-  V(kPadding2Offset, kInt32Size)          \
   V(kHeaderSize, 0)                       \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, FIELD_LIST)
 #undef FIELD_LIST
-
-  inline void clear_padding();
 
   class BodyDescriptor;
 

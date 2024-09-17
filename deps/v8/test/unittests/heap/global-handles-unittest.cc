@@ -140,6 +140,7 @@ template <typename ConstructFunction, typename ModifierFunction,
 void WeakHandleTest(v8::Isolate* isolate, ConstructFunction construct_function,
                     ModifierFunction modifier_function, GCFunction gc_function,
                     SurvivalMode survives) {
+  ManualGCScope manual_gc_scope(reinterpret_cast<internal::Isolate*>(isolate));
   v8::HandleScope scope(isolate);
   v8::Local<v8::Context> context = v8::Context::New(isolate);
   v8::Context::Scope context_scope(context);
@@ -498,6 +499,7 @@ void ForceMajorGC1(const v8::WeakCallbackInfo<FlagAndHandles>& data) {
 
 TEST_F(GlobalHandlesTest, GCFromWeakCallbacks) {
   v8::Isolate* isolate = v8_isolate();
+  ManualGCScope manual_gc_scope(i_isolate());
   DisableConservativeStackScanningScopeForTesting no_stack_scanning(
       i_isolate()->heap());
   v8::HandleScope scope(isolate);

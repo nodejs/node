@@ -7,6 +7,7 @@
 
 #include <iosfwd>
 #include <map>
+#include <optional>
 
 #include "src/base/compiler-specific.h"
 #include "src/base/numbers/double.h"
@@ -1579,10 +1580,10 @@ class JSToWasmFrameStateDescriptor : public FrameStateDescriptor {
                                FrameStateDescriptor* outer_state,
                                const wasm::FunctionSig* wasm_signature);
 
-  base::Optional<wasm::ValueKind> return_kind() const { return return_kind_; }
+  std::optional<wasm::ValueKind> return_kind() const { return return_kind_; }
 
  private:
-  base::Optional<wasm::ValueKind> return_kind_;
+  std::optional<wasm::ValueKind> return_kind_;
 };
 #endif  // V8_ENABLE_WEBASSEMBLY
 

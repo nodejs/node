@@ -41,8 +41,8 @@ void AllocateRaw(MaglevAssembler* masm, Isolate* isolate,
   ExternalReference top = SpaceAllocationTopAddress(isolate, alloc_type);
   ExternalReference limit = SpaceAllocationLimitAddress(isolate, alloc_type);
   ZoneLabelRef done(masm);
-  MaglevAssembler::ScratchRegisterScope temps(masm);
-  Register scratch = temps.Acquire();
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  Register scratch = temps.AcquireScratch();
   // We are a bit short on registers, so we use the same register for {object}
   // and {new_top}. Once we have defined {new_top}, we don't use {object} until
   // {new_top} is used for the last time. And there (at the end of this
@@ -92,8 +92,8 @@ void MaglevAssembler::OSRPrologue(Graph* graph) {
   if (source_frame_size % 2 == 0) source_frame_size++;
 
   if (v8_flags.maglev_assert_stack_size && v8_flags.debug_code) {
-    ScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
+    TemporaryRegisterScope temps(this);
+    Register scratch = temps.AcquireScratch();
     Add(scratch, sp,
         source_frame_size * kSystemPointerSize +
             StandardFrameConstants::kFixedFrameSizeFromFp);
@@ -126,7 +126,7 @@ void MaglevAssembler::OSRPrologue(Graph* graph) {
 }
 
 void MaglevAssembler::Prologue(Graph* graph) {
-  ScratchRegisterScope temps(this);
+  TemporaryRegisterScope temps(this);
   //  We add two extra registers to the scope. Ideally we could add all the
   //  allocatable general registers, except Context, JSFunction, NewTarget and
   //  ArgCount. Unfortunately, OptimizeCodeOrTailCallOptimizedCodeSlot and
@@ -194,8 +194,8 @@ void MaglevAssembler::Prologue(Graph* graph) {
         Push(xzr, xzr);
       }
     } else {
-      ScratchRegisterScope temps(this);
-      Register count = temps.Acquire();
+      TemporaryRegisterScope temps(this);
+      Register count = temps.AcquireScratch();
       // Extract the first few slots to round to the unroll size.
       int first_slots = tagged_two_slots_count % kLoopUnrollSize;
       for (int i = 0; i < first_slots; ++i) {
@@ -235,8 +235,8 @@ void MaglevAssembler::MaybeEmitDeoptBuiltinsCall(size_t eager_deopt_count,
       false, false,
       static_cast<int>(deopt_count) * Deoptimizer::kLazyDeoptExitSize);
 
-  ScratchRegisterScope scope(this);
-  Register scratch = scope.Acquire();
+  TemporaryRegisterScope scope(this);
+  Register scratch = scope.AcquireScratch();
   if (eager_deopt_count > 0) {
     Bind(eager_deopt_entry);
     LoadEntryFromBuiltin(Builtin::kDeoptimizationEntry_Eager, scratch);
@@ -309,7 +309,7 @@ void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
 void MaglevAssembler::StringCharCodeOrCodePointAt(
     BuiltinStringPrototypeCharCodeOrCodePointAt::Mode mode,
     RegisterSnapshot& register_snapshot, Register result, Register string,
-    Register index, Register instance_type, Register scratch2,
+    Register index, Register scratch1, Register scratch2,
     Label* result_fits_one_byte) {
   ZoneLabelRef done(this);
   Label seq_string;
@@ -352,26 +352,58 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
   bind(&loop);
 
   if (v8_flags.debug_code) {
-    Register scratch = instance_type;
-
     // Check if {string} is a string.
-    AssertNotSmi(string);
-    LoadMap(scratch, string);
-    CompareInstanceTypeRange(scratch, scratch, FIRST_STRING_TYPE,
-                             LAST_STRING_TYPE);
-    Check(ls, AbortReason::kUnexpectedValue);
+    AssertObjectTypeInRange(string, FIRST_STRING_TYPE, LAST_STRING_TYPE,
+                            AbortReason::kUnexpectedValue);
 
-    Ldr(scratch.W(), FieldMemOperand(string, offsetof(String, length_)));
-    Cmp(index.W(), scratch.W());
+    Ldr(scratch1.W(), FieldMemOperand(string, offsetof(String, length_)));
+    Cmp(index.W(), scratch1.W());
     Check(lo, AbortReason::kUnexpectedValue);
   }
 
+#if V8_STATIC_ROOTS_BOOL
+  Register map = scratch1.W();
+  LoadMapForCompare(map, string);
+#else
+  Register instance_type = scratch1;
   // Get instance type.
   LoadInstanceType(instance_type, string);
+#endif
 
   {
-    ScratchRegisterScope temps(this);
-    Register representation = temps.Acquire().W();
+#if V8_STATIC_ROOTS_BOOL
+    using StringTypeRange = InstanceTypeChecker::kUniqueMapRangeOfStringType;
+    // Check the string map ranges in dense increasing order, to avoid needing
+    // to subtract away the lower bound.
+    static_assert(StringTypeRange::kSeqString.first == 0);
+    CompareInt32AndJumpIf(map, StringTypeRange::kSeqString.second,
+                          kUnsignedLessThanEqual, &seq_string, Label::kNear);
+
+    static_assert(StringTypeRange::kSeqString.second + Map::kSize ==
+                  StringTypeRange::kExternalString.first);
+    CompareInt32AndJumpIf(map, StringTypeRange::kExternalString.second,
+                          kUnsignedLessThanEqual, deferred_runtime_call);
+    // TODO(victorgomes): Add fast path for external strings.
+
+    static_assert(StringTypeRange::kExternalString.second + Map::kSize ==
+                  StringTypeRange::kConsString.first);
+    CompareInt32AndJumpIf(map, StringTypeRange::kConsString.second,
+                          kUnsignedLessThanEqual, &cons_string, Label::kNear);
+
+    static_assert(StringTypeRange::kConsString.second + Map::kSize ==
+                  StringTypeRange::kSlicedString.first);
+    CompareInt32AndJumpIf(map, StringTypeRange::kSlicedString.second,
+                          kUnsignedLessThanEqual, &sliced_string, Label::kNear);
+
+    static_assert(StringTypeRange::kSlicedString.second + Map::kSize ==
+                  StringTypeRange::kThinString.first);
+    // No need to check for thin strings, they're the last string map.
+    static_assert(StringTypeRange::kThinString.second ==
+                  InstanceTypeChecker::kStringMapUpperBound);
+    // Fallthrough to thin string.
+#else
+    TemporaryRegisterScope temps(this);
+    Register representation = temps.AcquireScratch().W();
 
     // TODO(victorgomes): Add fast path for external strings.
     And(representation, instance_type.W(),
@@ -385,6 +417,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     CompareAndBranch(representation, Immediate(kThinStringTag), kNotEqual,
                      deferred_runtime_call);
     // Fallthrough to thin string.
+#endif
   }
 
   // Is a thin string.
@@ -395,8 +428,8 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
 
   bind(&sliced_string);
   {
-    ScratchRegisterScope temps(this);
-    Register offset = temps.Acquire();
+    TemporaryRegisterScope temps(this);
+    Register offset = temps.AcquireScratch();
 
     LoadAndUntagTaggedSignedField(offset, string,
                                   offsetof(SlicedString, offset_));
@@ -409,7 +442,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
   {
     // Reuse {instance_type} register here, since CompareRoot requires a scratch
     // register as well.
-    Register second_string = instance_type;
+    Register second_string = scratch1;
     LoadTaggedFieldWithoutDecompressing(second_string, string,
                                         offsetof(ConsString, second_));
     CompareRoot(second_string, RootIndex::kempty_string);
@@ -421,7 +454,18 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
   bind(&seq_string);
   {
     Label two_byte_string;
+#if V8_STATIC_ROOTS_BOOL
+    if (InstanceTypeChecker::kTwoByteStringMapBit == 0) {
+      TestInt32AndJumpIfAllClear(map,
+                                 InstanceTypeChecker::kStringMapEncodingMask,
+                                 &two_byte_string, Label::kNear);
+    } else {
+      TestInt32AndJumpIfAnySet(map, InstanceTypeChecker::kStringMapEncodingMask,
+                               &two_byte_string, Label::kNear);
+    }
+#else
     TestAndBranchIfAllClear(instance_type, kOneByteStringTag, &two_byte_string);
+#endif
     // The result of one-byte string will be the same for both modes
     // (CharCodeAt/CodePointAt), since it cannot be the first half of a
     // surrogate pair.
@@ -431,7 +475,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
 
     bind(&two_byte_string);
     // {instance_type} is unused from this point, so we can use as scratch.
-    Register scratch = instance_type;
+    Register scratch = scratch1;
     Lsl(scratch, index, 1);
     Add(scratch, scratch,
         OFFSET_OF_DATA_START(SeqTwoByteString) - kHeapObjectTag);
@@ -537,8 +581,8 @@ void MaglevAssembler::TruncateDoubleToInt32(Register dst, DoubleRegister src) {
 
 void MaglevAssembler::TryTruncateDoubleToInt32(Register dst, DoubleRegister src,
                                                Label* fail) {
-  ScratchRegisterScope temps(this);
-  DoubleRegister converted_back = temps.AcquireDouble();
+  TemporaryRegisterScope temps(this);
+  DoubleRegister converted_back = temps.AcquireScratchDouble();
 
   // Convert the input float64 value to int32.
   Fcvtzs(dst.W(), src);
@@ -554,7 +598,7 @@ void MaglevAssembler::TryTruncateDoubleToInt32(Register dst, DoubleRegister src,
   Cbnz(dst, &check_done);
 
   // In case of 0, we need to check for the IEEE 0 pattern (which is all zeros).
-  Register input_bits = temps.Acquire();
+  Register input_bits = temps.AcquireScratch();
   Fmov(input_bits, src);
   Cbnz(input_bits, fail);
 
@@ -564,8 +608,8 @@ void MaglevAssembler::TryTruncateDoubleToInt32(Register dst, DoubleRegister src,
 void MaglevAssembler::TryTruncateDoubleToUint32(Register dst,
                                                 DoubleRegister src,
                                                 Label* fail) {
-  ScratchRegisterScope temps(this);
-  DoubleRegister converted_back = temps.AcquireDouble();
+  TemporaryRegisterScope temps(this);
+  DoubleRegister converted_back = temps.AcquireScratchDouble();
 
   // Convert the input float64 value to uint32.
   Fcvtzu(dst.W(), src);
@@ -581,7 +625,7 @@ void MaglevAssembler::TryTruncateDoubleToUint32(Register dst,
   Cbnz(dst, &check_done);
 
   // In case of 0, we need to check for the IEEE 0 pattern (which is all zeros).
-  Register input_bits = temps.Acquire();
+  Register input_bits = temps.AcquireScratch();
   Fmov(input_bits, src);
   Cbnz(input_bits, fail);
 
@@ -591,8 +635,8 @@ void MaglevAssembler::TryTruncateDoubleToUint32(Register dst,
 void MaglevAssembler::TryChangeFloat64ToIndex(Register result,
                                               DoubleRegister value,
                                               Label* success, Label* fail) {
-  ScratchRegisterScope temps(this);
-  DoubleRegister converted_back = temps.AcquireDouble();
+  TemporaryRegisterScope temps(this);
+  DoubleRegister converted_back = temps.AcquireScratchDouble();
   // Convert the input float64 value to int32.
   Fcvtzs(result.W(), value);
   // Convert that int32 value back to float64.

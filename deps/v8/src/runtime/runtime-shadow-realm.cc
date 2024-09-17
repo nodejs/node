@@ -43,12 +43,13 @@ RUNTIME_FUNCTION(Runtime_ShadowRealmThrow) {
   DCHECK_EQ(2, args.length());
   HandleScope scope(isolate);
   int message_id_smi = args.smi_value_at(0);
-  DirectHandle<Object> value = args.at(1);
+  Handle<Object> value = args.at(1);
 
   MessageTemplate message_id = MessageTemplateFromInt(message_id_smi);
 
   DirectHandle<String> string = Object::NoSideEffectsToString(isolate, value);
-  THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewTypeError(message_id, string));
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, ShadowRealmNewTypeErrorCopy(value, message_id, string));
 }
 
 }  // namespace internal

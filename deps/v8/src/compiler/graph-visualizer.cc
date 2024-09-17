@@ -5,6 +5,7 @@
 #include "src/compiler/graph-visualizer.h"
 
 #include <memory>
+#include <optional>
 #include <sstream>
 #include <string>
 
@@ -257,7 +258,7 @@ void JsonPrintAllSourceWithPositionsWasm(
     os << '"' << i << "\": {\"sourceId\": " << i << ", \"functionName\": \""
        << fct.func_index << "\", \"sourceName\": \"\", \"sourceText\": \"";
     base::Vector<const uint8_t> module_bytes{nullptr, 0};
-    base::Optional<wasm::ModuleWireBytes> maybe_wire_bytes =
+    std::optional<wasm::ModuleWireBytes> maybe_wire_bytes =
         wire_bytes->GetModuleBytes();
     if (maybe_wire_bytes) module_bytes = maybe_wire_bytes->module_bytes();
     std::ostringstream wasm_str;
@@ -487,8 +488,8 @@ void JSONGraphWriter::PrintEdge(Node* from, int index, Node* to) {
       << ",\"index\":" << index << ",\"type\":\"" << edge_type << "\"}";
 }
 
-base::Optional<Type> JSONGraphWriter::GetType(Node* node) {
-  if (!NodeProperties::IsTyped(node)) return base::nullopt;
+std::optional<Type> JSONGraphWriter::GetType(Node* node) {
+  if (!NodeProperties::IsTyped(node)) return std::nullopt;
   return NodeProperties::GetType(node);
 }
 

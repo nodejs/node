@@ -56,6 +56,8 @@ class V8_EXPORT_PRIVATE BackgroundMergeTask {
     return state_ == kPendingForegroundWork;
   }
 
+  static void ForceGCDuringNextMergeForTesting();
+
  private:
   std::unique_ptr<PersistentHandles> persistent_handles_;
 
@@ -73,7 +75,7 @@ class V8_EXPORT_PRIVATE BackgroundMergeTask {
   // SharedFunctionInfo in the cached script. The main thread must:
   // 1. Check whether the cached script gained corresponding SharedFunctionInfos
   //    for any of these, and if so, redo the merge.
-  // 2. Update the cached script's shared_function_infos list to refer to these.
+  // 2. Update the cached script's infos list to refer to these.
   std::vector<Handle<SharedFunctionInfo>> used_new_sfis_;
 
   // SharedFunctionInfos from the cached script which were not compiled, with

@@ -617,11 +617,13 @@ struct SelectTypeImmediate {
   }
 };
 
+static constexpr uint32_t kInlineSignatureSentinel = UINT_MAX;
+
 struct BlockTypeImmediate {
   uint32_t length = 1;
   // After decoding, either {sig_index} is set XOR {sig} points to
   // {single_return_sig_storage}.
-  uint32_t sig_index;
+  uint32_t sig_index = kInlineSignatureSentinel;
   FunctionSig sig{0, 0, single_return_sig_storage};
   // Internal field, potentially pointed to by {sig}. Do not access directly.
   ValueType single_return_sig_storage[1];
@@ -4678,7 +4680,37 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       }
       case kExprS128Const:
         return SimdConstOp(opcode_length);
-      case kExprF16x8Splat: {
+      case kExprF16x8Splat:
+      case kExprF16x8Abs:
+      case kExprF16x8Neg:
+      case kExprF16x8Sqrt:
+      case kExprF16x8Ceil:
+      case kExprF16x8Floor:
+      case kExprF16x8Trunc:
+      case kExprF16x8NearestInt:
+      case kExprF16x8Eq:
+      case kExprF16x8Ne:
+      case kExprF16x8Lt:
+      case kExprF16x8Gt:
+      case kExprF16x8Le:
+      case kExprF16x8Ge:
+      case kExprF16x8Add:
+      case kExprF16x8Sub:
+      case kExprF16x8Mul:
+      case kExprF16x8Div:
+      case kExprF16x8Min:
+      case kExprF16x8Max:
+      case kExprF16x8Pmin:
+      case kExprF16x8Pmax:
+      case kExprI16x8SConvertF16x8:
+      case kExprI16x8UConvertF16x8:
+      case kExprF16x8SConvertI16x8:
+      case kExprF16x8UConvertI16x8:
+      case kExprF16x8DemoteF32x4Zero:
+      case kExprF16x8DemoteF64x2Zero:
+      case kExprF32x4PromoteLowF16x8:
+      case kExprF16x8Qfma:
+      case kExprF16x8Qfms: {
         if (!v8_flags.experimental_wasm_fp16) {
           this->DecodeError(
               "invalid simd opcode: 0x%x, "

@@ -13,7 +13,7 @@
      10: 2 ; *(int32)*
      11: 3 ; *(int32)*
      12: {ADDRESS} ; * {ADDRESS} <Other heap object (WASM_FUNC_REF_TYPE)>
-  Liftoff stack & register state for function index 2
+  Liftoff stack & register state for function index 2, frame size {NUMBER}, total frame size {NUMBER}
      0: i32:*
      1: i32:*
      2: ref:*

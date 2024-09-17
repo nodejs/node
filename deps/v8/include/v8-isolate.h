@@ -938,6 +938,12 @@ class V8_EXPORT Isolate {
   Local<Context> GetIncumbentContext();
 
   /**
+   * Returns the host defined options set for currently running script or
+   * module, if available.
+   */
+  MaybeLocal<Data> GetCurrentHostDefinedOptions();
+
+  /**
    * Schedules a v8::Exception::Error with the given message.
    * See ThrowException for more details. Templatized to provide compile-time
    * errors in case of too long strings (see v8::String::NewFromUtf8Literal).

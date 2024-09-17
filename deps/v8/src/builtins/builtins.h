@@ -44,7 +44,7 @@ enum class Builtin : int32_t {
   kNoBuiltinId = -1,
 #define DEF_ENUM(Name, ...) k##Name,
   BUILTIN_LIST(DEF_ENUM, DEF_ENUM, DEF_ENUM, DEF_ENUM, DEF_ENUM, DEF_ENUM,
-               DEF_ENUM, DEF_ENUM)
+               DEF_ENUM, DEF_ENUM, DEF_ENUM)
 #undef DEF_ENUM
 #define EXTRACT_NAME(Name, ...) k##Name,
   // Define kFirstBytecodeHandler,
@@ -84,8 +84,9 @@ class Builtins {
         // defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE)
 
 #define ADD_ONE(Name, ...) +1
-  static constexpr int kBuiltinCount = 0 BUILTIN_LIST(
-      ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE);
+  static constexpr int kBuiltinCount =
+      0 BUILTIN_LIST(ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE,
+                     ADD_ONE, ADD_ONE, ADD_ONE);
   static constexpr int kBuiltinTier0Count = 0 BUILTIN_LIST_TIER0(
       ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE);
 #undef ADD_ONE
@@ -128,7 +129,7 @@ class Builtins {
   }
 
   // The different builtin kinds are documented in builtins-definitions.h.
-  enum Kind { CPP, TFJ, TSC, TFC, TFS, TFH, BCH, ASM };
+  enum Kind { CPP, TSJ, TFJ, TSC, TFC, TFS, TFH, BCH, ASM };
 
   static BytecodeOffset GetContinuationBytecodeOffset(Builtin builtin);
   static Builtin GetBuiltinFromBytecodeOffset(BytecodeOffset);
@@ -287,6 +288,22 @@ class Builtins {
     jspi_prompt_handler_offset_ = offset;
   }
 
+#if V8_ENABLE_DRUMBRAKE
+  int cwasm_interpreter_entry_handler_offset() const {
+    DCHECK_NE(cwasm_interpreter_entry_handler_offset_, 0);
+    return cwasm_interpreter_entry_handler_offset_;
+  }
+
+  void SetCWasmInterpreterEntryHandlerOffset(int offset) {
+    // Check the stored offset is either uninitialized or unchanged (we
+    // generate multiple variants of this builtin but they should all have the
+    // same handler offset).
+    CHECK(cwasm_interpreter_entry_handler_offset_ == 0 ||
+          cwasm_interpreter_entry_handler_offset_ == offset);
+    cwasm_interpreter_entry_handler_offset_ = offset;
+  }
+#endif  // V8_ENABLE_DRUMBRAKE
+
   // Returns given builtin's slot in the main builtin table.
   FullObjectSlot builtin_slot(Builtin builtin);
   // Returns given builtin's slot in the tier0 builtin table.
@@ -347,8 +364,8 @@ class Builtins {
                               Isolate* isolate,                         \
                               compiler::turboshaft::Graph& graph, Zone* zone);
 
-  BUILTIN_LIST(IGNORE_BUILTIN, DECLARE_TF, DECLARE_TS, DECLARE_TF, DECLARE_TF,
-               DECLARE_TF, IGNORE_BUILTIN, DECLARE_ASM)
+  BUILTIN_LIST(IGNORE_BUILTIN, DECLARE_TS, DECLARE_TF, DECLARE_TS, DECLARE_TF,
+               DECLARE_TF, DECLARE_TF, IGNORE_BUILTIN, DECLARE_ASM)
 
 #undef DECLARE_ASM
 #undef DECLARE_TF
@@ -360,6 +377,14 @@ class Builtins {
   // label) in JSEntry and its variants. It's used to generate the handler table
   // during codegen (mksnapshot-only).
   int js_entry_handler_offset_ = 0;
+
+#if V8_ENABLE_DRUMBRAKE
+  // Stores the offset of exception handler entry point (the handler_entry
+  // label) in CWasmInterpreterEntry. It's used to generate the handler table
+  // during codegen (mksnapshot-only).
+  int cwasm_interpreter_entry_handler_offset_ = 0;
+#endif  // V8_ENABLE_DRUMBRAKE
+
   // Do the same for the JSPI prompt, which catches uncaught exceptions and
   // rejects the corresponding promise.
   int jspi_prompt_handler_offset_ = 0;

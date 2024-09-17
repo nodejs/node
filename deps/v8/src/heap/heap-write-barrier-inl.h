@@ -220,6 +220,25 @@ inline void IndirectPointerWriteBarrier(Tagged<HeapObject> host,
   WriteBarrier::Marking(host, slot);
 }
 
+inline void JSDispatchHandleWriteBarrier(Tagged<HeapObject> host,
+                                         JSDispatchHandle handle,
+                                         WriteBarrierMode mode) {
+  // TODO(saelo): expand this: we either need to separate write barriers for
+  // the table entry and the objects referenced from it, or a single barrier
+  // for both. Maybe the latter is easier.
+
+  DCHECK(V8_ENABLE_LEAPTIERING_BOOL);
+
+  if (mode == SKIP_WRITE_BARRIER) {
+    // TODO(saelo): once/if this write barrier handles both the table entry and
+    // the objects referenced by it, we should SLOW_DCHECK here that a barrier
+    // is not required.
+    return;
+  }
+
+  WriteBarrier::Marking(host, handle);
+}
+
 inline void ProtectedPointerWriteBarrier(Tagged<TrustedObject> host,
                                          ProtectedPointerSlot slot,
                                          Tagged<TrustedObject> value,
@@ -352,6 +371,11 @@ void WriteBarrier::Marking(Tagged<TrustedObject> host,
                            Tagged<TrustedObject> value) {
   if (!IsMarking(host)) return;
   MarkingSlow(host, slot, value);
+}
+
+void WriteBarrier::Marking(Tagged<HeapObject> host, JSDispatchHandle handle) {
+  if (!IsMarking(host)) return;
+  MarkingSlow(host, handle);
 }
 
 // static

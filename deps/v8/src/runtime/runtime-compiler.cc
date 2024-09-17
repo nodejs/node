@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <optional>
+
 #include "src/asmjs/asm-js.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"
@@ -16,8 +18,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/shared-function-info.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 namespace {
 void LogExecution(Isolate* isolate, DirectHandle<JSFunction> function) {
@@ -229,7 +230,7 @@ namespace {
 bool TryGetOptimizedOsrCode(Isolate* isolate, Tagged<FeedbackVector> vector,
                             const interpreter::BytecodeArrayIterator& it,
                             Tagged<Code>* code_out) {
-  base::Optional<Tagged<Code>> maybe_code =
+  std::optional<Tagged<Code>> maybe_code =
       vector->GetOptimizedOsrCode(isolate, it.GetSlotOperand(2));
   if (maybe_code.has_value()) {
     *code_out = maybe_code.value();
@@ -626,7 +627,7 @@ static Tagged<Object> CompileGlobalEval(Isolate* isolate,
                                         Handle<i::Object> source_object,
                                         Handle<SharedFunctionInfo> outer_info,
                                         LanguageMode language_mode,
-                                        int eval_scope_position,
+                                        int eval_scope_info_index,
                                         int eval_position) {
   Handle<NativeContext> native_context = isolate->native_context();
 
@@ -655,11 +656,21 @@ static Tagged<Object> CompileGlobalEval(Isolate* isolate,
   static const ParseRestriction restriction = NO_PARSE_RESTRICTION;
   Handle<JSFunction> compiled;
   Handle<Context> context(isolate->context(), isolate);
+  if (!Is<NativeContext>(*context) && v8_flags.reuse_scope_infos) {
+    Tagged<WeakFixedArray> array = Cast<Script>(outer_info->script())->infos();
+    Tagged<ScopeInfo> stored_info;
+    if (array->get(eval_scope_info_index)
+            .GetHeapObjectIfWeak(isolate, &stored_info)) {
+      CHECK_EQ(stored_info, context->scope_info());
+    } else {
+      array->set(eval_scope_info_index, MakeWeak(context->scope_info()));
+    }
+  }
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, compiled,
-      Compiler::GetFunctionFromEval(
-          source.ToHandleChecked(), outer_info, context, language_mode,
-          restriction, kNoSourcePosition, eval_scope_position, eval_position),
+      Compiler::GetFunctionFromEval(source.ToHandleChecked(), outer_info,
+                                    context, language_mode, restriction,
+                                    kNoSourcePosition, eval_position),
       ReadOnlyRoots(isolate).exception());
   return *compiled;
 }
@@ -685,5 +696,4 @@ RUNTIME_FUNCTION(Runtime_ResolvePossiblyDirectEval) {
                            args.smi_value_at(5));
 }
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal

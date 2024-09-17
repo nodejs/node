@@ -395,4 +395,10 @@
   'LogAllTest.LogAll': [SKIP],
 }],  # 'clang_coverage and mode == debug'
 
+['conservative_stack_scanning', {
+  # Test relies on carefully controlled handle lifetime.
+  # TODO(leszeks): Fix this test.
+  'BackgroundMergeTest.GCDuringMerge': [PASS,FAIL],
+}],
+
 ]

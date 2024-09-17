@@ -84,11 +84,10 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
   // come from here.
   Handle<JSFunction> function;
   {
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, function,
-        Compiler::GetFunctionFromString(
-            handle(target->native_context(), isolate), source,
-            ONLY_SINGLE_FUNCTION_LITERAL, parameters_end_pos, is_code_like));
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, function,
+                               Compiler::GetFunctionFromString(
+                                   handle(target->native_context(), isolate),
+                                   source, parameters_end_pos, is_code_like));
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, result,
@@ -196,7 +195,7 @@ Tagged<Object> DoFunctionBind(Isolate* isolate, BuiltinArguments args,
 
   // Allocate the bound function with the given {this_arg} and {args}.
   Handle<JSReceiver> target = args.at<JSReceiver>(0);
-  Handle<JSAny> this_arg = isolate->factory()->undefined_value();
+  DirectHandle<JSAny> this_arg = isolate->factory()->undefined_value();
   base::ScopedVector<Handle<Object>> argv(std::max(0, args.length() - 2));
   if (args.length() > 1) {
     this_arg = args.at<JSAny>(1);

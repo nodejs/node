@@ -91,6 +91,8 @@ class HeapProfiler : public HeapObjectAllocationTracker {
   void DeleteAllSnapshots();
   void RemoveSnapshot(HeapSnapshot* snapshot);
 
+  std::vector<v8::Local<v8::Value>> GetDetachedJSWrapperObjects();
+
   void ObjectMoveEvent(Address from, Address to, int size,
                        bool is_native_object);
 

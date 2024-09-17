@@ -10,6 +10,7 @@
 #define V8_WASM_COMPILATION_ENVIRONMENT_H_
 
 #include <memory>
+#include <optional>
 
 #include "src/wasm/wasm-features.h"
 #include "src/wasm/wasm-limits.h"
@@ -104,7 +105,7 @@ class WireBytesStorage {
   virtual base::Vector<const uint8_t> GetCode(WireBytesRef) const = 0;
   // Returns the ModuleWireBytes corresponding to the underlying module if
   // available. Not supported if the wire bytes are owned by a StreamingDecoder.
-  virtual base::Optional<ModuleWireBytes> GetModuleBytes() const = 0;
+  virtual std::optional<ModuleWireBytes> GetModuleBytes() const = 0;
 };
 
 // Callbacks will receive either {kFailedCompilation} or

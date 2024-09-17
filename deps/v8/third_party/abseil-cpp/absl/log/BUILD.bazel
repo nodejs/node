@@ -309,6 +309,7 @@ cc_test(
 cc_test(
     name = "absl_log_basic_test",
     size = "small",
+    timeout = "moderate",
     srcs = ["absl_log_basic_test.cc"],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
@@ -424,6 +425,7 @@ cc_test(
 cc_test(
     name = "log_basic_test",
     size = "small",
+    timeout = "moderate",
     srcs = ["log_basic_test.cc"],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,

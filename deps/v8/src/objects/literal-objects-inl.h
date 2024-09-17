@@ -5,15 +5,15 @@
 #ifndef V8_OBJECTS_LITERAL_OBJECTS_INL_H_
 #define V8_OBJECTS_LITERAL_OBJECTS_INL_H_
 
-#include "src/objects/literal-objects.h"
+#include <optional>
 
+#include "src/objects/literal-objects.h"
 #include "src/objects/objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 #include "torque-generated/src/objects/literal-objects-tq-inl.inc"
 
@@ -44,7 +44,7 @@ Handle<ObjectBoilerplateDescription> ObjectBoilerplateDescription::New(
   // empty_object_boilerplate_description here since `flags` may be modified
   // even on empty descriptions.
 
-  base::Optional<DisallowGarbageCollection> no_gc;
+  std::optional<DisallowGarbageCollection> no_gc;
   auto result = Cast<ObjectBoilerplateDescription>(
       Allocate(isolate, capacity, &no_gc, allocation));
   result->set_flags(0);
@@ -120,10 +120,13 @@ bool ArrayBoilerplateDescription::is_empty() const {
 // RegExpBoilerplateDescription
 //
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(RegExpBoilerplateDescription)
+OBJECT_CONSTRUCTORS_IMPL(RegExpBoilerplateDescription, Struct)
+TRUSTED_POINTER_ACCESSORS(RegExpBoilerplateDescription, data, RegExpData,
+                          kDataOffset, kRegExpDataIndirectPointerTag)
+ACCESSORS(RegExpBoilerplateDescription, source, Tagged<String>, kSourceOffset)
+SMI_ACCESSORS(RegExpBoilerplateDescription, flags, kFlagsOffset)
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #include "src/objects/object-macros-undef.h"
 

@@ -35,6 +35,7 @@
 
 #include <cmath>
 #include <cstdlib>
+#include <optional>
 
 #include "src/base/lazy-instance.h"
 #include "src/base/macros.h"
@@ -616,7 +617,7 @@ bool OS::DecommitPages(void* address, size_t size) {
 bool OS::CanReserveAddressSpace() { return true; }
 
 // static
-Optional<AddressSpaceReservation> OS::CreateAddressSpaceReservation(
+std::optional<AddressSpaceReservation> OS::CreateAddressSpaceReservation(
     void* hint, size_t size, size_t alignment,
     MemoryPermission max_permission) {
   // On POSIX, address space reservations are backed by private memory mappings.
@@ -1038,7 +1039,8 @@ void OS::StrNCpy(char* dest, int length, const char* src, size_t n) {
 
 #if !V8_OS_CYGWIN && !V8_OS_FUCHSIA
 
-Optional<AddressSpaceReservation> AddressSpaceReservation::CreateSubReservation(
+std::optional<AddressSpaceReservation>
+AddressSpaceReservation::CreateSubReservation(
     void* address, size_t size, OS::MemoryPermission max_permission) {
   DCHECK(Contains(address, size));
   DCHECK_EQ(0, size % OS::AllocatePageSize());

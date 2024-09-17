@@ -4,6 +4,8 @@
 
 #include "src/maglev/maglev-phi-representation-selector.h"
 
+#include <optional>
+
 #include "src/base/enum-set.h"
 #include "src/base/logging.h"
 #include "src/base/small-vector.h"
@@ -24,7 +26,8 @@ namespace maglev {
     }                                             \
   } while (false)
 
-void MaglevPhiRepresentationSelector::PreProcessBasicBlock(BasicBlock* block) {
+BlockProcessResult MaglevPhiRepresentationSelector::PreProcessBasicBlock(
+    BasicBlock* block) {
   MergeNewNodesInBlock(current_block_);
   PreparePhiTaggings(current_block_, block);
   current_block_ = block;
@@ -60,6 +63,8 @@ void MaglevPhiRepresentationSelector::PreProcessBasicBlock(BasicBlock* block) {
       }
     }
   }
+
+  return BlockProcessResult::kContinue;
 }
 
 bool MaglevPhiRepresentationSelector::CanHoistUntaggingTo(BasicBlock* block) {
@@ -889,7 +894,7 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
 
 ValueNode* MaglevPhiRepresentationSelector::EnsurePhiTagged(
     Phi* phi, BasicBlock* block, NewNodePosition pos,
-    base::Optional<int> predecessor_index) {
+    std::optional<int> predecessor_index) {
   if (phi->value_representation() == ValueRepresentation::kTagged) {
     return phi;
   }

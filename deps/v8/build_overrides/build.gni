@@ -17,15 +17,6 @@ build_with_node = false
 # chromium build.
 perfetto_build_with_embedder = true
 
-# TODO(https://crbug.com/337736622): Perfetto and FuzzTest need to know the
-# path to protobuf targets. V8 stores them in a different location than Chrome
-# until M129. Thereafter, it can move to //third_party/protobuf and these
-# variables can be removed.
-protobuf_target_prefix = "//third_party/protobuf_chrome/"
-perfetto_protobuf_target_prefix = protobuf_target_prefix
-perfetto_protobuf_gni = "//third_party/protobuf_chrome/proto_library.gni"
-perfetto_protobuf_src_dir = "//third_party/protobuf_chrome/src"
-
 # We use Perfetto's Trace Processor to convert traces to the legacy JSON
 # format.
 enable_perfetto_trace_processor = true

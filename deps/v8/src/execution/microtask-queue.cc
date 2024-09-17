@@ -6,10 +6,10 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <optional>
 
 #include "src/api/api-inl.h"
 #include "src/base/logging.h"
-#include "src/base/optional.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/microtask-inl.h"
@@ -115,7 +115,7 @@ void MicrotaskQueue::EnqueueMicrotask(Tagged<Microtask> microtask) {
 
 void MicrotaskQueue::PerformCheckpointInternal(v8::Isolate* v8_isolate) {
   DCHECK(ShouldPerfomCheckpoint());
-  base::Optional<MicrotasksScope> microtasks_scope;
+  std::optional<MicrotasksScope> microtasks_scope;
   if (microtasks_policy_ == v8::MicrotasksPolicy::kScoped) {
     // If we're using microtask scopes to schedule microtask execution, V8
     // API calls will check that there's always a microtask scope on the

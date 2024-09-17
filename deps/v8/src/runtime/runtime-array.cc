@@ -108,7 +108,7 @@ RUNTIME_FUNCTION(Runtime_NewArray) {
 
   // If we don't care to track arrays of to_kind ElementsKind, then
   // don't emit a memento for them.
-  Handle<AllocationSite> allocation_site;
+  DirectHandle<AllocationSite> allocation_site;
   if (AllocationSite::ShouldTrack(to_kind)) {
     allocation_site = site;
   }

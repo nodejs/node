@@ -366,7 +366,7 @@ int NativeRegExpMacroAssembler::CheckStackGuardState(
 }
 
 // Returns a {Result} sentinel, or the number of successful matches.
-int NativeRegExpMacroAssembler::Match(DirectHandle<JSRegExp> regexp,
+int NativeRegExpMacroAssembler::Match(DirectHandle<IrRegExpData> regexp_data,
                                       DirectHandle<String> subject,
                                       int* offsets_vector,
                                       int offsets_vector_length,
@@ -410,7 +410,7 @@ int NativeRegExpMacroAssembler::Match(DirectHandle<JSRegExp> regexp,
   int byte_length = char_length << char_size_shift;
   const uint8_t* input_end = input_start + byte_length;
   return Execute(*subject, start_offset, input_start, input_end, offsets_vector,
-                 offsets_vector_length, isolate, *regexp);
+                 offsets_vector_length, isolate, *regexp_data);
 }
 
 // static
@@ -418,34 +418,35 @@ int NativeRegExpMacroAssembler::ExecuteForTesting(
     Tagged<String> input, int start_offset, const uint8_t* input_start,
     const uint8_t* input_end, int* output, int output_size, Isolate* isolate,
     Tagged<JSRegExp> regexp) {
+  Tagged<RegExpData> data = regexp->data(isolate);
+  SBXCHECK(Is<IrRegExpData>(data));
   return Execute(input, start_offset, input_start, input_end, output,
-                 output_size, isolate, regexp);
+                 output_size, isolate, Cast<IrRegExpData>(data));
 }
 
 // Returns a {Result} sentinel, or the number of successful matches.
-// TODO(pthier): The JSRegExp object is passed to native irregexp code to match
-// the signature of the interpreter. We should get rid of JS objects passed to
-// internal methods.
 int NativeRegExpMacroAssembler::Execute(
     Tagged<String>
         input,  // This needs to be the unpacked (sliced, cons) string.
     int start_offset, const uint8_t* input_start, const uint8_t* input_end,
-    int* output, int output_size, Isolate* isolate, Tagged<JSRegExp> regexp) {
+    int* output, int output_size, Isolate* isolate,
+    Tagged<IrRegExpData> regexp_data) {
   RegExpStackScope stack_scope(isolate);
 
   bool is_one_byte = String::IsOneByteRepresentationUnderneath(input);
-  Tagged<Code> code = Cast<Code>(regexp->code(isolate, is_one_byte));
+  Tagged<Code> code = regexp_data->code(isolate, is_one_byte);
   RegExp::CallOrigin call_origin = RegExp::CallOrigin::kFromRuntime;
 
   using RegexpMatcherSig =
       // NOLINTNEXTLINE(readability/casting)
       int(Address input_string, int start_offset, const uint8_t* input_start,
           const uint8_t* input_end, int* output, int output_size,
-          int call_origin, Isolate* isolate, Address regexp);
+          int call_origin, Isolate* isolate, Address regexp_data);
 
   auto fn = GeneratedCode<RegexpMatcherSig>::FromCode(isolate, code);
-  int result = fn.Call(input.ptr(), start_offset, input_start, input_end,
-                       output, output_size, call_origin, isolate, regexp.ptr());
+  int result =
+      fn.Call(input.ptr(), start_offset, input_start, input_end, output,
+              output_size, call_origin, isolate, regexp_data.ptr());
   DCHECK_GE(result, SMALLEST_REGEXP_RESULT);
 
   if (result == EXCEPTION && !isolate->has_exception()) {

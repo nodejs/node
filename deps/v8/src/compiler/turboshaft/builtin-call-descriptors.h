@@ -155,12 +155,34 @@ struct BuiltinCallDescriptor {
     static constexpr OpEffects kEffects = base_effects.CanCallAnything();
   };
 
+  struct NonNumberToNumber : public Descriptor<NonNumberToNumber> {
+    static constexpr auto kFunction = Builtin::kNonNumberToNumber;
+    using arguments_t = std::tuple<V<JSAnyNotNumber>>;
+    using results_t = std::tuple<V<Number>>;
+
+    static constexpr bool kNeedsFrameState = false;
+    static constexpr bool kNeedsContext = true;
+    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
+    static constexpr OpEffects kEffects = base_effects.CanCallAnything();
+  };
+
   struct ToNumeric : public Descriptor<ToNumeric> {
     static constexpr auto kFunction = Builtin::kToNumeric;
     using arguments_t = std::tuple<V<Object>>;
     using results_t = std::tuple<V<Numeric>>;
 
     static constexpr bool kNeedsFrameState = true;
+    static constexpr bool kNeedsContext = true;
+    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
+    static constexpr OpEffects kEffects = base_effects.CanCallAnything();
+  };
+
+  struct NonNumberToNumeric : public Descriptor<NonNumberToNumeric> {
+    static constexpr auto kFunction = Builtin::kNonNumberToNumeric;
+    using arguments_t = std::tuple<V<JSAnyNotNumber>>;
+    using results_t = std::tuple<V<Numeric>>;
+
+    static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = true;
     static constexpr Operator::Properties kProperties = Operator::kNoProperties;
     static constexpr OpEffects kEffects = base_effects.CanCallAnything();

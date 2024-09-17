@@ -641,7 +641,6 @@ class Cord {
     bool operator==(const CharIterator& other) const;
     bool operator!=(const CharIterator& other) const;
     reference operator*() const;
-    pointer operator->() const;
 
     friend Cord;
 
@@ -772,7 +771,7 @@ class Cord {
 
   // Cord::Find()
   //
-  // Returns an iterator to the first occurrance of the substring `needle`.
+  // Returns an iterator to the first occurrence of the substring `needle`.
   //
   // If the substring `needle` does not occur, `Cord::char_end()` is returned.
   CharIterator Find(absl::string_view needle) const;
@@ -1657,10 +1656,6 @@ inline bool Cord::CharIterator::operator!=(const CharIterator& other) const {
 
 inline Cord::CharIterator::reference Cord::CharIterator::operator*() const {
   return *chunk_iterator_->data();
-}
-
-inline Cord::CharIterator::pointer Cord::CharIterator::operator->() const {
-  return chunk_iterator_->data();
 }
 
 inline Cord Cord::AdvanceAndRead(absl::Nonnull<CharIterator*> it,

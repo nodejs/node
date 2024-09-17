@@ -326,14 +326,16 @@ class MergeDeserializedCodeTest : public DeserializeTest {
   // The source code used in these tests.
   static constexpr char kSourceCode[] = R"(
     // Looks like an IIFE but isn't, to get eagerly parsed:
-    var eager = (function () {
-      // Actual IIFE, also eagerly parsed:
-      return (function iife() {
-        return 42;
-      })();
-    });
-    // Lazily parsed:
-    var lazy = function () { return eager(); };
+    { let captured = 10;
+      var eager = (function () {
+        // Actual IIFE, also eagerly parsed:
+        return (function iife() {
+          return captured, 42;
+        })();
+      });
+      // Lazily parsed:
+      var lazy = function () { return eager(); };
+    }
   )";
 
   // Objects from the Script's object graph whose lifetimes and connectedness
@@ -389,7 +391,7 @@ class MergeDeserializedCodeTest : public DeserializeTest {
 
   static i::Tagged<i::Object> ExtractSharedFunctionInfoData(
       i::Tagged<i::SharedFunctionInfo> sfi, i::Isolate* i_isolate) {
-    i::Tagged<i::Object> data = sfi->GetData(i_isolate);
+    i::Tagged<i::Object> data = sfi->GetTrustedData(i_isolate);
     // BytecodeArrays live in trusted space and so cannot be referenced through
     // tagged/compressed pointers from e.g. a FixedArray. Instead, we need to
     // use their in-sandbox wrapper object for that purpose.
@@ -413,7 +415,7 @@ class MergeDeserializedCodeTest : public DeserializeTest {
                WeakOrSmi(toplevel_sfi->feedback_metadata()));
     i::Tagged<i::Script> script = i::Cast<i::Script>(toplevel_sfi->script());
     array->set(kScript, WeakOrSmi(script));
-    i::Tagged<i::WeakFixedArray> sfis = script->shared_function_infos();
+    i::Tagged<i::WeakFixedArray> sfis = script->infos();
     CHECK_EQ(sfis->length(), 4);
     CHECK_EQ(sfis->get(0), WeakOrSmi(toplevel_sfi));
     i::Tagged<i::SharedFunctionInfo> eager =
@@ -964,7 +966,7 @@ TEST_F(MergeDeserializedCodeTest, MergeThatStartsButDoesNotFinish) {
   // actually finish its merge; the others will abandon their in-progress merges
   // and instead use the result from the first script since it will be in the
   // Isolate compilation cache.
-  i::Handle<i::SharedFunctionInfo> first_script_sfi;
+  i::IndirectHandle<i::SharedFunctionInfo> first_script_sfi;
   for (int i = 0; i < kSimultaneousScripts; ++i) {
     ScriptCompiler::Source source(NewString(kSourceCode), default_origin,
                                   cached_data[i].release(), tasks[i].release());

@@ -185,7 +185,7 @@ TEST_F(ConcurrentFeedbackVectorTest, CheckLoadICStates) {
       Cast<JSFunction>(Utils::OpenDirectHandle(*result));
   Handle<FeedbackVector> vector(function->feedback_vector(), i_isolate());
   FeedbackSlot slot(0);
-  FeedbackNexus nexus(vector, slot);
+  FeedbackNexus nexus(i_isolate(), vector, slot);
   EXPECT_TRUE(IsLoadICKind(nexus.kind()));
   EXPECT_EQ(InlineCacheState::MONOMORPHIC, nexus.ic_state());
   nexus.ConfigureUninitialized();

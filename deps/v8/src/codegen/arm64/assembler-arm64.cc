@@ -130,6 +130,9 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   if (cpu.has_pmull1q()) {
     runtime |= 1u << PMULL1Q;
   }
+  if (cpu.has_fp16()) {
+    runtime |= 1u << FP16;
+  }
 
   // Use the best of the features found by CPU detection and those inferred from
   // the build system.

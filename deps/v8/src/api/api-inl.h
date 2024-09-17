@@ -18,18 +18,21 @@
 namespace v8 {
 
 template <typename T, internal::ExternalPointerTag tag>
-inline T ToCData(v8::internal::Tagged<v8::internal::Object> obj) {
+inline T ToCData(i::Isolate* isolate,
+                 v8::internal::Tagged<v8::internal::Object> obj) {
   static_assert(sizeof(T) == sizeof(v8::internal::Address));
   if (obj == v8::internal::Smi::zero()) return nullptr;
   return reinterpret_cast<T>(
-      v8::internal::Cast<v8::internal::Foreign>(obj)->foreign_address<tag>());
+      v8::internal::Cast<v8::internal::Foreign>(obj)->foreign_address<tag>(
+          isolate));
 }
 
 template <internal::ExternalPointerTag tag>
 inline v8::internal::Address ToCData(
-    v8::internal::Tagged<v8::internal::Object> obj) {
+    i::Isolate* isolate, v8::internal::Tagged<v8::internal::Object> obj) {
   if (obj == v8::internal::Smi::zero()) return v8::internal::kNullAddress;
-  return v8::internal::Cast<v8::internal::Foreign>(obj)->foreign_address<tag>();
+  return v8::internal::Cast<v8::internal::Foreign>(obj)->foreign_address<tag>(
+      isolate);
 }
 
 template <internal::ExternalPointerTag tag, typename T>
@@ -51,66 +54,51 @@ inline v8::internal::Handle<i::UnionOf<i::Smi, i::Foreign>> FromCData(
 }
 
 template <class From, class To>
-inline Local<To> Utils::Convert(v8::internal::Handle<From> obj) {
-  DCHECK(obj.is_null() || (IsSmi(*obj) || !IsTheHole(*obj)));
-#ifdef V8_ENABLE_DIRECT_LOCAL
+inline Local<To> Utils::Convert(v8::internal::DirectHandle<From> obj) {
+  DCHECK(obj.is_null() || IsSmi(*obj) || !IsTheHole(*obj));
+#ifdef V8_ENABLE_DIRECT_HANDLE
   if (obj.is_null()) return Local<To>();
-#endif
-  return Local<To>::FromSlot(obj.location());
-}
-
-template <class From, class To>
-inline Local<To> Utils::Convert(v8::internal::DirectHandle<From> obj,
-                                v8::internal::Isolate* isolate) {
-#if defined(V8_ENABLE_DIRECT_LOCAL)
-  DCHECK(obj.is_null() || (IsSmi(*obj) || !IsTheHole(*obj)));
   return Local<To>::FromAddress(obj.address());
-#elif defined(V8_ENABLE_DIRECT_HANDLE)
-  if (obj.is_null()) return Local<To>();
-  return Convert<From, To>(v8::internal::Handle<From>(*obj, isolate));
 #else
-  return Convert<From, To>(obj);
+  return Local<To>::FromSlot(obj.location());
 #endif
 }
 
 // Implementations of ToLocal
 
-#define MAKE_TO_LOCAL(Name, From, To)                                       \
-  Local<v8::To> Utils::Name(v8::internal::Handle<v8::internal::From> obj) { \
-    return Convert<v8::internal::From, v8::To>(obj);                        \
-  }                                                                         \
-                                                                            \
-  Local<v8::To> Utils::Name(                                                \
-      v8::internal::DirectHandle<v8::internal::From> obj,                   \
-      i::Isolate* isolate) {                                                \
-    return Convert<v8::internal::From, v8::To>(obj, isolate);               \
+#define MAKE_TO_LOCAL(Name)                                                  \
+  template <template <typename T> typename HandleType, typename T, typename> \
+  inline auto Utils::Name(HandleType<T> obj) {                               \
+    return Utils::Name##_helper(v8::internal::DirectHandle<T>(obj));         \
   }
 
-TO_LOCAL_LIST(MAKE_TO_LOCAL)
+TO_LOCAL_NAME_LIST(MAKE_TO_LOCAL)
 
-#define MAKE_TO_LOCAL_TYPED_ARRAY(Type, typeName, TYPE, ctype)                 \
-  Local<v8::Type##Array> Utils::ToLocal##Type##Array(                          \
-      v8::internal::Handle<v8::internal::JSTypedArray> obj) {                  \
-    DCHECK(obj->type() == v8::internal::kExternal##Type##Array);               \
-    return Convert<v8::internal::JSTypedArray, v8::Type##Array>(obj);          \
-  }                                                                            \
-                                                                               \
-  Local<v8::Type##Array> Utils::ToLocal##Type##Array(                          \
-      v8::internal::DirectHandle<v8::internal::JSTypedArray> obj,              \
-      v8::internal::Isolate* isolate) {                                        \
-    DCHECK(obj->type() == v8::internal::kExternal##Type##Array);               \
-    return Convert<v8::internal::JSTypedArray, v8::Type##Array>(obj, isolate); \
+#define MAKE_TO_LOCAL_PRIVATE(Name, From, To)               \
+  inline Local<v8::To> Utils::Name##_helper(                \
+      v8::internal::DirectHandle<v8::internal::From> obj) { \
+    return Convert<v8::internal::From, v8::To>(obj);        \
+  }
+
+TO_LOCAL_LIST(MAKE_TO_LOCAL_PRIVATE)
+
+#define MAKE_TO_LOCAL_TYPED_ARRAY(Type, typeName, TYPE, ctype)        \
+  Local<v8::Type##Array> Utils::ToLocal##Type##Array(                 \
+      v8::internal::DirectHandle<v8::internal::JSTypedArray> obj) {   \
+    DCHECK(obj->type() == v8::internal::kExternal##Type##Array);      \
+    return Convert<v8::internal::JSTypedArray, v8::Type##Array>(obj); \
   }
 
 TYPED_ARRAYS(MAKE_TO_LOCAL_TYPED_ARRAY)
 
 #undef MAKE_TO_LOCAL_TYPED_ARRAY
 #undef MAKE_TO_LOCAL
+#undef MAKE_TO_LOCAL_PRIVATE
 #undef TO_LOCAL_LIST
 
 // Implementations of OpenHandle
 
-#ifdef V8_ENABLE_DIRECT_LOCAL
+#ifdef V8_ENABLE_DIRECT_HANDLE
 
 #define MAKE_OPEN_HANDLE(From, To)                                           \
   v8::internal::Handle<v8::internal::To> Utils::OpenHandle(                  \
@@ -142,7 +130,7 @@ TYPED_ARRAYS(MAKE_TO_LOCAL_TYPED_ARRAY)
     return Utils::OpenHandle(that, allow_empty_handle);                      \
   }
 
-#else  // !V8_ENABLE_DIRECT_LOCAL
+#else  // !V8_ENABLE_DIRECT_HANDLE
 
 #define MAKE_OPEN_HANDLE(From, To)                                           \
   v8::internal::Handle<v8::internal::To> Utils::OpenHandle(                  \
@@ -166,7 +154,7 @@ TYPED_ARRAYS(MAKE_TO_LOCAL_TYPED_ARRAY)
     return Utils::OpenHandle(that, allow_empty_handle);                      \
   }
 
-#endif  // V8_ENABLE_DIRECT_LOCAL
+#endif  // V8_ENABLE_DIRECT_HANDLE
 
 OPEN_HANDLE_LIST(MAKE_OPEN_HANDLE)
 
@@ -186,7 +174,8 @@ class V8_NODISCARD CallDepthScope {
   }
   ~CallDepthScope() {
     i::MicrotaskQueue* microtask_queue =
-        i::Cast<i::NativeContext>(isolate_->context())->microtask_queue();
+        i::Cast<i::NativeContext>(isolate_->context())
+            ->microtask_queue(isolate_);
 
     isolate_->thread_local_top()->DecrementCallDepth(this);
     // Clear the exception when exiting V8 to avoid memory leaks.
@@ -251,7 +240,7 @@ class V8_NODISCARD InternalEscapableScope : public EscapableHandleScopeBase {
    */
   template <class T>
   V8_INLINE Local<T> Escape(Local<T> value) {
-#ifdef V8_ENABLE_DIRECT_LOCAL
+#ifdef V8_ENABLE_DIRECT_HANDLE
     return value;
 #else
     DCHECK(!value.IsEmpty());

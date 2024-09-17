@@ -33,6 +33,9 @@ class DebugFeatureLoweringReducer : public Next {
           __ CallBuiltin_DebugPrintFloat64(isolate_, __ NoContextConstant(),
                                            input);
           break;
+        case RegisterRepresentation::Tagged():
+          __ CallRuntime_DebugPrint(isolate_, input);
+          break;
         default:
           // TODO(nicohartmann@): Support other representations.
           UNIMPLEMENTED();

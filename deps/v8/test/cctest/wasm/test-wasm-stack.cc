@@ -213,7 +213,7 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_WasmUrl) {
   DirectHandle<FixedArray> stack_trace_object =
       isolate->GetSimpleStackTrace(Cast<JSReceiver>(exception));
   CHECK_NE(0, stack_trace_object->length());
-  Handle<CallSiteInfo> stack_frame(
+  DirectHandle<CallSiteInfo> stack_frame(
       Cast<CallSiteInfo>(stack_trace_object->get(0)), isolate);
 
   MaybeHandle<String> maybe_stack_trace_str =

@@ -3905,10 +3905,7 @@ void Simulator::DecodeTypeOp17() {
                    FPURegisters::Name(fd_reg()), fd_float(),
                    FPURegisters::Name(fj_reg()), fj_float(),
                    FPURegisters::Name(fk_reg()), fk_float());
-      SetFPUFloatResult(
-          fd_reg(),
-          FPUCanonalizeOperation([](float lhs, float rhs) { return lhs - rhs; },
-                                 fj_float(), fk_float()));
+      SetFPUFloatResult(fd_reg(), fj_float() - fk_float());
       break;
     }
     case FSUB_D: {
@@ -3916,10 +3913,7 @@ void Simulator::DecodeTypeOp17() {
                    FPURegisters::Name(fd_reg()), fd_double(),
                    FPURegisters::Name(fj_reg()), fj_double(),
                    FPURegisters::Name(fk_reg()), fk_double());
-      SetFPUDoubleResult(fd_reg(),
-                         FPUCanonalizeOperation(
-                             [](double lhs, double rhs) { return lhs - rhs; },
-                             fj_double(), fk_double()));
+      SetFPUDoubleResult(fd_reg(), fj_double() - fk_double());
       break;
     }
     case FMUL_S: {

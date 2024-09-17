@@ -5,8 +5,10 @@
 #ifndef V8_OBJECTS_TEMPLATES_H_
 #define V8_OBJECTS_TEMPLATES_H_
 
+#include <optional>
 #include <string_view>
 
+#include "include/v8-exception.h"
 #include "include/v8-memory-span.h"
 #include "src/handles/handles.h"
 #include "src/objects/contexts.h"
@@ -216,12 +218,12 @@ class FunctionTemplateInfo
   bool HasInstanceType();
 
   // Helper function for cached accessors.
-  static base::Optional<Tagged<Name>> TryGetCachedPropertyName(
+  static std::optional<Tagged<Name>> TryGetCachedPropertyName(
       Isolate* isolate, Tagged<Object> getter);
   // Fast API overloads.
   int GetCFunctionsCount() const;
-  Address GetCFunction(int index) const;
-  const CFunctionInfo* GetCSignature(int index) const;
+  Address GetCFunction(Isolate* isolate, int index) const;
+  const CFunctionInfo* GetCSignature(Isolate* isolate, int index) const;
 
   // CFunction data for a set of overloads is stored into a FixedArray, as
   // [address_0, signature_0, ... address_n-1, signature_n-1].

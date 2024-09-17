@@ -153,8 +153,9 @@ TF_BUILTIN(TypedArrayPrototypeByteLength, TypedArrayBuiltinsAssembler) {
   {
     // Default to zero if the {receiver}s buffer was detached.
     TNode<UintPtrT> byte_length = Select<UintPtrT>(
-        IsDetachedBuffer(receiver_buffer), [=] { return UintPtrConstant(0); },
-        [=] { return LoadJSArrayBufferViewByteLength(receiver_array); });
+        IsDetachedBuffer(receiver_buffer),
+        [=, this] { return UintPtrConstant(0); },
+        [=, this] { return LoadJSArrayBufferViewByteLength(receiver_array); });
     Return(ChangeUintPtrToTagged(byte_length));
   }
 }

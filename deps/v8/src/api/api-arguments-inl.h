@@ -166,7 +166,7 @@ Handle<Object> PropertyCallbackArguments::CallNamedQuery(
   slot_at(kReturnValueIndex).store(Smi::FromInt(v8::None));
   NamedPropertyQueryCallback f =
       ToCData<NamedPropertyQueryCallback, kApiNamedPropertyQueryCallbackTag>(
-          interceptor->query());
+          isolate, interceptor->query());
   PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Integer, interceptor,
                                     ExceptionContext::kNamedQuery);
   v8::Intercepted intercepted = f(v8::Utils::ToLocal(name), callback_info);
@@ -183,7 +183,7 @@ Handle<JSAny> PropertyCallbackArguments::CallNamedGetter(
   slot_at(kReturnValueIndex).store(ReadOnlyRoots(isolate).undefined_value());
   NamedPropertyGetterCallback f =
       ToCData<NamedPropertyGetterCallback, kApiNamedPropertyGetterCallbackTag>(
-          interceptor->getter());
+          isolate, interceptor->getter());
   PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Value, interceptor,
                                     ExceptionContext::kNamedGetter);
   v8::Intercepted intercepted = f(v8::Utils::ToLocal(name), callback_info);
@@ -201,7 +201,7 @@ Handle<JSAny> PropertyCallbackArguments::CallNamedDescriptor(
   NamedPropertyDescriptorCallback f =
       ToCData<NamedPropertyDescriptorCallback,
               kApiNamedPropertyDescriptorCallbackTag>(
-          interceptor->descriptor());
+          isolate, interceptor->descriptor());
   PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Value, interceptor,
                                     ExceptionContext::kNamedDescriptor);
   v8::Intercepted intercepted = f(v8::Utils::ToLocal(name), callback_info);
@@ -219,7 +219,7 @@ v8::Intercepted PropertyCallbackArguments::CallNamedSetter(
   slot_at(kReturnValueIndex).store(ReadOnlyRoots(isolate).true_value());
   NamedPropertySetterCallback f =
       ToCData<NamedPropertySetterCallback, kApiNamedPropertySetterCallbackTag>(
-          interceptor->setter());
+          isolate, interceptor->setter());
   Handle<InterceptorInfo> has_side_effects;
   PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, void, has_side_effects,
                                     ExceptionContext::kNamedSetter);
@@ -236,9 +236,9 @@ v8::Intercepted PropertyCallbackArguments::CallNamedDefiner(
   RCS_SCOPE(isolate, RuntimeCallCounterId::kNamedDefinerCallback);
   slot_at(kPropertyKeyIndex).store(*name);
   slot_at(kReturnValueIndex).store(ReadOnlyRoots(isolate).true_value());
-  NamedPropertyDefinerCallback f =
-      ToCData<NamedPropertyDefinerCallback,
-              kApiNamedPropertyDefinerCallbackTag>(interceptor->definer());
+  NamedPropertyDefinerCallback f = ToCData<NamedPropertyDefinerCallback,
+                                           kApiNamedPropertyDefinerCallbackTag>(
+      isolate, interceptor->definer());
   Handle<InterceptorInfo> has_side_effects;
   PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, void, has_side_effects,
                                     ExceptionContext::kNamedDefiner);
@@ -254,9 +254,9 @@ v8::Intercepted PropertyCallbackArguments::CallNamedDeleter(
   RCS_SCOPE(isolate, RuntimeCallCounterId::kNamedDeleterCallback);
   slot_at(kPropertyKeyIndex).store(*name);
   slot_at(kReturnValueIndex).store(ReadOnlyRoots(isolate).true_value());
-  NamedPropertyDeleterCallback f =
-      ToCData<NamedPropertyDeleterCallback,
-              kApiNamedPropertyDeleterCallbackTag>(interceptor->deleter());
+  NamedPropertyDeleterCallback f = ToCData<NamedPropertyDeleterCallback,
+                                           kApiNamedPropertyDeleterCallbackTag>(
+      isolate, interceptor->deleter());
   Handle<InterceptorInfo> has_side_effects;
   PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Boolean, has_side_effects,
                                     ExceptionContext::kNamedDeleter);
@@ -285,7 +285,8 @@ Handle<Object> PropertyCallbackArguments::CallIndexedQuery(
   slot_at(kReturnValueIndex).store(Smi::FromInt(v8::None));
   IndexedPropertyQueryCallbackV2 f =
       ToCData<IndexedPropertyQueryCallbackV2,
-              kApiIndexedPropertyQueryCallbackTag>(interceptor->query());
+              kApiIndexedPropertyQueryCallbackTag>(isolate,
+                                                   interceptor->query());
   PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Integer, interceptor,
                                     ExceptionContext::kIndexedQuery);
   v8::Intercepted intercepted = f(index, callback_info);
@@ -303,7 +304,8 @@ Handle<JSAny> PropertyCallbackArguments::CallIndexedGetter(
   slot_at(kReturnValueIndex).store(ReadOnlyRoots(isolate).undefined_value());
   IndexedPropertyGetterCallbackV2 f =
       ToCData<IndexedPropertyGetterCallbackV2,
-              kApiIndexedPropertyGetterCallbackTag>(interceptor->getter());
+              kApiIndexedPropertyGetterCallbackTag>(isolate,
+                                                    interceptor->getter());
   PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Value, interceptor,
                                     ExceptionContext::kIndexedGetter);
   v8::Intercepted intercepted = f(index, callback_info);
@@ -322,7 +324,7 @@ Handle<JSAny> PropertyCallbackArguments::CallIndexedDescriptor(
   IndexedPropertyDescriptorCallbackV2 f =
       ToCData<IndexedPropertyDescriptorCallbackV2,
               kApiIndexedPropertyDescriptorCallbackTag>(
-          interceptor->descriptor());
+          isolate, interceptor->descriptor());
   PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Value, interceptor,
                                     ExceptionContext::kIndexedDescriptor);
   v8::Intercepted intercepted = f(index, callback_info);
@@ -341,7 +343,8 @@ v8::Intercepted PropertyCallbackArguments::CallIndexedSetter(
   slot_at(kReturnValueIndex).store(ReadOnlyRoots(isolate).true_value());
   IndexedPropertySetterCallbackV2 f =
       ToCData<IndexedPropertySetterCallbackV2,
-              kApiIndexedPropertySetterCallbackTag>(interceptor->setter());
+              kApiIndexedPropertySetterCallbackTag>(isolate,
+                                                    interceptor->setter());
   Handle<InterceptorInfo> has_side_effects;
   PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, void, has_side_effects,
                                     ExceptionContext::kIndexedSetter);
@@ -361,7 +364,8 @@ v8::Intercepted PropertyCallbackArguments::CallIndexedDefiner(
   slot_at(kReturnValueIndex).store(ReadOnlyRoots(isolate).true_value());
   IndexedPropertyDefinerCallbackV2 f =
       ToCData<IndexedPropertyDefinerCallbackV2,
-              kApiIndexedPropertyDefinerCallbackTag>(interceptor->definer());
+              kApiIndexedPropertyDefinerCallbackTag>(isolate,
+                                                     interceptor->definer());
   Handle<InterceptorInfo> has_side_effects;
   PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, void, has_side_effects,
                                     ExceptionContext::kIndexedDefiner);
@@ -379,7 +383,8 @@ v8::Intercepted PropertyCallbackArguments::CallIndexedDeleter(
   slot_at(kReturnValueIndex).store(ReadOnlyRoots(isolate).true_value());
   IndexedPropertyDeleterCallbackV2 f =
       ToCData<IndexedPropertyDeleterCallbackV2,
-              kApiIndexedPropertyDeleterCallbackTag>(interceptor->deleter());
+              kApiIndexedPropertyDeleterCallbackTag>(isolate,
+                                                     interceptor->deleter());
   PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Boolean, interceptor,
                                     ExceptionContext::kIndexedDeleter);
   v8::Intercepted intercepted = f(index, callback_info);
@@ -401,7 +406,7 @@ Handle<JSObjectOrUndefined> PropertyCallbackArguments::CallPropertyEnumerator(
   IndexedPropertyEnumeratorCallback f =
       v8::ToCData<IndexedPropertyEnumeratorCallback,
                   kApiIndexedPropertyEnumeratorCallbackTag>(
-          interceptor->enumerator());
+          isolate, interceptor->enumerator());
   PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Array, interceptor,
                                     ExceptionContext::kNamedEnumerator);
   f(callback_info);
@@ -470,7 +475,7 @@ bool PropertyCallbackArguments::CallAccessorSetter(
   // v8::AccessorNameSetterCallback or AccessorNameBooleanSetterCallback
   // the result is guaranteed to be v8::Boolean value indicating success or
   // failure.
-  Handle<Boolean> result = GetReturnValue<Boolean>(isolate);
+  DirectHandle<Boolean> result = GetReturnValue<Boolean>(isolate);
   return IsTrue(*result, isolate);
 }
 

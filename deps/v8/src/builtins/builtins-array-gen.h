@@ -5,6 +5,8 @@
 #ifndef V8_BUILTINS_BUILTINS_ARRAY_GEN_H_
 #define V8_BUILTINS_BUILTINS_ARRAY_GEN_H_
 
+#include <optional>
+
 #include "src/codegen/code-factory.h"  // for enum AllocationSiteOverrideMode
 #include "src/codegen/code-stub-assembler.h"
 
@@ -76,17 +78,17 @@ class ArrayBuiltinsAssembler : public CodeStubAssembler {
   void GenerateDispatchToArrayStub(
       TNode<Context> context, TNode<JSFunction> target, TNode<Int32T> argc,
       AllocationSiteOverrideMode mode,
-      base::Optional<TNode<AllocationSite>> allocation_site = base::nullopt);
+      std::optional<TNode<AllocationSite>> allocation_site = std::nullopt);
 
   void CreateArrayDispatchNoArgument(
       TNode<Context> context, TNode<JSFunction> target, TNode<Int32T> argc,
       AllocationSiteOverrideMode mode,
-      base::Optional<TNode<AllocationSite>> allocation_site);
+      std::optional<TNode<AllocationSite>> allocation_site);
 
   void CreateArrayDispatchSingleArgument(
       TNode<Context> context, TNode<JSFunction> target, TNode<Int32T> argc,
       AllocationSiteOverrideMode mode,
-      base::Optional<TNode<AllocationSite>> allocation_site);
+      std::optional<TNode<AllocationSite>> allocation_site);
 
   void GenerateConstructor(TNode<Context> context,
                            TNode<HeapObject> array_function,

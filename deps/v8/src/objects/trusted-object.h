@@ -50,8 +50,8 @@ class TrustedObject : public HeapObject {
   inline void WriteProtectedPointerField(int offset,
                                          Tagged<TrustedObject> value,
                                          ReleaseStoreTag);
-  inline bool IsProtectedPointerFieldCleared(int offset) const;
-  inline bool IsProtectedPointerFieldCleared(int offset, AcquireLoadTag) const;
+  inline bool IsProtectedPointerFieldEmpty(int offset) const;
+  inline bool IsProtectedPointerFieldEmpty(int offset, AcquireLoadTag) const;
   inline void ClearProtectedPointerField(int offset);
   inline void ClearProtectedPointerField(int offset, ReleaseStoreTag);
 

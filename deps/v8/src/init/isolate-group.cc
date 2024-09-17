@@ -185,6 +185,8 @@ IsolateGroup* IsolateGroup::New() {
 #endif
 
   CHECK_NOT_NULL(group->page_allocator_);
+  ExternalReferenceTable::InitializeOncePerIsolateGroup(
+      group->external_ref_table());
   return group;
 }
 

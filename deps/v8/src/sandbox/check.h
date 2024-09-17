@@ -27,7 +27,7 @@
 // will be inherently racy. If sandbox hardware support is enabled, we'll block
 // these accesses temporarily in debug builds.
 #define BLOCK_SANDBOX_ACCESS_IN_DEBUG_MODE \
-  auto block_access = SandboxHardwareSupport::MaybeBlockAccess()
+  auto block_access = v8::internal::SandboxHardwareSupport::MaybeBlockAccess()
 #else
 #define BLOCK_SANDBOX_ACCESS_IN_DEBUG_MODE
 #endif

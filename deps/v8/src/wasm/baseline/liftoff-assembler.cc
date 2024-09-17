@@ -4,9 +4,9 @@
 
 #include "src/wasm/baseline/liftoff-assembler.h"
 
+#include <optional>
 #include <sstream>
 
-#include "src/base/optional.h"
 #include "src/base/platform/memory.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler-inl.h"
@@ -41,7 +41,7 @@ class RegisterReuseMap {
     map_.emplace_back(dst);
   }
 
-  base::Optional<LiftoffRegister> Lookup(LiftoffRegister src) {
+  std::optional<LiftoffRegister> Lookup(LiftoffRegister src) {
     for (auto it = map_.begin(), end = map_.end(); it != end; it += 2) {
       if (it->is_gp_pair() == src.is_gp_pair() &&
           it->is_fp_pair() == src.is_fp_pair() && *it == src)
@@ -108,7 +108,7 @@ void InitMergeRegion(LiftoffAssembler::CacheState* target_state,
       DCHECK(!new_stack_offset);
       continue;
     }
-    base::Optional<LiftoffRegister> reg;
+    std::optional<LiftoffRegister> reg;
     bool needs_reg_transfer = true;
     if (allow_registers) {
       // First try: Keep the same register, if it's free.

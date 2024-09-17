@@ -17,10 +17,14 @@ class ValueLocationConstraintProcessor {
  public:
   void PreProcessGraph(Graph* graph) {}
   void PostProcessGraph(Graph* graph) {}
-  void PreProcessBasicBlock(BasicBlock* block) {}
+  BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
+    return BlockProcessResult::kContinue;
+  }
+  void PostPhiProcessing() {}
 
 #define DEF_PROCESS_NODE(NAME)                                      \
   ProcessResult Process(NAME* node, const ProcessingState& state) { \
+    node->InitTemporaries();                                        \
     node->SetValueLocationConstraints();                            \
     return ProcessResult::kContinue;                                \
   }
@@ -32,7 +36,10 @@ class DecompressedUseMarkingProcessor {
  public:
   void PreProcessGraph(Graph* graph) {}
   void PostProcessGraph(Graph* graph) {}
-  void PreProcessBasicBlock(BasicBlock* block) {}
+  BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
+    return BlockProcessResult::kContinue;
+  }
+  void PostPhiProcessing() {}
 
   template <typename NodeT>
   ProcessResult Process(NodeT* node, const ProcessingState& state) {
@@ -50,7 +57,10 @@ class MaxCallDepthProcessor {
     graph->set_max_call_stack_args(max_call_stack_args_);
     graph->set_max_deopted_stack_size(max_deopted_stack_size_);
   }
-  void PreProcessBasicBlock(BasicBlock* block) {}
+  BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
+    return BlockProcessResult::kContinue;
+  }
+  void PostPhiProcessing() {}
 
   template <typename NodeT>
   ProcessResult Process(NodeT* node, const ProcessingState& state) {
@@ -137,13 +147,15 @@ class LiveRangeAndNextUseProcessor {
 
   void PreProcessGraph(Graph* graph) {}
   void PostProcessGraph(Graph* graph) { DCHECK(loop_used_nodes_.empty()); }
-  void PreProcessBasicBlock(BasicBlock* block) {
-    if (!block->has_state()) return;
+  BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
+    if (!block->has_state()) return BlockProcessResult::kContinue;
     if (block->state()->is_loop()) {
       loop_used_nodes_.push_back(
           LoopUsedNodes{{}, kInvalidNodeId, kInvalidNodeId, block});
     }
+    return BlockProcessResult::kContinue;
   }
+  void PostPhiProcessing() {}
 
   template <typename NodeT>
   ProcessResult Process(NodeT* node, const ProcessingState& state) {

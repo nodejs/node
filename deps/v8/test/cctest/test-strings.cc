@@ -1339,6 +1339,7 @@ class OneByteVectorResource : public v8::String::ExternalOneByteStringResource {
 
 TEST(InternalizeExternal) {
   v8_flags.stress_incremental_marking = false;
+  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   i::Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -1505,7 +1506,7 @@ TEST(SliceFromSlice) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Value> result;
-  Handle<String> string;
+  DirectHandle<String> string;
   const char* init = "var str = 'abcdefghijklmnopqrstuvwxyz';";
   const char* slice = "var slice = ''; slice = str.slice(1,-1); slice";
   const char* slice_from_slice = "slice.slice(1,-1);";
@@ -1513,14 +1514,14 @@ TEST(SliceFromSlice) {
   CompileRun(init);
   result = CompileRun(slice);
   CHECK(result->IsString());
-  string = v8::Utils::OpenHandle(v8::String::Cast(*result));
+  string = v8::Utils::OpenDirectHandle(v8::String::Cast(*result));
   CHECK(IsSlicedString(*string));
   CHECK(IsSeqString(Cast<SlicedString>(*string)->parent()));
   CHECK_EQ(0, strcmp("bcdefghijklmnopqrstuvwxy", string->ToCString().get()));
 
   result = CompileRun(slice_from_slice);
   CHECK(result->IsString());
-  string = v8::Utils::OpenHandle(v8::String::Cast(*result));
+  string = v8::Utils::OpenDirectHandle(v8::String::Cast(*result));
   CHECK(IsSlicedString(*string));
   CHECK(IsSeqString(Cast<SlicedString>(*string)->parent()));
   CHECK_EQ(0, strcmp("cdefghijklmnopqrstuvwx", string->ToCString().get()));

@@ -87,7 +87,7 @@ class FastApiCallLoweringReducer : public Next {
         // If this check fails, you've probably added new fields to
         // v8::FastApiCallbackOptions, which means you'll need to write code
         // that initializes and reads from them too.
-        static_assert(kSize == sizeof(uintptr_t) * 4);
+        static_assert(kSize == sizeof(uintptr_t) * 2);
         stack_slot = __ StackSlot(kSize, kAlign);
 
         // isolate
@@ -96,19 +96,11 @@ class FastApiCallLoweringReducer : public Next {
             __ ExternalConstant(ExternalReference::isolate_address()),
             MemoryRepresentation::UintPtr(),
             offsetof(v8::FastApiCallbackOptions, isolate));
-        // fallback = 0
-        __ StoreOffHeap(stack_slot, __ Word32Constant(0),
-                        MemoryRepresentation::Int32(),
-                        offsetof(v8::FastApiCallbackOptions, fallback));
         // data = data_argument
         OpIndex data_argument_to_pass = __ AdaptLocalArgument(data_argument);
         __ StoreOffHeap(stack_slot, data_argument_to_pass,
                         MemoryRepresentation::UintPtr(),
                         offsetof(v8::FastApiCallbackOptions, data));
-        // wasm_memory = 0
-        __ StoreOffHeap(stack_slot, __ IntPtrConstant(0),
-                        MemoryRepresentation::UintPtr(),
-                        offsetof(v8::FastApiCallbackOptions, wasm_memory));
 
         args.push_back(stack_slot);
         builder.AddParam(MachineType::Pointer());
@@ -136,13 +128,6 @@ class FastApiCallLoweringReducer : public Next {
       V<Object> fast_call_result =
           ConvertReturnValue(c_signature, c_call_result);
 
-      if (c_signature->HasOptions()) {
-        DCHECK(stack_slot.valid());
-        V<Word32> error = __ LoadOffHeap(
-            stack_slot, offsetof(v8::FastApiCallbackOptions, fallback),
-            MemoryRepresentation::Int32());
-        GOTO_IF(error, handle_error);
-      }
       GOTO(done, FastApiCallOp::kSuccessValue, fast_call_result);
       BIND(trigger_exception);
       __ template CallRuntime<

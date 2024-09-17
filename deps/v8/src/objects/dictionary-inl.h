@@ -5,7 +5,8 @@
 #ifndef V8_OBJECTS_DICTIONARY_INL_H_
 #define V8_OBJECTS_DICTIONARY_INL_H_
 
-#include "src/base/optional.h"
+#include <optional>
+
 #include "src/execution/isolate-utils-inl.h"
 #include "src/numbers/hash-seed-inl.h"
 #include "src/objects/dictionary.h"
@@ -17,8 +18,7 @@
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 template <typename Derived, typename Shape>
 Dictionary<Derived, Shape>::Dictionary(Address ptr)
@@ -53,7 +53,7 @@ Tagged<Object> Dictionary<Derived, Shape>::ValueAt(PtrComprCageBase cage_base,
 }
 
 template <typename Derived, typename Shape>
-base::Optional<Tagged<Object>> Dictionary<Derived, Shape>::TryValueAt(
+std::optional<Tagged<Object>> Dictionary<Derived, Shape>::TryValueAt(
     InternalIndex entry) {
 #if DEBUG
   Isolate* isolate;
@@ -405,8 +405,7 @@ void GlobalDictionaryShape::DetailsAtPut(Tagged<Dictionary> dict,
   dict->CellAt(entry)->UpdatePropertyDetailsExceptCellType(value);
 }
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #include "src/objects/object-macros-undef.h"
 

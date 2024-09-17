@@ -6,6 +6,8 @@
 #ifndef V8_COMPILER_PIPELINE_DATA_INL_H_
 #define V8_COMPILER_PIPELINE_DATA_INL_H_
 
+#include <optional>
+
 #include "src/builtins/profile-data-reader.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/optimized-compilation-info.h"
@@ -492,7 +494,7 @@ class TFPipelineData {
     assembler_options_.is_wasm =
         this->info()->IsWasm() || this->info()->IsWasmBuiltin();
 #endif
-    base::Optional<OsrHelper> osr_helper;
+    std::optional<OsrHelper> osr_helper;
     if (osr_helper_) osr_helper = *osr_helper_;
     code_generator_ = new CodeGenerator(
         codegen_zone(), frame(), linkage, sequence(), info(), isolate(),

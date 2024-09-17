@@ -622,16 +622,6 @@ void Deserializer<IsolateT>::PostProcessNewObject(DirectHandle<Map> map,
                                                        nullptr);
   } else if (InstanceTypeChecker::IsScript(instance_type)) {
     LogScriptEvents(Cast<Script>(*obj));
-  } else if (InstanceTypeChecker::IsFeedbackCell(instance_type)) {
-#ifdef V8_ENABLE_LEAPTIERING
-    // This is only needed for some serializer tests. Normally we will only see
-    // JSFunctions referencing the ManyClosuresCell here, which always has a
-    // null dispatch handle.
-    // For now it's fine to just clear the handle here. In the future, we may
-    // have to correctly copy the entry here, or when deserializing the
-    // corresponding JSFunction.
-    Cast<FeedbackCell>(raw_obj)->clear_dispatch_handle();
-#endif  // V8_ENABLE_LEAPTIERING
   }
 }
 

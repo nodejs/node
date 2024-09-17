@@ -4,6 +4,8 @@
 
 #include "src/compiler/wasm-compiler-definitions.h"
 
+#include <optional>
+
 #include "src/base/strings.h"
 #include "src/compiler/linkage.h"
 #include "src/wasm/compilation-environment.h"
@@ -16,7 +18,7 @@ base::Vector<const char> GetDebugName(Zone* zone,
                                       const wasm::WasmModule* module,
                                       const wasm::WireBytesStorage* wire_bytes,
                                       int index) {
-  base::Optional<wasm::ModuleWireBytes> module_bytes =
+  std::optional<wasm::ModuleWireBytes> module_bytes =
       wire_bytes->GetModuleBytes();
   if (module_bytes.has_value() &&
       (v8_flags.trace_turbo || v8_flags.trace_turbo_scheduled ||

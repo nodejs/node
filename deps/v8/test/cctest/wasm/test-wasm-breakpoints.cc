@@ -147,8 +147,8 @@ Handle<BreakPoint> SetBreakpoint(WasmRunnerBase* runner, int function_index,
   if (expected_set_byte_offset == -1) expected_set_byte_offset = byte_offset;
   DirectHandle<WasmInstanceObject> instance =
       runner->builder().instance_object();
-  Handle<Script> script(instance->module_object()->script(),
-                        runner->main_isolate());
+  DirectHandle<Script> script(instance->module_object()->script(),
+                              runner->main_isolate());
   static int break_index = 0;
   Handle<BreakPoint> break_point =
       runner->main_isolate()->factory()->NewBreakPoint(

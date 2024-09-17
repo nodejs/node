@@ -204,7 +204,7 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
     PrototypeIterator iter(isolate, Cast<JSObject>(object), kStartAtReceiver);
     if (iter.HasAccess()) {
       iter.Advance();
-      Handle<Object> prototype = PrototypeIterator::GetCurrent(iter);
+      DirectHandle<Object> prototype = PrototypeIterator::GetCurrent(iter);
       if (!iter.IsAtEnd() && iter.HasAccess() && IsJSGlobalProxy(*object)) {
         // Skip JSGlobalObject as the [[Prototype]].
         DCHECK(IsJSGlobalObject(*prototype));
@@ -510,7 +510,7 @@ RUNTIME_FUNCTION(Runtime_DebugGetLoadedScriptIds) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
 
-  Handle<FixedArray> instances;
+  DirectHandle<FixedArray> instances;
   {
     DebugScope debug_scope(isolate->debug());
     // Fill the script objects.
@@ -572,7 +572,8 @@ int ScriptLinePosition(DirectHandle<Script> script, int line) {
   return Smi::ToInt(line_ends_array->get(line - 1)) + 1;
 }
 
-int ScriptLinePositionWithOffset(Handle<Script> script, int line, int offset) {
+int ScriptLinePositionWithOffset(DirectHandle<Script> script, int line,
+                                 int offset) {
   if (line < 0 || offset < 0) return -1;
 
   if (line == 0 || offset == 0)
@@ -588,7 +589,7 @@ int ScriptLinePositionWithOffset(Handle<Script> script, int line, int offset) {
   return ScriptLinePosition(script, total_line);
 }
 
-Handle<Object> GetJSPositionInfo(Handle<Script> script, int position,
+Handle<Object> GetJSPositionInfo(DirectHandle<Script> script, int position,
                                  Script::OffsetFlag offset_flag,
                                  Isolate* isolate) {
   Script::PositionInfo info;
@@ -601,7 +602,7 @@ Handle<Object> GetJSPositionInfo(Handle<Script> script, int position,
 #else
   const bool is_wasm_script = false;
 #endif  // V8_ENABLE_WEBASSEMBLY
-  Handle<String> sourceText =
+  DirectHandle<String> sourceText =
       is_wasm_script ? isolate->factory()->empty_string()
                      : isolate->factory()->NewSubString(
                            handle(Cast<String>(script->source()), isolate),
@@ -625,7 +626,8 @@ Handle<Object> GetJSPositionInfo(Handle<Script> script, int position,
   return jsinfo;
 }
 
-Handle<Object> ScriptLocationFromLine(Isolate* isolate, Handle<Script> script,
+Handle<Object> ScriptLocationFromLine(Isolate* isolate,
+                                      DirectHandle<Script> script,
                                       DirectHandle<Object> opt_line,
                                       DirectHandle<Object> opt_column,
                                       int32_t offset) {

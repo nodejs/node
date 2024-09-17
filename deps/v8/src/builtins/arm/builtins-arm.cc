@@ -175,7 +175,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   __ ldr(r4, FieldMemOperand(r4, SharedFunctionInfo::kFlagsOffset));
   __ DecodeField<SharedFunctionInfo::FunctionKindBits>(r4);
   __ JumpIfIsInRange(
-      r4, static_cast<uint32_t>(FunctionKind::kDefaultDerivedConstructor),
+      r4, r4, static_cast<uint32_t>(FunctionKind::kDefaultDerivedConstructor),
       static_cast<uint32_t>(FunctionKind::kDerivedConstructor),
       &not_create_implicit_receiver);
 
@@ -304,33 +304,38 @@ static void AssertCodeIsBaseline(MacroAssembler* masm, Register code,
   __ Assert(eq, AbortReason::kExpectedBaselineData);
 }
 
-static void GetSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
-                                                    Register sfi_data,
-                                                    Register scratch1,
-                                                    Label* is_baseline) {
+static void GetSharedFunctionInfoBytecodeOrBaseline(
+    MacroAssembler* masm, Register sfi, Register bytecode, Register scratch1,
+    Label* is_baseline, Label* is_unavailable) {
   ASM_CODE_COMMENT(masm);
   Label done;
-  __ LoadMap(scratch1, sfi_data);
+
+  Register data = bytecode;
+  __ ldr(data,
+         FieldMemOperand(sfi, SharedFunctionInfo::kTrustedFunctionDataOffset));
+
+  __ LoadMap(scratch1, data);
+  __ ldrh(scratch1, FieldMemOperand(scratch1, Map::kInstanceTypeOffset));
 
 #ifndef V8_JITLESS
-  __ CompareInstanceType(scratch1, scratch1, CODE_TYPE);
+  __ cmp(scratch1, Operand(CODE_TYPE));
   if (v8_flags.debug_code) {
     Label not_baseline;
     __ b(ne, &not_baseline);
-    AssertCodeIsBaseline(masm, sfi_data, scratch1);
+    AssertCodeIsBaseline(masm, data, scratch1);
     __ b(eq, is_baseline);
     __ bind(&not_baseline);
   } else {
     __ b(eq, is_baseline);
   }
-  __ cmp(scratch1, Operand(INTERPRETER_DATA_TYPE));
-#else
-  __ CompareInstanceType(scratch1, scratch1, INTERPRETER_DATA_TYPE);
 #endif  // !V8_JITLESS
 
-  __ b(ne, &done);
-  __ ldr(sfi_data,
-         FieldMemOperand(sfi_data, InterpreterData::kBytecodeArrayOffset));
+  __ cmp(scratch1, Operand(BYTECODE_ARRAY_TYPE));
+  __ b(eq, &done);
+
+  __ cmp(scratch1, Operand(INTERPRETER_DATA_TYPE));
+  __ b(ne, is_unavailable);
+  __ ldr(data, FieldMemOperand(data, InterpreterData::kBytecodeArrayOffset));
 
   __ bind(&done);
 }
@@ -415,13 +420,20 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
 
   // Underlying function needs to have bytecode available.
   if (v8_flags.debug_code) {
-    Label is_baseline;
+    Label is_baseline, is_unavailable, ok;
     __ ldr(r3, FieldMemOperand(r4, JSFunction::kSharedFunctionInfoOffset));
-    __ ldr(r3, FieldMemOperand(r3, SharedFunctionInfo::kFunctionDataOffset));
-    GetSharedFunctionInfoBytecodeOrBaseline(masm, r3, r0, &is_baseline);
-    __ CompareObjectType(r3, r3, r3, BYTECODE_ARRAY_TYPE);
-    __ Assert(eq, AbortReason::kMissingBytecodeArray);
+    GetSharedFunctionInfoBytecodeOrBaseline(masm, r3, r3, r0, &is_baseline,
+                                            &is_unavailable);
+    __ jmp(&ok);
+
+    __ bind(&is_unavailable);
+    __ Abort(AbortReason::kMissingBytecodeArray);
+
     __ bind(&is_baseline);
+    __ CompareObjectType(r3, r3, r3, CODE_TYPE);
+    __ Assert(eq, AbortReason::kMissingBytecodeArray);
+
+    __ bind(&ok);
   }
 
   // Resume (Ignition/TurboFan) generator object.
@@ -1119,19 +1131,13 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   // kInterpreterBytecodeArrayRegister.
   __ ldr(r4, FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
   ResetSharedFunctionInfoAge(masm, r4, r8);
-  __ ldr(kInterpreterBytecodeArrayRegister,
-         FieldMemOperand(r4, SharedFunctionInfo::kFunctionDataOffset));
-
-  Label is_baseline;
-  GetSharedFunctionInfoBytecodeOrBaseline(
-      masm, kInterpreterBytecodeArrayRegister, r8, &is_baseline);
 
   // The bytecode array could have been flushed from the shared function info,
   // if so, call into CompileLazy.
-  Label compile_lazy;
-  __ CompareObjectType(kInterpreterBytecodeArrayRegister, r4, no_reg,
-                       BYTECODE_ARRAY_TYPE);
-  __ b(ne, &compile_lazy);
+  Label is_baseline, compile_lazy;
+  GetSharedFunctionInfoBytecodeOrBaseline(masm, r4,
+                                          kInterpreterBytecodeArrayRegister, r8,
+                                          &is_baseline, &compile_lazy);
 
   Label push_stack_frame;
   Register feedback_vector = r2;
@@ -1611,7 +1617,7 @@ void Builtins::Generate_InterpreterPushArgsThenFastConstructFunction(
   Label not_create_implicit_receiver;
   __ DecodeField<SharedFunctionInfo::FunctionKindBits>(r2);
   __ JumpIfIsInRange(
-      r2, static_cast<uint32_t>(FunctionKind::kDefaultDerivedConstructor),
+      r2, r2, static_cast<uint32_t>(FunctionKind::kDefaultDerivedConstructor),
       static_cast<uint32_t>(FunctionKind::kDerivedConstructor),
       &not_create_implicit_receiver);
   NewImplicitReceiver(masm);
@@ -1706,7 +1712,8 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   // trampoline.
   __ ldr(r2, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
   __ ldr(r2, FieldMemOperand(r2, JSFunction::kSharedFunctionInfoOffset));
-  __ ldr(r2, FieldMemOperand(r2, SharedFunctionInfo::kFunctionDataOffset));
+  __ ldr(r2,
+         FieldMemOperand(r2, SharedFunctionInfo::kTrustedFunctionDataOffset));
   __ CompareObjectType(r2, kInterpreterDispatchTableRegister,
                        kInterpreterDispatchTableRegister,
                        INTERPRETER_DATA_TYPE);
@@ -2579,12 +2586,13 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   Register target = r1;
   Register map = r4;
   Register instance_type = r5;
+  Register scratch = r6;
   DCHECK(!AreAliased(r0, target, map, instance_type));
 
   Label non_callable, class_constructor;
   __ JumpIfSmi(target, &non_callable);
   __ LoadMap(map, target);
-  __ CompareInstanceTypeRange(map, instance_type,
+  __ CompareInstanceTypeRange(map, instance_type, scratch,
                               FIRST_CALLABLE_JS_FUNCTION_TYPE,
                               LAST_CALLABLE_JS_FUNCTION_TYPE);
   __ TailCallBuiltin(Builtins::CallFunction(mode), ls);
@@ -2704,7 +2712,8 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   Register target = r1;
   Register map = r4;
   Register instance_type = r5;
-  DCHECK(!AreAliased(r0, target, map, instance_type));
+  Register scratch = r6;
+  DCHECK(!AreAliased(r0, target, map, instance_type, scratch));
 
   // Check if target is a Smi.
   Label non_constructor, non_proxy;
@@ -2721,8 +2730,8 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   }
 
   // Dispatch based on instance type.
-  __ CompareInstanceTypeRange(map, instance_type, FIRST_JS_FUNCTION_TYPE,
-                              LAST_JS_FUNCTION_TYPE);
+  __ CompareInstanceTypeRange(map, instance_type, scratch,
+                              FIRST_JS_FUNCTION_TYPE, LAST_JS_FUNCTION_TYPE);
   __ TailCallBuiltin(Builtin::kConstructFunction, ls);
 
   // Only dispatch to bound functions after checking whether they are
@@ -3231,7 +3240,7 @@ class RegisterAllocator {
 
 #define FREE_REG(Name) regs.Free(&Name);
 
-// Loads the context field of the WasmTrustedInstanceData or WasmApiFunctionRef
+// Loads the context field of the WasmTrustedInstanceData or WasmImportData
 // depending on the ref's type, and places the result in the input register.
 void GetContextFromRef(MacroAssembler* masm, Register ref, Register scratch) {
   __ LoadTaggedField(scratch, FieldMemOperand(ref, HeapObject::kMapOffset));
@@ -3240,7 +3249,7 @@ void GetContextFromRef(MacroAssembler* masm, Register ref, Register scratch) {
   Label end;
   __ b(eq, &instance);
   __ LoadTaggedField(
-      ref, FieldMemOperand(ref, WasmApiFunctionRef::kNativeContextOffset));
+      ref, FieldMemOperand(ref, WasmImportData::kNativeContextOffset));
   __ jmp(&end);
   __ bind(&instance);
   __ LoadTaggedField(
@@ -3409,7 +3418,7 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   DEFINE_REG(resume_data);
   __ LoadTaggedField(
       resume_data,
-      FieldMemOperand(sfi, SharedFunctionInfo::kFunctionDataOffset));
+      FieldMemOperand(sfi, SharedFunctionInfo::kUntrustedFunctionDataOffset));
   __ LoadTaggedField(
       suspender,
       FieldMemOperand(resume_data, WasmResumeData::kSuspenderOffset));
@@ -4016,12 +4025,11 @@ void SwitchFromTheCentralStackIfNeeded(MacroAssembler* masm) {
 }  // namespace
 
 void Builtins::Generate_WasmToOnHeapWasmToJsTrampoline(MacroAssembler* masm) {
-  // Load the code pointer from the WasmApiFunctionRef and tail-call there.
-  Register api_function_ref = wasm::kGpParamRegisters[0];
+  // Load the code pointer from the WasmImportData and tail-call there.
+  Register import_data = wasm::kGpParamRegisters[0];
   UseScratchRegisterScope temps{masm};
   Register scratch = temps.Acquire();
-  __ Move(scratch,
-          FieldMemOperand(api_function_ref, WasmApiFunctionRef::kCodeOffset));
+  __ Move(scratch, FieldMemOperand(import_data, WasmImportData::kCodeOffset));
   __ Move(scratch, FieldMemOperand(scratch, Code::kInstructionStartOffset));
   __ Jump(scratch);
 }
@@ -4513,7 +4521,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   DCHECK(!AreAliased(api_function_address, property_callback_info_arg, name_arg,
                      callback, scratch));
 
-#ifdef V8_ENABLE_DIRECT_LOCAL
+#ifdef V8_ENABLE_DIRECT_HANDLE
   // name_arg = Local<Name>(name), name value was pushed to GC-ed stack space.
   // |name_arg| is already initialized above.
 #else
@@ -4852,7 +4860,8 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   }
 
   __ ldr(code_obj,
-         FieldMemOperand(code_obj, SharedFunctionInfo::kFunctionDataOffset));
+         FieldMemOperand(code_obj,
+                         SharedFunctionInfo::kTrustedFunctionDataOffset));
 
   // Check if we have baseline code. For OSR entry it is safe to assume we
   // always have baseline code.

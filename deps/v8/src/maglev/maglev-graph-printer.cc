@@ -313,7 +313,8 @@ void MaglevPrintingVisitor::PreProcessGraph(Graph* graph) {
                      [](BasicBlock* block) { return block == nullptr; }));
 }
 
-void MaglevPrintingVisitor::PreProcessBasicBlock(BasicBlock* block) {
+BlockProcessResult MaglevPrintingVisitor::PreProcessBasicBlock(
+    BasicBlock* block) {
   size_t loop_position = static_cast<size_t>(-1);
   if (loop_headers_.erase(block) > 0) {
     loop_position = AddTarget(targets_, block);
@@ -370,6 +371,7 @@ void MaglevPrintingVisitor::PreProcessBasicBlock(BasicBlock* block) {
   os_ << "\n";
 
   MaglevPrintingVisitorOstream::cast(os_for_additional_info_)->set_padding(1);
+  return BlockProcessResult::kContinue;
 }
 
 namespace {
@@ -759,6 +761,9 @@ ProcessResult MaglevPrintingVisitor::Process(Phi* phi,
     case ValueRepresentation::kIntPtr:
       UNREACHABLE();
   }
+  if (phi->uses_require_31_bit_value()) {
+    os_ << "ⁱ";
+  }
   if (phi->input_count() == 0) {
     os_ << "ₑ " << (phi->owner().is_valid() ? phi->owner().ToString() : "VO");
   } else {
@@ -935,6 +940,9 @@ ProcessResult MaglevPrintingVisitor::Process(ControlNode* control_node,
             break;
           case ValueRepresentation::kIntPtr:
             UNREACHABLE();
+        }
+        if (phi->uses_require_31_bit_value()) {
+          os_ << "ⁱ";
         }
         os_ << " " << (phi->owner().is_valid() ? phi->owner().ToString() : "VO")
             << " " << phi->result().operand() << "\n";

@@ -6,6 +6,7 @@
 
 #include <atomic>
 #include <memory>
+#include <optional>
 
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
@@ -109,7 +110,7 @@ LogFile::MessageBuilder::MessageBuilder(LogFile* log)
     : log_(log), lock_guard_(&log_->mutex_) {}
 
 void LogFile::MessageBuilder::AppendString(Tagged<String> str,
-                                           base::Optional<int> length_limit) {
+                                           std::optional<int> length_limit) {
   if (str.is_null()) return;
 
   DisallowGarbageCollection no_gc;  // Ensure string stays valid.

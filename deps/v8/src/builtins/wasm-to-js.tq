@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 namespace runtime {
-extern runtime TierUpWasmToJSWrapper(NoContext, WasmApiFunctionRef): JSAny;
+extern runtime TierUpWasmToJSWrapper(NoContext, WasmImportData): JSAny;
 extern runtime WasmThrowJSTypeError(Context): never;
 }  // namespace runtime
 
@@ -51,9 +51,9 @@ macro HandleF32Returns(
 }
 
 @export
-transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
+transitioning macro WasmToJSWrapper(ref: WasmImportData): WasmToJSResult {
   const oldSP = SwitchToTheCentralStackIfNeeded();
-  dcheck(Is<WasmApiFunctionRef>(ref));
+  dcheck(Is<WasmImportData>(ref));
   // Spill the signature on the stack so that it can be read by the GC. This is
   // done in the very beginning before a GC could be triggered.
   // Caller FP + return address.

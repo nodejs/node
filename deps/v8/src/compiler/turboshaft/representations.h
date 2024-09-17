@@ -754,6 +754,7 @@ class MemoryRepresentation {
       case Uint64():
         return MachineType::Uint64();
       case Float16():
+        return MachineType::Float16();
       case Float32():
         return MachineType::Float32();
       case Float64():

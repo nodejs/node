@@ -38,7 +38,7 @@ TNode<NativeContext> WasmBuiltinsAssembler::LoadContextFromWasmOrJsFrame() {
   TNode<Uint16T> instance_type =
       LoadMapInstanceType(LoadMap(function_or_instance));
   GotoIf(IsJSFunctionInstanceType(instance_type), &js);
-  GotoIf(Word32Equal(instance_type, Int32Constant(WASM_API_FUNCTION_REF_TYPE)),
+  GotoIf(Word32Equal(instance_type, Int32Constant(WASM_IMPORT_DATA_TYPE)),
          &apifunc);
   context_result = LoadContextFromInstanceData(CAST(function_or_instance));
   Goto(&done);
@@ -51,9 +51,9 @@ TNode<NativeContext> WasmBuiltinsAssembler::LoadContextFromWasmOrJsFrame() {
   Goto(&done);
 
   BIND(&apifunc);
-  TNode<WasmApiFunctionRef> apiref = CAST(function_or_instance);
+  TNode<WasmImportData> apiref = CAST(function_or_instance);
   context_result = LoadObjectField<NativeContext>(
-      apiref, WasmApiFunctionRef::kNativeContextOffset);
+      apiref, WasmImportData::kNativeContextOffset);
   Goto(&done);
 
   BIND(&done);
@@ -161,16 +161,16 @@ TF_BUILTIN(JSToWasmLazyDeoptContinuation, WasmBuiltinsAssembler) {
 
 TF_BUILTIN(WasmToJsWrapperCSA, WasmBuiltinsAssembler) {
   TorqueStructWasmToJSResult result = WasmToJSWrapper(
-      UncheckedParameter<WasmApiFunctionRef>(Descriptor::kWasmApiFunctionRef));
+      UncheckedParameter<WasmImportData>(Descriptor::kWasmImportData));
   PopAndReturn(result.popCount, result.result0, result.result1, result.result2,
                result.result3);
 }
 
 TF_BUILTIN(WasmToJsWrapperInvalidSig, WasmBuiltinsAssembler) {
-  TNode<WasmApiFunctionRef> ref =
-      UncheckedParameter<WasmApiFunctionRef>(Descriptor::kWasmApiFunctionRef);
+  TNode<WasmImportData> ref =
+      UncheckedParameter<WasmImportData>(Descriptor::kWasmImportData);
   TNode<Context> context =
-      LoadObjectField<Context>(ref, WasmApiFunctionRef::kNativeContextOffset);
+      LoadObjectField<Context>(ref, WasmImportData::kNativeContextOffset);
 
   CallRuntime(Runtime::kWasmThrowJSTypeError, context);
   Unreachable();

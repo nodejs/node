@@ -926,7 +926,7 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 // https://llvm.org/docs/CompileCudaWithLLVM.html#detecting-clang-vs-nvcc-from-code
 #ifdef ABSL_INTERNAL_HAVE_ARM_NEON
 #error ABSL_INTERNAL_HAVE_ARM_NEON cannot be directly set
-#elif defined(__ARM_NEON) && !defined(__CUDA_ARCH__)
+#elif defined(__ARM_NEON) && !(defined(__NVCC__) && defined(__CUDACC__))
 #define ABSL_INTERNAL_HAVE_ARM_NEON 1
 #endif
 

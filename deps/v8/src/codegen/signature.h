@@ -6,7 +6,7 @@
 #define V8_CODEGEN_SIGNATURE_H_
 
 #include "src/base/functional.h"
-#include "src/base/iterator.h"
+#include "src/base/vector.h"
 #include "src/codegen/machine-type.h"
 #include "src/sandbox/check.h"
 #include "src/zone/zone.h"
@@ -49,14 +49,12 @@ class Signature : public ZoneObject {
   }
 
   // Iteration support.
-  base::iterator_range<const T*> parameters() const {
-    return {reps_ + return_count_, reps_ + return_count_ + parameter_count_};
+  base::Vector<const T> parameters() const {
+    return {reps_ + return_count_, parameter_count_};
   }
-  base::iterator_range<const T*> returns() const {
-    return {reps_, reps_ + return_count_};
-  }
-  base::iterator_range<const T*> all() const {
-    return {reps_, reps_ + return_count_ + parameter_count_};
+  base::Vector<const T> returns() const { return {reps_, return_count_}; }
+  base::Vector<const T> all() const {
+    return {reps_, return_count_ + parameter_count_};
   }
 
   bool operator==(const Signature& other) const {

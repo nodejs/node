@@ -305,6 +305,19 @@ ClassLiteralProperty::ClassLiteralProperty(Expression* key, Expression* value,
       is_private_(is_private),
       private_or_computed_name_proxy_(nullptr) {}
 
+ClassLiteralProperty::ClassLiteralProperty(Expression* key, Expression* value,
+                                           AutoAccessorInfo* info,
+                                           bool is_static,
+                                           bool is_computed_name,
+                                           bool is_private)
+    : LiteralProperty(key, value, is_computed_name),
+      kind_(Kind::AUTO_ACCESSOR),
+      is_static_(is_static),
+      is_private_(is_private),
+      auto_accessor_info_(info) {
+  DCHECK_NOT_NULL(info);
+}
+
 bool ObjectLiteral::Property::IsCompileTimeValue() const {
   return kind_ == CONSTANT ||
          (kind_ == MATERIALIZED_LITERAL && value_->IsCompileTimeValue());

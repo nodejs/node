@@ -589,7 +589,7 @@ MaybeHandle<JSArray> JSLocale::GetHourCycles(Isolate* isolate,
   if (U_FAILURE(status)) {
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
   }
-  Handle<String> hour_cycle;
+  DirectHandle<String> hour_cycle;
 
   switch (hc) {
     case UDAT_HOUR_CYCLE_11:

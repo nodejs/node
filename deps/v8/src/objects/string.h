@@ -6,6 +6,7 @@
 #define V8_OBJECTS_STRING_H_
 
 #include <memory>
+#include <optional>
 
 #include "src/base/bits.h"
 #include "src/base/export-template.h"
@@ -24,8 +25,7 @@
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 namespace maglev {
 class CheckedInternalizedString;
@@ -35,7 +35,7 @@ class BuiltinStringFromCharCode;
 namespace wasm {
 namespace baseline {
 class LiftoffCompiler;
-}
+}  // namespace baseline
 }  // namespace wasm
 
 class SharedStringAccessGuardIfNeeded;
@@ -642,7 +642,7 @@ V8_OBJECT class String : public Name {
   V8_EXPORT_PRIVATE static Handle<String> SlowFlatten(
       Isolate* isolate, Handle<ConsString> cons, AllocationType allocation);
 
-  V8_EXPORT_PRIVATE V8_INLINE static base::Optional<FlatContent>
+  V8_EXPORT_PRIVATE V8_INLINE static std::optional<FlatContent>
   TryGetFlatContentFromDirectString(const DisallowGarbageCollection& no_gc,
                                     Tagged<String> string, int offset,
                                     int length,
@@ -755,8 +755,7 @@ class SeqString : public String {
   EXPORT_DECL_VERIFIER(SeqString)
 };
 
-V8_OBJECT class InternalizedString : public String{
-
+V8_OBJECT class InternalizedString : public String {
   // TODO(neis): Possibly move some stuff from String here.
 } V8_OBJECT_END;
 
@@ -1292,8 +1291,7 @@ struct CharTraits<uint16_t> {
   using ExternalString = ExternalTwoByteString;
 };
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #include "src/objects/object-macros-undef.h"
 

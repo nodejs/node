@@ -5,6 +5,8 @@
 #ifndef V8_OBJECTS_SMI_H_
 #define V8_OBJECTS_SMI_H_
 
+#include <type_traits>
+
 #include "src/common/globals.h"
 #include "src/objects/tagged.h"
 
@@ -60,9 +62,17 @@ class Smi : public AllStatic {
   }
 
   // Returns whether value can be represented in a Smi.
-  static inline bool constexpr IsValid(intptr_t value) {
+  template <typename T>
+  static inline std::enable_if_t<std::is_integral_v<T> && std::is_signed_v<T>,
+                                 bool> constexpr IsValid(T value) {
     DCHECK_EQ(Internals::IsValidSmi(value),
               value >= kMinValue && value <= kMaxValue);
+    return Internals::IsValidSmi(value);
+  }
+  template <typename T>
+  static inline std::enable_if_t<std::is_integral_v<T> && std::is_unsigned_v<T>,
+                                 bool> constexpr IsValid(T value) {
+    DCHECK_EQ(Internals::IsValidSmi(value), value <= kMaxValue);
     return Internals::IsValidSmi(value);
   }
 

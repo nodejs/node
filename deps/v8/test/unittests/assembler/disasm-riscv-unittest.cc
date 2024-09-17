@@ -271,6 +271,16 @@ TEST_F(DisasmRiscvTest, CSR) {
 
   VERIFY_RUN();
 }
+
+TEST_F(DisasmRiscvTest, ZICOND) {
+  SET_UP();
+
+  COMPARE(czero_eqz(a0, s1, t3), "0fc4d533       czero.eqz a0, s1, t3");
+  COMPARE(czero_nez(s3, a1, t1), "0e65f9b3       czero.nez s3, a1, t1");
+
+  VERIFY_RUN();
+}
+
 #ifdef V8_TARGET_ARCH_RISCV64
 TEST_F(DisasmRiscvTest, RV64I) {
   SET_UP();
