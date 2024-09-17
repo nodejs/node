@@ -176,18 +176,18 @@ class InterpreterLoadGlobalAssembler : public InterpreterAssembler {
     TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
 
     AccessorAssembler accessor_asm(state());
-    ExitPoint exit_point(this, [=](TNode<Object> result) {
+    ExitPoint exit_point(this, [=, this](TNode<Object> result) {
       SetAccumulator(result);
       Dispatch();
     });
 
-    LazyNode<TaggedIndex> lazy_slot = [=] {
+    LazyNode<TaggedIndex> lazy_slot = [=, this] {
       return BytecodeOperandIdxTaggedIndex(slot_operand_index);
     };
 
-    LazyNode<Context> lazy_context = [=] { return GetContext(); };
+    LazyNode<Context> lazy_context = [=, this] { return GetContext(); };
 
-    LazyNode<Name> lazy_name = [=] {
+    LazyNode<Name> lazy_name = [=, this] {
       TNode<Name> name =
           CAST(LoadConstantPoolEntryAtOperandIndex(name_operand_index));
       return name;
@@ -549,13 +549,13 @@ IGNITION_HANDLER(GetNamedProperty, InterpreterAssembler) {
   TNode<Object> recv = LoadRegisterAtOperandIndex(0);
 
   // Load the name and context lazily.
-  LazyNode<TaggedIndex> lazy_slot = [=] {
+  LazyNode<TaggedIndex> lazy_slot = [=, this] {
     return BytecodeOperandIdxTaggedIndex(2);
   };
-  LazyNode<Name> lazy_name = [=] {
+  LazyNode<Name> lazy_name = [=, this] {
     return CAST(LoadConstantPoolEntryAtOperandIndex(1));
   };
-  LazyNode<Context> lazy_context = [=] { return GetContext(); };
+  LazyNode<Context> lazy_context = [=, this] { return GetContext(); };
 
   Label done(this);
   TVARIABLE(Object, var_result);
@@ -620,8 +620,7 @@ IGNITION_HANDLER(GetKeyedProperty, InterpreterAssembler) {
 IGNITION_HANDLER(GetEnumeratedKeyedProperty, InterpreterAssembler) {
   TNode<Object> object = LoadRegisterAtOperandIndex(0);
   TNode<Object> name = GetAccumulator();
-  TNode<TaggedIndex> enum_index =
-      SmiToTaggedIndex(CAST(LoadRegisterAtOperandIndex(1)));
+  TNode<Smi> enum_index = CAST(LoadRegisterAtOperandIndex(1));
   TNode<Object> cache_type = LoadRegisterAtOperandIndex(2);
   TNode<TaggedIndex> slot = BytecodeOperandIdxTaggedIndex(3);
   TNode<HeapObject> feedback_vector = LoadFeedbackVector();
@@ -1434,7 +1433,7 @@ class InterpreterJSCallAssembler : public InterpreterAssembler {
 
 #ifndef V8_JITLESS
     // Collect the {function} feedback.
-    LazyNode<Object> receiver = [=] {
+    LazyNode<Object> receiver = [=, this] {
       return receiver_mode == ConvertReceiverMode::kNullOrUndefined
                  ? UndefinedConstant()
                  : LoadRegisterAtOperandIndex(1);
@@ -1463,7 +1462,7 @@ class InterpreterJSCallAssembler : public InterpreterAssembler {
 
 #ifndef V8_JITLESS
     // Collect the {function} feedback.
-    LazyNode<Object> receiver = [=] {
+    LazyNode<Object> receiver = [=, this] {
       return receiver_mode == ConvertReceiverMode::kNullOrUndefined
                  ? UndefinedConstant()
                  : LoadRegisterAtOperandIndex(1);
@@ -1695,23 +1694,28 @@ class InterpreterCompareOpAssembler : public InterpreterAssembler {
     TNode<Context> context = GetContext();
 
     TVARIABLE(Smi, var_type_feedback);
+    TVARIABLE(Object, var_exception);
+    Label if_exception(this, Label::kDeferred);
     TNode<Boolean> result;
-    switch (compare_op) {
-      case Operation::kEqual:
-        result = Equal(lhs, rhs, context, &var_type_feedback);
-        break;
-      case Operation::kStrictEqual:
-        result = StrictEqual(lhs, rhs, &var_type_feedback);
-        break;
-      case Operation::kLessThan:
-      case Operation::kGreaterThan:
-      case Operation::kLessThanOrEqual:
-      case Operation::kGreaterThanOrEqual:
-        result = RelationalComparison(compare_op, lhs, rhs, context,
-                                      &var_type_feedback);
-        break;
-      default:
-        UNREACHABLE();
+    {
+      ScopedExceptionHandler handler(this, &if_exception, &var_exception);
+      switch (compare_op) {
+        case Operation::kEqual:
+          result = Equal(lhs, rhs, context, &var_type_feedback);
+          break;
+        case Operation::kStrictEqual:
+          result = StrictEqual(lhs, rhs, &var_type_feedback);
+          break;
+        case Operation::kLessThan:
+        case Operation::kGreaterThan:
+        case Operation::kLessThanOrEqual:
+        case Operation::kGreaterThanOrEqual:
+          result = RelationalComparison(compare_op, lhs, rhs, context,
+                                        &var_type_feedback);
+          break;
+        default:
+          UNREACHABLE();
+      }
     }
 
     TNode<UintPtrT> slot_index = BytecodeOperandIdx(1);
@@ -1722,6 +1726,17 @@ class InterpreterCompareOpAssembler : public InterpreterAssembler {
                    mode);
     SetAccumulator(result);
     Dispatch();
+
+    BIND(&if_exception);
+    {
+      TNode<UintPtrT> slot_index = BytecodeOperandIdx(1);
+      TNode<HeapObject> maybe_feedback_vector =
+          LoadFeedbackVectorOrUndefinedIfJitless();
+      UpdateFeedback(var_type_feedback.value(), maybe_feedback_vector,
+                     slot_index, mode);
+      CallRuntime(Runtime::kReThrow, context, var_exception.value());
+      Unreachable();
+    }
   }
 };
 
@@ -3128,7 +3143,7 @@ IGNITION_HANDLER(ForInNext, InterpreterAssembler) {
 // ForInStep <index>
 //
 // Increments the loop counter in register |index| and stores the result
-// in the accumulator.
+// back into the same register.
 IGNITION_HANDLER(ForInStep, InterpreterAssembler) {
   TNode<Smi> index = CAST(LoadRegisterAtOperandIndex(0));
   TNode<Smi> one = SmiConstant(1);

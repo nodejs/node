@@ -7,6 +7,7 @@
 #include <iterator>
 #include <map>
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "include/v8-callbacks.h"
@@ -1916,7 +1917,7 @@ static void AddUnwindInfo(CodeDescription* desc) {
 
 static base::LazyMutex mutex = LAZY_MUTEX_INITIALIZER;
 
-static base::Optional<std::pair<CodeMap::iterator, CodeMap::iterator>>
+static std::optional<std::pair<CodeMap::iterator, CodeMap::iterator>>
 GetOverlappingRegions(CodeMap* map, const base::AddressRegion region) {
   DCHECK_LT(region.begin(), region.end());
 

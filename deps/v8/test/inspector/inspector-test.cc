@@ -4,6 +4,7 @@
 
 #include <locale.h>
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -384,7 +385,7 @@ class UtilsExtension : public InspectorIsolateData::SetupGlobalTask {
     int context_group_id = info[0].As<v8::Int32>()->Value();
     bool is_fully_trusted =
         info.Length() == 3 || info[3].As<v8::Boolean>()->Value();
-    base::Optional<int> session_id;
+    std::optional<int> session_id;
     RunSyncTask(backend_runner_,
                 [context_group_id, &session_id, &channel, &state,
                  is_fully_trusted](InspectorIsolateData* data) {

@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <sstream>
 
 #include "src/api/api-arguments.h"
@@ -41,6 +42,9 @@
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-objects-inl.h"
+#if V8_ENABLE_DRUMBRAKE
+#include "src/wasm/interpreter/wasm-interpreter-runtime.h"
+#endif  // V8_ENABLE_DRUMBRAKE
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
@@ -73,15 +77,31 @@ class StackHandlerIterator {
   StackHandlerIterator(const StackFrame* frame, StackHandler* handler)
       : limit_(frame->fp()), handler_(handler) {
 #if V8_ENABLE_WEBASSEMBLY
+#if !V8_ENABLE_DRUMBRAKE || !USE_SIMULATOR
     // Make sure the handler has already been unwound to this frame. With stack
     // switching this is not equivalent to the inequality below, because the
     // frame and the handler could be in different stacks.
     DCHECK_IMPLIES(frame->isolate()->wasm_stacks().empty(),
                    frame->InFastCCall() || frame->sp() <= AddressOf(handler));
+#endif  // !V8_ENABLE_DRUMBRAKE || !USE_SIMULATOR
+
     // For CWasmEntry frames, the handler was registered by the last C++
     // frame (Execution::CallWasm), so even though its address is already
     // beyond the limit, we know we always want to unwind one handler.
     if (frame->is_c_wasm_entry()) handler_ = handler_->next();
+#if V8_ENABLE_DRUMBRAKE
+    // Do the same for GenericWasmToJsInterpreterWrapper frames.
+    else if (v8_flags.wasm_jitless && frame->is_wasm_to_js()) {
+      handler_ = handler_->next();
+#ifdef USE_SIMULATOR
+      // If we are running in the simulator, the handler_ address here will
+      // refer to the 'actual' stack, not to the 'simulated' stack, so we need
+      // to fix 'limit_' to make sure that the StackHandlerIterator won't skip
+      // any handler.
+      limit_ = 0;
+#endif  // USE_SIMULATOR
+    }
+#endif  // V8_ENABLE_DRUMBRAKE
 #else
     // Make sure the handler has already been unwound to this frame.
     DCHECK_LE(frame->sp(), AddressOf(handler));
@@ -97,7 +117,12 @@ class StackHandlerIterator {
   }
 
  private:
+#if V8_ENABLE_DRUMBRAKE && USE_SIMULATOR
+  Address limit_;
+#else
   const Address limit_;
+#endif  // V8_ENABLE_DRUMBRAKE && USE_SIMULATOR
+
   StackHandler* handler_;
 };
 
@@ -339,8 +364,8 @@ bool DebuggableStackFrameIterator::IsValidFrame(StackFrame* frame) {
 
 namespace {
 
-base::Optional<bool> IsInterpreterFramePc(Isolate* isolate, Address pc,
-                                          StackFrame::State* state) {
+std::optional<bool> IsInterpreterFramePc(Isolate* isolate, Address pc,
+                                         StackFrame::State* state) {
   Builtin builtin = OffHeapInstructionStream::TryLookupCode(isolate, pc);
   if (builtin != Builtin::kNoBuiltinId &&
       (builtin == Builtin::kInterpreterEntryTrampoline ||
@@ -492,7 +517,7 @@ StackFrameIteratorForProfiler::StackFrameIteratorForProfiler(
         top_location = reinterpret_cast<Address*>(sp);
       }
 
-      base::Optional<bool> is_interpreter_frame_pc =
+      std::optional<bool> is_interpreter_frame_pc =
           IsInterpreterFramePc(isolate, *top_location, &state);
       // Since we're in a signal handler, the pc lookup might not be possible
       // since the required locks are taken by the same thread.
@@ -662,8 +687,8 @@ void StackFrameIteratorForProfilerForTesting::Advance() {
 
 namespace {
 
-base::Optional<Tagged<GcSafeCode>> GetContainingCode(Isolate* isolate,
-                                                     Address pc) {
+std::optional<Tagged<GcSafeCode>> GetContainingCode(Isolate* isolate,
+                                                    Address pc) {
   return isolate->inner_pointer_to_code_cache()->GetCacheEntry(pc)->code;
 }
 
@@ -671,7 +696,7 @@ base::Optional<Tagged<GcSafeCode>> GetContainingCode(Isolate* isolate,
 
 Tagged<GcSafeCode> StackFrame::GcSafeLookupCode() const {
   const Address pc = maybe_unauthenticated_pc();
-  base::Optional<Tagged<GcSafeCode>> result = GetContainingCode(isolate(), pc);
+  std::optional<Tagged<GcSafeCode>> result = GetContainingCode(isolate(), pc);
   DCHECK_GE(pc, result.value()->InstructionStart(isolate(), pc));
   DCHECK_LT(pc, result.value()->InstructionEnd(isolate(), pc));
   return result.value();
@@ -779,6 +804,10 @@ StackFrame::Type SafeStackFrameType(StackFrame::Type candidate) {
     case StackFrame::WASM_EXIT:
     case StackFrame::WASM_LIFTOFF_SETUP:
     case StackFrame::WASM_TO_JS:
+#if V8_ENABLE_DRUMBRAKE
+    case StackFrame::C_WASM_ENTRY:
+    case StackFrame::WASM_INTERPRETER_ENTRY:
+#endif  // V8_ENABLE_DRUMBRAKE
       return candidate;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -800,7 +829,9 @@ StackFrame::Type SafeStackFrameType(StackFrame::Type candidate) {
     case StackFrame::TURBOFAN:
     case StackFrame::TURBOFAN_STUB_WITH_CONTEXT:
 #if V8_ENABLE_WEBASSEMBLY
+#if !V8_ENABLE_DRUMBRAKE
     case StackFrame::C_WASM_ENTRY:
+#endif  // !V8_ENABLE_DRUMBRAKE
     case StackFrame::WASM_TO_JS_FUNCTION:
 #endif  // V8_ENABLE_WEBASSEMBLY
       return StackFrame::NATIVE;
@@ -833,6 +864,10 @@ StackFrame::Type StackFrameIterator::ComputeStackFrameType(
         return StackFrame::WASM_EXIT;
       case wasm::WasmCode::kWasmToJsWrapper:
         return StackFrame::WASM_TO_JS;
+#if V8_ENABLE_DRUMBRAKE
+      case wasm::WasmCode::kInterpreterEntry:
+        return StackFrame::WASM_INTERPRETER_ENTRY;
+#endif  // V8_ENABLE_DRUMBRAKE
       default:
         UNREACHABLE();
     }
@@ -840,7 +875,7 @@ StackFrame::Type StackFrameIterator::ComputeStackFrameType(
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   // Look up the code object to figure out the type of the stack frame.
-  base::Optional<Tagged<GcSafeCode>> lookup_result =
+  std::optional<Tagged<GcSafeCode>> lookup_result =
       GetContainingCode(isolate(), pc);
   if (!lookup_result.has_value()) return StackFrame::NATIVE;
 
@@ -873,6 +908,12 @@ StackFrame::Type StackFrameIterator::ComputeStackFrameType(
       if (lookup_result.value()->builtin_id() == Builtin::kJSToWasmWrapperAsm) {
         return StackFrame::JS_TO_WASM;
       }
+#if V8_ENABLE_DRUMBRAKE
+      if (lookup_result.value()->builtin_id() ==
+          Builtin::kGenericJSToWasmInterpreterWrapper) {
+        return StackFrame::JS_TO_WASM;
+      }
+#endif  // V8_ENABLE_DRUMBRAKE
       return StackFrame::TURBOFAN_STUB_WITH_CONTEXT;
     case CodeKind::C_WASM_ENTRY:
       return StackFrame::C_WASM_ENTRY;
@@ -942,7 +983,7 @@ StackFrame::Type StackFrameIteratorForProfiler::ComputeStackFrameType(
     return StackFrame::NATIVE;
   }
 
-  base::Optional<bool> is_interpreter_frame =
+  std::optional<bool> is_interpreter_frame =
       IsInterpreterFramePc(isolate(), pc, state);
 
   // We might not be able to lookup the frame type since we're inside a signal
@@ -1005,6 +1046,15 @@ StackFrame::Type CWasmEntryFrame::GetCallerState(State* state) const {
   Address fp = Memory<Address>(this->fp() + offset);
   return ExitFrame::GetStateForFramePointer(fp, state);
 }
+
+#if V8_ENABLE_DRUMBRAKE
+void CWasmEntryFrame::Iterate(RootVisitor* v) const {
+  if (!v8_flags.wasm_jitless) {
+    StubFrame::Iterate(v);
+  }
+}
+#endif  // V8_ENABLE_DRUMBRAKE
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 Tagged<HeapObject> ConstructEntryFrame::unchecked_code() const {
@@ -1522,6 +1572,47 @@ MaglevSafepointEntry GetMaglevSafepointEntryFromCodeCache(
 }  // namespace
 
 #ifdef V8_ENABLE_WEBASSEMBLY
+#if V8_ENABLE_DRUMBRAKE
+// Class DrumBrakeWasmCode is an adapter class that exposes just the accessors
+// of the original WasmCode class that are used in WasmFrame::Iterate. For non
+// DrumBrake frames, the class calls the corresponding accessor in a contained
+// WasmCode object, while for DrumBrake frames it returns dummy values. This is
+// useful to minimize the merge issues in WasmFrame::Iterate.
+class DrumBrakeWasmCode {
+ public:
+  explicit DrumBrakeWasmCode(wasm::WasmCode* wasm_code)
+      : wasm_code_(wasm_code) {}
+
+  static std::unique_ptr<DrumBrakeWasmCode> Interpreted() {
+    return std::make_unique<DrumBrakeWasmCode>(nullptr);
+  }
+  static std::unique_ptr<DrumBrakeWasmCode> Compiled(
+      wasm::WasmCode* wasm_code) {
+    return std::make_unique<DrumBrakeWasmCode>(wasm_code);
+  }
+
+  bool is_liftoff() const {
+    return wasm_code_ ? wasm_code_->is_liftoff() : false;
+  }
+  bool frame_has_feedback_slot() const {
+    return wasm_code_ ? wasm_code_->frame_has_feedback_slot() : false;
+  }
+  int stack_slots() const { return wasm_code_ ? wasm_code_->stack_slots() : 0; }
+  wasm::WasmCode::Kind kind() const {
+    return wasm_code_ ? wasm_code_->kind() : wasm::WasmCode::kInterpreterEntry;
+  }
+  uint16_t first_tagged_parameter_slot() const {
+    return wasm_code_ ? wasm_code_->first_tagged_parameter_slot() : 0;
+  }
+  uint16_t num_tagged_parameter_slots() const {
+    return wasm_code_ ? wasm_code_->num_tagged_parameter_slots() : 0;
+  }
+
+ private:
+  const wasm::WasmCode* wasm_code_;
+};
+#endif  // V8_ENABLE_DRUMBRAKE
+
 void WasmFrame::Iterate(RootVisitor* v) const {
   DCHECK(!iterator_->IsStackFrameIteratorForProfiler());
 
@@ -1554,10 +1645,32 @@ void WasmFrame::Iterate(RootVisitor* v) const {
   //
   // (*) Only if compiled by Liftoff and with --experimental-wasm-inlining.
 
+#if !V8_ENABLE_DRUMBRAKE
   auto pair = wasm::GetWasmCodeManager()->LookupCodeAndSafepoint(
       isolate(), maybe_unauthenticated_pc());
   wasm::WasmCode* wasm_code = pair.first;
   SafepointEntry safepoint_entry = pair.second;
+#else   // !V8_ENABLE_DRUMBRAKE
+  std::unique_ptr<DrumBrakeWasmCode> interpreter_wasm_code;
+  SafepointEntry safepoint_entry;
+  bool is_wasm_interpreter_frame =
+      v8_flags.wasm_jitless &&
+      (type() == WASM_INTERPRETER_ENTRY || type() == C_WASM_ENTRY);
+  if (is_wasm_interpreter_frame) {
+    interpreter_wasm_code = DrumBrakeWasmCode::Interpreted();
+  } else {
+    auto pair =
+        wasm::GetWasmCodeManager()->LookupCodeAndSafepoint(isolate(), pc());
+    wasm::WasmCode* wasm_code = pair.first;
+    safepoint_entry = pair.second;
+    DCHECK(wasm_code);
+    interpreter_wasm_code = DrumBrakeWasmCode::Compiled(wasm_code);
+  }
+
+  // Reuse the same name "wasm_code" for this variable, to use the
+  // DrumBrakeWasmCode adapter and minimize merge issues in the following code.
+  DrumBrakeWasmCode* wasm_code = interpreter_wasm_code.get();
+#endif  // !V8_ENABLE_DRUMBRAKE
 
   intptr_t marker =
       Memory<intptr_t>(fp() + CommonFrameConstants::kContextOrFrameTypeOffset);
@@ -2042,7 +2155,7 @@ bool CommonFrame::HasTaggedOutgoingParams(
 }
 
 Tagged<HeapObject> TurbofanStubWithContextFrame::unchecked_code() const {
-  base::Optional<Tagged<GcSafeCode>> code_lookup =
+  std::optional<Tagged<GcSafeCode>> code_lookup =
       isolate()->heap()->GcSafeTryFindCodeForInnerPointer(pc());
   if (!code_lookup.has_value()) return {};
   return code_lookup.value();
@@ -2141,7 +2254,7 @@ void TurbofanFrame::Iterate(RootVisitor* v) const {
 }
 
 Tagged<HeapObject> StubFrame::unchecked_code() const {
-  base::Optional<Tagged<GcSafeCode>> code_lookup =
+  std::optional<Tagged<GcSafeCode>> code_lookup =
       isolate()->heap()->GcSafeTryFindCodeForInnerPointer(pc());
   if (!code_lookup.has_value()) return {};
   return code_lookup.value();
@@ -2525,7 +2638,7 @@ Handle<StackFrameInfo>
 FrameSummary::JavaScriptFrameSummary::CreateStackFrameInfo() const {
   Handle<SharedFunctionInfo> shared(function_->shared(), isolate());
   DirectHandle<Script> script(Cast<Script>(shared->script()), isolate());
-  Handle<String> function_name = JSFunction::GetDebugName(function_);
+  DirectHandle<String> function_name = JSFunction::GetDebugName(function_);
   if (function_name->length() == 0 &&
       script->compilation_type() == Script::CompilationType::kEval) {
     function_name = isolate()->factory()->eval_string();
@@ -2640,6 +2753,50 @@ FrameSummary::WasmInlinedFrameSummary::CreateStackFrameInfo() const {
                                                  function_name, false);
 }
 
+#if V8_ENABLE_DRUMBRAKE
+FrameSummary::WasmInterpretedFrameSummary::WasmInterpretedFrameSummary(
+    Isolate* isolate, Handle<WasmInstanceObject> instance,
+    uint32_t function_index, int byte_offset)
+    : FrameSummaryBase(isolate, WASM_INTERPRETED),
+      wasm_instance_(instance),
+      function_index_(function_index),
+      byte_offset_(byte_offset) {}
+
+Handle<Object> FrameSummary::WasmInterpretedFrameSummary::receiver() const {
+  return wasm_instance_->GetIsolate()->global_proxy();
+}
+
+int FrameSummary::WasmInterpretedFrameSummary::SourcePosition() const {
+  const wasm::WasmModule* module = wasm_instance()->module_object()->module();
+  return GetSourcePosition(module, function_index(), byte_offset(),
+                           false /*at_to_number_conversion*/);
+}
+
+Handle<WasmTrustedInstanceData>
+FrameSummary::WasmInterpretedFrameSummary::instance_data() const {
+  return handle(wasm_instance_->trusted_data(isolate()), isolate());
+}
+
+Handle<Script> FrameSummary::WasmInterpretedFrameSummary::script() const {
+  return handle(wasm_instance()->module_object()->script(),
+                wasm_instance()->GetIsolate());
+}
+
+Handle<Context> FrameSummary::WasmInterpretedFrameSummary::native_context()
+    const {
+  return handle(wasm_instance_->trusted_data(isolate())->native_context(),
+                isolate());
+}
+
+Handle<StackFrameInfo>
+FrameSummary::WasmInterpretedFrameSummary::CreateStackFrameInfo() const {
+  Handle<String> function_name =
+      GetWasmFunctionDebugName(isolate(), instance_data(), function_index());
+  return isolate()->factory()->NewStackFrameInfo(script(), SourcePosition(),
+                                                 function_name, false);
+}
+#endif  // V8_ENABLE_DRUMBRAKE
+
 FrameSummary::BuiltinFrameSummary::BuiltinFrameSummary(Isolate* isolate,
                                                        Builtin builtin)
     : FrameSummaryBase(isolate, FrameSummary::BUILTIN), builtin_(builtin) {}
@@ -2707,6 +2864,13 @@ FrameSummary FrameSummary::Get(const CommonFrame* frame, int index) {
 }
 
 #if V8_ENABLE_WEBASSEMBLY
+#ifdef V8_ENABLE_DRUMBRAKE
+#define CASE_WASM_INTERPRETED(name) \
+  case WASM_INTERPRETED:            \
+    return wasm_interpreted_summary_.name();
+#else  // V8_ENABLE_DRUMBRAKE
+#define CASE_WASM_INTERPRETED(name)
+#endif  // V8_ENABLE_DRUMBRAKE
 #define FRAME_SUMMARY_DISPATCH(ret, name)    \
   ret FrameSummary::name() const {           \
     switch (base_.kind()) {                  \
@@ -2718,6 +2882,7 @@ FrameSummary FrameSummary::Get(const CommonFrame* frame, int index) {
         return wasm_inlined_summary_.name(); \
       case BUILTIN:                          \
         return builtin_summary_.name();      \
+        CASE_WASM_INTERPRETED(name)          \
       default:                               \
         UNREACHABLE();                       \
     }                                        \
@@ -2740,6 +2905,7 @@ FRAME_SUMMARY_DISPATCH(int, SourceStatementPosition)
 FRAME_SUMMARY_DISPATCH(Handle<Context>, native_context)
 FRAME_SUMMARY_DISPATCH(Handle<StackFrameInfo>, CreateStackFrameInfo)
 
+#undef CASE_WASM_INTERPRETED
 #undef FRAME_SUMMARY_DISPATCH
 
 void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
@@ -2813,7 +2979,7 @@ void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
 
       // Determine the underlying code object and the position within it from
       // the translation corresponding to the frame type in question.
-      Handle<AbstractCode> abstract_code;
+      DirectHandle<AbstractCode> abstract_code;
       unsigned code_offset;
       if (it->kind() == TranslatedFrame::kJavaScriptBuiltinContinuation ||
           it->kind() ==
@@ -2825,7 +2991,7 @@ void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
         DCHECK_EQ(it->kind(), TranslatedFrame::kUnoptimizedFunction);
         code_offset = it->bytecode_offset().ToInt();
         abstract_code =
-            handle(shared_info->abstract_code(isolate()), isolate());
+            direct_handle(shared_info->abstract_code(isolate()), isolate());
       }
 
       // Append full summary of the encountered JS frame.
@@ -3098,6 +3264,16 @@ int BuiltinFrame::ComputeParametersCount() const {
 void WasmFrame::Print(StringStream* accumulator, PrintMode mode,
                       int index) const {
   PrintIndex(accumulator, mode, index);
+
+#if V8_ENABLE_DRUMBRAKE
+  if (v8_flags.wasm_jitless) {
+    DCHECK(is_wasm_to_js());
+    accumulator->Add("Wasm-to-JS");
+    if (mode != OVERVIEW) accumulator->Add("\n");
+    return;
+  }
+#endif  // V8_ENABLE_DRUMBRAKE
+
   if (function_index() == wasm::kAnonymousFuncIndex) {
     accumulator->Add("Anonymous wasm wrapper [pc: %p]\n",
                      reinterpret_cast<void*>(pc()));
@@ -3292,11 +3468,11 @@ void WasmDebugBreakFrame::Print(StringStream* accumulator, PrintMode mode,
 }
 
 Tagged<WasmInstanceObject> WasmToJsFrame::wasm_instance() const {
-  // WasmToJsFrames hold the {WasmApiFunctionRef} object in the instance slot.
+  // WasmToJsFrames hold the {WasmImportData} object in the instance slot.
   // Load the instance from there.
   const int offset = WasmFrameConstants::kWasmInstanceOffset;
   Tagged<Object> func_ref_obj(Memory<Address>(fp() + offset));
-  Tagged<WasmApiFunctionRef> func_ref = Cast<WasmApiFunctionRef>(func_ref_obj);
+  Tagged<WasmImportData> func_ref = Cast<WasmImportData>(func_ref_obj);
   // TODO(42204563): Avoid crashing if the instance object is not available.
   CHECK(func_ref->instance_data()->has_instance_object());
   return func_ref->instance_data()->instance_object();
@@ -3310,7 +3486,169 @@ void JsToWasmFrame::Iterate(RootVisitor* v) const {
   // WrapperBuffer slot is RawPtr pointing to a stack.
   // Wasm instance and JS result array are passed as stack params.
   // So there is no need to visit them.
+
+#if V8_ENABLE_DRUMBRAKE
+  // Please reference GenericJSToWasmInterpreterWrapper for stack layout.
+  if (v8_flags.wasm_jitless) {
+    DCHECK(GetContainingCode(isolate(), pc()).value()->builtin_id() ==
+           Builtin::kGenericJSToWasmInterpreterWrapper);
+
+    // In a GenericJSToWasmInterpreterWrapper stack layout
+    //  ------+-----------------+----------------------
+    //        |  return addr    |
+    //    fp  |- - - - - - - - -|  -------------------|
+    //        |     old fp      |                     |
+    //   fp-p |- - - - - - - - -|                     |
+    //        |  frame marker   |                     | no GC scan
+    //  fp-2p |- - - - - - - - -|                     |
+    //        |   scan_count    |                     |
+    //  fp-3p |- - - - - - - - -|  -------------------|
+    //        |      ....       |                     |
+    //        |      ....       | <- spill_slot_limit |
+    //        |   spill slots   |                     | GC scan scan_count slots
+    //    sp  |      ....       | <- spill_slot_base--|
+    //        |                 |                     |
+    // The [fp + BuiltinFrameConstants::kGCScanSlotCount] on the stack is a
+    // value indicating how many values should be scanned from the top.
+    intptr_t scan_count = *reinterpret_cast<intptr_t*>(
+        fp() + BuiltinWasmInterpreterWrapperConstants::kGCScanSlotCountOffset);
+
+    FullObjectSlot spill_slot_base(&Memory<Address>(sp()));
+    FullObjectSlot spill_slot_limit(
+        &Memory<Address>(sp() + scan_count * kSystemPointerSize));
+    v->VisitRootPointers(Root::kStackRoots, nullptr, spill_slot_base,
+                         spill_slot_limit);
+
+    // We should scan the arg/return values array which may hold heap pointers
+    // for reference type of parameter/return values.
+    uint32_t signature_data = *reinterpret_cast<uint32_t*>(
+        fp() + BuiltinWasmInterpreterWrapperConstants::kSignatureDataOffset);
+    bool has_ref_args =
+        signature_data & wasm::WasmInterpreterRuntime::HasRefArgsField::kMask;
+    bool has_ref_rets =
+        signature_data & wasm::WasmInterpreterRuntime::HasRefRetsField::kMask;
+
+    // This value indicates the array is currently used as args array. If false,
+    // it's an array for return values.
+    bool is_args = *reinterpret_cast<intptr_t*>(
+        fp() + BuiltinWasmInterpreterWrapperConstants::kArgRetsIsArgsOffset);
+    if ((is_args && !has_ref_args) || (!is_args && !has_ref_rets)) return;
+
+    // Retrieve function signature.
+    size_t return_count = *reinterpret_cast<size_t*>(
+        fp() + BuiltinWasmInterpreterWrapperConstants::kReturnCountOffset);
+    size_t param_count = *reinterpret_cast<size_t*>(
+        fp() + BuiltinWasmInterpreterWrapperConstants::kParamCountOffset);
+    const wasm::ValueType* reps = *reinterpret_cast<const wasm::ValueType**>(
+        fp() +
+        BuiltinWasmInterpreterWrapperConstants::kValueTypesArrayStartOffset);
+    wasm::FunctionSig sig(return_count, param_count, reps);
+
+    intptr_t slot_ptr = *reinterpret_cast<intptr_t*>(
+        fp() + BuiltinWasmInterpreterWrapperConstants::kArgRetsAddressOffset);
+
+    if (is_args) {
+      size_t current_index = *reinterpret_cast<size_t*>(
+          fp() + BuiltinWasmInterpreterWrapperConstants::kCurrentIndexOffset);
+      DCHECK_LE(current_index, param_count);
+      for (size_t i = 0; i < current_index; i++) {
+        wasm::ValueType type = sig.GetParam(i);
+        if (type.is_reference()) {
+          // Make sure slot for ref args are 64-bit aligned.
+          slot_ptr += (slot_ptr & 0x04);  // Branchless.
+          FullObjectSlot array_slot(&Memory<Address>(slot_ptr));
+          v->VisitRootPointer(Root::kStackRoots, nullptr, array_slot);
+          slot_ptr += kSystemPointerSize;
+        } else {
+          switch (type.kind()) {
+            case wasm::kI32:
+            case wasm::kF32:
+              slot_ptr += sizeof(int32_t);
+              break;
+            case wasm::kI64:
+            case wasm::kF64:
+              slot_ptr += sizeof(int64_t);
+              break;
+            case wasm::kS128:
+            default:
+              UNREACHABLE();
+          }
+        }
+      }
+    } else {
+      // When converting return values, all results are already in the array.
+      for (size_t i = 0; i < return_count; i++) {
+        wasm::ValueType type = sig.GetReturn(i);
+        if (type.is_reference()) {
+          // Make sure slot for ref args are 64-bit aligned.
+          slot_ptr += (slot_ptr & 0x04);  // Branchless.
+          FullObjectSlot array_slot(&Memory<Address>(slot_ptr));
+          v->VisitRootPointer(Root::kStackRoots, nullptr, array_slot);
+          slot_ptr += kSystemPointerSize;
+        } else {
+          switch (type.kind()) {
+            case wasm::kI32:
+            case wasm::kF32:
+              slot_ptr += sizeof(int32_t);
+              break;
+            case wasm::kI64:
+            case wasm::kF64:
+              slot_ptr += sizeof(int64_t);
+              break;
+            case wasm::kS128:
+            default:
+              UNREACHABLE();
+          }
+        }
+      }
+    }
+  }
+#endif  // V8_ENABLE_DRUMBRAKE
 }
+
+#if V8_ENABLE_DRUMBRAKE
+void WasmToJsFrame::Iterate(RootVisitor* v) const {
+  if (v8_flags.wasm_jitless) {
+    // Called from GenericWasmToJSInterpreterWrapper.
+    CHECK(v8_flags.jitless);
+    // The [fp + BuiltinFrameConstants::kGCScanSlotCount] on the stack is a
+    // value indicating how many values should be scanned from the top.
+    intptr_t scan_count = *reinterpret_cast<intptr_t*>(
+        fp() + WasmToJSInterpreterFrameConstants::kGCScanSlotCountOffset);
+
+    Address original_sp = *reinterpret_cast<Address*>(
+        fp() + WasmToJSInterpreterFrameConstants::kGCSPOffset);
+
+    // The original sp is not assigned yet if GC is triggered in the middle of
+    // param conversion loop. In this case, we just need to scan arguments from
+    // the current sp.
+    if (original_sp == 0) original_sp = sp();
+
+    if (sp() != original_sp) {
+      // The actual frame sp can be different from the sp we had at the moment
+      // of the call to Call_ReceiverIsAny for two reasons:
+      // 1. Call_ReceiverIsAny might call AdaptorWithBuiltinExitFrame, which
+      // adds BuiltinExitFrameConstants::kNumExtraArgsWithoutReceiver additional
+      // tagged arguments to the stack.
+      // 2. If there is arity mismatch and the imported Wasm function declares
+      // fewer arguments then the arguments expected by the JS function,
+      // Call_ReceiverIsAny passes additional Undefined args.
+      FullObjectSlot additional_spill_slot_base(&Memory<Address>(sp()));
+      FullObjectSlot additional_spill_slot_limit(original_sp);
+      v->VisitRootPointers(Root::kStackRoots, nullptr,
+                           additional_spill_slot_base,
+                           additional_spill_slot_limit);
+    }
+    FullObjectSlot spill_slot_base(&Memory<Address>(original_sp));
+    FullObjectSlot spill_slot_limit(
+        &Memory<Address>(original_sp + scan_count * kSystemPointerSize));
+    v->VisitRootPointers(Root::kStackRoots, nullptr, spill_slot_base,
+                         spill_slot_limit);
+    return;
+  }
+  WasmFrame::Iterate(v);
+}
+#endif  // V8_ENABLE_DRUMBRAKE
 
 void StackSwitchFrame::Iterate(RootVisitor* v) const {
   //  See JsToWasmFrame layout.
@@ -3334,6 +3672,97 @@ void StackSwitchFrame::Iterate(RootVisitor* v) const {
       &Memory<Address>(fp() + StackSwitchFrameConstants::kResultArrayOffset));
   v->VisitRootPointer(Root::kStackRoots, nullptr, result_array_slot);
 }
+
+#if V8_ENABLE_DRUMBRAKE
+void WasmInterpreterEntryFrame::Iterate(RootVisitor* v) const {
+  //  WasmInterpreterEntryFrame stack layout
+  //  ------+-----------------+----------------------
+  //        |  return addr    |                     |
+  //    fp  |- - - - - - - - -|  -------------------|
+  //        |    prev fp      |                     |
+  //   fp-p |- - - - - - - - -|                     | no GC scan
+  //        |  frame marker   |                     |
+  //  fp-2p |- - - - - - - - -|  -------------------|-------------
+  //        | WasmInstanceObj |                     | GC scan
+  //  fp-3p |- - - - - - - - -|  -------------------|-------------
+  //        | function_index  |                     |
+  //  fp-4p |- - - - - - - - -|  -------------------| no GC scan
+  //        |   array_start   |                     |
+  //  fp-5p |- - - - - - - - -|  -------------------|
+
+  static constexpr int kWasmInstanceObjOffset = -2 * kSystemPointerSize;
+  FullObjectSlot slot_base(&Memory<Address>(fp() + kWasmInstanceObjOffset));
+  FullObjectSlot slot_limit(
+      &Memory<Address>(fp() + kWasmInstanceObjOffset + kSystemPointerSize));
+  v->VisitRootPointers(Root::kStackRoots, nullptr, slot_base, slot_limit);
+}
+
+void WasmInterpreterEntryFrame::Print(StringStream* accumulator, PrintMode mode,
+                                      int index) const {
+  PrintIndex(accumulator, mode, index);
+  accumulator->Add("WASM INTERPRETER ENTRY [");
+  Tagged<Script> script = this->script();
+  accumulator->PrintName(script->name());
+  accumulator->Add("]");
+  if (mode != OVERVIEW) accumulator->Add("\n");
+}
+
+void WasmInterpreterEntryFrame::Summarize(
+    std::vector<FrameSummary>* functions) const {
+  Handle<WasmInstanceObject> instance(wasm_instance(), isolate());
+  std::vector<WasmInterpreterStackEntry> interpreted_stack =
+      WasmInterpreterObject::GetInterpretedStack(
+          trusted_instance_data()->interpreter_object(), fp());
+
+  for (auto& e : interpreted_stack) {
+    FrameSummary::WasmInterpretedFrameSummary summary(
+        isolate(), instance, e.function_index, e.byte_offset);
+    functions->push_back(summary);
+  }
+}
+
+Tagged<HeapObject> WasmInterpreterEntryFrame::unchecked_code() const {
+  return InstructionStream();
+}
+
+Tagged<WasmInstanceObject> WasmInterpreterEntryFrame::wasm_instance() const {
+  const int offset = WasmInterpreterFrameConstants::kWasmInstanceOffset;
+  Tagged<Object> instance(Memory<Address>(fp() + offset));
+  return Cast<WasmInstanceObject>(instance);
+}
+
+Tagged<WasmTrustedInstanceData>
+WasmInterpreterEntryFrame::trusted_instance_data() const {
+  return wasm_instance()->trusted_data(isolate());
+}
+
+Tagged<Tuple2> WasmInterpreterEntryFrame::interpreter_object() const {
+  return trusted_instance_data()->interpreter_object();
+}
+
+Tagged<WasmModuleObject> WasmInterpreterEntryFrame::module_object() const {
+  return trusted_instance_data()->module_object();
+}
+
+int WasmInterpreterEntryFrame::function_index(
+    int inlined_function_index) const {
+  return WasmInterpreterObject::GetFunctionIndex(
+      trusted_instance_data()->interpreter_object(), fp(),
+      inlined_function_index);
+}
+
+int WasmInterpreterEntryFrame::position() const {
+  return FrameSummary::GetBottom(this).AsWasmInterpreted().SourcePosition();
+}
+
+Tagged<Object> WasmInterpreterEntryFrame::context() const {
+  return trusted_instance_data()->native_context();
+}
+
+Address WasmInterpreterEntryFrame::GetCallerStackPointer() const {
+  return fp() + CommonFrameConstants::kCallerSPOffset;
+}
+#endif  // V8_ENABLE_DRUMBRAKE
 
 // static
 void StackSwitchFrame::GetStateForJumpBuffer(wasm::JumpBuffer* jmpbuf,

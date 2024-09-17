@@ -12,6 +12,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <iomanip>
+#include <optional>
 #include <set>
 #include <sstream>
 
@@ -265,7 +266,7 @@ void Flag::Reset() {
       set_bool_variable(bool_default(), SetBy::kDefault);
       break;
     case TYPE_MAYBE_BOOL:
-      set_maybe_bool_variable(base::nullopt, SetBy::kDefault);
+      set_maybe_bool_variable(std::nullopt, SetBy::kDefault);
       break;
     case TYPE_INT:
       set_int_variable(int_default(), SetBy::kDefault);

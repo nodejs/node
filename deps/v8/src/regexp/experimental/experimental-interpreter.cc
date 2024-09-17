@@ -4,9 +4,9 @@
 
 #include "src/regexp/experimental/experimental-interpreter.h"
 
+#include <optional>
 #include <string>
 
-#include "src/base/optional.h"
 #include "src/base/strings.h"
 #include "src/common/assert-scope.h"
 #include "src/flags/flags.h"
@@ -59,7 +59,8 @@ bool SatisfiesAssertion(RegExpAssertion::Type type,
 }
 
 base::Vector<RegExpInstruction> ToInstructionVector(
-    Tagged<ByteArray> raw_bytes, const DisallowGarbageCollection& no_gc) {
+    Tagged<TrustedByteArray> raw_bytes,
+    const DisallowGarbageCollection& no_gc) {
   RegExpInstruction* inst_begin =
       reinterpret_cast<RegExpInstruction*>(raw_bytes->begin());
   int inst_num = raw_bytes->length() / sizeof(RegExpInstruction);
@@ -275,8 +276,9 @@ class NfaInterpreter {
   // ACCEPTing thread with highest priority.
  public:
   NfaInterpreter(Isolate* isolate, RegExp::CallOrigin call_origin,
-                 Tagged<ByteArray> bytecode, int register_count_per_match,
-                 Tagged<String> input, int32_t input_index, Zone* zone)
+                 Tagged<TrustedByteArray> bytecode,
+                 int register_count_per_match, Tagged<String> input,
+                 int32_t input_index, Zone* zone)
       : isolate_(isolate),
         call_origin_(call_origin),
         bytecode_object_(bytecode),
@@ -461,7 +463,8 @@ class NfaInterpreter {
     } else {
       DCHECK(call_origin_ == RegExp::CallOrigin::kFromRuntime);
       HandleScope handles(isolate_);
-      DirectHandle<ByteArray> bytecode_handle(bytecode_object_, isolate_);
+      DirectHandle<TrustedByteArray> bytecode_handle(bytecode_object_,
+                                                     isolate_);
       DirectHandle<String> input_handle(input_object_, isolate_);
 
       if (check.JsHasOverflowed()) {
@@ -1014,7 +1017,7 @@ class NfaInterpreter {
 
   DisallowGarbageCollection no_gc_;
 
-  Tagged<ByteArray> bytecode_object_;
+  Tagged<TrustedByteArray> bytecode_object_;
   base::Vector<const RegExpInstruction> bytecode_;
 
   // Number of registers used per thread.
@@ -1095,7 +1098,7 @@ class NfaInterpreter {
 
 int ExperimentalRegExpInterpreter::FindMatches(
     Isolate* isolate, RegExp::CallOrigin call_origin,
-    Tagged<ByteArray> bytecode, int register_count_per_match,
+    Tagged<TrustedByteArray> bytecode, int register_count_per_match,
     Tagged<String> input, int start_index, int32_t* output_registers,
     int output_register_count, Zone* zone) {
   DCHECK(input->IsFlat());

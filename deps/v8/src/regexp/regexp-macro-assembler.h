@@ -298,9 +298,10 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
   ~NativeRegExpMacroAssembler() override = default;
 
   // Returns a {Result} sentinel, or the number of successful matches.
-  static int Match(DirectHandle<JSRegExp> regexp, DirectHandle<String> subject,
-                   int* offsets_vector, int offsets_vector_length,
-                   int previous_index, Isolate* isolate);
+  static int Match(DirectHandle<IrRegExpData> regexp_data,
+                   DirectHandle<String> subject, int* offsets_vector,
+                   int offsets_vector_length, int previous_index,
+                   Isolate* isolate);
 
   V8_EXPORT_PRIVATE static int ExecuteForTesting(
       Tagged<String> input, int start_offset, const uint8_t* input_start,
@@ -350,7 +351,7 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
   static int Execute(Tagged<String> input, int start_offset,
                      const uint8_t* input_start, const uint8_t* input_end,
                      int* output, int output_size, Isolate* isolate,
-                     Tagged<JSRegExp> regexp);
+                     Tagged<IrRegExpData> regexp_data);
 
   ZoneUnorderedMap<uint32_t, Handle<FixedUInt16Array>> range_array_cache_;
 };

@@ -605,6 +605,42 @@ constexpr uint8_t kExpectedDetachedValueForDetached =
 
 }  // namespace
 
+TEST_F(UnifiedHeapSnapshotTest, DetachedObjectsRetainedByJSReference) {
+  v8::Isolate* isolate = v8_isolate();
+  v8::HandleScope scope(isolate);
+  v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
+  heap_profiler->SetGetDetachednessCallback(
+      DetachednessHandler::GetDetachedness, nullptr);
+  // Test ensures that objects that are retained by a JS reference are obtained
+  // by the GetDetachedJSWrapperObjects() function
+  JsTestingScope testing_scope(v8_isolate());
+  cppgc::Persistent<GCedWithJSRef> gc_w_js_ref = SetupWrapperWrappablePair(
+      testing_scope, allocation_handle(), "Obj",
+      v8::EmbedderGraph::Node::Detachedness ::kDetached);
+  // Ensure we are obtaining a Detached Wrapper
+  CHECK_EQ(1, heap_profiler->GetDetachedJSWrapperObjects().size());
+
+  cppgc::Persistent<GCedWithJSRef> gc_w_js_ref_not_detached =
+      SetupWrapperWrappablePair(
+          testing_scope, allocation_handle(), "Obj",
+          v8::EmbedderGraph::Node::Detachedness ::kAttached);
+  cppgc::Persistent<GCedWithJSRef> gc_w_js_ref_unknown =
+      SetupWrapperWrappablePair(
+          testing_scope, allocation_handle(), "Obj",
+          v8::EmbedderGraph::Node::Detachedness ::kUnknown);
+  // Ensure we are only obtaining Wrappers that are Detached
+  CHECK_EQ(1, heap_profiler->GetDetachedJSWrapperObjects().size());
+
+  cppgc::Persistent<GCedWithJSRef> gc_w_js_ref2 = SetupWrapperWrappablePair(
+      testing_scope, allocation_handle(), "Obj",
+      v8::EmbedderGraph::Node::Detachedness ::kDetached);
+  cppgc::Persistent<GCedWithJSRef> gc_w_js_ref3 = SetupWrapperWrappablePair(
+      testing_scope, allocation_handle(), "Obj",
+      v8::EmbedderGraph::Node::Detachedness ::kDetached);
+  // Ensure we are obtaining all Detached Wrappers
+  CHECK_EQ(3, heap_profiler->GetDetachedJSWrapperObjects().size());
+}
+
 TEST_F(UnifiedHeapSnapshotTest, NoTriggerForStandAloneTracedReference) {
   // Test ensures that C++ objects with TracedReference have their V8 objects
   // not merged and queried for detachedness if the backreference is invalid.

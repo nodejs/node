@@ -5,6 +5,8 @@
 #ifndef V8_JSON_JSON_PARSER_H_
 #define V8_JSON_JSON_PARSER_H_
 
+#include <optional>
+
 #include "include/v8-callbacks.h"
 #include "src/base/small-vector.h"
 #include "src/base/strings.h"
@@ -237,7 +239,7 @@ class JsonParser final {
   }
 
   void Expect(JsonToken token,
-              base::Optional<MessageTemplate> errorMessage = base::nullopt) {
+              std::optional<MessageTemplate> errorMessage = std::nullopt) {
     if (V8_LIKELY(peek() == token)) {
       advance();
     } else {
@@ -246,9 +248,8 @@ class JsonParser final {
     }
   }
 
-  void ExpectNext(
-      JsonToken token,
-      base::Optional<MessageTemplate> errorMessage = base::nullopt) {
+  void ExpectNext(JsonToken token,
+                  std::optional<MessageTemplate> errorMessage = std::nullopt) {
     SkipWhitespace();
     errorMessage ? Expect(token, errorMessage.value()) : Expect(token);
   }
@@ -343,19 +344,22 @@ class JsonParser final {
   // Mark that a parsing error has happened at the current character.
   void ReportUnexpectedCharacter(base::uc32 c);
   bool IsSpecialString();
-  MessageTemplate GetErrorMessageWithEllipses(Handle<Object>& arg,
-                                              Handle<Object>& arg2, int pos);
+  MessageTemplate GetErrorMessageWithEllipses(DirectHandle<Object>& arg,
+                                              DirectHandle<Object>& arg2,
+                                              int pos);
   MessageTemplate LookUpErrorMessageForJsonToken(JsonToken token,
-                                                 Handle<Object>& arg,
-                                                 Handle<Object>& arg2, int pos);
+                                                 DirectHandle<Object>& arg,
+                                                 DirectHandle<Object>& arg2,
+                                                 int pos);
 
   // Calculate line and column based on the current cursor position.
   // Both values start at 1.
-  void CalculateFileLocation(Handle<Object>& line, Handle<Object>& column);
+  void CalculateFileLocation(DirectHandle<Object>& line,
+                             DirectHandle<Object>& column);
   // Mark that a parsing error has happened at the current token.
   void ReportUnexpectedToken(
       JsonToken token,
-      base::Optional<MessageTemplate> errorMessage = base::nullopt);
+      std::optional<MessageTemplate> errorMessage = std::nullopt);
 
   inline Isolate* isolate() { return isolate_; }
   inline Factory* factory() { return isolate_->factory(); }

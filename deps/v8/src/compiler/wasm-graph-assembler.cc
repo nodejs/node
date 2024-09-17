@@ -428,15 +428,11 @@ Node* WasmGraphAssembler::LoadContextFromJSFunction(Node* js_function) {
 
 Node* WasmGraphAssembler::LoadFunctionDataFromJSFunction(Node* js_function) {
   Node* shared = LoadSharedFunctionInfo(js_function);
-#if V8_ENABLE_SANDBOX
-    static constexpr int kOffset =
-        SharedFunctionInfo::kTrustedFunctionDataOffset;
-#else
-    static constexpr int kOffset = SharedFunctionInfo::kFunctionDataOffset;
-#endif
-  return LoadTrustedPointerFromObject(shared,
-                                      wasm::ObjectAccess::ToTagged(kOffset),
-                                      kWasmFunctionDataIndirectPointerTag);
+  return LoadTrustedPointerFromObject(
+      shared,
+      wasm::ObjectAccess::ToTagged(
+          SharedFunctionInfo::kTrustedFunctionDataOffset),
+      kWasmFunctionDataIndirectPointerTag);
 }
 
 Node* WasmGraphAssembler::LoadExportedFunctionIndexAsSmi(

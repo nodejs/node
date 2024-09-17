@@ -29,7 +29,7 @@ TEST_F(DirectHandlesTest, CreateLocalFromDirectHandle) {
       i_isolate()->factory()->NewStringFromAsciiChecked("foo");
   i::DirectHandle<i::String> direct = handle;
 
-  Local<String> l1 = Utils::ToLocal(direct, i_isolate());
+  Local<String> l1 = Utils::ToLocal(direct);
   Local<String> l2 = Utils::ToLocal(handle);
 
   EXPECT_EQ(l1, l2);

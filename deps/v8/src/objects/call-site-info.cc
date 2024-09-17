@@ -4,6 +4,8 @@
 
 #include "src/objects/call-site-info.h"
 
+#include <optional>
+
 #include "src/base/strings.h"
 #include "src/objects/call-site-info-inl.h"
 #include "src/objects/shared-function-info.h"
@@ -13,8 +15,7 @@
 #include "src/debug/debug-wasm-objects.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 bool CallSiteInfo::IsPromiseAll() const {
   if (!IsAsync()) return false;
@@ -604,12 +605,23 @@ int CallSiteInfo::ComputeSourcePosition(DirectHandle<CallSiteInfo> info,
                                         int offset) {
   Isolate* isolate = info->GetIsolate();
 #if V8_ENABLE_WEBASSEMBLY
-  if (info->IsWasm()) {
-    auto module = info->GetWasmInstance()->trusted_data(isolate)->module();
+#if V8_ENABLE_DRUMBRAKE
+  if (info->IsWasmInterpretedFrame()) {
+    auto module = info->GetWasmInstance()->module();
     uint32_t func_index = info->GetWasmFunctionIndex();
     return wasm::GetSourcePosition(module, func_index, offset,
                                    info->IsAsmJsAtNumberConversion());
+  } else {
+#endif  // V8_ENABLE_DRUMBRAKE
+    if (info->IsWasm()) {
+      auto module = info->GetWasmInstance()->trusted_data(isolate)->module();
+      uint32_t func_index = info->GetWasmFunctionIndex();
+      return wasm::GetSourcePosition(module, func_index, offset,
+                                     info->IsAsmJsAtNumberConversion());
+    }
+#if V8_ENABLE_DRUMBRAKE
   }
+#endif  // V8_ENABLE_DRUMBRAKE
   if (info->IsBuiltin()) {
     return 0;
   }
@@ -621,7 +633,7 @@ int CallSiteInfo::ComputeSourcePosition(DirectHandle<CallSiteInfo> info,
   return Cast<AbstractCode>(code)->SourcePosition(isolate, offset);
 }
 
-base::Optional<Tagged<Script>> CallSiteInfo::GetScript() const {
+std::optional<Tagged<Script>> CallSiteInfo::GetScript() const {
 #if V8_ENABLE_WEBASSEMBLY
   if (IsWasm()) {
     return GetWasmInstance()
@@ -630,12 +642,12 @@ base::Optional<Tagged<Script>> CallSiteInfo::GetScript() const {
         ->script();
   }
   if (IsBuiltin()) {
-    return base::nullopt;
+    return std::nullopt;
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   Tagged<Object> script = GetSharedFunctionInfo()->script();
   if (IsScript(script)) return Cast<Script>(script);
-  return base::nullopt;
+  return std::nullopt;
 }
 
 Tagged<SharedFunctionInfo> CallSiteInfo::GetSharedFunctionInfo() const {
@@ -661,7 +673,7 @@ bool IsNonEmptyString(DirectHandle<Object> object) {
   return (IsString(*object) && Cast<String>(*object)->length() > 0);
 }
 
-void AppendFileLocation(Isolate* isolate, Handle<CallSiteInfo> frame,
+void AppendFileLocation(Isolate* isolate, DirectHandle<CallSiteInfo> frame,
                         IncrementalStringBuilder* builder) {
   Handle<Object> script_name_or_source_url(frame->GetScriptNameOrSourceURL(),
                                            isolate);
@@ -771,7 +783,7 @@ void AppendMethodCall(Isolate* isolate, DirectHandle<CallSiteInfo> frame,
   }
 }
 
-void SerializeJSStackFrame(Isolate* isolate, Handle<CallSiteInfo> frame,
+void SerializeJSStackFrame(Isolate* isolate, DirectHandle<CallSiteInfo> frame,
                            IncrementalStringBuilder* builder) {
   Handle<Object> function_name = CallSiteInfo::GetFunctionName(frame);
   if (frame->IsAsync()) {
@@ -807,7 +819,7 @@ void SerializeJSStackFrame(Isolate* isolate, Handle<CallSiteInfo> frame,
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-void SerializeWasmStackFrame(Isolate* isolate, Handle<CallSiteInfo> frame,
+void SerializeWasmStackFrame(Isolate* isolate, DirectHandle<CallSiteInfo> frame,
                              IncrementalStringBuilder* builder) {
   Handle<Object> module_name = CallSiteInfo::GetWasmModuleName(frame);
   Handle<Object> function_name = CallSiteInfo::GetFunctionName(frame);
@@ -856,7 +868,7 @@ void SerializeBuiltinStackFrame(Isolate* isolate,
 
 }  // namespace
 
-void SerializeCallSiteInfo(Isolate* isolate, Handle<CallSiteInfo> frame,
+void SerializeCallSiteInfo(Isolate* isolate, DirectHandle<CallSiteInfo> frame,
                            IncrementalStringBuilder* builder) {
 #if V8_ENABLE_WEBASSEMBLY
   if (frame->IsWasm() && !frame->IsAsmJsWasm()) {
@@ -872,11 +884,10 @@ void SerializeCallSiteInfo(Isolate* isolate, Handle<CallSiteInfo> frame,
 }
 
 MaybeHandle<String> SerializeCallSiteInfo(Isolate* isolate,
-                                          Handle<CallSiteInfo> frame) {
+                                          DirectHandle<CallSiteInfo> frame) {
   IncrementalStringBuilder builder(isolate);
   SerializeCallSiteInfo(isolate, frame, &builder);
   return indirect_handle(builder.Finish(), isolate);
 }
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal

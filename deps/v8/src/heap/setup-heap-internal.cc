@@ -404,9 +404,16 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
     ALLOCATE_AND_SET_ROOT(Map, symbol_map, Map::kSize);
 
     ALLOCATE_AND_SET_ROOT(Map, meta_map, Map::kSize);
+    // Keep HeapNumber and Oddball maps together for cheap NumberOrOddball
+    // checks.
     ALLOCATE_AND_SET_ROOT(Map, undefined_map, Map::kSize);
     ALLOCATE_AND_SET_ROOT(Map, null_map, Map::kSize);
+    // Keep HeapNumber and Boolean maps together for cheap NumberOrBoolean
+    // checks.
     ALLOCATE_AND_SET_ROOT(Map, boolean_map, Map::kSize);
+    // Keep HeapNumber and BigInt maps together for cheaper numerics checks.
+    ALLOCATE_AND_SET_ROOT(Map, heap_number_map, Map::kSize);
+    ALLOCATE_AND_SET_ROOT(Map, bigint_map, Map::kSize);
 
 #undef ALLOCATE_AND_SET_ROOT
 
@@ -417,6 +424,12 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
     InitializePartialMap(null_map, meta_map, ODDBALL_TYPE, sizeof(Null));
     InitializePartialMap(boolean_map, meta_map, ODDBALL_TYPE, sizeof(Boolean));
     boolean_map->SetConstructorFunctionIndex(Context::BOOLEAN_FUNCTION_INDEX);
+    InitializePartialMap(heap_number_map, meta_map, HEAP_NUMBER_TYPE,
+                         sizeof(HeapNumber));
+    heap_number_map->SetConstructorFunctionIndex(
+        Context::NUMBER_FUNCTION_INDEX);
+    InitializePartialMap(bigint_map, meta_map, BIGINT_TYPE,
+                         kVariableSizeSentinel);
 
     for (const StringTypeInit& entry : kStringTypeTable) {
       Tagged<Map> map = UncheckedCast<Map>(roots.object_at(entry.index));
@@ -571,6 +584,8 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
   FinalizePartialMap(roots.null_map());
   roots.null_map()->set_is_undetectable(true);
   FinalizePartialMap(roots.boolean_map());
+  FinalizePartialMap(roots.heap_number_map());
+  FinalizePartialMap(roots.bigint_map());
   FinalizePartialMap(roots.hole_map());
   FinalizePartialMap(roots.symbol_map());
   for (const StructInit& entry : kStructTable) {
@@ -608,11 +623,6 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
     ALLOCATE_VARSIZE_MAP(CLOSURE_FEEDBACK_CELL_ARRAY_TYPE,
                          closure_feedback_cell_array)
     ALLOCATE_VARSIZE_MAP(FEEDBACK_VECTOR_TYPE, feedback_vector)
-
-    // Keep HeapNumber and BigInt maps together for cheaper numerics checks.
-    ALLOCATE_PRIMITIVE_MAP(HEAP_NUMBER_TYPE, sizeof(HeapNumber), heap_number,
-                           Context::NUMBER_FUNCTION_INDEX)
-    ALLOCATE_VARSIZE_MAP(BIGINT_TYPE, bigint);
 
     ALLOCATE_MAP(FOREIGN_TYPE, Foreign::kSize, foreign)
     ALLOCATE_MAP(TRUSTED_FOREIGN_TYPE, TrustedForeign::kSize, trusted_foreign)
@@ -729,6 +739,11 @@ bool Heap::CreateLateReadOnlyNonJSReceiverMaps() {
     ALLOCATE_VARSIZE_MAP(COVERAGE_INFO_TYPE, coverage_info);
     ALLOCATE_VARSIZE_MAP(REG_EXP_MATCH_INFO_TYPE, regexp_match_info);
 
+    ALLOCATE_MAP(REG_EXP_DATA_TYPE, RegExpData::kSize, regexp_data);
+    ALLOCATE_MAP(ATOM_REG_EXP_DATA_TYPE, AtomRegExpData::kSize,
+                 atom_regexp_data);
+    ALLOCATE_MAP(IR_REG_EXP_DATA_TYPE, IrRegExpData::kSize, ir_regexp_data);
+
     ALLOCATE_MAP(SOURCE_TEXT_MODULE_TYPE, SourceTextModule::kSize,
                  source_text_module)
     ALLOCATE_MAP(SYNTHETIC_MODULE_TYPE, SyntheticModule::kSize,
@@ -737,8 +752,8 @@ bool Heap::CreateLateReadOnlyNonJSReceiverMaps() {
     ALLOCATE_MAP(CONST_TRACKING_LET_CELL_TYPE, ConstTrackingLetCell::kSize,
                  global_const_tracking_let_cell)
 
-    IF_WASM(ALLOCATE_MAP, WASM_API_FUNCTION_REF_TYPE, WasmApiFunctionRef::kSize,
-            wasm_api_function_ref)
+    IF_WASM(ALLOCATE_MAP, WASM_IMPORT_DATA_TYPE, WasmImportData::kSize,
+            wasm_import_data)
     IF_WASM(ALLOCATE_MAP, WASM_CAPI_FUNCTION_DATA_TYPE,
             WasmCapiFunctionData::kSize, wasm_capi_function_data)
     IF_WASM(ALLOCATE_MAP, WASM_EXPORTED_FUNCTION_DATA_TYPE,
@@ -750,6 +765,8 @@ bool Heap::CreateLateReadOnlyNonJSReceiverMaps() {
             wasm_js_function_data)
     IF_WASM(ALLOCATE_MAP, WASM_RESUME_DATA_TYPE, WasmResumeData::kSize,
             wasm_resume_data)
+    IF_WASM(ALLOCATE_MAP, WASM_SUSPENDER_OBJECT_TYPE,
+            WasmSuspenderObject::kSize, wasm_suspender_object)
     IF_WASM(ALLOCATE_MAP, WASM_TYPE_INFO_TYPE, kVariableSizeSentinel,
             wasm_type_info)
     IF_WASM(ALLOCATE_MAP, WASM_CONTINUATION_OBJECT_TYPE,
@@ -1397,7 +1414,7 @@ void Heap::CreateInitialMutableObjects() {
 
   // Error.stack accessor callbacks:
   {
-    Handle<FunctionTemplateInfo> function_template;
+    DirectHandle<FunctionTemplateInfo> function_template;
     function_template = ApiNatives::CreateAccessorFunctionTemplateInfo(
         isolate_, Accessors::ErrorStackGetter, 0,
         SideEffectType::kHasSideEffect);
@@ -1412,7 +1429,7 @@ void Heap::CreateInitialMutableObjects() {
   // Create internal SharedFunctionInfos.
   // Async functions:
   {
-    Handle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
+    DirectHandle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
         isolate(), Builtin::kAsyncFunctionAwaitRejectClosure, 1);
     set_async_function_await_reject_shared_fun(*info);
 
@@ -1423,7 +1440,7 @@ void Heap::CreateInitialMutableObjects() {
 
   // Async generators:
   {
-    Handle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
+    DirectHandle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
         isolate(), Builtin::kAsyncGeneratorAwaitResolveClosure, 1);
     set_async_generator_await_resolve_shared_fun(*info);
 
@@ -1464,7 +1481,7 @@ void Heap::CreateInitialMutableObjects() {
 
   // Promises:
   {
-    Handle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
+    DirectHandle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
         isolate_, Builtin::kPromiseCapabilityDefaultResolve, 1,
         FunctionKind::kConciseMethod);
     info->set_native(true);
@@ -1487,7 +1504,7 @@ void Heap::CreateInitialMutableObjects() {
 
   // Promises / finally:
   {
-    Handle<SharedFunctionInfo> info =
+    DirectHandle<SharedFunctionInfo> info =
         CreateSharedFunctionInfo(isolate(), Builtin::kPromiseThenFinally, 1);
     info->set_native(true);
     set_promise_then_finally_shared_fun(*info);
@@ -1508,21 +1525,21 @@ void Heap::CreateInitialMutableObjects() {
 
   // Promise combinators:
   {
-    Handle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
+    DirectHandle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
         isolate_, Builtin::kPromiseAllResolveElementClosure, 1);
-    set_promise_all_resolve_element_shared_fun(*info);
+    set_promise_all_resolve_element_closure_shared_fun(*info);
 
     info = CreateSharedFunctionInfo(
         isolate_, Builtin::kPromiseAllSettledResolveElementClosure, 1);
-    set_promise_all_settled_resolve_element_shared_fun(*info);
+    set_promise_all_settled_resolve_element_closure_shared_fun(*info);
 
     info = CreateSharedFunctionInfo(
         isolate_, Builtin::kPromiseAllSettledRejectElementClosure, 1);
-    set_promise_all_settled_reject_element_shared_fun(*info);
+    set_promise_all_settled_reject_element_closure_shared_fun(*info);
 
     info = CreateSharedFunctionInfo(
         isolate_, Builtin::kPromiseAnyRejectElementClosure, 1);
-    set_promise_any_reject_element_shared_fun(*info);
+    set_promise_any_reject_element_closure_shared_fun(*info);
   }
 
   // ProxyRevoke:
@@ -1535,13 +1552,13 @@ void Heap::CreateInitialMutableObjects() {
   // ShadowRealm:
   {
     DirectHandle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
-        isolate_, Builtin::kShadowRealmImportValueFulfilled, 0);
-    set_shadow_realm_import_value_fulfilled_sfi(*info);
+        isolate_, Builtin::kShadowRealmImportValueFulfilled, 1);
+    set_shadow_realm_import_value_fulfilled_shared_fun(*info);
   }
 
   // SourceTextModule:
   {
-    Handle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
+    DirectHandle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
         isolate_, Builtin::kCallAsyncModuleFulfilled, 0);
     set_source_text_module_execute_async_module_fulfilled_sfi(*info);
 
@@ -1552,26 +1569,26 @@ void Heap::CreateInitialMutableObjects() {
 
   // Array.fromAsync:
   {
-    Handle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
-        isolate_, Builtin::kArrayFromAsyncIterableOnFulfilled, 0);
+    DirectHandle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
+        isolate_, Builtin::kArrayFromAsyncIterableOnFulfilled, 1);
     set_array_from_async_iterable_on_fulfilled_shared_fun(*info);
 
     info = CreateSharedFunctionInfo(
-        isolate_, Builtin::kArrayFromAsyncIterableOnRejected, 0);
+        isolate_, Builtin::kArrayFromAsyncIterableOnRejected, 1);
     set_array_from_async_iterable_on_rejected_shared_fun(*info);
 
     info = CreateSharedFunctionInfo(
-        isolate_, Builtin::kArrayFromAsyncArrayLikeOnFulfilled, 0);
+        isolate_, Builtin::kArrayFromAsyncArrayLikeOnFulfilled, 1);
     set_array_from_async_array_like_on_fulfilled_shared_fun(*info);
 
     info = CreateSharedFunctionInfo(
-        isolate_, Builtin::kArrayFromAsyncArrayLikeOnRejected, 0);
+        isolate_, Builtin::kArrayFromAsyncArrayLikeOnRejected, 1);
     set_array_from_async_array_like_on_rejected_shared_fun(*info);
   }
 
   // Atomics.Mutex
   {
-    Handle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
+    DirectHandle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
         isolate_, Builtin::kAtomicsMutexAsyncUnlockResolveHandler, 1);
     set_atomics_mutex_async_unlock_resolve_handler_sfi(*info);
     info = CreateSharedFunctionInfo(
@@ -1588,16 +1605,8 @@ void Heap::CreateInitialMutableObjects() {
 
   // Async Disposable Stack
   {
-    Handle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
-        isolate_, Builtin::kAsyncDisposableStackOnFulfilled, 0);
-    set_async_disposable_stack_on_fulfilled_shared_fun(*info);
-
-    info = CreateSharedFunctionInfo(
-        isolate_, Builtin::kAsyncDisposableStackOnRejected, 0);
-    set_async_disposable_stack_on_rejected_shared_fun(*info);
-
-    info = CreateSharedFunctionInfo(isolate_,
-                                    Builtin::kAsyncDisposeFromSyncDispose, 0);
+    DirectHandle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
+        isolate_, Builtin::kAsyncDisposeFromSyncDispose, 0);
     set_async_dispose_from_sync_dispose_shared_fun(*info);
   }
 
@@ -1616,7 +1625,7 @@ void Heap::CreateInitialMutableObjects() {
 void Heap::CreateInternalAccessorInfoObjects() {
   Isolate* isolate = this->isolate();
   HandleScope scope(isolate);
-  Handle<AccessorInfo> accessor_info;
+  DirectHandle<AccessorInfo> accessor_info;
 
 #define INIT_ACCESSOR_INFO(_, accessor_name, AccessorName, ...) \
   accessor_info = Accessors::Make##AccessorName##Info(isolate); \

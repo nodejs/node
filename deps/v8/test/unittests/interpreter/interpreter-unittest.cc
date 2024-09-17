@@ -1093,7 +1093,7 @@ TEST_F(InterpreterTest, InterpreterLoadNamedProperty) {
 
   Handle<Object> object = InterpreterTester::NewObject("({ val : 123 })");
   // Test IC miss.
-  Handle<Object> return_val = callable(object).ToHandleChecked();
+  DirectHandle<Object> return_val = callable(object).ToHandleChecked();
   CHECK_EQ(Cast<Smi>(*return_val), Smi::FromInt(123));
 
   // Test transition to monomorphic IC.
@@ -1144,7 +1144,7 @@ TEST_F(InterpreterTest, InterpreterLoadKeyedProperty) {
 
   Handle<Object> object = InterpreterTester::NewObject("({ key : 123 })");
   // Test IC miss.
-  Handle<Object> return_val = callable(object).ToHandleChecked();
+  DirectHandle<Object> return_val = callable(object).ToHandleChecked();
   CHECK_EQ(Cast<Smi>(*return_val), Smi::FromInt(123));
 
   // Test transition to monomorphic IC.
@@ -1932,8 +1932,8 @@ TEST_F(InterpreterTest, InterpreterMixedComparisons) {
                {kInternalizedStringConstant, kComputedString}) {
             const char* lhs_cstr = inputs[i];
             const char* rhs_cstr = inputs[j];
-            double lhs = StringToDouble(lhs_cstr, NO_CONVERSION_FLAGS);
-            double rhs = StringToDouble(rhs_cstr, NO_CONVERSION_FLAGS);
+            double lhs = StringToDouble(lhs_cstr, NO_CONVERSION_FLAG);
+            double rhs = StringToDouble(rhs_cstr, NO_CONVERSION_FLAG);
 
             AstValueFactory ast_factory(zone(),
                                         i_isolate()->ast_string_constants(),
@@ -2031,8 +2031,8 @@ TEST_F(InterpreterTest, InterpreterStrictNotEqual) {
   const char* inputs[] = {"-1.77", "-40.333", "0.01", "55.77e5", "2.01"};
   for (size_t i = 0; i < arraysize(inputs); i++) {
     for (size_t j = 0; j < arraysize(inputs); j++) {
-      double lhs = StringToDouble(inputs[i], NO_CONVERSION_FLAGS);
-      double rhs = StringToDouble(inputs[j], NO_CONVERSION_FLAGS);
+      double lhs = StringToDouble(inputs[i], NO_CONVERSION_FLAG);
+      double rhs = StringToDouble(inputs[j], NO_CONVERSION_FLAG);
       Handle<Object> lhs_obj = factory->NewNumber(lhs);
       Handle<Object> rhs_obj = factory->NewStringFromAsciiChecked(inputs[j]);
 

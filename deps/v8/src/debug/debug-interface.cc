@@ -160,7 +160,7 @@ Local<String> GetFunctionDescription(Local<Function> function) {
         builder.AppendCStringLiteral("function ");
         builder.AppendString(debug_name);
         builder.AppendCStringLiteral("() { [native code] }");
-        return Utils::ToLocal(builder.Finish().ToHandleChecked(), i_isolate);
+        return Utils::ToLocal(builder.Finish().ToHandleChecked());
       }
     }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -345,8 +345,8 @@ bool GetPrivateMembers(Local<Context> context, Local<Object> object, int filter,
     } else if (include_fields) {  // Private fields
       i::DirectHandle<i::String> name(
           i::Cast<i::String>(i::Cast<i::Symbol>(*key)->description()), isolate);
-      names_out->push_back(Utils::ToLocal(name, isolate));
-      values_out->push_back(Utils::ToLocal(value, isolate));
+      names_out->push_back(Utils::ToLocal(name));
+      values_out->push_back(Utils::ToLocal(value));
     }
   }
 
@@ -498,7 +498,7 @@ int Script::StartColumn() const {
 }
 
 int Script::EndLine() const {
-  i::Handle<i::Script> script = Utils::OpenHandle(this);
+  i::DirectHandle<i::Script> script = Utils::OpenDirectHandle(this);
 #if V8_ENABLE_WEBASSEMBLY
   if (script->type() == i::Script::Type::kWasm) return 0;
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -514,7 +514,7 @@ int Script::EndLine() const {
 }
 
 int Script::EndColumn() const {
-  i::Handle<i::Script> script = Utils::OpenHandle(this);
+  i::DirectHandle<i::Script> script = Utils::OpenDirectHandle(this);
 #if V8_ENABLE_WEBASSEMBLY
   if (script->type() == i::Script::Type::kWasm) {
     return script->wasm_native_module()->wire_bytes().length();
@@ -536,7 +536,7 @@ MaybeLocal<String> Script::Name() const {
   i::Isolate* isolate = script->GetIsolate();
   i::DirectHandle<i::Object> value(script->name(), isolate);
   if (!IsString(*value)) return MaybeLocal<String>();
-  return Utils::ToLocal(i::Cast<i::String>(value), isolate);
+  return Utils::ToLocal(i::Cast<i::String>(value));
 }
 
 MaybeLocal<String> Script::SourceURL() const {
@@ -544,7 +544,7 @@ MaybeLocal<String> Script::SourceURL() const {
   i::Isolate* isolate = script->GetIsolate();
   i::DirectHandle<i::PrimitiveHeapObject> value(script->source_url(), isolate);
   if (!IsString(*value)) return MaybeLocal<String>();
-  return Utils::ToLocal(i::Cast<i::String>(value), isolate);
+  return Utils::ToLocal(i::Cast<i::String>(value));
 }
 
 MaybeLocal<String> Script::SourceMappingURL() const {
@@ -552,7 +552,7 @@ MaybeLocal<String> Script::SourceMappingURL() const {
   i::Isolate* isolate = script->GetIsolate();
   i::DirectHandle<i::Object> value(script->source_mapping_url(), isolate);
   if (!IsString(*value)) return MaybeLocal<String>();
-  return Utils::ToLocal(i::Cast<i::String>(value), isolate);
+  return Utils::ToLocal(i::Cast<i::String>(value));
 }
 
 MaybeLocal<String> Script::GetSha256Hash() const {
@@ -577,11 +577,11 @@ Local<ScriptSource> Script::Source() const {
   if (script->type() == i::Script::Type::kWasm) {
     i::DirectHandle<i::Object> wasm_native_module(
         script->wasm_managed_native_module(), isolate);
-    return Utils::Convert<i::Object, ScriptSource>(wasm_native_module, isolate);
+    return Utils::Convert<i::Object, ScriptSource>(wasm_native_module);
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   i::DirectHandle<i::PrimitiveHeapObject> source(script->source(), isolate);
-  return Utils::Convert<i::PrimitiveHeapObject, ScriptSource>(source, isolate);
+  return Utils::Convert<i::PrimitiveHeapObject, ScriptSource>(source);
 }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -711,7 +711,7 @@ Maybe<int> Script::GetSourceOffset(const Location& location,
 }
 
 Location Script::GetSourceLocation(int offset) const {
-  i::Handle<i::Script> script = Utils::OpenHandle(this);
+  i::DirectHandle<i::Script> script = Utils::OpenDirectHandle(this);
   i::Script::PositionInfo info;
   i::Script::GetPositionInfo(script, offset, &info);
   if (script->HasSourceURLComment()) {
@@ -774,7 +774,7 @@ bool Script::SetInstrumentationBreakpoint(BreakpointId* id) const {
 
 #if V8_ENABLE_WEBASSEMBLY
 void Script::RemoveWasmBreakpoint(BreakpointId id) {
-  i::Handle<i::Script> script = Utils::OpenHandle(this);
+  i::DirectHandle<i::Script> script = Utils::OpenDirectHandle(this);
   i::Isolate* isolate = script->GetIsolate();
   isolate->debug()->RemoveBreakpointForWasmScript(script, id);
 }
@@ -967,7 +967,7 @@ void GetLoadedScripts(Isolate* v8_isolate,
 #endif  // V8_ENABLE_WEBASSEMBLY
       if (!script->HasValidSource()) continue;
       i::HandleScope handle_scope(isolate);
-      i::Handle<i::Script> script_handle(script, isolate);
+      i::DirectHandle<i::Script> script_handle(script, isolate);
       scripts.emplace_back(v8_isolate, ToApiHandle<Script>(script_handle));
     }
   }
@@ -1065,7 +1065,7 @@ Local<String> WasmValueObject::type() const {
   auto object = i::Cast<i::WasmValueObject>(Utils::OpenDirectHandle(this));
   i::Isolate* isolate = object->GetIsolate();
   i::DirectHandle<i::String> type(object->type(), isolate);
-  return Utils::ToLocal(type, isolate);
+  return Utils::ToLocal(type);
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -1131,7 +1131,7 @@ MaybeLocal<Script> GeneratorObject::Script() {
   if (!IsScript(maybe_script)) return {};
   i::Isolate* isolate = obj->GetIsolate();
   i::DirectHandle<i::Script> script(i::Cast<i::Script>(maybe_script), isolate);
-  return ToApiHandle<v8::debug::Script>(script, isolate);
+  return ToApiHandle<v8::debug::Script>(script);
 }
 
 Local<Function> GeneratorObject::Function() {
@@ -1145,7 +1145,7 @@ Location GeneratorObject::SuspendedLocation() {
   i::Tagged<i::Object> maybe_script = obj->function()->shared()->script();
   if (!IsScript(maybe_script)) return Location();
   i::Isolate* isolate = obj->GetIsolate();
-  i::Handle<i::Script> script(i::Cast<i::Script>(maybe_script), isolate);
+  i::DirectHandle<i::Script> script(i::Cast<i::Script>(maybe_script), isolate);
   i::Script::PositionInfo info;
   i::SharedFunctionInfo::EnsureSourcePositionsAvailable(
       isolate, i::handle(obj->function()->shared(), isolate));
@@ -1342,7 +1342,7 @@ MaybeLocal<v8::Value> EphemeronTable::Get(v8::Isolate* isolate,
   i::DirectHandle<i::Object> value(self->Lookup(internal_key), i_isolate);
 
   if (IsTheHole(*value)) return {};
-  return Utils::ToLocal(value, i_isolate);
+  return Utils::ToLocal(value);
 }
 
 Local<EphemeronTable> EphemeronTable::Set(v8::Isolate* isolate,
@@ -1353,7 +1353,7 @@ Local<EphemeronTable> EphemeronTable::Set(v8::Isolate* isolate,
   i::Handle<i::Object> internal_value = Utils::OpenHandle(*value);
   DCHECK(IsJSReceiver(*internal_key));
 
-  i::Handle<i::EphemeronHashTable> result(
+  i::DirectHandle<i::EphemeronHashTable> result(
       i::EphemeronHashTable::Put(self, internal_key, internal_value));
 
   return ToApiHandle<EphemeronTable>(result);
@@ -1362,7 +1362,7 @@ Local<EphemeronTable> EphemeronTable::Set(v8::Isolate* isolate,
 Local<EphemeronTable> EphemeronTable::New(v8::Isolate* isolate) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  i::Handle<i::EphemeronHashTable> table =
+  i::DirectHandle<i::EphemeronHashTable> table =
       i::EphemeronHashTable::New(i_isolate, 0);
   return ToApiHandle<EphemeronTable>(table);
 }
@@ -1375,14 +1375,14 @@ Local<Value> AccessorPair::getter() {
   auto accessors = Utils::OpenDirectHandle(this);
   i::Isolate* isolate = accessors->GetIsolate();
   i::DirectHandle<i::Object> getter(accessors->getter(), isolate);
-  return Utils::ToLocal(getter, isolate);
+  return Utils::ToLocal(getter);
 }
 
 Local<Value> AccessorPair::setter() {
   auto accessors = Utils::OpenDirectHandle(this);
   i::Isolate* isolate = accessors->GetIsolate();
   i::DirectHandle<i::Object> setter(accessors->setter(), isolate);
-  return Utils::ToLocal(setter, isolate);
+  return Utils::ToLocal(setter);
 }
 
 bool AccessorPair::IsAccessorPair(Local<Value> that) {

@@ -4,6 +4,8 @@
 
 #include <limits.h>  // For LONG_MIN, LONG_MAX.
 
+#include <optional>
+
 #include "src/base/bits.h"
 #include "src/base/division-by-constant.h"
 #include "src/builtins/builtins-inl.h"
@@ -1771,6 +1773,37 @@ void MacroAssembler::CalcScaledAddress(Register rd, Register rt, Register rs,
 
 // ------------Pseudo-instructions-------------
 // Change endianness
+
+template <int NBYTES>
+void MacroAssembler::ReverseBytesHelper(Register rd, Register rs, Register tmp1,
+                                        Register tmp2) {
+  DCHECK(tmp1 != tmp2);
+  DCHECK((rs != tmp1) && (rs != tmp2));
+  DCHECK((rd != tmp1) && (rd != tmp2));
+
+  // ByteMask - maximum value, held in byte
+  constexpr int ByteMask = (1 << kBitsPerByte) - 1;
+  // tmp1 = rs[0]; take least byte
+  // tmp1 = tmp1 << kBitsPerByte;
+  // for (nbyte = 1; nbyte < NBYTES - 1; nbyte++) {
+  //   tmp2 = rs[nbyte]; take n`th byte
+  //   tmp1 = (tmp2 | tmp1) << kBitsPerByte; add n`th source byte to tmp1
+  // }
+  // rd[0] = rs[NBYTES-1]; take upper byte
+  // rd[NBYTES-1 : 1] = tmp1[NBYTES-1 : 1]; fill other bytes
+  andi(tmp1, rs, ByteMask);
+  slli(tmp1, tmp1, kBitsPerByte);
+  for (int nbyte = 1; nbyte < NBYTES - 1; nbyte++) {
+    srli(tmp2, rs, nbyte * kBitsPerByte);
+    andi(tmp2, tmp2, ByteMask);
+    or_(tmp1, tmp1, tmp2);
+    slli(tmp1, tmp1, kBitsPerByte);
+  }
+  srli(rd, rs, (NBYTES - 1) * kBitsPerByte);
+  andi(rd, rd, ByteMask);
+  or_(rd, tmp1, rd);
+}
+
 #if V8_TARGET_ARCH_RISCV64
 void MacroAssembler::ByteSwap(Register rd, Register rs, int operand_size,
                               Register scratch) {
@@ -1785,54 +1818,63 @@ void MacroAssembler::ByteSwap(Register rd, Register rs, int operand_size,
   DCHECK_NE(scratch, rs);
   DCHECK_NE(scratch, rd);
   if (operand_size == 4) {
-    // Uint32_t x1 = 0x00FF00FF;
-    // x0 = (x0 << 16 | x0 >> 16);
-    // x0 = (((x0 & x1) << 8)  | ((x0 & (x1 << 8)) >> 8));
     UseScratchRegisterScope temps(this);
     BlockTrampolinePoolScope block_trampoline_pool(this);
     DCHECK((rd != t6) && (rs != t6));
     Register x0 = temps.Acquire();
     Register x1 = temps.Acquire();
-    Register x2 = scratch;
-    li(x1, 0x00FF00FF);
-    slliw(x0, rs, 16);
-    srliw(rd, rs, 16);
-    or_(x0, rd, x0);   // x0 <- x0 << 16 | x0 >> 16
-    and_(x2, x0, x1);  // x2 <- x0 & 0x00FF00FF
-    slliw(x2, x2, 8);  // x2 <- (x0 & x1) << 8
-    slliw(x1, x1, 8);  // x1 <- 0xFF00FF00
-    and_(rd, x0, x1);  // x0 & 0xFF00FF00
-    srliw(rd, rd, 8);
-    or_(rd, rd, x2);  // (((x0 & x1) << 8)  | ((x0 & (x1 << 8)) >> 8))
+    if (scratch == no_reg) {
+      ReverseBytesHelper<8>(rd, rs, x0, x1);
+      srai(rd, rd, 32);
+    } else {
+      // Uint32_t x1 = 0x00FF00FF;
+      // x0 = (x0 << 16 | x0 >> 16);
+      // x0 = (((x0 & x1) << 8)  | ((x0 & (x1 << 8)) >> 8));
+      Register x2 = scratch;
+      li(x1, 0x00FF00FF);
+      slliw(x0, rs, 16);
+      srliw(rd, rs, 16);
+      or_(x0, rd, x0);   // x0 <- x0 << 16 | x0 >> 16
+      and_(x2, x0, x1);  // x2 <- x0 & 0x00FF00FF
+      slliw(x2, x2, 8);  // x2 <- (x0 & x1) << 8
+      slliw(x1, x1, 8);  // x1 <- 0xFF00FF00
+      and_(rd, x0, x1);  // x0 & 0xFF00FF00
+      srliw(rd, rd, 8);
+      or_(rd, rd, x2);  // (((x0 & x1) << 8)  | ((x0 & (x1 << 8)) >> 8))
+    }
   } else {
-    // uinx24_t x1 = 0x0000FFFF0000FFFFl;
-    // uinx24_t x1 = 0x00FF00FF00FF00FFl;
-    // x0 = (x0 << 32 | x0 >> 32);
-    // x0 = (x0 & x1) << 16 | (x0 & (x1 << 16)) >> 16;
-    // x0 = (x0 & x1) << 8  | (x0 & (x1 << 8)) >> 8;
     UseScratchRegisterScope temps(this);
     BlockTrampolinePoolScope block_trampoline_pool(this);
     DCHECK((rd != t6) && (rs != t6));
     Register x0 = temps.Acquire();
     Register x1 = temps.Acquire();
-    Register x2 = scratch;
-    li(x1, 0x0000FFFF0000FFFFl);
-    slli(x0, rs, 32);
-    srli(rd, rs, 32);
-    or_(x0, rd, x0);   // x0 <- x0 << 32 | x0 >> 32
-    and_(x2, x0, x1);  // x2 <- x0 & 0x0000FFFF0000FFFF
-    slli(x2, x2, 16);  // x2 <- (x0 & 0x0000FFFF0000FFFF) << 16
-    slli(x1, x1, 16);  // x1 <- 0xFFFF0000FFFF0000
-    and_(rd, x0, x1);  // rd <- x0 & 0xFFFF0000FFFF0000
-    srli(rd, rd, 16);  // rd <- x0 & (x1 << 16)) >> 16
-    or_(x0, rd, x2);   // (x0 & x1) << 16 | (x0 & (x1 << 16)) >> 16;
-    li(x1, 0x00FF00FF00FF00FFl);
-    and_(x2, x0, x1);  // x2 <- x0 & 0x00FF00FF00FF00FF
-    slli(x2, x2, 8);   // x2 <- (x0 & x1) << 8
-    slli(x1, x1, 8);   // x1 <- 0xFF00FF00FF00FF00
-    and_(rd, x0, x1);
-    srli(rd, rd, 8);  // rd <- (x0 & (x1 << 8)) >> 8
-    or_(rd, rd, x2);  // (((x0 & x1) << 8)  | ((x0 & (x1 << 8)) >> 8))
+    if (scratch == no_reg) {
+      ReverseBytesHelper<8>(rd, rs, x0, x1);
+    } else {
+      // uinx24_t x1 = 0x0000FFFF0000FFFFl;
+      // uinx24_t x1 = 0x00FF00FF00FF00FFl;
+      // x0 = (x0 << 32 | x0 >> 32);
+      // x0 = (x0 & x1) << 16 | (x0 & (x1 << 16)) >> 16;
+      // x0 = (x0 & x1) << 8  | (x0 & (x1 << 8)) >> 8;
+      Register x2 = scratch;
+      li(x1, 0x0000FFFF0000FFFFl);
+      slli(x0, rs, 32);
+      srli(rd, rs, 32);
+      or_(x0, rd, x0);   // x0 <- x0 << 32 | x0 >> 32
+      and_(x2, x0, x1);  // x2 <- x0 & 0x0000FFFF0000FFFF
+      slli(x2, x2, 16);  // x2 <- (x0 & 0x0000FFFF0000FFFF) << 16
+      slli(x1, x1, 16);  // x1 <- 0xFFFF0000FFFF0000
+      and_(rd, x0, x1);  // rd <- x0 & 0xFFFF0000FFFF0000
+      srli(rd, rd, 16);  // rd <- x0 & (x1 << 16)) >> 16
+      or_(x0, rd, x2);   // (x0 & x1) << 16 | (x0 & (x1 << 16)) >> 16;
+      li(x1, 0x00FF00FF00FF00FFl);
+      and_(x2, x0, x1);  // x2 <- x0 & 0x00FF00FF00FF00FF
+      slli(x2, x2, 8);   // x2 <- (x0 & x1) << 8
+      slli(x1, x1, 8);   // x1 <- 0xFF00FF00FF00FF00
+      and_(rd, x0, x1);
+      srli(rd, rd, 8);  // rd <- (x0 & (x1 << 8)) >> 8
+      or_(rd, rd, x2);  // (((x0 & x1) << 8)  | ((x0 & (x1 << 8)) >> 8))
+    }
   }
 }
 
@@ -1845,25 +1887,29 @@ void MacroAssembler::ByteSwap(Register rd, Register rs, int operand_size,
   }
   DCHECK_NE(scratch, rs);
   DCHECK_NE(scratch, rd);
-  // Uint32_t x1 = 0x00FF00FF;
-  // x0 = (x0 << 16 | x0 >> 16);
-  // x0 = (((x0 & x1) << 8)  | ((x0 & (x1 << 8)) >> 8));
   UseScratchRegisterScope temps(this);
   BlockTrampolinePoolScope block_trampoline_pool(this);
   DCHECK((rd != t6) && (rs != t6));
   Register x0 = temps.Acquire();
   Register x1 = temps.Acquire();
-  Register x2 = scratch;
-  li(x1, 0x00FF00FF);
-  slli(x0, rs, 16);
-  srli(rd, rs, 16);
-  or_(x0, rd, x0);   // x0 <- x0 << 16 | x0 >> 16
-  and_(x2, x0, x1);  // x2 <- x0 & 0x00FF00FF
-  slli(x2, x2, 8);   // x2 <- (x0 & x1) << 8
-  slli(x1, x1, 8);   // x1 <- 0xFF00FF00
-  and_(rd, x0, x1);  // x0 & 0xFF00FF00
-  srli(rd, rd, 8);
-  or_(rd, rd, x2);  // (((x0 & x1) << 8)  | ((x0 & (x1 << 8)) >> 8))
+  if (scratch == no_reg) {
+    ReverseBytesHelper<4>(rd, rs, x0, x1);
+  } else {
+    // Uint32_t x1 = 0x00FF00FF;
+    // x0 = (x0 << 16 | x0 >> 16);
+    // x0 = (((x0 & x1) << 8)  | ((x0 & (x1 << 8)) >> 8));
+    Register x2 = scratch;
+    li(x1, 0x00FF00FF);
+    slli(x0, rs, 16);
+    srli(rd, rs, 16);
+    or_(x0, rd, x0);   // x0 <- x0 << 16 | x0 >> 16
+    and_(x2, x0, x1);  // x2 <- x0 & 0x00FF00FF
+    slli(x2, x2, 8);   // x2 <- (x0 & x1) << 8
+    slli(x1, x1, 8);   // x1 <- 0xFF00FF00
+    and_(rd, x0, x1);  // x0 & 0xFF00FF00
+    srli(rd, rd, 8);
+    or_(rd, rd, x2);  // (((x0 & x1) << 8)  | ((x0 & (x1 << 8)) >> 8))
+  }
 }
 #endif
 
@@ -3890,23 +3936,31 @@ void MacroAssembler::CompareI(Register rd, Register rs, const Operand& rt,
 // dest <- (condition != 0 ? zero : dest)
 void MacroAssembler::LoadZeroIfConditionNotZero(Register dest,
                                                 Register condition) {
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  seqz(scratch, condition);
-  // neg + and may be more efficient than mul(dest, dest, scratch)
-  neg(scratch, scratch);  // 0 is still 0, 1 becomes all 1s
-  and_(dest, dest, scratch);
+  if (CpuFeatures::IsSupported(ZICOND)) {
+    czero_nez(dest, dest, condition);
+  } else {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    seqz(scratch, condition);
+    // neg + and may be more efficient than mul(dest, dest, scratch)
+    neg(scratch, scratch);  // 0 is still 0, 1 becomes all 1s
+    and_(dest, dest, scratch);
+  }
 }
 
 // dest <- (condition == 0 ? 0 : dest)
 void MacroAssembler::LoadZeroIfConditionZero(Register dest,
                                              Register condition) {
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  snez(scratch, condition);
-  //  neg + and may be more efficient than mul(dest, dest, scratch);
-  neg(scratch, scratch);  // 0 is still 0, 1 becomes all 1s
-  and_(dest, dest, scratch);
+  if (CpuFeatures::IsSupported(ZICOND)) {
+    czero_eqz(dest, dest, condition);
+  } else {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    snez(scratch, condition);
+    //  neg + and may be more efficient than mul(dest, dest, scratch);
+    neg(scratch, scratch);  // 0 is still 0, 1 becomes all 1s
+    and_(dest, dest, scratch);
+  }
 }
 
 void MacroAssembler::Clz32(Register rd, Register xx) {
@@ -6324,7 +6378,7 @@ void MacroAssembler::JumpIfObjectType(Label* target, Condition cc,
     scratch = temps.Acquire();
   }
   if (V8_STATIC_ROOTS_BOOL) {
-    if (base::Optional<RootIndex> expected =
+    if (std::optional<RootIndex> expected =
             InstanceTypeChecker::UniqueMapOfInstanceType(instance_type)) {
       Tagged_t ptr = ReadOnlyRootPtr(*expected);
       LoadCompressedMap(scratch, object);

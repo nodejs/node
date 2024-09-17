@@ -167,9 +167,9 @@ class WasmGraphBuilder {
   enum ParameterMode {
     // Normal wasm functions pass the instance as an implicit first parameter.
     kInstanceParameterMode,
-    // For Wasm-to-JS and C-API wrappers, a {WasmApiFunctionRef} object is
+    // For Wasm-to-JS and C-API wrappers, a {WasmImportData} object is
     // passed as first parameter.
-    kWasmApiFunctionRefMode,
+    kWasmImportDataMode,
     // For JS-to-Wasm wrappers (which are JS functions), we load the Wasm
     // instance from the JS function data. The generated code objects live on
     // the JS heap, so those compilation pass an isolate.
@@ -904,12 +904,6 @@ V8_EXPORT_PRIVATE void BuildInlinedJSToWasmWrapper(
     const wasm::WasmModule* module, Isolate* isolate,
     compiler::SourcePositionTable* spt, wasm::WasmEnabledFeatures features,
     Node* frame_state, bool set_in_wasm_flag);
-
-V8_EXPORT_PRIVATE CallDescriptor* GetI32WasmCallDescriptor(
-    Zone* zone, const CallDescriptor* call_descriptor);
-
-V8_EXPORT_PRIVATE const wasm::FunctionSig* GetI32Sig(
-    Zone* zone, const wasm::FunctionSig* sig);
 
 AssemblerOptions WasmAssemblerOptions();
 AssemblerOptions WasmStubAssemblerOptions();

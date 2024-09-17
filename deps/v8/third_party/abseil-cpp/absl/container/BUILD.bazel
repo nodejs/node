@@ -732,6 +732,7 @@ cc_test(
         "//absl/memory",
         "//absl/meta:type_traits",
         "//absl/strings",
+        "//absl/types:optional",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
     ],

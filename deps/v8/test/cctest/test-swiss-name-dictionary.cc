@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <optional>
+
 #include "src/objects/swiss-name-dictionary-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/test-swiss-name-dictionary-infra.h"
@@ -41,8 +43,8 @@ class RuntimeTestRunner {
 
   // Tests that the current table has the given capacity, and number of
   // (deleted) elements, based on which optional values are present.
-  void CheckCounts(base::Optional<int> capacity, base::Optional<int> elements,
-                   base::Optional<int> deleted);
+  void CheckCounts(std::optional<int> capacity, std::optional<int> elements,
+                   std::optional<int> deleted);
   // Checks that |expected_keys| contains exactly the keys in the current table,
   // in the given order.
   void CheckEnumerationOrder(const std::vector<std::string>& expected_keys);
@@ -95,9 +97,9 @@ void RuntimeTestRunner::Delete(InternalIndex entry) {
   table = table->DeleteEntry(isolate_, table, entry);
 }
 
-void RuntimeTestRunner::CheckCounts(base::Optional<int> capacity,
-                                    base::Optional<int> elements,
-                                    base::Optional<int> deleted) {
+void RuntimeTestRunner::CheckCounts(std::optional<int> capacity,
+                                    std::optional<int> elements,
+                                    std::optional<int> deleted) {
   if (capacity.has_value()) {
     CHECK_EQ(capacity.value(), table->Capacity());
   }

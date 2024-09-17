@@ -378,7 +378,7 @@ Tagged<Object> BytecodeBudgetInterruptWithStackCheck(Isolate* isolate,
                                                      CodeKind code_kind) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<JSFunction> function = args.at<JSFunction>(0);
+  DirectHandle<JSFunction> function = args.at<JSFunction>(0);
   TRACE_EVENT0("v8.execute", "V8.BytecodeBudgetInterruptWithStackCheck");
 
   // Check for stack interrupts here so that we can fold the interrupt check
@@ -404,7 +404,7 @@ Tagged<Object> BytecodeBudgetInterrupt(Isolate* isolate, RuntimeArguments& args,
                                        CodeKind code_kind) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<JSFunction> function = args.at<JSFunction>(0);
+  DirectHandle<JSFunction> function = args.at<JSFunction>(0);
   TRACE_EVENT0("v8.execute", "V8.BytecodeBudgetInterrupt");
 
   isolate->tiering_manager()->OnInterruptTick(function, code_kind);

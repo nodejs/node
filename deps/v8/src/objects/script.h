@@ -83,11 +83,9 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
   // code from which eval was called, as negative integer.
   DECL_INT_ACCESSORS(eval_from_position)
 
-  // [shared_function_infos]: weak fixed array containing all shared
-  // function infos created from this script.
-  DECL_ACCESSORS(shared_function_infos, Tagged<WeakFixedArray>)
-
-  inline int shared_function_info_count() const;
+  // [infos]: weak fixed array containing all shared function infos and scope
+  // infos for eval created from this script.
+  DECL_ACCESSORS(infos, Tagged<WeakFixedArray>)
 
 #if V8_ENABLE_WEBASSEMBLY
   // [wasm_breakpoint_infos]: the list of {BreakPointInfo} objects describing
@@ -172,6 +170,8 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
   // Retrieve source position from where eval was called.
   static int GetEvalPosition(Isolate* isolate, DirectHandle<Script> script);
 
+  Tagged<Script> inline GetEvalOrigin();
+
   // Initialize line_ends array with source code positions of line ends if
   // it doesn't exist yet.
   static inline void InitLineEnds(Isolate* isolate,
@@ -237,9 +237,9 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
   bool IsUserJavaScript() const;
 
   // Wrappers for GetPositionInfo
-  static int GetColumnNumber(Handle<Script> script, int code_offset);
+  static int GetColumnNumber(DirectHandle<Script> script, int code_offset);
   int GetColumnNumber(int code_pos) const;
-  V8_EXPORT_PRIVATE static int GetLineNumber(Handle<Script> script,
+  V8_EXPORT_PRIVATE static int GetLineNumber(DirectHandle<Script> script,
                                              int code_offset);
   int GetLineNumber(int code_pos) const;
 

@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <optional>
 
 #include "src/base/logging.h"
 #include "src/base/strings.h"
@@ -22,8 +23,7 @@
 #include "src/strings/unicode.h"
 #include "src/utils/allocation.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 class AstRawString;
 class AstValueFactory;
@@ -386,7 +386,7 @@ class V8_EXPORT_PRIVATE Scanner {
   MessageTemplate octal_message() const { return octal_message_; }
 
   // Returns the value of the last smi that was scanned.
-  uint32_t smi_value() const { return current().smi_value_; }
+  uint32_t smi_value() const { return current().smi_value; }
 
   // Seek forward to the given position.  This operation does not
   // work in general, for instance when there are pushed back
@@ -416,7 +416,7 @@ class V8_EXPORT_PRIVATE Scanner {
   // Returns true if a pattern is scanned.
   bool ScanRegExpPattern();
   // Scans the input as regular expression flags. Returns the flags on success.
-  base::Optional<RegExpFlags> ScanRegExpFlags();
+  std::optional<RegExpFlags> ScanRegExpFlags();
 
   // Scans the input as a template literal
   Token::Value ScanTemplateContinuation() {
@@ -448,6 +448,15 @@ class V8_EXPORT_PRIVATE Scanner {
   // escape sequences are allowed.
   class ErrorState;
 
+  enum NumberKind {
+    IMPLICIT_OCTAL,
+    BINARY,
+    OCTAL,
+    HEX,
+    DECIMAL,
+    DECIMAL_WITH_LEADING_ZERO
+  };
+
   // The current and look-ahead tokens.
   struct TokenDesc {
     Location location = {0, 0};
@@ -456,7 +465,8 @@ class V8_EXPORT_PRIVATE Scanner {
     Token::Value token = Token::kUninitialized;
     MessageTemplate invalid_template_escape_message = MessageTemplate::kNone;
     Location invalid_template_escape_location;
-    uint32_t smi_value_ = 0;
+    NumberKind number_kind;
+    uint32_t smi_value = 0;
     bool after_line_terminator = false;
 
 #ifdef DEBUG
@@ -473,15 +483,6 @@ class V8_EXPORT_PRIVATE Scanner {
              base::IsInRange(token, Token::kTemplateSpan, Token::kTemplateTail);
     }
 #endif  // DEBUG
-  };
-
-  enum NumberKind {
-    IMPLICIT_OCTAL,
-    BINARY,
-    OCTAL,
-    HEX,
-    DECIMAL,
-    DECIMAL_WITH_LEADING_ZERO
   };
 
   inline bool IsValidBigIntKind(NumberKind kind) {
@@ -772,7 +773,6 @@ class V8_EXPORT_PRIVATE Scanner {
   Location scanner_error_location_;
 };
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #endif  // V8_PARSING_SCANNER_H_

@@ -4,37 +4,33 @@
 
 #include "src/objects/js-temporal-objects.h"
 
+#include <optional>
 #include <set>
 
-#include "src/base/optional.h"
 #include "src/common/globals.h"
 #include "src/date/date.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
 #include "src/numbers/conversions-inl.h"
-#ifdef V8_INTL_SUPPORT
-#include "src/objects/intl-objects.h"
-#include "src/objects/js-date-time-format.h"
-#endif  // V8_INTL_SUPPORT
 #include "src/objects/js-objects-inl.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/js-temporal-objects-inl.h"
-#ifdef V8_INTL_SUPPORT
-#include "src/objects/managed-inl.h"
-#endif  // V8_INTL_SUPPORT
 #include "src/objects/objects-inl.h"
 #include "src/objects/option-utils.h"
 #include "src/objects/property-descriptor.h"
 #include "src/objects/string-set.h"
 #include "src/strings/string-builder-inl.h"
 #include "src/temporal/temporal-parser.h"
+
 #ifdef V8_INTL_SUPPORT
+#include "src/objects/intl-objects.h"
+#include "src/objects/js-date-time-format.h"
+#include "src/objects/managed-inl.h"
 #include "unicode/calendar.h"
 #include "unicode/unistr.h"
 #endif  // V8_INTL_SUPPORT
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 namespace {
 
@@ -920,7 +916,7 @@ MaybeHandle<JSTemporalPlainYearMonth> CreateTemporalYearMonth(
 // #sec-temporal-createtemporalzoneddatetime
 MaybeHandle<JSTemporalZonedDateTime> CreateTemporalZonedDateTime(
     Isolate* isolate, Handle<JSFunction> target, Handle<HeapObject> new_target,
-    Handle<BigInt> epoch_nanoseconds, DirectHandle<JSReceiver> time_zone,
+    DirectHandle<BigInt> epoch_nanoseconds, DirectHandle<JSReceiver> time_zone,
     DirectHandle<JSReceiver> calendar) {
   TEMPORAL_ENTER_FUNC();
   // 1. Assert: Type(epochNanoseconds) is BigInt.
@@ -946,7 +942,7 @@ MaybeHandle<JSTemporalZonedDateTime> CreateTemporalZonedDateTime(
 }
 
 MaybeHandle<JSTemporalZonedDateTime> CreateTemporalZonedDateTime(
-    Isolate* isolate, Handle<BigInt> epoch_nanoseconds,
+    Isolate* isolate, DirectHandle<BigInt> epoch_nanoseconds,
     DirectHandle<JSReceiver> time_zone, DirectHandle<JSReceiver> calendar) {
   TEMPORAL_ENTER_FUNC();
   return CreateTemporalZonedDateTime(isolate, CONSTRUCTOR(zoned_date_time),
@@ -1104,7 +1100,7 @@ namespace temporal {
 // #sec-temporal-createtemporalinstant
 MaybeHandle<JSTemporalInstant> CreateTemporalInstant(
     Isolate* isolate, Handle<JSFunction> target, Handle<HeapObject> new_target,
-    Handle<BigInt> epoch_nanoseconds) {
+    DirectHandle<BigInt> epoch_nanoseconds) {
   TEMPORAL_ENTER_FUNC();
   // 1. Assert: Type(epochNanoseconds) is BigInt.
   // 2. Assert: ! IsValidEpochNanoseconds(epochNanoseconds) is true.
@@ -1121,7 +1117,7 @@ MaybeHandle<JSTemporalInstant> CreateTemporalInstant(
 }
 
 MaybeHandle<JSTemporalInstant> CreateTemporalInstant(
-    Isolate* isolate, Handle<BigInt> epoch_nanoseconds) {
+    Isolate* isolate, DirectHandle<BigInt> epoch_nanoseconds) {
   TEMPORAL_ENTER_FUNC();
   return CreateTemporalInstant(isolate, CONSTRUCTOR(instant),
                                CONSTRUCTOR(instant), epoch_nanoseconds);
@@ -1235,7 +1231,7 @@ namespace {
 Handle<JSTemporalInstant> SystemInstant(Isolate* isolate) {
   TEMPORAL_ENTER_FUNC();
   // 1. Let ns be ! SystemUTCEpochNanoseconds().
-  Handle<BigInt> ns = SystemUTCEpochNanoseconds(isolate);
+  DirectHandle<BigInt> ns = SystemUTCEpochNanoseconds(isolate);
   // 2. Return ? CreateTemporalInstant(ns).
   return temporal::CreateTemporalInstant(isolate, ns).ToHandleChecked();
 }
@@ -1662,7 +1658,7 @@ Handle<String> TemporalTimeToString(
 namespace temporal {
 MaybeHandle<JSTemporalPlainDateTime> BuiltinTimeZoneGetPlainDateTimeFor(
     Isolate* isolate, Handle<JSReceiver> time_zone,
-    Handle<JSTemporalInstant> instant, Handle<JSReceiver> calendar,
+    Handle<JSTemporalInstant> instant, DirectHandle<JSReceiver> calendar,
     const char* method_name) {
   TEMPORAL_ENTER_FUNC();
   // 1. Let offsetNanoseconds be ? GetOffsetNanosecondsFor(timeZone, instant).
@@ -1808,7 +1804,7 @@ MaybeHandle<JSTemporalInstant> DisambiguatePossibleInstants(
 
   // 8. Let dayBeforeNs be epochNanoseconds - ℤ(nsPerDay).
   Handle<BigInt> one_day_in_ns = BigInt::FromUint64(isolate, 86400000000000ULL);
-  Handle<BigInt> day_before_ns =
+  DirectHandle<BigInt> day_before_ns =
       BigInt::Subtract(isolate, epoch_nanoseconds, one_day_in_ns)
           .ToHandleChecked();
   // 9. If ! IsValidEpochNanoseconds(dayBeforeNs) is false, throw a RangeError
@@ -1820,7 +1816,7 @@ MaybeHandle<JSTemporalInstant> DisambiguatePossibleInstants(
   Handle<JSTemporalInstant> day_before =
       temporal::CreateTemporalInstant(isolate, day_before_ns).ToHandleChecked();
   // 11. Let dayAfterNs be epochNanoseconds + ℤ(nsPerDay).
-  Handle<BigInt> day_after_ns =
+  DirectHandle<BigInt> day_after_ns =
       BigInt::Add(isolate, epoch_nanoseconds, one_day_in_ns).ToHandleChecked();
   // 12. If ! IsValidEpochNanoseconds(dayAfterNs) is false, throw a RangeError
   // exception.
@@ -2266,8 +2262,8 @@ MaybeHandle<JSTemporalInstant> ToTemporalInstant(Isolate* isolate,
   // b. If item has an [[InitializedTemporalZonedDateTime]] internal slot, then
   if (IsJSTemporalZonedDateTime(*item)) {
     // i. Return ! CreateTemporalInstant(item.[[Nanoseconds]]).
-    Handle<BigInt> nanoseconds =
-        handle(Cast<JSTemporalZonedDateTime>(*item)->nanoseconds(), isolate);
+    DirectHandle<BigInt> nanoseconds(
+        Cast<JSTemporalZonedDateTime>(*item)->nanoseconds(), isolate);
     return temporal::CreateTemporalInstant(isolate, nanoseconds)
         .ToHandleChecked();
   }
@@ -2970,7 +2966,7 @@ MaybeHandle<JSReceiver> ToTemporalTimeZone(
     Handle<String> name = Cast<String>(parse_result.name);
     // b. If ParseText(StringToCodePoints(name, TimeZoneNumericUTCOffset)) is
     // a List of errors, then
-    base::Optional<ParsedISO8601Result> parsed_offset =
+    std::optional<ParsedISO8601Result> parsed_offset =
         TemporalParser::ParseTimeZoneNumericUTCOffset(isolate, name);
     if (!parsed_offset.has_value()) {
       // i. If ! IsValidTimeZoneName(name) is false, throw a RangeError
@@ -3053,7 +3049,7 @@ MaybeHandle<JSTemporalZonedDateTime> SystemZonedDateTime(
       isolate, calendar,
       temporal::ToTemporalCalendar(isolate, calendar_like, method_name));
   // 4. Let ns be ! SystemUTCEpochNanoseconds().
-  Handle<BigInt> ns = SystemUTCEpochNanoseconds(isolate);
+  DirectHandle<BigInt> ns = SystemUTCEpochNanoseconds(isolate);
   // Return ? CreateTemporalZonedDateTime(ns, timeZone, calendar).
   return CreateTemporalZonedDateTime(isolate, ns, time_zone, calendar);
 }
@@ -3364,7 +3360,7 @@ Maybe<DateTimeRecordWithCalendar> ParseISODateTime(Isolate* isolate,
 
   // a. If parseResult is not a Parse Node, set parseResult to
   // ParseText(StringToCodePoints(isoString), goal).
-  base::Optional<ParsedISO8601Result> parsed;
+  std::optional<ParsedISO8601Result> parsed;
   if ((parsed =
            TemporalParser::ParseTemporalDateTimeString(isolate, iso_string))
           .has_value() ||
@@ -3549,7 +3545,7 @@ Maybe<TimeRecordWithCalendar> ParseTemporalTimeString(
   // 1. Assert: Type(isoString) is String.
   // 2. If isoString does not satisfy the syntax of a TemporalTimeString
   // (see 13.33), then
-  base::Optional<ParsedISO8601Result> parsed =
+  std::optional<ParsedISO8601Result> parsed =
       TemporalParser::ParseTemporalTimeString(isolate, iso_string);
   if (!parsed.has_value()) {
     // a. Throw a *RangeError* exception.
@@ -3586,7 +3582,7 @@ Maybe<InstantRecord> ParseTemporalInstantString(Isolate* isolate,
 
   // 1. If ParseText(StringToCodePoints(isoString), TemporalInstantString) is a
   // List of errors, throw a RangeError exception.
-  base::Optional<ParsedISO8601Result> parsed =
+  std::optional<ParsedISO8601Result> parsed =
       TemporalParser::ParseTemporalInstantString(isolate, iso_string);
   if (!parsed.has_value()) {
     THROW_NEW_ERROR_RETURN_VALUE(isolate,
@@ -3630,7 +3626,7 @@ Maybe<DateTimeRecordWithCalendar> ParseTemporalRelativeToString(
 
   // 1. If ParseText(StringToCodePoints(isoString), TemporalDateTimeString) is a
   // List of errors, throw a RangeError exception.
-  base::Optional<ParsedISO8601Result> parsed =
+  std::optional<ParsedISO8601Result> parsed =
       TemporalParser::ParseTemporalDateTimeString(isolate, iso_string);
   if (!parsed.has_value()) {
     // a. Throw a *RangeError* exception.
@@ -3692,7 +3688,7 @@ Maybe<DateTimeRecordWithCalendar> ParseTemporalZonedDateTimeString(
   TEMPORAL_ENTER_FUNC();
   // 1. If ParseText(StringToCodePoints(isoString), TemporalZonedDateTimeString)
   // is a List of errors, throw a RangeError exception.
-  base::Optional<ParsedISO8601Result> parsed =
+  std::optional<ParsedISO8601Result> parsed =
       TemporalParser::ParseTemporalZonedDateTimeString(isolate, iso_string);
   if (!parsed.has_value()) {
     THROW_NEW_ERROR_RETURN_VALUE(isolate,
@@ -3746,7 +3742,7 @@ Maybe<DurationRecord> ParseTemporalDurationString(Isolate* isolate,
   // DurationWholeMinutes, DurationMinutesFraction, DurationWholeSeconds, and
   // DurationSecondsFraction Parse Node enclosed by duration, or an empty
   // sequence of code points if not present.
-  base::Optional<ParsedISO8601Duration> parsed =
+  std::optional<ParsedISO8601Duration> parsed =
       TemporalParser::ParseTemporalDurationString(isolate, iso_string);
   if (!parsed.has_value()) {
     THROW_NEW_ERROR_RETURN_VALUE(isolate,
@@ -3875,7 +3871,7 @@ Maybe<TimeZoneRecord> ParseTemporalTimeZoneString(
 
   // 1. Let parseResult be ParseText(StringToCodePoints(timeZoneString),
   // TimeZoneIdentifier).
-  base::Optional<ParsedISO8601Result> parsed =
+  std::optional<ParsedISO8601Result> parsed =
       TemporalParser::ParseTimeZoneIdentifier(isolate, time_zone_string);
   // 2. If parseResult is a Parse Node, then
   if (parsed.has_value()) {
@@ -3912,7 +3908,7 @@ Maybe<int64_t> ParseTimeZoneOffsetString(Isolate* isolate,
   // 1. Assert: Type(offsetString) is String.
   // 2. If offsetString does not satisfy the syntax of a
   // TimeZoneNumericUTCOffset (see 13.33), then
-  base::Optional<ParsedISO8601Result> parsed =
+  std::optional<ParsedISO8601Result> parsed =
       TemporalParser::ParseTimeZoneNumericUTCOffset(isolate, iso_string);
   if (!parsed.has_value()) {
     /* a. Throw a RangeError exception. */
@@ -3966,7 +3962,7 @@ bool IsValidTimeZoneNumericUTCOffsetString(Isolate* isolate,
                                            Handle<String> iso_string) {
   TEMPORAL_ENTER_FUNC();
 
-  base::Optional<ParsedISO8601Result> parsed =
+  std::optional<ParsedISO8601Result> parsed =
       TemporalParser::ParseTimeZoneNumericUTCOffset(isolate, iso_string);
   return parsed.has_value();
 }
@@ -3997,7 +3993,7 @@ MaybeHandle<String> ParseTemporalCalendarString(Isolate* isolate,
     isolate->clear_exception();
     // a. Set parseResult to ParseText(StringToCodePoints(isoString),
     // CalendarName).
-    base::Optional<ParsedISO8601Result> parsed =
+    std::optional<ParsedISO8601Result> parsed =
         TemporalParser::ParseCalendarName(isolate, iso_string);
     // b. If parseResult is a List of errors, throw a RangeError exception.
     if (!parsed.has_value()) {
@@ -5178,7 +5174,7 @@ Maybe<BalancePossiblyInfiniteDurationResult> BalancePossiblyInfiniteDuration(
   DirectHandle<BigInt> thousand = BigInt::FromInt64(isolate, 1000);
   DirectHandle<BigInt> sixty = BigInt::FromInt64(isolate, 60);
   Handle<BigInt> zero = BigInt::FromInt64(isolate, 0);
-  Handle<BigInt> hours = zero;
+  DirectHandle<BigInt> hours = zero;
   Handle<BigInt> minutes = zero;
   Handle<BigInt> seconds = zero;
   Handle<BigInt> milliseconds = zero;
@@ -8202,7 +8198,7 @@ MaybeHandle<Object> ToRelativeTemporalObject(Isolate* isolate,
       // TimeZoneNumericUTCOffset) is a List of errors, then
       DCHECK(IsString(*time_zone_name_obj));
       Handle<String> time_zone_name = Cast<String>(time_zone_name_obj);
-      base::Optional<ParsedISO8601Result> parsed =
+      std::optional<ParsedISO8601Result> parsed =
           TemporalParser::ParseTimeZoneNumericUTCOffset(isolate,
                                                         time_zone_name);
       if (!parsed.has_value()) {
@@ -11001,7 +10997,7 @@ MaybeHandle<Object> GetTransition(Isolate* isolate,
     return isolate->factory()->null_value();
   }
   DCHECK(IsBigInt(*transition_obj));
-  Handle<BigInt> transition = Cast<BigInt>(transition_obj);
+  DirectHandle<BigInt> transition = Cast<BigInt>(transition_obj);
   // 7. Return ! CreateTemporalInstant(transition).
   return temporal::CreateTemporalInstant(isolate, transition).ToHandleChecked();
 }
@@ -11029,7 +11025,8 @@ MaybeHandle<JSArray> GetIANATimeZoneEpochValueAsArrayOfInstantForUTC(
     Isolate* isolate, const DateTimeRecord& date_time) {
   Factory* factory = isolate->factory();
   // 6. Let possibleInstants be a new empty List.
-  Handle<BigInt> epoch_nanoseconds = GetEpochFromISOParts(isolate, date_time);
+  DirectHandle<BigInt> epoch_nanoseconds =
+      GetEpochFromISOParts(isolate, date_time);
   DirectHandle<FixedArray> fixed_array = factory->NewFixedArray(1);
   // 7. For each value epochNanoseconds in possibleEpochNanoseconds, do
   // a. If ! IsValidEpochNanoseconds(epochNanoseconds) is false, throw a
@@ -11068,7 +11065,7 @@ MaybeHandle<JSArray> GetIANATimeZoneEpochValueAsArrayOfInstant(
   DirectHandle<FixedArray> fixed_array = factory->NewFixedArray(array_length);
 
   for (int32_t i = 0; i < array_length; i++) {
-    Handle<BigInt> epoch_nanoseconds =
+    DirectHandle<BigInt> epoch_nanoseconds =
         BigInt::Subtract(isolate, nanoseconds_in_local_time, possible_offset[i])
             .ToHandleChecked();
     // a. If ! IsValidEpochNanoseconds(epochNanoseconds) is false, throw a
@@ -11647,7 +11644,7 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalPlainDate::ToZonedDateTime(
   }
   // 5. If temporalTime is undefined, then
   Handle<JSTemporalPlainDateTime> temporal_date_time;
-  Handle<JSReceiver> calendar(temporal_date->calendar(), isolate);
+  DirectHandle<JSReceiver> calendar(temporal_date->calendar(), isolate);
   if (IsUndefined(*temporal_time_obj)) {
     // a. Let temporalDateTime be ?
     // CreateTemporalDateTime(temporalDate.[[ISOYear]],
@@ -12138,7 +12135,7 @@ Maybe<DateTimeRecordWithCalendar> ParseTemporalDateTimeString(
   // 1. Assert: Type(isoString) is String.
   // 2. If isoString does not satisfy the syntax of a TemporalDateTimeString
   // (see 13.33), then
-  base::Optional<ParsedISO8601Result> parsed =
+  std::optional<ParsedISO8601Result> parsed =
       TemporalParser::ParseTemporalDateTimeString(isolate, iso_string);
   if (!parsed.has_value()) {
     // a. Throw a *RangeError* exception.
@@ -13321,7 +13318,7 @@ Maybe<DateRecordWithCalendar> ParseTemporalMonthDayString(
   // 1. Assert: Type(isoString) is String.
   // 2. If isoString does not satisfy the syntax of a TemporalMonthDayString
   // (see 13.33), then
-  base::Optional<ParsedISO8601Result> parsed =
+  std::optional<ParsedISO8601Result> parsed =
       TemporalParser::ParseTemporalMonthDayString(isolate, iso_string);
   if (!parsed.has_value()) {
     // a. Throw a *RangeError* exception.
@@ -13795,7 +13792,7 @@ Maybe<DateRecordWithCalendar> ParseTemporalYearMonthString(
   // 1. Assert: Type(isoString) is String.
   // 2. If isoString does not satisfy the syntax of a TemporalYearMonthString
   // (see 13.33), then
-  base::Optional<ParsedISO8601Result> parsed =
+  std::optional<ParsedISO8601Result> parsed =
       TemporalParser::ParseTemporalYearMonthString(isolate, iso_string);
   if (!parsed.has_value()) {
     THROW_NEW_ERROR_RETURN_VALUE(isolate,
@@ -14447,7 +14444,7 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalPlainTime::ToZonedDateTime(
   // temporalTime.[[ISOMinute]], temporalTime.[[ISOSecond]],
   // temporalTime.[[ISOMillisecond]], temporalTime.[[ISOMicrosecond]],
   // temporalTime.[[ISONanosecond]], temporalDate.[[Calendar]]).
-  Handle<JSReceiver> calendar(temporal_date->calendar(), isolate);
+  DirectHandle<JSReceiver> calendar(temporal_date->calendar(), isolate);
   Handle<JSTemporalPlainDateTime> temporal_date_time;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, temporal_date_time,
@@ -15651,7 +15648,7 @@ MaybeHandle<Object> JSTemporalZonedDateTime::HoursInDay(
           .ToHandleChecked();
 
   // 5. Let isoCalendar be ! GetISO8601Calendar().
-  Handle<JSReceiver> iso_calendar = temporal::GetISO8601Calendar(isolate);
+  DirectHandle<JSReceiver> iso_calendar = temporal::GetISO8601Calendar(isolate);
 
   // 6. Let temporalDateTime be ? BuiltinTimeZoneGetPlainDateTimeFor(timeZone,
   // instant, isoCalendar).
@@ -15840,7 +15837,7 @@ MaybeHandle<JSTemporalZonedDateTime> ToTemporalZonedDateTime(
 
     // f. If ParseText(StringToCodePoints(timeZoneName),
     // TimeZoneNumericUTCOffset) is a List of errors, then
-    base::Optional<ParsedISO8601Result> parsed =
+    std::optional<ParsedISO8601Result> parsed =
         TemporalParser::ParseTimeZoneNumericUTCOffset(isolate, time_zone_name);
     if (!parsed.has_value()) {
       // i. If ! IsValidTimeZoneName(timeZoneName) is false, throw a RangeError
@@ -16077,7 +16074,7 @@ MaybeHandle<BigInt> InterpretISODateTimeOffset(
 
   // 1. Assert: offsetNanoseconds is an integer or undefined.
   // 2. Let calendar be ! GetISO8601Calendar().
-  Handle<JSReceiver> calendar = temporal::GetISO8601Calendar(isolate);
+  DirectHandle<JSReceiver> calendar = temporal::GetISO8601Calendar(isolate);
 
   // 3. Let dateTime be ? CreateTemporalDateTime(year, month, day, hour, minute,
   // second, millisecond, microsecond, nanosecond, calendar).
@@ -16335,7 +16332,7 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::WithCalendar(
 
   // 4. Return ? CreateTemporalZonedDateTime(zonedDateTime.[[Nanoseconds]],
   // zonedDateTime.[[TimeZone]], calendar).
-  Handle<BigInt> nanoseconds(zoned_date_time->nanoseconds(), isolate);
+  DirectHandle<BigInt> nanoseconds(zoned_date_time->nanoseconds(), isolate);
   DirectHandle<JSReceiver> time_zone(zoned_date_time->time_zone(), isolate);
   return CreateTemporalZonedDateTime(isolate, nanoseconds, time_zone, calendar);
 }
@@ -16441,7 +16438,7 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::WithPlainTime(
           isolate, handle(zoned_date_time->nanoseconds(), isolate))
           .ToHandleChecked();
   // 7. Let calendar be zonedDateTime.[[Calendar]].
-  Handle<JSReceiver> calendar(zoned_date_time->calendar(), isolate);
+  DirectHandle<JSReceiver> calendar(zoned_date_time->calendar(), isolate);
   // 8. Let plainDateTime be ?
   // temporal::BuiltinTimeZoneGetPlainDateTimeFor(timeZone, instant, calendar).
   Handle<JSTemporalPlainDateTime> plain_date_time;
@@ -16495,7 +16492,7 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::WithTimeZone(
 
   // 4. Return ? CreateTemporalZonedDateTime(zonedDateTime.[[Nanoseconds]],
   // timeZone, zonedDateTime.[[Calendar]]).
-  Handle<BigInt> nanoseconds(zoned_date_time->nanoseconds(), isolate);
+  DirectHandle<BigInt> nanoseconds(zoned_date_time->nanoseconds(), isolate);
   DirectHandle<JSReceiver> calendar(zoned_date_time->calendar(), isolate);
   return CreateTemporalZonedDateTime(isolate, nanoseconds, time_zone, calendar);
 }
@@ -16578,7 +16575,7 @@ MaybeHandle<String> TemporalZonedDateTimeToString(
     Unit unit, RoundingMode rounding_mode, const char* method_name) {
   // 4. Let ns be ! RoundTemporalInstant(zonedDateTime.[[Nanoseconds]],
   // increment, unit, roundingMode).
-  Handle<BigInt> ns = RoundTemporalInstant(
+  DirectHandle<BigInt> ns = RoundTemporalInstant(
       isolate, handle(zoned_date_time->nanoseconds(), isolate), increment, unit,
       rounding_mode);
 
@@ -16873,7 +16870,7 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Round(
       temporal::BuiltinTimeZoneGetPlainDateTimeFor(isolate, time_zone, instant,
                                                    calendar, method_name));
   // 13. Let isoCalendar be ! GetISO8601Calendar().
-  Handle<JSReceiver> iso_calendar = temporal::GetISO8601Calendar(isolate);
+  DirectHandle<JSReceiver> iso_calendar = temporal::GetISO8601Calendar(isolate);
 
   // 14. Let dtStart be ? CreateTemporalDateTime(temporalDateTime.[[ISOYear]],
   // temporalDateTime.[[ISOMonth]], temporalDateTime.[[ISODay]], 0, 0, 0, 0, 0,
@@ -16904,7 +16901,7 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Round(
       AddZonedDateTime(isolate, start_ns, time_zone, calendar,
                        {0, 0, 0, {1, 0, 0, 0, 0, 0, 0}}, method_name));
   // 18. Let dayLengthNs be ℝ(endNs - startNs).
-  Handle<BigInt> day_length_ns =
+  DirectHandle<BigInt> day_length_ns =
       BigInt::Subtract(isolate, end_ns, start_ns).ToHandleChecked();
   // 19. If dayLengthNs ≤ 0, then
   if (day_length_ns->IsNegative() || !day_length_ns->ToBoolean()) {
@@ -17347,7 +17344,7 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::StartOfDay(
   // 3. Let timeZone be zonedDateTime.[[TimeZone]].
   Handle<JSReceiver> time_zone(zoned_date_time->time_zone(), isolate);
   // 4. Let calendar be zonedDateTime.[[Calendar]].
-  Handle<JSReceiver> calendar(zoned_date_time->calendar(), isolate);
+  DirectHandle<JSReceiver> calendar(zoned_date_time->calendar(), isolate);
   // 5. Let instant be ! CreateTemporalInstant(zonedDateTime.[[Nanoseconds]]).
   Handle<JSTemporalInstant> instant =
       temporal::CreateTemporalInstant(
@@ -17824,7 +17821,7 @@ MaybeHandle<JSTemporalInstant> JSTemporalInstant::Round(
       Handle<JSTemporalInstant>());
   // 15. Let roundedNs be ! RoundTemporalInstant(instant.[[Nanoseconds]],
   // roundingIncrement, smallestUnit, roundingMode).
-  Handle<BigInt> rounded_ns = RoundTemporalInstant(
+  DirectHandle<BigInt> rounded_ns = RoundTemporalInstant(
       isolate, Handle<BigInt>(handle->nanoseconds(), isolate),
       rounding_increment, smallest_unit, rounding_mode);
   // 16. Return ! CreateTemporalInstant(roundedNs).
@@ -18049,7 +18046,7 @@ MaybeHandle<String> JSTemporalInstant::ToString(
       Handle<String>());
   // 8. Let roundedNs be ! RoundTemporalInstant(instant.[[Nanoseconds]],
   // precision.[[Increment]], precision.[[Unit]], roundingMode).
-  Handle<BigInt> rounded_ns =
+  DirectHandle<BigInt> rounded_ns =
       RoundTemporalInstant(isolate, handle(instant->nanoseconds(), isolate),
                            precision.increment, precision.unit, rounding_mode);
 
@@ -18455,5 +18452,4 @@ MaybeHandle<JSTemporalInstant> BuiltinTimeZoneGetInstantForCompatible(
 }
 
 }  // namespace temporal
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal

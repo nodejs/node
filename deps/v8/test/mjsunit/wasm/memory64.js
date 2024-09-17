@@ -660,3 +660,44 @@ function InstantiatingWorkerCode() {
           'cannot import memory32 as memory64',
       worker.getMessage());
 })();
+
+(function TestMemory64EmbedLoadInFloatBinop() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addMemory64(1, 1, true);
+
+  builder.addFunction('move_load_into_float_binop',
+                      makeSig([kWasmF64], [kWasmF64]))
+    .addBody([
+      ...wasmF64Const(0),
+      kExprLocalGet, 0,
+      kExprF64Add,
+      ...wasmI64Const(65536),
+      kExprF64LoadMem, 0, 0,
+      kExprF64Add,
+    ])
+    .exportFunc();
+
+  builder.addFunction('dont_move_load_if_something_traps_in_between',
+                      makeSig([], [kWasmF64]))
+    .addBody([
+      ...wasmI64Const(65536),
+      kExprF64LoadMem, 0, 0,
+
+      ...wasmI32Const(42),
+      ...wasmI64Const(0),
+      kExprI32LoadMem, 0, 0, // Loads zero as i32.
+      kExprI32DivU, // Divide by zero trap.
+      kExprF64UConvertI32,
+
+      kExprF64Add,
+    ])
+    .exportFunc();
+
+  // Instantiation works, this should throw at runtime.
+  let instance = builder.instantiate();
+  assertTraps(kTrapMemOutOfBounds, () =>
+    instance.exports.move_load_into_float_binop(1.0));
+  assertTraps(kTrapMemOutOfBounds, () =>
+    instance.exports.dont_move_load_if_something_traps_in_between());
+})();

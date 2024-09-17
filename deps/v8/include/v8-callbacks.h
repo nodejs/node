@@ -359,7 +359,7 @@ enum class ModuleImportPhase {
  * The import_attributes are import attributes for this request in the form:
  * [key1, value1, key2, value2, ...] where the keys and values are of type
  * v8::String. Note, unlike the FixedArray passed to ResolveModuleCallback and
- * returned from ModuleRequest::GetImportAssertions(), this array does not
+ * returned from ModuleRequest::GetImportAttributes(), this array does not
  * contain the source Locations of the attributes.
  *
  * The embedder must compile, instantiate, evaluate the Module, and

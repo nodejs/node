@@ -71,11 +71,11 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(expectedSum, wasm.main(0, wasm.add));
   %WasmTierUpFunction(wasm.deopting);
   assertEquals(expectedSum, wasm.main(0, wasm.add));
-  if (%IsolateCountForTesting() == 1) {
+  if (%IsWasmTieringPredictable()) {
     assertTrue(%IsTurboFanFunction(wasm.deopting));
   }
   assertEquals(expectedDiff, wasm.main(0, wasm.sub));
-  if (%IsolateCountForTesting() == 1) {
+  if (%IsWasmTieringPredictable()) {
     assertFalse(%IsTurboFanFunction(wasm.deopting));
   }
 
@@ -83,7 +83,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   %WasmTierUpFunction(wasm.main);
   assertEquals(expectedSum, wasm.main(0, wasm.add));
   assertEquals(expectedDiff, wasm.main(0, wasm.sub));
-  if (%IsolateCountForTesting() == 1) {
+  if (%IsWasmTieringPredictable()) {
     assertTrue(%IsTurboFanFunction(wasm.main));
   }
   assertEquals(expectedMax, wasm.main(0, wasm.max));

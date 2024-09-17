@@ -644,7 +644,8 @@ namespace {
 
 template <typename WriteOperation>
 Tagged<Object> AtomicFieldWrite(Isolate* isolate, Handle<JSObject> object,
-                                Handle<Name> field_name, Handle<Object> value,
+                                Handle<Name> field_name,
+                                DirectHandle<Object> value,
                                 WriteOperation write_operation) {
   LookupIterator it(isolate, object, PropertyKey(isolate, field_name),
                     LookupIterator::OWN);

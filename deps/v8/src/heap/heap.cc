@@ -6478,30 +6478,6 @@ void Heap::CheckHandleCount() {
   isolate_->handle_scope_implementer()->Iterate(&v);
 }
 
-void Heap::ClearRecordedSlot(Tagged<HeapObject> object, ObjectSlot slot) {
-#ifndef V8_DISABLE_WRITE_BARRIERS
-  DCHECK(!IsLargeObject(object));
-  MemoryChunk* chunk = MemoryChunk::FromAddress(slot.address());
-  if (!chunk->InYoungGeneration()) {
-    PageMetadata* page = PageMetadata::cast(chunk->Metadata());
-    DCHECK_EQ(page->owner_identity(), OLD_SPACE);
-
-    // We only need to remove that slot when sweeping is still in progress.
-    // Because in that case, a concurrent sweeper could find that memory and
-    // reuse it for subsequent allocations. The runtime could install another
-    // property at this slot but without unboxed doubles this will always be a
-    // tagged pointer.
-    if (!page->SweepingDone()) {
-      // No need to update old-to-old here since that remembered set is gone
-      // after a full GC and not re-recorded until sweeping is finished.
-      RememberedSet<OLD_TO_NEW>::Remove(page, slot.address());
-      RememberedSet<OLD_TO_NEW_BACKGROUND>::Remove(page, slot.address());
-      RememberedSet<OLD_TO_SHARED>::Remove(page, slot.address());
-    }
-  }
-#endif
-}
-
 // static
 int Heap::InsertIntoRememberedSetFromCode(MutablePageMetadata* chunk,
                                           size_t slot_offset) {
@@ -6528,14 +6504,14 @@ void Heap::ClearRecordedSlotRange(Address start, Address end) {
   MemoryChunk* chunk = MemoryChunk::FromAddress(start);
   DCHECK(!chunk->IsLargePage());
 #if !V8_ENABLE_STICKY_MARK_BITS_BOOL
-  if (!chunk->InYoungGeneration()) {
-#else
-  if (true) {
+  if (!chunk->InYoungGeneration())
 #endif
+  {
     PageMetadata* page = PageMetadata::cast(chunk->Metadata());
     // This method will be invoked on objects in shared space for
     // internalization and string forwarding during GC.
     DCHECK(page->owner_identity() == OLD_SPACE ||
+           page->owner_identity() == TRUSTED_SPACE ||
            page->owner_identity() == SHARED_SPACE);
 
     if (!page->SweepingDone()) {
@@ -6661,7 +6637,7 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
       // Treat weak references as strong.
       for (TSlot p = start; p < end; ++p) {
         typename TSlot::TObject object = p.load(cage_base());
-#ifdef V8_ENABLE_DIRECT_LOCAL
+#ifdef V8_ENABLE_DIRECT_HANDLE
         if (object.ptr() == kTaggedNullAddress) continue;
 #endif
         Tagged<HeapObject> heap_object;

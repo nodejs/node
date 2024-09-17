@@ -104,6 +104,10 @@ Address CodePointerTable::GetEntrypoint(CodePointerHandle handle,
 
 Address CodePointerTable::GetCodeObject(CodePointerHandle handle) const {
   uint32_t index = HandleToIndex(handle);
+  // Due to the fact that we use the heap object tag as marking bit, this table
+  // (in contrast to the trusted pointer table) does not return Smi::zero() for
+  // the 0th entry. That entry must therefore not be accessed here.
+  DCHECK_NE(index, 0);
   return at(index).GetCodeObject();
 }
 

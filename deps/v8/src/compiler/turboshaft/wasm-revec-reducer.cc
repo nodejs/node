@@ -4,6 +4,8 @@
 
 #include "src/compiler/turboshaft/wasm-revec-reducer.h"
 
+#include <optional>
+
 #include "src/base/logging.h"
 #include "src/compiler/turboshaft/opmasks.h"
 #include "src/wasm/simd-shuffle.h"
@@ -111,7 +113,7 @@ class StoreLoadInfo {
     index_ = change_input;
   }
 
-  base::Optional<int> operator-(const StoreLoadInfo<Op>& rhs) const {
+  std::optional<int> operator-(const StoreLoadInfo<Op>& rhs) const {
     DCHECK(IsValid() && rhs.IsValid());
     bool calculatable = base_ == rhs.base_ && index_ == rhs.index_;
 
@@ -1042,8 +1044,15 @@ bool WasmRevecAnalyzer::DecideVectorize() {
           return;
         }
 
+#ifdef V8_TARGET_ARCH_X64
+        // On x64 platform, we dont emit extract for lane 0 as the source ymm
+        // register is alias to the corresponding xmm register in lower 128-bit.
+        for (int i = 1; i < static_cast<int>(nodes.size()); i++) {
+          if (nodes[i] == nodes[0]) continue;
+#else
         for (int i = 0; i < static_cast<int>(nodes.size()); i++) {
           if (i > 0 && nodes[i] == nodes[0]) continue;
+#endif  // V8_TARGET_ARCH_X64
 
           for (auto use : use_map_->uses(nodes[i])) {
             if (!GetPackNode(use)) {

@@ -1111,7 +1111,7 @@ class MjsunitModuleDis {
             "that can be\n"
             "// found in the LICENSE file.\n"
             "\n"
-            "// Flags: --wasm-staging\n"
+            "// Flags: --wasm-staging --wasm-inlining-call-indirect\n"
             "\n"
             "d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');\n"
             "\n"

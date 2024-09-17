@@ -474,6 +474,7 @@ cc_test(
 cc_test(
     name = "mock_distributions_test",
     size = "small",
+    timeout = "moderate",
     srcs = ["mock_distributions_test.cc"],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,

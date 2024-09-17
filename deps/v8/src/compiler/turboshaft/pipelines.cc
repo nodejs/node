@@ -6,6 +6,7 @@
 
 #include "src/compiler/pipeline-data-inl.h"
 #include "src/compiler/turboshaft/csa-optimize-phase.h"
+#include "src/compiler/turboshaft/debug-feature-lowering-phase.h"
 #include "src/compiler/turboshaft/recreate-schedule-phase.h"
 
 namespace v8::internal::compiler::turboshaft {
@@ -62,6 +63,10 @@ void BuiltinPipeline::OptimizeBuiltin() {
   Run<CsaLateEscapeAnalysisPhase>();
   Run<CsaBranchEliminationPhase>();
   Run<CsaOptimizePhase>();
+
+  if (v8_flags.turboshaft_enable_debug_features) {
+    Run<DebugFeatureLoweringPhase>();
+  }
 
   Run<CodeEliminationAndSimplificationPhase>();
 }

@@ -276,7 +276,7 @@ BUILTIN(AtomicsWaitAsync) {
 
 namespace {
 V8_NOINLINE Maybe<bool> CheckAtomicsPauseIterationNumber(
-    Isolate* isolate, Handle<Object> iteration_number) {
+    Isolate* isolate, DirectHandle<Object> iteration_number) {
   constexpr char method_name[] = "Atomics.pause";
 
   enum { None, BadType, Negative } error_type = None;
@@ -311,7 +311,7 @@ V8_NOINLINE Maybe<bool> CheckAtomicsPauseIterationNumber(
 // https://tc39.es/proposal-atomics-microwait/
 BUILTIN(AtomicsPause) {
   HandleScope scope(isolate);
-  Handle<Object> iteration_number = args.atOrUndefined(isolate, 1);
+  DirectHandle<Object> iteration_number = args.atOrUndefined(isolate, 1);
 
   // 1. If iterationNumber is not undefined, then
   if (V8_UNLIKELY(

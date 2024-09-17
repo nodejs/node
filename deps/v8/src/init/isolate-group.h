@@ -7,8 +7,10 @@
 
 #include <memory>
 
+#include "include/v8-memory-span.h"
 #include "src/base/once.h"
 #include "src/base/page-allocator.h"
+#include "src/codegen/external-reference-table.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
 #include "src/utils/allocation.h"
@@ -115,6 +117,8 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   static IsolateGroup* current() { return GetProcessWideIsolateGroup(); }
 #endif  // !V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 
+  MemorySpan<Address> external_ref_table() { return external_ref_table_; }
+
  private:
   friend class base::LeakyObject<IsolateGroup>;
 #ifndef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
@@ -159,6 +163,8 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
 
   base::OnceType init_code_range_ = V8_ONCE_INIT;
   std::unique_ptr<CodeRange> code_range_;
+  Address external_ref_table_[ExternalReferenceTable::kSizeIsolateIndependent] =
+      {0};
 };
 
 }  // namespace internal

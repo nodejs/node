@@ -635,8 +635,7 @@ RUNTIME_FUNCTION(Runtime_CreateRegExpLiteral) {
     return *regexp_instance;
   }
 
-  DirectHandle<FixedArray> data(Cast<FixedArray>(regexp_instance->data()),
-                                isolate);
+  DirectHandle<RegExpData> data(regexp_instance->data(isolate), isolate);
   DirectHandle<String> source(Cast<String>(regexp_instance->source()), isolate);
   DirectHandle<RegExpBoilerplateDescription> boilerplate =
       isolate->factory()->NewRegExpBoilerplateDescription(

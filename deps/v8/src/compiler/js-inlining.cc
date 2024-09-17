@@ -4,6 +4,8 @@
 
 #include "src/compiler/js-inlining.h"
 
+#include <optional>
+
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/codegen/tick-counter.h"
 #include "src/compiler/access-builder.h"
@@ -323,7 +325,7 @@ OptionalSharedFunctionInfoRef JSInliner::DetermineCallTarget(Node* node) {
 
     // The function might have not been called yet.
     if (!function.feedback_vector(broker()).has_value()) {
-      return base::nullopt;
+      return std::nullopt;
     }
 
     // Disallow cross native-context inlining for now. This means that all parts
@@ -336,7 +338,7 @@ OptionalSharedFunctionInfoRef JSInliner::DetermineCallTarget(Node* node) {
     // in the same graph in a compositional way.
     if (!function.native_context(broker()).equals(
             broker()->target_native_context())) {
-      return base::nullopt;
+      return std::nullopt;
     }
 
     return function.shared(broker());
@@ -356,7 +358,7 @@ OptionalSharedFunctionInfoRef JSInliner::DetermineCallTarget(Node* node) {
     return cell.shared_function_info(broker());
   }
 
-  return base::nullopt;
+  return std::nullopt;
 }
 
 // Determines statically known information about the call target (assuming that

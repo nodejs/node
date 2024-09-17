@@ -4,6 +4,8 @@
 
 #include "src/compiler/frame-states.h"
 
+#include <optional>
+
 #include "src/base/functional.h"
 #include "src/codegen/callable.h"
 #include "src/compiler/graph.h"
@@ -198,7 +200,7 @@ FrameState CreateStubBuiltinContinuationFrameState(
 FrameState CreateJSWasmCallBuiltinContinuationFrameState(
     JSGraph* jsgraph, Node* context, Node* outer_frame_state,
     const wasm::FunctionSig* signature) {
-  base::Optional<wasm::ValueKind> wasm_return_kind =
+  std::optional<wasm::ValueKind> wasm_return_kind =
       wasm::WasmReturnTypeFromSignature(signature);
   Node* node_return_type =
       jsgraph->SmiConstant(wasm_return_kind ? wasm_return_kind.value() : -1);

@@ -13,26 +13,6 @@
 namespace v8 {
 namespace internal {
 
-BUILTIN(AsyncDisposableStackOnFulfilled) {
-  HandleScope scope(isolate);
-
-  Handle<JSDisposableStackBase> stack = Handle<JSDisposableStackBase>(
-      Cast<JSDisposableStackBase>(isolate->context()->get(static_cast<int>(
-          JSDisposableStackBase::AsyncDisposableStackContextSlots::kStack))),
-      isolate);
-  MaybeHandle<Object> maybe_error = MaybeHandle<Object>(
-      Cast<Object>(isolate->context()->get(static_cast<int>(
-          JSDisposableStackBase::AsyncDisposableStackContextSlots::kError))),
-      isolate);
-
-  JSDisposableStackBase::DisposeResources(
-      isolate, stack, maybe_error,
-      DisposableStackResourcesType::kAtLeastOneAsync);
-  return ReadOnlyRoots(isolate).undefined_value();
-}
-
-BUILTIN(AsyncDisposableStackOnRejected) { UNIMPLEMENTED(); }
-
 // Part of
 // https://tc39.es/proposal-explicit-resource-management/#sec-getdisposemethod
 BUILTIN(AsyncDisposeFromSyncDispose) {

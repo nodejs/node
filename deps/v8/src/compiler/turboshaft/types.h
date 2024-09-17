@@ -7,6 +7,7 @@
 
 #include <cmath>
 #include <limits>
+#include <optional>
 
 #include "src/base/container-utils.h"
 #include "src/base/export-template.h"
@@ -260,8 +261,8 @@ class V8_EXPORT_PRIVATE Type {
 
   // Other functions
   static Type LeastUpperBound(const Type& lhs, const Type& rhs, Zone* zone);
-  static base::Optional<Type> ParseFromString(const std::string_view& str,
-                                              Zone* zone);
+  static std::optional<Type> ParseFromString(const std::string_view& str,
+                                             Zone* zone);
   Handle<TurboshaftType> AllocateOnHeap(Factory* factory) const;
 
  protected:
@@ -445,8 +446,8 @@ class WordType : public Type {
                                         set_size());
     }
   }
-  base::Optional<word_t> try_get_constant() const {
-    if (!is_constant()) return base::nullopt;
+  std::optional<word_t> try_get_constant() const {
+    if (!is_constant()) return std::nullopt;
     DCHECK(is_set());
     DCHECK_EQ(set_size(), 1);
     return set_element(0);
@@ -711,8 +712,8 @@ class FloatType : public Type {
     }
   }
   std::pair<float_t, float_t> minmax() const { return {min(), max()}; }
-  base::Optional<float_t> try_get_constant() const {
-    if (!is_constant()) return base::nullopt;
+  std::optional<float_t> try_get_constant() const {
+    if (!is_constant()) return std::nullopt;
     DCHECK(is_set());
     DCHECK_EQ(set_size(), 1);
     return set_element(0);

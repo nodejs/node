@@ -330,6 +330,10 @@ namespace internal {
   T(ResolverNotAFunction, "Promise resolver % is not a function")              \
   T(ReturnMethodNotCallable, "The iterator's 'return' method is not callable") \
   T(SizeIsNaN, "The .size property is NaN")                                    \
+  T(ShadowRealmErrorStackNonString,                                            \
+    "Error stack is not a string in ShadowRealm (%)")                          \
+  T(ShadowRealmErrorStackThrows,                                               \
+    "Error stack getter threw in ShadowRealm (%)")                             \
   T(SharedArrayBufferTooShort,                                                 \
     "Derived SharedArrayBuffer constructor created a buffer which was too "    \
     "small")                                                                   \
@@ -695,7 +699,8 @@ namespace internal {
   T(WasmTrapStringInvalidUtf8, "invalid UTF-8 string")                         \
   T(WasmTrapStringInvalidWtf8, "invalid WTF-8 string")                         \
   T(WasmTrapStringOffsetOutOfBounds, "string offset out of bounds")            \
-  T(WasmTrapBadSuspender, "invalid suspender object for suspend")              \
+  T(WasmTrapBadSuspender,                                                      \
+    "attempting to suspend without a WebAssembly.promising export")            \
   T(WasmTrapStringIsolatedSurrogate,                                           \
     "Failed to encode string as UTF-8: contains unpaired surrogate")           \
   T(WasmTrapSuspendJSFrames, "trying to suspend JS frames")                    \

@@ -14,6 +14,7 @@
 #include "src/objects/objects.h"
 #include "src/roots/roots.h"
 #include "src/sandbox/code-pointer-table.h"
+#include "src/sandbox/js-dispatch-table.h"
 
 namespace v8 {
 
@@ -86,6 +87,9 @@ class ReadOnlyHeap {
 
 #ifdef V8_ENABLE_SANDBOX
   CodePointerTable::Space* code_pointer_space() { return &code_pointer_space_; }
+  JSDispatchTable::Space* js_dispatch_table_space() {
+    return &js_dispatch_table_space_;
+  }
 #endif
 
   // Returns whether the ReadOnlySpace will actually be shared taking into
@@ -127,6 +131,7 @@ class ReadOnlyHeap {
   // The read-only heap has its own code pointer space. Entries in this space
   // are never deallocated.
   CodePointerTable::Space code_pointer_space_;
+  JSDispatchTable::Space js_dispatch_table_space_;
 #endif  // V8_ENABLE_SANDBOX
 
   // Returns whether shared memory can be allocated and then remapped to

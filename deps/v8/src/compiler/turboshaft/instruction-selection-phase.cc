@@ -4,6 +4,8 @@
 
 #include "src/compiler/turboshaft/instruction-selection-phase.h"
 
+#include <optional>
+
 #include "src/builtins/profile-data-reader.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
@@ -324,7 +326,7 @@ void SpecialRPOSchedulingPhase::Run(PipelineData* data, Zone* temp_zone) {
   PropagateDeferred(graph);
 }
 
-base::Optional<BailoutReason> InstructionSelectionPhase::Run(
+std::optional<BailoutReason> InstructionSelectionPhase::Run(
     PipelineData* data, Zone* temp_zone, const CallDescriptor* call_descriptor,
     Linkage* linkage, CodeTracer* code_tracer) {
   Graph& graph = data->graph();
@@ -354,12 +356,12 @@ base::Optional<BailoutReason> InstructionSelectionPhase::Run(
       data->info()->trace_turbo_json()
           ? InstructionSelector::kEnableTraceTurboJson
           : InstructionSelector::kDisableTraceTurboJson);
-  if (base::Optional<BailoutReason> bailout = selector.SelectInstructions()) {
+  if (std::optional<BailoutReason> bailout = selector.SelectInstructions()) {
     return bailout;
   }
   TraceSequence(data->info(), data->sequence(), data->broker(), code_tracer,
                 "after instruction selection");
-  return base::nullopt;
+  return std::nullopt;
 }
 
 }  // namespace v8::internal::compiler::turboshaft

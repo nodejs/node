@@ -1172,7 +1172,7 @@ class Simulator : public SimulatorBase {
   static const size_t kStackProtectionSize = 256 * kSystemPointerSize;
   // This includes a protection margin at each end of the stack area.
   static size_t AllocatedStackSize() {
-#if V8_TARGET_ARCH_PPC64
+#if V8_TARGET_ARCH_RISCV64
     size_t stack_size = v8_flags.sim_stack_size * KB;
 #else
     size_t stack_size = 1 * MB;  // allocate 1MB for stack

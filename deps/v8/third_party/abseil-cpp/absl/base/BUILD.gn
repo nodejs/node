@@ -332,6 +332,32 @@ absl_test("poison_test") {
   ]
 }
 
+
+absl_source_set("tracing_internal") {
+  public = [ "internal/tracing.h" ]
+  sources = [ "internal/tracing.cc" ]
+  deps = [
+    ":config",
+    ":core_headers",
+  ]
+}
+
+absl_test("tracing_internal_weak_test") {
+  sources = [ "internal/tracing_weak_test.cc" ]
+  deps = [
+    ":tracing_internal",
+  ]
+}
+
+absl_test("tracing_internal_strong_test") {
+  sources = [ "internal/tracing_strong_test.cc" ]
+  deps = [
+    ":config",
+    ":core_headers",
+    ":tracing_internal",
+  ]
+}
+
 absl_test("config_test") {
   sources = [ "config_test.cc" ]
   deps = [

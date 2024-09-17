@@ -139,7 +139,7 @@ void StartupSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
     // Clear inferred name for native functions.
     auto shared = Cast<SharedFunctionInfo>(obj);
     if (!shared->IsSubjectToDebugging() && shared->HasUncompiledData()) {
-      shared->uncompiled_data()->set_inferred_name(
+      shared->uncompiled_data(isolate())->set_inferred_name(
           ReadOnlyRoots(isolate()).empty_string());
     }
   }

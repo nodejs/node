@@ -105,17 +105,15 @@ class InterruptTest {
   static void TwoByteSubjectToOneByte(Isolate* isolate, void* data) {
     auto instance = reinterpret_cast<InterruptTest*>(data);
     HandleScope scope(isolate);
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
     Local<RegExp> re = instance->regexp_handle_.Get(isolate);
     i::DirectHandle<i::JSRegExp> regexp = Utils::OpenDirectHandle(*re);
     // We executed on a two-byte subject so far, so we expect only bytecode for
     // two-byte to be present.
-    i::Tagged<i::Object> one_byte_code = regexp->bytecode(/* is_latin1 */ true);
-    CHECK(IsSmi(one_byte_code));
-    CHECK_EQ(i::Cast<i::Smi>(one_byte_code).value(),
-             i::JSRegExp::kUninitializedValue);
-    i::Tagged<i::Object> two_byte_code =
-        regexp->bytecode(/* is_latin1 */ false);
-    CHECK(IsByteArray(two_byte_code));
+    i::Tagged<i::IrRegExpData> re_data =
+        Cast<i::IrRegExpData>(regexp->data(i_isolate));
+    CHECK(!re_data->has_latin1_bytecode());
+    CHECK(re_data->has_uc16_bytecode());
 
     // Transition the subject string to one-byte by internalizing it.
     // It already contains only one-byte characters.
@@ -344,6 +342,7 @@ TEST(InterruptAndTransitionSubjectFromTwoByteToOneByte) {
   // installed during the interrupt.
   i::DirectHandle<i::JSRegExp> regexp =
       Utils::OpenDirectHandle(*test.GetRegExp());
-  i::Tagged<i::Object> one_byte_code = regexp->bytecode(/* is_latin1 */ true);
-  CHECK(IsByteArray(one_byte_code));
+  i::Tagged<i::IrRegExpData> data =
+      Cast<i::IrRegExpData>(regexp->data(i_isolate));
+  CHECK(data->has_latin1_bytecode());
 }

@@ -116,7 +116,7 @@ TEST_F(HashcodeTest, AddHashCodeToFastObjectWithPropertiesArray) {
 }
 
 TEST_F(HashcodeTest, AddHashCodeToSlowObject) {
-  Handle<JSObject> obj =
+  DirectHandle<JSObject> obj =
       i_isolate()->factory()->NewJSObject(i_isolate()->object_function());
   CHECK(obj->HasFastProperties());
   JSObject::NormalizeProperties(i_isolate(), obj, CLEAR_INOBJECT_PROPERTIES, 0,
@@ -170,7 +170,7 @@ TEST_F(HashcodeTest, TransitionFastWithPropertyArrayToSlow) {
       " x.a = 1; x.b = 2; x.c = 3; x.d = 4; x.e = 5; ";
   RunJS(source);
 
-  Handle<JSObject> obj = GetGlobal<JSObject>("x");
+  DirectHandle<JSObject> obj = GetGlobal<JSObject>("x");
   CHECK(IsPropertyArray(obj->raw_properties_or_hash()));
 
   int hash = AddToSetAndGetHash(obj, true);
@@ -186,7 +186,7 @@ TEST_F(HashcodeTest, TransitionSlowToSlow) {
   const char* source = " var x = {}; ";
   RunJS(source);
 
-  Handle<JSObject> obj = GetGlobal<JSObject>("x");
+  DirectHandle<JSObject> obj = GetGlobal<JSObject>("x");
   JSObject::NormalizeProperties(i_isolate(), obj, CLEAR_INOBJECT_PROPERTIES, 0,
                                 "cctest/test-hashcode");
   CheckIsDictionaryModeObject(obj);
@@ -201,7 +201,7 @@ TEST_F(HashcodeTest, TransitionSlowToSlow) {
 }
 
 TEST_F(HashcodeTest, TransitionSlowToFastWithoutProperties) {
-  Handle<JSObject> obj =
+  DirectHandle<JSObject> obj =
       i_isolate()->factory()->NewJSObject(i_isolate()->object_function());
   JSObject::NormalizeProperties(i_isolate(), obj, CLEAR_INOBJECT_PROPERTIES, 0,
                                 "cctest/test-hashcode");

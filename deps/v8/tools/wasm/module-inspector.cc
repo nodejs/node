@@ -5,6 +5,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <optional>
 #include <vector>
 
 #include "include/libplatform/libplatform.h"
@@ -1050,7 +1051,7 @@ class FormatConverter {
 
    private:
     enum Mode { kFile, kStdout, kError };
-    base::Optional<std::ofstream> filestream_;
+    std::optional<std::ofstream> filestream_;
     Mode mode_;
   };
 

@@ -4,6 +4,8 @@
 
 #include "src/interpreter/bytecode-array-builder.h"
 
+#include <optional>
+
 #include "src/ast/scopes.h"
 #include "src/ast/variables.h"
 #include "src/common/assert-scope.h"
@@ -201,7 +203,7 @@ void BytecodeArrayBuilder::OutputLdarRaw(Register reg) {
 
 void BytecodeArrayBuilder::OutputStarRaw(Register reg) {
   uint32_t operand = static_cast<uint32_t>(reg.ToOperand());
-  base::Optional<Bytecode> short_code = reg.TryToShortStar();
+  std::optional<Bytecode> short_code = reg.TryToShortStar();
   BytecodeNode node = short_code
                           ? BytecodeNode(*short_code)
                           : BytecodeNode::Star(BytecodeSourceInfo(), operand);

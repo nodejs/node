@@ -796,7 +796,9 @@ void InterpreterAssembler::CallJSWithSpreadAndDispatch(
 
 #ifndef V8_JITLESS
   TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
-  LazyNode<Object> receiver = [=] { return LoadRegisterAtOperandIndex(1); };
+  LazyNode<Object> receiver = [=, this] {
+    return LoadRegisterAtOperandIndex(1);
+  };
   CollectCallFeedback(function, receiver, context, maybe_feedback_vector,
                       slot_id);
 #endif  // !V8_JITLESS

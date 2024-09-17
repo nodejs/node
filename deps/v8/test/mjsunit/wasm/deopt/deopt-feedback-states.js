@@ -59,12 +59,12 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   %WasmTierUpFunction(wasm.main);
   print("tierup");
   assertEquals(42, wasm.main(12, 30, wasm.add));
-  if (%IsolateCountForTesting() == 1) {
+  if (%IsWasmTieringPredictable()) {
     assertTrue(%IsTurboFanFunction(wasm.main));
   }
   print("non-deopt call succeeded, now causing deopt");
   assertEquals(360, wasm.main(12, 30, wasm.mul));
-  if (%IsolateCountForTesting() == 1) {
+  if (%IsWasmTieringPredictable()) {
     assertFalse(%IsTurboFanFunction(wasm.main));
   }
   print("deopt happened");
@@ -76,11 +76,11 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(360, wasm.main(12, 30, wasm.mul));
   assertEquals(42, wasm.main(12, 30, wasm.add));
   assertEquals(-18, wasm.main(12, 30, wasm.sub));
-  if (%IsolateCountForTesting() == 1) {
+  if (%IsWasmTieringPredictable()) {
     assertTrue(%IsTurboFanFunction(wasm.main));
   }
   assertEquals(12, wasm.main(12, 30, wasm.first));
-  if (%IsolateCountForTesting() == 1) {
+  if (%IsWasmTieringPredictable()) {
     assertFalse(%IsTurboFanFunction(wasm.main));
   }
   print("deopt happened");
@@ -90,11 +90,11 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(42, wasm.main(12, 30, wasm.add));
   assertEquals(-18, wasm.main(12, 30, wasm.sub));
   assertEquals(12, wasm.main(12, 30, wasm.first));
-  if (%IsolateCountForTesting() == 1) {
+  if (%IsWasmTieringPredictable()) {
     assertTrue(%IsTurboFanFunction(wasm.main));
   }
   assertEquals(30, wasm.main(12, 30, wasm.second));
-  if (%IsolateCountForTesting() == 1) {
+  if (%IsWasmTieringPredictable()) {
     assertFalse(%IsTurboFanFunction(wasm.main));
   }
   print("deopt happened");
@@ -106,12 +106,12 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(-18, wasm.main(12, 30, wasm.sub));
   assertEquals(12, wasm.main(12, 30, wasm.first));
   assertEquals(30, wasm.main(12, 30, wasm.second));
-  if (%IsolateCountForTesting() == 1) {
+  if (%IsWasmTieringPredictable()) {
     assertTrue(%IsTurboFanFunction(wasm.main));
   }
   // Previously unseen call targets do not cause a deopt any more.
   assertEquals(1, wasm.main(42, 42, wasm.equals));
-  if (%IsolateCountForTesting() == 1) {
+  if (%IsWasmTieringPredictable()) {
     assertTrue(%IsTurboFanFunction(wasm.main));
   }
 })();

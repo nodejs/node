@@ -140,7 +140,7 @@ namespace internal {
 #define V8_ENABLE_SANDBOX_BOOL false
 #endif
 
-#ifdef V8_ENABLE_SANDBOX
+#if defined(V8_ENABLE_SANDBOX) && !defined(V8_DISABLE_LEAPTIERING)
 // Initially, Leaptiering is only available on sandbox-enabled builds, and so
 // V8_ENABLE_SANDBOX and V8_ENABLE_LEAPTIERING are effectively equivalent. Once
 // completed there, it will be ported to non-sandbox builds, at which point the
@@ -577,8 +577,10 @@ constexpr int kIndirectPointerSize = sizeof(IndirectPointerHandle);
 // tagged pointers.
 #ifdef V8_ENABLE_SANDBOX
 constexpr int kTrustedPointerSize = kIndirectPointerSize;
+using TrustedPointer_t = TrustedPointerHandle;
 #else
 constexpr int kTrustedPointerSize = kTaggedSize;
+using TrustedPointer_t = Tagged_t;
 #endif
 constexpr int kCodePointerSize = kTrustedPointerSize;
 
@@ -586,6 +588,10 @@ constexpr int kCodePointerSize = kTrustedPointerSize;
 // space base when the sandbox is enabled. Otherwise, they are regular tagged
 // pointers. Either way, they are always kTaggedSize fields.
 constexpr int kProtectedPointerSize = kTaggedSize;
+
+#ifdef V8_ENABLE_LEAPTIERING
+constexpr int kJSDispatchHandleSize = sizeof(JSDispatchHandle);
+#endif
 
 constexpr int kEmbedderDataSlotSize = kSystemPointerSize;
 
@@ -1119,6 +1125,10 @@ using JSPrimitive =
 // or a FixedArray.
 using JSAny = Union<Smi, HeapNumber, BigInt, String, Symbol, Boolean, Null,
                     Undefined, JSReceiver>;
+using JSAnyNotNumeric =
+    Union<String, Symbol, Boolean, Null, Undefined, JSReceiver>;
+using JSAnyNotNumber =
+    Union<BigInt, String, Symbol, Boolean, Null, Undefined, JSReceiver>;
 using JSCallable =
     Union<JSBoundFunction, JSFunction, JSObject, JSProxy, JSWrappedFunction>;
 using MaybeObject = MaybeWeak<Object>;
@@ -2369,31 +2379,24 @@ inline std::ostream& operator<<(std::ostream& os, TieringState marker) {
 
 // State machine:
 // S(tate)0: kPending
-// S1: kEarlySparkplug,
-// S2: kEarlyMaglevPending,
-// S3: kEarlyMaglev
-// S4: kEarlyTurbofan
-// S5: kNormal
+// S1: kEarlyMaglev
+// S2: kEarlyTurbofan
+// S3: kNormal
 //
-// C(ondition)0: sparkplug compile
-// C1: maglev compile
-// C2: ic was stable early
-// C3: new closure
-// C4: turbofan compile
-// C5: ic change or deopt
+// C(ondition)0: maglev compile
+// C1: ic was stable early
+// C2: turbofan compile
+// C3: ic change or deopt
 //
-// S0 - C0 -> S1 - C1 - C2 -> S2 ------------- C4 -> S4 -|
-//                      |     | - C3 -> S3 -|            |
-//                      |     |          |               |
-//                      |--------------------------------|
-//                      |                |
-//                      |                C5
-//                      |                |
-//                      |-------------------> S5
+// S0 -- C0 -- C1 --> S1 -- C2 -- C3 --> S2 --|
+//             |      |                       |
+//             |      |-----------------------|
+//             |                 |
+//             |                 C3
+//             |                 |
+//             |-----------------------> S3
 enum class CachedTieringDecision : int32_t {
   kPending,
-  kEarlySparkplug,
-  kEarlyMaglevPending,
   kEarlyMaglev,
   kEarlyTurbofan,
   kNormal,
@@ -2586,7 +2589,7 @@ enum class StubCallMode {
 
 enum class NeedsContext { kYes, kNo };
 
-constexpr int kFunctionLiteralIdInvalid = -1;
+constexpr int kInvalidInfoId = -1;
 constexpr int kFunctionLiteralIdTopLevel = 0;
 
 constexpr int kSwissNameDictionaryInitialCapacity = 4;

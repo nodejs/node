@@ -4000,6 +4000,7 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
           static_cast<TrapId>(i.InputInt32(instr_->InputCount() - 1));
       GenerateCallToTrap(trap_id);
     }
+
    private:
     void GenerateCallToTrap(TrapId trap_id) {
       gen_->AssembleSourcePosition(instr_);

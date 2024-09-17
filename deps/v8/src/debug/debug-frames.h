@@ -40,6 +40,9 @@ class V8_EXPORT_PRIVATE FrameInspector {
 
 #if V8_ENABLE_WEBASSEMBLY
   bool IsWasm();
+#if V8_ENABLE_DRUMBRAKE
+  bool IsWasmInterpreter();
+#endif  // V8_ENABLE_DRUMBRAKE
 #endif  // V8_ENABLE_WEBASSEMBLY
   bool IsJavaScript();
 

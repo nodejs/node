@@ -12,7 +12,13 @@
 
 namespace v8::internal::compiler {
 
-enum IdentifyZeros : uint8_t { kIdentifyZeros, kDistinguishZeros };
+// Enum to specify if `+0` and `-0` should be treated as the same value.
+enum IdentifyZeros : uint8_t {
+  // `+0` and `-0` should be treated as the same value.
+  kIdentifyZeros,
+  // `+0` and `-0` should be treated as different values.
+  kDistinguishZeros
+};
 
 class Truncation;
 size_t hash_value(const Truncation&);

@@ -111,17 +111,32 @@ uint16_t JSDispatchTable::GetParameterCount(JSDispatchHandle handle) {
   return at(index).GetParameterCount();
 }
 
-void JSDispatchTable::Mark(Space* space, JSDispatchHandle handle) {
-  DCHECK(space->BelongsTo(this));
+void JSDispatchTable::Mark(JSDispatchHandle handle) {
+  uint32_t index = HandleToIndex(handle);
+
   // The null entry is immortal and immutable, so no need to mark it as alive.
   if (handle == kNullJSDispatchHandle) return;
-
-  uint32_t index = HandleToIndex(handle);
-  DCHECK(space->Contains(index));
 
   CFIMetadataWriteScope write_scope("JSDispatchTable write");
   at(index).Mark();
 }
+
+#ifdef DEBUG
+void JSDispatchTable::VerifyEntry(JSDispatchHandle handle, Space* space,
+                                  Space* ro_space) {
+  DCHECK(space->BelongsTo(this));
+  DCHECK(ro_space->BelongsTo(this));
+  if (handle == kNullJSDispatchHandle) {
+    return;
+  }
+  uint32_t index = HandleToIndex(handle);
+  if (ro_space->Contains(index)) {
+    DCHECK(at(index).IsMarked());
+  } else {
+    DCHECK(space->Contains(index));
+  }
+}
+#endif  // DEBUG
 
 template <typename Callback>
 void JSDispatchTable::IterateActiveEntriesIn(Space* space, Callback callback) {

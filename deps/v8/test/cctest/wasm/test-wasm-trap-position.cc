@@ -52,7 +52,7 @@ void CheckExceptionInfos(v8::internal::Isolate* isolate, Handle<Object> exc,
   CHECK_EQ(N, stack->length());
 
   for (int i = 0; i < N; ++i) {
-    Handle<CallSiteInfo> info(Cast<CallSiteInfo>(stack->get(i)), isolate);
+    DirectHandle<CallSiteInfo> info(Cast<CallSiteInfo>(stack->get(i)), isolate);
     auto func_name =
         Cast<String>(CallSiteInfo::GetFunctionName(info))->ToCString();
     CHECK_CSTREQ(excInfos[i].func_name, func_name.get());

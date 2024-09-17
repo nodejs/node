@@ -804,7 +804,7 @@ void Coverage::SelectMode(Isolate* isolate, debug::CoverageMode mode) {
         }
       }
 
-      for (Handle<JSFunction> func : funcs_needing_feedback_vector) {
+      for (DirectHandle<JSFunction> func : funcs_needing_feedback_vector) {
         IsCompiledScope is_compiled_scope(
             func->shared()->is_compiled_scope(isolate));
         CHECK(is_compiled_scope.is_compiled());

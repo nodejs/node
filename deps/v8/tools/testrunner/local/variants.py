@@ -14,7 +14,7 @@ ALL_VARIANT_FLAGS = {
     "interpreted_regexp": [["--regexp-interpret-all"]],
     "stress_regexp_jit": [["--regexp-tier-up-ticks=0"]],
     "experimental_regexp": [["--default-to-experimental-regexp-engine"]],
-    "jitless": [["--jitless"]],
+    "jitless": [["--jitless", "--wasm-jitless-if-available-for-testing"]],
     "sparkplug": [["--sparkplug"]],
     "maglev": [["--maglev"]],
     "maglev_future": [["--maglev", "--maglev-future"]],

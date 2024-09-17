@@ -389,6 +389,8 @@ class V8_EXPORT String : public Name {
    * string is returned in encoding_out.
    */
   V8_INLINE ExternalStringResourceBase* GetExternalStringResourceBase(
+      v8::Isolate* isolate, Encoding* encoding_out) const;
+  V8_INLINE ExternalStringResourceBase* GetExternalStringResourceBase(
       Encoding* encoding_out) const;
 
   /**
@@ -876,6 +878,28 @@ String::ExternalStringResource* String::GetExternalStringResource() const {
   VerifyExternalStringResource(result);
 #endif
   return result;
+}
+
+String::ExternalStringResourceBase* String::GetExternalStringResourceBase(
+    v8::Isolate* isolate, String::Encoding* encoding_out) const {
+  using A = internal::Address;
+  using I = internal::Internals;
+  A obj = internal::ValueHelper::ValueAsAddress(this);
+  int type = I::GetInstanceType(obj) & I::kStringRepresentationAndEncodingMask;
+  *encoding_out = static_cast<Encoding>(type & I::kStringEncodingMask);
+  ExternalStringResourceBase* resource;
+  if (type == I::kExternalOneByteRepresentationTag ||
+      type == I::kExternalTwoByteRepresentationTag) {
+    A value = I::ReadExternalPointerField<internal::kExternalStringResourceTag>(
+        isolate, obj, I::kStringResourceOffset);
+    resource = reinterpret_cast<ExternalStringResourceBase*>(value);
+  } else {
+    resource = GetExternalStringResourceBaseSlow(encoding_out);
+  }
+#ifdef V8_ENABLE_CHECKS
+  VerifyExternalStringResourceBase(resource, *encoding_out);
+#endif
+  return resource;
 }
 
 String::ExternalStringResourceBase* String::GetExternalStringResourceBase(

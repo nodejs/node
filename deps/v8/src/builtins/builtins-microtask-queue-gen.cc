@@ -515,7 +515,7 @@ void MicrotaskQueueBuiltinsAssembler::RunPromiseHook(
     // Get to the underlying JSPromise instance.
     TNode<HeapObject> promise = Select<HeapObject>(
         IsPromiseCapability(promise_or_capability),
-        [=] {
+        [=, this] {
           return CAST(LoadObjectField(promise_or_capability,
                                       PromiseCapability::kPromiseOffset));
         },

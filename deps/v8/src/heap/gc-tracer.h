@@ -382,19 +382,19 @@ class V8_EXPORT_PRIVATE GCTracer {
   // Allocation throughput in the new space in bytes/millisecond.
   // Returns 0 if no allocation events have been recorded.
   double NewSpaceAllocationThroughputInBytesPerMillisecond(
-      std::optional<base::TimeDelta> selected_duration = base::nullopt) const;
+      std::optional<base::TimeDelta> selected_duration = std::nullopt) const;
 
   // Allocation throughput in the old generation in bytes/millisecond in the
   // last time_ms milliseconds.
   // Returns 0 if no allocation events have been recorded.
   double OldGenerationAllocationThroughputInBytesPerMillisecond(
-      std::optional<base::TimeDelta> selected_duration = base::nullopt) const;
+      std::optional<base::TimeDelta> selected_duration = std::nullopt) const;
 
   // Allocation throughput in the embedder in bytes/millisecond in the
   // last time_ms milliseconds.
   // Returns 0 if no allocation events have been recorded.
   double EmbedderAllocationThroughputInBytesPerMillisecond(
-      std::optional<base::TimeDelta> selected_duration = base::nullopt) const;
+      std::optional<base::TimeDelta> selected_duration = std::nullopt) const;
 
   // Allocation throughput in heap in bytes/millisecond in the last time_ms
   // milliseconds.

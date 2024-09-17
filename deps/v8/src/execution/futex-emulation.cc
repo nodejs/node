@@ -402,7 +402,7 @@ Tagged<Object> FutexEmulation::WaitSync(Isolate* isolate,
                                   addr, value, rel_timeout_ms, &stop_handle);
   if (isolate->has_exception()) return ReadOnlyRoots(isolate).exception();
 
-  Handle<Object> result;
+  DirectHandle<Object> result;
   AtomicsWaitEvent callback_result = AtomicsWaitEvent::kWokenUp;
 
   FutexWaitList* wait_list = GetWaitList();
@@ -432,7 +432,8 @@ Tagged<Object> FutexEmulation::WaitSync(Isolate* isolate,
     }
 #endif
     if (loaded_value != value) {
-      result = handle(Smi::FromInt(WaitReturnValue::kNotEqualValue), isolate);
+      result =
+          direct_handle(Smi::FromInt(WaitReturnValue::kNotEqualValue), isolate);
       callback_result = AtomicsWaitEvent::kNotEqual;
       break;
     }
@@ -469,7 +470,7 @@ Tagged<Object> FutexEmulation::WaitSync(Isolate* isolate,
         lock_guard.Lock();
 
         if (IsException(interrupt_object, isolate)) {
-          result = handle(interrupt_object, isolate);
+          result = direct_handle(interrupt_object, isolate);
           callback_result = AtomicsWaitEvent::kTerminatedExecution;
           break;
         }
@@ -487,7 +488,7 @@ Tagged<Object> FutexEmulation::WaitSync(Isolate* isolate,
 
       if (!node->waiting_) {
         // We were woken either via the stop_handle or via Wake.
-        result = handle(Smi::FromInt(WaitReturnValue::kOk), isolate);
+        result = direct_handle(Smi::FromInt(WaitReturnValue::kOk), isolate);
         break;
       }
 
@@ -495,7 +496,8 @@ Tagged<Object> FutexEmulation::WaitSync(Isolate* isolate,
       if (use_timeout) {
         base::TimeTicks current_time = base::TimeTicks::Now();
         if (current_time >= timeout_time) {
-          result = handle(Smi::FromInt(WaitReturnValue::kTimedOut), isolate);
+          result =
+              direct_handle(Smi::FromInt(WaitReturnValue::kTimedOut), isolate);
           callback_result = AtomicsWaitEvent::kTimedOut;
           break;
         }

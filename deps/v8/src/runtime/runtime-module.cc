@@ -9,19 +9,6 @@
 namespace v8 {
 namespace internal {
 
-namespace {
-Handle<Script> GetEvalOrigin(Isolate* isolate, Tagged<Script> origin_script) {
-  DisallowGarbageCollection no_gc;
-  while (origin_script->has_eval_from_shared()) {
-    Tagged<HeapObject> maybe_script =
-        origin_script->eval_from_shared()->script();
-    CHECK(IsScript(maybe_script));
-    origin_script = Cast<Script>(maybe_script);
-  }
-  return handle(origin_script, isolate);
-}
-}  // namespace
-
 RUNTIME_FUNCTION(Runtime_DynamicImportCall) {
   HandleScope scope(isolate);
   DCHECK_LE(2, args.length());
@@ -34,8 +21,8 @@ RUNTIME_FUNCTION(Runtime_DynamicImportCall) {
     import_options = args.at<Object>(2);
   }
 
-  Handle<Script> referrer_script =
-      GetEvalOrigin(isolate, Cast<Script>(function->shared()->script()));
+  Handle<Script> referrer_script = handle(
+      Cast<Script>(function->shared()->script())->GetEvalOrigin(), isolate);
   RETURN_RESULT_OR_FAILURE(isolate,
                            isolate->RunHostImportModuleDynamicallyCallback(
                                referrer_script, specifier, import_options));
