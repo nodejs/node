@@ -55,7 +55,7 @@ using v8::Int32;
 using v8::Integer;
 using v8::Intercepted;
 using v8::Isolate;
-using v8::Just;
+using v8::JustVoid;
 using v8::KeyCollectionMode;
 using v8::Local;
 using v8::Maybe;
@@ -1104,7 +1104,7 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
   TRACE_EVENT_END0(TRACING_CATEGORY_NODE2(vm, script), "ContextifyScript::New");
 }
 
-Maybe<bool> StoreCodeCacheResult(
+Maybe<void> StoreCodeCacheResult(
     Environment* env,
     Local<Object> target,
     ScriptCompiler::CompileOptions compile_options,
@@ -1113,7 +1113,7 @@ Maybe<bool> StoreCodeCacheResult(
     std::unique_ptr<ScriptCompiler::CachedData> new_cached_data) {
   Local<Context> context;
   if (!target->GetCreationContext().ToLocal(&context)) {
-    return Nothing<bool>();
+    return Nothing<void>();
   }
   if (compile_options == ScriptCompiler::kConsumeCodeCache) {
     if (target
@@ -1122,7 +1122,7 @@ Maybe<bool> StoreCodeCacheResult(
                 env->cached_data_rejected_string(),
                 Boolean::New(env->isolate(), source.GetCachedData()->rejected))
             .IsNothing()) {
-      return Nothing<bool>();
+      return Nothing<void>();
     }
   }
   if (produce_cached_data) {
@@ -1134,7 +1134,7 @@ Maybe<bool> StoreCodeCacheResult(
                        new_cached_data->length);
       if (target->Set(context, env->cached_data_string(), buf.ToLocalChecked())
               .IsNothing()) {
-        return Nothing<bool>();
+        return Nothing<void>();
       }
     }
     if (target
@@ -1142,10 +1142,10 @@ Maybe<bool> StoreCodeCacheResult(
                   env->cached_data_produced_string(),
                   Boolean::New(env->isolate(), cached_data_produced))
             .IsNothing()) {
-      return Nothing<bool>();
+      return Nothing<void>();
     }
   }
-  return Just(true);
+  return JustVoid();
 }
 
 // TODO(RaisinTen): Reuse in ContextifyContext::CompileFunction().

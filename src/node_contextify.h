@@ -177,7 +177,7 @@ class ContextifyScript : public BaseObject {
   v8::Global<v8::UnboundScript> script_;
 };
 
-v8::Maybe<bool> StoreCodeCacheResult(
+v8::Maybe<void> StoreCodeCacheResult(
     Environment* env,
     v8::Local<v8::Object> target,
     v8::ScriptCompiler::CompileOptions compile_options,
