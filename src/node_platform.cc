@@ -462,6 +462,8 @@ void NodePlatform::DrainTasks(Isolate* isolate) {
   std::shared_ptr<PerIsolatePlatformData> per_isolate = ForNodeIsolate(isolate);
   if (!per_isolate) return;
 
+  // Worker tasks aren't associated with an Isolate.
+  worker_thread_task_runner_->BlockingDrain();
   // Drain foreground tasks but not worker tasks as this may cause deadlocks
   // and v8::Isolate::Dispose will join V8's worker tasks for that isolate.
   while (per_isolate->FlushForegroundTasksInternal()) {
