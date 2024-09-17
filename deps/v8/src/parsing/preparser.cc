@@ -113,7 +113,7 @@ PreParser::PreParseResult PreParser::PreParseFunction(
   // In the preparser, we use the function literal ids to count how many
   // FunctionLiterals were encountered. The PreParser doesn't actually persist
   // FunctionLiterals, so there IDs don't matter.
-  ResetFunctionLiteralId();
+  ResetInfoId();
 
   // The caller passes the function_scope which is not yet inserted into the
   // scope stack. All scopes above the function_scope are ignored by the
@@ -277,7 +277,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
 
   DeclarationScope* function_scope = NewFunctionScope(kind);
   function_scope->SetLanguageMode(language_mode);
-  int func_id = GetNextFunctionLiteralId();
+  int func_id = GetNextInfoId();
   bool skippable_function = false;
 
   // Start collecting data for a new function which might contain skippable
@@ -330,8 +330,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
     }
     if (skippable_function) {
       preparse_data_builder_scope.SetSkippableFunction(
-          function_scope, formals.function_length,
-          GetLastFunctionLiteralId() - func_id);
+          function_scope, formals.function_length, GetLastInfoId() - func_id);
     }
   }
 
@@ -367,7 +366,7 @@ void PreParser::ParseStatementListAndLogFunction(
   int body_end = scanner()->peek_location().end_pos;
   DCHECK_EQ(this->scope()->is_function_scope(), formals->is_simple);
   log_.LogFunction(body_end, formals->num_parameters(),
-                   formals->function_length, GetLastFunctionLiteralId());
+                   formals->function_length, GetLastInfoId());
 }
 
 PreParserBlock PreParser::BuildParameterInitializationBlock(

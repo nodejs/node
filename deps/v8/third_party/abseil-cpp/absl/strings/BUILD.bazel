@@ -77,7 +77,6 @@ cc_library(
         "escaping.h",
         "has_absl_stringify.h",
         "internal/damerau_levenshtein_distance.h",
-        "internal/has_absl_stringify.h",
         "internal/string_constant.h",
         "match.h",
         "numbers.h",

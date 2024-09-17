@@ -501,6 +501,7 @@ class UnicodeWithGCTest : public TestWithHeapInternals {};
   TEST_F(UnicodeWithGCTest, GCInsideNewStringFromUtf8SubStringWith##NAME) {   \
     v8_flags.stress_concurrent_allocation =                                   \
         false; /* For SimulateFullSpace. */                                   \
+    ManualGCScope manual_gc_scope(isolate());                                 \
     v8::HandleScope scope(reinterpret_cast<v8::Isolate*>(isolate()));         \
     Factory* factory = isolate()->factory();                                  \
     /* Length must be bigger than the buffer size of the Utf8Decoder. */      \

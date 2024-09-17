@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <optional>
+
 #include "include/v8config.h"
 
 // TODO(clemensb): Extend this to other OSes.
@@ -279,7 +281,7 @@ TEST_P(ParameterizedMemoryProtectionTestWithSignalHandling, TestSignalHandler) {
 #if GTEST_HAS_DEATH_TEST
     ASSERT_DEATH(
         {
-          base::Optional<CodeSpaceWriteScope> write_scope;
+          std::optional<CodeSpaceWriteScope> write_scope;
           if (open_write_scope) write_scope.emplace();
           pthread_kill(pthread_self(), SIGPROF);
           base::OS::Sleep(base::TimeDelta::FromMilliseconds(10));
@@ -299,7 +301,7 @@ TEST_P(ParameterizedMemoryProtectionTestWithSignalHandling, TestSignalHandler) {
                                  "UndefinedBehaviorSanitizer:DEADLYSIGNAL")));
 #endif  // GTEST_HAS_DEATH_TEST
   } else {
-    base::Optional<CodeSpaceWriteScope> write_scope;
+    std::optional<CodeSpaceWriteScope> write_scope;
     if (open_write_scope) write_scope.emplace();
     // The signal handler does not write or code is not protected, hence this
     // should succeed.

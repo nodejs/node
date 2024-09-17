@@ -102,10 +102,10 @@ class CompilationCacheRegExp {
  public:
   CompilationCacheRegExp(Isolate* isolate) : isolate_(isolate) {}
 
-  MaybeHandle<FixedArray> Lookup(Handle<String> source, JSRegExp::Flags flags);
+  MaybeHandle<RegExpData> Lookup(Handle<String> source, JSRegExp::Flags flags);
 
   void Put(Handle<String> source, JSRegExp::Flags flags,
-           DirectHandle<FixedArray> data);
+           DirectHandle<RegExpData> data);
 
   // The number of generations for the RegExp sub cache.
   static const int kGenerations = 2;
@@ -159,25 +159,25 @@ class V8_EXPORT_PRIVATE CompilationCache {
 
   // Returns the regexp data associated with the given regexp if it
   // is in cache, otherwise an empty handle.
-  MaybeHandle<FixedArray> LookupRegExp(Handle<String> source,
+  MaybeHandle<RegExpData> LookupRegExp(Handle<String> source,
                                        JSRegExp::Flags flags);
 
   // Associate the (source, kind) pair to the shared function
   // info. This may overwrite an existing mapping.
   void PutScript(Handle<String> source, LanguageMode language_mode,
-                 Handle<SharedFunctionInfo> function_info);
+                 DirectHandle<SharedFunctionInfo> function_info);
 
   // Associate the (source, context->closure()->shared(), kind) triple
   // with the shared function info. This may overwrite an existing mapping.
   void PutEval(Handle<String> source, Handle<SharedFunctionInfo> outer_info,
-               Handle<Context> context,
+               DirectHandle<Context> context,
                DirectHandle<SharedFunctionInfo> function_info,
-               Handle<FeedbackCell> feedback_cell, int position);
+               DirectHandle<FeedbackCell> feedback_cell, int position);
 
   // Associate the (source, flags) pair to the given regexp data.
   // This may overwrite an existing mapping.
   void PutRegExp(Handle<String> source, JSRegExp::Flags flags,
-                 DirectHandle<FixedArray> data);
+                 DirectHandle<RegExpData> data);
 
   // Clear the cache - also used to initialize the cache at startup.
   void Clear();

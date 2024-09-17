@@ -131,6 +131,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   if (!v8_flags.enable_avx2 || !IsSupported(AVX)) SetUnsupported(AVX2);
   if (!v8_flags.enable_avx_vnni || !IsSupported(AVX)) SetUnsupported(AVX_VNNI);
   if (!v8_flags.enable_fma3 || !IsSupported(AVX)) SetUnsupported(FMA3);
+  if (!v8_flags.enable_f16c || !IsSupported(AVX)) SetUnsupported(F16C);
 
   // Set a static value on whether Simd is supported.
   // This variable is only used for certain archs to query SupportWasmSimd128()
@@ -150,6 +151,7 @@ void CpuFeatures::PrintFeatures() {
   printf(
       "SSE3=%d SSSE3=%d SSE4_1=%d SSE4_2=%d SAHF=%d AVX=%d AVX2=%d AVX_VNNI=%d "
       "FMA3=%d "
+      "F16C=%d "
       "BMI1=%d "
       "BMI2=%d "
       "LZCNT=%d "
@@ -158,9 +160,10 @@ void CpuFeatures::PrintFeatures() {
       CpuFeatures::IsSupported(SSE4_1), CpuFeatures::IsSupported(SSE4_2),
       CpuFeatures::IsSupported(SAHF), CpuFeatures::IsSupported(AVX),
       CpuFeatures::IsSupported(AVX2), CpuFeatures::IsSupported(AVX_VNNI),
-      CpuFeatures::IsSupported(FMA3), CpuFeatures::IsSupported(BMI1),
-      CpuFeatures::IsSupported(BMI2), CpuFeatures::IsSupported(LZCNT),
-      CpuFeatures::IsSupported(POPCNT), CpuFeatures::IsSupported(INTEL_ATOM));
+      CpuFeatures::IsSupported(FMA3), CpuFeatures::IsSupported(F16C),
+      CpuFeatures::IsSupported(BMI1), CpuFeatures::IsSupported(BMI2),
+      CpuFeatures::IsSupported(LZCNT), CpuFeatures::IsSupported(POPCNT),
+      CpuFeatures::IsSupported(INTEL_ATOM));
 }
 
 // -----------------------------------------------------------------------------

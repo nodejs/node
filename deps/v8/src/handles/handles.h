@@ -451,7 +451,6 @@ class DirectHandle : public DirectHandleBase {
 
   V8_INLINE explicit DirectHandle(Address object) : DirectHandleBase(object) {}
 
-  V8_INLINE explicit DirectHandle(Tagged<T> object);
   V8_INLINE DirectHandle(Tagged<T> object, Isolate* isolate)
       : DirectHandle(object) {}
   V8_INLINE DirectHandle(Tagged<T> object, LocalIsolate* isolate)
@@ -534,6 +533,8 @@ class DirectHandle : public DirectHandleBase {
   template <typename To, typename From>
   friend inline DirectHandle<To> Cast(DirectHandle<From> value,
                                       const v8::SourceLocation& loc);
+
+  V8_INLINE explicit DirectHandle(Tagged<T> object);
 
   explicit DirectHandle(no_checking_tag do_not_check)
       : DirectHandleBase(kTaggedNullAddress, do_not_check) {}

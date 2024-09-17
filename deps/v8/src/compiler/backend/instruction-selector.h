@@ -6,6 +6,7 @@
 #define V8_COMPILER_BACKEND_INSTRUCTION_SELECTOR_H_
 
 #include <map>
+#include <optional>
 
 #include "src/codegen/cpu-features.h"
 #include "src/codegen/machine-type.h"
@@ -111,7 +112,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
 
   ~InstructionSelector();
 
-  base::Optional<BailoutReason> SelectInstructions();
+  std::optional<BailoutReason> SelectInstructions();
 
   bool IsSupported(CpuFeature feature) const;
 
@@ -492,7 +493,7 @@ class InstructionSelectorT final : public Adapter {
           InstructionSelector::kDisableTraceTurboJson);
 
   // Visit code for the entire graph with the included schedule.
-  base::Optional<BailoutReason> SelectInstructions();
+  std::optional<BailoutReason> SelectInstructions();
 
   void StartBlock(RpoNumber rpo);
   void EndBlock(RpoNumber rpo);
@@ -624,11 +625,19 @@ class InstructionSelectorT final : public Adapter {
   bool IsDefined(node_t node) const;
 
   // Checks if {node} has any uses, and therefore code has to be generated for
-  // it.
+  // it. Always returns {true} if the node has effect IsRequiredWhenUnused.
   bool IsUsed(node_t node) const;
+  // Checks if {node} has any uses, and therefore code has to be generated for
+  // it. Ignores the IsRequiredWhenUnused effect.
+  bool IsReallyUsed(node_t node) const;
 
   // Checks if {node} is currently live.
   bool IsLive(node_t node) const { return !IsDefined(node) && IsUsed(node); }
+  // Checks if {node} is currently live, ignoring the IsRequiredWhenUnused
+  // effect.
+  bool IsReallyLive(node_t node) const {
+    return !IsDefined(node) && IsReallyUsed(node);
+  }
 
   // Gets the effect level of {node}.
   int GetEffectLevel(node_t node) const;
@@ -654,6 +663,28 @@ class InstructionSelectorT final : public Adapter {
   }
 
   node_t FindProjection(node_t node, size_t projection_index);
+
+  // Records that this ProtectedLoad node can be deleted if not used, even
+  // though it has a required_when_unused effect.
+  void SetProtectedLoadToRemove(node_t node) {
+    if constexpr (Adapter::IsTurboshaft) {
+      DCHECK(this->IsProtectedLoad(node));
+      protected_loads_to_remove_->Add(this->id(node));
+    } else {
+      UNREACHABLE();
+    }
+  }
+
+  // Records that this node embeds a ProtectedLoad as operand, and so it is
+  // itself a "protected" instruction, for which we'll need to record the source
+  // position.
+  void MarkAsProtected(node_t node) {
+    if constexpr (Adapter::IsTurboshaft) {
+      additional_protected_instructions_->Add(this->id(node));
+    } else {
+      UNREACHABLE();
+    }
+  }
 
  private:
   friend class OperandGeneratorT<Adapter>;
@@ -1124,6 +1155,10 @@ class InstructionSelectorT final : public Adapter {
 #endif  // V8_TARGET_ARCH_X64
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
+#ifdef V8_TARGET_ARCH_X64
+  bool CanOptimizeF64x2PromoteLowF32x4(node_t node);
+#endif
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   // ===========================================================================
@@ -1242,7 +1277,9 @@ class InstructionSelectorT final : public Adapter {
   size_t* max_pushed_argument_count_;
 
   // Turboshaft-adapter only.
-  base::Optional<turboshaft::UseMap> turboshaft_use_map_;
+  std::optional<turboshaft::UseMap> turboshaft_use_map_;
+  std::optional<BitVector> protected_loads_to_remove_;
+  std::optional<BitVector> additional_protected_instructions_;
 
 #if V8_TARGET_ARCH_64_BIT
   // Holds lazily-computed results for whether phi nodes guarantee their upper

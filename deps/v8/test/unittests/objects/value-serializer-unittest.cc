@@ -1916,8 +1916,8 @@ TEST_F(ValueSerializerTest, RoundTripArrayBuffer) {
   ExpectScriptTrue("Object.getPrototypeOf(result) === ArrayBuffer.prototype");
   // TODO(v8:11111): Use API functions for testing max_byte_length and resizable
   // once they're exposed via the API.
-  i::Handle<i::JSArrayBuffer> array_buffer =
-      Utils::OpenHandle(ArrayBuffer::Cast(*value));
+  i::DirectHandle<i::JSArrayBuffer> array_buffer =
+      Utils::OpenDirectHandle(ArrayBuffer::Cast(*value));
   EXPECT_EQ(0u, array_buffer->max_byte_length());
   EXPECT_EQ(false, array_buffer->is_resizable_by_js());
 
@@ -1925,7 +1925,7 @@ TEST_F(ValueSerializerTest, RoundTripArrayBuffer) {
   ASSERT_TRUE(value->IsArrayBuffer());
   EXPECT_EQ(3u, ArrayBuffer::Cast(*value)->ByteLength());
   ExpectScriptTrue("new Uint8Array(result).toString() === '0,128,255'");
-  array_buffer = Utils::OpenHandle(ArrayBuffer::Cast(*value));
+  array_buffer = Utils::OpenDirectHandle(ArrayBuffer::Cast(*value));
   EXPECT_EQ(3u, array_buffer->max_byte_length());
   EXPECT_EQ(false, array_buffer->is_resizable_by_js());
 
@@ -2090,7 +2090,7 @@ TEST_F(ValueSerializerTest, RoundTripTypedArray) {
   // TODO(v8:11111): Use API functions for testing is_length_tracking and
   // is_backed_by_rab, once they're exposed via the API.
   Local<Value> value;
-  i::Handle<i::JSTypedArray> i_ta;
+  i::DirectHandle<i::JSTypedArray> i_ta;
 #define TYPED_ARRAY_ROUND_TRIP_TEST(Type, type, TYPE, ctype)             \
   value = RoundTripTest("new " #Type "Array(2)");                        \
   ASSERT_TRUE(value->Is##Type##Array());                                 \
@@ -2098,7 +2098,7 @@ TEST_F(ValueSerializerTest, RoundTripTypedArray) {
   EXPECT_EQ(2u, TypedArray::Cast(*value)->Length());                     \
   ExpectScriptTrue("Object.getPrototypeOf(result) === " #Type            \
                    "Array.prototype");                                   \
-  i_ta = v8::Utils::OpenHandle(TypedArray::Cast(*value));                \
+  i_ta = v8::Utils::OpenDirectHandle(TypedArray::Cast(*value));          \
   EXPECT_EQ(false, i_ta->is_length_tracking());                          \
   EXPECT_EQ(false, i_ta->is_backed_by_rab());
 
@@ -2140,7 +2140,7 @@ TEST_F(ValueSerializerTest, RoundTripRabBackedLengthTrackingTypedArray) {
   // TODO(v8:11111): Use API functions for testing is_length_tracking and
   // is_backed_by_rab, once they're exposed via the API.
   Local<Value> value;
-  i::Handle<i::JSTypedArray> i_ta;
+  i::DirectHandle<i::JSTypedArray> i_ta;
 #define TYPED_ARRAY_ROUND_TRIP_TEST(Type, type, TYPE, ctype)          \
   value = RoundTripTest("new " #Type                                  \
                         "Array(new ArrayBuffer(80, "                  \
@@ -2150,7 +2150,7 @@ TEST_F(ValueSerializerTest, RoundTripRabBackedLengthTrackingTypedArray) {
   EXPECT_EQ(80u / sizeof(ctype), TypedArray::Cast(*value)->Length()); \
   ExpectScriptTrue("Object.getPrototypeOf(result) === " #Type         \
                    "Array.prototype");                                \
-  i_ta = v8::Utils::OpenHandle(TypedArray::Cast(*value));             \
+  i_ta = v8::Utils::OpenDirectHandle(TypedArray::Cast(*value));       \
   EXPECT_EQ(true, i_ta->is_length_tracking());                        \
   EXPECT_EQ(true, i_ta->is_backed_by_rab());
 
@@ -2165,7 +2165,7 @@ TEST_F(ValueSerializerTest, RoundTripRabBackedNonLengthTrackingTypedArray) {
   // TODO(v8:11111): Use API functions for testing is_length_tracking and
   // is_backed_by_rab, once they're exposed via the API.
   Local<Value> value;
-  i::Handle<i::JSTypedArray> i_ta;
+  i::DirectHandle<i::JSTypedArray> i_ta;
 #define TYPED_ARRAY_ROUND_TRIP_TEST(Type, type, TYPE, ctype)             \
   value = RoundTripTest("new " #Type                                     \
                         "Array(new ArrayBuffer(80, "                     \
@@ -2175,7 +2175,7 @@ TEST_F(ValueSerializerTest, RoundTripRabBackedNonLengthTrackingTypedArray) {
   EXPECT_EQ(4u, TypedArray::Cast(*value)->Length());                     \
   ExpectScriptTrue("Object.getPrototypeOf(result) === " #Type            \
                    "Array.prototype");                                   \
-  i_ta = v8::Utils::OpenHandle(TypedArray::Cast(*value));                \
+  i_ta = v8::Utils::OpenDirectHandle(TypedArray::Cast(*value));          \
   EXPECT_EQ(false, i_ta->is_length_tracking());                          \
   EXPECT_EQ(true, i_ta->is_backed_by_rab());
 

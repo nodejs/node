@@ -294,11 +294,17 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitTrustedPointerTableEntry(
 template <typename ConcreteVisitor>
 void MarkingVisitorBase<ConcreteVisitor>::VisitJSDispatchTableEntry(
     Tagged<HeapObject> host, JSDispatchHandle handle) {
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_ENABLE_LEAPTIERING
   JSDispatchTable* table = GetProcessWideJSDispatchTable();
+#ifdef DEBUG
   JSDispatchTable::Space* space = heap_->js_dispatch_table_space();
-  table->Mark(space, handle);
-#endif  // V8_ENABLE_SANDBOX
+  JSDispatchTable::Space* ro_space =
+      heap_->isolate()->read_only_heap()->js_dispatch_table_space();
+  table->VerifyEntry(handle, space, ro_space);
+#endif  // DEBUG
+
+  table->Mark(handle);
+#endif  // V8_ENABLE_LEAPTIERING
 }
 
 // ===========================================================================
@@ -350,9 +356,14 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitSharedFunctionInfo(
                              SharedFunctionInfo::kTrustedFunctionDataOffset,
                              kUnknownIndirectPointerTag),
                          IndirectPointerMode::kStrong);
+#else
+    VisitPointer(
+        shared_info,
+        shared_info->RawField(SharedFunctionInfo::kTrustedFunctionDataOffset));
 #endif
-    VisitPointer(shared_info, shared_info->RawField(
-                                  SharedFunctionInfo::kFunctionDataOffset));
+    VisitPointer(shared_info,
+                 shared_info->RawField(
+                     SharedFunctionInfo::kUntrustedFunctionDataOffset));
   } else if (!IsByteCodeFlushingEnabled(code_flush_mode_)) {
     // If bytecode flushing is disabled but baseline code flushing is enabled
     // then we have to visit the bytecode but not the baseline code.
@@ -384,7 +395,7 @@ bool MarkingVisitorBase<ConcreteVisitor>::HasBytecodeArrayForFlushing(
   // Get a snapshot of the function data field, and if it is a bytecode array,
   // check if it is old. Note, this is done this way since this function can be
   // called by the concurrent marker.
-  Tagged<Object> data = sfi->GetData(heap_->isolate());
+  Tagged<Object> data = sfi->GetTrustedData(heap_->isolate());
   if (IsCode(data)) {
     Tagged<Code> baseline_code = Cast<Code>(data);
     DCHECK_EQ(baseline_code->kind(), CodeKind::BASELINE);

@@ -214,7 +214,6 @@ class Scavenger {
   size_t copied_size_{0};
   size_t promoted_size_{0};
   EvacuationAllocator allocator_;
-  std::unique_ptr<MainAllocator> shared_old_allocator_;
   SurvivingNewLargeObjectsMap surviving_new_large_objects_;
 
   EphemeronRememberedSet::TableMap ephemeron_remembered_set_;

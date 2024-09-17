@@ -195,7 +195,7 @@ Handle<Dictionary> ShallowCopyDictionaryTemplate(
   for (InternalIndex i : dictionary->IterateEntries()) {
     Tagged<Object> value = dictionary->ValueAt(i);
     if (IsAccessorPair(value)) {
-      Handle<AccessorPair> pair(Cast<AccessorPair>(value), isolate);
+      DirectHandle<AccessorPair> pair(Cast<AccessorPair>(value), isolate);
       pair = AccessorPair::Copy(isolate, pair);
       dictionary->ValueAtPut(i, *pair);
     }

@@ -169,6 +169,7 @@ TEST_F(WeakSetsTest, WeakSet_Regress2060a) {
   if (i::v8_flags.enable_third_party_heap) return;
   v8_flags.compact_on_every_full_gc = true;
   v8_flags.stress_concurrent_allocation = false;  // For SimulateFullSpace.
+  ManualGCScope manual_gc_scope(i_isolate());
   Factory* factory = i_isolate()->factory();
   Heap* heap = i_isolate()->heap();
   HandleScope scope(i_isolate());
@@ -213,6 +214,7 @@ TEST_F(WeakSetsTest, WeakSet_Regress2060b) {
 #endif
   v8_flags.stress_concurrent_allocation = false;  // For SimulateFullSpace.
 
+  ManualGCScope manual_gc_scope(i_isolate());
   Factory* factory = i_isolate()->factory();
   Heap* heap = i_isolate()->heap();
   HandleScope scope(i_isolate());

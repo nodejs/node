@@ -187,9 +187,9 @@ TEST(JSObjectComplex) {
   // Zero instances were created so far.
   CHECK(!func->has_initial_map());
 
-  Handle<JSObject> obj1 = CompileRunI<JSObject>("new A(1);");
-  Handle<JSObject> obj3 = CompileRunI<JSObject>("new A(3);");
-  Handle<JSObject> obj5 = CompileRunI<JSObject>("new A(5);");
+  DirectHandle<JSObject> obj1 = CompileRunI<JSObject>("new A(1);");
+  DirectHandle<JSObject> obj3 = CompileRunI<JSObject>("new A(3);");
+  DirectHandle<JSObject> obj5 = CompileRunI<JSObject>("new A(5);");
 
   CHECK(func->has_initial_map());
   DirectHandle<Map> initial_map(func->initial_map(), func->GetIsolate());
@@ -1294,7 +1294,7 @@ TEST(Regress8853_ClassConstructor) {
 
   // For classes without any this.prop assignments in their
   // constructors we start out with 10 inobject properties.
-  Handle<JSObject> obj = CompileRunI<JSObject>("new (class {});\n");
+  DirectHandle<JSObject> obj = CompileRunI<JSObject>("new (class {});\n");
   CHECK(obj->map()->IsInobjectSlackTrackingInProgress());
   CHECK(IsObjectShrinkable(*obj));
   CHECK_EQ(10, obj->map()->GetInObjectProperties());
@@ -1338,7 +1338,7 @@ TEST(Regress8853_FunctionConstructor) {
 
   // For constructor functions without any this.prop assignments in
   // them we start out with 10 inobject properties.
-  Handle<JSObject> obj = CompileRunI<JSObject>("new (function() {});\n");
+  DirectHandle<JSObject> obj = CompileRunI<JSObject>("new (function() {});\n");
   CHECK(obj->map()->IsInobjectSlackTrackingInProgress());
   CHECK(IsObjectShrinkable(*obj));
   CHECK_EQ(10, obj->map()->GetInObjectProperties());

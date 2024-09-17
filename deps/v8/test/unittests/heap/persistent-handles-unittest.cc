@@ -22,7 +22,7 @@ TEST_F(PersistentHandlesTest, OrderOfBlocks) {
 
   Address* next;
   Address* limit;
-  Handle<String> first_empty, last_empty;
+  DirectHandle<String> first_empty, last_empty;
   std::unique_ptr<PersistentHandles> ph;
 
   {
@@ -199,7 +199,7 @@ TEST_F(PersistentHandlesTest, CreatePersistentHandles) {
 
 TEST_F(PersistentHandlesTest, DereferencePersistentHandle) {
   std::unique_ptr<PersistentHandles> phs = isolate()->NewPersistentHandles();
-  Handle<HeapNumber> ph;
+  IndirectHandle<HeapNumber> ph;
   {
     HandleScope handle_scope(isolate());
     Handle<HeapNumber> number = isolate()->factory()->NewHeapNumber(42.0);
@@ -216,7 +216,7 @@ TEST_F(PersistentHandlesTest, DereferencePersistentHandle) {
 TEST_F(PersistentHandlesTest, DereferencePersistentHandleFailsWhenDisallowed) {
   HandleScope handle_scope(isolate());
   std::unique_ptr<PersistentHandles> phs = isolate()->NewPersistentHandles();
-  Handle<HeapNumber> ph;
+  IndirectHandle<HeapNumber> ph;
   {
     HandleScope handle_scope(isolate());
     Handle<HeapNumber> number = isolate()->factory()->NewHeapNumber(42.0);

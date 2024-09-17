@@ -63,11 +63,13 @@ class FunctionTester : public InitializedHandleScope {
     return CheckCall(expected, a, b, undefined());
   }
 
-  void CheckCall(Handle<Object> expected, Handle<Object> a) {
+  void CheckCall(DirectHandle<Object> expected, Handle<Object> a) {
     CheckCall(expected, a, undefined());
   }
 
-  void CheckCall(Handle<Object> expected) { CheckCall(expected, undefined()); }
+  void CheckCall(DirectHandle<Object> expected) {
+    CheckCall(expected, undefined());
+  }
 
   void CheckCall(double expected, double a, double b) {
     CheckCall(Val(expected), Val(a), Val(b));

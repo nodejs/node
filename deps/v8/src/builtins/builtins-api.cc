@@ -57,7 +57,7 @@ Tagged<JSReceiver> GetCompatibleReceiver(Isolate* isolate,
 template <bool is_construct>
 V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
     Isolate* isolate, Handle<HeapObject> new_target,
-    Handle<FunctionTemplateInfo> fun_data, Handle<Object> receiver,
+    DirectHandle<FunctionTemplateInfo> fun_data, Handle<Object> receiver,
     Address* argv, int argc) {
   Handle<JSReceiver> js_receiver;
   Tagged<JSReceiver> raw_holder;
@@ -132,7 +132,7 @@ BUILTIN(HandleApiConstruct) {
   Handle<Object> receiver = args.receiver();
   Handle<HeapObject> new_target = args.new_target();
   DCHECK(!IsUndefined(*new_target, isolate));
-  Handle<FunctionTemplateInfo> fun_data(
+  DirectHandle<FunctionTemplateInfo> fun_data(
       args.target()->shared()->api_func_data(), isolate);
   int argc = args.length() - 1;
   Address* argv = args.address_of_first_argument();

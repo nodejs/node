@@ -1443,7 +1443,7 @@ Tagged<Object> Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
     // In case of failure, fall through.
   }
 
-  Handle<HeapObject> storage;
+  DirectHandle<HeapObject> storage;
   if (fast_case) {
     // The backing storage array must have non-existing elements to preserve
     // holes across concat operations.

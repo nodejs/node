@@ -66,6 +66,9 @@ struct WasmCompilationResult {
   enum Kind : int8_t {
     kFunction,
     kWasmToJsWrapper,
+#if V8_ENABLE_DRUMBRAKE
+    kInterpreterEntry,
+#endif  // V8_ENABLE_DRUMBRAKE
   };
 
   bool succeeded() const { return code_desc.buffer != nullptr; }
@@ -168,8 +171,9 @@ class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
 
 inline bool CanUseGenericJsToWasmWrapper(const WasmModule* module,
                                          const FunctionSig* sig) {
-#if (V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_IA32 || \
-     V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_S390X || V8_TARGET_ARCH_PPC64)
+#if (V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_IA32 ||  \
+     V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_S390X || V8_TARGET_ARCH_PPC64 || \
+     V8_TARGET_ARCH_LOONG64)
   // We don't use the generic wrapper for asm.js, because it creates invalid
   // stack traces.
   return !is_asmjs_module(module) && v8_flags.wasm_generic_wrapper &&

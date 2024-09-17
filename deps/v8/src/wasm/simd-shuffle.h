@@ -135,6 +135,11 @@ class V8_EXPORT_PRIVATE SimdShuffle {
   static bool TryMatch32x4OneLaneSwizzle(const uint8_t* shuffle32x4,
                                          uint8_t* from, uint8_t* to);
 
+  // Tries to match an 8x16 byte shuffle to an equivalent 64x2 shuffle. If
+  // successful, it writes the 64x2 shuffle word indices. E.g.
+  // [8 9 10 11 12 13 14 15 0 1 2 3 4 5 6 7] == [1 0]
+  static bool TryMatch64x2Shuffle(const uint8_t* shuffle, uint8_t* shuffle64x2);
+
   // Tries to match an 8x16 byte shuffle to an equivalent 32x4 shuffle. If
   // successful, it writes the 32x4 shuffle word indices. E.g.
   // [0 1 2 3 8 9 10 11 4 5 6 7 12 13 14 15] == [0 2 1 3]
@@ -168,6 +173,37 @@ class V8_EXPORT_PRIVATE SimdShuffle {
   // large than 15). The shuffle should be canonicalized. Its second input
   // should be zero.
   static bool TryMatchByteToDwordZeroExtend(const uint8_t* shuffle);
+
+  // Tries to match a four-step reduction shuffle where, in each step, the
+  // upper half of the vector is shuffled into the bottom half. This is only
+  // valid when only lane 0 of the final shuffle result is used.
+  static bool TryMatch8x16UpperToLowerReduce(const uint8_t* shuffle1,
+                                             const uint8_t* shuffle2,
+                                             const uint8_t* shuffle3,
+                                             const uint8_t* shuffle4);
+
+  // Tries to match a three-step reduction shuffle where, in each step, the
+  // upper half of the vector is shuffled into the bottom half. This is only
+  // valid when only lane 0 of the final shuffle result is used.
+  static bool TryMatch16x8UpperToLowerReduce(const uint8_t* shuffle1,
+                                             const uint8_t* shuffle2,
+                                             const uint8_t* shuffle3);
+
+  // Tries to match a two-step reduction shuffle where, in each step, the
+  // upper half of the vector is shuffled into the bottom half. This is only
+  // valid when only lane 0 of the final shuffle result is used.
+  static bool TryMatch32x4UpperToLowerReduce(const uint8_t* shuffle1,
+                                             const uint8_t* shuffle2);
+
+  // Tries to match a 32x4 pairwise shuffle chain where, in each step, every
+  // other element is shuffled into the lower adjacent position. This is only
+  // valid when only lane 0 of the final shuffle result is used.
+  static bool TryMatch32x4PairwiseReduce(const uint8_t* shuffle1,
+                                         const uint8_t* shuffle2);
+
+  // Tries to match a 64-bit reduction, where element 1 is shuffled into 0.
+  // This is only valid when only lane 0 of the result is used.
+  static bool TryMatch64x2Reduce(const uint8_t* shuffle64x2);
 
   // Packs a 4 lane shuffle into a single imm8 suitable for use by pshufd,
   // pshuflw, and pshufhw.

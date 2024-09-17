@@ -861,9 +861,9 @@ Utf16CharacterStream* ScannerStream::For(Isolate* isolate,
 
 Utf16CharacterStream* ScannerStream::For(Isolate* isolate, Handle<String> data,
                                          int start_pos, int end_pos) {
-  DCHECK_GE(start_pos, 0);
-  DCHECK_LE(start_pos, end_pos);
-  DCHECK_LE(end_pos, data->length());
+  CHECK_GE(start_pos, 0);
+  CHECK_LE(start_pos, end_pos);
+  CHECK_LE(end_pos, data->length());
   size_t start_offset = 0;
   if (IsSlicedString(*data)) {
     Tagged<SlicedString> string = Cast<SlicedString>(*data);

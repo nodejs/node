@@ -235,6 +235,10 @@ class V8_EXPORT_PRIVATE MacroAssembler
                 YMMRegister scratch);
   void F32x8Max(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,
                 YMMRegister scratch);
+  void F16x8Min(YMMRegister dst, XMMRegister lhs, XMMRegister rhs,
+                YMMRegister scratch, YMMRegister scratch2);
+  void F16x8Max(YMMRegister dst, XMMRegister lhs, XMMRegister rhs,
+                YMMRegister scratch, YMMRegister scratch2);
   void I64x4ExtMul(YMMRegister dst, XMMRegister src1, XMMRegister src2,
                    YMMRegister scratch, bool is_signed);
   void I32x8ExtMul(YMMRegister dst, XMMRegister src1, XMMRegister src2,
@@ -255,9 +259,13 @@ class V8_EXPORT_PRIVATE MacroAssembler
 
   void I32x8SConvertF32x8(YMMRegister dst, YMMRegister src, YMMRegister tmp,
                           Register scratch);
-  void I16x8SConvertF16x8(YMMRegister dst, YMMRegister src, YMMRegister tmp,
+  void I16x8SConvertF16x8(YMMRegister dst, XMMRegister src, YMMRegister tmp,
                           Register scratch);
-  void I16x8TruncF16x8U(YMMRegister dst, YMMRegister src, YMMRegister tmp);
+  void I16x8TruncF16x8U(YMMRegister dst, XMMRegister src, YMMRegister tmp);
+  void F16x8Qfma(YMMRegister dst, XMMRegister src1, XMMRegister src2,
+                 XMMRegister src3, YMMRegister tmp, YMMRegister tmp2);
+  void F16x8Qfms(YMMRegister dst, XMMRegister src1, XMMRegister src2,
+                 XMMRegister src3, YMMRegister tmp, YMMRegister tmp2);
 
   void S256Not(YMMRegister dst, YMMRegister src, YMMRegister scratch);
   void S256Select(YMMRegister dst, YMMRegister mask, YMMRegister src1,
@@ -938,6 +946,12 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // Variant of the above, which only guarantees to set the correct
   // equal/not_equal flag. Map might not be loaded.
   void IsObjectType(Register heap_object, InstanceType type, Register scratch);
+  // Variant of the above, which compares against a type range rather than a
+  // single type (lower_limit and higher_limit are inclusive).
+  //
+  // Always use unsigned comparisons: below for a positive result.
+  void IsObjectTypeInRange(Register heap_object, InstanceType low,
+                           InstanceType high, Register scratch);
 #if V8_STATIC_ROOTS_BOOL
   // Fast variant which is guaranteed to not actually load the instance type
   // from the map.

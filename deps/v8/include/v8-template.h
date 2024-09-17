@@ -9,6 +9,7 @@
 #include <string_view>
 
 #include "v8-data.h"               // NOLINT(build/include_directory)
+#include "v8-exception.h"          // NOLINT(build/include_directory)
 #include "v8-function-callback.h"  // NOLINT(build/include_directory)
 #include "v8-local-handle.h"       // NOLINT(build/include_directory)
 #include "v8-memory-span.h"        // NOLINT(build/include_directory)
@@ -656,6 +657,18 @@ class V8_EXPORT FunctionTemplate : public Template {
    * FunctionTemplate as its constructor.
    */
   void SetClassName(Local<String> name);
+
+  /**
+   * Set the interface name of the FunctionTemplate. This is provided as
+   * contextual information in an ExceptionPropagationMessage to the embedder.
+   */
+  void SetInterfaceName(Local<String> name);
+
+  /**
+   * Provides information on the type of FunctionTemplate for embedder
+   * exception handling.
+   */
+  void SetExceptionContext(ExceptionContext context);
 
   /**
    * When set to true, no access check will be performed on the receiver of a

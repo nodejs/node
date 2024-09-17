@@ -54,7 +54,7 @@ TEST_F(MaglevTest, NodeTypeApproximationIsConsistent) {
 
     for (NodeType a : kAllNodeTypes) {
       bool isInstance = IsInstanceOfNodeType(map_ref, a, broker());
-      bool isSubtype = NodeTypeIs(StaticTypeForMap(map_ref), a);
+      bool isSubtype = NodeTypeIs(StaticTypeForMap(map_ref, broker()), a);
       CHECK_IMPLIES(isSubtype, isInstance);
       CHECK_IMPLIES(!isInstance, !isSubtype);
     }

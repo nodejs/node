@@ -4,6 +4,8 @@
 #ifndef V8_COMPILER_BACKEND_RISCV_INSTRUCTION_SELECTOR_RISCV_H_
 #define V8_COMPILER_BACKEND_RISCV_INSTRUCTION_SELECTOR_RISCV_H_
 
+#include <optional>
+
 #include "src/base/bits.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/backend/instruction-selector.h"
@@ -45,8 +47,7 @@ class RiscvOperandGeneratorT final : public OperandGeneratorT<Adapter> {
       auto constant = selector()->constant_view(node);
       if ((IsIntegerConstant(constant) &&
            GetIntegerConstantValue(constant) == 0) ||
-          (constant.is_float() &&
-           (base::bit_cast<int64_t>(constant.float_value()) == 0))) {
+          constant.is_float_zero()) {
         return UseImmediate(node);
       }
     }
@@ -71,7 +72,7 @@ class RiscvOperandGeneratorT final : public OperandGeneratorT<Adapter> {
     return constant.int64_value();
   }
 
-  base::Optional<int64_t> GetOptionalIntegerConstant(
+  std::optional<int64_t> GetOptionalIntegerConstant(
       InstructionSelectorT<TurboshaftAdapter>* selector,
       turboshaft::OpIndex operation) {
     if (!this->is_constant(operation)) return {};
@@ -97,8 +98,7 @@ class RiscvOperandGeneratorT final : public OperandGeneratorT<Adapter> {
       auto constant = selector()->constant_view(node);
       if ((IsIntegerConstant(constant) &&
            GetIntegerConstantValue(constant) == 0) ||
-          (constant.is_float() &&
-           (base::bit_cast<int64_t>(constant.float_value()) == 0))) {
+          constant.is_float_zero()) {
         return true;
       }
     }
@@ -1388,6 +1388,48 @@ void InstructionSelectorT<Adapter>::VisitI16x8ExtAddPairwiseI8x16U(
   V(I16x8Q15MulRSatS, kRiscvVsmulVv, E16, m1) \
   V(I16x8RelaxedQ15MulRS, kRiscvVsmulVv, E16, m1)
 
+#define UNIMPLEMENTED_SIMD_FP16_OP_LIST(V) \
+  V(F16x8Splat)                            \
+  V(F16x8ExtractLane)                      \
+  V(F16x8ReplaceLane)                      \
+  V(F16x8Abs)                              \
+  V(F16x8Neg)                              \
+  V(F16x8Sqrt)                             \
+  V(F16x8Floor)                            \
+  V(F16x8Ceil)                             \
+  V(F16x8Trunc)                            \
+  V(F16x8NearestInt)                       \
+  V(F16x8Add)                              \
+  V(F16x8Sub)                              \
+  V(F16x8Mul)                              \
+  V(F16x8Div)                              \
+  V(F16x8Min)                              \
+  V(F16x8Max)                              \
+  V(F16x8Pmin)                             \
+  V(F16x8Pmax)                             \
+  V(F16x8Eq)                               \
+  V(F16x8Ne)                               \
+  V(F16x8Lt)                               \
+  V(F16x8Le)                               \
+  V(F16x8SConvertI16x8)                    \
+  V(F16x8UConvertI16x8)                    \
+  V(I16x8SConvertF16x8)                    \
+  V(I16x8UConvertF16x8)                    \
+  V(F16x8DemoteF32x4Zero)                  \
+  V(F16x8DemoteF64x2Zero)                  \
+  V(F32x4PromoteLowF16x8)                  \
+  V(F16x8Qfma)                             \
+  V(F16x8Qfms)
+
+#define SIMD_VISIT_UNIMPL_FP16_OP(Name)                          \
+  template <typename Adapter>                                    \
+  void InstructionSelectorT<Adapter>::Visit##Name(node_t node) { \
+    UNIMPLEMENTED();                                             \
+  }
+UNIMPLEMENTED_SIMD_FP16_OP_LIST(SIMD_VISIT_UNIMPL_FP16_OP)
+#undef SIMD_VISIT_UNIMPL_FP16_OP
+#undef UNIMPLEMENTED_SIMD_FP16_OP_LIST
+
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitS128AndNot(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
@@ -1482,15 +1524,11 @@ SIMD_SHIFT_OP_LIST(SIMD_VISIT_SHIFT_OP)
 #define SIMD_VISIT_BINOP_RVV(Name, instruction, VSEW, LMUL)                    \
   template <typename Adapter>                                                  \
   void InstructionSelectorT<Adapter>::Visit##Name(node_t node) {               \
-    if constexpr (Adapter::IsTurboshaft) {                                     \
-      UNIMPLEMENTED();                                                         \
-    } else {                                                                   \
       RiscvOperandGeneratorT<Adapter> g(this);                                 \
       this->Emit(instruction, g.DefineAsRegister(node),                        \
                  g.UseRegister(this->input_at(node, 0)),                       \
                  g.UseRegister(this->input_at(node, 1)), g.UseImmediate(VSEW), \
                  g.UseImmediate(LMUL));                                        \
-    }                                                                          \
   }
 SIMD_BINOP_LIST(SIMD_VISIT_BINOP_RVV)
 #undef SIMD_VISIT_BINOP_RVV
@@ -2051,17 +2089,14 @@ void InstructionSelectorT<Adapter>::VisitI32x4DotI8x16I7x16AddS(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     uint8_t shuffle[kSimd128Size];
     bool is_swizzle;
     // TODO(riscv): Properly use view here once Turboshaft support is
     // implemented.
     auto view = this->simd_shuffle_view(node);
     CanonicalizeShuffle(view, shuffle, &is_swizzle);
-    Node* input0 = this->input_at(node, 0);
-    Node* input1 = this->input_at(node, 1);
+    node_t input0 = view.input(0);
+    node_t input1 = view.input(1);
     RiscvOperandGeneratorT<Adapter> g(this);
     // uint8_t shuffle32x4[4];
     // ArchOpcode opcode;
@@ -2090,14 +2125,10 @@ void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(node_t node) {
          g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle + 4)),
          g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle + 8)),
          g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle + 12)));
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI8x16Swizzle(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     RiscvOperandGeneratorT<Adapter> g(this);
     InstructionOperand temps[] = {g.TempSimd128Register()};
     // We don't want input 0 or input 1 to be the same as output, since we will
@@ -2106,7 +2137,6 @@ void InstructionSelectorT<Adapter>::VisitI8x16Swizzle(node_t node) {
          g.UseUniqueRegister(this->input_at(node, 0)),
          g.UseUniqueRegister(this->input_at(node, 1)), g.UseImmediate(E8),
          g.UseImmediate(m1), arraysize(temps), temps);
-  }
 }
 
 #define VISIT_BIMASK(TYPE, VSEW, LMUL)                                      \

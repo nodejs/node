@@ -242,8 +242,12 @@ void Snapshot::ClearReconstructableDataForSerialization(
           }
         } else if (IsJSRegExp(o, cage_base)) {
           i::Tagged<i::JSRegExp> regexp = i::Cast<i::JSRegExp>(o);
-          if (regexp->HasCompiledCode()) {
-            regexp->DiscardCompiledCodeForSerialization();
+          if (regexp->has_data()) {
+            i::Tagged<i::RegExpData> data = regexp->data(isolate);
+            if (data->HasCompiledCode()) {
+              DCHECK(Is<IrRegExpData>(regexp->data(isolate)));
+              Cast<IrRegExpData>(data)->DiscardCompiledCodeForSerialization();
+            }
           }
         }
       }

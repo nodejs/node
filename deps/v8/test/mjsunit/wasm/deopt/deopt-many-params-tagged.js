@@ -97,11 +97,11 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(expectedSum, wasm.main(...valuesTyped, wasm.add));
   %WasmTierUpFunction(wasm.main);
   assertEquals(expectedSum, wasm.main(...valuesTyped, wasm.add));
-  if (%IsolateCountForTesting() == 1) {
+  if (%IsWasmTieringPredictable()) {
    assertTrue(%IsTurboFanFunction(wasm.main));
   }
   assertEquals(expectedDiff, wasm.main(...valuesTyped, wasm.sub));
-  if (%IsolateCountForTesting() == 1) {
+  if (%IsWasmTieringPredictable()) {
     assertFalse(%IsTurboFanFunction(wasm.main));
   }
 
@@ -110,20 +110,20 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   %WasmTierUpFunction(wasm.outerDirect);
   assertEquals(expectedSum, wasm.outerDirect(42, ...valuesTyped, wasm.add));
   assertEquals(expectedDiff, wasm.outerDirect(42, ...valuesTyped, wasm.sub));
-  if (%IsolateCountForTesting() == 1) {
+  if (%IsWasmTieringPredictable()) {
     assertTrue(%IsTurboFanFunction(wasm.outerDirect));
   }
   assertEquals(expectedSum, wasm.outerDirect(42, ...valuesTyped, wasm.add2));
-  if (%IsolateCountForTesting() == 1) {
+  if (%IsWasmTieringPredictable()) {
     assertFalse(%IsTurboFanFunction(wasm.outerDirect));
   }
   %WasmTierUpFunction(wasm.outerDirect);
   assertEquals(expectedSum, wasm.outerDirect(42, ...valuesTyped, wasm.add2));
-  if (%IsolateCountForTesting() == 1) {
+  if (%IsWasmTieringPredictable()) {
     assertTrue(%IsTurboFanFunction(wasm.outerDirect));
   }
   assertEquals(expectedSum, wasm.outerDirect(42, ...valuesTyped, wasm.addGC));
-  if (%IsolateCountForTesting() == 1) {
+  if (%IsWasmTieringPredictable()) {
     assertFalse(%IsTurboFanFunction(wasm.outerDirect));
   }
 

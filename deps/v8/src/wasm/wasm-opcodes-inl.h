@@ -137,7 +137,7 @@ constexpr bool WasmOpcodes::IsRelaxedSimdOpcode(WasmOpcode opcode) {
 }
 
 constexpr bool WasmOpcodes::IsFP16SimdOpcode(WasmOpcode opcode) {
-  return opcode >= kExprF16x8Splat && opcode <= kExprF16x8ReplaceLane;
+  return opcode >= kExprF16x8Splat && opcode <= kExprF16x8Qfms;
 }
 
 #if DEBUG

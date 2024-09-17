@@ -590,36 +590,9 @@ struct FastApiCallbackOptions {
   v8::Isolate* isolate = nullptr;
 
   /**
-   * If the callback wants to signal an error condition or to perform an
-   * allocation, it must set options.fallback to true and do an early return
-   * from the fast method. Then V8 checks the value of options.fallback and if
-   * it's true, falls back to executing the SlowCallback, which is capable of
-   * reporting the error (either by throwing a JS exception or logging to the
-   * console) or doing the allocation. It's the embedder's responsibility to
-   * ensure that the fast callback is idempotent up to the point where error and
-   * fallback conditions are checked, because otherwise executing the slow
-   * callback might produce visible side-effects twice.
-   */
-  V8_DEPRECATED(
-      "It is not necessary to use the `fallback` flag anymore, as it is "
-      "possible now to trigger GC, throw exceptions, and call back into "
-      "JavaScript even in API functions called with a fast API call.")
-  bool fallback = false;
-
-  /**
    * The `data` passed to the FunctionTemplate constructor, or `undefined`.
    */
   v8::Local<v8::Value> data;
-
-  /**
-   * When called from WebAssembly, a view of the calling module's memory.
-   */
-  V8_DEPRECATED(
-      "The wasm memory should either be provided as a field of the receiver, "
-      "the data object of the FunctionTemplate, or as a normal parameter of "
-      "the API function. Since regular API calls don't have this magic "
-      "`wasm_memory parameter, one of the options above should be possible.")
-  FastApiTypedArray<uint8_t>* const wasm_memory = nullptr;
 };
 
 namespace internal {

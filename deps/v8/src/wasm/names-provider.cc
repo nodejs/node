@@ -441,11 +441,14 @@ size_t NamesProvider::EstimateCurrentMemoryConsumption() const {
     result += names->field_names_.EstimateCurrentMemoryConsumption();
     result += names->tag_names_.EstimateCurrentMemoryConsumption();
   }
-  result += StringMapSize(import_export_function_names_);
-  result += StringMapSize(import_export_table_names_);
-  result += StringMapSize(import_export_memory_names_);
-  result += StringMapSize(import_export_global_names_);
-  result += StringMapSize(import_export_tag_names_);
+  {
+    base::MutexGuard lock(&mutex_);
+    result += StringMapSize(import_export_function_names_);
+    result += StringMapSize(import_export_table_names_);
+    result += StringMapSize(import_export_memory_names_);
+    result += StringMapSize(import_export_global_names_);
+    result += StringMapSize(import_export_tag_names_);
+  }
   if (v8_flags.trace_wasm_offheap_memory) {
     PrintF("NamesProvider: %zu\n", result);
   }

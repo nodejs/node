@@ -106,7 +106,7 @@ TEST_F(LocalHandlesTest, DereferenceLocalHandle) {
   // Create a PersistentHandle to create the LocalHandle, and thus not have a
   // HandleScope present to override the LocalHandleScope.
   std::unique_ptr<PersistentHandles> phs = isolate->NewPersistentHandles();
-  Handle<HeapNumber> ph;
+  IndirectHandle<HeapNumber> ph;
   {
     HandleScope handle_scope(isolate);
     Handle<HeapNumber> number = isolate->factory()->NewHeapNumber(42.0);
@@ -128,7 +128,7 @@ TEST_F(LocalHandlesTest, DereferenceLocalHandleFailsWhenDisallowed) {
   // Create a PersistentHandle to create the LocalHandle, and thus not have a
   // HandleScope present to override the LocalHandleScope.
   std::unique_ptr<PersistentHandles> phs = isolate->NewPersistentHandles();
-  Handle<HeapNumber> ph;
+  IndirectHandle<HeapNumber> ph;
   {
     HandleScope handle_scope(isolate);
     Handle<HeapNumber> number = isolate->factory()->NewHeapNumber(42.0);

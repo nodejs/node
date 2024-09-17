@@ -207,11 +207,6 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
 
   Handle<BytecodeWrapper> NewBytecodeWrapper();
 
-#if V8_ENABLE_WEBASSEMBLY
-  Handle<WasmTrustedInstanceData> NewWasmTrustedInstanceData();
-  Handle<WasmDispatchTable> NewWasmDispatchTable(int length);
-#endif  // V8_ENABLE_WEBASSEMBLY
-
   // Allocates a fixed array for name-value pairs of boilerplate properties and
   // calculates the number of properties we need to store in the backing store.
   Handle<ObjectBoilerplateDescription> NewObjectBoilerplateDescription(
@@ -221,8 +216,10 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   Handle<ArrayBoilerplateDescription> NewArrayBoilerplateDescription(
       ElementsKind elements_kind, DirectHandle<FixedArrayBase> constant_values);
 
+  Handle<RegExpDataWrapper> NewRegExpDataWrapper();
+
   Handle<RegExpBoilerplateDescription> NewRegExpBoilerplateDescription(
-      DirectHandle<FixedArray> data, DirectHandle<String> source,
+      DirectHandle<RegExpData> data, DirectHandle<String> source,
       Tagged<Smi> flags);
 
   // Create a new TemplateObjectDescription struct.

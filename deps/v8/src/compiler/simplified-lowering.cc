@@ -5,6 +5,7 @@
 #include "src/compiler/simplified-lowering.h"
 
 #include <limits>
+#include <optional>
 
 #include "include/v8-fast-api-calls.h"
 #include "src/base/small-vector.h"
@@ -241,7 +242,7 @@ class JSONGraphWriterWithVerifierTypes : public JSONGraphWriter {
       : JSONGraphWriter(os, graph, positions, origins), verifier_(verifier) {}
 
  protected:
-  base::Optional<Type> GetType(Node* node) override {
+  std::optional<Type> GetType(Node* node) override {
     return verifier_->GetType(node);
   }
 
@@ -1948,6 +1949,11 @@ class RepresentationSelector {
         if (flags & uint8_t(CTypeInfo::Flags::kEnforceRangeBit) ||
             flags & uint8_t(CTypeInfo::Flags::kClampBit)) {
           DCHECK(repr != CFunctionInfo::Int64Representation::kBigInt);
+          // If the parameter is marked as `kEnforceRange` or `kClampBit`, then
+          // special type conversion gets added explicitly to the generated
+          // code. Therefore it is sufficient here to only require here that the
+          // value is a Float64, even though the C++ signature actually asks for
+          // an `int32_t`.
           return UseInfo::CheckedNumberAsFloat64(kIdentifyZeros, feedback);
         }
         switch (type.GetType()) {
@@ -2352,6 +2358,8 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kHeapConstant:
+        return VisitLeaf<T>(node, MachineRepresentation::kTaggedPointer);
+      case IrOpcode::kTrustedHeapConstant:
         return VisitLeaf<T>(node, MachineRepresentation::kTaggedPointer);
       case IrOpcode::kPointerConstant: {
         VisitLeaf<T>(node, MachineType::PointerRepresentation());

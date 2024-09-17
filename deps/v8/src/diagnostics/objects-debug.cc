@@ -524,7 +524,8 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
           CHECK(!type_is_none);
           if (!type_is_any) {
             CHECK_IMPLIES(FieldType::NowStable(field_type),
-                          FieldType::NowContains(field_type, value));
+                          map()->is_deprecated() ||
+                              FieldType::NowContains(field_type, value));
           }
         } else {
           CHECK(type_is_any);
@@ -985,18 +986,63 @@ void TransitionArray::TransitionArrayVerify(Isolate* isolate) {
 
   ReadOnlyRoots roots(isolate);
   Tagged<Map> owner;
+
+  // Check all entries have the same owner
   for (int i = 0; i < number_of_transitions(); ++i) {
-    // Only sidestep transitions are allowed to cross between unrelated branches
-    // of the transition tree. All other transitions must originate from the
-    // same source map.
-    if (!TransitionsAccessor::IsSpecialSidestepTransition(roots, GetKey(i))) {
-      Tagged<Map> parent =
-          Cast<Map>(GetTarget(i)->constructor_or_back_pointer());
-      if (owner.is_null()) {
-        parent = owner;
-      } else {
-        CHECK_EQ(parent, owner);
+    Tagged<Map> target = GetTarget(i);
+    Tagged<Map> parent = Cast<Map>(target->constructor_or_back_pointer());
+    if (owner.is_null()) {
+      parent = owner;
+    } else {
+      CHECK_EQ(parent, owner);
+    }
+  }
+  // Check all entries have the same owner
+  if (HasPrototypeTransitions()) {
+    Tagged<WeakFixedArray> proto_trans = GetPrototypeTransitions();
+    int length = TransitionArray::NumberOfPrototypeTransitions(proto_trans);
+    for (int i = 0; i < length; ++i) {
+      int index = TransitionArray::kProtoTransitionHeaderSize + i;
+      Tagged<MaybeObject> maybe_target = proto_trans->get(index);
+      Tagged<HeapObject> target;
+      if (maybe_target.GetHeapObjectIfWeak(&target)) {
+        if (v8_flags.move_prototype_transitions_first) {
+          Tagged<Map> parent =
+              Cast<Map>(Cast<Map>(target)->constructor_or_back_pointer());
+          if (owner.is_null()) {
+            parent = Cast<Map>(target);
+          } else {
+            CHECK_EQ(parent, owner);
+          }
+        } else {
+          CHECK(IsUndefined(Cast<Map>(target)->GetBackPointer()));
+        }
       }
+    }
+  }
+  // Check all entries are valid
+  if (HasSideStepTransitions()) {
+    Tagged<WeakFixedArray> side_trans = GetSideStepTransitions();
+    for (uint32_t index = SideStepTransition::kFirstMapIdx;
+         index <= SideStepTransition::kLastMapIdx; ++index) {
+      Tagged<MaybeObject> maybe_target = side_trans->get(index);
+      Tagged<HeapObject> target;
+      if (maybe_target.GetHeapObjectIfWeak(&target)) {
+        CHECK(IsMap(target));
+      } else {
+        CHECK(maybe_target == SideStepTransition::Unreachable ||
+              maybe_target == SideStepTransition::Empty ||
+              maybe_target.IsCleared());
+      }
+    }
+    Tagged<MaybeObject> maybe_cell =
+        side_trans->get(SideStepTransition::index_of(
+            SideStepTransition::Kind::kObjectAssignValidityCell));
+    Tagged<HeapObject> cell;
+    if (maybe_cell.GetHeapObjectIfWeak(&cell)) {
+      CHECK(IsCell(cell));
+    } else {
+      CHECK(maybe_cell == SideStepTransition::Empty || maybe_cell.IsCleared());
     }
   }
 }
@@ -1181,7 +1227,7 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
   // This assertion exists to encourage updating this verification function if
   // new fields are added in the Torque class layout definition.
   static_assert(JSFunction::TorqueGeneratedClass::kHeaderSize ==
-                8 * kTaggedSize);
+                (8 + V8_ENABLE_LEAPTIERING_BOOL) * kTaggedSize);
 
   JSFunctionOrBoundFunctionOrWrappedFunctionVerify(isolate);
   CHECK(IsJSFunction(*this));
@@ -1198,7 +1244,11 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
   CHECK_EQ(map()->map()->native_context_or_null(), native_context());
 
 #ifdef V8_ENABLE_LEAPTIERING
-  JSDispatchHandle handle = raw_feedback_cell(isolate)->dispatch_handle();
+  JSDispatchHandle handle = dispatch_handle();
+  // Currently, the handle can still be the null handle as not all places where
+  // a JSFunction object is created populate the entry correctly. However, in
+  // the future, every JSFunction must have a valid dispatch handle, and then
+  // this check should be removed.
   if (handle != kNullJSDispatchHandle) {
     uint16_t parameter_count =
         GetProcessWideJSDispatchTable()->GetParameterCount(handle);
@@ -1968,94 +2018,114 @@ void SwissNameDictionary::SwissNameDictionaryVerify(Isolate* isolate,
 }
 
 void JSRegExp::JSRegExpVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::JSRegExpVerify(*this, isolate);
+  Tagged<Object> source = TaggedField<Object>::load(*this, kSourceOffset);
+  Tagged<Object> flags = TaggedField<Object>::load(*this, kFlagsOffset);
+  CHECK(IsString(source) || IsUndefined(source));
+  CHECK(IsSmi(flags) || IsUndefined(flags));
+  if (!has_data()) return;
+
+  Tagged<RegExpData> data = this->data(isolate);
+  switch (data->type_tag()) {
+    case RegExpData::Type::ATOM:
+      CHECK(Is<AtomRegExpData>(data));
+      return;
+    case RegExpData::Type::EXPERIMENTAL:
+    case RegExpData::Type::IRREGEXP:
+      CHECK(Is<IrRegExpData>(data));
+      return;
+  }
+  UNREACHABLE();
+}
+
+void RegExpData::RegExpDataVerify(Isolate* isolate) {
+  ExposedTrustedObjectVerify(isolate);
+  CHECK(IsSmi(TaggedField<Object>::load(*this, kTypeTagOffset)));
+  CHECK(IsString(source()));
+  CHECK(IsSmi(TaggedField<Object>::load(*this, kFlagsOffset)));
+}
+
+void AtomRegExpData::AtomRegExpDataVerify(Isolate* isolate) {
+  ExposedTrustedObjectVerify(isolate);
+  RegExpDataVerify(isolate);
+  CHECK(IsString(pattern()));
+}
+
+void IrRegExpData::IrRegExpDataVerify(Isolate* isolate) {
+  ExposedTrustedObjectVerify(isolate);
+  RegExpDataVerify(isolate);
+
+  VerifyProtectedPointerField(isolate, kLatin1BytecodeOffset);
+  VerifyProtectedPointerField(isolate, kUc16BytecodeOffset);
+
+  CHECK_IMPLIES(!has_latin1_code(), !has_latin1_bytecode());
+  CHECK_IMPLIES(!has_uc16_code(), !has_uc16_bytecode());
+
+  CHECK_IMPLIES(has_latin1_code(), Is<Code>(latin1_code(isolate)));
+  CHECK_IMPLIES(has_uc16_code(), Is<Code>(uc16_code(isolate)));
+  CHECK_IMPLIES(has_latin1_bytecode(), Is<TrustedByteArray>(latin1_bytecode()));
+  CHECK_IMPLIES(has_uc16_bytecode(), Is<TrustedByteArray>(uc16_bytecode()));
+
+  CHECK_IMPLIES(
+      IsSmi(capture_name_map()),
+      Smi::ToInt(capture_name_map()) == JSRegExp::kUninitializedValue ||
+          capture_name_map() == Smi::zero());
+  CHECK_IMPLIES(!IsSmi(capture_name_map()), Is<FixedArray>(capture_name_map()));
+  CHECK(IsSmi(TaggedField<Object>::load(*this, kMaxRegisterCountOffset)));
+  CHECK(IsSmi(TaggedField<Object>::load(*this, kCaptureCountOffset)));
+  CHECK(IsSmi(TaggedField<Object>::load(*this, kTicksUntilTierUpOffset)));
+  CHECK(IsSmi(TaggedField<Object>::load(*this, kBacktrackLimitOffset)));
+
   switch (type_tag()) {
-    case JSRegExp::ATOM: {
-      Tagged<FixedArray> arr = Cast<FixedArray>(data());
-      CHECK(IsString(arr->get(JSRegExp::kAtomPatternIndex)));
-      break;
-    }
-    case JSRegExp::EXPERIMENTAL: {
-      Tagged<FixedArray> arr = Cast<FixedArray>(data());
-      Tagged<Smi> uninitialized = Smi::FromInt(JSRegExp::kUninitializedValue);
-
-      Tagged<Object> latin1_code = arr->get(JSRegExp::kIrregexpLatin1CodeIndex);
-      Tagged<Object> uc16_code = arr->get(JSRegExp::kIrregexpUC16CodeIndex);
-      Tagged<Object> latin1_bytecode =
-          arr->get(JSRegExp::kIrregexpLatin1BytecodeIndex);
-      Tagged<Object> uc16_bytecode =
-          arr->get(JSRegExp::kIrregexpUC16BytecodeIndex);
-
-      bool is_compiled = IsCodeWrapper(latin1_code);
-      if (is_compiled) {
-        CHECK_EQ(Cast<CodeWrapper>(latin1_code)->code(isolate)->builtin_id(),
+    case RegExpData::Type::EXPERIMENTAL: {
+      if (has_latin1_code()) {
+        CHECK_EQ(latin1_code(isolate)->builtin_id(),
                  Builtin::kRegExpExperimentalTrampoline);
-        CHECK_EQ(uc16_code, latin1_code);
-
-        CHECK(IsByteArray(latin1_bytecode));
-        CHECK_EQ(uc16_bytecode, latin1_bytecode);
+        CHECK_EQ(latin1_code(isolate), uc16_code(isolate));
+        CHECK(Is<TrustedByteArray>(latin1_bytecode()));
+        CHECK_EQ(latin1_bytecode(), uc16_bytecode());
       } else {
-        CHECK_EQ(latin1_code, uninitialized);
-        CHECK_EQ(uc16_code, uninitialized);
-
-        CHECK_EQ(latin1_bytecode, uninitialized);
-        CHECK_EQ(uc16_bytecode, uninitialized);
+        CHECK(!has_uc16_code());
+        CHECK(!has_latin1_bytecode());
+        CHECK(!has_uc16_bytecode());
       }
 
-      CHECK_EQ(arr->get(JSRegExp::kIrregexpMaxRegisterCountIndex),
-               uninitialized);
-      CHECK(IsSmi(arr->get(JSRegExp::kIrregexpCaptureCountIndex)));
-      CHECK_GE(Smi::ToInt(arr->get(JSRegExp::kIrregexpCaptureCountIndex)), 0);
-      CHECK_EQ(arr->get(JSRegExp::kIrregexpTicksUntilTierUpIndex),
-               uninitialized);
-      CHECK_EQ(arr->get(JSRegExp::kIrregexpBacktrackLimit), uninitialized);
+      CHECK_EQ(max_register_count(), JSRegExp::kUninitializedValue);
+      CHECK_EQ(ticks_until_tier_up(), JSRegExp::kUninitializedValue);
+      CHECK_EQ(backtrack_limit(), JSRegExp::kUninitializedValue);
+
       break;
     }
-    case JSRegExp::IRREGEXP: {
+    case RegExpData::Type::IRREGEXP: {
       bool can_be_interpreted = RegExp::CanGenerateBytecode();
+      CHECK_IMPLIES(has_latin1_bytecode(), can_be_interpreted);
+      CHECK_IMPLIES(has_uc16_bytecode(), can_be_interpreted);
 
-      Tagged<FixedArray> arr = Cast<FixedArray>(data());
-      Tagged<Object> one_byte_data =
-          arr->get(JSRegExp::kIrregexpLatin1CodeIndex);
-      // Smi : Not compiled yet (-1).
-      // InstructionStream: Compiled irregexp code or trampoline to the
-      // interpreter.
-      CHECK((IsSmi(one_byte_data) &&
-             Smi::ToInt(one_byte_data) == JSRegExp::kUninitializedValue) ||
-            IsCodeWrapper(one_byte_data));
-      Tagged<Object> uc16_data = arr->get(JSRegExp::kIrregexpUC16CodeIndex);
-      CHECK((IsSmi(uc16_data) &&
-             Smi::ToInt(uc16_data) == JSRegExp::kUninitializedValue) ||
-            IsCodeWrapper(uc16_data));
+      static_assert(JSRegExp::kUninitializedValue == -1);
+      CHECK_GE(max_register_count(), JSRegExp::kUninitializedValue);
+      CHECK_GE(capture_count(), 0);
+      if (v8_flags.regexp_tier_up) {
+        // With tier-up enabled, ticks_until_tier_up should actually be >= 0.
+        // However FlagScopes in unittests can modify the flag and verification
+        // on Isolate deinitialization will fail.
+        CHECK_GE(ticks_until_tier_up(), JSRegExp::kUninitializedValue);
+        CHECK_LE(ticks_until_tier_up(), v8_flags.regexp_tier_up_ticks);
+      } else {
+        CHECK_EQ(ticks_until_tier_up(), JSRegExp::kUninitializedValue);
+      }
+      CHECK_GE(backtrack_limit(), 0);
 
-      Tagged<Object> one_byte_bytecode =
-          arr->get(JSRegExp::kIrregexpLatin1BytecodeIndex);
-      // Smi : Not compiled yet (-1).
-      // ByteArray: Bytecode to interpret regexp.
-      CHECK((IsSmi(one_byte_bytecode) &&
-             Smi::ToInt(one_byte_bytecode) == JSRegExp::kUninitializedValue) ||
-            (can_be_interpreted && IsByteArray(one_byte_bytecode)));
-      Tagged<Object> uc16_bytecode =
-          arr->get(JSRegExp::kIrregexpUC16BytecodeIndex);
-      CHECK((IsSmi(uc16_bytecode) &&
-             Smi::ToInt(uc16_bytecode) == JSRegExp::kUninitializedValue) ||
-            (can_be_interpreted && IsByteArray(uc16_bytecode)));
-
-      CHECK_IMPLIES(IsSmi(one_byte_data), IsSmi(one_byte_bytecode));
-      CHECK_IMPLIES(IsSmi(uc16_data), IsSmi(uc16_bytecode));
-
-      CHECK(IsSmi(arr->get(JSRegExp::kIrregexpCaptureCountIndex)));
-      CHECK_GE(Smi::ToInt(arr->get(JSRegExp::kIrregexpCaptureCountIndex)), 0);
-      CHECK(IsSmi(arr->get(JSRegExp::kIrregexpMaxRegisterCountIndex)));
-      CHECK(IsSmi(arr->get(JSRegExp::kIrregexpTicksUntilTierUpIndex)));
-      CHECK(IsSmi(arr->get(JSRegExp::kIrregexpBacktrackLimit)));
       break;
     }
     default:
-      CHECK_EQ(JSRegExp::NOT_COMPILED, type_tag());
-      CHECK(IsUndefined(data(), isolate));
-      break;
+      UNREACHABLE();
   }
+}
+
+void RegExpDataWrapper::RegExpDataWrapperVerify(Isolate* isolate) {
+  if (!this->has_data()) return;
+  auto data = this->data(isolate);
+  Object::VerifyPointer(isolate, data);
+  CHECK_EQ(data->wrapper(), *this);
 }
 
 void JSProxy::JSProxyVerify(Isolate* isolate) {
@@ -2280,6 +2350,21 @@ void ClassBoilerplate::ClassBoilerplateVerify(Isolate* isolate) {
   CHECK(IsFixedArray(instance_computed_properties()));
 }
 
+void RegExpBoilerplateDescription::RegExpBoilerplateDescriptionVerify(
+    Isolate* isolate) {
+  {
+    auto o = data(isolate);
+    Object::VerifyPointer(isolate, o);
+    CHECK(IsRegExpData(o));
+  }
+  {
+    auto o = source();
+    Object::VerifyPointer(isolate, o);
+    CHECK(IsString(o));
+  }
+  CHECK(IsSmi(TaggedField<Object>::load(*this, kFlagsOffset)));
+}
+
 #if V8_ENABLE_WEBASSEMBLY
 
 void WasmTrustedInstanceData::WasmTrustedInstanceDataVerify(Isolate* isolate) {
@@ -2309,11 +2394,14 @@ void WasmDispatchTable::WasmDispatchTableVerify(Isolate* isolate) {
   int len = length();
   CHECK_LE(len, capacity());
   for (int i = 0; i < len; ++i) {
-    Tagged<Object> call_ref = ref(i);
-    Object::VerifyPointer(isolate, call_ref);
-    CHECK(IsWasmTrustedInstanceData(call_ref) ||
-          IsWasmApiFunctionRef(call_ref) || call_ref == Smi::zero());
-    CHECK_EQ(ref(i) == Smi::zero(), target(i) == kNullAddress);
+    Tagged<Object> arg = implicit_arg(i);
+    Object::VerifyPointer(isolate, arg);
+    CHECK(IsWasmTrustedInstanceData(arg) || IsWasmImportData(arg) ||
+          arg == Smi::zero());
+    if (!v8_flags.wasm_jitless) {
+      // call_target always null with the interpreter.
+      CHECK_EQ(arg == Smi::zero(), target(i) == kNullAddress);
+    }
   }
 }
 
@@ -2331,12 +2419,15 @@ void WasmExportedFunctionData::WasmExportedFunctionDataVerify(
     Isolate* isolate) {
   TorqueGeneratedClassVerifiers::WasmExportedFunctionDataVerify(*this, isolate);
   Tagged<Code> wrapper = wrapper_code(isolate);
-  CHECK(wrapper->kind() == CodeKind::JS_TO_WASM_FUNCTION ||
-        wrapper->kind() == CodeKind::C_WASM_ENTRY ||
-        (wrapper->is_builtin() &&
-         (wrapper->builtin_id() == Builtin::kJSToWasmWrapper ||
-          wrapper->builtin_id() == Builtin::kWasmPromising ||
-          wrapper->builtin_id() == Builtin::kWasmPromisingWithSuspender)));
+  CHECK(
+      wrapper->kind() == CodeKind::JS_TO_WASM_FUNCTION ||
+      wrapper->kind() == CodeKind::C_WASM_ENTRY ||
+      (wrapper->is_builtin() &&
+       (wrapper->builtin_id() == Builtin::kJSToWasmWrapper ||
+#if V8_ENABLE_DRUMBRAKE
+        wrapper->builtin_id() == Builtin::kGenericJSToWasmInterpreterWrapper ||
+#endif  // V8_ENABLE_DRUMBRAKE
+        wrapper->builtin_id() == Builtin::kWasmPromising)));
 }
 
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -2397,12 +2488,13 @@ void Script::ScriptVerify(Isolate* isolate) {
 #else   // V8_ENABLE_WEBASSEMBLY
   CHECK(CanHaveLineEnds());
 #endif  // V8_ENABLE_WEBASSEMBLY
-  for (int i = 0; i < shared_function_info_count(); ++i) {
-    Tagged<MaybeObject> maybe_object = shared_function_infos()->get(i);
+  for (int i = 0; i < infos()->length(); ++i) {
+    Tagged<MaybeObject> maybe_object = infos()->get(i);
     Tagged<HeapObject> heap_object;
-    CHECK(maybe_object.IsWeak() || maybe_object.IsCleared() ||
+    CHECK(!maybe_object.GetHeapObjectIfWeak(isolate, &heap_object) ||
           (maybe_object.GetHeapObjectIfStrong(&heap_object) &&
-           IsUndefined(heap_object, isolate)));
+           IsUndefined(heap_object, isolate)) ||
+          Is<SharedFunctionInfo>(heap_object) || Is<ScopeInfo>(heap_object));
   }
 }
 
@@ -2710,6 +2802,8 @@ bool TransitionsAccessor::IsConsistentWithBackPointers() {
   DisallowGarbageCollection no_gc;
   bool success = true;
   ReadOnlyRoots roots(isolate_);
+  DCHECK_IMPLIES(map_->IsInobjectSlackTrackingInProgress(),
+                 !HasSideStepTransitions());
   auto CheckTarget =
       [&](Tagged<Map> target) {
 #ifdef DEBUG
@@ -2725,12 +2819,20 @@ bool TransitionsAccessor::IsConsistentWithBackPointers() {
           success = false;
         }
       };
-  ForEachTransitionWithKey(
-      &no_gc,
-      [&](Tagged<Name> key, Tagged<Map> target) { CheckTarget(target); },
-      [&](Tagged<Map> target) {
+  ForEachTransition(
+      &no_gc, [&](Tagged<Map> target) { CheckTarget(target); },
+      [&](Tagged<Map> proto_target) {
         if (v8_flags.move_prototype_transitions_first) {
-          CheckTarget(target);
+          CheckTarget(proto_target);
+        }
+      },
+      [&](Tagged<Object> side_step) {
+        if (!side_step.IsSmi()) {
+          DCHECK(!Cast<Map>(side_step)->IsInobjectSlackTrackingInProgress());
+          DCHECK_EQ(
+              Cast<Map>(side_step)->GetInObjectProperties() -
+                  Cast<Map>(side_step)->UnusedInObjectProperties(),
+              map_->GetInObjectProperties() - map_->UnusedInObjectProperties());
         }
       });
   return success;

@@ -128,7 +128,7 @@ def jlh(debugger, param, *args):
     field = value.GetValueForExpressionPath(".val_")
     if field.IsValid():
       return print_indirect(debugger, 'jlh', field.value)
-    # With v8_enable_direct_local=true, v8::Local contains a ptr_.
+    # With v8_enable_direct_handle=true, v8::Local contains a ptr_.
     field = value.GetValueForExpressionPath(".ptr_")
     if field.IsValid():
       return print_direct(debugger, 'jlh', field.value)

@@ -101,6 +101,11 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   }
 #endif
 
+  // An ID that uniquely identifies this scope within the script. Inner scopes
+  // have a higher ID than their outer scopes. ScopeInfo created from a scope
+  // has the same ID as the scope.
+  int UniqueIdInScript() const;
+
   DeclarationScope* AsDeclarationScope();
   const DeclarationScope* AsDeclarationScope() const;
   ModuleScope* AsModuleScope();
@@ -152,7 +157,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
                                       Tagged<ScopeInfo> scope_info,
                                       DeclarationScope* script_scope,
                                       AstValueFactory* ast_value_factory,
-                                      DeserializationMode deserialization_mode);
+                                      DeserializationMode deserialization_mode,
+                                      ParseInfo* info = nullptr);
 
   template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
@@ -334,6 +340,10 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   bool is_hidden() const { return is_hidden_; }
   void set_is_hidden() { is_hidden_ = true; }
 
+  bool is_hidden_catch_scope() const {
+    return is_hidden() && scope_type() == CATCH_SCOPE;
+  }
+
   void ForceContextAllocationForParameters() {
     DCHECK(!already_resolved_);
     force_context_allocation_for_parameters_ = true;
@@ -380,6 +390,15 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   bool has_using_declaration() const { return has_using_declaration_; }
   bool has_await_using_declaration() const {
     return has_await_using_declaration_;
+  }
+
+  bool is_wrapped_function() const {
+    DCHECK_IMPLIES(is_wrapped_function_, is_function_scope());
+    return is_wrapped_function_;
+  }
+  void set_is_wrapped_function() {
+    DCHECK(is_function_scope());
+    is_wrapped_function_ = true;
   }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -719,11 +738,9 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   void AllocateVariablesRecursively();
 
   template <typename IsolateT>
-  void AllocateScopeInfosRecursively(IsolateT* isolate,
-                                     MaybeHandle<ScopeInfo> outer_scope);
-
-  void AllocateDebuggerScopeInfos(Isolate* isolate,
-                                  MaybeHandle<ScopeInfo> outer_scope);
+  void AllocateScopeInfosRecursively(
+      IsolateT* isolate, MaybeHandle<ScopeInfo> outer_scope,
+      std::unordered_map<int, Handle<ScopeInfo>>& scope_infos_to_reuse);
 
   // Construct a scope based on the scope info.
   Scope(Zone* zone, ScopeType type, AstValueFactory* ast_value_factory,
@@ -823,10 +840,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   bool must_use_preparsed_scope_data_ : 1;
 
-  // True if this is a script scope that originated from
-  // DebugEvaluate::GlobalREPL().
-  bool is_repl_mode_scope_ : 1;
-
   // True if this is a deserialized scope which caches its lookups on another
   // Scope's variable map. This will be true for every scope above the first
   // non-eval declaration scope above the compilation entry point, e.g. for
@@ -852,6 +865,10 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // If declarations include any `using` or `await using` declarations.
   bool has_using_declaration_ : 1;
   bool has_await_using_declaration_ : 1;
+
+  // If the scope was generated for wrapped function syntax, which will affect
+  // its UniqueIdInScript.
+  bool is_wrapped_function_ : 1;
 };
 
 class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
@@ -1161,6 +1178,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   // Does nothing if ScopeInfo is already allocated.
   template <typename IsolateT>
   V8_EXPORT_PRIVATE static void AllocateScopeInfos(ParseInfo* info,
+                                                   DirectHandle<Script> script,
                                                    IsolateT* isolate);
 
   // Determine if we can use lazy compilation for this scope.

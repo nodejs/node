@@ -1039,8 +1039,9 @@ static MachineRepresentation FilterRepresentation(MachineRepresentation rep) {
     case MachineRepresentation::kBit:
     case MachineRepresentation::kWord8:
     case MachineRepresentation::kWord16:
-    case MachineRepresentation::kFloat16:
       return InstructionSequence::DefaultRepresentation();
+    case MachineRepresentation::kFloat16:
+      return MachineRepresentation::kFloat32;
     case MachineRepresentation::kWord32:
     case MachineRepresentation::kWord64:
     case MachineRepresentation::kTaggedSigned:

@@ -1030,9 +1030,15 @@ Maybe<bool> SourceTextModule::ExecuteAsyncModule(
   // 8. Perform ! PerformPromiseThen(capability.[[Promise]],
   //                                 onFulfilled, onRejected).
   Handle<Object> argv[] = {on_fulfilled, on_rejected};
-  Execution::CallBuiltin(isolate, isolate->promise_then(), capability,
-                         arraysize(argv), argv)
-      .ToHandleChecked();
+  if (V8_UNLIKELY(Execution::CallBuiltin(isolate, isolate->promise_then(),
+                                         capability, arraysize(argv), argv)
+                      .is_null())) {
+    // TODO(349961173): We assume the builtin call can only fail with a
+    // termination exception. If this check fails in the wild investigate why
+    // the call fails. Otherwise turn this into a DCHECK in the future.
+    CHECK(isolate->is_execution_terminating());
+    return Nothing<bool>();
+  }
 
   // 9. Perform ! module.ExecuteModule(capability).
   // Note: In V8 we have broken module.ExecuteModule into
@@ -1114,7 +1120,7 @@ MaybeHandle<Object> SourceTextModule::InnerModuleEvaluation(
   // 4. Assert: module.[[Status]] is LINKED.
   CHECK_EQ(module_status, kLinked);
 
-  Handle<FixedArray> requested_modules;
+  DirectHandle<FixedArray> requested_modules;
 
   {
     DisallowGarbageCollection no_gc;
@@ -1138,7 +1144,7 @@ MaybeHandle<Object> SourceTextModule::InnerModuleEvaluation(
     stack->push_front(module);
 
     // Recursion.
-    requested_modules = handle(raw_module->requested_modules(), isolate);
+    requested_modules = direct_handle(raw_module->requested_modules(), isolate);
   }
 
   // 11. For each String required of module.[[RequestedModules]], do

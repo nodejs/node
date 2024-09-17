@@ -929,9 +929,8 @@ void ObjectStatsCollectorImpl::RecordVirtualMapDetails(Tagged<Map> map) {
 
 void ObjectStatsCollectorImpl::RecordVirtualScriptDetails(
     Tagged<Script> script) {
-  RecordSimpleVirtualObjectStats(
-      script, script->shared_function_infos(),
-      ObjectStats::SCRIPT_SHARED_FUNCTION_INFOS_TYPE);
+  RecordSimpleVirtualObjectStats(script, script->infos(),
+                                 ObjectStats::SCRIPT_INFOS_TYPE);
 
   // Log the size of external source code.
   Tagged<Object> raw_source = script->source();

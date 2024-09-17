@@ -48,6 +48,8 @@ set(ABSL_INTERNAL_DLL_FILES
   "base/internal/thread_identity.h"
   "base/internal/throw_delegate.cc"
   "base/internal/throw_delegate.h"
+  "base/internal/tracing.cc"
+  "base/internal/tracing.h"
   "base/internal/tsan_mutex_interface.h"
   "base/internal/unaligned_access.h"
   "base/internal/unscaledcycleclock.cc"
@@ -320,7 +322,6 @@ set(ABSL_INTERNAL_DLL_FILES
   "strings/internal/string_constant.h"
   "strings/internal/stringify_sink.h"
   "strings/internal/stringify_sink.cc"
-  "strings/internal/has_absl_stringify.h"
   "strings/has_absl_stringify.h"
   "strings/has_ostream_operator.h"
   "strings/match.cc"
@@ -486,6 +487,7 @@ endif()
 set(ABSL_INTERNAL_DLL_TARGETS
   "absl_check"
   "absl_log"
+  "absl_vlog_is_on"
   "algorithm"
   "algorithm_container"
   "any"
@@ -643,6 +645,7 @@ set(ABSL_INTERNAL_DLL_TARGETS
   "utility"
   "variant"
   "vlog_config_internal"
+  "vlog_is_on"
 )
 
 if(NOT MSVC)

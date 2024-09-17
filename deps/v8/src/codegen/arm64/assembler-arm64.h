@@ -8,10 +8,10 @@
 #include <deque>
 #include <map>
 #include <memory>
+#include <optional>
 
 #include "absl/container/btree_map.h"
 #include "absl/container/flat_hash_map.h"
-#include "src/base/optional.h"
 #include "src/codegen/arm64/constants-arm64.h"
 #include "src/codegen/arm64/instructions-arm64.h"
 #include "src/codegen/arm64/register-arm64.h"
@@ -121,7 +121,7 @@ class Operand {
   bool NeedsRelocation(const Assembler* assembler) const;
 
  private:
-  base::Optional<HeapNumberRequest> heap_number_request_;
+  std::optional<HeapNumberRequest> heap_number_request_;
   Immediate immediate_;
   Register reg_;
   Shift shift_;

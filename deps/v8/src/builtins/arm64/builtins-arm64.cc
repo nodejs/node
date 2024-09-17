@@ -391,43 +391,6 @@ static void AssertCodeIsBaseline(MacroAssembler* masm, Register code,
   return AssertCodeIsBaselineAllowClobber(masm, code, scratch);
 }
 
-// Equivalent of SharedFunctionInfo::GetData
-static void GetSharedFunctionInfoData(MacroAssembler* masm, Register data,
-                                      Register sfi, Register scratch) {
-#ifdef V8_ENABLE_SANDBOX
-  DCHECK(!AreAliased(data, scratch));
-  DCHECK(!AreAliased(sfi, scratch));
-  // Use trusted_function_data if non-empy, otherwise the regular function_data.
-  Label use_tagged_field, done;
-  __ Ldr(scratch.W(),
-         FieldMemOperand(sfi, SharedFunctionInfo::kTrustedFunctionDataOffset));
-
-  __ Cbz(scratch.W(), &use_tagged_field);
-  __ ResolveIndirectPointerHandle(data, scratch, kUnknownIndirectPointerTag);
-  __ B(&done);
-
-  __ Bind(&use_tagged_field);
-  __ LoadTaggedField(
-      data, FieldMemOperand(sfi, SharedFunctionInfo::kFunctionDataOffset));
-
-  __ Bind(&done);
-#else
-  __ LoadTaggedField(
-      data, FieldMemOperand(sfi, SharedFunctionInfo::kFunctionDataOffset));
-#endif  // V8_ENABLE_SANDBOX
-}
-
-#ifdef V8_ENABLE_WEBASSEMBLY
-// Equivalent of SharedFunctionInfo::wasm_resume_data()
-static void GetSharedFunctionInfoWasmResumeData(MacroAssembler* masm,
-                                                Register resume_data,
-                                                Register sfi) {
-  __ LoadTaggedField(
-      resume_data,
-      FieldMemOperand(sfi, SharedFunctionInfo::kFunctionDataOffset));
-}
-#endif  // V8_ENABLE_WEBASSEMBLY
-
 static void CheckSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
                                                       Register data,
                                                       Register scratch,
@@ -469,18 +432,11 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
   Label done;
 
   Register data = bytecode;
-#ifdef V8_ENABLE_SANDBOX
-  // In this case, the bytecode array must be referenced via a trusted pointer.
-  // Loading it from the tagged function_data field would not be safe.
-  __ Ldr(scratch1.W(),
-         FieldMemOperand(sfi, SharedFunctionInfo::kTrustedFunctionDataOffset));
+  __ LoadTrustedPointerField(
+      data,
+      FieldMemOperand(sfi, SharedFunctionInfo::kTrustedFunctionDataOffset),
+      kUnknownIndirectPointerTag);
 
-  __ Cbz(scratch1.W(), is_unavailable);
-  __ ResolveIndirectPointerHandle(data, scratch1, kUnknownIndirectPointerTag);
-#else
-  __ LoadTaggedField(
-      data, FieldMemOperand(sfi, SharedFunctionInfo::kFunctionDataOffset));
-#endif  // V8_ENABLE_SANDBOX
   if (V8_JITLESS_BOOL) {
     __ IsObjectType(data, scratch1, scratch1, INTERPRETER_DATA_TYPE);
     __ B(ne, &done);
@@ -2011,7 +1967,9 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ Ldr(x1, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
   __ LoadTaggedField(
       x1, FieldMemOperand(x1, JSFunction::kSharedFunctionInfoOffset));
-  GetSharedFunctionInfoData(masm, x1, x1, x2);
+  __ LoadTrustedPointerField(
+      x1, FieldMemOperand(x1, SharedFunctionInfo::kTrustedFunctionDataOffset),
+      kUnknownIndirectPointerTag);
   __ IsObjectType(x1, kInterpreterDispatchTableRegister,
                   kInterpreterDispatchTableRegister, INTERPRETER_DATA_TYPE);
   __ B(ne, &builtin_trampoline);
@@ -3726,7 +3684,7 @@ class RegisterAllocator {
 
 #define FREE_REG(Name) regs.Free(&Name);
 
-// Loads the context field of the WasmTrustedInstanceData or WasmApiFunctionRef
+// Loads the context field of the WasmTrustedInstanceData or WasmImportData
 // depending on the ref's type, and places the result in the input register.
 void GetContextFromRef(MacroAssembler* masm, Register ref, Register scratch) {
   __ LoadTaggedField(scratch, FieldMemOperand(ref, HeapObject::kMapOffset));
@@ -3735,7 +3693,7 @@ void GetContextFromRef(MacroAssembler* masm, Register ref, Register scratch) {
   Label end;
   __ B(eq, &instance);
   __ LoadTaggedField(
-      ref, FieldMemOperand(ref, WasmApiFunctionRef::kNativeContextOffset));
+      ref, FieldMemOperand(ref, WasmImportData::kNativeContextOffset));
   __ jmp(&end);
   __ bind(&instance);
   __ LoadTaggedField(
@@ -3897,7 +3855,9 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   // RecordWriteField calls later.
   DEFINE_PINNED(suspender, WriteBarrierDescriptor::ObjectRegister());
   DEFINE_REG(resume_data);
-  GetSharedFunctionInfoWasmResumeData(masm, resume_data, sfi);
+  __ LoadTaggedField(
+      resume_data,
+      FieldMemOperand(sfi, SharedFunctionInfo::kUntrustedFunctionDataOffset));
   // The write barrier uses a fixed register for the host object (rdi). The next
   // barrier is on the suspender, so load it in rdi directly.
   __ LoadTaggedField(
@@ -4501,8 +4461,8 @@ void SwitchFromTheCentralStackIfNeeded(MacroAssembler* masm) {
 }  // namespace
 
 void Builtins::Generate_WasmToOnHeapWasmToJsTrampoline(MacroAssembler* masm) {
-  // Load the code pointer from the WasmApiFunctionRef and tail-call there.
-  Register api_function_ref = wasm::kGpParamRegisters[0];
+  // Load the code pointer from the WasmImportData and tail-call there.
+  Register import_data = wasm::kGpParamRegisters[0];
   // Use x17 which is not in kGpParamRegisters and allows to jump to a "bti c"
   // marker.
   Register call_target = x17;
@@ -4510,13 +4470,11 @@ void Builtins::Generate_WasmToOnHeapWasmToJsTrampoline(MacroAssembler* masm) {
   temps.Exclude(call_target);
 #ifdef V8_ENABLE_SANDBOX
   __ LoadCodeEntrypointViaCodePointer(
-      call_target,
-      FieldMemOperand(api_function_ref, WasmApiFunctionRef::kCodeOffset),
+      call_target, FieldMemOperand(import_data, WasmImportData::kCodeOffset),
       kWasmEntrypointTag);
 #else
   Register code = call_target;
-  __ Ldr(code,
-         FieldMemOperand(api_function_ref, WasmApiFunctionRef::kCodeOffset));
+  __ Ldr(code, FieldMemOperand(import_data, WasmImportData::kCodeOffset));
   __ Ldr(call_target, FieldMemOperand(code, Code::kInstructionStartOffset));
 #endif
   __ Jump(call_target);
@@ -5014,7 +4972,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   DCHECK(!AreAliased(api_function_address, property_callback_info_arg, name_arg,
                      callback, scratch, scratch2));
 
-#ifdef V8_ENABLE_DIRECT_LOCAL
+#ifdef V8_ENABLE_DIRECT_HANDLE
   // name_arg = Local<Name>(name), name value was pushed to GC-ed stack space.
   // |name_arg| is already initialized above.
 #else
@@ -5374,7 +5332,10 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
     ResetSharedFunctionInfoAge(masm, code_obj);
   }
 
-  GetSharedFunctionInfoData(masm, code_obj, code_obj, x3);
+  __ LoadTrustedPointerField(
+      code_obj,
+      FieldMemOperand(code_obj, SharedFunctionInfo::kTrustedFunctionDataOffset),
+      kUnknownIndirectPointerTag);
 
   // Check if we have baseline code. For OSR entry it is safe to assume we
   // always have baseline code.

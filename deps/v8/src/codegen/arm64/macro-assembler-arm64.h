@@ -9,6 +9,8 @@
 #ifndef V8_CODEGEN_ARM64_MACRO_ASSEMBLER_ARM64_H_
 #define V8_CODEGEN_ARM64_MACRO_ASSEMBLER_ARM64_H_
 
+#include <optional>
+
 #include "src/base/bits.h"
 #include "src/codegen/arm64/assembler-arm64.h"
 #include "src/codegen/bailout-reason.h"
@@ -765,6 +767,13 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
             Condition cond);
   inline void Fcsel(const VRegister& fd, const VRegister& fn,
                     const VRegister& fm, Condition cond);
+
+  // Checks if value is in range [lower_limit, higher_limit] using a single
+  // comparison. Condition `ls` indicates the value is in the range.
+  void CompareRange(Register value, Register scratch, unsigned lower_limit,
+                    unsigned higher_limit);
+  void JumpIfIsInRange(Register value, Register scratch, unsigned lower_limit,
+                       unsigned higher_limit, Label* on_in_range);
 
   // Emits a runtime assert that the stack pointer is aligned.
   void AssertSpAligned() NOOP_UNLESS_DEBUG_CODE;
@@ -2094,6 +2103,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Neither map, nor type_reg might be set to any particular value.
   void IsObjectType(Register heap_object, Register scratch1, Register scratch2,
                     InstanceType type);
+  // Variant of the above, which compares against a type range rather than a
+  // single type (lower_limit and higher_limit are inclusive).
+  //
+  // Always use unsigned comparisons: ls for a positive result.
+  void IsObjectTypeInRange(Register heap_object, Register scratch,
+                           InstanceType lower_limit, InstanceType higher_limit);
 #if V8_STATIC_ROOTS_BOOL
   // Fast variant which is guaranteed to not actually load the instance type
   // from the map.
@@ -2522,9 +2537,9 @@ struct MoveCycleState {
   RegList scratch_regs;
   DoubleRegList scratch_fp_regs;
   // Available scratch registers during the move cycle resolution scope.
-  base::Optional<UseScratchRegisterScope> temps;
+  std::optional<UseScratchRegisterScope> temps;
   // Scratch register picked by {MoveToTempLocation}.
-  base::Optional<CPURegister> scratch_reg;
+  std::optional<CPURegister> scratch_reg;
 };
 
 // Provides access to exit frame parameters (GC-ed).

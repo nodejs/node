@@ -91,7 +91,7 @@ Accessors::ReplaceAccessorWithDataProperty(Isolate* isolate,
                     LookupIterator::OWN_SKIP_INTERCEPTOR);
   // Skip any access checks we might hit. This accessor should never hit in a
   // situation where the caller does not have access.
-  if (it.state() == LookupIterator::ACCESS_CHECK) {
+  while (it.state() == LookupIterator::ACCESS_CHECK) {
     CHECK(it.HasAccess());
     it.Next();
   }
@@ -306,7 +306,7 @@ Handle<AccessorInfo> Accessors::MakeStringLengthInfo(Isolate* isolate) {
 //
 
 static Handle<Object> GetFunctionPrototype(Isolate* isolate,
-                                           Handle<JSFunction> function) {
+                                           DirectHandle<JSFunction> function) {
   if (!function->has_prototype()) {
     // We lazily allocate .prototype for functions, which confuses debug
     // evaluate which assumes we can write to temporary objects we allocated
@@ -325,8 +325,8 @@ void Accessors::FunctionPrototypeGetter(
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   RCS_SCOPE(isolate, RuntimeCallCounterId::kFunctionPrototypeGetter);
   HandleScope scope(isolate);
-  Handle<JSFunction> function =
-      Cast<JSFunction>(Utils::OpenHandle(*info.Holder()));
+  DirectHandle<JSFunction> function =
+      Cast<JSFunction>(Utils::OpenDirectHandle(*info.Holder()));
   DCHECK(function->has_prototype_property());
   Handle<Object> result = GetFunctionPrototype(isolate, function);
   info.GetReturnValue().Set(Utils::ToLocal(result));
@@ -339,8 +339,8 @@ void Accessors::FunctionPrototypeSetter(
   RCS_SCOPE(isolate, RuntimeCallCounterId::kFunctionPrototypeSetter);
   HandleScope scope(isolate);
   Handle<Object> value = Utils::OpenHandle(*val);
-  Handle<JSFunction> object =
-      Cast<JSFunction>(Utils::OpenHandle(*info.Holder()));
+  DirectHandle<JSFunction> object =
+      Cast<JSFunction>(Utils::OpenDirectHandle(*info.Holder()));
   DCHECK(object->has_prototype_property());
   JSFunction::SetPrototype(object, value);
   info.GetReturnValue().Set(true);
@@ -728,7 +728,7 @@ void Accessors::BoundFunctionLengthGetter(
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   RCS_SCOPE(isolate, RuntimeCallCounterId::kBoundFunctionLengthGetter);
   HandleScope scope(isolate);
-  Handle<JSBoundFunction> function =
+  DirectHandle<JSBoundFunction> function =
       Cast<JSBoundFunction>(Utils::OpenHandle(*info.Holder()));
 
   int length = 0;
@@ -753,7 +753,7 @@ void Accessors::BoundFunctionNameGetter(
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   RCS_SCOPE(isolate, RuntimeCallCounterId::kBoundFunctionNameGetter);
   HandleScope scope(isolate);
-  Handle<JSBoundFunction> function =
+  DirectHandle<JSBoundFunction> function =
       Cast<JSBoundFunction>(Utils::OpenHandle(*info.Holder()));
   Handle<Object> result;
   if (!JSBoundFunction::GetName(isolate, function).ToHandle(&result)) {

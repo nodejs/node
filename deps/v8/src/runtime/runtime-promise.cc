@@ -86,8 +86,10 @@ RUNTIME_FUNCTION(Runtime_RunMicrotaskCallback) {
   Tagged<Object> microtask_callback = args[0];
   Tagged<Object> microtask_data = args[1];
   MicrotaskCallback callback =
-      ToCData<MicrotaskCallback, kMicrotaskCallbackTag>(microtask_callback);
-  void* data = ToCData<void*, kMicrotaskCallbackDataTag>(microtask_data);
+      ToCData<MicrotaskCallback, kMicrotaskCallbackTag>(isolate,
+                                                        microtask_callback);
+  void* data =
+      ToCData<void*, kMicrotaskCallbackDataTag>(isolate, microtask_data);
   callback(data);
   RETURN_FAILURE_IF_EXCEPTION(isolate);
   return ReadOnlyRoots(isolate).undefined_value();
@@ -194,6 +196,23 @@ RUNTIME_FUNCTION(Runtime_ConstructInternalAggregateErrorHelper) {
       ErrorUtils::Construct(isolate, isolate->aggregate_error_function(),
                             isolate->aggregate_error_function(), message_string,
                             options));
+  return *result;
+}
+
+RUNTIME_FUNCTION(Runtime_ConstructSuppressedError) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+  Handle<JSFunction> target = args.at<JSFunction>(0);
+  Handle<Object> new_target = args.at(1);
+  DirectHandle<Object> message = args.at(2);
+
+  DCHECK_EQ(*target, *isolate->suppressed_error_function());
+
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      ErrorUtils::Construct(isolate, target, new_target, message,
+                            isolate->factory()->undefined_value()));
   return *result;
 }
 

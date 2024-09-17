@@ -291,12 +291,17 @@ void EnableExperimentalWasmFeatures(v8::Isolate* isolate) {
       FOREACH_WASM_STAGING_FEATURE_FLAG(ENABLE_STAGED_FEATURES)
 #undef ENABLE_STAGED_FEATURES
 
-#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64
-      // Enable non-staged experimental features that we also want to fuzz.
-      v8_flags.wasm_memory64_trap_handling = true;
-#endif  // V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64
-      // Note: If you add something here, you will also have to add the
-      // respective flag(s) to the mjsunit/wasm/generate-random-module test.
+      // Enable non-staged experimental features or other experimental flags
+      // that we also want to fuzz, e.g., new optimizations.
+      // Note: If you add a Wasm feature here, you will also have to add the
+      // respective flag(s) to the mjsunit/wasm/generate-random-module.js test,
+      // otherwise that fails on an unsupported feature.
+      // You may also want to add the flag(s) to the JS file header in
+      // `PrintModule()` of `mjsunit-module-disassembler-impl.h`, to make bugs
+      // easier to reproduce with generated mjsunit test cases.
+
+      // See https://crbug.com/335082212.
+      v8_flags.wasm_inlining_call_indirect = true;
 
       // Enforce implications from enabling features.
       FlagList::EnforceFlagImplications();

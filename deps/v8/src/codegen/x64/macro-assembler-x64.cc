@@ -7,6 +7,8 @@
 
 #if V8_TARGET_ARCH_X64
 
+#include <optional>
+
 #include "src/base/bits.h"
 #include "src/base/division-by-constant.h"
 #include "src/base/utils/random-number-generator.h"
@@ -1897,6 +1899,53 @@ void MacroAssembler::F32x8Max(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,
   vandnps(dst, dst, scratch);
 }
 
+void MacroAssembler::F16x8Min(YMMRegister dst, XMMRegister lhs, XMMRegister rhs,
+                              YMMRegister scratch, YMMRegister scratch2) {
+  ASM_CODE_COMMENT(this);
+  CpuFeatureScope f16c_scope(this, F16C);
+  CpuFeatureScope avx_scope(this, AVX);
+  CpuFeatureScope avx2_scope(this, AVX2);
+  vcvtph2ps(scratch, lhs);
+  vcvtph2ps(scratch2, rhs);
+  // The minps instruction doesn't propagate NaNs and +0's in its first
+  // operand. Perform minps in both orders, merge the results, and adjust.
+  vminps(dst, scratch, scratch2);
+  vminps(scratch, scratch2, scratch);
+  // Propagate -0's and NaNs, which may be non-canonical.
+  vorps(scratch, scratch, dst);
+  // Canonicalize NaNs by quieting and clearing the payload.
+  vcmpunordps(dst, dst, scratch);
+  vorps(scratch, scratch, dst);
+  vpsrld(dst, dst, uint8_t{10});
+  vandnps(dst, dst, scratch);
+  vcvtps2ph(dst, dst, 0);
+}
+
+void MacroAssembler::F16x8Max(YMMRegister dst, XMMRegister lhs, XMMRegister rhs,
+                              YMMRegister scratch, YMMRegister scratch2) {
+  ASM_CODE_COMMENT(this);
+  CpuFeatureScope f16c_scope(this, F16C);
+  CpuFeatureScope avx_scope(this, AVX);
+  CpuFeatureScope avx2_scope(this, AVX2);
+  vcvtph2ps(scratch, lhs);
+  vcvtph2ps(scratch2, rhs);
+  // The maxps instruction doesn't propagate NaNs and +0's in its first
+  // operand. Perform maxps in both orders, merge the results, and adjust.
+  vmaxps(dst, scratch, scratch2);
+  vmaxps(scratch, scratch2, scratch);
+  // Find discrepancies.
+  vxorps(dst, dst, scratch);
+  // Propagate NaNs, which may be non-canonical.
+  vorps(scratch, scratch, dst);
+  // Propagate sign discrepancy and (subtle) quiet NaNs.
+  vsubps(scratch, scratch, dst);
+  // Canonicalize NaNs by clearing the payload. Sign is non-deterministic.
+  vcmpunordps(dst, dst, scratch);
+  vpsrld(dst, dst, uint8_t{10});
+  vandnps(dst, dst, scratch);
+  vcvtps2ph(dst, dst, 0);
+}
+
 // 1. Zero extend 4 packed 32-bit integers in src1 to 4 packed 64-bit integers
 // in scratch
 // 2. Zero extend 4 packed 32-bit integers in src2 to 4 packed 64-bit integers
@@ -2024,7 +2073,7 @@ void MacroAssembler::I32x8SConvertF32x8(YMMRegister dst, YMMRegister src,
   vpxor(dst, dst, tmp);
 }
 
-void MacroAssembler::I16x8SConvertF16x8(YMMRegister dst, YMMRegister src,
+void MacroAssembler::I16x8SConvertF16x8(YMMRegister dst, XMMRegister src,
                                         YMMRegister tmp, Register scratch) {
   ASM_CODE_COMMENT(this);
   DCHECK(CpuFeatures::IsSupported(AVX) && CpuFeatures::IsSupported(AVX2) &&
@@ -2033,14 +2082,27 @@ void MacroAssembler::I16x8SConvertF16x8(YMMRegister dst, YMMRegister src,
   CpuFeatureScope f16c_scope(this, F16C);
   CpuFeatureScope avx_scope(this, AVX);
   CpuFeatureScope avx2_scope(this, AVX2);
+
+  Operand op = ExternalReferenceAsOperand(
+      ExternalReference::address_of_wasm_i32x8_int32_overflow_as_float(),
+      scratch);
   // Convert source f16 to f32.
   vcvtph2ps(dst, src);
   // Compare it to itself, NaNs are turn to 0s because don't equal to itself.
   vcmpeqps(tmp, dst, dst);
   // Reset NaNs.
   vandps(dst, dst, tmp);
+  // Detect positive Infinity as an overflow above MAX_INT32.
+  vcmpgeps(tmp, dst, op);
   // Convert f32 to i32.
   vcvttps2dq(dst, dst);
+  // cvttps2dq sets all out of range lanes to 0x8000'0000,
+  // but as soon as source values are result of conversion from f16,
+  // and so less than MAX_INT32, only +Infinity is an issue.
+  // Convert all infinities to MAX_INT32 and let vpackssdw
+  // clamp it to MAX_INT16 later.
+  // 0x8000'0000 xor 0xffff'ffff(from 2 steps before) = 0x7fff'ffff (MAX_INT32)
+  vpxor(dst, dst, tmp);
   // We now have 8 i32 values. Using one character per 16 bits:
   // dst: [AABBCCDDEEFFGGHH]
   // Create a copy of the upper four values in the lower half of {tmp}
@@ -2060,7 +2122,7 @@ void MacroAssembler::I16x8SConvertF16x8(YMMRegister dst, YMMRegister src,
   //         └────────────── from upper half of {tmp} (ignored)
 }
 
-void MacroAssembler::I16x8TruncF16x8U(YMMRegister dst, YMMRegister src,
+void MacroAssembler::I16x8TruncF16x8U(YMMRegister dst, XMMRegister src,
                                       YMMRegister tmp) {
   ASM_CODE_COMMENT(this);
   DCHECK(CpuFeatures::IsSupported(AVX) && CpuFeatures::IsSupported(AVX2) &&
@@ -2069,16 +2131,79 @@ void MacroAssembler::I16x8TruncF16x8U(YMMRegister dst, YMMRegister src,
   CpuFeatureScope f16c_scope(this, F16C);
   CpuFeatureScope avx_scope(this, AVX);
   CpuFeatureScope avx2_scope(this, AVX2);
+
+  Operand op = ExternalReferenceAsOperand(
+      ExternalReference::address_of_wasm_i32x8_int32_overflow_as_float(),
+      kScratchRegister);
   vcvtph2ps(dst, src);
   // NAN->0, negative->0.
   vpxor(tmp, tmp, tmp);
   vmaxps(dst, dst, tmp);
+  // Detect positive Infinity as an overflow above MAX_INT32.
+  vcmpgeps(tmp, dst, op);
   // Convert to int.
   vcvttps2dq(dst, dst);
+  // cvttps2dq sets all out of range lanes to 0x8000'0000,
+  // but as soon as source values are result of conversion from f16,
+  // and so less than MAX_INT32, only +Infinity is an issue.
+  // Convert all infinities to MAX_INT32 and let vpackusdw
+  // clamp it to MAX_INT16 later.
+  // 0x8000'0000 xor 0xffff'ffff(from 2 steps before) = 0x7fff'ffff (MAX_INT32)
+  vpxor(dst, dst, tmp);
   // Move high part to a spare register.
   // See detailed comment in {I16x8SConvertF16x8} for how this works.
   vpermq(tmp, dst, 0x4E);  // 0b01001110
   vpackusdw(dst, dst, tmp);
+}
+
+void MacroAssembler::F16x8Qfma(YMMRegister dst, XMMRegister src1,
+                               XMMRegister src2, XMMRegister src3,
+                               YMMRegister tmp, YMMRegister tmp2) {
+  CpuFeatureScope fma3_scope(this, FMA3);
+  CpuFeatureScope f16c_scope(this, F16C);
+
+  if (dst.code() == src2.code()) {
+    vcvtph2ps(dst, dst);
+    vcvtph2ps(tmp, src1);
+    vcvtph2ps(tmp2, src3);
+    vfmadd213ps(dst, tmp, tmp2);
+  } else if (dst.code() == src3.code()) {
+    vcvtph2ps(dst, dst);
+    vcvtph2ps(tmp, src2);
+    vcvtph2ps(tmp2, src1);
+    vfmadd231ps(dst, tmp, tmp2);
+  } else {
+    vcvtph2ps(dst, src1);
+    vcvtph2ps(tmp, src2);
+    vcvtph2ps(tmp2, src3);
+    vfmadd213ps(dst, tmp, tmp2);
+  }
+  vcvtps2ph(dst, dst, 0);
+}
+
+void MacroAssembler::F16x8Qfms(YMMRegister dst, XMMRegister src1,
+                               XMMRegister src2, XMMRegister src3,
+                               YMMRegister tmp, YMMRegister tmp2) {
+  CpuFeatureScope fma3_scope(this, FMA3);
+  CpuFeatureScope f16c_scope(this, F16C);
+
+  if (dst.code() == src2.code()) {
+    vcvtph2ps(dst, dst);
+    vcvtph2ps(tmp, src1);
+    vcvtph2ps(tmp2, src3);
+    vfnmadd213ps(dst, tmp, tmp2);
+  } else if (dst.code() == src3.code()) {
+    vcvtph2ps(dst, dst);
+    vcvtph2ps(tmp, src2);
+    vcvtph2ps(tmp2, src1);
+    vfnmadd231ps(dst, tmp, tmp2);
+  } else {
+    vcvtph2ps(dst, src1);
+    vcvtph2ps(tmp, src2);
+    vcvtph2ps(tmp2, src3);
+    vfnmadd213ps(dst, tmp, tmp2);
+  }
+  vcvtps2ph(dst, dst, 0);
 }
 
 // Helper macro to define qfma macro-assembler. This takes care of every
@@ -3307,7 +3432,7 @@ void MacroAssembler::IncsspqIfSupported(Register number_of_words,
 #if V8_STATIC_ROOTS_BOOL
 void MacroAssembler::CompareInstanceTypeWithUniqueCompressedMap(
     Register map, InstanceType type) {
-  base::Optional<RootIndex> expected =
+  std::optional<RootIndex> expected =
       InstanceTypeChecker::UniqueMapOfInstanceType(type);
   CHECK(expected);
   Tagged_t expected_ptr = ReadOnlyRootPtr(*expected);
@@ -3333,6 +3458,23 @@ void MacroAssembler::IsObjectType(Register heap_object, InstanceType type,
   }
 #endif  // V8_STATIC_ROOTS_BOOL
   CmpObjectType(heap_object, type, map);
+}
+
+void MacroAssembler::IsObjectTypeInRange(Register heap_object,
+                                         InstanceType lower_limit,
+                                         InstanceType higher_limit,
+                                         Register scratch) {
+  DCHECK_LT(lower_limit, higher_limit);
+#if V8_STATIC_ROOTS_BOOL
+  if (auto range = InstanceTypeChecker::UniqueMapRangeOfInstanceTypeRange(
+          lower_limit, higher_limit)) {
+    LoadCompressedMap(scratch, heap_object);
+    CompareRange(scratch, range->first, range->second);
+    return;
+  }
+#endif  // V8_STATIC_ROOTS_BOOL
+  LoadMap(scratch, heap_object);
+  CmpInstanceTypeRange(scratch, scratch, lower_limit, higher_limit);
 }
 
 void MacroAssembler::JumpIfJSAnyIsNotPrimitive(Register heap_object,

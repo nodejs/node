@@ -166,7 +166,11 @@ std::vector<FrameSummary> WasmModuleDebug::FindWasmFrame(
         DCHECK_GT(frame_count, 0);
 
         if (frame_count > *frame_index) {
+#if V8_ENABLE_DRUMBRAKE
+          if (frame_it->is_wasm() && !frame_it->is_wasm_interpreter_entry())
+#else   // V8_ENABLE_DRUMBRAKE
           if (frame_it->is_wasm())
+#endif  // V8_ENABLE_DRUMBRAKE
             return frames;
           else
             return {};

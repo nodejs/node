@@ -90,6 +90,7 @@ enum CpuFeature {
   ZBA,
   ZBB,
   ZBS,
+  ZICOND,
 #endif
 
   NUMBER_OF_CPU_FEATURES

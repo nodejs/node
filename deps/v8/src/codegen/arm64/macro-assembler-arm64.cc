@@ -4,6 +4,8 @@
 
 #if V8_TARGET_ARCH_ARM64
 
+#include <optional>
+
 #include "src/base/bits.h"
 #include "src/base/division-by-constant.h"
 #include "src/builtins/builtins-inl.h"
@@ -3190,7 +3192,7 @@ void MacroAssembler::JumpIfJSAnyIsNotPrimitive(Register heap_object,
 #if V8_STATIC_ROOTS_BOOL
 void MacroAssembler::CompareInstanceTypeWithUniqueCompressedMap(
     Register map, Register scratch, InstanceType type) {
-  base::Optional<RootIndex> expected =
+  std::optional<RootIndex> expected =
       InstanceTypeChecker::UniqueMapOfInstanceType(type);
   CHECK(expected);
   Tagged_t expected_ptr = ReadOnlyRootPtr(*expected);
@@ -3239,12 +3241,49 @@ void MacroAssembler::IsObjectType(Register object, Register scratch1,
   CompareObjectType(object, scratch1, scratch2, type);
 }
 
+// Sets equality condition flags.
+void MacroAssembler::IsObjectTypeInRange(Register heap_object, Register scratch,
+                                         InstanceType lower_limit,
+                                         InstanceType higher_limit) {
+  DCHECK_LT(lower_limit, higher_limit);
+#if V8_STATIC_ROOTS_BOOL
+  if (auto range = InstanceTypeChecker::UniqueMapRangeOfInstanceTypeRange(
+          lower_limit, higher_limit)) {
+    LoadCompressedMap(scratch.W(), heap_object);
+    CompareRange(scratch.W(), scratch.W(), range->first, range->second);
+    return;
+  }
+#endif  // V8_STATIC_ROOTS_BOOL
+  LoadMap(scratch, heap_object);
+  CompareInstanceTypeRange(scratch, scratch, lower_limit, higher_limit);
+}
+
 // Sets condition flags based on comparison, and returns type in type_reg.
 void MacroAssembler::CompareObjectType(Register object, Register map,
                                        Register type_reg, InstanceType type) {
   ASM_CODE_COMMENT(this);
   LoadMap(map, object);
   CompareInstanceType(map, type_reg, type);
+}
+
+void MacroAssembler::CompareRange(Register value, Register scratch,
+                                  unsigned lower_limit, unsigned higher_limit) {
+  ASM_CODE_COMMENT(this);
+  DCHECK_LT(lower_limit, higher_limit);
+  if (lower_limit != 0) {
+    Sub(scratch.W(), value.W(), Operand(lower_limit));
+    Cmp(scratch.W(), Operand(higher_limit - lower_limit));
+  } else {
+    Cmp(value.W(), Immediate(higher_limit));
+  }
+}
+
+void MacroAssembler::JumpIfIsInRange(Register value, Register scratch,
+                                     unsigned lower_limit,
+                                     unsigned higher_limit,
+                                     Label* on_in_range) {
+  CompareRange(value, scratch, lower_limit, higher_limit);
+  B(ls, on_in_range);
 }
 
 void MacroAssembler::LoadCompressedMap(Register dst, Register object) {
@@ -3296,8 +3335,7 @@ void MacroAssembler::CompareInstanceTypeRange(Register map, Register type_reg,
   UseScratchRegisterScope temps(this);
   Register scratch = temps.AcquireX();
   Ldrh(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
-  Sub(scratch, type_reg, Operand(lower_limit));
-  Cmp(scratch, Operand(higher_limit - lower_limit));
+  CompareRange(type_reg, scratch, lower_limit, higher_limit);
 }
 
 void MacroAssembler::LoadElementsKindFromMap(Register result, Register map) {

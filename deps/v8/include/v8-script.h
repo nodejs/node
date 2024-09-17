@@ -210,7 +210,7 @@ class V8_EXPORT Module : public Data {
 
   using ResolveModuleCallback = MaybeLocal<Module> (*)(
       Local<Context> context, Local<String> specifier,
-      Local<FixedArray> import_assertions, Local<Module> referrer);
+      Local<FixedArray> import_attributes, Local<Module> referrer);
 
   /**
    * Instantiates the module and its dependencies.

@@ -2260,6 +2260,7 @@ void Shell::RealmEval(const v8::FunctionCallbackInfo<v8::Value>& info) {
       CreateScriptOrigin(isolate, String::NewFromUtf8Literal(isolate, "(d8)"),
                          ScriptType::kClassic);
 
+  if (isolate->IsExecutionTerminating()) return;
   ScriptCompiler::Source script_source(source, origin);
   Local<UnboundScript> script;
   if (!ScriptCompiler::CompileUnboundScript(isolate, &script_source)

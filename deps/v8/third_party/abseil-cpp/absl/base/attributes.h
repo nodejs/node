@@ -133,12 +133,14 @@
 // Tags a function as weak for the purposes of compilation and linking.
 // Weak attributes did not work properly in LLVM's Windows backend before
 // 9.0.0, so disable them there. See https://bugs.llvm.org/show_bug.cgi?id=37598
-// for further information.
+// for further information. Weak attributes do not work across DLL boundary.
 // The MinGW compiler doesn't complain about the weak attribute until the link
 // step, presumably because Windows doesn't use ELF binaries.
-#if (ABSL_HAVE_ATTRIBUTE(weak) ||                                         \
-     (defined(__GNUC__) && !defined(__clang__))) &&                       \
-    (!defined(_WIN32) || (defined(__clang__) && __clang_major__ >= 9)) && \
+#if (ABSL_HAVE_ATTRIBUTE(weak) ||                                 \
+     (defined(__GNUC__) && !defined(__clang__))) &&               \
+    (!defined(_WIN32) ||                                          \
+     (defined(__clang__) && __clang_major__ >= 9 &&               \
+      !defined(ABSL_BUILD_DLL) && !defined(ABSL_CONSUME_DLL))) && \
     !defined(__MINGW32__)
 #undef ABSL_ATTRIBUTE_WEAK
 #define ABSL_ATTRIBUTE_WEAK __attribute__((weak))

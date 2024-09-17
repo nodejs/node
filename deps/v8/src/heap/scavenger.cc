@@ -675,17 +675,6 @@ Scavenger::PromotionList::Local::Local(Scavenger::PromotionList* promotion_list)
       large_object_promotion_list_local_(
           promotion_list->large_object_promotion_list_) {}
 
-namespace {
-MainAllocator* CreateSharedOldAllocator(Heap* heap) {
-  if (v8_flags.shared_string_table && heap->isolate()->has_shared_space()) {
-    return new MainAllocator(heap, heap->shared_allocation_space(),
-                             MainAllocator::kInGC);
-  }
-  return nullptr;
-}
-
-}  // namespace
-
 Scavenger::Scavenger(ScavengerCollector* collector, Heap* heap, bool is_logging,
                      EmptyChunksList* empty_chunks, CopiedList* copied_list,
                      PromotionList* promotion_list,
@@ -700,11 +689,11 @@ Scavenger::Scavenger(ScavengerCollector* collector, Heap* heap, bool is_logging,
       pretenuring_handler_(heap_->pretenuring_handler()),
       local_pretenuring_feedback_(PretenuringHandler::kInitialFeedbackCapacity),
       allocator_(heap, CompactionSpaceKind::kCompactionSpaceForScavenge),
-      shared_old_allocator_(CreateSharedOldAllocator(heap_)),
       is_logging_(is_logging),
       is_incremental_marking_(heap->incremental_marking()->IsMarking()),
       is_compacting_(heap->incremental_marking()->IsCompacting()),
-      shared_string_table_(shared_old_allocator_ != nullptr),
+      shared_string_table_(v8_flags.shared_string_table &&
+                           heap->isolate()->has_shared_space()),
       mark_shared_heap_(heap->isolate()->is_shared_space_isolate()),
       shortcut_strings_(
           heap->CanShortcutStringsDuringGC(GarbageCollector::SCAVENGER)) {
@@ -924,7 +913,6 @@ void Scavenger::Finalize() {
   heap()->IncrementPromotedObjectsSize(promoted_size_);
   collector_->MergeSurvivingNewLargeObjects(surviving_new_large_objects_);
   allocator_.Finalize();
-  if (shared_old_allocator_) shared_old_allocator_->FreeLinearAllocationArea();
   empty_chunks_local_.Publish();
   ephemeron_table_list_local_.Publish();
   for (auto it = ephemeron_remembered_set_.begin();

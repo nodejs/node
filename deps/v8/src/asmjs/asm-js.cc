@@ -4,10 +4,11 @@
 
 #include "src/asmjs/asm-js.h"
 
+#include <optional>
+
 #include "src/asmjs/asm-names.h"
 #include "src/asmjs/asm-parser.h"
 #include "src/ast/ast.h"
-#include "src/base/optional.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/base/vector.h"
 #include "src/codegen/compiler.h"
@@ -235,7 +236,7 @@ UnoptimizedCompilationJob::Status AsmJsCompilationJob::ExecuteJobImpl() {
   Zone translate_zone(allocator_, ZONE_NAME);
 
   Utf16CharacterStream* stream = parse_info()->character_stream();
-  base::Optional<AllowHandleDereference> allow_deref;
+  std::optional<AllowHandleDereference> allow_deref;
   if (stream->can_access_heap()) {
     allow_deref.emplace();
   }

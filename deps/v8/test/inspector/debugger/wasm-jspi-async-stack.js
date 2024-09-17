@@ -23,17 +23,11 @@ function instantiateWasm(bytes) {
   async function js_func(f) {
     return await f();
   };
-  const wasmjs_func = new WebAssembly.Function(
-      {parameters:['externref', 'externref'], results:['i32']},
-      js_func,
-      {suspending: 'first'});
+  const wasmjs_func = new WebAssembly.Suspending(js_func);
 
   const instance = new WebAssembly.Instance(
       module, {env: {wrapped: wasmjs_func}});
-  const wasmWrapperFunc = new WebAssembly.Function(
-      {parameters: ['externref'], results:['externref']},
-      instance.exports.threeTimes,
-      {promising: 'first'});
+  const wasmWrapperFunc = WebAssembly.promising(instance.exports.threeTimes);
 
   async function wrapperFunc(f) {
     // JS function that calls wasm should show up on the call stack.
@@ -138,33 +132,28 @@ const kSig_i_rr = makeSig([kWasmExternRef, kWasmExternRef], [kWasmI32]);
 
 const builder = new WasmModuleBuilder();
 
-// All functions take a suspender, the js async function to call, and
-// return int.
+// All functions take the js async function to call, and return int.
 
 // Add two functions that will be suspended by calling an async
 // JS function
 
-const wrapped_js = builder.addImport('env', 'wrapped', kSig_i_rr);
+const wrapped_js = builder.addImport('env', 'wrapped', kSig_i_r);
 const wrapped_wasm = builder.addFunction(
-    'wrappedWasm', kSig_i_rr, ['suspender', 'js_func'])
+    'wrappedWasm', kSig_i_r, ['js_func'])
     .addBody([
       // Load a parameter and call the import.
       kExprLocalGet, 0,
-      kExprLocalGet, 1,
       kExprCallFunction, wrapped_js,
     ]);
 
-const main = builder.addFunction('threeTimes', kSig_i_rr)
+const main = builder.addFunction('threeTimes', kSig_i_r)
     .addBody([
       // Call function 'wrappedWasm' three times.
       kExprLocalGet, 0,
-      kExprLocalGet, 1,
       kExprCallFunction, 1,
       kExprLocalGet, 0,
-      kExprLocalGet, 1,
       kExprCallFunction, wrapped_wasm.index,
       kExprLocalGet, 0,
-      kExprLocalGet, 1,
       kExprCallFunction, 1,
       kExprI32Add,
       kExprI32Add,

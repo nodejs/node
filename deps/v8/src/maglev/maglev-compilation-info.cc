@@ -4,6 +4,8 @@
 
 #include "src/maglev/maglev-compilation-info.h"
 
+#include <optional>
+
 #include "src/codegen/compiler.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/js-heap-broker.h"
@@ -54,8 +56,9 @@ class V8_NODISCARD MaglevCompilationHandleScope final {
 };
 
 static bool SpecializeToFunctionContext(
-    Isolate* isolate, BytecodeOffset osr_offset, Handle<JSFunction> function,
-    base::Optional<bool> specialize_to_function_context_override) {
+    Isolate* isolate, BytecodeOffset osr_offset,
+    DirectHandle<JSFunction> function,
+    std::optional<bool> specialize_to_function_context_override) {
   if (osr_offset != BytecodeOffset::None()) return false;
   if (!v8_flags.maglev_function_context_specialization) return false;
   if (specialize_to_function_context_override.has_value()) {
@@ -72,8 +75,8 @@ static bool SpecializeToFunctionContext(
 
 MaglevCompilationInfo::MaglevCompilationInfo(
     Isolate* isolate, Handle<JSFunction> function, BytecodeOffset osr_offset,
-    base::Optional<compiler::JSHeapBroker*> js_broker,
-    base::Optional<bool> specialize_to_function_context,
+    std::optional<compiler::JSHeapBroker*> js_broker,
+    std::optional<bool> specialize_to_function_context,
     bool for_turboshaft_frontend)
     : zone_(isolate->allocator(), kMaglevZoneName),
       broker_(js_broker.has_value()

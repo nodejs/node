@@ -105,7 +105,7 @@ void BuiltinStringFromCharCode::SetValueLocationConstraints() {
 }
 void BuiltinStringFromCharCode::GenerateCode(MaglevAssembler* masm,
                                              const ProcessingState& state) {
-  MaglevAssembler::ScratchRegisterScope temps(masm);
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
   Register scratch = temps.Acquire();
   Register result_string = ToRegister(result());
   if (Int32Constant* constant = code_input().node()->TryCast<Int32Constant>()) {
@@ -113,21 +113,11 @@ void BuiltinStringFromCharCode::GenerateCode(MaglevAssembler* masm,
     if (0 <= char_code && char_code < String::kMaxOneByteCharCode) {
       __ LoadSingleCharacterString(result_string, char_code);
     } else {
-      // Ensure that {result_string} never aliases {scratch}, otherwise the
-      // store will fail.
-      bool reallocate_result = scratch.Aliases(result_string);
-      if (reallocate_result) {
-        result_string = temps.Acquire();
-      }
-      DCHECK(!scratch.Aliases(result_string));
       __ AllocateTwoByteString(register_snapshot(), result_string, 1);
       __ Move(scratch, char_code);
       __ Strh(scratch.W(),
               FieldMemOperand(result_string,
                               OFFSET_OF_DATA_START(SeqTwoByteString)));
-      if (reallocate_result) {
-        __ Move(ToRegister(result()), result_string);
-      }
     }
   } else {
     __ StringFromCharCode(register_snapshot(), nullptr, result_string,
@@ -227,11 +217,11 @@ void Int32MultiplyWithOverflow::GenerateCode(MaglevAssembler* masm,
 
   // TODO(leszeks): peephole optimise multiplication by a constant.
 
-  MaglevAssembler::ScratchRegisterScope temps(masm);
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
   bool out_alias_input = out == left || out == right;
   Register res = out.X();
   if (out_alias_input) {
-    res = temps.Acquire();
+    res = temps.AcquireScratch();
   }
 
   __ Smull(res, left, right);
@@ -245,8 +235,8 @@ void Int32MultiplyWithOverflow::GenerateCode(MaglevAssembler* masm,
   Label end;
   __ CompareAndBranch(res, Immediate(0), ne, &end);
   {
-    MaglevAssembler::ScratchRegisterScope temps(masm);
-    Register temp = temps.Acquire().W();
+    MaglevAssembler::TemporaryRegisterScope temps(masm);
+    Register temp = temps.AcquireScratch().W();
     __ Orr(temp, left, right);
     // If one of them is negative, we must have a -0 result, which is non-int32,
     // so deopt.
@@ -313,16 +303,16 @@ void Int32DivideWithOverflow::GenerateCode(MaglevAssembler* masm,
   __ Bind(*done);
 
   // Perform the actual integer division.
-  MaglevAssembler::ScratchRegisterScope temps(masm);
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
   bool out_alias_input = out == left || out == right;
   Register res = out;
   if (out_alias_input) {
-    res = temps.Acquire().W();
+    res = temps.AcquireScratch().W();
   }
   __ Sdiv(res, left, right);
 
   // Check that the remainder is zero.
-  Register temp = temps.Acquire().W();
+  Register temp = temps.AcquireScratch().W();
   __ Msub(temp, res, right, left);
   __ CompareAndBranch(temp, Immediate(0), ne,
                       __ GetDeoptLabel(this, DeoptimizeReason::kNotInt32));
@@ -396,8 +386,8 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
       lt,
       [](MaglevAssembler* masm, ZoneLabelRef done, Register lhs, Register rhs,
          Register out, Int32ModulusWithOverflow* node) {
-        MaglevAssembler::ScratchRegisterScope temps(masm);
-        Register res = temps.Acquire().W();
+        MaglevAssembler::TemporaryRegisterScope temps(masm);
+        Register res = temps.AcquireScratch().W();
         __ Neg(lhs, lhs);
         __ Udiv(res, lhs, rhs);
         __ Msub(out, res, rhs, lhs);
@@ -410,8 +400,8 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
       done, lhs, rhs, out, this);
 
   Label rhs_not_power_of_2;
-  MaglevAssembler::ScratchRegisterScope temps(masm);
-  Register mask = temps.Acquire().W();
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  Register mask = temps.AcquireScratch().W();
   __ Add(mask, rhs, Immediate(-1));
   __ Tst(mask, rhs);
   __ JumpIf(ne, &rhs_not_power_of_2);
@@ -587,9 +577,9 @@ void Float64Round::GenerateCode(MaglevAssembler* masm,
   DoubleRegister in = ToDoubleRegister(input());
   DoubleRegister out = ToDoubleRegister(result());
   if (kind_ == Kind::kNearest) {
-    MaglevAssembler::ScratchRegisterScope temps(masm);
-    DoubleRegister temp = temps.AcquireDouble();
-    DoubleRegister half_one = temps.AcquireDouble();
+    MaglevAssembler::TemporaryRegisterScope temps(masm);
+    DoubleRegister temp = temps.AcquireScratchDouble();
+    DoubleRegister half_one = temps.AcquireScratchDouble();
     __ Move(temp, in);
     // Frintn rounds to even on tie, while JS expects it to round towards
     // +Infinity. Fix the difference by checking if we rounded down by exactly
@@ -643,8 +633,8 @@ void LoadTypedArrayLength::GenerateCode(MaglevAssembler* masm,
   Register object = ToRegister(receiver_input());
   Register result_register = ToRegister(result());
   if (v8_flags.debug_code) {
-    __ CompareObjectTypeAndAssert(object, JS_TYPED_ARRAY_TYPE, eq,
-                                  AbortReason::kUnexpectedValue);
+    __ AssertObjectType(object, JS_TYPED_ARRAY_TYPE,
+                        AbortReason::kUnexpectedValue);
   }
   __ LoadBoundedSizeFromObject(result_register, object,
                                JSTypedArray::kRawByteLengthOffset);
@@ -665,12 +655,12 @@ void CheckJSDataViewBounds::SetValueLocationConstraints() {
 }
 void CheckJSDataViewBounds::GenerateCode(MaglevAssembler* masm,
                                          const ProcessingState& state) {
-  MaglevAssembler::ScratchRegisterScope temps(masm);
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
   Register object = ToRegister(receiver_input());
   Register index = ToRegister(index_input());
   if (v8_flags.debug_code) {
-    __ CompareObjectTypeAndAssert(object, JS_DATA_VIEW_TYPE, eq,
-                                  AbortReason::kUnexpectedValue);
+    __ AssertObjectType(object, JS_DATA_VIEW_TYPE,
+                        AbortReason::kUnexpectedValue);
   }
 
   // Normal DataView (backed by AB / SAB) or non-length tracking backed by GSAB.
@@ -756,7 +746,7 @@ void HandleInterruptsAndTiering(MaglevAssembler* masm, ZoneLabelRef done,
 
 void GenerateReduceInterruptBudget(MaglevAssembler* masm, Node* node,
                                    ReduceInterruptBudgetType type, int amount) {
-  MaglevAssembler::ScratchRegisterScope temps(masm);
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
   Register scratch = temps.Acquire();
   Register feedback_cell = scratch;
   Register budget = temps.Acquire().W();

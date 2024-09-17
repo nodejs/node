@@ -32,7 +32,7 @@ enum class SfiState {
 void ExpectSharedFunctionInfoState(Isolate* isolate,
                                    Tagged<SharedFunctionInfo> sfi,
                                    SfiState expectedState) {
-  Tagged<Object> function_data = sfi->GetData(isolate);
+  Tagged<Object> function_data = sfi->GetTrustedData(isolate);
   Tagged<HeapObject> script = sfi->script(kAcquireLoad);
   switch (expectedState) {
     case SfiState::Compiled:

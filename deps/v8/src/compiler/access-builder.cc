@@ -270,6 +270,21 @@ FieldAccess AccessBuilder::ForJSFunctionFeedbackCell() {
   return access;
 }
 
+#ifdef V8_ENABLE_LEAPTIERING
+// static
+FieldAccess AccessBuilder::ForJSFunctionDispatchHandleNoWriteBarrier() {
+  // We currently don't require write barriers when writing dispatch handles of
+  // JSFunctions because they are loaded from the function's FeedbackCell and
+  // so must already be reachable. If this ever changes, we'll need to
+  // implement write barrier support for dispatch handles in generated code.
+  FieldAccess access = {
+      kTaggedBase,      JSFunction::kDispatchHandleOffset, Handle<Name>(),
+      OptionalMapRef(), TypeCache::Get()->kInt32,          MachineType::Int32(),
+      kNoWriteBarrier,  "JSFunctionDispatchHandle"};
+  return access;
+}
+#endif  // V8_ENABLE_LEAPTIERING
+
 // static
 FieldAccess AccessBuilder::ForJSBoundFunctionBoundTargetFunction() {
   FieldAccess access = {
@@ -623,14 +638,30 @@ FieldAccess AccessBuilder::ForJSPrimitiveWrapperValue() {
   return access;
 }
 
+#ifdef V8_ENABLE_SANDBOX
 // static
 FieldAccess AccessBuilder::ForJSRegExpData() {
-  FieldAccess access = {kTaggedBase,         JSRegExp::kDataOffset,
-                        MaybeHandle<Name>(), OptionalMapRef(),
-                        Type::NonInternal(), MachineType::AnyTagged(),
-                        kFullWriteBarrier,   "JSRegExpData"};
+  FieldAccess access = {kTaggedBase,
+                        JSRegExp::kDataOffset,
+                        MaybeHandle<Name>(),
+                        OptionalMapRef(),
+                        Type::OtherInternal(),
+                        MachineType::IndirectPointer(),
+                        kIndirectPointerWriteBarrier,
+                        "JSRegExpData"};
+  access.indirect_pointer_tag = kRegExpDataIndirectPointerTag;
   return access;
 }
+#else
+// static
+FieldAccess AccessBuilder::ForJSRegExpData() {
+  FieldAccess access = {kTaggedBase,           JSRegExp::kDataOffset,
+                        MaybeHandle<Name>(),   OptionalMapRef(),
+                        Type::OtherInternal(), MachineType::TaggedPointer(),
+                        kPointerWriteBarrier,  "JSRegExpData"};
+  return access;
+}
+#endif  // V8_ENABLE_SANDBOX
 
 // static
 FieldAccess AccessBuilder::ForJSRegExpFlags() {
@@ -1045,6 +1076,16 @@ FieldAccess AccessBuilder::ForFeedbackVectorSlot(int index) {
 }
 
 // static
+FieldAccess AccessBuilder::ForPropertyArraySlot(int index) {
+  int offset = PropertyArray::OffsetOfElementAt(index);
+  FieldAccess access = {kTaggedBase,       offset,
+                        Handle<Name>(),    OptionalMapRef(),
+                        Type::Any(),       MachineType::AnyTagged(),
+                        kFullWriteBarrier, "PropertyArraySlot"};
+  return access;
+}
+
+// static
 FieldAccess AccessBuilder::ForWeakFixedArraySlot(int index) {
   int offset = WeakFixedArray::OffsetOfElementAt(index);
   FieldAccess access = {kTaggedBase,       offset,
@@ -1424,6 +1465,24 @@ FieldAccess AccessBuilder::ForFeedbackCellInterruptBudget() {
                         "FeedbackCellInterruptBudget"};
   return access;
 }
+
+#ifdef V8_ENABLE_LEAPTIERING
+// static
+FieldAccess AccessBuilder::ForFeedbackCellDispatchHandleNoWriteBarrier() {
+  // Dispatch handles in FeedbackCells are effectively const-after-init and so
+  // they are marked as kNoWriteBarrier here (because the fields will not be
+  // written to).
+  FieldAccess access = {kTaggedBase,
+                        FeedbackCell::kDispatchHandleOffset,
+                        Handle<Name>(),
+                        OptionalMapRef(),
+                        TypeCache::Get()->kInt32,
+                        MachineType::Int32(),
+                        kNoWriteBarrier,
+                        "FeedbackCellDispatchHandle"};
+  return access;
+}
+#endif  // V8_ENABLE_LEAPTIERING
 
 // static
 FieldAccess AccessBuilder::ForFeedbackVectorInvocationCount() {

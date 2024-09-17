@@ -5,6 +5,8 @@
 #ifndef V8_COMPILER_TURBOSHAFT_STORE_STORE_ELIMINATION_REDUCER_INL_H_
 #define V8_COMPILER_TURBOSHAFT_STORE_STORE_ELIMINATION_REDUCER_INL_H_
 
+#include <optional>
+
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/operations.h"
@@ -144,7 +146,7 @@ class MaybeRedundantStoresTable
       auto successors = SuccessorBlocks(block->LastOperation(graph_));
       successor_snapshots_.clear();
       for (const Block* s : successors) {
-        base::Optional<Snapshot> s_snapshot =
+        std::optional<Snapshot> s_snapshot =
             block_to_snapshot_mapping_[s->index()];
         // When we visit the loop for the first time, the loop header hasn't
         // been visited yet, so we ignore it.
@@ -262,7 +264,7 @@ class MaybeRedundantStoresTable
   };
 
   const Graph& graph_;
-  GrowingBlockSidetable<base::Optional<Snapshot>> block_to_snapshot_mapping_;
+  GrowingBlockSidetable<std::optional<Snapshot>> block_to_snapshot_mapping_;
   ZoneAbslFlatHashMap<std::pair<OpIndex, int32_t>, Key> key_mapping_;
   // In `active_keys_`, we track the keys of all stores that arge gc-observable
   // or unobservable. Keys that are mapped to the default value (observable) are

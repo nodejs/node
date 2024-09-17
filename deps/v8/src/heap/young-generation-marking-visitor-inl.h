@@ -170,7 +170,7 @@ V8_INLINE bool YoungGenerationMarkingVisitor<marking_mode>::VisitObjectViaSlot(
     return false;
   }
   typename TSlot::TObject target = *optional_object;
-#ifdef V8_ENABLE_DIRECT_LOCAL
+#ifdef V8_ENABLE_DIRECT_HANDLE
   if (target.ptr() == kTaggedNullAddress) return false;
 #endif
   Tagged<HeapObject> heap_object;

@@ -198,8 +198,14 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   };
 
   void GenerateBytecodeBody();
-  void GenerateBytecodeBodyWithoutImplicitFinalReturn();
-  void GenerateBytecodeBodyWithoutImplicitFinalReturnOrDispose();
+
+  void GenerateBaseConstructorBody();
+  void GenerateDerivedConstructorBody();
+  void GenerateAsyncFunctionBody();
+
+  void GenerateBodyPrologue();
+  void GenerateBodyStatements();
+  void GenerateBodyStatementsWithoutImplicitFinalReturn();
 
   template <typename IsolateT>
   void AllocateDeferredConstants(IsolateT* isolate, Handle<Script> script);
