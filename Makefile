@@ -1543,7 +1543,7 @@ lint-py-build:
 ifneq ("","$(wildcard tools/pip/site-packages/ruff)")
 # Lint the Python code with ruff.
 lint-py:
-	tools/pip/site-packages/bin/ruff --version
+	$(info Running Python linter...)
 	tools/pip/site-packages/bin/ruff check .
 else
 lint-py:
@@ -1563,6 +1563,7 @@ lint-yaml-build:
 # Lints the YAML files with yamllint.
 lint-yaml:
 	@if [ -d "tools/pip/site-packages/yamllint" ]; then \
+			$(info Running YAML linter...) \
 			PYTHONPATH=tools/pip $(PYTHON) -m yamllint .; \
 	else \
 		echo 'YAML linting with yamllint is not available'; \
