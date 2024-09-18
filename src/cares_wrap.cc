@@ -1957,16 +1957,6 @@ void Initialize(Local<Object> target,
             FIXED_ONE_BYTE_STRING(env->isolate(), "DNS_ORDER_IPV6_FIRST"),
             Integer::New(env->isolate(), DNS_ORDER_IPV6_FIRST))
       .Check();
-  target
-      ->Set(env->context(),
-            FIXED_ONE_BYTE_STRING(env->isolate(), "AF_INET"),
-            Integer::New(env->isolate(), AF_INET))
-      .Check();
-  target
-      ->Set(env->context(),
-            FIXED_ONE_BYTE_STRING(env->isolate(), "AF_INET"),
-            Integer::New(env->isolate(), AF_INET))
-      .Check();
 
   Local<FunctionTemplate> aiw =
       BaseObject::MakeLazilyInitializedJSTemplate(env);
