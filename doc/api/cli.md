@@ -2110,6 +2110,8 @@ the current directory, to the `PATH` in order to execute the binaries from
 different folders where multiple `node_modules` directories are present, if
 `ancestor-folder/node_modules/.bin` is a directory.
 
+`--run` executes the command in the directory containing the related `package.json`.
+
 For example, the following command will run the `test` script of
 the `package.json` in the current folder:
 

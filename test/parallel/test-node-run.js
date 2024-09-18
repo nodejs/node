@@ -1,6 +1,8 @@
 'use strict';
 
 const common = require('../common');
+common.requireNoPackageJSONAbove();
+
 const { it, describe } = require('node:test');
 const assert = require('node:assert');
 
@@ -15,7 +17,6 @@ describe('node --run [command]', () => {
       { cwd: __dirname },
     );
     assert.match(child.stderr, /ExperimentalWarning: Task runner is an experimental feature and might change at any time/);
-    assert.match(child.stderr, /Can't read package\.json/);
     assert.strictEqual(child.stdout, '');
     assert.strictEqual(child.code, 1);
   });
@@ -26,7 +27,9 @@ describe('node --run [command]', () => {
       [ '--no-warnings', '--run', 'test'],
       { cwd: __dirname },
     );
-    assert.match(child.stderr, /Can't read package\.json/);
+    assert.match(child.stderr, /Can't find package\.json[\s\S]*/);
+    // Ensure we show the path that starting path for the search
+    assert(child.stderr.includes(__dirname));
     assert.strictEqual(child.stdout, '');
     assert.strictEqual(child.code, 1);
   });
@@ -51,6 +54,101 @@ describe('node --run [command]', () => {
     assert.match(child.stdout, /06062023/);
     assert.strictEqual(child.stderr, '');
     assert.strictEqual(child.code, 0);
+  });
+
+  it('chdirs into package directory', async () => {
+    const child = await common.spawnPromisified(
+      process.execPath,
+      [ '--no-warnings', '--run', `pwd${envSuffix}`],
+      { cwd: fixtures.path('run-script/sub-directory') },
+    );
+    assert.strictEqual(child.stdout.trim(), fixtures.path('run-script'));
+    assert.strictEqual(child.stderr, '');
+    assert.strictEqual(child.code, 0);
+  });
+
+  it('includes actionable info when possible', async () => {
+    {
+      const child = await common.spawnPromisified(
+        process.execPath,
+        [ '--no-warnings', '--run', 'missing'],
+        { cwd: fixtures.path('run-script') },
+      );
+      assert.strictEqual(child.stdout, '');
+      assert(child.stderr.includes(fixtures.path('run-script/package.json')));
+      assert(child.stderr.includes('no test specified'));
+      assert.strictEqual(child.code, 1);
+    }
+    {
+      const child = await common.spawnPromisified(
+        process.execPath,
+        [ '--no-warnings', '--run', 'test'],
+        { cwd: fixtures.path('run-script/missing-scripts') },
+      );
+      assert.strictEqual(child.stdout, '');
+      assert(child.stderr.includes(fixtures.path('run-script/missing-scripts/package.json')));
+      assert.strictEqual(child.code, 1);
+    }
+    {
+      const child = await common.spawnPromisified(
+        process.execPath,
+        [ '--no-warnings', '--run', 'test'],
+        { cwd: fixtures.path('run-script/invalid-json') },
+      );
+      assert.strictEqual(child.stdout, '');
+      assert(child.stderr.includes(fixtures.path('run-script/invalid-json/package.json')));
+      assert.strictEqual(child.code, 1);
+    }
+    {
+      const child = await common.spawnPromisified(
+        process.execPath,
+        [ '--no-warnings', '--run', 'array'],
+        { cwd: fixtures.path('run-script/invalid-schema') },
+      );
+      assert.strictEqual(child.stdout, '');
+      assert(child.stderr.includes(fixtures.path('run-script/invalid-schema/package.json')));
+      assert.strictEqual(child.code, 1);
+    }
+    {
+      const child = await common.spawnPromisified(
+        process.execPath,
+        [ '--no-warnings', '--run', 'boolean'],
+        { cwd: fixtures.path('run-script/invalid-schema') },
+      );
+      assert.strictEqual(child.stdout, '');
+      assert(child.stderr.includes(fixtures.path('run-script/invalid-schema/package.json')));
+      assert.strictEqual(child.code, 1);
+    }
+    {
+      const child = await common.spawnPromisified(
+        process.execPath,
+        [ '--no-warnings', '--run', 'null'],
+        { cwd: fixtures.path('run-script/invalid-schema') },
+      );
+      assert.strictEqual(child.stdout, '');
+      assert(child.stderr.includes(fixtures.path('run-script/invalid-schema/package.json')));
+      assert.strictEqual(child.code, 1);
+    }
+    {
+      const child = await common.spawnPromisified(
+        process.execPath,
+        [ '--no-warnings', '--run', 'number'],
+        { cwd: fixtures.path('run-script/invalid-schema') },
+      );
+      assert.strictEqual(child.stdout, '');
+      assert(child.stderr.includes(fixtures.path('run-script/invalid-schema/package.json')));
+      assert.strictEqual(child.code, 1);
+    }
+    {
+      const child = await common.spawnPromisified(
+        process.execPath,
+        [ '--no-warnings', '--run', 'object'],
+        { cwd: fixtures.path('run-script/invalid-schema') },
+      );
+      assert.strictEqual(child.stdout, '');
+      assert(child.stderr.includes(fixtures.path('run-script/invalid-schema/package.json')));
+      assert.strictEqual(child.code, 1);
+    }
   });
 
   it('appends positional arguments', async () => {
@@ -120,7 +218,7 @@ describe('node --run [command]', () => {
       [ '--no-warnings', '--run', 'test'],
       { cwd: fixtures.path('run-script/cannot-parse') },
     );
-    assert.match(child.stderr, /Can't parse package\.json/);
+    assert.match(child.stderr, /Can't parse/);
     assert.strictEqual(child.stdout, '');
     assert.strictEqual(child.code, 1);
   });
@@ -131,7 +229,7 @@ describe('node --run [command]', () => {
       [ '--no-warnings', '--run', 'test'],
       { cwd: fixtures.path('run-script/cannot-find-script') },
     );
-    assert.match(child.stderr, /Can't find "scripts" field in package\.json/);
+    assert.match(child.stderr, /Can't find "scripts" field in/);
     assert.strictEqual(child.stdout, '');
     assert.strictEqual(child.code, 1);
   });
