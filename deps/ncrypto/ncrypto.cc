@@ -356,6 +356,35 @@ int PasswordCallback(char* buf, int size, int rwflag, void* u) {
   return -1;
 }
 
+// Algorithm: http://howardhinnant.github.io/date_algorithms.html
+constexpr int days_from_epoch(int y, unsigned m, unsigned d)
+{
+  y -= m <= 2;
+  const int era = (y >= 0 ? y : y - 399) / 400;
+  const unsigned yoe = static_cast<unsigned>(y - era * 400);            // [0, 399]
+  const unsigned doy = (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 + d - 1;  // [0, 365]
+  const unsigned doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;           // [0, 146096]
+  return era * 146097 + static_cast<int>(doe) - 719468;
+}
+
+// tm must be in UTC
+// using time_t causes problems on 32-bit systems and windows x64.
+int64_t PortableTimeGM(struct tm* t) {
+  int year = t->tm_year + 1900;
+  int month = t->tm_mon;
+  if (month > 11) {
+    year += month / 12;
+    month %= 12;
+  } else if (month < 0) {
+    int years_diff = (11 - month) / 12;
+    year -= years_diff;
+    month += 12 * years_diff;
+  }
+  int days_since_epoch = days_from_epoch(year, month + 1, t->tm_mday);
+
+  return 60 * (60 * (24LL * static_cast<int64_t>(days_since_epoch) + t->tm_hour) + t->tm_min) + t->tm_sec;
+}
+
 // ============================================================================
 // SPKAC
 
@@ -824,6 +853,18 @@ BIOPointer X509View::getValidTo() const {
   if (!bio) return {};
   ASN1_TIME_print(bio.get(), X509_get_notAfter(cert_));
   return bio;
+}
+
+int64_t X509View::getValidToTime() const {
+  struct tm tp;
+  ASN1_TIME_to_tm(X509_get0_notAfter(cert_), &tp);
+  return PortableTimeGM(&tp);
+}
+
+int64_t X509View::getValidFromTime() const {
+  struct tm tp;
+  ASN1_TIME_to_tm(X509_get0_notBefore(cert_), &tp);
+  return PortableTimeGM(&tp);
 }
 
 DataPointer X509View::getSerialNumber() const {

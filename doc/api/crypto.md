@@ -2863,6 +2863,16 @@ added: v15.6.0
 
 The date/time from which this certificate is valid.
 
+### `x509.validFromDate`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {Date}
+
+The date/time from which this certificate is valid, encapsulated in a `Date` object.
+
 ### `x509.validTo`
 
 <!-- YAML
@@ -2872,6 +2882,16 @@ added: v15.6.0
 * Type: {string}
 
 The date/time until which this certificate is valid.
+
+### `x509.validToDate`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {Date}
+
+The date/time until which this certificate is valid, encapsulated in a `Date` object.
 
 ### `x509.verify(publicKey)`
 
