@@ -22,6 +22,7 @@
 'use strict';
 const common = require('../common');
 const fixtures = require('../common/fixtures');
+const assert = require('assert');
 
 if (!common.hasCrypto)
   common.skip('missing crypto');
@@ -43,6 +44,8 @@ while (cert[cert.length - 1 - i] === 0x0a) i++;
 if (i !== 0) cert = cert.slice(0, cert.length - i);
 
 function test(cert, key, cb) {
+  assert.notStrictEqual(cert.at(-1), 0x0a);
+  assert.notStrictEqual(key.at(-1), 0x0a);
   const server = tls.createServer({
     cert,
     key
