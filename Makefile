@@ -1388,11 +1388,11 @@ run-lint-js = tools/eslint/node_modules/eslint/bin/eslint.js --cache \
 	--max-warnings=0 --report-unused-disable-directives $(LINT_JS_TARGETS)
 run-lint-js-fix = $(run-lint-js) --fix
 
-tools/eslint/node_modules: tools/eslint/package-lock.json
+tools/eslint/node_modules/eslint/bin/eslint.js: tools/eslint/package-lock.json
 	-cd tools/eslint && $(call available-node,$(run-npm-ci))
 
 .PHONY: lint-js-fix
-lint-js-fix: tools/eslint/node_modules
+lint-js-fix: tools/eslint/node_modules/eslint/bin/eslint.js
 	@$(call available-node,$(run-lint-js-fix))
 
 .PHONY: lint-js
@@ -1400,7 +1400,7 @@ lint-js-fix: tools/eslint/node_modules
 # Note that on the CI `lint-js-ci` is run instead.
 # Lints the JavaScript code with eslint.
 lint-js-doc: LINT_JS_TARGETS=doc
-lint-js lint-js-doc: tools/eslint/node_modules
+lint-js lint-js-doc: tools/eslint/node_modules/eslint/bin/eslint.js
 	@if [ "$(shell $(node_use_openssl))" != "true" ]; then \
 		echo "Skipping $@ (no crypto)"; \
 	else \
@@ -1417,7 +1417,7 @@ run-lint-js-ci = tools/eslint/node_modules/eslint/bin/eslint.js \
 
 .PHONY: lint-js-ci
 # On the CI the output is emitted in the TAP format.
-lint-js-ci: tools/eslint/node_modules
+lint-js-ci: tools/eslint/node_modules/eslint/bin/eslint.js
 	$(info Running JS linter...)
 	@$(call available-node,$(run-lint-js-ci))
 
