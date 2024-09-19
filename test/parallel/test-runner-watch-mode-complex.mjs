@@ -76,15 +76,17 @@ describe('test runner watch mode with more complex setup', () => {
     runs.push(currentRun);
     currentRun = '';
     const fileToDeletePathLocal = tmpdir.resolve('test-to-delete.mjs');
-    unlinkSync(fileToDeletePathLocal);
+    await new Promise((resolve) => setTimeout(() => {
+      unlinkSync(fileToDeletePathLocal);
+      resolve();
+    }, common.platformTimeout(1000)));
 
     const content = fixtureContent['dependency.mjs'];
     const path = fixturePaths['dependency.mjs'];
-    const interval = setInterval(() => writeFileSync(path, content), common.platformTimeout(1000));
+    setTimeout(() => writeFileSync(path, content), common.platformTimeout(1000));
     await ran2.promise;
     runs.push(currentRun);
     currentRun = '';
-    clearInterval(interval);
     child.kill();
 
     assert.strictEqual(runs.length, 2);
