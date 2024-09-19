@@ -3096,7 +3096,6 @@ V8 options that are allowed are:
 * `--disallow-code-generation-from-strings`
 * `--enable-etw-stack-walking`
 * `--expose-gc`
-* `--huge-max-old-generation-size`
 * `--interpreted-frames-native-stack`
 * `--jitless`
 * `--max-old-space-size`
@@ -3429,8 +3428,6 @@ documented here:
 ### `--expose-gc`
 
 ### `--harmony-shadow-realm`
-
-### `--huge-max-old-generation-size`
 
 ### `--jitless`
 
