@@ -252,6 +252,18 @@ describe('Module syntax detection', { concurrency: !process.env.TEST_PARALLEL },
       strictEqual(signal, null);
     });
 
+    it('reports unfinished top-level `await`', async () => {
+      const { stdout, stderr, code, signal } = await spawnPromisified(process.execPath, [
+        '--no-warnings',
+        fixtures.path('es-modules/tla/unresolved.js'),
+      ]);
+
+      strictEqual(stderr, '');
+      strictEqual(stdout, '');
+      strictEqual(code, 13);
+      strictEqual(signal, null);
+    });
+
     it('permits top-level `await` above import/export syntax', async () => {
       const { stdout, stderr, code, signal } = await spawnPromisified(process.execPath, [
         '--eval',
