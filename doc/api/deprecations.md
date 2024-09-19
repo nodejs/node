@@ -3442,6 +3442,10 @@ Node-API callbacks.
 <!-- YAML
 changes:
   - version:
+      - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/55017
+    description: Application deprecation.
+  - version:
       - v19.9.0
       - v18.17.0
     pr-url: https://github.com/nodejs/node/pull/47203
@@ -3453,7 +3457,7 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only (supports [`--pending-deprecation`][])
+Type: Application (non-`node_modules` code only)
 
 [`url.parse()`][] behavior is not standardized and prone to errors that
 have security implications. Use the [WHATWG URL API][] instead. CVEs are not
