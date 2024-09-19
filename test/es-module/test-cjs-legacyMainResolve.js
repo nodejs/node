@@ -168,7 +168,7 @@ describe('legacyMainResolve', () => {
   });
 
   it('should interpret main as a path, not a URL', () => {
-    const packageJsonUrl = fixtures.fileURL('/es-modules/legacy-main-resolver/package.json')
+    const packageJsonUrl = fixtures.fileURL('/es-modules/legacy-main-resolver/package.json');
     assert.deepStrictEqual(
       legacyMainResolve(packageJsonUrl, { main: '../folder%25with percentage#/' }, packageJsonUrl),
       fixtures.fileURL('/es-modules/folder%25with percentage#/index.js'),
