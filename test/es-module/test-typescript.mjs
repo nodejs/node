@@ -32,11 +32,11 @@ test('execute a TypeScript file with imports', async () => {
   const result = await spawnPromisified(process.execPath, [
     '--no-warnings',
     '--eval',
-    `assert.throws(() => require(${JSON.stringify(fixtures.path('typescript/ts/test-import-fs.ts'))}), {code: 'ERR_REQUIRE_ESM'})`,
+    `require(${JSON.stringify(fixtures.path('typescript/ts/test-import-fs.ts'))})`,
   ]);
 
   strictEqual(result.stderr, '');
-  strictEqual(result.stdout, '');
+  match(result.stdout, /Hello, TypeScript!/);
   strictEqual(result.code, 0);
 });
 
@@ -283,9 +283,8 @@ test('execute a TypeScript file with CommonJS syntax requiring .mts', async () =
     fixtures.path('typescript/ts/test-require-mts.ts'),
   ]);
 
-  strictEqual(result.stdout, '');
-  match(result.stderr, /Error \[ERR_REQUIRE_ESM\]: require\(\) of ES Module/);
-  strictEqual(result.code, 1);
+  match(result.stdout, /Hello, TypeScript!/);
+  strictEqual(result.code, 0);
 });
 
 test('execute a TypeScript file with CommonJS syntax requiring .mts with require-module', async () => {
