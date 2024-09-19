@@ -3320,7 +3320,8 @@ void BindingData::LegacyMainResolve(const FunctionCallbackInfo<Value>& args) {
   if (args.Length() >= 2 && args[1]->IsString()) {
     auto package_config_main = Utf8Value(isolate, args[1]).ToString();
 
-    initial_file_path = PathResolve(env, {utf8_package_path, package_config_main});
+    initial_file_path =
+        PathResolve(env, {utf8_package_path, package_config_main});
     FromNamespacedPath(&initial_file_path.value());
 
     package_initial_file = *initial_file_path;
