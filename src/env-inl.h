@@ -260,12 +260,6 @@ inline uv_idle_t* Environment::immediate_idle_handle() {
   return &immediate_idle_handle_;
 }
 
-inline void Environment::RegisterHandleCleanup(uv_handle_t* handle,
-                                               HandleCleanupCb cb,
-                                               void* arg) {
-  handle_cleanup_queue_.push_back(HandleCleanup{handle, cb, arg});
-}
-
 template <typename T, typename OnCloseCallback>
 inline void Environment::CloseHandle(T* handle, OnCloseCallback callback) {
   handle_cleanup_waiting_++;

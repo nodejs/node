@@ -1110,13 +1110,8 @@ void Environment::InitializeLibuv() {
     }
   }
 
-  // Register clean-up cb to be called to clean up the handles
-  // when the environment is freed, note that they are not cleaned in
-  // the one environment per process setup, but will be called in
-  // FreeEnvironment.
-  RegisterHandleCleanups();
-
   StartProfilerIdleNotifier();
+  env_handle_initialized_ = true;
 }
 
 void Environment::InitializeCompileCache() {
@@ -1194,27 +1189,27 @@ void Environment::ExitEnv(StopFlags::Flags flags) {
   });
 }
 
-void Environment::RegisterHandleCleanups() {
-  HandleCleanupCb close_and_finish = [](Environment* env, uv_handle_t* handle,
-                                        void* arg) {
-    handle->data = env;
+void Environment::ClosePerEnvHandles() {
+  // If LoadEnvironment and InitializeLibuv are not called, like when building
+  // snapshots, skip closing the per environment handles.
+  if (!env_handle_initialized_) {
+    return;
+  }
 
-    env->CloseHandle(handle, [](uv_handle_t* handle) {
+  auto close_and_finish = [&](uv_handle_t* handle) {
+    CloseHandle(handle, [](uv_handle_t* handle) {
 #ifdef DEBUG
       memset(handle, 0xab, uv_handle_size(handle->type));
 #endif
     });
   };
 
-  auto register_handle = [&](uv_handle_t* handle) {
-    RegisterHandleCleanup(handle, close_and_finish, nullptr);
-  };
-  register_handle(reinterpret_cast<uv_handle_t*>(timer_handle()));
-  register_handle(reinterpret_cast<uv_handle_t*>(immediate_check_handle()));
-  register_handle(reinterpret_cast<uv_handle_t*>(immediate_idle_handle()));
-  register_handle(reinterpret_cast<uv_handle_t*>(&idle_prepare_handle_));
-  register_handle(reinterpret_cast<uv_handle_t*>(&idle_check_handle_));
-  register_handle(reinterpret_cast<uv_handle_t*>(&task_queues_async_));
+  close_and_finish(reinterpret_cast<uv_handle_t*>(timer_handle()));
+  close_and_finish(reinterpret_cast<uv_handle_t*>(immediate_check_handle()));
+  close_and_finish(reinterpret_cast<uv_handle_t*>(immediate_idle_handle()));
+  close_and_finish(reinterpret_cast<uv_handle_t*>(&idle_prepare_handle_));
+  close_and_finish(reinterpret_cast<uv_handle_t*>(&idle_check_handle_));
+  close_and_finish(reinterpret_cast<uv_handle_t*>(&task_queues_async_));
 }
 
 void Environment::CleanupHandles() {
@@ -1233,10 +1228,6 @@ void Environment::CleanupHandles() {
 
   for (HandleWrap* handle : handle_wrap_queue_)
     handle->Close();
-
-  for (HandleCleanup& hc : handle_cleanup_queue_)
-    hc.cb_(this, hc.handle_, hc.arg_);
-  handle_cleanup_queue_.clear();
 
   while (handle_cleanup_waiting_ != 0 ||
          request_waiting_ != 0 ||
@@ -1291,6 +1282,7 @@ MaybeLocal<Value> Environment::RunSnapshotDeserializeMain() const {
 void Environment::RunCleanup() {
   started_cleanup_ = true;
   TRACE_EVENT0(TRACING_CATEGORY_NODE1(environment), "RunCleanup");
+  ClosePerEnvHandles();
   // Only BaseObject's cleanups are registered as per-realm cleanup hooks now.
   // Defer the BaseObject cleanup after handles are cleaned up.
   CleanupHandles();
