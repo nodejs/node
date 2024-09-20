@@ -3258,6 +3258,15 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     InstallFunctionWithBuiltinId(isolate_, promise_fun, "reject",
                                  Builtin::kPromiseReject, 1, kAdapt);
 
+    std::array<Handle<Name>, 3> fields{factory->promise_string(),
+                                       factory->resolve_string(),
+                                       factory->reject_string()};
+    DirectHandle<Map> result_map =
+        CreateLiteralObjectMapFromCache(isolate_, fields);
+    native_context()->set_promise_withresolvers_result_map(*result_map);
+    InstallFunctionWithBuiltinId(isolate_, promise_fun, "withResolvers",
+                                 Builtin::kPromiseWithResolvers, 0, kAdapt);
+
     SetConstructorInstanceType(isolate_, promise_fun,
                                JS_PROMISE_CONSTRUCTOR_TYPE);
 
@@ -5579,24 +5588,6 @@ void Genesis::InitializeGlobal_js_promise_try() {
       handle(native_context()->promise_function(), isolate());
   InstallFunctionWithBuiltinId(isolate(), promise_fun, "try",
                                Builtin::kPromiseTry, 1, kDontAdapt);
-}
-
-void Genesis::InitializeGlobal_js_promise_withresolvers() {
-  if (!v8_flags.js_promise_withresolvers) return;
-
-  Factory* factory = isolate()->factory();
-
-  std::array<Handle<Name>, 3> fields{factory->promise_string(),
-                                     factory->resolve_string(),
-                                     factory->reject_string()};
-  DirectHandle<Map> result_map =
-      CreateLiteralObjectMapFromCache(isolate(), fields);
-  native_context()->set_promise_withresolvers_result_map(*result_map);
-
-  Handle<JSFunction> promise_fun =
-      handle(native_context()->promise_function(), isolate());
-  InstallFunctionWithBuiltinId(isolate(), promise_fun, "withResolvers",
-                               Builtin::kPromiseWithResolvers, 0, kAdapt);
 }
 
 void Genesis::InitializeGlobal_harmony_set_methods() {
