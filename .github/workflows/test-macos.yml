@@ -73,7 +73,7 @@ jobs:
           echo "::endgroup::"
           echo "::group::Cleaned Files"
 
-          sudo rm -rfv /Users/runner/Library/Android/sdk
+          sudo rm -rf /Users/runner/Library/Android/sdk
 
           echo "::endgroup::"
           echo "::group::Free space after cleanup"
