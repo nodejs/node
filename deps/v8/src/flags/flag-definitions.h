@@ -315,7 +315,6 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
   V(harmony_import_attributes, "harmony import attributes")
 
 #define JAVASCRIPT_SHIPPING_FEATURES_BASE(V)                           \
-  V(js_promise_withresolvers, "Promise.withResolvers")                 \
   V(js_regexp_duplicate_named_groups, "RegExp duplicate named groups") \
   V(js_regexp_modifiers, "RegExp modifiers")                           \
   V(js_promise_try, "Promise.try")
