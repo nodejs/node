@@ -8,9 +8,10 @@ const fixtures = require('../common/fixtures');
 // The execPath might contain chars that should be escaped in a shell context.
 // On non-Windows, we can pass the path via the env; `"` is not a valid char on
 // Windows, so we can simply pass the path.
-const execNode = (flag, file) => exec(
+const execNode = (flag, file, callback) => exec(
   `"${common.isWindows ? process.execPath : '$NODE'}" ${flag} "${common.isWindows ? file : '$FILE'}"`,
   common.isWindows ? undefined : { env: { ...process.env, NODE: process.execPath, FILE: file } },
+  callback,
 );
 
 // Test both sets of arguments that check syntax
