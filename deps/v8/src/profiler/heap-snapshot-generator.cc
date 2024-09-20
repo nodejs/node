@@ -4,10 +4,10 @@
 
 #include "src/profiler/heap-snapshot-generator.h"
 
+#include <optional>
 #include <utility>
 
 #include "src/api/api-inl.h"
-#include "src/base/optional.h"
 #include "src/base/vector.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/common/assert-scope.h"
@@ -49,8 +49,7 @@
 #include "src/wasm/wasm-objects.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 #ifdef V8_ENABLE_HEAP_SNAPSHOT_VERIFY
 class HeapEntryVerifier {
@@ -1690,9 +1689,12 @@ void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
                        SharedFunctionInfo::kNameOrScopeInfoOffset);
   SetInternalReference(entry, "script", shared->script(kAcquireLoad),
                        SharedFunctionInfo::kScriptOffset);
-  SetInternalReference(entry, "function_data",
-                       shared->function_data(kAcquireLoad),
-                       SharedFunctionInfo::kFunctionDataOffset);
+  SetInternalReference(entry, "trusted_function_data",
+                       shared->GetTrustedData(isolate()),
+                       SharedFunctionInfo::kTrustedFunctionDataOffset);
+  SetInternalReference(entry, "untrusted_function_data",
+                       shared->GetUntrustedData(),
+                       SharedFunctionInfo::kUntrustedFunctionDataOffset);
   SetInternalReference(
       entry, "raw_outer_scope_info_or_feedback_metadata",
       shared->raw_outer_scope_info_or_feedback_metadata(),
@@ -1870,7 +1872,7 @@ void V8HeapExplorer::ExtractArrayBoilerplateDescriptionReferences(
 
 void V8HeapExplorer::ExtractRegExpBoilerplateDescriptionReferences(
     HeapEntry* entry, Tagged<RegExpBoilerplateDescription> value) {
-  TagObject(value->data(), "(RegExp data)", HeapEntry::kCode);
+  TagObject(value->data(isolate()), "(RegExpData)", HeapEntry::kCode);
 }
 
 class JSArrayBufferDataEntryAllocator : public HeapEntriesAllocator {
@@ -2350,7 +2352,7 @@ class RootsReferencesExtractor : public RootVisitor {
   void VisitRootPointer(Root root, const char* description,
                         FullObjectSlot p) override {
     Tagged<Object> object = *p;
-#ifdef V8_ENABLE_DIRECT_LOCAL
+#ifdef V8_ENABLE_DIRECT_HANDLE
     if (object.ptr() == kTaggedNullAddress) return;
 #endif
     if (root == Root::kBuiltins) {
@@ -2611,7 +2613,7 @@ void V8HeapExplorer::SetWeakReference(
 
 void V8HeapExplorer::SetWeakReference(HeapEntry* parent_entry, int index,
                                       Tagged<Object> child_obj,
-                                      base::Optional<int> field_offset) {
+                                      std::optional<int> field_offset) {
   if (!IsEssentialObject(child_obj)) {
     return;
   }
@@ -2738,7 +2740,7 @@ const char* V8HeapExplorer::GetStrongGcSubrootName(Tagged<HeapObject> object) {
 }
 
 void V8HeapExplorer::TagObject(Tagged<Object> obj, const char* tag,
-                               base::Optional<HeapEntry::Type> type,
+                               std::optional<HeapEntry::Type> type,
                                bool overwrite_existing_name) {
   if (IsEssentialObject(obj)) {
     HeapEntry* entry = GetEntry(obj);
@@ -3709,5 +3711,4 @@ void HeapSnapshotJSONSerializer::SerializeLocations() {
   }
 }
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal

@@ -37,7 +37,7 @@ suite('manual transactions', () => {
     );
     t.assert.deepStrictEqual(
       db.prepare('SELECT * FROM data').all(),
-      [{ key: 100 }],
+      [{ __proto__: null, key: 100 }],
     );
   });
 

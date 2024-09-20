@@ -5,6 +5,8 @@
 #include "src/torque/torque-compiler.h"
 
 #include <fstream>
+#include <optional>
+
 #include "src/torque/declarable.h"
 #include "src/torque/declaration-visitor.h"
 #include "src/torque/global-context.h"
@@ -12,15 +14,13 @@
 #include "src/torque/torque-parser.h"
 #include "src/torque/type-oracle.h"
 
-namespace v8 {
-namespace internal {
-namespace torque {
+namespace v8::internal::torque {
 
 namespace {
 
-base::Optional<std::string> ReadFile(const std::string& path) {
+std::optional<std::string> ReadFile(const std::string& path) {
   std::ifstream file_stream(path);
-  if (!file_stream.good()) return base::nullopt;
+  if (!file_stream.good()) return std::nullopt;
 
   return std::string{std::istreambuf_iterator<char>(file_stream),
                      std::istreambuf_iterator<char>()};
@@ -198,6 +198,4 @@ TorqueCompilerResult CompileTorqueForKythe(
   return result;
 }
 
-}  // namespace torque
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::torque

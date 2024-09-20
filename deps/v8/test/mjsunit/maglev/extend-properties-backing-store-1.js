@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 //
 // Flags: --allow-natives-syntax --maglev
-// Flags: --maglev-extend-properties-backing-store
 
 const s = new Set();
 

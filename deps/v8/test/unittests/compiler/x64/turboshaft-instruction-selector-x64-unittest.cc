@@ -2319,15 +2319,14 @@ INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
                          TurboshaftInstructionSelectorSIMDSwizzleConstantTest,
                          ::testing::ValuesIn(kSwizzleConstants));
 
-#if 0
 TEST_F(TurboshaftInstructionSelectorTest,
        F64x2PromoteLowF32x4WithS128Load64Zero) {
   StreamBuilder m(this, MachineType::Simd128(), MachineType::Int64());
-  OpIndex const load = m.Simd128LoadTransform(
-      m.Int64Constant(2), m.Parameter(0),
+  V<Simd128> const load = m.Simd128LoadTransform(
+      m.Parameter(0), m.Int64Constant(2),
       Simd128LoadTransformOp::LoadKind::RawAligned().Protected(),
       Simd128LoadTransformOp::TransformKind::k64Zero, 0);
-  OpIndex const promote = m.F64x2PromoteLowF32x4(load);
+  V<Simd128> const promote = m.F64x2PromoteLowF32x4(load);
   m.Return(promote);
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
@@ -2336,7 +2335,7 @@ TEST_F(TurboshaftInstructionSelectorTest,
   EXPECT_EQ(2U, s[0]->InputCount());
   EXPECT_EQ(1U, s[0]->OutputCount());
 }
-#endif
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 }  // namespace v8::internal::compiler::turboshaft

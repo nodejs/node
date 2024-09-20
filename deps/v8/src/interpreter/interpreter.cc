@@ -350,7 +350,7 @@ void Interpreter::Initialize() {
   interpreter_entry_trampoline_instruction_start_ = code->instruction_start();
 
   // Initialize the dispatch table.
-  ForEachBytecode([=](Bytecode bytecode, OperandScale operand_scale) {
+  ForEachBytecode([=, this](Bytecode bytecode, OperandScale operand_scale) {
     Builtin builtin = BuiltinIndexFromBytecode(bytecode, operand_scale);
     Tagged<Code> handler = builtins->code(builtin);
     if (Bytecodes::BytecodeHasHandler(bytecode, operand_scale)) {
@@ -409,7 +409,8 @@ Handle<JSObject> Interpreter::GetDispatchCountersObject() {
       uintptr_t counter = GetDispatchCounter(from_bytecode, to_bytecode);
 
       if (counter > 0) {
-        Handle<Object> value = isolate_->factory()->NewNumberFromSize(counter);
+        DirectHandle<Object> value =
+            isolate_->factory()->NewNumberFromSize(counter);
         JSObject::AddProperty(isolate_, counters_row,
                               Bytecodes::ToString(to_bytecode), value, NONE);
       }

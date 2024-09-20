@@ -364,6 +364,63 @@ util.formatWithOptions({ colors: true }, 'See object %O', { foo: 42 });
 // when printed to a terminal.
 ```
 
+## `util.getCallSite(frames)`
+
+> Stability: 1.1 - Active development
+
+<!-- YAML
+added: v22.9.0
+-->
+
+* `frames` {number} Number of frames returned in the stacktrace.
+  **Default:** `10`. Allowable range is between 1 and 200.
+* Returns: {Object\[]} An array of stacktrace objects
+  * `functionName` {string} Returns the name of the function associated with this stack frame.
+  * `scriptName` {string} Returns the name of the resource that contains the script for the
+    function for this StackFrame.
+  * `lineNumber` {number} Returns the number, 1-based, of the line for the associate function call.
+  * `column` {number} Returns the 1-based column offset on the line for the associated function call.
+
+Returns an array of stacktrace objects containing the stack of
+the caller function.
+
+```js
+const util = require('node:util');
+
+function exampleFunction() {
+  const callSites = util.getCallSite();
+
+  console.log('Call Sites:');
+  callSites.forEach((callSite, index) => {
+    console.log(`CallSite ${index + 1}:`);
+    console.log(`Function Name: ${callSite.functionName}`);
+    console.log(`Script Name: ${callSite.scriptName}`);
+    console.log(`Line Number: ${callSite.lineNumber}`);
+    console.log(`Column Number: ${callSite.column}`);
+  });
+  // CallSite 1:
+  // Function Name: exampleFunction
+  // Script Name: /home/example.js
+  // Line Number: 5
+  // Column Number: 26
+
+  // CallSite 2:
+  // Function Name: anotherFunction
+  // Script Name: /home/example.js
+  // Line Number: 22
+  // Column Number: 3
+
+  // ...
+}
+
+// A function to simulate another stack layer
+function anotherFunction() {
+  exampleFunction();
+}
+
+anotherFunction();
+```
+
 ## `util.getSystemErrorName(err)`
 
 <!-- YAML
@@ -1802,7 +1859,7 @@ console.log(util.stripVTControlCharacters('\u001B[4mvalue\u001B[0m'));
 // Prints "value"
 ```
 
-## `util.styleText(format, text)`
+## `util.styleText(format, text[, options])`
 
 > Stability: 1.1 - Active development
 
@@ -1810,24 +1867,55 @@ console.log(util.stripVTControlCharacters('\u001B[4mvalue\u001B[0m'));
 added:
   - v21.7.0
   - v20.12.0
+changes:
+  - version: v22.8.0
+    pr-url: https://github.com/nodejs/node/pull/54389
+    description: Respect isTTY and environment variables
+      such as NO_COLORS, NODE_DISABLE_COLORS, and FORCE_COLOR.
 -->
 
 * `format` {string | Array} A text format or an Array
   of text formats defined in `util.inspect.colors`.
 * `text` {string} The text to to be formatted.
+* `options` {Object}
+  * `validateStream` {boolean} When true, `stream` is checked to see if it can handle colors. **Default:** `true`.
+  * `stream` {Stream} A stream that will be validated if it can be colored. **Default:** `process.stdout`.
 
-This function returns a formatted text considering the `format` passed.
+This function returns a formatted text considering the `format` passed
+for printing in a terminal. It is aware of the terminal's capabilities
+and acts according to the configuration set via `NO_COLORS`,
+`NODE_DISABLE_COLORS` and `FORCE_COLOR` environment variables.
 
 ```mjs
 import { styleText } from 'node:util';
-const errorMessage = styleText('red', 'Error! Error!');
-console.log(errorMessage);
+import { stderr } from 'node:process';
+
+const successMessage = styleText('green', 'Success!');
+console.log(successMessage);
+
+const errorMessage = styleText(
+  'red',
+  'Error! Error!',
+  // Validate if process.stderr has TTY
+  { stream: stderr },
+);
+console.error(successMessage);
 ```
 
 ```cjs
 const { styleText } = require('node:util');
-const errorMessage = styleText('red', 'Error! Error!');
-console.log(errorMessage);
+const { stderr } = require('node:process');
+
+const successMessage = styleText('green', 'Success!');
+console.log(successMessage);
+
+const errorMessage = styleText(
+  'red',
+  'Error! Error!',
+  // Validate if process.stderr has TTY
+  { stream: stderr },
+);
+console.error(successMessage);
 ```
 
 `util.inspect.colors` also provides text formats such as `italic`, and

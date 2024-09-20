@@ -120,12 +120,12 @@ MaybeHandle<JSReceiver> JSSegmentIterator::Next(
   if (segment_iterator->granularity() == JSSegmenter::Granularity::GRAPHEME &&
       start_index == end_index - 1) {
     // Fast path: use cached segment string and skip avoidable handle creations.
-    Handle<String> segment;
+    DirectHandle<String> segment;
     uint16_t code = segment_iterator->raw_string()->Get(start_index);
     if (code > unibrow::Latin1::kMaxChar) {
       segment = factory->LookupSingleCharacterStringFromCode(code);
     }
-    Handle<Number> index;
+    DirectHandle<Number> index;
     if (!Smi::IsValid(start_index)) index = factory->NewHeapNumber(start_index);
     DirectHandle<Map> map(
         isolate->native_context()->intl_segment_data_object_map(), isolate);

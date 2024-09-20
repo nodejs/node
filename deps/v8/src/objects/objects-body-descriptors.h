@@ -70,6 +70,11 @@ class BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateProtectedPointer(Tagged<HeapObject> obj, int offset,
                                              ObjectVisitor* v);
+#ifdef V8_ENABLE_LEAPTIERING
+  template <typename ObjectVisitor>
+  static inline void IterateJSDispatchEntry(Tagged<HeapObject> obj, int offset,
+                                            ObjectVisitor* v);
+#endif  // V8_ENABLE_LEAPTIERING
 
  protected:
   // Returns true for all header and embedder fields.

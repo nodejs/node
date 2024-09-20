@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <optional>
+
 #include "src/asmjs/asm-js.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"
@@ -16,8 +18,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/shared-function-info.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 namespace {
 void LogExecution(Isolate* isolate, DirectHandle<JSFunction> function) {
@@ -229,7 +230,7 @@ namespace {
 bool TryGetOptimizedOsrCode(Isolate* isolate, Tagged<FeedbackVector> vector,
                             const interpreter::BytecodeArrayIterator& it,
                             Tagged<Code>* code_out) {
-  base::Optional<Tagged<Code>> maybe_code =
+  std::optional<Tagged<Code>> maybe_code =
       vector->GetOptimizedOsrCode(isolate, it.GetSlotOperand(2));
   if (maybe_code.has_value()) {
     *code_out = maybe_code.value();
@@ -695,5 +696,4 @@ RUNTIME_FUNCTION(Runtime_ResolvePossiblyDirectEval) {
                            args.smi_value_at(5));
 }
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal

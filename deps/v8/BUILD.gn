@@ -11,6 +11,7 @@ import("//build/config/mips.gni")
 import("//build/config/riscv.gni")
 import("//build/config/sanitizers/sanitizers.gni")
 import("//build_overrides/build.gni")
+import("//third_party/icu/config.gni")
 
 import("gni/snapshot_toolchain.gni")
 import("gni/v8.gni")
@@ -140,11 +141,6 @@ declare_args() {
 
   # Enable code-generation-time checking of types in the CodeStubAssembler.
   v8_enable_verify_csa = false
-
-  # Enable pointer compression (sets -dV8_COMPRESS_POINTERS).
-  v8_enable_pointer_compression = ""
-  v8_enable_pointer_compression_shared_cage = ""
-  v8_enable_31bit_smis_on_64bit_arch = false
 
   # Sets -dOBJECT_PRINT.
   v8_enable_object_print = ""
@@ -339,6 +335,9 @@ declare_args() {
   # Sets -DV8_ENABLE_SANDBOX.
   v8_enable_sandbox = ""
 
+  # Explicitly disable leaptiering (on builds where it would otherwise be enabled).
+  v8_disable_leaptiering = ""
+
   # Enable the memory corruption API. Useful for testing the sandbox.
   # The memory corruption API is only exposed to JavaScript if sandbox testing
   # mode is enabled at runtime, for example via --sandbox-fuzzing.
@@ -391,6 +390,19 @@ declare_args() {
   # This is only used by nodejs.
   v8_scriptormodule_legacy_lifetime = false
 
+  # WebAssembly interpreter (DrumBrake)  build flag.
+  v8_enable_drumbrake = false
+
+  # Enable Wasm interpreter tracing.
+  v8_enable_drumbrake_tracing = false
+
+  # On non-Desktop platforms, enable explicit bounds checks in the Wasm
+  # interpreter, where the bounds checking is done in the instruction handler,
+  # not using an unhandled exception filter (which also doesn't work with Win-ASAN).
+  v8_drumbrake_bounds_checks =
+      (is_win && (is_asan || is_ubsan || is_msan || is_tsan)) ||
+      !(is_win || is_linux || is_mac) || v8_current_cpu != "x64"
+
   # Enables pointer compression for 8GB heaps.
   # Sets -DV8_COMPRESS_POINTERS_8GB.
   v8_enable_pointer_compression_8gb = ""
@@ -428,6 +440,9 @@ declare_args() {
   # Whether custom embedder snapshots may extend (= allocate new objects in)
   # ReadOnlySpace.
   v8_enable_extensible_ro_snapshot = true
+
+  # Enable Turboshaft CSA pipeline.
+  v8_enable_turboshaft_csa = false
 
   # Use sticky mark-bits for separating object generations.
   v8_enable_sticky_mark_bits = false
@@ -477,9 +492,11 @@ if (v8_enable_debug_code == "") {
 if (v8_enable_snapshot_native_code_counters == "") {
   v8_enable_snapshot_native_code_counters = v8_enable_debugging_features
 }
-if (v8_enable_pointer_compression == "") {
-  v8_enable_pointer_compression =
-      v8_current_cpu == "arm64" || v8_current_cpu == "x64"
+
+if (v8_enable_drumbrake && v8_enable_webassembly) {
+  assert(
+      is_drumbrake_supported,
+      "DrumBrake is only available on x64, arm64 on Windows, Linux and MacOS.")
 }
 
 # Toggle pointer compression for correctness fuzzing when building the
@@ -584,6 +601,10 @@ if (v8_enable_sandbox == "") {
   # on Fuchsia.
   v8_enable_sandbox = v8_enable_pointer_compression_shared_cage &&
                       v8_enable_external_code_space && target_os != "fuchsia"
+}
+
+if (v8_disable_leaptiering == "") {
+  v8_disable_leaptiering = false
 }
 
 if (v8_enable_static_roots == "") {
@@ -886,7 +907,7 @@ external_v8_defines = [
   "V8_MAP_PACKING",
   "V8_IS_TSAN",
   "V8_ENABLE_CONSERVATIVE_STACK_SCANNING",
-  "V8_ENABLE_DIRECT_LOCAL",
+  "V8_ENABLE_DIRECT_HANDLE",
   "V8_MINORMS_STRING_SHORTCUTTING",
   "V8_HAVE_TARGET_OS",
   "V8_TARGET_OS_ANDROID",
@@ -940,8 +961,8 @@ if (is_tsan) {
 if (v8_enable_conservative_stack_scanning) {
   enabled_external_v8_defines += [ "V8_ENABLE_CONSERVATIVE_STACK_SCANNING" ]
 }
-if (v8_enable_direct_local) {
-  enabled_external_v8_defines += [ "V8_ENABLE_DIRECT_LOCAL" ]
+if (v8_enable_direct_handle) {
+  enabled_external_v8_defines += [ "V8_ENABLE_DIRECT_HANDLE" ]
 }
 if (v8_shortcut_strings_in_minor_ms) {
   enabled_external_v8_defines += [ "V8_MINORMS_STRING_SHORTCUTTING" ]
@@ -1258,6 +1279,15 @@ config("features") {
   if (v8_advanced_bigint_algorithms) {
     defines += [ "V8_ADVANCED_BIGINT_ALGORITHMS" ]
   }
+  if (v8_enable_drumbrake) {
+    defines += [ "V8_ENABLE_DRUMBRAKE" ]
+    if (v8_enable_drumbrake_tracing) {
+      defines += [ "V8_ENABLE_DRUMBRAKE_TRACING" ]
+    }
+    if (v8_drumbrake_bounds_checks) {
+      defines += [ "V8_DRUMBRAKE_BOUNDS_CHECKS" ]
+    }
+  }
   if (v8_enable_memory_corruption_api) {
     defines += [ "V8_ENABLE_MEMORY_CORRUPTION_API" ]
   }
@@ -1291,9 +1321,6 @@ config("features") {
   if (v8_enable_builtin_jump_table_switch) {
     defines += [ "V8_ENABLE_BUILTIN_JUMP_TABLE_SWITCH" ]
   }
-  if (v8_enable_direct_handle) {
-    defines += [ "V8_ENABLE_DIRECT_HANDLE" ]
-  }
   if (v8_enable_extensible_ro_snapshot) {
     defines += [ "V8_ENABLE_EXTENSIBLE_RO_SNAPSHOT" ]
   }
@@ -1305,6 +1332,9 @@ config("features") {
   }
   if (v8_enable_experimental_tsa_builtins) {
     defines += [ "V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS" ]
+  }
+  if (v8_disable_leaptiering) {
+    defines += [ "V8_DISABLE_LEAPTIERING" ]
   }
 }
 
@@ -1444,6 +1474,9 @@ config("toolchain") {
     defines += [ "__riscv_xlen=64" ]
     if (!is_clang) {
       cflags += [ "-ffp-contract=off" ]
+    }
+    if (riscv_use_sv39) {
+      defines += [ "RISCV_USE_SV39" ]
     }
   }
 
@@ -2420,6 +2453,15 @@ template("run_mksnapshot") {
 
     sources = []
 
+    if (icu_use_data_file) {
+      deps += [ "//third_party/icu:copy_icudata" ]
+      if (host_byteorder == "big") {
+        sources += [ "$root_out_dir/icudtb.dat" ]
+      } else {
+        sources += [ "$root_out_dir/icudtl.dat" ]
+      }
+    }
+
     outputs = []
 
     data = []
@@ -2477,6 +2519,10 @@ template("run_mksnapshot") {
       if (!v8_enable_builtins_profiling && v8_enable_builtins_reordering) {
         args += [ "--reorder-builtins" ]
       }
+    }
+
+    if (v8_enable_turboshaft_csa) {
+      args += [ "--turboshaft-csa" ]
     }
 
     # This is needed to distinguish between generating code for the simulator
@@ -2720,7 +2766,6 @@ action("v8_dump_build_config") {
     "debugging_features=$v8_enable_debugging_features",
     "dict_property_const_tracking=$v8_dict_property_const_tracking",
     "direct_handle=$v8_enable_direct_handle",
-    "direct_local=$v8_enable_direct_local",
     "disassembler=$v8_enable_disassembler",
     "full_debug=$is_full_debug",
     "gdbjit=$v8_enable_gdbjit",
@@ -2728,6 +2773,7 @@ action("v8_dump_build_config") {
     "has_maglev=$v8_enable_maglev",
     "has_turbofan=$v8_enable_turbofan",
     "has_webassembly=$v8_enable_webassembly",
+    "has_wasm_interpreter=$v8_enable_drumbrake",
     "i18n=$v8_enable_i18n_support",
     "is_android=$is_android",
     "is_ios=$is_ios",
@@ -2777,7 +2823,6 @@ generated_file("v8_generate_features_json") {
     v8_enable_conservative_stack_scanning =
         v8_enable_conservative_stack_scanning
     v8_enable_direct_handle = v8_enable_direct_handle
-    v8_enable_direct_local = v8_enable_direct_local
     v8_enable_extensible_ro_snapshot = v8_enable_extensible_ro_snapshot
     v8_enable_gdbjit = v8_enable_gdbjit
     v8_enable_hugepage = v8_enable_hugepage
@@ -2960,6 +3005,15 @@ v8_source_set("v8_initializers") {
       "src/builtins/builtins-wasm-gen.cc",
       "src/builtins/builtins-wasm-gen.h",
     ]
+
+    if (v8_enable_drumbrake) {
+      if (v8_current_cpu == "x64") {
+        sources += [ "src/wasm/interpreter/x64/interpreter-builtins-x64.cc" ]
+      } else if (v8_current_cpu == "arm64") {
+        sources +=
+            [ "src/wasm/interpreter/arm64/interpreter-builtins-arm64.cc" ]
+      }
+    }
   }
 
   if (v8_current_cpu == "x86") {
@@ -3324,6 +3378,8 @@ v8_header_set("v8_internal_headers") {
     "src/common/operation.h",
     "src/common/ptr-compr-inl.h",
     "src/common/ptr-compr.h",
+    "src/common/segmented-table-inl.h",
+    "src/common/segmented-table.h",
     "src/common/simd128.h",
     "src/compiler-dispatcher/lazy-compile-dispatcher.h",
     "src/compiler-dispatcher/optimizing-compile-dispatcher.h",
@@ -3521,6 +3577,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/stack-check-lowering-reducer.h",
     "src/compiler/turboshaft/store-store-elimination-phase.h",
     "src/compiler/turboshaft/store-store-elimination-reducer-inl.h",
+    "src/compiler/turboshaft/string-view.h",
     "src/compiler/turboshaft/structural-optimization-reducer.h",
     "src/compiler/turboshaft/tracing.h",
     "src/compiler/turboshaft/type-assertions-phase.h",
@@ -4395,6 +4452,18 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/wasm-value.h",
       "src/wasm/well-known-imports.h",
     ]
+
+    if (v8_enable_drumbrake) {
+      sources += [
+        "src/wasm/interpreter/instruction-handlers.h",
+        "src/wasm/interpreter/wasm-interpreter-inl.h",
+        "src/wasm/interpreter/wasm-interpreter-objects-inl.h",
+        "src/wasm/interpreter/wasm-interpreter-objects.h",
+        "src/wasm/interpreter/wasm-interpreter-runtime-inl.h",
+        "src/wasm/interpreter/wasm-interpreter-runtime.h",
+        "src/wasm/interpreter/wasm-interpreter.h",
+      ]
+    }
   }
 
   if (v8_enable_wasm_simd256_revec) {
@@ -4739,6 +4808,7 @@ v8_header_set("v8_internal_headers") {
       "src/codegen/riscv/constant-riscv-f.h",
       "src/codegen/riscv/constant-riscv-m.h",
       "src/codegen/riscv/constant-riscv-v.h",
+      "src/codegen/riscv/constant-riscv-zicond.h",
       "src/codegen/riscv/constant-riscv-zicsr.h",
       "src/codegen/riscv/constant-riscv-zifencei.h",
       "src/codegen/riscv/constants-riscv.h",
@@ -4750,6 +4820,7 @@ v8_header_set("v8_internal_headers") {
       "src/codegen/riscv/extension-riscv-inl.h",
       "src/codegen/riscv/extension-riscv-m.h",
       "src/codegen/riscv/extension-riscv-v.h",
+      "src/codegen/riscv/extension-riscv-zicond.h",
       "src/codegen/riscv/extension-riscv-zicsr.h",
       "src/codegen/riscv/extension-riscv-zifencei.h",
       "src/codegen/riscv/interface-descriptors-riscv-inl.h",
@@ -5284,6 +5355,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/baseline/baseline.cc",
     "src/baseline/bytecode-offset-iterator.cc",
     "src/builtins/accessors.cc",
+    "src/builtins/builtins-abstract-module-source.cc",
     "src/builtins/builtins-api.cc",
     "src/builtins/builtins-array.cc",
     "src/builtins/builtins-arraybuffer.cc",
@@ -5861,6 +5933,15 @@ v8_source_set("v8_base_without_compiler") {
         "src/wasm/fuzzing/random-module-generation.cc",
       ]
     }
+
+    if (v8_enable_drumbrake) {
+      sources += [
+        "src/wasm/interpreter/wasm-interpreter-objects.cc",
+        "src/wasm/interpreter/wasm-interpreter-runtime.cc",
+        "src/wasm/interpreter/wasm-interpreter-simd.cc",
+        "src/wasm/interpreter/wasm-interpreter.cc",
+      ]
+    }
   }
 
   if (v8_enable_third_party_heap) {
@@ -6101,6 +6182,7 @@ v8_source_set("v8_base_without_compiler") {
       "src/codegen/riscv/extension-riscv-f.cc",
       "src/codegen/riscv/extension-riscv-m.cc",
       "src/codegen/riscv/extension-riscv-v.cc",
+      "src/codegen/riscv/extension-riscv-zicond.cc",
       "src/codegen/riscv/extension-riscv-zicsr.cc",
       "src/codegen/riscv/extension-riscv-zifencei.cc",
       "src/codegen/riscv/macro-assembler-riscv.cc",
@@ -6140,6 +6222,7 @@ v8_source_set("v8_base_without_compiler") {
       "src/codegen/riscv/extension-riscv-f.cc",
       "src/codegen/riscv/extension-riscv-m.cc",
       "src/codegen/riscv/extension-riscv-v.cc",
+      "src/codegen/riscv/extension-riscv-zicond.cc",
       "src/codegen/riscv/extension-riscv-zicsr.cc",
       "src/codegen/riscv/extension-riscv-zifencei.cc",
       "src/codegen/riscv/macro-assembler-riscv.cc",
@@ -6462,7 +6545,6 @@ v8_component("v8_libbase") {
     "src/base/numbers/strtod.h",
     "src/base/once.cc",
     "src/base/once.h",
-    "src/base/optional.h",
     "src/base/overflowing-math.h",
     "src/base/page-allocator.cc",
     "src/base/page-allocator.h",

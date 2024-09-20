@@ -116,7 +116,8 @@ void DeepForVirtualObject(VirtualObject* vobject,
                                      f);
         } else {
           f(alloc, input_location);
-          input_location += alloc->object()->InputLocationSizeNeeded() + 1;
+          input_location +=
+              alloc->object()->InputLocationSizeNeeded(virtual_objects) + 1;
         }
         break;
       }
@@ -152,7 +153,7 @@ void DeepForEachInputAndVirtualObject(
                                           virtual_objects, f);
       } else {
         f(alloc, input_location);
-        input_location += vobject->InputLocationSizeNeeded() + 1;
+        input_location += vobject->InputLocationSizeNeeded(virtual_objects) + 1;
       }
     } else {
       f(node, input_location);

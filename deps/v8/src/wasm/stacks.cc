@@ -65,10 +65,6 @@ void StackPool::Add(std::unique_ptr<StackMemory> stack) {
     return;
   }
   size_ += stack->size_;
-#if DEBUG
-  constexpr uint8_t kZapValue = 0xab;
-  memset(stack->limit_, kZapValue, stack->size_);
-#endif
   freelist_.push_back(std::move(stack));
 }
 

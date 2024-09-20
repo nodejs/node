@@ -305,9 +305,9 @@ test('t.assert.snapshot()', async (t) => {
 
     t.assert.strictEqual(child.code, 1);
     t.assert.strictEqual(child.signal, null);
-    t.assert.match(child.stdout, /# tests 5/);
-    t.assert.match(child.stdout, /# pass 0/);
-    t.assert.match(child.stdout, /# fail 5/);
+    t.assert.match(child.stdout, /tests 5/);
+    t.assert.match(child.stdout, /pass 0/);
+    t.assert.match(child.stdout, /fail 5/);
     t.assert.match(child.stdout, /Missing snapshots/);
   });
 
@@ -362,9 +362,9 @@ test('snapshots from multiple files (isolation=none)', async (t) => {
 
     t.assert.strictEqual(child.code, 1);
     t.assert.strictEqual(child.signal, null);
-    t.assert.match(child.stdout, /# tests 6/);
-    t.assert.match(child.stdout, /# pass 0/);
-    t.assert.match(child.stdout, /# fail 6/);
+    t.assert.match(child.stdout, /tests 6/);
+    t.assert.match(child.stdout, /pass 0/);
+    t.assert.match(child.stdout, /fail 6/);
     t.assert.match(child.stdout, /Missing snapshots/);
   });
 

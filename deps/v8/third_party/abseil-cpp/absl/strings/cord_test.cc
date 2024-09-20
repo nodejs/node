@@ -1309,6 +1309,7 @@ TEST_P(CordTest, RemoveSuffixMakesZeroLengthNode) {
   absl::Cord c;
   c.Append(absl::Cord(std::string(100, 'x')));
   absl::Cord other_ref = c;  // Prevent inplace appends
+  EXPECT_THAT(other_ref, testing::Eq(c));
   MaybeHarden(c);
   c.Append(absl::Cord(std::string(200, 'y')));
   c.RemoveSuffix(200);
@@ -1665,6 +1666,7 @@ TEST_P(CordTest, ConstructFromExternalReleaserInvoked) {
     auto releaser = [&invoked](absl::string_view) { invoked = true; };
     {
       auto c = absl::MakeCordFromExternal("", releaser);
+      EXPECT_THAT(c, testing::Eq(""));
       EXPECT_TRUE(invoked);
     }
   }
@@ -1679,6 +1681,7 @@ TEST_P(CordTest, ConstructFromExternalReleaserInvoked) {
     auto releaser = [&invoked](absl::string_view) { invoked = true; };
     {
       auto c = absl::MakeCordFromExternal(large_dummy, releaser);
+      EXPECT_THAT(c, testing::Eq(large_dummy));
       EXPECT_FALSE(invoked);
     }
     EXPECT_TRUE(invoked);
@@ -2167,6 +2170,7 @@ TEST_P(CordTest, DiabolicalGrowth) {
   absl::Cord cord;
   for (char c : expected) {
     absl::Cord shared(cord);
+    EXPECT_THAT(cord, testing::Eq(shared));
     cord.Append(absl::string_view(&c, 1));
     MaybeHarden(cord);
   }
@@ -2529,8 +2533,6 @@ static void VerifyCharIterator(const absl::Cord& cord) {
     EXPECT_EQ(pre_iter, post_iter);
     EXPECT_EQ(*pre_iter, *post_iter);
     EXPECT_EQ(&*pre_iter, &*post_iter);
-
-    EXPECT_EQ(&*pre_iter, pre_iter.operator->());
 
     const char* character_address = &*pre_iter;
     absl::Cord::CharIterator copy = pre_iter;
@@ -3276,6 +3278,26 @@ TEST_P(CordTest, ChecksummedEmptyCord) {
   EXPECT_EQ(cc3.TryFlat(), "");
   EXPECT_EQ(absl::HashOf(c3), absl::HashOf(absl::Cord()));
   EXPECT_EQ(absl::HashOf(c3), absl::HashOf(absl::string_view()));
+}
+
+// This must not be static to avoid aggressive optimizations.
+ABSL_ATTRIBUTE_WEAK
+size_t FalseReport(const absl::Cord& a, bool f);
+
+ABSL_ATTRIBUTE_NOINLINE
+size_t FalseReport(const absl::Cord& a, bool f) {
+  absl::Cord b;
+  const absl::Cord& ref = f ? b : a;
+  // Test that sanitizers report nothing here. Without
+  // InlineData::Rep::annotated_this() compiler can unconditionally load
+  // poisoned parts, assuming that local variable is fully accessible.
+  return ref.size();
+}
+
+TEST(CordSanitizerTest, SanitizesCordFalseReport) {
+  absl::Cord c;
+  for (int i = 0; i < 1000; ++i) c.Append("a");
+  FalseReport(c, false);
 }
 
 TEST(CrcCordTest, ChecksummedEmptyCordEstimateMemoryUsage) {

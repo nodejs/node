@@ -9,6 +9,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <string>
 #include <utility>
 
 #include "cppgc/common.h"
@@ -937,6 +938,12 @@ class V8_EXPORT Isolate {
   Local<Context> GetIncumbentContext();
 
   /**
+   * Returns the host defined options set for currently running script or
+   * module, if available.
+   */
+  MaybeLocal<Data> GetCurrentHostDefinedOptions();
+
+  /**
    * Schedules a v8::Exception::Error with the given message.
    * See ThrowException for more details. Templatized to provide compile-time
    * errors in case of too long strings (see v8::String::NewFromUtf8Literal).
@@ -1716,6 +1723,12 @@ class V8_EXPORT Isolate {
    * the performance of locale operations.
    */
   void LocaleConfigurationChangeNotification();
+
+  /**
+   * Returns the default locale in a string if Intl support is enabled.
+   * Otherwise returns an empty string.
+   */
+  std::string GetDefaultLocale();
 
   Isolate() = delete;
   ~Isolate() = delete;

@@ -4,6 +4,8 @@
 
 #include "src/compiler/turboshaft/loop-unrolling-reducer.h"
 
+#include <optional>
+
 #include "src/base/bits.h"
 #include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/loop-finder.h"
@@ -290,9 +292,9 @@ std::ostream& operator<<(std::ostream& os, const BinOp& binop) {
 namespace {
 
 template <class Int>
-base::Optional<Int> Next(Int val, Int incr,
-                         StaticCanonicalForLoopMatcher::BinOp binop_op,
-                         WordRepresentation binop_rep) {
+std::optional<Int> Next(Int val, Int incr,
+                        StaticCanonicalForLoopMatcher::BinOp binop_op,
+                        WordRepresentation binop_rep) {
   switch (binop_op) {
     case BinOp::kBitwiseAnd:
       return val & incr;
@@ -310,14 +312,14 @@ base::Optional<Int> Next(Int val, Int incr,
       int32_t res;                                                            \
       if (base::bits::Signed##op##Overflow32(                                 \
               static_cast<int32_t>(val), static_cast<int32_t>(incr), &res)) { \
-        return base::nullopt;                                                 \
+        return std::nullopt;                                                  \
       }                                                                       \
       return static_cast<Int>(res);                                           \
     } else {                                                                  \
       DCHECK_EQ(binop_rep, WordRepresentation::Word64());                     \
       int64_t res;                                                            \
       if (base::bits::Signed##op##Overflow64(val, incr, &res)) {              \
-        return base::nullopt;                                                 \
+        return std::nullopt;                                                  \
       }                                                                       \
       return static_cast<Int>(res);                                           \
     }                                                                         \

@@ -67,7 +67,8 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
       v8_flags.print_maglev_graph || v8_flags.print_maglev_graphs ||
       v8_flags.trace_maglev_graph_building ||
       v8_flags.trace_maglev_escape_analysis ||
-      v8_flags.trace_maglev_phi_untagging || v8_flags.trace_maglev_regalloc) {
+      v8_flags.trace_maglev_phi_untagging || v8_flags.trace_maglev_regalloc ||
+      v8_flags.trace_maglev_object_tracking) {
     compilation_info->set_graph_labeller(new MaglevGraphLabeller());
   }
 
@@ -98,6 +99,20 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
 
       if (v8_flags.print_maglev_graphs) {
         std::cout << "\nAfter graph building" << std::endl;
+        PrintGraph(std::cout, compilation_info, graph);
+      }
+    }
+
+    if (v8_flags.maglev_licm) {
+      TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+                   "V8.Maglev.LoopOptimizations");
+
+      GraphProcessor<LoopOptimizationProcessor> loop_optimizations(
+          &graph_builder);
+      loop_optimizations.ProcessGraph(graph);
+
+      if (v8_flags.print_maglev_graphs) {
+        std::cout << "\nAfter loop optimizations" << std::endl;
         PrintGraph(std::cout, compilation_info, graph);
       }
     }

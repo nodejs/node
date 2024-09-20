@@ -143,6 +143,7 @@ const isOpenBSD = process.platform === 'openbsd';
 const isLinux = process.platform === 'linux';
 const isMacOS = process.platform === 'darwin';
 const isASan = process.config.variables.asan === 1;
+const isRiscv64 = process.arch === 'riscv64';
 const isDebug = process.features.debug;
 const isPi = (() => {
   try {
@@ -289,6 +290,10 @@ function platformTimeout(ms) {
 
   if (isPi)
     return multipliers.two * ms;  // Raspberry Pi devices
+
+  if (isRiscv64) {
+    return multipliers.four * ms;
+  }
 
   return ms;
 }
@@ -851,30 +856,6 @@ function skipIfDumbTerminal() {
   }
 }
 
-function gcUntil(name, condition) {
-  if (typeof name === 'function') {
-    condition = name;
-    name = undefined;
-  }
-  return new Promise((resolve, reject) => {
-    let count = 0;
-    function gcAndCheck() {
-      setImmediate(() => {
-        count++;
-        global.gc();
-        if (condition()) {
-          resolve();
-        } else if (count < 10) {
-          gcAndCheck();
-        } else {
-          reject(name === undefined ? undefined : 'Test ' + name + ' failed');
-        }
-      });
-    }
-    gcAndCheck();
-  });
-}
-
 function requireNoPackageJSONAbove(dir = __dirname) {
   let possiblePackage = path.join(dir, '..', 'package.json');
   let lastPackage = null;
@@ -985,7 +966,6 @@ const common = {
   expectsError,
   expectRequiredModule,
   expectWarning,
-  gcUntil,
   getArrayBufferViews,
   getBufferSources,
   getCallSite,

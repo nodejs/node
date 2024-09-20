@@ -1042,6 +1042,12 @@ void Decoder::DecodeRType(Instruction* instr) {
     case RO_BSET:
       Format(instr, "bset      'rd, 'rs1, 'rs2");
       break;
+    case RO_CZERO_EQZ:
+      Format(instr, "czero.eqz 'rd, 'rs1, 'rs2");
+      break;
+    case RO_CZERO_NEZ:
+      Format(instr, "czero.nez 'rd, 'rs1, 'rs2");
+      break;
     // TODO(riscv): End Add RISCV M extension macro
     default: {
       switch (instr->BaseOpcode()) {

@@ -4,6 +4,8 @@
 
 #include "src/compiler/turboshaft/build-graph-phase.h"
 
+#include <optional>
+
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/node-origin-table.h"
 #include "src/compiler/phase.h"
@@ -13,7 +15,7 @@
 
 namespace v8::internal::compiler::turboshaft {
 
-base::Optional<BailoutReason> BuildGraphPhase::Run(
+std::optional<BailoutReason> BuildGraphPhase::Run(
     PipelineData* data, Zone* temp_zone,
     compiler::TFPipelineData* turbofan_data, Linkage* linkage) {
   Schedule* schedule = turbofan_data->schedule();

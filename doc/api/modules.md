@@ -417,7 +417,7 @@ described in greater detail elsewhere in this documentation.
 The built-in modules are defined within the Node.js source and are located in the
 `lib/` folder.
 
-built-in modules can be identified using the `node:` prefix, in which case
+Built-in modules can be identified using the `node:` prefix, in which case
 it bypasses the `require` cache. For instance, `require('node:http')` will
 always return the built in HTTP module, even if there is `require.cache` entry
 by that name.

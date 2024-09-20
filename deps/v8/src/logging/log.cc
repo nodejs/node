@@ -2107,10 +2107,10 @@ EnumerateCompiledFunctions(Heap* heap) {
       } else if (WasmJSFunction::IsWasmJSFunction(function)) {
         Tagged<WasmInternalFunction> internal_function =
             function->shared()->wasm_js_function_data()->internal();
-        Tagged<WasmApiFunctionRef> api_function_ref =
-            Cast<WasmApiFunctionRef>(internal_function->ref());
+        Tagged<WasmImportData> import_data =
+            Cast<WasmImportData>(internal_function->implicit_arg());
         record(function->shared(),
-               Cast<AbstractCode>(api_function_ref->code(isolate)));
+               Cast<AbstractCode>(import_data->code(isolate)));
 #endif  // V8_ENABLE_WEBASSEMBLY
       }
     }
@@ -2623,7 +2623,7 @@ void ExistingCodeLogger::LogExistingFunction(Handle<SharedFunctionInfo> shared,
                                              Handle<AbstractCode> code,
                                              CodeTag tag) {
   if (IsScript(shared->script())) {
-    Handle<Script> script(Cast<Script>(shared->script()), isolate_);
+    DirectHandle<Script> script(Cast<Script>(shared->script()), isolate_);
     Script::PositionInfo info;
     Script::GetPositionInfo(script, shared->StartPosition(), &info);
     int line_num = info.line + 1;
@@ -2661,7 +2661,7 @@ void ExistingCodeLogger::LogExistingFunction(Handle<SharedFunctionInfo> shared,
       int c_functions_count = fun_data->GetCFunctionsCount();
       for (int i = 0; i < c_functions_count; i++) {
         CALL_CODE_EVENT_HANDLER(
-            CallbackEvent(fun_name, fun_data->GetCFunction(i)))
+            CallbackEvent(fun_name, fun_data->GetCFunction(isolate_, i)))
       }
     }
 #if V8_ENABLE_WEBASSEMBLY

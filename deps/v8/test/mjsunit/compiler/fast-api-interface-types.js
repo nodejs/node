@@ -7,6 +7,7 @@
 // Flags: --turbo-fast-api-calls --expose-fast-api --allow-natives-syntax --turbofan
 // Flags: --no-always-turbofan
 // Flags: --deopt-every-n-times=0
+// Flags: --fast-api-allow-float-in-sim
 
 const fast_c_api = new d8.test.FastCAPI();
 // We create another API object to avoid migrating the map of fast_c_api

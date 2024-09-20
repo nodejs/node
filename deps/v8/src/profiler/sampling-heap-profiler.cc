@@ -244,7 +244,7 @@ v8::AllocationProfile::Node* SamplingHeapProfiler::TranslateAllocationNode(
   if (node->script_id_ != v8::UnboundScript::kNoScriptId) {
     auto script_iterator = scripts.find(node->script_id_);
     if (script_iterator != scripts.end()) {
-      Handle<Script> script = script_iterator->second;
+      DirectHandle<Script> script = script_iterator->second;
       if (IsName(script->name())) {
         Tagged<Name> name = Cast<Name>(script->name());
         script_name = ToApiHandle<v8::String>(

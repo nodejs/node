@@ -813,14 +813,13 @@ class Heap final {
 
   CodePointerTable::Space* code_pointer_space() { return &code_pointer_space_; }
 
+#endif  // V8_ENABLE_SANDBOX
+
+#ifdef V8_ENABLE_LEAPTIERING
   JSDispatchTable::Space* js_dispatch_table_space() {
     return &js_dispatch_table_space_;
   }
-
-  ExternalBufferTable::Space* external_buffer_space() {
-    return &external_buffer_space_;
-  }
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_ENABLE_LEAPTIERING
 
   // ===========================================================================
   // Getters to other components. ==============================================
@@ -1034,7 +1033,6 @@ class Heap final {
   uint8_t* IsMarkingFlagAddress();
   uint8_t* IsMinorMarkingFlagAddress();
 
-  void ClearRecordedSlot(Tagged<HeapObject> object, ObjectSlot slot);
   void ClearRecordedSlotRange(Address start, Address end);
   static int InsertIntoRememberedSetFromCode(MutablePageMetadata* chunk,
                                              size_t slot_offset);
@@ -2192,10 +2190,6 @@ class Heap final {
 
   // The space in the process-wide JSDispatchTable managed by this heap.
   JSDispatchTable::Space js_dispatch_table_space_;
-
-  // The space in the ExternalBufferTable containing entries owned by objects
-  // in this heap.
-  ExternalBufferTable::Space external_buffer_space_;
 #endif  // V8_ENABLE_SANDBOX
 
   LocalHeap* main_thread_local_heap_ = nullptr;

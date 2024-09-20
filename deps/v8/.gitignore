@@ -88,8 +88,8 @@
 !/third_party/test262-harness
 !/third_party/v8
 !/third_party/wasm-api
-/tools/builtins-pgo/profiles/*.profile
-/tools/builtins-pgo/profiles/profiles_version
+/tools/builtins-pgo/profiles/*
+!/tools/builtins-pgo/profiles/.*
 /tools/clang
 /tools/gcmole/bootstrap
 /tools/gcmole/gcmole-tools

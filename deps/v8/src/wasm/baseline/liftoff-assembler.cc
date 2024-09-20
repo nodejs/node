@@ -4,9 +4,9 @@
 
 #include "src/wasm/baseline/liftoff-assembler.h"
 
+#include <optional>
 #include <sstream>
 
-#include "src/base/optional.h"
 #include "src/base/platform/memory.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler-inl.h"
@@ -41,7 +41,7 @@ class RegisterReuseMap {
     map_.emplace_back(dst);
   }
 
-  base::Optional<LiftoffRegister> Lookup(LiftoffRegister src) {
+  std::optional<LiftoffRegister> Lookup(LiftoffRegister src) {
     for (auto it = map_.begin(), end = map_.end(); it != end; it += 2) {
       if (it->is_gp_pair() == src.is_gp_pair() &&
           it->is_fp_pair() == src.is_fp_pair() && *it == src)
@@ -108,7 +108,7 @@ void InitMergeRegion(LiftoffAssembler::CacheState* target_state,
       DCHECK(!new_stack_offset);
       continue;
     }
-    base::Optional<LiftoffRegister> reg;
+    std::optional<LiftoffRegister> reg;
     bool needs_reg_transfer = true;
     if (allow_registers) {
       // First try: Keep the same register, if it's free.
@@ -424,29 +424,10 @@ void LiftoffAssembler::DropExceptionValueAtOffset(int offset) {
   cache_state_.stack_state.pop_back();
 }
 
-void LiftoffAssembler::PrepareLoopArgs(int num) {
-  for (int i = 0; i < num; ++i) {
-    VarState& slot = cache_state_.stack_state.end()[-1 - i];
-    if (slot.is_stack()) continue;
-    RegClass rc = reg_class_for(slot.kind());
-    if (slot.is_reg()) {
-      if (cache_state_.get_use_count(slot.reg()) > 1) {
-        // If the register is used more than once, we cannot use it for the
-        // merge. Move it to an unused register instead.
-        LiftoffRegList pinned;
-        pinned.set(slot.reg());
-        LiftoffRegister dst_reg = GetUnusedRegister(rc, pinned);
-        Move(dst_reg, slot.reg(), slot.kind());
-        cache_state_.dec_used(slot.reg());
-        cache_state_.inc_used(dst_reg);
-        slot.MakeRegister(dst_reg);
-      }
-      continue;
-    }
-    LiftoffRegister reg = GetUnusedRegister(rc, {});
-    LoadConstant(reg, slot.constant());
-    slot.MakeRegister(reg);
-    cache_state_.inc_used(reg);
+void LiftoffAssembler::SpillLoopArgs(int num) {
+  for (VarState& slot :
+       base::VectorOf(cache_state_.stack_state.end() - num, num)) {
+    Spill(&slot);
   }
 }
 
@@ -664,14 +645,14 @@ void LiftoffAssembler::Spill(VarState* slot) {
 }
 
 void LiftoffAssembler::SpillLocals() {
-  for (uint32_t i = 0; i < num_locals_; ++i) {
-    Spill(&cache_state_.stack_state[i]);
+  for (VarState& local_slot :
+       base::VectorOf(cache_state_.stack_state.data(), num_locals_)) {
+    Spill(&local_slot);
   }
 }
 
 void LiftoffAssembler::SpillAllRegisters() {
-  for (uint32_t i = 0, e = cache_state_.stack_height(); i < e; ++i) {
-    auto& slot = cache_state_.stack_state[i];
+  for (VarState& slot : cache_state_.stack_state) {
     if (!slot.is_reg()) continue;
     Spill(slot.offset(), slot.reg(), slot.kind());
     slot.MakeStack();

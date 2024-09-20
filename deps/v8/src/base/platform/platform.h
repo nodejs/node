@@ -23,6 +23,7 @@
 
 #include <cstdarg>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -32,7 +33,6 @@
 #include "src/base/build_config.h"
 #include "src/base/compiler-specific.h"
 #include "src/base/macros.h"
-#include "src/base/optional.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/semaphore.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
@@ -404,7 +404,7 @@ class V8_BASE_EXPORT OS {
 
   V8_WARN_UNUSED_RESULT static bool CanReserveAddressSpace();
 
-  V8_WARN_UNUSED_RESULT static Optional<AddressSpaceReservation>
+  V8_WARN_UNUSED_RESULT static std::optional<AddressSpaceReservation>
   CreateAddressSpaceReservation(void* hint, size_t size, size_t alignment,
                                 MemoryPermission max_permission);
 
@@ -476,8 +476,9 @@ class V8_BASE_EXPORT AddressSpaceReservation {
 
   V8_WARN_UNUSED_RESULT bool DecommitPages(void* address, size_t size);
 
-  V8_WARN_UNUSED_RESULT Optional<AddressSpaceReservation> CreateSubReservation(
-      void* address, size_t size, OS::MemoryPermission max_permission);
+  V8_WARN_UNUSED_RESULT std::optional<AddressSpaceReservation>
+  CreateSubReservation(void* address, size_t size,
+                       OS::MemoryPermission max_permission);
 
   V8_WARN_UNUSED_RESULT static bool FreeSubReservation(
       AddressSpaceReservation reservation);

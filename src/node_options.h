@@ -177,12 +177,16 @@ class EnvironmentOptions : public Options {
   std::string redirect_warnings;
   std::string diagnostic_dir;
   std::string env_file;
+  std::string optional_env_file;
   bool has_env_file_string = false;
   bool test_runner = false;
   uint64_t test_runner_concurrency = 0;
   uint64_t test_runner_timeout = 0;
   bool test_runner_coverage = false;
   bool test_runner_force_exit = false;
+  uint64_t test_coverage_branches = 0;
+  uint64_t test_coverage_functions = 0;
+  uint64_t test_coverage_lines = 0;
   bool test_runner_module_mocks = false;
   bool test_runner_snapshots = false;
   bool test_runner_update_snapshots = false;

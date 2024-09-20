@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <optional>
+
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
@@ -491,7 +493,7 @@ class WasmLoadEliminationAnalyzer {
     AliasSnapshot alias_snapshot;
     MemorySnapshot memory_snapshot;
   };
-  FixedBlockSidetable<base::Optional<Snapshot>> block_to_snapshot_mapping_;
+  FixedBlockSidetable<std::optional<Snapshot>> block_to_snapshot_mapping_;
 
   // {predecessor_alias_napshots_}, {predecessor_maps_snapshots_} and
   // {predecessor_memory_snapshots_} are used as temporary vectors when starting

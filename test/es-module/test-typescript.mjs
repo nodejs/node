@@ -1,4 +1,4 @@
-import { skip, spawnPromisified } from '../common/index.mjs';
+import { skip, spawnPromisified, isWindows } from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import { match, strictEqual } from 'node:assert';
 import { test } from 'node:test';
@@ -25,6 +25,18 @@ test('execute a TypeScript file with imports', async () => {
 
   strictEqual(result.stderr, '');
   match(result.stdout, /Hello, TypeScript!/);
+  strictEqual(result.code, 0);
+});
+
+test('execute a TypeScript file with imports', async () => {
+  const result = await spawnPromisified(process.execPath, [
+    '--no-warnings',
+    '--eval',
+    `assert.throws(() => require(${JSON.stringify(fixtures.path('typescript/ts/test-import-fs.ts'))}), {code: 'ERR_REQUIRE_ESM'})`,
+  ]);
+
+  strictEqual(result.stderr, '');
+  strictEqual(result.stdout, '');
   strictEqual(result.code, 0);
 });
 
@@ -313,3 +325,31 @@ test('execute a TypeScript file with CommonJS syntax requiring .mts with require
        match(result.stdout, /Hello, TypeScript!/);
        strictEqual(result.code, 0);
      });
+
+test('execute a JavaScript file importing a cjs TypeScript file', async () => {
+  const result = await spawnPromisified(process.execPath, [
+    '--experimental-strip-types',
+    '--no-warnings',
+    fixtures.path('typescript/ts/issue-54457.mjs'),
+  ]);
+  strictEqual(result.stderr, '');
+  match(result.stdout, /Hello, TypeScript!/);
+  strictEqual(result.code, 0);
+});
+
+// TODO(marco-ippolito) Due to a bug in SWC, the TypeScript loader
+// does not work on Windows arm64. This test should be re-enabled
+// when https://github.com/nodejs/node/issues/54645 is fixed
+test('execute a TypeScript test mocking module', { skip: isWindows && process.arch === 'arm64' }, async () => {
+  const result = await spawnPromisified(process.execPath, [
+    '--test',
+    '--experimental-test-module-mocks',
+    '--experimental-strip-types',
+    '--no-warnings',
+    fixtures.path('typescript/ts/test-mock-module.ts'),
+  ]);
+  strictEqual(result.stderr, '');
+  match(result.stdout, /Hello, TypeScript-Module!/);
+  match(result.stdout, /Hello, TypeScript-CommonJS!/);
+  strictEqual(result.code, 0);
+});

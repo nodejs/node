@@ -66,6 +66,7 @@ using v8::Int32;
 using v8::Integer;
 using v8::Isolate;
 using v8::Just;
+using v8::JustVoid;
 using v8::Local;
 using v8::Maybe;
 using v8::Nothing;
@@ -1450,7 +1451,7 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
   if (status == 0) {
     Local<Array> results = Array::New(env->isolate());
 
-    auto add = [&] (bool want_ipv4, bool want_ipv6) -> Maybe<bool> {
+    auto add = [&](bool want_ipv4, bool want_ipv6) -> Maybe<void> {
       for (auto p = res; p != nullptr; p = p->ai_next) {
         CHECK_EQ(p->ai_socktype, SOCK_STREAM);
 
@@ -1471,10 +1472,10 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
 
         Local<String> s = OneByteString(env->isolate(), ip);
         if (results->Set(env->context(), n, s).IsNothing())
-          return Nothing<bool>();
+          return Nothing<void>();
         n++;
       }
-      return Just(true);
+      return JustVoid();
     };
 
     switch (order) {
@@ -1564,6 +1565,24 @@ void CanonicalizeIP(const FunctionCallbackInfo<Value>& args) {
   Local<String> val = String::NewFromUtf8(isolate, canonical_ip)
       .ToLocalChecked();
   args.GetReturnValue().Set(val);
+}
+
+void ConvertIpv6StringToBuffer(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  node::Utf8Value ip(isolate, args[0]);
+  unsigned char dst[16];  // IPv6 addresses are 128 bits (16 bytes)
+
+  if (uv_inet_pton(AF_INET6, *ip, dst) != 0) {
+    isolate->ThrowException(v8::Exception::Error(
+        String::NewFromUtf8(isolate, "Invalid IPv6 address").ToLocalChecked()));
+    return;
+  }
+
+  Local<Object> buffer =
+      node::Buffer::Copy(
+          isolate, reinterpret_cast<const char*>(dst), sizeof(dst))
+          .ToLocalChecked();
+  args.GetReturnValue().Set(buffer);
 }
 
 void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
@@ -1902,6 +1921,8 @@ void Initialize(Local<Object> target,
   SetMethod(context, target, "getaddrinfo", GetAddrInfo);
   SetMethod(context, target, "getnameinfo", GetNameInfo);
   SetMethodNoSideEffect(context, target, "canonicalizeIP", CanonicalizeIP);
+  SetMethodNoSideEffect(
+      context, target, "convertIpv6StringToBuffer", ConvertIpv6StringToBuffer);
 
   SetMethod(context, target, "strerror", StrError);
 
@@ -1935,16 +1956,6 @@ void Initialize(Local<Object> target,
       ->Set(env->context(),
             FIXED_ONE_BYTE_STRING(env->isolate(), "DNS_ORDER_IPV6_FIRST"),
             Integer::New(env->isolate(), DNS_ORDER_IPV6_FIRST))
-      .Check();
-  target
-      ->Set(env->context(),
-            FIXED_ONE_BYTE_STRING(env->isolate(), "AF_INET"),
-            Integer::New(env->isolate(), AF_INET))
-      .Check();
-  target
-      ->Set(env->context(),
-            FIXED_ONE_BYTE_STRING(env->isolate(), "AF_INET"),
-            Integer::New(env->isolate(), AF_INET))
       .Check();
 
   Local<FunctionTemplate> aiw =
@@ -1995,6 +2006,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetAddrInfo);
   registry->Register(GetNameInfo);
   registry->Register(CanonicalizeIP);
+  registry->Register(ConvertIpv6StringToBuffer);
   registry->Register(StrError);
   registry->Register(ChannelWrap::New);
 

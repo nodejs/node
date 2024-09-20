@@ -2444,13 +2444,12 @@ class WasmToJSWrapperDescriptor final
     : public StaticCallInterfaceDescriptor<WasmToJSWrapperDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
-  DEFINE_RESULT_AND_PARAMETERS_NO_CONTEXT(4, kWasmApiFunctionRef)
-  DEFINE_RESULT_AND_PARAMETER_TYPES(
-      MachineType::IntPtr(),     // GP return 1
-      MachineType::IntPtr(),     // GP return 2
-      MachineType::Float64(),    // FP return 1
-      MachineType::Float64(),    // FP return 2
-      MachineType::AnyTagged())  // WasmApiFunctionRef
+  DEFINE_RESULT_AND_PARAMETERS_NO_CONTEXT(4, kWasmImportData)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::IntPtr(),     // GP return 1
+                                    MachineType::IntPtr(),     // GP return 2
+                                    MachineType::Float64(),    // FP return 1
+                                    MachineType::Float64(),    // FP return 2
+                                    MachineType::AnyTagged())  // WasmImportData
   DECLARE_DESCRIPTOR(WasmToJSWrapperDescriptor)
 
   static constexpr int kMaxRegisterParams = 1;

@@ -23,70 +23,6 @@
 namespace v8 {
 namespace internal {
 
-// We implement async resources disposal by promise chaining in
-// `DisposeResourcesAwaitPoint`.
-Handle<JSReceiver> JSDisposableStackBase::DisposeResourcesAwaitPoint(
-    Isolate* isolate, DirectHandle<JSDisposableStackBase> disposable_stack,
-    int length, MaybeHandle<Object> result, MaybeHandle<Object> maybe_error) {
-  disposable_stack->set_length(length);
-  Handle<JSReceiver> promise = isolate->factory()->NewJSPromise();
-
-  Handle<Object> result_handle;
-  Handle<Object> existing_error;
-
-  if (result.ToHandle(&result_handle)) {
-    Handle<JSFunction> promise_function = isolate->promise_function();
-    Handle<Object> argv[] = {result_handle};
-    Handle<Object> resolve_result =
-        Execution::CallBuiltin(isolate, isolate->promise_resolve(),
-                               promise_function, arraysize(argv), argv)
-            .ToHandleChecked();
-    promise = Cast<JSReceiver>(resolve_result);
-  } else {
-    UNIMPLEMENTED();
-  }
-
-  Handle<Context> async_disposable_stack_context =
-      isolate->factory()->NewBuiltinContext(
-          isolate->native_context(),
-          static_cast<int>(AsyncDisposableStackContextSlots::kLength));
-  async_disposable_stack_context->set(
-      static_cast<int>(AsyncDisposableStackContextSlots::kStack),
-      *disposable_stack);
-
-  if (maybe_error.ToHandle(&existing_error)) {
-    async_disposable_stack_context->set(
-        static_cast<int>(AsyncDisposableStackContextSlots::kError),
-        *existing_error);
-  } else {
-    async_disposable_stack_context->set(
-        static_cast<int>(AsyncDisposableStackContextSlots::kError),
-        ReadOnlyRoots(isolate).the_hole_value());
-  }
-
-  Handle<JSFunction> on_fulfilled =
-      Factory::JSFunctionBuilder{
-          isolate,
-          isolate->factory()->async_disposable_stack_on_fulfilled_shared_fun(),
-          async_disposable_stack_context}
-          .Build();
-
-  Handle<JSFunction> on_rejected =
-      Factory::JSFunctionBuilder{
-          isolate,
-          isolate->factory()->async_disposable_stack_on_rejected_shared_fun(),
-          async_disposable_stack_context}
-          .Build();
-
-  Handle<Object> argv[] = {on_fulfilled, on_rejected};
-
-  Handle<Object> then_result =
-      Execution::CallBuiltin(isolate, isolate->promise_then(), promise,
-                             arraysize(argv), argv)
-          .ToHandleChecked();
-  return Cast<JSReceiver>(then_result);
-}
-
 // https://arai-a.github.io/ecma262-compare/?pr=3000&id=sec-disposeresources
 // (TODO:rezvan):
 // https://github.com/tc39/proposal-explicit-resource-management/pull/219
@@ -131,10 +67,22 @@ MaybeHandle<Object> JSDisposableStackBase::DisposeResources(
                                ReadOnlyRoots(isolate).undefined_value_handle(),
                                1, argv);
     }
+    Handle<Object> result_handle;
     if (hint == DisposeMethodHint::kAsyncDispose) {
       DCHECK_NE(resources_type, DisposableStackResourcesType::kAllSync);
-      return DisposeResourcesAwaitPoint(isolate, disposable_stack, length,
-                                        result, maybe_error);
+
+      if (result.ToHandle(&result_handle)) {
+        disposable_stack->set_length(length);
+        Handle<JSFunction> promise_function = isolate->promise_function();
+        Handle<Object> argv[] = {result_handle};
+        Handle<Object> resolve_result =
+            Execution::CallBuiltin(isolate, isolate->promise_resolve(),
+                                   promise_function, arraysize(argv), argv)
+                .ToHandleChecked();
+        return Cast<JSReceiver>(resolve_result);
+      } else {
+        UNIMPLEMENTED();
+      }
     }
 
     //  b. If result is a throw completion, then

@@ -6,9 +6,9 @@
 #define V8_OBJECTS_SWISS_NAME_DICTIONARY_H_
 
 #include <cstdint>
+#include <optional>
 
 #include "src/base/export-template.h"
-#include "src/base/optional.h"
 #include "src/common/globals.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/internal-index.h"
@@ -19,8 +19,7 @@
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 // A property backing store based on Swiss Tables/Abseil's flat_hash_map. The
 // implementation is heavily based on Abseil's raw_hash_set.h.
@@ -104,7 +103,7 @@ class V8_EXPORT_PRIVATE SwissNameDictionary : public HeapObject {
   inline Tagged<Name> NameAt(InternalIndex entry);
   inline Tagged<Object> ValueAt(InternalIndex entry);
   // Returns {} if we would be reading out of the bounds of the object.
-  inline base::Optional<Tagged<Object>> TryValueAt(InternalIndex entry);
+  inline std::optional<Tagged<Object>> TryValueAt(InternalIndex entry);
   inline PropertyDetails DetailsAt(InternalIndex entry);
 
   inline void ValueAtPut(InternalIndex entry, Tagged<Object> value);
@@ -345,8 +344,7 @@ class V8_EXPORT_PRIVATE SwissNameDictionary : public HeapObject {
                                       int field_index);
 };
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #include "src/objects/object-macros-undef.h"
 

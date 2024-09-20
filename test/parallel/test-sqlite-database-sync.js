@@ -143,8 +143,8 @@ suite('DatabaseSync.prototype.exec()', () => {
     t.assert.strictEqual(result, undefined);
     const stmt = db.prepare('SELECT * FROM data ORDER BY key');
     t.assert.deepStrictEqual(stmt.all(), [
-      { key: 1, val: 2 },
-      { key: 8, val: 9 },
+      { __proto__: null, key: 1, val: 2 },
+      { __proto__: null, key: 8, val: 9 },
     ]);
   });
 

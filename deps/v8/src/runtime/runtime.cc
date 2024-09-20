@@ -241,6 +241,10 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
       case Runtime::kCompileBaseline:
 #if V8_ENABLE_WEBASSEMBLY && !OFFICIAL_BUILD
       case Runtime::kWasmGenerateRandomModule:
+#endif  // V8_ENABLE_WEBASSEMBLY && !OFFICIAL_BUILD
+#if V8_ENABLE_WEBASSEMBLY
+      case Runtime::kWasmStruct:
+      case Runtime::kWasmArray:
 #endif  // V8_ENABLE_WEBASSEMBLY
         return true;
 
@@ -264,11 +268,14 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
     case Runtime::kDisassembleFunction:
     case Runtime::kGetCallable:
     case Runtime::kTurbofanStaticAssert:
+    case Runtime::kClearFunctionFeedback:
 #ifdef V8_ENABLE_WEBASSEMBLY
     case Runtime::kWasmTraceEnter:
     case Runtime::kWasmTraceExit:
     case Runtime::kCheckIsOnCentralStack:
     case Runtime::kSetWasmInstantiateControls:
+    case Runtime::kWasmNull:
+    case Runtime::kFreezeWasmLazyCompilation:
 #endif  // V8_ENABLE_WEBASSEMBLY
     // TODO(353685107): investigate whether these should be exposed to fuzzers.
     case Runtime::kConstructDouble:
@@ -282,6 +289,8 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
     case Runtime::kCompleteInobjectSlackTracking:
     // TODO(354005312): investigate whether this should be exposed to fuzzers.
     case Runtime::kShareObject:
+    // TODO(354310130): investigate whether this should be exposed to fuzzers.
+    case Runtime::kForceFlush:
       return false;
 
     case Runtime::kLeakHole:

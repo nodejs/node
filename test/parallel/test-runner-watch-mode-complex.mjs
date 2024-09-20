@@ -63,7 +63,7 @@ describe('test runner watch mode with more complex setup', () => {
     child.stdout.on('data', (data) => {
       stdout += data.toString();
       currentRun += data.toString();
-      const testRuns = stdout.match(/# duration_ms\s\d+/g);
+      const testRuns = stdout.match(/duration_ms\s\d+/g);
 
       if (testRuns?.length >= 2) {
         ran2.resolve();
@@ -91,14 +91,14 @@ describe('test runner watch mode with more complex setup', () => {
 
     const [firstRun, secondRun] = runs;
 
-    assert.match(firstRun, /# tests 3/);
-    assert.match(firstRun, /# pass 3/);
-    assert.match(firstRun, /# fail 0/);
-    assert.match(firstRun, /# cancelled 0/);
+    assert.match(firstRun, /tests 3/);
+    assert.match(firstRun, /pass 3/);
+    assert.match(firstRun, /fail 0/);
+    assert.match(firstRun, /cancelled 0/);
 
-    assert.match(secondRun, /# tests 2/);
-    assert.match(secondRun, /# pass 2/);
-    assert.match(secondRun, /# fail 0/);
-    assert.match(secondRun, /# cancelled 0/);
+    assert.match(secondRun, /tests 2/);
+    assert.match(secondRun, /pass 2/);
+    assert.match(secondRun, /fail 0/);
+    assert.match(secondRun, /cancelled 0/);
   });
 });

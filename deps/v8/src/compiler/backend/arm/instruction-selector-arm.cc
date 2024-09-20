@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <optional>
+
 #include "src/base/bits.h"
 #include "src/base/enum-set.h"
 #include "src/base/iterator.h"
@@ -1078,7 +1080,7 @@ template <typename Adapter>
 void VisitStoreCommon(InstructionSelectorT<Adapter>* selector,
                       typename Adapter::node_t node,
                       StoreRepresentation store_rep,
-                      base::Optional<AtomicMemoryOrder> atomic_order) {
+                      std::optional<AtomicMemoryOrder> atomic_order) {
   using node_t = typename Adapter::node_t;
   ArmOperandGeneratorT<Adapter> g(selector);
   auto store_view = selector->store_view(node);
@@ -1135,7 +1137,7 @@ void VisitStoreCommon(InstructionSelectorT<Adapter>* selector,
       opcode |= AtomicMemoryOrderField::encode(*atomic_order);
     }
 
-    base::Optional<ExternalReference> external_base;
+    std::optional<ExternalReference> external_base;
     if constexpr (Adapter::IsTurboshaft) {
       ExternalReference value;
       if (selector->MatchExternalConstant(store_view.base(), &value)) {
@@ -1193,7 +1195,7 @@ void InstructionSelectorT<Adapter>::VisitStorePair(node_t node) {
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitStore(node_t node) {
   VisitStoreCommon(this, node, this->store_view(node).stored_rep(),
-                   base::nullopt);
+                   std::nullopt);
 }
 
 template <typename Adapter>
@@ -4049,6 +4051,10 @@ void InstructionSelectorT<Adapter>::VisitF32x4Splat(node_t node) {
   VisitRR(this, kArmF32x4Splat, node);
 }
 template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF16x8Splat(node_t node) {
+  UNIMPLEMENTED();
+}
+template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI32x4Splat(node_t node) {
   VisitRR(this, kArmI32x4Splat, node);
 }
@@ -4080,12 +4086,21 @@ SIMD_VISIT_EXTRACT_LANE(I8x16, S)
 #undef SIMD_VISIT_EXTRACT_LANE
 
 template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF16x8ExtractLane(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitF64x2ReplaceLane(node_t node) {
   VisitRRIR(this, kArmF64x2ReplaceLane, node);
 }
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitF32x4ReplaceLane(node_t node) {
   VisitRRIR(this, kArmF32x4ReplaceLane, node);
+}
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF16x8ReplaceLane(node_t node) {
+  UNIMPLEMENTED();
 }
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI32x4ReplaceLane(node_t node) {
@@ -4109,6 +4124,44 @@ SIMD_UNOP_LIST(SIMD_VISIT_UNOP)
 #undef SIMD_VISIT_UNOP
 #undef SIMD_UNOP_LIST
 
+#define UNIMPLEMENTED_SIMD_UNOP_LIST(V) \
+  V(F16x8Abs)                           \
+  V(F16x8Neg)                           \
+  V(F16x8Sqrt)                          \
+  V(F16x8Floor)                         \
+  V(F16x8Ceil)                          \
+  V(F16x8Trunc)                         \
+  V(F16x8NearestInt)
+
+#define SIMD_VISIT_UNIMPL_UNOP(Name)                             \
+  template <typename Adapter>                                    \
+  void InstructionSelectorT<Adapter>::Visit##Name(node_t node) { \
+    UNIMPLEMENTED();                                             \
+  }
+
+UNIMPLEMENTED_SIMD_UNOP_LIST(SIMD_VISIT_UNIMPL_UNOP)
+#undef SIMD_VISIT_UNIMPL_UNOP
+#undef UNIMPLEMENTED_SIMD_UNOP_LIST
+
+#define UNIMPLEMENTED_SIMD_CVTOP_LIST(V) \
+  V(F16x8SConvertI16x8)                  \
+  V(F16x8UConvertI16x8)                  \
+  V(I16x8SConvertF16x8)                  \
+  V(I16x8UConvertF16x8)                  \
+  V(F32x4PromoteLowF16x8)                \
+  V(F16x8DemoteF32x4Zero)                \
+  V(F16x8DemoteF64x2Zero)
+
+#define SIMD_VISIT_UNIMPL_CVTOP(Name)                            \
+  template <typename Adapter>                                    \
+  void InstructionSelectorT<Adapter>::Visit##Name(node_t node) { \
+    UNIMPLEMENTED();                                             \
+  }
+
+UNIMPLEMENTED_SIMD_CVTOP_LIST(SIMD_VISIT_UNIMPL_CVTOP)
+#undef SIMD_VISIT_UNIMPL_CVTOP
+#undef UNIMPLEMENTED_SIMD_CVTOP_LIST
+
 #define SIMD_VISIT_SHIFT_OP(Name, width)                         \
   template <typename Adapter>                                    \
   void InstructionSelectorT<Adapter>::Visit##Name(node_t node) { \
@@ -4126,6 +4179,30 @@ SIMD_SHIFT_OP_LIST(SIMD_VISIT_SHIFT_OP)
 SIMD_BINOP_LIST(SIMD_VISIT_BINOP)
 #undef SIMD_VISIT_BINOP
 #undef SIMD_BINOP_LIST
+
+#define UNIMPLEMENTED_SIMD_BINOP_LIST(V) \
+  V(F16x8Add)                            \
+  V(F16x8Sub)                            \
+  V(F16x8Mul)                            \
+  V(F16x8Div)                            \
+  V(F16x8Min)                            \
+  V(F16x8Max)                            \
+  V(F16x8Pmin)                           \
+  V(F16x8Pmax)                           \
+  V(F16x8Eq)                             \
+  V(F16x8Ne)                             \
+  V(F16x8Lt)                             \
+  V(F16x8Le)
+
+#define SIMD_VISIT_UNIMPL_BINOP(Name)                            \
+  template <typename Adapter>                                    \
+  void InstructionSelectorT<Adapter>::Visit##Name(node_t node) { \
+    UNIMPLEMENTED();                                             \
+  }
+
+UNIMPLEMENTED_SIMD_BINOP_LIST(SIMD_VISIT_UNIMPL_BINOP)
+#undef SIMD_VISIT_UNIMPL_BINOP
+#undef UNIMPLEMENTED_SIMD_BINOP_LIST
 
 // TODO(mliedtke): This macro has only two uses. Maybe this could be refactored
 // into some helpers instead of the huge macro.
@@ -4320,6 +4397,15 @@ VISIT_SIMD_QFMOP(F32x4Qfma)
 VISIT_SIMD_QFMOP(F32x4Qfms)
 #undef VISIT_SIMD_QFMOP
 
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF16x8Qfma(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF16x8Qfms(node_t node) {
+  UNIMPLEMENTED();
+}
 namespace {
 
 struct ShuffleEntry {

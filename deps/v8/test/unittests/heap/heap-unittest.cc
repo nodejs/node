@@ -372,6 +372,7 @@ TEST_F(HeapTest, OptimizedAllocationAlwaysInNewSpace) {
       v8_flags.stress_incremental_marking)
     return;
   v8::Isolate* iso = reinterpret_cast<v8::Isolate*>(isolate());
+  ManualGCScope manual_gc_scope(isolate());
   v8::HandleScope scope(iso);
   v8::Local<v8::Context> ctx = iso->GetCurrentContext();
   SimulateFullSpace(heap()->new_space());
@@ -420,6 +421,7 @@ static size_t GetRememberedSetSize(Tagged<HeapObject> obj) {
 TEST_F(HeapTest, RememberedSet_InsertOnPromotingObjectToOld) {
   if (v8_flags.single_generation || v8_flags.stress_incremental_marking) return;
   v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
+  ManualGCScope manual_gc_scope(isolate());
   Factory* factory = isolate()->factory();
   Heap* heap = isolate()->heap();
   SealCurrentObjects();
@@ -542,11 +544,15 @@ TEST_F(HeapTest, Regress341769455) {
   if (!v8_flags.incremental_marking) return;
   if (!v8_flags.minor_ms) return;
   Isolate* iso = isolate();
+  bool original_concurrent_minor_ms_marking_value =
+      v8_flags.concurrent_minor_ms_marking;
+  ManualGCScope manual_gc_scope(iso);
+  v8_flags.concurrent_minor_ms_marking =
+      original_concurrent_minor_ms_marking_value;
   Heap* heap = iso->heap();
   HandleScope outer(iso);
-  Handle<JSArrayBuffer> ab;
+  DirectHandle<JSArrayBuffer> ab;
   {
-    ManualGCScope manual_gc_scope(isolate());
     // Make sure new space is empty
     InvokeAtomicMajorGC();
     ab = iso->factory()

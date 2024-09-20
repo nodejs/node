@@ -4,6 +4,8 @@
 
 #include "src/objects/lookup.h"
 
+#include <optional>
+
 #include "src/common/globals.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/isolate-inl.h"
@@ -22,8 +24,7 @@
 #include "src/objects/property-details.h"
 #include "src/objects/struct-inl.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 PropertyKey::PropertyKey(Isolate* isolate, Handle<Object> key, bool* success) {
   if (Object::ToIntegerIndex(*key, &index_)) {
@@ -675,7 +676,7 @@ void LookupIterator::ApplyTransitionToDataProperty(
     state_ = DATA;
     return;
   }
-  Handle<Map> transition = transition_map();
+  DirectHandle<Map> transition = transition_map();
   bool simple_transition =
       transition->GetBackPointer(isolate_) == receiver->map(isolate_);
 
@@ -789,7 +790,7 @@ void LookupIterator::TransitionToAccessorProperty(
     // interceptors.
     DCHECK_IMPLIES(!IsFound(), number_.is_not_found());
 
-    Handle<Map> new_map = Map::TransitionToAccessorProperty(
+    DirectHandle<Map> new_map = Map::TransitionToAccessorProperty(
         isolate_, old_map, name_, number_, getter, setter, attributes);
     bool simple_transition =
         new_map->GetBackPointer(isolate_) == receiver->map(isolate_);
@@ -1444,7 +1445,7 @@ bool LookupIterator::LookupCachedProperty(
   DCHECK(IsAccessorPair(*GetAccessors(), isolate_));
 
   Tagged<Object> getter = accessor_pair->getter(isolate_);
-  base::Optional<Tagged<Name>> maybe_name =
+  std::optional<Tagged<Name>> maybe_name =
       FunctionTemplateInfo::TryGetCachedPropertyName(isolate(), getter);
   if (!maybe_name.has_value()) return false;
 
@@ -1466,7 +1467,7 @@ bool LookupIterator::LookupCachedProperty(
 }
 
 // static
-base::Optional<Tagged<Object>> ConcurrentLookupIterator::TryGetOwnCowElement(
+std::optional<Tagged<Object>> ConcurrentLookupIterator::TryGetOwnCowElement(
     Isolate* isolate, Tagged<FixedArray> array_elements,
     ElementsKind elements_kind, int array_length, size_t index) {
   DisallowGarbageCollection no_gc;
@@ -1611,7 +1612,7 @@ ConcurrentLookupIterator::Result ConcurrentLookupIterator::TryGetOwnChar(
 }
 
 // static
-base::Optional<Tagged<PropertyCell>>
+std::optional<Tagged<PropertyCell>>
 ConcurrentLookupIterator::TryGetPropertyCell(
     Isolate* isolate, LocalIsolate* local_isolate,
     DirectHandle<JSGlobalObject> holder, DirectHandle<Name> name) {
@@ -1622,7 +1623,7 @@ ConcurrentLookupIterator::TryGetPropertyCell(
   if (holder_map->has_named_interceptor()) return {};
 
   Tagged<GlobalDictionary> dict = holder->global_dictionary(kAcquireLoad);
-  base::Optional<Tagged<PropertyCell>> maybe_cell =
+  std::optional<Tagged<PropertyCell>> maybe_cell =
       dict->TryFindPropertyCellForConcurrentLookupIterator(isolate, name,
                                                            kRelaxedLoad);
   if (!maybe_cell.has_value()) return {};
@@ -1632,7 +1633,7 @@ ConcurrentLookupIterator::TryGetPropertyCell(
     Tagged<Object> maybe_accessor_pair = cell->value(kAcquireLoad);
     if (!IsAccessorPair(maybe_accessor_pair)) return {};
 
-    base::Optional<Tagged<Name>> maybe_cached_property_name =
+    std::optional<Tagged<Name>> maybe_cached_property_name =
         FunctionTemplateInfo::TryGetCachedPropertyName(
             isolate, Cast<AccessorPair>(maybe_accessor_pair)
                          ->getter(isolate, kAcquireLoad));
@@ -1652,5 +1653,4 @@ ConcurrentLookupIterator::TryGetPropertyCell(
   return cell;
 }
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal

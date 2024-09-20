@@ -182,7 +182,7 @@ class PersistentValueMapBase {
    */
   Local<V> Get(const K& key) {
     V* p = FromVal(Traits::Get(&impl_, key));
-#ifdef V8_ENABLE_DIRECT_LOCAL
+#ifdef V8_ENABLE_DIRECT_HANDLE
     if (p == nullptr) return Local<V>();
 #endif
     return Local<V>::New(isolate_, p);

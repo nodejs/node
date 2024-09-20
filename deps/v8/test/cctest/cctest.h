@@ -285,6 +285,17 @@ class ApiTestFuzzer: public v8::base::Thread {
   bool active_;
 };
 
+// In threaded cctests, control flow alternates between different threads, each
+// of which runs a single test. All threaded cctests share the same isolate and
+// a heap. With conservative stack scanning (CSS), whenever a thread invokes a
+// GC for the common heap, the stacks of all threads are scanned. In this
+// setting, it is not possible to disable CSS without losing correctness.
+// Therefore, tests defined with THREADED_TEST:
+//
+// 1.  must not explicitly disable CSS, using the scope
+//     internal::DisableConservativeStackScanningScopeForTesting, and
+// 2.  cannot rely on the assumption that garbage collection will reclaim all
+//     non-live objects.
 
 #define THREADED_TEST(Name)                                          \
   static void Test##Name();                                          \
@@ -385,7 +396,7 @@ static inline v8::Local<v8::Boolean> v8_bool(bool val) {
   return v8::Boolean::New(v8::Isolate::GetCurrent(), val);
 }
 
-static inline v8::Local<v8::Value> v8_num(double x) {
+static inline v8::Local<v8::Number> v8_num(double x) {
   return v8::Number::New(v8::Isolate::GetCurrent(), x);
 }
 

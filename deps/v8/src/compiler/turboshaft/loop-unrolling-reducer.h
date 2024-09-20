@@ -5,6 +5,8 @@
 #ifndef V8_COMPILER_TURBOSHAFT_LOOP_UNROLLING_REDUCER_H_
 #define V8_COMPILER_TURBOSHAFT_LOOP_UNROLLING_REDUCER_H_
 
+#include <optional>
+
 #include "src/base/logging.h"
 #include "src/compiler/globals.h"
 #include "src/compiler/turboshaft/assembler.h"
@@ -460,7 +462,7 @@ class LoopUnrollingReducer : public Next {
     return __ data() -> pipeline_kind() == TurboshaftPipelineKind::kCSA;
   }
   bool StopUnrollingIfUnreachable(
-      base::Optional<Block*> output_graph_header = base::nullopt) {
+      std::optional<Block*> output_graph_header = std::nullopt) {
     if (__ generating_unreachable_operations()) {
       // By unrolling the loop, we realized that it was actually exiting early
       // (probably because a Branch inside the loop was using a loop Phi in a

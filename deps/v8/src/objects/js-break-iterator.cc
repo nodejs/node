@@ -175,7 +175,7 @@ Handle<JSObject> JSV8BreakIterator::ResolvedOptions(
   Type type = GetType(break_iterator->break_iterator()->raw());
 
   Handle<JSObject> result = factory->NewJSObject(isolate->object_function());
-  Handle<String> locale(break_iterator->locale(), isolate);
+  DirectHandle<String> locale(break_iterator->locale(), isolate);
 
   JSObject::AddProperty(isolate, result, factory->locale_string(), locale,
                         NONE);

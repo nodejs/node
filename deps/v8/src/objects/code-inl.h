@@ -120,7 +120,7 @@ inline void Code::clear_deoptimization_data_and_interpreter_data() {
 }
 
 inline bool Code::has_deoptimization_data_or_interpreter_data() const {
-  return !IsProtectedPointerFieldCleared(
+  return !IsProtectedPointerFieldEmpty(
       kDeoptimizationDataOrInterpreterDataOffset);
 }
 

@@ -8,6 +8,7 @@
 #include <initializer_list>
 #include <map>
 #include <memory>
+#include <optional>
 #include <sstream>
 #include <type_traits>
 
@@ -15,7 +16,6 @@
 // Do not include anything from src/compiler here!
 #include "include/cppgc/source-location.h"
 #include "src/base/macros.h"
-#include "src/base/optional.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/atomic-memory-order.h"
 #include "src/codegen/callable.h"
@@ -1341,7 +1341,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   template <class... TArgs>
   TNode<Object> CallJS(Builtin builtin, TNode<Context> context,
                        TNode<Object> function,
-                       base::Optional<TNode<Object>> new_target,
+                       std::optional<TNode<Object>> new_target,
                        TNode<Object> receiver, TArgs... args) {
     Callable callable = Builtins::CallableFor(isolate(), builtin);
     // CallTrampolineDescriptor doesn't have |new_target| parameter.
@@ -1384,7 +1384,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   // Call to a C function.
   template <class... CArgs>
-  Node* CallCFunction(Node* function, base::Optional<MachineType> return_type,
+  Node* CallCFunction(Node* function, std::optional<MachineType> return_type,
                       CArgs... cargs) {
     static_assert(
         std::conjunction_v<std::is_convertible<CArgs, CFunctionArg>...>,
@@ -1444,7 +1444,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
  private:
   void HandleException(Node* result);
 
-  Node* CallCFunction(Node* function, base::Optional<MachineType> return_type,
+  Node* CallCFunction(Node* function, std::optional<MachineType> return_type,
                       std::initializer_list<CFunctionArg> args);
 
   Node* CallCFunctionWithoutFunctionDescriptor(
@@ -1485,7 +1485,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Node* CallJSStubImpl(const CallInterfaceDescriptor& descriptor,
                        TNode<Object> target, TNode<Object> context,
                        TNode<Object> function,
-                       base::Optional<TNode<Object>> new_target,
+                       std::optional<TNode<Object>> new_target,
                        TNode<Int32T> arity, std::initializer_list<Node*> args);
 
   Node* CallStubN(StubCallMode call_mode,

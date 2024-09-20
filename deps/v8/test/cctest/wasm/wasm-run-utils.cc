@@ -4,7 +4,8 @@
 
 #include "test/cctest/wasm/wasm-run-utils.h"
 
-#include "src/base/optional.h"
+#include <optional>
+
 #include "src/codegen/assembler-inl.h"
 #include "src/compiler/pipeline.h"
 #include "src/diagnostics/code-tracer.h"
@@ -87,9 +88,9 @@ TestingModuleBuilder::TestingModuleBuilder(
     // Manually compile an import wrapper and insert it into the instance.
     uint32_t canonical_type_index =
         GetTypeCanonicalizer()->AddRecursiveGroup(sig);
-    WasmImportData resolved({}, -1, maybe_import->js_function, sig,
-                            canonical_type_index,
-                            WellKnownImport::kUninstantiated);
+    ResolvedWasmImport resolved({}, -1, maybe_import->js_function, sig,
+                                canonical_type_index,
+                                WellKnownImport::kUninstantiated);
     ImportCallKind kind = resolved.kind();
     DirectHandle<JSReceiver> callable = resolved.callable();
     WasmImportWrapperCache::ModificationScope cache_scope(
@@ -105,8 +106,8 @@ TestingModuleBuilder::TestingModuleBuilder(
     }
 
     ImportedFunctionEntry(trusted_instance_data_, maybe_import_index)
-        .SetWasmToJs(isolate_, callable, import_wrapper, resolved.suspend(),
-                     sig);
+        .SetCompiledWasmToJs(isolate_, callable, import_wrapper,
+                             resolved.suspend(), sig);
   }
 }
 
@@ -299,10 +300,16 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
       WasmFunction& function = test_module_->functions[function_indexes[i]];
       int sig_id =
           test_module_->isorecursive_canonical_type_ids[function.sig_index];
-      FunctionTargetAndRef entry(isolate_, trusted_instance_data_,
-                                 function.func_index);
+      FunctionTargetAndImplicitArg entry(isolate_, trusted_instance_data_,
+                                         function.func_index);
+#if !V8_ENABLE_DRUMBRAKE
       trusted_instance_data_->dispatch_table(table_index)
-          ->Set(i, *entry.ref(), entry.call_target(), sig_id);
+          ->Set(i, *entry.implicit_arg(), entry.call_target(), sig_id);
+#else   // !V8_ENABLE_DRUMBRAKE
+      trusted_instance_data_->dispatch_table(table_index)
+          ->Set(i, *entry.implicit_arg(), entry.call_target(), sig_id,
+                function.func_index);
+#endif  // !V8_ENABLE_DRUMBRAKE
       WasmTableObject::SetFunctionTablePlaceholder(
           isolate_, table_obj, i, trusted_instance_data_, function_indexes[i]);
     }
@@ -342,7 +349,8 @@ uint32_t TestingModuleBuilder::AddException(const FunctionSig* sig) {
   uint32_t index = static_cast<uint32_t>(test_module_->tags.size());
   test_module_->tags.emplace_back(sig, AddSignature(sig));
   DirectHandle<WasmExceptionTag> tag = WasmExceptionTag::New(isolate_, index);
-  Handle<FixedArray> table(trusted_instance_data_->tags_table(), isolate_);
+  DirectHandle<FixedArray> table(trusted_instance_data_->tags_table(),
+                                 isolate_);
   table = isolate_->factory()->CopyFixedArrayAndGrow(table, 1);
   trusted_instance_data_->set_tags_table(*table);
   table->set(index, *tag);
@@ -529,7 +537,9 @@ void WasmFunctionCompiler::Build(base::Vector<const uint8_t> bytes) {
     env.module->set_function_validated(function_->func_index);
   }
 
-  base::Optional<WasmCompilationResult> result;
+  if (v8_flags.wasm_jitless) return;
+
+  std::optional<WasmCompilationResult> result;
   if (builder_->test_execution_tier() ==
       TestExecutionTier::kLiftoffForFuzzing) {
     result.emplace(ExecuteLiftoffCompilation(

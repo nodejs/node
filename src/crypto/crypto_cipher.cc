@@ -989,7 +989,7 @@ template <PublicKeyCipher::Operation operation,
           PublicKeyCipher::EVP_PKEY_cipher_t EVP_PKEY_cipher>
 bool PublicKeyCipher::Cipher(
     Environment* env,
-    const ManagedEVPPKey& pkey,
+    const EVPKeyPointer& pkey,
     int padding,
     const EVP_MD* digest,
     const ArrayBufferOrViewContents<unsigned char>& oaep_label,
@@ -1056,8 +1056,9 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   unsigned int offset = 0;
-  ManagedEVPPKey pkey =
-      ManagedEVPPKey::GetPublicOrPrivateKeyFromJs(args, &offset);
+  auto data = KeyObjectData::GetPublicOrPrivateKeyFromJs(args, &offset);
+  if (!data) return;
+  const auto& pkey = data.GetAsymmetricKey();
   if (!pkey)
     return;
 

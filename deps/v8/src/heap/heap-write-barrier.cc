@@ -14,6 +14,7 @@
 #include "src/objects/js-objects.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/slots-inl.h"
+#include "src/sandbox/js-dispatch-table-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -123,6 +124,18 @@ void WriteBarrier::MarkingSlow(Tagged<TrustedObject> host,
                                Tagged<TrustedObject> value) {
   MarkingBarrier* marking_barrier = CurrentMarkingBarrier(host);
   marking_barrier->Write(host, slot, value);
+}
+
+void WriteBarrier::MarkingSlow(Tagged<HeapObject> host,
+                               JSDispatchHandle handle) {
+#ifdef V8_ENABLE_LEAPTIERING
+  GetProcessWideJSDispatchTable()->Mark(handle);
+
+  // TODO(saelo): in the future, we'll probably need to mark the Code object in
+  // the table as well here.
+#else
+  UNREACHABLE();
+#endif
 }
 
 int WriteBarrier::MarkingFromCode(Address raw_host, Address raw_slot) {

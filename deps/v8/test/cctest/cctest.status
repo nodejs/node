@@ -397,6 +397,8 @@
   'test-run-wasm/RunWasmTurbofan_F32ReinterpretI32': [SKIP],
 
   'test-serialize/StaticRootsPredictableSnapshot': ['pointer_compression', SKIP],
+
+  'test-run-wasm-f16/*': [SKIP],
 }],  # 'arch == riscv64 or (arch == riscv32)'
 ['arch == riscv32', {
   # Some wasm functionality is not implemented yet.
@@ -434,6 +436,16 @@
   # Consumes too much memory on ODROIDs in debug mode and optimize_for_size.
   'test-code-generator/FuzzAssemble*': [PASS, ['(mode == debug) and optimize_for_size', SKIP]],
 }],  # 'system != android and arch in [arm, arm64] and not simulator_run'
+
+##############################################################################
+['arch == ppc64', {
+  # Generated instructions could differ due to codegen non-determinism
+  # which periodically fails this test on ppc. Test is also only targeting
+  # builds with static-roots enabled which is off by default on ppc.
+  # BUG(v8:42204346)
+  'test-serialize/StaticRootsPredictableSnapshot': [SKIP]
+
+}],  # 'arch == ppc64'
 
 ##############################################################################
 ['system == aix or (arch == ppc64 and byteorder == big)', {
@@ -539,6 +551,19 @@
   'test-wasm-trap-position/*': [SKIP],
   'wasm-run-utils/*': [SKIP],
 }],  # not has_webassembly or variant == jitless
+
+##############################################################################
+['has_wasm_interpreter', {
+  # Skip tests that require Wasm experimental features not supported by the
+  # Wasm interpreter.
+
+  # --experimental-wasm-memory64
+  'test-run-wasm-memory64/*': [SKIP],
+
+  # --experimental-wasm-fp16
+  'test-run-wasm-f16/*': [SKIP],
+
+ }],  # has_wasm_interpreter
 
 ##############################################################################
 ['lite_mode or variant == jitless', {

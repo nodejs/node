@@ -640,6 +640,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "set environment variables from supplied file",
             &EnvironmentOptions::env_file);
   Implies("--env-file", "[has_env_file_string]");
+  AddOption("--env-file-if-exists",
+            "set environment variables from supplied file",
+            &EnvironmentOptions::optional_env_file);
+  Implies("--env-file-if-exists", "[has_env_file_string]");
   AddOption("--test",
             "launch test runner on startup",
             &EnvironmentOptions::test_runner);
@@ -658,6 +662,19 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--experimental-test-coverage",
             "enable code coverage in the test runner",
             &EnvironmentOptions::test_runner_coverage);
+  AddOption("--test-coverage-branches",
+            "the branch coverage minimum threshold",
+            &EnvironmentOptions::test_coverage_branches,
+            kAllowedInEnvvar);
+  AddOption("--test-coverage-functions",
+            "the function coverage minimum threshold",
+            &EnvironmentOptions::test_coverage_functions,
+            kAllowedInEnvvar);
+  AddOption("--test-coverage-lines",
+            "the line coverage minimum threshold",
+            &EnvironmentOptions::test_coverage_lines,
+            kAllowedInEnvvar);
+
   AddOption("--experimental-test-isolation",
             "configures the type of test isolation used in the test runner",
             &EnvironmentOptions::test_isolation);
@@ -1148,7 +1165,7 @@ inline uint16_t ParseAndValidatePort(const std::string_view port,
 
   if (r.ec == std::errc::result_out_of_range ||
       (result != 0 && result < 1024)) {
-    errors->push_back(" must be 0 or in range 1024 to 65535.");
+    errors->push_back("must be 0 or in range 1024 to 65535.");
   }
 
   return result;

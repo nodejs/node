@@ -173,25 +173,24 @@ A typical function that communicates between JavaScript and C++ is as follows.
   // We could also require a function that uses the internal binding internally.
   const { divide } = internalBinding('custom_namespace');
 
+  // The function that will be optimized. It has to be a function written in
+  // JavaScript. Since `divide` comes from the C++ side, we need to wrap it.
+  function testFastPath(a, b) {
+    return divide(a, b);
+  }
+
+  eval('%PrepareFunctionForOptimization(testFastPath)');
+  // This call will let V8 know about the argument types that the function expects.
+  assert.strictEqual(testFastPath(6, 3), 2);
+
+  eval('%OptimizeFunctionOnNextCall(testFastPath)');
+  assert.strictEqual(testFastPath(8, 2), 4);
+  assert.throws(() => testFastPath(1, 0), {
+    code: 'ERR_INVALID_STATE',
+  });
+
   if (common.isDebug) {
     const { getV8FastApiCallCount } = internalBinding('debug');
-
-    // The function that will be optimized. It has to be a function written in
-    // JavaScript. Since `divide` comes from the C++ side, we need to wrap it.
-    function testFastPath(a, b) {
-      return divide(a, b);
-    }
-
-    eval('%PrepareFunctionForOptimization(testFastPath)');
-    // This call will let V8 know about the argument types that the function expects.
-    assert.strictEqual(testFastPath(6, 3), 2);
-
-    eval('%OptimizeFunctionOnNextCall(testFastPath)');
-    assert.strictEqual(testFastPath(8, 2), 4);
-    assert.throws(() => testFastPath(1, 0), {
-      code: 'ERR_INVALID_STATE',
-    });
-
     assert.strictEqual(getV8FastApiCallCount('custom_namespace.divide.ok'), 1);
     assert.strictEqual(getV8FastApiCallCount('custom_namespace.divide.error'), 1);
   }

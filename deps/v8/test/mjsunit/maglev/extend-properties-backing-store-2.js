@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 //
 // Flags: --allow-natives-syntax --maglev
-// Flags: --maglev-extend-properties-backing-store
 
 function addProperties(o) {
   // Add enough properties to exhaust the slack, so that adding the property

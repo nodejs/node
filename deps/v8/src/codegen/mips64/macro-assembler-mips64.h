@@ -9,6 +9,8 @@
 #ifndef V8_CODEGEN_MIPS64_MACRO_ASSEMBLER_MIPS64_H_
 #define V8_CODEGEN_MIPS64_MACRO_ASSEMBLER_MIPS64_H_
 
+#include <optional>
+
 #include "src/codegen/assembler.h"
 #include "src/codegen/mips64/assembler-mips64.h"
 #include "src/common/globals.h"
@@ -1321,9 +1323,9 @@ struct MoveCycleState {
   // {MoveToTempLocation}.
   RegList scratch_regs;
   // Available scratch registers during the move cycle resolution scope.
-  base::Optional<UseScratchRegisterScope> temps;
+  std::optional<UseScratchRegisterScope> temps;
   // Scratch register picked by {MoveToTempLocation}.
-  base::Optional<Register> scratch_reg;
+  std::optional<Register> scratch_reg;
 };
 
 // Provides access to exit frame parameters (GC-ed).

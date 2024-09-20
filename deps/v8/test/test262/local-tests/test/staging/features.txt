@@ -41,10 +41,6 @@ import-assertions
 # https://github.com/tc39/proposal-json-modules
 json-modules
 
-# ArrayBuffer transfer
-# https://github.com/tc39/proposal-arraybuffer-transfer
-arraybuffer-transfer
-
 # Temporal
 # https://github.com/tc39/proposal-temporal
 Temporal
@@ -71,6 +67,10 @@ Array.fromAsync
 # JSON.parse with source
 # https://github.com/tc39/proposal-json-parse-with-source
 json-parse-with-source
+
+# RegExp.escape
+# https://github.com/tc39/proposal-regex-escaping
+RegExp.escape
 
 # Regular expression modifiers
 # https://github.com/tc39/proposal-regexp-modifiers
@@ -129,6 +129,7 @@ Array.prototype.includes
 Array.prototype.values
 Atomics.waitAsync
 array-grouping
+arraybuffer-transfer
 arrow-function
 async-iteration
 async-functions

@@ -16,7 +16,7 @@
     "path": "dom/abort"
   },
   "dom/events": {
-    "commit": "ab8999891c6225bef1741c2960033aad620481a8",
+    "commit": "0a811c51619b14f78fec60ba7dd1603795ca6a21",
     "path": "dom/events"
   },
   "encoding": {
@@ -88,7 +88,7 @@
     "path": "wasm/webapi"
   },
   "WebCryptoAPI": {
-    "commit": "5e042cbc4ecab7b2279a5fd411c6daa24ca886c6",
+    "commit": "272064ebf9a3d313a2d4db8bb9ce2790648aa162",
     "path": "WebCryptoAPI"
   },
   "webidl/ecmascript-binding/es-exceptions": {

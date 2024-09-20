@@ -138,15 +138,11 @@ RUNTIME_FUNCTION(Runtime_DeclareModuleExports) {
   DirectHandle<FixedArray> declarations = args.at<FixedArray>(0);
   DirectHandle<JSFunction> closure = args.at<JSFunction>(1);
 
-  Handle<ClosureFeedbackCellArray> closure_feedback_cell_array =
-      Handle<ClosureFeedbackCellArray>::null();
-  if (closure->has_feedback_vector()) {
-    closure_feedback_cell_array = Handle<ClosureFeedbackCellArray>(
-        closure->feedback_vector()->closure_feedback_cell_array(), isolate);
-  } else {
-    closure_feedback_cell_array = Handle<ClosureFeedbackCellArray>(
-        closure->closure_feedback_cell_array(), isolate);
-  }
+  DirectHandle<ClosureFeedbackCellArray> closure_feedback_cell_array(
+      closure->has_feedback_vector()
+          ? closure->feedback_vector()->closure_feedback_cell_array()
+          : closure->closure_feedback_cell_array(),
+      isolate);
 
   Handle<Context> context(isolate->context(), isolate);
   DCHECK(context->IsModuleContext());
@@ -189,15 +185,11 @@ RUNTIME_FUNCTION(Runtime_DeclareGlobals) {
   Handle<JSGlobalObject> global(isolate->global_object());
   Handle<Context> context(isolate->context(), isolate);
 
-  Handle<ClosureFeedbackCellArray> closure_feedback_cell_array =
-      Handle<ClosureFeedbackCellArray>::null();
-  if (closure->has_feedback_vector()) {
-    closure_feedback_cell_array = Handle<ClosureFeedbackCellArray>(
-        closure->feedback_vector()->closure_feedback_cell_array(), isolate);
-  } else {
-    closure_feedback_cell_array = Handle<ClosureFeedbackCellArray>(
-        closure->closure_feedback_cell_array(), isolate);
-  }
+  DirectHandle<ClosureFeedbackCellArray> closure_feedback_cell_array(
+      closure->has_feedback_vector()
+          ? closure->feedback_vector()->closure_feedback_cell_array()
+          : closure->closure_feedback_cell_array(),
+      isolate);
 
   // Traverse the name/value pairs and set the properties.
   int length = declarations->length();
@@ -244,7 +236,7 @@ RUNTIME_FUNCTION(Runtime_InitializeDisposableStack) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
 
-  Handle<JSDisposableStackBase> disposable_stack =
+  DirectHandle<JSDisposableStackBase> disposable_stack =
       isolate->factory()->NewJSDisposableStackBase();
   JSDisposableStackBase::InitializeJSDisposableStackBase(isolate,
                                                          disposable_stack);

@@ -320,7 +320,6 @@ std::ostream& operator<<(std::ostream& output, const SnapshotMetadata& i) {
          << "  \"" << i.node_version << "\", // node_version\n"
          << "  \"" << i.node_arch << "\", // node_arch\n"
          << "  \"" << i.node_platform << "\", // node_platform\n"
-         << "  " << i.v8_cache_version_tag << ", // v8_cache_version_tag\n"
          << "  " << i.flags << ", // flags\n"
          << "}";
   return output;
@@ -1124,12 +1123,23 @@ void Environment::InitializeCompileCache() {
 CompileCacheEnableResult Environment::EnableCompileCache(
     const std::string& cache_dir) {
   CompileCacheEnableResult result;
+  std::string disable_env;
+  if (credentials::SafeGetenv(
+          "NODE_DISABLE_COMPILE_CACHE", &disable_env, env_vars())) {
+    result.status = CompileCacheEnableStatus::DISABLED;
+    result.message = "Disabled by NODE_DISABLE_COMPILE_CACHE";
+    Debug(this,
+          DebugCategory::COMPILE_CACHE,
+          "[compile cache] %s.\n",
+          result.message);
+    return result;
+  }
 
   if (!compile_cache_handler_) {
     std::unique_ptr<CompileCacheHandler> handler =
         std::make_unique<CompileCacheHandler>(this);
     result = handler->Enable(this, cache_dir);
-    if (result.status == CompileCacheEnableStatus::kEnabled) {
+    if (result.status == CompileCacheEnableStatus::ENABLED) {
       compile_cache_handler_ = std::move(handler);
       AtExit(
           [](void* env) {
@@ -1144,7 +1154,7 @@ CompileCacheEnableResult Environment::EnableCompileCache(
             result.message);
     }
   } else {
-    result.status = CompileCacheEnableStatus::kAlreadyEnabled;
+    result.status = CompileCacheEnableStatus::ALREADY_ENABLED;
     result.cache_directory = compile_cache_handler_->cache_dir();
   }
   return result;
@@ -1268,6 +1278,11 @@ void Environment::RunCleanup() {
   // Only BaseObject's cleanups are registered as per-realm cleanup hooks now.
   // Defer the BaseObject cleanup after handles are cleaned up.
   CleanupHandles();
+
+  while (!cleanable_queue_.IsEmpty()) {
+    Cleanable* cleanable = cleanable_queue_.PopFront();
+    cleanable->Clean();
+  }
 
   while (!cleanup_queue_.empty() || principal_realm_->HasCleanupHooks() ||
          native_immediates_.size() > 0 ||

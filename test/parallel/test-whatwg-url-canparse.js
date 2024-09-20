@@ -19,9 +19,8 @@ assert.throws(() => {
 // It should not throw when called without a base string
 assert.strictEqual(URL.canParse('https://example.org'), true);
 
-if (common.isDebug) {
-  const { getV8FastApiCallCount } = internalBinding('debug');
-
+{
+  // V8 Fast API
   function testFastPaths() {
     // `canParse` binding has two overloads.
     assert.strictEqual(URL.canParse('https://www.example.com/path/?query=param#hash'), true);
@@ -33,6 +32,9 @@ if (common.isDebug) {
   eval('%OptimizeFunctionOnNextCall(URL.canParse)');
   testFastPaths();
 
-  assert.strictEqual(getV8FastApiCallCount('url.canParse'), 1);
-  assert.strictEqual(getV8FastApiCallCount('url.canParse.withBase'), 1);
+  if (common.isDebug) {
+    const { getV8FastApiCallCount } = internalBinding('debug');
+    assert.strictEqual(getV8FastApiCallCount('url.canParse'), 1);
+    assert.strictEqual(getV8FastApiCallCount('url.canParse.withBase'), 1);
+  }
 }

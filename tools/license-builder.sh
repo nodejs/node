@@ -40,6 +40,8 @@ licenseText="$(cat "${rootdir}/deps/v8/third_party/ittapi/LICENSES/BSD-3-Clause.
 addlicense "ittapi" "deps/v8/third_party/ittapi" "$licenseText"
 licenseText="$(cat "${rootdir}/deps/amaro/LICENSE.md")"
 addlicense "amaro" "deps/amaro" "$licenseText"
+licenseText="$(cat "${rootdir}/deps/amaro/dist/LICENSE")"
+addlicense "swc" "deps/amaro/dist" "$licenseText"
 if [ -f "${rootdir}/deps/icu/LICENSE" ]; then
   # ICU 57 and following. Drop the BOM
   licenseText="$(sed -e '1s/^[^a-zA-Z ]*ICU/ICU/' -e :a -e 's/<[^>]*>//g;s/	/ /g;s/ +$//;/</N;//ba' "${rootdir}/deps/icu/LICENSE")"
@@ -109,8 +111,6 @@ licenseText="$(sed -e '/^$/,$d' -e 's/^#$//' -e 's/^# //' "${rootdir}/tools/cppl
 addlicense "cpplint.py" "tools/cpplint.py" "$licenseText"
 licenseText="$(sed -e '/^$/,$d' -e 's/^#$//' -e 's/^# //' "${rootdir}/tools/gypi_to_gn.py" | tail -n +3)"
 addlicense "gypi_to_gn.py" "tools/gypi_to_gn.py" "$licenseText"
-licenseText="$(cat "${rootdir}/tools/eslint/node_modules/eslint/LICENSE")"
-addlicense "ESLint" "tools/eslint/node_modules/eslint" "$licenseText"
 licenseText="$(cat "${rootdir}/deps/googletest/LICENSE")"
 addlicense "gtest" "deps/googletest" "$licenseText"
 

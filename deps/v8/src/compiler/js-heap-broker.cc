@@ -4,6 +4,8 @@
 
 #include "src/compiler/js-heap-broker.h"
 
+#include <optional>
+
 #ifdef ENABLE_SLOW_DCHECKS
 #include <algorithm>
 #endif
@@ -338,7 +340,7 @@ OptionalObjectRef GlobalAccessFeedback::GetConstantHint(
   } else if (IsScriptContextSlot() && immutable()) {
     return script_context().get(broker, slot_index());
   } else {
-    return base::nullopt;
+    return std::nullopt;
   }
 }
 
@@ -501,7 +503,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
       if (map.is_deprecated()) {
         // TODO(ishell): support fast map updating if we enable it.
         CHECK(!v8_flags.fast_map_update);
-        base::Optional<Tagged<Map>> maybe_map = MapUpdater::TryUpdateNoLock(
+        std::optional<Tagged<Map>> maybe_map = MapUpdater::TryUpdateNoLock(
             isolate(), *map.object(), ConcurrencyMode::kConcurrent);
         if (maybe_map.has_value()) {
           map = MakeRefAssumeMemoryFence(this, maybe_map.value());
@@ -859,13 +861,16 @@ ElementAccessFeedback const& JSHeapBroker::ProcessFeedbackMapsForElementAccess(
     Tagged<Map> transition_target;
 
     // Don't generate elements kind transitions from stable maps.
-    if (!map.is_stable()) {
+    if (!map.is_stable() && possible_transition_targets.begin() != possible_transition_targets.end()) {
       // The lock is needed for UnusedPropertyFields (called deep inside
       // FindElementsKindTransitionedMap).
       MapUpdaterGuardIfNeeded mumd_scope(this);
 
       transition_target = map.object()->FindElementsKindTransitionedMap(
-          isolate(), possible_transition_targets, ConcurrencyMode::kConcurrent);
+          isolate(),
+          MapHandlesSpan(possible_transition_targets.begin(),
+                         possible_transition_targets.end()),
+          ConcurrencyMode::kConcurrent);
     }
 
     if (transition_target.is_null()) {
@@ -911,7 +916,7 @@ void ElementAccessFeedback::AddGroup(TransitionGroup&& group) {
 
 OptionalNameRef JSHeapBroker::GetNameFeedback(FeedbackNexus const& nexus) {
   Tagged<Name> raw_name = nexus.GetName();
-  if (raw_name.is_null()) return base::nullopt;
+  if (raw_name.is_null()) return std::nullopt;
   return MakeRefAssumeMemoryFence(this, raw_name);
 }
 

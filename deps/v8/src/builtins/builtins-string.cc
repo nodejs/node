@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <optional>
+
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
@@ -148,7 +150,7 @@ BUILTIN(StringPrototypeLocaleCompare) {
   Handle<String> str2;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, str2, Object::ToString(isolate, args.atOrUndefined(isolate, 1)));
-  base::Optional<int> result = Intl::StringLocaleCompare(
+  std::optional<int> result = Intl::StringLocaleCompare(
       isolate, str1, str2, args.atOrUndefined(isolate, 2),
       args.atOrUndefined(isolate, 3), kMethod);
   if (!result.has_value()) {

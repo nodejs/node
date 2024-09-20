@@ -4,11 +4,11 @@
 
 #include "src/ast/scopes.h"
 
+#include <optional>
 #include <set>
 
 #include "src/ast/ast.h"
 #include "src/base/logging.h"
-#include "src/base/optional.h"
 #include "src/builtins/accessors.h"
 #include "src/common/message-template.h"
 #include "src/heap/local-factory-inl.h"
@@ -374,6 +374,8 @@ void Scope::SetDefaults() {
   has_using_declaration_ = false;
   has_await_using_declaration_ = false;
 
+  is_wrapped_function_ = false;
+
   num_stack_slots_ = 0;
   num_heap_slots_ = ContextHeaderLength();
 
@@ -417,7 +419,8 @@ Scope* Scope::DeserializeScopeChain(IsolateT* isolate, Zone* zone,
                                     Tagged<ScopeInfo> scope_info,
                                     DeclarationScope* script_scope,
                                     AstValueFactory* ast_value_factory,
-                                    DeserializationMode deserialization_mode) {
+                                    DeserializationMode deserialization_mode,
+                                    ParseInfo* parse_info) {
   // Reconstruct the outer scope chain from a closure's context chain.
   Scope* current_scope = nullptr;
   Scope* innermost_scope = nullptr;
@@ -470,6 +473,9 @@ Scope* Scope::DeserializeScopeChain(IsolateT* isolate, Zone* zone,
     } else if (scope_info->scope_type() == MODULE_SCOPE) {
       outer_scope = zone->New<ModuleScope>(handle(scope_info, isolate),
                                            ast_value_factory);
+      if (parse_info) {
+        parse_info->set_has_module_in_scope_chain();
+      }
     } else {
       DCHECK_EQ(scope_info->scope_type(), CATCH_SCOPE);
       DCHECK_EQ(scope_info->ContextLocalCount(), 1);
@@ -536,12 +542,12 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Scope* Scope::DeserializeScopeChain(
         Isolate* isolate, Zone* zone, Tagged<ScopeInfo> scope_info,
         DeclarationScope* script_scope, AstValueFactory* ast_value_factory,
-        DeserializationMode deserialization_mode);
+        DeserializationMode deserialization_mode, ParseInfo* parse_info);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Scope* Scope::DeserializeScopeChain(
         LocalIsolate* isolate, Zone* zone, Tagged<ScopeInfo> scope_info,
         DeclarationScope* script_scope, AstValueFactory* ast_value_factory,
-        DeserializationMode deserialization_mode);
+        DeserializationMode deserialization_mode, ParseInfo* parse_info);
 
 DeclarationScope* Scope::AsDeclarationScope() {
   // Here and below: if an attacker corrupts the in-sandox SFI::unique_id or
@@ -694,7 +700,7 @@ bool DeclarationScope::Analyze(ParseInfo* info) {
   DCHECK_NOT_NULL(info->literal());
   DeclarationScope* scope = info->literal()->scope();
 
-  base::Optional<AllowHandleDereference> allow_deref;
+  std::optional<AllowHandleDereference> allow_deref;
 #ifdef DEBUG
   if (scope->outer_scope() && !scope->outer_scope()->scope_info_.is_null()) {
     allow_deref.emplace();
@@ -2589,8 +2595,9 @@ void DeclarationScope::AllocateLocals() {
     new_target_ = nullptr;
   }
 
-  NullifyRareVariableIf(RareVariable::kThisFunction,
-                        [=](Variable* var) { return !MustAllocate(var); });
+  NullifyRareVariableIf(RareVariable::kThisFunction, [=, this](Variable* var) {
+    return !MustAllocate(var);
+  });
 }
 
 void ModuleScope::AllocateModuleVariables() {
@@ -2610,10 +2617,16 @@ void ModuleScope::AllocateModuleVariables() {
 // Needs to be kept in sync with ScopeInfo::UniqueIdInScript and
 // SharedFunctionInfo::UniqueIdInScript.
 int Scope::UniqueIdInScript() const {
+  DCHECK(!is_hidden_catch_scope());
   // Script scopes start "before" the script to avoid clashing with a scope that
   // starts on character 0.
   if (is_script_scope() || scope_type() == EVAL_SCOPE ||
       scope_type() == MODULE_SCOPE) {
+    return -2;
+  }
+  // Wrapped functions start before the function body, but after the script
+  // start, to avoid clashing with a scope starting on character 0.
+  if (is_wrapped_function()) {
     return -1;
   }
   if (is_declaration_scope()) {
@@ -2682,7 +2695,9 @@ void Scope::AllocateScopeInfosRecursively(
   DCHECK(scope_info_.is_null());
   MaybeHandle<ScopeInfo> next_outer_scope = outer_scope;
 
-  auto it = scope_infos_to_reuse.find(UniqueIdInScript());
+  auto it = is_hidden_catch_scope()
+                ? scope_infos_to_reuse.end()
+                : scope_infos_to_reuse.find(UniqueIdInScript());
   if (it != scope_infos_to_reuse.end()) {
     scope_info_ = it->second;
     CHECK(NeedsContext());
@@ -2698,15 +2713,15 @@ void Scope::AllocateScopeInfosRecursively(
     it->second = {};
 #endif
   } else if (NeedsScopeInfo()) {
+    scope_info_ = ScopeInfo::Create(isolate, zone(), this, outer_scope);
 #ifdef DEBUG
     // Mark this ID as being used. Skip hidden scopes because they are
     // synthetic, unreusable, but hard to make unique.
     if (v8_flags.reuse_scope_infos && !is_hidden_catch_scope()) {
       scope_infos_to_reuse[UniqueIdInScript()] = {};
+      DCHECK_EQ(UniqueIdInScript(), scope_info_->UniqueIdInScript());
     }
 #endif
-    scope_info_ = ScopeInfo::Create(isolate, zone(), this, outer_scope);
-    DCHECK_EQ(UniqueIdInScript(), scope_info_->UniqueIdInScript());
     // The ScopeInfo chain mirrors the context chain, so we only link to the
     // next outer scope that needs a context.
     if (NeedsContext()) next_outer_scope = scope_info_;
@@ -2714,8 +2729,14 @@ void Scope::AllocateScopeInfosRecursively(
 
   // Allocate ScopeInfos for inner scopes.
   for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
-    DCHECK_IMPLIES(scope->sibling_, scope->sibling_->UniqueIdInScript() !=
-                                        scope->UniqueIdInScript());
+#ifdef DEBUG
+    if (!scope->is_hidden_catch_scope()) {
+      DCHECK_GT(scope->UniqueIdInScript(), UniqueIdInScript());
+      DCHECK_IMPLIES(
+          scope->sibling_ && !scope->sibling_->is_hidden_catch_scope(),
+          scope->sibling_->UniqueIdInScript() != scope->UniqueIdInScript());
+    }
+#endif
     if (!scope->is_function_scope() ||
         scope->AsDeclarationScope()->ShouldEagerCompile()) {
       scope->AllocateScopeInfosRecursively(isolate, next_outer_scope,
@@ -2777,7 +2798,7 @@ void DeclarationScope::RecordNeedsPrivateNameContextChainRecalc() {
 // static
 template <typename IsolateT>
 void DeclarationScope::AllocateScopeInfos(ParseInfo* info,
-                                          Handle<Script> script,
+                                          DirectHandle<Script> script,
                                           IsolateT* isolate) {
   DeclarationScope* scope = info->literal()->scope();
 
@@ -2859,9 +2880,9 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* info,
 }
 
 template V8_EXPORT_PRIVATE void DeclarationScope::AllocateScopeInfos(
-    ParseInfo* info, Handle<Script> script, Isolate* isolate);
+    ParseInfo* info, DirectHandle<Script> script, Isolate* isolate);
 template V8_EXPORT_PRIVATE void DeclarationScope::AllocateScopeInfos(
-    ParseInfo* info, Handle<Script> script, LocalIsolate* isolate);
+    ParseInfo* info, DirectHandle<Script> script, LocalIsolate* isolate);
 
 int Scope::ContextLocalCount() const {
   if (num_heap_slots() == 0) return 0;

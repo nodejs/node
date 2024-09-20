@@ -37,11 +37,17 @@ function refresh() {
     .forEach(([file, content]) => writeFileSync(fixturePaths[file], content));
 }
 
-async function testWatch({ fileToUpdate, file, action = 'update' }) {
+async function testWatch({
+  fileToUpdate,
+  file,
+  action = 'update',
+  fileToCreate,
+}) {
   const ran1 = util.createDeferredPromise();
   const ran2 = util.createDeferredPromise();
   const child = spawn(process.execPath,
-                      ['--watch', '--test', file ? fixturePaths[file] : undefined].filter(Boolean),
+                      ['--watch', '--test', '--test-reporter=spec',
+                       file ? fixturePaths[file] : undefined].filter(Boolean),
                       { encoding: 'utf8', stdio: 'pipe', cwd: tmpdir.path });
   let stdout = '';
   let currentRun = '';
@@ -50,7 +56,7 @@ async function testWatch({ fileToUpdate, file, action = 'update' }) {
   child.stdout.on('data', (data) => {
     stdout += data.toString();
     currentRun += data.toString();
-    const testRuns = stdout.match(/# duration_ms\s\d+/g);
+    const testRuns = stdout.match(/duration_ms\s\d+/g);
     if (testRuns?.length >= 1) ran1.resolve();
     if (testRuns?.length >= 2) ran2.resolve();
   });
@@ -71,10 +77,10 @@ async function testWatch({ fileToUpdate, file, action = 'update' }) {
     assert.strictEqual(runs.length, 2);
 
     for (const run of runs) {
-      assert.match(run, /# tests 1/);
-      assert.match(run, /# pass 1/);
-      assert.match(run, /# fail 0/);
-      assert.match(run, /# cancelled 0/);
+      assert.match(run, /tests 1/);
+      assert.match(run, /pass 1/);
+      assert.match(run, /fail 0/);
+      assert.match(run, /cancelled 0/);
     }
   };
 
@@ -94,10 +100,10 @@ async function testWatch({ fileToUpdate, file, action = 'update' }) {
     assert.strictEqual(runs.length, 2);
 
     for (const run of runs) {
-      assert.match(run, /# tests 1/);
-      assert.match(run, /# pass 1/);
-      assert.match(run, /# fail 0/);
-      assert.match(run, /# cancelled 0/);
+      assert.match(run, /tests 1/);
+      assert.match(run, /pass 1/);
+      assert.match(run, /fail 0/);
+      assert.match(run, /cancelled 0/);
     }
   };
 
@@ -126,9 +132,36 @@ async function testWatch({ fileToUpdate, file, action = 'update' }) {
     }
   };
 
+  const testCreate = async () => {
+    await ran1.promise;
+    runs.push(currentRun);
+    currentRun = '';
+    const newFilePath = tmpdir.resolve(fileToCreate);
+    const interval = setInterval(
+      () => writeFileSync(
+        newFilePath,
+        'module.exports = {};'
+      ),
+      common.platformTimeout(1000)
+    );
+    await ran2.promise;
+    runs.push(currentRun);
+    clearInterval(interval);
+    child.kill();
+    await once(child, 'exit');
+
+    for (const run of runs) {
+      assert.match(run, /tests 1/);
+      assert.match(run, /pass 1/);
+      assert.match(run, /fail 0/);
+      assert.match(run, /cancelled 0/);
+    }
+  };
+
   action === 'update' && await testUpdate();
   action === 'rename' && await testRename();
   action === 'delete' && await testDelete();
+  action === 'create' && await testCreate();
 }
 
 describe('test runner watch mode', () => {
@@ -153,7 +186,11 @@ describe('test runner watch mode', () => {
     await testWatch({ fileToUpdate: 'test.js', action: 'rename' });
   });
 
-  it('should not throw when delete a watched test file', { skip: common.isAIX }, async () => {
+  it('should not throw when delete a watched test file', async () => {
     await testWatch({ fileToUpdate: 'test.js', action: 'delete' });
+  });
+
+  it('should run new tests when a new file is created in the watched directory', async () => {
+    await testWatch({ action: 'create', fileToCreate: 'new-test-file.test.js' });
   });
 });

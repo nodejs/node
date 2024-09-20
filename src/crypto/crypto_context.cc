@@ -314,6 +314,8 @@ Local<FunctionTemplate> SecureContext::GetConstructorTemplate(
     SetProtoMethod(isolate, tmpl, "setKey", SetKey);
     SetProtoMethod(isolate, tmpl, "setCert", SetCert);
     SetProtoMethod(isolate, tmpl, "addCACert", AddCACert);
+    SetProtoMethod(
+        isolate, tmpl, "setAllowPartialTrustChain", SetAllowPartialTrustChain);
     SetProtoMethod(isolate, tmpl, "addCRL", AddCRL);
     SetProtoMethod(isolate, tmpl, "addRootCerts", AddRootCerts);
     SetProtoMethod(isolate, tmpl, "setCipherSuites", SetCipherSuites);
@@ -390,6 +392,7 @@ void SecureContext::RegisterExternalReferences(
   registry->Register(AddCACert);
   registry->Register(AddCRL);
   registry->Register(AddRootCerts);
+  registry->Register(SetAllowPartialTrustChain);
   registry->Register(SetCipherSuites);
   registry->Register(SetCiphers);
   registry->Register(SetSigalgs);
@@ -610,15 +613,14 @@ void SecureContext::SetKeylogCallback(KeylogCb cb) {
   SSL_CTX_set_keylog_callback(ctx_.get(), cb);
 }
 
-Maybe<void> SecureContext::UseKey(Environment* env,
-                                  std::shared_ptr<KeyObjectData> key) {
-  if (key->GetKeyType() != KeyType::kKeyTypePrivate) {
+Maybe<void> SecureContext::UseKey(Environment* env, const KeyObjectData& key) {
+  if (key.GetKeyType() != KeyType::kKeyTypePrivate) {
     THROW_ERR_CRYPTO_INVALID_KEYTYPE(env);
     return Nothing<void>();
   }
 
   ClearErrorOnReturn clear_error_on_return;
-  if (!SSL_CTX_use_PrivateKey(ctx_.get(), key->GetAsymmetricKey().get())) {
+  if (!SSL_CTX_use_PrivateKey(ctx_.get(), key.GetAsymmetricKey().get())) {
     ThrowCryptoError(env, ERR_get_error(), "SSL_CTX_use_PrivateKey");
     return Nothing<void>();
   }
@@ -753,17 +755,39 @@ void SecureContext::SetCert(const FunctionCallbackInfo<Value>& args) {
   USE(sc->AddCert(env, std::move(bio)));
 }
 
+// NOLINTNEXTLINE(runtime/int)
+void SecureContext::SetX509StoreFlag(unsigned long flags) {
+  X509_STORE* cert_store = GetCertStoreOwnedByThisSecureContext();
+  CHECK_EQ(1, X509_STORE_set_flags(cert_store, flags));
+}
+
+X509_STORE* SecureContext::GetCertStoreOwnedByThisSecureContext() {
+  if (own_cert_store_cache_ != nullptr) return own_cert_store_cache_;
+
+  X509_STORE* cert_store = SSL_CTX_get_cert_store(ctx_.get());
+  if (cert_store == GetOrCreateRootCertStore()) {
+    cert_store = NewRootCertStore();
+    SSL_CTX_set_cert_store(ctx_.get(), cert_store);
+  }
+
+  return own_cert_store_cache_ = cert_store;
+}
+
+void SecureContext::SetAllowPartialTrustChain(
+    const FunctionCallbackInfo<Value>& args) {
+  SecureContext* sc;
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
+  sc->SetX509StoreFlag(X509_V_FLAG_PARTIAL_CHAIN);
+}
+
 void SecureContext::SetCACert(const BIOPointer& bio) {
   ClearErrorOnReturn clear_error_on_return;
   if (!bio) return;
-  X509_STORE* cert_store = SSL_CTX_get_cert_store(ctx_.get());
   while (X509Pointer x509 = X509Pointer(PEM_read_bio_X509_AUX(
              bio.get(), nullptr, NoPasswordCallback, nullptr))) {
-    if (cert_store == GetOrCreateRootCertStore()) {
-      cert_store = NewRootCertStore();
-      SSL_CTX_set_cert_store(ctx_.get(), cert_store);
-    }
-    CHECK_EQ(1, X509_STORE_add_cert(cert_store, x509.get()));
+    CHECK_EQ(1,
+             X509_STORE_add_cert(GetCertStoreOwnedByThisSecureContext(),
+                                 x509.get()));
     CHECK_EQ(1, SSL_CTX_add_client_CA(ctx_.get(), x509.get()));
   }
 }
@@ -793,11 +817,7 @@ Maybe<void> SecureContext::SetCRL(Environment* env, const BIOPointer& bio) {
     return Nothing<void>();
   }
 
-  X509_STORE* cert_store = SSL_CTX_get_cert_store(ctx_.get());
-  if (cert_store == GetOrCreateRootCertStore()) {
-    cert_store = NewRootCertStore();
-    SSL_CTX_set_cert_store(ctx_.get(), cert_store);
-  }
+  X509_STORE* cert_store = GetCertStoreOwnedByThisSecureContext();
 
   CHECK_EQ(1, X509_STORE_add_crl(cert_store, crl.get()));
   CHECK_EQ(1,
@@ -1080,8 +1100,6 @@ void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
   sc->issuer_.reset();
   sc->cert_.reset();
 
-  X509_STORE* cert_store = SSL_CTX_get_cert_store(sc->ctx_.get());
-
   DeleteFnPtr<PKCS12, PKCS12_free> p12;
   EVPKeyPointer pkey;
   X509Pointer cert;
@@ -1135,11 +1153,7 @@ void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
   for (int i = 0; i < sk_X509_num(extra_certs.get()); i++) {
     X509* ca = sk_X509_value(extra_certs.get(), i);
 
-    if (cert_store == GetOrCreateRootCertStore()) {
-      cert_store = NewRootCertStore();
-      SSL_CTX_set_cert_store(sc->ctx_.get(), cert_store);
-    }
-    X509_STORE_add_cert(cert_store, ca);
+    X509_STORE_add_cert(sc->GetCertStoreOwnedByThisSecureContext(), ca);
     SSL_CTX_add_client_CA(sc->ctx_.get(), ca);
   }
   ret = true;
@@ -1148,6 +1162,16 @@ done:
   if (!ret) {
     // TODO(@jasnell): Should this use ThrowCryptoError?
     unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
+
+#if OPENSSL_VERSION_MAJOR >= 3
+    if (ERR_GET_REASON(err) == ERR_R_UNSUPPORTED) {
+      // OpenSSL's "unsupported" error without any context is very
+      // common and not very helpful, so we override it:
+      return THROW_ERR_CRYPTO_UNSUPPORTED_OPERATION(
+          env, "Unsupported PKCS12 PFX data");
+    }
+#endif
+
     const char* str = ERR_reason_error_string(err);
     str = str != nullptr ? str : "Unknown error";
 

@@ -148,7 +148,7 @@ void BuiltinStringFromCharCode::GenerateCode(MaglevAssembler* masm,
           Immediate(char_code));
     }
   } else {
-    MaglevAssembler::ScratchRegisterScope temps(masm);
+    MaglevAssembler::TemporaryRegisterScope temps(masm);
     Register scratch = temps.Acquire();
     Register char_code = ToRegister(code_input());
     __ StringFromCharCode(register_snapshot(), nullptr, result_string,
@@ -206,7 +206,7 @@ void Int32MultiplyWithOverflow::GenerateCode(MaglevAssembler* masm,
   Register right = ToRegister(right_input());
   DCHECK_EQ(result, ToRegister(left_input()));
 
-  MaglevAssembler::ScratchRegisterScope temps(masm);
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
   Register saved_left = temps.Acquire();
   __ movl(saved_left, result);
   // TODO(leszeks): peephole optimise multiplication by a constant.
@@ -640,7 +640,7 @@ void Float64Round::GenerateCode(MaglevAssembler* masm,
   DoubleRegister out = ToDoubleRegister(result());
 
   if (kind_ == Kind::kNearest) {
-    MaglevAssembler::ScratchRegisterScope temps(masm);
+    MaglevAssembler::TemporaryRegisterScope temps(masm);
     DoubleRegister temp = temps.AcquireDouble();
     __ Move(temp, in);
     __ Roundsd(out, in, kRoundToNearest);
@@ -753,7 +753,7 @@ void HandleInterruptsAndTiering(MaglevAssembler* masm, ZoneLabelRef done,
 
 void GenerateReduceInterruptBudget(MaglevAssembler* masm, Node* node,
                                    ReduceInterruptBudgetType type, int amount) {
-  MaglevAssembler::ScratchRegisterScope temps(masm);
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
   Register scratch = temps.Acquire();
   __ movq(scratch, MemOperand(rbp, StandardFrameConstants::kFunctionOffset));
   __ LoadTaggedField(scratch,

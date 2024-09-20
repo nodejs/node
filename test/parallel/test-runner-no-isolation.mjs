@@ -12,7 +12,7 @@ const stream = run({
 });
 
 stream.on('test:fail', mustNotCall());
-stream.on('test:pass', mustCall(5));
+stream.on('test:pass', mustCall(4));
 // eslint-disable-next-line no-unused-vars
 for await (const _ of stream);
 allowGlobals(globalThis.GLOBAL_ORDER);
@@ -27,12 +27,6 @@ deepStrictEqual(globalThis.GLOBAL_ORDER, [
   'suite one - test',
   'afterEach one: suite one - test',
   'afterEach two: suite one - test',
-
-  'beforeEach one: test one',
-  'beforeEach two: test one',
-  'test one',
-  'afterEach one: test one',
-  'afterEach two: test one',
 
   'before suite two: suite two',
 

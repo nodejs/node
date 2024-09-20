@@ -20,14 +20,6 @@ uint32_t CodePointerTable::Sweep(Space* space, Counters* counters) {
   return num_live_entries;
 }
 
-void CodePointerTable::Initialize() {
-  ExternalEntityTable<CodePointerTableEntry,
-                      kCodePointerTableReservationSize>::Initialize();
-  CHECK(ThreadIsolation::WriteProtectMemory(
-      base(), kCodePointerTableReservationSize,
-      PageAllocator::Permission::kNoAccess));
-}
-
 DEFINE_LAZY_LEAKY_OBJECT_GETTER(CodePointerTable,
                                 GetProcessWideCodePointerTable)
 

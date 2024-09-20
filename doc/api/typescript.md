@@ -2,7 +2,7 @@
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v22.7.0
     pr-url: https://github.com/nodejs/node/pull/54283
     description: Added `--experimental-transform-types` flag.
 -->

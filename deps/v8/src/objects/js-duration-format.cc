@@ -1076,7 +1076,7 @@ MaybeHandle<JSArray> FormattedListToJSArray(
                              separator_string);
           } break;
           case Part::Type::kFormatted:
-            Handle<String> type_string =
+            DirectHandle<String> type_string =
                 factory->NewStringFromAsciiChecked(it.type.c_str());
             Maybe<int> index_after_add = Intl::AddNumberElements(
                 isolate, it.formatted, array, index, type_string);

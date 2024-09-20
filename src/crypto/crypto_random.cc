@@ -18,25 +18,22 @@ using v8::BackingStore;
 using v8::Boolean;
 using v8::FunctionCallbackInfo;
 using v8::Int32;
-using v8::Just;
+using v8::JustVoid;
 using v8::Local;
 using v8::Maybe;
+using v8::MaybeLocal;
 using v8::Nothing;
 using v8::Object;
 using v8::Uint32;
 using v8::Value;
 
 namespace crypto {
-Maybe<bool> RandomBytesTraits::EncodeOutput(
-    Environment* env,
-    const RandomBytesConfig& params,
-    ByteSource* unused,
-    v8::Local<v8::Value>* result) {
-  *result = v8::Undefined(env->isolate());
-  return Just(!result->IsEmpty());
+MaybeLocal<Value> RandomBytesTraits::EncodeOutput(
+    Environment* env, const RandomBytesConfig& params, ByteSource* unused) {
+  return v8::Undefined(env->isolate());
 }
 
-Maybe<bool> RandomBytesTraits::AdditionalConfig(
+Maybe<void> RandomBytesTraits::AdditionalConfig(
     CryptoJobMode mode,
     const FunctionCallbackInfo<Value>& args,
     unsigned int offset,
@@ -55,7 +52,7 @@ Maybe<bool> RandomBytesTraits::AdditionalConfig(
   params->buffer = in.data() + byte_offset;
   params->size = size;
 
-  return Just(true);
+  return JustVoid();
 }
 
 bool RandomBytesTraits::DeriveBits(
@@ -69,11 +66,8 @@ void RandomPrimeConfig::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackFieldWithSize("prime", prime ? bits * 8 : 0);
 }
 
-Maybe<bool> RandomPrimeTraits::EncodeOutput(
-    Environment* env,
-    const RandomPrimeConfig& params,
-    ByteSource* unused,
-    v8::Local<v8::Value>* result) {
+MaybeLocal<Value> RandomPrimeTraits::EncodeOutput(
+    Environment* env, const RandomPrimeConfig& params, ByteSource* unused) {
   size_t size = params.prime.byteLength();
   std::shared_ptr<BackingStore> store =
       ArrayBuffer::NewBackingStore(env->isolate(), size);
@@ -82,11 +76,10 @@ Maybe<bool> RandomPrimeTraits::EncodeOutput(
                params.prime.get(),
                reinterpret_cast<unsigned char*>(store->Data()),
                size));
-  *result = ArrayBuffer::New(env->isolate(), store);
-  return Just(true);
+  return ArrayBuffer::New(env->isolate(), store);
 }
 
-Maybe<bool> RandomPrimeTraits::AdditionalConfig(
+Maybe<void> RandomPrimeTraits::AdditionalConfig(
     CryptoJobMode mode,
     const FunctionCallbackInfo<Value>& args,
     unsigned int offset,
@@ -104,7 +97,7 @@ Maybe<bool> RandomPrimeTraits::AdditionalConfig(
     params->add.reset(add.data(), add.size());
     if (!params->add) {
       THROW_ERR_CRYPTO_OPERATION_FAILED(env, "could not generate prime");
-      return Nothing<bool>();
+      return Nothing<void>();
     }
   }
 
@@ -113,7 +106,7 @@ Maybe<bool> RandomPrimeTraits::AdditionalConfig(
     params->rem.reset(rem.data(), rem.size());
     if (!params->rem) {
       THROW_ERR_CRYPTO_OPERATION_FAILED(env, "could not generate prime");
-      return Nothing<bool>();
+      return Nothing<void>();
     }
   }
 
@@ -128,14 +121,14 @@ Maybe<bool> RandomPrimeTraits::AdditionalConfig(
       // loop within OpenSSL, blocking the main thread or one of the threads
       // in the thread pool.
       THROW_ERR_OUT_OF_RANGE(env, "invalid options.add");
-      return Nothing<bool>();
+      return Nothing<void>();
     }
 
     if (params->rem && params->add <= params->rem) {
       // This would definitely lead to an infinite loop if allowed since
       // OpenSSL does not check this condition.
       THROW_ERR_OUT_OF_RANGE(env, "invalid options.rem");
-      return Nothing<bool>();
+      return Nothing<void>();
     }
   }
 
@@ -144,10 +137,10 @@ Maybe<bool> RandomPrimeTraits::AdditionalConfig(
   params->prime = BignumPointer::NewSecure();
   if (!params->prime) {
     THROW_ERR_CRYPTO_OPERATION_FAILED(env, "could not generate prime");
-    return Nothing<bool>();
+    return Nothing<void>();
   }
 
-  return Just(true);
+  return JustVoid();
 }
 
 bool RandomPrimeTraits::DeriveBits(Environment* env,
@@ -174,7 +167,7 @@ void CheckPrimeConfig::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackFieldWithSize("prime", candidate ? candidate.byteLength() : 0);
 }
 
-Maybe<bool> CheckPrimeTraits::AdditionalConfig(
+Maybe<void> CheckPrimeTraits::AdditionalConfig(
     CryptoJobMode mode,
     const FunctionCallbackInfo<Value>& args,
     unsigned int offset,
@@ -187,7 +180,7 @@ Maybe<bool> CheckPrimeTraits::AdditionalConfig(
   params->checks = args[offset + 1].As<Int32>()->Value();
   CHECK_GE(params->checks, 0);
 
-  return Just(true);
+  return JustVoid();
 }
 
 bool CheckPrimeTraits::DeriveBits(
@@ -209,13 +202,10 @@ bool CheckPrimeTraits::DeriveBits(
   return true;
 }
 
-Maybe<bool> CheckPrimeTraits::EncodeOutput(
-    Environment* env,
-    const CheckPrimeConfig& params,
-    ByteSource* out,
-    v8::Local<v8::Value>* result) {
-  *result = Boolean::New(env->isolate(), out->data<char>()[0] != 0);
-  return Just(true);
+MaybeLocal<Value> CheckPrimeTraits::EncodeOutput(Environment* env,
+                                                 const CheckPrimeConfig& params,
+                                                 ByteSource* out) {
+  return Boolean::New(env->isolate(), out->data<char>()[0] != 0);
 }
 
 namespace Random {

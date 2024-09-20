@@ -158,7 +158,7 @@ Handle<JSObject> JSListFormat::ResolvedOptions(
   //  [[Locale]]       "locale"
   //  [[Type]]         "type"
   //  [[Style]]        "style"
-  Handle<String> locale(format->locale(), isolate);
+  DirectHandle<String> locale(format->locale(), isolate);
   JSObject::AddProperty(isolate, result, factory->locale_string(), locale,
                         NONE);
   JSObject::AddProperty(isolate, result, factory->type_string(),

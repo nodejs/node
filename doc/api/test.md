@@ -229,10 +229,10 @@ const { describe, it } = require('node:test');
 
 ## `only` tests
 
-If Node.js is started with the [`--test-only`][] command-line option, it is
-possible to skip all tests except for a selected subset by passing
-the `only` option to the tests that should run. When a test with the `only`
-option is set, all subtests are also run.
+If Node.js is started with the [`--test-only`][] command-line option, or test
+isolation is disabled, it is possible to skip all tests except for a selected
+subset by passing the `only` option to the tests that should run. When a test
+with the `only` option is set, all subtests are also run.
 If a suite has the `only` option set, all tests within the suite are run,
 unless it has descendants with the `only` option set, in which case only those
 tests are run.
@@ -474,7 +474,8 @@ command-line flag, code coverage is collected and statistics are reported once
 all tests have completed. If the [`NODE_V8_COVERAGE`][] environment variable is
 used to specify a code coverage directory, the generated V8 coverage files are
 written to that directory. Node.js core modules and files within
-`node_modules/` directories are not included in the coverage report. If
+`node_modules/` directories are, by default, not included in the coverage report.
+However, they can be explicity included via the [`--test-coverage-include`][] flag. If
 coverage is enabled, the coverage report is sent to any [test reporters][] via
 the `'test:coverage'` event.
 
@@ -1000,11 +1001,12 @@ flags for the test runner to use a specific reporter.
 
 The following built-reporters are supported:
 
+* `spec`
+  The `spec` reporter outputs the test results in a human-readable format. This
+  is the default reporter.
+
 * `tap`
   The `tap` reporter outputs the test results in the [TAP][] format.
-
-* `spec`
-  The `spec` reporter outputs the test results in a human-readable format.
 
 * `dot`
   The `dot` reporter outputs the test results in a compact format,
@@ -1017,9 +1019,6 @@ The following built-reporters are supported:
 * `lcov`
   The `lcov` reporter outputs test coverage when used with the
   [`--experimental-test-coverage`][] flag.
-
-When `stdout` is a [TTY][], the `spec` reporter is used by default.
-Otherwise, the `tap` reporter is used by default.
 
 The exact output of these reporters is subject to change between versions of
 Node.js, and should not be relied on programmatically. If programmatic access
@@ -1247,7 +1246,7 @@ added:
   - v18.9.0
   - v16.19.0
 changes:
-  - version: REPLACEME
+  - version: v22.8.0
     pr-url: https://github.com/nodejs/node/pull/53927
     description: Added the `isolation` option.
   - version: v22.6.0
@@ -2815,6 +2814,11 @@ are defined, while others are emitted in the order that the tests execute.
         numbers and the number of times they were covered.
         * `line` {number} The line number.
         * `count` {number} The number of times the line was covered.
+    * `thresholds` {Object} An object containing whether or not the coverage for
+      each coverage type.
+      * `function` {number} The function coverage threshold.
+      * `branch` {number} The branch coverage threshold.
+      * `line` {number} The line coverage threshold.
     * `totals` {Object} An object containing a summary of coverage for all
       files.
       * `totalLineCount` {number} The total number of lines.
@@ -3505,11 +3509,11 @@ added:
 Can be used to abort test subtasks when the test has been aborted.
 
 [TAP]: https://testanything.org/
-[TTY]: tty.md
 [`--experimental-test-coverage`]: cli.md#--experimental-test-coverage
 [`--experimental-test-snapshots`]: cli.md#--experimental-test-snapshots
 [`--import`]: cli.md#--importmodule
 [`--test-concurrency`]: cli.md#--test-concurrency
+[`--test-coverage-include`]: cli.md#--test-coverage-include
 [`--test-name-pattern`]: cli.md#--test-name-pattern
 [`--test-only`]: cli.md#--test-only
 [`--test-reporter-destination`]: cli.md#--test-reporter-destination

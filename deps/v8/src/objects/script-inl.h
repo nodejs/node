@@ -218,6 +218,18 @@ bool Script::IsMaybeUnfinalized(Isolate* isolate) const {
          Cast<String>(source())->length() == 0;
 }
 
+Tagged<Script> Script::GetEvalOrigin() {
+  DisallowGarbageCollection no_gc;
+  Tagged<Script> origin_script = *this;
+  while (origin_script->has_eval_from_shared()) {
+    Tagged<HeapObject> maybe_script =
+        origin_script->eval_from_shared()->script();
+    CHECK(IsScript(maybe_script));
+    origin_script = Cast<Script>(maybe_script);
+  }
+  return origin_script;
+}
+
 }  // namespace internal
 }  // namespace v8
 

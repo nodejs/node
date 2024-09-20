@@ -71,9 +71,9 @@ class MemoryMeasurementResultBuilder {
   Handle<JSObject> NewResult(size_t estimate, size_t lower_bound,
                              size_t upper_bound) {
     Handle<JSObject> result = NewJSObject();
-    Handle<Object> estimate_obj = NewNumber(estimate);
+    DirectHandle<Object> estimate_obj = NewNumber(estimate);
     AddProperty(result, factory_->jsMemoryEstimate_string(), estimate_obj);
-    Handle<Object> range = NewRange(lower_bound, upper_bound);
+    DirectHandle<Object> range = NewRange(lower_bound, upper_bound);
     AddProperty(result, factory_->jsMemoryRange_string(), range);
     return result;
   }
@@ -92,7 +92,7 @@ class MemoryMeasurementResultBuilder {
     return factory_->NewJSArrayWithElements(elements);
   }
   void AddProperty(Handle<JSObject> object, Handle<String> name,
-                   Handle<Object> value) {
+                   DirectHandle<Object> value) {
     JSObject::AddProperty(isolate_, object, name, value, NONE);
   }
   Isolate* isolate_;
@@ -349,7 +349,7 @@ void MemoryMeasurement::ReportResults() {
         continue;
       }
       Local<v8::Context> context = Utils::Convert<HeapObject, v8::Context>(
-          direct_handle(raw_context, isolate_), isolate_);
+          direct_handle(raw_context, isolate_));
       contexts.push_back(context);
       size_in_bytes.push_back(request.sizes[i]);
     }

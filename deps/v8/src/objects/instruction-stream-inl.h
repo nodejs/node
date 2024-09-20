@@ -5,6 +5,8 @@
 #ifndef V8_OBJECTS_INSTRUCTION_STREAM_INL_H_
 #define V8_OBJECTS_INSTRUCTION_STREAM_INL_H_
 
+#include <optional>
+
 #include "src/common/ptr-compr-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/code.h"
@@ -14,8 +16,7 @@
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 OBJECT_CONSTRUCTORS_IMPL(InstructionStream, TrustedObject)
 NEVER_READ_ONLY_SPACE_IMPL(InstructionStream)
@@ -119,7 +120,7 @@ void InstructionStream::Finalize(Tagged<Code> code,
                                  Tagged<TrustedByteArray> reloc_info,
                                  CodeDesc desc, Heap* heap) {
   DisallowGarbageCollection no_gc;
-  base::Optional<WriteBarrierPromise> promise;
+  std::optional<WriteBarrierPromise> promise;
 
   // Copy the relocation info first before we unlock the Jit allocation.
   // TODO(sroettger): reloc info should live in protected memory.
@@ -274,8 +275,7 @@ PtrComprCageBase InstructionStream::main_cage_base() {
 #endif
 }
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #include "src/objects/object-macros-undef.h"
 

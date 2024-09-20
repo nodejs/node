@@ -281,7 +281,7 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   GraphAssembler(
       MachineGraph* jsgraph, Zone* zone,
       BranchSemantics default_branch_semantics,
-      base::Optional<NodeChangedCallback> node_changed_callback = base::nullopt,
+      std::optional<NodeChangedCallback> node_changed_callback = std::nullopt,
       bool mark_loop_exits = false);
   virtual ~GraphAssembler();
   virtual SimplifiedOperatorBuilder* simplified() { UNREACHABLE(); }
@@ -654,7 +654,7 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   Node* control_;
   // {node_changed_callback_} should be called when a node outside the
   // subgraph created by the graph assembler changes.
-  base::Optional<NodeChangedCallback> node_changed_callback_;
+  std::optional<NodeChangedCallback> node_changed_callback_;
 
   // Inline reducers enable reductions to be performed to nodes as they are
   // added to the graph with the graph assembler.
@@ -954,7 +954,7 @@ class V8_EXPORT_PRIVATE JSGraphAssembler : public GraphAssembler {
   JSGraphAssembler(
       JSHeapBroker* broker, JSGraph* jsgraph, Zone* zone,
       BranchSemantics branch_semantics,
-      base::Optional<NodeChangedCallback> node_changed_callback = base::nullopt,
+      std::optional<NodeChangedCallback> node_changed_callback = std::nullopt,
       bool mark_loop_exits = false)
       : GraphAssembler(jsgraph, zone, branch_semantics, node_changed_callback,
                        mark_loop_exits),
@@ -1074,7 +1074,7 @@ class V8_EXPORT_PRIVATE JSGraphAssembler : public GraphAssembler {
 
   TNode<Object> JSCallRuntime1(
       Runtime::FunctionId function_id, TNode<Object> arg0,
-      TNode<Context> context, base::Optional<FrameState> frame_state,
+      TNode<Context> context, std::optional<FrameState> frame_state,
       Operator::Properties properties = Operator::kNoProperties);
   TNode<Object> JSCallRuntime2(Runtime::FunctionId function_id,
                                TNode<Object> arg0, TNode<Object> arg1,

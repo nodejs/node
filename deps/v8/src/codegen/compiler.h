@@ -98,7 +98,8 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
                                         Handle<SharedFunctionInfo> shared,
                                         ClearExceptionFlag flag,
                                         IsCompiledScope* is_compiled_scope);
-  static bool CompileBaseline(Isolate* isolate, Handle<JSFunction> function,
+  static bool CompileBaseline(Isolate* isolate,
+                              DirectHandle<JSFunction> function,
                               ClearExceptionFlag flag,
                               IsCompiledScope* is_compiled_scope);
 
@@ -143,7 +144,8 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   // Give the compiler a chance to perform low-latency initialization tasks of
   // the given {function} on its instantiation. Note that only the runtime will
   // offer this chance, optimized closure instantiation will not call this.
-  static void PostInstantiation(Handle<JSFunction> function,
+  static void PostInstantiation(Isolate* isolate,
+                                DirectHandle<JSFunction> function,
                                 IsCompiledScope* is_compiled_scope);
 
   // ===========================================================================
@@ -263,7 +265,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
 
   static void LogFunctionCompilation(Isolate* isolate,
                                      LogEventListener::CodeTag code_type,
-                                     Handle<Script> script,
+                                     DirectHandle<Script> script,
                                      Handle<SharedFunctionInfo> shared,
                                      Handle<FeedbackVector> vector,
                                      Handle<AbstractCode> abstract_code,
@@ -276,7 +278,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
  private:
   static std::unique_ptr<v8::tracing::TracedValue> AddScriptCompiledTrace(
       Isolate* isolate, DirectHandle<SharedFunctionInfo> shared);
-  static std::unique_ptr<v8::tracing::TracedValue> AddScriptSourceTextTrace(
+  static void EmitScriptSourceTextTrace(
       Isolate* isolate, DirectHandle<SharedFunctionInfo> shared);
 };
 
@@ -647,7 +649,7 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
 
 // Contains all data which needs to be transmitted between threads for
 // background parsing and compiling and finalizing it on the main thread.
-struct ScriptStreamingData {
+struct V8_EXPORT_PRIVATE ScriptStreamingData {
   ScriptStreamingData(
       std::unique_ptr<ScriptCompiler::ExternalSourceStream> source_stream,
       ScriptCompiler::StreamedSource::Encoding encoding);

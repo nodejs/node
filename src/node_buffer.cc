@@ -22,6 +22,7 @@
 #include "node_buffer.h"
 #include "node.h"
 #include "node_blob.h"
+#include "node_debug.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_i18n.h"
@@ -83,7 +84,7 @@ using v8::Value;
 
 namespace {
 
-class CallbackInfo {
+class CallbackInfo : public Cleanable {
  public:
   static inline Local<ArrayBuffer> CreateTrackedArrayBuffer(
       Environment* env,
@@ -96,7 +97,7 @@ class CallbackInfo {
   CallbackInfo& operator=(const CallbackInfo&) = delete;
 
  private:
-  static void CleanupHook(void* data);
+  void Clean();
   inline void OnBackingStoreFree();
   inline void CallAndResetCallback();
   inline CallbackInfo(Environment* env,
@@ -110,7 +111,6 @@ class CallbackInfo {
   void* const hint_;
   Environment* const env_;
 };
-
 
 Local<ArrayBuffer> CallbackInfo::CreateTrackedArrayBuffer(
     Environment* env,
@@ -151,25 +151,23 @@ CallbackInfo::CallbackInfo(Environment* env,
       data_(data),
       hint_(hint),
       env_(env) {
-  env->AddCleanupHook(CleanupHook, this);
+  env->cleanable_queue()->PushFront(this);
   env->isolate()->AdjustAmountOfExternalAllocatedMemory(sizeof(*this));
 }
 
-void CallbackInfo::CleanupHook(void* data) {
-  CallbackInfo* self = static_cast<CallbackInfo*>(data);
-
+void CallbackInfo::Clean() {
   {
-    HandleScope handle_scope(self->env_->isolate());
-    Local<ArrayBuffer> ab = self->persistent_.Get(self->env_->isolate());
+    HandleScope handle_scope(env_->isolate());
+    Local<ArrayBuffer> ab = persistent_.Get(env_->isolate());
     if (!ab.IsEmpty() && ab->IsDetachable()) {
       ab->Detach(Local<Value>()).Check();
-      self->persistent_.Reset();
+      persistent_.Reset();
     }
   }
 
   // Call the callback in this case, but don't delete `this` yet because the
   // BackingStore deleter callback will do so later.
-  self->CallAndResetCallback();
+  CallAndResetCallback();
 }
 
 void CallbackInfo::CallAndResetCallback() {
@@ -181,7 +179,7 @@ void CallbackInfo::CallAndResetCallback() {
   }
   if (callback != nullptr) {
     // Clean up all Environment-related state and run the callback.
-    env_->RemoveCleanupHook(CleanupHook, this);
+    cleanable_queue_.Remove();
     int64_t change_in_bytes = -static_cast<int64_t>(sizeof(*this));
     env_->isolate()->AdjustAmountOfExternalAllocatedMemory(change_in_bytes);
 
@@ -1443,6 +1441,27 @@ void CopyArrayBuffer(const FunctionCallbackInfo<Value>& args) {
 }
 
 template <encoding encoding>
+uint32_t WriteOneByteString(const char* src,
+                            uint32_t src_len,
+                            char* dst,
+                            uint32_t dst_len) {
+  if (dst_len == 0) {
+    return 0;
+  }
+
+  if (encoding == UTF8) {
+    return simdutf::convert_latin1_to_utf8_safe(src, src_len, dst, dst_len);
+  } else if (encoding == LATIN1 || encoding == ASCII) {
+    const auto size = std::min(src_len, dst_len);
+    memcpy(dst, src, size);
+    return size;
+  } else {
+    // TODO(ronag): Add support for more encoding.
+    UNREACHABLE();
+  }
+}
+
+template <encoding encoding>
 void SlowWriteString(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -1464,11 +1483,22 @@ void SlowWriteString(const FunctionCallbackInfo<Value>& args) {
 
   if (max_length == 0) return args.GetReturnValue().Set(0);
 
-  uint32_t written = StringBytes::Write(
-      env->isolate(), ts_obj_data + offset, max_length, str, encoding);
+  uint32_t written = 0;
+
+  if ((encoding == UTF8 || encoding == LATIN1 || encoding == ASCII) &&
+      str->IsExternalOneByte()) {
+    const auto src = str->GetExternalOneByteStringResource();
+    written = WriteOneByteString<encoding>(
+        src->data(), src->length(), ts_obj_data + offset, max_length);
+  } else {
+    written = StringBytes::Write(
+        env->isolate(), ts_obj_data + offset, max_length, str, encoding);
+  }
+
   args.GetReturnValue().Set(written);
 }
 
+template <encoding encoding>
 uint32_t FastWriteString(Local<Value> receiver,
                          const v8::FastApiTypedArray<uint8_t>& dst,
                          const v8::FastOneByteString& src,
@@ -1478,16 +1508,21 @@ uint32_t FastWriteString(Local<Value> receiver,
   CHECK(dst.getStorageIfAligned(&dst_data));
   CHECK(offset <= dst.length());
   CHECK(dst.length() - offset <= std::numeric_limits<uint32_t>::max());
+  TRACK_V8_FAST_API_CALL("buffer.writeString");
 
-  const auto size = std::min(
-      {static_cast<uint32_t>(dst.length() - offset), max_length, src.length});
-
-  memcpy(dst_data + offset, src.data, size);
-
-  return size;
+  return WriteOneByteString<encoding>(
+      src.data,
+      src.length,
+      reinterpret_cast<char*>(dst_data + offset),
+      std::min<uint32_t>(dst.length() - offset, max_length));
 }
 
-static v8::CFunction fast_write_string(v8::CFunction::Make(FastWriteString));
+static v8::CFunction fast_write_string_ascii(
+    v8::CFunction::Make(FastWriteString<ASCII>));
+static v8::CFunction fast_write_string_latin1(
+    v8::CFunction::Make(FastWriteString<LATIN1>));
+static v8::CFunction fast_write_string_utf8(
+    v8::CFunction::Make(FastWriteString<UTF8>));
 
 void Initialize(Local<Object> target,
                 Local<Value> unused,
@@ -1558,17 +1593,17 @@ void Initialize(Local<Object> target,
                 target,
                 "asciiWriteStatic",
                 SlowWriteString<ASCII>,
-                &fast_write_string);
+                &fast_write_string_ascii);
   SetFastMethod(context,
                 target,
                 "latin1WriteStatic",
                 SlowWriteString<LATIN1>,
-                &fast_write_string);
+                &fast_write_string_latin1);
   SetFastMethod(context,
                 target,
                 "utf8WriteStatic",
                 SlowWriteString<UTF8>,
-                &fast_write_string);
+                &fast_write_string_utf8);
 
   SetMethod(context, target, "getZeroFillToggle", GetZeroFillToggle);
 }
@@ -1613,8 +1648,12 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(SlowWriteString<ASCII>);
   registry->Register(SlowWriteString<LATIN1>);
   registry->Register(SlowWriteString<UTF8>);
-  registry->Register(fast_write_string.GetTypeInfo());
-  registry->Register(FastWriteString);
+  registry->Register(FastWriteString<ASCII>);
+  registry->Register(fast_write_string_ascii.GetTypeInfo());
+  registry->Register(FastWriteString<LATIN1>);
+  registry->Register(fast_write_string_latin1.GetTypeInfo());
+  registry->Register(FastWriteString<UTF8>);
+  registry->Register(fast_write_string_utf8.GetTypeInfo());
   registry->Register(StringWrite<ASCII>);
   registry->Register(StringWrite<BASE64>);
   registry->Register(StringWrite<BASE64URL>);

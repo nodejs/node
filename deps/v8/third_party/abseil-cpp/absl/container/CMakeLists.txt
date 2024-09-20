@@ -791,6 +791,7 @@ absl_cc_test(
     absl::log
     absl::memory
     absl::node_hash_set
+    absl::optional
     absl::prefetch
     absl::raw_hash_set
     absl::strings

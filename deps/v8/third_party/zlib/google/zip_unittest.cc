@@ -63,8 +63,9 @@ bool CreateFile(const std::string& content,
   if (!base::CreateTemporaryFile(file_path))
     return false;
 
-  if (base::WriteFile(*file_path, content.data(), content.size()) == -1)
+  if (!base::WriteFile(*file_path, content)) {
     return false;
+  }
 
   *file = base::File(
       *file_path, base::File::Flags::FLAG_OPEN | base::File::Flags::FLAG_READ);
@@ -350,7 +351,7 @@ class ZipTest : public PlatformTest {
     base::Time now_time;
     EXPECT_TRUE(base::Time::FromUTCExploded(now_parts, &now_time));
 
-    EXPECT_EQ(1, base::WriteFile(src_file, "1", 1));
+    EXPECT_TRUE(base::WriteFile(src_file, "1"));
     EXPECT_TRUE(base::TouchFile(src_file, base::Time::Now(), test_mtime));
 
     EXPECT_TRUE(zip::Zip(src_dir, zip_file, true));

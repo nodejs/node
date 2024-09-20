@@ -5,6 +5,8 @@
 #ifndef V8_OBJECTS_FEEDBACK_VECTOR_INL_H_
 #define V8_OBJECTS_FEEDBACK_VECTOR_INL_H_
 
+#include <optional>
+
 #include "src/common/globals.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/code-inl.h"
@@ -20,8 +22,7 @@
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 #include "torque-generated/src/objects/feedback-vector-tq-inl.inc"
 
@@ -42,22 +43,34 @@ int32_t FeedbackMetadata::slot_count(AcquireLoadTag) const {
   return ACQUIRE_READ_INT32_FIELD(*this, kSlotCountOffset);
 }
 
+int32_t FeedbackMetadata::create_closure_slot_count(AcquireLoadTag) const {
+  return ACQUIRE_READ_INT32_FIELD(*this, kCreateClosureSlotCountOffset);
+}
+
 int32_t FeedbackMetadata::get(int index) const {
-  CHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
+  CHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(word_count()));
   int offset = kHeaderSize + index * kInt32Size;
   return ReadField<int32_t>(offset);
 }
 
 void FeedbackMetadata::set(int index, int32_t value) {
-  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
+  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(word_count()));
   int offset = kHeaderSize + index * kInt32Size;
   WriteField<int32_t>(offset, value);
 }
 
-bool FeedbackMetadata::is_empty() const { return slot_count() == 0; }
+bool FeedbackMetadata::is_empty() const {
+  DCHECK_IMPLIES(slot_count() == 0, create_closure_slot_count() == 0);
+  return slot_count() == 0;
+}
 
-int FeedbackMetadata::length() const {
-  return FeedbackMetadata::length(slot_count());
+int FeedbackMetadata::AllocatedSize() {
+  return SizeFor(slot_count(kAcquireLoad),
+                 create_closure_slot_count(kAcquireLoad));
+}
+
+int FeedbackMetadata::word_count() const {
+  return FeedbackMetadata::word_count(slot_count());
 }
 
 int FeedbackMetadata::GetSlotSize(FeedbackSlotKind kind) {
@@ -221,7 +234,17 @@ void FeedbackVector::set_interrupt_budget_reset_by_ic_change(bool value) {
   set_flags(InterruptBudgetResetByIcChangeBit::update(flags(), value));
 }
 
-base::Optional<Tagged<Code>> FeedbackVector::GetOptimizedOsrCode(
+bool FeedbackVector::was_once_deoptimized() const {
+  return invocation_count_before_stable(kRelaxedLoad) ==
+         kInvocationCountBeforeStableDeoptSentinel;
+}
+
+void FeedbackVector::set_was_once_deoptimized() {
+  set_invocation_count_before_stable(kInvocationCountBeforeStableDeoptSentinel,
+                                     kRelaxedStore);
+}
+
+std::optional<Tagged<Code>> FeedbackVector::GetOptimizedOsrCode(
     Isolate* isolate, FeedbackSlot slot) {
   Tagged<MaybeObject> maybe_code = Get(isolate, slot);
   if (maybe_code.IsCleared()) return {};
@@ -450,15 +473,15 @@ void NexusConfig::SetFeedback(Tagged<FeedbackVector> vector, FeedbackSlot slot,
 }
 
 Tagged<MaybeObject> FeedbackNexus::UninitializedSentinel() const {
-  return *FeedbackVector::UninitializedSentinel(GetIsolate());
+  return *FeedbackVector::UninitializedSentinel(config()->isolate());
 }
 
 Tagged<MaybeObject> FeedbackNexus::MegamorphicSentinel() const {
-  return *FeedbackVector::MegamorphicSentinel(GetIsolate());
+  return *FeedbackVector::MegamorphicSentinel(config()->isolate());
 }
 
 Tagged<MaybeObject> FeedbackNexus::MegaDOMSentinel() const {
-  return *FeedbackVector::MegaDOMSentinel(GetIsolate());
+  return *FeedbackVector::MegaDOMSentinel(config()->isolate());
 }
 
 Tagged<MaybeObject> FeedbackNexus::FromHandle(MaybeObjectHandle slot) const {
@@ -514,9 +537,7 @@ void FeedbackNexus::SetFeedback(Tagged<FeedbackType> feedback,
                             mode_extra);
 }
 
-Isolate* FeedbackNexus::GetIsolate() const { return vector()->GetIsolate(); }
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #include "src/objects/object-macros-undef.h"
 

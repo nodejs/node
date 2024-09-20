@@ -4,6 +4,8 @@
 
 #include "src/debug/liveedit.h"
 
+#include <optional>
+
 #include "src/api/api-inl.h"
 #include "src/ast/ast-traversal-visitor.h"
 #include "src/ast/ast.h"
@@ -754,7 +756,7 @@ void TranslateSourcePositionTable(Isolate* isolate,
 void UpdatePositions(Isolate* isolate, DirectHandle<SharedFunctionInfo> sfi,
                      FunctionLiteral* new_function,
                      const std::vector<SourceChangeRange>& diffs) {
-  sfi->UpdateFromFunctionLiteralForLiveEdit(new_function);
+  sfi->UpdateFromFunctionLiteralForLiveEdit(isolate, new_function);
   if (sfi->HasBytecodeArray()) {
     TranslateSourcePositionTable(
         isolate, direct_handle(sfi->GetBytecodeArray(isolate), isolate), diffs);
@@ -915,7 +917,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
 
     isolate->compilation_cache()->Remove(sfi);
     isolate->debug()->DeoptimizeFunction(sfi);
-    if (base::Optional<Tagged<DebugInfo>> di = sfi->TryGetDebugInfo(isolate)) {
+    if (std::optional<Tagged<DebugInfo>> di = sfi->TryGetDebugInfo(isolate)) {
       DirectHandle<DebugInfo> debug_info(di.value(), isolate);
       isolate->debug()->RemoveBreakInfoAndMaybeFree(debug_info);
     }
@@ -935,7 +937,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
         mapping.second->function_literal_id();
 
     if (sfi->HasUncompiledDataWithPreparseData()) {
-      sfi->ClearPreparseData();
+      sfi->ClearPreparseData(isolate);
     }
 
     for (auto& js_function : data->js_functions) {
@@ -985,6 +987,10 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
     isolate->debug()->DeoptimizeFunction(sfi);
     isolate->compilation_cache()->Remove(sfi);
     for (auto& js_function : data->js_functions) {
+#ifdef V8_ENABLE_LEAPTIERING
+      js_function->initialize_dispatch_handle(
+          isolate, new_sfi->internal_formal_parameter_count_with_receiver());
+#endif
       js_function->set_shared(*new_sfi);
       js_function->set_code(js_function->shared()->GetCode(isolate));
 

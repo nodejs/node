@@ -5,7 +5,8 @@
 #ifndef V8_OBJECTS_JS_OBJECTS_H_
 #define V8_OBJECTS_JS_OBJECTS_H_
 
-#include "src/base/optional.h"
+#include <optional>
+
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
 #include "src/objects/embedder-data-slot.h"
@@ -17,8 +18,7 @@
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 // Enum for functions that offer a second mode that does not cause allocations.
 // Used in conjunction with LookupIterator and unboxed double fields.
@@ -261,7 +261,7 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
   static Handle<String> GetConstructorName(Isolate* isolate,
                                            Handle<JSReceiver> receiver);
 
-  V8_EXPORT_PRIVATE inline base::Optional<Tagged<NativeContext>>
+  V8_EXPORT_PRIVATE inline std::optional<Tagged<NativeContext>>
   GetCreationContext();
   V8_EXPORT_PRIVATE inline MaybeHandle<NativeContext> GetCreationContext(
       Isolate* isolate);
@@ -372,7 +372,7 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
 
   inline void initialize_elements();
   static inline void SetMapAndElements(DirectHandle<JSObject> object,
-                                       Handle<Map> map,
+                                       DirectHandle<Map> map,
                                        DirectHandle<FixedArrayBase> elements);
   DECL_GETTER(GetElementsKind, ElementsKind)
   DECL_GETTER(GetElementsAccessor, ElementsAccessor*)
@@ -485,16 +485,16 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   V8_EXPORT_PRIVATE static void AddProperty(Isolate* isolate,
                                             Handle<JSObject> object,
                                             Handle<Name> name,
-                                            Handle<Object> value,
+                                            DirectHandle<Object> value,
                                             PropertyAttributes attributes);
 
   // {name} must be a UTF-8 encoded, null-terminated string.
   static void AddProperty(Isolate* isolate, Handle<JSObject> object,
-                          const char* name, Handle<Object> value,
+                          const char* name, DirectHandle<Object> value,
                           PropertyAttributes attributes);
 
   V8_EXPORT_PRIVATE static Maybe<bool> AddDataElement(
-      Handle<JSObject> receiver, uint32_t index, Handle<Object> value,
+      Handle<JSObject> receiver, uint32_t index, DirectHandle<Object> value,
       PropertyAttributes attributes);
 
   // Extend the receiver with a single fast property appeared first in the
@@ -520,14 +520,15 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
                                    Handle<Object> value,
                                    PropertyDetails details);
 
-  static void OptimizeAsPrototype(Handle<JSObject> object,
+  static void OptimizeAsPrototype(DirectHandle<JSObject> object,
                                   bool enable_setup_mode = true);
-  static void ReoptimizeIfPrototype(Handle<JSObject> object);
+  static void ReoptimizeIfPrototype(DirectHandle<JSObject> object);
   static void MakePrototypesFast(Handle<Object> receiver,
                                  WhereToStart where_to_start, Isolate* isolate);
-  static void LazyRegisterPrototypeUser(Handle<Map> user, Isolate* isolate);
+  static void LazyRegisterPrototypeUser(DirectHandle<Map> user,
+                                        Isolate* isolate);
   static void UpdatePrototypeUserRegistration(DirectHandle<Map> old_map,
-                                              Handle<Map> new_map,
+                                              DirectHandle<Map> new_map,
                                               Isolate* isolate);
   static bool UnregisterPrototypeUser(DirectHandle<Map> user, Isolate* isolate);
   static Tagged<Map> InvalidatePrototypeChains(Tagged<Map> map);
@@ -535,8 +536,8 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
 
   // Updates prototype chain tracking information when an object changes its
   // map from |old_map| to |new_map|.
-  static void NotifyMapChange(Handle<Map> old_map, Handle<Map> new_map,
-                              Isolate* isolate);
+  static void NotifyMapChange(DirectHandle<Map> old_map,
+                              DirectHandle<Map> new_map, Isolate* isolate);
 
   // Utility used by many Array builtins and runtime functions
   static inline bool PrototypeHasNoElements(Isolate* isolate,
@@ -559,8 +560,8 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   // Defines an AccessorPair property on the given object.
   V8_EXPORT_PRIVATE static MaybeHandle<Object>
   DefineOwnAccessorIgnoreAttributes(Handle<JSObject> object, Handle<Name> name,
-                                    Handle<Object> getter,
-                                    Handle<Object> setter,
+                                    DirectHandle<Object> getter,
+                                    DirectHandle<Object> setter,
                                     PropertyAttributes attributes);
   static MaybeHandle<Object> DefineOwnAccessorIgnoreAttributes(
       LookupIterator* it, DirectHandle<Object> getter,
@@ -671,8 +672,8 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   // |expected_additional_properties| is only used for fast-to-slow transitions
   // and ignored otherwise.
   V8_EXPORT_PRIVATE static void MigrateToMap(
-      Isolate* isolate, DirectHandle<JSObject> object, Handle<Map> new_map,
-      int expected_additional_properties = 0);
+      Isolate* isolate, DirectHandle<JSObject> object,
+      DirectHandle<Map> new_map, int expected_additional_properties = 0);
 
   // Forces a prototype without any of the checks that the regular SetPrototype
   // would do.
@@ -689,8 +690,9 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
       bool use_cache, const char* reason);
 
   V8_EXPORT_PRIVATE static void NormalizeProperties(
-      Isolate* isolate, Handle<JSObject> object, PropertyNormalizationMode mode,
-      int expected_additional_properties, const char* reason) {
+      Isolate* isolate, DirectHandle<JSObject> object,
+      PropertyNormalizationMode mode, int expected_additional_properties,
+      const char* reason) {
     const bool kUseCache = true;
     NormalizeProperties(isolate, object, mode, expected_additional_properties,
                         kUseCache, reason);
@@ -715,7 +717,7 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   // Same as above, but it will return {} if we would be reading out of the
   // bounds of the object or if the dictionary is pending allocation. Use this
   // version for concurrent access.
-  static base::Optional<Tagged<Object>> DictionaryPropertyAt(
+  static std::optional<Tagged<Object>> DictionaryPropertyAt(
       DirectHandle<JSObject> object, InternalIndex dict_index, Heap* heap);
 
   // Access fast-case object properties at index.
@@ -740,7 +742,7 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   // in which this method is meant to be used, and what guarantees it
   // provides against invalid reads from another thread during object
   // mutation.
-  inline base::Optional<Tagged<Object>> RawInobjectPropertyAt(
+  inline std::optional<Tagged<Object>> RawInobjectPropertyAt(
       PtrComprCageBase cage_base, Tagged<Map> original_map,
       FieldIndex index) const;
 
@@ -1415,8 +1417,7 @@ class JSPromiseWithResolversResult : public JSObject {
   OBJECT_CONSTRUCTORS(JSPromiseWithResolversResult, JSObject);
 };
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #include "src/objects/object-macros-undef.h"
 

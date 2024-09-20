@@ -46,10 +46,15 @@ void CombinedWriteBarrier(HeapObjectLayout* object, TaggedMemberBase* slot,
 void CombinedEphemeronWriteBarrier(Tagged<EphemeronHashTable> object,
                                    ObjectSlot slot, Tagged<Object> value,
                                    WriteBarrierMode mode);
+
 void IndirectPointerWriteBarrier(Tagged<HeapObject> host,
                                  IndirectPointerSlot slot,
                                  Tagged<HeapObject> value,
                                  WriteBarrierMode mode);
+
+void JSDispatchHandleWriteBarrier(Tagged<HeapObject> host,
+                                  JSDispatchHandle handle,
+                                  WriteBarrierMode mode);
 
 // Generational write barrier.
 void GenerationalBarrierForCode(Tagged<InstructionStream> host,
@@ -74,6 +79,7 @@ class V8_EXPORT_PRIVATE WriteBarrier {
   static inline void Marking(Tagged<TrustedObject> host,
                              ProtectedPointerSlot slot,
                              Tagged<TrustedObject> value);
+  static inline void Marking(Tagged<HeapObject> host, JSDispatchHandle handle);
 
   static inline void Shared(Tagged<InstructionStream> host, RelocInfo*,
                             Tagged<HeapObject> value);
@@ -120,6 +126,7 @@ class V8_EXPORT_PRIVATE WriteBarrier {
   static void MarkingSlow(Tagged<HeapObject> host, IndirectPointerSlot slot);
   static void MarkingSlow(Tagged<TrustedObject> host, ProtectedPointerSlot slot,
                           Tagged<TrustedObject> value);
+  static void MarkingSlow(Tagged<HeapObject> host, JSDispatchHandle handle);
   static void MarkingSlowFromGlobalHandle(Tagged<HeapObject> value);
   static void MarkingSlowFromCppHeapWrappable(Heap* heap, void* object);
 

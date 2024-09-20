@@ -20,6 +20,7 @@
 #include "src/logging/log.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/instance-type.h"
+#include "src/objects/js-regexp-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/oddball.h"
@@ -374,43 +375,8 @@ Handle<BytecodeWrapper> FactoryBase<Impl>::NewBytecodeWrapper() {
   // verifier might see the wrapper before the field can be set, we need to
   // clear the field here.
   wrapper->clear_bytecode();
-  wrapper->clear_padding();
   return wrapper;
 }
-
-#if V8_ENABLE_WEBASSEMBLY
-template <typename Impl>
-Handle<WasmTrustedInstanceData>
-FactoryBase<Impl>::NewWasmTrustedInstanceData() {
-  Tagged<WasmTrustedInstanceData> result =
-      Cast<WasmTrustedInstanceData>(AllocateRawWithImmortalMap(
-          WasmTrustedInstanceData::kSize, AllocationType::kTrusted,
-          read_only_roots().wasm_trusted_instance_data_map()));
-  DisallowGarbageCollection no_gc;
-  result->init_self_indirect_pointer(isolate());
-  result->clear_padding();
-  for (int offset : WasmTrustedInstanceData::kTaggedFieldOffsets) {
-    result->RawField(offset).store(read_only_roots().undefined_value());
-  }
-  return handle(result, isolate());
-}
-
-template <typename Impl>
-Handle<WasmDispatchTable> FactoryBase<Impl>::NewWasmDispatchTable(int length) {
-  CHECK_LE(length, WasmDispatchTable::kMaxLength);
-  int bytes = WasmDispatchTable::SizeFor(length);
-  Tagged<WasmDispatchTable> result = UncheckedCast<WasmDispatchTable>(
-      AllocateRawWithImmortalMap(bytes, AllocationType::kTrusted,
-                                 read_only_roots().wasm_dispatch_table_map()));
-  result->WriteField<int>(WasmDispatchTable::kLengthOffset, length);
-  result->WriteField<int>(WasmDispatchTable::kCapacityOffset, length);
-  for (int i = 0; i < length; ++i) {
-    result->Clear(i);
-    result->clear_entry_padding(i);
-  }
-  return handle(result, isolate());
-}
-#endif  // V8_ENABLE_WEBASSEMBLY
 
 template <typename Impl>
 Handle<Script> FactoryBase<Impl>::NewScript(
@@ -492,8 +458,8 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfoForLiteral(
   shared->set_function_literal_id(literal->function_literal_id());
   literal->set_shared_function_info(shared);
   SharedFunctionInfo::InitFromFunctionLiteral(isolate(), literal, is_toplevel);
-  shared->SetScript(read_only_roots(), *script, literal->function_literal_id(),
-                    false);
+  shared->SetScript(isolate(), read_only_roots(), *script,
+                    literal->function_literal_id(), false);
   return shared;
 }
 
@@ -546,7 +512,7 @@ FactoryBase<Impl>::NewUncompiledDataWithoutPreparseData(
     Handle<String> inferred_name, int32_t start_position,
     int32_t end_position) {
   return TorqueGeneratedFactory<Impl>::NewUncompiledDataWithoutPreparseData(
-      inferred_name, start_position, end_position, AllocationType::kOld);
+      inferred_name, start_position, end_position, AllocationType::kTrusted);
 }
 
 template <typename Impl>
@@ -556,7 +522,7 @@ FactoryBase<Impl>::NewUncompiledDataWithPreparseData(
     Handle<PreparseData> preparse_data) {
   return TorqueGeneratedFactory<Impl>::NewUncompiledDataWithPreparseData(
       inferred_name, start_position, end_position, preparse_data,
-      AllocationType::kOld);
+      AllocationType::kTrusted);
 }
 
 template <typename Impl>
@@ -564,12 +530,10 @@ Handle<UncompiledDataWithoutPreparseDataWithJob>
 FactoryBase<Impl>::NewUncompiledDataWithoutPreparseDataWithJob(
     Handle<String> inferred_name, int32_t start_position,
     int32_t end_position) {
-  return TorqueGeneratedFactory<
-      Impl>::NewUncompiledDataWithoutPreparseDataWithJob(inferred_name,
-                                                         start_position,
-                                                         end_position,
-                                                         kNullAddress,
-                                                         AllocationType::kOld);
+  return TorqueGeneratedFactory<Impl>::
+      NewUncompiledDataWithoutPreparseDataWithJob(inferred_name, start_position,
+                                                  end_position, kNullAddress,
+                                                  AllocationType::kTrusted);
 }
 
 template <typename Impl>
@@ -579,7 +543,7 @@ FactoryBase<Impl>::NewUncompiledDataWithPreparseDataAndJob(
     Handle<PreparseData> preparse_data) {
   return TorqueGeneratedFactory<Impl>::NewUncompiledDataWithPreparseDataAndJob(
       inferred_name, start_position, end_position, preparse_data, kNullAddress,
-      AllocationType::kOld);
+      AllocationType::kTrusted);
 }
 
 template <typename Impl>
@@ -609,11 +573,11 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
     DCHECK(!Builtins::IsBuiltinId(builtin));
     DCHECK(!IsInstructionStream(*function_data));
     DCHECK(!IsCode(*function_data));
-    SharedFunctionInfo::DataType type =
-        IsExposedTrustedObject(*function_data)
-            ? SharedFunctionInfo::DataType::kTrusted
-            : SharedFunctionInfo::DataType::kRegular;
-    raw->SetData(*function_data, kReleaseStore, type);
+    if (IsExposedTrustedObject(*function_data)) {
+      raw->SetTrustedData(Cast<ExposedTrustedObject>(*function_data));
+    } else {
+      raw->SetUntrustedData(*function_data);
+    }
   } else if (Builtins::IsBuiltinId(builtin)) {
     raw->set_builtin_id(builtin);
   } else {
@@ -654,9 +618,19 @@ FactoryBase<Impl>::NewArrayBoilerplateDescription(
 }
 
 template <typename Impl>
+Handle<RegExpDataWrapper> FactoryBase<Impl>::NewRegExpDataWrapper() {
+  Handle<RegExpDataWrapper> wrapper(
+      Cast<RegExpDataWrapper>(NewWithImmortalMap(
+          read_only_roots().regexp_data_wrapper_map(), AllocationType::kOld)),
+      isolate());
+  wrapper->clear_data();
+  return wrapper;
+}
+
+template <typename Impl>
 Handle<RegExpBoilerplateDescription>
 FactoryBase<Impl>::NewRegExpBoilerplateDescription(
-    DirectHandle<FixedArray> data, DirectHandle<String> source,
+    DirectHandle<RegExpData> data, DirectHandle<String> source,
     Tagged<Smi> flags) {
   auto result = NewStructInternal<RegExpBoilerplateDescription>(
       REG_EXP_BOILERPLATE_DESCRIPTION_TYPE, AllocationType::kOld);
@@ -686,7 +660,7 @@ template <typename Impl>
 Handle<FeedbackMetadata> FactoryBase<Impl>::NewFeedbackMetadata(
     int slot_count, int create_closure_slot_count, AllocationType allocation) {
   DCHECK_LE(0, slot_count);
-  int size = FeedbackMetadata::SizeFor(slot_count);
+  int size = FeedbackMetadata::SizeFor(slot_count, create_closure_slot_count);
   Tagged<FeedbackMetadata> result =
       Cast<FeedbackMetadata>(AllocateRawWithImmortalMap(
           size, allocation, read_only_roots().feedback_metadata_map()));

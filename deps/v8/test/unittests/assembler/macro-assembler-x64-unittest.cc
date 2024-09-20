@@ -2307,13 +2307,15 @@ TEST_F(MacroAssemblerX64Test, I16x8SConvertF16x8) {
   float fp16_min = -fp16_max;
   float NaN = std::numeric_limits<float>::quiet_NaN();
   float neg_zero = base::bit_cast<float>(0x80000000);
+  float inf = std::numeric_limits<float>::infinity();
+  float neg_inf = -std::numeric_limits<float>::infinity();
 
   std::vector<std::array<float, 8>> test_cases = {
       {32.4, 2.5, 12.4, 62.346, 235.6, 2.36, 1253.4, 63.46},
       {34.5, 2.63, 234.6, 34.68, -234.6, -1.264, -23.6, -2.36},
       {NaN, 0, 0, neg_zero, NaN, -NaN, neg_zero, neg_zero},
-      {fp16_max, fp16_max, fp16_min, fp16_min, fp16_max + 1, fp16_max + 1,
-       fp16_min - 1, fp16_min - 1}};
+      {fp16_max, fp16_max, fp16_min, fp16_min, fp16_max + 1, inf, fp16_min - 1,
+       neg_inf}};
   uint16_t input[16];
   int16_t output[16];
 
@@ -2376,13 +2378,15 @@ TEST_F(MacroAssemblerX64Test, I16x8TruncF16x8U) {
   float fp16_min = -fp16_max;
   float NaN = std::numeric_limits<float>::quiet_NaN();
   float neg_zero = base::bit_cast<float>(0x80000000);
+  float inf = std::numeric_limits<float>::infinity();
+  float neg_inf = -std::numeric_limits<float>::infinity();
 
   std::vector<std::array<float, 8>> test_cases = {
       {32.4, 2.5, 12.4, 62.346, 235.6, 2.36, 1253.4, 63.46},
       {34.5, 2.63, 234.6, 34.68, -234.6, -1.264, -23.6, -2.36},
       {NaN, 0, 0, neg_zero, NaN, -NaN, neg_zero, neg_zero},
-      {fp16_max, fp16_max, fp16_min, fp16_min, fp16_max + 1, fp16_max + 1,
-       fp16_min - 1, fp16_min - 1}};
+      {fp16_max, fp16_max, fp16_min, fp16_min, fp16_max + 1, inf, fp16_min - 1,
+       neg_inf}};
   uint16_t input[16];
   uint16_t output[16];
 

@@ -50,10 +50,10 @@ void FrameDescription::SetCallerConstantPool(unsigned offset, intptr_t value) {
   UNREACHABLE();
 }
 
-void FrameDescription::SetPc(intptr_t pc, bool skip_validity_check) {
+void FrameDescription::SetPc(intptr_t pc) {
   // TODO(v8:10026): We need to sign pointers to the embedded blob, which are
   // stored in the isolate and code range objects.
-  if (ENABLE_CONTROL_FLOW_INTEGRITY_BOOL && !skip_validity_check) {
+  if (ENABLE_CONTROL_FLOW_INTEGRITY_BOOL) {
     CHECK(Deoptimizer::IsValidReturnAddress(PointerAuthentication::StripPAC(pc),
                                             isolate_));
   }

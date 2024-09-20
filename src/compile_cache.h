@@ -36,9 +36,10 @@ struct CompileCacheEntry {
 };
 
 #define COMPILE_CACHE_STATUS(V)                                                \
-  V(kFailed)         /* Failed to enable the cache */                          \
-  V(kEnabled)        /* Was not enabled before, and now enabled. */            \
-  V(kAlreadyEnabled) /* Was already enabled. */
+  V(FAILED)          /* Failed to enable the cache */                          \
+  V(ENABLED)         /* Was not enabled before, and now enabled. */            \
+  V(ALREADY_ENABLED) /* Was already enabled. */                                \
+  V(DISABLED)        /* Has been disabled by NODE_DISABLE_COMPILE_CACHE. */
 
 enum class CompileCacheEnableStatus : uint8_t {
 #define V(status) status,

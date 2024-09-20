@@ -337,7 +337,8 @@ class ReadOnlyPromotionImpl final : public AllStatic {
     //
     // Known objects.
     Heap* heap = isolate->heap();
-    CHECK(InReadOnlySpace(heap->promise_all_resolve_element_shared_fun()));
+    CHECK(InReadOnlySpace(
+        heap->promise_all_resolve_element_closure_shared_fun()));
     // TODO(jgruber): Extend here with more objects as they are added to
     // the promotion algorithm.
 
@@ -442,7 +443,7 @@ class ReadOnlyPromotionImpl final : public AllStatic {
    private:
     void ProcessSlot(Root root, FullObjectSlot slot) {
       Tagged<Object> old_slot_value_obj = slot.load(isolate_);
-#ifdef V8_ENABLE_DIRECT_LOCAL
+#ifdef V8_ENABLE_DIRECT_HANDLE
       if (old_slot_value_obj.ptr() == kTaggedNullAddress) return;
 #endif
       if (!IsHeapObject(old_slot_value_obj)) return;

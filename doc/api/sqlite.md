@@ -198,7 +198,8 @@ added: v22.5.0
 * Returns: {string} The source SQL expanded to include parameter values.
 
 This method returns the source SQL of the prepared statement with parameter
-placeholders replaced by values. This method is a wrapper around
+placeholders replaced by the values that were used during the most recent
+execution of this prepared statement. This method is a wrapper around
 [`sqlite3_expanded_sql()`][].
 
 ### `statement.get([namedParameters][, ...anonymousParameters])`
@@ -308,11 +309,11 @@ exception.
 
 | SQLite    | JavaScript           |
 | --------- | -------------------- |
-| `NULL`    | `null`               |
-| `INTEGER` | `number` or `BigInt` |
-| `REAL`    | `number`             |
-| `TEXT`    | `string`             |
-| `BLOB`    | `Uint8Array`         |
+| `NULL`    | {null}               |
+| `INTEGER` | {number} or {bigint} |
+| `REAL`    | {number}             |
+| `TEXT`    | {string}             |
+| `BLOB`    | {Uint8Array}         |
 
 [SQL injection]: https://en.wikipedia.org/wiki/SQL_injection
 [`--experimental-sqlite`]: cli.md#--experimental-sqlite

@@ -5,6 +5,7 @@ import { opendir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { describe, it } from 'node:test';
 import { sep } from 'node:path';
+import { strictEqual } from 'node:assert';
 
 const python = process.env.PYTHON || (isWindows ? 'python' : 'python3');
 
@@ -41,7 +42,8 @@ const tests = testSets.reduce((m, v) => {
 }, []);
 
 describe('AsyncContextFrame', {
-  concurrency: tests.length
+  // TODO(qard): I think high concurrency causes memory problems on Windows
+  // concurrency: tests.length
 }, () => {
   for (const test of tests) {
     it(test, async () => {
@@ -53,7 +55,8 @@ describe('AsyncContextFrame', {
         stdio: ['ignore', 'ignore', 'inherit'],
       });
 
-      await once(proc, 'exit');
+      const [code] = await once(proc, 'exit');
+      strictEqual(code, 0, `Test ${test} failed with exit code ${code}`);
     });
   }
 });

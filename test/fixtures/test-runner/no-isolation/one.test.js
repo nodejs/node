@@ -3,30 +3,35 @@ const { before, beforeEach, after, afterEach, test, suite } = require('node:test
 
 globalThis.GLOBAL_ORDER = [];
 
+function record(data) {
+  globalThis.GLOBAL_ORDER.push(data);
+  console.log(data);
+}
+
 before(function() {
-  GLOBAL_ORDER.push(`before one: ${this.name}`);
+  record(`before one: ${this.name}`);
 });
 
 beforeEach(function() {
-  GLOBAL_ORDER.push(`beforeEach one: ${this.name}`);
+  record(`beforeEach one: ${this.name}`);
 });
 
 after(function() {
-  GLOBAL_ORDER.push(`after one: ${this.name}`);
+  record(`after one: ${this.name}`);
 });
 
 afterEach(function() {
-  GLOBAL_ORDER.push(`afterEach one: ${this.name}`);
+  record(`afterEach one: ${this.name}`);
 });
 
 suite('suite one', function() {
-  GLOBAL_ORDER.push(this.name);
+  record(this.name);
 
   test('suite one - test', { only: true }, function() {
-    GLOBAL_ORDER.push(this.name);
+    record(this.name);
   });
 });
 
 test('test one', function() {
-  GLOBAL_ORDER.push(this.name);
+  record(this.name);
 });

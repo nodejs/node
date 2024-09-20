@@ -602,7 +602,7 @@ BUILTIN(DateTimeFormatInternalFormat) {
   // 1. Let dtf be F.[[DateTimeFormat]].
   // 2. Assert: Type(dtf) is Object and dtf has an [[InitializedDateTimeFormat]]
   // internal slot.
-  Handle<JSDateTimeFormat> date_format_holder = Handle<JSDateTimeFormat>(
+  DirectHandle<JSDateTimeFormat> date_format_holder(
       Cast<JSDateTimeFormat>(context->get(
           static_cast<int>(Intl::BoundFunctionContextSlot::kBoundFunction))),
       isolate);

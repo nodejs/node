@@ -170,7 +170,7 @@ void ares_metrics_record(const ares_query_t *query, ares_server_t *server,
   }
 
   ares__timeval_diff(&tvdiff, &query->ts, &now);
-  query_ms = (unsigned int)(tvdiff.sec + (tvdiff.usec / 1000));
+  query_ms = (unsigned int)((tvdiff.sec * 1000) + (tvdiff.usec / 1000));
   if (query_ms == 0) {
     query_ms = 1;
   }

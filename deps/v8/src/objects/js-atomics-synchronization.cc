@@ -511,11 +511,11 @@ Tagged<Object> JSSynchronizationPrimitive::NumWaitersForTesting(
 // result object, like we do for the iterator result object.
 // static
 Handle<JSObject> JSAtomicsMutex::CreateResultObject(Isolate* isolate,
-                                                    Handle<Object> value,
+                                                    DirectHandle<Object> value,
                                                     bool success) {
   Handle<JSObject> result =
       isolate->factory()->NewJSObject(isolate->object_function());
-  Handle<Object> success_value = isolate->factory()->ToBoolean(success);
+  DirectHandle<Object> success_value = isolate->factory()->ToBoolean(success);
   JSObject::AddProperty(isolate, result, "value", value,
                         PropertyAttributes::NONE);
   JSObject::AddProperty(isolate, result, "success", success_value,

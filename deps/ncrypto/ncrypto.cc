@@ -1,13 +1,18 @@
 #include "ncrypto.h"
 #include <algorithm>
 #include <cstring>
+#include <openssl/dh.h>
 #include <openssl/bn.h>
 #include <openssl/evp.h>
+#include <openssl/hmac.h>
 #include <openssl/pkcs12.h>
 #include <openssl/x509v3.h>
 #if OPENSSL_VERSION_MAJOR >= 3
 #include <openssl/provider.h>
 #endif
+#ifdef OPENSSL_IS_BORINGSSL
+#include "dh-primes.h"
+#endif  // OPENSSL_IS_BORINGSSL
 
 namespace ncrypto {
 namespace {
@@ -289,6 +294,11 @@ const BIGNUM* BignumPointer::One() {
   return BN_value_one();
 }
 
+BignumPointer BignumPointer::clone() {
+  if (!bn_) return {};
+  return BignumPointer(BN_dup(bn_.get()));
+}
+
 // ============================================================================
 // Utility methods
 
@@ -344,6 +354,35 @@ int PasswordCallback(char* buf, int size, int rwflag, void* u) {
   }
 
   return -1;
+}
+
+// Algorithm: http://howardhinnant.github.io/date_algorithms.html
+constexpr int days_from_epoch(int y, unsigned m, unsigned d)
+{
+  y -= m <= 2;
+  const int era = (y >= 0 ? y : y - 399) / 400;
+  const unsigned yoe = static_cast<unsigned>(y - era * 400);            // [0, 399]
+  const unsigned doy = (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 + d - 1;  // [0, 365]
+  const unsigned doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;           // [0, 146096]
+  return era * 146097 + static_cast<int>(doe) - 719468;
+}
+
+// tm must be in UTC
+// using time_t causes problems on 32-bit systems and windows x64.
+int64_t PortableTimeGM(struct tm* t) {
+  int year = t->tm_year + 1900;
+  int month = t->tm_mon;
+  if (month > 11) {
+    year += month / 12;
+    month %= 12;
+  } else if (month < 0) {
+    int years_diff = (11 - month) / 12;
+    year -= years_diff;
+    month += 12 * years_diff;
+  }
+  int days_since_epoch = days_from_epoch(year, month + 1, t->tm_mday);
+
+  return 60 * (60 * (24LL * static_cast<int64_t>(days_since_epoch) + t->tm_hour) + t->tm_min) + t->tm_sec;
 }
 
 // ============================================================================
@@ -816,6 +855,18 @@ BIOPointer X509View::getValidTo() const {
   return bio;
 }
 
+int64_t X509View::getValidToTime() const {
+  struct tm tp;
+  ASN1_TIME_to_tm(X509_get0_notAfter(cert_), &tp);
+  return PortableTimeGM(&tp);
+}
+
+int64_t X509View::getValidFromTime() const {
+  struct tm tp;
+  ASN1_TIME_to_tm(X509_get0_notBefore(cert_), &tp);
+  return PortableTimeGM(&tp);
+}
+
 DataPointer X509View::getSerialNumber() const {
   ClearErrorOnReturn clearErrorOnReturn;
   if (cert_ == nullptr) return {};
@@ -1014,6 +1065,364 @@ BIOPointer BIOPointer::NewFp(FILE* fd, int close_flag) {
 int BIOPointer::Write(BIOPointer* bio, std::string_view message) {
   if (bio == nullptr || !*bio) return 0;
   return BIO_write(bio->get(), message.data(), message.size());
+}
+
+// ============================================================================
+// DHPointer
+
+namespace {
+bool EqualNoCase(const std::string_view a, const std::string_view b) {
+  if (a.size() != b.size()) return false;
+  return std::equal(a.begin(), a.end(), b.begin(), b.end(),
+      [](char a, char b) { return std::tolower(a) == std::tolower(b); });
+}
+}  // namespace
+
+DHPointer::DHPointer(DH* dh) : dh_(dh) {}
+
+DHPointer::DHPointer(DHPointer&& other) noexcept : dh_(other.release()) {}
+
+DHPointer& DHPointer::operator=(DHPointer&& other) noexcept {
+  if (this == &other) return *this;
+  this->~DHPointer();
+  return *new (this) DHPointer(std::move(other));
+}
+
+DHPointer::~DHPointer() { reset(); }
+
+void DHPointer::reset(DH* dh) { dh_.reset(dh); }
+
+DH* DHPointer::release() { return dh_.release(); }
+
+BignumPointer DHPointer::FindGroup(const std::string_view name,
+                                   FindGroupOption option) {
+#define V(n, p) if (EqualNoCase(name, n)) return BignumPointer(p(nullptr));
+  if (option != FindGroupOption::NO_SMALL_PRIMES) {
+    V("modp1", BN_get_rfc2409_prime_768);
+    V("modp2", BN_get_rfc2409_prime_1024);
+    V("modp5", BN_get_rfc3526_prime_1536);
+  }
+  V("modp14", BN_get_rfc3526_prime_2048);
+  V("modp15", BN_get_rfc3526_prime_3072);
+  V("modp16", BN_get_rfc3526_prime_4096);
+  V("modp17", BN_get_rfc3526_prime_6144);
+  V("modp18", BN_get_rfc3526_prime_8192);
+#undef V
+  return {};
+}
+
+BignumPointer DHPointer::GetStandardGenerator() {
+  auto bn = BignumPointer::New();
+  if (!bn) return {};
+  if (!bn.setWord(DH_GENERATOR_2)) return {};
+  return bn;
+}
+
+DHPointer DHPointer::FromGroup(const std::string_view name,
+                               FindGroupOption option) {
+  auto group = FindGroup(name, option);
+  if (!group) return {};  // Unable to find the named group.
+
+  auto generator = GetStandardGenerator();
+  if (!generator) return {};  // Unable to create the generator.
+
+  return New(std::move(group), std::move(generator));
+}
+
+DHPointer DHPointer::New(BignumPointer&& p, BignumPointer&& g) {
+  if (!p || !g) return {};
+
+  DHPointer dh(DH_new());
+  if (!dh) return {};
+
+  if (DH_set0_pqg(dh.get(), p.get(), nullptr, g.get()) != 1) return {};
+
+  // If the call above is successful, the DH object takes ownership of the
+  // BIGNUMs, so we must release them here.
+  p.release();
+  g.release();
+
+  return dh;
+}
+
+DHPointer DHPointer::New(size_t bits, unsigned int generator) {
+  DHPointer dh(DH_new());
+  if (!dh) return {};
+
+  if (DH_generate_parameters_ex(dh.get(), bits, generator, nullptr) != 1) {
+    return {};
+  }
+
+  return dh;
+}
+
+DHPointer::CheckResult DHPointer::check() {
+  ClearErrorOnReturn clearErrorOnReturn;
+  if (!dh_) return DHPointer::CheckResult::NONE;
+  int codes = 0;
+  if (DH_check(dh_.get(), &codes) != 1)
+    return DHPointer::CheckResult::CHECK_FAILED;
+  return static_cast<CheckResult>(codes);
+}
+
+DHPointer::CheckPublicKeyResult DHPointer::checkPublicKey(const BignumPointer& pub_key) {
+  ClearErrorOnReturn clearErrorOnReturn;
+  if (!pub_key || !dh_) return DHPointer::CheckPublicKeyResult::CHECK_FAILED;
+  int codes = 0;
+  if (DH_check_pub_key(dh_.get(), pub_key.get(), &codes) != 1)
+    return DHPointer::CheckPublicKeyResult::CHECK_FAILED;
+  if (codes & DH_CHECK_PUBKEY_TOO_SMALL) {
+    return DHPointer::CheckPublicKeyResult::TOO_SMALL;
+  } else if (codes & DH_CHECK_PUBKEY_TOO_SMALL) {
+    return DHPointer::CheckPublicKeyResult::TOO_LARGE;
+  } else if (codes != 0) {
+    return DHPointer::CheckPublicKeyResult::INVALID;
+  }
+  return CheckPublicKeyResult::NONE;
+}
+
+DataPointer DHPointer::getPrime() const {
+  if (!dh_) return {};
+  const BIGNUM* p;
+  DH_get0_pqg(dh_.get(), &p, nullptr, nullptr);
+  return BignumPointer::Encode(p);
+}
+
+DataPointer DHPointer::getGenerator() const {
+  if (!dh_) return {};
+  const BIGNUM* g;
+  DH_get0_pqg(dh_.get(), nullptr, nullptr, &g);
+  return BignumPointer::Encode(g);
+}
+
+DataPointer DHPointer::getPublicKey() const {
+  if (!dh_) return {};
+  const BIGNUM* pub_key;
+  DH_get0_key(dh_.get(), &pub_key, nullptr);
+  return BignumPointer::Encode(pub_key);
+}
+
+DataPointer DHPointer::getPrivateKey() const {
+  if (!dh_) return {};
+  const BIGNUM* pvt_key;
+  DH_get0_key(dh_.get(), nullptr, &pvt_key);
+  return BignumPointer::Encode(pvt_key);
+}
+
+DataPointer DHPointer::generateKeys() const {
+  ClearErrorOnReturn clearErrorOnReturn;
+  if (!dh_) return {};
+
+  // Key generation failed
+  if (!DH_generate_key(dh_.get())) return {};
+
+  return getPublicKey();
+}
+
+size_t DHPointer::size() const {
+  if (!dh_) return 0;
+  return DH_size(dh_.get());
+}
+
+DataPointer DHPointer::computeSecret(const BignumPointer& peer) const {
+  ClearErrorOnReturn clearErrorOnReturn;
+  if (!dh_ || !peer) return {};
+
+  auto dp = DataPointer::Alloc(size());
+  if (!dp) return {};
+
+  int size = DH_compute_key(static_cast<uint8_t*>(dp.get()), peer.get(), dh_.get());
+  if (size < 0) return {};
+
+  // The size of the computed key can be smaller than the size of the DH key.
+  // We want to make sure that the key is correctly padded.
+  if (static_cast<size_t>(size) < dp.size()) {
+    const size_t padding = dp.size() - size;
+    uint8_t* data = static_cast<uint8_t*>(dp.get());
+    memmove(data + padding, data, size);
+    memset(data, 0, padding);
+  }
+
+  return dp;
+}
+
+bool DHPointer::setPublicKey(BignumPointer&& key) {
+  if (!dh_) return false;
+  if (DH_set0_key(dh_.get(), key.get(), nullptr) == 1) {
+    key.release();
+    return true;
+  }
+  return false;
+}
+
+bool DHPointer::setPrivateKey(BignumPointer&& key) {
+  if (!dh_) return false;
+  if (DH_set0_key(dh_.get(), nullptr, key.get()) == 1) {
+    key.release();
+    return true;
+  }
+  return false;
+}
+
+DataPointer DHPointer::stateless(const EVPKeyPointer& ourKey,
+                                 const EVPKeyPointer& theirKey) {
+  size_t out_size;
+  if (!ourKey || !theirKey) return {};
+
+  EVPKeyCtxPointer ctx(EVP_PKEY_CTX_new(ourKey.get(), nullptr));
+  if (!ctx ||
+      EVP_PKEY_derive_init(ctx.get()) <= 0 ||
+      EVP_PKEY_derive_set_peer(ctx.get(), theirKey.get()) <= 0 ||
+      EVP_PKEY_derive(ctx.get(), nullptr, &out_size) <= 0) {
+    return {};
+  }
+
+  if (out_size == 0) return {};
+
+  auto out = DataPointer::Alloc(out_size);
+  if (EVP_PKEY_derive(ctx.get(), reinterpret_cast<uint8_t*>(out.get()), &out_size) <= 0) {
+    return {};
+  }
+
+  if (out_size < out.size()) {
+    const size_t padding = out.size() - out_size;
+    uint8_t* data = static_cast<uint8_t*>(out.get());
+    memmove(data + padding, data, out_size);
+    memset(data, 0, padding);
+  }
+
+  return out;
+}
+
+// ============================================================================
+// KDF
+
+const EVP_MD* getDigestByName(const std::string_view name) {
+  return EVP_get_digestbyname(name.data());
+}
+
+bool checkHkdfLength(const EVP_MD* md, size_t length) {
+  // HKDF-Expand computes up to 255 HMAC blocks, each having as many bits as
+  // the output of the hash function. 255 is a hard limit because HKDF appends
+  // an 8-bit counter to each HMAC'd message, starting at 1.
+  static constexpr size_t kMaxDigestMultiplier = 255;
+  size_t max_length = EVP_MD_size(md) * kMaxDigestMultiplier;
+  if (length > max_length) return false;
+  return true;
+}
+
+DataPointer hkdf(const EVP_MD* md,
+                 const Buffer<const unsigned char>& key,
+                 const Buffer<const unsigned char>& info,
+                 const Buffer<const unsigned char>& salt,
+                 size_t length) {
+  ClearErrorOnReturn clearErrorOnReturn;
+
+  if (!checkHkdfLength(md, length) ||
+      info.len > INT_MAX ||
+      salt.len > INT_MAX) {
+    return {};
+  }
+
+  EVPKeyCtxPointer ctx =
+      EVPKeyCtxPointer(EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, nullptr));
+  if (!ctx ||
+      !EVP_PKEY_derive_init(ctx.get()) ||
+      !EVP_PKEY_CTX_set_hkdf_md(ctx.get(), md) ||
+      !EVP_PKEY_CTX_add1_hkdf_info(ctx.get(), info.data, info.len)) {
+    return {};
+  }
+
+  std::string_view actual_salt;
+  static const char default_salt[EVP_MAX_MD_SIZE] = {0};
+  if (salt.len > 0) {
+    actual_salt = {reinterpret_cast<const char*>(salt.data), salt.len};
+  } else {
+    actual_salt = {default_salt, static_cast<unsigned>(EVP_MD_size(md))};
+  }
+
+  // We do not use EVP_PKEY_HKDF_MODE_EXTRACT_AND_EXPAND because and instead
+  // implement the extraction step ourselves because EVP_PKEY_derive does not
+  // handle zero-length keys, which are required for Web Crypto.
+  // TODO: Once OpenSSL 1.1.1 support is dropped completely, and once BoringSSL
+  // is confirmed to support it, wen can hopefully drop this and use EVP_KDF
+  // directly which does support zero length keys.
+  unsigned char pseudorandom_key[EVP_MAX_MD_SIZE];
+  unsigned pseudorandom_key_len = sizeof(pseudorandom_key);
+
+  if (HMAC(md,
+           actual_salt.data(),
+           actual_salt.size(),
+           key.data,
+           key.len,
+           pseudorandom_key,
+           &pseudorandom_key_len) == nullptr) {
+    return {};
+  }
+  if (!EVP_PKEY_CTX_hkdf_mode(ctx.get(), EVP_PKEY_HKDEF_MODE_EXPAND_ONLY) ||
+      !EVP_PKEY_CTX_set1_hkdf_key(ctx.get(), pseudorandom_key, pseudorandom_key_len)) {
+    return {};
+  }
+
+  auto buf = DataPointer::Alloc(length);
+  if (!buf) return {};
+
+  if (EVP_PKEY_derive(ctx.get(), static_cast<unsigned char*>(buf.get()), &length) <= 0) {
+    return {};
+  }
+
+  return buf;
+}
+
+bool checkScryptParams(uint64_t N, uint64_t r, uint64_t p, uint64_t maxmem) {
+  return EVP_PBE_scrypt(nullptr, 0, nullptr, 0, N, r, p, maxmem, nullptr, 0) == 1;
+}
+
+DataPointer scrypt(const Buffer<const char>& pass,
+                   const Buffer<const unsigned char>& salt,
+                   uint64_t N,
+                   uint64_t r,
+                   uint64_t p,
+                   uint64_t maxmem,
+                   size_t length) {
+  ClearErrorOnReturn clearErrorOnReturn;
+
+  if (pass.len > INT_MAX ||
+      salt.len > INT_MAX) {
+    return {};
+  }
+
+  auto dp = DataPointer::Alloc(length);
+  if (dp && EVP_PBE_scrypt(
+      pass.data, pass.len, salt.data, salt.len, N, r, p, maxmem,
+      reinterpret_cast<unsigned char*>(dp.get()), length)) {
+    return dp;
+  }
+
+  return {};
+}
+
+DataPointer pbkdf2(const EVP_MD* md,
+                   const Buffer<const char>& pass,
+                   const Buffer<const unsigned char>& salt,
+                   uint32_t iterations,
+                   size_t length) {
+  ClearErrorOnReturn clearErrorOnReturn;
+
+  if (pass.len > INT_MAX ||
+      salt.len > INT_MAX ||
+      length > INT_MAX) {
+    return {};
+  }
+
+  auto dp = DataPointer::Alloc(length);
+  if (dp && PKCS5_PBKDF2_HMAC(pass.data, pass.len, salt.data, salt.len,
+                              iterations, md, length,
+                              reinterpret_cast<unsigned char*>(dp.get()))) {
+    return dp;
+  }
+
+  return {};
 }
 
 }  // namespace ncrypto

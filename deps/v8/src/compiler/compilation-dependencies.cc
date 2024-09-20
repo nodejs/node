@@ -4,8 +4,9 @@
 
 #include "src/compiler/compilation-dependencies.h"
 
+#include <optional>
+
 #include "src/base/hashmap.h"
-#include "src/base/optional.h"
 #include "src/common/assert-scope.h"
 #include "src/execution/protectors.h"
 #include "src/handles/handles-inl.h"
@@ -576,7 +577,7 @@ class OwnConstantDictionaryPropertyDependency final
       return false;
     }
 
-    base::Optional<Tagged<Object>> maybe_value = JSObject::DictionaryPropertyAt(
+    std::optional<Tagged<Object>> maybe_value = JSObject::DictionaryPropertyAt(
         holder_.object(), index_, broker->isolate()->heap());
 
     if (!maybe_value) {
@@ -1052,7 +1053,7 @@ class OwnConstantElementDependency final : public CompilationDependency {
   bool IsValid(JSHeapBroker* broker) const override {
     DisallowGarbageCollection no_gc;
     Tagged<JSObject> holder = *holder_.object();
-    base::Optional<Tagged<Object>> maybe_element =
+    std::optional<Tagged<Object>> maybe_element =
         holder_.GetOwnConstantElementFromHeap(
             broker, holder->elements(), holder->GetElementsKind(), index_);
     if (!maybe_element.has_value()) return false;

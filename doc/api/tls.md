@@ -1577,7 +1577,9 @@ protocol.
 ### `tlsSocket.setKeyCert(context)`
 
 <!-- YAML
-added: v22.5.0
+added:
+  - v22.5.0
+  - v20.17.0
 -->
 
 * `context` {Object|tls.SecureContext} An object containing at least `key` and
@@ -1854,6 +1856,9 @@ argument.
 <!-- YAML
 added: v0.11.13
 changes:
+  - version: v22.9.0
+    pr-url: https://github.com/nodejs/node/pull/54790
+    description: The `allowPartialTrustChain` option has been added.
   - version:
     - v22.4.0
     - v20.16.0
@@ -1910,6 +1915,8 @@ changes:
 -->
 
 * `options` {Object}
+  * `allowPartialTrustChain` {boolean} Treat intermediate (non-self-signed)
+    certificates in the trust CA certificate list as trusted.
   * `ca` {string|string\[]|Buffer|Buffer\[]} Optionally override the trusted CA
     certificates. Default is to trust the well-known CAs curated by Mozilla.
     Mozilla's CAs are completely replaced when CAs are explicitly specified

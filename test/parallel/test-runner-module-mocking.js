@@ -407,6 +407,12 @@ test('modules cannot be mocked multiple times at once', async (t) => {
 
     assert.strictEqual(mocked.fn(), 42);
   });
+
+  await t.test('Importing a Windows path should fail', { skip: !common.isWindows }, async (t) => {
+    const fixture = fixtures.path('module-mocking', 'wrong-path.js');
+    t.mock.module(fixture, { namedExports: { fn() { return 42; } } });
+    await assert.rejects(import(fixture), { code: 'ERR_UNSUPPORTED_ESM_URL_SCHEME' });
+  });
 });
 
 test('mocks are automatically restored', async (t) => {
@@ -565,7 +571,7 @@ test('node_modules can be used by both module systems', async (t) => {
 
   assert.strictEqual(code, 0);
   assert.strictEqual(signal, null);
-  assert.match(stdout, /# pass 1/);
+  assert.match(stdout, /pass 1/);
 });
 
 test('file:// imports are supported in ESM only', async (t) => {

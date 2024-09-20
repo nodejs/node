@@ -17,14 +17,25 @@ TypeCanonicalizer* GetTypeCanonicalizer() {
 
 TypeCanonicalizer::TypeCanonicalizer() { AddPredefinedArrayTypes(); }
 
-// For convenience, limit canonicalized type indices to Smi range.
-// We could squeeze out a few more bits if necessary by passing them
-// from compiled wrappers to runtime functions as Smi-tagged unsigned ints.
-// That would give us "uint31" range on 32-bit platforms, and allow
-// uint32_t (or even more) on 64-bit platforms. But we probably don't want
-// to store that many types in the TypeCanonicalizer anyway.
-static constexpr size_t kMaxCanonicalTypes = kSmiMaxValue;
+// Inside the TypeCanonicalizer, we use ValueType instances constructed
+// from canonical type indices, so we can't let them get bigger than what
+// we have storage space for. Code outside the TypeCanonicalizer already
+// supports up to Smi range for canonical type indices.
+// TODO(jkummerow): Raise this limit. Possible options:
+// - increase the size of ValueType::HeapTypeField, using currently-unused bits.
+// - change the encoding of ValueType: one bit says whether it's a ref type,
+//   the other bits then encode the index or the kind of non-ref type.
+// - refactor the TypeCanonicalizer's internals to no longer use ValueTypes
+//   and related infrastructure, and use a wider encoding of canonicalized
+//   type indices only here.
+// - wait for 32-bit platforms to no longer be relevant, and increase the
+//   size of ValueType to 64 bits.
+// None of this seems urgent, as we have no evidence of the current limit
+// being an actual limitation in practice.
+static constexpr size_t kMaxCanonicalTypes = kV8MaxWasmTypes;
+// We don't want any valid modules to fail canonicalization.
 static_assert(kMaxCanonicalTypes >= kV8MaxWasmTypes);
+// We want the invalid index to fail any range checks.
 static_assert(kInvalidCanonicalIndex > kMaxCanonicalTypes);
 
 void TypeCanonicalizer::CheckMaxCanonicalIndex() const {
@@ -215,6 +226,7 @@ ValueType TypeCanonicalizer::CanonicalizeValueType(
     const WasmModule* module, ValueType type,
     uint32_t recursive_group_start) const {
   if (!type.has_index()) return type;
+  static_assert(kMaxCanonicalTypes <= (1u << ValueType::kHeapTypeBits));
   return type.ref_index() >= recursive_group_start
              ? ValueType::CanonicalWithRelativeIndex(
                    type.kind(), type.ref_index() - recursive_group_start)
@@ -342,11 +354,11 @@ int TypeCanonicalizer::FindCanonicalGroup(const CanonicalSingletonGroup& group,
 }
 
 size_t TypeCanonicalizer::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(TypeCanonicalizer, 312);
-  size_t result = ContentSize(canonical_supertypes_);
+  UPDATE_WHEN_CLASS_CHANGES(TypeCanonicalizer, 296);
   // The storage of the canonical group's types is accounted for via the
   // allocator below (which tracks the zone memory).
   base::MutexGuard mutex_guard(&mutex_);
+  size_t result = ContentSize(canonical_supertypes_);
   result += ContentSize(canonical_groups_);
   result += ContentSize(canonical_singleton_groups_);
   result += ContentSize(canonical_sigs_);

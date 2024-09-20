@@ -412,6 +412,14 @@ void EventHandler(const JitCodeEvent* event) {
     script_column = info.column + 1;
   }
 
+  auto code = isolate->heap()->GcSafeTryFindCodeForInnerPointer(
+      Address(event->code_start));
+  if (code && code.value()->is_builtin()) {
+    // Skip logging functions with BuiltinIds as they are already present in
+    // the PDB.
+    return;
+  }
+
   constexpr static auto method_load_event_meta =
       EventMetadata(kMethodLoadEventID, kJScriptRuntimeKeyword);
   constexpr static auto method_load_event_fields = EventFields(

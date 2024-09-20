@@ -571,7 +571,8 @@ size_t ConcurrentMarking::GetMinorMaxConcurrency(size_t worker_count) {
 
 void ConcurrentMarking::TryScheduleJob(GarbageCollector garbage_collector,
                                        TaskPriority priority) {
-  DCHECK(v8_flags.parallel_marking || v8_flags.concurrent_marking);
+  DCHECK(v8_flags.parallel_marking || v8_flags.concurrent_marking ||
+         v8_flags.concurrent_minor_ms_marking);
   DCHECK(!heap_->IsTearingDown());
   DCHECK(IsStopped());
 
@@ -645,7 +646,8 @@ bool ConcurrentMarking::IsWorkLeft() const {
 
 void ConcurrentMarking::RescheduleJobIfNeeded(
     GarbageCollector garbage_collector, TaskPriority priority) {
-  DCHECK(v8_flags.parallel_marking || v8_flags.concurrent_marking);
+  DCHECK(v8_flags.parallel_marking || v8_flags.concurrent_marking ||
+         v8_flags.concurrent_minor_ms_marking);
 
   if (garbage_collector == GarbageCollector::MARK_COMPACTOR &&
       !heap_->mark_compact_collector()->UseBackgroundThreadsInCycle()) {
@@ -696,7 +698,8 @@ void ConcurrentMarking::FlushPretenuringFeedback() {
 }
 
 void ConcurrentMarking::Join() {
-  DCHECK(v8_flags.parallel_marking || v8_flags.concurrent_marking);
+  DCHECK(v8_flags.parallel_marking || v8_flags.concurrent_marking ||
+         v8_flags.concurrent_minor_ms_marking);
   DCHECK_IMPLIES(
       garbage_collector_ == GarbageCollector::MARK_COMPACTOR,
       heap_->mark_compact_collector()->UseBackgroundThreadsInCycle());

@@ -97,6 +97,10 @@ struct IndirectPointerHandleT : Uint32T {
   static constexpr MachineType kMachineType = MachineType::Uint32();
 };
 
+struct JSDispatchHandleT : Uint32T {
+  static constexpr MachineType kMachineType = MachineType::Uint32();
+};
+
 #ifdef V8_ENABLE_SANDBOX
 struct ExternalPointerT : Uint32T {
   static constexpr MachineType kMachineType = MachineType::Uint32();
@@ -137,6 +141,12 @@ struct Float64T : UntaggedT {
 using TaggedT = Int32T;
 #else
 using TaggedT = IntPtrT;
+#endif
+
+#ifdef V8_ENABLE_SANDBOX
+using TrustedPointerT = IndirectPointerHandleT;
+#else
+using TrustedPointerT = TaggedT;
 #endif
 
 // Result of a comparison operation.

@@ -659,6 +659,25 @@ bool PagedSpaceAllocatorPolicy::RefillLab(int size_in_bytes,
 
   if (TryAllocationFromFreeList(size_in_bytes, origin)) return true;
 
+  // Don't steal pages from the shared space of the main isolate if running as a
+  // client. The issue is that the concurrent marker may be running on the main
+  // isolate and may reach the page and read its flags, which will then end up
+  // in a race, when the page of the compaction space will be merged back to the
+  // main space. For the same reason, don't take swept pages from the main
+  // shared space.
+  const bool running_from_client_isolate_and_allocating_in_shared_space =
+      (allocator_->identity() == SHARED_SPACE) &&
+      !isolate_heap()->isolate()->is_shared_space_isolate();
+  if (running_from_client_isolate_and_allocating_in_shared_space) {
+    // Avoid OOM crash in the GC in order to invoke NearHeapLimitCallback after
+    // GC and give it a chance to increase the heap limit.
+    if (!isolate_heap()->force_oom() &&
+        TryExpandAndAllocate(size_in_bytes, origin)) {
+      return true;
+    }
+    return false;
+  }
+
   // Sweeping is still in progress.
   if (space_heap()->sweeping_in_progress()) {
     // First try to refill the free-list, concurrent sweeper threads

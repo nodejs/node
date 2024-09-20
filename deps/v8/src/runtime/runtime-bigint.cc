@@ -14,7 +14,7 @@ RUNTIME_FUNCTION(Runtime_BigIntCompareToNumber) {
   DCHECK_EQ(3, args.length());
   int mode = args.smi_value_at(0);
   DirectHandle<BigInt> lhs = args.at<BigInt>(1);
-  Handle<Object> rhs = args.at(2);
+  DirectHandle<Object> rhs = args.at(2);
   bool result = ComparisonResultToBool(static_cast<Operation>(mode),
                                        BigInt::CompareToNumber(lhs, rhs));
   return *isolate->factory()->ToBoolean(result);
@@ -65,7 +65,7 @@ RUNTIME_FUNCTION(Runtime_BigIntEqualToString) {
 RUNTIME_FUNCTION(Runtime_BigIntToNumber) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<BigInt> x = args.at<BigInt>(0);
+  DirectHandle<BigInt> x = args.at<BigInt>(0);
   return *BigInt::ToNumber(isolate, x);
 }
 
