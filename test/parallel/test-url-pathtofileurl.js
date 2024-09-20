@@ -13,7 +13,7 @@ const url = require('url');
 {
   const fileURL = url.pathToFileURL('test\\').href;
   assert.ok(fileURL.startsWith('file:///'));
-  assert.match(fileURL, isWindows ? /\\$/ : /%5C$/);
+  assert.match(fileURL, isWindows ? /\/$/ : /%5C$/);
 }
 
 {
