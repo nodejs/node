@@ -1070,14 +1070,6 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
   }
 
   if (!per_process::cli_options->run.empty()) {
-    // TODO(@anonrig): Handle NODE_NO_WARNINGS, NODE_REDIRECT_WARNINGS,
-    //  --disable-warning and --redirect-warnings.
-    if (per_process::cli_options->per_isolate->per_env->warnings) {
-      fprintf(stderr,
-              "ExperimentalWarning: Task runner is an experimental feature and "
-              "might change at any time\n\n");
-    }
-
     auto positional_args = task_runner::GetPositionalArgs(args);
     result->early_return_ = true;
     task_runner::RunTask(
