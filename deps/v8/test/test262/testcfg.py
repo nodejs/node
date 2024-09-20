@@ -58,7 +58,6 @@ FEATURE_FLAGS = {
     'json-parse-with-source': '--harmony-json-parse-with-source',
     'iterator-helpers': '--harmony-iterator-helpers',
     'set-methods': '--harmony-set-methods',
-    'promise-with-resolvers': '--js-promise-withresolvers',
     'Array.fromAsync': '--harmony-array-from-async',
     'import-attributes': '--harmony-import-attributes',
     'regexp-duplicate-named-groups': '--js-regexp-duplicate-named-groups',

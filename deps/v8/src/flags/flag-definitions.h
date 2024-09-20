@@ -299,8 +299,7 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
   V(harmony_set_methods, "harmony Set Methods")                       \
   V(harmony_import_attributes, "harmony import attributes")
 
-#define JAVASCRIPT_SHIPPING_FEATURES_BASE(V) \
-  V(js_promise_withresolvers, "Promise.withResolvers")
+#define JAVASCRIPT_SHIPPING_FEATURES_BASE(V)
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
