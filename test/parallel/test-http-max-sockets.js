@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+require('../common');
 
 // Make sure http server doesn't wait for socket pool to establish connections
 // https://github.com/nodejs/node-v0.x-archive/issues/877
@@ -40,13 +40,14 @@ const server = http.createServer(function(req, res) {
   res.end('Hello World\n');
 });
 
-const addrString = agent.getName({ host: '127.0.0.1', port: common.PORT });
+server.listen(0, '127.0.0.1', function() {
+  const { port } = server.address();
+  const addrString = agent.getName({ host: '127.0.0.1', port });
 
-server.listen(common.PORT, '127.0.0.1', function() {
   for (let i = 0; i < N; i++) {
     const options = {
       host: '127.0.0.1',
-      port: common.PORT
+      port
     };
 
     const req = http.get(options, function(res) {
