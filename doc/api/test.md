@@ -3046,12 +3046,12 @@ defined.
 
 * `data` {Object}
   * `counts` {Object} An object containing the counts of various test results.
-    * `all` {number} The total number of tests run, excluding suites.
     * `cancelled` {number} The total number of cancelled tests.
     * `failed` {number} The total number of failed tests.
     * `passed` {number} The total number of passed tests.
     * `skipped` {number} The total number of skipped tests.
     * `suites` {number} The total number of suites run.
+    * `tests` {number} The total number of tests run, excluding suites.
     * `todo` {number} The total number of TODO tests.
     * `topLevel` {number} The total number of top level tests and suites.
   * `duration_ms` {number} The duration of the test run in milliseconds.
