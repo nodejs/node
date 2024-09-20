@@ -1248,6 +1248,9 @@ added:
   - v18.9.0
   - v16.19.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/53937
+    description: Added coverage options.
   - version: v22.8.0
     pr-url: https://github.com/nodejs/node/pull/53927
     description: Added the `isolation` option.
@@ -1319,6 +1322,29 @@ changes:
       that specifies the index of the shard to run. This option is _required_.
     * `total` {number} is a positive integer that specifies the total number
       of shards to split the test files to. This option is _required_.
+  * `coverage` {boolean} enable [code coverage][] collection.
+    **Default:** `false`.
+  * `coverageExcludeGlobs` {string|Array} Excludes specific files from code coverage
+    using a glob pattern, which can match both absolute and relative file paths.
+    This property is only applicable when `coverage` was set to `true`.
+    If both `coverageExcludeGlobs` and `coverageIncludeGlobs` are provided,
+    files must meet **both** criteria to be included in the coverage report.
+    **Default:** `undefined`.
+  * `coverageIncludeGlobs` {string|Array} Includes specific files in code coverage
+    using a glob pattern, which can match both absolute and relative file paths.
+    This property is only applicable when `coverage` was set to `true`.
+    If both `coverageExcludeGlobs` and `coverageIncludeGlobs` are provided,
+    files must meet **both** criteria to be included in the coverage report.
+    **Default:** `undefined`.
+  * `lineCoverage` {number} Require a minimum percent of covered lines. If code
+    coverage does not reach the threshold specified, the process will exit with code `1`.
+    **Default:** `0`.
+  * `branchCoverage` {number} Require a minimum percent of covered branches. If code
+    coverage does not reach the threshold specified, the process will exit with code `1`.
+    **Default:** `0`.
+  * `functionCoverage` {number} Require a minimum percent of covered functions. If code
+    coverage does not reach the threshold specified, the process will exit with code `1`.
+    **Default:** `0`.
 * Returns: {TestsStream}
 
 **Note:** `shard` is used to horizontally parallelize test running across
@@ -3527,6 +3553,7 @@ Can be used to abort test subtasks when the test has been aborted.
 [`run()`]: #runoptions
 [`suite()`]: #suitename-options-fn
 [`test()`]: #testname-options-fn
+[code coverage]: #collecting-code-coverage
 [describe options]: #describename-options-fn
 [it options]: #testname-options-fn
 [stream.compose]: stream.md#streamcomposestreams
