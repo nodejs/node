@@ -562,6 +562,10 @@ class BufferValue : public MaybeStackBuffer<char> {
   inline std::string_view ToStringView() const {
     return std::string_view(out(), length());
   }
+  inline std::u8string_view ToU8StringView() const {
+    return std::u8string_view(reinterpret_cast<const char8_t*>(out()),
+                              length());
+  }
 };
 
 #define SPREAD_BUFFER_ARG(val, name)                                           \
