@@ -8,6 +8,10 @@
 #include "path.h"
 #include "zlib.h"
 
+#ifdef NODE_IMPLEMENTS_POSIX_CREDENTIALS
+#include <unistd.h>  // getuid
+#endif
+
 namespace node {
 std::string Uint32ToHex(uint32_t crc) {
   std::string str;
