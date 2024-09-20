@@ -29,7 +29,7 @@ HandleTestError(void* handler_data,
   } else {
     for (size_t i = 0; i < messages_size; ++i) printf("%s\n", messages[i]);
   }
-  return exit_code;
+  return node_embedding_exit_code_ok;
 }
 
 #endif
@@ -40,43 +40,191 @@ napi_status AddUtf8String(std::string& str, napi_env env, napi_value value);
 
 void GetAndThrowLastErrorMessage(napi_env env);
 
-inline node_embedding_exit_code InvokeNodeApi(
-    node_embedding_runtime runtime, const std::function<void(napi_env)>& func) {
-  return node_embedding_runtime_invoke_node_api(
-      runtime,
-      [](node_embedding_runtime runtime, void* cb_data, napi_env env) {
-        auto func = static_cast<std::function<void(napi_env)>*>(cb_data);
-        (*func)(env);
-      },
-      const_cast<std::function<void(napi_env)>*>(&func));
+void ThrowLastErrorMessage(napi_env env, const char* message);
+
+std::string FormatString(const char* format, ...);
+
+inline node_embedding_exit_code RunMain(
+    int32_t argc,
+    char* argv[],
+    const std::function<node_embedding_exit_code(node_embedding_platform)>&
+        configurePlatform,
+    const std::function<node_embedding_exit_code(
+        node_embedding_platform, node_embedding_runtime)>& configureRuntime,
+    const std::function<void(node_embedding_runtime, napi_env)>& runNodeApi) {
+  return node_embedding_run_main(
+      argc,
+      argv,
+      configurePlatform ?
+        [](void* cb_data, node_embedding_platform platform) {
+          auto configurePlatform = static_cast<
+              std::function<node_embedding_exit_code(node_embedding_platform)>*>(
+              cb_data);
+          return (*configurePlatform)(platform);
+        } : nullptr,
+      const_cast<
+          std::function<node_embedding_exit_code(node_embedding_platform)>*>(
+          &configurePlatform),
+      configureRuntime ?
+        [](void* cb_data,
+           node_embedding_platform platform,
+           node_embedding_runtime runtime) {
+          auto configureRuntime =
+              static_cast<std::function<node_embedding_exit_code(
+                  node_embedding_platform, node_embedding_runtime)>*>(cb_data);
+          return (*configureRuntime)(platform, runtime);
+        } : nullptr,
+      const_cast<std::function<node_embedding_exit_code(
+          node_embedding_platform, node_embedding_runtime)>*>(
+          &configureRuntime),
+      runNodeApi ?
+        [](void* cb_data, node_embedding_runtime runtime, napi_env env) {
+          auto runNodeApi =
+              static_cast<std::function<void(node_embedding_runtime, napi_env)>*>(
+                  cb_data);
+          (*runNodeApi)(runtime, env);
+        } : nullptr,
+      const_cast<std::function<void(node_embedding_runtime, napi_env)>*>(
+          &runNodeApi));
 }
 
-#define NODE_API_CALL(expr)                                                    \
+inline node_embedding_exit_code RunRuntime(
+    node_embedding_platform platform,
+    const std::function<node_embedding_exit_code(
+        node_embedding_platform, node_embedding_runtime)>& configureRuntime,
+    const std::function<void(node_embedding_runtime, napi_env)>& runNodeApi) {
+  return node_embedding_run_runtime(
+      platform,
+      configureRuntime ?
+        [](void* cb_data,
+           node_embedding_platform platform,
+           node_embedding_runtime runtime) {
+          auto configureRuntime =
+              static_cast<std::function<node_embedding_exit_code(
+                  node_embedding_platform, node_embedding_runtime)>*>(cb_data);
+          return (*configureRuntime)(platform, runtime);
+        } : nullptr,
+      const_cast<std::function<node_embedding_exit_code(
+          node_embedding_platform, node_embedding_runtime)>*>(
+          &configureRuntime),
+      runNodeApi ?
+        [](void* cb_data, node_embedding_runtime runtime, napi_env env) {
+          auto runNodeApi =
+              static_cast<std::function<void(node_embedding_runtime, napi_env)>*>(
+                  cb_data);
+          (*runNodeApi)(runtime, env);
+        } : nullptr,
+      const_cast<std::function<void(node_embedding_runtime, napi_env)>*>(
+          &runNodeApi));
+}
+
+inline node_embedding_exit_code CreateRuntime(
+    node_embedding_platform platform,
+    const std::function<node_embedding_exit_code(
+        node_embedding_platform, node_embedding_runtime)>& configureRuntime,
+    node_embedding_runtime* runtime) {
+  return node_embedding_create_runtime(
+      platform,
+      configureRuntime ?
+        [](void* cb_data,
+           node_embedding_platform platform,
+           node_embedding_runtime runtime) {
+          auto configureRuntime =
+              static_cast<std::function<node_embedding_exit_code(
+                  node_embedding_platform, node_embedding_runtime)>*>(cb_data);
+          return (*configureRuntime)(platform, runtime);
+        } : nullptr,
+      const_cast<std::function<node_embedding_exit_code(
+          node_embedding_platform, node_embedding_runtime)>*>(
+          &configureRuntime),
+      runtime);
+}
+
+inline node_embedding_exit_code RunNodeApi(
+    node_embedding_runtime runtime,
+    const std::function<void(node_embedding_runtime, napi_env)>& func) {
+  return node_embedding_run_node_api(
+      runtime,
+      [](void* cb_data, node_embedding_runtime runtime, napi_env env) {
+        auto func =
+            static_cast<std::function<void(node_embedding_runtime, napi_env)>*>(
+                cb_data);
+        (*func)(runtime, env);
+      },
+      const_cast<std::function<void(node_embedding_runtime, napi_env)>*>(
+          &func));
+}
+
+//
+// Error handling macros copied from test/js_native_api/common.h
+//
+
+// Empty value so that macros here are able to return NULL or void
+#define NODE_API_RETVAL_NOTHING  // Intentionally blank #define
+
+#define NODE_API_FAIL_BASE(ret_val, ...)                                       \
+  do {                                                                         \
+    ThrowLastErrorMessage(env, FormatString(__VA_ARGS__).c_str());             \
+    return ret_val;                                                            \
+  } while (0)
+
+// Returns NULL on failed assertion.
+// This is meant to be used inside napi_callback methods.
+#define NODE_API_FAIL(...) NODE_API_FAIL_BASE(NULL, __VA_ARGS__)
+
+// Returns empty on failed assertion.
+// This is meant to be used inside functions with void return type.
+#define NODE_API_FAIL_RETURN_VOID(...)                                         \
+  NODE_API_FAIL_BASE(NODE_API_RETVAL_NOTHING, __VA_ARGS__)
+
+#define NODE_API_ASSERT_BASE(expr, ret_val)                                    \
+  do {                                                                         \
+    if (!(expr)) {                                                             \
+      napi_throw_error(env, NULL, "Failed: (" #expr ")");                      \
+      return ret_val;                                                          \
+    }                                                                          \
+  } while (0)
+
+// Returns NULL on failed assertion.
+// This is meant to be used inside napi_callback methods.
+#define NODE_API_ASSERT(expr) NODE_API_ASSERT_BASE(expr, NULL)
+
+// Returns empty on failed assertion.
+// This is meant to be used inside functions with void return type.
+#define NODE_API_ASSERT_RETURN_VOID(expr)                                      \
+  NODE_API_ASSERT_BASE(expr, NODE_API_RETVAL_NOTHING)
+
+#define NODE_API_CALL_BASE(expr, ret_val)                                      \
   do {                                                                         \
     if ((expr) != napi_ok) {                                                   \
       GetAndThrowLastErrorMessage(env);                                        \
-      exit_code = 1;                                                           \
-      return;                                                                  \
+      return ret_val;                                                          \
     }                                                                          \
   } while (0)
 
-#define CHECK(expr)                                                            \
+// Returns NULL if the_call doesn't return napi_ok.
+#define NODE_API_CALL(expr) NODE_API_CALL_BASE(expr, NULL)
+
+// Returns empty if the_call doesn't return napi_ok.
+#define NODE_API_CALL_RETURN_VOID(expr)                                        \
+  NODE_API_CALL_BASE(expr, NODE_API_RETVAL_NOTHING)
+
+#define CHECK_EXIT_CODE(expr)                                                  \
   do {                                                                         \
-    if ((expr) != node_embedding_exit_code_ok) {                               \
-      fprintf(stderr, "Failed: %s\n", #expr);                                  \
-      fprintf(stderr, "File: %s\n", __FILE__);                                 \
-      fprintf(stderr, "Line: %d\n", __LINE__);                                 \
-      return 1;                                                                \
+    node_embedding_exit_code exit_code = (expr);                               \
+    if (exit_code != node_embedding_exit_code_ok) {                            \
+      return exit_code;                                                        \
     }                                                                          \
   } while (0)
 
-#define CHECK_RETURN_VOID(expr)                                                \
+#define CHECK_EXIT_CODE_RETURN_VOID(expr)                                      \
   do {                                                                         \
-    if ((expr) != node_embedding_exit_code_ok) {                               \
+    node_embedding_exit_code exit_code_ = (expr);                              \
+    if (exit_code_ != node_embedding_exit_code_ok) {                           \
       fprintf(stderr, "Failed: %s\n", #expr);                                  \
       fprintf(stderr, "File: %s\n", __FILE__);                                 \
       fprintf(stderr, "Line: %d\n", __LINE__);                                 \
-      exit_code = 1;                                                           \
+      exit(exit_code_);                                                        \
       return;                                                                  \
     }                                                                          \
   } while (0)
@@ -87,46 +235,8 @@ inline node_embedding_exit_code InvokeNodeApi(
       fprintf(stderr, "Failed: %s\n", #expr);                                  \
       fprintf(stderr, "File: %s\n", __FILE__);                                 \
       fprintf(stderr, "Line: %d\n", __LINE__);                                 \
-      return 1;                                                                \
-    }                                                                          \
-  } while (0)
-
-#define CHECK_TRUE_RETURN_VOID(expr)                                           \
-  do {                                                                         \
-    if (!(expr)) {                                                             \
-      fprintf(stderr, "Failed: %s\n", #expr);                                  \
-      fprintf(stderr, "File: %s\n", __FILE__);                                 \
-      fprintf(stderr, "Line: %d\n", __LINE__);                                 \
-      exit_code = 1;                                                           \
-      return;                                                                  \
-    }                                                                          \
-  } while (0)
-
-#define FAIL(...)                                                              \
-  do {                                                                         \
-    fprintf(stderr, __VA_ARGS__);                                              \
-    return 1;                                                                  \
-  } while (0)
-
-#define FAIL_RETURN_VOID(...)                                                  \
-  do {                                                                         \
-    fprintf(stderr, __VA_ARGS__);                                              \
-    exit_code = 1;                                                             \
-    return;                                                                    \
-  } while (0)
-
-#define CHECK_EXIT_CODE(code)                                                  \
-  do {                                                                         \
-    int exit_code = (code);                                                    \
-    if (exit_code != 0) {                                                      \
-      return exit_code;                                                        \
+      return node_embedding_exit_code_generic_user_error;                      \
     }                                                                          \
   } while (0)
 
 #endif  // TEST_EMBEDDING_EMBEDTEST_NODE_API_H_
-
-// TODO(vmoroz): Enable the test_main_modules_node_api test.
-// TODO(vmoroz): Test failure in Preload callback.
-// TODO(vmoroz): Test failure in linked modules.
-// TODO(vmoroz): Add a test that handles JS errors.
-// TODO(vmoroz): Make sure that delete call matches the create call.
