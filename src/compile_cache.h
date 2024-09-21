@@ -4,7 +4,6 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include <cinttypes>
-#include <filesystem>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -71,7 +70,7 @@ class CompileCacheHandler {
   void MaybeSave(CompileCacheEntry* entry,
                  v8::Local<v8::Module> mod,
                  bool rejected);
-  std::string_view cache_dir() { return compile_cache_dir_str_; }
+  std::string_view cache_dir() { return compile_cache_dir_; }
 
  private:
   void ReadCacheFile(CompileCacheEntry* entry);
@@ -94,8 +93,7 @@ class CompileCacheHandler {
   v8::Isolate* isolate_ = nullptr;
   bool is_debug_ = false;
 
-  std::string compile_cache_dir_str_;
-  std::filesystem::path compile_cache_dir_;
+  std::string compile_cache_dir_;
   std::unordered_map<uint32_t, std::unique_ptr<CompileCacheEntry>>
       compiler_cache_store_;
 };
