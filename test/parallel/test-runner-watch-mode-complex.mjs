@@ -4,6 +4,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { spawn } from 'node:child_process';
 import { writeFile, unlink } from 'node:fs/promises';
+import { setTimeout } from 'node:timers/promises';
 import util from 'internal/util';
 import tmpdir from '../common/tmpdir.js';
 
@@ -14,10 +15,6 @@ if (common.isAIX)
   common.skip('folder watch capability is limited in AIX.');
 
 tmpdir.refresh();
-
-function wait(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
 
 // This test updates these files repeatedly,
 // Reading them from disk is unreliable due to race conditions.
@@ -51,7 +48,7 @@ const fixturePaths = Object.fromEntries(Object.keys(fixtureContent)
   .map((file) => [file, tmpdir.resolve(file)]));
 
 async function setupFixtures() {
-  await Promise.all(Object.entries(fixtureContent)
+  return Promise.all(Object.entries(fixtureContent)
     .map(([file, content]) => writeFile(fixturePaths[file], content)));
 }
 
@@ -85,12 +82,12 @@ describe('test runner watch mode with more complex setup', () => {
     currentRun = '';
     const fileToDeletePathLocal = tmpdir.resolve('test-to-delete.mjs');
     await unlink(fileToDeletePathLocal);
-    await wait(common.platformTimeout(1000));
+    await setTimeout(common.platformTimeout(1000));
 
     const content = fixtureContent['dependency.mjs'];
     const path = fixturePaths['dependency.mjs'];
     await writeFile(path, content);
-    await wait(common.platformTimeout(1000));
+    await setTimeout(common.platformTimeout(1000));
     await ran2.promise;
     runs.push(currentRun);
     currentRun = '';
