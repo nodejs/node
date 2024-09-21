@@ -1336,14 +1336,11 @@ changes:
     If both `coverageExcludeGlobs` and `coverageIncludeGlobs` are provided,
     files must meet **both** criteria to be included in the coverage report.
     **Default:** `undefined`.
-  * `lineCoverage` {number} Require a minimum percent of covered lines. If code
-    coverage does not reach the threshold specified, the process will exit with code `1`.
+  * `lineCoverage` {number} Require a minimum percent of covered lines.
     **Default:** `0`.
-  * `branchCoverage` {number} Require a minimum percent of covered branches. If code
-    coverage does not reach the threshold specified, the process will exit with code `1`.
+  * `branchCoverage` {number} Require a minimum percent of covered branches.
     **Default:** `0`.
-  * `functionCoverage` {number} Require a minimum percent of covered functions. If code
-    coverage does not reach the threshold specified, the process will exit with code `1`.
+  * `functionCoverage` {number} Require a minimum percent of covered functions.
     **Default:** `0`.
 * Returns: {TestsStream}
 

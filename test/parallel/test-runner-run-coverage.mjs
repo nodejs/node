@@ -169,8 +169,6 @@ describe('require(\'node:test\').run coverage settings', { concurrency: true }, 
       // eslint-disable-next-line no-unused-vars
       for await (const _ of stream);
       assert.deepStrictEqual(thresholdErrors.sort(), ['branch', 'function', 'line']);
-      assert.strictEqual(process.exitCode, 1);
-      process.exitCode = originalExitCode;
     });
   });
 });
