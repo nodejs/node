@@ -47,35 +47,36 @@ std::string FormatString(const char* format, ...);
 inline node_embedding_exit_code RunMain(
     int32_t argc,
     char* argv[],
-    const std::function<node_embedding_exit_code(node_embedding_platform)>&
-        configurePlatform,
     const std::function<node_embedding_exit_code(
-        node_embedding_platform, node_embedding_runtime)>& configureRuntime,
+        node_embedding_platform_config)>& configurePlatform,
+    const std::function<node_embedding_exit_code(
+        node_embedding_platform, node_embedding_runtime_config)>&
+        configureRuntime,
     const std::function<void(node_embedding_runtime, napi_env)>& runNodeApi) {
   return node_embedding_run_main(
       argc,
       argv,
       configurePlatform ?
-        [](void* cb_data, node_embedding_platform platform) {
+        [](void* cb_data, node_embedding_platform_config platform_config) {
           auto configurePlatform = static_cast<
-              std::function<node_embedding_exit_code(node_embedding_platform)>*>(
+              std::function<node_embedding_exit_code(node_embedding_platform_config)>*>(
               cb_data);
-          return (*configurePlatform)(platform);
+          return (*configurePlatform)(platform_config);
         } : nullptr,
       const_cast<
-          std::function<node_embedding_exit_code(node_embedding_platform)>*>(
+          std::function<node_embedding_exit_code(node_embedding_platform_config)>*>(
           &configurePlatform),
       configureRuntime ?
         [](void* cb_data,
            node_embedding_platform platform,
-           node_embedding_runtime runtime) {
+           node_embedding_runtime_config runtime_config) {
           auto configureRuntime =
               static_cast<std::function<node_embedding_exit_code(
-                  node_embedding_platform, node_embedding_runtime)>*>(cb_data);
-          return (*configureRuntime)(platform, runtime);
+                  node_embedding_platform, node_embedding_runtime_config)>*>(cb_data);
+          return (*configureRuntime)(platform, runtime_config);
         } : nullptr,
       const_cast<std::function<node_embedding_exit_code(
-          node_embedding_platform, node_embedding_runtime)>*>(
+          node_embedding_platform, node_embedding_runtime_config)>*>(
           &configureRuntime),
       runNodeApi ?
         [](void* cb_data, node_embedding_runtime runtime, napi_env env) {
@@ -91,21 +92,22 @@ inline node_embedding_exit_code RunMain(
 inline node_embedding_exit_code RunRuntime(
     node_embedding_platform platform,
     const std::function<node_embedding_exit_code(
-        node_embedding_platform, node_embedding_runtime)>& configureRuntime,
+        node_embedding_platform, node_embedding_runtime_config)>&
+        configureRuntime,
     const std::function<void(node_embedding_runtime, napi_env)>& runNodeApi) {
   return node_embedding_run_runtime(
       platform,
       configureRuntime ?
         [](void* cb_data,
            node_embedding_platform platform,
-           node_embedding_runtime runtime) {
+           node_embedding_runtime_config runtime_config) {
           auto configureRuntime =
               static_cast<std::function<node_embedding_exit_code(
-                  node_embedding_platform, node_embedding_runtime)>*>(cb_data);
-          return (*configureRuntime)(platform, runtime);
+                  node_embedding_platform, node_embedding_runtime_config)>*>(cb_data);
+          return (*configureRuntime)(platform, runtime_config);
         } : nullptr,
       const_cast<std::function<node_embedding_exit_code(
-          node_embedding_platform, node_embedding_runtime)>*>(
+          node_embedding_platform, node_embedding_runtime_config)>*>(
           &configureRuntime),
       runNodeApi ?
         [](void* cb_data, node_embedding_runtime runtime, napi_env env) {
@@ -121,21 +123,22 @@ inline node_embedding_exit_code RunRuntime(
 inline node_embedding_exit_code CreateRuntime(
     node_embedding_platform platform,
     const std::function<node_embedding_exit_code(
-        node_embedding_platform, node_embedding_runtime)>& configureRuntime,
+        node_embedding_platform, node_embedding_runtime_config)>&
+        configureRuntime,
     node_embedding_runtime* runtime) {
   return node_embedding_create_runtime(
       platform,
       configureRuntime ?
         [](void* cb_data,
            node_embedding_platform platform,
-           node_embedding_runtime runtime) {
+           node_embedding_runtime_config runtime_config) {
           auto configureRuntime =
               static_cast<std::function<node_embedding_exit_code(
-                  node_embedding_platform, node_embedding_runtime)>*>(cb_data);
-          return (*configureRuntime)(platform, runtime);
+                  node_embedding_platform, node_embedding_runtime_config)>*>(cb_data);
+          return (*configureRuntime)(platform, runtime_config);
         } : nullptr,
       const_cast<std::function<node_embedding_exit_code(
-          node_embedding_platform, node_embedding_runtime)>*>(
+          node_embedding_platform, node_embedding_runtime_config)>*>(
           &configureRuntime),
       runtime);
 }

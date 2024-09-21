@@ -234,6 +234,17 @@ added: REPLACEME
 This is an opaque pointer that represents a Node.js platform instance.
 Node.js allows only a single platform instance per process.
 
+##### `node_embedding_platform_config`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+This is an opaque pointer that represents a Node.js platform configuration
+instance.
+
 ##### `node_embedding_exit_code`
 
 <!-- YAML
@@ -387,16 +398,16 @@ added: REPLACEME
 typedef node_embedding_exit_code(
     NAPI_CDECL* node_embedding_configure_platform_callback)(
     void* cb_data,
-    node_embedding_platform platform);
+    node_embedding_platform_config platform_config);
 ```
 
 Function pointer type for user-provided native function that provides additional
- platform configuration..
+platform configuration..
 
 The callback parameters:
 
 - `[in] cb_data`: The user data associated with this callback.
-- `[in] platform`: The platform instance being configured.
+- `[in] platform_config`: The platform configuration.
 
 ##### `node_embedding_get_args_callback`
 
@@ -511,7 +522,7 @@ node_embedding_exit_code NAPI_CDECL node_embedding_run_main(
 - `[in] configure_runtime_cb_data`: Additional data for the
   `configure_runtime_cb` callback.
 - `[in] node_api_cb`: A callback to call Node-API code after the
-   runtime initialization.
+  runtime initialization.
 - `[in] node_api_cb_data`: Additional data for the `node_api_cb` callback.
 
 Returns `node_embedding_exit_code_ok` if there were no issues.
@@ -580,11 +591,12 @@ Sets the Node.js platform instance flags.
 
 ```c
 node_embedding_exit_code NAPI_CDECL
-node_embedding_platform_set_flags(node_embedding_platform platform,
-                                  node_embedding_platform_flags flags);
+node_embedding_platform_set_flags(
+    node_embedding_platform_config platform_config,
+    node_embedding_platform_flags flags);
 ```
 
-- `[in] platform`: The Node.js platform instance to configure.
+- `[in] platform_config`: The Node.js platform configuration.
 - `[in] flags`: The platform flags that control the platform behavior.
 
 Returns `node_embedding_exit_code_ok` if there were no issues.
@@ -635,6 +647,16 @@ added: REPLACEME
 This is an opaque pointer that represents a Node.js runtime instance.
 It wraps up the C++ `node::Environment`.
 There can be one or more runtime instances in the process.
+
+##### `node_embedding_runtime_config`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+This is an opaque pointer that represents a Node.js runtime configuration.
 
 ##### `node_embedding_runtime_flags`
 
@@ -726,17 +748,17 @@ typedef node_embedding_exit_code(
     NAPI_CDECL* node_embedding_configure_runtime_callback)(
     void* cb_data,
     node_embedding_platform platform,
-    node_embedding_runtime runtime);
+    node_embedding_runtime_config runtime_config);
 ```
 
 Function pointer type for user-provided native function that provides additional
- platform configuration..
+platform configuration..
 
 The callback parameters:
 
 - `[in] cb_data`: The user data associated with this callback.
 - `[in] platform`: The platform for the for the runtime.
-- `[in] runtime`: The runtime instance being configured.
+- `[in] runtime_config`: The runtime configuration.
 
 ##### `node_embedding_runtime_preload_callback`
 
@@ -855,7 +877,7 @@ NAPI_EXTERN node_embedding_exit_code NAPI_CDECL node_embedding_run_runtime(
 - `[in] configure_runtime_cb_data`: Additional data for the
   `configure_runtime_cb` callback.
 - `[in] node_api_cb`: A callback to call Node-API code after the
-   runtime initialization.
+  runtime initialization.
 - `[in] node_api_cb_data`: Additional data for the `node_api_cb` callback.
 
 Returns `node_embedding_exit_code_ok` if there were no issues.
@@ -926,11 +948,11 @@ Sets the Node.js runtime instance flags.
 
 ```c
 node_embedding_exit_code NAPI_CDECL
-node_embedding_runtime_set_flags(node_embedding_runtime runtime,
+node_embedding_runtime_set_flags(node_embedding_runtime_config runtime_config,
                                  node_embedding_runtime_flags flags);
 ```
 
-- `[in] runtime`: The Node.js runtime instance to configure.
+- `[in] runtime_config`: The Node.js runtime configuration.
 - `[in] flags`: The runtime flags that control the runtime behavior.
 
 Returns `node_embedding_exit_code_ok` if there were no issues.
@@ -941,14 +963,14 @@ Sets the non-Node.js arguments for the Node.js runtime instance.
 
 ```c
 node_embedding_exit_code NAPI_CDECL
-node_embedding_runtime_set_args(node_embedding_runtime runtime,
+node_embedding_runtime_set_args(node_embedding_runtime_config runtime_config,
                                 int32_t argc,
                                 const char* argv[],
                                 int32_t exec_argc,
                                 const char* exec_argv[]);
 ```
 
-- `[in] runtime`: The Node.js runtime instance to configure.
+- `[in] runtime_config`: The Node.js runtime configuration.
 - `[in] argc`: Number of items in the `argv` array.
 - `[in] argv`: non-Node.js arguments as an array of zero terminating strings.
 - `[in] exec_argc`: Number of items in the `exec_argv` array.
@@ -969,12 +991,12 @@ Sets a preload callback to call before Node.js runtime instance is loaded.
 ```c
 node_embedding_exit_code NAPI_CDECL
 node_embedding_runtime_on_preload(
-    node_embedding_runtime runtime,
+    node_embedding_runtime_config runtime_config,
     node_embedding_runtime_preload_callback preload_cb,
     void* preload_cb_data);
 ```
 
-- `[in] runtime`: The Node.js runtime instance.
+- `[in] runtime_config`: The Node.js runtime configuration.
 - `[in] preload_cb`: The preload callback to be called before Node.js runtime
   instance is loaded.
 - `[in] preload_cb_data`: Optional. The preload callback data that will be
@@ -997,12 +1019,12 @@ starts execution.
 ```c
 node_embedding_exit_code NAPI_CDECL
 node_embedding_runtime_on_start_execution(
-    node_embedding_runtime runtime,
+    node_embedding_runtime_config runtime_config,
     node_embedding_start_execution_callback start_execution_cb,
     void* start_execution_cb_data);
 ```
 
-- `[in] runtime`: The Node.js runtime instance.
+- `[in] runtime_config`: The Node.js runtime configuration.
 - `[in] start_execution_cb`: The start execution callback to be called
   when Node.js runtime starts execution.
 - `[in] start_execution_cb_data`: Optional. The start execution callback data
@@ -1024,14 +1046,14 @@ Adds a linked module for the Node.js runtime instance.
 ```c
 node_embedding_exit_code NAPI_CDECL
 node_embedding_runtime_add_module(
-    node_embedding_runtime runtime,
+    node_embedding_runtime_config runtime_config,
     const char* module_name,
     node_embedding_initialize_module_callback init_module_cb,
     void* init_module_cb_data,
     int32_t module_node_api_version);
 ```
 
-- `[in] runtime`: The Node.js runtime instance.
+- `[in] runtime_config`: The Node.js runtime configuration.
 - `[in] module_name`: The name of the module.
 - `[in] init_module_cb`: Module initialization callback. It is called for the
   main and worker threads. The caller must take care about the thread safety.
@@ -1116,12 +1138,12 @@ the `event_loop_handler` when the runtime event loop has some work to do.
 ```c
 node_embedding_exit_code NAPI_CDECL
 node_embedding_on_wake_up_event_loop(
-    node_embedding_runtime runtime,
+    node_embedding_runtime_config runtime_config,
     node_embedding_event_loop_handler event_loop_handler,
     void* event_loop_handler_data);
 ```
 
-- `[in] runtime`: The Node.js runtime instance.
+- `[in] runtime_config`: The Node.js runtime configuration.
 - `[in] event_loop_handler`: The handler called from the observer thread when
   the runtime event loop has some work to do.
 - `[in] event_loop_handler_data`: The data associated with the

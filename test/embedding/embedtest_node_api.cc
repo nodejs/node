@@ -20,14 +20,15 @@ extern "C" int32_t test_main_node_api(int32_t argc, char* argv[]) {
   CHECK_EXIT_CODE(RunMain(
       argc,
       argv,
-      [&](node_embedding_platform platform) {
+      [&](node_embedding_platform_config platform_config) {
         CHECK_EXIT_CODE(node_embedding_platform_set_flags(
-            platform, node_embedding_platform_disable_node_options_env));
+            platform_config, node_embedding_platform_disable_node_options_env));
         return node_embedding_exit_code_ok;
       },
-      [&](node_embedding_platform platform, node_embedding_runtime runtime) {
+      [&](node_embedding_platform platform,
+          node_embedding_runtime_config runtime_config) {
         CHECK_EXIT_CODE(node_embedding_runtime_on_start_execution(
-            runtime,
+            runtime_config,
             [](void* cb_data,
                node_embedding_runtime runtime,
                napi_env env,

@@ -84,9 +84,10 @@ extern "C" int32_t test_main_linked_modules_node_api(int32_t argc,
       argc,
       argv,
       nullptr,
-      [&](node_embedding_platform platform, node_embedding_runtime runtime) {
+      [&](node_embedding_platform platform,
+          node_embedding_runtime_config runtime_config) {
         CHECK_EXIT_CODE(node_embedding_runtime_on_preload(
-            runtime,
+            runtime_config,
             [](void* /*cb_data*/,
                node_embedding_runtime runtime,
                napi_env env,
@@ -100,20 +101,20 @@ extern "C" int32_t test_main_linked_modules_node_api(int32_t argc,
             nullptr));
 
         CHECK_EXIT_CODE(
-            node_embedding_runtime_add_module(runtime,
+            node_embedding_runtime_add_module(runtime_config,
                                               "greeter_module",
                                               &InitGreeterModule,
                                               &greeterModuleInitCallCount,
                                               NAPI_VERSION));
         CHECK_EXIT_CODE(
-            node_embedding_runtime_add_module(runtime,
+            node_embedding_runtime_add_module(runtime_config,
                                               "replicator_module",
                                               &InitReplicatorModule,
                                               &replicatorModuleInitCallCount,
                                               NAPI_VERSION));
 
         CHECK_EXIT_CODE(node_embedding_runtime_on_start_execution(
-            runtime,
+            runtime_config,
             [](void* cb_data,
                node_embedding_runtime runtime,
                napi_env env,
