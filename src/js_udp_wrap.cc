@@ -97,7 +97,7 @@ ssize_t JSUDPWrap::Send(uv_buf_t* bufs,
   int64_t value_int = JS_EXCEPTION_PENDING;
   size_t total_len = 0;
 
-  MaybeStackBuffer<Local<Value>, 16> buffers(nbufs);
+  MaybeStackBuffer<Value, 16> buffers(env()->isolate(), nbufs);
   for (size_t i = 0; i < nbufs; i++) {
     buffers[i] = Buffer::Copy(env(), bufs[i].base, bufs[i].len)
         .ToLocalChecked();

@@ -215,14 +215,14 @@ MaybeLocal<Value> InternalMakeCallback(Environment* env,
 
   Local<Context> context = env->context();
   if (use_async_hooks_trampoline) {
-    MaybeStackBuffer<Local<Value>, 16> args(3 + argc);
+    MaybeStackBuffer<Value, 16> args(env->isolate(), 3 + argc);
     args[0] = v8::Number::New(env->isolate(), asyncContext.async_id);
     args[1] = resource;
     args[2] = callback;
     for (int i = 0; i < argc; i++) {
       args[i + 3] = argv[i];
     }
-    ret = hook_cb->Call(context, recv, args.length(), &args[0]);
+    ret = hook_cb->Call(context, recv, args.length(), args.out());
   } else {
     ret = callback->Call(context, recv, argc, argv);
   }

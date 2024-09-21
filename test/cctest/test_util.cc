@@ -354,3 +354,53 @@ TEST_F(UtilTest, DetermineSpecificErrorType) {
       node::DetermineSpecificErrorType(*env, v8::Uint32::New(isolate_, 255)),
       "type number (255)");
 }
+
+TEST_F(UtilTest, MaybeStackBufferWithV8) {
+  const v8::HandleScope handle_scope(isolate_);
+  Argv argv;
+  Env env{handle_scope, argv, node::EnvironmentFlags::kNoBrowserGlobals};
+
+  MaybeStackBuffer<v8::Value, 2> buf;
+
+  EXPECT_EQ(buf.IsAllocated(), false);
+  EXPECT_EQ(buf.IsInvalidated(), false);
+  EXPECT_EQ(buf.capacity(), 2U);
+  EXPECT_EQ(buf.length(), 0U);
+  EXPECT_EQ(v8::Array::New(isolate_, buf.out(), buf.length())->Length(),
+            buf.length());
+
+  buf.AllocateSufficientStorage(isolate_, 4);
+
+  EXPECT_EQ(buf.IsAllocated(), true);
+  EXPECT_EQ(buf.IsInvalidated(), false);
+  EXPECT_EQ(buf.capacity(), 4U);
+  EXPECT_EQ(buf.length(), 4U);
+  auto c = v8::String::NewFromUtf8(isolate_, "c").ToLocalChecked();
+  auto d = v8::String::NewFromUtf8(isolate_, "d").ToLocalChecked();
+  auto e = v8::String::NewFromUtf8(isolate_, "e").ToLocalChecked();
+  auto f = v8::String::NewFromUtf8(isolate_, "f").ToLocalChecked();
+  buf[0] = c;
+  buf[1] = d;
+  buf[2] = e;
+  buf[3] = f;
+  EXPECT_EQ(buf[0], c);
+  EXPECT_EQ(buf[1], d);
+  EXPECT_EQ(buf[2], e);
+  EXPECT_EQ(buf[3], f);
+  EXPECT_EQ(v8::Array::New(isolate_, buf.out(), buf.length())->Length(),
+            buf.length());
+
+  buf.SetLength(2);
+  EXPECT_EQ(buf.IsAllocated(), true);
+  EXPECT_EQ(buf.IsInvalidated(), false);
+  EXPECT_EQ(buf.capacity(), 4U);
+  EXPECT_EQ(buf.length(), 2U);
+  EXPECT_EQ(v8::Array::New(isolate_, buf.out(), buf.length())->Length(),
+            buf.length());
+
+  buf.Invalidate();
+  EXPECT_EQ(buf.IsAllocated(), false);
+  EXPECT_EQ(buf.IsInvalidated(), true);
+  EXPECT_EQ(buf.capacity(), 0U);
+  EXPECT_EQ(buf.length(), 0U);
+}

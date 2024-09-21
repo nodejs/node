@@ -345,7 +345,7 @@ v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
   if (isolate == nullptr) isolate = context->GetIsolate();
   v8::EscapableHandleScope handle_scope(isolate);
 
-  MaybeStackBuffer<v8::Local<v8::Value>, 128> arr(vec.size());
+  MaybeStackBuffer<v8::Value, 128> arr(isolate, vec.size());
   arr.SetLength(vec.size());
   for (size_t i = 0; i < vec.size(); ++i) {
     if (!ToV8Value(context, vec[i], isolate).ToLocal(&arr[i]))
@@ -426,7 +426,7 @@ SlicedArguments::SlicedArguments(
   if (start >= length) return;
   const size_t size = length - start;
 
-  AllocateSufficientStorage(size);
+  AllocateSufficientStorage(args.GetIsolate(), size);
   for (size_t i = 0; i < size; ++i)
     (*this)[i] = args[i + start];
 }
@@ -444,6 +444,27 @@ void MaybeStackBuffer<T, kStackStorageSize>::AllocateSufficientStorage(
       memcpy(buf_, buf_st_, length_ * sizeof(buf_[0]));
   }
 
+  length_ = storage;
+}
+
+template <V8Value T, size_t kStackStorageSize>
+void MaybeStackBuffer<T, kStackStorageSize>::AllocateSufficientStorage(
+    v8::Isolate* isolate, size_t storage) {
+  CHECK(!IsInvalidated());
+  if (storage > capacity()) {
+    if (IsAllocated()) {
+      vec->resize(storage);
+    } else {
+      // Previously was not allocated. Moving to allocated storage.
+      auto& v = vec.emplace(isolate, storage);
+      for (size_t i = 0; i < length_; ++i) {
+        v[i] = buf_st_[i];
+        buf_st_[i] = {};
+      }
+    }
+    buf_ = vec->data();
+    capacity_ = storage;
+  }
   length_ = storage;
 }
 

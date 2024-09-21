@@ -387,7 +387,7 @@ MaybeLocal<Array> GetClientHelloCiphers(
   const unsigned char* buf;
   size_t len = SSL_client_hello_get0_ciphers(ssl.get(), &buf);
   size_t count = len / 2;
-  MaybeStackBuffer<Local<Value>, 16> ciphers(count);
+  MaybeStackBuffer<Value, 16> ciphers(env->isolate(), count);
   int j = 0;
   for (size_t n = 0; n < len; n += 2) {
     const SSL_CIPHER* cipher = SSL_CIPHER_find(ssl.get(), buf);

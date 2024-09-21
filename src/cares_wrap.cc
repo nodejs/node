@@ -193,7 +193,7 @@ Local<Array> AddrTTLToArray(
     Environment* env,
     const T* addrttls,
     size_t naddrttls) {
-  MaybeStackBuffer<Local<Value>, 8> ttls(naddrttls);
+  MaybeStackBuffer<Value, 8> ttls(env->isolate(), naddrttls);
   for (size_t i = 0; i < naddrttls; i++)
     ttls[i] = Integer::NewFromUnsigned(env->isolate(), addrttls[i].ttl);
 

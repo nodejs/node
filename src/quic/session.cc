@@ -1705,8 +1705,7 @@ void Session::EmitVersionNegotiation(const ngtcp2_pkt_hd& hd,
   // version() is the version that was actually configured for this session.
 
   // versions are the versions requested by the peer.
-  MaybeStackBuffer<Local<Value>, 5> versions;
-  versions.AllocateSufficientStorage(nsv);
+  MaybeStackBuffer<Value, 5> versions(isolate, nsv);
   for (size_t n = 0; n < nsv; n++) versions[n] = to_integer(sv[n]);
 
   // supported are the versons we acutually support expressed as a range.

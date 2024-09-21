@@ -735,7 +735,7 @@ Local<Array> SyncProcessRunner::BuildOutputArray() {
   CHECK(!stdio_pipes_.empty());
 
   EscapableHandleScope scope(env()->isolate());
-  MaybeStackBuffer<Local<Value>, 8> js_output(stdio_pipes_.size());
+  MaybeStackBuffer<Value, 8> js_output(env()->isolate(), stdio_pipes_.size());
 
   for (uint32_t i = 0; i < stdio_pipes_.size(); i++) {
     SyncProcessStdioPipe* h = stdio_pipes_[i].get();

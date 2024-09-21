@@ -1869,7 +1869,7 @@ void TLSWrap::GetSharedSigalgs(const FunctionCallbackInfo<Value>& args) {
   SSL* ssl = w->ssl_.get();
   int nsig = SSL_get_shared_sigalgs(ssl, 0, nullptr, nullptr, nullptr, nullptr,
                                     nullptr);
-  MaybeStackBuffer<Local<Value>, 16> ret_arr(nsig);
+  MaybeStackBuffer<Value, 16> ret_arr(env->isolate(), nsig);
 
   for (int i = 0; i < nsig; i++) {
     int hash_nid;

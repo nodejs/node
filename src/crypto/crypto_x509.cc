@@ -265,7 +265,7 @@ MaybeLocal<Value> GetKeyUsage(Environment* env, const ncrypto::X509View& cert) {
       X509_get_ext_d2i(cert.get(), NID_ext_key_usage, nullptr, nullptr)));
   if (eku) {
     const int count = sk_ASN1_OBJECT_num(eku.get());
-    MaybeStackBuffer<Local<Value>, 16> ext_key_usage(count);
+    MaybeStackBuffer<Value, 16> ext_key_usage(env->isolate(), count);
     char buf[256];
 
     int j = 0;

@@ -196,7 +196,7 @@ Local<Array> RealEnvStore::Enumerate(Isolate* isolate) const {
   auto cleanup = OnScopeLeave([&]() { uv_os_free_environ(items, count); });
   CHECK_EQ(uv_os_environ(&items, &count), 0);
 
-  MaybeStackBuffer<Local<Value>, 256> env_v(count);
+  MaybeStackBuffer<Value, 256> env_v(isolate, count);
   int env_v_index = 0;
   for (int i = 0; i < count; i++) {
 #ifdef _WIN32

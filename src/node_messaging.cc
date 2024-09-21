@@ -970,7 +970,7 @@ static Maybe<bool> ReadIterable(Environment* env,
   if (object->IsArray()) {
     Local<Array> arr = object.As<Array>();
     size_t length = arr->Length();
-    transfer_list.AllocateSufficientStorage(length);
+    transfer_list.AllocateSufficientStorage(env->isolate(), length);
     for (size_t i = 0; i < length; i++) {
       if (!arr->Get(context, i).ToLocal(&transfer_list[i]))
         return Nothing<bool>();
@@ -1013,7 +1013,7 @@ static Maybe<bool> ReadIterable(Environment* env,
   }
 
   if (!entries.empty()) {
-    transfer_list.AllocateSufficientStorage(entries.size());
+    transfer_list.AllocateSufficientStorage(env->isolate(), entries.size());
     std::copy(entries.begin(), entries.end(), &transfer_list[0]);
   }
 
