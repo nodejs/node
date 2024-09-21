@@ -29,15 +29,15 @@ extern "C" int32_t test_main_threading_runtime_per_thread_node_api(
         CHECK_EXIT_CODE(RunRuntime(
             platform,
             [&](node_embedding_platform platform,
-                node_embedding_runtime runtime) {
+                node_embedding_runtime_config runtime_config) {
               // Inspector can be associated with only one runtime in the
               // process.
               CHECK_EXIT_CODE(node_embedding_runtime_set_flags(
-                  runtime,
+                  runtime_config,
                   node_embedding_runtime_default_flags |
                       node_embedding_runtime_no_create_inspector));
               CHECK_EXIT_CODE(node_embedding_runtime_on_start_execution(
-                  runtime,
+                  runtime_config,
                   [](void* cb_data,
                      node_embedding_runtime runtime,
                      napi_env env,
@@ -108,14 +108,15 @@ extern "C" int32_t test_main_threading_several_runtimes_per_thread_node_api(
     node_embedding_runtime runtime;
     CHECK_EXIT_CODE(CreateRuntime(
         platform,
-        [&](node_embedding_platform platform, node_embedding_runtime runtime) {
+        [&](node_embedding_platform platform,
+            node_embedding_runtime_config runtime_config) {
           // Inspector can be associated with only one runtime in the process.
           CHECK_EXIT_CODE(node_embedding_runtime_set_flags(
-              runtime,
+              runtime_config,
               node_embedding_runtime_default_flags |
                   node_embedding_runtime_no_create_inspector));
           CHECK_EXIT_CODE(node_embedding_runtime_on_start_execution(
-              runtime,
+              runtime_config,
               [](void* cb_data,
                  node_embedding_runtime runtime,
                  napi_env env,
@@ -215,9 +216,10 @@ extern "C" int32_t test_main_threading_runtime_in_several_threads_node_api(
   node_embedding_runtime runtime;
   CHECK_EXIT_CODE(CreateRuntime(
       platform,
-      [&](node_embedding_platform platform, node_embedding_runtime runtime) {
+      [&](node_embedding_platform platform,
+          node_embedding_runtime_config runtime_config) {
         CHECK_EXIT_CODE(node_embedding_runtime_on_start_execution(
-            runtime,
+            runtime_config,
             [](void* cb_data,
                node_embedding_runtime runtime,
                napi_env env,
@@ -342,11 +344,12 @@ extern "C" int32_t test_main_threading_runtime_in_ui_thread_node_api(
   node_embedding_runtime runtime;
   CHECK_EXIT_CODE(CreateRuntime(
       platform,
-      [&](node_embedding_platform platform, node_embedding_runtime runtime) {
+      [&](node_embedding_platform platform,
+          node_embedding_runtime_config runtime_config) {
         // The callback will be invoked from the runtime's event loop observer
         // thread. It must schedule the work to the UI thread's event loop.
         CHECK_EXIT_CODE(node_embedding_on_wake_up_event_loop(
-            runtime,
+            runtime_config,
             [](void* data, node_embedding_runtime runtime) {
               auto ui_queue = static_cast<UIQueue*>(data);
               ui_queue->PostTask([runtime, ui_queue]() {
@@ -378,7 +381,7 @@ extern "C" int32_t test_main_threading_runtime_in_ui_thread_node_api(
             &ui_queue));
 
         CHECK_EXIT_CODE(node_embedding_runtime_on_start_execution(
-            runtime,
+            runtime_config,
             [](void* cb_data,
                node_embedding_runtime runtime,
                napi_env env,

@@ -10,21 +10,16 @@ It is mostly to catch all the work in progress notes.
 
 ### Global platform API
 - `node_embedding_set_api_version`
-
 - `node_embedding_run_main`
 - `node_embedding_create_platform`
 - `node_embedding_delete_platform`
-
 - `node_embedding_platform_set_flags`
-- `node_embedding_platform_set_args`
-
 - `node_embedding_platform_get_parsed_args`
 
 ### Runtime API
 - `node_embedding_run_runtime`
 - `node_embedding_create_runtime`
 - `node_embedding_delete_runtime`
-
 - `node_embedding_runtime_set_flags`
 - `node_embedding_runtime_set_args`
 - `node_embedding_runtime_on_preload`
