@@ -2104,8 +2104,10 @@ added: v22.3.0
 
 This function is used to mock the exports of ECMAScript modules, CommonJS
 modules, and Node.js builtin modules. Any references to the original module
-prior to mocking are not impacted. The following example demonstrates how a mock
-is created for a module.
+prior to mocking are not impacted. In order to enable module mocking, Node.js must
+be started with the [`--experimental-test-module-mocks`][] command-line flag.
+
+The following example demonstrates how a mock is created for a module.
 
 ```js
 test('mocks a builtin module in both module systems', async (t) => {
@@ -3551,6 +3553,7 @@ Can be used to abort test subtasks when the test has been aborted.
 [TAP]: https://testanything.org/
 [TTY]: tty.md
 [`--experimental-test-coverage`]: cli.md#--experimental-test-coverage
+[`--experimental-test-module-mocks`]: cli.md#--experimental-test-module-mocks
 [`--experimental-test-snapshots`]: cli.md#--experimental-test-snapshots
 [`--import`]: cli.md#--importmodule
 [`--test-concurrency`]: cli.md#--test-concurrency
