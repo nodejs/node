@@ -289,6 +289,37 @@ test('coverage reports on lines, functions, and branches', skipIfNoInspector, as
   });
 });
 
+test('coverage without --enable-source-map ignores sourcemaps', skipIfNoInspector, () => {
+  let report = [
+    '# start of coverage report',
+    '# --------------------------------------------------------------',
+    '# file          | line % | branch % | funcs % | uncovered lines',
+    '# --------------------------------------------------------------',
+    '# a.test.mjs    | 100.00 |   100.00 |  100.00 | ',
+    '# index.test.js |  71.43 |    66.67 |  100.00 | 6-7',
+    '# stdin.test.js | 100.00 |   100.00 |  100.00 | ',
+    '# --------------------------------------------------------------',
+    '# all files     |  85.71 |    87.50 |  100.00 | ',
+    '# --------------------------------------------------------------',
+    '# end of coverage report',
+  ].join('\n');
+
+  if (common.isWindows) {
+    report = report.replaceAll('/', '\\');
+  }
+
+  const fixture = fixtures.path('test-runner', 'coverage');
+  const args = [
+    '--test',
+    '--experimental-test-coverage',
+    '--test-reporter', 'tap',
+  ];
+  const result = spawnSync(process.execPath, args, { cwd: fixture });
+  assert.strictEqual(result.stderr.toString(), '');
+  assert(result.stdout.toString().includes(report));
+  assert.strictEqual(result.status, 1);
+});
+
 test('coverage with source maps', skipIfNoInspector, () => {
   let report = [
     '# start of coverage report',
@@ -311,7 +342,10 @@ test('coverage with source maps', skipIfNoInspector, () => {
 
   const fixture = fixtures.path('test-runner', 'coverage');
   const args = [
-    '--test', '--experimental-test-coverage', '--test-reporter', 'tap',
+    '--enable-source-maps',
+    '--test',
+    '--experimental-test-coverage',
+    '--test-reporter', 'tap',
   ];
   const result = spawnSync(process.execPath, args, { cwd: fixture });
 
@@ -489,7 +523,10 @@ test('coverage with included and excluded files', skipIfNoInspector, () => {
 test('properly accounts for line endings in source maps', skipIfNoInspector, () => {
   const fixture = fixtures.path('test-runner', 'source-map-line-lengths', 'index.js');
   const args = [
-    '--test', '--experimental-test-coverage', '--test-reporter', 'tap',
+    '--enable-source-maps',
+    '--test',
+    '--experimental-test-coverage',
+    '--test-reporter', 'tap',
     fixture,
   ];
   const report = [
