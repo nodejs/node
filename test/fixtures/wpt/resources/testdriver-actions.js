@@ -235,7 +235,7 @@
         } while (sourceNames.has(name))
       } else {
         if (sourceNames.has(name)) {
-          throw new Error(`Alreay have a source of type ${type} named ${name}.`);
+          throw new Error(`Already have a source of type ${type} named ${name}.`);
         }
       }
       this.sources.get(type).set(name, new (this.sourceTypes.get(type))(parameters));

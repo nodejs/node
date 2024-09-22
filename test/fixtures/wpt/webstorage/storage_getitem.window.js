@@ -30,5 +30,5 @@
             assert_equals(storage.getItem(null), "bar", "storage.getItem(null)")
             assert_equals(storage.getItem(""), "baz", "storage.getItem('')")
         }, name + ".getItem should be correct")
-    }, "Get value by getIten(key) and named access in " + name + ".");
+    }, "Get value by getItem(key) and named access in " + name + ".");
 });
