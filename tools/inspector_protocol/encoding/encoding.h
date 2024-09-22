@@ -181,9 +181,9 @@ class StreamingParserHandler {
   virtual void HandleNull() = 0;
 
   // The parser may send one error even after other events have already
-  // been received. Client code is reponsible to then discard the
+  // been received. Client code is responsible to then discard the
   // already processed events.
-  // |error| must be an eror, as in, |error.is_ok()| can't be true.
+  // |error| must be an error, as in, |error.is_ok()| can't be true.
   virtual void HandleError(Status error) = 0;
 };
 

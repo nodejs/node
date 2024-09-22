@@ -214,7 +214,7 @@ def queueForRemoval(tree):
     mytree = trees[tree]
     if options.verbose > 0:
         print("* %s: %d items" % (tree, len(mytree["locs"])))
-    # do varible substitution for this tree here
+    # do variable substitution for this tree here
     if isinstance(config["trees"][tree], basestring):
         treeStr = config["trees"][tree]
         if options.verbose > 5:
@@ -280,7 +280,7 @@ for i in range(len(items)):
         else:
             tree = treeprefix[0:-1]
         if(options.verbose>6):
-            print("procesing %s" % (tree))
+            print("processing %s" % (tree))
         trees[tree] = { "extension": ".res", "treeprefix": treeprefix, "hasIndex": True }
         # read in the resource list for the tree
         treelistfile = os.path.join(options.tmpdir,"%s.lst" % tree)
@@ -331,7 +331,7 @@ def removeList(count=0):
             if(options.verbose > 5):
                 print(" now %d items to remove" % len(remove))
             if(oldcount == len(remove)):
-                print(" ERROR: could not add any mor eitems to remove. Fail.")
+                print(" ERROR: could not add any more items to remove. Fail.")
                 sys.exit(1)
             removeList(count+1)
 

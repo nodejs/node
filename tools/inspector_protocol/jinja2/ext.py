@@ -545,7 +545,7 @@ def babel_extract(fileobj, keywords, comment_tags, options):
     .. versionchanged:: 2.3
        Basic support for translation comments was added.  If `comment_tags`
        is now set to a list of keywords for extraction, the extractor will
-       try to find the best preceeding comment that begins with one of the
+       try to find the best preceding comment that begins with one of the
        keywords.  For best results, make sure to not have more than one
        gettext call in one line of code and the matching comment in the
        same line or the line before.

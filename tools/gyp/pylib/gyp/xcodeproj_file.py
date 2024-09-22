@@ -74,7 +74,7 @@ layer of indirection between an XCBuildPhase and a PBXFileReference via a
 PBXBuildFile appears extraneous, but there's actually one reason for this:
 file-specific compiler flags are added to the PBXBuildFile object so as to
 allow a single file to be a member of multiple targets while having distinct
-compiler flags for each.  These flags can be modified in the Xcode applciation
+compiler flags for each.  These flags can be modified in the Xcode application
 in the "Build" tab of a File Info window.
 
 When a project is open in the Xcode application, Xcode will rewrite it.  As
@@ -662,7 +662,7 @@ class XCObject:
 
     tabs is an int identifying the indentation level.  If the class'
     _should_print_single_line variable is True, tabs is ignored and the
-    key-value pair will be followed by a space insead of a newline.
+    key-value pair will be followed by a space instead of a newline.
     """
 
         if self._should_print_single_line:

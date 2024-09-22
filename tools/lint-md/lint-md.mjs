@@ -146,13 +146,13 @@ function trough() {
       }
     }
   }
-  function use(middelware) {
-    if (typeof middelware !== 'function') {
+  function use(middleware) {
+    if (typeof middleware !== 'function') {
       throw new TypeError(
-        'Expected `middelware` to be a function, not ' + middelware
+        'Expected `middleware` to be a function, not ' + middleware
       )
     }
-    fns.push(middelware);
+    fns.push(middleware);
     return pipeline
   }
 }
@@ -9936,15 +9936,15 @@ function exitParagraphWithTaskListItem(token) {
     if (head && head.type === 'text') {
       const siblings = parent.children;
       let index = -1;
-      let firstParaghraph;
+      let firstParagraph;
       while (++index < siblings.length) {
         const sibling = siblings[index];
         if (sibling.type === 'paragraph') {
-          firstParaghraph = sibling;
+          firstParagraph = sibling;
           break
         }
       }
-      if (firstParaghraph === node) {
+      if (firstParagraph === node) {
         head.value = head.value.slice(1);
         if (head.value.length === 0) {
           node.children.shift();
@@ -14904,7 +14904,7 @@ const remarkLintCodeBlockStyle = lintRule$1(
  *
  * ## What is this?
  *
- * This package checks the whitepsace in definition labels.
+ * This package checks the whitespace in definition labels.
  *
  * GFM footnotes are not affected by this rule as footnote labels cannot
  * contain whitespace.
@@ -15609,7 +15609,7 @@ const remarkLintFileExtension = lintRule$1(
  * ## Recommendation
  *
  * There are different strategies for placing definitions.
- * The simplest is perhaps to place them all at the bottem of documents.
+ * The simplest is perhaps to place them all at the bottom of documents.
  * If you prefer that, turn on this rule.
  *
  * [api-remark-lint-final-definition]: #unifieduseremarklintfinaldefinition
@@ -17136,7 +17136,7 @@ const remarkLintNoHeadingIndent = lintRule$1(
  * @example
  *   {"label": "output", "name": "not-ok.md"}
  *
- *   3:1-3:10: Unexpected duplicate toplevel heading, exected a single heading with rank `1`
+ *   3:1-3:10: Unexpected duplicate toplevel heading, expected a single heading with rank `1`
  *
  * @example
  *   {"config": 2, "label": "input", "name": "not-ok.md"}
@@ -17147,7 +17147,7 @@ const remarkLintNoHeadingIndent = lintRule$1(
  * @example
  *   {"config": 2, "label": "output", "name": "not-ok.md"}
  *
- *   3:1-3:11: Unexpected duplicate toplevel heading, exected a single heading with rank `2`
+ *   3:1-3:11: Unexpected duplicate toplevel heading, expected a single heading with rank `2`
  *
  * @example
  *   {"label": "input", "name": "html.md"}
@@ -17160,7 +17160,7 @@ const remarkLintNoHeadingIndent = lintRule$1(
  * @example
  *   {"label": "output", "name": "html.md"}
  *
- *   5:1-5:14: Unexpected duplicate toplevel heading, exected a single heading with rank `1`
+ *   5:1-5:14: Unexpected duplicate toplevel heading, expected a single heading with rank `1`
  *
  * @example
  *   {"label": "input", "mdx": true, "name": "mdx.mdx"}
@@ -17172,7 +17172,7 @@ const remarkLintNoHeadingIndent = lintRule$1(
  * @example
  *   {"label": "output", "mdx": true, "name": "mdx.mdx"}
  *
- *   4:1-4:14: Unexpected duplicate toplevel heading, exected a single heading with rank `1`
+ *   4:1-4:14: Unexpected duplicate toplevel heading, expected a single heading with rank `1`
  */
 const htmlRe = /<h([1-6])/;
 const jsxNameRe = /^h([1-6])$/;
@@ -17205,7 +17205,7 @@ const remarkLintNoMultipleToplevelHeadings = lintRule$1(
           if (duplicateAncestors) {
             const duplicate = duplicateAncestors.at(-1);
             file.message(
-              'Unexpected duplicate toplevel heading, exected a single heading with rank `' +
+              'Unexpected duplicate toplevel heading, expected a single heading with rank `' +
                 rank +
                 '`',
               {

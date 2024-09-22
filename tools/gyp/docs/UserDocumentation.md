@@ -807,7 +807,7 @@ directory:
 ```
 
 Adding a library often involves updating multiple `.gyp` files, adding
-the target to the approprate `.gyp` file (possibly a newly-added `.gyp`
+the target to the appropriate `.gyp` file (possibly a newly-added `.gyp`
 file), and updating targets in the other `.gyp` files that depend on
 (link with) the new library.
 
@@ -858,7 +858,7 @@ because of those settings' being listed in the
 `direct_dependent_settings` block.
 
 Note that these settings will likely need to be replicated in the
-settings for the library target itsef, so that the library will build
+settings for the library target itself, so that the library will build
 with the same options.  This does not prevent the target from defining
 additional options for its "internal" use when compiling its own source
 files.  (In the above example, these are the `LOCAL_DEFINE_FOR_LIBBAR`

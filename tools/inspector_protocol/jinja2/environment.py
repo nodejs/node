@@ -240,7 +240,7 @@ class Environment(object):
     sandboxed = False
 
     #: True if the environment is just an overlay
-    overlayed = False
+    overlaid = False
 
     #: the environment this environment is linked to if it is an overlay
     linked_to = None
@@ -364,7 +364,7 @@ class Environment(object):
                 bytecode_cache=missing):
         """Create a new overlay environment that shares all the data with the
         current environment except for cache and the overridden attributes.
-        Extensions cannot be removed for an overlayed environment.  An overlayed
+        Extensions cannot be removed for an overlaid environment.  An overlaid
         environment automatically gets all the extensions of the environment it
         is linked to plus optional extra extensions.
 
@@ -378,7 +378,7 @@ class Environment(object):
 
         rv = object.__new__(self.__class__)
         rv.__dict__.update(self.__dict__)
-        rv.overlayed = True
+        rv.overlaid = True
         rv.linked_to = self
 
         for key, value in iteritems(args):
@@ -1074,7 +1074,7 @@ class Template(object):
 
     def make_module_async(self, vars=None, shared=False, locals=None):
         """As template module creation can invoke template code for
-        asynchronous exections this method must be used instead of the
+        asynchronous executions this method must be used instead of the
         normal :meth:`make_module` one.  Likewise the module attribute
         becomes unavailable in async mode.
         """

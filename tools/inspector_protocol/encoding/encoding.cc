@@ -1747,7 +1747,7 @@ class JsonParser {
   }
 
   static bool IsSpaceOrNewLine(Char c) {
-    // \v = vertial tab; \f = form feed page break.
+    // \v = vertical tab; \f = form feed page break.
     return c == ' ' || c == '\n' || c == '\v' || c == '\f' || c == '\r' ||
            c == '\t';
   }

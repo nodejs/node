@@ -400,7 +400,7 @@ def do_join(eval_ctx, value, d=u'', attribute=None):
     if attribute is not None:
         value = imap(make_attrgetter(eval_ctx.environment, attribute), value)
 
-    # no automatic escaping?  joining is a lot eaiser then
+    # no automatic escaping?  joining is a lot easier then
     if not eval_ctx.autoescape:
         return text_type(d).join(imap(text_type, value))
 

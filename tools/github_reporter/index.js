@@ -7410,7 +7410,7 @@ var require_client = __commonJS({
           throw new InvalidArgumentError("allowH2 must be a valid boolean value");
         }
         if (maxConcurrentStreams != null && (typeof maxConcurrentStreams !== "number" || maxConcurrentStreams < 1)) {
-          throw new InvalidArgumentError("maxConcurrentStreams must be a possitive integer, greater than 0");
+          throw new InvalidArgumentError("maxConcurrentStreams must be a positive integer, greater than 0");
         }
         if (typeof connect2 !== "function") {
           connect2 = buildConnector({
@@ -7451,7 +7451,7 @@ var require_client = __commonJS({
         this[kHTTP2SessionState] = !allowH2 ? null : {
           // streams: null, // Fixed queue of streams - For future support of `push`
           openStreams: 0,
-          // Keep track of them to decide wether or not unref the session
+          // Keep track of them to decide whether or not unref the session
           maxConcurrentStreams: maxConcurrentStreams != null ? maxConcurrentStreams : 100
           // Max peerConcurrentStreams for a Node h2 server
         };
@@ -9459,7 +9459,7 @@ var require_agent = __commonJS({
         this[kFactory] = factory;
         this[kClients] = /* @__PURE__ */ new Map();
         this[kFinalizer] = new FinalizationRegistry(
-          /* istanbul ignore next: gc is undeterministic */
+          /* istanbul ignore next: gc is indeterministic */
           (key) => {
             const ref = this[kClients].get(key);
             if (ref !== void 0 && ref.deref() === void 0) {
@@ -13060,7 +13060,7 @@ var require_request2 = __commonJS({
         return this[kState].reloadNavigation;
       }
       // Returns a boolean indicating whether or not request is for a history
-      // navigation (a.k.a. back-foward navigation).
+      // navigation (a.k.a. back-forward navigation).
       get isHistoryNavigation() {
         webidl.brandCheck(this, Request);
         return this[kState].historyNavigation;
@@ -13527,9 +13527,9 @@ var require_fetch = __commonJS({
         taskDestination = request.client.globalObject;
         crossOriginIsolatedCapability = request.client.crossOriginIsolatedCapability;
       }
-      const currenTime = coarsenedSharedCurrentTime(crossOriginIsolatedCapability);
+      const currentTime = coarsenedSharedCurrentTime(crossOriginIsolatedCapability);
       const timingInfo = createOpaqueTimingInfo({
-        startTime: currenTime
+        startTime: currentTime
       });
       const fetchParams = {
         controller: new Fetch(dispatcher),
@@ -18582,7 +18582,7 @@ var require_summary = __commonJS({
       /**
        * If the summary buffer is empty
        *
-       * @returns {boolen} true if the buffer is empty
+       * @returns {boolean} true if the buffer is empty
        */
       isEmptyBuffer() {
         return this._buffer.length === 0;
@@ -18667,10 +18667,10 @@ var require_summary = __commonJS({
         return this.addRaw(element).addEOL();
       }
       /**
-       * Adds a collapsable HTML details element to the summary buffer
+       * Adds a collapsible HTML details element to the summary buffer
        *
        * @param {string} label text for the closed state
-       * @param {string} content collapsable content
+       * @param {string} content collapsible content
        *
        * @returns {Summary} summary instance
        */
@@ -19390,7 +19390,7 @@ module.exports = async function githubReporter(source) {
         break;
     }
   }
-  const formatedDiagnostics = diagnostics.map((d) => {
+  const formattedDiagnostics = diagnostics.map((d) => {
     const [key, ...rest] = d.split(" ");
     const value = rest.join(" ");
     return [
@@ -19398,11 +19398,11 @@ module.exports = async function githubReporter(source) {
       DIAGNOSTIC_VALUES[key] ? DIAGNOSTIC_VALUES[key](value) : value
     ];
   });
-  core.startGroup(`Test results (${formatedDiagnostics.find(([key]) => key === DIAGNOSTIC_KEYS.pass)?.[1] ?? counter.pass} passed, ${formatedDiagnostics.find(([key]) => key === DIAGNOSTIC_KEYS.fail)?.[1] ?? counter.fail} failed)`);
-  core.notice(formatedDiagnostics.map((d) => d.join(": ")).join(EOL));
+  core.startGroup(`Test results (${formattedDiagnostics.find(([key]) => key === DIAGNOSTIC_KEYS.pass)?.[1] ?? counter.pass} passed, ${formattedDiagnostics.find(([key]) => key === DIAGNOSTIC_KEYS.fail)?.[1] ?? counter.fail} failed)`);
+  core.notice(formattedDiagnostics.map((d) => d.join(": ")).join(EOL));
   core.endGroup();
   if (process.env.GITHUB_STEP_SUMMARY) {
-    await core.summary.addHeading("Test Results").addTable(formatedDiagnostics).write();
+    await core.summary.addHeading("Test Results").addTable(formattedDiagnostics).write();
   }
 };
 /*! Bundled license information:
