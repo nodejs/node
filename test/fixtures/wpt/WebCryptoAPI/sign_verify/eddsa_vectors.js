@@ -16,7 +16,7 @@
 //     algorithmName - the name of the AlgorithmIdentifier parameter to provide to sign
 //     data - the text to sign
 //     signature - the expected signature
-function getTestVectors() {
+function getTestVectors(algorithmName) {
   var pkcs8 = {
       "Ed25519": new Uint8Array([48, 46, 2, 1, 0, 48, 5, 6, 3, 43, 101, 112, 4, 34, 4, 32, 243, 200, 244, 196, 141, 248, 120, 20, 110, 140, 211, 191, 109, 244, 229, 14, 56, 155, 167, 7, 78, 21, 194, 53, 45, 205, 93, 48, 141, 76, 168, 31]),
       "Ed448": new Uint8Array([48, 71, 2, 1, 0, 48, 5, 6, 3, 43, 101, 113, 4, 59, 4, 57, 14, 255, 3, 69, 140, 40, 224, 23, 156, 82, 29, 227, 18, 201, 105, 183, 131, 67, 72, 236, 171, 153, 26, 96, 227, 178, 233, 167, 158, 76, 217, 228, 128, 239, 41, 23, 18, 210, 200, 61, 4, 114, 114, 213, 201, 244, 40, 102, 79, 105, 109, 38, 112, 69, 143, 29, 46]),
@@ -37,7 +37,7 @@ function getTestVectors() {
   }
 
   var vectors = [];
-  ["Ed25519", "Ed448"].forEach(function(algorithmName) {
+  {
     var vector = {
       name: "EdDSA " + algorithmName,
       publicKeyBuffer: spki[algorithmName],
@@ -52,7 +52,7 @@ function getTestVectors() {
     };
 
     vectors.push(vector);
-  });
+  }
   return vectors;
 }
 

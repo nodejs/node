@@ -3,4 +3,4 @@
 // META: script=eddsa.js
 // META: timeout=long
 
-run_test();
+run_test("Ed25519");
