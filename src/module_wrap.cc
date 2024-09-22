@@ -151,7 +151,7 @@ Local<PrimitiveArray> ModuleWrap::GetHostDefinedOptions(
 }
 
 // new ModuleWrap(url, context, source, lineOffset, columnOffset[, cachedData]);
-// new ModuleWrap(url, context, source, lineOffset, columOffset,
+// new ModuleWrap(url, context, source, lineOffset, columnOffset,
 //                idSymbol);
 // new ModuleWrap(url, context, exportNames, evaluationCallback[, cjsModule])
 void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
@@ -191,9 +191,9 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
     // cjsModule])
     CHECK(args[3]->IsFunction());
   } else {
-    // new ModuleWrap(url, context, source, lineOffset, columOffset[,
+    // new ModuleWrap(url, context, source, lineOffset, columnOffset[,
     //                cachedData]);
-    // new ModuleWrap(url, context, source, lineOffset, columOffset,
+    // new ModuleWrap(url, context, source, lineOffset, columnOffset,
     //                idSymbol);
     CHECK(args[2]->IsString());
     CHECK(args[3]->IsNumber());
