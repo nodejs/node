@@ -53,15 +53,6 @@ using v8::Value;
 
 namespace report {
 // Internal/static function declarations
-static void WriteNodeReport(Isolate* isolate,
-                            Environment* env,
-                            const char* message,
-                            const char* trigger,
-                            const std::string& filename,
-                            std::ostream& out,
-                            Local<Value> error,
-                            bool compact,
-                            bool exclude_network = false);
 static void PrintVersionInformation(JSONWriter* writer,
                                     bool exclude_network = false);
 static void PrintJavaScriptErrorStack(JSONWriter* writer,
@@ -87,7 +78,7 @@ static void PrintNetworkInterfaceInfo(JSONWriter* writer);
 
 // Internal function to coordinate and write the various
 // sections of the report to the supplied stream
-static void WriteNodeReport(Isolate* isolate,
+void WriteNodeReport(Isolate* isolate,
                             Environment* env,
                             const char* message,
                             const char* trigger,

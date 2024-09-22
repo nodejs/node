@@ -33,6 +33,15 @@ std::string ValueToHexString(T value) {
 // Function declarations - export functions in src/node_report_module.cc
 void WriteReport(const v8::FunctionCallbackInfo<v8::Value>& info);
 void GetReport(const v8::FunctionCallbackInfo<v8::Value>& info);
+void WriteNodeReport(v8::Isolate* isolate,
+                     Environment* env,
+                     const char* message,
+                     const char* trigger,
+                     const std::string& filename,
+                     std::ostream& out,
+                     v8::Local<v8::Value> error,
+                     bool compact,
+                     bool exclude_network = false);
 
 }  // namespace report
 }  // namespace node
