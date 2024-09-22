@@ -617,7 +617,7 @@
           } else {
             indent = cap[2].search(/[^ ]/); // Find first non-space char
 
-            indent = cap[1].length + (indent > 4 ? 1 : indent); // intented code blocks after 4 spaces; indent is always 1
+            indent = cap[1].length + (indent > 4 ? 1 : indent); // indented code blocks after 4 spaces; indent is always 1
 
             itemContents = lines[0].slice(indent - cap[1].length);
           }
@@ -2177,19 +2177,19 @@
 
     _proto.getNextSafeSlug = function getNextSafeSlug(originalSlug, isDryRun) {
       var slug = originalSlug;
-      var occurenceAccumulator = 0;
+      var occurrenceAccumulator = 0;
 
       if (this.seen.hasOwnProperty(slug)) {
-        occurenceAccumulator = this.seen[originalSlug];
+        occurrenceAccumulator = this.seen[originalSlug];
 
         do {
-          occurenceAccumulator++;
-          slug = originalSlug + '-' + occurenceAccumulator;
+          occurrenceAccumulator++;
+          slug = originalSlug + '-' + occurrenceAccumulator;
         } while (this.seen.hasOwnProperty(slug));
       }
 
       if (!isDryRun) {
-        this.seen[originalSlug] = occurenceAccumulator;
+        this.seen[originalSlug] = occurrenceAccumulator;
         this.seen[slug] = 0;
       }
 

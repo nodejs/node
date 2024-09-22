@@ -36,7 +36,7 @@ const connection_reuse_test = (path, follow_on_assertions, test_label) => {
       invariants.assert_connection_reused(entry);
       on_200(entry);
     },
-    `PerformanceResrouceTiming entries need to conform to the spec when a ` +
+    `PerformanceResourceTiming entries need to conform to the spec when a ` +
     `distinct resource is fetched over a persistent connection ` +
     `(${test_label})`);
 
@@ -57,7 +57,7 @@ const connection_reuse_test = (path, follow_on_assertions, test_label) => {
       invariants.assert_connection_reused(entry);
       on_304(entry);
     },
-    `PerformanceResrouceTiming entries need to conform to the spec when the ` +
+    `PerformanceResourceTiming entries need to conform to the spec when the ` +
     `resource is cache-revalidated over a persistent connection ` +
     `(${test_label})`);
 }
