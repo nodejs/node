@@ -451,6 +451,17 @@ changes:
 A browser-compatible implementation of the `Event` class. See
 [`EventTarget` and `Event` API][] for more details.
 
+## `EventSource`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental. Enable this API with the [`--experimental-eventsource`][]
+> CLI flag.
+
+A browser-compatible implementation of the [`EventSource`][] class.
+
 ## `EventTarget`
 
 <!-- YAML
@@ -1012,6 +1023,7 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [CommonJS modules]: modules.md
 [ECMAScript module]: esm.md
 [Web Crypto API]: webcrypto.md
+[`--experimental-eventsource`]: cli.md#--experimental-eventsource
 [`--experimental-websocket`]: cli.md#--experimental-websocket
 [`--no-experimental-fetch`]: cli.md#--no-experimental-fetch
 [`--no-experimental-global-customevent`]: cli.md#--no-experimental-global-customevent
@@ -1023,6 +1035,7 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [`CustomEvent` Web API]: https://dom.spec.whatwg.org/#customevent
 [`DOMException`]: https://developer.mozilla.org/en-US/docs/Web/API/DOMException
 [`DecompressionStream`]: webstreams.md#class-decompressionstream
+[`EventSource`]: https://developer.mozilla.org/en-US/docs/Web/API/EventSource
 [`EventTarget` and `Event` API]: events.md#eventtarget-and-event-api
 [`MessageChannel`]: worker_threads.md#class-messagechannel
 [`MessageEvent`]: https://developer.mozilla.org/en-US/docs/Web/API/MessageEvent/MessageEvent
