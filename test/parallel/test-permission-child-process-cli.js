@@ -15,6 +15,14 @@ if (process.argv[2] === 'child') {
   assert.ok(!process.permission.has('child'));
 }
 
+// The execPath might contain chars that should be escaped in a shell context.
+// On non-Windows, we can pass the path via the env; `"` is not a valid char on
+// Windows, so we can simply pass the path.
+const execNode = (args) => [
+  `"${common.isWindows ? process.execPath : '$NODE'}" ${args}`,
+  common.isWindows ? undefined : { env: { ...process.env, NODE: process.execPath } },
+];
+
 // When a permission is set by cli, the process shouldn't be able
 // to spawn
 {
@@ -31,13 +39,13 @@ if (process.argv[2] === 'child') {
     permission: 'ChildProcess',
   }));
   assert.throws(() => {
-    childProcess.exec(process.execPath, ['--version']);
+    childProcess.exec(...execNode('--version'));
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'ChildProcess',
   }));
   assert.throws(() => {
-    childProcess.execSync(process.execPath, ['--version']);
+    childProcess.execSync(...execNode('--version'));
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'ChildProcess',
@@ -49,13 +57,13 @@ if (process.argv[2] === 'child') {
     permission: 'ChildProcess',
   }));
   assert.throws(() => {
-    childProcess.execFile(process.execPath, ['--version']);
+    childProcess.execFile(...execNode('--version'));
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'ChildProcess',
   }));
   assert.throws(() => {
-    childProcess.execFileSync(process.execPath, ['--version']);
+    childProcess.execFileSync(...execNode('--version'));
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'ChildProcess',
