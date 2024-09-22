@@ -1,6 +1,6 @@
 import * as common from '../common/index.mjs';
 import tmpdir from '../common/tmpdir.js';
-import { resolve, dirname, sep, basename } from 'node:path';
+import { resolve, dirname, sep, basename, relative, join, isAbsolute } from 'node:path';
 import { mkdir, writeFile, symlink, glob as asyncGlob } from 'node:fs/promises';
 import { glob, globSync, Dirent } from 'node:fs';
 import { test, describe } from 'node:test';
@@ -348,8 +348,10 @@ describe('glob - withFileTypes', function() {
         exclude: (dirent) => assert.ok(dirent instanceof Dirent),
       });
       assertDirents(actual);
-      const normalized = expected.filter(Boolean).map((item) => basename(item)).sort();
-      assert.deepStrictEqual(actual.map((dirent) => dirent.name).sort(), normalized.sort());
+      assert.deepStrictEqual(
+        actual.map((dirent) => relative(fixtureDir, join(dirent.parentPath, dirent.name))).sort(),
+        expected.map(path => isAbsolute(path) ? relative(fixtureDir, path) : path).sort()
+      );
     });
   }
 });
@@ -363,8 +365,10 @@ describe('globSync - withFileTypes', function() {
         exclude: (dirent) => assert.ok(dirent instanceof Dirent),
       });
       assertDirents(actual);
-      const normalized = expected.filter(Boolean).map((item) => basename(item)).sort();
-      assert.deepStrictEqual(actual.map((dirent) => dirent.name).sort(), normalized.sort());
+      assert.deepStrictEqual(
+        actual.map((dirent) => relative(fixtureDir, join(dirent.parentPath, dirent.name))).sort(),
+        expected.map(path => isAbsolute(path) ? relative(fixtureDir, path) : path).sort()
+      );
     });
   }
 });
@@ -379,8 +383,10 @@ describe('fsPromises glob - withFileTypes', function() {
         exclude: (dirent) => assert.ok(dirent instanceof Dirent),
       })) actual.push(item);
       assertDirents(actual);
-      const normalized = expected.filter(Boolean).map((item) => basename(item)).sort();
-      assert.deepStrictEqual(actual.map((dirent) => dirent.name).sort(), normalized.sort());
+      assert.deepStrictEqual(
+        actual.map((dirent) => relative(fixtureDir, join(dirent.parentPath, dirent.name))).sort(),
+        expected.map(path => isAbsolute(path) ? relative(fixtureDir, path) : path).sort()
+      );
     });
   }
 });
