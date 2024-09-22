@@ -62,7 +62,7 @@ This is a security release.
 
 ### Notable Changes
 
-Vulnerabilties Fixed:
+Vulnerabilities Fixed:
 
 * **CVE-2021-3450**: OpenSSL - CA certificate check bypass with X509\_V\_FLAG\_X509\_STRICT (High)
   * This is a vulnerability in OpenSSL which may be exploited through Node.js. You can read more about it in <https://www.openssl.org/news/secadv/20210325.txt>
@@ -377,7 +377,7 @@ Other Notable Changes:
 * \[[`ddae112133`](https://github.com/nodejs/node/commit/ddae112133)] - **child\_process**: fix spawn and fork abort behavior (Nitzan Uziely) [#37325](https://github.com/nodejs/node/pull/37325)
 * \[[`b1e188de8d`](https://github.com/nodejs/node/commit/b1e188de8d)] - **crypto**: refactor hasAnyNotIn to avoid unsafe array iteration (Antoine du Hamel) [#37433](https://github.com/nodejs/node/pull/37433)
 * \[[`291d9e9936`](https://github.com/nodejs/node/commit/291d9e9936)] - **crypto**: check ed/x webcrypto key import algorithm names (Filip Skokan) [#37305](https://github.com/nodejs/node/pull/37305)
-* \[[`a3e3156b52`](https://github.com/nodejs/node/commit/a3e3156b52)] - **(SEMVER-MINOR)** **crypto**: make FIPS related options always awailable (Vít Ondruch) [#36341](https://github.com/nodejs/node/pull/36341)
+* \[[`a3e3156b52`](https://github.com/nodejs/node/commit/a3e3156b52)] - **(SEMVER-MINOR)** **crypto**: make FIPS related options always available (Vít Ondruch) [#36341](https://github.com/nodejs/node/pull/36341)
 * \[[`b634469c38`](https://github.com/nodejs/node/commit/b634469c38)] - **crypto**: refactor to avoid unsafe array iteration (Antoine du Hamel) [#37364](https://github.com/nodejs/node/pull/37364)
 * \[[`01773ab614`](https://github.com/nodejs/node/commit/01773ab614)] - **crypto**: use BoringSSL compatible errors (Shelley Vohr) [#37297](https://github.com/nodejs/node/pull/37297)
 * \[[`f3d67000a0`](https://github.com/nodejs/node/commit/f3d67000a0)] - **deps**: upgrade npm to 7.6.0 (Ruy Adorno) [#37559](https://github.com/nodejs/node/pull/37559)
@@ -560,7 +560,7 @@ Vulnerabilities fixed:
 * \[[`c30245072a`](https://github.com/nodejs/node/commit/c30245072a)] - **fs**: allow passing negative zero fd (Darshan Sen) [#37123](https://github.com/nodejs/node/pull/37123)
 * \[[`655d19638a`](https://github.com/nodejs/node/commit/655d19638a)] - **(SEMVER-MINOR)** **fs**: use a default callback for fs.close() (James M Snell) [#37174](https://github.com/nodejs/node/pull/37174)
 * \[[`acd087dffb`](https://github.com/nodejs/node/commit/acd087dffb)] - **(SEMVER-MINOR)** **fs**: add AbortSignal support to watch (Benjamin Gruenbaum) [#37190](https://github.com/nodejs/node/pull/37190)
-* \[[`f5d1bf9d0e`](https://github.com/nodejs/node/commit/f5d1bf9d0e)] - **http**: explain the possibilty of refactor unused argument (Qingyu Deng) [#37275](https://github.com/nodejs/node/pull/37275)
+* \[[`f5d1bf9d0e`](https://github.com/nodejs/node/commit/f5d1bf9d0e)] - **http**: explain the possibility of refactor unused argument (Qingyu Deng) [#37275](https://github.com/nodejs/node/pull/37275)
 * \[[`d63ac28a9a`](https://github.com/nodejs/node/commit/d63ac28a9a)] - **http**: explain the unused argument in IncomingMessage.\_read (Qingyu Deng) [#37275](https://github.com/nodejs/node/pull/37275)
 * \[[`4cdc5ea823`](https://github.com/nodejs/node/commit/4cdc5ea823)] - **http**: fix ClientRequest unhandled errors (Robert Nagy) [#36970](https://github.com/nodejs/node/pull/36970)
 * \[[`c6198fddc7`](https://github.com/nodejs/node/commit/c6198fddc7)] - **lib**: simplify check in child\_process (Darshan Sen) [#37367](https://github.com/nodejs/node/pull/37367)
@@ -747,7 +747,7 @@ Vulnerabilities fixed:
 * \[[`6f773fbe84`](https://github.com/nodejs/node/commit/6f773fbe84)] - **deps**: upgrade npm to 7.4.2 (Ruy Adorno) [#36953](https://github.com/nodejs/node/pull/36953)
 * \[[`4b952d8d3e`](https://github.com/nodejs/node/commit/4b952d8d3e)] - **doc**: fix maintaining ICU guide (Michaël Zasso) [#36980](https://github.com/nodejs/node/pull/36980)
 * \[[`a2559b9044`](https://github.com/nodejs/node/commit/a2559b9044)] - **doc**: add @RaisinTen to collaborators (Darshan Sen) [#36998](https://github.com/nodejs/node/pull/36998)
-* \[[`4d5273b156`](https://github.com/nodejs/node/commit/4d5273b156)] - **doc**: fix typo in http.server.requestTimout docs (alexbs) [#36987](https://github.com/nodejs/node/pull/36987)
+* \[[`4d5273b156`](https://github.com/nodejs/node/commit/4d5273b156)] - **doc**: fix typo in http.server.requestTimeout docs (alexbs) [#36987](https://github.com/nodejs/node/pull/36987)
 * \[[`93fc295b75`](https://github.com/nodejs/node/commit/93fc295b75)] - **doc**: add performance notes for fs.readFile (James M Snell) [#36880](https://github.com/nodejs/node/pull/36880)
 * \[[`7ea374b159`](https://github.com/nodejs/node/commit/7ea374b159)] - **doc**: clarify maxSockets option of http.Agent (Pooja D P) [#36941](https://github.com/nodejs/node/pull/36941)
 * \[[`f3637d5328`](https://github.com/nodejs/node/commit/f3637d5328)] - **doc**: remove pull-requests.md preamble (Rich Trott) [#36960](https://github.com/nodejs/node/pull/36960)
@@ -787,7 +787,7 @@ Vulnerabilities fixed:
 * \[[`89a7941425`](https://github.com/nodejs/node/commit/89a7941425)] - **os**: performance improvement in vector allocation (Yash Ladha) [#36748](https://github.com/nodejs/node/pull/36748)
 * \[[`3f75a60b51`](https://github.com/nodejs/node/commit/3f75a60b51)] - **perf\_hooks**: throw ERR\_INVALID\_ARG\_VALUE if histogram.percentile param is NaN (ZiJian Liu) [#36937](https://github.com/nodejs/node/pull/36937)
 * \[[`9951daefbd`](https://github.com/nodejs/node/commit/9951daefbd)] - **repl**: refactor to avoid unsafe array iteration (raisinten) [#36663](https://github.com/nodejs/node/pull/36663)
-* \[[`868d3b2ff6`](https://github.com/nodejs/node/commit/868d3b2ff6)] - **src**: use BaseObject::kInteralFieldCount in Blob (Joyee Cheung) [#36991](https://github.com/nodejs/node/pull/36991)
+* \[[`868d3b2ff6`](https://github.com/nodejs/node/commit/868d3b2ff6)] - **src**: use BaseObject::kInternalFieldCount in Blob (Joyee Cheung) [#36991](https://github.com/nodejs/node/pull/36991)
 * \[[`a5ffdaee1c`](https://github.com/nodejs/node/commit/a5ffdaee1c)] - **src**: replace push\_back with emplace\_back in debug\_utils (raisinten) [#36897](https://github.com/nodejs/node/pull/36897)
 * \[[`d54998538e`](https://github.com/nodejs/node/commit/d54998538e)] - **src**: use BaseObject::kInternalFieldCount in X509Certificate constructor (Joyee Cheung) [#36892](https://github.com/nodejs/node/pull/36892)
 * \[[`7acea78493`](https://github.com/nodejs/node/commit/7acea78493)] - **test**: mark flaky tests on IBM i (Richard Lau) [#36986](https://github.com/nodejs/node/pull/36986)
@@ -1195,7 +1195,7 @@ With this release, we welcome a new Node.js core collaborator:
 * \[[`f09985d42a`](https://github.com/nodejs/node/commit/f09985d42a)] - **doc**: update url.md (Rock) [#36147](https://github.com/nodejs/node/pull/36147)
 * \[[`c3ec90d23c`](https://github.com/nodejs/node/commit/c3ec90d23c)] - **doc**: make explicit reverting node\_version.h changes (Richard Lau) [#36461](https://github.com/nodejs/node/pull/36461)
 * \[[`7a34452b1d`](https://github.com/nodejs/node/commit/7a34452b1d)] - **doc**: add license info to the README (FrankQiu) [#36278](https://github.com/nodejs/node/pull/36278)
-* \[[`22f039339f`](https://github.com/nodejs/node/commit/22f039339f)] - **doc**: revise addon mulitple initializations text (Rich Trott) [#36457](https://github.com/nodejs/node/pull/36457)
+* \[[`22f039339f`](https://github.com/nodejs/node/commit/22f039339f)] - **doc**: revise addon multiple initializations text (Rich Trott) [#36457](https://github.com/nodejs/node/pull/36457)
 * \[[`25a245443a`](https://github.com/nodejs/node/commit/25a245443a)] - **doc**: add v15.4.0 link to CHANGELOG.md (Danielle Adams) [#36456](https://github.com/nodejs/node/pull/36456)
 * \[[`1ec8516fd6`](https://github.com/nodejs/node/commit/1ec8516fd6)] - **doc**: add PoojaDurgad to collaborators (Pooja D P) [#36511](https://github.com/nodejs/node/pull/36511)
 * \[[`98918110a1`](https://github.com/nodejs/node/commit/98918110a1)] - **doc**: edit addon text about event loop blocking (Rich Trott) [#36448](https://github.com/nodejs/node/pull/36448)
@@ -1204,7 +1204,7 @@ With this release, we welcome a new Node.js core collaborator:
 * \[[`e331de2571`](https://github.com/nodejs/node/commit/e331de2571)] - **doc**: reword POSIX threads text in addons.md (Rich Trott) [#36436](https://github.com/nodejs/node/pull/36436)
 * \[[`04f166389b`](https://github.com/nodejs/node/commit/04f166389b)] - **doc**: add RaisinTen as a triager (raisinten) [#36404](https://github.com/nodejs/node/pull/36404)
 * \[[`3341b2cb9d`](https://github.com/nodejs/node/commit/3341b2cb9d)] - **doc**: document ABORT\_ERR code (Benjamin Gruenbaum) [#36319](https://github.com/nodejs/node/pull/36319)
-* \[[`6a6b3af736`](https://github.com/nodejs/node/commit/6a6b3af736)] - **doc**: provide more context on techinical values (Michael Dawson) [#36201](https://github.com/nodejs/node/pull/36201)
+* \[[`6a6b3af736`](https://github.com/nodejs/node/commit/6a6b3af736)] - **doc**: provide more context on technical values (Michael Dawson) [#36201](https://github.com/nodejs/node/pull/36201)
 
 #### Other commits
 
@@ -1543,7 +1543,7 @@ Vulnerabilities fixed:
 * \[[`9d26c4d496`](https://github.com/nodejs/node/commit/9d26c4d496)] - **domain**: refactor to use more primordials (Antoine du Hamel) [#35885](https://github.com/nodejs/node/pull/35885)
 * \[[`d83e253065`](https://github.com/nodejs/node/commit/d83e253065)] - **errors**: refactor to use more primordials (Antoine du Hamel) [#35944](https://github.com/nodejs/node/pull/35944)
 * \[[`567f8d8caf`](https://github.com/nodejs/node/commit/567f8d8caf)] - **(SEMVER-MINOR)** **events**: getEventListeners static (Benjamin Gruenbaum) [#35991](https://github.com/nodejs/node/pull/35991)
-* \[[`9e673723e3`](https://github.com/nodejs/node/commit/9e673723e3)] - **events**: fire handlers in correct oder (Benjamin Gruenbaum) [#35931](https://github.com/nodejs/node/pull/35931)
+* \[[`9e673723e3`](https://github.com/nodejs/node/commit/9e673723e3)] - **events**: fire handlers in correct order (Benjamin Gruenbaum) [#35931](https://github.com/nodejs/node/pull/35931)
 * \[[`ff59fcdf7b`](https://github.com/nodejs/node/commit/ff59fcdf7b)] - **events**: define abort on prototype (Benjamin Gruenbaum) [#35931](https://github.com/nodejs/node/pull/35931)
 * \[[`ab0eb4f2c9`](https://github.com/nodejs/node/commit/ab0eb4f2c9)] - **events**: support event handlers on prototypes (Benjamin Gruenbaum) [#35931](https://github.com/nodejs/node/pull/35931)
 * \[[`33e2ee58a7`](https://github.com/nodejs/node/commit/33e2ee58a7)] - **events**: define event handler as enumerable (Benjamin Gruenbaum) [#35931](https://github.com/nodejs/node/pull/35931)
@@ -1678,7 +1678,7 @@ With the new `--heapsnapshot-near-heap-limit=max_count` experimental command lin
 
 When generating snapshots, garbage collection may be triggered and bring the heap usage down, therefore multiple snapshots may be written to disk before the Node.js instance finally runs out of memory. These heap snapshots can be compared to determine what objects are being allocated during the time consecutive snapshots are taken.
 
-Generating V8 snapshots takes time and memory (both memory managed by the V8 heap and native memory outside the V8 heap). The bigger the heap is, the more resources it needs. Node.js will adjust the V8 heap to accommodate the additional V8 heap memory overhead, and try its best to avoid using up all the memory avialable to the process.
+Generating V8 snapshots takes time and memory (both memory managed by the V8 heap and native memory outside the V8 heap). The bigger the heap is, the more resources it needs. Node.js will adjust the V8 heap to accommodate the additional V8 heap memory overhead, and try its best to avoid using up all the memory available to the process.
 
 ```console
 $ node --max-old-space-size=100 --heapsnapshot-near-heap-limit=3 index.js

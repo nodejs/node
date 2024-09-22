@@ -250,7 +250,7 @@ See <https://nodejs.org/en/blog/vulnerability/openssl-fixes-in-regular-releases-
 * \[[`58763d7f9d`](https://github.com/nodejs/node/commit/58763d7f9d)] - **src,crypto**: avoid tristate Maybe\<bool> in ExportJWKEcKey() (Darshan Sen) [#42223](https://github.com/nodejs/node/pull/42223)
 * \[[`5367002bc8`](https://github.com/nodejs/node/commit/5367002bc8)] - **stream**: do cleanup when iterator is destroyed (Khoo Hao Yit) [#42320](https://github.com/nodejs/node/pull/42320)
 * \[[`3492a0eb1e`](https://github.com/nodejs/node/commit/3492a0eb1e)] - **string\_decoder**: fix crash when calling \_\_proto\_\_.write() (Darshan Sen) [#42062](https://github.com/nodejs/node/pull/42062)
-* \[[`d9a5c2b284`](https://github.com/nodejs/node/commit/d9a5c2b284)] - **test**: give slow tests more time on Rasberry PIs (Michael Dawson) [#42380](https://github.com/nodejs/node/pull/42380)
+* \[[`d9a5c2b284`](https://github.com/nodejs/node/commit/d9a5c2b284)] - **test**: give slow tests more time on Raspberry PIs (Michael Dawson) [#42380](https://github.com/nodejs/node/pull/42380)
 * \[[`b82bac09ff`](https://github.com/nodejs/node/commit/b82bac09ff)] - **test**: improve https\_renew\_cert.sh script (Tobias Nießen) [#42343](https://github.com/nodejs/node/pull/42343)
 * \[[`dfdce7c182`](https://github.com/nodejs/node/commit/dfdce7c182)] - **test**: improve \_http\_incoming.js coverage (Yoshiki Kurihara) [#42211](https://github.com/nodejs/node/pull/42211)
 * \[[`4941791f29`](https://github.com/nodejs/node/commit/4941791f29)] - **test**: improve \_http\_outgoing coverage (Yoshiki Kurihara) [#42213](https://github.com/nodejs/node/pull/42213)
@@ -551,7 +551,7 @@ change that introduced the regression.
 #### Add fetch API
 
 Adds experimental support to the fetch API. This adds a `--experimental-fetch`
-flag that installs the `fetch`, `Request`, `Reponse` and `Headers` globals.
+flag that installs the `fetch`, `Request`, `Response` and `Headers` globals.
 
 * \[[`76a229c4ff`](https://github.com/nodejs/node/commit/76a229c4ff)] - **(SEMVER-MINOR)** **lib**: add fetch (Michaël Zasso) [#41749](https://github.com/nodejs/node/pull/41749)
 
@@ -653,7 +653,7 @@ flag that installs the `fetch`, `Request`, `Reponse` and `Headers` globals.
 * \[[`9c73bd5610`](https://github.com/nodejs/node/commit/9c73bd5610)] - **doc**: simplify util.TextDecoder example (Rich Trott) [#41574](https://github.com/nodejs/node/pull/41574)
 * \[[`e72693160e`](https://github.com/nodejs/node/commit/e72693160e)] - **doc**: move Mesteery to collaborators (Tobias Nießen) [#41597](https://github.com/nodejs/node/pull/41597)
 * \[[`952623dff8`](https://github.com/nodejs/node/commit/952623dff8)] - **doc**: fix cjs example code for process.arch (Job) [#41593](https://github.com/nodejs/node/pull/41593)
-* \[[`2478b47a08`](https://github.com/nodejs/node/commit/2478b47a08)] - **doc**: remove redunant `await` calls from stream docs (Giora Guttsait) [#41592](https://github.com/nodejs/node/pull/41592)
+* \[[`2478b47a08`](https://github.com/nodejs/node/commit/2478b47a08)] - **doc**: remove redundant `await` calls from stream docs (Giora Guttsait) [#41592](https://github.com/nodejs/node/pull/41592)
 * \[[`f6b5b8d5bb`](https://github.com/nodejs/node/commit/f6b5b8d5bb)] - **doc**: make contributing info more discoverable (Michael Dawson) [#41408](https://github.com/nodejs/node/pull/41408)
 * \[[`6370b4df68`](https://github.com/nodejs/node/commit/6370b4df68)] - **doc**: recommend package exports instead of requiring folders (Antoine du Hamel) [#41381](https://github.com/nodejs/node/pull/41381)
 * \[[`b5104e89fc`](https://github.com/nodejs/node/commit/b5104e89fc)] - **doc**: edit async\_context context loss text (Rich Trott) [#41550](https://github.com/nodejs/node/pull/41550)
@@ -675,7 +675,7 @@ flag that installs the `fetch`, `Request`, `Reponse` and `Headers` globals.
 * \[[`4834be373d`](https://github.com/nodejs/node/commit/4834be373d)] - **lib**: add comments to empty catch statements (Rich Trott) [#41831](https://github.com/nodejs/node/pull/41831)
 * \[[`76a229c4ff`](https://github.com/nodejs/node/commit/76a229c4ff)] - **(SEMVER-MINOR)** **lib**: add fetch (Michaël Zasso) [#41749](https://github.com/nodejs/node/pull/41749)
 * \[[`cedd26a396`](https://github.com/nodejs/node/commit/cedd26a396)] - **lib**: refactor source map stack trace prepare (Mohammed Keyvanzadeh) [#41698](https://github.com/nodejs/node/pull/41698)
-* \[[`8ab0540d4a`](https://github.com/nodejs/node/commit/8ab0540d4a)] - **lib**: throw error in structuedClone when no arguments are passed (Giora Guttsait) [#41651](https://github.com/nodejs/node/pull/41651)
+* \[[`8ab0540d4a`](https://github.com/nodejs/node/commit/8ab0540d4a)] - **lib**: throw error in structuredClone when no arguments are passed (Giora Guttsait) [#41651](https://github.com/nodejs/node/pull/41651)
 * \[[`306dd1c181`](https://github.com/nodejs/node/commit/306dd1c181)] - **lib**: fix consistency of methods that emit warnings (Yoshiki Kurihara) [#41249](https://github.com/nodejs/node/pull/41249)
 * \[[`e500d11806`](https://github.com/nodejs/node/commit/e500d11806)] - **lib**: remove erroneous JSDoc entry (Rich Trott) [#41604](https://github.com/nodejs/node/pull/41604)
 * \[[`8a99eed7aa`](https://github.com/nodejs/node/commit/8a99eed7aa)] - **lib**: modify `DOMException` to pass WPT (Khaidi Chu) [#41517](https://github.com/nodejs/node/pull/41517)
@@ -987,7 +987,7 @@ More details will be available at [CVE-2021-44533](https://cve.mitre.org/cgi-bin
 
 Due to the formatting logic of the `console.table()` function it was not safe to allow user controlled input to be passed to the `properties` parameter while simultaneously passing a plain object with at least one property as the first parameter, which could be `__proto__`. The prototype pollution has very limited control, in that it only allows an empty string to be assigned numerical keys of the object prototype.
 
-Versions of Node.js with the fix for this use a null protoype for the object these properties are being assigned to.
+Versions of Node.js with the fix for this use a null prototype for the object these properties are being assigned to.
 
 More details will be available at [CVE-2022-21824](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-21824) after publication.
 
@@ -1101,7 +1101,7 @@ Contributed by Richard Lau [#41177](https://github.com/nodejs/node/pull/41177).
 * \[[`d6d1d6647c`](https://github.com/nodejs/node/commit/d6d1d6647c)] - **meta**: update AUTHORS (Node.js GitHub Bot) [#41088](https://github.com/nodejs/node/pull/41088)
 * \[[`f30d6bcaff`](https://github.com/nodejs/node/commit/f30d6bcaff)] - **meta**: move one or more TSC members to emeritus (Node.js GitHub Bot) [#40908](https://github.com/nodejs/node/pull/40908)
 * \[[`033a646d82`](https://github.com/nodejs/node/commit/033a646d82)] - **meta**: increase security policy response targets (Matteo Collina) [#40968](https://github.com/nodejs/node/pull/40968)
-* \[[`6b6e1d054e`](https://github.com/nodejs/node/commit/6b6e1d054e)] - **node-api,doc**: document parms which can be optional (Michael Dawson) [#41021](https://github.com/nodejs/node/pull/41021)
+* \[[`6b6e1d054e`](https://github.com/nodejs/node/commit/6b6e1d054e)] - **node-api,doc**: document params which can be optional (Michael Dawson) [#41021](https://github.com/nodejs/node/pull/41021)
 * \[[`93ea1666f6`](https://github.com/nodejs/node/commit/93ea1666f6)] - **perf\_hooks**: use spec-compliant `structuredClone` (Michaël Zasso) [#40904](https://github.com/nodejs/node/pull/40904)
 * \[[`d8a2125900`](https://github.com/nodejs/node/commit/d8a2125900)] - **(SEMVER-MINOR)** **process**: add `getActiveResourcesInfo()` (Darshan Sen) [#40813](https://github.com/nodejs/node/pull/40813)
 * \[[`67124ac63a`](https://github.com/nodejs/node/commit/67124ac63a)] - **(SEMVER-MINOR)** **readline**: propagate signal.reason in awaitable question (James M Snell) [#41008](https://github.com/nodejs/node/pull/41008)
@@ -1136,7 +1136,7 @@ Contributed by Richard Lau [#41177](https://github.com/nodejs/node/pull/41177).
 * \[[`78265e095a`](https://github.com/nodejs/node/commit/78265e095a)] - **tools**: use jsdoc recommended rules (Rich Trott) [#41057](https://github.com/nodejs/node/pull/41057)
 * \[[`9cfdf15da6`](https://github.com/nodejs/node/commit/9cfdf15da6)] - **tools**: rollback highlight.js (Richard Lau) [#41078](https://github.com/nodejs/node/pull/41078)
 * \[[`fe3e09bb4b`](https://github.com/nodejs/node/commit/fe3e09bb4b)] - **tools**: remove Babel from license-builder.sh (Rich Trott) [#41049](https://github.com/nodejs/node/pull/41049)
-* \[[`62e0aa9725`](https://github.com/nodejs/node/commit/62e0aa9725)] - **tools**: udpate packages in tools/doc (Rich Trott) [#41036](https://github.com/nodejs/node/pull/41036)
+* \[[`62e0aa9725`](https://github.com/nodejs/node/commit/62e0aa9725)] - **tools**: update packages in tools/doc (Rich Trott) [#41036](https://github.com/nodejs/node/pull/41036)
 * \[[`a959f4fa72`](https://github.com/nodejs/node/commit/a959f4fa72)] - **tools**: install and enable JSDoc linting in ESLint (Rich Trott) [#41027](https://github.com/nodejs/node/pull/41027)
 * \[[`661960e471`](https://github.com/nodejs/node/commit/661960e471)] - **tools**: include JSDoc in ESLint updating tool (Rich Trott) [#41027](https://github.com/nodejs/node/pull/41027)
 * \[[`e2922714ee`](https://github.com/nodejs/node/commit/e2922714ee)] - **tools**: ignore unrelated workflow changes in slow Actions tests (Antoine du Hamel) [#40990](https://github.com/nodejs/node/pull/40990)
@@ -1399,7 +1399,7 @@ Contributed by Richard Lau [#41177](https://github.com/nodejs/node/pull/41177).
 * \[[`c700de3705`](https://github.com/nodejs/node/commit/c700de3705)] - **tools**: avoid fetch extra commits when validating commit messages (Antoine du Hamel) [#39128](https://github.com/nodejs/node/pull/39128)
 * \[[`716963484b`](https://github.com/nodejs/node/commit/716963484b)] - **tools**: update ESLint to 8.1.0 (Luigi Pinca) [#40582](https://github.com/nodejs/node/pull/40582)
 * \[[`9cb2116608`](https://github.com/nodejs/node/commit/9cb2116608)] - **tools**: fix formatting of warning message in update-authors.js (Rich Trott) [#40600](https://github.com/nodejs/node/pull/40600)
-* \[[`507f1dbc8d`](https://github.com/nodejs/node/commit/507f1dbc8d)] - **tools**: udpate doc tools to accommodate GFM footnotes (Rich Trott) [#40477](https://github.com/nodejs/node/pull/40477)
+* \[[`507f1dbc8d`](https://github.com/nodejs/node/commit/507f1dbc8d)] - **tools**: update doc tools to accommodate GFM footnotes (Rich Trott) [#40477](https://github.com/nodejs/node/pull/40477)
 * \[[`c2265a92c3`](https://github.com/nodejs/node/commit/c2265a92c3)] - **tools**: update license-builder.sh for OpenSSL (Rich Trott) [#40540](https://github.com/nodejs/node/pull/40540)
 * \[[`16624b404c`](https://github.com/nodejs/node/commit/16624b404c)] - **tools,meta**: remove exclusions from AUTHORS (Rich Trott) [#40648](https://github.com/nodejs/node/pull/40648)
 * \[[`a95e344fe5`](https://github.com/nodejs/node/commit/a95e344fe5)] - **tty**: support more CI services in `getColorDepth` (Richie Bendall) [#40385](https://github.com/nodejs/node/pull/40385)
@@ -1435,7 +1435,7 @@ addons. These headers are now included. [#40526](https://github.com/nodejs/node/
 * \[[`adbd92ef1d`](https://github.com/nodejs/node/commit/adbd92ef1d)] - **crypto**: avoid double free (Michael Dawson) [#40380](https://github.com/nodejs/node/pull/40380)
 * \[[`8dce85aadc`](https://github.com/nodejs/node/commit/8dce85aadc)] - **doc**: format doc/api/\*.md with markdown formatter (Rich Trott) [#40403](https://github.com/nodejs/node/pull/40403)
 * \[[`977016a72f`](https://github.com/nodejs/node/commit/977016a72f)] - **doc**: specify that maxFreeSockets is per host (Luigi Pinca) [#40483](https://github.com/nodejs/node/pull/40483)
-* \[[`f9f2442739`](https://github.com/nodejs/node/commit/f9f2442739)] - **src**: add missing inialization in agent.h (Michael Dawson) [#40379](https://github.com/nodejs/node/pull/40379)
+* \[[`f9f2442739`](https://github.com/nodejs/node/commit/f9f2442739)] - **src**: add missing initialization in agent.h (Michael Dawson) [#40379](https://github.com/nodejs/node/pull/40379)
 * \[[`111f0bd9b6`](https://github.com/nodejs/node/commit/111f0bd9b6)] - **stream**: fix fromAsyncGen (Robert Nagy) [#40499](https://github.com/nodejs/node/pull/40499)
 * \[[`b84f101049`](https://github.com/nodejs/node/commit/b84f101049)] - **stream**: support array of streams in promises pipeline (Mestery) [#40193](https://github.com/nodejs/node/pull/40193)
 * \[[`3f7c503b69`](https://github.com/nodejs/node/commit/3f7c503b69)] - **test**: adjust CLI flags test to ignore blank lines in doc (Rich Trott) [#40403](https://github.com/nodejs/node/pull/40403)
@@ -1619,7 +1619,7 @@ Contributed by Antoine du Hamel - <https://github.com/nodejs/node/pull/37947>
 * \[[`6a205d7a56`](https://github.com/nodejs/node/commit/6a205d7a56)] - **meta**: use .mailmap to consolidate AUTHORS entries for ide (Rich Trott) [#40367](https://github.com/nodejs/node/pull/40367)
 * \[[`f570109094`](https://github.com/nodejs/node/commit/f570109094)] - **net**: check if option is undefined (Daijiro Wachi) [#40344](https://github.com/nodejs/node/pull/40344)
 * \[[`119558b6a2`](https://github.com/nodejs/node/commit/119558b6a2)] - **net**: remove unused ObjectKeys (Daijiro Wachi) [#40344](https://github.com/nodejs/node/pull/40344)
-* \[[`c7cd8ef6c6`](https://github.com/nodejs/node/commit/c7cd8ef6c6)] - **net**: check objectMode first and then readble || writable (Daijiro Wachi) [#40344](https://github.com/nodejs/node/pull/40344)
+* \[[`c7cd8ef6c6`](https://github.com/nodejs/node/commit/c7cd8ef6c6)] - **net**: check objectMode first and then readable || writable (Daijiro Wachi) [#40344](https://github.com/nodejs/node/pull/40344)
 * \[[`46446623f5`](https://github.com/nodejs/node/commit/46446623f5)] - **net**: throw error to object mode in Socket (Daijiro Wachi) [#40344](https://github.com/nodejs/node/pull/40344)
 * \[[`38aa7cc7c7`](https://github.com/nodejs/node/commit/38aa7cc7c7)] - **src**: get embedder options on-demand (Joyee Cheung) [#40357](https://github.com/nodejs/node/pull/40357)
 * \[[`ad4e70c817`](https://github.com/nodejs/node/commit/ad4e70c817)] - **src**: ensure V8 initialized before marking milestone (Shelley Vohr) [#40405](https://github.com/nodejs/node/pull/40405)
@@ -1644,7 +1644,7 @@ Contributed by Antoine du Hamel - <https://github.com/nodejs/node/pull/37947>
 * \[[`d7b9b9f8d7`](https://github.com/nodejs/node/commit/d7b9b9f8d7)] - **test**: remove test-v8-untrusted-code-mitigations (Ross McIlroy) [#40178](https://github.com/nodejs/node/pull/40178)
 * \[[`7624917069`](https://github.com/nodejs/node/commit/7624917069)] - **tools**: update tools/lint-md dependencies to support GFM footnotes (Rich Trott) [#40445](https://github.com/nodejs/node/pull/40445)
 * \[[`350a95b89f`](https://github.com/nodejs/node/commit/350a95b89f)] - **tools**: update lint-md dependencies (Rich Trott) [#40404](https://github.com/nodejs/node/pull/40404)
-* \[[`012152d7d6`](https://github.com/nodejs/node/commit/012152d7d6)] - **tools**: udpate @babel/eslint-parser (Rich Trott) [#40394](https://github.com/nodejs/node/pull/40394)
+* \[[`012152d7d6`](https://github.com/nodejs/node/commit/012152d7d6)] - **tools**: update @babel/eslint-parser (Rich Trott) [#40394](https://github.com/nodejs/node/pull/40394)
 * \[[`43c780e741`](https://github.com/nodejs/node/commit/43c780e741)] - **tools**: remove @babel/plugin-syntax-import-assertions (Rich Trott) [#40394](https://github.com/nodejs/node/pull/40394)
 * \[[`b39db95737`](https://github.com/nodejs/node/commit/b39db95737)] - **tools**: remove @bable/plugin-syntax-class-properties (Rich Trott) [#40394](https://github.com/nodejs/node/pull/40394)
 * \[[`a6fd39f44f`](https://github.com/nodejs/node/commit/a6fd39f44f)] - **tools**: remove @babel/plugin-syntax-top-level-await (Rich Trott) [#40394](https://github.com/nodejs/node/pull/40394)

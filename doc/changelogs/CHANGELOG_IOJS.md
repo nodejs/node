@@ -328,7 +328,7 @@ See <https://github.com/nodejs/io.js/labels/confirmed-bug> for complete and curr
 * \[[`b60e690023`](https://github.com/nodejs/node/commit/b60e690023)] - **test**: improve test-net-server-pause-on-connect (Brendan Ashworth) [#2429](https://github.com/nodejs/node/pull/2429)
 * \[[`11d1b8fcaf`](https://github.com/nodejs/node/commit/11d1b8fcaf)] - **test**: improve test-net-pingpong (Brendan Ashworth) [#2429](https://github.com/nodejs/node/pull/2429)
 * \[[`5fef5c6562`](https://github.com/nodejs/node/commit/5fef5c6562)] - **(SEMVER-MINOR)** **tls**: add --tls-cipher-list command line switch (James M Snell) [#2412](https://github.com/nodejs/node/pull/2412)
-* \[[`d9b70f9cbf`](https://github.com/nodejs/node/commit/d9b70f9cbf)] - **tls**: handle empty cert in checkServerIndentity (Mike Atkins) [#2343](https://github.com/nodejs/node/pull/2343)
+* \[[`d9b70f9cbf`](https://github.com/nodejs/node/commit/d9b70f9cbf)] - **tls**: handle empty cert in checkServerIdentity (Mike Atkins) [#2343](https://github.com/nodejs/node/pull/2343)
 * \[[`4f8e34c202`](https://github.com/nodejs/node/commit/4f8e34c202)] - **tools**: add license boilerplate to check-imports.sh (James M Snell) [#2386](https://github.com/nodejs/node/pull/2386)
 * \[[`b76b9197f9`](https://github.com/nodejs/node/commit/b76b9197f9)] - **tools**: enable space-after-keywords in eslint (Brendan Ashworth)
 * \[[`64a8f30a70`](https://github.com/nodejs/node/commit/64a8f30a70)] - **tools**: fix anchors in generated documents (Sakthipriyan Vairamani) [#2491](https://github.com/nodejs/node/pull/2491)
@@ -1199,7 +1199,7 @@ See <https://github.com/nodejs/node/labels/confirmed-bug> for complete and curre
 * **src**: fixed preload modules not working when other flags were used before `--require` (Yosuke Furukawa) [#1694](https://github.com/nodejs/node/pull/1694)
 * **dgram**: fixed `send()`'s callback not being asynchronous (Yosuke Furukawa) [#1313](https://github.com/nodejs/node/pull/1313)
 * **readline**: emitKeys now keeps buffering data until it has enough to parse. This fixes an issue with parsing split escapes. (Alex Kocharin) [#1601](https://github.com/nodejs/node/pull/1601)
-* **cluster**: works now properly emit 'disconnect' to `cluser.worker` (Oleg Elifantiev) [#1386](https://github.com/nodejs/node/pull/1386)
+* **cluster**: works now properly emit 'disconnect' to `cluster.worker` (Oleg Elifantiev) [#1386](https://github.com/nodejs/node/pull/1386)
 * **events**: uncaught errors now provide some context (Evan Lucas) [#1654](https://github.com/nodejs/node/pull/1654)
 
 ### Known issues
@@ -2208,7 +2208,7 @@ _Note: version **1.4.0** was tagged and built but not released. A libuv bug was 
 * \[[`1bf91878e7`](https://github.com/nodejs/node/commit/1bf91878e7)] - **doc**: add TC meeting 2015-02-04 minutes (Rod Vagg) [#876](https://github.com/nodejs/node/pull/876)
 * \[[`9e05c8d2fc`](https://github.com/nodejs/node/commit/9e05c8d2fc)] - **doc**: remove outdated language on consensus (Emily Rose)
 * \[[`ed240f44f7`](https://github.com/nodejs/node/commit/ed240f44f7)] - **doc**: document 'ciphers' option of tls.connect (Roman Reiss) [#845](https://github.com/nodejs/node/pull/845)
-* \[[`0555b3c785`](https://github.com/nodejs/node/commit/0555b3c785)] - **doc**: fix typo miliseconds -> milliseconds (jigsaw) [#865](https://github.com/nodejs/node/pull/865)
+* \[[`0555b3c785`](https://github.com/nodejs/node/commit/0555b3c785)] - **doc**: fix typo milliseconds -> milliseconds (jigsaw) [#865](https://github.com/nodejs/node/pull/865)
 * \[[`fc6507dd4e`](https://github.com/nodejs/node/commit/fc6507dd4e)] - **doc**: add comma in README to increase clarity (Jimmy Hsu)
 * \[[`f0296933f8`](https://github.com/nodejs/node/commit/f0296933f8)] - **doc**: correct `it's` to `its` in process (Charmander) [#837](https://github.com/nodejs/node/pull/837)
 * \[[`e81731ad18`](https://github.com/nodejs/node/commit/e81731ad18)] - **doc**: add geek as collaborator (Wyatt Preul) [#835](https://github.com/nodejs/node/pull/835)
@@ -2248,7 +2248,7 @@ _Note: version **1.4.0** was tagged and built but not released. A libuv bug was 
 * \[[`3b1b4de903`](https://github.com/nodejs/node/commit/3b1b4de903)] - **test**: Timeout#unref() does not return instance (Jan Schär) [joyent/node#9171](https://github.com/joyent/node/pull/9171)
 * \[[`becb4e980e`](https://github.com/nodejs/node/commit/becb4e980e)] - **test**: distribute crypto tests into separate files (Brendan Ashworth) [#827](https://github.com/nodejs/node/pull/827)
 * \[[`77f35861d0`](https://github.com/nodejs/node/commit/77f35861d0)] - **(SEMVER-MINOR) tls**: more secure defaults (Roman Reiss) [#826](https://github.com/nodejs/node/pull/826)
-* \[[`faa687b4be`](https://github.com/nodejs/node/commit/faa687b4be)] - **url**: reslove urls with . and .. (Amir Saboury) [#278](https://github.com/nodejs/node/pull/278)
+* \[[`faa687b4be`](https://github.com/nodejs/node/commit/faa687b4be)] - **url**: resolve urls with . and .. (Amir Saboury) [#278](https://github.com/nodejs/node/pull/278)
 
 <a id="1.2.0"></a>
 
