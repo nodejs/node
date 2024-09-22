@@ -159,7 +159,7 @@ test('execute a TypeScript file with type definition but no type keyword', async
   strictEqual(result.code, 1);
 });
 
-test('execute a TypeScript file with type definition but no type keyword with default-type modue', async () => {
+test('execute a TypeScript file with type definition but no type keyword with default-type module', async () => {
   const result = await spawnPromisified(process.execPath, [
     '--experimental-strip-types',
     '--experimental-default-type=module',
