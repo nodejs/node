@@ -453,6 +453,17 @@ changes:
 A browser-compatible implementation of the `Event` class. See
 [`EventTarget` and `Event` API][] for more details.
 
+## `EventSource`
+
+<!-- YAML
+added: v22.3.0
+-->
+
+> Stability: 1 - Experimental. Enable this API with the [`--experimental-eventsource`][]
+> CLI flag.
+
+A browser-compatible implementation of the [`EventSource`][] class.
+
 ## `EventTarget`
 
 <!-- YAML
@@ -1187,6 +1198,7 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [Navigator API]: https://html.spec.whatwg.org/multipage/system-state.html#the-navigator-object
 [RFC 5646]: https://www.rfc-editor.org/rfc/rfc5646.txt
 [Web Crypto API]: webcrypto.md
+[`--experimental-eventsource`]: cli.md#--experimental-eventsource
 [`--experimental-webstorage`]: cli.md#--experimental-webstorage
 [`--localstorage-file`]: cli.md#--localstorage-filefile
 [`--no-experimental-global-customevent`]: cli.md#--no-experimental-global-customevent
@@ -1200,6 +1212,7 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [`CustomEvent` Web API]: https://dom.spec.whatwg.org/#customevent
 [`DOMException`]: https://developer.mozilla.org/en-US/docs/Web/API/DOMException
 [`DecompressionStream`]: webstreams.md#class-decompressionstream
+[`EventSource`]: https://developer.mozilla.org/en-US/docs/Web/API/EventSource
 [`EventTarget` and `Event` API]: events.md#eventtarget-and-event-api
 [`MessageChannel`]: worker_threads.md#class-messagechannel
 [`MessageEvent`]: https://developer.mozilla.org/en-US/docs/Web/API/MessageEvent/MessageEvent
