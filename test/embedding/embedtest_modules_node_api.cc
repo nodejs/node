@@ -4,74 +4,85 @@
 #include <cstdio>
 #include <cstring>
 
-static napi_value NAPI_CDECL InitGreeterModule(void* cb_data,
-                                               node_embedding_runtime runtime,
-                                               napi_env env,
-                                               const char* module_name,
-                                               napi_value exports) {
-  std::atomic<int32_t>* counter_ptr =
-      static_cast<std::atomic<int32_t>*>(cb_data);
-  counter_ptr->fetch_add(1);
+class GreeterModule {
+ public:
+  explicit GreeterModule(std::atomic<int32_t>* counter_ptr)
+      : counter_ptr_(counter_ptr) {}
 
-  napi_value greet_func{};
-  napi_create_function(
-      env,
-      "greet",
-      NAPI_AUTO_LENGTH,
-      [](napi_env env, napi_callback_info info) -> napi_value {
-        std::string greeting = "Hello, ";
-        napi_value arg{};
-        size_t arg_count = 1;
-        NODE_API_CALL(
-            napi_get_cb_info(env, info, &arg_count, &arg, nullptr, nullptr));
-        NODE_API_CALL(AddUtf8String(greeting, env, arg));
-        napi_value result;
-        NODE_API_CALL(napi_create_string_utf8(
-            env, greeting.c_str(), greeting.size(), &result));
-        return result;
-      },
-      nullptr,
-      &greet_func);
-  napi_set_named_property(env, exports, "greet", greet_func);
-  return exports;
-}
+  napi_value operator()(node_embedding_runtime runtime,
+                        napi_env env,
+                        const char* module_name,
+                        napi_value exports) {
+    counter_ptr_->fetch_add(1);
 
-static napi_value NAPI_CDECL
-InitReplicatorModule(void* cb_data,
-                     node_embedding_runtime runtime,
-                     napi_env env,
-                     const char* module_name,
-                     napi_value exports) {
-  std::atomic<int32_t>* counter_ptr =
-      static_cast<std::atomic<int32_t>*>(cb_data);
-  counter_ptr->fetch_add(1);
+    napi_value greet_func{};
+    napi_create_function(
+        env,
+        "greet",
+        NAPI_AUTO_LENGTH,
+        [](napi_env env, napi_callback_info info) -> napi_value {
+          std::string greeting = "Hello, ";
+          napi_value arg{};
+          size_t arg_count = 1;
+          NODE_API_CALL(
+              napi_get_cb_info(env, info, &arg_count, &arg, nullptr, nullptr));
+          NODE_API_CALL(AddUtf8String(greeting, env, arg));
+          napi_value result;
+          NODE_API_CALL(napi_create_string_utf8(
+              env, greeting.c_str(), greeting.size(), &result));
+          return result;
+        },
+        nullptr,
+        &greet_func);
+    napi_set_named_property(env, exports, "greet", greet_func);
+    return exports;
+  }
 
-  napi_value greet_func{};
-  napi_create_function(
-      env,
-      "replicate",
-      NAPI_AUTO_LENGTH,
-      [](napi_env env, napi_callback_info info) -> napi_value {
-        std::string str;
-        napi_value arg{};
-        size_t arg_count = 1;
-        NODE_API_CALL(
-            napi_get_cb_info(env, info, &arg_count, &arg, nullptr, nullptr));
-        NODE_API_CALL(AddUtf8String(str, env, arg));
-        str += " " + str;
-        napi_value result;
-        napi_create_string_utf8(env, str.c_str(), str.size(), &result);
-        return result;
-      },
-      nullptr,
-      &greet_func);
-  napi_set_named_property(env, exports, "replicate", greet_func);
-  return exports;
-}
+ private:
+  std::atomic<int32_t>* counter_ptr_;
+};
+
+class ReplicatorModule {
+ public:
+  explicit ReplicatorModule(std::atomic<int32_t>* counter_ptr)
+      : counter_ptr_(counter_ptr) {}
+
+  napi_value operator()(node_embedding_runtime runtime,
+                        napi_env env,
+                        const char* module_name,
+                        napi_value exports) {
+    counter_ptr_->fetch_add(1);
+
+    napi_value greet_func{};
+    napi_create_function(
+        env,
+        "replicate",
+        NAPI_AUTO_LENGTH,
+        [](napi_env env, napi_callback_info info) -> napi_value {
+          std::string str;
+          napi_value arg{};
+          size_t arg_count = 1;
+          NODE_API_CALL(
+              napi_get_cb_info(env, info, &arg_count, &arg, nullptr, nullptr));
+          NODE_API_CALL(AddUtf8String(str, env, arg));
+          str += " " + str;
+          napi_value result;
+          napi_create_string_utf8(env, str.c_str(), str.size(), &result);
+          return result;
+        },
+        nullptr,
+        &greet_func);
+    napi_set_named_property(env, exports, "replicate", greet_func);
+    return exports;
+  }
+
+ private:
+  std::atomic<int32_t>* counter_ptr_;
+};
 
 extern "C" int32_t test_main_linked_modules_node_api(int32_t argc,
                                                      char* argv[]) {
-  CHECK_TRUE(argc == 4);
+  ASSERT_OR_EXIT(argc == 4);
   int32_t expectedGreeterModuleInitCallCount = atoi(argv[2]);
   int32_t expectedReplicatorModuleInitCallCount = atoi(argv[2]);
 
@@ -80,65 +91,65 @@ extern "C" int32_t test_main_linked_modules_node_api(int32_t argc,
 
   node_embedding_on_error(HandleTestError, argv[0]);
 
-  CHECK_EXIT_CODE(RunMain(
+  CHECK_STATUS_OR_EXIT(node_embedding_run_main(
       argc,
       argv,
-      nullptr,
-      [&](node_embedding_platform platform,
-          node_embedding_runtime_config runtime_config) {
-        CHECK_EXIT_CODE(node_embedding_runtime_on_preload(
-            runtime_config,
-            [](void* /*cb_data*/,
-               node_embedding_runtime runtime,
-               napi_env env,
-               napi_value process,
-               napi_value /*require*/
-            ) {
-              napi_value global;
-              napi_get_global(env, &global);
-              napi_set_named_property(env, global, "process", process);
-            },
-            nullptr));
+      {},
+      AsFunctorRef<node_embedding_configure_runtime_functor_ref>(
+          [&](node_embedding_platform platform,
+              node_embedding_runtime_config runtime_config) {
+            CHECK_STATUS(node_embedding_runtime_on_preload(
+                runtime_config,
+                AsFunctor<node_embedding_preload_functor>(
+                    [](node_embedding_runtime runtime,
+                       napi_env env,
+                       napi_value process,
+                       napi_value /*require*/
+                    ) {
+                      napi_value global;
+                      napi_get_global(env, &global);
+                      napi_set_named_property(env, global, "process", process);
+                    })));
 
-        CHECK_EXIT_CODE(
-            node_embedding_runtime_add_module(runtime_config,
-                                              "greeter_module",
-                                              &InitGreeterModule,
-                                              &greeterModuleInitCallCount,
-                                              NAPI_VERSION));
-        CHECK_EXIT_CODE(
-            node_embedding_runtime_add_module(runtime_config,
-                                              "replicator_module",
-                                              &InitReplicatorModule,
-                                              &replicatorModuleInitCallCount,
-                                              NAPI_VERSION));
+            CHECK_STATUS(node_embedding_runtime_add_module(
+                runtime_config,
+                "greeter_module",
+                AsFunctor<node_embedding_initialize_module_functor>(
+                    GreeterModule(&greeterModuleInitCallCount)),
+                NAPI_VERSION));
+            CHECK_STATUS(node_embedding_runtime_add_module(
+                runtime_config,
+                "replicator_module",
+                AsFunctor<node_embedding_initialize_module_functor>(
+                    ReplicatorModule(&replicatorModuleInitCallCount)),
+                NAPI_VERSION));
 
-        CHECK_EXIT_CODE(node_embedding_runtime_on_start_execution(
-            runtime_config,
-            [](void* cb_data,
-               node_embedding_runtime runtime,
-               napi_env env,
-               napi_value process,
-               napi_value require,
-               napi_value run_cjs) -> napi_value {
-              napi_value script, undefined, result;
-              NODE_API_CALL(napi_create_string_utf8(
-                  env, main_script, NAPI_AUTO_LENGTH, &script));
-              NODE_API_CALL(napi_get_undefined(env, &undefined));
-              NODE_API_CALL(napi_call_function(
-                  env, undefined, run_cjs, 1, &script, &result));
-              return result;
-            },
-            nullptr));
-        return node_embedding_exit_code_ok;
-      },
-      nullptr));
+            CHECK_STATUS(node_embedding_runtime_on_start_execution(
+                runtime_config,
+                AsFunctor<node_embedding_start_execution_functor>(
+                    [](node_embedding_runtime runtime,
+                       napi_env env,
+                       napi_value process,
+                       napi_value require,
+                       napi_value run_cjs) -> napi_value {
+                      napi_value script, undefined, result;
+                      NODE_API_CALL(napi_create_string_utf8(
+                          env, main_script, NAPI_AUTO_LENGTH, &script));
+                      NODE_API_CALL(napi_get_undefined(env, &undefined));
+                      NODE_API_CALL(napi_call_function(
+                          env, undefined, run_cjs, 1, &script, &result));
+                      return result;
+                    })));
+            return node_embedding_status_ok;
+          }),
+      {}));
 
-  CHECK_TRUE(greeterModuleInitCallCount == expectedGreeterModuleInitCallCount);
-  CHECK_TRUE(replicatorModuleInitCallCount ==
-             expectedReplicatorModuleInitCallCount);
+  ASSERT_OR_EXIT(greeterModuleInitCallCount ==
+                 expectedGreeterModuleInitCallCount);
+  ASSERT_OR_EXIT(replicatorModuleInitCallCount ==
+                 expectedReplicatorModuleInitCallCount);
 
-  return node_embedding_exit_code_ok;
+  return 0;
 }
 
 extern "C" int32_t test_main_modules_node_api(int32_t argc, char* argv[]) {
