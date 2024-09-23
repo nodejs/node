@@ -16,20 +16,26 @@ extern "C" inline void NAPI_CDECL GetArgsVector(void* data,
   static_cast<std::vector<std::string>*>(data)->assign(argv, argv + argc);
 }
 
-extern "C" inline node_embedding_exit_code NAPI_CDECL
+extern "C" inline node_embedding_status NAPI_CDECL
 HandleTestError(void* handler_data,
                 const char* messages[],
                 size_t messages_size,
-                node_embedding_exit_code exit_code) {
-  auto exe_name = static_cast<const char*>(handler_data);
-  if (exit_code != 0) {
-    for (size_t i = 0; i < messages_size; ++i)
+                node_embedding_status status) {
+  const char* exe_name = static_cast<const char*>(handler_data);
+  if (status != node_embedding_status_ok) {
+    for (size_t i = 0; i < messages_size; ++i) {
       fprintf(stderr, "%s: %s\n", exe_name, messages[i]);
-    exit(static_cast<int32_t>(exit_code));
+    }
+    int32_t exit_code = ((status & node_embedding_status_error_exit_code) != 0)
+                            ? status & ~node_embedding_status_error_exit_code
+                            : 1;
+    exit(exit_code);
   } else {
-    for (size_t i = 0; i < messages_size; ++i) printf("%s\n", messages[i]);
+    for (size_t i = 0; i < messages_size; ++i) {
+      printf("%s\n", messages[i]);
+    }
   }
-  return node_embedding_exit_code_ok;
+  return node_embedding_status_ok;
 }
 
 #endif
@@ -44,118 +50,39 @@ void ThrowLastErrorMessage(napi_env env, const char* message);
 
 std::string FormatString(const char* format, ...);
 
-inline node_embedding_exit_code RunMain(
-    int32_t argc,
-    char* argv[],
-    const std::function<node_embedding_exit_code(
-        node_embedding_platform_config)>& configurePlatform,
-    const std::function<node_embedding_exit_code(
-        node_embedding_platform, node_embedding_runtime_config)>&
-        configureRuntime,
-    const std::function<void(node_embedding_runtime, napi_env)>& runNodeApi) {
-  return node_embedding_run_main(
-      argc,
-      argv,
-      configurePlatform ?
-        [](void* cb_data, node_embedding_platform_config platform_config) {
-          auto configurePlatform = static_cast<
-              std::function<node_embedding_exit_code(node_embedding_platform_config)>*>(
-              cb_data);
-          return (*configurePlatform)(platform_config);
-        } : nullptr,
-      const_cast<
-          std::function<node_embedding_exit_code(node_embedding_platform_config)>*>(
-          &configurePlatform),
-      configureRuntime ?
-        [](void* cb_data,
-           node_embedding_platform platform,
-           node_embedding_runtime_config runtime_config) {
-          auto configureRuntime =
-              static_cast<std::function<node_embedding_exit_code(
-                  node_embedding_platform, node_embedding_runtime_config)>*>(cb_data);
-          return (*configureRuntime)(platform, runtime_config);
-        } : nullptr,
-      const_cast<std::function<node_embedding_exit_code(
-          node_embedding_platform, node_embedding_runtime_config)>*>(
-          &configureRuntime),
-      runNodeApi ?
-        [](void* cb_data, node_embedding_runtime runtime, napi_env env) {
-          auto runNodeApi =
-              static_cast<std::function<void(node_embedding_runtime, napi_env)>*>(
-                  cb_data);
-          (*runNodeApi)(runtime, env);
-        } : nullptr,
-      const_cast<std::function<void(node_embedding_runtime, napi_env)>*>(
-          &runNodeApi));
+template <typename TLambda, typename TFunctor>
+struct Adapter {
+  static_assert(sizeof(TLambda) == -1, "Unsupported signature");
+};
+
+template <typename TLambda, typename TResult, typename... TArgs>
+struct Adapter<TLambda, TResult(void*, TArgs...)> {
+  static TResult Invoke(void* data, TArgs... args) {
+    return reinterpret_cast<TLambda*>(data)->operator()(args...);
+  }
+};
+
+template <typename TFunctor, typename TLambda>
+inline TFunctor AsFunctorRef(TLambda&& lambda) {
+  using TLambdaType = std::remove_reference_t<TLambda>;
+  using TAdapter =
+      Adapter<TLambdaType,
+              std::remove_pointer_t<
+                  decltype(std::remove_reference_t<TFunctor>::invoke)>>;
+  return TFunctor{static_cast<void*>(&lambda), &TAdapter::Invoke};
 }
 
-inline node_embedding_exit_code RunRuntime(
-    node_embedding_platform platform,
-    const std::function<node_embedding_exit_code(
-        node_embedding_platform, node_embedding_runtime_config)>&
-        configureRuntime,
-    const std::function<void(node_embedding_runtime, napi_env)>& runNodeApi) {
-  return node_embedding_run_runtime(
-      platform,
-      configureRuntime ?
-        [](void* cb_data,
-           node_embedding_platform platform,
-           node_embedding_runtime_config runtime_config) {
-          auto configureRuntime =
-              static_cast<std::function<node_embedding_exit_code(
-                  node_embedding_platform, node_embedding_runtime_config)>*>(cb_data);
-          return (*configureRuntime)(platform, runtime_config);
-        } : nullptr,
-      const_cast<std::function<node_embedding_exit_code(
-          node_embedding_platform, node_embedding_runtime_config)>*>(
-          &configureRuntime),
-      runNodeApi ?
-        [](void* cb_data, node_embedding_runtime runtime, napi_env env) {
-          auto runNodeApi =
-              static_cast<std::function<void(node_embedding_runtime, napi_env)>*>(
-                  cb_data);
-          (*runNodeApi)(runtime, env);
-        } : nullptr,
-      const_cast<std::function<void(node_embedding_runtime, napi_env)>*>(
-          &runNodeApi));
-}
-
-inline node_embedding_exit_code CreateRuntime(
-    node_embedding_platform platform,
-    const std::function<node_embedding_exit_code(
-        node_embedding_platform, node_embedding_runtime_config)>&
-        configureRuntime,
-    node_embedding_runtime* runtime) {
-  return node_embedding_create_runtime(
-      platform,
-      configureRuntime ?
-        [](void* cb_data,
-           node_embedding_platform platform,
-           node_embedding_runtime_config runtime_config) {
-          auto configureRuntime =
-              static_cast<std::function<node_embedding_exit_code(
-                  node_embedding_platform, node_embedding_runtime_config)>*>(cb_data);
-          return (*configureRuntime)(platform, runtime_config);
-        } : nullptr,
-      const_cast<std::function<node_embedding_exit_code(
-          node_embedding_platform, node_embedding_runtime_config)>*>(
-          &configureRuntime),
-      runtime);
-}
-
-inline node_embedding_exit_code RunNodeApi(
-    node_embedding_runtime runtime,
-    const std::function<void(node_embedding_runtime, napi_env)>& func) {
-  return node_embedding_run_node_api(
-      runtime,
-      [](void* cb_data, node_embedding_runtime runtime, napi_env env) {
-        auto func =
-            static_cast<std::function<void(node_embedding_runtime, napi_env)>*>(
-                cb_data);
-        (*func)(runtime, env);
-      },
-      const_cast<std::function<void(node_embedding_runtime, napi_env)>*>(
-          &func));
+template <typename TFunctor, typename TLambda>
+inline TFunctor AsFunctor(TLambda&& lambda) {
+  using TLambdaType = std::remove_reference_t<TLambda>;
+  using TAdapter =
+      Adapter<TLambdaType,
+              std::remove_pointer_t<
+                  decltype(std::remove_reference_t<TFunctor>::invoke)>>;
+  return TFunctor{
+      static_cast<void*>(new TLambdaType(std::forward<TLambdaType>(lambda))),
+      &TAdapter::Invoke,
+      [](void* data) { delete static_cast<TLambdaType*>(data); }};
 }
 
 //
@@ -212,33 +139,33 @@ inline node_embedding_exit_code RunNodeApi(
 #define NODE_API_CALL_RETURN_VOID(expr)                                        \
   NODE_API_CALL_BASE(expr, NODE_API_RETVAL_NOTHING)
 
-#define CHECK_EXIT_CODE(expr)                                                  \
+#define CHECK_STATUS(expr)                                                     \
   do {                                                                         \
-    node_embedding_exit_code exit_code = (expr);                               \
-    if (exit_code != node_embedding_exit_code_ok) {                            \
-      return exit_code;                                                        \
+    node_embedding_status status_ = (expr);                                    \
+    if (status_ != node_embedding_status_ok) {                                 \
+      return status_;                                                          \
     }                                                                          \
   } while (0)
 
-#define CHECK_EXIT_CODE_RETURN_VOID(expr)                                      \
+#define CHECK_STATUS_OR_EXIT(expr)                                             \
   do {                                                                         \
-    node_embedding_exit_code exit_code_ = (expr);                              \
-    if (exit_code_ != node_embedding_exit_code_ok) {                           \
-      fprintf(stderr, "Failed: %s\n", #expr);                                  \
-      fprintf(stderr, "File: %s\n", __FILE__);                                 \
-      fprintf(stderr, "Line: %d\n", __LINE__);                                 \
-      exit(exit_code_);                                                        \
-      return;                                                                  \
+    node_embedding_status status_ = (expr);                                    \
+    if (status_ != node_embedding_status_ok) {                                 \
+      int32_t exit_code =                                                      \
+          ((status_ & node_embedding_status_error_exit_code) != 0)             \
+              ? status_ & ~node_embedding_status_error_exit_code               \
+              : 1;                                                             \
+      exit(exit_code);                                                         \
     }                                                                          \
   } while (0)
 
-#define CHECK_TRUE(expr)                                                       \
+#define ASSERT_OR_EXIT(expr)                                                   \
   do {                                                                         \
     if (!(expr)) {                                                             \
       fprintf(stderr, "Failed: %s\n", #expr);                                  \
       fprintf(stderr, "File: %s\n", __FILE__);                                 \
       fprintf(stderr, "Line: %d\n", __LINE__);                                 \
-      return node_embedding_exit_code_generic_user_error;                      \
+      exit(1);                                                                 \
     }                                                                          \
   } while (0)
 
