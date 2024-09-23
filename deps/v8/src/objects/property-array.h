@@ -29,11 +29,11 @@ class PropertyArray
   inline void SetHash(int hash);
   inline int Hash() const;
 
-  inline Tagged<Object> get(int index) const;
-  inline Tagged<Object> get(PtrComprCageBase cage_base, int index) const;
-  inline Tagged<Object> get(int index, SeqCstAccessTag tag) const;
-  inline Tagged<Object> get(PtrComprCageBase cage_base, int index,
-                            SeqCstAccessTag tag) const;
+  inline Tagged<JSAny> get(int index) const;
+  inline Tagged<JSAny> get(PtrComprCageBase cage_base, int index) const;
+  inline Tagged<JSAny> get(int index, SeqCstAccessTag tag) const;
+  inline Tagged<JSAny> get(PtrComprCageBase cage_base, int index,
+                           SeqCstAccessTag tag) const;
 
   inline void set(int index, Tagged<Object> value);
   inline void set(int index, Tagged<Object> value, SeqCstAccessTag tag);
@@ -50,12 +50,14 @@ class PropertyArray
                                        SeqCstAccessTag tag);
 
   // Signature must be in sync with FixedArray::CopyElements().
-  inline void CopyElements(Isolate* isolate, int dst_index,
-                           Tagged<PropertyArray> src, int src_index, int len,
-                           WriteBarrierMode mode);
+  inline static void CopyElements(Isolate* isolate, Tagged<PropertyArray> dst,
+                                  int dst_index, Tagged<PropertyArray> src,
+                                  int src_index, int len,
+                                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Gives access to raw memory which stores the array's data.
   inline ObjectSlot data_start();
+  inline ObjectSlot RawFieldOfElementAt(int index);
 
   // Garbage collection support.
   static constexpr int SizeFor(int length) {

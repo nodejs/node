@@ -24,7 +24,7 @@
   'regress/regress-crbug-1080638': [SKIP],
 
   # Tests that need to run sequentially (e.g. due to memory consumption).
-  'runtime/console-messages-limits': [PASS, HEAVY],
+  'runtime/console-messages-limits': [PASS, SLOW, HEAVY],
   'runtime/regression-732717': [PASS, HEAVY],
 }],  # ALWAYS
 
@@ -61,6 +61,7 @@
   'debugger/wasm-*': [SKIP],
   'cpu-profiler/console-profile-wasm': [SKIP],
   'runtime/get-properties': [SKIP],
+  'regress/regress-crbug-349248170': [SKIP],
 }],  # not has_webassembly or variant == jitless
 
 ##############################################################################
@@ -79,8 +80,7 @@
 
 ##############################################################################
 ['(arch == ppc64) and simulator_run', {
-  # Slow test: https://crbug.com/v8/10965
-  'runtime/console-messages-limits': [PASS, SLOW],
+  # Slow tests:
   'debugger/regress-1125934': [PASS, SLOW],
 }],  # (arch == ppc64) and simulator_run
 
@@ -102,7 +102,17 @@
   'debugger/wasm-step-after-trap': [SKIP],
   'debugger/wasm-stepping-no-opcode-merging': [SKIP],
   'debugger/wasm-stepping-with-source-map': [SKIP],
+  # Generic wasm-to-js wrapper must be enabled.
+  'cpu-profiler/console-profile-wasm': [SKIP],
 }],  # 'arch == s390x or arch == ppc64'
+
+##############################################################################
+['system == zos', {
+  # Currently no cpu profiler support on z/OS:
+  'cpu-profiler/console-profile-wasm': [SKIP],
+  'cpu-profiler/record-cpu-profile': [SKIP],
+  'cpu-profiler/console-profile-asm-js': [SKIP],
+}],  # 'system == zos'
 
 ##############################################################################
 ['no_simd_hardware', {
@@ -111,12 +121,18 @@
 }], # no_simd_hardware
 
 ##############################################################################
-['arch == riscv64 or arch == riscv32 or arch == loong64', {
+['arch == loong64', {
   # SIMD support is still in progress.
   'debugger/wasm-scope-info*': [SKIP],
   'debugger/wasm-step-after-trap': [SKIP],
+}],  # 'arch == loong64'
 
-}],  # 'arch == riscv64 or arch == riscv32 or arch == loong64'
+##############################################################################
+['arch == riscv64 or arch == riscv32', {
+  # SIMD support is still in progress.
+  'debugger/wasm-scope-info*': [SKIP],
+  'debugger/wasm-step-after-trap': [SKIP],
+}],  # 'arch == riscv64 or arch == riscv32'
 
 ##############################################################################
 ['arch == riscv32', {
@@ -231,7 +247,6 @@
   'console/scoped-variables': [SKIP],
   'cpu-profiler/console-profile': [SKIP],
   'cpu-profiler/console-profile-asm-js': [SKIP],
-  'cpu-profiler/console-profile-end-parameterless-crash': [SKIP],
   'cpu-profiler/console-profile-wasm': [SKIP],
   'cpu-profiler/coverage': [SKIP],
   'cpu-profiler/coverage-block': [SKIP],
@@ -467,9 +482,9 @@
   'runtime/console-timestamp': [SKIP],
   'runtime/context-destroyed-on-context-collected': [SKIP],
   'runtime/create-context': [SKIP],
+  'runtime/custom-error-stack': [SKIP],
   'runtime/custom-preview': [SKIP],
   'runtime/enable-async-stack': [SKIP],
-  'runtime/error-preview': [SKIP],
   'runtime/es6-module': [SKIP],
   'runtime/evaluate-async': [SKIP],
   'runtime/evaluate-async-with-wrap-error': [SKIP],
@@ -554,5 +569,17 @@
 ['single_generation', {
   'heap-profiler/sampling-heap-profiler-flags': [SKIP],
 }], # single_generation
+
+##############################################################################
+['clang_coverage and mode == debug', {
+  # Too slow tests.
+  'runtime/console-messages-limits': [SKIP],
+}],  # 'clang_coverage and mode == debug'
+
+##############################################################################
+['((arch != x64 and arch != arm64 and arch != ia32 and arch != arm) or (simulator_run and conservative_stack_scanning))', {
+  # Stack switching is only supported on x64/arm64/ia32/arm.
+  'debugger/wasm-jspi-async-stack': [SKIP],
+}],  # (arch != x64 and arch != arm64 and arch != ia32 and arch != arm)
 
 ]

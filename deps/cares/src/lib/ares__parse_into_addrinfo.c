@@ -24,7 +24,7 @@
  *
  * SPDX-License-Identifier: MIT
  */
-#include "ares_setup.h"
+#include "ares_private.h"
 
 #ifdef HAVE_NETINET_IN_H
 #  include <netinet/in.h>
@@ -44,16 +44,13 @@
 #  include <limits.h>
 #endif
 
-#include "ares.h"
-#include "ares_private.h"
 
-ares_status_t ares__parse_into_addrinfo(const unsigned char *abuf, size_t alen,
+ares_status_t ares__parse_into_addrinfo(const ares_dns_record_t *dnsrec,
                                         ares_bool_t    cname_only_is_enodata,
                                         unsigned short port,
                                         struct ares_addrinfo *ai)
 {
   ares_status_t               status;
-  ares_dns_record_t          *dnsrec = NULL;
   size_t                      i;
   size_t                      ancount;
   const char                 *hostname  = NULL;
@@ -63,15 +60,10 @@ ares_status_t ares__parse_into_addrinfo(const unsigned char *abuf, size_t alen,
   struct ares_addrinfo_cname *cnames    = NULL;
   struct ares_addrinfo_node  *nodes     = NULL;
 
-  status = ares_dns_parse(abuf, alen, 0, &dnsrec);
-  if (status != ARES_SUCCESS) {
-    goto done;
-  }
-
   /* Save question hostname */
   status = ares_dns_record_query_get(dnsrec, 0, &hostname, NULL, NULL);
   if (status != ARES_SUCCESS) {
-    goto done;
+    goto done; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   ancount = ares_dns_record_rr_cnt(dnsrec, ARES_SECTION_ANSWER);
@@ -83,7 +75,7 @@ ares_status_t ares__parse_into_addrinfo(const unsigned char *abuf, size_t alen,
   for (i = 0; i < ancount; i++) {
     ares_dns_rec_type_t  rtype;
     const ares_dns_rr_t *rr =
-      ares_dns_record_rr_get(dnsrec, ARES_SECTION_ANSWER, i);
+      ares_dns_record_rr_get_const(dnsrec, ARES_SECTION_ANSWER, i);
 
     if (ares_dns_rr_get_class(rr) != ARES_CLASS_IN) {
       continue;
@@ -113,19 +105,19 @@ ares_status_t ares__parse_into_addrinfo(const unsigned char *abuf, size_t alen,
 
       cname = ares__append_addrinfo_cname(&cnames);
       if (cname == NULL) {
-        status = ARES_ENOMEM;
-        goto done;
+        status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+        goto done;            /* LCOV_EXCL_LINE: OutOfMemory */
       }
       cname->ttl   = (int)ares_dns_rr_get_ttl(rr);
       cname->alias = ares_strdup(ares_dns_rr_get_name(rr));
       if (cname->alias == NULL) {
-        status = ARES_ENOMEM;
-        goto done;
+        status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+        goto done;            /* LCOV_EXCL_LINE: OutOfMemory */
       }
       cname->name = ares_strdup(hostname);
       if (cname->name == NULL) {
-        status = ARES_ENOMEM;
-        goto done;
+        status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+        goto done;            /* LCOV_EXCL_LINE: OutOfMemory */
       }
     } else if (rtype == ARES_REC_TYPE_A) {
       got_a = ARES_TRUE;
@@ -133,7 +125,7 @@ ares_status_t ares__parse_into_addrinfo(const unsigned char *abuf, size_t alen,
         ares_append_ai_node(AF_INET, port, ares_dns_rr_get_ttl(rr),
                             ares_dns_rr_get_addr(rr, ARES_RR_A_ADDR), &nodes);
       if (status != ARES_SUCCESS) {
-        goto done;
+        goto done; /* LCOV_EXCL_LINE: OutOfMemory */
       }
     } else if (rtype == ARES_REC_TYPE_AAAA) {
       got_aaaa = ARES_TRUE;
@@ -141,7 +133,7 @@ ares_status_t ares__parse_into_addrinfo(const unsigned char *abuf, size_t alen,
                                      ares_dns_rr_get_addr6(rr, ARES_RR_AAAA_ADDR),
                                      &nodes);
       if (status != ARES_SUCCESS) {
-        goto done;
+        goto done; /* LCOV_EXCL_LINE: OutOfMemory */
       }
     } else {
       continue;
@@ -159,8 +151,8 @@ ares_status_t ares__parse_into_addrinfo(const unsigned char *abuf, size_t alen,
     ares_free(ai->name);
     ai->name = ares_strdup(hostname);
     if (ai->name == NULL) {
-      status = ARES_ENOMEM;
-      goto done;
+      status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+      goto done;            /* LCOV_EXCL_LINE: OutOfMemory */
     }
   }
 
@@ -177,7 +169,6 @@ ares_status_t ares__parse_into_addrinfo(const unsigned char *abuf, size_t alen,
 done:
   ares__freeaddrinfo_cnames(cnames);
   ares__freeaddrinfo_nodes(nodes);
-  ares_dns_record_destroy(dnsrec);
 
   /* compatibility */
   if (status == ARES_EBADNAME) {

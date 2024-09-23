@@ -5,6 +5,9 @@
 #ifndef V8_MAGLEV_MAGLEV_PHI_REPRESENTATION_SELECTOR_H_
 #define V8_MAGLEV_MAGLEV_PHI_REPRESENTATION_SELECTOR_H_
 
+#include <optional>
+
+#include "src/base/small-vector.h"
 #include "src/compiler/turboshaft/snapshot-table.h"
 #include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-graph-builder.h"
@@ -42,17 +45,25 @@ class MaglevPhiRepresentationSelector {
       StdoutStream{} << "\n";
     }
   }
-  void PreProcessBasicBlock(BasicBlock* block) {
-    MergeNewNodesInBlock(current_block_);
-    PreparePhiTaggings(current_block_, block);
-    current_block_ = block;
-  }
+  BlockProcessResult PreProcessBasicBlock(BasicBlock* block);
+  void PostPhiProcessing() {}
 
-  ProcessResult Process(Phi* node, const ProcessingState&);
+  enum ProcessPhiResult { kNone, kRetryOnChange, kChanged };
+  ProcessPhiResult ProcessPhi(Phi* node);
+
+  // The visitor method is a no-op since phis are processed in
+  // PreProcessBasicBlock.
+  ProcessResult Process(Phi* node, const ProcessingState&) {
+    return ProcessResult::kContinue;
+  }
 
   ProcessResult Process(JumpLoop* node, const ProcessingState&) {
     FixLoopPhisBackedge(node->target());
     return ProcessResult::kContinue;
+  }
+
+  ProcessResult Process(Dead* node, const ProcessingState& state) {
+    return ProcessResult::kRemove;
   }
 
   template <class NodeT>
@@ -61,9 +72,18 @@ class MaglevPhiRepresentationSelector {
   }
 
  private:
+  enum class HoistType : uint8_t {
+    kNone,
+    kLoopEntry,
+    kLoopEntryUnchecked,
+    kPrologue,
+  };
+  using HoistTypeList = base::SmallVector<HoistType, 8>;
+
   // Update the inputs of {phi} so that they all have {repr} representation, and
   // updates {phi}'s representation to {repr}.
-  void ConvertTaggedPhiTo(Phi* phi, ValueRepresentation repr);
+  void ConvertTaggedPhiTo(Phi* phi, ValueRepresentation repr,
+                          const HoistTypeList& hoist_untagging);
 
   // Since this pass changes the representation of Phis, it makes some untagging
   // operations outdated: if we've decided that a Phi should have Int32
@@ -170,7 +190,7 @@ class MaglevPhiRepresentationSelector {
   // of the current block.
   ValueNode* EnsurePhiTagged(
       Phi* phi, BasicBlock* block, NewNodePosition pos,
-      base::Optional<int> predecessor_index = base::nullopt);
+      std::optional<int> predecessor_index = std::nullopt);
 
   ValueNode* AddNode(ValueNode* node, BasicBlock* block, NewNodePosition pos,
                      DeoptFrame* deopt_frame = nullptr);
@@ -195,6 +215,8 @@ class MaglevPhiRepresentationSelector {
   MaglevGraphLabeller* graph_labeller() const {
     return builder_->graph_labeller();
   }
+
+  bool CanHoistUntaggingTo(BasicBlock* block);
 
   MaglevGraphBuilder* builder_ = nullptr;
   BasicBlock* current_block_ = nullptr;

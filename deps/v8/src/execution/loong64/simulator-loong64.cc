@@ -463,7 +463,7 @@ void Loong64Debugger::Debug() {
           Heap* current_heap = sim_->isolate_->heap();
           if (!skip_obj_print) {
             if (IsSmi(obj) ||
-                IsValidHeapObject(current_heap, HeapObject::cast(obj))) {
+                IsValidHeapObject(current_heap, Cast<HeapObject>(obj))) {
               PrintF(" (");
               if (IsSmi(obj)) {
                 PrintF("smi %d", Smi::ToInt(obj));
@@ -932,12 +932,12 @@ void Simulator::set_fpu_register_hi_word(int fpureg, int32_t value) {
 
 void Simulator::set_fpu_register_float(int fpureg, float value) {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  *base::bit_cast<float*>(&FPUregisters_[fpureg]) = value;
+  memcpy(&FPUregisters_[fpureg], &value, sizeof(value));
 }
 
 void Simulator::set_fpu_register_double(int fpureg, double value) {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  *base::bit_cast<double*>(&FPUregisters_[fpureg]) = value;
+  memcpy(&FPUregisters_[fpureg], &value, sizeof(value));
 }
 
 void Simulator::set_cf_register(int cfreg, bool value) {
@@ -990,12 +990,12 @@ int32_t Simulator::get_fpu_register_hi_word(int fpureg) const {
 
 float Simulator::get_fpu_register_float(int fpureg) const {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  return *base::bit_cast<float*>(const_cast<int64_t*>(&FPUregisters_[fpureg]));
+  return base::bit_cast<float>(get_fpu_register_word(fpureg));
 }
 
 double Simulator::get_fpu_register_double(int fpureg) const {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  return *base::bit_cast<double*>(&FPUregisters_[fpureg]);
+  return base::bit_cast<double>(FPUregisters_[fpureg]);
 }
 
 bool Simulator::get_cf_register(int cfreg) const {
@@ -1674,6 +1674,7 @@ bool Simulator::ProbeMemory(uintptr_t address, uintptr_t access_size) {
       trap_handler::ProbeMemory(last_accessed_byte, current_pc);
   if (!landing_pad) return true;
   set_pc(landing_pad);
+  set_register(kWasmTrapHandlerFaultAddressRegister.code(), current_pc);
   return false;
 #else
   return true;
@@ -3904,10 +3905,7 @@ void Simulator::DecodeTypeOp17() {
                    FPURegisters::Name(fd_reg()), fd_float(),
                    FPURegisters::Name(fj_reg()), fj_float(),
                    FPURegisters::Name(fk_reg()), fk_float());
-      SetFPUFloatResult(
-          fd_reg(),
-          FPUCanonalizeOperation([](float lhs, float rhs) { return lhs - rhs; },
-                                 fj_float(), fk_float()));
+      SetFPUFloatResult(fd_reg(), fj_float() - fk_float());
       break;
     }
     case FSUB_D: {
@@ -3915,10 +3913,7 @@ void Simulator::DecodeTypeOp17() {
                    FPURegisters::Name(fd_reg()), fd_double(),
                    FPURegisters::Name(fj_reg()), fj_double(),
                    FPURegisters::Name(fk_reg()), fk_double());
-      SetFPUDoubleResult(fd_reg(),
-                         FPUCanonalizeOperation(
-                             [](double lhs, double rhs) { return lhs - rhs; },
-                             fj_double(), fk_double()));
+      SetFPUDoubleResult(fd_reg(), fj_double() - fk_double());
       break;
     }
     case FMUL_S: {

@@ -23,6 +23,7 @@
 #include "util-inl.h"
 #include "v8-cppgc.h"
 #include "v8-profiler.h"
+#include "v8-sandbox.h"  // v8::Object::Wrap(), v8::Object::Unwrap()
 
 #include <algorithm>
 #include <atomic>
@@ -70,7 +71,6 @@ using v8::TryCatch;
 using v8::Uint32;
 using v8::Undefined;
 using v8::Value;
-using v8::WrapperDescriptor;
 using worker::Worker;
 
 int const ContextEmbedderTag::kNodeContextTag = 0x6e6f64;
@@ -85,6 +85,18 @@ void AsyncHooks::ResetPromiseHooks(Local<Function> init,
   js_promise_hooks_[1].Reset(env()->isolate(), before);
   js_promise_hooks_[2].Reset(env()->isolate(), after);
   js_promise_hooks_[3].Reset(env()->isolate(), resolve);
+}
+
+Local<Array> AsyncHooks::GetPromiseHooks(Isolate* isolate) {
+  std::vector<Local<Value>> values;
+  for (size_t i = 0; i < js_promise_hooks_.size(); ++i) {
+    if (js_promise_hooks_[i].IsEmpty()) {
+      values.push_back(Undefined(isolate));
+    } else {
+      values.push_back(js_promise_hooks_[i].Get(isolate));
+    }
+  }
+  return Array::New(isolate, values.data(), values.size());
 }
 
 void Environment::ResetPromiseHooks(Local<Function> init,
@@ -307,7 +319,6 @@ std::ostream& operator<<(std::ostream& output, const SnapshotMetadata& i) {
          << "  \"" << i.node_version << "\", // node_version\n"
          << "  \"" << i.node_arch << "\", // node_arch\n"
          << "  \"" << i.node_platform << "\", // node_platform\n"
-         << "  " << i.v8_cache_version_tag << ", // v8_cache_version_tag\n"
          << "  " << i.flags << ", // flags\n"
          << "}";
   return output;
@@ -520,57 +531,61 @@ void IsolateData::CreateProperties() {
   CreateEnvProxyTemplate(this);
 }
 
-constexpr uint16_t kDefaultCppGCEmebdderID = 0x90de;
+// Previously, the general convention of the wrappable layout for cppgc in
+// the ecosystem is:
+// [  0  ] -> embedder id
+// [  1  ] -> wrappable instance
+// Now V8 has deprecated this layout-based tracing enablement, embedders
+// should simply use v8::Object::Wrap() and v8::Object::Unwrap(). We preserve
+// this layout only to distinguish internally how the memory of a Node.js
+// wrapper is managed or whether a wrapper is managed by Node.js.
+constexpr uint16_t kDefaultCppGCEmbedderID = 0x90de;
 Mutex IsolateData::isolate_data_mutex_;
 std::unordered_map<uint16_t, std::unique_ptr<PerIsolateWrapperData>>
     IsolateData::wrapper_data_map_;
+
+IsolateData* IsolateData::CreateIsolateData(
+    Isolate* isolate,
+    uv_loop_t* loop,
+    MultiIsolatePlatform* platform,
+    ArrayBufferAllocator* allocator,
+    const EmbedderSnapshotData* embedder_snapshot_data,
+    std::shared_ptr<PerIsolateOptions> options) {
+  const SnapshotData* snapshot_data =
+      SnapshotData::FromEmbedderWrapper(embedder_snapshot_data);
+  if (options == nullptr) {
+    options = per_process::cli_options->per_isolate->Clone();
+  }
+  return new IsolateData(
+      isolate, loop, platform, allocator, snapshot_data, options);
+}
 
 IsolateData::IsolateData(Isolate* isolate,
                          uv_loop_t* event_loop,
                          MultiIsolatePlatform* platform,
                          ArrayBufferAllocator* node_allocator,
-                         const SnapshotData* snapshot_data)
+                         const SnapshotData* snapshot_data,
+                         std::shared_ptr<PerIsolateOptions> options)
     : isolate_(isolate),
       event_loop_(event_loop),
       node_allocator_(node_allocator == nullptr ? nullptr
                                                 : node_allocator->GetImpl()),
       platform_(platform),
-      snapshot_data_(snapshot_data) {
-  options_.reset(
-      new PerIsolateOptions(*(per_process::cli_options->per_isolate)));
+      snapshot_data_(snapshot_data),
+      options_(std::move(options)) {
   v8::CppHeap* cpp_heap = isolate->GetCppHeap();
 
-  uint16_t cppgc_id = kDefaultCppGCEmebdderID;
-  if (cpp_heap != nullptr) {
-    // The general convention of the wrappable layout for cppgc in the
-    // ecosystem is:
-    // [  0  ] -> embedder id
-    // [  1  ] -> wrappable instance
-    // If the Isolate includes a CppHeap attached by another embedder,
-    // And if they also use the field 0 for the ID, we DCHECK that
-    // the layout matches our layout, and record the embedder ID for cppgc
-    // to avoid accidentally enabling cppgc on non-cppgc-managed wrappers .
-    v8::WrapperDescriptor descriptor = cpp_heap->wrapper_descriptor();
-    if (descriptor.wrappable_type_index == BaseObject::kEmbedderType) {
-      cppgc_id = descriptor.embedder_id_for_garbage_collected;
-      DCHECK_EQ(descriptor.wrappable_instance_index, BaseObject::kSlot);
-    }
-    // If the CppHeap uses the slot we use to put non-cppgc-traced BaseObject
-    // for embedder ID, V8 could accidentally enable cppgc on them. So
-    // safe guard against this.
-    DCHECK_NE(descriptor.wrappable_type_index, BaseObject::kSlot);
-  } else {
-    cpp_heap_ = CppHeap::Create(
-        platform,
-        CppHeapCreateParams{
-            {},
-            WrapperDescriptor(
-                BaseObject::kEmbedderType, BaseObject::kSlot, cppgc_id)});
-    isolate->AttachCppHeap(cpp_heap_.get());
-  }
+  uint16_t cppgc_id = kDefaultCppGCEmbedderID;
   // We do not care about overflow since we just want this to be different
   // from the cppgc id.
   uint16_t non_cppgc_id = cppgc_id + 1;
+  if (cpp_heap == nullptr) {
+    cpp_heap_ = CppHeap::Create(platform, v8::CppHeapCreateParams{{}});
+    // TODO(joyeecheung): pass it into v8::Isolate::CreateParams and let V8
+    // own it when we can keep the isolate registered/task runner discoverable
+    // during isolate disposal.
+    isolate->AttachCppHeap(cpp_heap_.get());
+  }
 
   {
     // GC could still be run after the IsolateData is destroyed, so we store
@@ -602,11 +617,12 @@ IsolateData::~IsolateData() {
   }
 }
 
-// Public API
+// Deprecated API, embedders should use v8::Object::Wrap() directly instead.
 void SetCppgcReference(Isolate* isolate,
                        Local<Object> object,
                        void* wrappable) {
-  IsolateData::SetCppgcReference(isolate, object, wrappable);
+  v8::Object::Wrap<v8::CppHeapPointerTag::kDefaultTag>(
+      isolate, object, wrappable);
 }
 
 void IsolateData::MemoryInfo(MemoryTracker* tracker) const {
@@ -829,14 +845,12 @@ Environment::Environment(IsolateData* isolate_data,
     }
   }
 
-  // We are supposed to call builtin_loader_.SetEagerCompile() in
-  // snapshot mode here because it's beneficial to compile built-ins
-  // loaded in the snapshot eagerly and include the code of inner functions
-  // that are likely to be used by user since they are part of the core
-  // startup. But this requires us to start the coverage collections
-  // before Environment/Context creation which is not currently possible.
-  // TODO(joyeecheung): refactor V8ProfilerConnection classes to parse
-  // JSON without v8 and lift this restriction.
+  // Compile builtins eagerly when building the snapshot so that inner functions
+  // of essential builtins that are loaded in the snapshot can have faster first
+  // invocation.
+  if (isolate_data->is_building_snapshot()) {
+    builtin_loader()->SetEagerCompile();
+  }
 
   // We'll be creating new objects so make sure we've entered the context.
   HandleScope handle_scope(isolate);
@@ -920,6 +934,9 @@ Environment::Environment(IsolateData* isolate_data,
     if (!options_->allow_worker_threads) {
       permission()->Apply(
           this, {"*"}, permission::PermissionScope::kWorkerThreads);
+    }
+    if (!options_->allow_wasi) {
+      permission()->Apply(this, {"*"}, permission::PermissionScope::kWASI);
     }
 
     if (!options_->allow_fs_read.empty()) {
@@ -1080,18 +1097,77 @@ void Environment::InitializeLibuv() {
     }
   }
 
-  // Register clean-up cb to be called to clean up the handles
-  // when the environment is freed, note that they are not cleaned in
-  // the one environment per process setup, but will be called in
-  // FreeEnvironment.
-  RegisterHandleCleanups();
-
   StartProfilerIdleNotifier();
+  env_handle_initialized_ = true;
+}
+
+void Environment::InitializeCompileCache() {
+  std::string dir_from_env;
+  if (!credentials::SafeGetenv(
+          "NODE_COMPILE_CACHE", &dir_from_env, env_vars()) ||
+      dir_from_env.empty()) {
+    return;
+  }
+  EnableCompileCache(dir_from_env);
+}
+
+CompileCacheEnableResult Environment::EnableCompileCache(
+    const std::string& cache_dir) {
+  CompileCacheEnableResult result;
+  std::string disable_env;
+  if (credentials::SafeGetenv(
+          "NODE_DISABLE_COMPILE_CACHE", &disable_env, env_vars())) {
+    result.status = CompileCacheEnableStatus::DISABLED;
+    result.message = "Disabled by NODE_DISABLE_COMPILE_CACHE";
+    Debug(this,
+          DebugCategory::COMPILE_CACHE,
+          "[compile cache] %s.\n",
+          result.message);
+    return result;
+  }
+
+  if (!compile_cache_handler_) {
+    std::unique_ptr<CompileCacheHandler> handler =
+        std::make_unique<CompileCacheHandler>(this);
+    result = handler->Enable(this, cache_dir);
+    if (result.status == CompileCacheEnableStatus::ENABLED) {
+      compile_cache_handler_ = std::move(handler);
+      AtExit(
+          [](void* env) {
+            static_cast<Environment*>(env)->FlushCompileCache();
+          },
+          this);
+    }
+    if (!result.message.empty()) {
+      Debug(this,
+            DebugCategory::COMPILE_CACHE,
+            "[compile cache] %s\n",
+            result.message);
+    }
+  } else {
+    result.status = CompileCacheEnableStatus::ALREADY_ENABLED;
+    result.cache_directory = compile_cache_handler_->cache_dir();
+  }
+  return result;
+}
+
+void Environment::FlushCompileCache() {
+  if (!compile_cache_handler_ || compile_cache_handler_->cache_dir().empty()) {
+    return;
+  }
+  compile_cache_handler_->Persist();
 }
 
 void Environment::ExitEnv(StopFlags::Flags flags) {
   // Should not access non-thread-safe methods here.
   set_stopping(true);
+
+#if HAVE_INSPECTOR
+  if (inspector_agent_) {
+    inspector_agent_->StopIfWaitingForConnect();
+  }
+#endif
+
   if ((flags & StopFlags::kDoNotTerminateIsolate) == 0)
     isolate_->TerminateExecution();
   SetImmediateThreadsafe([](Environment* env) {
@@ -1100,27 +1176,27 @@ void Environment::ExitEnv(StopFlags::Flags flags) {
   });
 }
 
-void Environment::RegisterHandleCleanups() {
-  HandleCleanupCb close_and_finish = [](Environment* env, uv_handle_t* handle,
-                                        void* arg) {
-    handle->data = env;
+void Environment::ClosePerEnvHandles() {
+  // If LoadEnvironment and InitializeLibuv are not called, like when building
+  // snapshots, skip closing the per environment handles.
+  if (!env_handle_initialized_) {
+    return;
+  }
 
-    env->CloseHandle(handle, [](uv_handle_t* handle) {
+  auto close_and_finish = [&](uv_handle_t* handle) {
+    CloseHandle(handle, [](uv_handle_t* handle) {
 #ifdef DEBUG
       memset(handle, 0xab, uv_handle_size(handle->type));
 #endif
     });
   };
 
-  auto register_handle = [&](uv_handle_t* handle) {
-    RegisterHandleCleanup(handle, close_and_finish, nullptr);
-  };
-  register_handle(reinterpret_cast<uv_handle_t*>(timer_handle()));
-  register_handle(reinterpret_cast<uv_handle_t*>(immediate_check_handle()));
-  register_handle(reinterpret_cast<uv_handle_t*>(immediate_idle_handle()));
-  register_handle(reinterpret_cast<uv_handle_t*>(&idle_prepare_handle_));
-  register_handle(reinterpret_cast<uv_handle_t*>(&idle_check_handle_));
-  register_handle(reinterpret_cast<uv_handle_t*>(&task_queues_async_));
+  close_and_finish(reinterpret_cast<uv_handle_t*>(timer_handle()));
+  close_and_finish(reinterpret_cast<uv_handle_t*>(immediate_check_handle()));
+  close_and_finish(reinterpret_cast<uv_handle_t*>(immediate_idle_handle()));
+  close_and_finish(reinterpret_cast<uv_handle_t*>(&idle_prepare_handle_));
+  close_and_finish(reinterpret_cast<uv_handle_t*>(&idle_check_handle_));
+  close_and_finish(reinterpret_cast<uv_handle_t*>(&task_queues_async_));
 }
 
 void Environment::CleanupHandles() {
@@ -1139,10 +1215,6 @@ void Environment::CleanupHandles() {
 
   for (HandleWrap* handle : handle_wrap_queue_)
     handle->Close();
-
-  for (HandleCleanup& hc : handle_cleanup_queue_)
-    hc.cb_(this, hc.handle_, hc.arg_);
-  handle_cleanup_queue_.clear();
 
   while (handle_cleanup_waiting_ != 0 ||
          request_waiting_ != 0 ||
@@ -1197,9 +1269,15 @@ MaybeLocal<Value> Environment::RunSnapshotDeserializeMain() const {
 void Environment::RunCleanup() {
   started_cleanup_ = true;
   TRACE_EVENT0(TRACING_CATEGORY_NODE1(environment), "RunCleanup");
+  ClosePerEnvHandles();
   // Only BaseObject's cleanups are registered as per-realm cleanup hooks now.
   // Defer the BaseObject cleanup after handles are cleaned up.
   CleanupHandles();
+
+  while (!cleanable_queue_.IsEmpty()) {
+    Cleanable* cleanable = cleanable_queue_.PopFront();
+    cleanable->Clean();
+  }
 
   while (!cleanup_queue_.empty() || principal_realm_->HasCleanupHooks() ||
          native_immediates_.size() > 0 ||

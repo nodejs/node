@@ -48,6 +48,8 @@
 #include <sys/types.h>
 #endif
 
+#include <simdutf.h>
+
 #include <atomic>
 #include <cstdio>
 #include <cstring>
@@ -100,11 +102,31 @@ static void MakeUtf8String(Isolate* isolate,
                            MaybeStackBuffer<T>* target) {
   Local<String> string;
   if (!value->ToString(isolate->GetCurrentContext()).ToLocal(&string)) return;
+  String::ValueView value_view(isolate, string);
 
-  size_t storage;
-  if (!StringBytes::StorageSize(isolate, string, UTF8).To(&storage)) return;
-  storage += 1;
+  auto value_length = value_view.length();
+
+  if (value_view.is_one_byte()) {
+    auto const_char = reinterpret_cast<const char*>(value_view.data8());
+    auto expected_length =
+        target->capacity() < (static_cast<size_t>(value_length) * 2 + 1)
+            ? simdutf::utf8_length_from_latin1(const_char, value_length)
+            : value_length * 2;
+
+    // Add +1 for null termination.
+    target->AllocateSufficientStorage(expected_length + 1);
+    const auto actual_length = simdutf::convert_latin1_to_utf8(
+        const_char, value_length, target->out());
+    target->SetLengthAndZeroTerminate(actual_length);
+    return;
+  }
+
+  // Add +1 for null termination.
+  size_t storage = (3 * value_length) + 1;
   target->AllocateSufficientStorage(storage);
+
+  // TODO(@anonrig): Use simdutf to speed up non-one-byte strings once it's
+  // implemented
   const int flags =
       String::NO_NULL_TERMINATION | String::REPLACE_INVALID_UTF8;
   const int length =
@@ -228,6 +250,10 @@ double GetCurrentTimeInMicroseconds() {
 }
 
 int WriteFileSync(const char* path, uv_buf_t buf) {
+  return WriteFileSync(path, &buf, 1);
+}
+
+int WriteFileSync(const char* path, uv_buf_t* bufs, size_t buf_count) {
   uv_fs_t req;
   int fd = uv_fs_open(nullptr,
                       &req,
@@ -240,7 +266,7 @@ int WriteFileSync(const char* path, uv_buf_t buf) {
     return fd;
   }
 
-  int err = uv_fs_write(nullptr, &req, fd, &buf, 1, 0, nullptr);
+  int err = uv_fs_write(nullptr, &req, fd, bufs, buf_count, 0, nullptr);
   uv_fs_req_cleanup(&req);
   if (err < 0) {
     return err;
@@ -316,7 +342,7 @@ std::vector<char> ReadFileSync(FILE* fp) {
 void DiagnosticFilename::LocalTime(TIME_TYPE* tm_struct) {
 #ifdef _WIN32
   GetLocalTime(tm_struct);
-#else  // UNIX, OSX
+#else  // UNIX, macOS
   struct timeval time_val;
   gettimeofday(&time_val, nullptr);
   localtime_r(&time_val.tv_sec, tm_struct);
@@ -339,7 +365,7 @@ std::string DiagnosticFilename::MakeFilename(
   oss << "." << std::setfill('0') << std::setw(2) << tm_struct.wHour;
   oss << std::setfill('0') << std::setw(2) << tm_struct.wMinute;
   oss << std::setfill('0') << std::setw(2) << tm_struct.wSecond;
-#else  // UNIX, OSX
+#else  // UNIX, macOS
   oss << "."
             << std::setfill('0')
             << std::setw(4)
