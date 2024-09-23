@@ -1408,9 +1408,6 @@ requirements and complexity of your application.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/52744
-    description: End-of-Life deprecation.
   - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/50488
     description: Runtime deprecation.
@@ -1422,9 +1419,9 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: End-of-Life
+Type: Runtime
 
-The `util._extend()` API has been removed because it's an unmaintained
+The [`util._extend()`][] API is deprecated because it's an unmaintained
 legacy API that was exposed to user land by accident.
 Please use `target = Object.assign(target, source)` instead.
 
@@ -2145,6 +2142,9 @@ parameter.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/55035
+    description: End-of-Life.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18666
     description: Runtime deprecation.
@@ -2152,7 +2152,7 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 `process.assert()` is deprecated. Please use the [`assert`][] module instead.
 
@@ -3699,7 +3699,9 @@ is deprecated to better align with recommendations per [NIST SP 800-38D][].
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version:
+    - v22.4.0
+    - v20.16.0
     pr-url: https://github.com/nodejs/node/pull/53329
     description: Documentation-only deprecation.
 -->
@@ -3711,6 +3713,36 @@ switch to its new provider model. The `clientCertEngine` option for
 `https.request()`, [`tls.createSecureContext()`][], and [`tls.createServer()`][];
 the `privateKeyEngine` and `privateKeyIdentifier` for [`tls.createSecureContext()`][];
 and [`crypto.setEngine()`][] all depend on this functionality from OpenSSL.
+
+### DEP0184: Instantiating `node:zlib` classes without `new`
+
+<!-- YAML
+changes:
+  - version: v22.9.0
+    pr-url: https://github.com/nodejs/node/pull/54708
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+Instantiating classes without the `new` qualifier exported by the `node:zlib` module is deprecated.
+It is recommended to use the `new` qualifier instead. This applies to all Zlib classes, such as `Deflate`,
+`DeflateRaw`, `Gunzip`, `Inflate`, `InflateRaw`, `Unzip`, and `Zlib`.
+
+### DEP0185: Instantiating `node:repl` classes without `new`
+
+<!-- YAML
+changes:
+  - version: v22.9.0
+    pr-url: https://github.com/nodejs/node/pull/54842
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+Instantiating classes without the `new` qualifier exported by the `node:repl` module is deprecated.
+It is recommended to use the `new` qualifier instead. This applies to all REPL classes, including
+`REPLServer` and `Recoverable`.
 
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
@@ -3836,6 +3868,7 @@ and [`crypto.setEngine()`][] all depend on this functionality from OpenSSL.
 [`url.format()`]: url.md#urlformaturlobject
 [`url.parse()`]: url.md#urlparseurlstring-parsequerystring-slashesdenotehost
 [`url.resolve()`]: url.md#urlresolvefrom-to
+[`util._extend()`]: util.md#util_extendtarget-source
 [`util.getSystemErrorName()`]: util.md#utilgetsystemerrornameerr
 [`util.inspect()`]: util.md#utilinspectobject-options
 [`util.inspect.custom`]: util.md#utilinspectcustom

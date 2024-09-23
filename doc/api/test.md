@@ -229,10 +229,10 @@ const { describe, it } = require('node:test');
 
 ## `only` tests
 
-If Node.js is started with the [`--test-only`][] command-line option, it is
-possible to skip all tests except for a selected subset by passing
-the `only` option to the tests that should run. When a test with the `only`
-option is set, all subtests are also run.
+If Node.js is started with the [`--test-only`][] command-line option, or test
+isolation is disabled, it is possible to skip all tests except for a selected
+subset by passing the `only` option to the tests that should run. When a test
+with the `only` option is set, all subtests are also run.
 If a suite has the `only` option set, all tests within the suite are run,
 unless it has descendants with the `only` option set, in which case only those
 tests are run.
@@ -445,17 +445,25 @@ in the [test runner execution model][] section.
 
 ### Test runner execution model
 
-Each matching test file is executed in a separate child process. The maximum
-number of child processes running at any time is controlled by the
-[`--test-concurrency`][] flag. If the child process finishes with an exit code
-of 0, the test is considered passing. Otherwise, the test is considered to be a
-failure. Test files must be executable by Node.js, but are not required to use
-the `node:test` module internally.
+When process-level test isolation is enabled, each matching test file is
+executed in a separate child process. The maximum number of child processes
+running at any time is controlled by the [`--test-concurrency`][] flag. If the
+child process finishes with an exit code of 0, the test is considered passing.
+Otherwise, the test is considered to be a failure. Test files must be executable
+by Node.js, but are not required to use the `node:test` module internally.
 
 Each test file is executed as if it was a regular script. That is, if the test
 file itself uses `node:test` to define tests, all of those tests will be
 executed within a single application thread, regardless of the value of the
 `concurrency` option of [`test()`][].
+
+When process-level test isolation is disabled, each matching test file is
+imported into the test runner process. Once all test files have been loaded, the
+top level tests are executed with a concurrency of one. Because the test files
+are all run within the same context, it is possible for tests to interact with
+each other in ways that are not possible when isolation is enabled. For example,
+if a test relies on global state, it is possible for that state to be modified
+by a test originating from another file.
 
 ## Collecting code coverage
 
@@ -466,7 +474,8 @@ command-line flag, code coverage is collected and statistics are reported once
 all tests have completed. If the [`NODE_V8_COVERAGE`][] environment variable is
 used to specify a code coverage directory, the generated V8 coverage files are
 written to that directory. Node.js core modules and files within
-`node_modules/` directories are not included in the coverage report. If
+`node_modules/` directories are, by default, not included in the coverage report.
+However, they can be explicity included via the [`--test-coverage-include`][] flag. If
 coverage is enabled, the coverage report is sent to any [test reporters][] via
 the `'test:coverage'` event.
 
@@ -508,10 +517,8 @@ used as an in depth coverage report.
 node --test --experimental-test-coverage --test-reporter=lcov --test-reporter-destination=lcov.info
 ```
 
-### Limitations
-
-The test runner's code coverage functionality does not support excluding
-specific files or directories from the coverage report.
+* No test results are reported by this reporter.
+* This reporter should ideally be used alongside another reporter.
 
 ## Mocking
 
@@ -529,9 +536,9 @@ test('spies on a function', () => {
     return a + b;
   });
 
-  assert.strictEqual(sum.mock.calls.length, 0);
+  assert.strictEqual(sum.mock.callCount(), 0);
   assert.strictEqual(sum(3, 4), 7);
-  assert.strictEqual(sum.mock.calls.length, 1);
+  assert.strictEqual(sum.mock.callCount(), 1);
 
   const call = sum.mock.calls[0];
   assert.deepStrictEqual(call.arguments, [3, 4]);
@@ -553,9 +560,9 @@ test('spies on a function', () => {
     return a + b;
   });
 
-  assert.strictEqual(sum.mock.calls.length, 0);
+  assert.strictEqual(sum.mock.callCount(), 0);
   assert.strictEqual(sum(3, 4), 7);
-  assert.strictEqual(sum.mock.calls.length, 1);
+  assert.strictEqual(sum.mock.callCount(), 1);
 
   const call = sum.mock.calls[0];
   assert.deepStrictEqual(call.arguments, [3, 4]);
@@ -583,9 +590,9 @@ test('spies on an object method', (t) => {
   };
 
   t.mock.method(number, 'add');
-  assert.strictEqual(number.add.mock.calls.length, 0);
+  assert.strictEqual(number.add.mock.callCount(), 0);
   assert.strictEqual(number.add(3), 8);
-  assert.strictEqual(number.add.mock.calls.length, 1);
+  assert.strictEqual(number.add.mock.callCount(), 1);
 
   const call = number.add.mock.calls[0];
 
@@ -935,7 +942,7 @@ the [`--experimental-test-snapshots`][] command-line flag.
 Snapshot files are generated by starting Node.js with the
 [`--test-update-snapshots`][] command-line flag. A separate snapshot file is
 generated for each test file. By default, the snapshot file has the same name
-as `process.argv[1]` with a `.snapshot` file extension. This behavior can be
+as the test file with a `.snapshot` file extension. This behavior can be
 configured using the `snapshot.setResolveSnapshotPath()` function. Each
 snapshot assertion corresponds to an export in the snapshot file.
 
@@ -994,11 +1001,12 @@ flags for the test runner to use a specific reporter.
 
 The following built-reporters are supported:
 
+* `spec`
+  The `spec` reporter outputs the test results in a human-readable format. This
+  is the default reporter.
+
 * `tap`
   The `tap` reporter outputs the test results in the [TAP][] format.
-
-* `spec`
-  The `spec` reporter outputs the test results in a human-readable format.
 
 * `dot`
   The `dot` reporter outputs the test results in a compact format,
@@ -1011,9 +1019,6 @@ The following built-reporters are supported:
 * `lcov`
   The `lcov` reporter outputs test coverage when used with the
   [`--experimental-test-coverage`][] flag.
-
-When `stdout` is a [TTY][], the `spec` reporter is used by default.
-Otherwise, the `tap` reporter is used by default.
 
 The exact output of these reporters is subject to change between versions of
 Node.js, and should not be relied on programmatically. If programmatic access
@@ -1136,13 +1141,13 @@ export default async function * customReporter(source) {
   for await (const event of source) {
     switch (event.type) {
       case 'test:dequeue':
-        yield `test ${event.data.name} dequeued`;
+        yield `test ${event.data.name} dequeued\n`;
         break;
       case 'test:enqueue':
-        yield `test ${event.data.name} enqueued`;
+        yield `test ${event.data.name} enqueued\n`;
         break;
       case 'test:watch:drained':
-        yield 'test watch queue drained';
+        yield 'test watch queue drained\n';
         break;
       case 'test:start':
         yield `test ${event.data.name} started\n`;
@@ -1154,7 +1159,7 @@ export default async function * customReporter(source) {
         yield `test ${event.data.name} failed\n`;
         break;
       case 'test:plan':
-        yield 'test plan';
+        yield 'test plan\n';
         break;
       case 'test:diagnostic':
       case 'test:stderr':
@@ -1176,13 +1181,13 @@ module.exports = async function * customReporter(source) {
   for await (const event of source) {
     switch (event.type) {
       case 'test:dequeue':
-        yield `test ${event.data.name} dequeued`;
+        yield `test ${event.data.name} dequeued\n`;
         break;
       case 'test:enqueue':
-        yield `test ${event.data.name} enqueued`;
+        yield `test ${event.data.name} enqueued\n`;
         break;
       case 'test:watch:drained':
-        yield 'test watch queue drained';
+        yield 'test watch queue drained\n';
         break;
       case 'test:start':
         yield `test ${event.data.name} started\n`;
@@ -1241,6 +1246,15 @@ added:
   - v18.9.0
   - v16.19.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/53937
+    description: Added coverage options.
+  - version: v22.8.0
+    pr-url: https://github.com/nodejs/node/pull/53927
+    description: Added the `isolation` option.
+  - version: v22.6.0
+    pr-url: https://github.com/nodejs/node/pull/53866
+    description: Added the `globPatterns` option.
   - version:
     - v22.0.0
     - v20.14.0
@@ -1267,11 +1281,19 @@ changes:
   * `forceExit`: {boolean} Configures the test runner to exit the process once
     all known tests have finished executing even if the event loop would
     otherwise remain active. **Default:** `false`.
+  * `globPatterns`: {Array} An array containing the list of glob patterns to
+    match test files. This option cannot be used together with `files`.
+    **Default:** matching files from [test runner execution model][].
   * `inspectPort` {number|Function} Sets inspector port of test child process.
     This can be a number, or a function that takes no arguments and returns a
     number. If a nullish value is provided, each process gets its own port,
-    incremented from the primary's `process.debugPort`.
-    **Default:** `undefined`.
+    incremented from the primary's `process.debugPort`. This option is ignored
+    if the `isolation` option is set to `'none'` as no child processes are
+    spawned. **Default:** `undefined`.
+  * `isolation` {string} Configures the type of test isolation. If set to
+    `'process'`, each test file is run in a separate child process. If set to
+    `'none'`, all test files run in the current process. **Default:**
+    `'process'`.
   * `only`: {boolean} If truthy, the test context will only run tests that
     have the `only` option set
   * `setup` {Function} A function that accepts the `TestsStream` instance
@@ -1280,6 +1302,12 @@ changes:
   * `signal` {AbortSignal} Allows aborting an in-progress test execution.
   * `testNamePatterns` {string|RegExp|Array} A String, RegExp or a RegExp Array,
     that can be used to only run tests whose name matches the provided pattern.
+    Test name patterns are interpreted as JavaScript regular expressions.
+    For each test that is executed, any corresponding test hooks, such as
+    `beforeEach()`, are also run.
+    **Default:** `undefined`.
+  * `testSkipPatterns` {string|RegExp|Array} A String, RegExp or a RegExp Array,
+    that can be used to exclude running tests whose name matches the provided pattern.
     Test name patterns are interpreted as JavaScript regular expressions.
     For each test that is executed, any corresponding test hooks, such as
     `beforeEach()`, are also run.
@@ -1294,6 +1322,29 @@ changes:
       that specifies the index of the shard to run. This option is _required_.
     * `total` {number} is a positive integer that specifies the total number
       of shards to split the test files to. This option is _required_.
+  * `coverage` {boolean} enable [code coverage][] collection.
+    **Default:** `false`.
+  * `coverageExcludeGlobs` {string|Array} Excludes specific files from code coverage
+    using a glob pattern, which can match both absolute and relative file paths.
+    This property is only applicable when `coverage` was set to `true`.
+    If both `coverageExcludeGlobs` and `coverageIncludeGlobs` are provided,
+    files must meet **both** criteria to be included in the coverage report.
+    **Default:** `undefined`.
+  * `coverageIncludeGlobs` {string|Array} Includes specific files in code coverage
+    using a glob pattern, which can match both absolute and relative file paths.
+    This property is only applicable when `coverage` was set to `true`.
+    If both `coverageExcludeGlobs` and `coverageIncludeGlobs` are provided,
+    files must meet **both** criteria to be included in the coverage report.
+    **Default:** `undefined`.
+  * `lineCoverage` {number} Require a minimum percent of covered lines. If code
+    coverage does not reach the threshold specified, the process will exit with code `1`.
+    **Default:** `0`.
+  * `branchCoverage` {number} Require a minimum percent of covered branches. If code
+    coverage does not reach the threshold specified, the process will exit with code `1`.
+    **Default:** `0`.
+  * `functionCoverage` {number} Require a minimum percent of covered functions. If code
+    coverage does not reach the threshold specified, the process will exit with code `1`.
+    **Default:** `0`.
 * Returns: {TestsStream}
 
 **Note:** `shard` is used to horizontally parallelize test running across
@@ -1680,7 +1731,7 @@ describe('tests', async () => {
 ## `snapshot`
 
 <!-- YAML
-added: REPLACEME
+added: v22.3.0
 -->
 
 > Stability: 1.0 - Early development
@@ -1693,7 +1744,7 @@ placing common configuration code in a module preloaded with `--require` or
 ### `snapshot.setDefaultSnapshotSerializers(serializers)`
 
 <!-- YAML
-added: REPLACEME
+added: v22.3.0
 -->
 
 > Stability: 1.0 - Early development
@@ -1710,16 +1761,16 @@ more robust serialization mechanism is required, this function should be used.
 ### `snapshot.setResolveSnapshotPath(fn)`
 
 <!-- YAML
-added: REPLACEME
+added: v22.3.0
 -->
 
 > Stability: 1.0 - Early development
 
 * `fn` {Function} A function used to compute the location of the snapshot file.
   The function receives the path of the test file as its only argument. If the
-  `process.argv[1]` is not associated with a file (for example in the REPL),
-  the input is undefined. `fn()` must return a string specifying the location of
-  the snapshot file.
+  test is not associated with a file (for example in the REPL), the input is
+  undefined. `fn()` must return a string specifying the location of the snapshot
+  snapshot file.
 
 This function is used to customize the location of the snapshot file used for
 snapshot testing. By default, the snapshot filename is the same as the entry
@@ -1883,7 +1934,7 @@ mock can still be used after calling this function.
 ## Class: `MockModuleContext`
 
 <!-- YAML
-added: REPLACEME
+added: v22.3.0
 -->
 
 > Stability: 1.0 - Early development
@@ -1894,7 +1945,7 @@ created via the [`MockTracker`][] APIs.
 ### `ctx.restore()`
 
 <!-- YAML
-added: REPLACEME
+added: v22.3.0
 -->
 
 Resets the implementation of the mock module.
@@ -2018,9 +2069,9 @@ test('spies on an object method', (t) => {
   };
 
   t.mock.method(number, 'subtract');
-  assert.strictEqual(number.subtract.mock.calls.length, 0);
+  assert.strictEqual(number.subtract.mock.callCount(), 0);
   assert.strictEqual(number.subtract(3), 2);
-  assert.strictEqual(number.subtract.mock.calls.length, 1);
+  assert.strictEqual(number.subtract.mock.callCount(), 1);
 
   const call = number.subtract.mock.calls[0];
 
@@ -2035,12 +2086,12 @@ test('spies on an object method', (t) => {
 ### `mock.module(specifier[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v22.3.0
 -->
 
 > Stability: 1.0 - Early development
 
-* `specifier` {string} A string identifying the module to mock.
+* `specifier` {string|URL} A string identifying the module to mock.
 * `options` {Object} Optional configuration options for the mock module. The
   following properties are supported:
   * `cache` {boolean} If `false`, each call to `require()` or `import()`
@@ -2061,8 +2112,10 @@ added: REPLACEME
 
 This function is used to mock the exports of ECMAScript modules, CommonJS
 modules, and Node.js builtin modules. Any references to the original module
-prior to mocking are not impacted. The following example demonstrates how a mock
-is created for a module.
+prior to mocking are not impacted. In order to enable module mocking, Node.js must
+be started with the [`--experimental-test-module-mocks`][] command-line flag.
+
+The following example demonstrates how a mock is created for a module.
 
 ```js
 test('mocks a builtin module in both module systems', async (t) => {
@@ -2327,7 +2380,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
 });
 ```
 
-Alternativelly, the `.tick` function can be called many times
+Alternatively, the `.tick` function can be called many times
 
 ```mjs
 import assert from 'node:assert';
@@ -2789,6 +2842,11 @@ are defined, while others are emitted in the order that the tests execute.
         numbers and the number of times they were covered.
         * `line` {number} The line number.
         * `count` {number} The number of times the line was covered.
+    * `thresholds` {Object} An object containing whether or not the coverage for
+      each coverage type.
+      * `function` {number} The function coverage threshold.
+      * `branch` {number} The branch coverage threshold.
+      * `line` {number} The line coverage threshold.
     * `totals` {Object} An object containing a summary of coverage for all
       files.
       * `totalLineCount` {number} The total number of lines.
@@ -2986,6 +3044,31 @@ This event is only emitted if `--test` flag is passed.
 This event is not guaranteed to be emitted in the same order as the tests are
 defined.
 
+### Event: `'test:summary'`
+
+* `data` {Object}
+  * `counts` {Object} An object containing the counts of various test results.
+    * `cancelled` {number} The total number of cancelled tests.
+    * `failed` {number} The total number of failed tests.
+    * `passed` {number} The total number of passed tests.
+    * `skipped` {number} The total number of skipped tests.
+    * `suites` {number} The total number of suites run.
+    * `tests` {number} The total number of tests run, excluding suites.
+    * `todo` {number} The total number of TODO tests.
+    * `topLevel` {number} The total number of top level tests and suites.
+  * `duration_ms` {number} The duration of the test run in milliseconds.
+  * `file` {string|undefined} The path of the test file that generated the
+    summary. If the summary corresponds to multiple files, this value is
+    `undefined`.
+  * `success` {boolean} Indicates whether or not the test run is considered
+    successful or not. If any error condition occurs, such as a failing test or
+    unmet coverage threshold, this value will be set to `false`.
+
+Emitted when a test run completes. This event contains metrics pertaining to
+the completed test run, and is useful for determining if a test run passed or
+failed. If process-level test isolation is used, a `'test:summary'` event is
+generated for each test file in addition to a final cumulative summary.
+
 ### Event: `'test:watch:drained'`
 
 Emitted when no more tests are queued for execution in watch mode.
@@ -3148,7 +3231,7 @@ test('test', (t) => {
 #### `context.assert.snapshot(value[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v22.3.0
 -->
 
 > Stability: 1.0 - Early development
@@ -3200,10 +3283,22 @@ test('top level test', (t) => {
 });
 ```
 
+### `context.filePath`
+
+<!-- YAML
+added:
+  - v22.6.0
+  - v20.16.0
+-->
+
+The absolute path of the test file that created the current test. If a test file
+imports additional modules that generate tests, the imported tests will return
+the path of the root test file.
+
 ### `context.fullName`
 
 <!-- YAML
-added: REPLACEME
+added: v22.3.0
 -->
 
 The name of the test and each of its ancestors, separated by `>`.
@@ -3223,6 +3318,7 @@ The name of the test.
 <!-- YAML
 added:
   - v22.2.0
+  - v20.15.0
 -->
 
 > Stability: 1 - Experimental
@@ -3413,9 +3509,9 @@ behaves in the same fashion as the top level [`test()`][] function.
 test('top level test', async (t) => {
   await t.test(
     'This is a subtest',
-    { only: false, skip: false, concurrency: 1, todo: false, plan: 4 },
+    { only: false, skip: false, concurrency: 1, todo: false, plan: 1 },
     (t) => {
-      assert.ok('some relevant assertion here');
+      t.assert.ok('some relevant assertion here');
     },
   );
 });
@@ -3432,6 +3528,16 @@ added:
 An instance of `SuiteContext` is passed to each suite function in order to
 interact with the test runner. However, the `SuiteContext` constructor is not
 exposed as part of the API.
+
+### `context.filePath`
+
+<!-- YAML
+added: v22.6.0
+-->
+
+The absolute path of the test file that created the current suite. If a test
+file imports additional modules that generate suites, the imported suites will
+return the path of the root test file.
 
 ### `context.name`
 
@@ -3456,11 +3562,12 @@ added:
 Can be used to abort test subtasks when the test has been aborted.
 
 [TAP]: https://testanything.org/
-[TTY]: tty.md
 [`--experimental-test-coverage`]: cli.md#--experimental-test-coverage
+[`--experimental-test-module-mocks`]: cli.md#--experimental-test-module-mocks
 [`--experimental-test-snapshots`]: cli.md#--experimental-test-snapshots
 [`--import`]: cli.md#--importmodule
 [`--test-concurrency`]: cli.md#--test-concurrency
+[`--test-coverage-include`]: cli.md#--test-coverage-include
 [`--test-name-pattern`]: cli.md#--test-name-pattern
 [`--test-only`]: cli.md#--test-only
 [`--test-reporter-destination`]: cli.md#--test-reporter-destination
@@ -3484,6 +3591,7 @@ Can be used to abort test subtasks when the test has been aborted.
 [`run()`]: #runoptions
 [`suite()`]: #suitename-options-fn
 [`test()`]: #testname-options-fn
+[code coverage]: #collecting-code-coverage
 [describe options]: #describename-options-fn
 [it options]: #testname-options-fn
 [stream.compose]: stream.md#streamcomposestreams

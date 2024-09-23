@@ -513,6 +513,23 @@ added:
 Returns a promise that fulfills with an {ArrayBuffer} containing a copy of
 the `Blob` data.
 
+#### `blob.bytes()`
+
+<!-- YAML
+added:
+  - v22.3.0
+  - v20.16.0
+-->
+
+The `blob.bytes()` method returns the byte of the `Blob` object as a `Promise<Uint8Array>`.
+
+```js
+const blob = new Blob(['hello']);
+blob.bytes().then((bytes) => {
+  console.log(bytes); // Outputs: Uint8Array(5) [ 104, 101, 108, 108, 111 ]
+});
+```
+
 ### `blob.size`
 
 <!-- YAML
@@ -808,7 +825,7 @@ A `TypeError` will be thrown if `size` is not a number.
 The `Buffer` module pre-allocates an internal `Buffer` instance of
 size [`Buffer.poolSize`][] that is used as a pool for the fast allocation of new
 `Buffer` instances created using [`Buffer.allocUnsafe()`][], [`Buffer.from(array)`][],
-and [`Buffer.concat()`][] only when `size` is less than
+[`Buffer.from(string)`][], and [`Buffer.concat()`][] only when `size` is less than
 `Buffer.poolSize >>> 1` (floor of [`Buffer.poolSize`][] divided by two).
 
 Use of this pre-allocated internal memory pool is a key difference between
@@ -846,11 +863,11 @@ _may contain sensitive data_. Use [`buf.fill(0)`][`buf.fill()`] to initialize
 such `Buffer` instances with zeroes.
 
 When using [`Buffer.allocUnsafe()`][] to allocate new `Buffer` instances,
-allocations under 4 KiB are sliced from a single pre-allocated `Buffer`. This
-allows applications to avoid the garbage collection overhead of creating many
-individually allocated `Buffer` instances. This approach improves both
-performance and memory usage by eliminating the need to track and clean up as
-many individual `ArrayBuffer` objects.
+allocations less than `Buffer.poolSize >>> 1` (4KiB when default poolSize is used) are sliced
+from a single pre-allocated `Buffer`. This allows applications to avoid the
+garbage collection overhead of creating many individually allocated `Buffer`
+instances. This approach improves both performance and memory usage by
+eliminating the need to track and clean up as many individual `ArrayBuffer` objects.
 
 However, in the case where a developer may need to retain a small chunk of
 memory from a pool for an indeterminate amount of time, it may be appropriate
@@ -1389,6 +1406,9 @@ console.log(buf1.toString('latin1'));
 
 A `TypeError` will be thrown if `string` is not a string or another type
 appropriate for `Buffer.from()` variants.
+
+[`Buffer.from(string)`][] may also use the internal `Buffer` pool like
+[`Buffer.allocUnsafe()`][] does.
 
 ### Static method: `Buffer.isBuffer(obj)`
 
@@ -5341,6 +5361,10 @@ added: v8.2.0
 <!-- YAML
 added: v8.2.0
 changes:
+  - version: v22.0.0
+    pr-url: https://github.com/nodejs/node/pull/52465
+    description: Value is changed to 2<sup>53</sup> - 1 on 64-bit
+      architectures.
   - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/35415
     description: Value is changed to 2<sup>32</sup> on 64-bit
@@ -5356,7 +5380,7 @@ changes:
 On 32-bit architectures, this value currently is 2<sup>30</sup> - 1 (about 1
 GiB).
 
-On 64-bit architectures, this value currently is 2<sup>32</sup> (about 4 GiB).
+On 64-bit architectures, this value currently is 2<sup>53</sup> - 1 (about 8 PiB).
 
 It reflects [`v8::TypedArray::kMaxLength`][] under the hood.
 
@@ -5444,10 +5468,10 @@ to one of these new APIs._
   uninitialized, the allocated segment of memory might contain old data that is
   potentially sensitive.
 
-`Buffer` instances returned by [`Buffer.allocUnsafe()`][] and
-[`Buffer.from(array)`][] _may_ be allocated off a shared internal memory pool
-if `size` is less than or equal to half [`Buffer.poolSize`][]. Instances
-returned by [`Buffer.allocUnsafeSlow()`][] _never_ use the shared internal
+`Buffer` instances returned by [`Buffer.allocUnsafe()`][], [`Buffer.from(string)`][],
+[`Buffer.concat()`][] and [`Buffer.from(array)`][] _may_ be allocated off a shared
+internal memory pool if `size` is less than or equal to half [`Buffer.poolSize`][].
+Instances returned by [`Buffer.allocUnsafeSlow()`][] _never_ use the shared internal
 memory pool.
 
 ### The `--zero-fill-buffers` command-line option
