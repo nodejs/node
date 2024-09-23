@@ -174,8 +174,9 @@ with-code-cache test-code-cache:
 
 out/Makefile: config.gypi common.gypi node.gyp \
 	deps/uv/uv.gyp deps/llhttp/llhttp.gyp deps/zlib/zlib.gyp \
-	deps/simdutf/simdutf.gyp deps/ada/ada.gyp \
-	tools/v8_gypfiles/toolchain.gypi tools/v8_gypfiles/features.gypi \
+	deps/simdutf/simdutf.gyp deps/ada/ada.gyp deps/nbytes/nbytes.gyp \
+	tools/v8_gypfiles/toolchain.gypi \
+	tools/v8_gypfiles/features.gypi \
 	tools/v8_gypfiles/inspector.gypi tools/v8_gypfiles/v8.gyp
 	$(PYTHON) tools/gyp_node.py -f make
 
@@ -240,8 +241,10 @@ coverage-clean:
 	$(RM) -r node_modules
 	$(RM) -r gcovr
 	$(RM) -r coverage/tmp
-	$(FIND) out/$(BUILDTYPE)/obj.target \( -name "*.gcda" -o -name "*.gcno" \) \
-		-type f -exec $(RM) {} \;
+	@if [ -d "out/Release/obj.target" ]; then \
+		$(FIND) out/$(BUILDTYPE)/obj.target \( -name "*.gcda" -o -name "*.gcno" \) \
+			-type f -exec $(RM) {};\
+	fi
 
 .PHONY: coverage
 # Build and test with code coverage reporting. HTML coverage reports will be
@@ -253,7 +256,7 @@ coverage: coverage-test ## Run the tests and generate a coverage report.
 .PHONY: coverage-build
 coverage-build: all
 	-$(MAKE) coverage-build-js
-	if [ ! -d gcovr ]; then $(PYTHON) -m pip install -t gcovr gcovr==4.2; fi
+	if [ ! -d gcovr ]; then $(PYTHON) -m pip install -t gcovr gcovr==7.2; fi
 	$(MAKE)
 
 .PHONY: coverage-build-js
@@ -265,13 +268,16 @@ coverage-build-js:
 
 .PHONY: coverage-test
 coverage-test: coverage-build
-	$(FIND) out/$(BUILDTYPE)/obj.target -name "*.gcda" -type f -exec $(RM) {} \;
+	@if [ -d "out/Release/obj.target" ]; then \
+		$(FIND) out/$(BUILDTYPE)/obj.target -name "*.gcda" -type f -exec $(RM) {}; \
+	fi
 	-NODE_V8_COVERAGE=coverage/tmp \
 		TEST_CI_ARGS="$(TEST_CI_ARGS) --type=coverage" $(MAKE) $(COVTESTS)
 	$(MAKE) coverage-report-js
-	-(cd out && PYTHONPATH=../gcovr $(PYTHON) -m gcovr \
-		--gcov-exclude='.*\b(deps|usr|out|cctest|embedding)\b' -v \
-		-r ../src/ --object-directory Release/obj.target \
+	-(PYTHONPATH=./gcovr $(PYTHON) -m gcovr \
+		--object-directory=out \
+		--filter src -v \
+		--root ./ \
 		--html --html-details -o ../coverage/cxxcoverage.html \
 		--gcov-executable="$(GCOV)")
 	@printf "Javascript coverage %%: "
@@ -1003,7 +1009,7 @@ else
 BINARYNAME=$(TARNAME)-$(PLATFORM)-$(ARCH)
 endif
 BINARYTAR=$(BINARYNAME).tar
-# OSX doesn't have xz installed by default, http://macpkg.sourceforge.net/
+# macOS doesn't have xz installed by default, http://macpkg.sourceforge.net/
 HAS_XZ ?= $(shell command -v xz > /dev/null 2>&1; [ $$? -eq 0 ] && echo 1 || echo 0)
 # Supply SKIP_XZ=1 to explicitly skip .tar.xz creation
 SKIP_XZ ?= 0
@@ -1151,13 +1157,14 @@ pkg: $(PKG)
 .PHONY: corepack-update
 corepack-update:
 	mkdir -p /tmp/node-corepack
-	curl -qLo /tmp/node-corepack/package.tgz "$$(npm view corepack dist.tarball)"
+	curl -qLo /tmp/node-corepack/package.tgz "$$($(call available-node,$(NPM) view corepack dist.tarball))"
 
 	rm -rf deps/corepack && mkdir deps/corepack
 	cd deps/corepack && tar xf /tmp/node-corepack/package.tgz --strip-components=1
 	chmod +x deps/corepack/shims/*
 
-	node deps/corepack/dist/corepack.js --version
+	$(call available-node,'-p' \
+			 'require(`./deps/corepack/package.json`).version')
 
 .PHONY: pkg-upload
 # Note: this is strictly for release builds on release machines only.
@@ -1188,9 +1195,10 @@ $(TARBALL): release-only doc-only
 	$(RM) -r $(TARNAME)/doc/images # too big
 	$(RM) -r $(TARNAME)/test*.tap
 	$(RM) -r $(TARNAME)/tools/cpplint.py
+	$(RM) -r $(TARNAME)/tools/eslint
 	$(RM) -r $(TARNAME)/tools/eslint-rules
 	$(RM) -r $(TARNAME)/tools/license-builder.sh
-	$(RM) -r $(TARNAME)/tools/node_modules
+	$(RM) -r $(TARNAME)/tools/eslint/node_modules
 	$(RM) -r $(TARNAME)/tools/osx-*
 	$(RM) -r $(TARNAME)/tools/osx-pkg.pmdoc
 	find $(TARNAME)/deps/v8/test/* -type d ! -regex '.*/test/torque$$' | xargs $(RM) -r
@@ -1376,12 +1384,15 @@ format-md:
 
 LINT_JS_TARGETS = eslint.config.mjs benchmark doc lib test tools
 
-run-lint-js = tools/node_modules/eslint/bin/eslint.js --cache \
+run-lint-js = tools/eslint/node_modules/eslint/bin/eslint.js --cache \
 	--max-warnings=0 --report-unused-disable-directives $(LINT_JS_TARGETS)
 run-lint-js-fix = $(run-lint-js) --fix
 
+tools/eslint/node_modules/eslint/bin/eslint.js: tools/eslint/package-lock.json
+	-cd tools/eslint && $(call available-node,$(run-npm-ci))
+
 .PHONY: lint-js-fix
-lint-js-fix:
+lint-js-fix: tools/eslint/node_modules/eslint/bin/eslint.js
 	@$(call available-node,$(run-lint-js-fix))
 
 .PHONY: lint-js
@@ -1389,7 +1400,7 @@ lint-js-fix:
 # Note that on the CI `lint-js-ci` is run instead.
 # Lints the JavaScript code with eslint.
 lint-js-doc: LINT_JS_TARGETS=doc
-lint-js lint-js-doc:
+lint-js lint-js-doc: tools/eslint/node_modules/eslint/bin/eslint.js
 	@if [ "$(shell $(node_use_openssl))" != "true" ]; then \
 		echo "Skipping $@ (no crypto)"; \
 	else \
@@ -1400,13 +1411,13 @@ lint-js lint-js-doc:
 jslint: lint-js
 	$(warning Please use lint-js instead of jslint)
 
-run-lint-js-ci = tools/node_modules/eslint/bin/eslint.js \
+run-lint-js-ci = tools/eslint/node_modules/eslint/bin/eslint.js \
   --max-warnings=0 --report-unused-disable-directives -f tap \
 	-o test-eslint.tap $(LINT_JS_TARGETS)
 
 .PHONY: lint-js-ci
 # On the CI the output is emitted in the TAP format.
-lint-js-ci:
+lint-js-ci: tools/eslint/node_modules/eslint/bin/eslint.js
 	$(info Running JS linter...)
 	@$(call available-node,$(run-lint-js-ci))
 
@@ -1525,14 +1536,14 @@ cpplint: lint-cpp
 # Try with '--system' if it fails without; the system may have set '--user'
 lint-py-build:
 	$(info Pip installing ruff on $(shell $(PYTHON) --version)...)
-	$(PYTHON) -m pip install --upgrade --target tools/pip/site-packages ruff==0.4.5 || \
-		$(PYTHON) -m pip install --upgrade --system --target tools/pip/site-packages ruff==0.4.5
+	$(PYTHON) -m pip install --upgrade --target tools/pip/site-packages ruff==0.5.2 || \
+		$(PYTHON) -m pip install --upgrade --system --target tools/pip/site-packages ruff==0.5.2
 
 .PHONY: lint-py
 ifneq ("","$(wildcard tools/pip/site-packages/ruff)")
 # Lint the Python code with ruff.
 lint-py:
-	tools/pip/site-packages/bin/ruff --version
+	$(info Running Python linter...)
 	tools/pip/site-packages/bin/ruff check .
 else
 lint-py:
@@ -1552,6 +1563,7 @@ lint-yaml-build:
 # Lints the YAML files with yamllint.
 lint-yaml:
 	@if [ -d "tools/pip/site-packages/yamllint" ]; then \
+			$(info Running YAML linter...) \
 			PYTHONPATH=tools/pip $(PYTHON) -m yamllint .; \
 	else \
 		echo 'YAML linting with yamllint is not available'; \
@@ -1560,7 +1572,7 @@ lint-yaml:
 
 .PHONY: lint
 .PHONY: lint-ci
-ifneq ("","$(wildcard tools/node_modules/eslint/)")
+ifneq ("","$(wildcard tools/eslint/)")
 lint: ## Run JS, C++, MD and doc linters.
 	@EXIT_STATUS=0 ; \
 	$(MAKE) lint-js || EXIT_STATUS=$$? ; \
@@ -1591,6 +1603,7 @@ endif
 lint-clean:
 	$(RM) tools/.*lintstamp
 	$(RM) .eslintcache
+	$(RM) -r tools/eslint/node_modules
 
 HAS_DOCKER ?= $(shell command -v docker > /dev/null 2>&1; [ $$? -eq 0 ] && echo 1 || echo 0)
 

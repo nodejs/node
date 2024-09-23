@@ -2,10 +2,10 @@ dnl Copyright (C) The c-ares project and its contributors
 dnl SPDX-License-Identifier: MIT
 AC_PREREQ([2.69])
 
-AC_INIT([c-ares], [1.29.0],
+AC_INIT([c-ares], [1.33.1],
   [c-ares mailing list: http://lists.haxx.se/listinfo/c-ares])
 
-CARES_VERSION_INFO="16:0:14"
+CARES_VERSION_INFO="20:1:18"
 dnl This flag accepts an argument of the form current[:revision[:age]]. So,
 dnl passing -version-info 3:12:1 sets current to 3, revision to 12, and age to
 dnl 1.
@@ -153,8 +153,6 @@ _EOF
 ])
 
 AX_CODE_COVERAGE
-AX_CHECK_USER_NAMESPACE
-AX_CHECK_UTS_NAMESPACE
 AC_SYS_LARGEFILE
 
 case $host_os in
@@ -245,42 +243,18 @@ AC_SUBST(CARES_SYMBOL_HIDING_CFLAG)
 
 
 if test "$enable_warnings" = "yes"; then
-  AX_APPEND_COMPILE_FLAGS([-Wall \
-    -Wextra \
-    -Wcast-align \
-    -Wconversion \
-    -Wdeclaration-after-statement \
-    -Wdouble-promotion \
-    -Wfloat-equal \
-    -Wformat-security \
-    -Winit-self \
-    -Wjump-misses-init \
-    -Wlogical-op \
-    -Wmissing-braces \
-    -Wmissing-declarations \
-    -Wmissing-format-attribute \
-    -Wmissing-include-dirs \
-    -Wmissing-prototypes \
-    -Wnested-externs \
-    -Wno-coverage-mismatch \
-    -Wold-style-definition \
-    -Wpacked \
-    -Wpointer-arith \
-    -Wredundant-decls \
-    -Wshadow \
-    -Wsign-conversion \
-    -Wstrict-overflow \
-    -Wstrict-prototypes \
-    -Wtrampolines \
-    -Wundef \
-    -Wunused \
-    -Wvariadic-macros \
-    -Wvla \
-    -Wwrite-strings \
-    -Werror=implicit-int \
-    -Werror=implicit-function-declaration \
-    -Werror=partial-availability \
-  ], [AM_CFLAGS], [-Werror])
+  AX_APPEND_COMPILE_FLAGS([-Wall -Wextra -Waggregate-return -Wcast-align -Wcast-qual -Wconversion -Wdeclaration-after-statement -Wdouble-promotion -Wfloat-equal -Wformat-security -Winit-self -Wjump-misses-init -Wlogical-op -Wmissing-braces -Wmissing-declarations -Wmissing-format-attribute -Wmissing-include-dirs -Wmissing-prototypes -Wnested-externs -Wno-coverage-mismatch -Wold-style-definition -Wpacked -Wpedantic -Wpointer-arith -Wredundant-decls -Wshadow -Wsign-conversion -Wstrict-overflow -Wstrict-prototypes -Wtrampolines -Wundef -Wunreachable-code -Wunused -Wvariadic-macros -Wvla -Wwrite-strings -Werror=implicit-int -Werror=implicit-function-declaration -Werror=partial-availability -Wno-long-long ],
+    [AM_CFLAGS], [-Werror])
+
+  dnl Android requires c99, all others should use c90
+  case $host_os in
+    *android*)
+      AX_APPEND_COMPILE_FLAGS([-std=c99], [AM_CFLAGS], [-Werror])
+      ;;
+    *)
+      AX_APPEND_COMPILE_FLAGS([-std=c90], [AM_CFLAGS], [-Werror])
+      ;;
+  esac
 fi
 
 if test "$ax_cv_c_compiler_vendor" = "intel"; then
@@ -294,17 +268,7 @@ if test "$ac_cv_native_windows" = "yes" ; then
   dnl other headers, AC_CHECK_HEADERS only allows you to specify headers that
   dnl must be included *before* the header being checked.
 
-  AC_CHECK_HEADERS(
-    windows.h  \
-    winsock2.h \
-    ws2tcpip.h \
-    iphlpapi.h \
-    netioapi.h \
-    ws2ipdef.h \
-    winternl.h \
-    ntdef.h    \
-    ntstatus.h \
-    mswsock.h,
+  AC_CHECK_HEADERS([windows.h winsock2.h ws2tcpip.h iphlpapi.h netioapi.h ws2ipdef.h winternl.h ntdef.h ntstatus.h mswsock.h ],
     [], [], [-])
 
   dnl Windows builds require linking to iphlpapi
@@ -406,42 +370,10 @@ AS_HELP_STRING([--enable-libgcc],[use libgcc when linking]),
        AC_MSG_RESULT(no)
 )
 
-dnl check for a few basic system headers we need
-AC_CHECK_HEADERS(
-       malloc.h \
-       memory.h \
-       AvailabilityMacros.h \
-       sys/types.h \
-       sys/time.h \
-       sys/select.h \
-       sys/socket.h \
-       sys/filio.h \
-       sys/ioctl.h \
-       sys/param.h \
-       sys/uio.h \
-       sys/random.h \
-       sys/event.h \
-       sys/epoll.h \
-       assert.h \
-       iphlpapi.h \
-       netioapi.h \
-       netdb.h \
-       netinet/in.h \
-       netinet6/in6.h \
-       netinet/tcp.h \
-       net/if.h \
-       ifaddrs.h \
-       fcntl.h \
-       errno.h \
-       socket.h \
-       strings.h \
-       stdbool.h \
-       time.h \
-       poll.h \
-       limits.h \
-       arpa/nameser.h \
-       arpa/nameser_compat.h \
-       arpa/inet.h,
+dnl check for a few basic system headers we need.  It would be nice if we could
+dnl split these on separate lines, but for some reason autotools on Windows doesn't
+dnl allow this, even tried ending lines with a backslash.
+AC_CHECK_HEADERS([malloc.h memory.h AvailabilityMacros.h sys/types.h sys/time.h sys/select.h sys/socket.h sys/filio.h sys/ioctl.h sys/param.h sys/uio.h sys/random.h sys/event.h sys/epoll.h assert.h iphlpapi.h netioapi.h netdb.h netinet/in.h netinet6/in6.h netinet/tcp.h net/if.h ifaddrs.h fcntl.h errno.h socket.h strings.h stdbool.h time.h poll.h limits.h arpa/nameser.h arpa/nameser_compat.h arpa/inet.h ],
 dnl to do if not found
 [],
 dnl to do if found
@@ -614,6 +546,7 @@ AC_CHECK_DECL(send,            [AC_DEFINE([HAVE_SEND],              1, [Define t
 AC_CHECK_DECL(getnameinfo,     [AC_DEFINE([HAVE_GETNAMEINFO],       1, [Define to 1 if you have `getnameinfo`]    )], [], $cares_all_includes)
 AC_CHECK_DECL(gethostname,     [AC_DEFINE([HAVE_GETHOSTNAME],       1, [Define to 1 if you have `gethostname`]    )], [], $cares_all_includes)
 AC_CHECK_DECL(connect,         [AC_DEFINE([HAVE_CONNECT],           1, [Define to 1 if you have `connect`]        )], [], $cares_all_includes)
+AC_CHECK_DECL(connectx,        [AC_DEFINE([HAVE_CONNECTX],          1, [Define to 1 if you have `connectx`]       )], [], $cares_all_includes)
 AC_CHECK_DECL(closesocket,     [AC_DEFINE([HAVE_CLOSESOCKET],       1, [Define to 1 if you have `closesocket`]    )], [], $cares_all_includes)
 AC_CHECK_DECL(CloseSocket,     [AC_DEFINE([HAVE_CLOSESOCKET_CAMEL], 1, [Define to 1 if you have `CloseSocket`]    )], [], $cares_all_includes)
 AC_CHECK_DECL(fcntl,           [AC_DEFINE([HAVE_FCNTL],             1, [Define to 1 if you have `fcntl`]          )], [], $cares_all_includes)
@@ -650,6 +583,8 @@ AC_CHECK_DECL(kqueue,          [AC_DEFINE([HAVE_KQUEUE],            1, [Define t
 AC_CHECK_DECL(epoll_create1,   [AC_DEFINE([HAVE_EPOLL],             1, [Define to 1 if you have `epoll_{create1,ctl,wait}`])], [], $cares_all_includes)
 AC_CHECK_DECL(ConvertInterfaceIndexToLuid, [AC_DEFINE([HAVE_CONVERTINTERFACEINDEXTOLUID], 1, [Define to 1 if you have `ConvertInterfaceIndexToLuid`])], [], $cares_all_includes)
 AC_CHECK_DECL(ConvertInterfaceLuidToNameA, [AC_DEFINE([HAVE_CONVERTINTERFACELUIDTONAMEA], 1, [Define to 1 if you have `ConvertInterfaceLuidToNameA`])], [], $cares_all_includes)
+AC_CHECK_DECL(NotifyIpInterfaceChange,     [AC_DEFINE([HAVE_NOTIFYIPINTERFACECHANGE],     1, [Define to 1 if you have `NotifyIpInterfaceChange`]    )], [], $cares_all_includes)
+AC_CHECK_DECL(RegisterWaitForSingleObject, [AC_DEFINE([HAVE_REGISTERWAITFORSINGLEOBJECT], 1, [Define to 1 if you have `RegisterWaitForSingleObject`])], [], $cares_all_includes)
 AC_CHECK_DECL(__system_property_get,       [AC_DEFINE([HAVE___SYSTEM_PROPERTY_GET],       1, [Define to 1 if you have `__system_property_get`]      )], [], $cares_all_includes)
 
 
@@ -705,7 +640,7 @@ recvfrom_type_arg5="struct sockaddr *"
 recv_type_arg4=int
 getnameinfo_type_arg1="struct sockaddr *"
 getnameinfo_type_arg7=int
-send_type_arg2="void *"
+send_type_arg2="const void *"
 send_type_arg4=int
 
 AC_DEFINE_UNQUOTED([RECVFROM_TYPE_RETV],     [ ${recvfrom_type_retv} ],     [ recvfrom() return value ])
@@ -725,7 +660,6 @@ AC_DEFINE_UNQUOTED([RECV_TYPE_ARG4],         [ ${recv_type_arg4} ],         [ re
 AC_DEFINE_UNQUOTED([SEND_TYPE_RETV],         [ ${send_type_retv} ],         [ send() return value ])
 AC_DEFINE_UNQUOTED([SEND_TYPE_ARG1],         [ ${send_type_arg1} ],         [ send() arg1 type ])
 AC_DEFINE_UNQUOTED([SEND_TYPE_ARG2],         [ ${send_type_arg2} ],         [ send() arg2 type ])
-AC_DEFINE_UNQUOTED([SEND_QUAL_ARG2],         [ ],                           [ send() arg2 qualifier ])
 AC_DEFINE_UNQUOTED([SEND_TYPE_ARG3],         [ ${send_type_arg3} ],         [ send() arg3 type ])
 AC_DEFINE_UNQUOTED([SEND_TYPE_ARG4],         [ ${send_type_arg4} ],         [ send() arg4 type ])
 
@@ -808,6 +742,9 @@ fi
 if test "x$ac_cv_header_sys_socket_h" = "xyes" ; then
   CARES_DEFINE_UNQUOTED([CARES_HAVE_SYS_SOCKET_H],[1])
 fi
+if test "x$ac_cv_header_sys_select_h" = "xyes" ; then
+  CARES_DEFINE_UNQUOTED([CARES_HAVE_SYS_SELECT_H],[1])
+fi
 if test "x$ac_cv_header_ws2tcpip_h" = "xyes" ; then
   CARES_DEFINE_UNQUOTED([CARES_HAVE_WS2TCPIP_H],[1])
 fi
@@ -880,6 +817,12 @@ if test "x$build_tests" != "xno" ; then
     else
       AC_MSG_ERROR([tests require gmock])
     fi
+  else
+    PKG_CHECK_MODULES([GMOCK112], [gmock >= 1.12.0], [ have_gmock_v112=yes ], [ have_gmock_v112=no ])
+    if test "x$have_gmock_v112" = "xyes" ; then
+      AX_CHECK_USER_NAMESPACE
+      AX_CHECK_UTS_NAMESPACE
+    fi
   fi
 fi
 if test "x$build_tests" != "xno" ; then
@@ -902,12 +845,12 @@ AC_SUBST(AM_CPPFLAGS)
 AC_SUBST(PKGCONFIG_CFLAGS)
 AC_SUBST(BUILD_SUBDIRS)
 
-AC_CONFIG_FILES([Makefile           \
-                 include/Makefile   \
-                 src/Makefile       \
-                 src/lib/Makefile   \
-                 src/tools/Makefile \
-                 docs/Makefile      \
+AC_CONFIG_FILES([Makefile
+                 include/Makefile
+                 src/Makefile
+                 src/lib/Makefile
+                 src/tools/Makefile
+                 docs/Makefile
                  libcares.pc ])
 AM_COND_IF([BUILD_TESTS],
            [AC_CONFIG_FILES([test/Makefile])])

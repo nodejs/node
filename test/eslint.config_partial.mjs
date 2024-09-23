@@ -3,7 +3,7 @@
 import {
   noRestrictedSyntaxCommonAll,
   requireEslintTool,
-} from '../tools/eslint.config_utils.mjs';
+} from '../tools/eslint/eslint.config_utils.mjs';
 
 const globals = requireEslintTool('globals');
 

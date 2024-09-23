@@ -600,6 +600,9 @@ void OOMErrorHandler(const char* location, const v8::OOMDetails& details) {
   } else {
     FPrintF(stderr, "FATAL ERROR: %s\n", message);
   }
+  if (details.detail != nullptr) {
+    FPrintF(stderr, "Reason: %s\n", details.detail);
+  }
 
   Isolate* isolate = Isolate::TryGetCurrent();
   bool report_on_fatalerror;

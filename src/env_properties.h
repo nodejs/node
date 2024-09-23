@@ -43,6 +43,7 @@
 #define PER_ISOLATE_SYMBOL_PROPERTIES(V)                                       \
   V(fs_use_promises_symbol, "fs_use_promises_symbol")                          \
   V(async_id_symbol, "async_id_symbol")                                        \
+  V(constructor_key_symbol, "constructor_key_symbol")                          \
   V(handle_onclose_symbol, "handle_onclose")                                   \
   V(no_message_symbol, "no_message_symbol")                                    \
   V(messaging_deserialize_symbol, "messaging_deserialize_symbol")              \
@@ -56,6 +57,7 @@
   V(resource_symbol, "resource_symbol")                                        \
   V(trigger_async_id_symbol, "trigger_async_id_symbol")                        \
   V(source_text_module_default_hdo, "source_text_module_default_hdo")          \
+  V(vm_context_no_contextify, "vm_context_no_contextify")                      \
   V(vm_dynamic_import_default_internal, "vm_dynamic_import_default_internal")  \
   V(vm_dynamic_import_main_context_default,                                    \
     "vm_dynamic_import_main_context_default")                                  \
@@ -96,6 +98,7 @@
     "transferList")                                                            \
   V(clone_untransferable_str, "Found invalid value in transferList.")          \
   V(code_string, "code")                                                       \
+  V(column_string, "column")                                                   \
   V(commonjs_string, "commonjs")                                               \
   V(config_string, "config")                                                   \
   V(constants_string, "constants")                                             \
@@ -142,6 +145,8 @@
   V(env_var_settings_string, "envVarSettings")                                 \
   V(errno_string, "errno")                                                     \
   V(error_string, "error")                                                     \
+  V(events, "events")                                                          \
+  V(events_waiting, "eventsWaiting")                                           \
   V(exchange_string, "exchange")                                               \
   V(expire_string, "expire")                                                   \
   V(exponent_string, "exponent")                                               \
@@ -162,6 +167,7 @@
   V(fragment_string, "fragment")                                               \
   V(frames_received_string, "framesReceived")                                  \
   V(frames_sent_string, "framesSent")                                          \
+  V(function_name_string, "functionName")                                      \
   V(function_string, "function")                                               \
   V(get_string, "get")                                                         \
   V(get_data_clone_error_string, "_getDataCloneError")                         \
@@ -211,6 +217,8 @@
   V(kind_string, "kind")                                                       \
   V(length_string, "length")                                                   \
   V(library_string, "library")                                                 \
+  V(line_number_string, "lineNumber")                                          \
+  V(loop_count, "loopCount")                                                   \
   V(mac_string, "mac")                                                         \
   V(max_buffer_string, "maxBuffer")                                            \
   V(max_concurrent_streams_string, "maxConcurrentStreams")                     \
@@ -255,6 +263,7 @@
   V(openssl_error_stack, "opensslErrorStack")                                  \
   V(options_string, "options")                                                 \
   V(order_string, "order")                                                     \
+  V(original_string, "original")                                               \
   V(output_string, "output")                                                   \
   V(overlapped_string, "overlapped")                                           \
   V(parse_error_string, "Parse Error")                                         \
@@ -288,12 +297,18 @@
   V(regexp_string, "regexp")                                                   \
   V(rename_string, "rename")                                                   \
   V(replacement_string, "replacement")                                         \
+  V(required_module_facade_url_string,                                         \
+    "node:internal/require_module_default_facade")                             \
+  V(required_module_facade_source_string,                                      \
+    "export * from 'original'; export { default } from 'original'; export "    \
+    "const __esModule = true;")                                                \
   V(require_string, "require")                                                 \
   V(resource_string, "resource")                                               \
   V(retry_string, "retry")                                                     \
   V(salt_length_string, "saltLength")                                          \
   V(scheme_string, "scheme")                                                   \
   V(scopeid_string, "scopeid")                                                 \
+  V(script_name_string, "scriptName")                                          \
   V(serial_number_string, "serialNumber")                                      \
   V(serial_string, "serial")                                                   \
   V(servername_string, "servername")                                           \
@@ -395,6 +410,7 @@
   V(secure_context_constructor_template, v8::FunctionTemplate)                 \
   V(shutdown_wrap_template, v8::ObjectTemplate)                                \
   V(socketaddress_constructor_template, v8::FunctionTemplate)                  \
+  V(sqlite_statement_sync_constructor_template, v8::FunctionTemplate)          \
   V(streambaseentry_ctor_template, v8::FunctionTemplate)                       \
   V(streambaseoutputstream_constructor_template, v8::ObjectTemplate)           \
   V(streamentry_ctor_template, v8::FunctionTemplate)                           \
@@ -440,7 +456,9 @@
   V(immediate_callback_function, v8::Function)                                 \
   V(inspector_console_extension_installer, v8::Function)                       \
   V(inspector_disable_async_hooks, v8::Function)                               \
+  V(inspector_disable_network_tracking, v8::Function)                          \
   V(inspector_enable_async_hooks, v8::Function)                                \
+  V(inspector_enable_network_tracking, v8::Function)                           \
   V(maybe_cache_generated_source_map, v8::Function)                            \
   V(messaging_deserialize_create_object, v8::Function)                         \
   V(message_port, v8::Object)                                                  \

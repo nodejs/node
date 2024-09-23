@@ -645,6 +645,31 @@ function errorRequest (client, request, err) {
 const kEnumerableProperty = Object.create(null)
 kEnumerableProperty.enumerable = true
 
+const normalizedMethodRecordsBase = {
+  delete: 'DELETE',
+  DELETE: 'DELETE',
+  get: 'GET',
+  GET: 'GET',
+  head: 'HEAD',
+  HEAD: 'HEAD',
+  options: 'OPTIONS',
+  OPTIONS: 'OPTIONS',
+  post: 'POST',
+  POST: 'POST',
+  put: 'PUT',
+  PUT: 'PUT'
+}
+
+const normalizedMethodRecords = {
+  ...normalizedMethodRecordsBase,
+  patch: 'patch',
+  PATCH: 'PATCH'
+}
+
+// Note: object prototypes should not be able to be referenced. e.g. `Object#hasOwnProperty`.
+Object.setPrototypeOf(normalizedMethodRecordsBase, null)
+Object.setPrototypeOf(normalizedMethodRecords, null)
+
 module.exports = {
   kEnumerableProperty,
   nop,
@@ -683,6 +708,8 @@ module.exports = {
   isValidHeaderValue,
   isTokenCharCode,
   parseRangeHeader,
+  normalizedMethodRecordsBase,
+  normalizedMethodRecords,
   isValidPort,
   isHttpOrHttpsPrefixed,
   nodeMajor,

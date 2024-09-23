@@ -23,6 +23,7 @@ namespace internal {
 // Sets the embedder fields to 0 for a TypedArray which is under construction.
 void TypedArrayBuiltinsAssembler::SetupTypedArrayEmbedderFields(
     TNode<JSTypedArray> holder) {
+  InitializeJSAPIObjectWithEmbedderSlotsCppHeapWrapperPtr(holder);
   for (int offset = JSTypedArray::kHeaderSize;
        offset < JSTypedArray::kSizeWithEmbedderFields; offset += kTaggedSize) {
     // TODO(v8:10391, saelo): Handle external pointers in EmbedderDataSlot
@@ -68,6 +69,8 @@ TNode<JSArrayBuffer> TypedArrayBuiltinsAssembler::AllocateEmptyOnHeapBuffer(
                                  UndefinedConstant());
   StoreBoundedSizeToObject(buffer, JSArrayBuffer::kRawByteLengthOffset,
                            UintPtrConstant(0));
+  StoreBoundedSizeToObject(buffer, JSArrayBuffer::kRawMaxByteLengthOffset,
+                           UintPtrConstant(0));
   StoreSandboxedPointerToObject(buffer, JSArrayBuffer::kBackingStoreOffset,
                                 EmptyBackingStoreBufferConstant());
 #ifdef V8_COMPRESS_POINTERS
@@ -79,6 +82,7 @@ TNode<JSArrayBuffer> TypedArrayBuiltinsAssembler::AllocateEmptyOnHeapBuffer(
   StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kExtensionOffset,
                                  IntPtrConstant(0));
 #endif
+  InitializeJSAPIObjectWithEmbedderSlotsCppHeapWrapperPtr(buffer);
   for (int offset = JSArrayBuffer::kHeaderSize;
        offset < JSArrayBuffer::kSizeWithEmbedderFields; offset += kTaggedSize) {
     // TODO(v8:10391, saelo): Handle external pointers in EmbedderDataSlot
@@ -149,8 +153,9 @@ TF_BUILTIN(TypedArrayPrototypeByteLength, TypedArrayBuiltinsAssembler) {
   {
     // Default to zero if the {receiver}s buffer was detached.
     TNode<UintPtrT> byte_length = Select<UintPtrT>(
-        IsDetachedBuffer(receiver_buffer), [=] { return UintPtrConstant(0); },
-        [=] { return LoadJSArrayBufferViewByteLength(receiver_array); });
+        IsDetachedBuffer(receiver_buffer),
+        [=, this] { return UintPtrConstant(0); },
+        [=, this] { return LoadJSArrayBufferViewByteLength(receiver_array); });
     Return(ChangeUintPtrToTagged(byte_length));
   }
 }
