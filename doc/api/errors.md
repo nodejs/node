@@ -2573,6 +2573,12 @@ disconnected socket.
 
 A call was made and the UDP subsystem was not running.
 
+<a id="ERR_SOURCE_MAP_MISSING_SOURCE"></a>
+
+### `ERR_SOURCE_MAP_MISSING_SOURCE`
+
+A file imported from a source map was not found.
+
 <a id="ERR_SQLITE_ERROR"></a>
 
 ### `ERR_SQLITE_ERROR`
