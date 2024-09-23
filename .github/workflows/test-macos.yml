@@ -73,7 +73,7 @@ jobs:
           echo "::endgroup::"
           echo "::group::Cleaned Files"
 
-          sudo rm -rfv /Users/runner/Library/Android/sdk
+          sudo rm -rf /Users/runner/Library/Android/sdk
 
           echo "::endgroup::"
           echo "::group::Free space after cleanup"
@@ -81,5 +81,7 @@ jobs:
           echo "::endgroup::"
       - name: Build
         run: make build-ci -j$(getconf _NPROCESSORS_ONLN) V=1 CONFIG_FLAGS="--error-on-warn"
+      - name: Free Space After Build
+        run: df -h
       - name: Test
         run: make run-ci -j$(getconf _NPROCESSORS_ONLN) V=1 TEST_CI_ARGS="-p actions --node-args='--test-reporter=spec' --node-args='--test-reporter-destination=stdout' --measure-flakiness 9"

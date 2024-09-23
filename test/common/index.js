@@ -30,7 +30,7 @@ const net = require('net');
 // Do not require 'os' until needed so that test-os-checked-function can
 // monkey patch it. If 'os' is required here, that test will fail.
 const path = require('path');
-const { inspect } = require('util');
+const { inspect, getCallSite } = require('util');
 const { isMainThread } = require('worker_threads');
 const { isModuleNamespaceObject } = require('util/types');
 
@@ -551,25 +551,13 @@ function canCreateSymLink() {
   return true;
 }
 
-function getCallSite(top) {
-  const originalStackFormatter = Error.prepareStackTrace;
-  Error.prepareStackTrace = (err, stack) =>
-    `${stack[0].getFileName()}:${stack[0].getLineNumber()}`;
-  const err = new Error();
-  Error.captureStackTrace(err, top);
-  // With the V8 Error API, the stack is not formatted until it is accessed
-  err.stack; // eslint-disable-line no-unused-expressions
-  Error.prepareStackTrace = originalStackFormatter;
-  return err.stack;
-}
-
 function mustNotCall(msg) {
-  const callSite = getCallSite(mustNotCall);
+  const callSite = getCallSite()[1];
   return function mustNotCall(...args) {
     const argsInfo = args.length > 0 ?
       `\ncalled with arguments: ${args.map((arg) => inspect(arg)).join(', ')}` : '';
     assert.fail(
-      `${msg || 'function should not have been called'} at ${callSite}` +
+      `${msg || 'function should not have been called'} at ${callSite.scriptName}:${callSite.lineNumber}` +
       argsInfo);
   };
 }
@@ -968,7 +956,6 @@ const common = {
   expectWarning,
   getArrayBufferViews,
   getBufferSources,
-  getCallSite,
   getPrintedStackTrace,
   getTTYfd,
   hasIntl,

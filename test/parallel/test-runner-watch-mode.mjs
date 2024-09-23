@@ -42,11 +42,13 @@ async function testWatch({
   file,
   action = 'update',
   fileToCreate,
+  isolation,
 }) {
   const ran1 = util.createDeferredPromise();
   const ran2 = util.createDeferredPromise();
   const child = spawn(process.execPath,
                       ['--watch', '--test', '--test-reporter=spec',
+                       isolation ? `--experimental-test-isolation=${isolation}` : '',
                        file ? fixturePaths[file] : undefined].filter(Boolean),
                       { encoding: 'utf8', stdio: 'pipe', cwd: tmpdir.path });
   let stdout = '';
@@ -166,31 +168,39 @@ async function testWatch({
 
 describe('test runner watch mode', () => {
   beforeEach(refresh);
-  it('should run tests repeatedly', async () => {
-    await testWatch({ file: 'test.js', fileToUpdate: 'test.js' });
-  });
+  for (const isolation of ['none', 'process']) {
+    describe(`isolation: ${isolation}`, () => {
+      it('should run tests repeatedly', async () => {
+        await testWatch({ file: 'test.js', fileToUpdate: 'test.js', isolation });
+      });
 
-  it('should run tests with dependency repeatedly', async () => {
-    await testWatch({ file: 'test.js', fileToUpdate: 'dependency.js' });
-  });
+      it('should run tests with dependency repeatedly', async () => {
+        await testWatch({ file: 'test.js', fileToUpdate: 'dependency.js', isolation });
+      });
 
-  it('should run tests with ESM dependency', async () => {
-    await testWatch({ file: 'test.js', fileToUpdate: 'dependency.mjs' });
-  });
+      it('should run tests with ESM dependency', async () => {
+        await testWatch({ file: 'test.js', fileToUpdate: 'dependency.mjs', isolation });
+      });
 
-  it('should support running tests without a file', async () => {
-    await testWatch({ fileToUpdate: 'test.js' });
-  });
+      it('should support running tests without a file', async () => {
+        await testWatch({ fileToUpdate: 'test.js', isolation });
+      });
 
-  it('should support a watched test file rename', async () => {
-    await testWatch({ fileToUpdate: 'test.js', action: 'rename' });
-  });
+      it('should support a watched test file rename', async () => {
+        await testWatch({ fileToUpdate: 'test.js', action: 'rename', isolation });
+      });
 
-  it('should not throw when delete a watched test file', async () => {
-    await testWatch({ fileToUpdate: 'test.js', action: 'delete' });
-  });
+      it('should not throw when delete a watched test file', async () => {
+        await testWatch({ fileToUpdate: 'test.js', action: 'delete', isolation });
+      });
 
-  it('should run new tests when a new file is created in the watched directory', async () => {
-    await testWatch({ action: 'create', fileToCreate: 'new-test-file.test.js' });
-  });
+      it('should run new tests when a new file is created in the watched directory', {
+        todo: isolation === 'none' ?
+          'This test is failing when isolation is set to none and must be fixed' :
+          undefined,
+      }, async () => {
+        await testWatch({ action: 'create', fileToCreate: 'new-test-file.test.js', isolation });
+      });
+    });
+  }
 });
