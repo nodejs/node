@@ -282,6 +282,8 @@ For information about the governance of the Node.js project, see
 
 ### Collaborators
 
+* [abmusse](https://github.com/abmusse) -
+  **Abdirahim Musse** <<abdirahim.musse@ibm.com>>
 * [addaleax](https://github.com/addaleax) -
   **Anna Henningsen** <<anna@addaleax.net>> (she/her)
 * [aduh95](https://github.com/aduh95) -
