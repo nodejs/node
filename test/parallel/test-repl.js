@@ -129,6 +129,17 @@ const strictModeTests = [
   },
 ];
 
+const possibleTokensAfterIdentifierWithLineBreak = [
+  '(\n)',
+  '[\n0]',
+  '+\n1', '- \n1', '* \n1', '/ \n1', '% \n1', '** \n1',
+  '== \n1', '=== \n1', '!= \n1', '!== \n1', '< \n1', '> \n1', '<= \n1', '>= \n1',
+  '&& \n1', '|| \n1', '?? \n1',
+  '= \n1', '+= \n1', '-= \n1', '*= \n1', '/= \n1', '%= \n1',
+  ': \n',
+  '? \n1: 1',
+];
+
 const errorTests = [
   // Uncaught error throws and prints out
   {
@@ -387,6 +398,16 @@ const errorTests = [
     ]
   },
   {
+    send: 'let npm = () => {};',
+    expect: 'undefined'
+  },
+  ...possibleTokensAfterIdentifierWithLineBreak.map((token) => (
+    {
+      send: `npm ${token}; undefined`,
+      expect: '... undefined'
+    }
+  )),
+  {
     send: '(function() {\n\nreturn 1;\n})()',
     expect: '... ... ... 1'
   },
@@ -577,11 +598,12 @@ const errorTests = [
       /^Uncaught Error: Cannot find module 'internal\/repl'/,
       /^Require stack:/,
       /^- <repl>/,
-      /^ {4}at .*/,
-      /^ {4}at .*/,
-      /^ {4}at .*/,
-      /^ {4}at .*/,
-      /^ {4}at .*/,
+      /^ {4}at .*/, // at Module._resolveFilename
+      /^ {4}at .*/, // at Module._load
+      /^ {4}at .*/, // at TracingChannel.traceSync
+      /^ {4}at .*/, // at wrapModuleLoad
+      /^ {4}at .*/, // at Module.require
+      /^ {4}at .*/, // at require
       "  code: 'MODULE_NOT_FOUND',",
       "  requireStack: [ '<repl>' ]",
       '}',

@@ -497,16 +497,11 @@ const CallableInstance =
         const proto =  (
           constr.prototype
         );
-        const func = proto[property];
+        const value = proto[property];
         const apply = function () {
-          return func.apply(apply, arguments)
+          return value.apply(apply, arguments)
         };
         Object.setPrototypeOf(apply, proto);
-        const names = Object.getOwnPropertyNames(func);
-        for (const p of names) {
-          const descriptor = Object.getOwnPropertyDescriptor(func, p);
-          if (descriptor) Object.defineProperty(apply, p, descriptor);
-        }
         return apply
       }
     )
@@ -6867,11 +6862,7 @@ function fromMarkdown(value, encoding, options) {
     options = encoding;
     encoding = undefined;
   }
-  return compiler(options)(
-    postprocess(
-      parse$2(options).document().write(preprocess()(value, encoding, true))
-    )
-  )
+  return compiler(options)(postprocess(parse$2(options).document().write(preprocess()(value, encoding, true))));
 }
 function compiler(options) {
   const config = {
@@ -6931,6 +6922,7 @@ function compiler(options) {
       characterReferenceMarkerHexadecimal: onexitcharacterreferencemarker,
       characterReferenceMarkerNumeric: onexitcharacterreferencemarker,
       characterReferenceValue: onexitcharacterreferencevalue,
+      characterReference: onexitcharacterreference,
       codeFenced: closer(onexitcodefenced),
       codeFencedFence: onexitcodefencedfence,
       codeFencedFenceInfo: onexitcodefencedfenceinfo,
@@ -6973,7 +6965,7 @@ function compiler(options) {
   };
   configure$1(config, (options || {}).mdastExtensions || []);
   const data = {};
-  return compile
+  return compile;
   function compile(events) {
     let tree = {
       type: 'root',
@@ -6992,10 +6984,7 @@ function compiler(options) {
     const listStack = [];
     let index = -1;
     while (++index < events.length) {
-      if (
-        events[index][1].type === 'listOrdered' ||
-        events[index][1].type === 'listUnordered'
-      ) {
+      if (events[index][1].type === "listOrdered" || events[index][1].type === "listUnordered") {
         if (events[index][0] === 'enter') {
           listStack.push(index);
         } else {
@@ -7008,15 +6997,9 @@ function compiler(options) {
     while (++index < events.length) {
       const handler = config[events[index][0]];
       if (own$3.call(handler, events[index][1].type)) {
-        handler[events[index][1].type].call(
-          Object.assign(
-            {
-              sliceSerialize: events[index][2].sliceSerialize
-            },
-            context
-          ),
-          events[index][1]
-        );
+        handler[events[index][1].type].call(Object.assign({
+          sliceSerialize: events[index][2].sliceSerialize
+        }, context), events[index][1]);
       }
     }
     if (context.tokenStack.length > 0) {
@@ -7025,30 +7008,22 @@ function compiler(options) {
       handler.call(context, undefined, tail[0]);
     }
     tree.position = {
-      start: point$1(
-        events.length > 0
-          ? events[0][1].start
-          : {
-              line: 1,
-              column: 1,
-              offset: 0
-            }
-      ),
-      end: point$1(
-        events.length > 0
-          ? events[events.length - 2][1].end
-          : {
-              line: 1,
-              column: 1,
-              offset: 0
-            }
-      )
+      start: point$1(events.length > 0 ? events[0][1].start : {
+        line: 1,
+        column: 1,
+        offset: 0
+      }),
+      end: point$1(events.length > 0 ? events[events.length - 2][1].end : {
+        line: 1,
+        column: 1,
+        offset: 0
+      })
     };
     index = -1;
     while (++index < config.transforms.length) {
       tree = config.transforms[index](tree) || tree;
     }
-    return tree
+    return tree;
   }
   function prepareList(events, start, length) {
     let index = start - 1;
@@ -7061,92 +7036,68 @@ function compiler(options) {
     while (++index <= length) {
       const event = events[index];
       switch (event[1].type) {
-        case 'listUnordered':
-        case 'listOrdered':
-        case 'blockQuote': {
-          if (event[0] === 'enter') {
-            containerBalance++;
-          } else {
-            containerBalance--;
-          }
-          atMarker = undefined;
-          break
-        }
-        case 'lineEndingBlank': {
-          if (event[0] === 'enter') {
-            if (
-              listItem &&
-              !atMarker &&
-              !containerBalance &&
-              !firstBlankLineIndex
-            ) {
-              firstBlankLineIndex = index;
+        case "listUnordered":
+        case "listOrdered":
+        case "blockQuote":
+          {
+            if (event[0] === 'enter') {
+              containerBalance++;
+            } else {
+              containerBalance--;
             }
             atMarker = undefined;
+            break;
           }
-          break
-        }
-        case 'linePrefix':
-        case 'listItemValue':
-        case 'listItemMarker':
-        case 'listItemPrefix':
-        case 'listItemPrefixWhitespace': {
-          break
-        }
-        default: {
-          atMarker = undefined;
-        }
+        case "lineEndingBlank":
+          {
+            if (event[0] === 'enter') {
+              if (listItem && !atMarker && !containerBalance && !firstBlankLineIndex) {
+                firstBlankLineIndex = index;
+              }
+              atMarker = undefined;
+            }
+            break;
+          }
+        case "linePrefix":
+        case "listItemValue":
+        case "listItemMarker":
+        case "listItemPrefix":
+        case "listItemPrefixWhitespace":
+          {
+            break;
+          }
+        default:
+          {
+            atMarker = undefined;
+          }
       }
-      if (
-        (!containerBalance &&
-          event[0] === 'enter' &&
-          event[1].type === 'listItemPrefix') ||
-        (containerBalance === -1 &&
-          event[0] === 'exit' &&
-          (event[1].type === 'listUnordered' ||
-            event[1].type === 'listOrdered'))
-      ) {
+      if (!containerBalance && event[0] === 'enter' && event[1].type === "listItemPrefix" || containerBalance === -1 && event[0] === 'exit' && (event[1].type === "listUnordered" || event[1].type === "listOrdered")) {
         if (listItem) {
           let tailIndex = index;
           lineIndex = undefined;
           while (tailIndex--) {
             const tailEvent = events[tailIndex];
-            if (
-              tailEvent[1].type === 'lineEnding' ||
-              tailEvent[1].type === 'lineEndingBlank'
-            ) {
-              if (tailEvent[0] === 'exit') continue
+            if (tailEvent[1].type === "lineEnding" || tailEvent[1].type === "lineEndingBlank") {
+              if (tailEvent[0] === 'exit') continue;
               if (lineIndex) {
-                events[lineIndex][1].type = 'lineEndingBlank';
+                events[lineIndex][1].type = "lineEndingBlank";
                 listSpread = true;
               }
-              tailEvent[1].type = 'lineEnding';
+              tailEvent[1].type = "lineEnding";
               lineIndex = tailIndex;
-            } else if (
-              tailEvent[1].type === 'linePrefix' ||
-              tailEvent[1].type === 'blockQuotePrefix' ||
-              tailEvent[1].type === 'blockQuotePrefixWhitespace' ||
-              tailEvent[1].type === 'blockQuoteMarker' ||
-              tailEvent[1].type === 'listItemIndent'
-            ) ; else {
-              break
+            } else if (tailEvent[1].type === "linePrefix" || tailEvent[1].type === "blockQuotePrefix" || tailEvent[1].type === "blockQuotePrefixWhitespace" || tailEvent[1].type === "blockQuoteMarker" || tailEvent[1].type === "listItemIndent") ; else {
+              break;
             }
           }
-          if (
-            firstBlankLineIndex &&
-            (!lineIndex || firstBlankLineIndex < lineIndex)
-          ) {
+          if (firstBlankLineIndex && (!lineIndex || firstBlankLineIndex < lineIndex)) {
             listItem._spread = true;
           }
-          listItem.end = Object.assign(
-            {},
-            lineIndex ? events[lineIndex][1].start : event[1].end
-          );
+          listItem.end = Object.assign({}, lineIndex ? events[lineIndex][1].start : event[1].end);
           events.splice(lineIndex || index, 0, ['exit', listItem, event[2]]);
           index++;
           length++;
         }
-        if (event[1].type === 'listItemPrefix') {
+        if (event[1].type === "listItemPrefix") {
           const item = {
             type: 'listItem',
             _spread: false,
@@ -7163,10 +7114,10 @@ function compiler(options) {
       }
     }
     events[start][1]._spread = listSpread;
-    return length
+    return length;
   }
   function opener(create, and) {
-    return open
+    return open;
     function open(token) {
       enter.call(this, create(token), token);
       if (and) and.call(this, token);
@@ -7190,7 +7141,7 @@ function compiler(options) {
     };
   }
   function closer(and) {
-    return close
+    return close;
     function close(token) {
       if (and) and.call(this, token);
       exit.call(this, token);
@@ -7200,16 +7151,10 @@ function compiler(options) {
     const node = this.stack.pop();
     const open = this.tokenStack.pop();
     if (!open) {
-      throw new Error(
-        'Cannot close `' +
-          token.type +
-          '` (' +
-          stringifyPosition({
-            start: token.start,
-            end: token.end
-          }) +
-          '): it’s not open'
-      )
+      throw new Error('Cannot close `' + token.type + '` (' + stringifyPosition({
+        start: token.start,
+        end: token.end
+      }) + '): it’s not open');
     } else if (open[0].type !== token.type) {
       if (onExitError) {
         onExitError.call(this, token, open[0]);
@@ -7221,7 +7166,7 @@ function compiler(options) {
     node.position.end = point$1(token.end);
   }
   function resume() {
-    return toString(this.stack.pop())
+    return toString(this.stack.pop());
   }
   function onenterlistordered() {
     this.data.expectingFirstListItemValue = true;
@@ -7244,7 +7189,7 @@ function compiler(options) {
     node.meta = data;
   }
   function onexitcodefencedfence() {
-    if (this.data.flowCodeInside) return
+    if (this.data.flowCodeInside) return;
     this.buffer();
     this.data.flowCodeInside = true;
   }
@@ -7263,9 +7208,7 @@ function compiler(options) {
     const label = this.resume();
     const node = this.stack[this.stack.length - 1];
     node.label = label;
-    node.identifier = normalizeIdentifier(
-      this.sliceSerialize(token)
-    ).toLowerCase();
+    node.identifier = normalizeIdentifier(this.sliceSerialize(token)).toLowerCase();
   }
   function onexitdefinitiontitlestring() {
     const data = this.resume();
@@ -7319,12 +7262,9 @@ function compiler(options) {
       const tail = context.children[context.children.length - 1];
       tail.position.end = point$1(token.end);
       this.data.atHardBreak = undefined;
-      return
+      return;
     }
-    if (
-      !this.data.setextHeadingSlurpLineEnding &&
-      config.canContainEols.includes(context.type)
-    ) {
+    if (!this.data.setextHeadingSlurpLineEnding && config.canContainEols.includes(context.type)) {
       onenterdata.call(this, token);
       onexitdata.call(this, token);
     }
@@ -7413,9 +7353,7 @@ function compiler(options) {
     const label = this.resume();
     const node = this.stack[this.stack.length - 1];
     node.label = label;
-    node.identifier = normalizeIdentifier(
-      this.sliceSerialize(token)
-    ).toLowerCase();
+    node.identifier = normalizeIdentifier(this.sliceSerialize(token)).toLowerCase();
     this.data.referenceType = 'full';
   }
   function onexitcharacterreferencemarker(token) {
@@ -7426,17 +7364,17 @@ function compiler(options) {
     const type = this.data.characterReferenceType;
     let value;
     if (type) {
-      value = decodeNumericCharacterReference(
-        data,
-        type === 'characterReferenceMarkerNumeric' ? 10 : 16
-      );
+      value = decodeNumericCharacterReference(data, type === "characterReferenceMarkerNumeric" ? 10 : 16);
       this.data.characterReferenceType = undefined;
     } else {
       const result = decodeNamedCharacterReference(data);
       value = result;
     }
-    const tail = this.stack.pop();
+    const tail = this.stack[this.stack.length - 1];
     tail.value += value;
+  }
+  function onexitcharacterreference(token) {
+    const tail = this.stack.pop();
     tail.position.end = point$1(token.end);
   }
   function onexitautolinkprotocol(token) {
@@ -7453,7 +7391,7 @@ function compiler(options) {
     return {
       type: 'blockquote',
       children: []
-    }
+    };
   }
   function codeFlow() {
     return {
@@ -7461,13 +7399,13 @@ function compiler(options) {
       lang: null,
       meta: null,
       value: ''
-    }
+    };
   }
   function codeText() {
     return {
       type: 'inlineCode',
       value: ''
-    }
+    };
   }
   function definition() {
     return {
@@ -7476,31 +7414,31 @@ function compiler(options) {
       label: null,
       title: null,
       url: ''
-    }
+    };
   }
   function emphasis() {
     return {
       type: 'emphasis',
       children: []
-    }
+    };
   }
   function heading() {
     return {
       type: 'heading',
       depth: 0,
       children: []
-    }
+    };
   }
   function hardBreak() {
     return {
       type: 'break'
-    }
+    };
   }
   function html() {
     return {
       type: 'html',
       value: ''
-    }
+    };
   }
   function image() {
     return {
@@ -7508,7 +7446,7 @@ function compiler(options) {
       title: null,
       url: '',
       alt: null
-    }
+    };
   }
   function link() {
     return {
@@ -7516,7 +7454,7 @@ function compiler(options) {
       title: null,
       url: '',
       children: []
-    }
+    };
   }
   function list(token) {
     return {
@@ -7525,7 +7463,7 @@ function compiler(options) {
       start: null,
       spread: token._spread,
       children: []
-    }
+    };
   }
   function listItem(token) {
     return {
@@ -7533,30 +7471,30 @@ function compiler(options) {
       spread: token._spread,
       checked: null,
       children: []
-    }
+    };
   }
   function paragraph() {
     return {
       type: 'paragraph',
       children: []
-    }
+    };
   }
   function strong() {
     return {
       type: 'strong',
       children: []
-    }
+    };
   }
   function text() {
     return {
       type: 'text',
       value: ''
-    }
+    };
   }
   function thematicBreak() {
     return {
       type: 'thematicBreak'
-    }
+    };
   }
 }
 function point$1(d) {
@@ -7564,7 +7502,7 @@ function point$1(d) {
     line: d.line,
     column: d.column,
     offset: d.offset
-  }
+  };
 }
 function configure$1(combined, extensions) {
   let index = -1;
@@ -7582,62 +7520,49 @@ function extension(combined, extension) {
   for (key in extension) {
     if (own$3.call(extension, key)) {
       switch (key) {
-        case 'canContainEols': {
-          const right = extension[key];
-          if (right) {
-            combined[key].push(...right);
+        case 'canContainEols':
+          {
+            const right = extension[key];
+            if (right) {
+              combined[key].push(...right);
+            }
+            break;
           }
-          break
-        }
-        case 'transforms': {
-          const right = extension[key];
-          if (right) {
-            combined[key].push(...right);
+        case 'transforms':
+          {
+            const right = extension[key];
+            if (right) {
+              combined[key].push(...right);
+            }
+            break;
           }
-          break
-        }
         case 'enter':
-        case 'exit': {
-          const right = extension[key];
-          if (right) {
-            Object.assign(combined[key], right);
+        case 'exit':
+          {
+            const right = extension[key];
+            if (right) {
+              Object.assign(combined[key], right);
+            }
+            break;
           }
-          break
-        }
       }
     }
   }
 }
 function defaultOnError(left, right) {
   if (left) {
-    throw new Error(
-      'Cannot close `' +
-        left.type +
-        '` (' +
-        stringifyPosition({
-          start: left.start,
-          end: left.end
-        }) +
-        '): a different token (`' +
-        right.type +
-        '`, ' +
-        stringifyPosition({
-          start: right.start,
-          end: right.end
-        }) +
-        ') is open'
-    )
+    throw new Error('Cannot close `' + left.type + '` (' + stringifyPosition({
+      start: left.start,
+      end: left.end
+    }) + '): a different token (`' + right.type + '`, ' + stringifyPosition({
+      start: right.start,
+      end: right.end
+    }) + ') is open');
   } else {
-    throw new Error(
-      'Cannot close document, a token (`' +
-        right.type +
-        '`, ' +
-        stringifyPosition({
-          start: right.start,
-          end: right.end
-        }) +
-        ') is still open'
-    )
+    throw new Error('Cannot close document, a token (`' + right.type + '`, ' + stringifyPosition({
+      start: right.start,
+      end: right.end
+    }) + ') is still open');
   }
 }
 
@@ -10101,14 +10026,17 @@ const emailDomainDotTrail = {
   partial: true
 };
 const wwwAutolink = {
+  name: 'wwwAutolink',
   tokenize: tokenizeWwwAutolink,
   previous: previousWww
 };
 const protocolAutolink = {
+  name: 'protocolAutolink',
   tokenize: tokenizeProtocolAutolink,
   previous: previousProtocol
 };
 const emailAutolink = {
+  name: 'emailAutolink',
   tokenize: tokenizeEmailAutolink,
   previous: previousEmail
 };
@@ -10116,14 +10044,13 @@ const text = {};
 function gfmAutolinkLiteral() {
   return {
     text
-  }
+  };
 }
 let code = 48;
 while (code < 123) {
   text[code] = emailAutolink;
   code++;
-  if (code === 58) code = 65;
-  else if (code === 91) code = 97;
+  if (code === 58) code = 65;else if (code === 91) code = 97;
 }
 text[43] = emailAutolink;
 text[45] = emailAutolink;
@@ -10137,183 +10064,152 @@ function tokenizeEmailAutolink(effects, ok, nok) {
   const self = this;
   let dot;
   let data;
-  return start
+  return start;
   function start(code) {
-    if (
-      !gfmAtext(code) ||
-      !previousEmail.call(self, self.previous) ||
-      previousUnbalanced(self.events)
-    ) {
-      return nok(code)
+    if (!gfmAtext(code) || !previousEmail.call(self, self.previous) || previousUnbalanced(self.events)) {
+      return nok(code);
     }
     effects.enter('literalAutolink');
     effects.enter('literalAutolinkEmail');
-    return atext(code)
+    return atext(code);
   }
   function atext(code) {
     if (gfmAtext(code)) {
       effects.consume(code);
-      return atext
+      return atext;
     }
     if (code === 64) {
       effects.consume(code);
-      return emailDomain
+      return emailDomain;
     }
-    return nok(code)
+    return nok(code);
   }
   function emailDomain(code) {
     if (code === 46) {
-      return effects.check(
-        emailDomainDotTrail,
-        emailDomainAfter,
-        emailDomainDot
-      )(code)
+      return effects.check(emailDomainDotTrail, emailDomainAfter, emailDomainDot)(code);
     }
     if (code === 45 || code === 95 || asciiAlphanumeric(code)) {
       data = true;
       effects.consume(code);
-      return emailDomain
+      return emailDomain;
     }
-    return emailDomainAfter(code)
+    return emailDomainAfter(code);
   }
   function emailDomainDot(code) {
     effects.consume(code);
     dot = true;
-    return emailDomain
+    return emailDomain;
   }
   function emailDomainAfter(code) {
     if (data && dot && asciiAlpha(self.previous)) {
       effects.exit('literalAutolinkEmail');
       effects.exit('literalAutolink');
-      return ok(code)
+      return ok(code);
     }
-    return nok(code)
+    return nok(code);
   }
 }
 function tokenizeWwwAutolink(effects, ok, nok) {
   const self = this;
-  return wwwStart
+  return wwwStart;
   function wwwStart(code) {
-    if (
-      (code !== 87 && code !== 119) ||
-      !previousWww.call(self, self.previous) ||
-      previousUnbalanced(self.events)
-    ) {
-      return nok(code)
+    if (code !== 87 && code !== 119 || !previousWww.call(self, self.previous) || previousUnbalanced(self.events)) {
+      return nok(code);
     }
     effects.enter('literalAutolink');
     effects.enter('literalAutolinkWww');
-    return effects.check(
-      wwwPrefix,
-      effects.attempt(domain, effects.attempt(path, wwwAfter), nok),
-      nok
-    )(code)
+    return effects.check(wwwPrefix, effects.attempt(domain, effects.attempt(path, wwwAfter), nok), nok)(code);
   }
   function wwwAfter(code) {
     effects.exit('literalAutolinkWww');
     effects.exit('literalAutolink');
-    return ok(code)
+    return ok(code);
   }
 }
 function tokenizeProtocolAutolink(effects, ok, nok) {
   const self = this;
   let buffer = '';
   let seen = false;
-  return protocolStart
+  return protocolStart;
   function protocolStart(code) {
-    if (
-      (code === 72 || code === 104) &&
-      previousProtocol.call(self, self.previous) &&
-      !previousUnbalanced(self.events)
-    ) {
+    if ((code === 72 || code === 104) && previousProtocol.call(self, self.previous) && !previousUnbalanced(self.events)) {
       effects.enter('literalAutolink');
       effects.enter('literalAutolinkHttp');
       buffer += String.fromCodePoint(code);
       effects.consume(code);
-      return protocolPrefixInside
+      return protocolPrefixInside;
     }
-    return nok(code)
+    return nok(code);
   }
   function protocolPrefixInside(code) {
     if (asciiAlpha(code) && buffer.length < 5) {
       buffer += String.fromCodePoint(code);
       effects.consume(code);
-      return protocolPrefixInside
+      return protocolPrefixInside;
     }
     if (code === 58) {
       const protocol = buffer.toLowerCase();
       if (protocol === 'http' || protocol === 'https') {
         effects.consume(code);
-        return protocolSlashesInside
+        return protocolSlashesInside;
       }
     }
-    return nok(code)
+    return nok(code);
   }
   function protocolSlashesInside(code) {
     if (code === 47) {
       effects.consume(code);
       if (seen) {
-        return afterProtocol
+        return afterProtocol;
       }
       seen = true;
-      return protocolSlashesInside
+      return protocolSlashesInside;
     }
-    return nok(code)
+    return nok(code);
   }
   function afterProtocol(code) {
-    return code === null ||
-      asciiControl(code) ||
-      markdownLineEndingOrSpace(code) ||
-      unicodeWhitespace(code) ||
-      unicodePunctuation(code)
-      ? nok(code)
-      : effects.attempt(domain, effects.attempt(path, protocolAfter), nok)(code)
+    return code === null || asciiControl(code) || markdownLineEndingOrSpace(code) || unicodeWhitespace(code) || unicodePunctuation(code) ? nok(code) : effects.attempt(domain, effects.attempt(path, protocolAfter), nok)(code);
   }
   function protocolAfter(code) {
     effects.exit('literalAutolinkHttp');
     effects.exit('literalAutolink');
-    return ok(code)
+    return ok(code);
   }
 }
 function tokenizeWwwPrefix(effects, ok, nok) {
   let size = 0;
-  return wwwPrefixInside
+  return wwwPrefixInside;
   function wwwPrefixInside(code) {
     if ((code === 87 || code === 119) && size < 3) {
       size++;
       effects.consume(code);
-      return wwwPrefixInside
+      return wwwPrefixInside;
     }
     if (code === 46 && size === 3) {
       effects.consume(code);
-      return wwwPrefixAfter
+      return wwwPrefixAfter;
     }
-    return nok(code)
+    return nok(code);
   }
   function wwwPrefixAfter(code) {
-    return code === null ? nok(code) : ok(code)
+    return code === null ? nok(code) : ok(code);
   }
 }
 function tokenizeDomain(effects, ok, nok) {
   let underscoreInLastSegment;
   let underscoreInLastLastSegment;
   let seen;
-  return domainInside
+  return domainInside;
   function domainInside(code) {
     if (code === 46 || code === 95) {
-      return effects.check(trail, domainAfter, domainAtPunctuation)(code)
+      return effects.check(trail, domainAfter, domainAtPunctuation)(code);
     }
-    if (
-      code === null ||
-      markdownLineEndingOrSpace(code) ||
-      unicodeWhitespace(code) ||
-      (code !== 45 && unicodePunctuation(code))
-    ) {
-      return domainAfter(code)
+    if (code === null || markdownLineEndingOrSpace(code) || unicodeWhitespace(code) || code !== 45 && unicodePunctuation(code)) {
+      return domainAfter(code);
     }
     seen = true;
     effects.consume(code);
-    return domainInside
+    return domainInside;
   }
   function domainAtPunctuation(code) {
     if (code === 95) {
@@ -10324,188 +10220,128 @@ function tokenizeDomain(effects, ok, nok) {
       underscoreInLastSegment = undefined;
     }
     effects.consume(code);
-    return domainInside
+    return domainInside;
   }
   function domainAfter(code) {
     if (underscoreInLastLastSegment || underscoreInLastSegment || !seen) {
-      return nok(code)
+      return nok(code);
     }
-    return ok(code)
+    return ok(code);
   }
 }
 function tokenizePath(effects, ok) {
   let sizeOpen = 0;
   let sizeClose = 0;
-  return pathInside
+  return pathInside;
   function pathInside(code) {
     if (code === 40) {
       sizeOpen++;
       effects.consume(code);
-      return pathInside
+      return pathInside;
     }
     if (code === 41 && sizeClose < sizeOpen) {
-      return pathAtPunctuation(code)
+      return pathAtPunctuation(code);
     }
-    if (
-      code === 33 ||
-      code === 34 ||
-      code === 38 ||
-      code === 39 ||
-      code === 41 ||
-      code === 42 ||
-      code === 44 ||
-      code === 46 ||
-      code === 58 ||
-      code === 59 ||
-      code === 60 ||
-      code === 63 ||
-      code === 93 ||
-      code === 95 ||
-      code === 126
-    ) {
-      return effects.check(trail, ok, pathAtPunctuation)(code)
+    if (code === 33 || code === 34 || code === 38 || code === 39 || code === 41 || code === 42 || code === 44 || code === 46 || code === 58 || code === 59 || code === 60 || code === 63 || code === 93 || code === 95 || code === 126) {
+      return effects.check(trail, ok, pathAtPunctuation)(code);
     }
-    if (
-      code === null ||
-      markdownLineEndingOrSpace(code) ||
-      unicodeWhitespace(code)
-    ) {
-      return ok(code)
+    if (code === null || markdownLineEndingOrSpace(code) || unicodeWhitespace(code)) {
+      return ok(code);
     }
     effects.consume(code);
-    return pathInside
+    return pathInside;
   }
   function pathAtPunctuation(code) {
     if (code === 41) {
       sizeClose++;
     }
     effects.consume(code);
-    return pathInside
+    return pathInside;
   }
 }
 function tokenizeTrail(effects, ok, nok) {
-  return trail
+  return trail;
   function trail(code) {
-    if (
-      code === 33 ||
-      code === 34 ||
-      code === 39 ||
-      code === 41 ||
-      code === 42 ||
-      code === 44 ||
-      code === 46 ||
-      code === 58 ||
-      code === 59 ||
-      code === 63 ||
-      code === 95 ||
-      code === 126
-    ) {
+    if (code === 33 || code === 34 || code === 39 || code === 41 || code === 42 || code === 44 || code === 46 || code === 58 || code === 59 || code === 63 || code === 95 || code === 126) {
       effects.consume(code);
-      return trail
+      return trail;
     }
     if (code === 38) {
       effects.consume(code);
-      return trailCharRefStart
+      return trailCharacterReferenceStart;
     }
     if (code === 93) {
       effects.consume(code);
-      return trailBracketAfter
+      return trailBracketAfter;
     }
     if (
-      code === 60 ||
-      code === null ||
-      markdownLineEndingOrSpace(code) ||
-      unicodeWhitespace(code)
-    ) {
-      return ok(code)
+    code === 60 ||
+    code === null || markdownLineEndingOrSpace(code) || unicodeWhitespace(code)) {
+      return ok(code);
     }
-    return nok(code)
+    return nok(code);
   }
   function trailBracketAfter(code) {
-    if (
-      code === null ||
-      code === 40 ||
-      code === 91 ||
-      markdownLineEndingOrSpace(code) ||
-      unicodeWhitespace(code)
-    ) {
-      return ok(code)
+    if (code === null || code === 40 || code === 91 || markdownLineEndingOrSpace(code) || unicodeWhitespace(code)) {
+      return ok(code);
     }
-    return trail(code)
+    return trail(code);
   }
-  function trailCharRefStart(code) {
-    return asciiAlpha(code) ? trailCharRefInside(code) : nok(code)
+  function trailCharacterReferenceStart(code) {
+    return asciiAlpha(code) ? trailCharacterReferenceInside(code) : nok(code);
   }
-  function trailCharRefInside(code) {
+  function trailCharacterReferenceInside(code) {
     if (code === 59) {
       effects.consume(code);
-      return trail
+      return trail;
     }
     if (asciiAlpha(code)) {
       effects.consume(code);
-      return trailCharRefInside
+      return trailCharacterReferenceInside;
     }
-    return nok(code)
+    return nok(code);
   }
 }
 function tokenizeEmailDomainDotTrail(effects, ok, nok) {
-  return start
+  return start;
   function start(code) {
     effects.consume(code);
-    return after
+    return after;
   }
   function after(code) {
-    return asciiAlphanumeric(code) ? nok(code) : ok(code)
+    return asciiAlphanumeric(code) ? nok(code) : ok(code);
   }
 }
 function previousWww(code) {
-  return (
-    code === null ||
-    code === 40 ||
-    code === 42 ||
-    code === 95 ||
-    code === 91 ||
-    code === 93 ||
-    code === 126 ||
-    markdownLineEndingOrSpace(code)
-  )
+  return code === null || code === 40 || code === 42 || code === 95 || code === 91 || code === 93 || code === 126 || markdownLineEndingOrSpace(code);
 }
 function previousProtocol(code) {
-  return !asciiAlpha(code)
+  return !asciiAlpha(code);
 }
 function previousEmail(code) {
-  return !(code === 47 || gfmAtext(code))
+  return !(code === 47 || gfmAtext(code));
 }
 function gfmAtext(code) {
-  return (
-    code === 43 ||
-    code === 45 ||
-    code === 46 ||
-    code === 95 ||
-    asciiAlphanumeric(code)
-  )
+  return code === 43 || code === 45 || code === 46 || code === 95 || asciiAlphanumeric(code);
 }
 function previousUnbalanced(events) {
   let index = events.length;
   let result = false;
   while (index--) {
     const token = events[index][1];
-    if (
-      (token.type === 'labelLink' || token.type === 'labelImage') &&
-      !token._balanced
-    ) {
+    if ((token.type === 'labelLink' || token.type === 'labelImage') && !token._balanced) {
       result = true;
-      break
+      break;
     }
     if (token._gfmAutolinkLiteralWalkedInto) {
       result = false;
-      break
+      break;
     }
   }
   if (events.length > 0 && !result) {
     events[events.length - 1][1]._gfmAutolinkLiteralWalkedInto = true;
   }
-  return result
+  return result;
 }
 
 const indent = {
@@ -10516,6 +10352,7 @@ function gfmFootnote() {
   return {
     document: {
       [91]: {
+        name: 'gfmFootnoteDefinition',
         tokenize: tokenizeDefinitionStart,
         continuation: {
           tokenize: tokenizeDefinitionContinuation
@@ -10525,15 +10362,17 @@ function gfmFootnote() {
     },
     text: {
       [91]: {
+        name: 'gfmFootnoteCall',
         tokenize: tokenizeGfmFootnoteCall
       },
       [93]: {
+        name: 'gfmPotentialFootnoteCall',
         add: 'after',
         tokenize: tokenizePotentialGfmFootnoteCall,
         resolveTo: resolveToPotentialGfmFootnoteCall
       }
     }
-  }
+  };
 }
 function tokenizePotentialGfmFootnoteCall(effects, ok, nok) {
   const self = this;
@@ -10542,52 +10381,41 @@ function tokenizePotentialGfmFootnoteCall(effects, ok, nok) {
   let labelStart;
   while (index--) {
     const token = self.events[index][1];
-    if (token.type === 'labelImage') {
+    if (token.type === "labelImage") {
       labelStart = token;
-      break
+      break;
     }
-    if (
-      token.type === 'gfmFootnoteCall' ||
-      token.type === 'labelLink' ||
-      token.type === 'label' ||
-      token.type === 'image' ||
-      token.type === 'link'
-    ) {
-      break
+    if (token.type === 'gfmFootnoteCall' || token.type === "labelLink" || token.type === "label" || token.type === "image" || token.type === "link") {
+      break;
     }
   }
-  return start
+  return start;
   function start(code) {
     if (!labelStart || !labelStart._balanced) {
-      return nok(code)
+      return nok(code);
     }
-    const id = normalizeIdentifier(
-      self.sliceSerialize({
-        start: labelStart.end,
-        end: self.now()
-      })
-    );
+    const id = normalizeIdentifier(self.sliceSerialize({
+      start: labelStart.end,
+      end: self.now()
+    }));
     if (id.codePointAt(0) !== 94 || !defined.includes(id.slice(1))) {
-      return nok(code)
+      return nok(code);
     }
     effects.enter('gfmFootnoteCallLabelMarker');
     effects.consume(code);
     effects.exit('gfmFootnoteCallLabelMarker');
-    return ok(code)
+    return ok(code);
   }
 }
 function resolveToPotentialGfmFootnoteCall(events, context) {
   let index = events.length;
   while (index--) {
-    if (
-      events[index][1].type === 'labelImage' &&
-      events[index][0] === 'enter'
-    ) {
+    if (events[index][1].type === "labelImage" && events[index][0] === 'enter') {
       events[index][1];
-      break
+      break;
     }
   }
-  events[index + 1][1].type = 'data';
+  events[index + 1][1].type = "data";
   events[index + 3][1].type = 'gfmFootnoteCallLabelMarker';
   const call = {
     type: 'gfmFootnoteCall',
@@ -10608,88 +10436,75 @@ function resolveToPotentialGfmFootnoteCall(events, context) {
     end: Object.assign({}, events[events.length - 1][1].start)
   };
   const chunk = {
-    type: 'chunkString',
+    type: "chunkString",
     contentType: 'string',
     start: Object.assign({}, string.start),
     end: Object.assign({}, string.end)
   };
   const replacement = [
-    events[index + 1],
-    events[index + 2],
-    ['enter', call, context],
-    events[index + 3],
-    events[index + 4],
-    ['enter', marker, context],
-    ['exit', marker, context],
-    ['enter', string, context],
-    ['enter', chunk, context],
-    ['exit', chunk, context],
-    ['exit', string, context],
-    events[events.length - 2],
-    events[events.length - 1],
-    ['exit', call, context]
-  ];
+  events[index + 1], events[index + 2], ['enter', call, context],
+  events[index + 3], events[index + 4],
+  ['enter', marker, context], ['exit', marker, context],
+  ['enter', string, context], ['enter', chunk, context], ['exit', chunk, context], ['exit', string, context],
+  events[events.length - 2], events[events.length - 1], ['exit', call, context]];
   events.splice(index, events.length - index + 1, ...replacement);
-  return events
+  return events;
 }
 function tokenizeGfmFootnoteCall(effects, ok, nok) {
   const self = this;
   const defined = self.parser.gfmFootnotes || (self.parser.gfmFootnotes = []);
   let size = 0;
   let data;
-  return start
+  return start;
   function start(code) {
     effects.enter('gfmFootnoteCall');
     effects.enter('gfmFootnoteCallLabelMarker');
     effects.consume(code);
     effects.exit('gfmFootnoteCallLabelMarker');
-    return callStart
+    return callStart;
   }
   function callStart(code) {
-    if (code !== 94) return nok(code)
+    if (code !== 94) return nok(code);
     effects.enter('gfmFootnoteCallMarker');
     effects.consume(code);
     effects.exit('gfmFootnoteCallMarker');
     effects.enter('gfmFootnoteCallString');
     effects.enter('chunkString').contentType = 'string';
-    return callData
+    return callData;
   }
   function callData(code) {
     if (
-      size > 999 ||
-      (code === 93 && !data) ||
-      code === null ||
-      code === 91 ||
-      markdownLineEndingOrSpace(code)
-    ) {
-      return nok(code)
+    size > 999 ||
+    code === 93 && !data ||
+    code === null || code === 91 || markdownLineEndingOrSpace(code)) {
+      return nok(code);
     }
     if (code === 93) {
       effects.exit('chunkString');
       const token = effects.exit('gfmFootnoteCallString');
       if (!defined.includes(normalizeIdentifier(self.sliceSerialize(token)))) {
-        return nok(code)
+        return nok(code);
       }
       effects.enter('gfmFootnoteCallLabelMarker');
       effects.consume(code);
       effects.exit('gfmFootnoteCallLabelMarker');
       effects.exit('gfmFootnoteCall');
-      return ok
+      return ok;
     }
     if (!markdownLineEndingOrSpace(code)) {
       data = true;
     }
     size++;
     effects.consume(code);
-    return code === 92 ? callEscape : callData
+    return code === 92 ? callEscape : callData;
   }
   function callEscape(code) {
     if (code === 91 || code === 92 || code === 93) {
       effects.consume(code);
       size++;
-      return callData
+      return callData;
     }
-    return callData(code)
+    return callData(code);
   }
 }
 function tokenizeDefinitionStart(effects, ok, nok) {
@@ -10698,14 +10513,14 @@ function tokenizeDefinitionStart(effects, ok, nok) {
   let identifier;
   let size = 0;
   let data;
-  return start
+  return start;
   function start(code) {
     effects.enter('gfmFootnoteDefinition')._container = true;
     effects.enter('gfmFootnoteDefinitionLabel');
     effects.enter('gfmFootnoteDefinitionLabelMarker');
     effects.consume(code);
     effects.exit('gfmFootnoteDefinitionLabelMarker');
-    return labelAtMarker
+    return labelAtMarker;
   }
   function labelAtMarker(code) {
     if (code === 94) {
@@ -10714,19 +10529,16 @@ function tokenizeDefinitionStart(effects, ok, nok) {
       effects.exit('gfmFootnoteDefinitionMarker');
       effects.enter('gfmFootnoteDefinitionLabelString');
       effects.enter('chunkString').contentType = 'string';
-      return labelInside
+      return labelInside;
     }
-    return nok(code)
+    return nok(code);
   }
   function labelInside(code) {
     if (
-      size > 999 ||
-      (code === 93 && !data) ||
-      code === null ||
-      code === 91 ||
-      markdownLineEndingOrSpace(code)
-    ) {
-      return nok(code)
+    size > 999 ||
+    code === 93 && !data ||
+    code === null || code === 91 || markdownLineEndingOrSpace(code)) {
+      return nok(code);
     }
     if (code === 93) {
       effects.exit('chunkString');
@@ -10736,22 +10548,22 @@ function tokenizeDefinitionStart(effects, ok, nok) {
       effects.consume(code);
       effects.exit('gfmFootnoteDefinitionLabelMarker');
       effects.exit('gfmFootnoteDefinitionLabel');
-      return labelAfter
+      return labelAfter;
     }
     if (!markdownLineEndingOrSpace(code)) {
       data = true;
     }
     size++;
     effects.consume(code);
-    return code === 92 ? labelEscape : labelInside
+    return code === 92 ? labelEscape : labelInside;
   }
   function labelEscape(code) {
     if (code === 91 || code === 92 || code === 93) {
       effects.consume(code);
       size++;
-      return labelInside
+      return labelInside;
     }
-    return labelInside(code)
+    return labelInside(code);
   }
   function labelAfter(code) {
     if (code === 58) {
@@ -10761,39 +10573,26 @@ function tokenizeDefinitionStart(effects, ok, nok) {
       if (!defined.includes(identifier)) {
         defined.push(identifier);
       }
-      return factorySpace(
-        effects,
-        whitespaceAfter,
-        'gfmFootnoteDefinitionWhitespace'
-      )
+      return factorySpace(effects, whitespaceAfter, 'gfmFootnoteDefinitionWhitespace');
     }
-    return nok(code)
+    return nok(code);
   }
   function whitespaceAfter(code) {
-    return ok(code)
+    return ok(code);
   }
 }
 function tokenizeDefinitionContinuation(effects, ok, nok) {
-  return effects.check(blankLine, ok, effects.attempt(indent, ok, nok))
+  return effects.check(blankLine, ok, effects.attempt(indent, ok, nok));
 }
 function gfmFootnoteDefinitionEnd(effects) {
   effects.exit('gfmFootnoteDefinition');
 }
 function tokenizeIndent(effects, ok, nok) {
   const self = this;
-  return factorySpace(
-    effects,
-    afterPrefix,
-    'gfmFootnoteDefinitionIndent',
-    4 + 1
-  )
+  return factorySpace(effects, afterPrefix, 'gfmFootnoteDefinitionIndent', 4 + 1);
   function afterPrefix(code) {
     const tail = self.events[self.events.length - 1];
-    return tail &&
-      tail[1].type === 'gfmFootnoteDefinitionIndent' &&
-      tail[2].sliceSerialize(tail[1], true).length === 4
-      ? ok(code)
-      : nok(code)
+    return tail && tail[1].type === 'gfmFootnoteDefinitionIndent' && tail[2].sliceSerialize(tail[1], true).length === 4 ? ok(code) : nok(code);
   }
 }
 
@@ -10801,6 +10600,7 @@ function gfmStrikethrough(options) {
   const options_ = options || {};
   let single = options_.singleTilde;
   const tokenizer = {
+    name: 'strikethrough',
     tokenize: tokenizeStrikethrough,
     resolveAll: resolveAllStrikethrough
   };
@@ -10817,24 +10617,15 @@ function gfmStrikethrough(options) {
     attentionMarkers: {
       null: [126]
     }
-  }
+  };
   function resolveAllStrikethrough(events, context) {
     let index = -1;
     while (++index < events.length) {
-      if (
-        events[index][0] === 'enter' &&
-        events[index][1].type === 'strikethroughSequenceTemporary' &&
-        events[index][1]._close
-      ) {
+      if (events[index][0] === 'enter' && events[index][1].type === 'strikethroughSequenceTemporary' && events[index][1]._close) {
         let open = index;
         while (open--) {
-          if (
-            events[open][0] === 'exit' &&
-            events[open][1].type === 'strikethroughSequenceTemporary' &&
-            events[open][1]._open &&
-            events[index][1].end.offset - events[index][1].start.offset ===
-              events[open][1].end.offset - events[open][1].start.offset
-          ) {
+          if (events[open][0] === 'exit' && events[open][1].type === 'strikethroughSequenceTemporary' && events[open][1]._open &&
+          events[index][1].end.offset - events[index][1].start.offset === events[open][1].end.offset - events[open][1].start.offset) {
             events[index][1].type = 'strikethroughSequence';
             events[open][1].type = 'strikethroughSequence';
             const strikethrough = {
@@ -10847,30 +10638,15 @@ function gfmStrikethrough(options) {
               start: Object.assign({}, events[open][1].end),
               end: Object.assign({}, events[index][1].start)
             };
-            const nextEvents = [
-              ['enter', strikethrough, context],
-              ['enter', events[open][1], context],
-              ['exit', events[open][1], context],
-              ['enter', text, context]
-            ];
+            const nextEvents = [['enter', strikethrough, context], ['enter', events[open][1], context], ['exit', events[open][1], context], ['enter', text, context]];
             const insideSpan = context.parser.constructs.insideSpan.null;
             if (insideSpan) {
-              splice(
-                nextEvents,
-                nextEvents.length,
-                0,
-                resolveAll(insideSpan, events.slice(open + 1, index), context)
-              );
+              splice(nextEvents, nextEvents.length, 0, resolveAll(insideSpan, events.slice(open + 1, index), context));
             }
-            splice(nextEvents, nextEvents.length, 0, [
-              ['exit', text, context],
-              ['enter', events[index][1], context],
-              ['exit', events[index][1], context],
-              ['exit', strikethrough, context]
-            ]);
+            splice(nextEvents, nextEvents.length, 0, [['exit', text, context], ['enter', events[index][1], context], ['exit', events[index][1], context], ['exit', strikethrough, context]]);
             splice(events, open - 1, index - open + 3, nextEvents);
             index = open + nextEvents.length - 2;
-            break
+            break;
           }
         }
       }
@@ -10878,40 +10654,37 @@ function gfmStrikethrough(options) {
     index = -1;
     while (++index < events.length) {
       if (events[index][1].type === 'strikethroughSequenceTemporary') {
-        events[index][1].type = 'data';
+        events[index][1].type = "data";
       }
     }
-    return events
+    return events;
   }
   function tokenizeStrikethrough(effects, ok, nok) {
     const previous = this.previous;
     const events = this.events;
     let size = 0;
-    return start
+    return start;
     function start(code) {
-      if (
-        previous === 126 &&
-        events[events.length - 1][1].type !== 'characterEscape'
-      ) {
-        return nok(code)
+      if (previous === 126 && events[events.length - 1][1].type !== "characterEscape") {
+        return nok(code);
       }
       effects.enter('strikethroughSequenceTemporary');
-      return more(code)
+      return more(code);
     }
     function more(code) {
       const before = classifyCharacter(previous);
       if (code === 126) {
-        if (size > 1) return nok(code)
+        if (size > 1) return nok(code);
         effects.consume(code);
         size++;
-        return more
+        return more;
       }
-      if (size < 2 && !single) return nok(code)
+      if (size < 2 && !single) return nok(code);
       const token = effects.exit('strikethroughSequenceTemporary');
       const after = classifyCharacter(code);
-      token._open = !after || (after === 2 && Boolean(before));
-      token._close = !before || (before === 2 && Boolean(after));
-      return ok(code)
+      token._open = !after || after === 2 && Boolean(before);
+      token._close = !before || before === 2 && Boolean(after);
+      return ok(code);
     }
   }
 }
@@ -10921,23 +10694,20 @@ class EditMap {
     this.map = [];
   }
   add(index, remove, add) {
-    addImpl(this, index, remove, add);
+    addImplementation(this, index, remove, add);
   }
   consume(events) {
     this.map.sort(function (a, b) {
-      return a[0] - b[0]
+      return a[0] - b[0];
     });
     if (this.map.length === 0) {
-      return
+      return;
     }
     let index = this.map.length;
     const vecs = [];
     while (index > 0) {
       index -= 1;
-      vecs.push(
-        events.slice(this.map[index][0] + this.map[index][1]),
-        this.map[index][2]
-      );
+      vecs.push(events.slice(this.map[index][0] + this.map[index][1]), this.map[index][2]);
       events.length = this.map[index][0];
     }
     vecs.push([...events]);
@@ -10950,16 +10720,16 @@ class EditMap {
     this.map.length = 0;
   }
 }
-function addImpl(editMap, at, remove, add) {
+function addImplementation(editMap, at, remove, add) {
   let index = 0;
   if (remove === 0 && add.length === 0) {
-    return
+    return;
   }
   while (index < editMap.map.length) {
     if (editMap.map[index][0] === at) {
       editMap.map[index][1] += remove;
       editMap.map[index][2].push(...add);
-      return
+      return;
     }
     index += 1;
   }
@@ -10974,11 +10744,7 @@ function gfmTableAlign(events, index) {
     if (inDelimiterRow) {
       if (event[0] === 'enter') {
         if (event[1].type === 'tableContent') {
-          align.push(
-            events[index + 1][1].type === 'tableDelimiterMarker'
-              ? 'left'
-              : 'none'
-          );
+          align.push(events[index + 1][1].type === 'tableDelimiterMarker' ? 'left' : 'none');
         }
       }
       else if (event[1].type === 'tableContent') {
@@ -10988,82 +10754,78 @@ function gfmTableAlign(events, index) {
         }
       }
       else if (event[1].type === 'tableDelimiterRow') {
-        break
+        break;
       }
     } else if (event[0] === 'enter' && event[1].type === 'tableDelimiterRow') {
       inDelimiterRow = true;
     }
     index += 1;
   }
-  return align
+  return align;
 }
 
 function gfmTable() {
   return {
     flow: {
       null: {
+        name: 'table',
         tokenize: tokenizeTable,
         resolveAll: resolveTable
       }
     }
-  }
+  };
 }
 function tokenizeTable(effects, ok, nok) {
   const self = this;
   let size = 0;
   let sizeB = 0;
   let seen;
-  return start
+  return start;
   function start(code) {
     let index = self.events.length - 1;
     while (index > -1) {
       const type = self.events[index][1].type;
-      if (
-        type === 'lineEnding' ||
-        type === 'linePrefix'
-      )
-        index--;
-      else break
+      if (type === "lineEnding" ||
+      type === "linePrefix") index--;else break;
     }
     const tail = index > -1 ? self.events[index][1].type : null;
-    const next =
-      tail === 'tableHead' || tail === 'tableRow' ? bodyRowStart : headRowBefore;
+    const next = tail === 'tableHead' || tail === 'tableRow' ? bodyRowStart : headRowBefore;
     if (next === bodyRowStart && self.parser.lazy[self.now().line]) {
-      return nok(code)
+      return nok(code);
     }
-    return next(code)
+    return next(code);
   }
   function headRowBefore(code) {
     effects.enter('tableHead');
     effects.enter('tableRow');
-    return headRowStart(code)
+    return headRowStart(code);
   }
   function headRowStart(code) {
     if (code === 124) {
-      return headRowBreak(code)
+      return headRowBreak(code);
     }
     seen = true;
     sizeB += 1;
-    return headRowBreak(code)
+    return headRowBreak(code);
   }
   function headRowBreak(code) {
     if (code === null) {
-      return nok(code)
+      return nok(code);
     }
     if (markdownLineEnding(code)) {
       if (sizeB > 1) {
         sizeB = 0;
         self.interrupt = true;
         effects.exit('tableRow');
-        effects.enter('lineEnding');
+        effects.enter("lineEnding");
         effects.consume(code);
-        effects.exit('lineEnding');
-        return headDelimiterStart
+        effects.exit("lineEnding");
+        return headDelimiterStart;
       }
-      return nok(code)
+      return nok(code);
     }
     if (markdownSpace(code)) {
-      return factorySpace(effects, headRowBreak, 'whitespace')(code)
+      return factorySpace(effects, headRowBreak, "whitespace")(code);
     }
     sizeB += 1;
     if (seen) {
@@ -11075,63 +10837,56 @@ function tokenizeTable(effects, ok, nok) {
       effects.consume(code);
       effects.exit('tableCellDivider');
       seen = true;
-      return headRowBreak
+      return headRowBreak;
     }
-    effects.enter('data');
-    return headRowData(code)
+    effects.enter("data");
+    return headRowData(code);
   }
   function headRowData(code) {
     if (code === null || code === 124 || markdownLineEndingOrSpace(code)) {
-      effects.exit('data');
-      return headRowBreak(code)
+      effects.exit("data");
+      return headRowBreak(code);
     }
     effects.consume(code);
-    return code === 92 ? headRowEscape : headRowData
+    return code === 92 ? headRowEscape : headRowData;
   }
   function headRowEscape(code) {
     if (code === 92 || code === 124) {
       effects.consume(code);
-      return headRowData
+      return headRowData;
     }
-    return headRowData(code)
+    return headRowData(code);
   }
   function headDelimiterStart(code) {
     self.interrupt = false;
     if (self.parser.lazy[self.now().line]) {
-      return nok(code)
+      return nok(code);
     }
     effects.enter('tableDelimiterRow');
     seen = false;
     if (markdownSpace(code)) {
-      return factorySpace(
-        effects,
-        headDelimiterBefore,
-        'linePrefix',
-        self.parser.constructs.disable.null.includes('codeIndented')
-          ? undefined
-          : 4
-      )(code)
+      return factorySpace(effects, headDelimiterBefore, "linePrefix", self.parser.constructs.disable.null.includes('codeIndented') ? undefined : 4)(code);
     }
-    return headDelimiterBefore(code)
+    return headDelimiterBefore(code);
   }
   function headDelimiterBefore(code) {
     if (code === 45 || code === 58) {
-      return headDelimiterValueBefore(code)
+      return headDelimiterValueBefore(code);
     }
     if (code === 124) {
       seen = true;
       effects.enter('tableCellDivider');
       effects.consume(code);
       effects.exit('tableCellDivider');
-      return headDelimiterCellBefore
+      return headDelimiterCellBefore;
     }
-    return headDelimiterNok(code)
+    return headDelimiterNok(code);
   }
   function headDelimiterCellBefore(code) {
     if (markdownSpace(code)) {
-      return factorySpace(effects, headDelimiterValueBefore, 'whitespace')(code)
+      return factorySpace(effects, headDelimiterValueBefore, "whitespace")(code);
     }
-    return headDelimiterValueBefore(code)
+    return headDelimiterValueBefore(code);
   }
   function headDelimiterValueBefore(code) {
     if (code === 58) {
@@ -11140,28 +10895,28 @@ function tokenizeTable(effects, ok, nok) {
       effects.enter('tableDelimiterMarker');
       effects.consume(code);
       effects.exit('tableDelimiterMarker');
-      return headDelimiterLeftAlignmentAfter
+      return headDelimiterLeftAlignmentAfter;
     }
     if (code === 45) {
       sizeB += 1;
-      return headDelimiterLeftAlignmentAfter(code)
+      return headDelimiterLeftAlignmentAfter(code);
     }
     if (code === null || markdownLineEnding(code)) {
-      return headDelimiterCellAfter(code)
+      return headDelimiterCellAfter(code);
     }
-    return headDelimiterNok(code)
+    return headDelimiterNok(code);
   }
   function headDelimiterLeftAlignmentAfter(code) {
     if (code === 45) {
       effects.enter('tableDelimiterFiller');
-      return headDelimiterFiller(code)
+      return headDelimiterFiller(code);
     }
-    return headDelimiterNok(code)
+    return headDelimiterNok(code);
   }
   function headDelimiterFiller(code) {
     if (code === 45) {
       effects.consume(code);
-      return headDelimiterFiller
+      return headDelimiterFiller;
     }
     if (code === 58) {
       seen = true;
@@ -11169,69 +10924,69 @@ function tokenizeTable(effects, ok, nok) {
       effects.enter('tableDelimiterMarker');
       effects.consume(code);
       effects.exit('tableDelimiterMarker');
-      return headDelimiterRightAlignmentAfter
+      return headDelimiterRightAlignmentAfter;
     }
     effects.exit('tableDelimiterFiller');
-    return headDelimiterRightAlignmentAfter(code)
+    return headDelimiterRightAlignmentAfter(code);
   }
   function headDelimiterRightAlignmentAfter(code) {
     if (markdownSpace(code)) {
-      return factorySpace(effects, headDelimiterCellAfter, 'whitespace')(code)
+      return factorySpace(effects, headDelimiterCellAfter, "whitespace")(code);
     }
-    return headDelimiterCellAfter(code)
+    return headDelimiterCellAfter(code);
   }
   function headDelimiterCellAfter(code) {
     if (code === 124) {
-      return headDelimiterBefore(code)
+      return headDelimiterBefore(code);
     }
     if (code === null || markdownLineEnding(code)) {
       if (!seen || size !== sizeB) {
-        return headDelimiterNok(code)
+        return headDelimiterNok(code);
       }
       effects.exit('tableDelimiterRow');
       effects.exit('tableHead');
-      return ok(code)
+      return ok(code);
     }
-    return headDelimiterNok(code)
+    return headDelimiterNok(code);
   }
   function headDelimiterNok(code) {
-    return nok(code)
+    return nok(code);
   }
   function bodyRowStart(code) {
     effects.enter('tableRow');
-    return bodyRowBreak(code)
+    return bodyRowBreak(code);
   }
   function bodyRowBreak(code) {
     if (code === 124) {
       effects.enter('tableCellDivider');
       effects.consume(code);
       effects.exit('tableCellDivider');
-      return bodyRowBreak
+      return bodyRowBreak;
     }
     if (code === null || markdownLineEnding(code)) {
       effects.exit('tableRow');
-      return ok(code)
+      return ok(code);
     }
     if (markdownSpace(code)) {
-      return factorySpace(effects, bodyRowBreak, 'whitespace')(code)
+      return factorySpace(effects, bodyRowBreak, "whitespace")(code);
     }
-    effects.enter('data');
-    return bodyRowData(code)
+    effects.enter("data");
+    return bodyRowData(code);
   }
   function bodyRowData(code) {
     if (code === null || code === 124 || markdownLineEndingOrSpace(code)) {
-      effects.exit('data');
-      return bodyRowBreak(code)
+      effects.exit("data");
+      return bodyRowBreak(code);
     }
     effects.consume(code);
-    return code === 92 ? bodyRowEscape : bodyRowData
+    return code === 92 ? bodyRowEscape : bodyRowData;
   }
   function bodyRowEscape(code) {
     if (code === 92 || code === 124) {
       effects.consume(code);
-      return bodyRowData
+      return bodyRowData;
     }
-    return bodyRowData(code)
+    return bodyRowData(code);
   }
 }
 function resolveTable(events, context) {
@@ -11263,10 +11018,7 @@ function resolveTable(events, context) {
           end: Object.assign({}, token.end)
         };
         map.add(index, 0, [['enter', currentTable, context]]);
-      } else if (
-        token.type === 'tableRow' ||
-        token.type === 'tableDelimiterRow'
-      ) {
+      } else if (token.type === 'tableRow' || token.type === 'tableDelimiterRow') {
         inFirstCellAwaitingPipe = true;
         currentCell = undefined;
         lastCell = [0, 0, 0, 0];
@@ -11282,24 +11034,12 @@ function resolveTable(events, context) {
         }
         rowKind = token.type === 'tableDelimiterRow' ? 2 : currentBody ? 3 : 1;
       }
-      else if (
-        rowKind &&
-        (token.type === 'data' ||
-          token.type === 'tableDelimiterMarker' ||
-          token.type === 'tableDelimiterFiller')
-      ) {
+      else if (rowKind && (token.type === "data" || token.type === 'tableDelimiterMarker' || token.type === 'tableDelimiterFiller')) {
         inFirstCellAwaitingPipe = false;
         if (cell[2] === 0) {
           if (lastCell[1] !== 0) {
             cell[0] = cell[1];
-            currentCell = flushCell(
-              map,
-              context,
-              lastCell,
-              rowKind,
-              undefined,
-              currentCell
-            );
+            currentCell = flushCell(map, context, lastCell, rowKind, undefined, currentCell);
             lastCell = [0, 0, 0, 0];
           }
           cell[2] = index;
@@ -11310,14 +11050,7 @@ function resolveTable(events, context) {
         } else {
           if (lastCell[1] !== 0) {
             cell[0] = cell[1];
-            currentCell = flushCell(
-              map,
-              context,
-              lastCell,
-              rowKind,
-              undefined,
-              currentCell
-            );
+            currentCell = flushCell(map, context, lastCell, rowKind, undefined, currentCell);
           }
           lastCell = cell;
           cell = [lastCell[1], index, 0, 0];
@@ -11327,31 +11060,16 @@ function resolveTable(events, context) {
     else if (token.type === 'tableHead') {
       afterHeadAwaitingFirstBodyRow = true;
       lastTableEnd = index;
-    } else if (
-      token.type === 'tableRow' ||
-      token.type === 'tableDelimiterRow'
-    ) {
+    } else if (token.type === 'tableRow' || token.type === 'tableDelimiterRow') {
       lastTableEnd = index;
       if (lastCell[1] !== 0) {
         cell[0] = cell[1];
-        currentCell = flushCell(
-          map,
-          context,
-          lastCell,
-          rowKind,
-          index,
-          currentCell
-        );
+        currentCell = flushCell(map, context, lastCell, rowKind, index, currentCell);
       } else if (cell[1] !== 0) {
         currentCell = flushCell(map, context, cell, rowKind, index, currentCell);
       }
       rowKind = 0;
-    } else if (
-      rowKind &&
-      (token.type === 'data' ||
-        token.type === 'tableDelimiterMarker' ||
-        token.type === 'tableDelimiterFiller')
-    ) {
+    } else if (rowKind && (token.type === "data" || token.type === 'tableDelimiterMarker' || token.type === 'tableDelimiterFiller')) {
       cell[3] = index;
     }
   }
@@ -11366,15 +11084,10 @@ function resolveTable(events, context) {
       event[1]._align = gfmTableAlign(context.events, index);
     }
   }
-  return events
+  return events;
 }
 function flushCell(map, context, range, rowKind, rowEnd, previousCell) {
-  const groupName =
-    rowKind === 1
-      ? 'tableHeader'
-      : rowKind === 2
-      ? 'tableDelimiter'
-      : 'tableData';
+  const groupName = rowKind === 1 ? 'tableHeader' : rowKind === 2 ? 'tableDelimiter' : 'tableData';
   const valueName = 'tableContent';
   if (range[0] !== 0) {
     previousCell.end = Object.assign({}, getPoint(context.events, range[0]));
@@ -11400,8 +11113,8 @@ function flushCell(map, context, range, rowKind, rowEnd, previousCell) {
       const start = context.events[range[2]];
       const end = context.events[range[3]];
       start[1].end = Object.assign({}, end[1].end);
-      start[1].type = 'chunkText';
-      start[1].contentType = 'text';
+      start[1].type = "chunkText";
+      start[1].contentType = "text";
       if (range[3] > range[2] + 1) {
         const a = range[2] + 1;
         const b = range[3] - range[2] - 1;
@@ -11415,7 +11128,7 @@ function flushCell(map, context, range, rowKind, rowEnd, previousCell) {
     map.add(rowEnd, 0, [['exit', previousCell, context]]);
     previousCell = undefined;
   }
-  return previousCell
+  return previousCell;
 }
 function flushTableEnd(map, context, index, table, tableBody) {
   const exits = [];
@@ -11431,10 +11144,11 @@ function flushTableEnd(map, context, index, table, tableBody) {
 function getPoint(events, index) {
   const event = events[index];
   const side = event[0] === 'enter' ? 'start' : 'end';
-  return event[1][side]
+  return event[1][side];
 }
 
 const tasklistCheck = {
+  name: 'tasklistCheck',
   tokenize: tokenizeTasklistCheck
 };
 function gfmTaskListItem() {
@@ -11442,38 +11156,37 @@ function gfmTaskListItem() {
     text: {
       [91]: tasklistCheck
     }
-  }
+  };
 }
 function tokenizeTasklistCheck(effects, ok, nok) {
   const self = this;
-  return open
+  return open;
   function open(code) {
     if (
-      self.previous !== null ||
-      !self._gfmTasklistFirstContentOfListItem
-    ) {
-      return nok(code)
+    self.previous !== null ||
+    !self._gfmTasklistFirstContentOfListItem) {
+      return nok(code);
     }
     effects.enter('taskListCheck');
     effects.enter('taskListCheckMarker');
     effects.consume(code);
     effects.exit('taskListCheckMarker');
-    return inside
+    return inside;
   }
   function inside(code) {
     if (markdownLineEndingOrSpace(code)) {
       effects.enter('taskListCheckValueUnchecked');
       effects.consume(code);
       effects.exit('taskListCheckValueUnchecked');
-      return close
+      return close;
     }
     if (code === 88 || code === 120) {
       effects.enter('taskListCheckValueChecked');
       effects.consume(code);
       effects.exit('taskListCheckValueChecked');
-      return close
+      return close;
     }
-    return nok(code)
+    return nok(code);
   }
   function close(code) {
     if (code === 93) {
@@ -11481,30 +11194,26 @@ function tokenizeTasklistCheck(effects, ok, nok) {
       effects.consume(code);
       effects.exit('taskListCheckMarker');
       effects.exit('taskListCheck');
-      return after
+      return after;
     }
-    return nok(code)
+    return nok(code);
   }
   function after(code) {
     if (markdownLineEnding(code)) {
-      return ok(code)
+      return ok(code);
     }
     if (markdownSpace(code)) {
-      return effects.check(
-        {
-          tokenize: spaceThenNonSpace
-        },
-        ok,
-        nok
-      )(code)
+      return effects.check({
+        tokenize: spaceThenNonSpace
+      }, ok, nok)(code);
     }
-    return nok(code)
+    return nok(code);
   }
 }
 function spaceThenNonSpace(effects, ok, nok) {
-  return factorySpace(effects, after, 'whitespace')
+  return factorySpace(effects, after, "whitespace");
   function after(code) {
-    return code === null ? nok(code) : ok(code)
+    return code === null ? nok(code) : ok(code);
   }
 }
 
@@ -21477,7 +21186,7 @@ let SemVer$2 = class SemVer {
     do {
       const a = this.build[i];
       const b = other.build[i];
-      debug('prerelease compare', i, a, b);
+      debug('build compare', i, a, b);
       if (a === undefined && b === undefined) {
         return 0
       } else if (b === undefined) {
@@ -23449,6 +23158,7 @@ const plugins = [
       { no: "[Nn]ote that", yes: "<nothing>" },
       { yes: "RFC" },
       { no: "[Rr][Ff][Cc]\\d+", yes: "RFC <number>" },
+      { yes: "TypeScript" },
       { yes: "Unix" },
       { yes: "Valgrind" },
       { yes: "V8" },

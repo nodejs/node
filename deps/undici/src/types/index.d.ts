@@ -18,6 +18,7 @@ import EnvHttpProxyAgent from './env-http-proxy-agent'
 import RetryHandler from'./retry-handler'
 import RetryAgent from'./retry-agent'
 import { request, pipeline, stream, connect, upgrade } from './api'
+import interceptors from './interceptors'
 
 export * from './util'
 export * from './cookies'
@@ -32,7 +33,7 @@ export * from './content-type'
 export * from './cache'
 export { Interceptable } from './mock-interceptor'
 
-export { Dispatcher, BalancedPool, Pool, Client, buildConnector, errors, Agent, request, stream, pipeline, connect, upgrade, setGlobalDispatcher, getGlobalDispatcher, setGlobalOrigin, getGlobalOrigin, MockClient, MockPool, MockAgent, mockErrors, ProxyAgent, EnvHttpProxyAgent, RedirectHandler, DecoratorHandler, RetryHandler, RetryAgent }
+export { Dispatcher, BalancedPool, Pool, Client, buildConnector, errors, Agent, request, stream, pipeline, connect, upgrade, setGlobalDispatcher, getGlobalDispatcher, setGlobalOrigin, getGlobalOrigin, interceptors, MockClient, MockPool, MockAgent, mockErrors, ProxyAgent, EnvHttpProxyAgent, RedirectHandler, DecoratorHandler, RetryHandler, RetryAgent }
 export default Undici
 
 declare namespace Undici {
@@ -41,7 +42,7 @@ declare namespace Undici {
   var RedirectHandler: typeof import ('./handlers').RedirectHandler
   var DecoratorHandler: typeof import ('./handlers').DecoratorHandler
   var RetryHandler: typeof import ('./retry-handler').default
-  var createRedirectInterceptor: typeof import ('./interceptors').createRedirectInterceptor
+  var createRedirectInterceptor: typeof import ('./interceptors').default.createRedirectInterceptor
   var BalancedPool: typeof import('./balanced-pool').default;
   var Client: typeof import('./client').default;
   var buildConnector: typeof import('./connector').default;
@@ -66,9 +67,5 @@ declare namespace Undici {
   var File: typeof import('./file').File;
   var FileReader: typeof import('./filereader').FileReader;
   var caches: typeof import('./cache').caches;
-  var interceptors: {
-    dump: typeof import('./interceptors').dump;
-    retry: typeof import('./interceptors').retry;
-    redirect: typeof import('./interceptors').redirect;
-  }
+  var interceptors: typeof import('./interceptors').default;
 }

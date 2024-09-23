@@ -19,6 +19,7 @@
 #include "application.h"
 #include "bindingdata.h"
 #include "defs.h"
+#include "ncrypto.h"
 
 namespace node {
 
@@ -87,7 +88,7 @@ namespace {
 bool is_diagnostic_packet_loss(double probability) {
   if (LIKELY(probability == 0.0)) return false;
   unsigned char c = 255;
-  CHECK(crypto::CSPRNG(&c, 1).is_ok());
+  CHECK(ncrypto::CSPRNG(&c, 1));
   return (static_cast<double>(c) / 255) < probability;
 }
 #endif  // DEBUG
@@ -1690,7 +1691,7 @@ void Endpoint::New(const FunctionCallbackInfo<Value>& args) {
 void Endpoint::DoConnect(const FunctionCallbackInfo<Value>& args) {
   auto env = Environment::GetCurrent(args);
   Endpoint* endpoint;
-  ASSIGN_OR_RETURN_UNWRAP(&endpoint, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&endpoint, args.This());
 
   // args[0] is a SocketAddress
   // args[1] is a Session OptionsObject (see session.cc)
@@ -1723,7 +1724,7 @@ void Endpoint::DoConnect(const FunctionCallbackInfo<Value>& args) {
 
 void Endpoint::DoListen(const FunctionCallbackInfo<Value>& args) {
   Endpoint* endpoint;
-  ASSIGN_OR_RETURN_UNWRAP(&endpoint, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&endpoint, args.This());
   auto env = Environment::GetCurrent(args);
 
   Session::Options options;
@@ -1734,20 +1735,20 @@ void Endpoint::DoListen(const FunctionCallbackInfo<Value>& args) {
 
 void Endpoint::MarkBusy(const FunctionCallbackInfo<Value>& args) {
   Endpoint* endpoint;
-  ASSIGN_OR_RETURN_UNWRAP(&endpoint, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&endpoint, args.This());
   endpoint->MarkAsBusy(args[0]->IsTrue());
 }
 
 void Endpoint::DoCloseGracefully(const FunctionCallbackInfo<Value>& args) {
   Endpoint* endpoint;
-  ASSIGN_OR_RETURN_UNWRAP(&endpoint, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&endpoint, args.This());
   endpoint->CloseGracefully();
 }
 
 void Endpoint::LocalAddress(const FunctionCallbackInfo<Value>& args) {
   auto env = Environment::GetCurrent(args);
   Endpoint* endpoint;
-  ASSIGN_OR_RETURN_UNWRAP(&endpoint, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&endpoint, args.This());
   if (endpoint->is_closed() || !endpoint->udp_.is_bound()) return;
   auto addr = SocketAddressBase::Create(
       env, std::make_shared<SocketAddress>(endpoint->local_address()));
@@ -1756,7 +1757,7 @@ void Endpoint::LocalAddress(const FunctionCallbackInfo<Value>& args) {
 
 void Endpoint::Ref(const FunctionCallbackInfo<Value>& args) {
   Endpoint* endpoint;
-  ASSIGN_OR_RETURN_UNWRAP(&endpoint, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&endpoint, args.This());
   auto env = Environment::GetCurrent(args);
   if (args[0]->BooleanValue(env->isolate())) {
     endpoint->udp_.Ref();

@@ -129,7 +129,7 @@ class FSPermission final : public PermissionBase {
       // ---> er
       // ---> n
       bool IsEndNode() const {
-        if (children.size() == 0) {
+        if (children.empty()) {
           return true;
         }
         return is_leaf;

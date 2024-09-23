@@ -912,6 +912,10 @@ Type Typer::Visitor::TypeHeapConstant(Node* node) {
 
 Type Typer::Visitor::TypeCompressedHeapConstant(Node* node) { UNREACHABLE(); }
 
+Type Typer::Visitor::TypeTrustedHeapConstant(Node* node) {
+  return TypeConstant(HeapConstantOf(node->op()));
+}
+
 Type Typer::Visitor::TypeExternalConstant(Node* node) {
   return Type::ExternalPointer();
 }
@@ -1191,6 +1195,16 @@ Type Typer::Visitor::TypeTypedObjectState(Node* node) {
 Type Typer::Visitor::TypeCall(Node* node) { return Type::Any(); }
 
 Type Typer::Visitor::TypeFastApiCall(Node* node) { return Type::Any(); }
+
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+Type Typer::Visitor::TypeGetContinuationPreservedEmbedderData(Node* node) {
+  return Type::Any();
+}
+
+Type Typer::Visitor::TypeSetContinuationPreservedEmbedderData(Node* node) {
+  UNREACHABLE();
+}
+#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 
 #if V8_ENABLE_WEBASSEMBLY
 Type Typer::Visitor::TypeJSWasmCall(Node* node) {
@@ -1479,6 +1493,10 @@ Type Typer::Visitor::TypeJSCreateKeyValueArray(Node* node) {
 
 Type Typer::Visitor::TypeJSCreateObject(Node* node) {
   return Type::OtherObject();
+}
+
+Type Typer::Visitor::TypeJSCreateStringWrapper(Node* node) {
+  return Type::StringWrapper();
 }
 
 Type Typer::Visitor::TypeJSCreatePromise(Node* node) {

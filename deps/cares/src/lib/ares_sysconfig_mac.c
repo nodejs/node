@@ -45,16 +45,24 @@
  * private header extracted from:
  * https://opensource.apple.com/source/configd/configd-1109.140.1/dnsinfo/dnsinfo.h
  */
-#  include "ares_setup.h"
+
+/* The apple header uses anonymous unions which came with C11 */
+#  if defined(__clang__)
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wc11-extensions"
+#  endif
+
+#  include "ares_private.h"
 #  include <stdio.h>
 #  include <stdlib.h>
 #  include <string.h>
 #  include <dlfcn.h>
 #  include <arpa/inet.h>
 #  include "thirdparty/apple/dnsinfo.h"
-#  include <SystemConfiguration/SCNetworkConfiguration.h>
-#  include "ares.h"
-#  include "ares_private.h"
+#  include <AvailabilityMacros.h>
+#  if MAC_OS_X_VERSION_MIN_REQUIRED >= 1080 /* MacOS 10.8 */
+#    include <SystemConfiguration/SCNetworkConfiguration.h>
+#  endif
 
 typedef struct {
   void *handle;
@@ -79,6 +87,13 @@ static ares_status_t dnsinfo_init(dnsinfo_t **dnsinfo_out)
 {
   dnsinfo_t    *dnsinfo = NULL;
   ares_status_t status  = ARES_SUCCESS;
+  size_t        i;
+  const char   *searchlibs[] = {
+    "/usr/lib/libSystem.dylib",
+    "/System/Library/Frameworks/SystemConfiguration.framework/"
+      "SystemConfiguration",
+    NULL
+  };
 
   if (dnsinfo_out == NULL) {
     status = ARES_EFORMERR;
@@ -88,22 +103,34 @@ static ares_status_t dnsinfo_init(dnsinfo_t **dnsinfo_out)
   *dnsinfo_out = NULL;
 
   dnsinfo = ares_malloc_zero(sizeof(*dnsinfo));
-
   if (dnsinfo == NULL) {
     status = ARES_ENOMEM;
     goto done;
   }
 
-  dnsinfo->handle = dlopen("/usr/lib/libSystem.dylib", RTLD_LAZY | RTLD_NOLOAD);
-  if (dnsinfo->handle == NULL) {
-    status = ARES_ESERVFAIL;
-    goto done;
+  for (i = 0; searchlibs[i] != NULL; i++) {
+    dnsinfo->handle = dlopen(searchlibs[i], RTLD_LAZY /* | RTLD_NOLOAD */);
+    if (dnsinfo->handle == NULL) {
+      /* Fail, loop */
+      continue;
+    }
+
+    dnsinfo->dns_configuration_copy = (dns_config_t * (*)(void))
+      dlsym(dnsinfo->handle, "dns_configuration_copy");
+
+    dnsinfo->dns_configuration_free = (void (*)(dns_config_t *))dlsym(
+      dnsinfo->handle, "dns_configuration_free");
+
+    if (dnsinfo->dns_configuration_copy != NULL &&
+        dnsinfo->dns_configuration_free != NULL) {
+      break;
+    }
+
+    /* Fail, loop */
+    dlclose(dnsinfo->handle);
+    dnsinfo->handle = NULL;
   }
 
-  dnsinfo->dns_configuration_copy =
-    dlsym(dnsinfo->handle, "dns_configuration_copy");
-  dnsinfo->dns_configuration_free =
-    dlsym(dnsinfo->handle, "dns_configuration_free");
 
   if (dnsinfo->dns_configuration_copy == NULL ||
       dnsinfo->dns_configuration_free == NULL) {
@@ -141,13 +168,19 @@ static ares_status_t read_resolver(const dns_resolver_t *resolver,
   unsigned short port   = 0;
   ares_status_t  status = ARES_SUCCESS;
 
+#  if MAC_OS_X_VERSION_MIN_REQUIRED >= 1080 /* MacOS 10.8 */
   /* XXX: resolver->domain is for domain-specific servers.  When we implement
    *      this support, we'll want to use this.  But for now, we're going to
-   *      skip any servers which set this since we can't properly route. */
+   *      skip any servers which set this since we can't properly route.
+   *      MacOS used to use this setting for a different purpose in the
+   *      past however, so on versions of MacOS < 10.8 just ignore this
+   *      completely. */
   if (resolver->domain != NULL) {
     return ARES_SUCCESS;
   }
+#  endif
 
+#  if MAC_OS_X_VERSION_MIN_REQUIRED >= 1080 /* MacOS 10.8 */
   /* Check to see if DNS server should be used, base this on if the server is
    * reachable or can be reachable automatically if we send traffic that
    * direction. */
@@ -156,6 +189,7 @@ static ares_status_t read_resolver(const dns_resolver_t *resolver,
          kSCNetworkReachabilityFlagsConnectionOnTraffic))) {
     return ARES_SUCCESS;
   }
+#  endif
 
   /* NOTE: it doesn't look like resolver->flags is relevant */
 
@@ -179,12 +213,15 @@ static ares_status_t read_resolver(const dns_resolver_t *resolver,
     sysconfig->domains = new_domains;
 
     for (i = 0; i < resolver->n_search; i++) {
+      const char *search;
+      /* UBSAN: copy pointer using memcpy due to misalignment */
+      memcpy(&search, resolver->search + i, sizeof(search));
+
       /* Skip duplicates */
-      if (search_is_duplicate(sysconfig, resolver->search[i])) {
+      if (search_is_duplicate(sysconfig, search)) {
         continue;
       }
-      sysconfig->domains[sysconfig->ndomains] =
-        ares_strdup(resolver->search[i]);
+      sysconfig->domains[sysconfig->ndomains] = ares_strdup(search);
       if (sysconfig->domains[sysconfig->ndomains] == NULL) {
         return ARES_ENOMEM;
       }
@@ -216,7 +253,8 @@ static ares_status_t read_resolver(const dns_resolver_t *resolver,
    *   - resolver->timeout appears unused, always 0, so we ignore this
    *   - resolver->service_identifier doesn't appear relevant to us
    *   - resolver->cid also isn't relevant
-   *   - resolver->if_index we don't need, if_name is used instead.
+   *   - resolver->if_name we won't use since it isn't available in MacOS 10.8
+   *     or earlier, use resolver->if_index instead to then lookup the name.
    */
 
   /* XXX: resolver->search_order appears like it might be relevant, we might
@@ -227,30 +265,27 @@ static ares_status_t read_resolver(const dns_resolver_t *resolver,
    */
 
   for (i = 0; i < resolver->n_nameserver; i++) {
-    struct ares_addr addr;
-    unsigned short   addrport;
+    struct ares_addr       addr;
+    unsigned short         addrport;
+    const struct sockaddr *sockaddr;
+    char                   if_name_str[256] = "";
+    const char            *if_name;
 
-    if (resolver->nameserver[i]->sa_family == AF_INET) {
-      struct sockaddr_in *addr_in =
-        (struct sockaddr_in *)(void *)resolver->nameserver[i];
-      addr.family = AF_INET;
-      memcpy(&addr.addr.addr4, &(addr_in->sin_addr), sizeof(addr.addr.addr4));
-      addrport = ntohs(addr_in->sin_port);
-    } else if (resolver->nameserver[i]->sa_family == AF_INET6) {
-      struct sockaddr_in6 *addr_in6 =
-        (struct sockaddr_in6 *)(void *)resolver->nameserver[i];
-      addr.family = AF_INET6;
-      memcpy(&addr.addr.addr6, &(addr_in6->sin6_addr), sizeof(addr.addr.addr6));
-      addrport = ntohs(addr_in6->sin6_port);
-    } else {
+    /* UBSAN alignment workaround to fetch memory address */
+    memcpy(&sockaddr, resolver->nameserver + i, sizeof(sockaddr));
+
+    if (!ares_sockaddr_to_ares_addr(&addr, &addrport, sockaddr)) {
       continue;
     }
 
     if (addrport == 0) {
       addrport = port;
     }
-    status = ares__sconfig_append(&sysconfig->sconfig, &addr, addrport,
-                                  addrport, resolver->if_name);
+
+    if_name = ares__if_indextoname(resolver->if_index, if_name_str,
+                                   sizeof(if_name_str));
+    status  = ares__sconfig_append(&sysconfig->sconfig, &addr, addrport,
+                                   addrport, if_name);
     if (status != ARES_SUCCESS) {
       return status;
     }
@@ -266,7 +301,15 @@ static ares_status_t read_resolvers(dns_resolver_t **resolvers, int nresolvers,
   int           i;
 
   for (i = 0; status == ARES_SUCCESS && i < nresolvers; i++) {
-    status = read_resolver(resolvers[i], sysconfig);
+    const dns_resolver_t *resolver_ptr;
+
+    /* UBSAN doesn't like that this is unaligned, lets use memcpy to get the
+     * address.  Equivalent to:
+     *   resolver = resolvers[i]
+     */
+    memcpy(&resolver_ptr, resolvers + i, sizeof(resolver_ptr));
+
+    status = read_resolver(resolver_ptr, sysconfig);
   }
 
   return status;
@@ -310,5 +353,13 @@ done:
   return status;
 }
 
+#  if defined(__clang__)
+#    pragma GCC diagnostic pop
+#  endif
+
+#else
+
+/* Prevent compiler warnings due to empty translation unit */
+typedef int make_iso_compilers_happy;
 
 #endif

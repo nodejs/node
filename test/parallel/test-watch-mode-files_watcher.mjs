@@ -15,7 +15,7 @@ import watcher from 'internal/watch_mode/files_watcher';
 if (common.isIBMi)
   common.skip('IBMi does not support `fs.watch()`');
 
-const supportsRecursiveWatching = common.isOSX || common.isWindows;
+const supportsRecursiveWatching = common.isMacOS || common.isWindows;
 
 const { FilesWatcher } = watcher;
 tmpdir.refresh();

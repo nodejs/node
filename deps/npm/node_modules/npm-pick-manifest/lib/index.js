@@ -123,9 +123,15 @@ const pickManifest = (packument, wanted, opts) => {
   const defaultVer = distTags[defaultTag]
   if (defaultVer &&
       (range === '*' || semver.satisfies(defaultVer, range, { loose: true })) &&
+      !restricted[defaultVer] &&
       !shouldAvoid(defaultVer, avoid)) {
     const mani = versions[defaultVer]
-    if (mani && isBefore(verTimes, defaultVer, time)) {
+    const ok = mani &&
+      isBefore(verTimes, defaultVer, time) &&
+      engineOk(mani, npmVersion, nodeVersion) &&
+      !mani.deprecated &&
+      !staged[defaultVer]
+    if (ok) {
       return mani
     }
   }
@@ -155,10 +161,10 @@ const pickManifest = (packument, wanted, opts) => {
       const [verb, manib] = b
       const notavoida = !shouldAvoid(vera, avoid)
       const notavoidb = !shouldAvoid(verb, avoid)
-      const notrestra = !restricted[a]
-      const notrestrb = !restricted[b]
-      const notstagea = !staged[a]
-      const notstageb = !staged[b]
+      const notrestra = !restricted[vera]
+      const notrestrb = !restricted[verb]
+      const notstagea = !staged[vera]
+      const notstageb = !staged[verb]
       const notdepra = !mania.deprecated
       const notdeprb = !manib.deprecated
       const enginea = engineOk(mania, npmVersion, nodeVersion)
