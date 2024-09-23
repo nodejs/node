@@ -136,7 +136,7 @@ With this release, we welcome two new Node.js core collaborators:
 * \[[`fce8c4e0d9`](https://github.com/nodejs/node/commit/fce8c4e0d9)] - **inspector**: only write coverage in fully bootstrapped Environments (Joyee Cheung) [#32960](https://github.com/nodejs/node/pull/32960)
 * \[[`ee3c461a26`](https://github.com/nodejs/node/commit/ee3c461a26)] - **lib**: unnecessary const assignment for class (Yash Ladha) [#32962](https://github.com/nodejs/node/pull/32962)
 * \[[`944dceb618`](https://github.com/nodejs/node/commit/944dceb618)] - **lib**: simplify function process.emitWarning (himself65) [#32992](https://github.com/nodejs/node/pull/32992)
-* \[[`8a85afabba`](https://github.com/nodejs/node/commit/8a85afabba)] - **lib**: remove unnecessary else block (David Daza) [#32644](https://github.com/nodejs/node/pull/32644)
+* \[[`8a85afabba`](https://github.com/nodejs/node/commit/8a85afabba)] - **lib**: remove unnecesary else block (David Daza) [#32644](https://github.com/nodejs/node/pull/32644)
 * \[[`83f1e98a8e`](https://github.com/nodejs/node/commit/83f1e98a8e)] - **lib**: created isValidCallback helper (Yash Ladha) [#32665](https://github.com/nodejs/node/pull/32665)
 * \[[`636267045e`](https://github.com/nodejs/node/commit/636267045e)] - **module**: refactor condition (Myles Borins) [#32989](https://github.com/nodejs/node/pull/32989)
 * \[[`cb93c60e64`](https://github.com/nodejs/node/commit/cb93c60e64)] - **module**: exports not exported for null resolutions (Guy Bedford) [#32838](https://github.com/nodejs/node/pull/32838)
@@ -672,8 +672,8 @@ impact on Node.js 13.x users with older versions of macOS.
 ### Notable Changes
 
 In Node.js 13.9.0 deps/zlib was switched to the chromium maintained implementation. This change
-had the unforeseen consequence of breaking building from the tarballs we release as we were too
-aggressively removing `unnecessary files` from the `deps/zlib` folder. This release includes
+had the unforseen consequence of breaking building from the tarballs we release as we were too
+aggressively removing `unneccessary files` from the `deps/zlib` folder. This release includes
 a patch that ensures that individuals will once again be able to build Node.js from source.
 
 ### Commits
@@ -1502,7 +1502,7 @@ http option. Using the insecure HTTP parser should be avoided.
 * \[[`956dec8b6b`](https://github.com/nodejs/node/commit/956dec8b6b)] - **tls**: for...of in \_tls\_common.js (Trivikram Kamat) [#30961](https://github.com/nodejs/node/pull/30961)
 * \[[`b20ddde2f6`](https://github.com/nodejs/node/commit/b20ddde2f6)] - **tools**: enable Markdown linter's usage information (Derek Lewis) [#30216](https://github.com/nodejs/node/pull/30216)
 * \[[`f62a7679a3`](https://github.com/nodejs/node/commit/f62a7679a3)] - **util**: add Set and map size to inspect output (Ruben Bridgewater) [#30225](https://github.com/nodejs/node/pull/30225)
-* \[[`f830a7dd73`](https://github.com/nodejs/node/commit/f830a7dd73)] - **util**: refactor inspect code for consistency (Ruben Bridgewater) [#30225](https://github.com/nodejs/node/pull/30225)
+* \[[`f830a7dd73`](https://github.com/nodejs/node/commit/f830a7dd73)] - **util**: refactor inspect code for constistency (Ruben Bridgewater) [#30225](https://github.com/nodejs/node/pull/30225)
 * \[[`8dec909aa7`](https://github.com/nodejs/node/commit/8dec909aa7)] - **(SEMVER-MINOR)** **util**: inspect (user defined) prototype properties (Ruben Bridgewater) [#30768](https://github.com/nodejs/node/pull/30768)
 * \[[`453be95edc`](https://github.com/nodejs/node/commit/453be95edc)] - **(SEMVER-MINOR)** **util**: fix built-in detection (Ruben Bridgewater) [#30768](https://github.com/nodejs/node/pull/30768)
 * \[[`2b0e2c280f`](https://github.com/nodejs/node/commit/2b0e2c280f)] - **v8**: use of TypedArray constructors from primordials (Sebastien Ahkrin) [#30740](https://github.com/nodejs/node/pull/30740)
@@ -1826,7 +1826,7 @@ For more details about the vulnerability please consult the npm blog:
 * \[[`49458deb4f`](https://github.com/nodejs/node/commit/49458deb4f)] - **test**: remove unused function argument from http test (Rich Trott) [#30677](https://github.com/nodejs/node/pull/30677)
 * \[[`a2f440d326`](https://github.com/nodejs/node/commit/a2f440d326)] - **test**: add logging in case of infinite loop (Rich Trott) [#30649](https://github.com/nodejs/node/pull/30649)
 * \[[`3e3ad396bd`](https://github.com/nodejs/node/commit/3e3ad396bd)] - **test**: remove destructuring from test-inspector-contexts (Rich Trott) [#30649](https://github.com/nodejs/node/pull/30649)
-* \[[`3571e132a7`](https://github.com/nodejs/node/commit/3571e132a7)] - **test**: check for session.post() errors in test-inspector-context (Rich Trott) [#30649](https://github.com/nodejs/node/pull/30649)
+* \[[`3571e132a7`](https://github.com/nodejs/node/commit/3571e132a7)] - **test**: check for session.post() errors in test-insepctor-context (Rich Trott) [#30649](https://github.com/nodejs/node/pull/30649)
 * \[[`37696320a2`](https://github.com/nodejs/node/commit/37696320a2)] - **test**: add mustCall() to test-inspector-contexts (Rich Trott) [#30649](https://github.com/nodejs/node/pull/30649)
 * \[[`0972fa3c16`](https://github.com/nodejs/node/commit/0972fa3c16)] - **test**: add regression test for signal handler removal in exit (Anna Henningsen) [#30589](https://github.com/nodejs/node/pull/30589)
 * \[[`5ecfd947e2`](https://github.com/nodejs/node/commit/5ecfd947e2)] - **(SEMVER-MINOR)** **test**: update and harden http2-reset-flood (Denys Otrishko) [#30534](https://github.com/nodejs/node/pull/30534)
@@ -1958,7 +1958,7 @@ For more details about the vulnerability please consult the npm blog:
 * \[[`31a3b724f0`](https://github.com/nodejs/node/commit/31a3b724f0)] - **doc**: update GOVERNANCE.md (Rich Trott) [#30259](https://github.com/nodejs/node/pull/30259)
 * \[[`15a7032d44`](https://github.com/nodejs/node/commit/15a7032d44)] - **doc**: move inactive Collaborators to emeriti (Rich Trott) [#30243](https://github.com/nodejs/node/pull/30243)
 * \[[`fabc489dba`](https://github.com/nodejs/node/commit/fabc489dba)] - **doc**: update examples in writing-tests.md (garygsc) [#30126](https://github.com/nodejs/node/pull/30126)
-* \[[`1836eae7a6`](https://github.com/nodejs/node/commit/1836eae7a6)] - **doc, console**: remove non-existent methods from docs (Simon Schick) [#30346](https://github.com/nodejs/node/pull/30346)
+* \[[`1836eae7a6`](https://github.com/nodejs/node/commit/1836eae7a6)] - **doc, console**: remove non-existant methods from docs (Simon Schick) [#30346](https://github.com/nodejs/node/pull/30346)
 * \[[`7ad2e024dd`](https://github.com/nodejs/node/commit/7ad2e024dd)] - **doc,meta**: allow Travis results for doc/comment changes (Rich Trott) [#30330](https://github.com/nodejs/node/pull/30330)
 * \[[`2deea28070`](https://github.com/nodejs/node/commit/2deea28070)] - **doc,meta**: remove wait period for npm pull requests (Rich Trott) [#30329](https://github.com/nodejs/node/pull/30329)
 * \[[`7e0f90e286`](https://github.com/nodejs/node/commit/7e0f90e286)] - **domain**: rename var to let and const (Maria Stogova) [#30312](https://github.com/nodejs/node/pull/30312)
@@ -2400,7 +2400,7 @@ For more details about the vulnerability please consult the npm blog:
 * \[[`6e796581fc`](https://github.com/nodejs/node/commit/6e796581fc)] - **src**: remove freebsd SA\_RESETHAND workaround (Ben Noordhuis) [#27780](https://github.com/nodejs/node/pull/27780)
 * \[[`8709a408d2`](https://github.com/nodejs/node/commit/8709a408d2)] - **stream**: use more accurate end-of-stream writable and readable detection (Robert Nagy) [#29409](https://github.com/nodejs/node/pull/29409)
 * \[[`698a29420f`](https://github.com/nodejs/node/commit/698a29420f)] - **stream**: fix readable state `awaitDrain` increase in recursion (ran) [#27572](https://github.com/nodejs/node/pull/27572)
-* \[[`033037cec9`](https://github.com/nodejs/node/commit/033037cec9)] - **stream**: avoid unnecessary nextTick (Robert Nagy) [#29194](https://github.com/nodejs/node/pull/29194)
+* \[[`033037cec9`](https://github.com/nodejs/node/commit/033037cec9)] - **stream**: avoid unecessary nextTick (Robert Nagy) [#29194](https://github.com/nodejs/node/pull/29194)
 * \[[`f4f856b238`](https://github.com/nodejs/node/commit/f4f856b238)] - **test**: fix flaky doctool and test (Rich Trott) [#29979](https://github.com/nodejs/node/pull/29979)
 * \[[`7991b57cfd`](https://github.com/nodejs/node/commit/7991b57cfd)] - **test**: fix fs benchmark test (Rich Trott) [#29967](https://github.com/nodejs/node/pull/29967)
 * \[[`2bb93e1108`](https://github.com/nodejs/node/commit/2bb93e1108)] - **test**: set LC\_ALL to known good value (Ben Noordhuis) [#28096](https://github.com/nodejs/node/pull/28096)

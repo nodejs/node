@@ -500,7 +500,7 @@
 * \[[`16d908939d`](https://github.com/nodejs/node/commit/16d908939d)] - **http**: send connection: close when closing conn (Yann Hamon) [#26467](https://github.com/nodejs/node/pull/26467)
 * \[[`bf7a52b764`](https://github.com/nodejs/node/commit/bf7a52b764)] - **http**: improve for-loop readability in \_http\_outgoing.js (gengjiawen) [#26408](https://github.com/nodejs/node/pull/26408)
 * \[[`c661d8c608`](https://github.com/nodejs/node/commit/c661d8c608)] - **http**: remove unused variable in \_http\_server.js (gengjiawen) [#26407](https://github.com/nodejs/node/pull/26407)
-* \[[`4886fbfbee`](https://github.com/nodejs/node/commit/4886fbfbee)] - **http**: check for existence in resetHeadersTimeoutOnReqEnd (Matteo Collina) [#26402](https://github.com/nodejs/node/pull/26402)
+* \[[`4886fbfbee`](https://github.com/nodejs/node/commit/4886fbfbee)] - **http**: check for existance in resetHeadersTimeoutOnReqEnd (Matteo Collina) [#26402](https://github.com/nodejs/node/pull/26402)
 * \[[`6adcc6f574`](https://github.com/nodejs/node/commit/6adcc6f574)] - **http2**: `Http2ServerResponse.end()` should always return self (Robert Nagy) [#24346](https://github.com/nodejs/node/pull/24346)
 * \[[`529b0c04cf`](https://github.com/nodejs/node/commit/529b0c04cf)] - **http2**: refactor deprecated method in core.js (gengjiawen) [#26275](https://github.com/nodejs/node/pull/26275)
 * \[[`4b6c653d4d`](https://github.com/nodejs/node/commit/4b6c653d4d)] - **https**: add missing localPort while create socket (leeight) [#24554](https://github.com/nodejs/node/pull/24554)
@@ -1170,7 +1170,7 @@ A fix for the following CVE is included in this release:
 * \[[`af6e439ad8`](https://github.com/nodejs/node/commit/af6e439ad8)] - **test**: enable marking of failing coverage tests (Michael Dawson) [#25671](https://github.com/nodejs/node/pull/25671)
 * \[[`6203d05a3c`](https://github.com/nodejs/node/commit/6203d05a3c)] - **test**: fix zlib-brotli output assumptions (Adam Majer) [#25697](https://github.com/nodejs/node/pull/25697)
 * \[[`77274d07d2`](https://github.com/nodejs/node/commit/77274d07d2)] - **test**: rewrite fs {f}utimes test file (Jeremiah Senkpiel) [#25656](https://github.com/nodejs/node/pull/25656)
-* \[[`29002ceb4e`](https://github.com/nodejs/node/commit/29002ceb4e)] - **(SEMVER-MINOR)** **test**: assert on client and server side separately (Sam Roberts) [#25381](https://github.com/nodejs/node/pull/25381)
+* \[[`29002ceb4e`](https://github.com/nodejs/node/commit/29002ceb4e)] - **(SEMVER-MINOR)** **test**: assert on client and server side seperately (Sam Roberts) [#25381](https://github.com/nodejs/node/pull/25381)
 * \[[`c7dbb72530`](https://github.com/nodejs/node/commit/c7dbb72530)] - **test**: remove pummel/test-exec (Rich Trott) [#25722](https://github.com/nodejs/node/pull/25722)
 * \[[`4b2a1eadbd`](https://github.com/nodejs/node/commit/4b2a1eadbd)] - **test**: replace s\_client in test-https-ci-reneg-attack (Rich Trott) [#25720](https://github.com/nodejs/node/pull/25720)
 * \[[`7d682234a6`](https://github.com/nodejs/node/commit/7d682234a6)] - **test**: remove unused uncaughtException handler (Anna Henningsen) [#25641](https://github.com/nodejs/node/pull/25641)
@@ -1196,7 +1196,7 @@ A fix for the following CVE is included in this release:
 ### Notable Changes
 
 * **events**:
-  * For unhandled `error` events with an argument that is not an `Error` object, the resulting exception will have more information about the argument. [nodejs/node#25621](https://github.com/nodejs/node/pull/25621)
+  * For unhandled `error` events with an argument that is not an `Error` object, the resulting exeption will have more information about the argument. [nodejs/node#25621](https://github.com/nodejs/node/pull/25621)
 * **child\_process**:
   * When the `maxBuffer` option is passed, `stdout` and `stderr` will be truncated rather than unavailable in case of an error. [nodejs/node#24951](https://github.com/nodejs/node/pull/24951)
 * **policy**:
@@ -1214,7 +1214,7 @@ A fix for the following CVE is included in this release:
 ### Commits
 
 * \[[`5fab92c88a`](https://github.com/nodejs/node/commit/5fab92c88a)] - **build**: remove AIX/ppc (32bit) dead code (Refael Ackermann) [#25523](https://github.com/nodejs/node/pull/25523)
-* \[[`34da9a3089`](https://github.com/nodejs/node/commit/34da9a3089)] - **build**: make install.py python 3 compatible (Sakthipriyan Vairamani (thefourtheye)) [#25583](https://github.com/nodejs/node/pull/25583)
+* \[[`34da9a3089`](https://github.com/nodejs/node/commit/34da9a3089)] - **build**: make install.py python 3 compatiable (Sakthipriyan Vairamani (thefourtheye)) [#25583](https://github.com/nodejs/node/pull/25583)
 * \[[`8cc936a8ea`](https://github.com/nodejs/node/commit/8cc936a8ea)] - **build**: remove erroneous duplicate declaration from node\_inspector.gypi (Refael Ackermann) [#25586](https://github.com/nodejs/node/pull/25586)
 * \[[`28894af902`](https://github.com/nodejs/node/commit/28894af902)] - **build**: do not lint python scripts under test/fixtures (Joyee Cheung) [#25639](https://github.com/nodejs/node/pull/25639)
 * \[[`47d040dd77`](https://github.com/nodejs/node/commit/47d040dd77)] - **build**: introduce --openssl-is-fips flag (Daniel Bevenius) [#25412](https://github.com/nodejs/node/pull/25412)
@@ -1420,7 +1420,7 @@ A fix for the following CVE is included in this release:
 * \[[`b524a7bed0`](https://github.com/nodejs/node/commit/b524a7bed0)] - **process**: refactor coverage setup during bootstrap (Joyee Cheung) [#25398](https://github.com/nodejs/node/pull/25398)
 * \[[`83900148e6`](https://github.com/nodejs/node/commit/83900148e6)] - **process**: allow StartExecution() to take a main script ID (Joyee Cheung) [#25474](https://github.com/nodejs/node/pull/25474)
 * \[[`28baf266c7`](https://github.com/nodejs/node/commit/28baf266c7)] - **process**: move C++ process events into node\_process\_events.cc (Joyee Cheung) [#25397](https://github.com/nodejs/node/pull/25397)
-* \[[`5eada9dce4`](https://github.com/nodejs/node/commit/5eada9dce4)] - **process**: move --help and --bash-completion handling to startExecution (Joyee Cheung) [#25262](https://github.com/nodejs/node/pull/25262)
+* \[[`5eada9dce4`](https://github.com/nodejs/node/commit/5eada9dce4)] - **process**: move --help and --bash-completeion handling to startExecution (Joyee Cheung) [#25262](https://github.com/nodejs/node/pull/25262)
 * \[[`743056e3af`](https://github.com/nodejs/node/commit/743056e3af)] - **process**: move process.features initialization into node.js (Joyee Cheung) [#25239](https://github.com/nodejs/node/pull/25239)
 * \[[`c07b12da42`](https://github.com/nodejs/node/commit/c07b12da42)] - **process**: make tick callback and promise rejection callback more robust (Joyee Cheung) [#25200](https://github.com/nodejs/node/pull/25200)
 * \[[`655c1c9232`](https://github.com/nodejs/node/commit/655c1c9232)] - **process**: move worker bootstrap code into worker\_thread\_only.js (Joyee Cheung) [#25199](https://github.com/nodejs/node/pull/25199)
@@ -1493,7 +1493,7 @@ A fix for the following CVE is included in this release:
 * \[[`58de81faa7`](https://github.com/nodejs/node/commit/58de81faa7)] - **test**: remove duplicate encoding tests in favor of WPT (Joyee Cheung) [#25321](https://github.com/nodejs/node/pull/25321)
 * \[[`da34c6c575`](https://github.com/nodejs/node/commit/da34c6c575)] - **test**: use WPT runner to run encoding tests (Joyee Cheung) [#25321](https://github.com/nodejs/node/pull/25321)
 * \[[`8d8c30599a`](https://github.com/nodejs/node/commit/8d8c30599a)] - **test**: support more icu requirements in the WPT status file (Joyee Cheung) [#25321](https://github.com/nodejs/node/pull/25321)
-* \[[`d9adceecb6`](https://github.com/nodejs/node/commit/d9adceecb6)] - **test**: pull encoding WPT test fixtures (Joyee Cheung) [#25321](https://github.com/nodejs/node/pull/25321)
+* \[[`d9adceecb6`](https://github.com/nodejs/node/commit/d9adceecb6)] - **test**: pull enconding WPT test fixtures (Joyee Cheung) [#25321](https://github.com/nodejs/node/pull/25321)
 * \[[`837ca76a0d`](https://github.com/nodejs/node/commit/837ca76a0d)] - **test**: refactor test-fs-watch-non-recursive (Rich Trott) [#25386](https://github.com/nodejs/node/pull/25386)
 * \[[`65dfeeb9a9`](https://github.com/nodejs/node/commit/65dfeeb9a9)] - **test**: fix test/pummel/test-fs-watch-non-recursive.js (Rich Trott) [#25386](https://github.com/nodejs/node/pull/25386)
 * \[[`bdcf8f4784`](https://github.com/nodejs/node/commit/bdcf8f4784)] - **test**: fix test/pummel/test-fs-watch-file.js (Rich Trott) [#25384](https://github.com/nodejs/node/pull/25384)
@@ -1764,7 +1764,7 @@ A fix for the following CVE is included in this release:
 * **dgram,net**:
   * Added ipv6Only option for `net` and `dgram`. <https://github.com/nodejs/node/pull/23798>
 * **http**:
-  * Choosing between the http parser is now possible per runtime flag. <https://github.com/nodejs/node/pull/24739>
+  * Chosing between the http parser is now possible per runtime flag. <https://github.com/nodejs/node/pull/24739>
 * **readline**:
   * The `readline` module now supports async iterators. <https://github.com/nodejs/node/pull/23916>
 * **repl**:
@@ -1817,7 +1817,7 @@ A fix for the following CVE is included in this release:
 * \[[`2dfaa480de`](https://github.com/nodejs/node/commit/2dfaa480de)] - **dns**: simplify dns.promises warning logic (cjihrig) [#24788](https://github.com/nodejs/node/pull/24788)
 * \[[`5a1fb1e663`](https://github.com/nodejs/node/commit/5a1fb1e663)] - **doc**: mention util depth default change (Ruben Bridgewater) [#24805](https://github.com/nodejs/node/pull/24805)
 * \[[`d800998161`](https://github.com/nodejs/node/commit/d800998161)] - **doc**: list all versions WHATWG URL api was added (Thomas Watson) [#24847](https://github.com/nodejs/node/pull/24847)
-* \[[`71e520cfa6`](https://github.com/nodejs/node/commit/71e520cfa6)] - **doc**: add authority and scheme pseudo headers (Kenigbolo Meya Stephen) [#24777](https://github.com/nodejs/node/pull/24777)
+* \[[`71e520cfa6`](https://github.com/nodejs/node/commit/71e520cfa6)] - **doc**: add authority and scheme psuedo headers (Kenigbolo Meya Stephen) [#24777](https://github.com/nodejs/node/pull/24777)
 * \[[`5b78d2c504`](https://github.com/nodejs/node/commit/5b78d2c504)] - **doc**: remove duplicate whitespaces in doc/api (Yusuke Kawasaki)
 * \[[`162b3a12b6`](https://github.com/nodejs/node/commit/162b3a12b6)] - **doc**: add triaging section to releases.md (Beth Griggs) [#20165](https://github.com/nodejs/node/pull/20165)
 * \[[`b8611a384a`](https://github.com/nodejs/node/commit/b8611a384a)] - **doc**: use author's titles for linked resources (Rich Trott) [#24837](https://github.com/nodejs/node/pull/24837)
@@ -1859,7 +1859,7 @@ A fix for the following CVE is included in this release:
 * \[[`dadc2eb62d`](https://github.com/nodejs/node/commit/dadc2eb62d)] - **(SEMVER-MINOR)** **doc**: describe certificate object properties (Sam Roberts) [#24358](https://github.com/nodejs/node/pull/24358)
 * \[[`9ab2bcf97c`](https://github.com/nodejs/node/commit/9ab2bcf97c)] - **doc**: update 11.0.0 changelog with missing commit (Rich Trott) [#24404](https://github.com/nodejs/node/pull/24404)
 * \[[`a499db714c`](https://github.com/nodejs/node/commit/a499db714c)] - **doc**: add filehandle.write(string\[, position\[, encoding]]) (Dara Hayes) [#23224](https://github.com/nodejs/node/pull/23224)
-* \[[`cf2306d380`](https://github.com/nodejs/node/commit/cf2306d380)] - **doc**: update list item spacing in changelogs (Rich Trott) [#24391](https://github.com/nodejs/node/pull/24391)
+* \[[`cf2306d380`](https://github.com/nodejs/node/commit/cf2306d380)] - **doc**: udpate list item spacing in changelogs (Rich Trott) [#24391](https://github.com/nodejs/node/pull/24391)
 * \[[`ed78339a6b`](https://github.com/nodejs/node/commit/ed78339a6b)] - **doc**: update crypto examples to not use deprecated api (Mayank Asthana) [#24107](https://github.com/nodejs/node/pull/24107)
 * \[[`5c4f569857`](https://github.com/nodejs/node/commit/5c4f569857)] - **doc**: simplify first-time contributors section of Collaborator Guide (Rich Trott) [#24387](https://github.com/nodejs/node/pull/24387)
 * \[[`81ec97ba3d`](https://github.com/nodejs/node/commit/81ec97ba3d)] - **doc**: adjusting formatting when printing (Thomas Hunter II) [#24325](https://github.com/nodejs/node/pull/24325)
@@ -1890,7 +1890,7 @@ A fix for the following CVE is included in this release:
 * \[[`d77cf929cf`](https://github.com/nodejs/node/commit/d77cf929cf)] - **lib**: move setupAllowedFlags() into per\_thread.js (Joyee Cheung) [#24704](https://github.com/nodejs/node/pull/24704)
 * \[[`b1d3747b5b`](https://github.com/nodejs/node/commit/b1d3747b5b)] - **lib**: convert to arrow function in fs.js (exoego) [#24604](https://github.com/nodejs/node/pull/24604)
 * \[[`97b803fa13`](https://github.com/nodejs/node/commit/97b803fa13)] - **lib**: change callbacks to arrow function (/Jesse) [#24625](https://github.com/nodejs/node/pull/24625)
-* \[[`1c4bc86388`](https://github.com/nodejs/node/commit/1c4bc86388)] - **lib**: changed anonymous function to arrow function (nakashima) [#24605](https://github.com/nodejs/node/pull/24605)
+* \[[`1c4bc86388`](https://github.com/nodejs/node/commit/1c4bc86388)] - **lib**: chenged anonymous function to arrow function (nakashima) [#24605](https://github.com/nodejs/node/pull/24605)
 * \[[`83ab5f4049`](https://github.com/nodejs/node/commit/83ab5f4049)] - **lib**: rearm pre-existing signal event registrations (Gireesh Punathil) [#24651](https://github.com/nodejs/node/pull/24651)
 * \[[`6f42b98a1a`](https://github.com/nodejs/node/commit/6f42b98a1a)] - **lib**: convert to arrow function (horihiro) [#24623](https://github.com/nodejs/node/pull/24623)
 * \[[`e5c85ef886`](https://github.com/nodejs/node/commit/e5c85ef886)] - **lib**: convert to Arrow Function (Daiki Arai) [#24615](https://github.com/nodejs/node/pull/24615)
@@ -2237,7 +2237,7 @@ Fixes for the following CVEs are included in this release:
 * \[[`94f73942ed`](https://github.com/nodejs/node/commit/94f73942ed)] - **doc**: fix socket.connecting description (Anna Henningsen) [#24066](https://github.com/nodejs/node/pull/24066)
 * \[[`fa84164de4`](https://github.com/nodejs/node/commit/fa84164de4)] - **doc**: add SECURITY.md to readme.md (warnerp18) [#24031](https://github.com/nodejs/node/pull/24031)
 * \[[`e8078f2693`](https://github.com/nodejs/node/commit/e8078f2693)] - **doc**: edit man page for superfluous "node" usage (Rich Trott) [#24029](https://github.com/nodejs/node/pull/24029)
-* \[[`a1b75d0cbf`](https://github.com/nodejs/node/commit/a1b75d0cbf)] - **doc**: fix duplication in net.createServer() docs (Ivan Filenko) [#24026](https://github.com/nodejs/node/pull/24026)
+* \[[`a1b75d0cbf`](https://github.com/nodejs/node/commit/a1b75d0cbf)] - **doc**: fix dublication in net.createServer() docs (Ivan Filenko) [#24026](https://github.com/nodejs/node/pull/24026)
 * \[[`d729f3e198`](https://github.com/nodejs/node/commit/d729f3e198)] - **doc**: correct async\_hooks resource names (Gerhard Stoebich) [#24001](https://github.com/nodejs/node/pull/24001)
 * \[[`7012f72a12`](https://github.com/nodejs/node/commit/7012f72a12)] - **doc**: address bits of proof reading work (Jagannath Bhat) [#23978](https://github.com/nodejs/node/pull/23978)
 * \[[`399d64b331`](https://github.com/nodejs/node/commit/399d64b331)] - **doc**: revise COLLABORATOR\_GUIDE.md (Rich Trott) [#23990](https://github.com/nodejs/node/pull/23990)
@@ -2261,7 +2261,7 @@ Fixes for the following CVEs are included in this release:
 * \[[`4dbcf7ac1f`](https://github.com/nodejs/node/commit/4dbcf7ac1f)] - **inspector**: remove unused catch bindings (cjihrig) [#24079](https://github.com/nodejs/node/pull/24079)
 * \[[`5ca0cf7ae6`](https://github.com/nodejs/node/commit/5ca0cf7ae6)] - **lib**: improved conditional check in zlib (Dan Corman) [#24190](https://github.com/nodejs/node/pull/24190)
 * \[[`d8d93442aa`](https://github.com/nodejs/node/commit/d8d93442aa)] - **lib**: adjust params from uvExceptionWithHostPort (msmichellegar) [#24159](https://github.com/nodejs/node/pull/24159)
-* \[[`6f80a45528`](https://github.com/nodejs/node/commit/6f80a45528)] - **lib**: combine constructor, tag, Object into a function (Paul Isache) [#24171](https://github.com/nodejs/node/pull/24171)
+* \[[`6f80a45528`](https://github.com/nodejs/node/commit/6f80a45528)] - **lib**: combine contructor, tag, Object into a function (Paul Isache) [#24171](https://github.com/nodejs/node/pull/24171)
 * \[[`1225a0af09`](https://github.com/nodejs/node/commit/1225a0af09)] - **lib**: add crypto dependant modules cannotUseCache (Daniel Bevenius) [#24100](https://github.com/nodejs/node/pull/24100)
 * \[[`453c96ed2d`](https://github.com/nodejs/node/commit/453c96ed2d)] - **lib**: move process prototype manipulation into setupProcessObject (Joyee Cheung) [#24089](https://github.com/nodejs/node/pull/24089)
 * \[[`6a6b036042`](https://github.com/nodejs/node/commit/6a6b036042)] - **lib**: move internalBinding whitelisting into loaders.js (Joyee Cheung) [#24088](https://github.com/nodejs/node/pull/24088)
@@ -2369,7 +2369,7 @@ Fixes for the following CVEs are included in this release:
 * \[[`9b3c2e5054`](https://github.com/nodejs/node/commit/9b3c2e5054)] - **test**: fix argument order in assert.strictEqual() (Clement) [#24147](https://github.com/nodejs/node/pull/24147)
 * \[[`2d87ce3d8b`](https://github.com/nodejs/node/commit/2d87ce3d8b)] - **test**: switch arguments in strictEqual (Mathieu Pavageau) [#24141](https://github.com/nodejs/node/pull/24141)
 * \[[`6c8b128fcc`](https://github.com/nodejs/node/commit/6c8b128fcc)] - **test**: fix arguments order (Simona Cotin) [#24151](https://github.com/nodejs/node/pull/24151)
-* \[[`3d19a04b51`](https://github.com/nodejs/node/commit/3d19a04b51)] - **test**: fixed argument order in assert.strictEqual (Marc Posth) [#24140](https://github.com/nodejs/node/pull/24140)
+* \[[`3d19a04b51`](https://github.com/nodejs/node/commit/3d19a04b51)] - **test**: fixe argument order in assert.strictEqual (Marc Posth) [#24140](https://github.com/nodejs/node/pull/24140)
 * \[[`a0681b7211`](https://github.com/nodejs/node/commit/a0681b7211)] - **test**: removed extraneous argument 's' (Jackson Chui) [#24213](https://github.com/nodejs/node/pull/24213)
 * \[[`12429812bc`](https://github.com/nodejs/node/commit/12429812bc)] - **test**: fixing arguments order in `assert.strictEqual()` (G. Carcaci) [#24152](https://github.com/nodejs/node/pull/24152)
 * \[[`fc494cdb16`](https://github.com/nodejs/node/commit/fc494cdb16)] - **test**: add tests for OutgoingMessage setTimeout (Robin Drexler) [#24148](https://github.com/nodejs/node/pull/24148)
@@ -2384,7 +2384,7 @@ Fixes for the following CVEs are included in this release:
 * \[[`7c04fe07a6`](https://github.com/nodejs/node/commit/7c04fe07a6)] - **test**: fix arguments order (Fran Herrero) [#24131](https://github.com/nodejs/node/pull/24131)
 * \[[`6f80a5eeda`](https://github.com/nodejs/node/commit/6f80a5eeda)] - **test**: http-client-timeout error assert arguments (Tadhg Creedon) [#24130](https://github.com/nodejs/node/pull/24130)
 * \[[`415fcded15`](https://github.com/nodejs/node/commit/415fcded15)] - **test**: fix flaky VM timeout test on Raspberry Pi (Rich Trott) [#24238](https://github.com/nodejs/node/pull/24238)
-* \[[`a2e2c91cfa`](https://github.com/nodejs/node/commit/a2e2c91cfa)] - **test**: disable color formatting for test-internal-errors.js (Refael Ackermann) [#24204](https://github.com/nodejs/node/pull/24204)
+* \[[`a2e2c91cfa`](https://github.com/nodejs/node/commit/a2e2c91cfa)] - **test**: disable color formating for test-internal-errors.js (Refael Ackermann) [#24204](https://github.com/nodejs/node/pull/24204)
 * \[[`a35bcd5ef5`](https://github.com/nodejs/node/commit/a35bcd5ef5)] - **test**: remove unused catch bindings (cjihrig) [#24079](https://github.com/nodejs/node/pull/24079)
 * \[[`9bf36bc6c3`](https://github.com/nodejs/node/commit/9bf36bc6c3)] - **test**: add a test for `tls.Socket` with `allowHalfOpen` (Ouyang Yadong) [#23866](https://github.com/nodejs/node/pull/23866)
 * \[[`8a3836ec72`](https://github.com/nodejs/node/commit/8a3836ec72)] - **test**: add crypto check to test-benchmark-http2 (Daniel Bevenius) [#24096](https://github.com/nodejs/node/pull/24096)
@@ -2770,7 +2770,7 @@ Fixes for the following CVEs are included in this release:
 * \[[`7d07e161d5`](https://github.com/nodejs/node/commit/7d07e161d5)] - **doc**: describe SNI host name format (Sam Roberts) [#23357](https://github.com/nodejs/node/pull/23357)
 * \[[`9d6a1d661b`](https://github.com/nodejs/node/commit/9d6a1d661b)] - **doc**: revise security-reporting text in README (Rich Trott) [#23407](https://github.com/nodejs/node/pull/23407)
 * \[[`2303e4c63c`](https://github.com/nodejs/node/commit/2303e4c63c)] - **doc**: rewrite consensus seeking in guide (Rich Trott) [#23349](https://github.com/nodejs/node/pull/23349)
-* \[[`db8b5247fd`](https://github.com/nodejs/node/commit/db8b5247fd)] - **doc**: edit for minor fixes to process.md (Rich Trott) [#23347](https://github.com/nodejs/node/pull/23347)
+* \[[`db8b5247fd`](https://github.com/nodejs/node/commit/db8b5247fd)] - **doc**: edit for minor fixes to prcoess.md (Rich Trott) [#23347](https://github.com/nodejs/node/pull/23347)
 * \[[`927878e4a0`](https://github.com/nodejs/node/commit/927878e4a0)] - **doc**: remove personal pronoun from worker\_threads (Rich Trott) [#23347](https://github.com/nodejs/node/pull/23347)
 * \[[`bc45605775`](https://github.com/nodejs/node/commit/bc45605775)] - **doc**: remove personal pronoun from domain.md (Rich Trott) [#23347](https://github.com/nodejs/node/pull/23347)
 * \[[`f41d42ffb5`](https://github.com/nodejs/node/commit/f41d42ffb5)] - **doc**: remove style instruction that is not followed (Rich Trott) [#23346](https://github.com/nodejs/node/pull/23346)
@@ -2858,7 +2858,7 @@ Fixes for the following CVEs are included in this release:
 * \[[`1c6a55146e`](https://github.com/nodejs/node/commit/1c6a55146e)] - **test**: change order of assert.strictEquals arguments (Chuck Theobald) [#23600](https://github.com/nodejs/node/pull/23600)
 * \[[`e345897f06`](https://github.com/nodejs/node/commit/e345897f06)] - **test**: fix assert equal order of arguments (David Jiang) [#23602](https://github.com/nodejs/node/pull/23602)
 * \[[`d778f9e1f0`](https://github.com/nodejs/node/commit/d778f9e1f0)] - **test**: fix order of assert args in client response domain test (Emily Kolar) [#23604](https://github.com/nodejs/node/pull/23604)
-* \[[`d08ac84aaa`](https://github.com/nodejs/node/commit/d08ac84aaa)] - **test**: re-order strictEqual parameter calls (Paul Tichonczuk) [#23607](https://github.com/nodejs/node/pull/23607)
+* \[[`d08ac84aaa`](https://github.com/nodejs/node/commit/d08ac84aaa)] - **test**: re-order strictEqual paramater calls (Paul Tichonczuk) [#23607](https://github.com/nodejs/node/pull/23607)
 * \[[`50a280acdb`](https://github.com/nodejs/node/commit/50a280acdb)] - **test**: fix assertions args order (Milton Sosa) [#23608](https://github.com/nodejs/node/pull/23608)
 * \[[`ff75d98479`](https://github.com/nodejs/node/commit/ff75d98479)] - **test**: fix parameters in test-repl.js (Israel Ortiz) [#23609](https://github.com/nodejs/node/pull/23609)
 * \[[`c160aacd20`](https://github.com/nodejs/node/commit/c160aacd20)] - **test**: reverse arguments in assert.strictEqual (Vsevolod Geraskin) [#23613](https://github.com/nodejs/node/pull/23613)
@@ -2913,7 +2913,7 @@ Fixes for the following CVEs are included in this release:
 * \[[`69365ef25c`](https://github.com/nodejs/node/commit/69365ef25c)] - **test**: updating assertion on test so it fits the new method signature (<garrik.leonardo@gmail.com>) [#23536](https://github.com/nodejs/node/pull/23536)
 * \[[`9e6c983884`](https://github.com/nodejs/node/commit/9e6c983884)] - **test**: refactor functions to es6 (Michael Chen) [#23510](https://github.com/nodejs/node/pull/23510)
 * \[[`b06113aba1`](https://github.com/nodejs/node/commit/b06113aba1)] - **test**: replaced functions with arrow functions (edgarzapeka) [#23511](https://github.com/nodejs/node/pull/23511)
-* \[[`e4e89837db`](https://github.com/nodejs/node/commit/e4e89837db)] - **test**: correct assertion arg order in test-regress-GH-892.js (Elvis-Philip N) [#23513](https://github.com/nodejs/node/pull/23513)
+* \[[`e4e89837db`](https://github.com/nodejs/node/commit/e4e89837db)] - **test**: corret assertion arg order in test-regress-GH-892.js (Elvis-Philip N) [#23513](https://github.com/nodejs/node/pull/23513)
 * \[[`05ce3946ee`](https://github.com/nodejs/node/commit/05ce3946ee)] - **test**: fix test-dgram-pingpong assertion arg order (David Ward) [#23514](https://github.com/nodejs/node/pull/23514)
 * \[[`4958e7ad34`](https://github.com/nodejs/node/commit/4958e7ad34)] - **test**: fix assert.strictEqual() argument order (Ben Schaaf) [#23515](https://github.com/nodejs/node/pull/23515)
 * \[[`1eea1aa513`](https://github.com/nodejs/node/commit/1eea1aa513)] - **test**: fix assert.strictEqual arg order in test-tls-ecdh-multiple.js (Takdeer Sodhan) [#23516](https://github.com/nodejs/node/pull/23516)
