@@ -38,6 +38,7 @@
 
 #include <array>
 #include <bit>
+#include <filesystem>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -56,6 +57,8 @@
 #endif
 
 namespace node {
+
+constexpr char kPathSeparator = std::filesystem::path::preferred_separator;
 
 #ifdef _WIN32
 /* MAX_PATH is in characters, not bytes. Make sure we have enough headroom. */
@@ -561,6 +564,10 @@ class BufferValue : public MaybeStackBuffer<char> {
   inline std::string ToString() const { return std::string(out(), length()); }
   inline std::string_view ToStringView() const {
     return std::string_view(out(), length());
+  }
+  inline std::u8string_view ToU8StringView() const {
+    return std::u8string_view(reinterpret_cast<const char8_t*>(out()),
+                              length());
   }
 };
 

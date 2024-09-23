@@ -1,12 +1,19 @@
+function define_tests_25519() {
+    return define_tests("X25519");
+}
 
-function define_tests() {
+function define_tests_448() {
+    return define_tests("X448");
+}
+
+function define_tests(algorithmName) {
   // May want to test prefixed implementations.
   var subtle = self.crypto.subtle;
 
   // Verify the derive functions perform checks against the all-zero value results,
   // ensuring small-order points are rejected.
   // https://www.rfc-editor.org/rfc/rfc7748#section-6.1
-  Object.keys(kSmallOrderPoint).forEach(function(algorithmName) {
+  {
       kSmallOrderPoint[algorithmName].forEach(function(test) {
           promise_test(async() => {
               let derived;
@@ -28,15 +35,16 @@ function define_tests() {
               assert_equals(derived, undefined, "Operation succeeded, but should not have.");
           }, algorithmName + " key derivation checks for all-zero value result with a key of order " + test.order);
       });
-  });
+  }
 
   return importKeys(pkcs8, spki, sizes)
   .then(function(results) {
       publicKeys = results.publicKeys;
       privateKeys = results.privateKeys;
       noDeriveBitsKeys = results.noDeriveBitsKeys;
+      ecdhKeys = results.ecdhKeys;
 
-      Object.keys(sizes).forEach(function(algorithmName) {
+      {
           // Basic success case
           promise_test(function(test) {
               return subtle.deriveBits({name: algorithmName, public: publicKeys[algorithmName]}, privateKeys[algorithmName], 8 * sizes[algorithmName])
@@ -101,11 +109,7 @@ function define_tests() {
 
           // - wrong algorithm
           promise_test(function(test) {
-              publicKey = publicKeys["X25519"];
-              if (algorithmName === "X25519") {
-                  publicKey = publicKeys["X448"];
-              }
-              return subtle.deriveBits({name: algorithmName, public: publicKey}, privateKeys[algorithmName], 8 * sizes[algorithmName])
+              return subtle.deriveBits({name: algorithmName, public: ecdhKeys[algorithmName]}, privateKeys[algorithmName], 8 * sizes[algorithmName])
               .then(function(derivation) {
                   assert_unreached("deriveBits succeeded but should have failed with InvalidAccessError");
               }, function(err) {
@@ -165,16 +169,17 @@ function define_tests() {
                   assert_equals(err.name, "OperationError", "Should throw correct error, not " + err.name + ": " + err.message);
               });
           }, algorithmName + " asking for too many bits");
-      });
+      }
   });
 
   function importKeys(pkcs8, spki, sizes) {
       var privateKeys = {};
       var publicKeys = {};
       var noDeriveBitsKeys = {};
+      var ecdhPublicKeys = {};
 
       var promises = [];
-      Object.keys(pkcs8).forEach(function(algorithmName) {
+      {
           var operation = subtle.importKey("pkcs8", pkcs8[algorithmName],
                                           {name: algorithmName},
                                           false, ["deriveBits", "deriveKey"])
@@ -184,8 +189,8 @@ function define_tests() {
                               privateKeys[algorithmName] = null;
                           });
           promises.push(operation);
-      });
-      Object.keys(pkcs8).forEach(function(algorithmName) {
+      }
+      {
           var operation = subtle.importKey("pkcs8", pkcs8[algorithmName],
                                           {name: algorithmName},
                                           false, ["deriveKey"])
@@ -195,8 +200,8 @@ function define_tests() {
                               noDeriveBitsKeys[algorithmName] = null;
                           });
           promises.push(operation);
-      });
-      Object.keys(spki).forEach(function(algorithmName) {
+      }
+      {
           var operation = subtle.importKey("spki", spki[algorithmName],
                                           {name: algorithmName},
                                           false, [])
@@ -206,10 +211,17 @@ function define_tests() {
                               publicKeys[algorithmName] = null;
                           });
           promises.push(operation);
-      });
-
+      }
+      {
+          var operation = subtle.importKey("spki", ecSPKI,
+                                           {name: "ECDH", namedCurve: "P-256"},
+                                           false, [])
+                          .then(function(key) {
+                              ecdhPublicKeys[algorithmName] = key;
+                          });
+      }
       return Promise.all(promises)
-             .then(function(results) {return {privateKeys: privateKeys, publicKeys: publicKeys, noDeriveBitsKeys: noDeriveBitsKeys}});
+             .then(function(results) {return {privateKeys: privateKeys, publicKeys: publicKeys, noDeriveBitsKeys: noDeriveBitsKeys, ecdhKeys: ecdhPublicKeys}});
   }
 
   // Compares two ArrayBuffer or ArrayBufferView objects. If bitCount is
