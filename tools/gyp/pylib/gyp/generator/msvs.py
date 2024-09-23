@@ -3274,7 +3274,7 @@ def _GetMSBuildPropertyGroup(spec, label, properties):
     num_configurations = len(spec["configurations"])
 
     def GetEdges(node):
-        # Use a definition of edges such that user_of_variable -> used_variable.
+        # Use a definition of edges such that user_of_variable -> used_varible.
         # This happens to be easier in this case, since a variable's
         # definition contains all variables it references in a single string.
         edges = set()

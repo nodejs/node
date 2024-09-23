@@ -206,7 +206,7 @@ def _parse_project_urls(data: List[str]) -> Dict[str, str]:
         # be the missing value, then they'd have multiple '' values that
         # overwrite each other in a accumulating dict.
         #
-        # The other potential issue is that it's possible to have the
+        # The other potentional issue is that it's possible to have the
         # same label multiple times in the metadata, with no solid "right"
         # answer with what to do in that case. As such, we'll do the only
         # thing we can, which is treat the field as unparseable and add it

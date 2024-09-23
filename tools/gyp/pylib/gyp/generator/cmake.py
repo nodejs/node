@@ -251,7 +251,7 @@ def WriteActions(target_name, actions, extra_sources, extra_deps, path_to_gyp, o
     target_name: the name of the CMake target being generated.
     actions: the Gyp 'actions' dict for this target.
     extra_sources: [(<cmake_src>, <src>)] to append with generated source files.
-    extra_deps: [<cmake_target>] to append with generated targets.
+    extra_deps: [<cmake_taget>] to append with generated targets.
     path_to_gyp: relative path from CMakeLists.txt being generated to
         the Gyp file in which the target being generated is defined.
   """
@@ -340,7 +340,7 @@ def WriteRules(target_name, rules, extra_sources, extra_deps, path_to_gyp, outpu
     target_name: the name of the CMake target being generated.
     actions: the Gyp 'actions' dict for this target.
     extra_sources: [(<cmake_src>, <src>)] to append with generated source files.
-    extra_deps: [<cmake_target>] to append with generated targets.
+    extra_deps: [<cmake_taget>] to append with generated targets.
     path_to_gyp: relative path from CMakeLists.txt being generated to
         the Gyp file in which the target being generated is defined.
   """
@@ -457,7 +457,7 @@ def WriteCopies(target_name, copies, extra_deps, path_to_gyp, output):
   Args:
     target_name: the name of the CMake target being generated.
     actions: the Gyp 'actions' dict for this target.
-    extra_deps: [<cmake_target>] to append with generated targets.
+    extra_deps: [<cmake_taget>] to append with generated targets.
     path_to_gyp: relative path from CMakeLists.txt being generated to
         the Gyp file in which the target being generated is defined.
   """
