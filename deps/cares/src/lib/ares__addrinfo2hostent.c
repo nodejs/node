@@ -27,7 +27,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "ares_setup.h"
+#include "ares_private.h"
 
 #ifdef HAVE_NETINET_IN_H
 #  include <netinet/in.h>
@@ -39,8 +39,6 @@
 #  include <arpa/inet.h>
 #endif
 
-#include "ares_nameser.h"
-
 #ifdef HAVE_STRINGS_H
 #  include <strings.h>
 #endif
@@ -49,10 +47,6 @@
 #  include <limits.h>
 #endif
 
-#include "ares.h"
-#include "ares_dns.h"
-#include "ares_inet_net_pton.h"
-#include "ares_private.h"
 
 ares_status_t ares__addrinfo2hostent(const struct ares_addrinfo *ai, int family,
                                      struct hostent **host)
@@ -67,7 +61,7 @@ ares_status_t ares__addrinfo2hostent(const struct ares_addrinfo *ai, int family,
   size_t                      i;
 
   if (ai == NULL || host == NULL) {
-    return ARES_EBADQUERY;
+    return ARES_EBADQUERY; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   /* Use the first node of the response as the family, since hostent can only
@@ -78,12 +72,12 @@ ares_status_t ares__addrinfo2hostent(const struct ares_addrinfo *ai, int family,
   }
 
   if (family != AF_INET && family != AF_INET6) {
-    return ARES_EBADQUERY;
+    return ARES_EBADQUERY; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   *host = ares_malloc(sizeof(**host));
   if (!(*host)) {
-    goto enomem;
+    goto enomem; /* LCOV_EXCL_LINE: OutOfMemory */
   }
   memset(*host, 0, sizeof(**host));
 
@@ -105,7 +99,7 @@ ares_status_t ares__addrinfo2hostent(const struct ares_addrinfo *ai, int family,
 
   aliases = ares_malloc((naliases + 1) * sizeof(char *));
   if (!aliases) {
-    goto enomem;
+    goto enomem; /* LCOV_EXCL_LINE: OutOfMemory */
   }
   (*host)->h_aliases = aliases;
   memset(aliases, 0, (naliases + 1) * sizeof(char *));
@@ -118,7 +112,7 @@ ares_status_t ares__addrinfo2hostent(const struct ares_addrinfo *ai, int family,
       }
       aliases[alias] = ares_strdup(next_cname->alias);
       if (!aliases[alias]) {
-        goto enomem;
+        goto enomem; /* LCOV_EXCL_LINE: OutOfMemory */
       }
       alias++;
     }
@@ -127,7 +121,7 @@ ares_status_t ares__addrinfo2hostent(const struct ares_addrinfo *ai, int family,
 
   (*host)->h_addr_list = ares_malloc((naddrs + 1) * sizeof(char *));
   if (!(*host)->h_addr_list) {
-    goto enomem;
+    goto enomem; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   memset((*host)->h_addr_list, 0, (naddrs + 1) * sizeof(char *));
@@ -135,12 +129,12 @@ ares_status_t ares__addrinfo2hostent(const struct ares_addrinfo *ai, int family,
   if (ai->cnames) {
     (*host)->h_name = ares_strdup(ai->cnames->name);
     if ((*host)->h_name == NULL && ai->cnames->name) {
-      goto enomem;
+      goto enomem; /* LCOV_EXCL_LINE: OutOfMemory */
     }
   } else {
     (*host)->h_name = ares_strdup(ai->name);
     if ((*host)->h_name == NULL && ai->name) {
-      goto enomem;
+      goto enomem; /* LCOV_EXCL_LINE: OutOfMemory */
     }
   }
 
@@ -157,7 +151,7 @@ ares_status_t ares__addrinfo2hostent(const struct ares_addrinfo *ai, int family,
   if (naddrs) {
     addrs = ares_malloc(naddrs * (size_t)(*host)->h_length);
     if (!addrs) {
-      goto enomem;
+      goto enomem; /* LCOV_EXCL_LINE: OutOfMemory */
     }
 
     i = 0;
@@ -167,16 +161,16 @@ ares_status_t ares__addrinfo2hostent(const struct ares_addrinfo *ai, int family,
       }
       (*host)->h_addr_list[i] = addrs + (i * (size_t)(*host)->h_length);
       if (family == AF_INET6) {
-        memcpy(
-          (*host)->h_addr_list[i],
-          &(CARES_INADDR_CAST(struct sockaddr_in6 *, next->ai_addr)->sin6_addr),
-          (size_t)(*host)->h_length);
+        memcpy((*host)->h_addr_list[i],
+               &(CARES_INADDR_CAST(const struct sockaddr_in6 *, next->ai_addr)
+                   ->sin6_addr),
+               (size_t)(*host)->h_length);
       }
       if (family == AF_INET) {
-        memcpy(
-          (*host)->h_addr_list[i],
-          &(CARES_INADDR_CAST(struct sockaddr_in *, next->ai_addr)->sin_addr),
-          (size_t)(*host)->h_length);
+        memcpy((*host)->h_addr_list[i],
+               &(CARES_INADDR_CAST(const struct sockaddr_in *, next->ai_addr)
+                   ->sin_addr),
+               (size_t)(*host)->h_length);
       }
       ++i;
     }
@@ -194,10 +188,12 @@ ares_status_t ares__addrinfo2hostent(const struct ares_addrinfo *ai, int family,
 
   return ARES_SUCCESS;
 
+/* LCOV_EXCL_START: OutOfMemory */
 enomem:
   ares_free_hostent(*host);
   *host = NULL;
   return ARES_ENOMEM;
+  /* LCOV_EXCL_STOP */
 }
 
 ares_status_t ares__addrinfo2addrttl(const struct ares_addrinfo *ai, int family,
@@ -211,23 +207,23 @@ ares_status_t ares__addrinfo2addrttl(const struct ares_addrinfo *ai, int family,
   int                         cname_ttl = INT_MAX;
 
   if (family != AF_INET && family != AF_INET6) {
-    return ARES_EBADQUERY;
+    return ARES_EBADQUERY; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   if (ai == NULL || naddrttls == NULL) {
-    return ARES_EBADQUERY;
+    return ARES_EBADQUERY; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   if (family == AF_INET && addrttls == NULL) {
-    return ARES_EBADQUERY;
+    return ARES_EBADQUERY; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   if (family == AF_INET6 && addr6ttls == NULL) {
-    return ARES_EBADQUERY;
+    return ARES_EBADQUERY; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   if (req_naddrttls == 0) {
-    return ARES_EBADQUERY;
+    return ARES_EBADQUERY; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   *naddrttls = 0;
@@ -256,20 +252,20 @@ ares_status_t ares__addrinfo2addrttl(const struct ares_addrinfo *ai, int family,
         addr6ttls[*naddrttls].ttl = next->ai_ttl;
       }
 
-      memcpy(
-        &addr6ttls[*naddrttls].ip6addr,
-        &(CARES_INADDR_CAST(struct sockaddr_in6 *, next->ai_addr)->sin6_addr),
-        sizeof(struct ares_in6_addr));
+      memcpy(&addr6ttls[*naddrttls].ip6addr,
+             &(CARES_INADDR_CAST(const struct sockaddr_in6 *, next->ai_addr)
+                 ->sin6_addr),
+             sizeof(struct ares_in6_addr));
     } else {
       if (next->ai_ttl > cname_ttl) {
         addrttls[*naddrttls].ttl = cname_ttl;
       } else {
         addrttls[*naddrttls].ttl = next->ai_ttl;
       }
-      memcpy(
-        &addrttls[*naddrttls].ipaddr,
-        &(CARES_INADDR_CAST(struct sockaddr_in *, next->ai_addr)->sin_addr),
-        sizeof(struct in_addr));
+      memcpy(&addrttls[*naddrttls].ipaddr,
+             &(CARES_INADDR_CAST(const struct sockaddr_in *, next->ai_addr)
+                 ->sin_addr),
+             sizeof(struct in_addr));
     }
     (*naddrttls)++;
   }

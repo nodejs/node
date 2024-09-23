@@ -16,12 +16,25 @@ const { kState } = require('./symbols')
 const { webidl } = require('./webidl')
 const { Blob } = require('node:buffer')
 const assert = require('node:assert')
-const { isErrored } = require('../../core/util')
+const { isErrored, isDisturbed } = require('node:stream')
 const { isArrayBuffer } = require('node:util/types')
 const { serializeAMimeType } = require('./data-url')
 const { multipartFormDataParser } = require('./formdata-parser')
 
 const textEncoder = new TextEncoder()
+function noop () {}
+
+const hasFinalizationRegistry = globalThis.FinalizationRegistry && process.version.indexOf('v18') !== 0
+let streamRegistry
+
+if (hasFinalizationRegistry) {
+  streamRegistry = new FinalizationRegistry((weakRef) => {
+    const stream = weakRef.deref()
+    if (stream && !stream.locked && !isDisturbed(stream) && !isErrored(stream)) {
+      stream.cancel('Response object has been garbage collected').catch(noop)
+    }
+  })
+}
 
 // https://fetch.spec.whatwg.org/#concept-bodyinit-extract
 function extractBody (object, keepalive = false) {
@@ -264,13 +277,17 @@ function safelyExtractBody (object, keepalive = false) {
   return extractBody(object, keepalive)
 }
 
-function cloneBody (body) {
+function cloneBody (instance, body) {
   // To clone a body body, run these steps:
 
   // https://fetch.spec.whatwg.org/#concept-body-clone
 
   // 1. Let « out1, out2 » be the result of teeing body’s stream.
   const [out1, out2] = body.stream.tee()
+
+  if (hasFinalizationRegistry) {
+    streamRegistry.register(instance, new WeakRef(out1))
+  }
 
   // 2. Set body’s stream to out1.
   body.stream = out1
@@ -309,7 +326,7 @@ function bodyMixinMethods (instance) {
         // Return a Blob whose contents are bytes and type attribute
         // is mimeType.
         return new Blob([bytes], { type: mimeType })
-      }, instance, false)
+      }, instance)
     },
 
     arrayBuffer () {
@@ -318,21 +335,20 @@ function bodyMixinMethods (instance) {
       // given a byte sequence bytes: return a new ArrayBuffer
       // whose contents are bytes.
       return consumeBody(this, (bytes) => {
-        // Note: arrayBuffer already cloned.
-        return bytes.buffer
-      }, instance, true)
+        return new Uint8Array(bytes).buffer
+      }, instance)
     },
 
     text () {
       // The text() method steps are to return the result of running
       // consume body with this and UTF-8 decode.
-      return consumeBody(this, utf8DecodeBytes, instance, false)
+      return consumeBody(this, utf8DecodeBytes, instance)
     },
 
     json () {
       // The json() method steps are to return the result of running
       // consume body with this and parse JSON from bytes.
-      return consumeBody(this, parseJSONFromBytes, instance, false)
+      return consumeBody(this, parseJSONFromBytes, instance)
     },
 
     formData () {
@@ -384,7 +400,7 @@ function bodyMixinMethods (instance) {
         throw new TypeError(
           'Content-Type was not one of "multipart/form-data" or "application/x-www-form-urlencoded".'
         )
-      }, instance, false)
+      }, instance)
     },
 
     bytes () {
@@ -392,8 +408,8 @@ function bodyMixinMethods (instance) {
       // with this and the following step given a byte sequence bytes: return the
       // result of creating a Uint8Array from bytes in this’s relevant realm.
       return consumeBody(this, (bytes) => {
-        return new Uint8Array(bytes.buffer, 0, bytes.byteLength)
-      }, instance, true)
+        return new Uint8Array(bytes)
+      }, instance)
     }
   }
 
@@ -409,14 +425,13 @@ function mixinBody (prototype) {
  * @param {Response|Request} object
  * @param {(value: unknown) => unknown} convertBytesToJSValue
  * @param {Response|Request} instance
- * @param {boolean} [shouldClone]
  */
-async function consumeBody (object, convertBytesToJSValue, instance, shouldClone) {
+async function consumeBody (object, convertBytesToJSValue, instance) {
   webidl.brandCheck(object, instance)
 
   // 1. If object is unusable, then return a promise rejected
   //    with a TypeError.
-  if (bodyUnusable(object[kState].body)) {
+  if (bodyUnusable(object)) {
     throw new TypeError('Body is unusable: Body has already been read')
   }
 
@@ -449,14 +464,16 @@ async function consumeBody (object, convertBytesToJSValue, instance, shouldClone
 
   // 6. Otherwise, fully read object’s body given successSteps,
   //    errorSteps, and object’s relevant global object.
-  await fullyReadBody(object[kState].body, successSteps, errorSteps, shouldClone)
+  await fullyReadBody(object[kState].body, successSteps, errorSteps)
 
   // 7. Return promise.
   return promise.promise
 }
 
 // https://fetch.spec.whatwg.org/#body-unusable
-function bodyUnusable (body) {
+function bodyUnusable (object) {
+  const body = object[kState].body
+
   // An object including the Body interface mixin is
   // said to be unusable if its body is non-null and
   // its body’s stream is disturbed or locked.
@@ -498,5 +515,8 @@ module.exports = {
   extractBody,
   safelyExtractBody,
   cloneBody,
-  mixinBody
+  mixinBody,
+  streamRegistry,
+  hasFinalizationRegistry,
+  bodyUnusable
 }

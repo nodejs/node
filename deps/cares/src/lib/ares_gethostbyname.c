@@ -25,7 +25,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "ares_setup.h"
+#include "ares_private.h"
 
 #ifdef HAVE_NETINET_IN_H
 #  include <netinet/in.h>
@@ -43,10 +43,8 @@
 #  include <strings.h>
 #endif
 
-#include "ares.h"
 #include "ares_inet_net_pton.h"
 #include "ares_platform.h"
-#include "ares_private.h"
 
 static void   sort_addresses(const struct hostent  *host,
                              const struct apattern *sortlist, size_t nsort);
@@ -102,12 +100,16 @@ static void ares_gethostbyname_callback(void *arg, int status, int timeouts,
 void ares_gethostbyname(ares_channel_t *channel, const char *name, int family,
                         ares_host_callback callback, void *arg)
 {
-  const struct ares_addrinfo_hints hints = { ARES_AI_CANONNAME, family, 0, 0 };
-  struct host_query               *ghbn_arg;
+  struct ares_addrinfo_hints hints;
+  struct host_query         *ghbn_arg;
 
   if (!callback) {
     return;
   }
+
+  memset(&hints, 0, sizeof(hints));
+  hints.ai_flags  = ARES_AI_CANONNAME;
+  hints.ai_family = family;
 
   ghbn_arg = ares_malloc(sizeof(*ghbn_arg));
   if (!ghbn_arg) {
@@ -248,18 +250,18 @@ static ares_status_t ares__hostent_localhost(const char *name, int family,
 
   ai = ares_malloc_zero(sizeof(*ai));
   if (ai == NULL) {
-    status = ARES_ENOMEM;
-    goto done;
+    status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+    goto done;            /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   status = ares__addrinfo_localhost(name, 0, &hints, ai);
   if (status != ARES_SUCCESS) {
-    goto done;
+    goto done; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   status = ares__addrinfo2hostent(ai, family, host_out);
   if (status != ARES_SUCCESS) {
-    goto done;
+    goto done; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
 done:
@@ -298,7 +300,7 @@ static ares_status_t ares_gethostbyname_file_int(ares_channel_t *channel,
 
   status = ares__hosts_entry_to_hostent(entry, family, host);
   if (status != ARES_SUCCESS) {
-    goto done;
+    goto done; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
 done:

@@ -70,6 +70,13 @@ void OOMErrorHandler(const char* location, const v8::OOMDetails& details);
   V(ERR_DLOPEN_FAILED, Error)                                                  \
   V(ERR_ENCODING_INVALID_ENCODED_DATA, TypeError)                              \
   V(ERR_EXECUTION_ENVIRONMENT_NOT_AVAILABLE, Error)                            \
+  V(ERR_FS_CP_EINVAL, Error)                                                   \
+  V(ERR_FS_CP_DIR_TO_NON_DIR, Error)                                           \
+  V(ERR_FS_CP_NON_DIR_TO_DIR, Error)                                           \
+  V(ERR_FS_EISDIR, Error)                                                      \
+  V(ERR_FS_CP_SOCKET, Error)                                                   \
+  V(ERR_FS_CP_FIFO_PIPE, Error)                                                \
+  V(ERR_FS_CP_UNKNOWN, Error)                                                  \
   V(ERR_ILLEGAL_CONSTRUCTOR, Error)                                            \
   V(ERR_INVALID_ADDRESS, Error)                                                \
   V(ERR_INVALID_ARG_VALUE, TypeError)                                          \
@@ -97,16 +104,17 @@ void OOMErrorHandler(const char* location, const v8::OOMDetails& details);
   V(ERR_SCRIPT_EXECUTION_TIMEOUT, Error)                                       \
   V(ERR_STRING_TOO_LONG, Error)                                                \
   V(ERR_TLS_INVALID_PROTOCOL_METHOD, TypeError)                                \
-  V(ERR_TLS_PSK_SET_IDENTIY_HINT_FAILED, Error)                                \
+  V(ERR_TLS_PSK_SET_IDENTITY_HINT_FAILED, Error)                               \
   V(ERR_VM_MODULE_CACHED_DATA_REJECTED, Error)                                 \
   V(ERR_VM_MODULE_LINK_FAILURE, Error)                                         \
   V(ERR_WASI_NOT_STARTED, Error)                                               \
+  V(ERR_ZLIB_INITIALIZATION_FAILED, Error)                                     \
   V(ERR_WORKER_INIT_FAILED, Error)                                             \
   V(ERR_PROTO_ACCESS, Error)
 
 #define V(code, type)                                                          \
   template <typename... Args>                                                  \
-  inline v8::Local<v8::Value> code(                                            \
+  inline v8::Local<v8::Object> code(                                           \
       v8::Isolate* isolate, const char* format, Args&&... args) {              \
     std::string message = SPrintF(format, std::forward<Args>(args)...);        \
     v8::Local<v8::String> js_code = OneByteString(isolate, #code);             \
@@ -195,24 +203,22 @@ ERRORS_WITH_CODE(V)
     "--experimental-print-required-tla.")                                      \
   V(ERR_SCRIPT_EXECUTION_INTERRUPTED,                                          \
     "Script execution was interrupted by `SIGINT`")                            \
-  V(ERR_TLS_PSK_SET_IDENTIY_HINT_FAILED, "Failed to set PSK identity hint")    \
+  V(ERR_TLS_PSK_SET_IDENTITY_HINT_FAILED, "Failed to set PSK identity hint")   \
   V(ERR_WASI_NOT_STARTED, "wasi.start() has not been called")                  \
   V(ERR_WORKER_INIT_FAILED, "Worker initialization failure")                   \
   V(ERR_PROTO_ACCESS,                                                          \
     "Accessing Object.prototype.__proto__ has been "                           \
     "disallowed with --disable-proto=throw")
 
-#define V(code, message)                                                     \
-  inline v8::Local<v8::Value> code(v8::Isolate* isolate) {                   \
-    return code(isolate, message);                                           \
-  }                                                                          \
-  inline void THROW_ ## code(v8::Isolate* isolate) {                         \
-    isolate->ThrowException(code(isolate, message));                         \
-  }                                                                          \
-  inline void THROW_ ## code(Environment* env) {                             \
-    THROW_ ## code(env->isolate());                                          \
-  }
-  PREDEFINED_ERROR_MESSAGES(V)
+#define V(code, message)                                                       \
+  inline v8::Local<v8::Object> code(v8::Isolate* isolate) {                    \
+    return code(isolate, message);                                             \
+  }                                                                            \
+  inline void THROW_##code(v8::Isolate* isolate) {                             \
+    isolate->ThrowException(code(isolate, message));                           \
+  }                                                                            \
+  inline void THROW_##code(Environment* env) { THROW_##code(env->isolate()); }
+PREDEFINED_ERROR_MESSAGES(V)
 #undef V
 
 // Errors with predefined non-static messages
@@ -224,7 +230,7 @@ inline void THROW_ERR_SCRIPT_EXECUTION_TIMEOUT(Environment* env,
   THROW_ERR_SCRIPT_EXECUTION_TIMEOUT(env, message.str().c_str());
 }
 
-inline v8::Local<v8::Value> ERR_BUFFER_TOO_LARGE(v8::Isolate* isolate) {
+inline v8::Local<v8::Object> ERR_BUFFER_TOO_LARGE(v8::Isolate* isolate) {
   char message[128];
   snprintf(message,
            sizeof(message),
@@ -233,7 +239,7 @@ inline v8::Local<v8::Value> ERR_BUFFER_TOO_LARGE(v8::Isolate* isolate) {
   return ERR_BUFFER_TOO_LARGE(isolate, message);
 }
 
-inline v8::Local<v8::Value> ERR_STRING_TOO_LONG(v8::Isolate* isolate) {
+inline v8::Local<v8::Object> ERR_STRING_TOO_LONG(v8::Isolate* isolate) {
   char message[128];
   snprintf(message, sizeof(message),
       "Cannot create a string longer than 0x%x characters",

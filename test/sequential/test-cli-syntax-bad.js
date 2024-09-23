@@ -1,8 +1,8 @@
 'use strict';
 
-const common = require('../common');
-const assert = require('assert');
+require('../common');
 const { exec } = require('child_process');
+const { test } = require('node:test');
 const fixtures = require('../common/fixtures');
 
 const node = process.execPath;
@@ -23,26 +23,39 @@ const syntaxErrorRE = /^SyntaxError: \b/m;
   'syntax/bad_syntax',
   'syntax/bad_syntax_shebang.js',
   'syntax/bad_syntax_shebang',
-].forEach(function(file) {
-  file = fixtures.path(file);
+].forEach((file) => {
+  const path = fixtures.path(file);
 
   // Loop each possible option, `-c` or `--check`
-  syntaxArgs.forEach(function(args) {
-    const _args = args.concat(file);
-    const cmd = [node, ..._args].join(' ');
-    exec(cmd, common.mustCall((err, stdout, stderr) => {
-      assert.strictEqual(err instanceof Error, true);
-      assert.strictEqual(err.code, 1,
-                         `code ${err.code} !== 1 for error:\n\n${err}`);
+  syntaxArgs.forEach((args) => {
+    test(`Checking syntax for ${file} with ${args.join(' ')}`, async (t) => {
+      const _args = args.concat(path);
+      const cmd = [node, ..._args].join(' ');
 
-      // No stdout should be produced
-      assert.strictEqual(stdout, '');
+      try {
+        const { stdout, stderr } = await execPromise(cmd);
 
-      // Stderr should have a syntax error message
-      assert.match(stderr, syntaxErrorRE);
+        // No stdout should be produced
+        t.assert.strictEqual(stdout, '');
 
-      // stderr should include the filename
-      assert(stderr.startsWith(file), `${stderr} starts with ${file}`);
-    }));
+        // Stderr should have a syntax error message
+        t.assert.match(stderr, syntaxErrorRE);
+
+        // stderr should include the filename
+        t.assert.ok(stderr.startsWith(path));
+      } catch (err) {
+        t.assert.strictEqual(err.code, 1);
+      }
+    });
   });
 });
+
+// Helper function to promisify exec
+function execPromise(cmd) {
+  const { promise, resolve, reject } = Promise.withResolvers();
+  exec(cmd, (err, stdout, stderr) => {
+    if (err) return reject({ ...err, stdout, stderr });
+    resolve({ stdout, stderr });
+  });
+  return promise;
+}

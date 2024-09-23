@@ -6,7 +6,7 @@ const { redirectStatusSet, referrerPolicySet: referrerPolicyTokens, badPortsSet 
 const { getGlobalOrigin } = require('./global')
 const { collectASequenceOfCodePoints, collectAnHTTPQuotedString, removeChars, parseMIMEType } = require('./data-url')
 const { performance } = require('node:perf_hooks')
-const { isBlobLike, ReadableStreamFrom, isValidHTTPToken } = require('../../core/util')
+const { isBlobLike, ReadableStreamFrom, isValidHTTPToken, normalizedMethodRecordsBase } = require('../../core/util')
 const assert = require('node:assert')
 const { isUint8Array } = require('node:util/types')
 const { webidl } = require('./webidl')
@@ -260,10 +260,13 @@ function appendRequestOriginHeader (request) {
   // TODO: implement "byte-serializing a request origin"
   let serializedOrigin = request.origin
 
-  // "'client' is changed to an origin during fetching."
-  // This doesn't happen in undici (in most cases) because undici, by default,
-  // has no concept of origin.
-  if (serializedOrigin === 'client') {
+  // - "'client' is changed to an origin during fetching."
+  //   This doesn't happen in undici (in most cases) because undici, by default,
+  //   has no concept of origin.
+  // - request.origin can also be set to request.client.origin (client being
+  //   an environment settings object), which is undefined without using
+  //   setGlobalOrigin.
+  if (serializedOrigin === 'client' || serializedOrigin === undefined) {
     return
   }
 
@@ -791,37 +794,12 @@ function isCancelled (fetchParams) {
     fetchParams.controller.state === 'terminated'
 }
 
-const normalizeMethodRecordBase = {
-  delete: 'DELETE',
-  DELETE: 'DELETE',
-  get: 'GET',
-  GET: 'GET',
-  head: 'HEAD',
-  HEAD: 'HEAD',
-  options: 'OPTIONS',
-  OPTIONS: 'OPTIONS',
-  post: 'POST',
-  POST: 'POST',
-  put: 'PUT',
-  PUT: 'PUT'
-}
-
-const normalizeMethodRecord = {
-  ...normalizeMethodRecordBase,
-  patch: 'patch',
-  PATCH: 'PATCH'
-}
-
-// Note: object prototypes should not be able to be referenced. e.g. `Object#hasOwnProperty`.
-Object.setPrototypeOf(normalizeMethodRecordBase, null)
-Object.setPrototypeOf(normalizeMethodRecord, null)
-
 /**
  * @see https://fetch.spec.whatwg.org/#concept-method-normalize
  * @param {string} method
  */
 function normalizeMethod (method) {
-  return normalizeMethodRecordBase[method.toLowerCase()] ?? method
+  return normalizedMethodRecordsBase[method.toLowerCase()] ?? method
 }
 
 // https://infra.spec.whatwg.org/#serialize-a-javascript-value-to-a-json-string
@@ -1051,7 +1029,7 @@ function iteratorMixin (name, object, kInternalIterator, keyIndex = 0, valueInde
 /**
  * @see https://fetch.spec.whatwg.org/#body-fully-read
  */
-async function fullyReadBody (body, processBody, processBodyError, shouldClone) {
+async function fullyReadBody (body, processBody, processBodyError) {
   // 1. If taskDestination is null, then set taskDestination to
   //    the result of starting a new parallel queue.
 
@@ -1077,7 +1055,7 @@ async function fullyReadBody (body, processBody, processBodyError, shouldClone) 
 
   // 5. Read all bytes from reader, given successSteps and errorSteps.
   try {
-    successSteps(await readAllBytes(reader, shouldClone))
+    successSteps(await readAllBytes(reader))
   } catch (e) {
     errorSteps(e)
   }
@@ -1125,9 +1103,8 @@ function isomorphicEncode (input) {
  * @see https://streams.spec.whatwg.org/#readablestreamdefaultreader-read-all-bytes
  * @see https://streams.spec.whatwg.org/#read-loop
  * @param {ReadableStreamDefaultReader} reader
- * @param {boolean} [shouldClone]
  */
-async function readAllBytes (reader, shouldClone) {
+async function readAllBytes (reader) {
   const bytes = []
   let byteLength = 0
 
@@ -1136,13 +1113,6 @@ async function readAllBytes (reader, shouldClone) {
 
     if (done) {
       // 1. Call successSteps with bytes.
-      if (bytes.length === 1) {
-        const { buffer, byteOffset, byteLength } = bytes[0]
-        if (shouldClone === false) {
-          return Buffer.from(buffer, byteOffset, byteLength)
-        }
-        return Buffer.from(buffer.slice(byteOffset, byteOffset + byteLength), 0, byteLength)
-      }
       return Buffer.concat(bytes, byteLength)
     }
 
@@ -1639,7 +1609,6 @@ module.exports = {
   urlHasHttpsScheme,
   urlIsHttpHttpsScheme,
   readAllBytes,
-  normalizeMethodRecord,
   simpleRangeHeaderValue,
   buildContentRange,
   parseMetadata,

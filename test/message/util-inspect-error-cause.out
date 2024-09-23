@@ -6,10 +6,12 @@ Error: Number error cause
     at *
     at *
     at *
+    at *
     at * {
   [cause]: 42
 }
 Error: Object cause
+    at *
     at *
     at *
     at *
@@ -33,10 +35,12 @@ Error: undefined cause
     at *
     at *
     at *
+    at *
     at * {
   [cause]: undefined
 }
 Error: cause that throws
+    at *
     at *
     at *
     at *
@@ -53,12 +57,13 @@ RangeError: New Stack Frames
   [cause]: FoobarError: Individual message
       at *
   *[90m    at *[39m
-  *[90m    ... 5 lines matching cause stack trace ...*[39m
+  *[90m    ... 6 lines matching cause stack trace ...*[39m
   *[90m    at *[39m {
     status: *[32m'Feeling good'*[39m,
     extraProperties: *[32m'Yes!'*[39m,
     [cause]: TypeError: Inner error
         at *
+    *[90m    at *[39m
     *[90m    at *[39m
     *[90m    at *[39m
     *[90m    at *[39m
@@ -71,17 +76,18 @@ RangeError: New Stack Frames
 Error: Stack causes
     at *
 *[90m    at *[39m
-*[90m    ... 5 lines matching cause stack trace ...*[39m
+*[90m    ... 6 lines matching cause stack trace ...*[39m
 *[90m    at *[39m {
   [cause]: FoobarError: Individual message
       at *
   *[90m    at *[39m
-  *[90m    ... 5 lines matching cause stack trace ...*[39m
+  *[90m    ... 6 lines matching cause stack trace ...*[39m
   *[90m    at *[39m {
     status: *[32m'Feeling good'*[39m,
     extraProperties: *[32m'Yes!'*[39m,
     [cause]: TypeError: Inner error
         at *
+    *[90m    at *[39m
     *[90m    at *[39m
     *[90m    at *[39m
     *[90m    at *[39m
@@ -97,17 +103,18 @@ RangeError: New Stack Frames
   [cause]: Error: Stack causes
       at *
   *[90m    at *[39m
-  *[90m    ... 5 lines matching cause stack trace ...*[39m
+  *[90m    ... 6 lines matching cause stack trace ...*[39m
   *[90m    at *[39m {
     [cause]: FoobarError: Individual message
         at *
     *[90m    at *[39m
-    *[90m    ... 5 lines matching cause stack trace ...*[39m
+    *[90m    ... 6 lines matching cause stack trace ...*[39m
     *[90m    at *[39m {
       status: *[32m'Feeling good'*[39m,
       extraProperties: *[32m'Yes!'*[39m,
       [cause]: TypeError: Inner error
           at *
+      *[90m    at *[39m
       *[90m    at *[39m
       *[90m    at *[39m
       *[90m    at *[39m
@@ -124,11 +131,12 @@ RangeError: New Stack Frames
   [cause]: FoobarError: Individual message
       at *
       at *
-      ... 5 lines matching cause stack trace ...
+      ... 6 lines matching cause stack trace ...
       at * {
     status: 'Feeling good',
     extraProperties: 'Yes!',
     [cause]: TypeError: Inner error
+        at *
         at *
         at *
         at *
@@ -142,16 +150,17 @@ RangeError: New Stack Frames
 Error: Stack causes
     at *
     at *
-    ... 5 lines matching cause stack trace ...
+    ... 6 lines matching cause stack trace ...
     at * {
   [cause]: FoobarError: Individual message
       at *
       at *
-      ... 5 lines matching cause stack trace ...
+      ... 6 lines matching cause stack trace ...
       at *
     status: 'Feeling good',
     extraProperties: 'Yes!',
     [cause]: TypeError: Inner error
+        at *
         at *
         at *
         at *
@@ -168,16 +177,17 @@ RangeError: New Stack Frames
   [cause]: Error: Stack causes
       at *
       at *
-      ... 5 lines matching cause stack trace ...
+      ... 6 lines matching cause stack trace ...
       at * {
     [cause]: FoobarError: Individual message
         at *
         at *
-        ... 5 lines matching cause stack trace ...
+        ... 6 lines matching cause stack trace ...
         at * {
       status: 'Feeling good',
       extraProperties: 'Yes!',
       [cause]: TypeError: Inner error
+          at *
           at *
           at *
           at *

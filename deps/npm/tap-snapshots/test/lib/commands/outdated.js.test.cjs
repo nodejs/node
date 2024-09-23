@@ -10,6 +10,11 @@ Package         Current  Wanted  Latest  Location          Depended by
 cat:dog@latest    1.0.0   2.0.0   2.0.0  node_modules/cat  prefix
 `
 
+exports[`test/lib/commands/outdated.js TAP aliases with version range > should display aliased outdated dep output with correct wanted values 1`] = `
+Package         Current  Wanted  Latest  Location          Depended by
+cat:dog@^1.0.0    1.0.0   1.0.1   2.0.0  node_modules/cat  prefix
+`
+
 exports[`test/lib/commands/outdated.js TAP should display outdated deps outdated --all > must match snapshot 1`] = `
 Package  Current  Wanted  Latest  Location           Depended by
 cat        1.0.0   1.0.1   1.0.1  node_modules/cat   prefix

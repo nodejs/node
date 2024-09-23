@@ -438,7 +438,7 @@ void CipherBase::Init(const char* cipher_type,
 
 void CipherBase::Init(const FunctionCallbackInfo<Value>& args) {
   CipherBase* cipher;
-  ASSIGN_OR_RETURN_UNWRAP(&cipher, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&cipher, args.This());
   Environment* env = Environment::GetCurrent(args);
 
   CHECK_GE(args.Length(), 3);
@@ -510,7 +510,7 @@ void CipherBase::InitIv(const char* cipher_type,
 
 void CipherBase::InitIv(const FunctionCallbackInfo<Value>& args) {
   CipherBase* cipher;
-  ASSIGN_OR_RETURN_UNWRAP(&cipher, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&cipher, args.This());
   Environment* env = cipher->env();
 
   CHECK_GE(args.Length(), 4);
@@ -645,7 +645,7 @@ bool CipherBase::IsAuthenticatedMode() const {
 void CipherBase::GetAuthTag(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CipherBase* cipher;
-  ASSIGN_OR_RETURN_UNWRAP(&cipher, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&cipher, args.This());
 
   // Only callable after Final and if encrypting.
   if (cipher->ctx_ ||
@@ -661,7 +661,7 @@ void CipherBase::GetAuthTag(const FunctionCallbackInfo<Value>& args) {
 
 void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
   CipherBase* cipher;
-  ASSIGN_OR_RETURN_UNWRAP(&cipher, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&cipher, args.This());
   Environment* env = Environment::GetCurrent(args);
 
   if (!cipher->ctx_ ||
@@ -773,7 +773,7 @@ bool CipherBase::SetAAD(
 
 void CipherBase::SetAAD(const FunctionCallbackInfo<Value>& args) {
   CipherBase* cipher;
-  ASSIGN_OR_RETURN_UNWRAP(&cipher, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&cipher, args.This());
   Environment* env = Environment::GetCurrent(args);
 
   CHECK_EQ(args.Length(), 2);
@@ -886,7 +886,7 @@ bool CipherBase::SetAutoPadding(bool auto_padding) {
 
 void CipherBase::SetAutoPadding(const FunctionCallbackInfo<Value>& args) {
   CipherBase* cipher;
-  ASSIGN_OR_RETURN_UNWRAP(&cipher, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&cipher, args.This());
 
   bool b = cipher->SetAutoPadding(args.Length() < 1 || args[0]->IsTrue());
   args.GetReturnValue().Set(b);  // Possibly report invalid state failure
@@ -961,7 +961,7 @@ void CipherBase::Final(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   CipherBase* cipher;
-  ASSIGN_OR_RETURN_UNWRAP(&cipher, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&cipher, args.This());
   if (cipher->ctx_ == nullptr)
     return THROW_ERR_CRYPTO_INVALID_STATE(env);
 
@@ -989,13 +989,13 @@ template <PublicKeyCipher::Operation operation,
           PublicKeyCipher::EVP_PKEY_cipher_t EVP_PKEY_cipher>
 bool PublicKeyCipher::Cipher(
     Environment* env,
-    const ManagedEVPPKey& pkey,
+    const EVPKeyPointer& pkey,
     int padding,
     const EVP_MD* digest,
     const ArrayBufferOrViewContents<unsigned char>& oaep_label,
     const ArrayBufferOrViewContents<unsigned char>& data,
     std::unique_ptr<BackingStore>* out) {
-  EVPKeyCtxPointer ctx(EVP_PKEY_CTX_new(pkey.get(), nullptr));
+  EVPKeyCtxPointer ctx = pkey.newCtx();
   if (!ctx)
     return false;
   if (EVP_PKEY_cipher_init(ctx.get()) <= 0)
@@ -1056,8 +1056,9 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   unsigned int offset = 0;
-  ManagedEVPPKey pkey =
-      ManagedEVPPKey::GetPublicOrPrivateKeyFromJs(args, &offset);
+  auto data = KeyObjectData::GetPublicOrPrivateKeyFromJs(args, &offset);
+  if (!data) return;
+  const auto& pkey = data.GetAsymmetricKey();
   if (!pkey)
     return;
 
@@ -1070,7 +1071,7 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
 
   if (EVP_PKEY_cipher == EVP_PKEY_decrypt &&
       operation == PublicKeyCipher::kPrivate && padding == RSA_PKCS1_PADDING) {
-    EVPKeyCtxPointer ctx(EVP_PKEY_CTX_new(pkey.get(), nullptr));
+    EVPKeyCtxPointer ctx = pkey.newCtx();
     CHECK(ctx);
 
     if (EVP_PKEY_decrypt_init(ctx.get()) <= 0) {

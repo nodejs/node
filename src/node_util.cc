@@ -22,6 +22,7 @@ using v8::Integer;
 using v8::Isolate;
 using v8::KeyCollectionMode;
 using v8::Local;
+using v8::LocalVector;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::ONLY_CONFIGURABLE;
@@ -161,15 +162,6 @@ static void GetCallerLocation(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(Array::New(args.GetIsolate(), ret, arraysize(ret)));
 }
 
-static void IsArrayBufferDetached(const FunctionCallbackInfo<Value>& args) {
-  if (args[0]->IsArrayBuffer()) {
-    auto buffer = args[0].As<v8::ArrayBuffer>();
-    args.GetReturnValue().Set(buffer->WasDetached());
-    return;
-  }
-  args.GetReturnValue().Set(false);
-}
-
 static void PreviewEntries(const FunctionCallbackInfo<Value>& args) {
   if (!args[0]->IsObject())
     return;
@@ -254,12 +246,59 @@ static void ParseEnv(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(dotenv.ToObject(env));
 }
 
+static void GetCallSite(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  CHECK_EQ(args.Length(), 1);
+  CHECK(args[0]->IsNumber());
+  const uint32_t frames = args[0].As<Uint32>()->Value();
+  DCHECK(frames >= 1 && frames <= 200);
+
+  // +1 for disregarding node:util
+  Local<StackTrace> stack = StackTrace::CurrentStackTrace(isolate, frames + 1);
+  const int frame_count = stack->GetFrameCount();
+  LocalVector<Value> callsite_objects(isolate);
+
+  // Frame 0 is node:util. It should be skipped.
+  for (int i = 1; i < frame_count; ++i) {
+    Local<Object> obj = Object::New(isolate);
+    Local<StackFrame> stack_frame = stack->GetFrame(isolate, i);
+
+    Utf8Value function_name(isolate, stack_frame->GetFunctionName());
+    Utf8Value script_name(isolate, stack_frame->GetScriptName());
+
+    obj->Set(env->context(),
+             env->function_name_string(),
+             String::NewFromUtf8(isolate, *function_name).ToLocalChecked())
+        .Check();
+    obj->Set(env->context(),
+             env->script_name_string(),
+             String::NewFromUtf8(isolate, *script_name).ToLocalChecked())
+        .Check();
+    obj->Set(env->context(),
+             env->line_number_string(),
+             Integer::NewFromUnsigned(isolate, stack_frame->GetLineNumber()))
+        .Check();
+    obj->Set(env->context(),
+             env->column_string(),
+             Integer::NewFromUnsigned(isolate, stack_frame->GetColumn()))
+        .Check();
+
+    callsite_objects.push_back(obj);
+  }
+
+  Local<Array> callsites =
+      Array::New(isolate, callsite_objects.data(), callsite_objects.size());
+  args.GetReturnValue().Set(callsites);
+}
+
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetPromiseDetails);
   registry->Register(GetProxyDetails);
   registry->Register(GetCallerLocation);
-  registry->Register(IsArrayBufferDetached);
   registry->Register(PreviewEntries);
+  registry->Register(GetCallSite);
   registry->Register(GetOwnNonIndexProperties);
   registry->Register(GetConstructorName);
   registry->Register(GetExternalValue);
@@ -357,14 +396,13 @@ void Initialize(Local<Object> target,
   SetMethodNoSideEffect(context, target, "getProxyDetails", GetProxyDetails);
   SetMethodNoSideEffect(
       context, target, "getCallerLocation", GetCallerLocation);
-  SetMethodNoSideEffect(
-      context, target, "isArrayBufferDetached", IsArrayBufferDetached);
   SetMethodNoSideEffect(context, target, "previewEntries", PreviewEntries);
   SetMethodNoSideEffect(
       context, target, "getOwnNonIndexProperties", GetOwnNonIndexProperties);
   SetMethodNoSideEffect(
       context, target, "getConstructorName", GetConstructorName);
   SetMethodNoSideEffect(context, target, "getExternalValue", GetExternalValue);
+  SetMethodNoSideEffect(context, target, "getCallSite", GetCallSite);
   SetMethod(context, target, "sleep", Sleep);
   SetMethod(context, target, "parseEnv", ParseEnv);
 
