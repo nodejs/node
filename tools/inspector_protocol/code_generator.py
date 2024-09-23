@@ -681,7 +681,7 @@ def main():
         generate_lib_file(os.path.join(config.lib.output, to_file_name(config, "base_string_adapter.h")), base_string_adapter_h_templates)
         generate_lib_file(os.path.join(config.lib.output, to_file_name(config, "base_string_adapter.cc")), base_string_adapter_cc_templates)
 
-    # Make gyp / make generators happy, otherwise make rebuilds world.
+    # Make gyp / make generatos happy, otherwise make rebuilds world.
     inputs_ts = max(map(os.path.getmtime, inputs))
     up_to_date = True
     for output_file in outputs.keys():

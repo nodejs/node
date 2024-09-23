@@ -5,7 +5,7 @@
 
     This module implements the bytecode cache system Jinja is optionally
     using.  This is useful if you have very complex template situations and
-    the compilation of all those templates slow down your application too
+    the compiliation of all those templates slow down your application too
     much.
 
     Situations where this is useful are often forking web applications that

@@ -410,7 +410,7 @@ class CodeGenerator(NodeVisitor):
         """Writes a function call to the stream for the current node.
         A leading comma is added automatically.  The extra keyword
         arguments may not include python keywords otherwise a syntax
-        error could occur.  The extra keyword arguments should be given
+        error could occour.  The extra keyword arguments should be given
         as python dict.
         """
         # if any of the given keyword arguments is a python keyword
@@ -1044,13 +1044,13 @@ class CodeGenerator(NodeVisitor):
         if node.test:
             loop_filter_func = self.temporary_identifier()
             test_frame.symbols.analyze_node(node, for_branch='test')
-            self.writeline('%s(filter):' % self.func(loop_filter_func), node.test)
+            self.writeline('%s(fiter):' % self.func(loop_filter_func), node.test)
             self.indent()
             self.enter_frame(test_frame)
             self.writeline(self.environment.is_async and 'async for ' or 'for ')
             self.visit(node.target, loop_frame)
             self.write(' in ')
-            self.write(self.environment.is_async and 'auto_aiter(filter)' or 'filter')
+            self.write(self.environment.is_async and 'auto_aiter(fiter)' or 'fiter')
             self.write(':')
             self.indent()
             self.writeline('if ', node.test)
@@ -1256,7 +1256,7 @@ class CodeGenerator(NodeVisitor):
             except nodes.Impossible:
                 body.append(child)
                 continue
-            # the frame can't be volatile here, because otherwise the
+            # the frame can't be volatile here, becaus otherwise the
             # as_const() function would raise an Impossible exception
             # at that point.
             try:

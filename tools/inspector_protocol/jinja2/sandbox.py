@@ -40,7 +40,7 @@ else:
 #: unsafe method attributes.  function attributes are unsafe for methods too
 UNSAFE_METHOD_ATTRIBUTES = set(['im_class', 'im_func', 'im_self'])
 
-#: unsafe generator attributes.
+#: unsafe generator attirbutes.
 UNSAFE_GENERATOR_ATTRIBUTES = set(['gi_frame', 'gi_code'])
 
 #: unsafe attributes on coroutines
@@ -299,7 +299,7 @@ class SandboxedEnvironment(Environment):
     def intercept_unop(self, operator):
         """Called during template compilation with the name of a unary
         operator to check if it should be intercepted at runtime.  If this
-        method returns `True`, :meth:`call_unop` is executed for this unary
+        method returns `True`, :meth:`call_unop` is excuted for this unary
         operator.  The default implementation of :meth:`call_unop` will use
         the :attr:`unop_table` dictionary to perform the operator with the
         same logic as the builtin one.
@@ -439,7 +439,7 @@ class ImmutableSandboxedEnvironment(SandboxedEnvironment):
         return not modifies_known_mutable(obj, attr)
 
 
-# This really is not a public API apparently.
+# This really is not a public API apparenlty.
 try:
     from _string import formatter_field_name_split
 except ImportError:

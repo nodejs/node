@@ -636,7 +636,7 @@ class Filter(Expr):
 
         # we have to be careful here because we call filter_ below.
         # if this variable would be called filter, 2to3 would wrap the
-        # call in a list because it is assuming we are talking about the
+        # call in a list beause it is assuming we are talking about the
         # builtin filter function here which no longer returns a list in
         # python 3.  because of that, do not rename filter_ to filter!
         filter_ = self.environment.filters.get(self.name)
@@ -803,7 +803,7 @@ class Div(BinExpr):
 
 
 class FloorDiv(BinExpr):
-    """Divides the left by the right node and truncates convert the
+    """Divides the left by the right node and truncates conver the
     result into an integer by truncating.
     """
     operator = '//'
@@ -896,7 +896,7 @@ class InternalName(Expr):
     yourself but the parser provides a
     :meth:`~jinja2.parser.Parser.free_identifier` method that creates
     a new identifier for you.  This identifier is not available from the
-    template and is not treated specially by the compiler.
+    template and is not threated specially by the compiler.
     """
     fields = ('name',)
 

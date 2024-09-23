@@ -239,7 +239,7 @@ def fake_exc_info(exc_info, filename, lineno):
     else:
         locals = {}
 
-    # assemble fake globals we need
+    # assamble fake globals we need
     globals = {
         '__name__':             filename,
         '__file__':             filename,
