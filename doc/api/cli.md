@@ -2097,7 +2097,7 @@ changes:
                  `PATH` environment variable accordingly.
 -->
 
-> Stability: 1.2 - Release candidate
+> Stability: 2 - Stable
 
 This runs a specified command from a package.json's `"scripts"` object.
 If a missing `"command"` is provided, it will list the available scripts.
@@ -3122,7 +3122,6 @@ V8 options that are allowed are:
 * `--disallow-code-generation-from-strings`
 * `--enable-etw-stack-walking`
 * `--expose-gc`
-* `--huge-max-old-generation-size`
 * `--interpreted-frames-native-stack`
 * `--jitless`
 * `--max-old-space-size`
@@ -3455,8 +3454,6 @@ documented here:
 ### `--expose-gc`
 
 ### `--harmony-shadow-realm`
-
-### `--huge-max-old-generation-size`
 
 ### `--jitless`
 
