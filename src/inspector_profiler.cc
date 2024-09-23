@@ -11,7 +11,6 @@
 #include "v8-inspector.h"
 
 #include <cinttypes>
-#include <filesystem>
 #include <limits>
 #include <sstream>
 #include "simdutf.h"
@@ -249,7 +248,7 @@ void V8ProfilerConnection::WriteProfile(simdjson::ondemand::object* result) {
 
   std::string filename = GetFilename();
   DCHECK(!filename.empty());
-  std::string path = (std::filesystem::path(directory) / filename).string();
+  std::string path = directory + kPathSeparator + filename;
 
   WriteResult(env_, path.c_str(), profile);
 }
@@ -305,7 +304,7 @@ void V8CoverageConnection::WriteProfile(simdjson::ondemand::object* result) {
 
   std::string filename = GetFilename();
   DCHECK(!filename.empty());
-  std::string path = (std::filesystem::path(directory) / filename).string();
+  std::string path = directory + kPathSeparator + filename;
 
   // Only insert source map cache when there's source map data at all.
   if (!source_map_cache_v->IsUndefined()) {

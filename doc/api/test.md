@@ -1246,6 +1246,9 @@ added:
   - v18.9.0
   - v16.19.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/53937
+    description: Added coverage options.
   - version: v22.8.0
     pr-url: https://github.com/nodejs/node/pull/53927
     description: Added the `isolation` option.
@@ -1319,6 +1322,29 @@ changes:
       that specifies the index of the shard to run. This option is _required_.
     * `total` {number} is a positive integer that specifies the total number
       of shards to split the test files to. This option is _required_.
+  * `coverage` {boolean} enable [code coverage][] collection.
+    **Default:** `false`.
+  * `coverageExcludeGlobs` {string|Array} Excludes specific files from code coverage
+    using a glob pattern, which can match both absolute and relative file paths.
+    This property is only applicable when `coverage` was set to `true`.
+    If both `coverageExcludeGlobs` and `coverageIncludeGlobs` are provided,
+    files must meet **both** criteria to be included in the coverage report.
+    **Default:** `undefined`.
+  * `coverageIncludeGlobs` {string|Array} Includes specific files in code coverage
+    using a glob pattern, which can match both absolute and relative file paths.
+    This property is only applicable when `coverage` was set to `true`.
+    If both `coverageExcludeGlobs` and `coverageIncludeGlobs` are provided,
+    files must meet **both** criteria to be included in the coverage report.
+    **Default:** `undefined`.
+  * `lineCoverage` {number} Require a minimum percent of covered lines. If code
+    coverage does not reach the threshold specified, the process will exit with code `1`.
+    **Default:** `0`.
+  * `branchCoverage` {number} Require a minimum percent of covered branches. If code
+    coverage does not reach the threshold specified, the process will exit with code `1`.
+    **Default:** `0`.
+  * `functionCoverage` {number} Require a minimum percent of covered functions. If code
+    coverage does not reach the threshold specified, the process will exit with code `1`.
+    **Default:** `0`.
 * Returns: {TestsStream}
 
 **Note:** `shard` is used to horizontally parallelize test running across
@@ -2086,8 +2112,10 @@ added: v22.3.0
 
 This function is used to mock the exports of ECMAScript modules, CommonJS
 modules, and Node.js builtin modules. Any references to the original module
-prior to mocking are not impacted. The following example demonstrates how a mock
-is created for a module.
+prior to mocking are not impacted. In order to enable module mocking, Node.js must
+be started with the [`--experimental-test-module-mocks`][] command-line flag.
+
+The following example demonstrates how a mock is created for a module.
 
 ```js
 test('mocks a builtin module in both module systems', async (t) => {
@@ -3016,6 +3044,31 @@ This event is only emitted if `--test` flag is passed.
 This event is not guaranteed to be emitted in the same order as the tests are
 defined.
 
+### Event: `'test:summary'`
+
+* `data` {Object}
+  * `counts` {Object} An object containing the counts of various test results.
+    * `cancelled` {number} The total number of cancelled tests.
+    * `failed` {number} The total number of failed tests.
+    * `passed` {number} The total number of passed tests.
+    * `skipped` {number} The total number of skipped tests.
+    * `suites` {number} The total number of suites run.
+    * `tests` {number} The total number of tests run, excluding suites.
+    * `todo` {number} The total number of TODO tests.
+    * `topLevel` {number} The total number of top level tests and suites.
+  * `duration_ms` {number} The duration of the test run in milliseconds.
+  * `file` {string|undefined} The path of the test file that generated the
+    summary. If the summary corresponds to multiple files, this value is
+    `undefined`.
+  * `success` {boolean} Indicates whether or not the test run is considered
+    successful or not. If any error condition occurs, such as a failing test or
+    unmet coverage threshold, this value will be set to `false`.
+
+Emitted when a test run completes. This event contains metrics pertaining to
+the completed test run, and is useful for determining if a test run passed or
+failed. If process-level test isolation is used, a `'test:summary'` event is
+generated for each test file in addition to a final cumulative summary.
+
 ### Event: `'test:watch:drained'`
 
 Emitted when no more tests are queued for execution in watch mode.
@@ -3510,6 +3563,7 @@ Can be used to abort test subtasks when the test has been aborted.
 
 [TAP]: https://testanything.org/
 [`--experimental-test-coverage`]: cli.md#--experimental-test-coverage
+[`--experimental-test-module-mocks`]: cli.md#--experimental-test-module-mocks
 [`--experimental-test-snapshots`]: cli.md#--experimental-test-snapshots
 [`--import`]: cli.md#--importmodule
 [`--test-concurrency`]: cli.md#--test-concurrency
@@ -3537,6 +3591,7 @@ Can be used to abort test subtasks when the test has been aborted.
 [`run()`]: #runoptions
 [`suite()`]: #suitename-options-fn
 [`test()`]: #testname-options-fn
+[code coverage]: #collecting-code-coverage
 [describe options]: #describename-options-fn
 [it options]: #testname-options-fn
 [stream.compose]: stream.md#streamcomposestreams
