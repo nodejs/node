@@ -14,6 +14,7 @@
     'force_dynamic_crt%': 0,
     'ossfuzz' : 'false',
     'node_module_version%': '',
+    'node_use_amaro%': 'true',
     'node_shared_brotli%': 'false',
     'node_shared_zlib%': 'false',
     'node_shared_http_parser%': 'false',
@@ -67,6 +68,7 @@
       'src/api/exceptions.cc',
       'src/api/hooks.cc',
       'src/api/utils.cc',
+      'src/async_context_frame.cc',
       'src/async_wrap.cc',
       'src/base_object.cc',
       'src/cares_wrap.cc',
@@ -105,6 +107,7 @@
       'src/node_constants.cc',
       'src/node_contextify.cc',
       'src/node_credentials.cc',
+      'src/node_debug.cc',
       'src/node_dir.cc',
       'src/node_dotenv.cc',
       'src/node_env_var.cc',
@@ -135,6 +138,7 @@
       'src/node_shadow_realm.cc',
       'src/node_snapshotable.cc',
       'src/node_sockaddr.cc',
+      'src/node_sqlite.cc',
       'src/node_stat_watcher.cc',
       'src/node_symbols.cc',
       'src/node_task_queue.cc',
@@ -183,6 +187,7 @@
       'src/aliased_buffer-inl.h',
       'src/aliased_struct.h',
       'src/aliased_struct-inl.h',
+      'src/async_context_frame.h',
       'src/async_wrap.h',
       'src/async_wrap-inl.h',
       'src/base_object.h',
@@ -197,6 +202,7 @@
       'src/compile_cache.h',
       'src/connect_wrap.h',
       'src/connection_wrap.h',
+      'src/cppgc_helpers.h',
       'src/dataqueue/queue.h',
       'src/debug_utils.h',
       'src/debug_utils-inl.h',
@@ -225,6 +231,7 @@
       'src/node_constants.h',
       'src/node_context_data.h',
       'src/node_contextify.h',
+      'src/node_debug.h',
       'src/node_dir.h',
       'src/node_dotenv.h',
       'src/node_errors.h',
@@ -264,6 +271,7 @@
       'src/node_snapshot_builder.h',
       'src/node_sockaddr.h',
       'src/node_sockaddr-inl.h',
+      'src/node_sqlite.h',
       'src/node_stat_watcher.h',
       'src/node_union_bytes.h',
       'src/node_url.h',
@@ -478,6 +486,9 @@
     },
 
     'conditions': [
+      ['clang==0 and OS!="win"', {
+        'cflags': [ '-Wno-restrict', ],
+      }],
       # Pointer authentication for ARM64.
       ['target_arch=="arm64"', {
           'target_conditions': [
@@ -938,6 +949,9 @@
             '<@(node_crypto_sources)',
             '<@(node_quic_sources)',
           ],
+          'dependencies': [
+            'deps/ncrypto/ncrypto.gyp:ncrypto',
+          ],
         }],
         [ 'OS in "linux freebsd mac solaris" and '
           'target_arch=="x64" and '
@@ -1199,6 +1213,9 @@
           'defines': [
             'HAVE_OPENSSL=1',
           ],
+          'dependencies': [
+            'deps/ncrypto/ncrypto.gyp:ncrypto',
+          ],
           'sources': [ '<@(node_cctest_openssl_sources)' ],
         }],
         ['v8_enable_inspector==1', {
@@ -1387,11 +1404,20 @@
         'tools/snapshot/node_mksnapshot.cc',
       ],
 
+      'msvs_settings': {
+        'VCLinkerTool': {
+          'EnableCOMDATFolding': '1', # /OPT:NOICF
+        },
+      },
+
       'conditions': [
         ['node_write_snapshot_as_array_literals=="true"', {
           'defines': [ 'NODE_MKSNAPSHOT_USE_ARRAY_LITERALS=1' ],
         }],
         [ 'node_use_openssl=="true"', {
+          'dependencies': [
+            'deps/ncrypto/ncrypto.gyp:ncrypto',
+          ],
           'defines': [
             'HAVE_OPENSSL=1',
           ],

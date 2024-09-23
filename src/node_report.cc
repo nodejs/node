@@ -21,7 +21,6 @@
 #include <cstring>
 #include <ctime>
 #include <cwctype>
-#include <filesystem>
 #include <fstream>
 
 constexpr int NODE_REPORT_VERSION = 3;
@@ -133,7 +132,7 @@ static void WriteNodeReport(Isolate* isolate,
            tm_struct.wMinute,
            tm_struct.wSecond);
   writer.json_keyvalue("dumpEventTime", timebuf);
-#else  // UNIX, OSX
+#else  // UNIX, macOS
   snprintf(timebuf,
            sizeof(timebuf),
            "%4d-%02d-%02dT%02d:%02d:%02dZ",
@@ -887,9 +886,8 @@ std::string TriggerNodeReport(Isolate* isolate,
       report_directory = per_process::cli_options->report_directory;
     }
     // Regular file. Append filename to directory path if one was specified
-    if (!report_directory.empty()) {
-      std::string pathname =
-          (std::filesystem::path(report_directory) / filename).string();
+    if (report_directory.length() > 0) {
+      std::string pathname = report_directory + kPathSeparator + filename;
       outfile.open(pathname, std::ios::out | std::ios::binary);
     } else {
       outfile.open(filename, std::ios::out | std::ios::binary);

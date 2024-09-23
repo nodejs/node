@@ -26,7 +26,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "ares_setup.h"
+#include "ares_private.h"
 
 #ifdef HAVE_GETSERVBYNAME_R
 #  if !defined(GETSERVBYNAME_R_ARGS) || (GETSERVBYNAME_R_ARGS < 4) || \
@@ -56,8 +56,6 @@
 #  include <limits.h>
 #endif
 
-#include "ares.h"
-#include "ares_private.h"
 #include "ares_dns.h"
 
 #ifdef _WIN32
@@ -254,7 +252,7 @@ static ares_bool_t fake_addrinfo(const char *name, unsigned short port,
     ares_bool_t valid   = ARES_TRUE;
     const char *p;
     for (p = name; *p; p++) {
-      if (!ISDIGIT(*p) && *p != '.') {
+      if (!ares__isdigit(*p) && *p != '.') {
         valid = ARES_FALSE;
         break;
       } else if (*p == '.') {
@@ -275,7 +273,7 @@ static ares_bool_t fake_addrinfo(const char *name, unsigned short port,
         status = ares_append_ai_node(AF_INET, port, 0, &addr4, &ai->nodes);
         if (status != ARES_SUCCESS) {
           callback(arg, (int)status, 0, NULL); /* LCOV_EXCL_LINE: OutOfMemory */
-          return ARES_TRUE; /* LCOV_EXCL_LINE: OutOfMemory */
+          return ARES_TRUE;                    /* LCOV_EXCL_LINE: OutOfMemory */
         }
       }
     }
@@ -289,7 +287,7 @@ static ares_bool_t fake_addrinfo(const char *name, unsigned short port,
       status = ares_append_ai_node(AF_INET6, port, 0, &addr6, &ai->nodes);
       if (status != ARES_SUCCESS) {
         callback(arg, (int)status, 0, NULL); /* LCOV_EXCL_LINE: OutOfMemory */
-        return ARES_TRUE; /* LCOV_EXCL_LINE: OutOfMemory */
+        return ARES_TRUE;                    /* LCOV_EXCL_LINE: OutOfMemory */
       }
     }
   }
@@ -471,7 +469,7 @@ static void terminate_retries(const struct host_query *hquery,
   unsigned short term_qid =
     (qid == hquery->qid_a) ? hquery->qid_aaaa : hquery->qid_a;
   const ares_channel_t *channel = hquery->channel;
-  struct query         *query   = NULL;
+  ares_query_t         *query   = NULL;
 
   /* No other outstanding queries, nothing to do */
   if (!hquery->remaining) {
@@ -529,6 +527,13 @@ static void host_callback(void *arg, ares_status_t status, size_t timeouts,
       if (status == ARES_ENODATA || addinfostatus == ARES_ENODATA) {
         hquery->nodata_cnt++;
       }
+      next_lookup(hquery, hquery->nodata_cnt ? ARES_ENODATA : status);
+    } else if (
+        (status == ARES_ESERVFAIL || status == ARES_EREFUSED) &&
+        ares__name_label_cnt(hquery->names[hquery->next_name_idx-1]) == 1
+      ) {
+      /* Issue #852, systemd-resolved may return SERVFAIL or REFUSED on a
+       * single label domain name. */
       next_lookup(hquery, hquery->nodata_cnt ? ARES_ENODATA : status);
     } else {
       end_hquery(hquery, status);
@@ -674,20 +679,20 @@ static ares_bool_t next_dns_lookup(struct host_query *hquery)
   switch (hquery->hints.ai_family) {
     case AF_INET:
       hquery->remaining += 1;
-      ares_query_dnsrec(hquery->channel, name, ARES_CLASS_IN, ARES_REC_TYPE_A,
+      ares_query_nolock(hquery->channel, name, ARES_CLASS_IN, ARES_REC_TYPE_A,
                         host_callback, hquery, &hquery->qid_a);
       break;
     case AF_INET6:
       hquery->remaining += 1;
-      ares_query_dnsrec(hquery->channel, name, ARES_CLASS_IN,
+      ares_query_nolock(hquery->channel, name, ARES_CLASS_IN,
                         ARES_REC_TYPE_AAAA, host_callback, hquery,
                         &hquery->qid_aaaa);
       break;
     case AF_UNSPEC:
       hquery->remaining += 2;
-      ares_query_dnsrec(hquery->channel, name, ARES_CLASS_IN, ARES_REC_TYPE_A,
+      ares_query_nolock(hquery->channel, name, ARES_CLASS_IN, ARES_REC_TYPE_A,
                         host_callback, hquery, &hquery->qid_a);
-      ares_query_dnsrec(hquery->channel, name, ARES_CLASS_IN,
+      ares_query_nolock(hquery->channel, name, ARES_CLASS_IN,
                         ARES_REC_TYPE_AAAA, host_callback, hquery,
                         &hquery->qid_aaaa);
       break;

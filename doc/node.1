@@ -4,9 +4,6 @@
 .\" * Language reference:
 .\"   https://man.openbsd.org/mdoc.7
 .\"
-.\" * Atom editor support:
-.\"   https://atom.io/packages/language-roff
-.\"
 .\" * Linting changes:
 .\"   mandoc -Wall -Tlint /path/to/this.file  # BSD
 .\"   groff -w all -z /path/to/this.file      # GNU/Linux, macOS
@@ -176,23 +173,32 @@ Specify the
 .Ar module
 to use as a custom module loader.
 .
-.It Fl -experimental-network-imports
-Enable experimental support for loading modules using `import` over `https:`.
-.
 .It Fl -experimental-permission
 Enable the experimental permission model.
 .
 .It Fl -experimental-shadow-realm
 Use this flag to enable ShadowRealm support.
 .
+.It Fl -experimental-sqlite
+Enable the experimental node:sqlite module.
+.
 .It Fl -experimental-test-coverage
 Enable code coverage in the test runner.
+.
+.It Fl -experimental-test-isolation Ns = Ns Ar mode
+Configures the type of test isolation used in the test runner.
 .
 .It Fl -experimental-test-module-mocks
 Enable module mocking in the test runner.
 .
 .It Fl -experimental-test-snapshots
 Enable snapshot testing in the test runner.
+.
+.It Fl -experimental-strip-types
+Enable experimental type-stripping for TypeScript files.
+.
+.It Fl -experimental-transform-types
+Enable transformation of TypeScript-only syntax into JavaScript code.
 .
 .It Fl -experimental-eventsource
 Enable experimental support for the EventSource Web API.
@@ -434,6 +440,21 @@ Starts the Node.js command line test runner.
 .It Fl -test-concurrency
 The maximum number of test files that the test runner CLI will execute
 concurrently.
+.
+.It Fl -test-coverage-branches Ns = Ns Ar threshold
+Require a minimum threshold for branch coverage (0 - 100).
+.
+.It Fl -test-coverage-exclude
+A glob pattern that excludes matching files from the coverage report
+.
+.It Fl -test-coverage-functions Ns = Ns Ar threshold
+Require a minimum threshold for function coverage (0 - 100).
+.
+.It Fl -test-coverage-include
+A glob pattern that only includes matching files in the coverage report
+.
+.It Fl -test-coverage-lines Ns = Ns Ar threshold
+Require a minimum threshold for line coverage (0 - 100).
 .
 .It Fl -test-force-exit
 Configures the test runner to exit the process once all known tests have

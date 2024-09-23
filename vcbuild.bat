@@ -41,6 +41,8 @@ set msi=
 set upload=
 set licensertf=
 set lint_js=
+set lint_js_build=
+set lint_js_fix=
 set lint_cpp=
 set lint_md=
 set lint_md_build=
@@ -68,6 +70,7 @@ set openssl_no_asm=
 set no_shared_roheap=
 set doc=
 set extra_msbuild_args=
+set compile_commands=
 set exit_code=0
 
 :next-arg
@@ -115,6 +118,8 @@ if /i "%1"=="test-v8-benchmarks" set test_v8_benchmarks=1&set custom_v8_test=1&g
 if /i "%1"=="test-v8-all"       set test_v8=1&set test_v8_intl=1&set test_v8_benchmarks=1&set custom_v8_test=1&goto arg-ok
 if /i "%1"=="lint-cpp"      set lint_cpp=1&goto arg-ok
 if /i "%1"=="lint-js"       set lint_js=1&goto arg-ok
+if /i "%1"=="lint-js-build" set lint_js_build=1&goto arg-ok
+if /i "%1"=="lint-js-fix"   set lint_js_fix=1&goto arg-ok
 if /i "%1"=="jslint"        set lint_js=1&echo Please use lint-js instead of jslint&goto arg-ok
 if /i "%1"=="lint-md"       set lint_md=1&goto arg-ok
 if /i "%1"=="lint-md-build" set lint_md_build=1&goto arg-ok
@@ -143,6 +148,7 @@ if /i "%1"=="openssl-no-asm"   set openssl_no_asm=1&goto arg-ok
 if /i "%1"=="no-shared-roheap" set no_shared_roheap=1&goto arg-ok
 if /i "%1"=="doc"           set doc=1&goto arg-ok
 if /i "%1"=="binlog"        set extra_msbuild_args=/binaryLogger:out\%config%\node.binlog&goto arg-ok
+if /i "%1"=="compile-commands" set compile_commands=1&goto arg-ok
 
 echo Error: invalid command line option `%1`.
 exit /b 1
@@ -201,6 +207,7 @@ if defined debug_nghttp2    set configure_flags=%configure_flags% --debug-nghttp
 if defined openssl_no_asm   set configure_flags=%configure_flags% --openssl-no-asm
 if defined no_shared_roheap set configure_flags=%configure_flags% --disable-shared-readonly-heap
 if defined DEBUG_HELPER     set configure_flags=%configure_flags% --verbose
+if defined compile_commands set configure_flags=%configure_flags% -C
 
 if "%target_arch%"=="x86" (
   echo "32-bit Windows builds are not supported anymore."
@@ -282,6 +289,14 @@ echo https://github.com/nodejs/node/blob/HEAD/BUILDING.md#windows
 goto exit
 
 :msbuild-found
+
+@rem Visual Studio v17.10 has a bug that causes the build to fail.
+@rem Check if the version is v17.10 and exit if it is.
+echo %VSCMD_VER% | findstr /b /c:"17.10" >nul
+if %errorlevel% neq 1  (
+  echo Node.js doesn't compile with Visual Studio 17.10 Please use a different version.
+  goto exit
+)
 
 @rem check if the clang-cl build is requested
 if not defined clang_cl goto clang-skip
@@ -719,13 +734,26 @@ goto lint-js
 
 :run-make-lint
 %NODEJS_MAKE% lint-cpp
-goto lint-js
+goto lint-js-build
+
+:lint-js-build
+if not defined lint_js_build if not defined lint_js if not defined lint_js_fix goto lint-md-build
+cd tools\eslint
+%npm_exe% ci
+cd ..\..
 
 :lint-js
-if not defined lint_js goto lint-md-build
+if not defined lint_js goto lint-js-fix
 if not exist tools\eslint\node_modules\eslint goto no-lint
 echo running lint-js
 %node_exe% tools\eslint\node_modules\eslint\bin\eslint.js --cache --max-warnings=0 --report-unused-disable-directives --rule "@stylistic/js/linebreak-style: 0" eslint.config.mjs benchmark doc lib test tools
+goto lint-js-fix
+
+:lint-js-fix
+if not defined lint_js_fix goto lint-md-build
+if not exist tools\eslint\node_modules\eslint goto no-lint
+echo running lint-js-fix
+%node_exe% tools\eslint\node_modules\eslint\bin\eslint.js --cache --max-warnings=0 --report-unused-disable-directives --rule "@stylistic/js/linebreak-style: 0" eslint.config.mjs benchmark doc lib test tools --fix
 goto lint-md-build
 
 :no-lint

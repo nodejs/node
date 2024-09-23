@@ -72,6 +72,10 @@ extern "C" {
 #  endif /* !BUILDING_NGHTTP2 */
 #endif   /* !defined(WIN32) */
 
+#ifdef BUILDING_NGHTTP2
+#  undef NGHTTP2_NO_SSIZE_T
+#endif /* BUILDING_NGHTTP2 */
+
 /**
  * @typedef
  *

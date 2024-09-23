@@ -23,8 +23,6 @@
  *
  * SPDX-License-Identifier: MIT
  */
-#include "ares_setup.h"
-#include "ares.h"
 #include "ares_private.h"
 #ifdef HAVE_SYS_TYPES_H
 #  include <sys/types.h>
@@ -316,7 +314,7 @@ static ares_status_t ares__hosts_file_add(ares_hosts_file_t  *hosts,
     status = ares__hosts_file_merge_entry(hosts, match, entry, matchtype);
     if (status != ARES_SUCCESS) {
       ares__hosts_entry_destroy(entry); /* LCOV_EXCL_LINE: DefensiveCoding */
-      return status; /* LCOV_EXCL_LINE: DefensiveCoding */
+      return status;                    /* LCOV_EXCL_LINE: DefensiveCoding */
     }
     /* entry was invalidated above by merging */
     entry = match;
@@ -617,7 +615,8 @@ static ares_bool_t ares__hosts_expired(const char              *filename,
 
   /* Expire every 60s if we can't get a time */
   if (mod_ts == 0) {
-    mod_ts = time(NULL) - 60; /* LCOV_EXCL_LINE: only on systems without stat() */
+    mod_ts =
+      time(NULL) - 60; /* LCOV_EXCL_LINE: only on systems without stat() */
   }
 
   /* If filenames are different, its expired */
@@ -768,126 +767,6 @@ ares_status_t ares__hosts_search_host(ares_channel_t *channel,
   return ARES_SUCCESS;
 }
 
-ares_status_t ares__hosts_entry_to_hostent(const ares_hosts_entry_t *entry,
-                                           int family, struct hostent **hostent)
-{
-  ares_status_t       status;
-  size_t              naliases;
-  ares__llist_node_t *node;
-  size_t              idx;
-
-  *hostent = ares_malloc_zero(sizeof(**hostent));
-  if (*hostent == NULL) {
-    status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-    goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
-  }
-
-  (*hostent)->h_addrtype = (HOSTENT_ADDRTYPE_TYPE)family;
-
-  /* Copy IP addresses that match the address family */
-  idx = 0;
-  for (node = ares__llist_node_first(entry->ips); node != NULL;
-       node = ares__llist_node_next(node)) {
-    struct ares_addr addr;
-    const void      *ptr     = NULL;
-    size_t           ptr_len = 0;
-    const char      *ipaddr  = ares__llist_node_val(node);
-    char           **temp    = NULL;
-
-    memset(&addr, 0, sizeof(addr));
-
-    addr.family = family;
-    ptr         = ares_dns_pton(ipaddr, &addr, &ptr_len);
-    if (ptr == NULL) {
-      continue;
-    }
-
-    /* If family == AF_UNSPEC, then we want to inherit this for future
-     * conversions as we can only support a single address class */
-    if (family == AF_UNSPEC) {
-      family                 = addr.family;
-      (*hostent)->h_addrtype = (HOSTENT_ADDRTYPE_TYPE)addr.family;
-    }
-
-    temp = ares_realloc_zero((*hostent)->h_addr_list,
-                             (idx + 1) * sizeof(*(*hostent)->h_addr_list),
-                             (idx + 2) * sizeof(*(*hostent)->h_addr_list));
-    if (temp == NULL) {
-      status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-      goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
-    }
-
-    (*hostent)->h_addr_list = temp;
-
-    (*hostent)->h_addr_list[idx] = ares_malloc(ptr_len);
-    if ((*hostent)->h_addr_list[idx] == NULL) {
-      status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-      goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
-    }
-
-    memcpy((*hostent)->h_addr_list[idx], ptr, ptr_len);
-    idx++;
-    (*hostent)->h_length = (HOSTENT_LENGTH_TYPE)ptr_len;
-  }
-
-  /* entry didn't match address class */
-  if (idx == 0) {
-    status = ARES_ENOTFOUND;
-    goto fail;
-  }
-
-  /* Copy main hostname */
-  (*hostent)->h_name = ares_strdup(ares__llist_first_val(entry->hosts));
-  if ((*hostent)->h_name == NULL) {
-    status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-    goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
-  }
-
-  /* Copy aliases */
-  naliases = ares__llist_len(entry->hosts) - 1;
-
-  /* Cap at 100, some people use https://github.com/StevenBlack/hosts and we
-   * don't need 200k+ aliases */
-  if (naliases > 100) {
-    naliases = 100; /* LCOV_EXCL_LINE: DefensiveCoding */
-  }
-
-  (*hostent)->h_aliases =
-    ares_malloc_zero((naliases + 1) * sizeof(*(*hostent)->h_aliases));
-  if ((*hostent)->h_aliases == NULL) {
-    status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-    goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
-  }
-
-  /* Copy all entries to the alias except the first */
-  idx  = 0;
-  node = ares__llist_node_first(entry->hosts);
-  node = ares__llist_node_next(node);
-  while (node != NULL) {
-    (*hostent)->h_aliases[idx] = ares_strdup(ares__llist_node_val(node));
-    if ((*hostent)->h_aliases[idx] == NULL) {
-      status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-      goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
-    }
-    idx++;
-
-    /* Break out if artificially capped */
-    if (idx == naliases) {
-      break;
-    }
-    node = ares__llist_node_next(node);
-  }
-
-  return ARES_SUCCESS;
-
-/* LCOV_EXCL_START: defensive coding */
-fail:
-  ares_free_hostent(*hostent);
-  *hostent = NULL;
-  return status;
-/* LCOV_EXCL_STOP */
-}
-
 static ares_status_t
   ares__hosts_ai_append_cnames(const ares_hosts_entry_t    *entry,
                                struct ares_addrinfo_cname **cnames_out)
@@ -917,19 +796,19 @@ static ares_status_t
     cname = ares__append_addrinfo_cname(&cnames);
     if (cname == NULL) {
       status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-      goto done; /* LCOV_EXCL_LINE: OutOfMemory */
+      goto done;            /* LCOV_EXCL_LINE: OutOfMemory */
     }
 
     cname->alias = ares_strdup(host);
     if (cname->alias == NULL) {
       status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-      goto done; /* LCOV_EXCL_LINE: OutOfMemory */
+      goto done;            /* LCOV_EXCL_LINE: OutOfMemory */
     }
 
     cname->name = ares_strdup(primaryhost);
     if (cname->name == NULL) {
       status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-      goto done; /* LCOV_EXCL_LINE: OutOfMemory */
+      goto done;            /* LCOV_EXCL_LINE: OutOfMemory */
     }
 
     node = ares__llist_node_next(node);
@@ -940,13 +819,13 @@ static ares_status_t
     cname = ares__append_addrinfo_cname(&cnames);
     if (cname == NULL) {
       status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-      goto done; /* LCOV_EXCL_LINE: OutOfMemory */
+      goto done;            /* LCOV_EXCL_LINE: OutOfMemory */
     }
 
     cname->name = ares_strdup(primaryhost);
     if (cname->name == NULL) {
       status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-      goto done; /* LCOV_EXCL_LINE: OutOfMemory */
+      goto done;            /* LCOV_EXCL_LINE: OutOfMemory */
     }
   }
   status = ARES_SUCCESS;
@@ -954,7 +833,7 @@ static ares_status_t
 done:
   if (status != ARES_SUCCESS) {
     ares__freeaddrinfo_cnames(cnames); /* LCOV_EXCL_LINE: DefensiveCoding */
-    return status; /* LCOV_EXCL_LINE: DefensiveCoding */
+    return status;                     /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   *cnames_out = cnames;
@@ -977,14 +856,16 @@ ares_status_t ares__hosts_entry_to_addrinfo(const ares_hosts_entry_t *entry,
     case AF_INET6:
     case AF_UNSPEC:
       break;
-    default: /* LCOV_EXCL_LINE: DefensiveCoding */
+    default:                  /* LCOV_EXCL_LINE: DefensiveCoding */
       return ARES_EBADFAMILY; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
-  ai->name = ares_strdup(name);
-  if (ai->name == NULL) {
-    status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-    goto done; /* LCOV_EXCL_LINE: OutOfMemory */
+  if (name != NULL) {
+    ai->name = ares_strdup(name);
+    if (ai->name == NULL) {
+      status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+      goto done;            /* LCOV_EXCL_LINE: OutOfMemory */
+    }
   }
 
   for (node = ares__llist_node_first(entry->ips); node != NULL;
@@ -1029,6 +910,38 @@ done:
   }
   ares__addrinfo_cat_cnames(&ai->cnames, cnames);
   ares__addrinfo_cat_nodes(&ai->nodes, ainodes);
+
+  return status;
+}
+
+ares_status_t ares__hosts_entry_to_hostent(const ares_hosts_entry_t *entry,
+                                           int family, struct hostent **hostent)
+{
+  ares_status_t         status;
+  struct ares_addrinfo *ai = ares_malloc_zero(sizeof(*ai));
+
+  *hostent = NULL;
+
+  if (ai == NULL) {
+    return ARES_ENOMEM;
+  }
+
+  status = ares__hosts_entry_to_addrinfo(entry, NULL, family, 0, ARES_TRUE, ai);
+  if (status != ARES_SUCCESS) {
+    goto done;
+  }
+
+  status = ares__addrinfo2hostent(ai, family, hostent);
+  if (status != ARES_SUCCESS) {
+    goto done;
+  }
+
+done:
+  ares_freeaddrinfo(ai);
+  if (status != ARES_SUCCESS) {
+    ares_free_hostent(*hostent);
+    *hostent = NULL;
+  }
 
   return status;
 }

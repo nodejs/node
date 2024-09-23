@@ -6,7 +6,7 @@
  * SPDX-License-Identifier: MIT
  *
  */
-#include "ares_setup.h"
+#include "ares_private.h"
 
 
 /* only do the following on windows

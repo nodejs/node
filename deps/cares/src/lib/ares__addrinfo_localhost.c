@@ -25,7 +25,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "ares_setup.h"
+#include "ares_private.h"
 
 #ifdef HAVE_NETINET_IN_H
 #  include <netinet/in.h>
@@ -48,10 +48,6 @@
 #    include <netioapi.h>
 #  endif
 #endif
-
-#include "ares.h"
-#include "ares_inet_net_pton.h"
-#include "ares_private.h"
 
 ares_status_t ares_append_ai_node(int aftype, unsigned short port,
                                   unsigned int ttl, const void *adata,
@@ -140,7 +136,7 @@ static ares_status_t
   !defined(__WATCOMC__)
   PMIB_UNICASTIPADDRESS_TABLE table;
   unsigned int                i;
-  ares_status_t               status;
+  ares_status_t               status = ARES_ENOTFOUND;
 
   *nodes = NULL;
 
@@ -208,7 +204,7 @@ ares_status_t ares__addrinfo_localhost(const char *name, unsigned short port,
     case AF_INET6:
     case AF_UNSPEC:
       break;
-    default: /* LCOV_EXCL_LINE: DefensiveCoding */
+    default:                  /* LCOV_EXCL_LINE: DefensiveCoding */
       return ARES_EBADFAMILY; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
@@ -233,5 +229,5 @@ enomem:
   ares_free(ai->name);
   ai->name = NULL;
   return ARES_ENOMEM;
-/* LCOV_EXCL_STOP */
+  /* LCOV_EXCL_STOP */
 }

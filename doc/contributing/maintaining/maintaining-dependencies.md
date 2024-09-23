@@ -10,6 +10,7 @@ This a list of all the dependencies:
 
 * [acorn][]
 * [ada][]
+* [amaro][]
 * [base64][]
 * [brotli][]
 * [c-ares][]
@@ -109,7 +110,7 @@ shared library is available can added by:
 Support for an externalizable dependency with JavaScript code
 can be added by:
 
-* adding an entry to the `sharable_builtins` map in
+* adding an entry to the `shareable_builtins` map in
   `configure.py`. The path should correspond to the file
   within the deps directory that is normally bundled into
   Node.js. For example `deps/cjs-module-lexer/lexer.js`.
@@ -124,6 +125,17 @@ can be added by:
   option you can find the #define in `config.gypi`. You can cut and
   paste one of the existing entries and then update to match the
   import name for the dependency and the #define generated.
+
+* if the version of the dependency is reported in `process.versions`,
+  update `src/node_metadata.h` and `src/node_metadata.cc` so that the
+  version is not reported when the dependency is externalized.
+  Not reporting the version is better than incorrectly reporting
+  the version of the dependency bundled with Node.js, instead of the
+  version for the externalized dependency. Use one of the existing
+  externalized dependencies, like Undici, as an example of how to
+  update these files correctly. Make sure to run the tests with the
+  dependency externalized, as the tests will also need to be updated
+  to handle this properly.
 
 ## Supporting non-externalized dependencies with JavaScript code
 
@@ -167,6 +179,11 @@ an abstract syntax tree walker for the ESTree format.
 
 The [ada](https://github.com/ada-url/ada) dependency is a
 fast and spec-compliant URL parser written in C++.
+
+### amaro
+
+The [amaro](https://www.npmjs.com/package/amaro) dependency is a wrapper around the
+WebAssembly version of the SWC JavaScript/TypeScript parser.
 
 ### brotli
 
@@ -336,6 +353,7 @@ performance improvements not currently available in standard zlib.
 
 [acorn]: #acorn
 [ada]: #ada
+[amaro]: #amaro
 [base64]: #base64
 [brotli]: #brotli
 [c-ares]: #c-ares

@@ -7,11 +7,11 @@
 namespace node {
 
 #ifdef _WIN32
-constexpr bool IsPathSeparator(char c) noexcept {
+constexpr bool IsPathSeparator(const char c) noexcept {
   return c == '\\' || c == '/';
 }
 #else   // POSIX
-constexpr bool IsPathSeparator(char c) noexcept {
+constexpr bool IsPathSeparator(const char c) noexcept {
   return c == '/';
 }
 #endif  // _WIN32
@@ -97,6 +97,7 @@ std::string PathResolve(Environment* env,
   std::string resolvedDevice = "";
   std::string resolvedTail = "";
   bool resolvedAbsolute = false;
+  bool slashCheck = false;
   const size_t numArgs = paths.size();
   auto cwd = env->GetCwd(env->exec_path());
 
@@ -126,6 +127,10 @@ std::string PathResolve(Environment* env,
       }
     }
 
+    if (static_cast<size_t>(i) == numArgs - 1 &&
+        IsPathSeparator(path[path.length() - 1])) {
+      slashCheck = true;
+    }
     const size_t len = path.length();
     int rootEnd = 0;
     std::string device = "";
@@ -170,9 +175,16 @@ std::string PathResolve(Environment* env,
               j++;
             }
             if (j == len || j != last) {
-              // We matched a UNC root
-              device = "\\\\" + firstPart + "\\" + path.substr(last, j - last);
-              rootEnd = j;
+              if (firstPart != "." && firstPart != "?") {
+                // We matched a UNC root
+                device =
+                    "\\\\" + firstPart + "\\" + path.substr(last, j - last);
+                rootEnd = j;
+              } else {
+                // We matched a device root (e.g. \\\\.\\PHYSICALDRIVE0)
+                device = "\\\\" + firstPart;
+                rootEnd = 4;
+              }
             }
           }
         }
@@ -220,15 +232,27 @@ std::string PathResolve(Environment* env,
   // Normalize the tail path
   resolvedTail = NormalizeString(resolvedTail, !resolvedAbsolute, "\\");
 
-  if (resolvedAbsolute) {
-    return resolvedDevice + "\\" + resolvedTail;
+  if (!resolvedAbsolute) {
+    if (!resolvedDevice.empty() || !resolvedTail.empty()) {
+      return resolvedDevice + resolvedTail;
+    }
+    return ".";
   }
 
-  if (!resolvedDevice.empty() || !resolvedTail.empty()) {
-    return resolvedDevice + resolvedTail;
+  if (resolvedTail.empty()) {
+    if (slashCheck) {
+      return resolvedDevice + "\\";
+    }
+    return resolvedDevice;
   }
 
-  return ".";
+  if (slashCheck) {
+    if (resolvedTail == "\\") {
+      return resolvedDevice + "\\";
+    }
+    return resolvedDevice + "\\" + resolvedTail + "\\";
+  }
+  return resolvedDevice + "\\" + resolvedTail;
 }
 #else   // _WIN32
 std::string PathResolve(Environment* env,
@@ -237,9 +261,14 @@ std::string PathResolve(Environment* env,
   bool resolvedAbsolute = false;
   auto cwd = env->GetCwd(env->exec_path());
   const size_t numArgs = paths.size();
+  bool slashCheck = false;
 
   for (int i = numArgs - 1; i >= -1 && !resolvedAbsolute; i--) {
     const std::string& path = (i >= 0) ? std::string(paths[i]) : cwd;
+
+    if (static_cast<size_t>(i) == numArgs - 1 && path.back() == '/') {
+      slashCheck = true;
+    }
 
     if (!path.empty()) {
       resolvedPath = std::string(path) + "/" + resolvedPath;
@@ -254,22 +283,28 @@ std::string PathResolve(Environment* env,
   // Normalize the path
   auto normalizedPath = NormalizeString(resolvedPath, !resolvedAbsolute, "/");
 
-  if (resolvedAbsolute) {
-    return "/" + normalizedPath;
+  if (!resolvedAbsolute) {
+    if (normalizedPath.empty()) {
+      return ".";
+    }
+    if (slashCheck) {
+      return normalizedPath + "/";
+    }
+    return normalizedPath;
   }
 
-  if (normalizedPath.empty()) {
-    return ".";
+  if (normalizedPath.empty() || normalizedPath == "/") {
+    return "/";
   }
 
-  return normalizedPath;
+  return slashCheck ? "/" + normalizedPath + "/" : "/" + normalizedPath;
 }
 #endif  // _WIN32
 
 void ToNamespacedPath(Environment* env, BufferValue* path) {
 #ifdef _WIN32
   if (path->length() == 0) return;
-  auto resolved_path = node::PathResolve(env, {path->ToStringView()});
+  std::string resolved_path = node::PathResolve(env, {path->ToStringView()});
   if (resolved_path.size() <= 2) {
     return;
   }
@@ -282,14 +317,13 @@ void ToNamespacedPath(Environment* env, BufferValue* path) {
       if (resolved_path[2] != '?' && resolved_path[2] != '.') {
         // Matched non-long UNC root, convert the path to a long UNC path
         std::string_view unc_prefix = R"(\\?\UNC\)";
-        std::string_view resolved_path2 = resolved_path.substr(2);
-        size_t new_length = unc_prefix.size() + resolved_path2.size();
+        size_t new_length = unc_prefix.size() + resolved_path.size() - 2;
         path->AllocateSufficientStorage(new_length + 1);
         path->SetLength(new_length);
         memcpy(path->out(), unc_prefix.data(), unc_prefix.size());
         memcpy(path->out() + unc_prefix.size(),
                resolved_path.c_str() + 2,
-               resolved_path2.size() + 1);
+               resolved_path.size() - 2 + 1);
         return;
       }
     }

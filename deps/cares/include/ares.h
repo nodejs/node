@@ -30,9 +30,43 @@
 
 #include "ares_version.h" /* c-ares version defines   */
 #include "ares_build.h"   /* c-ares build definitions */
-#include "ares_rules.h"   /* c-ares rules enforcement */
 
-#include <sys/types.h>
+#if defined(_WIN32)
+#  ifndef WIN32_LEAN_AND_MEAN
+#    define WIN32_LEAN_AND_MEAN
+#  endif
+#endif
+
+#ifdef CARES_HAVE_SYS_TYPES_H
+#  include <sys/types.h>
+#endif
+
+#ifdef CARES_HAVE_SYS_SOCKET_H
+#  include <sys/socket.h>
+#endif
+
+#ifdef CARES_HAVE_SYS_SELECT_H
+#  include <sys/select.h>
+#endif
+
+#ifdef CARES_HAVE_WINSOCK2_H
+#  include <winsock2.h>
+/* To aid with linking against a static c-ares build, lets tell the microsoft
+ * compiler to pull in needed dependencies */
+#  ifdef _MSC_VER
+#    pragma comment(lib, "ws2_32")
+#    pragma comment(lib, "advapi32")
+#    pragma comment(lib, "iphlpapi")
+#  endif
+#endif
+
+#ifdef CARES_HAVE_WS2TCPIP_H
+#  include <ws2tcpip.h>
+#endif
+
+#ifdef CARES_HAVE_WINDOWS_H
+#  include <windows.h>
+#endif
 
 /* HP-UX systems version 9, 10 and 11 lack sys/select.h and so does oldish
    libc5-based Linux systems. Only include it on system that are known to
@@ -43,42 +77,25 @@
   defined(__QNXNTO__) || defined(__MVS__) || defined(__HAIKU__)
 #  include <sys/select.h>
 #endif
+
 #if (defined(NETWARE) && !defined(__NOVELL_LIBC__))
 #  include <sys/bsdskt.h>
 #endif
 
-#if defined(_WIN32)
-#  ifndef WIN32_LEAN_AND_MEAN
-#    define WIN32_LEAN_AND_MEAN
-#  endif
+#if !defined(_WIN32)
+#  include <netinet/in.h>
 #endif
 
-#if defined(WATT32)
-#  include <netinet/in.h>
-#  include <sys/socket.h>
+#ifdef WATT32
 #  include <tcp.h>
-#elif defined(_WIN32_WCE)
-#  include <windows.h>
-#  include <winsock.h>
-#elif defined(_WIN32)
-#  include <windows.h>
-#  include <winsock2.h>
-#  include <ws2tcpip.h>
-/* To aid with linking against a static c-ares build, lets tell the microsoft
- * compiler to pull in needed dependencies */
-#  ifdef _MSC_VER
-#    pragma comment(lib, "ws2_32")
-#    pragma comment(lib, "advapi32")
-#    pragma comment(lib, "iphlpapi")
-#  endif
-#else
-#  include <sys/socket.h>
-#  include <netinet/in.h>
 #endif
 
 #if defined(ANDROID) || defined(__ANDROID__)
 #  include <jni.h>
 #endif
+
+typedef CARES_TYPEOF_ARES_SOCKLEN_T ares_socklen_t;
+typedef CARES_TYPEOF_ARES_SSIZE_T   ares_ssize_t;
 
 #ifdef __cplusplus
 extern "C" {
@@ -221,6 +238,7 @@ typedef enum {
 #define ARES_FLAG_NOCHECKRESP (1 << 7)
 #define ARES_FLAG_EDNS        (1 << 8)
 #define ARES_FLAG_NO_DFLT_SVR (1 << 9)
+#define ARES_FLAG_DNS0x20     (1 << 10)
 
 /* Option mask values */
 #define ARES_OPT_FLAGS           (1 << 0)

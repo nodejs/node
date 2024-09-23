@@ -84,6 +84,11 @@ class BaseObject : public MemoryRetainer {
   static inline BaseObject* FromJSObject(v8::Local<v8::Value> object);
   template <typename T>
   static inline T* FromJSObject(v8::Local<v8::Value> object);
+  // Global alias for FromJSObject() to avoid churn.
+  template <typename T>
+  static inline T* Unwrap(v8::Local<v8::Value> obj) {
+    return BaseObject::FromJSObject<T>(obj);
+  }
 
   // Make the `v8::Global` a weak reference and, `delete` this object once
   // the JS object has been garbage collected and there are no (strong)
@@ -233,12 +238,6 @@ class BaseObject : public MemoryRetainer {
   Realm* realm_;
   PointerData* pointer_data_ = nullptr;
 };
-
-// Global alias for FromJSObject() to avoid churn.
-template <typename T>
-inline T* Unwrap(v8::Local<v8::Value> obj) {
-  return BaseObject::FromJSObject<T>(obj);
-}
 
 #define ASSIGN_OR_RETURN_UNWRAP(ptr, obj, ...)                                 \
   do {                                                                         \

@@ -67,6 +67,9 @@
 /* Define to 1 if you have the connect function. */
 #cmakedefine HAVE_CONNECT 1
 
+/* Define to 1 if you have the connectx function. */
+#cmakedefine HAVE_CONNECTX 1
+
 /* define if the compiler supports basic C++11 syntax */
 #cmakedefine HAVE_CXX11 1
 
@@ -144,6 +147,12 @@
 
 /* Define to 1 if you have the `ConvertInterfaceLuidToNameA' function. */
 #cmakedefine HAVE_CONVERTINTERFACELUIDTONAMEA 1
+
+/* Define to 1 if you have the `NotifyIpInterfaceChange' function. */
+#cmakedefine HAVE_NOTIFYIPINTERFACECHANGE 1
+
+/* Define to 1 if you have the `RegisterWaitForSingleObject' function. */
+#cmakedefine HAVE_REGISTERWAITFORSINGLEOBJECT 1
 
 /* Define to 1 if you have a IPv6 capable working inet_net_pton function. */
 #cmakedefine HAVE_INET_NET_PTON 1
@@ -377,12 +386,6 @@
 /* Define to 1 if you have the __system_property_get function */
 #cmakedefine HAVE___SYSTEM_PROPERTY_GET 1
 
-/* Define to 1 if you need the malloc.h header file even with stdlib.h */
-#cmakedefine NEED_MALLOC_H 1
-
-/* Define to 1 if you need the memory.h header file even with stdlib.h */
-#cmakedefine NEED_MEMORY_H 1
-
 /* Define if have arc4random_buf() */
 #cmakedefine HAVE_ARC4RANDOM_BUF 1
 
@@ -442,9 +445,6 @@
 
 /* Define to the function return type for recv. */
 #define RECV_TYPE_RETV @RECV_TYPE_RETV@
-
-/* Define to the type qualifier of arg 2 for send. */
-#define SEND_QUAL_ARG2 @SEND_QUAL_ARG2@
 
 /* Define to the type of arg 1 for send. */
 #define SEND_TYPE_ARG1 @SEND_TYPE_ARG1@

@@ -38,8 +38,10 @@
 
 #include <array>
 #include <bit>
+#include <filesystem>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <string_view>
@@ -55,6 +57,8 @@
 #endif
 
 namespace node {
+
+constexpr char kPathSeparator = std::filesystem::path::preferred_separator;
 
 #ifdef _WIN32
 /* MAX_PATH is in characters, not bytes. Make sure we have enough headroom. */
@@ -144,9 +148,9 @@ void DumpJavaScriptBacktrace(FILE* fp);
   do {                                                                         \
     /* Make sure that this struct does not end up in inline code, but      */  \
     /* rather in a read-only data section when modifying this code.        */  \
-    static const node::AssertionInfo args = {                                  \
+    static const node::AssertionInfo error_and_abort_args = {                  \
         __FILE__ ":" STRINGIFY(__LINE__), #expr, PRETTY_FUNCTION_NAME};        \
-    node::Assert(args);                                                        \
+    node::Assert(error_and_abort_args);                                        \
     /* `node::Assert` doesn't return. Add an [[noreturn]] abort() here to  */  \
     /* make the compiler happy about no return value in the caller         */  \
     /* function when calling ERROR_AND_ABORT.                              */  \
@@ -215,7 +219,7 @@ void DumpJavaScriptBacktrace(FILE* fp);
 #define UNREACHABLE(...)                                                      \
   ERROR_AND_ABORT("Unreachable code reached" __VA_OPT__(": ") __VA_ARGS__)
 
-// ECMA262 20.1.2.6 Number.MAX_SAFE_INTEGER (2^53-1)
+// ECMA-262, 15th edition, 21.1.2.6. Number.MAX_SAFE_INTEGER (2^53-1)
 constexpr int64_t kMaxSafeJsInteger = 9007199254740991;
 
 inline bool IsSafeJsInt(v8::Local<v8::Value> v);
@@ -306,7 +310,7 @@ class KVStore {
 
   virtual v8::MaybeLocal<v8::String> Get(v8::Isolate* isolate,
                                          v8::Local<v8::String> key) const = 0;
-  virtual v8::Maybe<std::string> Get(const char* key) const = 0;
+  virtual std::optional<std::string> Get(const char* key) const = 0;
   virtual void Set(v8::Isolate* isolate,
                    v8::Local<v8::String> key,
                    v8::Local<v8::String> value) = 0;
@@ -317,7 +321,7 @@ class KVStore {
   virtual v8::Local<v8::Array> Enumerate(v8::Isolate* isolate) const = 0;
 
   virtual std::shared_ptr<KVStore> Clone(v8::Isolate* isolate) const;
-  virtual v8::Maybe<bool> AssignFromObject(v8::Local<v8::Context> context,
+  virtual v8::Maybe<void> AssignFromObject(v8::Local<v8::Context> context,
                                            v8::Local<v8::Object> entries);
   v8::Maybe<bool> AssignToObject(v8::Isolate* isolate,
                                  v8::Local<v8::Context> context,
@@ -560,6 +564,10 @@ class BufferValue : public MaybeStackBuffer<char> {
   inline std::string ToString() const { return std::string(out(), length()); }
   inline std::string_view ToStringView() const {
     return std::string_view(out(), length());
+  }
+  inline std::u8string_view ToU8StringView() const {
+    return std::u8string_view(reinterpret_cast<const char8_t*>(out()),
+                              length());
   }
 };
 

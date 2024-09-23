@@ -56,7 +56,7 @@ using v8::Value;
 namespace {
 template <int (*fn)(uv_udp_t*, int)>
 void SetLibuvInt32(const FunctionCallbackInfo<Value>& args) {
-  UDPWrap* wrap = Unwrap<UDPWrap>(args.This());
+  UDPWrap* wrap = BaseObject::Unwrap<UDPWrap>(args.This());
   if (wrap == nullptr) {
     args.GetReturnValue().Set(UV_EBADF);
     return;

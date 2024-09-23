@@ -819,7 +819,7 @@ Git should stop to let you fix conflicts.
 Revert all changes that were made to `src/node_version.h`:
 
 ```bash
-git checkout --ours HEAD -- src/node_version.h
+git restore --source=upstream/main src/node_version.h
 ```
 
 <details>
@@ -944,6 +944,13 @@ a `NODEJS_RELEASE_HOST` environment variable:
 NODEJS_RELEASE_HOST=proxy.xyz ./tools/release.sh
 ```
 
+> \[!TIP]
+> Sometimes, due to machines being overloaded or other external factors,
+> the files at <https://nodejs.org/dist/index.json>, <https://nodejs.org/dist/index.tab>
+> or `SHASUMS256.txt` may not be generated correctly.
+> In this case you can repeat the signing step in order
+> to fix it. e.g: `./tools/release.sh -s`.
+
 `tools/release.sh` will perform the following actions when run:
 
 <details>
@@ -1004,7 +1011,7 @@ release. However, the blog post is not yet fully automatic.
 Create a new blog post by running the [nodejs.org release-post.js script][]:
 
 ```bash
-node ./scripts/release-post/index.mjs x.y.z
+node ./apps/site/scripts/release-post/index.mjs x.y.z
 ```
 
 This script will use the promoted builds and changelog to generate the post. Run

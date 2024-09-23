@@ -989,13 +989,13 @@ template <PublicKeyCipher::Operation operation,
           PublicKeyCipher::EVP_PKEY_cipher_t EVP_PKEY_cipher>
 bool PublicKeyCipher::Cipher(
     Environment* env,
-    const ManagedEVPPKey& pkey,
+    const EVPKeyPointer& pkey,
     int padding,
     const EVP_MD* digest,
     const ArrayBufferOrViewContents<unsigned char>& oaep_label,
     const ArrayBufferOrViewContents<unsigned char>& data,
     std::unique_ptr<BackingStore>* out) {
-  EVPKeyCtxPointer ctx(EVP_PKEY_CTX_new(pkey.get(), nullptr));
+  EVPKeyCtxPointer ctx = pkey.newCtx();
   if (!ctx)
     return false;
   if (EVP_PKEY_cipher_init(ctx.get()) <= 0)
@@ -1056,8 +1056,9 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   unsigned int offset = 0;
-  ManagedEVPPKey pkey =
-      ManagedEVPPKey::GetPublicOrPrivateKeyFromJs(args, &offset);
+  auto data = KeyObjectData::GetPublicOrPrivateKeyFromJs(args, &offset);
+  if (!data) return;
+  const auto& pkey = data.GetAsymmetricKey();
   if (!pkey)
     return;
 
@@ -1070,7 +1071,7 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
 
   if (EVP_PKEY_cipher == EVP_PKEY_decrypt &&
       operation == PublicKeyCipher::kPrivate && padding == RSA_PKCS1_PADDING) {
-    EVPKeyCtxPointer ctx(EVP_PKEY_CTX_new(pkey.get(), nullptr));
+    EVPKeyCtxPointer ctx = pkey.newCtx();
     CHECK(ctx);
 
     if (EVP_PKEY_decrypt_init(ctx.get()) <= 0) {

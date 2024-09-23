@@ -47,6 +47,7 @@
 #include "node_version.h"
 
 #if HAVE_OPENSSL
+#include "ncrypto.h"
 #include "node_crypto.h"
 #endif
 
@@ -205,7 +206,17 @@ void Environment::InitializeInspector(
     return;
   }
 
+  if (should_wait_for_inspector_frontend()) {
+    WaitForInspectorFrontendByOptions();
+  }
+
   profiler::StartProfilers(this);
+}
+
+void Environment::WaitForInspectorFrontendByOptions() {
+  if (!inspector_agent_->WaitForConnectByOptions()) {
+    return;
+  }
 
   if (inspector_agent_->options().break_node_first_line) {
     inspector_agent_->PauseOnNextJavascriptStatement("Break at bootstrap");
@@ -254,6 +265,14 @@ std::optional<StartExecutionCallbackInfo> CallbackInfoFromArray(
   CHECK(process_obj->IsObject());
   CHECK(require_fn->IsFunction());
   CHECK(runcjs_fn->IsFunction());
+  // TODO(joyeecheung): some support for running ESM as an entrypoint
+  // is needed. The simplest API would be to add a run_esm to
+  // StartExecutionCallbackInfo which compiles, links (to builtins)
+  // and evaluates a SourceTextModule.
+  // TODO(joyeecheung): the env pointer should be part of
+  // StartExecutionCallbackInfo, otherwise embedders are forced to use
+  // lambdas to pass it into the callback, which can make the code
+  // difficult to read.
   node::StartExecutionCallbackInfo info{process_obj.As<Object>(),
                                         require_fn.As<Function>(),
                                         runcjs_fn.As<Function>()};
@@ -311,7 +330,10 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
   }
 #endif
 
-  if (env->options()->has_env_file_string) {
+  // Ignore env file if we're in watch mode.
+  // Without it env is not updated when restarting child process.
+  // Child process has --watch flag removed, so it will load the file.
+  if (env->options()->has_env_file_string && !env->options()->watch_mode) {
     per_process::dotenv_file.SetEnvironment(env);
   }
 
@@ -731,9 +753,6 @@ static ExitCode ProcessGlobalArgsInternal(std::vector<std::string>* args,
                 "--no-harmony-import-attributes") == v8_args.end()) {
     v8_args.emplace_back("--harmony-import-attributes");
   }
-  // TODO(nicolo-ribaudo): remove this once V8 doesn't enable it by default
-  // anymore.
-  v8_args.emplace_back("--no-harmony-import-assertions");
 
   auto env_opts = per_process::cli_options->per_isolate->per_env;
   if (std::find(v8_args.begin(), v8_args.end(),
@@ -832,20 +851,26 @@ static ExitCode InitializeNodeWithArgsInternal(
   HandleEnvOptions(per_process::cli_options->per_isolate->per_env);
 
   std::string node_options;
-  auto file_paths = node::Dotenv::GetPathFromArgs(*argv);
+  auto env_files = node::Dotenv::GetDataFromArgs(*argv);
 
-  if (!file_paths.empty()) {
+  if (!env_files.empty()) {
     CHECK(!per_process::v8_initialized);
 
-    for (const auto& file_path : file_paths) {
-      switch (per_process::dotenv_file.ParsePath(file_path)) {
+    for (const auto& file_data : env_files) {
+      switch (per_process::dotenv_file.ParsePath(file_data.path)) {
         case Dotenv::ParseResult::Valid:
           break;
         case Dotenv::ParseResult::InvalidContent:
-          errors->push_back(file_path + ": invalid format");
+          errors->push_back(file_data.path + ": invalid format");
           break;
         case Dotenv::ParseResult::FileError:
-          errors->push_back(file_path + ": not found");
+          if (file_data.is_optional) {
+            fprintf(stderr,
+                    "%s not found. Continuing without it.\n",
+                    file_data.path.c_str());
+            continue;
+          }
+          errors->push_back(file_data.path + ": not found");
           break;
         default:
           UNREACHABLE();
@@ -993,14 +1018,6 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
   }
 
   if (!per_process::cli_options->run.empty()) {
-    // TODO(@anonrig): Handle NODE_NO_WARNINGS, NODE_REDIRECT_WARNINGS,
-    //  --disable-warning and --redirect-warnings.
-    if (per_process::cli_options->per_isolate->per_env->warnings) {
-      fprintf(stderr,
-              "ExperimentalWarning: Task runner is an experimental feature and "
-              "might change at any time\n\n");
-    }
-
     auto positional_args = task_runner::GetPositionalArgs(args);
     result->early_return_ = true;
     task_runner::RunTask(
@@ -1124,14 +1141,14 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
     }
 
     // Ensure CSPRNG is properly seeded.
-    CHECK(crypto::CSPRNG(nullptr, 0).is_ok());
+    CHECK(ncrypto::CSPRNG(nullptr, 0));
 
     V8::SetEntropySource([](unsigned char* buffer, size_t length) {
       // V8 falls back to very weak entropy when this function fails
       // and /dev/urandom isn't available. That wouldn't be so bad if
       // the entropy was only used for Math.random() but it's also used for
       // hash table and address space layout randomization. Better to abort.
-      CHECK(crypto::CSPRNG(buffer, length).is_ok());
+      CHECK(ncrypto::CSPRNG(buffer, length));
       return true;
     });
 #endif  // !defined(OPENSSL_IS_BORINGSSL)
