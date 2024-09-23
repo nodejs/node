@@ -1,7 +1,7 @@
 'use strict'
 
 const { kClients } = require('../core/symbols')
-const Agent = require('../agent')
+const Agent = require('../dispatcher/agent')
 const {
   kAgent,
   kMockAgentSet,
@@ -17,7 +17,7 @@ const MockClient = require('./mock-client')
 const MockPool = require('./mock-pool')
 const { matchValue, buildMockOptions } = require('./mock-utils')
 const { InvalidArgumentError, UndiciError } = require('../core/errors')
-const Dispatcher = require('../dispatcher')
+const Dispatcher = require('../dispatcher/dispatcher')
 const Pluralizer = require('./pluralizer')
 const PendingInterceptorsFormatter = require('./pending-interceptors-formatter')
 

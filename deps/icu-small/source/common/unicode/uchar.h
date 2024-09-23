@@ -25,6 +25,7 @@
 #ifndef UCHAR_H
 #define UCHAR_H
 
+#include <stdbool.h>
 #include "unicode/utypes.h"
 #include "unicode/stringoptions.h"
 #include "unicode/ucpmap.h"
@@ -668,12 +669,21 @@ typedef enum UProperty {
      * @stable ICU 63
      */
     UCHAR_VERTICAL_ORIENTATION=0x1018,
+#ifndef U_HIDE_DRAFT_API
+    /**
+     * Enumerated property Identifier_Status.
+     * Used for UTS #39 General Security Profile for Identifiers
+     * (https://www.unicode.org/reports/tr39/#General_Security_Profile).
+     * @draft ICU 75
+     */
+    UCHAR_IDENTIFIER_STATUS=0x1019,
+#endif  // U_HIDE_DRAFT_API
 #ifndef U_HIDE_DEPRECATED_API
     /**
      * One more than the last constant for enumerated/integer Unicode properties.
      * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
      */
-    UCHAR_INT_LIMIT=0x1019,
+    UCHAR_INT_LIMIT=0x101A,
 #endif  // U_HIDE_DEPRECATED_API
 
     /** Bitmask property General_Category_Mask.
@@ -774,12 +784,28 @@ typedef enum UProperty {
     UCHAR_SCRIPT_EXTENSIONS=0x7000,
     /** First constant for Unicode properties with unusual value types. @stable ICU 4.6 */
     UCHAR_OTHER_PROPERTY_START=UCHAR_SCRIPT_EXTENSIONS,
+#ifndef U_HIDE_DRAFT_API
+    /**
+     * Miscellaneous property Identifier_Type.
+     * Used for UTS #39 General Security Profile for Identifiers
+     * (https://www.unicode.org/reports/tr39/#General_Security_Profile).
+     *
+     * Corresponds to u_hasIDType() and u_getIDTypes().
+     *
+     * Each code point maps to a <i>set</i> of UIdentifierType values.
+     *
+     * @see u_hasIDType
+     * @see u_getIDTypes
+     * @draft ICU 75
+     */
+    UCHAR_IDENTIFIER_TYPE=0x7001,
+#endif  // U_HIDE_DRAFT_API
 #ifndef U_HIDE_DEPRECATED_API
     /**
      * One more than the last constant for Unicode properties with unusual value types.
      * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
      */
-    UCHAR_OTHER_PROPERTY_LIMIT=0x7001,
+    UCHAR_OTHER_PROPERTY_LIMIT=0x7002,
 #endif  // U_HIDE_DEPRECATED_API
 
     /** Represents a nonexistent or invalid property or property value. @stable ICU 2.4 */
@@ -2701,6 +2727,68 @@ typedef enum UVerticalOrientation {
     U_VO_UPRIGHT,
 } UVerticalOrientation;
 
+#ifndef U_HIDE_DRAFT_API
+/**
+ * Identifier Status constants.
+ * See https://www.unicode.org/reports/tr39/#Identifier_Status_and_Type.
+ *
+ * @see UCHAR_IDENTIFIER_STATUS
+ * @draft ICU 75
+ */
+typedef enum UIdentifierStatus {
+    /*
+     * Note: UIdentifierStatus constants are parsed by preparseucd.py.
+     * It matches lines like
+     *     U_ID_STATUS_<Unicode Identifier_Status value name>
+     */
+
+    /** @draft ICU 75 */
+    U_ID_STATUS_RESTRICTED,
+    /** @draft ICU 75 */
+    U_ID_STATUS_ALLOWED,
+} UIdentifierStatus;
+
+/**
+ * Identifier Type constants.
+ * See https://www.unicode.org/reports/tr39/#Identifier_Status_and_Type.
+ *
+ * @see UCHAR_IDENTIFIER_TYPE
+ * @draft ICU 75
+ */
+typedef enum UIdentifierType {
+    /*
+     * Note: UIdentifierType constants are parsed by preparseucd.py.
+     * It matches lines like
+     *     U_ID_TYPE_<Unicode Identifier_Type value name>
+     */
+
+    /** @draft ICU 75 */
+    U_ID_TYPE_NOT_CHARACTER,
+    /** @draft ICU 75 */
+    U_ID_TYPE_DEPRECATED,
+    /** @draft ICU 75 */
+    U_ID_TYPE_DEFAULT_IGNORABLE,
+    /** @draft ICU 75 */
+    U_ID_TYPE_NOT_NFKC,
+    /** @draft ICU 75 */
+    U_ID_TYPE_NOT_XID,
+    /** @draft ICU 75 */
+    U_ID_TYPE_EXCLUSION,
+    /** @draft ICU 75 */
+    U_ID_TYPE_OBSOLETE,
+    /** @draft ICU 75 */
+    U_ID_TYPE_TECHNICAL,
+    /** @draft ICU 75 */
+    U_ID_TYPE_UNCOMMON_USE,
+    /** @draft ICU 75 */
+    U_ID_TYPE_LIMITED_USE,
+    /** @draft ICU 75 */
+    U_ID_TYPE_INCLUSION,
+    /** @draft ICU 75 */
+    U_ID_TYPE_RECOMMENDED,
+} UIdentifierType;
+#endif  // U_HIDE_DRAFT_API
+
 /**
  * Check a binary Unicode property for a code point.
  *
@@ -3904,6 +3992,59 @@ u_isIDStart(UChar32 c);
  */
 U_CAPI UBool U_EXPORT2
 u_isIDPart(UChar32 c);
+
+#ifndef U_HIDE_DRAFT_API
+/**
+ * Does the set of Identifier_Type values code point c contain the given type?
+ *
+ * Used for UTS #39 General Security Profile for Identifiers
+ * (https://www.unicode.org/reports/tr39/#General_Security_Profile).
+ *
+ * Each code point maps to a <i>set</i> of UIdentifierType values.
+ *
+ * @param c code point
+ * @param type Identifier_Type to check
+ * @return true if type is in Identifier_Type(c)
+ * @draft ICU 75
+ */
+U_CAPI bool U_EXPORT2
+u_hasIDType(UChar32 c, UIdentifierType type);
+
+/**
+ * Writes code point c's Identifier_Type as a list of UIdentifierType values
+ * to the output types array and returns the number of types.
+ *
+ * Used for UTS #39 General Security Profile for Identifiers
+ * (https://www.unicode.org/reports/tr39/#General_Security_Profile).
+ *
+ * Each code point maps to a <i>set</i> of UIdentifierType values.
+ * There is always at least one type.
+ * The order of output values is undefined.
+ * Each type is output at most once;
+ * there cannot be more output values than UIdentifierType constants.
+ * In addition, only some of the types can be combined with others,
+ * and usually only a small number of types occur together.
+ * Future versions might add additional types.
+ * See UTS #39 and its data files for details.
+ *
+ * If there are more than capacity types to be written, then
+ * U_BUFFER_OVERFLOW_ERROR is set and the number of types is returned.
+ * (Usual ICU buffer handling behavior.)
+ *
+ * @param c code point
+ * @param types output array
+ * @param capacity capacity of the array
+ * @param pErrorCode Standard ICU error code. Its input value must
+ *                   pass the U_SUCCESS() test, or else the function returns
+ *                   immediately. Check for U_FAILURE() on output or use with
+ *                   function chaining. (See User Guide for details.)
+ * @return number of values in c's Identifier_Type,
+ *         written to types unless U_BUFFER_OVERFLOW_ERROR indicates insufficient capacity
+ * @draft ICU 75
+ */
+U_CAPI int32_t U_EXPORT2
+u_getIDTypes(UChar32 c, UIdentifierType *types, int32_t capacity, UErrorCode *pErrorCode);
+#endif  // U_HIDE_DRAFT_API
 
 /**
  * Determines if the specified character should be regarded

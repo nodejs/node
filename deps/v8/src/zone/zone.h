@@ -8,11 +8,11 @@
 #include <limits>
 #include <memory>
 #include <type_traits>
+#include <utility>
 
 #include "src/base/logging.h"
 #include "src/base/vector.h"
 #include "src/common/globals.h"
-#include "src/utils/utils.h"
 #include "src/zone/accounting-allocator.h"
 #include "src/zone/type-stats.h"
 #include "src/zone/zone-segment.h"
@@ -215,6 +215,10 @@ class V8_EXPORT_PRIVATE Zone final {
 
 #ifdef V8_ENABLE_PRECISE_ZONE_STATS
   const TypeStats& type_stats() const { return type_stats_; }
+#endif
+
+#ifdef DEBUG
+  bool Contains(void* ptr);
 #endif
 
  private:

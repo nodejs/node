@@ -112,7 +112,7 @@ TEST_F(ArrayTest, IterateAccessorElements) {
   };
   Data data{42, context(), isolate()};
   Local<String> zero = String::NewFromUtf8Literal(isolate(), "0");
-  CHECK(array->SetAccessor(context(), zero, GetElement).FromJust());
+  CHECK(array->SetNativeDataProperty(context(), zero, GetElement).FromJust());
   Array::IterationCallback callback = [](uint32_t index, Local<Value> element,
                                          void* data) -> CbResult {
     Data* d = reinterpret_cast<Data*>(data);

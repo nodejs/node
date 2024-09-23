@@ -25,7 +25,7 @@ class SimulatorTrapHandlerTest : public TestWithIsolate {
  public:
   ~SimulatorTrapHandlerTest() {
     if (inaccessible_memory_) {
-      auto* page_allocator = GetPlatformPageAllocator();
+      auto* page_allocator = GetArrayBufferPageAllocator();
       CHECK(page_allocator->FreePages(inaccessible_memory_,
                                       page_allocator->AllocatePageSize()));
     }
@@ -43,7 +43,7 @@ class SimulatorTrapHandlerTest : public TestWithIsolate {
 
   uintptr_t InaccessibleMemoryPtr() {
     if (!inaccessible_memory_) {
-      auto* page_allocator = GetPlatformPageAllocator();
+      auto* page_allocator = GetArrayBufferPageAllocator();
       size_t page_size = page_allocator->AllocatePageSize();
       inaccessible_memory_ =
           reinterpret_cast<uint8_t*>(page_allocator->AllocatePages(
@@ -84,18 +84,23 @@ TEST_F(SimulatorTrapHandlerTest, ProbeMemoryFailWhileInWasm) {
   EXPECT_DEATH_IF_SUPPORTED(ProbeMemory(InaccessibleMemoryPtr(), kFakePc), "");
 }
 
-TEST_F(SimulatorTrapHandlerTest, ProbeMemoryWithTrapHandled) {
-  constexpr uintptr_t kFakeLandingPad = 19;
+namespace {
+uintptr_t v8_landing_pad() {
+  EmbeddedData embedded_data = EmbeddedData::FromBlob();
+  return embedded_data.InstructionStartOf(Builtin::kWasmTrapHandlerLandingPad);
+}
+}  // namespace
 
+TEST_F(SimulatorTrapHandlerTest, ProbeMemoryWithTrapHandled) {
   constexpr bool kUseDefaultHandler = true;
   CHECK(v8::V8::EnableWebAssemblyTrapHandler(kUseDefaultHandler));
 
-  ProtectedInstructionData fake_protected_instruction{kFakePc, kFakeLandingPad};
+  ProtectedInstructionData fake_protected_instruction{kFakePc};
   int handler_data_index =
       RegisterHandlerData(0, 128, 1, &fake_protected_instruction);
 
   SetThreadInWasm();
-  EXPECT_EQ(kFakeLandingPad, ProbeMemory(InaccessibleMemoryPtr(), kFakePc));
+  EXPECT_EQ(v8_landing_pad(), ProbeMemory(InaccessibleMemoryPtr(), kFakePc));
 
   // Reset everything.
   ResetThreadInWasm();
@@ -132,6 +137,18 @@ TEST_F(SimulatorTrapHandlerTest, ProbeMemoryWithLandingPad) {
   uint32_t recovery_offset = masm.pc_offset();
   // Return.
   masm.Ret();
+#elif V8_TARGET_ARCH_RISCV64
+  constexpr Register scratch = a0;
+  MacroAssembler masm(nullptr, AssemblerOptions{}, CodeObjectRequired::kNo,
+                      buffer->CreateView());
+  // Generate an illegal memory access.
+  masm.li(scratch, static_cast<int64_t>(InaccessibleMemoryPtr()));
+  uint32_t crash_offset = masm.pc_offset();
+  masm.StoreWord(scratch,
+                 MemOperand(scratch, 0));  // load from inaccessible memory.
+  uint32_t recovery_offset = masm.pc_offset();
+  // Return.
+  masm.Ret();
 #else
 #error Unsupported platform
 #endif
@@ -142,7 +159,7 @@ TEST_F(SimulatorTrapHandlerTest, ProbeMemoryWithLandingPad) {
   constexpr bool kUseDefaultHandler = true;
   CHECK(v8::V8::EnableWebAssemblyTrapHandler(kUseDefaultHandler));
 
-  ProtectedInstructionData protected_instruction{crash_offset, recovery_offset};
+  ProtectedInstructionData protected_instruction{crash_offset};
   int handler_data_index =
       RegisterHandlerData(reinterpret_cast<Address>(desc.buffer),
                           desc.instr_size, 1, &protected_instruction);
@@ -152,12 +169,15 @@ TEST_F(SimulatorTrapHandlerTest, ProbeMemoryWithLandingPad) {
   GeneratedCode<void> code = GeneratedCode<void>::FromAddress(
       i_isolate(), reinterpret_cast<Address>(desc.buffer));
 
+  trap_handler::SetLandingPad(reinterpret_cast<uintptr_t>(buffer->start()) +
+                              recovery_offset);
   SetThreadInWasm();
   code.Call();
   ResetThreadInWasm();
 
   ReleaseHandlerData(handler_data_index);
   RemoveTrapHandler();
+  trap_handler::SetLandingPad(0);
 
   EXPECT_EQ(1u, GetRecoveredTrapCount());
 }

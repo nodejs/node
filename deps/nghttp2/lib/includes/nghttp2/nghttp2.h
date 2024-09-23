@@ -72,6 +72,10 @@ extern "C" {
 #  endif /* !BUILDING_NGHTTP2 */
 #endif   /* !defined(WIN32) */
 
+#ifdef BUILDING_NGHTTP2
+#  undef NGHTTP2_NO_SSIZE_T
+#endif /* BUILDING_NGHTTP2 */
+
 /**
  * @typedef
  *
@@ -466,7 +470,12 @@ typedef enum {
    * exhaustion on server side to send these frames forever and does
    * not read network.
    */
-  NGHTTP2_ERR_FLOODED = -904
+  NGHTTP2_ERR_FLOODED = -904,
+  /**
+   * When a local endpoint receives too many CONTINUATION frames
+   * following a HEADER frame.
+   */
+  NGHTTP2_ERR_TOO_MANY_CONTINUATIONS = -905,
 } nghttp2_error;
 
 /**
@@ -3204,6 +3213,17 @@ nghttp2_option_set_no_rfc9113_leading_and_trailing_ws_validation(
 NGHTTP2_EXTERN void
 nghttp2_option_set_stream_reset_rate_limit(nghttp2_option *option,
                                            uint64_t burst, uint64_t rate);
+
+/**
+ * @function
+ *
+ * This function sets the maximum number of CONTINUATION frames
+ * following an incoming HEADER frame.  If more than those frames are
+ * received, the remote endpoint is considered to be misbehaving and
+ * session will be closed.  The default value is 8.
+ */
+NGHTTP2_EXTERN void nghttp2_option_set_max_continuations(nghttp2_option *option,
+                                                         size_t val);
 
 /**
  * @function

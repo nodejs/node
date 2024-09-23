@@ -59,10 +59,10 @@ U_NAMESPACE_BEGIN
 
 namespace {
 
-static const char16_t *rootRules = nullptr;
-static int32_t rootRulesLength = 0;
-static UResourceBundle *rootBundle = nullptr;
-static UInitOnce gInitOnceUcolRes {};
+const char16_t* rootRules = nullptr;
+int32_t rootRulesLength = 0;
+UResourceBundle* rootBundle = nullptr;
+UInitOnce gInitOnceUcolRes{};
 
 }  // namespace
 

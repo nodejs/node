@@ -102,7 +102,7 @@
       !defined(V8_TARGET_ARCH_MIPS64) && !defined(V8_TARGET_ARCH_PPC) &&    \
       !defined(V8_TARGET_ARCH_PPC64) && !defined(V8_TARGET_ARCH_RISCV64) && \
       !defined(V8_TARGET_ARCH_RISCV32)) ||                                  \
-     (defined(__clang__) && __cplusplus > 201300L))
+     defined(__clang__))
 #define V8_NOEXCEPT noexcept
 #else
 #define V8_NOEXCEPT
@@ -136,14 +136,21 @@
 #endif
 
 // Forces the linker to not GC the section corresponding to the symbol.
-#if defined(__has_attribute)
-#if __has_attribute(used) && __has_attribute(retain)
+#if V8_HAS_ATTRIBUTE_USED && V8_HAS_ATTRIBUTE_RETAIN
 #define V8_DONT_STRIP_SYMBOL __attribute__((used, retain))
-#endif  // __has_attribute(used) && __has_attribute(retain)
-#endif  // defined(__has_attribute)
-
-#if !defined(V8_DONT_STRIP_SYMBOL)
+#else
 #define V8_DONT_STRIP_SYMBOL
-#endif  // !defined(V8_DONT_STRIP_SYMBOL)
+#endif
+
+#ifdef __cpp_concepts
+#define HAS_CPP_CONCEPTS 1
+#define CONCEPT(name) name
+#else
+#define CONCEPT(name) typename
+#endif
+
+#if __cplusplus >= 202002L
+#define HAS_CPP_CLASS_TYPES_AS_TEMPLATE_ARGS 1
+#endif
 
 #endif  // V8_BASE_COMPILER_SPECIFIC_H_

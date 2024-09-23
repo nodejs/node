@@ -3,6 +3,7 @@
 const { spawnPromisified } = require('../common');
 const fixtures = require('../common/fixtures.js');
 const assert = require('node:assert');
+const path = require('node:path');
 const { execPath } = require('node:process');
 const { describe, it } = require('node:test');
 
@@ -17,7 +18,7 @@ describe('ESM: Package.json', { concurrency: !process.env.TEST_PARALLEL }, () =>
     assert.ok(stderr.includes('code: \'ERR_INVALID_PACKAGE_CONFIG\''), stderr);
     assert.ok(
       stderr.includes(
-        `Invalid package config ${invalidJson} while importing "invalid-pjson" from ${entry}.`
+        `Invalid package config ${path.toNamespacedPath(invalidJson)} while importing "invalid-pjson" from ${entry}.`
       ),
       stderr
     );

@@ -1455,6 +1455,13 @@ void Assembler::mov(Register dst, const Operand& src) {
   if (relocatable) {
     RecordRelocInfo(src.rmode_);
   }
+  if (src.rmode_ == RelocInfo::WASM_CANONICAL_SIG_ID) {
+    CHECK(is_int32(value));
+    // If this is changed then also change `uint32_constant_at` and
+    // `set_uint32_constant_at`.
+    bitwise_mov32(dst, value);
+    return;
+  }
   bitwise_mov(dst, value);
 }
 
@@ -1502,8 +1509,8 @@ void Assembler::bitwise_add32(Register dst, Register src, int32_t value) {
   }
 }
 
-void Assembler::patch_wasm_cpi_return_address(Register dst, int pc_offset,
-                                              int return_address_offset) {
+void Assembler::patch_pc_address(Register dst, int pc_offset,
+                                 int return_address_offset) {
   DCHECK(is_int16(return_address_offset));
   Assembler patching_assembler(
       AssemblerOptions{},

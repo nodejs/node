@@ -22,6 +22,20 @@ void WritableRelocInfo::set_target_object(Tagged<InstructionStream> host,
   }
 }
 
+template <typename RelocInfoT>
+RelocIteratorBase<RelocInfoT>::RelocIteratorBase(RelocInfoT reloc_info,
+                                                 const uint8_t* pos,
+                                                 const uint8_t* end,
+                                                 int mode_mask)
+    : pos_(pos), end_(end), rinfo_(reloc_info), mode_mask_(mode_mask) {
+  DCHECK_EQ(reloc_info.rmode(), RelocInfo::NO_INFO);
+  DCHECK_EQ(reloc_info.data(), 0);
+  // Relocation info is read backwards.
+  DCHECK_GE(pos_, end_);
+  if (mode_mask_ == 0) pos_ = end_;
+  next();
+}
+
 }  // namespace internal
 }  // namespace v8
 

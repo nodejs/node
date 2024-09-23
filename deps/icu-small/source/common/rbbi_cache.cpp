@@ -246,7 +246,6 @@ void RuleBasedBreakIterator::BreakCache::following(int32_t startPos, UErrorCode 
         fBI->fDone = false;
         next();
     }
-    return;
 }
 
 
@@ -265,7 +264,6 @@ void RuleBasedBreakIterator::BreakCache::preceding(int32_t startPos, UErrorCode 
             current();
         }
     }
-    return;
 }
 
 
@@ -277,7 +275,6 @@ void RuleBasedBreakIterator::BreakCache::nextOL() {
     fBI->fDone = !populateFollowing();
     fBI->fPosition = fTextIdx;
     fBI->fRuleStatusIndex = fStatuses[fBufIdx];
-    return;
 }
 
 
@@ -297,7 +294,6 @@ void RuleBasedBreakIterator::BreakCache::previous(UErrorCode &status) {
     fBI->fDone = (fBufIdx == initialBufIdx);
     fBI->fPosition = fTextIdx;
     fBI->fRuleStatusIndex = fStatuses[fBufIdx];
-    return;
 }
 
 

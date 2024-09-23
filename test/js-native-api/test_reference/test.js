@@ -1,7 +1,8 @@
 'use strict';
 // Flags: --expose-gc
 
-const { gcUntil, buildType } = require('../../common');
+const { buildType } = require('../../common');
+const { gcUntil } = require('../../common/gc');
 const assert = require('assert');
 
 const test_reference = require(`./build/${buildType}/test_reference`);

@@ -23,7 +23,7 @@ import re
 import sys
 
 # TODO(clemensb): Extend to tests.
-DEFAULT_INPUT = ['base', 'include', 'src']
+DEFAULT_INPUT = ['include', 'src']
 DEFAULT_GN_FILE = 'BUILD.gn'
 MY_DIR = os.path.dirname(os.path.realpath(__file__))
 V8_DIR = os.path.dirname(MY_DIR)
@@ -42,6 +42,11 @@ AUTO_EXCLUDE = [
     # templates, and their users must provide their prerequisites.
     'src/wasm/function-body-decoder-impl.h',
     'src/wasm/module-decoder-impl.h',
+    # TODO(carlscab): Enable once Perfetto is built by default.
+    'src/tracing/code-data-source.h',
+    'src/tracing/code-trace-context.h',
+    'src/tracing/perfetto-logger.h',
+    'src/tracing/perfetto-utils.h',
 ]
 AUTO_EXCLUDE_PATTERNS = [
     'src/base/atomicops_internals_.*',

@@ -7,12 +7,17 @@
 
 #include "src/common/code-memory-access.h"
 #include "src/flags/flags.h"
+#include "src/objects/instruction-stream.h"
+#include "src/objects/slots-inl.h"
 #include "src/objects/tagged.h"
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
 #include "src/base/platform/memory-protection-key.h"
 #endif
 #if V8_HAS_PTHREAD_JIT_WRITE_PROTECT
 #include "src/base/platform/platform.h"
+#endif
+#if V8_HAS_BECORE_JIT_WRITE_PROTECT
+#include <BrowserEngineCore/BEMemory.h>
 #endif
 
 namespace v8 {
@@ -74,12 +79,16 @@ WritableJumpTablePair::WritableJumpTablePair(Address jump_table_address,
 
 template <typename T, size_t offset>
 void WritableJitAllocation::WriteHeaderSlot(T value) {
-  // These asserts are no strict requirements, they just guard against
+  // This assert is no strict requirement, it just guards against
   // non-implemented functionality.
   static_assert(!is_taggable_v<T>);
-  static_assert(offset != HeapObject::kMapOffset);
 
-  WriteMaybeUnalignedValue<T>(address_ + offset, value);
+  if constexpr (offset == HeapObject::kMapOffset) {
+    TaggedField<T, offset>::Relaxed_Store_Map_Word(
+        HeapObject::FromAddress(address_), value);
+  } else {
+    WriteMaybeUnalignedValue<T>(address_ + offset, value);
+  }
 }
 
 template <typename T, size_t offset>
@@ -100,6 +109,36 @@ void WritableJitAllocation::WriteHeaderSlot(Tagged<T> value, RelaxedStoreTag) {
   } else {
     TaggedField<T, offset>::Relaxed_Store(HeapObject::FromAddress(address_),
                                           value);
+  }
+}
+
+template <typename T, size_t offset>
+void WritableJitAllocation::WriteProtectedPointerHeaderSlot(Tagged<T> value,
+                                                            RelaxedStoreTag) {
+  static_assert(offset != HeapObject::kMapOffset);
+  TaggedField<T, offset, TrustedSpaceCompressionScheme>::Relaxed_Store(
+      HeapObject::FromAddress(address_), value);
+}
+
+template <typename T>
+V8_INLINE void WritableJitAllocation::WriteHeaderSlot(Address address, T value,
+                                                      RelaxedStoreTag tag) {
+  CHECK_EQ(allocation_.Type(),
+           ThreadIsolation::JitAllocationType::kInstructionStream);
+  size_t offset = address - address_;
+  Tagged<T> tagged(value);
+  switch (offset) {
+    case InstructionStream::kCodeOffset:
+      WriteProtectedPointerHeaderSlot<T, InstructionStream::kCodeOffset>(tagged,
+                                                                         tag);
+      break;
+    case InstructionStream::kRelocationInfoOffset:
+      WriteProtectedPointerHeaderSlot<T,
+                                      InstructionStream::kRelocationInfoOffset>(
+          tagged, tag);
+      break;
+    default:
+      UNREACHABLE();
   }
 }
 
@@ -130,28 +169,62 @@ WritableJitAllocation WritableJitPage::LookupAllocationContaining(
                                pair.second.Type());
 }
 
+V8_INLINE WritableFreeSpace WritableJitPage::FreeRange(Address addr,
+                                                       size_t size) {
+  page_ref_.UnregisterRange(addr, size);
+  return WritableFreeSpace(addr, size, true);
+}
+
+WritableFreeSpace::~WritableFreeSpace() = default;
+
+// static
+V8_INLINE WritableFreeSpace
+WritableFreeSpace::ForNonExecutableMemory(base::Address addr, size_t size) {
+  return WritableFreeSpace(addr, size, false);
+}
+
+V8_INLINE WritableFreeSpace::WritableFreeSpace(base::Address addr, size_t size,
+                                               bool executable)
+    : address_(addr), size_(static_cast<int>(size)), executable_(executable) {}
+
+template <typename T, size_t offset>
+void WritableFreeSpace::WriteHeaderSlot(Tagged<T> value,
+                                        RelaxedStoreTag) const {
+  Tagged<HeapObject> object = HeapObject::FromAddress(address_);
+  // TODO(v8:13355): add validation before the write.
+  if constexpr (offset == HeapObject::kMapOffset) {
+    TaggedField<T, offset>::Relaxed_Store_Map_Word(object, value);
+  } else {
+    TaggedField<T, offset>::Relaxed_Store(object, value);
+  }
+}
+
 #if V8_HAS_PTHREAD_JIT_WRITE_PROTECT
 
 // static
 bool RwxMemoryWriteScope::IsSupported() { return true; }
 
 // static
-bool RwxMemoryWriteScope::IsSupportedUntrusted() { return true; }
+void RwxMemoryWriteScope::SetWritable() { base::SetJitWriteProtected(0); }
+
+// static
+void RwxMemoryWriteScope::SetExecutable() { base::SetJitWriteProtected(1); }
+
+#elif V8_HAS_BECORE_JIT_WRITE_PROTECT
+
+// static
+bool RwxMemoryWriteScope::IsSupported() {
+  return be_memory_inline_jit_restrict_with_witness_supported() != 0;
+}
 
 // static
 void RwxMemoryWriteScope::SetWritable() {
-  if (code_space_write_nesting_level_ == 0) {
-    base::SetJitWriteProtected(0);
-  }
-  code_space_write_nesting_level_++;
+  be_memory_inline_jit_restrict_rwx_to_rw_with_witness();
 }
 
 // static
 void RwxMemoryWriteScope::SetExecutable() {
-  code_space_write_nesting_level_--;
-  if (code_space_write_nesting_level_ == 0) {
-    base::SetJitWriteProtected(1);
-  }
+  be_memory_inline_jit_restrict_rwx_to_rx_with_witness();
 }
 
 #elif V8_HAS_PKU_JIT_WRITE_PROTECT
@@ -166,47 +239,35 @@ bool RwxMemoryWriteScope::IsSupported() {
 }
 
 // static
-bool RwxMemoryWriteScope::IsSupportedUntrusted() {
-  DCHECK(ThreadIsolation::initialized());
-  return v8_flags.memory_protection_keys &&
-         ThreadIsolation::untrusted_pkey() >= 0;
-}
-
-// static
 void RwxMemoryWriteScope::SetWritable() {
   DCHECK(ThreadIsolation::initialized());
   if (!IsSupported()) return;
-  if (code_space_write_nesting_level_ == 0) {
-    DCHECK_NE(
-        base::MemoryProtectionKey::GetKeyPermission(ThreadIsolation::pkey()),
-        base::MemoryProtectionKey::kNoRestrictions);
-    base::MemoryProtectionKey::SetPermissionsForKey(
-        ThreadIsolation::pkey(), base::MemoryProtectionKey::kNoRestrictions);
-  }
-  code_space_write_nesting_level_++;
+
+  DCHECK_NE(
+      base::MemoryProtectionKey::GetKeyPermission(ThreadIsolation::pkey()),
+      base::MemoryProtectionKey::kNoRestrictions);
+
+  base::MemoryProtectionKey::SetPermissionsForKey(
+      ThreadIsolation::pkey(), base::MemoryProtectionKey::kNoRestrictions);
 }
 
 // static
 void RwxMemoryWriteScope::SetExecutable() {
   DCHECK(ThreadIsolation::initialized());
   if (!IsSupported()) return;
-  code_space_write_nesting_level_--;
-  if (code_space_write_nesting_level_ == 0) {
-    DCHECK_EQ(
-        base::MemoryProtectionKey::GetKeyPermission(ThreadIsolation::pkey()),
-        base::MemoryProtectionKey::kNoRestrictions);
-    base::MemoryProtectionKey::SetPermissionsForKey(
-        ThreadIsolation::pkey(), base::MemoryProtectionKey::kDisableWrite);
-  }
+
+  DCHECK_EQ(
+      base::MemoryProtectionKey::GetKeyPermission(ThreadIsolation::pkey()),
+      base::MemoryProtectionKey::kNoRestrictions);
+
+  base::MemoryProtectionKey::SetPermissionsForKey(
+      ThreadIsolation::pkey(), base::MemoryProtectionKey::kDisableWrite);
 }
 
 #else  // !V8_HAS_PTHREAD_JIT_WRITE_PROTECT && !V8_TRY_USE_PKU_JIT_WRITE_PROTECT
 
 // static
 bool RwxMemoryWriteScope::IsSupported() { return false; }
-
-// static
-bool RwxMemoryWriteScope::IsSupportedUntrusted() { return false; }
 
 // static
 void RwxMemoryWriteScope::SetWritable() {}

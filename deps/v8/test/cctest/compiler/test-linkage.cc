@@ -34,11 +34,13 @@ static Handle<JSFunction> Compile(const char* source) {
   Handle<String> source_code = isolate->factory()
                                    ->NewStringFromUtf8(base::CStrVector(source))
                                    .ToHandleChecked();
+  ScriptCompiler::CompilationDetails compilation_details;
   Handle<SharedFunctionInfo> shared =
       Compiler::GetSharedFunctionInfoForScript(
           isolate, source_code, ScriptDetails(),
           v8::ScriptCompiler::kNoCompileOptions,
-          ScriptCompiler::kNoCacheNoReason, NOT_NATIVES_CODE)
+          ScriptCompiler::kNoCacheNoReason, NOT_NATIVES_CODE,
+          &compilation_details)
           .ToHandleChecked();
   return Factory::JSFunctionBuilder{isolate, shared, isolate->native_context()}
       .Build();
@@ -62,9 +64,8 @@ TEST(TestLinkageJSFunctionIncoming) {
 
   for (int i = 0; i < 3; i++) {
     HandleAndZoneScope handles;
-    Handle<JSFunction> function =
-        Handle<JSFunction>::cast(v8::Utils::OpenHandle(
-            *v8::Local<v8::Function>::Cast(CompileRun(sources[i]))));
+    Handle<JSFunction> function = Cast<JSFunction>(v8::Utils::OpenHandle(
+        *v8::Local<v8::Function>::Cast(CompileRun(sources[i]))));
     Handle<SharedFunctionInfo> shared(function->shared(),
                                       handles.main_isolate());
     OptimizedCompilationInfo info(handles.main_zone(), function->GetIsolate(),

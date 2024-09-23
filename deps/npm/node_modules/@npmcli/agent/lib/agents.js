@@ -65,7 +65,10 @@ module.exports = class Agent extends AgentBase {
       ProxyAgent = this.isSecureEndpoint(options) ? ProxyAgent[1] : ProxyAgent[0]
     }
 
-    const proxyAgent = new ProxyAgent(proxy, this.#options)
+    const proxyAgent = new ProxyAgent(proxy, {
+      ...this.#options,
+      socketOptions: { family: this.#options.family },
+    })
     proxyCache.set(cacheKey, proxyAgent)
 
     return proxyAgent

@@ -69,7 +69,7 @@ if (common.hasCrypto) {
 // V8 options
 expect('--abort_on-uncaught_exception', 'B\n');
 expect('--disallow-code-generation-from-strings', 'B\n');
-expect('--huge-max-old-generation-size', 'B\n');
+expect('--expose-gc', 'B\n');
 expect('--jitless', 'B\n');
 expect('--max-old-space-size=0', 'B\n');
 expect('--max-semi-space-size=0', 'B\n');
@@ -92,7 +92,12 @@ function expectNoWorker(opt, want, command, wantsError) {
 function expect(
   opt, want, command = 'console.log("B")', wantsError = false, testWorker = true
 ) {
-  const argv = ['-e', command];
+  const argv = [
+    // --perf-basic-prof and --perf-basic-prof-only-functions write to /tmp by default.
+    `--perf-basic-prof-path=${tmpdir.path}`,
+    '-e',
+    command,
+  ];
   const opts = {
     cwd: tmpdir.path,
     env: Object.assign({}, process.env, { NODE_OPTIONS: opt }),

@@ -21,6 +21,10 @@
 #include "src/utils/identity-map.h"
 #include "src/utils/utils.h"
 
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-builtin-list.h"
+#endif
+
 namespace v8 {
 
 namespace tracing {
@@ -71,7 +75,8 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   V(TraceHeapBroker, trace_heap_broker, 15)                          \
   V(DiscardResultForTesting, discard_result_for_testing, 16)         \
   V(InlineJSWasmCalls, inline_js_wasm_calls, 17)                     \
-  V(TurboshaftTraceReduction, turboshaft_trace_reduction, 18)
+  V(TurboshaftTraceReduction, turboshaft_trace_reduction, 18)        \
+  V(CouldNotInlineAllCandidates, could_not_inline_all_candidates, 19)
 
   enum Flag {
 #define DEF_ENUM(Camel, Lower, Bit) k##Camel = 1 << Bit,
@@ -106,7 +111,8 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
                                  BytecodeOffset::None()) {}
   // Construct a compilation info for stub compilation, Wasm, and testing.
   OptimizedCompilationInfo(base::Vector<const char> debug_name, Zone* zone,
-                           CodeKind code_kind);
+                           CodeKind code_kind,
+                           Builtin builtin = Builtin::kNoBuiltinId);
 
   OptimizedCompilationInfo(const OptimizedCompilationInfo&) = delete;
   OptimizedCompilationInfo& operator=(const OptimizedCompilationInfo&) = delete;
@@ -155,6 +161,15 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   }
 #if V8_ENABLE_WEBASSEMBLY
   bool IsWasm() const { return code_kind() == CodeKind::WASM_FUNCTION; }
+  bool IsWasmBuiltin() const {
+    return code_kind() == CodeKind::WASM_TO_JS_FUNCTION ||
+           code_kind() == CodeKind::JS_TO_WASM_FUNCTION ||
+           (code_kind() == CodeKind::BUILTIN &&
+            (builtin() == Builtin::kJSToWasmWrapper ||
+             builtin() == Builtin::kJSToWasmHandleReturns ||
+             builtin() == Builtin::kWasmToJsWrapperCSA ||
+             wasm::BuiltinLookup::IsWasmBuiltinId(builtin())));
+  }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   void set_persistent_handles(

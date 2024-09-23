@@ -6,14 +6,13 @@
 #define V8_OBJECTS_BACKING_STORE_H_
 
 #include <memory>
+#include <optional>
 
 #include "include/v8-array-buffer.h"
 #include "include/v8-internal.h"
-#include "src/base/optional.h"
 #include "src/handles/handles.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 class Isolate;
 class WasmMemoryObject;
@@ -41,8 +40,6 @@ struct SharedWasmMemoryData;
 // regions, etc. Instances of this classes *own* the underlying memory
 // when they are created through one of the {Allocate()} methods below,
 // and the destructor frees the memory (and page allocation if necessary).
-// Backing stores can also *wrap* embedder-allocated memory. In this case,
-// they do not own the memory, and upon destruction, they do not deallocate it.
 class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
  public:
   ~BackingStore();
@@ -113,9 +110,9 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
 
 #if V8_ENABLE_WEBASSEMBLY
   // Attempt to grow this backing store in place.
-  base::Optional<size_t> GrowWasmMemoryInPlace(Isolate* isolate,
-                                               size_t delta_pages,
-                                               size_t max_pages);
+  std::optional<size_t> GrowWasmMemoryInPlace(Isolate* isolate,
+                                              size_t delta_pages,
+                                              size_t max_pages);
 
   // Allocate a new, larger, backing store for this Wasm memory and copy the
   // contents of this backing store into it.
@@ -168,8 +165,8 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
 
   BackingStore(void* buffer_start, size_t byte_length, size_t max_byte_length,
                size_t byte_capacity, SharedFlag shared, ResizableFlag resizable,
-               bool is_wasm_memory, bool has_guard_regions, bool custom_deleter,
-               bool empty_deleter);
+               bool is_wasm_memory, bool is_wasm_memory64,
+               bool has_guard_regions, bool custom_deleter, bool empty_deleter);
   BackingStore(const BackingStore&) = delete;
   BackingStore& operator=(const BackingStore&) = delete;
   void SetAllocatorFromIsolate(Isolate* isolate);
@@ -220,6 +217,7 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
   // Backing stores for (Resizable|GrowableShared)ArrayBuffer
   const bool is_resizable_by_js_ : 1;
   const bool is_wasm_memory_ : 1;
+  const bool is_wasm_memory64_ : 1;
   bool holds_shared_ptr_to_allocator_ : 1;
   const bool has_guard_regions_ : 1;
   bool globally_registered_ : 1;
@@ -259,7 +257,6 @@ class GlobalBackingStoreRegistry {
   static void UpdateSharedWasmMemoryObjects(Isolate* isolate);
 };
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #endif  // V8_OBJECTS_BACKING_STORE_H_
