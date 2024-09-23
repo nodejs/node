@@ -20,7 +20,9 @@ namespace v8::internal::compiler::turboshaft {
 
 wasm::WasmCompilationResult ExecuteTurboshaftWasmCompilation(
     wasm::CompilationEnv* env, compiler::WasmCompilationData& data,
-    wasm::WasmFeatures* detected) {
+    wasm::WasmDetectedFeatures* detected) {
+  // TODO(nicohartmann): We should not allocate TurboFan graph(s) here but
+  // instead use only Turboshaft inside `GenerateWasmCodeFromTurboshaftGraph`.
   Zone zone(wasm::GetWasmEngine()->allocator(), ZONE_NAME, kCompressGraphZone);
   compiler::MachineGraph* mcgraph = zone.New<compiler::MachineGraph>(
       zone.New<compiler::Graph>(&zone), zone.New<CommonOperatorBuilder>(&zone),
@@ -48,9 +50,8 @@ wasm::WasmCompilationResult ExecuteTurboshaftWasmCompilation(
   data.assumptions = new wasm::AssumptionsJournal();
   auto call_descriptor = GetWasmCallDescriptor(&zone, data.func_body.sig);
 
-  if (!Pipeline::GenerateWasmCodeFromTurboshaftGraph(&info, env, data, mcgraph,
-                                                     data.func_body, detected,
-                                                     call_descriptor)) {
+  if (!Pipeline::GenerateWasmCodeFromTurboshaftGraph(
+          &info, env, data, mcgraph, detected, call_descriptor)) {
     delete data.assumptions;
     return {};
   }

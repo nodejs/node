@@ -1,11 +1,15 @@
 import * as common from '../common/index.mjs';
 import tmpdir from '../common/tmpdir.js';
-import { resolve, dirname, sep } from 'node:path';
+import { resolve, dirname, sep, basename } from 'node:path';
 import { mkdir, writeFile, symlink, glob as asyncGlob } from 'node:fs/promises';
-import { glob, globSync } from 'node:fs';
+import { glob, globSync, Dirent } from 'node:fs';
 import { test, describe } from 'node:test';
 import { promisify } from 'node:util';
 import assert from 'node:assert';
+
+function assertDirents(dirents) {
+  assert.ok(dirents.every((dirent) => dirent instanceof Dirent));
+}
 
 tmpdir.refresh();
 
@@ -330,6 +334,53 @@ describe('fsPromises glob', function() {
       actual.sort();
       const normalized = expected.filter(Boolean).map((item) => item.replaceAll('/', sep)).sort();
       assert.deepStrictEqual(actual, normalized);
+    });
+  }
+});
+
+describe('glob - withFileTypes', function() {
+  const promisified = promisify(glob);
+  for (const [pattern, expected] of Object.entries(patterns)) {
+    test(pattern, async () => {
+      const actual = await promisified(pattern, {
+        cwd: fixtureDir,
+        withFileTypes: true,
+        exclude: (dirent) => assert.ok(dirent instanceof Dirent),
+      });
+      assertDirents(actual);
+      const normalized = expected.filter(Boolean).map((item) => basename(item)).sort();
+      assert.deepStrictEqual(actual.map((dirent) => dirent.name).sort(), normalized.sort());
+    });
+  }
+});
+
+describe('globSync - withFileTypes', function() {
+  for (const [pattern, expected] of Object.entries(patterns)) {
+    test(pattern, () => {
+      const actual = globSync(pattern, {
+        cwd: fixtureDir,
+        withFileTypes: true,
+        exclude: (dirent) => assert.ok(dirent instanceof Dirent),
+      });
+      assertDirents(actual);
+      const normalized = expected.filter(Boolean).map((item) => basename(item)).sort();
+      assert.deepStrictEqual(actual.map((dirent) => dirent.name).sort(), normalized.sort());
+    });
+  }
+});
+
+describe('fsPromises glob - withFileTypes', function() {
+  for (const [pattern, expected] of Object.entries(patterns)) {
+    test(pattern, async () => {
+      const actual = [];
+      for await (const item of asyncGlob(pattern, {
+        cwd: fixtureDir,
+        withFileTypes: true,
+        exclude: (dirent) => assert.ok(dirent instanceof Dirent),
+      })) actual.push(item);
+      assertDirents(actual);
+      const normalized = expected.filter(Boolean).map((item) => basename(item)).sort();
+      assert.deepStrictEqual(actual.map((dirent) => dirent.name).sort(), normalized.sort());
     });
   }
 });

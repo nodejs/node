@@ -195,6 +195,16 @@ class RequestRetryError extends UndiciError {
   }
 }
 
+class SecureProxyConnectionError extends UndiciError {
+  constructor (cause, message, options) {
+    super(message, { cause, ...(options ?? {}) })
+    this.name = 'SecureProxyConnectionError'
+    this.message = message || 'Secure Proxy Connection failed'
+    this.code = 'UND_ERR_PRX_TLS'
+    this.cause = cause
+  }
+}
+
 module.exports = {
   AbortError,
   HTTPParserError,
@@ -216,5 +226,6 @@ module.exports = {
   ResponseContentLengthMismatchError,
   BalancedPoolMissingUpstreamError,
   ResponseExceededMaxSizeError,
-  RequestRetryError
+  RequestRetryError,
+  SecureProxyConnectionError
 }

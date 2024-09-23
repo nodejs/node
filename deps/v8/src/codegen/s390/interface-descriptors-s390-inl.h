@@ -85,6 +85,21 @@ constexpr Register KeyedLoadWithVectorDescriptor::VectorRegister() {
 }
 
 // static
+constexpr Register EnumeratedKeyedLoadBaselineDescriptor::EnumIndexRegister() {
+  return r6;
+}
+
+// static
+constexpr Register EnumeratedKeyedLoadBaselineDescriptor::CacheTypeRegister() {
+  return r7;
+}
+
+// static
+constexpr Register EnumeratedKeyedLoadBaselineDescriptor::SlotRegister() {
+  return r4;
+}
+
+// static
 constexpr Register KeyedHasICBaselineDescriptor::ReceiverRegister() {
   return kInterpreterAccumulatorRegister;
 }
@@ -151,6 +166,22 @@ constexpr Register TypeConversionDescriptor::ArgumentRegister() { return r2; }
 constexpr auto TypeofDescriptor::registers() { return RegisterArray(r2); }
 
 // static
+constexpr Register
+MaglevOptimizeCodeOrTailCallOptimizedCodeSlotDescriptor::FlagsRegister() {
+  return r4;
+}
+// static
+constexpr Register MaglevOptimizeCodeOrTailCallOptimizedCodeSlotDescriptor::
+    FeedbackVectorRegister() {
+  return r7;
+}
+// static
+constexpr Register
+MaglevOptimizeCodeOrTailCallOptimizedCodeSlotDescriptor::TemporaryRegister() {
+  return r6;
+}
+
+// static
 constexpr auto CallTrampolineDescriptor::registers() {
   // r2 : number of arguments
   // r3 : the target to call
@@ -195,6 +226,14 @@ constexpr auto CallFunctionTemplateDescriptor::registers() {
   // r3 : function template info
   // r4 : number of arguments (on the stack)
   return RegisterArray(r3, r4);
+}
+
+// static
+constexpr auto CallFunctionTemplateGenericDescriptor::registers() {
+  // r3 : function template info
+  // r4 : number of arguments (on the stack)
+  // r5 : topmost script-having context
+  return RegisterArray(r3, r4, r5);
 }
 
 // static
@@ -291,7 +330,8 @@ CallApiCallbackOptimizedDescriptor::ActualArgumentsCountRegister() {
   return r4;
 }
 // static
-constexpr Register CallApiCallbackOptimizedDescriptor::CallDataRegister() {
+constexpr Register
+CallApiCallbackOptimizedDescriptor::FunctionTemplateInfoRegister() {
   return r5;
 }
 // static
@@ -304,7 +344,13 @@ CallApiCallbackGenericDescriptor::ActualArgumentsCountRegister() {
   return r4;
 }
 // static
-constexpr Register CallApiCallbackGenericDescriptor::CallHandlerInfoRegister() {
+constexpr Register
+CallApiCallbackGenericDescriptor::TopmostScriptHavingContextRegister() {
+  return r3;
+}
+// static
+constexpr Register
+CallApiCallbackGenericDescriptor::FunctionTemplateInfoRegister() {
   return r5;
 }
 // static
@@ -337,6 +383,12 @@ constexpr auto InterpreterPushArgsThenConstructDescriptor::registers() {
 }
 
 // static
+constexpr auto ConstructForwardAllArgsDescriptor::registers() {
+  return RegisterArray(r3,   // constructor to call
+                       r5);  // new target
+}
+
+// static
 constexpr auto ResumeGeneratorDescriptor::registers() {
   return RegisterArray(r2,   // the value to pass to the generator
                        r3);  // the JSGeneratorObject to resume
@@ -349,7 +401,7 @@ constexpr auto RunMicrotasksEntryDescriptor::registers() {
 
 constexpr auto WasmJSToWasmWrapperDescriptor::registers() {
   // Arbitrarily picked register.
-  return RegisterArray(r2);
+  return RegisterArray(r8);
 }
 }  // namespace internal
 }  // namespace v8

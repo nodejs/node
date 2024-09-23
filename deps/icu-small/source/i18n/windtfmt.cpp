@@ -30,7 +30,6 @@
 #include "unicode/timezone.h"
 #include "unicode/utmscale.h"
 
-#include "bytesinkutil.h"
 #include "charstr.h"
 #include "cmemory.h"
 #include "ulocimp.h"
@@ -104,11 +103,7 @@ static UErrorCode GetEquivalentWindowsLocaleName(const Locale& locale, UnicodeSt
     UErrorCode status = U_ZERO_ERROR;
 
     // Convert from names like "en_CA" and "de_DE@collation=phonebook" to "en-CA" and "de-DE-u-co-phonebk".
-    CharString asciiBCP47Tag;
-    {
-        CharStringByteSink sink(&asciiBCP47Tag);
-        ulocimp_toLanguageTag(locale.getName(), sink, false, &status);
-    }
+    CharString asciiBCP47Tag = ulocimp_toLanguageTag(locale.getName(), false, status);
 
     if (U_SUCCESS(status))
     {
@@ -412,4 +407,3 @@ U_NAMESPACE_END
 #endif /* #if !UCONFIG_NO_FORMATTING */
 
 #endif // U_PLATFORM_USES_ONLY_WIN32_API
-

@@ -10,10 +10,8 @@ var require_balanced_match = __commonJS({
     "use strict";
     module2.exports = balanced;
     function balanced(a, b, str) {
-      if (a instanceof RegExp)
-        a = maybeMatch(a, str);
-      if (b instanceof RegExp)
-        b = maybeMatch(b, str);
+      if (a instanceof RegExp) a = maybeMatch(a, str);
+      if (b instanceof RegExp) b = maybeMatch(b, str);
       var r = range(a, b, str);
       return r && {
         start: r[0],
@@ -126,8 +124,7 @@ var require_brace_expansion = __commonJS({
     function expand(str, isTop) {
       var expansions = [];
       var m = balanced("{", "}", str);
-      if (!m)
-        return [str];
+      if (!m) return [str];
       var pre = m.pre;
       var post = m.post.length ? expand(m.post, false) : [""];
       if (/\$$/.test(m.pre)) {
@@ -215,9 +212,9 @@ var require_brace_expansion = __commonJS({
   }
 });
 
-// dist/cjs/assert-valid-pattern.js
+// dist/commonjs/assert-valid-pattern.js
 var require_assert_valid_pattern = __commonJS({
-  "dist/cjs/assert-valid-pattern.js"(exports2) {
+  "dist/commonjs/assert-valid-pattern.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.assertValidPattern = void 0;
@@ -234,9 +231,9 @@ var require_assert_valid_pattern = __commonJS({
   }
 });
 
-// dist/cjs/brace-expressions.js
+// dist/commonjs/brace-expressions.js
 var require_brace_expressions = __commonJS({
-  "dist/cjs/brace-expressions.js"(exports2) {
+  "dist/commonjs/brace-expressions.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.parseClass = void 0;
@@ -273,66 +270,65 @@ var require_brace_expressions = __commonJS({
       let negate = false;
       let endPos = pos;
       let rangeStart = "";
-      WHILE:
-        while (i < glob.length) {
-          const c = glob.charAt(i);
-          if ((c === "!" || c === "^") && i === pos + 1) {
-            negate = true;
-            i++;
-            continue;
-          }
-          if (c === "]" && sawStart && !escaping) {
-            endPos = i + 1;
-            break;
-          }
-          sawStart = true;
-          if (c === "\\") {
-            if (!escaping) {
-              escaping = true;
-              i++;
-              continue;
-            }
-          }
-          if (c === "[" && !escaping) {
-            for (const [cls, [unip, u, neg]] of Object.entries(posixClasses)) {
-              if (glob.startsWith(cls, i)) {
-                if (rangeStart) {
-                  return ["$.", false, glob.length - pos, true];
-                }
-                i += cls.length;
-                if (neg)
-                  negs.push(unip);
-                else
-                  ranges.push(unip);
-                uflag = uflag || u;
-                continue WHILE;
-              }
-            }
-          }
-          escaping = false;
-          if (rangeStart) {
-            if (c > rangeStart) {
-              ranges.push(braceEscape(rangeStart) + "-" + braceEscape(c));
-            } else if (c === rangeStart) {
-              ranges.push(braceEscape(c));
-            }
-            rangeStart = "";
-            i++;
-            continue;
-          }
-          if (glob.startsWith("-]", i + 1)) {
-            ranges.push(braceEscape(c + "-"));
-            i += 2;
-            continue;
-          }
-          if (glob.startsWith("-", i + 1)) {
-            rangeStart = c;
-            i += 2;
-            continue;
-          }
-          ranges.push(braceEscape(c));
+      WHILE: while (i < glob.length) {
+        const c = glob.charAt(i);
+        if ((c === "!" || c === "^") && i === pos + 1) {
+          negate = true;
           i++;
+          continue;
         }
+        if (c === "]" && sawStart && !escaping) {
+          endPos = i + 1;
+          break;
+        }
+        sawStart = true;
+        if (c === "\\") {
+          if (!escaping) {
+            escaping = true;
+            i++;
+            continue;
+          }
+        }
+        if (c === "[" && !escaping) {
+          for (const [cls, [unip, u, neg]] of Object.entries(posixClasses)) {
+            if (glob.startsWith(cls, i)) {
+              if (rangeStart) {
+                return ["$.", false, glob.length - pos, true];
+              }
+              i += cls.length;
+              if (neg)
+                negs.push(unip);
+              else
+                ranges.push(unip);
+              uflag = uflag || u;
+              continue WHILE;
+            }
+          }
+        }
+        escaping = false;
+        if (rangeStart) {
+          if (c > rangeStart) {
+            ranges.push(braceEscape(rangeStart) + "-" + braceEscape(c));
+          } else if (c === rangeStart) {
+            ranges.push(braceEscape(c));
+          }
+          rangeStart = "";
+          i++;
+          continue;
+        }
+        if (glob.startsWith("-]", i + 1)) {
+          ranges.push(braceEscape(c + "-"));
+          i += 2;
+          continue;
+        }
+        if (glob.startsWith("-", i + 1)) {
+          rangeStart = c;
+          i += 2;
+          continue;
+        }
+        ranges.push(braceEscape(c));
+        i++;
+      }
       if (endPos < i) {
         return ["", false, 0, false];
       }
@@ -352,9 +348,9 @@ var require_brace_expressions = __commonJS({
   }
 });
 
-// dist/cjs/unescape.js
+// dist/commonjs/unescape.js
 var require_unescape = __commonJS({
-  "dist/cjs/unescape.js"(exports2) {
+  "dist/commonjs/unescape.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.unescape = void 0;
@@ -365,9 +361,9 @@ var require_unescape = __commonJS({
   }
 });
 
-// dist/cjs/ast.js
+// dist/commonjs/ast.js
 var require_ast = __commonJS({
-  "dist/cjs/ast.js"(exports2) {
+  "dist/commonjs/ast.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.AST = void 0;
@@ -646,6 +642,9 @@ var require_ast = __commonJS({
           _glob: glob
         });
       }
+      get options() {
+        return this.#options;
+      }
       // returns the string match, the regexp source, whether there's magic
       // in the regexp (so a regular expression is required) and whether or
       // not the uflag is needed for the regular expression (for posix classes)
@@ -851,9 +850,9 @@ var require_ast = __commonJS({
   }
 });
 
-// dist/cjs/escape.js
+// dist/commonjs/escape.js
 var require_escape = __commonJS({
-  "dist/cjs/escape.js"(exports2) {
+  "dist/commonjs/escape.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.escape = void 0;
@@ -864,7 +863,7 @@ var require_escape = __commonJS({
   }
 });
 
-// dist/cjs/index.js
+// dist/commonjs/index.js
 var __importDefault = exports && exports.__importDefault || function(mod) {
   return mod && mod.__esModule ? mod : { "default": mod };
 };
@@ -1301,10 +1300,11 @@ var Minimatch = class {
     for (let i = 0; i < globParts.length - 1; i++) {
       for (let j = i + 1; j < globParts.length; j++) {
         const matched = this.partsMatch(globParts[i], globParts[j], !this.preserveMultipleSlashes);
-        if (!matched)
-          continue;
-        globParts[i] = matched;
-        globParts[j] = [];
+        if (matched) {
+          globParts[i] = [];
+          globParts[j] = matched;
+          break;
+        }
       }
     }
     return globParts.filter((gs) => gs.length);
@@ -1479,7 +1479,10 @@ var Minimatch = class {
       fastTest = dotStarTest;
     }
     const re = ast_js_1.AST.fromGlob(pattern, this.options).toMMPattern();
-    return fastTest ? Object.assign(re, { test: fastTest }) : re;
+    if (fastTest && typeof re === "object") {
+      Reflect.defineProperty(re, "test", { value: fastTest });
+    }
+    return re;
   }
   makeRe() {
     if (this.regexp || this.regexp === false)

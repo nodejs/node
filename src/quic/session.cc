@@ -24,6 +24,7 @@
 #include "defs.h"
 #include "endpoint.h"
 #include "logstream.h"
+#include "ncrypto.h"
 #include "packet.h"
 #include "preferredaddress.h"
 #include "sessionticket.h"
@@ -90,7 +91,6 @@ namespace quic {
   V(BIDI_OUT_STREAM_COUNT, bidi_out_stream_count)                              \
   V(UNI_IN_STREAM_COUNT, uni_in_stream_count)                                  \
   V(UNI_OUT_STREAM_COUNT, uni_out_stream_count)                                \
-  V(KEYUPDATE_COUNT, keyupdate_count)                                          \
   V(LOSS_RETRANSMIT_COUNT, loss_retransmit_count)                              \
   V(MAX_BYTES_IN_FLIGHT, max_bytes_in_flight)                                  \
   V(BYTES_IN_FLIGHT, bytes_in_flight)                                          \
@@ -142,11 +142,7 @@ struct Session::MaybeCloseConnectionScope final {
           silent ? "yes" : "no");
     session->connection_close_depth_++;
   }
-  MaybeCloseConnectionScope(const MaybeCloseConnectionScope&) = delete;
-  MaybeCloseConnectionScope(MaybeCloseConnectionScope&&) = delete;
-  MaybeCloseConnectionScope& operator=(const MaybeCloseConnectionScope&) =
-      delete;
-  MaybeCloseConnectionScope& operator=(MaybeCloseConnectionScope&&) = delete;
+  DISALLOW_COPY_AND_MOVE(MaybeCloseConnectionScope)
   ~MaybeCloseConnectionScope() {
     // We only want to trigger the sending the connection close if ...
     // a) Silent is not explicitly true at this scope.
@@ -185,7 +181,7 @@ Session::SendPendingDataScope::~SendPendingDataScope() {
 
 namespace {
 
-inline const char* getEncryptionLevelName(ngtcp2_encryption_level level) {
+inline std::string to_string(ngtcp2_encryption_level level) {
   switch (level) {
     case NGTCP2_ENCRYPTION_LEVEL_1RTT:
       return "1rtt";
@@ -231,8 +227,7 @@ bool SetOption(Environment* env,
                const v8::Local<Object>& object,
                const v8::Local<String>& name) {
   Local<Value> value;
-  PreferredAddress::Policy policy =
-      PreferredAddress::Policy::USE_PREFERRED_ADDRESS;
+  PreferredAddress::Policy policy = PreferredAddress::Policy::USE_PREFERRED;
   if (!object->Get(env->context(), name).ToLocal(&value) ||
       !PreferredAddress::tryGetPolicy(env, value).To(&policy)) {
     return false;
@@ -297,7 +292,6 @@ Session::Config::Config(Side side,
                         const SocketAddress& remote_address,
                         const CID& dcid,
                         const CID& scid,
-                        std::optional<SessionTicket> session_ticket,
                         const CID& ocid)
     : side(side),
       options(options),
@@ -306,8 +300,7 @@ Session::Config::Config(Side side,
       remote_address(remote_address),
       dcid(dcid),
       scid(scid),
-      ocid(ocid),
-      session_ticket(session_ticket) {
+      ocid(ocid) {
   ngtcp2_settings_default(&settings);
   settings.initial_ts = uv_hrtime();
 
@@ -343,7 +336,6 @@ Session::Config::Config(const Endpoint& endpoint,
                         const Options& options,
                         const SocketAddress& local_address,
                         const SocketAddress& remote_address,
-                        std::optional<SessionTicket> session_ticket,
                         const CID& ocid)
     : Config(Side::CLIENT,
              endpoint,
@@ -353,7 +345,6 @@ Session::Config::Config(const Endpoint& endpoint,
              remote_address,
              CID::Factory::random().Generate(NGTCP2_MIN_INITIAL_DCIDLEN),
              options.cid_factory->Generate(),
-             session_ticket,
              ocid) {}
 
 void Session::Config::MemoryInfo(MemoryTracker* tracker) const {
@@ -364,8 +355,6 @@ void Session::Config::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("scid", scid);
   tracker->TrackField("ocid", ocid);
   tracker->TrackField("retry_scid", retry_scid);
-  if (session_ticket.has_value())
-    tracker->TrackField("session_ticket", session_ticket.value());
 }
 
 void Session::Config::set_token(const uint8_t* token,
@@ -410,13 +399,6 @@ std::string Session::Config::ToString() const {
   res += prefix + "ocid: " + ocid.ToString();
   res += prefix + "retry scid: " + retry_scid.ToString();
   res += prefix + "preferred address cid: " + preferred_address_cid.ToString();
-
-  if (session_ticket.has_value()) {
-    res += prefix + "session ticket: yes";
-  } else {
-    res += prefix + "session ticket: <none>";
-  }
-
   res += indent.Close();
   return res;
 }
@@ -468,9 +450,9 @@ std::string Session::Options::ToString() const {
 
   auto policy = ([&] {
     switch (preferred_address_strategy) {
-      case PreferredAddress::Policy::USE_PREFERRED_ADDRESS:
+      case PreferredAddress::Policy::USE_PREFERRED:
         return "use";
-      case PreferredAddress::Policy::IGNORE_PREFERRED_ADDRESS:
+      case PreferredAddress::Policy::IGNORE_PREFERRED:
         return "ignore";
     }
     return "<unknown>";
@@ -490,8 +472,11 @@ bool Session::HasInstance(Environment* env, Local<Value> value) {
   return GetConstructorTemplate(env)->HasInstance(value);
 }
 
-BaseObjectPtr<Session> Session::Create(Endpoint* endpoint,
-                                       const Config& config) {
+BaseObjectPtr<Session> Session::Create(
+    Endpoint* endpoint,
+    const Config& config,
+    TLSContext* tls_context,
+    const std::optional<SessionTicket>& ticket) {
   Local<Object> obj;
   if (!GetConstructorTemplate(endpoint->env())
            ->InstanceTemplate()
@@ -500,12 +485,15 @@ BaseObjectPtr<Session> Session::Create(Endpoint* endpoint,
     return BaseObjectPtr<Session>();
   }
 
-  return MakeDetachedBaseObject<Session>(endpoint, obj, config);
+  return MakeDetachedBaseObject<Session>(
+      endpoint, obj, config, tls_context, ticket);
 }
 
 Session::Session(Endpoint* endpoint,
                  v8::Local<v8::Object> object,
-                 const Config& config)
+                 const Config& config,
+                 TLSContext* tls_context,
+                 const std::optional<SessionTicket>& session_ticket)
     : AsyncWrap(endpoint->env(), object, AsyncWrap::PROVIDER_QUIC_SESSION),
       stats_(env()->isolate()),
       state_(env()->isolate()),
@@ -515,7 +503,7 @@ Session::Session(Endpoint* endpoint,
       local_address_(config.local_address),
       remote_address_(config.remote_address),
       connection_(InitConnection()),
-      tls_context_(env(), config_.side, this, config_.options.tls_options),
+      tls_session_(tls_context->NewSession(this, session_ticket)),
       application_(select_application()),
       timer_(env(),
              [this, self = BaseObjectPtr<Session>(this)] { OnTimeout(); }) {
@@ -560,8 +548,6 @@ Session::Session(Endpoint* endpoint,
   endpoint_->AddSession(config_.scid, BaseObjectPtr<Session>(this));
   endpoint_->AssociateCID(config_.dcid, config_.scid);
 
-  tls_context_.Start();
-
   UpdateDataStats();
 }
 
@@ -583,6 +569,10 @@ Session::~Session() {
   DCHECK(streams_.empty());
 }
 
+size_t Session::max_packet_size() const {
+  return ngtcp2_conn_get_max_tx_udp_payload_size(*this);
+}
+
 Session::operator ngtcp2_conn*() const {
   return connection_.get();
 }
@@ -595,8 +585,8 @@ Endpoint& Session::endpoint() const {
   return *endpoint_;
 }
 
-TLSContext& Session::tls_context() {
-  return tls_context_;
+TLSSession& Session::tls_session() {
+  return *tls_session_;
 }
 
 Session::Application& Session::application() {
@@ -871,6 +861,10 @@ void Session::Send(Packet* packet) {
 void Session::Send(Packet* packet, const PathStorage& path) {
   UpdatePath(path);
   Send(packet);
+}
+
+void Session::UpdatePacketTxTime() {
+  ngtcp2_conn_update_pkt_tx_time(*this, uv_hrtime());
 }
 
 uint64_t Session::SendDatagram(Store&& data) {
@@ -1169,7 +1163,7 @@ void Session::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("local_address", local_address_);
   tracker->TrackField("remote_address", remote_address_);
   tracker->TrackField("application", application_);
-  tracker->TrackField("tls_context", tls_context_);
+  tracker->TrackField("tls_session", tls_session_);
   tracker->TrackField("timer", timer_);
   tracker->TrackField("conn_closebuf", conn_closebuf_);
   tracker->TrackField("qlog_stream", qlog_stream_);
@@ -1189,7 +1183,6 @@ bool Session::wants_session_ticket() const {
 }
 
 void Session::SetStreamOpenAllowed() {
-  // TODO(@jasnell): Might remove this. May not be needed
   state_->stream_open_allowed = 1;
 }
 
@@ -1334,8 +1327,8 @@ void Session::OnTimeout() {
   if (is_destroyed()) return;
 
   int ret = ngtcp2_conn_handle_expiry(*this, uv_hrtime());
-  if (NGTCP2_OK(ret) && !is_in_closing_period() && !is_in_draining_period() &&
-      env()->can_call_into_js()) {
+  if (NGTCP2_OK(ret) && !is_in_closing_period() && !is_in_draining_period()) {
+    Debug(this, "Sending pending data after timr expiry");
     SendPendingDataScope send_scope(this);
     return;
   }
@@ -1358,6 +1351,7 @@ void Session::UpdateTimer() {
   }
 
   auto timeout = (expiry - now) / NGTCP2_MILLISECONDS;
+  Debug(this, "Updating timeout to %zu milliseconds", timeout);
 
   // If timeout is zero here, it means our timer is less than a millisecond
   // off from expiry. Let's bump the timer to 1.
@@ -1418,7 +1412,7 @@ void Session::DatagramReceived(const uint8_t* data,
 bool Session::GenerateNewConnectionId(ngtcp2_cid* cid,
                                       size_t len,
                                       uint8_t* token) {
-  CID cid_ = config_.options.cid_factory->Generate(len);
+  CID cid_ = config_.options.cid_factory->GenerateInto(cid, len);
   Debug(this, "Generated new connection id %s", cid_);
   StatelessResetToken new_token(
       token, endpoint_->options().reset_token_secret, cid_);
@@ -1428,13 +1422,14 @@ bool Session::GenerateNewConnectionId(ngtcp2_cid* cid,
 }
 
 bool Session::HandshakeCompleted() {
-  if (state_->handshake_completed) return false;
-  state_->handshake_completed = true;
-
   Debug(this, "Session handshake completed");
+
+  if (state_->handshake_completed) return false;
+  state_->handshake_completed = 1;
+
   STAT_RECORD_TIMESTAMP(Stats, handshake_completed_at);
 
-  if (!tls_context_.early_data_was_accepted())
+  if (!tls_session().early_data_was_accepted())
     ngtcp2_conn_tls_early_data_rejected(*this);
 
   // When in a server session, handshake completed == handshake confirmed.
@@ -1469,7 +1464,7 @@ void Session::HandshakeConfirmed() {
 
 void Session::SelectPreferredAddress(PreferredAddress* preferredAddress) {
   if (config_.options.preferred_address_strategy ==
-      PreferredAddress::Policy::IGNORE_PREFERRED_ADDRESS) {
+      PreferredAddress::Policy::IGNORE_PREFERRED) {
     Debug(this, "Ignoring preferred address");
     return;
   }
@@ -1592,23 +1587,21 @@ void Session::EmitHandshakeComplete() {
       Undefined(isolate),  // Cipher version
       Undefined(isolate),  // Validation error reason
       Undefined(isolate),  // Validation error code
-      v8::Boolean::New(isolate, tls_context_.early_data_was_accepted())};
+      v8::Boolean::New(isolate, tls_session().early_data_was_accepted())};
 
-  int err = tls_context_.VerifyPeerIdentity();
-
-  if (err != X509_V_OK && (!crypto::GetValidationErrorReason(env(), err)
-                                .ToLocal(&argv[kValidationErrorReason]) ||
-                           !crypto::GetValidationErrorCode(env(), err)
-                                .ToLocal(&argv[kValidationErrorCode]))) {
+  auto& tls = tls_session();
+  auto peerVerifyError = tls.VerifyPeerIdentity(env());
+  if (peerVerifyError.has_value() &&
+      (!peerVerifyError->reason.ToLocal(&argv[kValidationErrorReason]) ||
+       !peerVerifyError->code.ToLocal(&argv[kValidationErrorCode]))) {
     return;
   }
 
-  if (!ToV8Value(env()->context(), tls_context_.servername())
+  if (!ToV8Value(env()->context(), tls.servername())
            .ToLocal(&argv[kServerName]) ||
-      !ToV8Value(env()->context(), tls_context_.alpn())
-           .ToLocal(&argv[kSelectedAlpn]) ||
-      tls_context_.cipher_name(env()).ToLocal(&argv[kCipherName]) ||
-      !tls_context_.cipher_version(env()).ToLocal(&argv[kCipherVersion])) {
+      !ToV8Value(env()->context(), tls.alpn()).ToLocal(&argv[kSelectedAlpn]) ||
+      !tls.cipher_name(env()).ToLocal(&argv[kCipherName]) ||
+      !tls.cipher_version(env()).ToLocal(&argv[kCipherVersion])) {
     return;
   }
 
@@ -1665,7 +1658,10 @@ void Session::EmitSessionTicket(Store&& ticket) {
 
   // If there is nothing listening for the session ticket, don't bother
   // emitting.
-  if (LIKELY(state_->session_ticket == 0)) return;
+  if (LIKELY(!wants_session_ticket())) {
+    Debug(this, "Session ticket was discarded");
+    return;
+  }
 
   CallbackScope<Session> cb_scope(this);
 
@@ -1758,14 +1754,14 @@ struct Session::Impl {
 
   static void DoDestroy(const FunctionCallbackInfo<Value>& args) {
     Session* session;
-    ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
     session->Destroy();
   }
 
   static void GetRemoteAddress(const FunctionCallbackInfo<Value>& args) {
     auto env = Environment::GetCurrent(args);
     Session* session;
-    ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
     auto address = session->remote_address();
     args.GetReturnValue().Set(
         SocketAddressBase::Create(env, std::make_shared<SocketAddress>(address))
@@ -1775,57 +1771,58 @@ struct Session::Impl {
   static void GetCertificate(const FunctionCallbackInfo<Value>& args) {
     auto env = Environment::GetCurrent(args);
     Session* session;
-    ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
     Local<Value> ret;
-    if (session->tls_context().cert(env).ToLocal(&ret))
+    if (session->tls_session().cert(env).ToLocal(&ret))
       args.GetReturnValue().Set(ret);
   }
 
   static void GetEphemeralKeyInfo(const FunctionCallbackInfo<Value>& args) {
     auto env = Environment::GetCurrent(args);
     Session* session;
-    ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
     Local<Object> ret;
     if (!session->is_server() &&
-        session->tls_context().ephemeral_key(env).ToLocal(&ret))
+        session->tls_session().ephemeral_key(env).ToLocal(&ret))
       args.GetReturnValue().Set(ret);
   }
 
   static void GetPeerCertificate(const FunctionCallbackInfo<Value>& args) {
     auto env = Environment::GetCurrent(args);
     Session* session;
-    ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
     Local<Value> ret;
-    if (session->tls_context().peer_cert(env).ToLocal(&ret))
+    if (session->tls_session().peer_cert(env).ToLocal(&ret))
       args.GetReturnValue().Set(ret);
   }
 
   static void GracefulClose(const FunctionCallbackInfo<Value>& args) {
     Session* session;
-    ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
     session->Close(Session::CloseMethod::GRACEFUL);
   }
 
   static void SilentClose(const FunctionCallbackInfo<Value>& args) {
     // This is exposed for testing purposes only!
     Session* session;
-    ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
     session->Close(Session::CloseMethod::SILENT);
   }
 
   static void UpdateKey(const FunctionCallbackInfo<Value>& args) {
     Session* session;
-    ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
     // Initiating a key update may fail if it is done too early (either
     // before the TLS handshake has been confirmed or while a previous
     // key update is being processed). When it fails, InitiateKeyUpdate()
     // will return false.
-    args.GetReturnValue().Set(session->tls_context().InitiateKeyUpdate());
+    Debug(session, "Initiating key update");
+    args.GetReturnValue().Set(session->tls_session().InitiateKeyUpdate());
   }
 
   static void DoOpenStream(const FunctionCallbackInfo<Value>& args) {
     Session* session;
-    ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
     DCHECK(args[0]->IsUint32());
     auto direction = static_cast<Direction>(args[0].As<Uint32>()->Value());
     BaseObjectPtr<Stream> stream = session->OpenStream(direction);
@@ -1836,7 +1833,7 @@ struct Session::Impl {
   static void DoSendDatagram(const FunctionCallbackInfo<Value>& args) {
     auto env = Environment::GetCurrent(args);
     Session* session;
-    ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
     DCHECK(args[0]->IsArrayBufferView());
     args.GetReturnValue().Set(BigInt::New(
         env->isolate(),
@@ -2022,17 +2019,17 @@ struct Session::Impl {
                                void* user_data) {
     auto session = Impl::From(conn, user_data);
     if (UNLIKELY(session->is_destroyed())) return NGTCP2_ERR_CALLBACK_FAILURE;
+    CHECK(!session->is_server());
+
+    if (level != NGTCP2_ENCRYPTION_LEVEL_1RTT) return NGTCP2_SUCCESS;
 
     Debug(session,
           "Receiving RX key for level %d for dcid %s",
-          getEncryptionLevelName(level),
+          to_string(level),
           session->config().dcid);
 
-    if (!session->is_server() && (level == NGTCP2_ENCRYPTION_LEVEL_0RTT ||
-                                  level == NGTCP2_ENCRYPTION_LEVEL_1RTT)) {
-      if (!session->application().Start()) return NGTCP2_ERR_CALLBACK_FAILURE;
-    }
-    return NGTCP2_SUCCESS;
+    return session->application().Start() ? NGTCP2_SUCCESS
+                                          : NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
   static int on_receive_stateless_reset(ngtcp2_conn* conn,
@@ -2081,17 +2078,16 @@ struct Session::Impl {
                                void* user_data) {
     auto session = Impl::From(conn, user_data);
     if (UNLIKELY(session->is_destroyed())) return NGTCP2_ERR_CALLBACK_FAILURE;
+    CHECK(session->is_server());
+
+    if (level != NGTCP2_ENCRYPTION_LEVEL_1RTT) return NGTCP2_SUCCESS;
 
     Debug(session,
           "Receiving TX key for level %d for dcid %s",
-          getEncryptionLevelName(level),
+          to_string(level),
           session->config().dcid);
-
-    if (session->is_server() && (level == NGTCP2_ENCRYPTION_LEVEL_0RTT ||
-                                 level == NGTCP2_ENCRYPTION_LEVEL_1RTT)) {
-      if (!session->application().Start()) return NGTCP2_ERR_CALLBACK_FAILURE;
-    }
-    return NGTCP2_SUCCESS;
+    return session->application().Start() ? NGTCP2_SUCCESS
+                                          : NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
   static int on_receive_version_negotiation(ngtcp2_conn* conn,
@@ -2168,7 +2164,7 @@ struct Session::Impl {
   static void on_rand(uint8_t* dest,
                       size_t destlen,
                       const ngtcp2_rand_ctx* rand_ctx) {
-    CHECK(crypto::CSPRNG(dest, destlen).is_ok());
+    CHECK(ncrypto::CSPRNG(dest, destlen));
   }
 
   static int on_early_data_rejected(ngtcp2_conn* conn, void* user_data) {
@@ -2216,7 +2212,7 @@ struct Session::Impl {
       on_stream_stop_sending,
       ngtcp2_crypto_version_negotiation_cb,
       on_receive_rx_key,
-      on_receive_tx_key,
+      nullptr,
       on_early_data_rejected};
 
   static constexpr ngtcp2_callbacks SERVER = {
@@ -2257,7 +2253,7 @@ struct Session::Impl {
       ngtcp2_crypto_get_path_challenge_data_cb,
       on_stream_stop_sending,
       ngtcp2_crypto_version_negotiation_cb,
-      on_receive_rx_key,
+      nullptr,
       on_receive_tx_key,
       on_early_data_rejected};
 };
@@ -2280,7 +2276,6 @@ Local<FunctionTemplate> Session::GetConstructorTemplate(Environment* env) {
   } else {                                                                     \
     SetProtoMethod(isolate, tmpl, #key, Impl::name);                           \
   }
-
     SESSION_JS_METHODS(V)
 
 #undef V
@@ -2317,7 +2312,7 @@ Session::QuicConnectionPointer Session::InitConnection() {
                                       &allocator_,
                                       this),
                0);
-      return QuicConnectionPointer(conn);
+      break;
     }
     case Side::CLIENT: {
       CHECK_EQ(ngtcp2_conn_client_new(&conn,
@@ -2331,12 +2326,10 @@ Session::QuicConnectionPointer Session::InitConnection() {
                                       &allocator_,
                                       this),
                0);
-      if (config_.session_ticket.has_value())
-        tls_context_.MaybeSetEarlySession(config_.session_ticket.value());
-      return QuicConnectionPointer(conn);
+      break;
     }
   }
-  UNREACHABLE();
+  return QuicConnectionPointer(conn);
 }
 
 void Session::InitPerIsolate(IsolateData* data,

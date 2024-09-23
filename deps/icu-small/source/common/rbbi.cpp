@@ -1212,7 +1212,7 @@ RuleBasedBreakIterator::getLanguageBreakEngine(UChar32 c, const char* locale) {
         fLanguageBreakEngines = new UStack(status);
         if (fLanguageBreakEngines == nullptr || U_FAILURE(status)) {
             delete fLanguageBreakEngines;
-            fLanguageBreakEngines = 0;
+            fLanguageBreakEngines = nullptr;
             return nullptr;
         }
     }
@@ -1252,7 +1252,7 @@ RuleBasedBreakIterator::getLanguageBreakEngine(UChar32 c, const char* locale) {
         U_ASSERT(!fLanguageBreakEngines->hasDeleter());
         if (U_FAILURE(status)) {
             delete fUnhandledBreakEngine;
-            fUnhandledBreakEngine = 0;
+            fUnhandledBreakEngine = nullptr;
             return nullptr;
         }
     }

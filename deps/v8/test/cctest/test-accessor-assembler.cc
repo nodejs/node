@@ -80,10 +80,10 @@ void TestStubCacheOffsetCalculation(StubCache::Table table) {
           expected_result = StubCache::SecondaryOffsetForTesting(*name, *map);
         }
       }
-      Handle<Object> result = ft.Call(name, map).ToHandleChecked();
+      DirectHandle<Object> result = ft.Call(name, map).ToHandleChecked();
 
       Tagged<Smi> expected = Smi::FromInt(expected_result & Smi::kMaxValue);
-      CHECK_EQ(expected, Smi::cast(*result));
+      CHECK_EQ(expected, Cast<Smi>(*result));
     }
   }
 }
@@ -190,7 +190,7 @@ TEST(TryProbeStubCache) {
 
   // Generate some number of receiver maps and receivers.
   for (int i = 0; i < StubCache::kSecondaryTableSize / 2; i++) {
-    Handle<Map> map = Map::Create(isolate, 0);
+    DirectHandle<Map> map = Map::Create(isolate, 0);
     receivers.push_back(factory->NewJSObjectFromMap(map));
   }
 
@@ -207,10 +207,10 @@ TEST(TryProbeStubCache) {
   const int N = StubCache::kPrimaryTableSize + StubCache::kSecondaryTableSize;
   for (int i = 0; i < N; i++) {
     int index = rand_gen.NextInt();
-    Handle<Name> name = names[index % names.size()];
-    Handle<JSObject> receiver = receivers[index % receivers.size()];
-    Handle<Code> handler = handlers[index % handlers.size()];
-    stub_cache.Set(*name, receiver->map(), MaybeObject::FromObject(*handler));
+    DirectHandle<Name> name = names[index % names.size()];
+    DirectHandle<JSObject> receiver = receivers[index % receivers.size()];
+    DirectHandle<Code> handler = handlers[index % handlers.size()];
+    stub_cache.Set(*name, receiver->map(), *handler);
   }
 
   // Perform some queries.
@@ -220,7 +220,7 @@ TEST(TryProbeStubCache) {
     int index = rand_gen.NextInt();
     Handle<Name> name = names[index % names.size()];
     Handle<JSObject> receiver = receivers[index % receivers.size()];
-    MaybeObject handler = stub_cache.Get(*name, receiver->map());
+    Tagged<MaybeObject> handler = stub_cache.Get(*name, receiver->map());
     if (handler.ptr() == kNullAddress) {
       queried_non_existing = true;
     } else {
@@ -236,7 +236,7 @@ TEST(TryProbeStubCache) {
     int index2 = rand_gen.NextInt();
     Handle<Name> name = names[index1 % names.size()];
     Handle<JSObject> receiver = receivers[index2 % receivers.size()];
-    MaybeObject handler = stub_cache.Get(*name, receiver->map());
+    Tagged<MaybeObject> handler = stub_cache.Get(*name, receiver->map());
     if (handler.ptr() == kNullAddress) {
       queried_non_existing = true;
     } else {

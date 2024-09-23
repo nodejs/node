@@ -24,7 +24,6 @@
 #include "unicode/uloc.h"
 #include "unicode/unistr.h"
 #include "unicode/utf16.h"
-#include "bytesinkutil.h"
 #include "charstr.h"
 #include "cmemory.h"
 #include "collation.h"
@@ -42,7 +41,7 @@ U_NAMESPACE_BEGIN
 
 namespace {
 
-static const char16_t BEFORE[] = { 0x5b, 0x62, 0x65, 0x66, 0x6f, 0x72, 0x65, 0 };  // "[before"
+const char16_t BEFORE[] = { 0x5b, 0x62, 0x65, 0x66, 0x6f, 0x72, 0x65, 0 };  // "[before"
 const int32_t BEFORE_LENGTH = 7;
 
 }  // namespace
@@ -439,7 +438,7 @@ CollationRuleParser::parseString(int32_t i, UnicodeString &raw, UErrorCode &erro
 
 namespace {
 
-static const char *const positions[] = {
+const char* const positions[] = {
     "first tertiary ignorable",
     "last tertiary ignorable",
     "first secondary ignorable",
@@ -606,12 +605,8 @@ CollationRuleParser::parseSetting(UErrorCode &errorCode) {
             lang.appendInvariantChars(v, errorCode);
             if(errorCode == U_MEMORY_ALLOCATION_ERROR) { return; }
             // BCP 47 language tag -> ICU locale ID
-            CharString localeID;
             int32_t parsedLength;
-            {
-                CharStringByteSink sink(&localeID);
-                ulocimp_forLanguageTag(lang.data(), -1, sink, &parsedLength, &errorCode);
-            }
+            CharString localeID = ulocimp_forLanguageTag(lang.data(), -1, &parsedLength, errorCode);
             if(U_FAILURE(errorCode) || parsedLength != lang.length()) {
                 errorCode = U_ZERO_ERROR;
                 setParseError("expected language tag in [import langTag]", errorCode);
@@ -632,11 +627,7 @@ CollationRuleParser::parseSetting(UErrorCode &errorCode) {
                 uprv_memcpy(baseID, "und", 3);
             }
             // @collation=type, or length=0 if not specified
-            CharString collationType;
-            {
-                CharStringByteSink sink(&collationType);
-                ulocimp_getKeywordValue(localeID.data(), "collation", sink, &errorCode);
-            }
+            CharString collationType = ulocimp_getKeywordValue(localeID.data(), "collation", errorCode);
             if(U_FAILURE(errorCode)) {
                 errorCode = U_ZERO_ERROR;
                 setParseError("expected language tag in [import langTag]", errorCode);

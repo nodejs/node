@@ -23,7 +23,6 @@
 #include <iostream>
 #endif
 
-#include "bytesinkutil.h"
 #include "cmemory.h"
 #include "cstring.h"
 #include "unicode/msgfmt.h"
@@ -405,11 +404,7 @@ DateIntervalInfo::initializeData(const Locale& locale, UErrorCode& status)
                                      "calendar", "calendar", locName, nullptr, false, &status);
     localeWithCalendarKey[ULOC_LOCALE_IDENTIFIER_CAPACITY-1] = 0; // ensure null termination
     // now get the calendar key value from that locale
-    CharString calendarType;
-    {
-        CharStringByteSink sink(&calendarType);
-        ulocimp_getKeywordValue(localeWithCalendarKey, "calendar", sink, &status);
-    }
+    CharString calendarType = ulocimp_getKeywordValue(localeWithCalendarKey, "calendar", status);
     if (U_SUCCESS(status)) {
         calendarTypeToUse = calendarType.data();
     }

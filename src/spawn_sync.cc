@@ -28,7 +28,7 @@
 #include "util-inl.h"
 
 #include <cstring>
-
+#include "nbytes.h"
 
 namespace node {
 
@@ -765,6 +765,13 @@ Maybe<int> SyncProcessRunner::ParseOptions(Local<Value> js_value) {
   if (r < 0) return Just(r);
   uv_process_options_.file = file_buffer_;
 
+  // Undocumented feature of Win32 CreateProcess API allows spawning
+  // batch files directly but is potentially insecure because arguments
+  // are not escaped (and sometimes cannot be unambiguously escaped),
+  // hence why they are rejected here.
+  if (IsWindowsBatchFile(uv_process_options_.file))
+    return Just<int>(UV_EINVAL);
+
   Local<Value> js_args =
       js_options->Get(context, env()->args_string()).ToLocalChecked();
   if (!CopyJsStringArray(js_args, &args_buffer_).To(&r)) return Nothing<int>();
@@ -1062,7 +1069,7 @@ Maybe<int> SyncProcessRunner::CopyJsStringArray(Local<Value> js_value,
     Maybe<size_t> maybe_size = StringBytes::StorageSize(isolate, value, UTF8);
     if (maybe_size.IsNothing()) return Nothing<int>();
     data_size += maybe_size.FromJust() + 1;
-    data_size = RoundUp(data_size, sizeof(void*));
+    data_size = nbytes::RoundUp(data_size, sizeof(void*));
   }
 
   buffer = new char[list_size + data_size];
@@ -1079,7 +1086,7 @@ Maybe<int> SyncProcessRunner::CopyJsStringArray(Local<Value> js_value,
                                       value,
                                       UTF8);
     buffer[data_offset++] = '\0';
-    data_offset = RoundUp(data_offset, sizeof(void*));
+    data_offset = nbytes::RoundUp(data_offset, sizeof(void*));
   }
 
   list[length] = nullptr;

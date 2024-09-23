@@ -13,7 +13,7 @@
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-module-builder.h"
 
-namespace v8::internal::wasm::fuzzer {
+namespace v8::internal::wasm::fuzzing {
 
 // A default value for {max_executed_instructions} in {ExecuteAgainstReference}.
 #ifdef USE_SIMULATOR
@@ -21,6 +21,8 @@ constexpr int kDefaultMaxFuzzerExecutedInstructions = 16'000;
 #else
 constexpr int kDefaultMaxFuzzerExecutedInstructions = 1'000'000;
 #endif
+
+CompileTimeImports CompileTimeImportsForFuzzing();
 
 // First creates a reference module fully compiled with Liftoff, with
 // instrumentation to stop after a given number of steps and to record any
@@ -31,6 +33,10 @@ constexpr int kDefaultMaxFuzzerExecutedInstructions = 1'000'000;
 void ExecuteAgainstReference(Isolate* isolate,
                              Handle<WasmModuleObject> module_object,
                              int32_t max_executed_instructions);
+
+Handle<WasmModuleObject> CompileReferenceModule(
+    Isolate* isolate, base::Vector<const uint8_t> wire_bytes,
+    int32_t* max_steps, int32_t* nondeterminism);
 
 void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
                       bool compiles);
@@ -55,5 +61,6 @@ class WasmExecutionFuzzer {
                               ZoneBuffer* buffer) = 0;
 };
 
-}  // namespace v8::internal::wasm::fuzzer
+}  // namespace v8::internal::wasm::fuzzing
+
 #endif  // WASM_FUZZER_COMMON_H_

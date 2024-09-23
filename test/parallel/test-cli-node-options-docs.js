@@ -105,11 +105,11 @@ for (const [, envVar, config] of nodeOptionsCC.matchAll(addOptionRE)) {
     assert(false, `Should have option ${envVar} in NODE_OPTIONS documented`);
   }
 
-  if (isInNodeOption && hasTrueAsDefaultValue && new RegExp(`\`--no${envVar.slice(1)}`).test(cliText) === false) {
+  if (isInNodeOption && hasTrueAsDefaultValue && new RegExp(`\`--no${envVar.slice(1)}\``).test(cliText) === false) {
     assert(false, `Should have option --no${envVar.slice(1)} in NODE_OPTIONS documented`);
   }
 
-  if (!hasTrueAsDefaultValue && new RegExp(`\`--no${envVar.slice(1)}`).test(cliText) === true) {
+  if (!hasTrueAsDefaultValue && new RegExp(`\`--no${envVar.slice(1)}\``).test(cliText) === true) {
     assert(false, `Should not have option --no${envVar.slice(1)} in NODE_OPTIONS documented`);
   }
 

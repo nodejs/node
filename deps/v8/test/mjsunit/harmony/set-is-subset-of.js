@@ -225,3 +225,78 @@
   assertTrue(firstSet.isSubsetOf(setLike));
   assertEquals(0, firstSet.size);
 })();
+
+(function TestIsSubsetOfAfterRewritingKeys() {
+  const firstSet = new Set();
+  firstSet.add(42);
+
+  const otherSet = new Set();
+  otherSet.add(42);
+  otherSet.add(43);
+
+  otherSet.keys =
+      () => {
+        firstSet.clear();
+        return otherSet[Symbol.iterator]();
+      }
+
+  assertEquals(firstSet.isSubsetOf(otherSet), true);
+})();
+
+(function TestIsSubsetOfAfterRewritingKeys() {
+  const firstSet = new Set();
+  firstSet.add(42);
+
+  const setLike = {
+    arr: [42, 43],
+    size: 3,
+    keys() {
+      return this.arr[Symbol.iterator]();
+    },
+    has(key) {
+      return this.arr.indexOf(key) != -1;
+    }
+  };
+
+  setLike.keys =
+      () => {
+        firstSet.clear();
+        return setLike.arr[Symbol.iterator]();
+      }
+
+  assertEquals(firstSet.isSubsetOf(setLike), true);
+})();
+
+(function TestIsSubsetOfSetLikeWithInfiniteSize() {
+  let setLike = {
+    size: Infinity,
+    has(v) {
+      return true;
+    },
+    keys() {
+      throw new Error('Unexpected call to |keys| method');
+    },
+  };
+
+  const firstSet = new Set();
+  firstSet.add(42);
+  firstSet.add(43);
+
+  assertEquals(firstSet.isSubsetOf(setLike), true);
+})();
+
+(function TestIsSubsetOfSetLikeWithNegativeInfiniteSize() {
+  let setLike = {
+    size: -Infinity,
+    has(v) {
+      return true;
+    },
+    keys() {
+      throw new Error('Unexpected call to |keys| method');
+    },
+  };
+
+  assertThrows(() => {
+    new Set().isSubsetOf(setLike);
+  }, RangeError, '\'-Infinity\' is an invalid size');
+})();

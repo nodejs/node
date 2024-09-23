@@ -411,10 +411,10 @@ int nghttp2_submit_window_update(nghttp2_session *session, uint8_t flags,
   if (window_size_increment > 0) {
     if (stream_id == 0) {
       session->consumed_size =
-          nghttp2_max(0, session->consumed_size - window_size_increment);
+          nghttp2_max_int32(0, session->consumed_size - window_size_increment);
     } else {
       stream->consumed_size =
-          nghttp2_max(0, stream->consumed_size - window_size_increment);
+          nghttp2_max_int32(0, stream->consumed_size - window_size_increment);
     }
 
     return nghttp2_session_add_window_update(session, 0, stream_id,

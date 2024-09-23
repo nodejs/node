@@ -87,10 +87,10 @@ GENERAL_REGISTERS(DECLARE_REGISTER)
 constexpr Register no_reg = Register::no_reg();
 
 // ARM calling convention
-constexpr Register arg_reg_1 = r0;
-constexpr Register arg_reg_2 = r1;
-constexpr Register arg_reg_3 = r2;
-constexpr Register arg_reg_4 = r3;
+constexpr Register kCArgRegs[] = {r0, r1, r2, r3};
+static const int kRegisterPassedArguments = arraysize(kCArgRegs);
+// The hardfloat calling convention passes double arguments in registers d0-d7.
+static const int kDoubleRegisterPassedArguments = 8;
 
 // Returns the number of padding slots needed for stack pointer alignment.
 constexpr int ArgumentPaddingSlots(int argument_count) {

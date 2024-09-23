@@ -497,6 +497,7 @@ static int session_new(nghttp2_session **session_ptr,
   (*session_ptr)->max_send_header_block_length = NGHTTP2_MAX_HEADERSLEN;
   (*session_ptr)->max_outbound_ack = NGHTTP2_DEFAULT_MAX_OBQ_FLOOD_ITEM;
   (*session_ptr)->max_settings = NGHTTP2_DEFAULT_MAX_SETTINGS;
+  (*session_ptr)->max_continuations = NGHTTP2_DEFAULT_MAX_CONTINUATIONS;
 
   if (option) {
     if ((option->opt_set_mask & NGHTTP2_OPT_NO_AUTO_WINDOW_UPDATE) &&
@@ -584,6 +585,10 @@ static int session_new(nghttp2_session **session_ptr,
       nghttp2_ratelim_init(&(*session_ptr)->stream_reset_ratelim,
                            option->stream_reset_burst,
                            option->stream_reset_rate);
+    }
+
+    if (option->opt_set_mask & NGHTTP2_OPT_MAX_CONTINUATIONS) {
+      (*session_ptr)->max_continuations = option->max_continuations;
     }
   }
 
@@ -979,7 +984,14 @@ static int session_attach_stream_item(nghttp2_session *session,
     return 0;
   }
 
-  return session_ob_data_push(session, stream);
+  rv = session_ob_data_push(session, stream);
+  if (rv != 0) {
+    nghttp2_stream_detach_item(stream);
+
+    return rv;
+  }
+
+  return 0;
 }
 
 static void session_detach_stream_item(nghttp2_session *session,
@@ -1309,9 +1321,11 @@ nghttp2_stream *nghttp2_session_open_stream(nghttp2_session *session,
     assert((stream->flags & NGHTTP2_STREAM_FLAG_NO_RFC7540_PRIORITIES) ||
            nghttp2_stream_in_dep_tree(stream));
 
+    nghttp2_session_detach_idle_stream(session, stream);
+
     if (nghttp2_stream_in_dep_tree(stream)) {
       assert(!(stream->flags & NGHTTP2_STREAM_FLAG_NO_RFC7540_PRIORITIES));
-      nghttp2_session_detach_idle_stream(session, stream);
+
       rv = nghttp2_stream_dep_remove(stream);
       if (rv != 0) {
         return NULL;
@@ -1471,6 +1485,21 @@ int nghttp2_session_close_stream(nghttp2_session *session, int32_t stream_id,
 
   DEBUGF("stream: stream(%p)=%d close\n", stream, stream->stream_id);
 
+  /* We call on_stream_close_callback even if stream->state is
+     NGHTTP2_STREAM_INITIAL. This will happen while sending request
+     HEADERS, a local endpoint receives RST_STREAM for that stream. It
+     may be PROTOCOL_ERROR, but without notifying stream closure will
+     hang the stream in a local endpoint.
+  */
+
+  if (session->callbacks.on_stream_close_callback) {
+    if (session->callbacks.on_stream_close_callback(
+            session, stream_id, error_code, session->user_data) != 0) {
+
+      return NGHTTP2_ERR_CALLBACK_FAILURE;
+    }
+  }
+
   if (stream->item) {
     nghttp2_outbound_item *item;
 
@@ -1485,21 +1514,6 @@ int nghttp2_session_close_stream(nghttp2_session *session, int32_t stream_id,
     if (!item->queued && item != session->aob.item) {
       nghttp2_outbound_item_free(item, mem);
       nghttp2_mem_free(mem, item);
-    }
-  }
-
-  /* We call on_stream_close_callback even if stream->state is
-     NGHTTP2_STREAM_INITIAL. This will happen while sending request
-     HEADERS, a local endpoint receives RST_STREAM for that stream. It
-     may be PROTOCOL_ERROR, but without notifying stream closure will
-     hang the stream in a local endpoint.
-  */
-
-  if (session->callbacks.on_stream_close_callback) {
-    if (session->callbacks.on_stream_close_callback(
-            session, stream_id, error_code, session->user_data) != 0) {
-
-      return NGHTTP2_ERR_CALLBACK_FAILURE;
     }
   }
 
@@ -1557,6 +1571,11 @@ int nghttp2_session_destroy_stream(nghttp2_session *session,
     if (rv != 0) {
       return rv;
     }
+  }
+
+  if (stream->queued &&
+      (stream->flags & NGHTTP2_STREAM_FLAG_NO_RFC7540_PRIORITIES)) {
+    session_ob_data_remove(session, stream);
   }
 
   nghttp2_map_remove(&session->streams, stream->stream_id);
@@ -1681,10 +1700,11 @@ int nghttp2_session_adjust_idle_stream(nghttp2_session *session) {
 
   /* Make minimum number of idle streams 16, and maximum 100, which
      are arbitrary chosen numbers. */
-  max = nghttp2_min(
-      100, nghttp2_max(
-               16, nghttp2_min(session->local_settings.max_concurrent_streams,
-                               session->pending_local_max_concurrent_stream)));
+  max = nghttp2_min_uint32(
+      100, nghttp2_max_uint32(
+               16, nghttp2_min_uint32(
+                       session->local_settings.max_concurrent_streams,
+                       session->pending_local_max_concurrent_stream)));
 
   DEBUGF("stream: adjusting kept idle streams num_idle_streams=%zu, max=%zu\n",
          session->num_idle_streams, max);
@@ -2112,10 +2132,11 @@ static nghttp2_ssize nghttp2_session_enforce_flow_control_limits(
          session->remote_window_size, session->remote_settings.max_frame_size,
          stream->stream_id, stream->remote_window_size);
 
-  return nghttp2_min(nghttp2_min(nghttp2_min(requested_window_size,
-                                             stream->remote_window_size),
-                                 session->remote_window_size),
-                     (int32_t)session->remote_settings.max_frame_size);
+  return nghttp2_min_int32(
+      nghttp2_min_int32(nghttp2_min_int32((int32_t)requested_window_size,
+                                          stream->remote_window_size),
+                        session->remote_window_size),
+      (int32_t)session->remote_settings.max_frame_size);
 }
 
 /*
@@ -2199,7 +2220,7 @@ static nghttp2_ssize session_call_select_padding(nghttp2_session *session,
   }
 
   max_paddedlen =
-      nghttp2_min(frame->hd.length + NGHTTP2_MAX_PADLEN, max_payloadlen);
+      nghttp2_min_size(frame->hd.length + NGHTTP2_MAX_PADLEN, max_payloadlen);
 
   if (session->callbacks.select_padding_callback2) {
     rv = session->callbacks.select_padding_callback2(
@@ -2229,8 +2250,8 @@ static int session_headers_add_pad(nghttp2_session *session,
   aob = &session->aob;
   framebufs = &aob->framebufs;
 
-  max_payloadlen = nghttp2_min(NGHTTP2_MAX_PAYLOADLEN,
-                               frame->hd.length + NGHTTP2_MAX_PADLEN);
+  max_payloadlen = nghttp2_min_size(NGHTTP2_MAX_PAYLOADLEN,
+                                    frame->hd.length + NGHTTP2_MAX_PADLEN);
 
   padded_payloadlen =
       session_call_select_padding(session, frame, max_payloadlen);
@@ -2270,7 +2291,7 @@ static int session_pack_extension(nghttp2_session *session, nghttp2_bufs *bufs,
          session->callbacks.pack_extension_callback);
 
   buf = &bufs->head->buf;
-  buflen = nghttp2_min(nghttp2_buf_avail(buf), NGHTTP2_MAX_PAYLOADLEN);
+  buflen = nghttp2_min_size(nghttp2_buf_avail(buf), NGHTTP2_MAX_PAYLOADLEN);
 
   if (session->callbacks.pack_extension_callback2) {
     rv = session->callbacks.pack_extension_callback2(session, buf->last, buflen,
@@ -4689,7 +4710,8 @@ int nghttp2_session_update_local_settings(nghttp2_session *session,
     case NGHTTP2_SETTINGS_HEADER_TABLE_SIZE:
       header_table_size_seen = 1;
       header_table_size = iv[i].value;
-      min_header_table_size = nghttp2_min(min_header_table_size, iv[i].value);
+      min_header_table_size =
+          nghttp2_min_uint32(min_header_table_size, iv[i].value);
       break;
     case NGHTTP2_SETTINGS_INITIAL_WINDOW_SIZE:
       new_initial_window_size = (int32_t)iv[i].value;
@@ -5575,7 +5597,7 @@ static int session_update_consumed_size(nghttp2_session *session,
     /* recv_window_size may be smaller than consumed_size, because it
        may be decreased by negative value with
        nghttp2_submit_window_update(). */
-    recv_size = nghttp2_min(*consumed_size_ptr, *recv_window_size_ptr);
+    recv_size = nghttp2_min_int32(*consumed_size_ptr, *recv_window_size_ptr);
 
     if (nghttp2_should_send_window_update(local_window_size, recv_size)) {
       rv = nghttp2_session_add_window_update(session, NGHTTP2_FLAG_NONE,
@@ -5698,7 +5720,7 @@ fail:
 static size_t inbound_frame_payload_readlen(nghttp2_inbound_frame *iframe,
                                             const uint8_t *in,
                                             const uint8_t *last) {
-  return nghttp2_min((size_t)(last - in), iframe->payloadleft);
+  return nghttp2_min_size((size_t)(last - in), iframe->payloadleft);
 }
 
 /*
@@ -5713,8 +5735,8 @@ static size_t inbound_frame_buf_read(nghttp2_inbound_frame *iframe,
                                      const uint8_t *in, const uint8_t *last) {
   size_t readlen;
 
-  readlen =
-      nghttp2_min((size_t)(last - in), nghttp2_buf_mark_avail(&iframe->sbuf));
+  readlen = nghttp2_min_size((size_t)(last - in),
+                             nghttp2_buf_mark_avail(&iframe->sbuf));
 
   iframe->sbuf.last = nghttp2_cpymem(iframe->sbuf.last, in, readlen);
 
@@ -5881,7 +5903,7 @@ nghttp2_ssize nghttp2_session_mem_recv2(nghttp2_session *session,
   for (;;) {
     switch (iframe->state) {
     case NGHTTP2_IB_READ_CLIENT_MAGIC:
-      readlen = nghttp2_min(inlen, iframe->payloadleft);
+      readlen = nghttp2_min_size(inlen, iframe->payloadleft);
 
       if (memcmp(&NGHTTP2_CLIENT_MAGIC[NGHTTP2_CLIENT_MAGIC_LEN -
                                        iframe->payloadleft],
@@ -6812,6 +6834,8 @@ nghttp2_ssize nghttp2_session_mem_recv2(nghttp2_session *session,
           }
         }
         session_inbound_frame_reset(session);
+
+        session->num_continuations = 0;
       }
       break;
     }
@@ -6932,6 +6956,10 @@ nghttp2_ssize nghttp2_session_mem_recv2(nghttp2_session *session,
         fprintf(stderr, "recv: [IB_IGN_CONTINUATION]\n");
       }
 #endif /* DEBUGBUILD */
+
+      if (++session->num_continuations > session->max_continuations) {
+        return NGHTTP2_ERR_TOO_MANY_CONTINUATIONS;
+      }
 
       readlen = inbound_frame_buf_read(iframe, in, last);
       in += readlen;
@@ -7484,7 +7512,8 @@ int nghttp2_session_add_goaway(nghttp2_session *session, int32_t last_stream_id,
 
   /* last_stream_id must not be increased from the value previously
      sent */
-  last_stream_id = nghttp2_min(last_stream_id, session->local_last_stream_id);
+  last_stream_id =
+      nghttp2_min_int32(last_stream_id, session->local_last_stream_id);
 
   nghttp2_frame_goaway_init(&frame->goaway, last_stream_id, error_code,
                             opaque_data_copy, opaque_data_len);
@@ -7798,7 +7827,8 @@ int nghttp2_session_pack_data(nghttp2_session *session, nghttp2_bufs *bufs,
   frame->hd.length = (size_t)payloadlen;
   frame->data.padlen = 0;
 
-  max_payloadlen = nghttp2_min(datamax, frame->hd.length + NGHTTP2_MAX_PADLEN);
+  max_payloadlen =
+      nghttp2_min_size(datamax, frame->hd.length + NGHTTP2_MAX_PADLEN);
 
   padded_payloadlen =
       session_call_select_padding(session, frame, max_payloadlen);
@@ -7972,7 +8002,7 @@ int32_t nghttp2_session_get_stream_remote_window_size(nghttp2_session *session,
 
   /* stream->remote_window_size can be negative when
      SETTINGS_INITIAL_WINDOW_SIZE is changed. */
-  return nghttp2_max(0, stream->remote_window_size);
+  return nghttp2_max_int32(0, stream->remote_window_size);
 }
 
 int32_t nghttp2_session_get_remote_window_size(nghttp2_session *session) {

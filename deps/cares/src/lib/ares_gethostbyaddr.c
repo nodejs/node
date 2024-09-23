@@ -25,7 +25,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "ares_setup.h"
+#include "ares_private.h"
 
 #ifdef HAVE_NETINET_IN_H
 #  include <netinet/in.h>
@@ -38,15 +38,8 @@
 #endif
 
 #include "ares_nameser.h"
-
-#include "ares.h"
 #include "ares_inet_net_pton.h"
 #include "ares_platform.h"
-#include "ares_private.h"
-
-#ifdef WATT32
-#  undef WIN32
-#endif
 
 struct addr_query {
   /* Arguments passed to ares_gethostbyaddr() */
@@ -59,18 +52,18 @@ struct addr_query {
   size_t      timeouts;
 };
 
-static void          next_lookup(struct addr_query *aquery);
-static void          addr_callback(void *arg, int status, int timeouts,
-                                   unsigned char *abuf, int alen);
-static void          end_aquery(struct addr_query *aquery, ares_status_t status,
-                                struct hostent *host);
+static void next_lookup(struct addr_query *aquery);
+static void addr_callback(void *arg, ares_status_t status, size_t timeouts,
+                          const ares_dns_record_t *dnsrec);
+static void end_aquery(struct addr_query *aquery, ares_status_t status,
+                       struct hostent *host);
 static ares_status_t file_lookup(ares_channel_t         *channel,
                                  const struct ares_addr *addr,
                                  struct hostent        **host);
 
-static void ares_gethostbyaddr_int(ares_channel_t *channel, const void *addr,
-                                   int addrlen, int family,
-                                   ares_host_callback callback, void *arg)
+void ares_gethostbyaddr_nolock(ares_channel_t *channel, const void *addr,
+                               int addrlen, int family,
+                               ares_host_callback callback, void *arg)
 {
   struct addr_query *aquery;
 
@@ -92,9 +85,11 @@ static void ares_gethostbyaddr_int(ares_channel_t *channel, const void *addr,
   }
   aquery->lookups = ares_strdup(channel->lookups);
   if (aquery->lookups == NULL) {
+    /* LCOV_EXCL_START: OutOfMemory */
     ares_free(aquery);
     callback(arg, ARES_ENOMEM, 0, NULL);
     return;
+    /* LCOV_EXCL_STOP */
   }
   aquery->channel = channel;
   if (family == AF_INET) {
@@ -118,7 +113,7 @@ void ares_gethostbyaddr(ares_channel_t *channel, const void *addr, int addrlen,
     return;
   }
   ares__channel_lock(channel);
-  ares_gethostbyaddr_int(channel, addr, addrlen, family, callback, arg);
+  ares_gethostbyaddr_nolock(channel, addr, addrlen, family, callback, arg);
   ares__channel_unlock(channel);
 }
 
@@ -134,11 +129,13 @@ static void next_lookup(struct addr_query *aquery)
       case 'b':
         name = ares_dns_addr_to_ptr(&aquery->addr);
         if (name == NULL) {
-          end_aquery(aquery, ARES_ENOMEM, NULL);
-          return;
+          end_aquery(aquery, ARES_ENOMEM,
+                     NULL); /* LCOV_EXCL_LINE: OutOfMemory */
+          return;           /* LCOV_EXCL_LINE: OutOfMemory */
         }
         aquery->remaining_lookups = p + 1;
-        ares_query(aquery->channel, name, C_IN, T_PTR, addr_callback, aquery);
+        ares_query_nolock(aquery->channel, name, ARES_CLASS_IN,
+                          ARES_REC_TYPE_PTR, addr_callback, aquery, NULL);
         ares_free(name);
         return;
       case 'f':
@@ -159,27 +156,27 @@ static void next_lookup(struct addr_query *aquery)
   end_aquery(aquery, ARES_ENOTFOUND, NULL);
 }
 
-static void addr_callback(void *arg, int status, int timeouts,
-                          unsigned char *abuf, int alen)
+static void addr_callback(void *arg, ares_status_t status, size_t timeouts,
+                          const ares_dns_record_t *dnsrec)
 {
   struct addr_query *aquery = (struct addr_query *)arg;
   struct hostent    *host;
   size_t             addrlen;
 
-  aquery->timeouts += (size_t)timeouts;
+  aquery->timeouts += timeouts;
   if (status == ARES_SUCCESS) {
     if (aquery->addr.family == AF_INET) {
       addrlen = sizeof(aquery->addr.addr.addr4);
-      status  = ares_parse_ptr_reply(abuf, alen, &aquery->addr.addr.addr4,
-                                     (int)addrlen, AF_INET, &host);
+      status  = ares_parse_ptr_reply_dnsrec(dnsrec, &aquery->addr.addr.addr4,
+                                            (int)addrlen, AF_INET, &host);
     } else {
       addrlen = sizeof(aquery->addr.addr.addr6);
-      status  = ares_parse_ptr_reply(abuf, alen, &aquery->addr.addr.addr6,
-                                     (int)addrlen, AF_INET6, &host);
+      status  = ares_parse_ptr_reply_dnsrec(dnsrec, &aquery->addr.addr.addr6,
+                                            (int)addrlen, AF_INET6, &host);
     }
-    end_aquery(aquery, (ares_status_t)status, host);
+    end_aquery(aquery, status, host);
   } else if (status == ARES_EDESTRUCTION || status == ARES_ECANCELLED) {
-    end_aquery(aquery, (ares_status_t)status, NULL);
+    end_aquery(aquery, status, NULL);
   } else {
     next_lookup(aquery);
   }
@@ -226,7 +223,7 @@ static ares_status_t file_lookup(ares_channel_t         *channel,
 
   status = ares__hosts_entry_to_hostent(entry, addr->family, host);
   if (status != ARES_SUCCESS) {
-    return status;
+    return status; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   return ARES_SUCCESS;

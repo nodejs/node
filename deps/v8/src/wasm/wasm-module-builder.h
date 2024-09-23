@@ -9,6 +9,8 @@
 #ifndef V8_WASM_WASM_MODULE_BUILDER_H_
 #define V8_WASM_WASM_MODULE_BUILDER_H_
 
+#include <optional>
+
 #include "src/base/memory.h"
 #include "src/base/platform/wrappers.h"
 #include "src/base/vector.h"
@@ -131,9 +133,9 @@ class ZoneBuffer : public ZoneObject {
 
   size_t offset() const { return static_cast<size_t>(pos_ - buffer_); }
   size_t size() const { return static_cast<size_t>(pos_ - buffer_); }
-  const uint8_t* data() const { return buffer_; }
-  const uint8_t* begin() const { return buffer_; }
-  const uint8_t* end() const { return pos_; }
+  uint8_t* data() const { return buffer_; }
+  uint8_t* begin() const { return buffer_; }
+  uint8_t* end() const { return pos_; }
 
   void EnsureSpace(size_t size) {
     if ((pos_ + size) > end_) {
@@ -172,6 +174,7 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
   void EmitByte(uint8_t b);
   void EmitI32V(int32_t val);
   void EmitU32V(uint32_t val);
+  void EmitU64V(uint64_t val);
   void EmitCode(const uint8_t* code, uint32_t code_size);
   void Emit(WasmOpcode opcode);
   void EmitWithPrefix(WasmOpcode opcode);
@@ -189,6 +192,7 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
   void EmitWithU32V(WasmOpcode opcode, uint32_t immediate);
   void EmitValueType(ValueType type);
   void EmitDirectCallIndex(uint32_t index);
+  void EmitFromInitializerExpression(const WasmInitExpr& init_expr);
   void SetName(base::Vector<const char> name);
   void AddAsmWasmOffset(size_t call_position, size_t to_number_position);
   void SetAsmFunctionStartPosition(size_t function_position);
@@ -207,9 +211,9 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
   void WriteAsmWasmOffsetTable(ZoneBuffer* buffer) const;
 
   WasmModuleBuilder* builder() const { return builder_; }
-  uint32_t func_index() { return func_index_; }
-  uint32_t sig_index() { return signature_index_; }
-  inline const FunctionSig* signature();
+  uint32_t func_index() const { return func_index_; }
+  uint32_t sig_index() const { return signature_index_; }
+  inline const FunctionSig* signature() const;
 
  private:
   explicit WasmFunctionBuilder(WasmModuleBuilder* builder);
@@ -313,7 +317,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   };
 
   // Building methods.
-  uint32_t AddImport(base::Vector<const char> name, FunctionSig* sig,
+  uint32_t AddImport(base::Vector<const char> name, const FunctionSig* sig,
                      base::Vector<const char> module = {});
   WasmFunctionBuilder* AddFunction(const FunctionSig* sig = nullptr);
   WasmFunctionBuilder* AddFunction(uint32_t sig_index);
@@ -342,7 +346,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   // Does not deduplicate function signatures.
   uint32_t ForceAddSignature(const FunctionSig* sig, bool is_final,
                              uint32_t supertype = kNoSuperType);
-  uint32_t AddException(const FunctionSig* type);
+  uint32_t AddTag(const FunctionSig* type);
   uint32_t AddStructType(StructType* type, bool is_final,
                          uint32_t supertype = kNoSuperType);
   uint32_t AddArrayType(ArrayType* type, bool is_final,
@@ -351,6 +355,12 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   uint32_t AddTable(ValueType type, uint32_t min_size, uint32_t max_size);
   uint32_t AddTable(ValueType type, uint32_t min_size, uint32_t max_size,
                     WasmInitExpr init);
+  uint32_t AddTable64(ValueType type, uint32_t min_size, uint32_t max_size);
+  uint32_t AddTable64(ValueType type, uint32_t min_size, uint32_t max_size,
+                      WasmInitExpr init);
+  uint32_t AddMemory(uint32_t min_pages);
+  uint32_t AddMemory(uint32_t min_pages, uint32_t max_pages);
+  uint32_t AddMemory64(uint32_t min_pages, uint32_t max_pages);
   void MarkStartFunction(WasmFunctionBuilder* builder);
   void AddExport(base::Vector<const char> name, ImportExportKindCode kind,
                  uint32_t index);
@@ -360,9 +370,6 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   uint32_t AddExportedGlobal(ValueType type, bool mutability, WasmInitExpr init,
                              base::Vector<const char> name);
   void ExportImportedFunction(base::Vector<const char> name, int import_index);
-  void SetMinMemorySize(uint32_t value);
-  void SetMaxMemorySize(uint32_t value);
-  void SetHasSharedMemory();
 
   void StartRecursiveTypeGroup() {
     DCHECK_EQ(current_recursive_group_start_, -1);
@@ -418,18 +425,33 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   uint32_t GetSuperType(uint32_t index) { return types_[index].supertype; }
 
   WasmFunctionBuilder* GetFunction(uint32_t index) { return functions_[index]; }
-  int NumExceptions() { return static_cast<int>(exceptions_.size()); }
+  int NumTags() { return static_cast<int>(tags_.size()); }
 
   int NumTypes() { return static_cast<int>(types_.size()); }
 
   int NumTables() { return static_cast<int>(tables_.size()); }
 
-  int NumFunctions() { return static_cast<int>(functions_.size()); }
+  int NumMemories() { return static_cast<int>(memories_.size()); }
+
+  int NumGlobals() { return static_cast<int>(globals_.size()); }
+
+  int NumImportedFunctions() {
+    return static_cast<int>(function_imports_.size());
+  }
+  int NumDeclaredFunctions() { return static_cast<int>(functions_.size()); }
 
   int NumDataSegments() { return static_cast<int>(data_segments_.size()); }
 
-  const FunctionSig* GetExceptionType(int index) {
-    return types_[exceptions_[index]].function_sig;
+  bool IsMemory64(uint32_t index) { return memories_[index].is_memory64; }
+
+  const FunctionSig* GetTagType(int index) {
+    return types_[tags_[index]].function_sig;
+  }
+
+  ValueType GetGlobalType(uint32_t index) const { return globals_[index].type; }
+
+  bool IsMutableGlobal(uint32_t index) const {
+    return globals_[index].mutability;
   }
 
  private:
@@ -442,6 +464,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   struct WasmGlobalImport {
     base::Vector<const char> module;
     base::Vector<const char> name;
+    // TODO(manoskouk): Extend to full value type.
     ValueTypeCode type_code;
     bool mutability;
   };
@@ -461,9 +484,19 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   struct WasmTable {
     ValueType type;
     uint32_t min_size;
-    uint32_t max_size;
-    bool has_maximum;
-    base::Optional<WasmInitExpr> init;
+    uint32_t max_size = 0;
+    bool has_maximum = false;
+    bool is_shared = false;
+    bool is_table64 = false;
+    std::optional<WasmInitExpr> init = {};
+  };
+
+  struct WasmMemory {
+    uint32_t min_pages;
+    uint32_t max_pages = 0;
+    bool has_max_pages = false;
+    bool is_shared = false;
+    bool is_memory64 = false;
   };
 
   struct WasmDataSegment {
@@ -480,26 +513,23 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   ZoneVector<WasmExport> exports_;
   ZoneVector<WasmFunctionBuilder*> functions_;
   ZoneVector<WasmTable> tables_;
+  ZoneVector<WasmMemory> memories_;
   ZoneVector<WasmDataSegment> data_segments_;
   ZoneVector<WasmElemSegment> element_segments_;
   ZoneVector<WasmGlobal> globals_;
-  ZoneVector<int> exceptions_;
+  ZoneVector<int> tags_;
   ZoneUnorderedMap<FunctionSig, uint32_t> signature_map_;
   int current_recursive_group_start_;
   // first index -> size
   ZoneUnorderedMap<uint32_t, uint32_t> recursive_groups_;
   int start_function_index_;
-  uint32_t min_memory_size_;
-  uint32_t max_memory_size_;
-  bool has_max_memory_size_;
-  bool has_shared_memory_;
 #if DEBUG
   // Once AddExportedImport is called, no more imports can be added.
   bool adding_imports_allowed_ = true;
 #endif
 };
 
-const FunctionSig* WasmFunctionBuilder::signature() {
+const FunctionSig* WasmFunctionBuilder::signature() const {
   return builder_->types_[signature_index_].function_sig;
 }
 

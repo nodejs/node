@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { describe, it, run } from 'node:test';
 import { dot, spec, tap } from 'node:test/reporters';
 import assert from 'node:assert';
+import util from 'node:util';
 
 const testFixtures = fixtures.path('test-runner');
 
@@ -68,10 +69,10 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     const result = await run({
       files: [join(testFixtures, 'default-behavior/test/random.cjs')]
     }).compose(dot).toArray();
-    assert.deepStrictEqual(result, [
-      '.',
-      '\n',
-    ]);
+
+    assert.strictEqual(result.length, 2);
+    assert.strictEqual(util.stripVTControlCharacters(result[0]), '.');
+    assert.strictEqual(result[1], '\n');
   });
 
   describe('should be piped with spec reporter', () => {
@@ -135,8 +136,10 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     })
       .compose(tap)
       .toArray();
-    assert.strictEqual(result[2], 'ok 1 - this should be skipped # SKIP test name does not match pattern\n');
-    assert.strictEqual(result[5], 'ok 2 - this should be executed\n');
+
+    assert.strictEqual(result[2], 'ok 1 - this should be executed\n');
+    assert.strictEqual(result[4], '1..1\n');
+    assert.strictEqual(result[5], '# tests 1\n');
   });
 
   it('should skip tests not matching testNamePatterns - string', async () => {
@@ -146,8 +149,9 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     })
       .compose(tap)
       .toArray();
-    assert.strictEqual(result[2], 'ok 1 - this should be skipped # SKIP test name does not match pattern\n');
-    assert.strictEqual(result[5], 'ok 2 - this should be executed\n');
+    assert.strictEqual(result[2], 'ok 1 - this should be executed\n');
+    assert.strictEqual(result[4], '1..1\n');
+    assert.strictEqual(result[5], '# tests 1\n');
   });
 
   it('should pass only to children', async () => {
@@ -158,8 +162,9 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
       .compose(tap)
       .toArray();
 
-    assert.strictEqual(result[2], 'ok 1 - this should be skipped # SKIP \'only\' option not set\n');
-    assert.strictEqual(result[5], 'ok 2 - this should be executed\n');
+    assert.strictEqual(result[2], 'ok 1 - this should be executed\n');
+    assert.strictEqual(result[4], '1..1\n');
+    assert.strictEqual(result[5], '# tests 1\n');
   });
 
   it('should emit "test:watch:drained" event on watch mode', async () => {
@@ -342,8 +347,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
         }), {
           name: 'RangeError',
           code: 'ERR_OUT_OF_RANGE',
-          // eslint-disable-next-line max-len
-          message: 'The value of "options.shard.index" is out of range. It must be >= 1 && <= 6 ("options.shard.total"). Received 0'
+          message: 'The value of "options.shard.index" is out of range. It must be >= 1 && <= 6. Received 0'
         });
       });
 
@@ -357,8 +361,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
         }), {
           name: 'RangeError',
           code: 'ERR_OUT_OF_RANGE',
-          // eslint-disable-next-line max-len
-          message: 'The value of "options.shard.index" is out of range. It must be >= 1 && <= 6 ("options.shard.total"). Received 7'
+          message: 'The value of "options.shard.index" is out of range. It must be >= 1 && <= 6. Received 7'
         });
       });
 
@@ -466,6 +469,19 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
         }));
     });
 
+    it('should only allow array in options.globPatterns', async () => {
+      [Symbol(), {}, () => {}, 0, 1, 0n, 1n, '', '1', Promise.resolve([]), true, false]
+        .forEach((globPatterns) => assert.throws(() => run({ globPatterns }), {
+          code: 'ERR_INVALID_ARG_TYPE'
+        }));
+    });
+
+    it('should not allow files and globPatterns used together', () => {
+      assert.throws(() => run({ files: ['a.js'], globPatterns: ['*.js'] }), {
+        code: 'ERR_INVALID_ARG_VALUE'
+      });
+    });
+
     it('should only allow object as options', () => {
       [Symbol(), [], () => {}, 0, 1, 0n, 1n, '', '1', true, false]
         .forEach((options) => assert.throws(() => run(options), {
@@ -487,37 +503,16 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     });
   });
 
-  it('should run with no files', async () => {
-    const stream = run({
-      files: undefined
-    }).compose(tap);
+  it('should avoid running recursively', async () => {
+    const stream = run({ files: [join(testFixtures, 'recursive_run.js')] });
+    let stderr = '';
     stream.on('test:fail', common.mustNotCall());
-    stream.on('test:pass', common.mustNotCall());
+    stream.on('test:pass', common.mustCall(1));
+    stream.on('test:stderr', (c) => { stderr += c.message; });
 
     // eslint-disable-next-line no-unused-vars
     for await (const _ of stream);
-  });
-
-  it('should run with no files and use spec reporter', async () => {
-    const stream = run({
-      files: undefined
-    }).compose(spec);
-    stream.on('test:fail', common.mustNotCall());
-    stream.on('test:pass', common.mustNotCall());
-
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of stream);
-  });
-
-  it('should run with no files and use dot reporter', async () => {
-    const stream = run({
-      files: undefined
-    }).compose(dot);
-    stream.on('test:fail', common.mustNotCall());
-    stream.on('test:pass', common.mustNotCall());
-
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of stream);
+    assert.match(stderr, /Warning: node:test run\(\) is being called recursively/);
   });
 });
 
@@ -537,4 +532,14 @@ describe('forceExit', () => {
       message: /The property 'options\.forceExit' is not supported with watch mode\./
     });
   });
+});
+
+
+// exitHandler doesn't run until after the tests / after hooks finish.
+process.on('exit', () => {
+  assert.strictEqual(process.listeners('uncaughtException').length, 0);
+  assert.strictEqual(process.listeners('unhandledRejection').length, 0);
+  assert.strictEqual(process.listeners('beforeExit').length, 0);
+  assert.strictEqual(process.listeners('SIGINT').length, 0);
+  assert.strictEqual(process.listeners('SIGTERM').length, 0);
 });

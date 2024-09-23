@@ -25,9 +25,6 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "ares_setup.h"
-
-#include "ares.h"
 #include "ares_private.h"
 
 /* library-private global and unique instance vars */
@@ -55,7 +52,7 @@ static void        *default_malloc(size_t size)
   return malloc(size);
 }
 
-#if defined(WIN32)
+#if defined(_WIN32)
 /* We need indirections to handle Windows DLL rules. */
 static void *default_realloc(void *p, size_t size)
 {
@@ -72,7 +69,7 @@ static void default_free(void *p)
 #endif
 void *(*ares_malloc)(size_t size)             = default_malloc;
 void *(*ares_realloc)(void *ptr, size_t size) = default_realloc;
-void  (*ares_free)(void *ptr)                 = default_free;
+void (*ares_free)(void *ptr)                  = default_free;
 
 void *ares_malloc_zero(size_t size)
 {
@@ -114,7 +111,7 @@ int ares_library_init(int flags)
 }
 
 int ares_library_init_mem(int flags, void *(*amalloc)(size_t size),
-                          void  (*afree)(void *ptr),
+                          void (*afree)(void *ptr),
                           void *(*arealloc)(void *ptr, size_t size))
 {
   if (amalloc) {
