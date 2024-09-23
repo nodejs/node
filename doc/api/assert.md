@@ -269,6 +269,7 @@ process.on('exit', () => {
 
 ```cjs
 const assert = require('node:assert');
+const process = require('node:process');
 
 const tracker = new assert.CallTracker();
 
@@ -555,7 +556,9 @@ An alias of [`assert.ok()`][].
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: v22.2.0
+  - version:
+      - v22.2.0
+      - v20.15.0
     pr-url: https://github.com/nodejs/node/pull/51805
     description: Error cause and errors properties are now compared as well.
   - version: v18.0.0
@@ -634,7 +637,8 @@ are also recursively evaluated by the following rules.
 * Implementation does not test the [`[[Prototype]]`][prototype-spec] of
   objects.
 * [`Symbol`][] properties are not compared.
-* [`WeakMap`][] and [`WeakSet`][] comparison does not rely on their values.
+* [`WeakMap`][] and [`WeakSet`][] comparison does not rely on their values
+  but only on their instances.
 * [`RegExp`][] lastIndex, flags, and source are always compared, even if these
   are not enumerable properties.
 
@@ -739,7 +743,9 @@ parameter is an instance of an [`Error`][] then it will be thrown instead of the
 <!-- YAML
 added: v1.2.0
 changes:
-  - version: v22.2.0
+  - version:
+    - v22.2.0
+    - v20.15.0
     pr-url: https://github.com/nodejs/node/pull/51805
     description: Error cause and errors properties are now compared as well.
   - version: v18.0.0

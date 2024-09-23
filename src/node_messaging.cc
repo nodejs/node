@@ -91,7 +91,7 @@ class DeserializerDelegate : public ValueDeserializer::Delegate {
       CHECK_LT(id, host_objects_.size());
       Local<Object> object = host_objects_[id]->object(isolate);
       if (env_->js_transferable_constructor_template()->HasInstance(object)) {
-        return Unwrap<JSTransferable>(object)->target();
+        return BaseObject::Unwrap<JSTransferable>(object)->target();
       } else {
         return object;
       }
@@ -318,7 +318,7 @@ class SerializerDelegate : public ValueSerializer::Delegate {
   Maybe<bool> WriteHostObject(Isolate* isolate, Local<Object> object) override {
     if (BaseObject::IsBaseObject(env_->isolate_data(), object)) {
       return WriteHostObject(
-          BaseObjectPtr<BaseObject> { Unwrap<BaseObject>(object) });
+          BaseObjectPtr<BaseObject>{BaseObject::Unwrap<BaseObject>(object)});
     }
 
     if (JSTransferable::IsJSTransferable(env_, context_, object)) {
@@ -532,7 +532,8 @@ Maybe<bool> Message::Serialize(Environment* env,
     }
     BaseObjectPtr<BaseObject> host_object;
     if (BaseObject::IsBaseObject(env->isolate_data(), entry)) {
-      host_object = BaseObjectPtr<BaseObject>{Unwrap<BaseObject>(entry)};
+      host_object =
+          BaseObjectPtr<BaseObject>{BaseObject::Unwrap<BaseObject>(entry)};
     } else {
       if (!JSTransferable::IsJSTransferable(env, context, entry)) {
         ThrowDataCloneException(context, env->clone_untransferable_str());
@@ -566,7 +567,9 @@ Maybe<bool> Message::Serialize(Environment* env,
     if (host_object &&
         host_object->GetTransferMode() == TransferMode::kTransferable) {
       delegate.AddHostObject(host_object);
-      continue;
+    } else {
+      ThrowDataCloneException(context, env->clone_untransferable_str());
+      return Nothing<bool>();
     }
   }
   if (delegate.AddNestedHostObjects().IsNothing())

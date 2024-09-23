@@ -271,6 +271,14 @@ class InspectorSession {
         `break on ${url}:${line}`);
   }
 
+  waitForPauseOnStart() {
+    return this
+      .waitForNotification(
+        (notification) =>
+          notification.method === 'Debugger.paused' && notification.params.reason === 'Break on start',
+        'break on start');
+  }
+
   pausedDetails() {
     return this._pausedDetails;
   }
@@ -309,6 +317,10 @@ class InspectorSession {
       return notification.method === 'Runtime.executionContextDestroyed' &&
         notification.params.executionContextId === 1;
     });
+    await this.waitForDisconnect();
+  }
+
+  async waitForDisconnect() {
     while ((await this._instance.nextStderrString()) !==
               'Waiting for the debugger to disconnect...');
     await this.disconnect();

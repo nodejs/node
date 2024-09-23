@@ -1,4 +1,4 @@
-/* auto-generated on 2024-05-30 22:24:57 -0400. Do not edit! */
+/* auto-generated on 2024-07-06 17:38:56 -0400. Do not edit! */
 /* begin file include/ada.h */
 /**
  * @file ada.h
@@ -1854,6 +1854,9 @@ inline int fast_digit_count(uint32_t x) noexcept {
  */
 #ifndef ADA_PARSER_H
 #define ADA_PARSER_H
+
+#include <optional>
+#include <string_view>
 
 /* begin file include/ada/expected.h */
 /**
@@ -4377,9 +4380,6 @@ void swap(expected<T, E> &lhs,
 #endif
 /* end file include/ada/expected.h */
 
-#include <optional>
-#include <string_view>
-
 /**
  * @private
  */
@@ -4393,7 +4393,6 @@ struct url;
  * @brief Includes the definitions for supported parsers
  */
 namespace ada::parser {
-
 /**
  * Parses a url. The parameter user_input is the input to be parsed:
  * it should be a valid UTF-8 string. The parameter base_url is an optional
@@ -4409,6 +4408,14 @@ extern template url_aggregator parse_url<url_aggregator>(
 extern template url parse_url<url>(std::string_view user_input,
                                    const url* base_url);
 
+template <typename result_type = ada::url_aggregator, bool store_values = true>
+result_type parse_url_impl(std::string_view user_input,
+                           const result_type* base_url = nullptr);
+
+extern template url_aggregator parse_url_impl<url_aggregator>(
+    std::string_view user_input, const url_aggregator* base_url);
+extern template url parse_url_impl<url>(std::string_view user_input,
+                                        const url* base_url);
 }  // namespace ada::parser
 
 #endif  // ADA_PARSER_H
@@ -4615,12 +4622,6 @@ bool to_ascii(std::optional<std::string>& out, std::string_view plain,
 
 /**
  * @private
- * @see https://www.unicode.org/reports/tr46/#ToUnicode
- */
-std::string to_unicode(std::string_view input);
-
-/**
- * @private
  * Checks if the input has tab or newline characters.
  *
  * @attention The has_tabs_or_newline function is a bottleneck and it is simple
@@ -4795,9 +4796,9 @@ constexpr bool to_lower_ascii(char* input, size_t length) noexcept;
 #ifndef ADA_URL_AGGREGATOR_H
 #define ADA_URL_AGGREGATOR_H
 
-
 #include <string>
 #include <string_view>
+
 
 namespace ada {
 
@@ -4992,6 +4993,11 @@ struct url_aggregator : url_base {
       std::string_view, const ada::url_aggregator *);
   friend void ada::helpers::strip_trailing_spaces_from_opaque_path<
       ada::url_aggregator>(ada::url_aggregator &url) noexcept;
+  friend ada::url_aggregator ada::parser::parse_url_impl<
+      ada::url_aggregator, true>(std::string_view, const ada::url_aggregator *);
+  friend ada::url_aggregator
+  ada::parser::parse_url_impl<ada::url_aggregator, false>(
+      std::string_view, const ada::url_aggregator *);
 
   std::string buffer{};
   url_components components{};
@@ -5227,13 +5233,13 @@ ada_really_inline constexpr bool verify_dns_length(
 #ifndef ADA_URL_H
 #define ADA_URL_H
 
-
 #include <algorithm>
 #include <charconv>
 #include <iostream>
 #include <optional>
 #include <string>
 #include <string_view>
+
 
 namespace ada {
 
@@ -5508,6 +5514,11 @@ struct url : url_base {
       std::string_view, const ada::url_aggregator *);
   friend void ada::helpers::strip_trailing_spaces_from_opaque_path<ada::url>(
       ada::url &url) noexcept;
+
+  friend ada::url ada::parser::parse_url_impl<ada::url, true>(std::string_view,
+                                                              const ada::url *);
+  friend ada::url_aggregator ada::parser::parse_url_impl<
+      ada::url_aggregator, true>(std::string_view, const ada::url_aggregator *);
 
   inline void update_unencoded_base_hash(std::string_view input);
   inline void update_base_hostname(std::string_view input);
@@ -6976,6 +6987,14 @@ struct url_search_params {
   inline auto back() const { return params.back(); }
   inline auto operator[](size_t index) const { return params[index]; }
 
+  /**
+   * @private
+   * Used to reset the search params to a new input.
+   * Used primarily for C API.
+   * @param input
+   */
+  void reset(std::string_view input);
+
  private:
   typedef std::pair<std::string, std::string> key_value_pair;
   std::vector<key_value_pair> params{};
@@ -7045,6 +7064,11 @@ namespace ada {
 // A default, empty url_search_params for use with empty iterators.
 template <typename T, ada::url_search_params_iter_type Type>
 url_search_params url_search_params_iter<T, Type>::EMPTY;
+
+inline void url_search_params::reset(std::string_view input) {
+  params.clear();
+  initialize(input);
+}
 
 inline void url_search_params::initialize(std::string_view input) {
   if (!input.empty() && input.front() == '?') {
@@ -7255,13 +7279,13 @@ url_search_params_entries_iter::next() {
 #ifndef ADA_ADA_VERSION_H
 #define ADA_ADA_VERSION_H
 
-#define ADA_VERSION "2.8.0"
+#define ADA_VERSION "2.9.0"
 
 namespace ada {
 
 enum {
   ADA_VERSION_MAJOR = 2,
-  ADA_VERSION_MINOR = 8,
+  ADA_VERSION_MINOR = 9,
   ADA_VERSION_REVISION = 0,
 };
 

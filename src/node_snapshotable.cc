@@ -43,7 +43,6 @@ using v8::Isolate;
 using v8::Local;
 using v8::Object;
 using v8::ObjectTemplate;
-using v8::ScriptCompiler;
 using v8::SnapshotCreator;
 using v8::StartupData;
 using v8::String;
@@ -542,7 +541,6 @@ SnapshotMetadata SnapshotDeserializer::Read() {
   result.node_version = ReadString();
   result.node_arch = ReadString();
   result.node_platform = ReadString();
-  result.v8_cache_version_tag = ReadArithmetic<uint32_t>();
   result.flags = static_cast<SnapshotFlags>(ReadArithmetic<uint32_t>());
 
   if (is_debug) {
@@ -570,9 +568,6 @@ size_t SnapshotSerializer::Write(const SnapshotMetadata& data) {
   written_total += WriteString(data.node_arch);
   Debug("Write Node.js platform %s\n", data.node_platform);
   written_total += WriteString(data.node_platform);
-  Debug("Write V8 cached data version tag %" PRIx32 "\n",
-        data.v8_cache_version_tag);
-  written_total += WriteArithmetic<uint32_t>(data.v8_cache_version_tag);
   Debug("Write snapshot flags %" PRIx32 "\n",
         static_cast<uint32_t>(data.flags));
   written_total += WriteArithmetic<uint32_t>(static_cast<uint32_t>(data.flags));
@@ -599,16 +594,17 @@ std::vector<char> SnapshotData::ToBlob() const {
   size_t written_total = 0;
 
   // Metadata
-  w.Debug("Write magic %" PRIx32 "\n", kMagic);
+  w.Debug("0x%x: Write magic %" PRIx32 "\n", w.sink.size(), kMagic);
   written_total += w.WriteArithmetic<uint32_t>(kMagic);
-  w.Debug("Write metadata\n");
+  w.Debug("0x%x: Write metadata\n", w.sink.size());
   written_total += w.Write<SnapshotMetadata>(metadata);
-
+  w.Debug("0x%x: Write snapshot blob\n", w.sink.size());
   written_total += w.Write<v8::StartupData>(v8_snapshot_blob_data);
-  w.Debug("Write isolate_data_indices\n");
+  w.Debug("0x%x: Write IsolateDataSerializeInfo\n", w.sink.size());
   written_total += w.Write<IsolateDataSerializeInfo>(isolate_data_info);
+  w.Debug("0x%x: Write EnvSerializeInfo\n", w.sink.size());
   written_total += w.Write<EnvSerializeInfo>(env_info);
-  w.Debug("Write code_cache\n");
+  w.Debug("0x%x: Write CodeCacheInfo\n", w.sink.size());
   written_total += w.WriteVector<builtins::CodeCacheInfo>(code_cache);
   w.Debug("SnapshotData::ToBlob() Wrote %d bytes\n", written_total);
 
@@ -694,23 +690,6 @@ bool SnapshotData::Check() const {
             metadata.node_platform.c_str(),
             NODE_PLATFORM);
     return false;
-  }
-
-  if (metadata.type == SnapshotMetadata::Type::kFullyCustomized &&
-      !WithoutCodeCache(metadata.flags)) {
-    uint32_t current_cache_version = v8::ScriptCompiler::CachedDataVersionTag();
-    if (metadata.v8_cache_version_tag != current_cache_version) {
-      // For now we only do this check for the customized snapshots - we know
-      // that the flags we use in the default snapshot are limited and safe
-      // enough so we can relax the constraints for it.
-      fprintf(stderr,
-              "Failed to load the startup snapshot because it was built with "
-              "a different version of V8 or with different V8 configurations.\n"
-              "Expected tag %" PRIx32 ", read %" PRIx32 "\n",
-              current_cache_version,
-              metadata.v8_cache_version_tag);
-      return false;
-    }
   }
 
   // TODO(joyeecheung): check incompatible Node.js flags.
@@ -1179,7 +1158,6 @@ ExitCode SnapshotBuilder::CreateSnapshot(SnapshotData* out,
                                    per_process::metadata.versions.node,
                                    per_process::metadata.arch,
                                    per_process::metadata.platform,
-                                   v8::ScriptCompiler::CachedDataVersionTag(),
                                    config->flags};
 
   // We cannot resurrect the handles from the snapshot, so make sure that
@@ -1262,18 +1240,30 @@ void DeserializeNodeContextData(Local<Context> holder,
                                 int index,
                                 StartupData payload,
                                 void* callback_data) {
-  // This is unreachable for now. We will reset all the pointers in
-  // Environment::AssignToContext() via the realm constructor.
-  UNREACHABLE();
+  // We will reset all the pointers in Environment::AssignToContext()
+  // via the realm constructor.
+  switch (index) {
+    case ContextEmbedderIndex::kEnvironment:
+    case ContextEmbedderIndex::kContextifyContext:
+    case ContextEmbedderIndex::kRealm:
+    case ContextEmbedderIndex::kContextTag: {
+      uint64_t index_64;
+      int size = sizeof(index_64);
+      CHECK_EQ(payload.raw_size, size);
+      memcpy(&index_64, payload.data, payload.raw_size);
+      CHECK_EQ(index_64, static_cast<uint64_t>(index));
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
 }
 
 StartupData SerializeNodeContextData(Local<Context> holder,
                                      int index,
                                      void* callback_data) {
-  // For now we just reset all of them in Environment::AssignToContext().
-  // We return empty data here to make sure that the embedder data serialized
-  // into the snapshot is reproducible and V8 doesn't have to try to serialize
-  // the pointer values that won't be useful during deserialization.
+  // For pointer values, we need to return some non-empty data so that V8
+  // does not serialize them verbatim, making the snapshot unreproducible.
   switch (index) {
     case ContextEmbedderIndex::kEnvironment:
     case ContextEmbedderIndex::kContextifyContext:
@@ -1286,7 +1276,13 @@ StartupData SerializeNodeContextData(Local<Context> holder,
           static_cast<int>(index),
           *holder,
           data);
-      return {nullptr, 0};
+      // We use uint64_t to avoid padding.
+      uint64_t index_64 = static_cast<uint64_t>(index);
+      // It must be allocated with new[] because V8 will call delete[] on it.
+      size_t size = sizeof(index_64);
+      char* startup_data = new char[size];
+      memcpy(startup_data, &index_64, size);
+      return {startup_data, static_cast<int>(size)};
     }
     default:
       UNREACHABLE();
@@ -1396,9 +1392,11 @@ StartupData SerializeNodeContextInternalFields(Local<Object> holder,
   // To serialize the type field, save data in a EmbedderTypeInfo.
   if (index == BaseObject::kEmbedderType) {
     int size = sizeof(EmbedderTypeInfo);
-    char* data = new char[size];
     // We need to use placement new because V8 calls delete[] on the returned
     // data.
+    // The () syntax at the end would zero-initialize the block and make
+    // the padding reproducible.
+    char* data = new char[size]();
     // TODO(joyeecheung): support cppgc objects.
     new (data) EmbedderTypeInfo(obj->type(),
                                 EmbedderTypeInfo::MemoryMode::kBaseObject);

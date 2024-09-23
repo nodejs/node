@@ -55,9 +55,7 @@ interface WebidlUtil {
     V: unknown,
     bitLength: number,
     signedness: 'signed' | 'unsigned',
-    opts?: ConvertToIntOpts,
-    prefix: string,
-    argument: string
+    opts?: ConvertToIntOpts
   ): number
 
   /**
