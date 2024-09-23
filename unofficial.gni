@@ -139,7 +139,7 @@ template("node_gn_build") {
     public_deps = [
       "deps/ada",
       "deps/uv",
-      "deps/base64",
+      "deps/simdjson",
       "$node_v8_path",
     ]
     deps = [
@@ -148,11 +148,12 @@ template("node_gn_build") {
       "deps/cares",
       "deps/histogram",
       "deps/llhttp",
+      "deps/nbytes",
       "deps/nghttp2",
       "deps/ngtcp2",
       "deps/postject",
-      "deps/simdjson",
       "deps/simdutf",
+      "deps/sqlite",
       "deps/uvwasi",
       "//third_party/zlib",
       "$node_v8_path:v8_libplatform",
@@ -177,6 +178,7 @@ template("node_gn_build") {
       deps += [ "//third_party/icu" ]
     }
     if (node_use_openssl) {
+      deps += [ "deps/ncrypto" ]
       public_deps += [ "deps/openssl" ]
       sources += gypi_values.node_crypto_sources
     }
@@ -235,12 +237,29 @@ template("node_gn_build") {
   if (node_use_node_snapshot) {
     if (current_toolchain == v8_snapshot_toolchain) {
       executable("node_mksnapshot") {
-        configs += [ ":node_internal_config" ]
+        configs += [ ":node_internal_config", ":disable_icf" ]
         sources = [
           "src/node_snapshot_stub.cc",
           "tools/snapshot/node_mksnapshot.cc",
         ]
         deps = [ ":libnode" ]
+      }
+
+      # This config disables a link time optimization "ICF", which may merge
+      # different functions into one if the function signature and body of them are
+      # identical.
+      #
+      # ICF breaks 1:1 mappings of the external references for V8 snapshot, so we
+      # disable it while taking a V8 snapshot.
+      config("disable_icf") {
+        visibility = [ ":*" ]  # Only targets in this file can depend on this.
+        if (is_win) {
+          ldflags = [ "/OPT:NOICF" ]  # link.exe, but also lld-link.exe.
+        } else if (is_apple && !use_lld) {
+          ldflags = [ "-Wl,-no_deduplicate" ]  # ld64.
+        } else if (use_gold || use_lld) {
+          ldflags = [ "-Wl,--icf=none" ]
+        }
       }
     }
 
@@ -262,6 +281,7 @@ template("node_gn_build") {
   }
 
   action("generate_config_gypi") {
+    deps = [ "$node_v8_path:v8_generate_features_json" ]
     script = "tools/generate_config_gypi.py"
     outputs = [ "$target_gen_dir/config.gypi" ]
     depfile = "$target_gen_dir/$target_name.d"
@@ -331,11 +351,13 @@ template("node_gn_build") {
       ":libnode",
       "deps/googletest",
       "deps/googletest:gtest_main",
+      "deps/nbytes",
       "deps/simdutf",
     ]
 
     sources = gypi_values.node_cctest_sources
     if (node_use_openssl) {
+      deps += [ "deps/ncrypto" ]
       sources += gypi_values.node_cctest_openssl_sources
     }
     if (node_enable_inspector) {
@@ -347,6 +369,7 @@ template("node_gn_build") {
     output_name = "embedtest"
     testonly = true
     deps = [ ":libnode" ]
+    include_dirs = [ "tools" ]
     sources = [
       "src/node_snapshot_stub.cc",
       "test/embedding/embedtest.cc",

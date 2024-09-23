@@ -241,6 +241,19 @@ Builtin Assembler::target_builtin_at(Address pc) {
   return static_cast<Builtin>(builtin_id);
 }
 
+uint32_t Assembler::uint32_constant_at(Address pc, Address constant_pool) {
+  return ReadUnalignedValue<uint32_t>(pc);
+}
+
+void Assembler::set_uint32_constant_at(Address pc, Address constant_pool,
+                                       uint32_t new_constant,
+                                       ICacheFlushMode icache_flush_mode) {
+  WriteUnalignedValue<uint32_t>(pc, new_constant);
+  if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
+    FlushInstructionCache(pc, sizeof(uint32_t));
+  }
+}
+
 // -----------------------------------------------------------------------------
 // Implementation of RelocInfo
 
@@ -287,15 +300,10 @@ Tagged<HeapObject> RelocInfo::target_object(PtrComprCageBase cage_base) {
     DCHECK(!HAS_SMI_TAG(compressed));
     Tagged<Object> obj(
         V8HeapCompressionScheme::DecompressTagged(cage_base, compressed));
-    // Embedding of compressed InstructionStream objects must not happen when
-    // external code space is enabled, because Codes must be used
-    // instead.
-    DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
-                   !IsCodeSpaceObject(HeapObject::cast(obj)));
-    return HeapObject::cast(obj);
+    return Cast<HeapObject>(obj);
   }
   DCHECK(IsFullEmbeddedObject(rmode_));
-  return HeapObject::cast(Tagged<Object>(ReadUnalignedValue<Address>(pc_)));
+  return Cast<HeapObject>(Tagged<Object>(ReadUnalignedValue<Address>(pc_)));
 }
 
 Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
@@ -307,7 +315,7 @@ Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
       return origin->compressed_embedded_object_handle_at(pc_);
     }
     DCHECK(IsFullEmbeddedObject(rmode_));
-    return Handle<HeapObject>::cast(ReadUnalignedValue<Handle<Object>>(pc_));
+    return Cast<HeapObject>(ReadUnalignedValue<Handle<Object>>(pc_));
   }
 }
 
@@ -340,6 +348,11 @@ void WritableRelocInfo::set_target_object(Tagged<HeapObject> target,
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
   if (IsCompressedEmbeddedObject(rmode_)) {
     DCHECK(COMPRESS_POINTERS_BOOL);
+    // We must not compress pointers to objects outside of the main pointer
+    // compression cage as we wouldn't be able to decompress them with the
+    // correct cage base.
+    DCHECK_IMPLIES(V8_ENABLE_SANDBOX_BOOL, !IsTrustedSpaceObject(target));
+    DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !IsCodeSpaceObject(target));
     Tagged_t tagged = V8HeapCompressionScheme::CompressObject(target.ptr());
     WriteUnalignedValue(pc_, tagged);
   } else {

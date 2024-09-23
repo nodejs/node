@@ -53,7 +53,7 @@ class V8_EXPORT_PRIVATE ConstantArrayBuilder final {
   // Generate a fixed array of constant handles based on inserted objects.
   template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  Handle<FixedArray> ToFixedArray(IsolateT* isolate);
+  Handle<TrustedFixedArray> ToFixedArray(IsolateT* isolate);
 
   // Returns the object, as a handle in |isolate|, that is in the constant pool
   // array at index |index|. Returns null if there is no handle at this index.
@@ -96,7 +96,8 @@ class V8_EXPORT_PRIVATE ConstantArrayBuilder final {
   // Creates a reserved entry in the constant pool and returns
   // the size of the operand that'll be required to hold the entry
   // when committed.
-  OperandSize CreateReservedEntry();
+  OperandSize CreateReservedEntry(
+      OperandSize minimum_operand_size = OperandSize::kNone);
 
   // Commit reserved entry and returns the constant pool index for the
   // SMI value.

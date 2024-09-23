@@ -1,11 +1,8 @@
 'use strict'
 
+const assert = require('node:assert')
 const { finished, PassThrough } = require('node:stream')
-const {
-  InvalidArgumentError,
-  InvalidReturnValueError,
-  RequestAbortedError
-} = require('../core/errors')
+const { InvalidArgumentError, InvalidReturnValueError } = require('../core/errors')
 const util = require('../core/util')
 const { getResolveErrorBodyCallback } = require('./util')
 const { AsyncResource } = require('node:async_hooks')
@@ -70,9 +67,12 @@ class StreamHandler extends AsyncResource {
   }
 
   onConnect (abort, context) {
-    if (!this.callback) {
-      throw new RequestAbortedError()
+    if (this.reason) {
+      abort(this.reason)
+      return
     }
+
+    assert(this.callback)
 
     this.abort = abort
     this.context = context

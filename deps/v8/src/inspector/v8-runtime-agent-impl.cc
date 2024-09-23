@@ -126,13 +126,13 @@ void innerCallFunctionOn(
     std::unique_ptr<V8RuntimeAgentImpl::CallFunctionOnCallback> callback) {
   V8InspectorImpl* inspector = session->inspector();
 
-  std::unique_ptr<v8::Local<v8::Value>[]> argv = nullptr;
+  std::unique_ptr<v8::Global<v8::Value>[]> argv = nullptr;
   int argc = 0;
   if (optionalArguments.has_value()) {
     protocol::Array<protocol::Runtime::CallArgument>& arguments =
         optionalArguments.value();
     argc = static_cast<int>(arguments.size());
-    argv.reset(new v8::Local<v8::Value>[argc]);
+    argv.reset(new v8::Global<v8::Value>[argc]);
     for (int i = 0; i < argc; ++i) {
       v8::Local<v8::Value> argumentValue;
       Response response = scope.injectedScript()->resolveCallArgument(
@@ -141,7 +141,7 @@ void innerCallFunctionOn(
         callback->sendFailure(response);
         return;
       }
-      argv[i] = argumentValue;
+      argv[i] = v8::Global<v8::Value>(inspector->isolate(), argumentValue);
     }
   }
 
@@ -202,7 +202,7 @@ void innerCallFunctionOn(
 
   if (!awaitPromise || scope.tryCatch().HasCaught()) {
     wrapEvaluateResultAsync(scope.injectedScript(), maybeResultValue,
-                            scope.tryCatch(), objectGroup, *wrapOptions.get(),
+                            scope.tryCatch(), objectGroup, *wrapOptions,
                             throwOnSideEffect, callback.get());
     return;
   }
@@ -245,8 +245,8 @@ Response ensureContext(V8InspectorImpl* inspector, int contextGroupId,
 Response parseAdditionalSerializationParameters(
     protocol::DictionaryValue* additionalParameters, v8::Isolate* isolate,
     v8::Local<v8::Object>* result) {
-  std::vector<v8::Local<v8::Name>> keys;
-  std::vector<v8::Local<v8::Value>> values;
+  v8::LocalVector<v8::Name> keys(isolate);
+  v8::LocalVector<v8::Value> values(isolate);
 
   if (additionalParameters != nullptr) {
     for (size_t i = 0; i < additionalParameters->size(); ++i) {
@@ -436,8 +436,8 @@ void V8RuntimeAgentImpl::evaluate(
   if (!await || scope.tryCatch().HasCaught()) {
     wrapEvaluateResultAsync(scope.injectedScript(), maybeResultValue,
                             scope.tryCatch(), objectGroup.value_or(""),
-                            *wrapOptions.get(),
-                            throwOnSideEffect.value_or(false), callback.get());
+                            *wrapOptions, throwOnSideEffect.value_or(false),
+                            callback.get());
     return;
   }
   scope.injectedScript()->addPromiseCallback(
@@ -594,7 +594,7 @@ Response V8RuntimeAgentImpl::getProperties(
   response = scope.injectedScript()->getProperties(
       object, scope.objectGroupName(), ownProperties.value_or(false),
       accessorPropertiesOnly.value_or(false),
-      nonIndexedPropertiesOnly.value_or(false), *wrapOptions.get(), result,
+      nonIndexedPropertiesOnly.value_or(false), *wrapOptions, result,
       exceptionDetails);
   if (!response.IsSuccess()) return response;
   if (exceptionDetails->isJust()) return Response::Success();
@@ -783,7 +783,7 @@ void V8RuntimeAgentImpl::runScript(
   if (!awaitPromise.value_or(false) || scope.tryCatch().HasCaught()) {
     wrapEvaluateResultAsync(scope.injectedScript(), maybeResultValue,
                             scope.tryCatch(), objectGroup.value_or(""),
-                            *wrapOptions.get(), false /* throwOnSideEffect */,
+                            *wrapOptions, false /* throwOnSideEffect */,
                             callback.get());
     return;
   }

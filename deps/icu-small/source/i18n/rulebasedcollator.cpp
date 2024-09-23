@@ -32,7 +32,6 @@
 #include "unicode/utf8.h"
 #include "unicode/uversion.h"
 #include "bocsu.h"
-#include "bytesinkutil.h"
 #include "charstr.h"
 #include "cmemory.h"
 #include "collation.h"
@@ -1561,7 +1560,6 @@ RuleBasedCollator::internalGetShortDefinitionString(const char *locale,
 
     // Append items in alphabetic order of their short definition letters.
     CharString result;
-    char subtag[ULOC_KEYWORD_AND_VALUES_CAPACITY];
 
     if(attributeHasBeenSetExplicitly(UCOL_ALTERNATE_HANDLING)) {
         appendAttribute(result, 'A', getAttribute(UCOL_ALTERNATE_HANDLING, errorCode), errorCode);
@@ -1581,30 +1579,27 @@ RuleBasedCollator::internalGetShortDefinitionString(const char *locale,
         appendAttribute(result, 'F', getAttribute(UCOL_FRENCH_COLLATION, errorCode), errorCode);
     }
     // Note: UCOL_HIRAGANA_QUATERNARY_MODE is deprecated and never changes away from default.
-    {
-        CharString collation;
-        CharStringByteSink sink(&collation);
-        ulocimp_getKeywordValue(resultLocale, "collation", sink, &errorCode);
-        appendSubtag(result, 'K', collation.data(), collation.length(), errorCode);
-    }
-    length = uloc_getLanguage(resultLocale, subtag, UPRV_LENGTHOF(subtag), &errorCode);
-    if (length == 0) {
+    CharString collation = ulocimp_getKeywordValue(resultLocale, "collation", errorCode);
+    appendSubtag(result, 'K', collation.data(), collation.length(), errorCode);
+    CharString language;
+    CharString script;
+    CharString region;
+    CharString variant;
+    ulocimp_getSubtags(resultLocale, &language, &script, &region, &variant, nullptr, errorCode);
+    if (language.isEmpty()) {
         appendSubtag(result, 'L', "root", 4, errorCode);
     } else {
-        appendSubtag(result, 'L', subtag, length, errorCode);
+        appendSubtag(result, 'L', language.data(), language.length(), errorCode);
     }
     if(attributeHasBeenSetExplicitly(UCOL_NORMALIZATION_MODE)) {
         appendAttribute(result, 'N', getAttribute(UCOL_NORMALIZATION_MODE, errorCode), errorCode);
     }
-    length = uloc_getCountry(resultLocale, subtag, UPRV_LENGTHOF(subtag), &errorCode);
-    appendSubtag(result, 'R', subtag, length, errorCode);
+    appendSubtag(result, 'R', region.data(), region.length(), errorCode);
     if(attributeHasBeenSetExplicitly(UCOL_STRENGTH)) {
         appendAttribute(result, 'S', getAttribute(UCOL_STRENGTH, errorCode), errorCode);
     }
-    length = uloc_getVariant(resultLocale, subtag, UPRV_LENGTHOF(subtag), &errorCode);
-    appendSubtag(result, 'V', subtag, length, errorCode);
-    length = uloc_getScript(resultLocale, subtag, UPRV_LENGTHOF(subtag), &errorCode);
-    appendSubtag(result, 'Z', subtag, length, errorCode);
+    appendSubtag(result, 'V', variant.data(), variant.length(), errorCode);
+    appendSubtag(result, 'Z', script.data(), script.length(), errorCode);
 
     if(U_FAILURE(errorCode)) { return 0; }
     return result.extract(buffer, capacity, errorCode);

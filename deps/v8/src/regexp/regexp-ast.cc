@@ -309,7 +309,7 @@ void* RegExpUnparser::VisitCapture(RegExpCapture* that, void* data) {
 }
 
 void* RegExpUnparser::VisitGroup(RegExpGroup* that, void* data) {
-  os_ << "(?: ";
+  os_ << "(?" << that->flags() << ": ";
   that->body()->Accept(this, data);
   os_ << ")";
   return nullptr;
@@ -327,7 +327,11 @@ void* RegExpUnparser::VisitLookaround(RegExpLookaround* that, void* data) {
 
 void* RegExpUnparser::VisitBackReference(RegExpBackReference* that,
                                          void* data) {
-  os_ << "(<- " << that->index() << ")";
+  os_ << "(<- " << that->captures()->first()->index();
+  for (int i = 1; i < that->captures()->length(); ++i) {
+    os_ << "," << that->captures()->at(i)->index();
+  }
+  os_ << ")";
   return nullptr;
 }
 

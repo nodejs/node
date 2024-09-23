@@ -379,13 +379,13 @@ Handle<HeapObject> RegExpBytecodeGenerator::GetCode(Handle<String> source) {
   Bind(&backtrack_);
   Backtrack();
 
-  Handle<ByteArray> array;
+  Handle<TrustedByteArray> array;
   if (v8_flags.regexp_peephole_optimization) {
     array = RegExpBytecodePeepholeOptimization::OptimizeBytecode(
         isolate_, zone(), source, buffer_.data(), length(), jump_edges_);
   } else {
-    array = isolate_->factory()->NewByteArray(length());
-    Copy(array->GetDataStartAddress());
+    array = isolate_->factory()->NewTrustedByteArray(length());
+    Copy(array->begin());
   }
 
   return array;

@@ -5,6 +5,8 @@
 #ifndef V8_COMPILER_JS_CALL_REDUCER_H_
 #define V8_COMPILER_JS_CALL_REDUCER_H_
 
+#include <optional>
+
 #include "src/base/flags.h"
 #include "src/compiler/globals.h"
 #include "src/compiler/graph-reducer.h"
@@ -139,6 +141,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceJSConstruct(Node* node);
   Reduction ReduceJSConstructWithArrayLike(Node* node);
   Reduction ReduceJSConstructWithSpread(Node* node);
+  Reduction ReduceJSConstructForwardAllArgs(Node* node);
   Reduction ReduceJSCall(Node* node);
   Reduction ReduceJSCall(Node* node, SharedFunctionInfoRef shared);
   Reduction ReduceJSCallWithArrayLike(Node* node);
@@ -146,6 +149,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceRegExpPrototypeTest(Node* node);
   Reduction ReduceReturnReceiver(Node* node);
 
+  Reduction ReduceStringConstructor(Node* node, JSFunctionRef constructor);
   enum class StringIndexOfIncludesVariant { kIncludes, kIndexOf };
   Reduction ReduceStringPrototypeIndexOfIncludes(
       Node* node, StringIndexOfIncludesVariant variant);
@@ -235,8 +239,13 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceBigIntConstructor(Node* node);
   Reduction ReduceBigIntAsN(Node* node, Builtin builtin);
 
-  base::Optional<Reduction> TryReduceJSCallMathMinMaxWithArrayLike(Node* node);
+  std::optional<Reduction> TryReduceJSCallMathMinMaxWithArrayLike(Node* node);
   Reduction ReduceJSCallMathMinMaxWithArrayLike(Node* node, Builtin builtin);
+
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+  Reduction ReduceGetContinuationPreservedEmbedderData(Node* node);
+  Reduction ReduceSetContinuationPreservedEmbedderData(Node* node);
+#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 
   // The pendant to ReplaceWithValue when using GraphAssembler-based reductions.
   Reduction ReplaceWithSubgraph(JSCallReducerAssembler* gasm, Node* subgraph);
@@ -266,6 +275,8 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
 
   // Check whether the given new target value is a constructor function.
   void CheckIfConstructor(Node* call);
+
+  Node* ConvertHoleToUndefined(Node* value, ElementsKind elements_kind);
 
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }

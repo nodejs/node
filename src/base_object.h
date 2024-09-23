@@ -84,6 +84,11 @@ class BaseObject : public MemoryRetainer {
   static inline BaseObject* FromJSObject(v8::Local<v8::Value> object);
   template <typename T>
   static inline T* FromJSObject(v8::Local<v8::Value> object);
+  // Global alias for FromJSObject() to avoid churn.
+  template <typename T>
+  static inline T* Unwrap(v8::Local<v8::Value> obj) {
+    return BaseObject::FromJSObject<T>(obj);
+  }
 
   // Make the `v8::Global` a weak reference and, `delete` this object once
   // the JS object has been garbage collected and there are no (strong)
@@ -111,12 +116,9 @@ class BaseObject : public MemoryRetainer {
 
   // Setter/Getter pair for internal fields that can be passed to SetAccessor.
   template <int Field>
-  static void InternalFieldGet(v8::Local<v8::String> property,
-                               const v8::PropertyCallbackInfo<v8::Value>& info);
+  static void InternalFieldGet(const v8::FunctionCallbackInfo<v8::Value>& args);
   template <int Field, bool (v8::Value::*typecheck)() const>
-  static void InternalFieldSet(v8::Local<v8::String> property,
-                               v8::Local<v8::Value> value,
-                               const v8::PropertyCallbackInfo<void>& info);
+  static void InternalFieldSet(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   // This is a bit of a hack. See the override in async_wrap.cc for details.
   virtual bool IsDoneInitializing() const;
@@ -236,12 +238,6 @@ class BaseObject : public MemoryRetainer {
   Realm* realm_;
   PointerData* pointer_data_ = nullptr;
 };
-
-// Global alias for FromJSObject() to avoid churn.
-template <typename T>
-inline T* Unwrap(v8::Local<v8::Value> obj) {
-  return BaseObject::FromJSObject<T>(obj);
-}
 
 #define ASSIGN_OR_RETURN_UNWRAP(ptr, obj, ...)                                 \
   do {                                                                         \

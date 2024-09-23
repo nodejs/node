@@ -6,6 +6,7 @@
 
 #include <cmath>
 #include <limits>
+#include <optional>
 
 #include "src/base/platform/platform.h"
 #include "src/common/globals.h"
@@ -36,7 +37,7 @@ enum class StartTracingMode {
 
 void StartTracing(GCTracer* tracer, GarbageCollector collector,
                   StartTracingMode mode,
-                  base::Optional<base::TimeTicks> time = {}) {
+                  std::optional<base::TimeTicks> time = {}) {
   DCHECK_IMPLIES(mode != StartTracingMode::kAtomic,
                  !Heap::IsYoungGenerationCollector(collector));
   // Start the cycle for incremental marking.
@@ -65,7 +66,7 @@ void StartTracing(GCTracer* tracer, GarbageCollector collector,
 }
 
 void StopTracing(GCTracer* tracer, GarbageCollector collector,
-                 base::Optional<base::TimeTicks> time = {}) {
+                 std::optional<base::TimeTicks> time = {}) {
   tracer->StopAtomicPause();
   tracer->StopObservablePause(collector, time.value_or(base::TimeTicks::Now()));
   switch (collector) {
@@ -325,15 +326,15 @@ TEST_F(GCTracerTest, IncrementalMarkingSpeed) {
   // 1000000 bytes in 100ms.
   tracer->AddIncrementalMarkingStep(100, 1000000);
   EXPECT_EQ(base::TimeDelta::FromMilliseconds(300),
-            tracer->incremental_marking_duration_);
-  EXPECT_EQ(3000000u, tracer->incremental_marking_bytes_);
+            tracer->current_.incremental_marking_duration);
+  EXPECT_EQ(3000000u, tracer->current_.incremental_marking_bytes);
   EXPECT_EQ(1000000 / 100,
             tracer->IncrementalMarkingSpeedInBytesPerMillisecond());
   // 1000000 bytes in 100ms.
   tracer->AddIncrementalMarkingStep(100, 1000000);
   EXPECT_EQ(base::TimeDelta::FromMilliseconds(400),
-            tracer->incremental_marking_duration_);
-  EXPECT_EQ(4000000u, tracer->incremental_marking_bytes_);
+            tracer->current_.incremental_marking_duration);
+  EXPECT_EQ(4000000u, tracer->current_.incremental_marking_bytes);
   StartTracing(tracer, GarbageCollector::MARK_COMPACTOR,
                StartTracingMode::kIncrementalEnterPause,
                base::TimeTicks::FromMsTicksForTesting(500));
@@ -342,8 +343,6 @@ TEST_F(GCTracerTest, IncrementalMarkingSpeed) {
   EXPECT_EQ(base::TimeDelta::FromMilliseconds(400),
             tracer->current_.incremental_marking_duration);
   EXPECT_EQ(4000000u, tracer->current_.incremental_marking_bytes);
-  EXPECT_TRUE(tracer->incremental_marking_duration_.IsZero());
-  EXPECT_EQ(0u, tracer->incremental_marking_bytes_);
   EXPECT_EQ(1000000 / 100,
             tracer->IncrementalMarkingSpeedInBytesPerMillisecond());
 

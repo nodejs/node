@@ -27,6 +27,7 @@ namespace compiler {
   V(Loong64St_d)                                           \
   V(Loong64LoadDecompressTaggedSigned)                     \
   V(Loong64LoadDecompressTagged)                           \
+  V(Loong64LoadDecompressProtected)                        \
   V(Loong64StoreCompressTagged)                            \
   V(Loong64Fld_s)                                          \
   V(Loong64Fst_s)                                          \
@@ -148,6 +149,7 @@ namespace compiler {
   V(Loong64Uint64ToFloat64)                          \
   V(Loong64Float64ExtractLowWord32)                  \
   V(Loong64Float64ExtractHighWord32)                 \
+  V(Loong64Float64FromWord32Pair)                    \
   V(Loong64Float64InsertLowWord32)                   \
   V(Loong64Float64InsertHighWord32)                  \
   V(Loong64BitcastDL)                                \
@@ -155,6 +157,7 @@ namespace compiler {
   V(Loong64Float64SilenceNaN)                        \
   V(Loong64LoadDecodeSandboxedPointer)               \
   V(Loong64StoreEncodeSandboxedPointer)              \
+  V(Loong64StoreIndirectPointer)                     \
   V(Loong64Push)                                     \
   V(Loong64Peek)                                     \
   V(Loong64Poke)                                     \

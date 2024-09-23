@@ -1119,9 +1119,9 @@ CollationBuilder::addWithClosure(const UnicodeString &nfdPrefix, const UnicodeSt
 // Please let us know if you have a reasonable use case that needed
 // for a practical Collation rule that needs to increase this limit.
 // This value is needed for compiling a rule with eight Hangul syllables such as
-// "&a=b쫊쫊쫊쫊쫊쫊쫊쫊" without error, which should be more than realistic
+// "&a=b쫊쫊쫊쫊쫊쫊쫊" without error, which should be more than realistic
 // usage.
-static constexpr int32_t kClosureLoopLimit = 6560;
+static constexpr int32_t kClosureLoopLimit = 3000;
 
 uint32_t
 CollationBuilder::addOnlyClosure(const UnicodeString &nfdPrefix, const UnicodeString &nfdString,

@@ -15,8 +15,6 @@ namespace v8 {
 class Isolate;
 template <class K, class V, class T>
 class PersistentValueMapBase;
-template <class V, class T>
-class PersistentValueVector;
 template <class T>
 class Global;
 template <class T>
@@ -44,7 +42,7 @@ V8_EXPORT void MoveGlobalReference(internal::Address** from,
  * isolate.
  */
 template <class T>
-class Eternal : public IndirectHandleBase {
+class Eternal : public api_internal::IndirectHandleBase {
  public:
   V8_INLINE Eternal() = default;
 
@@ -88,7 +86,7 @@ V8_EXPORT void MakeWeak(internal::Address* location, void* data,
  *
  */
 template <class T>
-class PersistentBase : public IndirectHandleBase {
+class PersistentBase : public api_internal::IndirectHandleBase {
  public:
   /**
    * If non-empty, destroy the underlying storage cell
@@ -204,8 +202,6 @@ class PersistentBase : public IndirectHandleBase {
   friend class ReturnValue;
   template <class F1, class F2, class F3>
   friend class PersistentValueMapBase;
-  template <class F1, class F2>
-  friend class PersistentValueVector;
   friend class Object;
   friend class internal::ValueHelper;
 
@@ -237,27 +233,14 @@ class NonCopyablePersistentTraits {
 };
 
 /**
- * Helper class traits to allow copying and assignment of Persistent.
- * This will clone the contents of storage cell, but not any of the flags, etc.
- */
-template <class T>
-struct CopyablePersistentTraits {
-  using CopyablePersistent = Persistent<T, CopyablePersistentTraits<T>>;
-  static const bool kResetInDestructor = true;
-  template <class S, class M>
-  static V8_INLINE void Copy(const Persistent<S, M>& source,
-                             CopyablePersistent* dest) {
-    // do nothing, just allow copy
-  }
-};
-
-/**
  * A PersistentBase which allows copy and assignment.
  *
  * Copy, assignment and destructor behavior is controlled by the traits
  * class M.
  *
- * Note: Persistent class hierarchy is subject to future changes.
+ * CAVEAT: Persistent objects do not have proper destruction behavior by default
+ * and as such will leak the object without explicit clear. Consider using
+ * `v8::Global` instead which has proper destruction and move semantics.
  */
 template <class T, class M>
 class Persistent : public PersistentBase<T> {

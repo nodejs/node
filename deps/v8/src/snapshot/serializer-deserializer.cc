@@ -4,6 +4,7 @@
 
 #include "src/snapshot/serializer-deserializer.h"
 
+#include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8 {
@@ -19,7 +20,10 @@ void IterateObjectCache(Isolate* isolate, std::vector<Tagged<Object>>* cache,
     // During deserialization, the visitor populates the object cache and
     // eventually terminates the cache with undefined.
     visitor->VisitRootPointer(root_id, nullptr, FullObjectSlot(&cache->at(i)));
-    if (IsUndefined(cache->at(i), isolate)) break;
+    // We may see objects in trusted space here (outside of the main pointer
+    // compression cage), so have to use SafeEquals.
+    Tagged<Object> undefined = ReadOnlyRoots(isolate).undefined_value();
+    if (cache->at(i).SafeEquals(undefined)) break;
   }
 }
 }  // namespace
@@ -57,12 +61,15 @@ bool SerializerDeserializer::CanBeDeferred(Tagged<HeapObject> o,
   //   identify the object.
   // * ByteArray cannot be deferred as JSTypedArray needs the base_pointer
   //   ByteArray immediately if it's on heap.
-  //
+  // * Non-empty EmbdderDataArrays cannot be deferred because the serialize
+  //   and deserialize callbacks need the back reference immediately to
+  //   identify the object.
   // TODO(leszeks): Could we defer string serialization if forward references
   // were resolved after object post processing?
   return !IsInternalizedString(o) &&
-         !(IsJSObject(o) && JSObject::cast(o)->GetEmbedderFieldCount() > 0) &&
-         !IsByteArray(o);
+         !(IsJSObject(o) && Cast<JSObject>(o)->GetEmbedderFieldCount() > 0) &&
+         !IsByteArray(o) &&
+         !(IsEmbedderDataArray(o) && Cast<EmbedderDataArray>(o)->length() > 0);
 }
 
 void SerializerDeserializer::RestoreExternalReferenceRedirector(
@@ -72,9 +79,9 @@ void SerializerDeserializer::RestoreExternalReferenceRedirector(
 }
 
 void SerializerDeserializer::RestoreExternalReferenceRedirector(
-    Isolate* isolate, Tagged<CallHandlerInfo> call_handler_info) {
+    Isolate* isolate, Tagged<FunctionTemplateInfo> function_template_info) {
   DisallowGarbageCollection no_gc;
-  call_handler_info->init_callback_redirection(isolate);
+  function_template_info->init_callback_redirection(isolate);
 }
 
 }  // namespace internal

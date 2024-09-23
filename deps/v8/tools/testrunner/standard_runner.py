@@ -51,7 +51,7 @@ VARIANT_ALIASES = {
     # Additional variants, run on a subset of bots.
     'extra': [
         'jitless', 'nooptimization', 'no_wasm_traps', 'instruction_scheduling',
-        'always_sparkplug', 'turboshaft'
+        'always_sparkplug_and_stress_regexp_jit', 'turboshaft'
     ],
 }
 
@@ -164,7 +164,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       self.options.extra_flags += RANDOM_GC_STRESS_FLAGS
 
     if self.build_config.asan:
-      self.options.extra_flags.append('--invoke-weak-callbacks')
+      self.options.extra_d8_flags.append('--invoke-weak-callbacks')
 
     if self.options.novfp3:
       self.options.extra_flags.append('--noenable-vfp3')
@@ -196,6 +196,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       self.options.extra_flags.append('--predictable')
       self.options.extra_flags.append('--verify-predictable')
       self.options.extra_flags.append('--no-inline-new')
+      self.options.extra_flags.append('--omit-quit')
       # Add predictable wrapper to command prefix.
       self.options.command_prefix = (
           [sys.executable, self._predictable_wrapper()] + self.options.command_prefix)

@@ -18,16 +18,17 @@
 
 #if !UCONFIG_NO_IDNA
 
+#include "unicode/bytestream.h"
 #include "unicode/idna.h"
 #include "unicode/normalizer2.h"
 #include "unicode/uscript.h"
 #include "unicode/ustring.h"
 #include "unicode/utf16.h"
+#include "bytesinkutil.h"
 #include "cmemory.h"
 #include "cstring.h"
 #include "punycode.h"
 #include "ubidi_props.h"
-#include "ustr_imp.h"
 
 // Note about tests for UIDNA_ERROR_DOMAIN_NAME_TOO_LONG:
 //
@@ -1425,11 +1426,14 @@ uidna_labelToASCII_UTF8(const UIDNA *idna,
         return 0;
     }
     StringPiece src(label, length<0 ? static_cast<int32_t>(uprv_strlen(label)) : length);
-    CheckedArrayByteSink sink(dest, capacity);
-    IDNAInfo info;
-    reinterpret_cast<const IDNA *>(idna)->labelToASCII_UTF8(src, sink, info, *pErrorCode);
-    idnaInfoToStruct(info, pInfo);
-    return u_terminateChars(dest, capacity, sink.NumberOfBytesAppended(), pErrorCode);
+    return ByteSinkUtil::viaByteSinkToTerminatedChars(
+        dest, capacity,
+        [&](ByteSink& sink, UErrorCode& status) {
+            IDNAInfo info;
+            reinterpret_cast<const IDNA *>(idna)->labelToASCII_UTF8(src, sink, info, status);
+            idnaInfoToStruct(info, pInfo);
+        },
+        *pErrorCode);
 }
 
 U_CAPI int32_t U_EXPORT2
@@ -1441,11 +1445,14 @@ uidna_labelToUnicodeUTF8(const UIDNA *idna,
         return 0;
     }
     StringPiece src(label, length<0 ? static_cast<int32_t>(uprv_strlen(label)) : length);
-    CheckedArrayByteSink sink(dest, capacity);
-    IDNAInfo info;
-    reinterpret_cast<const IDNA *>(idna)->labelToUnicodeUTF8(src, sink, info, *pErrorCode);
-    idnaInfoToStruct(info, pInfo);
-    return u_terminateChars(dest, capacity, sink.NumberOfBytesAppended(), pErrorCode);
+    return ByteSinkUtil::viaByteSinkToTerminatedChars(
+        dest, capacity,
+        [&](ByteSink& sink, UErrorCode& status) {
+            IDNAInfo info;
+            reinterpret_cast<const IDNA *>(idna)->labelToUnicodeUTF8(src, sink, info, status);
+            idnaInfoToStruct(info, pInfo);
+        },
+        *pErrorCode);
 }
 
 U_CAPI int32_t U_EXPORT2
@@ -1457,11 +1464,14 @@ uidna_nameToASCII_UTF8(const UIDNA *idna,
         return 0;
     }
     StringPiece src(name, length<0 ? static_cast<int32_t>(uprv_strlen(name)) : length);
-    CheckedArrayByteSink sink(dest, capacity);
-    IDNAInfo info;
-    reinterpret_cast<const IDNA *>(idna)->nameToASCII_UTF8(src, sink, info, *pErrorCode);
-    idnaInfoToStruct(info, pInfo);
-    return u_terminateChars(dest, capacity, sink.NumberOfBytesAppended(), pErrorCode);
+    return ByteSinkUtil::viaByteSinkToTerminatedChars(
+        dest, capacity,
+        [&](ByteSink& sink, UErrorCode& status) {
+            IDNAInfo info;
+            reinterpret_cast<const IDNA *>(idna)->nameToASCII_UTF8(src, sink, info, status);
+            idnaInfoToStruct(info, pInfo);
+        },
+        *pErrorCode);
 }
 
 U_CAPI int32_t U_EXPORT2
@@ -1473,11 +1483,14 @@ uidna_nameToUnicodeUTF8(const UIDNA *idna,
         return 0;
     }
     StringPiece src(name, length<0 ? static_cast<int32_t>(uprv_strlen(name)) : length);
-    CheckedArrayByteSink sink(dest, capacity);
-    IDNAInfo info;
-    reinterpret_cast<const IDNA *>(idna)->nameToUnicodeUTF8(src, sink, info, *pErrorCode);
-    idnaInfoToStruct(info, pInfo);
-    return u_terminateChars(dest, capacity, sink.NumberOfBytesAppended(), pErrorCode);
+    return ByteSinkUtil::viaByteSinkToTerminatedChars(
+        dest, capacity,
+        [&](ByteSink& sink, UErrorCode& status) {
+            IDNAInfo info;
+            reinterpret_cast<const IDNA *>(idna)->nameToUnicodeUTF8(src, sink, info, status);
+            idnaInfoToStruct(info, pInfo);
+        },
+        *pErrorCode);
 }
 
 #endif  // UCONFIG_NO_IDNA
