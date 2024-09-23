@@ -20,12 +20,10 @@ repl.start({
 let output = '';
 outputStream.write = (chunk) => output += chunk;
 
-const testChars = ['\\n', '\\v', '\\r'];
-
-for (const test of testChars) {
-  inputStream.emit('data', `"${test}"()`);
+for (const testChar of '\n\v\r') {
+  inputStream.emit('data', `${JSON.stringify(testChar)}()`);
   // Make sure the output is on a single line
-  assert.strictEqual(output, `"${test}"()\n\x1B[90mTypeError: "\x1B[39m\x1B[9G\x1B[1A`);
+  assert.strictEqual(output, `${JSON.stringify(testChar)}()\n\x1B[90mTypeError: "\x1B[39m\x1B[9G\x1B[1A`);
   inputStream.run(['']);
   output = '';
 }
