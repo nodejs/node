@@ -6,6 +6,7 @@ const { readdirSync } = require('node:fs');
 const { test } = require('node:test');
 const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
+const { pathToFileURL } = require('node:url');
 const skipIfNoInspector = {
   skip: !process.features.inspector ? 'inspector disabled' : false
 };
@@ -317,6 +318,20 @@ test('coverage with source maps', skipIfNoInspector, () => {
 
   assert.strictEqual(result.stderr.toString(), '');
   assert(result.stdout.toString().includes(report));
+  assert.strictEqual(result.status, 1);
+});
+
+test('coverage with source maps missing sources', skipIfNoInspector, () => {
+  const file = fixtures.path('test-runner', 'source-map-missing-sources', 'index.js');
+  const missing = fixtures.path('test-runner', 'source-map-missing-sources', 'nonexistent.js');
+  const result = spawnSync(process.execPath, [
+    '--test',
+    '--experimental-test-coverage',
+    file,
+  ]);
+
+  const error = `Cannot find '${pathToFileURL(missing)}' imported from the source map for '${pathToFileURL(file)}'`;
+  assert(result.stdout.toString().includes(error));
   assert.strictEqual(result.status, 1);
 });
 
