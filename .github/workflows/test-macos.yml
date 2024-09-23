@@ -68,7 +68,7 @@ jobs:
       # happen anymore running this step here first, that's also useful
       # information.)
       - name: tools/doc/node_modules workaround
-        run: make tools/doc/node_modules
+        run: make -C node tools/doc/node_modules
       # This is needed due to https://github.com/nodejs/build/issues/3878
       - name: Cleanup
         run: |
@@ -89,3 +89,10 @@ jobs:
         run: df -h
       - name: Test
         run: make run-ci -j$(getconf _NPROCESSORS_ONLN) V=1 TEST_CI_ARGS="-p actions --node-args='--test-reporter=spec' --node-args='--test-reporter-destination=stdout' --measure-flakiness 9"
+      - name: Re-run test in a folder whose name contains unusual chars
+        run: |
+          mv node "$DIR"
+          cd "$DIR"
+          ./tools/test.py --flaky-tests keep_retrying -p actions -j 4
+        env:
+          DIR: "dir%20with unusual\"chars 'åß∂ƒ©∆¬…`"
