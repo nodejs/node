@@ -3,6 +3,8 @@ const common = require('../common');
 const assert = require('assert');
 const { describe, it } = require('node:test');
 
+// We're specifically testing APIs here that trigger the no-restricted-syntax
+// lint rule so let's disable it.
 /* eslint-disable no-restricted-syntax */
 
 // Thenable object without `catch` method,
@@ -42,7 +44,7 @@ describe('assert.rejects()', () => {
     message: 'Failed'
   };
 
-  it('assert.rejects() accepts a function, promise, or thenable as first argument', async () => {
+  it('accepts a function, promise, or thenable as first argument', async () => {
     await assert.rejects(rejectingFn, errObj);
     await assert.rejects(rejectingFn(), errObj);
     await assert.rejects(validRejectingThenable, { code: 'FAIL' });
