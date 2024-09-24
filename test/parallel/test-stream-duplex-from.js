@@ -508,6 +508,48 @@ function makeATestWritableStream(writeFunc) {
 }
 
 {
+  const r = Readable.from(['foo', 'bar', 'baz']);
+  const d = Duplex.from(async function(asyncGenerator) {
+    while (!(await asyncGenerator.next()).done) await sleep(100);
+  });
+
+  setTimeout(() => d.destroy(), 150);
+
+  pipeline(
+    r,
+    d,
+    common.mustCall((err) => {
+      assert.strictEqual(err.code, 'ERR_STREAM_PREMATURE_CLOSE');
+      assert.strictEqual(r.destroyed, true);
+    })
+  );
+}
+
+{
+  const r = Duplex.from(async function* () {
+    for (const value of ['foo', 'bar', 'baz']) {
+      await sleep(50);
+      yield value;
+    }
+  });
+  const d = Duplex.from(async function(asyncGenerator) {
+    while (!(await asyncGenerator.next()).done);
+  });
+
+  setTimeout(() => r.destroy(), 75);
+
+  pipeline(
+    r,
+    d,
+    common.mustCall((err) => {
+      assert.strictEqual(err.code, 'ERR_STREAM_PREMATURE_CLOSE');
+      assert.strictEqual(r.destroyed, true);
+      assert.strictEqual(d.destroyed, true);
+    })
+  );
+}
+
+{
   const r = Readable.from(['foo']);
   pipeline(
     r,
@@ -531,6 +573,21 @@ function makeATestWritableStream(writeFunc) {
     }),
     common.mustCall((err) => {
       assert.strictEqual(err.message, 'my error');
+      assert.strictEqual(r.destroyed, true);
+    })
+  );
+}
+
+{
+  const r = Readable.from(['foo', 'bar']);
+  pipeline(
+    r,
+    Duplex.from(async function(asyncGenerator) {
+      await asyncGenerator.next();
+      await asyncGenerator.throw();
+    }),
+    common.mustCall((err) => {
+      assert.strictEqual(err.code, 'ABORT_ERR');
       assert.strictEqual(r.destroyed, true);
     })
   );
