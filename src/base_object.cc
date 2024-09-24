@@ -1,5 +1,6 @@
 #include "base_object.h"
 #include "env-inl.h"
+#include "memory_tracker-inl.h"
 #include "node_messaging.h"
 #include "node_realm-inl.h"
 
@@ -23,13 +24,11 @@ BaseObject::BaseObject(Realm* realm, Local<Object> object)
   CHECK_EQ(false, object.IsEmpty());
   CHECK_GE(object->InternalFieldCount(), BaseObject::kInternalFieldCount);
   SetInternalFields(realm->isolate_data(), object, static_cast<void*>(this));
-  realm->AddCleanupHook(DeleteMe, static_cast<void*>(this));
-  realm->modify_base_object_count(1);
+  realm->TrackBaseObject(this);
 }
 
 BaseObject::~BaseObject() {
-  realm()->modify_base_object_count(-1);
-  realm()->RemoveCleanupHook(DeleteMe, static_cast<void*>(this));
+  realm()->UntrackBaseObject(this);
 
   if (UNLIKELY(has_pointer_data())) {
     PointerData* metadata = pointer_data();
@@ -146,12 +145,11 @@ void BaseObject::increase_refcount() {
     persistent_handle_.ClearWeak();
 }
 
-void BaseObject::DeleteMe(void* data) {
-  BaseObject* self = static_cast<BaseObject*>(data);
-  if (self->has_pointer_data() && self->pointer_data()->strong_ptr_count > 0) {
-    return self->Detach();
+void BaseObject::DeleteMe() {
+  if (has_pointer_data() && pointer_data()->strong_ptr_count > 0) {
+    return Detach();
   }
-  delete self;
+  delete this;
 }
 
 bool BaseObject::IsDoneInitializing() const {
@@ -168,6 +166,19 @@ bool BaseObject::IsRootNode() const {
 
 bool BaseObject::IsNotIndicativeOfMemoryLeakAtExit() const {
   return IsWeakOrDetached();
+}
+
+void BaseObjectList::Cleanup() {
+  while (!IsEmpty()) {
+    BaseObject* bo = PopFront();
+    bo->DeleteMe();
+  }
+}
+
+void BaseObjectList::MemoryInfo(node::MemoryTracker* tracker) const {
+  for (auto bo : *this) {
+    if (bo->IsDoneInitializing()) tracker->Track(bo);
+  }
 }
 
 }  // namespace node

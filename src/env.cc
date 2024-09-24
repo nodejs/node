@@ -1279,7 +1279,7 @@ void Environment::RunCleanup() {
     cleanable->Clean();
   }
 
-  while (!cleanup_queue_.empty() || principal_realm_->HasCleanupHooks() ||
+  while (!cleanup_queue_.empty() || principal_realm_->PendingCleanup() ||
          native_immediates_.size() > 0 ||
          native_immediates_threadsafe_.size() > 0 ||
          native_immediates_interrupts_.size() > 0) {
