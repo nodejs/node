@@ -2177,19 +2177,19 @@
 
     _proto.getNextSafeSlug = function getNextSafeSlug(originalSlug, isDryRun) {
       var slug = originalSlug;
-      var occurrenceAccumulator = 0;
+      var occurenceAccumulator = 0;
 
       if (this.seen.hasOwnProperty(slug)) {
-        occurrenceAccumulator = this.seen[originalSlug];
+        occurenceAccumulator = this.seen[originalSlug];
 
         do {
-          occurrenceAccumulator++;
-          slug = originalSlug + '-' + occurrenceAccumulator;
+          occurenceAccumulator++;
+          slug = originalSlug + '-' + occurenceAccumulator;
         } while (this.seen.hasOwnProperty(slug));
       }
 
       if (!isDryRun) {
-        this.seen[originalSlug] = occurrenceAccumulator;
+        this.seen[originalSlug] = occurenceAccumulator;
         this.seen[slug] = 0;
       }
 

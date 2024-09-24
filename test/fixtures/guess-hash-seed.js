@@ -81,7 +81,7 @@ function time_set_lookup(set, value) {
 // Set with 256 buckets; bucket 0 full, others empty
 const tester_set_buckets = 256;
 const tester_set = new Set();
-let tester_set_threshold;
+let tester_set_treshold;
 (function() {
   // fill bucket 0 and find extra numbers mapping to bucket 0 and a different
   // bucket `capacity == numBuckets * 2`
@@ -114,9 +114,9 @@ let tester_set_threshold;
   const neg_time =
     Math.min(...run_repeated(10000, time_set_lookup.bind(null, tester_set,
                                                          negative_test_value)));
-  tester_set_threshold = (pos_time + neg_time) / 2;
+  tester_set_treshold = (pos_time + neg_time) / 2;
   // console.log(`pos_time: ${pos_time}, neg_time: ${neg_time},`,
-  //             `threshold: ${tester_set_threshold}`);
+  //             `threshold: ${tester_set_treshold}`);
 })();
 
 // determine hash seed
@@ -126,7 +126,7 @@ const slow_str_gen = (function*() {
   while (1) {
     const str = `#${strgen_i++}`;
     for (let i = 0; i < 1000; i++) {
-      if (time_set_lookup(tester_set, str) < tester_set_threshold)
+      if (time_set_lookup(tester_set, str) < tester_set_treshold)
         continue outer;
     }
     yield str;

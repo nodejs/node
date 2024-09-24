@@ -280,7 +280,7 @@ Taking the spec JSON, the generator follows this algorithm:
 
 * Expand all ```excluded_tests``` to create a denylist of selections
 
-* For each `specification` entries: Expand the ```test_expansion``` pattern into selections and check each against the denylist, if not marked as suppressed, generate the test resources for the selection
+* For each `specification` entries: Expand the ```test_expansion``` pattern into selections and check each against the denylist, if not marked as suppresed, generate the test resources for the selection
 
 ###  SourceContext Resolution
 

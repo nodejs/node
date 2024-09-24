@@ -9,15 +9,15 @@ tmpdir.refresh();
 
 const expected = 'ümlaut. Лорем 運務ホソモ指及 आपको करने विकास 紙読決多密所 أضف';
 
-const expectedBuff = Buffer.from(expected);
-const expectedLength = expectedBuff.length;
+const exptectedBuff = Buffer.from(expected);
+const expectedLength = exptectedBuff.length;
 
 const filename = tmpdir.resolve('readv_sync.txt');
-fs.writeFileSync(filename, expectedBuff);
+fs.writeFileSync(filename, exptectedBuff);
 
 const allocateEmptyBuffers = (combinedLength) => {
   const bufferArr = [];
-  // Allocate two buffers, each half the size of expectedBuff
+  // Allocate two buffers, each half the size of exptectedBuff
   bufferArr[0] = Buffer.alloc(Math.floor(combinedLength / 2));
   bufferArr[1] = Buffer.alloc(combinedLength - bufferArr[0].length);
 
@@ -28,7 +28,7 @@ const allocateEmptyBuffers = (combinedLength) => {
 {
   const fd = fs.openSync(filename, 'r');
 
-  const bufferArr = allocateEmptyBuffers(expectedBuff.length);
+  const bufferArr = allocateEmptyBuffers(exptectedBuff.length);
 
   let read = fs.readvSync(fd, [Buffer.from('')], 0);
   assert.strictEqual(read, 0);
@@ -45,7 +45,7 @@ const allocateEmptyBuffers = (combinedLength) => {
 {
   const fd = fs.openSync(filename, 'r');
 
-  const bufferArr = allocateEmptyBuffers(expectedBuff.length);
+  const bufferArr = allocateEmptyBuffers(exptectedBuff.length);
 
   let read = fs.readvSync(fd, [Buffer.from('')]);
   assert.strictEqual(read, 0);
