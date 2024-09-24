@@ -39,9 +39,13 @@ for example, they may not trigger garbage collection.
   conditions are checked, because otherwise executing the slow callback might
   produce visible side effects twice.
 * If the receiver is used in the callback it must be passed as a second argument
-  leaving the first one unused.
+  leaving the first one unused, to prevent the JS land from accidentally omitting the receiver when
+  invoking the fast API method.
 
   ```cpp
+  // Instead of invoking the method as `receiver.internalModuleStat(input)`, the JS land should
+  // invoke it as `internalModuleStat(binding, input)` to make sure the binding is available to
+  // the native land.
   static int32_t FastInternalModuleStat(
       Local<Object> unused,
       Local<Object> recv,
