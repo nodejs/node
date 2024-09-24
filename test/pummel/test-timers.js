@@ -36,7 +36,7 @@ const WINDOW = 200; // Why does this need to be so big?
     assert.ok(diff > 0);
     console.error(`diff: ${diff}`);
 
-    assert.ok(Math.abs(diff - 1000) < WINDOW && diff < 1000 + WINDOW);
+    assert.ok(Math.abs(diff - 1000) < WINDOW);
   }), 1000);
 }
 
