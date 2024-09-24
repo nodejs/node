@@ -22,19 +22,15 @@ validateSnapshotNodes('Node / Environment', [{
 }]);
 
 validateSnapshotNodes('Node / CleanupQueue', [
-  // The first one is the cleanup_queue of the Environment.
+  // The cleanup_queue of the Environment.
   {},
-  // The second one is the cleanup_queue of the principal realm.
-  {
-    children: [
-      { node_name: 'Node / ContextifyScript' },
-    ],
-  },
+  // No other CleanupQueues in the snapshot.
 ]);
 
 validateSnapshotNodes('Node / PrincipalRealm', [{
   children: [
     { node_name: 'process', edge_name: 'process_object' },
+    { node_name: 'Node / BaseObjectList', edge_name: 'base_object_list' },
   ],
 }]);
 
