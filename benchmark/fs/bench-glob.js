@@ -9,7 +9,7 @@ const benchmarkDirectory = path.resolve(__dirname, '..', '..');
 
 const configs = {
   n: [1e3],
-  dir: ['lib', 'test/parallel', 'benchmark'],
+  dir: ['lib'],
   pattern: ['**/*', '*.js', '**/**.js'],
   mode: ['async', 'sync'],
   recursive: ['true', 'false'],
