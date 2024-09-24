@@ -5,6 +5,7 @@
 
 #include "debug_utils.h"
 #include "env.h"
+#include "util-inl.h"
 
 #include <type_traits>
 
