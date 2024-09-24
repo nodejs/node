@@ -49,7 +49,7 @@ const fixturePaths = Object.fromEntries(Object.keys(fixtureContent)
 
 async function setupFixtures() {
   return Promise.all(Object.entries(fixtureContent)
-    .map(([file, content]) => writeFile(fixturePaths[file], content)));
+    .map(([file, content]) => writeFile(fixturePaths[file], content, { flush: true })));
 }
 
 await setupFixtures();
@@ -86,7 +86,7 @@ describe('test runner watch mode with more complex setup', () => {
 
     const content = fixtureContent['dependency.mjs'];
     const path = fixturePaths['dependency.mjs'];
-    await writeFile(path, content);
+    await writeFile(path, content, { flush: true });
     await setTimeout(common.platformTimeout(1000));
     await ran2.promise;
     runs.push(currentRun);
