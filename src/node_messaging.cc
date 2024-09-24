@@ -43,7 +43,7 @@ using v8::WasmModuleObject;
 
 namespace node {
 
-using BaseObjectList = std::vector<BaseObjectPtr<BaseObject>>;
+using BaseObjectPtrList = std::vector<BaseObjectPtr<BaseObject>>;
 using TransferMode = BaseObject::TransferMode;
 
 // Hack to have WriteHostObject inform ReadHostObject that the value
@@ -1361,8 +1361,7 @@ std::unique_ptr<TransferData> JSTransferable::TransferOrClone() const {
                                 Global<Value>(env()->isolate(), data));
 }
 
-Maybe<BaseObjectList>
-JSTransferable::NestedTransferables() const {
+Maybe<BaseObjectPtrList> JSTransferable::NestedTransferables() const {
   // Call `this[kTransferList]()` and return the resulting list of BaseObjects.
   HandleScope handle_scope(env()->isolate());
   Local<Context> context = env()->isolate()->GetCurrentContext();
@@ -1370,24 +1369,24 @@ JSTransferable::NestedTransferables() const {
 
   Local<Value> method;
   if (!target()->Get(context, method_name).ToLocal(&method)) {
-    return Nothing<BaseObjectList>();
+    return Nothing<BaseObjectPtrList>();
   }
-  if (!method->IsFunction()) return Just(BaseObjectList {});
+  if (!method->IsFunction()) return Just(BaseObjectPtrList{});
 
   Local<Value> list_v;
   if (!method.As<Function>()
            ->Call(context, target(), 0, nullptr)
            .ToLocal(&list_v)) {
-    return Nothing<BaseObjectList>();
+    return Nothing<BaseObjectPtrList>();
   }
-  if (!list_v->IsArray()) return Just(BaseObjectList {});
+  if (!list_v->IsArray()) return Just(BaseObjectPtrList{});
   Local<Array> list = list_v.As<Array>();
 
-  BaseObjectList ret;
+  BaseObjectPtrList ret;
   for (size_t i = 0; i < list->Length(); i++) {
     Local<Value> value;
     if (!list->Get(context, i).ToLocal(&value))
-      return Nothing<BaseObjectList>();
+      return Nothing<BaseObjectPtrList>();
     if (!value->IsObject()) {
       continue;
     }
