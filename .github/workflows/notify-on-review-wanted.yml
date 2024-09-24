@@ -11,18 +11,22 @@ permissions:
 jobs:
   notifyOnReviewWanted:
     name: Notify on Review Wanted
-    if: github.repository == 'nodejs/node'
+    if: github.repository == 'nodejs/node' && github.event.label == 'review wanted'
     runs-on: ubuntu-latest
     steps:
       - name: Determine PR or Issue
-        id: check_pr_or_issue
+        id: define-message
         run: |
           if [[ -n "${{ github.event.pull_request.number }}" ]]; then
-            echo "::set-output name=type::pull_request"
-            echo "::set-output name=number::${{ github.event.pull_request.number }}"
+            number="${{ github.event.pull_request.number }}"
+            link="https://github.com/${{ github.repository }}/pull/$number"
+            echo "message=The PR (#$number) requires review from Node.js maintainers. See: $link" >> "$GITHUB_OUTPUT"
+            echo "title=${{ github.actor }} asks for attention on pull request #$number" >> "$GITHUB_OUTPUT"
           else
-            echo "::set-output name=type::issue"
-            echo "::set-output name=number::${{ github.event.issue.number }}"
+            number="${{ github.event.issue.number }}"
+            link="https://github.com/${{ github.repository }}/issues/$number"
+            echo "message=The issue (#$number) requires review from Node.js maintainers. See: $link" >> "$GITHUB_OUTPUT"
+            echo "title=${{ github.actor }} asks for attention on issue #$number" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Slack Notification
@@ -30,8 +34,7 @@ jobs:
         env:
           SLACK_COLOR: '#DE512A'
           SLACK_ICON: https://github.com/nodejs.png?size=48
-          SLACK_TITLE: ${{ github.actor }} asks for review on ${{ steps.check_pr_or_issue.outputs.type == 'pull_request' && 'PR' || 'Issue' }} #${{ steps.check_pr_or_issue.outputs.number }}
-          SLACK_MESSAGE: |
-            This ${{ steps.check_pr_or_issue.outputs.type == 'pull_request' && 'PR' || 'Issue' }} requires review from Node.js maintainers <https://github.com/${{ github.repository }}/pull/${{ steps.check_pr_or_issue.outputs.number }}|#${{ steps.check_pr_or_issue.outputs.number }}> by <https://github.com/${{ github.actor }}|${{ github.actor }}>
+          SLACK_TITLE:  ${{ steps.define-message.outputs.title }}
+          SLACK_MESSAGE: ${{ steps.define-message.outputs.message }}
           SLACK_USERNAME: nodejs-bot
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
