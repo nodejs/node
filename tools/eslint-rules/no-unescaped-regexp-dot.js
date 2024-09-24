@@ -93,8 +93,7 @@ module.exports = {
     }
 
     function checkLiteral(node) {
-      const isTemplate = (node.type === 'TemplateLiteral' && node.quasis &&
-                        node.quasis.length);
+      const isTemplate = (node.type === 'TemplateLiteral' && node.quasis?.length);
       if (inRegExp &&
         (isTemplate || (typeof node.value === 'string' && node.value.length))) {
         let p = node.parent;
@@ -108,7 +107,7 @@ module.exports = {
             const quasis = node.quasis;
             for (let i = 0; i < quasis.length; ++i) {
               const el = quasis[i];
-              if (el.type === 'TemplateElement' && el.value && el.value.cooked)
+              if (el.type === 'TemplateElement' && el.value?.cooked)
                 regexpBuffer.push([el, el.value.cooked]);
             }
           } else {

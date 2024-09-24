@@ -92,7 +92,7 @@ function createTestCmdLine(options) {
 
   testCmd += `"${process.argv[0]}"`;
 
-  if (options && options.withAbortOnUncaughtException) {
+  if (options?.withAbortOnUncaughtException) {
     testCmd += ' --abort-on-uncaught-exception';
   }
 
