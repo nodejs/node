@@ -44,7 +44,7 @@ server.listen(0, common.mustCall(function() {
     // end event will not be sent and the test will hang.
     // For example, when compiled with OpenSSL32 we see the
     // following response '15 03 03 00 02 02 16' which
-    // decodes as a fatal (0x02) TLS error alert number 22 (0x16).
+    // decodes as a fatal (0x02) TLS error alert number 22 (0x16),
     // which corresponds to TLS1_AD_RECORD_OVERFLOW which matches
     // the error we see if NODE_DEBUG is turned on.
     // Some earlier OpenSSL versions did not seem to send a response
