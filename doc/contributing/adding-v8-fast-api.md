@@ -38,7 +38,7 @@ for example, they may not trigger garbage collection.
 * The fast callback must be idempotent up to the point where error and fallback
   conditions are checked, because otherwise executing the slow callback might
   produce visible side effects twice.
-* If the receiver is used in the callback it must be passed as a second argument
+* If the receiver is used in the callback, it must be passed as a second argument,
   leaving the first one unused, to prevent the JS land from accidentally omitting the receiver when
   invoking the fast API method.
 
