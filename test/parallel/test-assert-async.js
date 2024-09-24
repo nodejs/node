@@ -56,7 +56,7 @@ describe('assert.rejects()', () => {
     });
   });
 
-  it('The validate validation function is expected to return "true"', async () => {
+  it('the validate validation function is expected to return "true"', async () => {
     const err = new Error('foobar');
     const validate = () => { return 'baz'; };
     await assert.rejects(
@@ -74,8 +74,7 @@ describe('assert.rejects()', () => {
     );
   });
 
-  it('assert.rejects() accepts a function as the second argument', async () => {
-
+  it('accepts a function as the second argument', async () => {
     const handler = (err) => {
       assert(err instanceof assert.AssertionError,
              `${err.name} is not instance of AssertionError`);
@@ -102,7 +101,7 @@ describe('assert.rejects()', () => {
 
   });
 
-  it('assert.rejects() rejects with the error thrown by the function', async () => {
+  it('rejects with the error thrown by the function', async () => {
     const THROWN_ERROR = new Error();
 
     await assert.rejects(() => {
@@ -112,7 +111,7 @@ describe('assert.rejects()', () => {
     }));
   });
 
-  it('assert.rejects() argument must be a function or a promise', async () => {
+  it('argument must be a function or a promise', async () => {
     await assert.rejects(assert.rejects('fail', {}), {
       code: 'ERR_INVALID_ARG_TYPE',
       message: 'The "promiseFn" argument must be of type function or an ' +
@@ -120,7 +119,7 @@ describe('assert.rejects()', () => {
     });
   });
 
-  it('uses generatedMessage appropriate', async () => {
+  it('uses generatedMessage appropriately', async () => {
     const handler = (generated, actual, err) => {
       assert.strictEqual(err.generatedMessage, generated);
       assert.strictEqual(err.code, 'ERR_ASSERTION');
