@@ -1536,17 +1536,22 @@ cpplint: lint-cpp
 # Try with '--system' if it fails without; the system may have set '--user'
 lint-py-build:
 	$(info Pip installing ruff on $(shell $(PYTHON) --version)...)
-	$(PYTHON) -m pip install --upgrade --target tools/pip/site-packages ruff==0.5.2 || \
-		$(PYTHON) -m pip install --upgrade --system --target tools/pip/site-packages ruff==0.5.2
+	$(PYTHON) -m pip install --upgrade --target tools/pip/site-packages ruff==0.6.5 || \
+		$(PYTHON) -m pip install --upgrade --system --target tools/pip/site-packages ruff==0.6.5
 
-.PHONY: lint-py
+.PHONY: lint-py lint-py-fix lint-py-fix-unsafe
 ifneq ("","$(wildcard tools/pip/site-packages/ruff)")
 # Lint the Python code with ruff.
 lint-py:
 	$(info Running Python linter...)
 	tools/pip/site-packages/bin/ruff check .
+lint-py-fix:
+	tools/pip/site-packages/bin/ruff check . --fix
+
+lint-py-fix-unsafe:
+	tools/pip/site-packages/bin/ruff check . --fix --unsafe-fixes
 else
-lint-py:
+lint-py lint-py-fix lint-py-fix-unsafe:
 	$(warning Python linting with ruff is not available)
 	$(warning Run 'make lint-py-build')
 endif
@@ -1604,6 +1609,7 @@ lint-clean:
 	$(RM) tools/.*lintstamp
 	$(RM) .eslintcache
 	$(RM) -r tools/eslint/node_modules
+	$(RM) tools/pip/site_packages
 
 HAS_DOCKER ?= $(shell command -v docker > /dev/null 2>&1; [ $$? -eq 0 ] && echo 1 || echo 0)
 
