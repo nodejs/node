@@ -16,6 +16,20 @@ assert.strictEqual(structuredClone(undefined, null), undefined);
 assert.strictEqual(structuredClone(undefined, { transfer: null }), undefined);
 assert.strictEqual(structuredClone(undefined, { }), undefined);
 
+// Transferables or its subclasses should be received with its closest transferable superclass
+for (const StreamClass of [ReadableStream, WritableStream, TransformStream]) {
+  const original = new StreamClass();
+  const transfer = structuredClone(original, { transfer: [original] });
+  assert.strictEqual(Object.getPrototypeOf(transfer), StreamClass.prototype);
+  assert.ok(transfer instanceof StreamClass);
+
+  const extended = class extends StreamClass {};
+  const extendedOriginal = new extended();
+  const extendedTransfer = structuredClone(extendedOriginal, { transfer: [extendedOriginal] });
+  assert.strictEqual(Object.getPrototypeOf(extendedTransfer), StreamClass.prototype);
+  assert.ok(extendedTransfer instanceof StreamClass);
+}
+
 {
   // See: https://github.com/nodejs/node/issues/49940
   const cloned = structuredClone({}, {
