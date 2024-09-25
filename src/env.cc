@@ -1252,9 +1252,11 @@ void Environment::PrintSyncTrace() const {
 
   fprintf(
       stderr, "(node:%d) WARNING: Detected use of sync API\n", uv_os_getpid());
-  PrintStackTrace(isolate(),
-                  StackTrace::CurrentStackTrace(
-                      isolate(), stack_trace_limit(), StackTrace::kDetailed));
+  PrintStackTrace(
+      isolate(),
+      StackTrace::CurrentStackTrace(isolate(),
+                                    static_cast<int>(stack_trace_limit()),
+                                    StackTrace::kDetailed));
 }
 
 MaybeLocal<Value> Environment::RunSnapshotSerializeCallback() const {
@@ -1856,9 +1858,11 @@ void Environment::Exit(ExitCode exit_code) {
     fprintf(stderr,
             "WARNING: Exited the environment with code %d\n",
             static_cast<int>(exit_code));
-    PrintStackTrace(isolate(),
-                    StackTrace::CurrentStackTrace(
-                        isolate(), stack_trace_limit(), StackTrace::kDetailed));
+    PrintStackTrace(
+        isolate(),
+        StackTrace::CurrentStackTrace(isolate(),
+                                      static_cast<int>(stack_trace_limit()),
+                                      StackTrace::kDetailed));
   }
   process_exit_handler_(this, exit_code);
 }

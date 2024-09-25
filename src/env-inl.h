@@ -458,6 +458,10 @@ inline double Environment::get_default_trigger_async_id() {
   return default_trigger_async_id;
 }
 
+inline int64_t Environment::stack_trace_limit() const {
+  return isolate_data_->options()->stack_trace_limit;
+}
+
 inline std::shared_ptr<EnvironmentOptions> Environment::options() {
   return options_;
 }
