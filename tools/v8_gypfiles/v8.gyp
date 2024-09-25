@@ -617,6 +617,11 @@
           '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?sources = ")',
         ],
         'conditions': [
+          ['v8_enable_maglev==0', {
+            'sources': [
+              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?!v8_enable_maglev.*?sources \\+= ")',
+            ],
+          }],
           ['v8_enable_snapshot_compression==1', {
             'sources': [
               '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_enable_snapshot_compression.*?sources \\+= ")',
@@ -927,7 +932,6 @@
         'v8_base_without_compiler',
         'v8_libbase',
         'v8_shared_internal_headers',
-        'v8_turboshaft',
         'v8_pch',
         'fp16',
         'abseil.gyp:abseil',
@@ -940,40 +944,6 @@
         }],
       ],
     },  # v8_compiler
-    {
-      'target_name': 'v8_turboshaft',
-      'type': 'static_library',
-      'toolsets': ['host', 'target'],
-      'dependencies': [
-        'generate_bytecode_builtins_list',
-        'run_torque',
-        'v8_internal_headers',
-        'v8_maybe_icu',
-        'v8_base_without_compiler',
-        'v8_libbase',
-        'v8_shared_internal_headers',
-        'v8_pch',
-        'fp16',
-        'abseil.gyp:abseil',
-      ],
-      'sources': [
-        '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_source_set.\\"v8_turboshaft.*?sources = ")',
-      ],
-      'conditions': [
-        ['v8_enable_maglev==0', {
-          'sources': [
-            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_source_set.\\"v8_turboshaft.*?!v8_enable_maglev.*?sources \\+= ")',
-          ],
-        }],
-      ],
-      'msvs_settings': {
-        'VCCLCompilerTool': {
-          'AdditionalOptions': [
-            '/bigobj'
-          ],
-        },
-      },
-    },  # v8_turboshaft
     {
       'target_name': 'v8_compiler_for_mksnapshot',
       'type': 'none',
@@ -1127,7 +1097,6 @@
         ['v8_enable_webassembly==1', {
           'sources': [
             '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_enable_webassembly.*?sources \\+= ")',
-            '<(V8_ROOT)/src/wasm/fuzzing/random-module-generation.cc',
           ],
         }],
         ['v8_enable_heap_snapshot_verify==1', {
@@ -1336,13 +1305,6 @@
       'dependencies': [
         'v8_base_without_compiler',
         'v8_compiler',
-      ],
-      'conditions': [
-        ['v8_enable_turbofan==1', {
-          'dependencies': [
-            'v8_turboshaft',
-          ],
-        }],
       ],
     },  # v8_base
     {
@@ -1748,7 +1710,6 @@
         'v8_libbase',
         'v8_libplatform',
         'v8_maybe_icu',
-        'v8_turboshaft',
         'v8_pch',
         'fp16',
         'abseil.gyp:abseil',
