@@ -73,12 +73,6 @@ const filename = 'foo';
   } else {
     path = '/dev/null/does/not/exist';
   }
-  let full_path = path;
-  if (common.isWindows) {
-    full_path = path + '\\' + filename;
-  } else {
-    full_path = path + '/' + filename;
-  }
 
   const errmsg_enotdir_start =
     'ENOTDIR: not a directory, ';
@@ -90,7 +84,8 @@ const filename = 'foo';
     [[Buffer.from(filename)], [UV_DIRENT_UNKNOWN]],
     common.mustCall((err) => {
       assert.match(
-        err.message, new RegExp(`^${errmsg_enotdir_start}|${errmsg_enoent_start}$`)
+        err.message,
+        new RegExp(`^${errmsg_enotdir_start}|${errmsg_enoent_start}$`)
       );
     },
     ));
@@ -175,12 +170,6 @@ const filename = 'foo';
   } else {
     path = '/dev/null/does/not/exist';
   }
-  let full_path = path;
-  if (common.isWindows) {
-    full_path = path + '\\' + filename;
-  } else {
-    full_path = path + '/' + filename;
-  }
 
   const errmsg_enotdir_start =
     'ENOTDIR: not a directory, ';
@@ -193,7 +182,8 @@ const filename = 'foo';
     UV_DIRENT_UNKNOWN,
     common.mustCall((err) => {
       assert.match(
-        err.message, new RegExp(`^${errmsg_enotdir_start}|${errmsg_enoent_start}$`)
+        err.message,
+        new RegExp(`^${errmsg_enotdir_start}|${errmsg_enoent_start}$`)
       );
     },
     ));
