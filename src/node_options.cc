@@ -904,7 +904,10 @@ PerIsolateOptionsParser::PerIsolateOptionsParser(
       "--perf-basic-prof-only-functions", "", V8Option{}, kAllowedInEnvvar);
   AddOption("--perf-prof", "", V8Option{}, kAllowedInEnvvar);
   AddOption("--perf-prof-unwinding-info", "", V8Option{}, kAllowedInEnvvar);
-  AddOption("--stack-trace-limit", "", V8Option{}, kAllowedInEnvvar);
+  AddOption("--stack-trace-limit",
+            "",
+            &PerIsolateOptions::stack_trace_limit,
+            kAllowedInEnvvar);
   AddOption("--disallow-code-generation-from-strings",
             "disallow eval and friends",
             V8Option{},
@@ -1291,6 +1294,11 @@ void GetCLIOptionsValues(const FunctionCallbackInfo<Value>& args) {
         if (item.first == "--abort-on-uncaught-exception") {
           value = Boolean::New(isolate,
                                s.original_per_env->abort_on_uncaught_exception);
+        } else if (item.first == "--stack-trace-limit") {
+          value =
+              Number::New(isolate,
+                          static_cast<double>(
+                              *_ppop_instance.Lookup<int64_t>(field, opts)));
         } else {
           value = undefined_value;
         }
