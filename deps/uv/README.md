@@ -232,6 +232,18 @@ $ ./bootstrap-vcpkg.sh # for bash
 $ ./vcpkg install libuv
 ```
 
+### Install with Conan
+
+You can install pre-built binaries for libuv or build it from source using [Conan](https://conan.io/). Use the following command:
+
+```bash
+conan install --requires="libuv/[*]" --build=missing
+```
+
+The libuv Conan recipe is kept up to date by Conan maintainers and community contributors.
+If the version is out of date, please [create an issue or pull request](https://github.com/conan-io/conan-center-index) on the ConanCenterIndex repository.
+
+
 ### Running tests
 
 Some tests are timing sensitive. Relaxing test timeouts may be necessary
@@ -330,6 +342,10 @@ z/OS creates System V semaphores and message queues. These persist on the system
 after the process terminates unless the event loop is closed.
 
 Use the `ipcrm` command to manually clear up System V resources.
+
+## Known Issues
+
+- A possible arm-linux-gnueabihf-gcc bug causing, sometimes, incorrect generated code on `armv7` when calling `preadv()`: https://github.com/libuv/libuv/issues/4532.
 
 ## Patches
 
