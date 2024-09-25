@@ -20,6 +20,9 @@
   "buffered-flag.any.js": {
     "skip": "Browser-specific test"
   },
+  "delivery-type.tentative.any.js": {
+    "skip": "Browser-specific test"
+  },
   "idlharness.any.js": {
     "fail": {
       "expected": [

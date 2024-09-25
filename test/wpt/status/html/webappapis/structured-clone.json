@@ -1,7 +1,15 @@
 {
   "structured-clone.any.js": {
     "fail": {
-      "expected": ["File basic"]
+      "note12": "(1, 2) https://github.com/nodejs/node/issues/47612",
+      "note3": "(3) SharedArrayBuffer does not extend ArrayBuffer",
+      "note4": "(4) https://github.com/nodejs/node/issues/55120",
+      "expected": [
+        "File basic",
+        "A subclass instance will deserialize as its closest serializable superclass",
+        "Growable SharedArrayBuffer",
+        "Serializing a non-serializable platform object fails"
+      ]
     }
   }
 }

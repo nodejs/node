@@ -1,5 +1,8 @@
 {
   "negative-settimeout.any.js": {
     "skip": "unreliable in Node.js; Refs: https://github.com/nodejs/node/issues/37672"
+  },
+  "evil-spec-example.any.js": {
+    "skip": "Node.js does not support a string as a parameter to setTimeout"
   }
 }
