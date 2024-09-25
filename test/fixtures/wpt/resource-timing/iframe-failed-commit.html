@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <title>Resource Timing - test that unsuccessful iframes create entries</title>
+<meta name="timeout" content="long">
 <link rel="author" title="Google" href="http://www.google.com/" />
 <link rel="help" href=
   "https://www.w3.org/TR/resource-timing-2/#resources-included-in-the-performanceresourcetiming-interface"/>
@@ -19,6 +20,10 @@
 const load_iframe_with_csp = async path => {
   return load.iframe_with_attrs(path, {"csp": "default-src 'none'"});
 };
+
+const load_iframe_with_csp_no_navigation = async path => {
+  return load.iframe_with_attrs(path, {"csp": "default-src 'none'"}, () => {}, true);
+}
 
 // Runs a test (labeled by the given label) to verify that loading an iframe
 // with the given URL generates a PerformanceResourceTiming entry and that the
@@ -46,12 +51,12 @@ const masked_entry_with_csp_test = (url, label) => {
 };
 
 // Runs a test (labeled by the given label) to verify that loading an iframe
-// with the given URL, an empty response body and under a "default-src 'none'
-// Content-Security-Policy generates a PerformanceResourceTiming entry and that
-// the entry does expose sensitive timing attributes.
-const empty_unmasked_entry_with_csp_test = (url, label) => {
-  return attribute_test(load_iframe_with_csp, url,
-    invariants.assert_tao_pass_no_redirect_http_empty, label);
+// with the given URL under a "default-src 'none' Content-Security-Policy
+// generates a PerformanceResourceTiming entry and that the entry does not
+// expose sensitive timing attributes.
+const non_navigating_masked_entry_with_csp_test = (url, label) => {
+  return attribute_test(load_iframe_with_csp_no_navigation, url,
+    invariants.assert_tao_failure_resource, label);
 };
 
 const {REMOTE_ORIGIN, ORIGINAL_HOST, HTTPS_PORT} = get_host_info();
@@ -68,7 +73,8 @@ masked_entry_test(
 unmasked_entry_with_csp_test("/resource-timing/resources/csp-default-none.html",
   "Same-origin iframe that complies with CSP attribute gets reported");
 
-unmasked_entry_with_csp_test("/resource-timing/resources/green-frame.html",
+// masked because this will load an error page which is cross-origin.
+masked_entry_with_csp_test("/resource-timing/resources/green-frame.html",
   "Same-origin iframe that doesn't comply with CSP attribute gets reported");
 
 masked_entry_with_csp_test(
@@ -79,7 +85,7 @@ masked_entry_with_csp_test(
   new URL("/resource-timing/resources/green-frame.html", REMOTE_ORIGIN),
   "Cross-origin iframe that doesn't comply with CSP attribute gets reported");
 
-empty_unmasked_entry_with_csp_test(
+masked_entry_with_csp_test(
   "/resource-timing/resources/200_empty.asis",
   "Same-origin empty iframe with a 200 status gets reported");
 
@@ -87,19 +93,19 @@ masked_entry_with_csp_test(
   new URL("/resource-timing/resources/200_empty.asis", REMOTE_ORIGIN),
   "Cross-origin empty iframe with a 200 status gets reported");
 
-unmasked_entry_with_csp_test(
-    new URL("/resource-timing/resources/204_empty.asis"),
+non_navigating_masked_entry_with_csp_test(
+    new URL("/resource-timing/resources/204_empty.asis", location.origin),
     "Same-origin empty iframe with a 204 status gets reported");
 
-unmasked_entry_with_csp_test(
-    new URL("/resource-timing/resources/205_empty.asis"),
+non_navigating_masked_entry_with_csp_test(
+    new URL("/resource-timing/resources/205_empty.asis", location.origin),
     "Same-origin empty iframe with a 205 status gets reported");
 
-masked_entry_with_csp_test(
+non_navigating_masked_entry_with_csp_test(
     new URL("/resource-timing/resources/204_empty.asis", REMOTE_ORIGIN),
     "Cross-origin empty iframe with a 204 status gets reported");
 
-masked_entry_with_csp_test(
+non_navigating_masked_entry_with_csp_test(
     new URL("/resource-timing/resources/205_empty.asis", REMOTE_ORIGIN),
     "Cross-origin empty iframe with a 205 status gets reported");
 

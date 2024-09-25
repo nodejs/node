@@ -237,7 +237,7 @@ const instanceTestFactory = [
 
       builder.addGlobal(kWasmI32, true)
         .exportAs("")
-        .init = 7;
+        .init = wasmI32Const(7);
 
       const buffer = builder.toBuffer();
 
@@ -273,10 +273,10 @@ const instanceTestFactory = [
 
       builder.addGlobal(kWasmI32, true)
         .exportAs("global")
-        .init = 7;
+        .init = wasmI32Const(7);
       builder.addGlobal(kWasmF64, true)
         .exportAs("global2")
-        .init = 1.2;
+        .init = wasmF64Const(1.2);
 
       builder.addMemory(4, 8, true);
 
@@ -759,3 +759,5 @@ const instanceTestFactory = [
     }
   ],
 ];
+
+globalThis.instanceTestFactory = instanceTestFactory;

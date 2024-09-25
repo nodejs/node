@@ -9,10 +9,12 @@ function getVideoURI(base)
 
     var videotag = document.createElement("video");
 
-    if ( videotag.canPlayType  &&
-         videotag.canPlayType('video/ogg; codecs="theora, vorbis"') )
+    if ( videotag.canPlayType )
     {
-        extension = '.ogv';
+      if (videotag.canPlayType('video/webm; codecs="vp9, opus"') )
+      {
+          extension = '.webm';
+      }
     }
 
     return base + extension;
@@ -46,10 +48,10 @@ function getAudioURI(base)
 function getMediaContentType(url) {
     var extension = new URL(url, location).pathname.split(".").pop();
     var map = {
-        "mp4": "video/mp4",
-        "ogv": "application/ogg",
-        "mp3": "audio/mp3",
-        "oga": "application/ogg",
+        "mp4" : "video/mp4",
+        "webm": "video/webm",
+        "mp3" : "audio/mp3",
+        "oga" : "application/ogg",
     };
     return map[extension];
 }

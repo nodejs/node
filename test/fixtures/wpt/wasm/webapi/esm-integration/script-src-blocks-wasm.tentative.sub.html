@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<title>script-src blocks Wasm execution</title>
+<meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline';">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+    setup({allow_uncaught_exception: true});
+
+    const test_load = async_test(
+        "Importing a WebAssembly module should be guarded by script-src CSP.");
+
+    window.log = [];
+    document.addEventListener("securitypolicyviolation", (e) => {
+      window.log.push(e.violatedDirective);
+    });
+
+    window.addEventListener("load", test_load.step_func_done(ev => {
+      assert_array_equals(log, ["script-src-elem"]);
+    }));
+</script>
+<script type="module" src="https://{{hosts[alt][]}}/resources/execute-start.wasm"></script>

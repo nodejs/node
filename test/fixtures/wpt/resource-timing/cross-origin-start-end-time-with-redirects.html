@@ -19,13 +19,19 @@ const delay = 2
 const blank_page = `/resource-timing/resources/blank_page_green.htm`;
 const destUrl = `/common/slow-redirect.py?delay=${delay}&location=${REMOTE_ORIGIN}/${blank_page}`;
 
-const timeBefore = performance.now()
-attribute_test(load.iframe, destUrl, entry => {
-    assert_equals(entry.startTime, entry.fetchStart, 'startTime and fetchStart should be equal');
-    assert_greater_than(entry.startTime, timeBefore, 'startTime and fetchStart should be greater than the time before fetching');
-    // See https://github.com/w3c/resource-timing/issues/264
-    assert_less_than(Math.round(entry.startTime - timeBefore), delay * 1000, 'startTime should not expose redirect delays');
-}, "Verify that cross-origin resources don't implicitly expose their redirect timings")
+const timeBefore = performance.now();
+(async () => {
+  // Wait 10 ms, to ensure the difference between startTime and timeBefore is
+  // larger than 1 ms, to avoid flakiness in browsers that clamp timestamps to
+  // 1 ms.
+  await new Promise(r => step_timeout(r, 10));
+  attribute_test(load.iframe, destUrl, entry => {
+      assert_equals(entry.startTime, entry.fetchStart, 'startTime and fetchStart should be equal');
+      assert_greater_than(entry.startTime, timeBefore, 'startTime and fetchStart should be greater than the time before fetching');
+      // See https://github.com/w3c/resource-timing/issues/264
+      assert_less_than(Math.round(entry.startTime - timeBefore), delay * 1000, 'startTime should not expose redirect delays');
+  }, "Verify that cross-origin resources don't implicitly expose their redirect timings")
+})();
 
 </script>
 </body>

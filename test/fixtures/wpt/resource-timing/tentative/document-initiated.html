@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<head>
+  <script src="/resources/testharness.js"></script>
+  <script src="/resources/testharnessreport.js"></script>
+
+  <!-- Helper Functions for getting ResourceID -->
+  <script src="../resources/get-resourceID.js"></script>
+  <!-- Responsible for testing Initiator Attribute -->
+  <script src="../resources/test-initiator.js"></script>
+
+  <!-- Empty Blocking Script -->
+  <script src="../resources/empty.js?blocking"></script>
+  <!-- Empty Preloaded Script -->
+  <link rel="preload" href="../resources/empty.js?preload" as="script" />
+  <!--  Loading arbitrary Empty Blocking Async Script -->
+  <script async src="../resources/empty.js?async"></script>
+  <!-- Loading arbitrary Empty Deferred Script -->
+  <script defer src="../resources/empty.js?deferred"></script>
+  <!-- Loading arbitrary Empty Module Script -->
+  <script type="module" src="../resources/empty.js?module"></script>
+  <!-- Empty Stylesheet -->
+  <link rel="stylesheet" href="../resources/empty_style.css?link" />
+  <!-- Inline Styles -->
+  <style>
+    body {
+      background-image: url("/images/blue.png?inline-style");
+      font-family: remoteFont, sans-serif;
+    }
+    @font-face {
+      font-family: remoteFont;
+      src: url("/fonts/Ahem.ttf");
+    }
+  </style>
+</head>
+<body>
+  <!-- Loading an arbitrary Image using <img> tag -->
+  <img
+    src="/images/blue.png?using-Img-tag"
+    alt="Sample Image for testing initiator Attribute"
+  />
+
+  <iframe src="../resources/green.html"></iframe>
+
+  <script>
+    // Load arbitrary stylesheet with inline script
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = "../resources/empty_style.css?inline-script";
+    document.head.appendChild(link);
+
+    // Load arbitrary image with inline script
+    const img = document.createElement("img");
+    img.src = "/images/blue.png?inline-script";
+    document.body.appendChild(img);
+
+    // Testing Initiator of all the resources loaded
+    promise_test(async (t) => {
+      const expectedInitiator = await getDocumentResourceID();
+      const resources = [
+        "empty.js?blocking",
+        "empty.js?preload",
+        "empty.js?async",
+        "empty.js?deferred",
+        "empty.js?module",
+        "empty_style.css?link",
+        "blue.png?inline-style",
+        "Ahem.ttf",
+        "blue.png?using-Img-tag",
+        "green.html",
+        "empty_style.css?inline-script",
+        "blue.png?inline-script",
+      ];
+      for (const resource of resources) {
+        await testResourceInitiator(resource, expectedInitiator);
+      }
+    }, "Ensure initiator Attribute matches with Document ResourceID");
+  </script>
+</body>

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>
+  Resource timing attributes are consistent for the same-origin subresources.
+</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/web-bundle/resources/test-helpers.js"></script>
+
+<body>
+  <script>
+    setup(() => {
+      assert_true(HTMLScriptElement.supports("webbundle"));
+    });
+
+    promise_test(async (t) => {
+      const script_url = 'dynamic1:resource1.js';
+      const non_exist_script_url = 'dynamic1:non_exist_resource.js';
+      // Using functions from /web-bundle/resources/test-helpers.js.
+      const element = createWebBundleElement(
+        "../web-bundle/resources/wbn/dynamic1.wbn",
+        /*resources=*/[script_url]
+      );
+
+      document.body.appendChild(element);
+
+      // Fetch the script that is in the web bundle.
+      const script = document.createElement("script");
+      script.type = "module";
+      script.src = script_url;
+      document.body.appendChild(script);
+
+      // Fetch the script that is not in the web bundle.
+      // Using functions from /web-bundle/resources/test-helpers.js.
+      await fetchAndWaitForReject(non_exist_script_url);
+
+      let resource1_entries = [];
+      let non_exist_resource_entries = [];
+
+      await new Promise((resolve) => {
+        new PerformanceObserver(list => {
+          resource1_entries.push(list.getEntries().filter(e => e.name.includes('resource1.js')));
+          non_exist_resource_entries.push(
+            list.getEntries().filter(e => e.name.includes('non_exist_resource.js')));
+          if (resource1_entries.length == 1 && non_exist_resource_entries.length == 1) {
+            resolve();
+          }
+        }
+        ).observe({ type: 'resource', buffered: true });
+      });
+    }, "Web bundle resources should have resource timing entries, even when the fetch failed.");
+  </script>
+</body>

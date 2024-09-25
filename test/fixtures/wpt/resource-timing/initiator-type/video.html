@@ -19,14 +19,14 @@
     src="/resource-timing/resources/empty.py?id=track">
 </video>
 <video autoplay="true">
-  <source src="/media/test.ogv?id=source-ogv" type="video/ogg">
+  <source src="/media/test.webm?id=source-webm" type="video/webm">
 </video>
 <script>
   initiator_type_test("blue.png?id=poster", "video", "<video poster>");
   initiator_type_test("media/test.mp4?id=src", "video", "<video src>");
   initiator_type_test("media/test.mp4?id=source-mp4", "video", "<source src> with type=\"video/mp4\"");
   initiator_type_test("empty.py?id=track", "track", "<track src>");
-  initiator_type_test("media/test.ogv?id=source-ogv", "video", "<source src> with type=\"video/ogg\"");
+  initiator_type_test("media/test.webm?id=source-webm", "video", "<source src> with type=\"video/webm\"");
 </script>
 </body>
 </html>

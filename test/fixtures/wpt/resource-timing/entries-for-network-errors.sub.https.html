@@ -30,6 +30,22 @@ network_error_entry_test('/common/dummy.xml', {cache: 'only-if-cached', mode: 's
 network_error_entry_test(
     `/element-timing/resources/multiple-redirects.py?redirect_count=22&final_resource=${validXmlUrl}`,
     null, "too many redirects");
+
+// ORB (https://github.com/whatwg/fetch/pull/1442) will return network errors
+// for certain cross-origin fetches. This tests that the same rules apply to
+// these fetches. Since ORB (at least as presently implemented) doesn't return
+// network errors for fetches, we have to load this case using an <img> element.
+//
+// This emulates a case previously tested in service-workers/service-worker/resource-timing.sub.https.html
+const orb_loader = (url, _) => new Promise(resolve => {
+  const img = document.createElement("img");
+  img.src = url;
+  img.onerror = resolve;
+  document.body.appendChild(img);
+} );
+network_error_entry_test(
+    '//{{hosts[alt][]}}:{{ports[https][0]}}/service-workers/service-worker/resources/missing.jpg',
+    null, "network error for ORB-blocked response", orb_loader);
 </script>
 </body>
 </html>

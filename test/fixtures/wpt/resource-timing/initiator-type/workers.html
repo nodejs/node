@@ -17,7 +17,7 @@
   new Worker(moduleWorkerURL, {type: "module"});
   new Worker(workerURL, {type: "classic"});
   initiator_type_test(workerURL, "other", "classic worker");
-  initiator_type_test(moduleWorkerURL, "other", "module worker");
+  initiator_type_test(moduleWorkerURL, "script", "module worker");
 </script>
 </body>
 </html>

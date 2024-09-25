@@ -18,7 +18,7 @@ const hostInfo = get_host_info();
 
 const redirectUrl = (redirectSourceOrigin, targetUrl) => {
   return redirectSourceOrigin +
-    '/resource-timing/resources/redirect-cors.py?timing_allow_origin=*' +
+    '/resource-timing/resources/redirect-cors.py?allow_origin=*&timing_allow_origin=*' +
     '&location=' + encodeURIComponent(targetUrl);
 };
 
@@ -35,18 +35,18 @@ attribute_test(load.image,
   verify_entry,
   "PerformanceResourceTiming sizes redirect image - same origin redirect");
 
-attribute_test(load.image,
+attribute_test(load.image_cors,
   redirectUrl(hostInfo.HTTP_REMOTE_ORIGIN, baseUrl),
   verify_entry,
   "PerformanceResourceTiming sizes redirect image - cross origin redirect");
 
-attribute_test(load.image,
+attribute_test(load.image_cors,
   redirectUrl(hostInfo.HTTP_REMOTE_ORIGIN,
     redirectUrl(hostInfo.HTTP_ORIGIN, baseUrl)),
   verify_entry,
   "PerformanceResourceTiming sizes redirect image - cross origin to same origin redirect");
 
-attribute_test(load.image,
+attribute_test(load.image_cors,
   redirectUrl(hostInfo.HTTP_ORIGIN,
     redirectUrl(hostInfo.HTTP_REMOTE_ORIGIN,
       redirectUrl(hostInfo.HTTP_ORIGIN,

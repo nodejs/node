@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<head>
+  <script src="/resources/testharness.js"></script>
+  <script src="/resources/testharnessreport.js"></script>
+
+  <!-- Helper Functions for getting ResourceID -->
+  <script src="../resources/get-resourceID.js"></script>
+  <!-- Responsible for testing Initiator Attribute -->
+  <script src="../resources/test-initiator.js"></script>
+
+  <!-- Stylesheet responsible for fetching other Resources.-->
+  <link rel="stylesheet" href="../resources/nested.css" />
+</head>
+<body></body>
+<script>
+  promise_test(async (t) => {
+    const expectedInitiator = await getResourceID("nested.css");
+    const resources = ["resource_timing_test0.css", "Ahem.ttf", "blue.png"];
+    for (const resource of resources) {
+      await testResourceInitiator(resource, expectedInitiator);
+    }
+  }, "Ensure initiator Attribute matches with Stylesheet ResourceID");
+</script>

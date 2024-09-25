@@ -12,7 +12,7 @@
 
 const {REMOTE_ORIGIN, ORIGIN} = get_host_info();
 const redirect = "/common/redirect.py?" +
-                 "location=/resource-timing/resources/green.html";
+                 "location=/resource-timing/resources/empty_script.js";
 const cross_origin_redirect = REMOTE_ORIGIN + redirect;
 const same_origin_redirect = ORIGIN + redirect;
 

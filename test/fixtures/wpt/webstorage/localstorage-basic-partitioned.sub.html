@@ -38,7 +38,7 @@ async_test(t => {
       assert_true(typeof sameSiteID === "string");
 
       if (location.origin !== altOrigin) {
-        crossSiteWindow = window.open(`${altOrigin}/webstorage/localstorage-basic-partitioned.tentative.sub.html`, "", "noopener=false");
+        crossSiteWindow = window.open(`${altOrigin}/webstorage/localstorage-basic-partitioned.sub.html`, "", "noopener=false");
         t.add_cleanup(() => crossSiteWindow.close());
       }
     }

@@ -1,0 +1,11 @@
+<!doctype html>
+<title>window.structuredClone() doesn't crash when window is detached</title>
+<link rel="help" href="https://crbug.com/1445375">
+<body>
+<script>
+let i = document.createElement("iframe");
+document.body.appendChild(i);
+let i_win = i.contentWindow;
+i.remove();
+i_win.structuredClone("some data");
+</script>

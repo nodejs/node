@@ -47,7 +47,7 @@ async_test(t => {
       // new cross-site window that contains our shared-iframe to repeat
       // the process in a cross-site environment.
       if (location.origin !== altOrigin) {
-        crossSiteWindow = window.open(`${altOrigin}/webstorage/sessionStorage-basic-partitioned.tentative.sub.html`, "", "noopener=false");
+        crossSiteWindow = window.open(`${altOrigin}/webstorage/sessionStorage-basic-partitioned.sub.html`, "", "noopener=false");
         t.add_cleanup(() => crossSiteWindow.close());
       }
     }

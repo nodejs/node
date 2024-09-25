@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<head>
+<meta charset="utf-8" />
+<meta name="timeout" content="long">
+<title>This test validates the parsing of content-type of resources.</title>
+<link rel="help" href="https://www.w3.org/TR/resource-timing-2/#sec-performanceresourcetiming"/>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+</head>
+<body>
+<script>
+
+// Utility function picked from https://github.com/web-platform-tests/wpt/blob/master/mimesniff/mime-types/charset-parameter.window.js
+function isByteCompatible(str) {
+  // see https://fetch.spec.whatwg.org/#concept-header-value-normalize
+  if(/^[\u0009\u0020\u000A\u000D]+|[\u0009\u0020\u000A\u000D]+$/.test(str)) {
+    return "header-value-incompatible";
+  }
+
+  for(let i = 0; i < str.length; i++) {
+    const charCode = str.charCodeAt(i);
+    // See https://fetch.spec.whatwg.org/#concept-header-value
+    if(charCode > 0xFF) {
+      return "incompatible";
+    } else if(charCode === 0x00 || charCode === 0x0A || charCode === 0x0D) {
+      return "header-value-incompatible";
+    }
+  }
+  return "compatible";
+}
+
+// Test for mime-type minimization
+const run_mime_type_mimization_tests = (json_entries) => {
+  json_entries.forEach( (json_entry, i) => {
+    promise_test(async t => {
+        let identifier = Math.floor(Math.random() * 1000000000);
+        let url = `/fetch/content-type/resources/content-type.py?single_header&value=`+ encodeURIComponent(json_entry.input) + `&identifier=${identifier}`;
+        fetch(url);
+        const entry = await new Promise(resolve => new PerformanceObserver((entryList, observer) => {
+          entryList.getEntries().forEach(e => {
+            if (e.name.includes(identifier)) {
+              resolve(e);
+              observer.disconnect();
+            }
+          });
+        }).observe({entryTypes: ['resource']}));
+        assert_equals(entry.contentType, json_entry.output);
+    }, "mime-type-minimized " + i + " : " + json_entry.input);
+  });
+}
+
+// Test for mime-type parsing.
+const run_mime_type_parsing_and_minimization_tests = (json_entries) => {
+  json_entries.forEach( (val, i) => {
+    if(typeof val === "string" || val.navigable === undefined || isByteCompatible(val.input) !== "compatible") {
+      return;
+    }
+    const minimizedMIMEType = val.minimizedMIMEType;
+    promise_test(async t => {
+        let url = `/fetch/content-type/resources/content-type.py?single_header&value=${val.input}`;
+        fetch(url);
+        const entry = await new Promise(resolve => new PerformanceObserver((entryList, observer) => {
+            observer.disconnect();
+            resolve(entryList.getEntries()[0]);
+        }).observe({entryTypes: ['resource']}));
+        assert_equals(entry.contentType, minimizedMIMEType);
+    }, "mime-type " + i + " : " + val.input);
+  });
+}
+
+Promise.all([
+    fetch("/mimesniff/mime-types/resources/mime-types-minimized.json"),
+    fetch("/mimesniff/mime-types/resources/mime-types.json")
+  ]).then(([res, res2]) => res.json().then(run_mime_type_mimization_tests)
+    .then(() => res2.json().then(run_mime_type_parsing_and_minimization_tests)));
+
+</script>
+</body>
+</html>

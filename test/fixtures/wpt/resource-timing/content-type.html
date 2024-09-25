@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<head>
+<meta charset="utf-8" />
+<title>This test validates the content-type of resources.</title>
+<link rel="help" href="https://www.w3.org/TR/resource-timing-2/#sec-performanceresourcetiming"/>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/entry-invariants.js"></script>
+<script src="resources/resource-loaders.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+</head>
+<body>
+<script>
+const {ORIGIN, REMOTE_ORIGIN} = get_host_info();
+const SAME_ORIGIN = location.origin;
+
+
+// Content-type for same origin resources is exposed.
+const run_test = (loader, contentType) => {
+  let path = `/resource-timing/resources/content-type.py?content_type=${contentType}`;
+  const url = new URL(path, ORIGIN);
+  attribute_test(
+    loader, url,
+    entry => {
+        assert_equals(entry.contentType, contentType,
+            `content-type for ${entry.name} should be ${contentType}`);
+    });
+}
+
+// Content-type is empty string when a no-cors request is made for cross
+// origin resource.
+// Content-type is empty for cross origin iframes.
+const run_test_cross_origin = (loader, contentType) => {
+  let path = `/resource-timing/resources/content-type.py?content_type=${contentType}`;
+  const url = new URL(path, REMOTE_ORIGIN);
+  attribute_test(
+    loader, url,
+    entry => {
+        assert_equals(entry.contentType, "",
+            `content-type for ${entry.name} should be ""`);
+    });
+}
+
+const resource_loaders_and_types = [
+  [load.image, ["image/png", "image/jpg"]],
+  [load.script, ["text/javascript"]],
+  [load.stylesheet, ["text/css"]],
+  [load.xhr_async, ["image/png", "image/jpg"]],
+  [load.iframe, ["text/html"]]
+];
+
+resource_loaders_and_types.forEach(resource => {
+  let loader = resource[0];
+  let content_types = resource[1];
+  content_types.forEach(type => {
+    run_test(loader, type);
+    run_test_cross_origin(loader, type);
+  })
+});
+
+
+// Content-type is exposed for cors request for cross-origin resources.
+const run_test_cross_origin_allow_origin = (loader_with_attr,contentType) => {
+  let path = `/resource-timing/resources/content-type.py?content_type=${contentType}&allow_origin=${ORIGIN}`;
+  const url = new URL(path, REMOTE_ORIGIN);
+  loader_with_crossOrigin_attr = async url => {
+    return loader_with_attr(url, {"crossOrigin": "anonymous"});
+  }
+  attribute_test(
+    loader_with_crossOrigin_attr, url,
+    entry => {
+        assert_equals(entry.contentType, contentType,
+            `content-type for ${entry.name} should be ${contentType}`);
+    });
+}
+
+const resource_loaders_with_attrs_and_types = [
+  [load.image_with_attrs, ["image/gif", "image/jpeg"]],
+  [load.script_with_attrs, ["text/javascript"]],
+  [load.stylesheet_with_attrs, ["text/css"]],
+]
+
+resource_loaders_with_attrs_and_types.forEach(resource => {
+  let loader = resource[0];
+  let content_types = resource[1];
+  content_types.forEach(type => {
+    run_test_cross_origin_allow_origin(loader, type);
+  })
+});
+
+// Content-type for iframes is empty when cross origin redirects are present.
+var destUrl = `${SAME_ORIGIN}/resource-timing/resources/multi_redirect.py?`;
+destUrl += `page_origin=${SAME_ORIGIN}`;
+destUrl += `&cross_origin=${REMOTE_ORIGIN}`;
+destUrl += `&final_resource=/resource-timing/resources/content-type.py?content_type=text/html`;
+attribute_test(
+    load.iframe, new URL(destUrl),
+    entry => {
+        assert_equals(entry.contentType, "",
+            `content-type should be empty for iframes having cross origin redirects`);
+});
+
+
+// Content-type for iframes is exposed for same origin redirects.
+var destUrl = `${SAME_ORIGIN}/resource-timing/resources/redirect-cors.py`;
+destUrl += `?location=${SAME_ORIGIN}/resource-timing/resources/content-type.py?content_type=text/html`;
+attribute_test(
+    load.iframe, new URL(destUrl),
+    entry => {
+        assert_equals(entry.contentType, "text/html",
+            `content-type should be exposed for iframes having only same origin redirects`);
+});
+
+// Content-type for iframes is not exposed if any redirect is not same origin.
+var finalDestUrl = `${SAME_ORIGIN}/resource-timing/resources/content-type.py?content_type=text/html`;
+var interimDestUrl = `${REMOTE_ORIGIN}/resource-timing/resources/resources/redirect-cors.py?location=` + encodeURIComponent(finalDestUrl);
+var destUrl = `${SAME_ORIGIN}/resource-timing/resources/redirect-cors.py?location=` + encodeURIComponent(interimDestUrl);
+attribute_test(
+    load.iframe, new URL(destUrl),
+    entry => {
+        assert_equals(entry.contentType, "",
+            `content-type should not be exposed for iframes with any non-same-origin redirect`);
+});
+</script>
+</body>
+</html>

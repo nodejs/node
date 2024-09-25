@@ -22,22 +22,12 @@ const post_refresh_url =
 
 const setup_navigate_or_refresh = (type, pre, post) => {
   const verify_document_navigate_not_observable = () => {
-    const entries = performance.getEntriesByType("resource");
-    let found_first_document = false;
-    for (entry of entries) {
-      if (entry.name == pre) {
-        found_first_document = true;
-      }
-      if (entry.name == post) {
-        opener.postMessage(`FAIL - ${type} document should not be observable`,
-          `*`);
-        return;
-      }
+    if (performance.getEntriesByName(post).length) {
+      opener.postMessage(`FAIL - ${type} document should not be observable`,
+      `*`);
+
     }
-    if (!found_first_document) {
-      opener.postMessage("FAIL - initial document should be observable", "*");
-      return;
-    }
+
     opener.postMessage("PASS", "*");
   }
   window.addEventListener("message", e => {
@@ -57,21 +47,8 @@ const setup_refresh_test = () => {
 
 const setup_back_navigation = pushed_url => {
   const verify_document_navigate_not_observable = navigated_back => {
-    const entries = performance.getEntriesByType("resource");
-    let found_first_document = false;
-    for (entry of entries) {
-      if (entry.name == pre_navigate_url) {
-        found_first_document = true;
-      }
-      if (entry.name == post_navigate_url) {
-        opener.postMessage("FAIL - navigated document exposed", "*");
-        return;
-      }
-    }
-    if (!found_first_document) {
-      opener.postMessage(`FAIL - first document not exposed. navigated_back ` +
-        `is ${navigated_back}`, "*");
-      return;
+    if (performance.getEntriesByName(post_navigate_url).length) {
+      opener.postMessage("FAIL - navigated document exposed", "*");
     }
     if (navigated_back) {
       opener.postMessage("PASS", "*");

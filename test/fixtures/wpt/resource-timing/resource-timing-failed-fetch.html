@@ -1,0 +1,34 @@
+<!doctype html>
+
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<link rel="stylesheet" href="resources/empty_style.css">
+<link rel="stylesheet" href="resources/non_exist.css">
+
+<script>
+  promise_test(async () => {
+    const css_resource_timing_entries = await new Promise(resolve => {
+      new PerformanceObserver((list, observer) => {
+        let css_resource_timing_entries = list.getEntries().filter(e => e.name.includes('css'));
+        if (css_resource_timing_entries.length >= 2) {
+          resolve(css_resource_timing_entries);
+        }
+      }).observe({ 'type': 'resource', 'buffered': true });
+    });
+
+    assert_equals(css_resource_timing_entries.length, 2,
+      'There should be two resource timing entries for css resources');
+
+    assert_equals(css_resource_timing_entries.filter(
+      e => e.name.includes('empty_style.css')).length, 1,
+      'There should be one resource timing entry for successfully fetched resource.');
+
+    assert_equals(css_resource_timing_entries.filter(
+      e => e.name.includes('non_exist.css')).length, 1,
+      'There should be one resource timing entry for fetching failed resource.');
+
+  }, 'Resource fetched by HTTP protocol should have resource timing entry emitted, \
+  even when the fetch failed.');
+</script>
+
+</html>

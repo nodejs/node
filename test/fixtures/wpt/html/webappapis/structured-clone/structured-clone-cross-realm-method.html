@@ -1,0 +1,20 @@
+<!doctype html>
+<title>self.structuredClone() uses this's relevant Realm for deserialization</title>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/structured-data.html#structured-cloning">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+
+<body>
+<script>
+const iframe = document.createElement("iframe");
+iframe.onload = () => {
+  const otherWindow = iframe.contentWindow;
+  for (const key of ["Object", "Array", "Date", "RegExp"]) {
+    test(() => {
+      const cloned = otherWindow.structuredClone.call(window, new otherWindow[key]);
+      assert_true(cloned instanceof window[key]);
+    }, `${key} instance`);
+  }
+};
+document.body.append(iframe);
+</script>

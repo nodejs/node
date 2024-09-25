@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="timeout" content="long">
+<title>Resource Timing: PerformanceResourceTiming interim resource times</title>
+<link rel="author" title="Google" href="http://www.google.com/" />
+<script src="/common/utils.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+  const {REMOTE_HOST} = get_host_info();
+  function interim_response_time_test({origin, with100, with103}) {
+    promise_test(async t => {
+      const delay = 500;
+      const url = new URL('/resource-timing/resources/header-delay.h2.py',
+      origin == "same-origin" ?
+          location.href :
+          `${location.protocol}//${REMOTE_HOST}:${location.port}`);
+      url.searchParams.set("delay", delay);
+      if (origin === "cross-origin-with-TAO")
+        url.searchParams.set("tao", "*");
+      if (with100)
+        url.searchParams.set("with100", "true");
+      if (with103)
+        url.searchParams.set("with103", "true");
+      const response = await fetch(url.toString(), {mode: "cors"});
+      assert_equals(response.status, 200)
+      await response.text();
+      const [entry] = performance.getEntriesByName(url.toString());
+      if (origin === "cross-origin") {
+        assert_equals(entry.firstInterimResponseStart, 0);
+        return;
+      }
+      let total_delay = entry.requestStart;
+      if (with100) {
+        total_delay += delay;
+        assert_greater_than(entry.firstInterimResponseStart,
+        total_delay,
+                            "firstInterimResponseStart > 100 response");
+      }
+
+      if (with103) {
+        total_delay += delay;
+        if (with100) {
+          assert_less_than_equal(entry.firstInterimResponseStart,
+          total_delay,  "firstInterimResponseStart > 100 response");
+        } else {
+          assert_greater_than(entry.firstInterimResponseStart,
+          delay, "firstInterimResponseStart > 100 response");
+        }
+      }
+
+      total_delay += delay;
+      if (!with100 && !with103)
+        assert_equals(entry.firstInterimResponseStart, 0);
+
+      assert_greater_than(entry.responseStart, total_delay,
+                        "responseStart");
+    }, `Fetch from ${origin} ${with103 ? "with" : "without"} early hints, ${
+        with100 ? "with" : "without"} 100 response`);
+  }
+
+  for (const with103 of [true, false]) {
+    for (const with100 of [true, false]) {
+      for (origin of ['same-origin', 'cross-origin', 'cross-origin-with-TAO']) {
+        interim_response_time_test({with100, with103, origin});
+      }
+    }
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,38 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="help" href="https://w3c.github.io/resource-timing/#dfn-mark-resource-timing">
+<title>This test validates that resource timing entires should always be queued regardless the size of the buffer.</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/resource-loaders.js"></script>
+<script src="resources/buffer-full-utilities.js"></script>
+</head>
+<body>
+<script>
+promise_test(async t => {
+    clearBufferAndSetSize(1);
+    let count = 0;
+    const allEntriesReceived =  new Promise(resolve => {
+      new PerformanceObserver(t.step_func((list) => {
+        for (const entry of list.getEntries()) {
+          if (entry.name.includes(scriptResources[0])) {
+            count += 1;
+          } else if (entry.name.includes(scriptResources[1])) {
+            count += 1;
+          }
+        }
+        if (count == 2) {
+          resolve();
+        }
+      })).observe({type: 'resource'});
+    });
+    load.script(scriptResources[0]);
+    load.script(scriptResources[1]);
+
+    // Two resource timing entries should be observed regardless the
+    // fact that we've set the buffer size to 1.
+    await allEntriesReceived;
+}, "Test that buffer size has no impact to whether an entry is queued or not");
+</script>

@@ -218,6 +218,7 @@ window.checkLayout = function(selectorList, callDone = true)
     nodes = Array.prototype.slice.call(nodes);
     var checkedLayout = false;
     Array.prototype.forEach.call(nodes, function(node) {
+        const title = node.title == '' ? '' : `: ${node.title}`;
         test(function(t) {
             var container = node.parentNode.className == 'container' ? node.parentNode : node;
             var prefix =
@@ -240,7 +241,7 @@ window.checkLayout = function(selectorList, callDone = true)
               }
                 checkedLayout |= !passed;
             }
-        }, selectorList + ' ' + String(++testNumber));
+        }, `${selectorList} ${++testNumber}${title}`);
     });
     if (!checkedLayout) {
         console.error("No valid data-* attributes found in selector list : " + selectorList);

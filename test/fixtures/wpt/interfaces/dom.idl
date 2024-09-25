@@ -120,9 +120,9 @@ interface mixin ParentNode {
   readonly attribute Element? lastElementChild;
   readonly attribute unsigned long childElementCount;
 
-  [CEReactions, Unscopable] undefined prepend((Node or TrustedScript or DOMString)... nodes);
-  [CEReactions, Unscopable] undefined append((Node or TrustedScript or DOMString)... nodes);
-  [CEReactions, Unscopable] undefined replaceChildren((Node or TrustedScript or DOMString)... nodes);
+  [CEReactions, Unscopable] undefined prepend((Node or DOMString)... nodes);
+  [CEReactions, Unscopable] undefined append((Node or DOMString)... nodes);
+  [CEReactions, Unscopable] undefined replaceChildren((Node or DOMString)... nodes);
 
   Element? querySelector(DOMString selectors);
   [NewObject] NodeList querySelectorAll(DOMString selectors);
@@ -139,9 +139,9 @@ Element includes NonDocumentTypeChildNode;
 CharacterData includes NonDocumentTypeChildNode;
 
 interface mixin ChildNode {
-  [CEReactions, Unscopable] undefined before((Node or TrustedScript or DOMString)... nodes);
-  [CEReactions, Unscopable] undefined after((Node or TrustedScript or DOMString)... nodes);
-  [CEReactions, Unscopable] undefined replaceWith((Node or TrustedScript or DOMString)... nodes);
+  [CEReactions, Unscopable] undefined before((Node or DOMString)... nodes);
+  [CEReactions, Unscopable] undefined after((Node or DOMString)... nodes);
+  [CEReactions, Unscopable] undefined replaceWith((Node or DOMString)... nodes);
   [CEReactions, Unscopable] undefined remove();
 };
 DocumentType includes ChildNode;

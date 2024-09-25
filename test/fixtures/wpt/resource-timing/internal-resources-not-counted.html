@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>Resource Timing should not include internal resources</title>
+<link rel="author" title="Google" href="http://www.google.com/" />
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+
+<p>This test validates that image resources which are part of an element's
+UA-defined interface are not exposed to the performance timeline. This uses an
+&lt;audio&gt; element as an example of an element with internal resources used
+for the playback controls, and verifies that resource timing entries are not
+created.
+</p>
+
+<!-- This element will render with internal resources for playback controls -->
+<audio controls></audio>
+
+<script>
+  async_test(t => {
+  const observer = new PerformanceObserver(t.step_func_done(events => {
+    events.getEntries().forEach(entry => {
+      assert_true(entry.initiatorType == "script" || entry.initiatorType == "img",
+      "Resources loaded from this test should have initiatorType 'script' or 'img', but \"" +
+          entry.name + "\" has '" + entry.initiatorType + "'.");
+    });
+  }));
+
+  // Wait for one more resource to load before attaching listener, and then get
+  // buffered entries.
+  const image = document.createElement("img");
+  image.src = "resources/blue.png";
+  image.addEventListener("load", t.step_func(ev => {
+    observer.observe({type: "resource", buffered: true});
+  }));
+  document.body.appendChild(image);
+
+  }, "Resource timing should not include internal resources.");
+</script>

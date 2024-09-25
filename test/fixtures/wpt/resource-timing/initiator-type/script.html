@@ -12,6 +12,7 @@
 </head>
 <body>
 <script src="/resource-timing/resources/empty_script.js"></script>
+<script type="module" src="/resource-timing/resources/parent_script.js"></script>
 <script>
   const async_xhr = new XMLHttpRequest;
   async_xhr.open('GET', '/resource-timing/resources/blue.png?id=async_xhr',
@@ -21,6 +22,7 @@
 <script>
   initiator_type_test("empty_script.js", "script", "<script>");
   initiator_type_test("blue.png?id=async_xhr", "xmlhttprequest", "an asynchronous XmlHTTPRequest");
+  initiator_type_test("child.js", "script", "script imported from another script");
 </script>
 </body>
 </html>

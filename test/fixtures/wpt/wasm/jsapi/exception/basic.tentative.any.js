@@ -1,4 +1,4 @@
-// META: global=window,worker,jsshell
+// META: global=window,worker,jsshell,shadowrealm
 // META: script=/wasm/jsapi/wasm-module-builder.js
 
 function assert_throws_wasm(fn, message) {
@@ -11,8 +11,7 @@ function assert_throws_wasm(fn, message) {
 }
 
 promise_test(async () => {
-  const kWasmAnyRef = 0x6f;
-  const kSig_v_r = makeSig([kWasmAnyRef], []);
+  const kSig_v_r = makeSig([kWasmExternRef], []);
   const builder = new WasmModuleBuilder();
   const tagIndex = builder.addTag(kSig_v_r);
   builder.addFunction("throw_param", kSig_v_r)
@@ -48,7 +47,7 @@ promise_test(async () => {
   const tagIndex = builder.addTag(kSig_v_a);
   builder.addFunction("throw_null", kSig_v_v)
     .addBody([
-      kExprRefNull, kWasmAnyFunc,
+      kExprRefNull, kAnyFuncCode,
       kExprThrow, tagIndex,
     ])
     .exportFunc();
@@ -82,7 +81,7 @@ promise_test(async () => {
       kExprCatch, tagIndex,
         kExprReturn,
       kExprEnd,
-      kExprRefNull, kWasmAnyRef,
+      kExprRefNull, kExternRefCode,
     ])
     .exportFunc();
 
@@ -106,7 +105,7 @@ promise_test(async () => {
       kExprCatchAll,
         kExprRethrow, 0x00,
       kExprEnd,
-      kExprRefNull, kWasmAnyRef,
+      kExprRefNull, kExternRefCode,
     ])
     .exportFunc();
 
