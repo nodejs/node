@@ -7,9 +7,11 @@ const assert = require('assert');
 const { internalBinding } = require('internal/test/binding');
 const { UV_DIRENT_UNKNOWN, UV_DIRENT_FILE } = internalBinding('constants').fs;
 const fs = require('fs');
+const { resolve } = require('path');
 
 const tmpdir = require('../common/tmpdir');
 const filename = 'foo';
+const nonExistentPath = resolve(tmpdir.path, 'does-not-exist');
 
 {
   // setup
@@ -67,25 +69,13 @@ const filename = 'foo';
 }
 {
   // Intentional error in lstat
-  let path = '';
-  if (common.isWindows) {
-    path = 'c:\\dev\\null\\does\\not\\exist';
-  } else {
-    path = '/dev/null/does/not/exist';
-  }
-
-  const errmsg_enotdir_start =
-    'ENOTDIR: not a directory, ';
-  const errmsg_enoent_start =
-    'ENOENT: no such file or directory, ';
-
   getDirents(
-    Buffer.from(path),
+    Buffer.from(nonExistentPath),
     [[Buffer.from(filename)], [UV_DIRENT_UNKNOWN]],
     common.mustCall((err) => {
       assert.match(
-        err.message,
-        new RegExp(`^${errmsg_enotdir_start}|${errmsg_enoent_start}$`)
+        err.code,
+        new RegExp(`^${'ENOTDIR'}|${'ENOENT'}$`)
       );
     },
     ));
@@ -164,26 +154,14 @@ const filename = 'foo';
 }
 {
   // Intentional error in lstat
-  let path = '';
-  if (common.isWindows) {
-    path = 'c:\\dev\\null\\does\\not\\exist';
-  } else {
-    path = '/dev/null/does/not/exist';
-  }
-
-  const errmsg_enotdir_start =
-    'ENOTDIR: not a directory, ';
-  const errmsg_enoent_start =
-    'ENOENT: no such file or directory, ';
-
   getDirent(
-    path,
+    nonExistentPath,
     filename,
     UV_DIRENT_UNKNOWN,
     common.mustCall((err) => {
       assert.match(
-        err.message,
-        new RegExp(`^${errmsg_enotdir_start}|${errmsg_enoent_start}$`)
+        err.code,
+        new RegExp(`^${'ENOTDIR'}|${'ENOENT'}$`)
       );
     },
     ));
