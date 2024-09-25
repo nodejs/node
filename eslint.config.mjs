@@ -144,6 +144,7 @@ export default [
           ignorePattern: '.*',
         },
       }],
+      'logical-assignment-operators': ['error', 'always', { enforceForIfStatements: true }],
       'default-case-last': 'error',
       'dot-notation': 'error',
       'eqeqeq': ['error', 'smart'],
