@@ -31,7 +31,7 @@ using namespace compiler::turboshaft;  // NOLINT(build/namespaces)
       compiler::turboshaft::Graph& graph, Zone* zone) {                     \
     Name##AssemblerTS assembler(data, isolate, graph, zone);                \
     assembler.EmitBytecodeHandlerProlog();                                  \
-    Block* catch_block = assembler.NewBlock();                              \
+    compiler::turboshaft::Block* catch_block = assembler.NewBlock();        \
     Name##AssemblerTS::CatchScope catch_scope(assembler, catch_block);      \
     assembler.Generate##Name##Impl();                                       \
     assembler.EmitEpilog(catch_block);                                      \
