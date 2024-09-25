@@ -74,8 +74,7 @@ const nonExistentPath = resolve(tmpdir.path, 'does-not-exist');
     [[Buffer.from(filename)], [UV_DIRENT_UNKNOWN]],
     common.mustCall((err) => {
       assert.match(
-        err.code,
-        new RegExp(`^${'ENOTDIR'}|${'ENOENT'}$`)
+        err.code, /ENOTDIR|ENOENT/
       );
     },
     ));
@@ -160,8 +159,7 @@ const nonExistentPath = resolve(tmpdir.path, 'does-not-exist');
     UV_DIRENT_UNKNOWN,
     common.mustCall((err) => {
       assert.match(
-        err.code,
-        new RegExp(`^${'ENOTDIR'}|${'ENOENT'}$`)
+        err.code, /ENOTDIR|ENOENT/
       );
     },
     ));
