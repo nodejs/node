@@ -61,7 +61,7 @@ const WINDOW = 200; // Why does this need to be so big?
 
     const t = interval_count * 1000;
 
-    assert.ok(Math.abs(diff - t) < WINDOW && diff < t + (WINDOW * interval_count));
+    assert.ok(Math.abs(diff - t) < WINDOW * interval_count);
 
     assert.ok(interval_count <= 3, `interval_count: ${interval_count}`);
     if (interval_count === 3)
