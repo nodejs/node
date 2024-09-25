@@ -338,6 +338,9 @@ describe('fsPromises glob', function() {
   }
 });
 
+const normalizeDirent = (dirent) => relative(fixtureDir, join(dirent.parentPath, dirent.name));
+const normalizePath = (path) => (isAbsolute(path) ? relative(fixtureDir, path) : join(path));
+
 describe('glob - withFileTypes', function() {
   const promisified = promisify(glob);
   for (const [pattern, expected] of Object.entries(patterns)) {
@@ -348,10 +351,7 @@ describe('glob - withFileTypes', function() {
         exclude: (dirent) => assert.ok(dirent instanceof Dirent),
       });
       assertDirents(actual);
-      assert.deepStrictEqual(
-        actual.map((dirent) => relative(fixtureDir, join(dirent.parentPath, dirent.name))).sort(),
-        expected.map((path) => (isAbsolute(path) ? relative(fixtureDir, path) : path)).sort()
-      );
+      assert.deepStrictEqual(actual.map(normalizeDirent).sort(), expected.map(normalizePath).sort());
     });
   }
 });
@@ -365,10 +365,7 @@ describe('globSync - withFileTypes', function() {
         exclude: (dirent) => assert.ok(dirent instanceof Dirent),
       });
       assertDirents(actual);
-      assert.deepStrictEqual(
-        actual.map((dirent) => relative(fixtureDir, join(dirent.parentPath, dirent.name))).sort(),
-        expected.map((path) => (isAbsolute(path) ? relative(fixtureDir, path) : path)).sort()
-      );
+      assert.deepStrictEqual(actual.map(normalizeDirent).sort(), expected.map(normalizePath).sort());
     });
   }
 });
@@ -383,10 +380,7 @@ describe('fsPromises glob - withFileTypes', function() {
         exclude: (dirent) => assert.ok(dirent instanceof Dirent),
       })) actual.push(item);
       assertDirents(actual);
-      assert.deepStrictEqual(
-        actual.map((dirent) => relative(fixtureDir, join(dirent.parentPath, dirent.name))).sort(),
-        expected.map((path) => (isAbsolute(path) ? relative(fixtureDir, path) : path)).sort()
-      );
+      assert.deepStrictEqual(actual.map(normalizeDirent).sort(), expected.map(normalizePath).sort());
     });
   }
 });
