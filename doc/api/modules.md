@@ -335,9 +335,12 @@ LOAD_PACKAGE_IMPORTS(X, DIR)
 1. Find the closest package scope SCOPE to DIR.
 2. If no scope was found, return.
 3. If the SCOPE/package.json "imports" is null or undefined, return.
-4. let MATCH = PACKAGE_IMPORTS_RESOLVE(X, pathToFileURL(SCOPE),
-  ["node", "require"]) <a href="esm.md#resolver-algorithm-specification">defined in the ESM resolver</a>.
-5. RESOLVE_ESM_MATCH(MATCH).
+4. If `--experimental-require-module` is enabled
+  a. let CONDITIONS = ["node", "require", "module-sync"]
+  b. Else, let CONDITIONS = ["node", "require"]
+5. let MATCH = PACKAGE_IMPORTS_RESOLVE(X, pathToFileURL(SCOPE),
+  CONDITIONS) <a href="esm.md#resolver-algorithm-specification">defined in the ESM resolver</a>.
+6. RESOLVE_ESM_MATCH(MATCH).
 
 LOAD_PACKAGE_EXPORTS(X, DIR)
 1. Try to interpret X as a combination of NAME and SUBPATH where the name
@@ -346,9 +349,12 @@ LOAD_PACKAGE_EXPORTS(X, DIR)
    return.
 3. Parse DIR/NAME/package.json, and look for "exports" field.
 4. If "exports" is null or undefined, return.
-5. let MATCH = PACKAGE_EXPORTS_RESOLVE(pathToFileURL(DIR/NAME), "." + SUBPATH,
-   `package.json` "exports", ["node", "require"]) <a href="esm.md#resolver-algorithm-specification">defined in the ESM resolver</a>.
-6. RESOLVE_ESM_MATCH(MATCH)
+5. If `--experimental-require-module` is enabled
+  a. let CONDITIONS = ["node", "require", "module-sync"]
+  b. Else, let CONDITIONS = ["node", "require"]
+6. let MATCH = PACKAGE_EXPORTS_RESOLVE(pathToFileURL(DIR/NAME), "." + SUBPATH,
+   `package.json` "exports", CONDITIONS) <a href="esm.md#resolver-algorithm-specification">defined in the ESM resolver</a>.
+7. RESOLVE_ESM_MATCH(MATCH)
 
 LOAD_PACKAGE_SELF(X, DIR)
 1. Find the closest package scope SCOPE to DIR.
