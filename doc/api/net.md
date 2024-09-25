@@ -658,6 +658,9 @@ changes:
   - version: v15.14.0
     pr-url: https://github.com/nodejs/node/pull/37735
     description: AbortSignal support was added.
+  - version: v12.10.0
+    pr-url: https://github.com/nodejs/node/pull/25436
+    description: Added `onread` option.
 -->
 
 * `options` {Object} Available options are:
@@ -986,9 +989,6 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/41310
     description: The `noDelay`, `keepAlive`, and `keepAliveInitialDelay`
                  options are supported now.
-  - version: v12.10.0
-    pr-url: https://github.com/nodejs/node/pull/25436
-    description: Added `onread` option.
   - version: v6.0.0
     pr-url: https://github.com/nodejs/node/pull/6021
     description: The `hints` option defaults to `0` in all cases now.
