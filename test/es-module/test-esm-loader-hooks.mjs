@@ -822,7 +822,7 @@ describe('Loader hooks', { concurrency: !process.env.TEST_PARALLEL }, () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
       '--experimental-loader',
-      `data:text/javascript,const fixtures=${JSON.stringify(fixtures.path('empty.js'))};export ${
+      `data:text/javascript,const fixtures=${encodeURI(JSON.stringify(fixtures.path('empty.js')))};export ${
         encodeURIComponent(function resolve(s, c, n) {
           if (s.endsWith('entry-point')) {
             return {
