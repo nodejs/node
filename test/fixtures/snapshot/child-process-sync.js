@@ -4,7 +4,26 @@ const {
   setDeserializeMainFunction,
   isBuildingSnapshot
 } = require('v8').startupSnapshot;
-const escapePOSIXShell = require('../../common/escapePOSIXShell');
+
+/**
+ * @see {import('../../common').escapePOSIXShell}
+ */
+function escapePOSIXShell(cmdParts, ...args) {
+  if (process.platform === 'win32') {
+    // On Windows, paths cannot contain `"`, so we can return the string unchanged.
+    return [String.raw({ raw: cmdParts }, ...args)];
+  }
+  // On POSIX shells, we can pass values via the env, as there's a standard way for referencing a variable.
+  const env = { ...process.env };
+  let cmd = cmdParts[0];
+  for (let i = 0; i < args.length; i++) {
+    const envVarName = `ESCAPED_${i}`;
+    env[envVarName] = args[i];
+    cmd += '${' + envVarName + '}' + cmdParts[i + 1];
+  }
+
+  return [cmd, { env }];
+}
 
 function spawn() {
   const { spawnSync, execFileSync, execSync } = require('child_process');

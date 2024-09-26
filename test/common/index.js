@@ -34,7 +34,6 @@ const { inspect, getCallSite } = require('util');
 const { isMainThread } = require('worker_threads');
 const { isModuleNamespaceObject } = require('util/types');
 
-const escapePOSIXShell = require('./escapePOSIXShell');
 const tmpdir = require('./tmpdir');
 const bits = ['arm64', 'loong64', 'mips', 'mipsel', 'ppc64', 'riscv64', 's390x', 'x64']
   .includes(process.arch) ? 64 : 32;
@@ -886,6 +885,32 @@ function spawnPromisified(...args) {
     });
   });
 }
+
+/**
+ * Escape quoted values in a string template literal. On Windows, this function
+ * does not escape anything (which is fine for paths, as `"` is not a valid char
+ * in a path on Windows), so you should use it only to escape paths – or other
+ * values on tests which are skipped on Windows.
+ * This function is meant to be used for tagged template strings.
+ * @returns {[string, object | undefined]} An array that can be passed as
+ *                                         arguments to `exec` or `execSync`.
+ */
+function escapePOSIXShell(cmdParts, ...args) {
+  if (common.isWindows) {
+    // On Windows, paths cannot contain `"`, so we can return the string unchanged.
+    return [String.raw({ raw: cmdParts }, ...args)];
+  }
+  // On POSIX shells, we can pass values via the env, as there's a standard way for referencing a variable.
+  const env = { ...process.env };
+  let cmd = cmdParts[0];
+  for (let i = 0; i < args.length; i++) {
+    const envVarName = `ESCAPED_${i}`;
+    env[envVarName] = args[i];
+    cmd += '${' + envVarName + '}' + cmdParts[i + 1];
+  }
+
+  return [cmd, { env }];
+};
 
 function getPrintedStackTrace(stderr) {
   const lines = stderr.split('\n');
