@@ -1173,7 +1173,7 @@ changes:
     If `false`, it would only run one test file at a time.
     **Default:** `false`.
   * `files`: {Array} An array containing the list of files to run.
-    **Default** matching files from [test runner execution model][].
+    **Default:** matching files from [test runner execution model][].
   * `forceExit`: {boolean} Configures the test runner to exit the process once
     all known tests have finished executing even if the event loop would
     otherwise remain active. **Default:** `false`.
