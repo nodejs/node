@@ -172,8 +172,7 @@ There is the CommonJS module loader:
 * It treats all files that lack `.json` or `.node` extensions as JavaScript
   text files.
 * It can only be used to [load ECMASCript modules from CommonJS modules][] if
-  the module graph is synchronous (that contains no top-level `await`) when
-  `--experimental-require-module` is enabled.
+  the module graph is synchronous (that contains no top-level `await`).
   When used to load a JavaScript text file that is not an ECMAScript module,
   the file will be loaded as a CommonJS module.
 
@@ -662,8 +661,7 @@ specific to least specific as conditions should be defined:
 * `"require"` - matches when the package is loaded via `require()`. The
   referenced file should be loadable with `require()` although the condition
   matches regardless of the module format of the target file. Expected
-  formats include CommonJS, JSON, native addons, and ES modules
-  if `--experimental-require-module` is enabled. _Always mutually
+  formats include CommonJS, JSON, native addons, and ES modules. _Always mutually
   exclusive with `"import"`._
 * `"module-sync"` - matches no matter the package is loaded via `import`,
   `import()` or `require()`. The format is expected to be ES modules that does
