@@ -117,7 +117,7 @@ class EnvironmentOptions : public Options {
   std::vector<std::string> conditions;
   bool detect_module = true;
   bool print_required_tla = false;
-  bool require_module = false;
+  bool require_module = true;
   std::string dns_result_order;
   bool enable_source_maps = false;
   bool experimental_eventsource = false;

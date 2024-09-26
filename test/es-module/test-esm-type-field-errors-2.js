@@ -6,11 +6,12 @@
 'use strict';
 require('../common');
 const assert = require('assert');
+const { describe, it } = require('node:test');
 
-assert.throws(
-  () => require('../fixtures/es-modules/test-esm-ok.mjs'),
-  {
-    message: /dynamic import\(\) which is available in all CommonJS modules/,
-    code: 'ERR_REQUIRE_ESM'
-  }
-);
+describe('Errors related to ESM type field', () => {
+  it('Should throw an error when loading CJS from a `type: "module"` package.', () => {
+    assert.throws(() => require('../fixtures/es-modules/package-type-module/index.js'), {
+      code: 'ERR_REQUIRE_ESM'
+    });
+  });
+});
