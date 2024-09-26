@@ -1580,6 +1580,7 @@ call `socket.connect(options[, connectListener])`.
 
 ```mjs
 import net from 'node:net';
+import { Buffer } from 'node:buffer';
 net.createConnection({
   port: 8124,
   onread: {
