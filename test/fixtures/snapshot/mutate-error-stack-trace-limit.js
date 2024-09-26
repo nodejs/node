@@ -1,14 +1,23 @@
 
 const {
+  addSerializeCallback,
   setDeserializeMainFunction,
 } = require('v8').startupSnapshot;
 const assert = require('assert');
 
-// Check that mutation to Error.stackTraceLimit is effective in the snapshot
-// builder script.
-assert.strictEqual(typeof Error.stackTraceLimit, 'number');
-Error.stackTraceLimit = 0;
-assert.strictEqual(getError('', 30), 'Error');
+if (process.env.TEST_IN_SERIALIZER) {
+  addSerializeCallback(checkMutate);
+} else {
+  checkMutate();
+}
+
+function checkMutate() {
+  // Check that mutation to Error.stackTraceLimit is effective in the snapshot
+  // builder script.
+  assert.strictEqual(typeof Error.stackTraceLimit, 'number');
+  Error.stackTraceLimit = 0;
+  assert.strictEqual(getError('', 30), 'Error');
+}
 
 setDeserializeMainFunction(() => {
   // Check that the mutation is preserved in the deserialized main function.

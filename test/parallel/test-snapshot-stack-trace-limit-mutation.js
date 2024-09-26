@@ -11,16 +11,21 @@ const { spawnSyncAndAssert, spawnSyncAndExitWithoutError } = require('../common/
 
 const blobPath = tmpdir.resolve('snapshot.blob');
 
-{
+function test(additionalArguments = [], additionalEnv = {}) {
   tmpdir.refresh();
   // Check the mutation works without --stack-trace-limit.
   spawnSyncAndAssert(process.execPath, [
+    ...additionalArguments,
     '--snapshot-blob',
     blobPath,
     '--build-snapshot',
     fixtures.path('snapshot', 'mutate-error-stack-trace-limit.js'),
   ], {
-    cwd: tmpdir.path
+    cwd: tmpdir.path,
+    env: {
+      ...process.env,
+      ...additionalEnv,
+    }
   }, {
     stderr(output) {
       assert.match(output, /Error\.stackTraceLimit has been modified by the snapshot builder script/);
@@ -35,30 +40,7 @@ const blobPath = tmpdir.resolve('snapshot.blob');
   });
 }
 
-{
-  tmpdir.refresh();
-  // Check the mutation works with --stack-trace-limit.
-  spawnSyncAndAssert(process.execPath, [
-    '--stack-trace-limit=50',
-    '--snapshot-blob',
-    blobPath,
-    '--build-snapshot',
-    fixtures.path('snapshot', 'mutate-error-stack-trace-limit.js'),
-  ], {
-    cwd: tmpdir.path
-  }, {
-    stderr(output) {
-      assert.match(output, /Error\.stackTraceLimit has been modified by the snapshot builder script/);
-      assert.match(output, /It will be preserved after snapshot deserialization/);
-    }
-  });
-  spawnSyncAndExitWithoutError(process.execPath, [
-    // This checks that --stack-trace-limit=50 is ignored if the buidler script already mutated
-    // Error.stackTraceLimit.
-    '--stack-trace-limit=50',
-    '--snapshot-blob',
-    blobPath,
-  ], {
-    cwd: tmpdir.path
-  });
-}
+test();
+test([], { TEST_IN_SERIALIZER: 1 });
+test(['--stack-trace-limit=50']);
+test(['--stack-trace-limit=50'], { TEST_IN_SERIALIZER: 1 });
