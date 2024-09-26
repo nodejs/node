@@ -7,7 +7,6 @@ require('../common');
 const { spawnSyncAndAssert } = require('../common/child_process');
 
 spawnSyncAndAssert(process.execPath, [
-  '--no-warnings',
   '--experimental-require-module',
   '-p',
   'process.features.require_module',
@@ -17,13 +16,13 @@ spawnSyncAndAssert(process.execPath, [
   stderr: '',  // Should not emit warnings.
 });
 
-// It is not enabled by default.
+// It is now enabled by default.
 spawnSyncAndAssert(process.execPath, [
   '-p',
   'process.features.require_module',
 ], {
   trim: true,
-  stdout: 'false',
+  stdout: 'true',
   stderr: '',  // Should not emit warnings.
 });
 

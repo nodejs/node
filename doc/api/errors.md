@@ -2478,8 +2478,8 @@ Opening a QUIC stream failed.
 
 > Stability: 1 - Experimental
 
-When trying to `require()` a [ES Module][] under `--experimental-require-module`,
-a CommonJS to ESM or ESM to CommonJS edge participates in an immediate cycle.
+When trying to `require()` a [ES Module][], a CommonJS to ESM or ESM to CommonJS edge
+participates in an immediate cycle.
 This is not allowed because ES Modules cannot be evaluated while they are
 already being evaluated.
 
@@ -2493,8 +2493,8 @@ module, and should be done lazily in an inner function.
 
 > Stability: 1 - Experimental
 
-When trying to `require()` a [ES Module][] under `--experimental-require-module`,
-the module turns out to be asynchronous. That is, it contains top-level await.
+When trying to `require()` a [ES Module][], the module turns out to be asynchronous.
+That is, it contains top-level await.
 
 To see where the top-level await is, use
 `--experimental-print-required-tla` (this would execute the modules
@@ -2504,12 +2504,20 @@ before looking for the top-level awaits).
 
 ### `ERR_REQUIRE_ESM`
 
-> Stability: 1 - Experimental
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/55085
+    description: require() now supports loading synchronous ES modules by default.
+-->
+
+> Stability: 0 - Deprecated
 
 An attempt was made to `require()` an [ES Module][].
 
-To enable `require()` for synchronous module graphs (without
-top-level `await`), use `--experimental-require-module`.
+This error has been deprecated since `require()` now supports loading synchronous
+ES modules. When `require()` encounters an ES module that contains top-level
+`await`, it will throw [`ERR_REQUIRE_ASYNC_MODULE`][] instead.
 
 <a id="ERR_SCRIPT_EXECUTION_INTERRUPTED"></a>
 
@@ -4123,6 +4131,7 @@ An error occurred trying to allocate memory. This should never happen.
 [`ERR_INVALID_ARG_TYPE`]: #err_invalid_arg_type
 [`ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST`]: #err_missing_message_port_in_transfer_list
 [`ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST`]: #err_missing_transferable_in_transfer_list
+[`ERR_REQUIRE_ASYNC_MODULE`]: #err_require_async_module
 [`EventEmitter`]: events.md#class-eventemitter
 [`MessagePort`]: worker_threads.md#class-messageport
 [`Object.getPrototypeOf`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/getPrototypeOf
