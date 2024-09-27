@@ -111,6 +111,7 @@ declare namespace primordials {
   export const ArrayPrototype: typeof Array.prototype
   export const ArrayIsArray: typeof Array.isArray
   export const ArrayFrom: typeof Array.from
+  export const ArrayFromAsync: typeof Array.fromAsync
   export const ArrayOf: typeof Array.of
   export const ArrayPrototypeConcat: UncurryThis<typeof Array.prototype.concat>
   export const ArrayPrototypeCopyWithin: UncurryThis<typeof Array.prototype.copyWithin>
