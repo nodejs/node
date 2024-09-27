@@ -9,6 +9,7 @@
 #include "path.h"
 #include "sqlite3.h"
 #include "util-inl.h"
+#include "util.h"
 
 #include <cinttypes>
 #include <string_view>
@@ -226,7 +227,7 @@ void DatabaseSync::Prepare(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  auto sql = Utf8Value(env->isolate(), args[0].As<String>());
+  Utf8Value sql(env->isolate(), args[0].As<String>());
   sqlite3_stmt* s = nullptr;
   int r = sqlite3_prepare_v2(db->connection_, *sql, -1, &s, 0);
   CHECK_ERROR_OR_THROW(env->isolate(), db->connection_, r, SQLITE_OK, void());
@@ -247,7 +248,7 @@ void DatabaseSync::Exec(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  auto sql = Utf8Value(env->isolate(), args[0].As<String>());
+  Utf8Value sql(env->isolate(), args[0].As<String>());
   int r = sqlite3_exec(db->connection_, *sql, nullptr, nullptr, nullptr);
   CHECK_ERROR_OR_THROW(env->isolate(), db->connection_, r, SQLITE_OK, void());
 }
@@ -335,7 +336,7 @@ bool StatementSync::BindParams(const FunctionCallbackInfo<Value>& args) {
         return false;
       }
 
-      auto utf8_key = Utf8Value(env()->isolate(), key);
+      Utf8Value utf8_key(env()->isolate(), key);
       int r = sqlite3_bind_parameter_index(statement_, *utf8_key);
       if (r == 0) {
         if (allow_bare_named_params_) {
