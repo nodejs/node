@@ -624,7 +624,7 @@ void Endpoint::InitPerContext(Realm* realm, Local<Object> target) {
 #undef V
 
 #define V(name, _) IDX_STATS_ENDPOINT_##name,
-  enum IDX_STATS_ENDPONT { ENDPOINT_STATS(V) IDX_STATS_ENDPOINT_COUNT };
+  enum IDX_STATS_ENDPOINT { ENDPOINT_STATS(V) IDX_STATS_ENDPOINT_COUNT };
   NODE_DEFINE_CONSTANT(target, IDX_STATS_ENDPOINT_COUNT);
 #undef V
 
@@ -1521,7 +1521,7 @@ void Endpoint::Receive(const uv_buf_t& buf,
   // packet with a non-standard CID length.
   if (UNLIKELY(pversion_cid.dcidlen > NGTCP2_MAX_CIDLEN ||
                pversion_cid.scidlen > NGTCP2_MAX_CIDLEN)) {
-    Debug(this, "Packet had incorrectly sized CIDs, igoring");
+    Debug(this, "Packet had incorrectly sized CIDs, ignoring");
     return;  // Ignore the packet!
   }
 

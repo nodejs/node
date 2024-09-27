@@ -802,7 +802,7 @@ void MessagePort::OnMessage(MessageProcessingMode mode) {
   // The data_ could be freed or, the handle has been/is being closed.
   // A possible case for this, is transfer the MessagePort to another
   // context, it will call the constructor and trigger the async handle empty.
-  // Because all data was sent from the preivous context.
+  // Because all data was sent from the previous context.
   if (IsDetached()) return;
 
   HandleScope handle_scope(env()->isolate());

@@ -29,7 +29,7 @@ class TLSSession final : public MemoryRetainer {
  public:
   static const TLSSession& From(const SSL* ssl);
 
-  // The constructor is public in order to satisify the call to std::make_unique
+  // The constructor is public in order to satisfy the call to std::make_unique
   // in TLSContext::NewSession. It should not be called directly.
   TLSSession(Session* session,
              std::shared_ptr<TLSContext> context,

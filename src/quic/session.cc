@@ -1709,7 +1709,7 @@ void Session::EmitVersionNegotiation(const ngtcp2_pkt_hd& hd,
   versions.AllocateSufficientStorage(nsv);
   for (size_t n = 0; n < nsv; n++) versions[n] = to_integer(sv[n]);
 
-  // supported are the versons we acutually support expressed as a range.
+  // supported are the versions we acutually support expressed as a range.
   // The first value is the minimum version, the second is the maximum.
   Local<Value> supported[] = {to_integer(config_.options.min_version),
                               to_integer(config_.options.version)};

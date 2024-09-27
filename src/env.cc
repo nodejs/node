@@ -2178,7 +2178,7 @@ inline size_t Environment::SelfSize() const {
 }
 
 void Environment::MemoryInfo(MemoryTracker* tracker) const {
-  // Iteratable STLs have their own sizes subtracted from the parent
+  // Iterable STLs have their own sizes subtracted from the parent
   // by default.
   tracker->TrackField("isolate_data", isolate_data_);
   tracker->TrackField("destroy_async_id_list", destroy_async_id_list_);
