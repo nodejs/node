@@ -42,7 +42,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
   it('should allow custom arguments via argv', async () => {
     const stream = run({ files: [argPrintingFile], argv: ['--a-custom-argument'] });
     stream.on('test:fail', common.mustNotCall());
-    stream.on('test:pass', common.mustCall(1));
+    stream.on('test:pass', common.mustCall());
     // eslint-disable-next-line no-unused-vars
     for await (const _ of stream);
   });
