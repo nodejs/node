@@ -68,13 +68,13 @@ child.exec(...common.escapePOSIXShell`"${process.execPath}" --eval "console.erro
 
 // Assert that module loading works.
 {
-  child.exec(...common.escapePOSIXShell`"${process.execPath}" --eval "${`require(${JSON.stringify(__filename)})`}"`,
-             common.mustCall((err, stdout, stderr) => {
-               assert.strictEqual(err.code, 42);
-               assert.strictEqual(
-                 stdout, 'Loaded as a module, exiting with status code 42.\n');
-               assert.strictEqual(stderr, '');
-             }));
+  common.spawnPromisified(process.execPath, ['--eval', `require(${JSON.stringify(__filename)})`])
+    .then(common.mustCall(({ stdout, stderr, code }) => {
+      assert.strictEqual(stderr, '');
+      assert.strictEqual(
+        stdout, 'Loaded as a module, exiting with status code 42.\n');
+      assert.strictEqual(code, 42);
+    }))
 }
 
 // Check that builtin modules are pre-defined.
