@@ -325,7 +325,7 @@ NODE_MODULES_PATHS(START)
 2. let I = count of PARTS - 1
 3. let DIRS = []
 4. while I >= 0,
-   a. if PARTS[I] = "node_modules" CONTINUE
+   a. if PARTS[I] = "node_modules", GOTO d.
    b. DIR = path join(PARTS[0 .. I] + "node_modules")
    c. DIRS = DIR + DIRS
    d. let I = I - 1
