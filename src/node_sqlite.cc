@@ -9,7 +9,6 @@
 #include "path.h"
 #include "sqlite3.h"
 #include "util-inl.h"
-#include "util.h"
 
 #include <cinttypes>
 #include <string_view>
