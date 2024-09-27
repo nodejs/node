@@ -3236,37 +3236,18 @@ void BindingData::LegacyMainResolve(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   auto isolate = env->isolate();
 
-  Utf8Value utf8_package_json_url(isolate, args[0]);
-  auto package_json_url =
-      ada::parse<ada::url_aggregator>(utf8_package_json_url.ToStringView());
-
-  if (!package_json_url) {
-    THROW_ERR_INVALID_URL(isolate, "Invalid URL");
-    return;
-  }
+  auto utf8_package_path = Utf8Value(isolate, args[0]).ToString();
 
   std::string package_initial_file = "";
 
-  ada::result<ada::url_aggregator> file_path_url;
   std::optional<std::string> initial_file_path;
   std::string file_path;
 
   if (args.Length() >= 2 && args[1]->IsString()) {
     auto package_config_main = Utf8Value(isolate, args[1]).ToString();
 
-    file_path_url = ada::parse<ada::url_aggregator>(
-        std::string("./") + package_config_main, &package_json_url.value());
-
-    if (!file_path_url) {
-      THROW_ERR_INVALID_URL(isolate, "Invalid URL");
-      return;
-    }
-
-    initial_file_path = node::url::FileURLToPath(env, *file_path_url);
-    if (!initial_file_path.has_value()) {
-      return;
-    }
-
+    initial_file_path =
+        PathResolve(env, {utf8_package_path, package_config_main});
     FromNamespacedPath(&initial_file_path.value());
 
     package_initial_file = *initial_file_path;
@@ -3297,15 +3278,7 @@ void BindingData::LegacyMainResolve(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  file_path_url =
-      ada::parse<ada::url_aggregator>("./index", &package_json_url.value());
-
-  if (!file_path_url) {
-    THROW_ERR_INVALID_URL(isolate, "Invalid URL");
-    return;
-  }
-
-  initial_file_path = node::url::FileURLToPath(env, *file_path_url);
+  initial_file_path = PathResolve(env, {utf8_package_path, "./index"});
   if (!initial_file_path.has_value()) {
     return;
   }
