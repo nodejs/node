@@ -74,7 +74,7 @@ child.exec(...common.escapePOSIXShell`"${process.execPath}" --eval "console.erro
       assert.strictEqual(
         stdout, 'Loaded as a module, exiting with status code 42.\n');
       assert.strictEqual(code, 42);
-    }))
+    }));
 }
 
 // Check that builtin modules are pre-defined.
