@@ -100,8 +100,8 @@ void HistogramImpl::AddMethods(Isolate* isolate, Local<FunctionTemplate> tmpl) {
 
 void HistogramImpl::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
-  static bool is_registerd = false;
-  if (is_registerd) return;
+  static bool is_registered = false;
+  if (is_registered) return;
   registry->Register(GetCount);
   registry->Register(GetCountBigInt);
   registry->Register(GetExceeds);
@@ -133,7 +133,7 @@ void HistogramImpl::RegisterExternalReferences(
   registry->Register(FastGetExceeds);
   registry->Register(FastGetStddev);
   registry->Register(FastGetPercentile);
-  is_registerd = true;
+  is_registered = true;
 }
 
 HistogramBase::HistogramBase(

@@ -155,7 +155,7 @@ class Stream : public AsyncWrap,
 
   void BeginHeaders(HeadersKind kind);
   // Returns false if the header cannot be added. This will typically happen
-  // if the application does not support headers, a maximimum number of headers
+  // if the application does not support headers, a maximum number of headers
   // have already been added, or the maximum total header length is reached.
   bool AddHeader(const Header& header);
   void set_headers_kind(HeadersKind kind);
