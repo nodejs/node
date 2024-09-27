@@ -127,22 +127,24 @@ child.exec(...common.escapePOSIXShell`"${process.execPath}" --use-strict -p proc
 {
   const emptyFile = fixtures.path('empty.js');
 
-  child.exec(...common.escapePOSIXShell`"${process.execPath}" -e "${`require("child_process").fork(${JSON.stringify(emptyFile)})`}"`,
-             common.mustSucceed((stdout, stderr) => {
-               assert.strictEqual(stdout, '');
-               assert.strictEqual(stderr, '');
-             }));
+  common.spawnPromisified(process.execPath, ['-e', `require("child_process").fork(${JSON.stringify(emptyFile)})`])
+    .then(common.mustCall(({ stdout, stderr, code }) => {
+      assert.strictEqual(stdout, '');
+      assert.strictEqual(stderr, '');
+      assert.strictEqual(code, 0);
+    }));
 
   // Make sure that monkey-patching process.execArgv doesn't cause child_process
   // to incorrectly munge execArgv.
-  child.exec(...common.escapePOSIXShell`"${process.execPath}" -e "${
+  common.spawnPromisified(process.execPath, [
+    '-e',
     'process.execArgv = [\'-e\', \'console.log(42)\', \'thirdArg\'];' +
-    `require('child_process').fork(${JSON.stringify(emptyFile)})`
-  }"`,
-             common.mustSucceed((stdout, stderr) => {
-               assert.strictEqual(stdout, '42\n');
-               assert.strictEqual(stderr, '');
-             }));
+      `require('child_process').fork(${JSON.stringify(emptyFile)})`,
+  ]).then(common.mustCall(({ stdout, stderr, code }) => {
+    assert.strictEqual(stdout, '42\n');
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(code, 0);
+  }));
 }
 
 // Regression test for https://github.com/nodejs/node/issues/8534.

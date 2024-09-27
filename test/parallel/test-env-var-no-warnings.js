@@ -9,7 +9,7 @@ if (process.argv[2] === 'child') {
   function test(newEnv) {
     const [cmd, opts] = common.escapePOSIXShell`"${process.execPath}" "${__filename}" child`;
 
-    cp.exec(cmd, { ...opts, env: { ...opts.env, ...newEnv } }, common.mustCall((err, stdout, stderr) => {
+    cp.exec(cmd, { ...opts, env: { ...opts?.env, ...newEnv } }, common.mustCall((err, stdout, stderr) => {
       assert.strictEqual(err, null);
       assert.strictEqual(stdout, '');
 

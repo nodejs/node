@@ -28,7 +28,7 @@ ChildProcess.prototype.spawn = function() {
 
 function createChild(options, callback) {
   const [cmd, opts] = common.escapePOSIXShell`"${process.execPath}" "${__filename}" child`;
-  options = { ...options, env: { ...opts.env, ...options.env } };
+  options = { ...options, env: { ...opts?.env, ...options.env } };
 
   return cp.exec(cmd, options, common.mustCall(callback));
 }
