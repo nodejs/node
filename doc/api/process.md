@@ -1948,8 +1948,6 @@ added: v4.8.0
 
 A boolean value that is `true` if the current Node.js build includes support for ALPN in TLS.
 
-***
-
 ## `process.features.tls_ocsp`
 
 <!-- YAML
@@ -1960,8 +1958,6 @@ added: v0.11.13
 
 A boolean value that is `true` if the current Node.js build includes support for OCSP in TLS.
 
-***
-
 ## `process.features.tls_sni`
 
 <!-- YAML
@@ -1971,8 +1967,6 @@ added: v0.5.3
 * {boolean}
 
 A boolean value that is `true` if the current Node.js build includes support for SNI in TLS.
-
-***
 
 ## `process.features.uv`
 
