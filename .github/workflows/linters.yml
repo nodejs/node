@@ -186,6 +186,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Get team members if possible
+        if: ${{ (github.event.pull_request && github.event.pull_request.base.ref == github.event.pull_request.base.repo.default_branch) || github.event.ref == github.event.repository.default_branch }}
         id: team_members
         run: |
           get_list_members() {
