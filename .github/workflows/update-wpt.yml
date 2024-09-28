@@ -34,22 +34,20 @@ jobs:
 
       - name: Configure ncu
         run: |
-          git config --global node-core-utils.token ${{ secrets.GH_USER_TOKEN }}
+          ncu-config set username "$USERNAME"
+          ncu-config set token "$GH_TOKEN"
+        env:
+          USERNAME: ${{ secrets.JENKINS_USER }}
+          GH_TOKEN: ${{ secrets.GH_USER_TOKEN }}
+
+      - name: Update WPT for subsystem ${{ matrix.subsystem }}
+        run: |
+          git node wpt ${{ matrix.subsystem }}
 
       - name: Calculate new version for WPT using jq
         run: |
           new_version=$(jq -r '.${{ matrix.subsystem }}.commit' test/fixtures/wpt/versions.json)
           echo "new_version=$new_version" >> $GITHUB_ENV
-
-      - name: Compare versions
-        run: |
-          echo "Comparing current version to new version ${{ env.new_version }}"
-
-      - name: Update WPT for subsystem ${{ matrix.subsystem }}
-        run: |
-          git node wpt ${{ matrix.subsystem }}
-        env:
-          GH_TOKEN: ${{ secrets.GH_USER_TOKEN }}
 
       - name: Handle changes
         run: |
@@ -72,8 +70,9 @@ jobs:
         if: steps.push-changes.outputs.createPR
         uses: gr2m/create-or-update-pull-request-action@86ec1766034c8173518f61d2075cc2a173fb8c97
         with:
-          token: ${{ secrets.GH_USER_TOKEN }}
           branch: actions/update-wpt-${{ matrix.subsystem }}
           title: 'test: update WPT for ${{ matrix.subsystem }} to ${{ env.new_version }}'
           body: |
             This is an automated update of the WPT for ${{ matrix.subsystem }} to ${{ env.new_version }}.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
