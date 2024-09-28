@@ -148,7 +148,7 @@ public:
   NCRYPTO_DISALLOW_COPY_AND_MOVE(ClearErrorOnReturn)
   NCRYPTO_DISALLOW_NEW_DELETE()
 
-  int peeKError();
+  int peekError();
 
 private:
   CryptoErrorList* errors_;
@@ -178,9 +178,13 @@ template <typename T, typename E>
 struct Result final {
   const bool has_value;
   T value;
-  std::optional<E> error;
+  std::optional<E> error = std::nullopt;
+  std::optional<int> openssl_error = std::nullopt;
   Result(T&& value) : has_value(true), value(std::move(value)) {}
-  Result(E&& error) : has_value(false), error(std::move(error)) {}
+  Result(E&& error, std::optional<int> openssl_error = std::nullopt)
+      : has_value(false),
+        error(std::move(error)),
+        openssl_error(std::move(openssl_error)) {}
   inline operator bool() const { return has_value; }
 };
 
@@ -276,6 +280,11 @@ public:
   static BIOPointer New(const void* data, size_t len);
   static BIOPointer NewFile(std::string_view filename, std::string_view mode);
   static BIOPointer NewFp(FILE* fd, int flags);
+
+  template <typename T>
+  static BIOPointer New(const Buffer<T>& buf) {
+    return New(buf.data, buf.len);
+  }
 
   BIOPointer() = default;
   BIOPointer(std::nullptr_t) : bio_(nullptr) {}
@@ -398,6 +407,15 @@ public:
       PKEncodingType encoding,
       const Buffer<const unsigned char>& buffer);
 
+  static ParseKeyResult TryParsePublicKeyPEM(
+      const Buffer<const unsigned char>& buffer);
+
+  static ParseKeyResult TryParsePrivateKey(
+      PKFormatType format,
+      PKEncodingType encoding,
+      std::optional<Buffer<char>> passphrase,
+      const Buffer<const unsigned char>& buffer);
+
   EVPKeyPointer() = default;
   explicit EVPKeyPointer(EVP_PKEY* pkey);
   EVPKeyPointer(EVPKeyPointer&& other) noexcept;
@@ -427,6 +445,8 @@ public:
   BIOPointer derPublicKey() const;
 
   EVPKeyCtxPointer newCtx() const;
+
+  static bool IsRSAPrivateKey(const Buffer<const unsigned char>& buffer);
 
 private:
   DeleteFnPtr<EVP_PKEY, EVP_PKEY_free> pkey_;
