@@ -22,5 +22,6 @@ for (let i = 0; i < 10_000; i++) {
   }, {
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemRead',
+    resource: blockedFile,
   });
 }
