@@ -884,6 +884,15 @@ export USERNAME="nodejs" # will result in `nodejs` as the value.
 If you want to load environment variables from a file that may not exist, you
 can use the [`--env-file-if-exists`][] flag instead.
 
+### `--env-file-if-exists=config`
+
+<!-- YAML
+added: v22.9.0
+-->
+
+Behavior is the same as [`--env-file`][], but an error is not thrown if the file
+does not exist.
+
 ### `-e`, `--eval "script"`
 
 <!-- YAML
@@ -1791,15 +1800,6 @@ The location of the default OpenSSL configuration file depends on how OpenSSL
 is being linked to Node.js. Sharing the OpenSSL configuration may have unwanted
 implications and it is recommended to use a configuration section specific to
 Node.js which is `nodejs_conf` and is default when this option is not used.
-
-### `--env-file-if-exists=config`
-
-<!-- YAML
-added: v22.9.0
--->
-
-Behavior is the same as [`--env-file`][], but an error is not thrown if the file
-does not exist.
 
 ### `--pending-deprecation`
 
