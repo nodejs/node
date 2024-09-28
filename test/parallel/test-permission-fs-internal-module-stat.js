@@ -10,6 +10,7 @@ if (!common.hasCrypto) {
 
 const { internalBinding } = require('internal/test/binding');
 const assert = require('node:assert');
+const path = require('node:path');
 const fixtures = require('../common/fixtures');
 
 const blockedFile = fixtures.path('permission', 'deny', 'protected-file.md');
@@ -22,5 +23,6 @@ for (let i = 0; i < 10_000; i++) {
   }, {
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemRead',
+    resource: path.toNamespacedPath(blockedFile),
   });
 }
