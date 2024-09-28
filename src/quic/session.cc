@@ -532,13 +532,13 @@ Session::Session(Endpoint* endpoint,
 
   auto& state = BindingData::Get(env());
 
-  if (UNLIKELY(config_.options.qlog)) {
+  if (config_.options.qlog) [[unlikely]] {
     qlog_stream_ = LogStream::Create(env());
     if (qlog_stream_)
       defineProperty(state.qlog_string(), qlog_stream_->object());
   }
 
-  if (UNLIKELY(config_.options.tls_options.keylog)) {
+  if (config_.options.tls_options.keylog) [[unlikely]] {
     keylog_stream_ = LogStream::Create(env());
     if (keylog_stream_)
       defineProperty(state.keylog_string(), keylog_stream_->object());
@@ -1308,7 +1308,7 @@ void Session::SendConnectionClose() {
       ssize_t nwrite = ngtcp2_conn_write_connection_close(
           *this, &path, nullptr, vec.base, vec.len, last_error_, uv_hrtime());
 
-      if (UNLIKELY(nwrite < 0)) {
+      if (nwrite < 0) [[unlikely]] {
         packet->Done(UV_ECANCELED);
         last_error_ = QuicError::ForNgtcp2Error(NGTCP2_INTERNAL_ERROR);
         Close(CloseMethod::SILENT);
@@ -1617,7 +1617,9 @@ void Session::EmitPathValidation(PathValidationResult result,
                                  const std::optional<ValidatedPath>& oldPath) {
   DCHECK(!is_destroyed());
   if (!env()->can_call_into_js()) return;
-  if (LIKELY(state_->path_validation == 0)) return;
+  if (state_->path_validation == 0) [[likely]] {
+    return;
+  }
 
   auto isolate = env()->isolate();
   CallbackScope<Session> cb_scope(this);
@@ -1658,7 +1660,7 @@ void Session::EmitSessionTicket(Store&& ticket) {
 
   // If there is nothing listening for the session ticket, don't bother
   // emitting.
-  if (LIKELY(!wants_session_ticket())) {
+  if (!wants_session_ticket()) [[likely]] {
     Debug(this, "Session ticket was discarded");
     return;
   }
@@ -1741,7 +1743,9 @@ void Session::EmitKeylog(const char* line) {
 
 #define NGTCP2_CALLBACK_SCOPE(name)                                            \
   auto name = Impl::From(conn, user_data);                                     \
-  if (UNLIKELY(name->is_destroyed())) return NGTCP2_ERR_CALLBACK_FAILURE;      \
+  if (name->is_destroyed()) [[unlikely]] {                                     \
+    return NGTCP2_ERR_CALLBACK_FAILURE;                                        \
+  }                                                                            \
   NgTcp2CallbackScope scope(session->env());
 
 struct Session::Impl {
@@ -2018,7 +2022,9 @@ struct Session::Impl {
                                ngtcp2_encryption_level level,
                                void* user_data) {
     auto session = Impl::From(conn, user_data);
-    if (UNLIKELY(session->is_destroyed())) return NGTCP2_ERR_CALLBACK_FAILURE;
+    if (session->is_destroyed()) [[unlikely]] {
+      return NGTCP2_ERR_CALLBACK_FAILURE;
+    }
     CHECK(!session->is_server());
 
     if (level != NGTCP2_ENCRYPTION_LEVEL_1RTT) return NGTCP2_SUCCESS;
@@ -2077,7 +2083,9 @@ struct Session::Impl {
                                ngtcp2_encryption_level level,
                                void* user_data) {
     auto session = Impl::From(conn, user_data);
-    if (UNLIKELY(session->is_destroyed())) return NGTCP2_ERR_CALLBACK_FAILURE;
+    if (session->is_destroyed()) [[unlikely]] {
+      return NGTCP2_ERR_CALLBACK_FAILURE;
+    }
     CHECK(session->is_server());
 
     if (level != NGTCP2_ENCRYPTION_LEVEL_1RTT) return NGTCP2_SUCCESS;

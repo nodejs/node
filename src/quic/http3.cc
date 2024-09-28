@@ -616,7 +616,9 @@ class Http3Application final : public Session::Application {
 
 #define NGHTTP3_CALLBACK_SCOPE(name)                                           \
   auto name = From(conn, conn_user_data);                                      \
-  if (UNLIKELY(name->is_destroyed())) return NGHTTP3_ERR_CALLBACK_FAILURE;     \
+  if (name->is_destroyed()) [[unlikely]] {                                     \
+    return NGHTTP3_ERR_CALLBACK_FAILURE;                                       \
+  }                                                                            \
   NgHttp3CallbackScope scope(name->env());
 
   static nghttp3_ssize on_read_data_callback(nghttp3_conn* conn,

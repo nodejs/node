@@ -9,13 +9,17 @@
 namespace node {
 
 inline Realm* Realm::GetCurrent(v8::Isolate* isolate) {
-  if (UNLIKELY(!isolate->InContext())) return nullptr;
+  if (!isolate->InContext()) [[unlikely]] {
+    return nullptr;
+  }
   v8::HandleScope handle_scope(isolate);
   return GetCurrent(isolate->GetCurrentContext());
 }
 
 inline Realm* Realm::GetCurrent(v8::Local<v8::Context> context) {
-  if (UNLIKELY(!ContextEmbedderTag::IsNodeContext(context))) return nullptr;
+  if (!ContextEmbedderTag::IsNodeContext(context)) [[unlikely]] {
+    return nullptr;
+  }
   return static_cast<Realm*>(
       context->GetAlignedPointerFromEmbedderData(ContextEmbedderIndex::kRealm));
 }
@@ -75,7 +79,9 @@ inline T* Realm::GetBindingData() {
   constexpr size_t binding_index = static_cast<size_t>(T::binding_type_int);
   static_assert(binding_index < std::tuple_size_v<BindingDataStore>);
   auto ptr = binding_data_store_[binding_index];
-  if (UNLIKELY(!ptr)) return nullptr;
+  if (!ptr) [[unlikely]] {
+    return nullptr;
+  }
   T* result = static_cast<T*>(ptr.get());
   DCHECK_NOT_NULL(result);
   return result;

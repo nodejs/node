@@ -17,7 +17,7 @@ namespace quic {
 #define NGTCP2_OK(V) (V == NGTCP2_SUCCESS)
 
 #define IF_QUIC_DEBUG(env)                                                     \
-  if (UNLIKELY(env->enabled_debug_list()->enabled(DebugCategory::QUIC)))
+  if (env->enabled_debug_list()->enabled(DebugCategory::QUIC)) [[unlikely]]
 
 #define DISALLOW_COPY(Name)                                                    \
   Name(const Name&) = delete;                                                  \
