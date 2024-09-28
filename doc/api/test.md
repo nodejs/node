@@ -1299,6 +1299,12 @@ changes:
   * `setup` {Function} A function that accepts the `TestsStream` instance
     and can be used to setup listeners before any tests are run.
     **Default:** `undefined`.
+  * `execArgv` {Array} An array of CLI flags to pass to the `node` executable when
+    spawning the subprocesses. This option has no effect when `isolation` is `'none`'.
+    **Default:** `[]`
+  * `argv` {Array} An array of CLI flags to pass to each test file when spawning the
+    subprocesses. This option has no effect when `isolation` is `'none'`.
+    **Default:** `[]`.
   * `signal` {AbortSignal} Allows aborting an in-progress test execution.
   * `testNamePatterns` {string|RegExp|Array} A String, RegExp or a RegExp Array,
     that can be used to only run tests whose name matches the provided pattern.
