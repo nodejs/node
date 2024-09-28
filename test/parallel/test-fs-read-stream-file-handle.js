@@ -80,3 +80,22 @@ fs.promises.open(file, 'r').then((handle) => {
     assert.strictEqual(output, input);
   }));
 }).then(common.mustCall());
+
+fs.promises.open(file, 'r').then((handle) => {
+  const controller = new AbortController();
+  const { signal } = controller;
+  const stream = handle.createReadStream({ signal });
+
+  stream.on('data', common.mustNotCall());
+  stream.on('end', common.mustNotCall());
+
+  stream.on('error', common.mustCall((err) => {
+    assert.strictEqual(err.name, 'AbortError');
+  }));
+
+  stream.on('close', common.mustCall(() => {
+    handle.close();
+  }));
+
+  controller.abort();
+}).then(common.mustCall());
