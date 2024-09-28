@@ -1040,8 +1040,9 @@ static void ExistsSync(const FunctionCallbackInfo<Value>& args) {
 static void InternalModuleStat(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  CHECK(args[0]->IsString());
-  BufferValue path(env->isolate(), args[0]);
+  CHECK_GE(args.Length(), 2);
+  CHECK(args[1]->IsString());
+  BufferValue path(env->isolate(), args[1]);
   CHECK_NOT_NULL(*path);
   ToNamespacedPath(env, &path);
   THROW_IF_INSUFFICIENT_PERMISSIONS(
@@ -1059,6 +1060,7 @@ static void InternalModuleStat(const FunctionCallbackInfo<Value>& args) {
 }
 
 static int32_t FastInternalModuleStat(
+    Local<Object> unused,
     Local<Object> recv,
     const FastOneByteString& input,
     // NOLINTNEXTLINE(runtime/references) This is V8 api.
