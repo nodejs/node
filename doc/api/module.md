@@ -869,9 +869,6 @@ behaviors.
 
 #### Import from HTTPS
 
-In current Node.js, specifiers starting with `https://` are experimental (see
-\[HTTPS and HTTP imports]\[]).
-
 The hook below registers hooks to enable rudimentary support for such
 specifiers. While this may seem like a significant improvement to Node.js core
 functionality, there are substantial downsides to actually using these hooks:
