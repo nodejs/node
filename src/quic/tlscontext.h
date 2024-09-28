@@ -13,8 +13,7 @@
 #include "defs.h"
 #include "sessionticket.h"
 
-namespace node {
-namespace quic {
+namespace node::quic {
 
 class Session;
 class TLSContext;
@@ -221,8 +220,7 @@ class TLSContext final : public MemoryRetainer,
   friend class TLSSession;
 };
 
-}  // namespace quic
-}  // namespace node
+}  // namespace node::quic
 
 #endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

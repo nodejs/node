@@ -11,8 +11,7 @@
 #include "data.h"
 #include "defs.h"
 
-namespace node {
-namespace quic {
+namespace node::quic {
 
 // A TLS 1.3 Session resumption ticket. Encapsulates both the TLS
 // ticket and the encoded QUIC transport parameters. The encoded
@@ -103,8 +102,7 @@ class SessionTicket::AppData final {
   SSL* ssl_;
 };
 
-}  // namespace quic
-}  // namespace node
+}  // namespace node::quic
 
 #endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

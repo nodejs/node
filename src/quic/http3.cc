@@ -17,8 +17,7 @@
 #include "session.h"
 #include "sessionticket.h"
 
-namespace node {
-namespace quic {
+namespace node::quic {
 namespace {
 
 struct Http3HeadersTraits {
@@ -833,7 +832,6 @@ std::unique_ptr<Session::Application> createHttp3Application(
   return std::make_unique<Http3Application>(session, options);
 }
 
-}  // namespace quic
-}  // namespace node
+}  // namespace node::quic
 
 #endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC

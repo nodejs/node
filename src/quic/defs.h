@@ -9,8 +9,7 @@
 #include <v8.h>
 #include <limits>
 
-namespace node {
-namespace quic {
+namespace node::quic {
 
 #define NGTCP2_SUCCESS 0
 #define NGTCP2_ERR(V) (V != NGTCP2_SUCCESS)
@@ -243,5 +242,4 @@ class DebugIndentScope {
   static int indent_;
 };
 
-}  // namespace quic
-}  // namespace node
+}  // namespace node::quic
