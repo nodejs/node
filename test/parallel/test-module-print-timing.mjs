@@ -114,12 +114,12 @@ it('should support enable tracing dynamically', async () => {
 
 
   const outputFile = tmpdir.resolve('output-dynamic-trace.log');
-  let requireFileWithDoubleQuote = ''
+  let requireFileWithDoubleQuote = '';
   if (!isWindows) {
     // Double quotes are not valid char for a path on Windows.
     const fileWithDoubleQuote = tmpdir.resolve('filename-with-"double"-quotes.cjs');
     writeFileSync(fileWithDoubleQuote, ';\n');
-    requireFileWithDoubleQuote = `require(${JSON.stringify(fileWithDoubleQuote)});`
+    requireFileWithDoubleQuote = `require(${JSON.stringify(fileWithDoubleQuote)});`;
   }
   const jsScript = `
   const traceEvents = require("trace_events");
