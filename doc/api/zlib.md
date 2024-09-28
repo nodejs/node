@@ -1291,7 +1291,6 @@ Decompress a chunk of data with [`Unzip`][].
 [`buffer.kMaxLength`]: buffer.md#bufferkmaxlength
 [`deflateInit2` and `inflateInit2`]: https://zlib.net/manual.html#Advanced
 [`stream.Transform`]: stream.md#class-streamtransform
-[`zlib.bytesWritten`]: #zlibbyteswritten
 [convenience methods]: #convenience-methods
 [zlib documentation]: https://zlib.net/manual.html#Constants
 [zlib.createGzip example]: #zlib
