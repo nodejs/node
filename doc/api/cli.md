@@ -220,7 +220,7 @@ The initializer module also needs to be allowed. Consider the following example:
 ```console
 $ node --experimental-permission t.js
 node:internal/modules/cjs/loader:162
-  const result = internalModuleStat(filename);
+  const result = internalModuleStat(receiver, filename);
                  ^
 
 Error: Access to this API has been restricted
