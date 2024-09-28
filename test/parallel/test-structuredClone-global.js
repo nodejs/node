@@ -30,6 +30,19 @@ for (const StreamClass of [ReadableStream, WritableStream, TransformStream]) {
   assert.ok(extendedTransfer instanceof StreamClass);
 }
 
+for (const Transferrable of [File, Blob]) {
+  const a2 = Transferrable === File ? '' : {};
+  const original = new Transferrable([], a2);
+  const transfer = structuredClone(original);
+  assert.strictEqual(Object.getPrototypeOf(transfer), Transferrable.prototype);
+  assert.ok(transfer instanceof Transferrable);
+
+  const extendedOriginal = new (class extends Transferrable {})([], a2);
+  const extendedTransfer = structuredClone(extendedOriginal);
+  assert.strictEqual(Object.getPrototypeOf(extendedTransfer), Transferrable.prototype);
+  assert.ok(extendedTransfer instanceof Transferrable);
+}
+
 {
   // See: https://github.com/nodejs/node/issues/49940
   const cloned = structuredClone({}, {
