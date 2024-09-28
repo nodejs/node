@@ -32,6 +32,15 @@ jobs:
         run: |
           npm install -g @node-core/utils
 
+      - name: Configure ncu
+        run: |
+          git config --global node-core-utils.token ${{ secrets.GH_USER_TOKEN }}
+
+      - name: Calculate new version for WPT using jq
+        run: |
+          new_version=$(jq -r '.${{ matrix.subsystem }}.commit' test/fixtures/wpt/versions.json)
+          echo "new_version=$new_version" >> $GITHUB_ENV
+
       - name: Compare versions
         run: |
           echo "Comparing current version to new version ${{ env.new_version }}"
@@ -41,11 +50,6 @@ jobs:
           git node wpt ${{ matrix.subsystem }}
         env:
           GH_TOKEN: ${{ secrets.GH_USER_TOKEN }}
-
-      - name: Calculate new version for WPT using jq
-        run: |
-          new_version=$(jq -r '.${{ matrix.subsystem }}.commit' test/fixtures/wpt/versions.json)
-          echo "new_version=$new_version" >> $GITHUB_ENV
 
       - name: Handle changes
         run: |
