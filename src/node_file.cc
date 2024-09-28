@@ -3111,9 +3111,12 @@ static void CpSyncCheckPaths(const FunctionCallbackInfo<Value>& args) {
   }
 
   std::u8string dest_path_str = dest_path.u8string();
-
+  std::u8string src_path_str = src_path.u8string();
+  if (!src_path_str.ends_with(std::filesystem::path::preferred_separator)) {
+    src_path_str += std::filesystem::path::preferred_separator;
+  }
   // Check if dest_path is a subdirectory of src_path.
-  if (src_is_dir && dest_path_str.starts_with(src_path.u8string())) {
+  if (src_is_dir && dest_path_str.starts_with(src_path_str)) {
     std::u8string message = u8"Cannot copy " + src_path.u8string() +
                             u8" to a subdirectory of self " +
                             dest_path.u8string();
