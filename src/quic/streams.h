@@ -15,8 +15,7 @@
 #include "bindingdata.h"
 #include "data.h"
 
-namespace node {
-namespace quic {
+namespace node::quic {
 
 class Session;
 
@@ -227,8 +226,7 @@ class Stream : public AsyncWrap,
   void Unschedule();
 };
 
-}  // namespace quic
-}  // namespace node
+}  // namespace node::quic
 
 #endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
