@@ -125,7 +125,7 @@ const { escapePOSIXShell } = require('../common');
 const fixtures = require('../common/fixtures');
 const { execSync } = require('node:child_process');
 const origin = fixtures.path('origin');
-const origin = fixtures.path('destination');
+const destination = fixtures.path('destination');
 
 execSync(...escapePOSIXShell`cp "${origin}" "${destination}"`);
 
