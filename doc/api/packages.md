@@ -171,7 +171,7 @@ There is the CommonJS module loader:
   `process.dlopen()`.
 * It treats all files that lack `.json` or `.node` extensions as JavaScript
   text files.
-* It can only be used to [load ECMASCript modules from CommonJS modules][] if
+* It can only be used to [load ECMAScript modules from CommonJS modules][] if
   the module graph is synchronous (that contains no top-level `await`).
   When used to load a JavaScript text file that is not an ECMAScript module,
   the file will be loaded as a CommonJS module.
@@ -1169,7 +1169,7 @@ This field defines [subpath imports][] for the current package.
 [entry points]: #package-entry-points
 [folders as modules]: modules.md#folders-as-modules
 [import maps]: https://github.com/WICG/import-maps
-[load ECMASCript modules from CommonJS modules]: modules.md#loading-ecmascript-modules-using-require
+[load ECMAScript modules from CommonJS modules]: modules.md#loading-ecmascript-modules-using-require
 [loader hooks]: esm.md#loaders
 [packages folder mapping]: https://github.com/WICG/import-maps#packages-via-trailing-slashes
 [self-reference]: #self-referencing-a-package-using-its-name

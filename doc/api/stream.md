@@ -2227,7 +2227,7 @@ stopped by having passed a `signal` option and aborting the related
 `return`. In either case the stream will be destroyed.
 
 This method is different from listening to the [`'data'`][] event in that it
-uses the [`readable`][] event in the underlying machinary and can limit the
+uses the [`readable`][] event in the underlying machinery and can limit the
 number of concurrent `fn` calls.
 
 ```mjs

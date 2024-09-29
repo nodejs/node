@@ -476,7 +476,7 @@ all tests have completed. If the [`NODE_V8_COVERAGE`][] environment variable is
 used to specify a code coverage directory, the generated V8 coverage files are
 written to that directory. Node.js core modules and files within
 `node_modules/` directories are, by default, not included in the coverage report.
-However, they can be explicity included via the [`--test-coverage-include`][] flag. If
+However, they can be explicitly included via the [`--test-coverage-include`][] flag. If
 coverage is enabled, the coverage report is sent to any [test reporters][] via
 the `'test:coverage'` event.
 

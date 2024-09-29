@@ -142,14 +142,14 @@ If `cacheDir` is not specified, Node.js will either use the directory specified 
 [`NODE_COMPILE_CACHE=dir`][] environment variable if it's set, or use
 `path.join(os.tmpdir(), 'node-compile-cache')` otherwise. For general use cases, it's
 recommended to call `module.enableCompileCache()` without specifying the `cacheDir`,
-so that the directory can be overriden by the `NODE_COMPILE_CACHE` environment
+so that the directory can be overridden by the `NODE_COMPILE_CACHE` environment
 variable when necessary.
 
 Since compile cache is supposed to be a quiet optimization that is not required for the
 application to be functional, this method is designed to not throw any exception when the
 compile cache cannot be enabled. Instead, it will return an object containing an error
 message in the `message` field to aid debugging.
-If compile cache is enabled successefully, the `directory` field in the returned object
+If compile cache is enabled successfully, the `directory` field in the returned object
 contains the path to the directory where the compile cache is stored. The `status`
 field in the returned object would be one of the `module.constants.compileCacheStatus`
 values to indicate the result of the attempt to enable the [module compile cache][].
@@ -157,7 +157,7 @@ values to indicate the result of the attempt to enable the [module compile cache
 This method only affects the current Node.js instance. To enable it in child worker threads,
 either call this method in child worker threads too, or set the
 `process.env.NODE_COMPILE_CACHE` value to compile cache directory so the behavior can
-be inheritend into the child workers. The directory can be obtained either from the
+be inherited into the child workers. The directory can be obtained either from the
 `directory` field returned by this method, or with [`module.getCompileCacheDir()`][].
 
 #### Module compile cache
@@ -264,7 +264,7 @@ changes:
     **Default:** `'data:'`
   * `data` {any} Any arbitrary, cloneable JavaScript value to pass into the
     [`initialize`][] hook.
-  * `transferList` {Object\[]} [transferrable objects][] to be passed into the
+  * `transferList` {Object\[]} [transferable objects][] to be passed into the
     `initialize` hook.
 
 Register a module that exports [hooks][] that customize Node.js module
@@ -737,7 +737,7 @@ affect the other thread(s), and message channels must be used to communicate
 between the threads.
 
 The `register` method can be used to pass data to an [`initialize`][] hook. The
-data passed to the hook may include transferrable objects like ports.
+data passed to the hook may include transferable objects like ports.
 
 ```mjs
 import { register } from 'node:module';
@@ -835,7 +835,7 @@ the hooks thread when the hooks module is initialized. Initialization happens
 when the hooks module is registered via [`register`][].
 
 This hook can receive data from a [`register`][] invocation, including
-ports and other transferrable objects. The return value of `initialize` can be a
+ports and other transferable objects. The return value of `initialize` can be a
 {Promise}, in which case it will be awaited before the main application thread
 execution resumes.
 
@@ -1503,6 +1503,6 @@ returned object contains the following keys:
 [prefix-only modules]: modules.md#built-in-modules-with-mandatory-node-prefix
 [realm]: https://tc39.es/ecma262/#realm
 [source map include directives]: https://sourcemaps.info/spec.html#h.lmz475t4mvbx
-[transferrable objects]: worker_threads.md#portpostmessagevalue-transferlist
+[transferable objects]: worker_threads.md#portpostmessagevalue-transferlist
 [transform TypeScript features]: typescript.md#typescript-features
 [type-stripping]: typescript.md#type-stripping
