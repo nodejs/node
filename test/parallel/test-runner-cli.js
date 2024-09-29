@@ -57,6 +57,27 @@ for (const isolation of ['none', 'process']) {
     assert.match(stdout, /ok 1 - this should pass/);
     assert.match(stdout, /ok 2 - this should pass/);
     assert.match(stdout, /ok 3 - this should pass/);
+    // Doesn't match the TypeScript files
+    assert.doesNotMatch(stdout, /ok 4 - this should pass/);
+  }
+
+  for (const type of ['strip', 'transform']) {
+    // Should match files with "-test.(c|m)(t|j)s" suffix when typescript support is enabled
+    const args = ['--test', '--test-reporter=tap', '--no-warnings',
+                  `--experimental-${type}-types`, `--experimental-test-isolation=${isolation}`];
+    const child = spawnSync(process.execPath, args, { cwd: join(testFixtures, 'matching-patterns') });
+
+    assert.strictEqual(child.status, 0);
+    assert.strictEqual(child.signal, null);
+    assert.strictEqual(child.stderr.toString(), '');
+    const stdout = child.stdout.toString();
+
+    assert.match(stdout, /ok 1 - this should pass/);
+    assert.match(stdout, /ok 2 - this should pass/);
+    assert.match(stdout, /ok 3 - this should pass/);
+    assert.match(stdout, /ok 4 - this should pass/);
+    assert.match(stdout, /ok 5 - this should pass/);
+    assert.match(stdout, /ok 6 - this should pass/);
   }
 
   {
