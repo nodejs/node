@@ -25,7 +25,7 @@ const exec = require('child_process').exec;
 const [cmd, opts] = common.escapePOSIXShell`"${process.execPath}" "${__filename}" child < "${filename}"`;
 exec(
   cmd,
-  { ...opts, maxBuffer: 1000000 },
+  { ...opts, maxBuffer: 1_000_000 },
   common.mustSucceed((stdout, stderr) => {
     assert.strictEqual(stdout, dataExpected);
     assert.strictEqual(stderr, '');
