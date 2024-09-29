@@ -483,6 +483,7 @@ assert.throws(() => new Blob({}), {
 
   assert.ok(blob.slice(0, 1).constructor === Blob);
   assert.ok(blob.slice(0, 1) instanceof Blob);
+  assert.ok(blob.slice(0, 1.5) instanceof Blob);
 }
 
 (async () => {
