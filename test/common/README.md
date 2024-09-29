@@ -121,14 +121,20 @@ use it only to escape paths, inside double quotes.
 This function is meant to be used for tagged template strings.
 
 ```js
-childProcess.execSync(...common.escapePOSIXShell`cp "${origin}" "${destination}"`);
+const { escapePOSIXShell } = require('../common');
+const fixtures = require('../common/fixtures');
+const { execSync } = require('node:child_process');
+const origin = fixtures.path('origin');
+const origin = fixtures.path('destination');
+
+execSync(...escapePOSIXShell`cp "${origin}" "${destination}"`);
 
 // When you need to specify specific options, and/or additional env variables:
-const [cmd, opts] = common.escapePOSIXShell`cp "${origin}" "${destination}"`;
-typeof cmd === 'string'; // true
-opts === undefined || typeof opts.env === 'object'; // true
-childProcess.execSync(cmd, { ...opts, stdio: 'ignore' });
-childProcess.execSync(cmd, { stdio: 'ignore', env: { ...opts?.env, KEY: 'value' } });
+const [cmd, opts] = escapePOSIXShell`cp "${origin}" "${destination}"`;
+console.log(typeof cmd === 'string'); // true
+console.log(opts === undefined || typeof opts.env === 'object'); // true
+execSync(cmd, { ...opts, stdio: 'ignore' });
+execSync(cmd, { stdio: 'ignore', env: { ...opts?.env, KEY: 'value' } });
 ```
 
 When possible, avoid using a shell; that way, there's no need to escape values.
