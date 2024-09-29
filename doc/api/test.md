@@ -422,12 +422,22 @@ node --test
 
 By default, Node.js will run all files matching these patterns:
 
-* `**/*.test.?(c|m)js`
-* `**/*-test.?(c|m)js`
-* `**/*_test.?(c|m)js`
-* `**/test-*.?(c|m)js`
-* `**/test.?(c|m)js`
-* `**/test/**/*.?(c|m)js`
+* `**/*.test.{cjs,mjs,js}`
+* `**/*-test.{cjs,mjs,js}`
+* `**/*_test.{cjs,mjs,js}`
+* `**/test-*.{cjs,mjs,js}`
+* `**/test.{cjs,mjs,js}`
+* `**/test/**/*.{cjs,mjs,js}`
+
+When [`--experimental-strip-types`][] is supplied, the following
+additional patterns are matched:
+
+* `**/*.test.{cts,mts,ts}`
+* `**/*-test.{cts,mts,ts}`
+* `**/*_test.{cts,mts,ts}`
+* `**/test-*.{cts,mts,ts}`
+* `**/test.{cts,mts,ts}`
+* `**/test/**/*.{cts,mts,ts}`
 
 Alternatively, one or more glob patterns can be provided as the
 final argument(s) to the Node.js command, as shown below.
@@ -3558,6 +3568,7 @@ Can be used to abort test subtasks when the test has been aborted.
 
 [TAP]: https://testanything.org/
 [TTY]: tty.md
+[`--experimental-strip-types`]: cli.md#--experimental-strip-types
 [`--experimental-test-coverage`]: cli.md#--experimental-test-coverage
 [`--experimental-test-module-mocks`]: cli.md#--experimental-test-module-mocks
 [`--experimental-test-snapshots`]: cli.md#--experimental-test-snapshots
