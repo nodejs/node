@@ -887,7 +887,7 @@ function spawnPromisified(...args) {
 }
 
 /**
- * Escape quoted values in a string template literal. On Windows, this function
+ * Escape values in a string template literal. On Windows, this function
  * does not escape anything (which is fine for paths, as `"` is not a valid char
  * in a path on Windows), so you should use it only to escape paths – or other
  * values on tests which are skipped on Windows.

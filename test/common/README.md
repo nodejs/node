@@ -112,6 +112,27 @@ Creates a 10 MiB file of all null characters.
 
 Indicates if there is more than 1gb of total memory.
 
+### ``escapePOSIXShell`shell command` ``
+
+Escapes values in a string template literal to pass them as env variable. On Windows, this function
+does not escape anything (which is fine for most paths, as `"` is not a valid
+char in a path on Windows), so for tests that must pass on Windows, you should
+use it only to escape paths, inside double quotes.
+This function is meant to be used for tagged template strings.
+
+```js
+childProcess.execSync(...common.escapePOSIXShell`cp "${origin}" "${destination}"`);
+
+// When you need to specify specific options, and/or additional env variables:
+const [cmd, opts] = common.escapePOSIXShell`cp "${origin}" "${destination}"`;
+typeof cmd === 'string'; // true
+opts === undefined || typeof opts.env === 'object'; // true
+childProcess.execSync(cmd, { ...opts, stdio: 'ignore' });
+childProcess.execSync(cmd, { stdio: 'ignore', env: { ...opts?.env, KEY: 'value' } });
+```
+
+When possible, avoid using a shell; that way, there's no need to escape values.
+
 ### `expectsError(validator[, exact])`
 
 * `validator` [\<Object>][<Object>] | [\<RegExp>][<RegExp>] |
