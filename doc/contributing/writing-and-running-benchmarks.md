@@ -181,8 +181,8 @@ It's also possible to execute the benchmark more than once using the
 node benchmark/run.js --runs 10 assert async_hooks
 ```
 
-This command will run the benchmark suite 10 times for both assert and
-async\_hooks group
+This command will run the benchmark files in `benchmark/assert` and `benchmark/async_hooks`
+10 times each.
 
 #### Specifying CPU Cores for Benchmarks with run.js
 
