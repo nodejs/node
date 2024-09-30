@@ -18,7 +18,7 @@ Last update:
 - encoding: https://github.com/web-platform-tests/wpt/tree/1ac8deee08/encoding
 - fetch/data-urls/resources: https://github.com/web-platform-tests/wpt/tree/7c79d998ff/fetch/data-urls/resources
 - FileAPI: https://github.com/web-platform-tests/wpt/tree/cceaf3628d/FileAPI
-- hr-time: https://github.com/web-platform-tests/wpt/tree/34cafd797e/hr-time
+- hr-time: https://github.com/web-platform-tests/wpt/tree/614e81711c/hr-time
 - html/webappapis/atob: https://github.com/web-platform-tests/wpt/tree/f267e1dca6/html/webappapis/atob
 - html/webappapis/microtask-queuing: https://github.com/web-platform-tests/wpt/tree/2c5c3c4c27/html/webappapis/microtask-queuing
 - html/webappapis/structured-clone: https://github.com/web-platform-tests/wpt/tree/47d3fb280c/html/webappapis/structured-clone

@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+<head>
+  <link rel="help" href="https://html.spec.whatwg.org/multipage/webappapis.html#update-the-rendering">
+  <script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+</head>
+<body>
+<script>
+    /* Coarsen to 5 microseconds or coarser */
+    const COARSE_RESOLUTION = 0.005;
+
+    const CUSTOM_TIMELINE_DELTA = 0.002;
+    const FLOATING_POINT_ERROR_EPSILON = 0.01;
+
+    // Note that this test would fail if the platform introduces a jitter.
+    // It is recommended that platforms that implement jitter run this test
+    // with a flag that turns jitter off, if possible.
+
+    const customTimeline = new DocumentTimeline({originTime: CUSTOM_TIMELINE_DELTA});
+    promise_test(async t => {
+        for (let i = 0; i < 32; ++i) {
+            const timestamp = await new Promise(resolve => requestAnimationFrame(ts => resolve(ts)));
+            const coarse_timestamp = Math.round(timestamp / COARSE_RESOLUTION) * COARSE_RESOLUTION;
+            assert_approx_equals(timestamp, coarse_timestamp, FLOATING_POINT_ERROR_EPSILON,
+              "timestamp should be coarsened");
+            assert_approx_equals(timestamp, document.timeline.currentTime, FLOATING_POINT_ERROR_EPSILON,
+              "document.timeline.currentTimeline should be the same as the rAF callback");
+            assert_approx_equals(customTimeline.currentTime + CUSTOM_TIMELINE_DELTA,
+              timestamp, FLOATING_POINT_ERROR_EPSILON,
+              "originTime for custom timeline should not be coarsened");
+        }
+    });
+</script>
+</body>
+</html>
