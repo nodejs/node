@@ -10,7 +10,7 @@ See [test/wpt](../../wpt/README.md) for information on how these tests are run.
 
 Last update:
 
-- common: https://github.com/web-platform-tests/wpt/tree/dbd648158d/common
+- common: https://github.com/web-platform-tests/wpt/tree/d8da9d4d1d/common
 - compression: https://github.com/web-platform-tests/wpt/tree/5aa50dd415/compression
 - console: https://github.com/web-platform-tests/wpt/tree/767ae35464/console
 - dom/abort: https://github.com/web-platform-tests/wpt/tree/0143fe244b/dom/abort
