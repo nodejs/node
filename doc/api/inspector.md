@@ -513,7 +513,7 @@ inspector.Network.requestWillBeSent({
 
 <!-- YAML
 added:
- - REPLACEME
+ - v20.18.0
 -->
 
 > Stability: 1 - Experimental
@@ -529,7 +529,7 @@ the application is about to send an HTTP request.
 
 <!-- YAML
 added:
- - REPLACEME
+ - v20.18.0
 -->
 
 > Stability: 1 - Experimental
@@ -545,7 +545,7 @@ HTTP response is available.
 
 <!-- YAML
 added:
- - REPLACEME
+ - v20.18.0
 -->
 
 > Stability: 1 - Experimental
@@ -561,7 +561,7 @@ HTTP request has finished loading.
 
 <!-- YAML
 added:
- - REPLACEME
+ - v20.18.0
 -->
 
 > Stability: 1 - Experimental

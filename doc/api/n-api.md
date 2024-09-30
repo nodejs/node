@@ -3099,7 +3099,7 @@ creation methods.
 #### `node_api_create_property_key_latin1`
 
 <!-- YAML
-added: REPLACEME
+added: v20.18.0
 -->
 
 > Stability: 1 - Experimental
@@ -3163,7 +3163,7 @@ The JavaScript `string` type is described in
 #### `node_api_create_property_key_utf8`
 
 <!-- YAML
-added: REPLACEME
+added: v20.18.0
 -->
 
 > Stability: 1 - Experimental

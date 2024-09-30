@@ -470,7 +470,7 @@ added:
   - v12.19.0
 changes:
   - version:
-    - REPLACEME
+    - v20.18.0
     pr-url: https://github.com/nodejs/node/pull/54209
     description: The flag is no longer experimental.
 -->
@@ -694,7 +694,7 @@ code from strings throw an exception instead. This does not affect the Node.js
 ### `--expose-gc`
 
 <!-- YAML
-added: REPLACEME
+added: v20.18.0
 -->
 
 > Stability: 1 - Experimental. This flag is inherited from V8 and is subject to
@@ -922,7 +922,7 @@ CommonJS. This includes the following:
 ### `--experimental-eventsource`
 
 <!-- YAML
-added: REPLACEME
+added: v20.18.0
 -->
 
 Enable exposition of [EventSource Web API][] on the global scope.
@@ -980,7 +980,7 @@ Enable experimental support for the `https:` protocol in `import` specifiers.
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v20.18.0
 -->
 
 > Stability: 1 - Experimental
@@ -1068,7 +1068,7 @@ report is not generated. See the documentation on
 ### `--experimental-test-module-mocks`
 
 <!-- YAML
-added: REPLACEME
+added: v20.18.0
 -->
 
 > Stability: 1.0 - Early development

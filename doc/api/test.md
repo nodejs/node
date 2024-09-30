@@ -1739,7 +1739,7 @@ mock can still be used after calling this function.
 ## Class: `MockModuleContext`
 
 <!-- YAML
-added: REPLACEME
+added: v20.18.0
 -->
 
 > Stability: 1.0 - Early development
@@ -1750,7 +1750,7 @@ created via the [`MockTracker`][] APIs.
 ### `ctx.restore()`
 
 <!-- YAML
-added: REPLACEME
+added: v20.18.0
 -->
 
 Resets the implementation of the mock module.
@@ -1891,7 +1891,7 @@ test('spies on an object method', (t) => {
 ### `mock.module(specifier[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v20.18.0
 -->
 
 > Stability: 1.0 - Early development

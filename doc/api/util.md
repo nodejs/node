@@ -1805,7 +1805,7 @@ console.log(util.stripVTControlCharacters('\u001B[4mvalue\u001B[0m'));
 <!-- YAML
 added: v20.12.0
 changes:
-  - version: REPLACEME
+  - version: v20.18.0
     pr-url: https://github.com/nodejs/node/pull/54389
     description: Respect isTTY and environment variables
       such as NO_COLORS, NODE_DISABLE_COLORS, and FORCE_COLOR.
