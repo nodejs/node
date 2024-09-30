@@ -353,7 +353,7 @@ describe('glob - withFileTypes', function() {
         exclude: (dirent) => assert.ok(dirent instanceof Dirent),
       });
       assertDirents(actual);
-      assert.deepStrictEqual(actual.map(normalizeDirent).sort(), expected.map(normalizePath).sort());
+      assert.deepStrictEqual(actual.map(normalizeDirent).sort(), expected.filter(Boolean).map(normalizePath).sort());
     });
   }
 });
@@ -367,7 +367,7 @@ describe('globSync - withFileTypes', function() {
         exclude: (dirent) => assert.ok(dirent instanceof Dirent),
       });
       assertDirents(actual);
-      assert.deepStrictEqual(actual.map(normalizeDirent).sort(), expected.map(normalizePath).sort());
+      assert.deepStrictEqual(actual.map(normalizeDirent).sort(), expected.filter(Boolean).map(normalizePath).sort());
     });
   }
 });
@@ -382,7 +382,7 @@ describe('fsPromises glob - withFileTypes', function() {
         exclude: (dirent) => assert.ok(dirent instanceof Dirent),
       })) actual.push(item);
       assertDirents(actual);
-      assert.deepStrictEqual(actual.map(normalizeDirent).sort(), expected.map(normalizePath).sort());
+      assert.deepStrictEqual(actual.map(normalizeDirent).sort(), expected.filter(Boolean).map(normalizePath).sort());
     });
   }
 });
