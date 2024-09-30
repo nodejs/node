@@ -250,6 +250,7 @@ static void ParseEnv(const FunctionCallbackInfo<Value>& args) {
 static void GetCallSite(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
+  v8::HandleScope handle_scope(isolate);
 
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsNumber());
@@ -265,20 +266,27 @@ static void GetCallSite(const FunctionCallbackInfo<Value>& args) {
   for (int i = 1; i < frame_count; ++i) {
     Local<StackFrame> stack_frame = stack->GetFrame(isolate, i);
 
-    Utf8Value function_name(isolate, stack_frame->GetFunctionName());
-    Utf8Value script_name(isolate, stack_frame->GetScriptName());
+    Local<Value> function_name = stack_frame->GetFunctionName();
+    if (function_name.IsEmpty()) {
+      function_name = v8::String::Empty(isolate);
+    }
+
+    Local<Value> script_name = stack_frame->GetScriptName();
+    if (script_name.IsEmpty()) {
+      script_name = v8::String::Empty(isolate);
+    }
 
     Local<Name> names[] = {
-        env->function_name_string(),
-        env->script_name_string(),
-        env->line_number_string(),
-        env->column_string(),
+      env->function_name_string(),
+      env->script_name_string(),
+      env->line_number_string(),
+      env->column_string(),
     };
     Local<Value> values[] = {
-        String::NewFromUtf8(isolate, *function_name).ToLocalChecked(),
-        String::NewFromUtf8(isolate, *script_name).ToLocalChecked(),
-        Integer::NewFromUnsigned(isolate, stack_frame->GetLineNumber()),
-        Integer::NewFromUnsigned(isolate, stack_frame->GetColumn()),
+      function_name,
+      script_name,
+      Integer::NewFromUnsigned(isolate, stack_frame->GetLineNumber()),
+      Integer::NewFromUnsigned(isolate, stack_frame->GetColumn()),
     };
     Local<Object> obj = Object::New(
         isolate, v8::Null(isolate), names, values, arraysize(names));
