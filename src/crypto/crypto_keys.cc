@@ -483,7 +483,7 @@ KeyObjectData::GetPrivateKeyEncodingFromJs(
     if (IsAnyBufferSource(args[*offset])) {
       CHECK_IMPLIES(context != kKeyContextInput, result.cipher_ != nullptr);
       ArrayBufferOrViewContents<char> passphrase(args[*offset]);
-      if (UNLIKELY(!passphrase.CheckSizeInt32())) {
+      if (!passphrase.CheckSizeInt32()) [[unlikely]] {
         THROW_ERR_OUT_OF_RANGE(env, "passphrase is too big");
         return NonCopyableMaybe<PrivateKeyEncodingConfig>();
       }
@@ -540,7 +540,7 @@ KeyObjectData KeyObjectData::GetPublicOrPrivateKeyFromJs(
   if (IsAnyBufferSource(args[*offset])) {
     Environment* env = Environment::GetCurrent(args);
     ArrayBufferOrViewContents<char> data(args[(*offset)++]);
-    if (UNLIKELY(!data.CheckSizeInt32())) {
+    if (!data.CheckSizeInt32()) [[unlikely]] {
       THROW_ERR_OUT_OF_RANGE(env, "keyData is too big");
       return {};
     }

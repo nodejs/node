@@ -174,7 +174,7 @@ ECPointPointer ECDH::BufferToPoint(Environment* env,
   }
 
   ArrayBufferOrViewContents<unsigned char> input(buf);
-  if (UNLIKELY(!input.CheckSizeInt32())) {
+  if (!input.CheckSizeInt32()) [[unlikely]] {
     THROW_ERR_OUT_OF_RANGE(env, "buffer is too big");
     return ECPointPointer();
   }
@@ -293,7 +293,7 @@ void ECDH::SetPrivateKey(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&ecdh, args.This());
 
   ArrayBufferOrViewContents<unsigned char> priv_buffer(args[0]);
-  if (UNLIKELY(!priv_buffer.CheckSizeInt32()))
+  if (!priv_buffer.CheckSizeInt32()) [[unlikely]]
     return THROW_ERR_OUT_OF_RANGE(env, "key is too big");
 
   BignumPointer priv(priv_buffer.data(), priv_buffer.size());
@@ -396,7 +396,7 @@ void ECDH::ConvertKey(const FunctionCallbackInfo<Value>& args) {
   CHECK(IsAnyBufferSource(args[0]));
 
   ArrayBufferOrViewContents<char> args0(args[0]);
-  if (UNLIKELY(!args0.CheckSizeInt32()))
+  if (!args0.CheckSizeInt32()) [[unlikely]]
     return THROW_ERR_OUT_OF_RANGE(env, "key is too big");
   if (args0.empty()) return args.GetReturnValue().SetEmptyString();
 

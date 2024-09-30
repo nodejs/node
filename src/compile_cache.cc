@@ -59,7 +59,7 @@ uint32_t GetCacheKey(std::string_view filename, CachedCodeType type) {
 template <typename... Args>
 inline void CompileCacheHandler::Debug(const char* format,
                                        Args&&... args) const {
-  if (UNLIKELY(is_debug_)) {
+  if (is_debug_) [[unlikely]] {
     FPrintF(stderr, format, std::forward<Args>(args)...);
   }
 }
@@ -458,20 +458,20 @@ CompileCacheEnableResult CompileCacheHandler::Enable(Environment* env,
         cache_tag,
         cache_dir_with_tag);
 
-  if (UNLIKELY(!env->permission()->is_granted(
+  if (!env->permission()->is_granted(
           env,
           permission::PermissionScope::kFileSystemWrite,
-          cache_dir_with_tag))) {
+          cache_dir_with_tag)) [[unlikely]] {
     result.message = "Skipping compile cache because write permission for " +
                      cache_dir_with_tag + " is not granted";
     result.status = CompileCacheEnableStatus::FAILED;
     return result;
   }
 
-  if (UNLIKELY(!env->permission()->is_granted(
+  if (!env->permission()->is_granted(
           env,
           permission::PermissionScope::kFileSystemRead,
-          cache_dir_with_tag))) {
+          cache_dir_with_tag)) [[unlikely]] {
     result.message = "Skipping compile cache because read permission for " +
                      cache_dir_with_tag + " is not granted";
     result.status = CompileCacheEnableStatus::FAILED;

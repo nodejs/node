@@ -31,7 +31,7 @@ BaseObject::BaseObject(Realm* realm, Local<Object> object)
 BaseObject::~BaseObject() {
   realm()->UntrackBaseObject(this);
 
-  if (UNLIKELY(has_pointer_data())) {
+  if (has_pointer_data()) [[unlikely]] {
     PointerData* metadata = pointer_data();
     CHECK_EQ(metadata->strong_ptr_count, 0);
     metadata->self = nullptr;
