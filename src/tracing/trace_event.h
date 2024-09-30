@@ -321,7 +321,9 @@ class TraceEventHelper {
   static inline const uint8_t* GetCategoryGroupEnabled(const char* group) {
     v8::TracingController* controller = GetTracingController();
     static const uint8_t disabled = 0;
-    if (UNLIKELY(controller == nullptr)) return &disabled;
+    if (controller == nullptr) [[unlikely]] {
+      return &disabled;
+    }
     return controller->GetCategoryGroupEnabled(group);
   }
 };

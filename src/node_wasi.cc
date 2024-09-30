@@ -247,15 +247,17 @@ R WASI::WasiFunction<FT, F, R, Args...>::FastCallback(
     // NOLINTNEXTLINE(runtime/references) This is V8 api.
     FastApiCallbackOptions& options) {
   WASI* wasi = reinterpret_cast<WASI*>(BaseObject::FromJSObject(receiver));
-  if (UNLIKELY(wasi == nullptr)) return EinvalError<R>();
+  if (wasi == nullptr) [[unlikely]] {
+    return EinvalError<R>();
+  }
 
-  if (UNLIKELY(options.wasm_memory == nullptr || wasi->memory_.IsEmpty())) {
+  if (options.wasm_memory == nullptr || wasi->memory_.IsEmpty()) [[unlikely]] {
     // fallback to slow path which to throw an error about missing memory.
     options.fallback = true;
     return EinvalError<R>();
   }
   uint8_t* memory = nullptr;
-  CHECK(LIKELY(options.wasm_memory->getStorageIfAligned(&memory)));
+  CHECK(options.wasm_memory->getStorageIfAligned(&memory));
 
   return F(*wasi,
            {reinterpret_cast<char*>(memory), options.wasm_memory->length()},

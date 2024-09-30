@@ -185,7 +185,7 @@ MaybeLocal<String> BuiltinLoader::LoadBuiltinSource(Isolate* isolate,
   auto source = source_.read();
 #ifndef NODE_BUILTIN_MODULES_PATH
   const auto source_it = source->find(id);
-  if (UNLIKELY(source_it == source->end())) {
+  if (source_it == source->end()) [[unlikely]] {
     fprintf(stderr, "Cannot find native builtin: \"%s\".\n", id);
     ABORT();
   }

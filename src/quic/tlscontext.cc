@@ -515,8 +515,8 @@ crypto::SSLPointer TLSSession::Initialize(
   ngtcp2_conn_set_tls_native_handle(*session_, ssl.get());
 
   // Enable tracing if the `--trace-tls` command line flag is used.
-  if (UNLIKELY(session_->env()->options()->trace_tls ||
-               options.enable_tls_trace)) {
+  if (session_->env()->options()->trace_tls || options.enable_tls_trace)
+      [[unlikely]] {
     EnableTrace(session_->env(), &bio_trace_, *this);
   }
 

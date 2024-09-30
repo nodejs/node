@@ -152,12 +152,13 @@ void AsyncHooks::push_async_context(double async_id,
 bool AsyncHooks::pop_async_context(double async_id) {
   // In case of an exception then this may have already been reset, if the
   // stack was multiple MakeCallback()'s deep.
-  if (UNLIKELY(fields_[kStackLength] == 0)) return false;
+  if (fields_[kStackLength] == 0) [[unlikely]]
+    return false;
 
   // Ask for the async_id to be restored as a check that the stack
   // hasn't been corrupted.
-  if (UNLIKELY(fields_[kCheck] > 0 &&
-               async_id_fields_[kExecutionAsyncId] != async_id)) {
+  if (fields_[kCheck] > 0 && async_id_fields_[kExecutionAsyncId] != async_id)
+      [[unlikely]] {
     FailWithCorruptedAsyncStack(async_id);
   }
 
@@ -166,8 +167,8 @@ bool AsyncHooks::pop_async_context(double async_id) {
   async_id_fields_[kTriggerAsyncId] = async_ids_stack_[2 * offset + 1];
   fields_[kStackLength] = offset;
 
-  if (LIKELY(offset < native_execution_async_resources_.size() &&
-             !native_execution_async_resources_[offset].IsEmpty())) {
+  if (offset < native_execution_async_resources_.size() &&
+      !native_execution_async_resources_[offset].IsEmpty()) [[likely]] {
 #ifdef DEBUG
     for (uint32_t i = offset + 1; i < native_execution_async_resources_.size();
          i++) {
@@ -182,7 +183,7 @@ bool AsyncHooks::pop_async_context(double async_id) {
     }
   }
 
-  if (UNLIKELY(js_execution_async_resources()->Length() > offset)) {
+  if (js_execution_async_resources()->Length() > offset) [[unlikely]] {
     HandleScope handle_scope(env()->isolate());
     USE(js_execution_async_resources()->Set(
         env()->context(),
@@ -1401,7 +1402,7 @@ void Environment::RunAndClearNativeImmediates(bool only_refed) {
 
       head.reset();  // Destroy now so that this is also observed by try_catch.
 
-      if (UNLIKELY(try_catch.HasCaught())) {
+      if (try_catch.HasCaught()) [[unlikely]] {
         if (!try_catch.HasTerminated() && can_call_into_js())
           errors::TriggerUncaughtException(isolate(), try_catch);
 

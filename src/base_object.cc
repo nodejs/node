@@ -32,7 +32,7 @@ BaseObject::~BaseObject() {
   realm()->modify_base_object_count(-1);
   realm()->RemoveCleanupHook(DeleteMe, static_cast<void*>(this));
 
-  if (UNLIKELY(has_pointer_data())) {
+  if (has_pointer_data()) [[unlikely]] {
     PointerData* metadata = pointer_data();
     CHECK_EQ(metadata->strong_ptr_count, 0);
     metadata->self = nullptr;

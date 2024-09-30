@@ -86,7 +86,9 @@ STAT_STRUCT(Endpoint, ENDPOINT)
 namespace {
 #ifdef DEBUG
 bool is_diagnostic_packet_loss(double probability) {
-  if (LIKELY(probability == 0.0)) return false;
+  if (probability == 0.0) [[unlikely]] {
+    return false;
+  }
   unsigned char c = 255;
   CHECK(ncrypto::CSPRNG(&c, 1));
   return (static_cast<double>(c) / 255) < probability;
@@ -805,7 +807,7 @@ void Endpoint::Send(Packet* packet) {
   // When diagnostic packet loss is enabled, the packet will be randomly
   // dropped. This can happen to any type of packet. We use this only in
   // testing to test various reliability issues.
-  if (UNLIKELY(is_diagnostic_packet_loss(options_.tx_loss))) {
+  if (is_diagnostic_packet_loss(options_.tx_loss)) [[unlikely]] {
     packet->Done(0);
     // Simulating tx packet loss
     return;
@@ -874,7 +876,9 @@ void Endpoint::SendVersionNegotiation(const PathDescriptor& options) {
 
 bool Endpoint::SendStatelessReset(const PathDescriptor& options,
                                   size_t source_len) {
-  if (UNLIKELY(options_.disable_stateless_reset)) return false;
+  if (options_.disable_stateless_reset) [[unlikely]] {
+    return false;
+  }
   Debug(this,
         "Sending stateless reset on path %s with len %" PRIu64,
         options,
@@ -1473,14 +1477,14 @@ void Endpoint::Receive(const uv_buf_t& buf,
 #ifdef DEBUG
   // When diagnostic packet loss is enabled, the packet will be randomly
   // dropped.
-  if (UNLIKELY(is_diagnostic_packet_loss(options_.rx_loss))) {
+  if (is_diagnostic_packet_loss(options_.rx_loss)) [[unlikely]] {
     // Simulating rx packet loss
     return;
   }
 #endif  // DEBUG
 
   // TODO(@jasnell): Implement blocklist support
-  // if (UNLIKELY(block_list_->Apply(remote_address))) {
+  // if (block_list_->Apply(remote_address)) [[unlikely]] {
   //   Debug(this, "Ignoring blocked remote address: %s", remote_address);
   //   return;
   // }
@@ -1495,7 +1499,7 @@ void Endpoint::Receive(const uv_buf_t& buf,
   // checks. It is critical at this point that we do as little work as possible
   // to avoid a DOS vector.
   std::shared_ptr<BackingStore> backing = env()->release_managed_buffer(buf);
-  if (UNLIKELY(!backing)) {
+  if (!backing) [[unlikely]] {
     // At this point something bad happened and we need to treat this as a fatal
     // case. There's likely no way to test this specific condition reliably.
     return Destroy(CloseContext::RECEIVE_FAILURE, UV_ENOMEM);
@@ -1519,8 +1523,8 @@ void Endpoint::Receive(const uv_buf_t& buf,
 
   // QUIC currently requires CID lengths of max NGTCP2_MAX_CIDLEN. Ignore any
   // packet with a non-standard CID length.
-  if (UNLIKELY(pversion_cid.dcidlen > NGTCP2_MAX_CIDLEN ||
-               pversion_cid.scidlen > NGTCP2_MAX_CIDLEN)) {
+  if (pversion_cid.dcidlen > NGTCP2_MAX_CIDLEN ||
+      pversion_cid.scidlen > NGTCP2_MAX_CIDLEN) [[unlikely]] {
     Debug(this, "Packet had incorrectly sized CIDs, ignoring");
     return;  // Ignore the packet!
   }
