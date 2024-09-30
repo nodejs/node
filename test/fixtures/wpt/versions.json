@@ -8,7 +8,7 @@
     "path": "compression"
   },
   "console": {
-    "commit": "767ae354642bee1e4d90b28df4480475b9260e14",
+    "commit": "e48251b77834f9689e9df3f49b93b3387dee72d6",
     "path": "console"
   },
   "dom/abort": {
