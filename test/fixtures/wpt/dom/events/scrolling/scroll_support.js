@@ -20,6 +20,41 @@ async function waitForScrollendEventNoTimeout(target) {
   });
 }
 
+// Waits until a rAF callback with no "scroll" event in the last 200ms.
+function waitForDelayWithoutScrollEvent(eventTarget) {
+  const TIMEOUT_IN_MS = 200;
+
+  return new Promise(resolve => {
+    let lastScrollEventTime = performance.now();
+
+    const scrollListener = () => {
+      lastScrollEventTime = performance.now();
+    };
+    eventTarget.addEventListener('scroll', scrollListener);
+
+    const tick = () => {
+      if (performance.now() - lastScrollEventTime > TIMEOUT_IN_MS) {
+        eventTarget.removeEventListener('scroll', scrollListener);
+        resolve();
+        return;
+      }
+      requestAnimationFrame(tick); // wait another frame
+    }
+    requestAnimationFrame(tick);
+  });
+}
+
+// Waits for the end of scrolling. Uses the "scrollend" event if available.
+// Otherwise, fall backs to waitForDelayWithoutScrollEvent().
+function waitForScrollEndFallbackToDelayWithoutScrollEvent(eventTarget) {
+  if (window.onscrollend !== undefined) {
+    return waitForScrollendEventNoTimeout(eventTarget);
+  }
+  return waitForScrollEvent(eventTarget).then(() => {
+    return waitForDelayWithoutScrollEvent(eventTarget);
+  });
+}
+
 async function waitForPointercancelEvent(test, target, timeoutMs = 500) {
   return waitForEvent("pointercancel", test, target, timeoutMs);
 }
@@ -88,7 +123,7 @@ const MAX_UNCHANGED_FRAMES = 20;
 function waitFor(condition, error_message = 'Reaches the maximum frames.') {
   return new Promise((resolve, reject) => {
     function tick(frames) {
-      // We requestAnimationFrame either for MAX_FRAME frames or until condition
+      // We requestAnimationFrame either for MAX_FRAM frames or until condition
       // is met.
       if (frames >= MAX_FRAME)
         reject(error_message);
