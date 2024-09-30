@@ -14,7 +14,7 @@ Last update:
 - console: https://github.com/web-platform-tests/wpt/tree/767ae35464/console
 - dom/abort: https://github.com/web-platform-tests/wpt/tree/d1f1ecbd52/dom/abort
 - dom/events: https://github.com/web-platform-tests/wpt/tree/0a811c5161/dom/events
-- encoding: https://github.com/web-platform-tests/wpt/tree/5aa50dd415/encoding
+- encoding: https://github.com/web-platform-tests/wpt/tree/1ac8deee08/encoding
 - fetch/data-urls/resources: https://github.com/web-platform-tests/wpt/tree/7c79d998ff/fetch/data-urls/resources
 - FileAPI: https://github.com/web-platform-tests/wpt/tree/cceaf3628d/FileAPI
 - hr-time: https://github.com/web-platform-tests/wpt/tree/34cafd797e/hr-time
