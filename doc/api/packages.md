@@ -715,6 +715,20 @@ exports, while resolving the existing `"node"`, `"node-addons"`, `"default"`,
 
 Any number of custom conditions can be set with repeat flags.
 
+Typical conditions should only contain alphanumerical characters,
+using ":", "-", or "=" as separators if necessary. Anything else may run
+into compability issues outside of node.
+
+In node, conditions have very few restrictions, but specifically these include:
+
+1. They must contain at least one character.
+2. They cannot start with "." since they may appear in places that also
+   allow relative paths.
+3. They cannot contain "," since they may be parsed as a comma-separated
+   list by some CLI tools.
+4. They cannot be integer property keys like "10" since that can have
+   unexpected effects on property key ordering for JS objects.
+
 ### Community Conditions Definitions
 
 Condition strings other than the `"import"`, `"require"`, `"node"`,
