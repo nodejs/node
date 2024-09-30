@@ -477,6 +477,7 @@ added:
 changes:
   - version:
     - v22.9.0
+    - v20.18.0
     pr-url: https://github.com/nodejs/node/pull/54209
     description: The flag is no longer experimental.
 -->
@@ -708,7 +709,9 @@ code from strings throw an exception instead. This does not affect the Node.js
 ### `--expose-gc`
 
 <!-- YAML
-added: v22.3.0
+added:
+  - v22.3.0
+  - v20.18.0
 -->
 
 > Stability: 1 - Experimental. This flag is inherited from V8 and is subject to
@@ -987,7 +990,9 @@ Implies `--experimental-strip-types` and `--enable-source-maps`.
 ### `--experimental-eventsource`
 
 <!-- YAML
-added: v22.3.0
+added:
+  - v22.3.0
+  - v20.18.0
 -->
 
 Enable exposition of [EventSource Web API][] on the global scope.
@@ -1036,6 +1041,7 @@ Specify the `module` containing exported [module customization hooks][].
 <!-- YAML
 added:
   - v22.6.0
+  - v20.18.0
 -->
 
 > Stability: 1 - Experimental
@@ -1155,7 +1161,9 @@ present. See the [test runner execution model][] section for more information.
 ### `--experimental-test-module-mocks`
 
 <!-- YAML
-added: v22.3.0
+added:
+  - v22.3.0
+  - v20.18.0
 -->
 
 > Stability: 1.0 - Early development

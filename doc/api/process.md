@@ -2801,7 +2801,9 @@ console.log(memoryUsage.rss());
 <!-- YAML
 added: v0.1.26
 changes:
-  - version: v22.7.0
+  - version:
+    - v22.7.0
+    - v20.18.0
     pr-url: https://github.com/nodejs/node/pull/51280
     description: Changed stability to Legacy.
   - version: v18.0.0

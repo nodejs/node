@@ -890,7 +890,9 @@ initialized.
 ### `performanceNodeTiming.uvMetricsInfo`
 
 <!-- YAML
-added: v22.8.0
+added:
+  - v22.8.0
+  - v20.18.0
 -->
 
 * Returns: {Object}
