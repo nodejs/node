@@ -250,7 +250,6 @@ static void ParseEnv(const FunctionCallbackInfo<Value>& args) {
 static void GetCallSite(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
-  v8::HandleScope handle_scope(isolate);
 
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsNumber());
