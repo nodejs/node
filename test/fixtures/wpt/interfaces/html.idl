@@ -125,6 +125,7 @@ interface HTMLElement : Element {
   [CEReactions] attribute boolean spellcheck;
   [CEReactions] attribute DOMString writingSuggestions;
   [CEReactions] attribute DOMString autocapitalize;
+  [CEReactions] attribute boolean autocorrect;
 
   [CEReactions] attribute [LegacyNullToEmptyString] DOMString innerText;
   [CEReactions] attribute [LegacyNullToEmptyString] DOMString outerText;
@@ -1411,8 +1412,6 @@ interface mixin CanvasDrawPath {
 interface mixin CanvasUserInterface {
   undefined drawFocusIfNeeded(Element element);
   undefined drawFocusIfNeeded(Path2D path, Element element);
-  undefined scrollPathIntoView();
-  undefined scrollPathIntoView(Path2D path);
 };
 
 interface mixin CanvasText {
