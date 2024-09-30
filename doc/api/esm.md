@@ -452,6 +452,18 @@ a second argument:
 * `parent` {string|URL} An optional absolute parent module URL to resolve from.
   **Default:** `import.meta.url`
 
+### `import.meta.env`
+
+<!--
+added:
+  - REPLACEME
+-->
+
+> Stability: 1 - Experimental. This feature is only available with the `--experimental-import-meta-env` command flag
+> enabled.
+
+Provides access to environment variables, just like `process.env`.
+
 ## Interoperability with CommonJS
 
 ### `import` statements

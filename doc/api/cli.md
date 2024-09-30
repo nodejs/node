@@ -992,6 +992,17 @@ added: v22.3.0
 
 Enable exposition of [EventSource Web API][] on the global scope.
 
+### `--experimental-import-meta-env`
+
+<!-- YAML
+added:
+  - REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Enable experimental `import.meta.env` support.
+
 ### `--experimental-import-meta-resolve`
 
 <!-- YAML
@@ -3045,6 +3056,7 @@ one is included in the list below.
 * `--experimental-default-type`
 * `--experimental-detect-module`
 * `--experimental-eventsource`
+* `--experimental-import-meta-env`
 * `--experimental-import-meta-resolve`
 * `--experimental-json-modules`
 * `--experimental-loader`

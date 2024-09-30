@@ -453,6 +453,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "experimental ES Module support for webassembly modules",
             &EnvironmentOptions::experimental_wasm_modules,
             kAllowedInEnvvar);
+  AddOption("--experimental-import-meta-env",
+            "experimental ES Module import.meta.env support",
+            &EnvironmentOptions::experimental_import_meta_env,
+            kAllowedInEnvvar);
   AddOption("--experimental-import-meta-resolve",
             "experimental ES Module import.meta.resolve() parentURL support",
             &EnvironmentOptions::experimental_import_meta_resolve,
