@@ -171,14 +171,19 @@ relative, and based on the real path of the files making the calls to
 ## Loading ECMAScript modules using `require()`
 
 <!-- YAML
+added:
+  - v22.0.0
+  - v20.17.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/55085
-    description: require() now supports loading synchronous ES modules by default.
+    description: This feature is no longer behind the `--experimental-require-module` CLI flag.
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/54563
     description: Support `'module.exports'` interop export in `require(esm)`.
 -->
+
+> Stability: 1.2 - Release candidate
 
 The `.mjs` extension is reserved for [ECMAScript Modules][].
 See [Determining module system][] section for more info
