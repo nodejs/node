@@ -96,7 +96,7 @@
     "path": "webidl/ecmascript-binding/es-exceptions"
   },
   "webmessaging/broadcastchannel": {
-    "commit": "e97fac4791931fb7455ba3fad759d362c7108b09",
+    "commit": "6495c91853a3cf028a401cf4d228fc0b6a5465e4",
     "path": "webmessaging/broadcastchannel"
   },
   "webstorage": {
