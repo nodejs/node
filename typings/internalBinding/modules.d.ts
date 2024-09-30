@@ -8,9 +8,6 @@ export type PackageConfig = {
   exports?: string | string[] | Record<string, unknown>
   imports?: string | string[] | Record<string, unknown>
 }
-export type FullPackageConfig = PackageConfig & {
-  [key: string]: unknown,
-}
 export type SerializedPackageConfig = [
   PackageConfig['name'],
   PackageConfig['main'],
