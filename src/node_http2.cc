@@ -208,6 +208,14 @@ Http2Options::Http2Options(Http2State* http2_state, SessionType type) {
         option,
         static_cast<size_t>(buffer[IDX_OPTIONS_MAX_SETTINGS]));
   }
+
+  if ((flags & (1 << IDX_OPTIONS_STREAM_RESET_BURST)) &&
+      (flags & (1 << IDX_OPTIONS_STREAM_RESET_RATE))) {
+    nghttp2_option_set_stream_reset_rate_limit(
+        option,
+        static_cast<uint64_t>(buffer[IDX_OPTIONS_STREAM_RESET_BURST]),
+        static_cast<uint64_t>(buffer[IDX_OPTIONS_STREAM_RESET_RATE]));
+  }
 }
 
 #define GRABSETTING(entries, count, name)                                      \
