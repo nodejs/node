@@ -5,7 +5,6 @@ const assert = require('assert');
 const vm = require('vm');
 
 const {
-  SlowBuffer,
   kMaxLength,
 } = require('buffer');
 
@@ -1104,8 +1103,6 @@ assert.throws(() => Buffer.from(null), {
 // Test prototype getters don't throw
 assert.strictEqual(Buffer.prototype.parent, undefined);
 assert.strictEqual(Buffer.prototype.offset, undefined);
-assert.strictEqual(SlowBuffer.prototype.parent, undefined);
-assert.strictEqual(SlowBuffer.prototype.offset, undefined);
 
 
 {

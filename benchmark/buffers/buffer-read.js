@@ -19,15 +19,12 @@ const types = [
 ];
 
 const bench = common.createBenchmark(main, {
-  buffer: ['fast'],
   type: types,
   n: [1e6],
 });
 
-function main({ n, buf, type }) {
-  const buff = buf === 'fast' ?
-    Buffer.alloc(8) :
-    require('buffer').SlowBuffer(8);
+function main({ n, type }) {
+  const buff = Buffer.alloc(8);
   const fn = `read${type}`;
 
   buff.writeDoubleLE(0, 0);
