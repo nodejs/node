@@ -7,9 +7,7 @@
       "expected": [
         "Getters and value conversions should happen in order until an exception is thrown.",
         "options properties should be accessed in lexicographic order.",
-        "Arguments should be evaluated from left to right."
-      ],
-      "unexpected": [
+        "Arguments should be evaluated from left to right.",
         "Passing a Float16Array as element of the blobParts array should work."
       ]
     }
