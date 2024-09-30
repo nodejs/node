@@ -217,6 +217,39 @@ added: v22.8.0
 * Returns: {string|undefined} Path to the [module compile cache][] directory if it is enabled,
   or `undefined` otherwise.
 
+### `module.getPackageJSON(startPath[, everything])`
+
+<!-- YAML
+added: VERSION
+-->
+
+> Stability: 1.1 - Active Development
+
+* `startPath` {URL['pathname']} Where to start looking
+* `everything` {boolean} Whether to return the full contents of the found package.json
+* Returns: {undefined | {
+  data: {
+    name?: string,
+    type?: 'commonjs' | 'module' | 'none',
+    exports?: string | string[] | Record<string, unknown>,
+    imports?: string | string[] | Record<string, unknown>,
+    [key: string]?: unknown,
+  },
+  path: URL['pathname'],
+}}
+
+In addition to being available to users, this utility is used internally when
+resolving various aspects about a module.
+
+```mjs
+import { getPackageJSON } from 'node:module';
+
+const pjson = getPackageJSON(import.meta.resolve('some-package'), true)?.data;
+
+pjson?.name; // 'some-package-real-name'
+pjson?.types; // './index.d.ts'
+```
+
 ### `module.isBuiltin(moduleName)`
 
 <!-- YAML
