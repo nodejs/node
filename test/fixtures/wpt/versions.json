@@ -56,7 +56,7 @@
     "path": "interfaces"
   },
   "performance-timeline": {
-    "commit": "17ebc3aea0d6321e69554067c39ab5855e6fb67e",
+    "commit": "94caab7038b27c16d605fa3547dacbee3a2fde4e",
     "path": "performance-timeline"
   },
   "resource-timing": {
