@@ -276,16 +276,16 @@ static void GetCallSite(const FunctionCallbackInfo<Value>& args) {
     }
 
     Local<Name> names[] = {
-      env->function_name_string(),
-      env->script_name_string(),
-      env->line_number_string(),
-      env->column_string(),
+        env->function_name_string(),
+        env->script_name_string(),
+        env->line_number_string(),
+        env->column_string(),
     };
     Local<Value> values[] = {
-      function_name,
-      script_name,
-      Integer::NewFromUnsigned(isolate, stack_frame->GetLineNumber()),
-      Integer::NewFromUnsigned(isolate, stack_frame->GetColumn()),
+        function_name,
+        script_name,
+        Integer::NewFromUnsigned(isolate, stack_frame->GetLineNumber()),
+        Integer::NewFromUnsigned(isolate, stack_frame->GetColumn()),
     };
     Local<Object> obj = Object::New(
         isolate, v8::Null(isolate), names, values, arraysize(names));
