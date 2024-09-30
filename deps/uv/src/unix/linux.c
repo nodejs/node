@@ -126,6 +126,7 @@
 
 enum {
   UV__IORING_SETUP_SQPOLL = 2u,
+  UV__IORING_SETUP_NO_SQARRAY = 0x10000u,
 };
 
 enum {
@@ -509,10 +510,13 @@ static void uv__iou_init(int epollfd,
   size_t sqlen;
   size_t maxlen;
   size_t sqelen;
+  unsigned kernel_version;
+  uint32_t* sqarray;
   uint32_t i;
   char* sq;
   char* sqe;
   int ringfd;
+  int no_sqarray;
 
   sq = MAP_FAILED;
   sqe = MAP_FAILED;
@@ -520,11 +524,15 @@ static void uv__iou_init(int epollfd,
   if (!uv__use_io_uring())
     return;
 
+  kernel_version = uv__kernel_version();
+  no_sqarray =
+      UV__IORING_SETUP_NO_SQARRAY * (kernel_version >= /* 6.6 */0x060600);
+
   /* SQPOLL required CAP_SYS_NICE until linux v5.12 relaxed that requirement.
    * Mostly academic because we check for a v5.13 kernel afterwards anyway.
    */
   memset(&params, 0, sizeof(params));
-  params.flags = flags;
+  params.flags = flags | no_sqarray;
 
   if (flags & UV__IORING_SETUP_SQPOLL)
     params.sq_thread_idle = 10;  /* milliseconds */
@@ -586,7 +594,6 @@ static void uv__iou_init(int epollfd,
   iou->sqhead = (uint32_t*) (sq + params.sq_off.head);
   iou->sqtail = (uint32_t*) (sq + params.sq_off.tail);
   iou->sqmask = *(uint32_t*) (sq + params.sq_off.ring_mask);
-  iou->sqarray = (uint32_t*) (sq + params.sq_off.array);
   iou->sqflags = (uint32_t*) (sq + params.sq_off.flags);
   iou->cqhead = (uint32_t*) (sq + params.cq_off.head);
   iou->cqtail = (uint32_t*) (sq + params.cq_off.tail);
@@ -602,11 +609,15 @@ static void uv__iou_init(int epollfd,
   iou->in_flight = 0;
   iou->flags = 0;
 
-  if (uv__kernel_version() >= /* 5.15.0 */ 0x050F00)
+  if (kernel_version >= /* 5.15.0 */ 0x050F00)
     iou->flags |= UV__MKDIRAT_SYMLINKAT_LINKAT;
 
+  if (no_sqarray)
+    return;
+
+  sqarray = (uint32_t*) (sq + params.sq_off.array);
   for (i = 0; i <= iou->sqmask; i++)
-    iou->sqarray[i] = i;  /* Slot -> sqe identity mapping. */
+    sqarray[i] = i;  /* Slot -> sqe identity mapping. */
 
   return;
 

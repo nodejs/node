@@ -430,6 +430,7 @@ libuv_la_CFLAGS += -D_DARWIN_UNLIMITED_SELECT=1
 libuv_la_SOURCES += src/unix/bsd-ifaddrs.c \
                     src/unix/darwin-proctitle.c \
                     src/unix/darwin-stub.h \
+                    src/unix/darwin-syscalls.h \
                     src/unix/darwin.c \
                     src/unix/fsevents.c \
                     src/unix/kqueue.c \

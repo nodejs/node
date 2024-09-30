@@ -2094,17 +2094,13 @@ static int uv__pipe_read_ipc(uv_loop_t* loop, uv_pipe_t* handle) {
       /* Store the pending socket info. */
       uv__pipe_queue_ipc_xfer_info(handle, xfer_type, &xfer_info);
     }
-
-    more = 1;
   }
 
   /* Return whether the caller should immediately try another read call to get
-   * more data. */
-  if (more && *data_remaining == 0) {
-    /* TODO: use PeekNamedPipe to see if it is really worth trying to do
-     * another ReadFile call. */
-  }
-
+   * more data. Calling uv__pipe_read_exactly will hang if there isn't data
+   * available, so we cannot do this unless we are guaranteed not to reach that.
+   */
+  more = *data_remaining > 0;
   return more;
 
 invalid:
