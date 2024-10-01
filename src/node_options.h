@@ -197,6 +197,7 @@ class EnvironmentOptions : public Options {
   bool test_only = false;
   bool test_udp_no_try_send = false;
   std::string test_isolation = "process";
+  std::string test_runner_cwd;
   std::string test_shard;
   std::vector<std::string> test_skip_pattern;
   std::vector<std::string> coverage_include_pattern;

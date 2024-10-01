@@ -680,6 +680,9 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::test_coverage_lines,
             kAllowedInEnvvar);
 
+  AddOption("--experimental-test-cwd", 
+            "specify the working directory for the test runner",
+            &EnvironmentOptions::test_runner_cwd);
   AddOption("--experimental-test-isolation",
             "configures the type of test isolation used in the test runner",
             &EnvironmentOptions::test_isolation);
