@@ -6810,7 +6810,7 @@ added:
   - v18.20.0
 -->
 
-> Stability: 1 – Experimental
+> Stability: 1 - Experimental
 
 * {string}
 
