@@ -4,7 +4,7 @@ import { describe, it, beforeEach } from 'node:test';
 import { once } from 'node:events';
 import assert from 'node:assert';
 import { spawn } from 'node:child_process';
-import { writeFileSync, renameSync, unlinkSync, existsSync } from 'node:fs';
+import { writeFileSync, renameSync, unlinkSync } from 'node:fs';
 import util from 'internal/util';
 import tmpdir from '../common/tmpdir.js';
 
@@ -28,6 +28,10 @@ import('./dependency.mjs');
 import('data:text/javascript,');
 test('test has ran');`,
 };
+
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 function refresh() {
   tmpdir.refresh();
@@ -69,10 +73,10 @@ async function testWatch({
     currentRun = '';
     const content = fixtureContent[fileToUpdate];
     const path = fixturePaths[fileToUpdate];
-    const interval = setInterval(() => writeFileSync(path, content), common.platformTimeout(1000));
+    writeFileSync(path, content);
+    await wait(common.platformTimeout(1000));
     await ran2.promise;
     runs.push(currentRun);
-    clearInterval(interval);
     child.kill();
     await once(child, 'exit');
 
@@ -92,10 +96,8 @@ async function testWatch({
     currentRun = '';
     const fileToRenamePath = tmpdir.resolve(fileToUpdate);
     const newFileNamePath = tmpdir.resolve(`test-renamed-${fileToUpdate}`);
-    const interval = setInterval(() => {
-      renameSync(fileToRenamePath, newFileNamePath);
-      clearInterval(interval);
-    }, common.platformTimeout(1000));
+    renameSync(fileToRenamePath, newFileNamePath);
+    await wait(common.platformTimeout(1000));
     await ran2.promise;
     runs.push(currentRun);
     child.kill();
@@ -116,15 +118,9 @@ async function testWatch({
     runs.push(currentRun);
     currentRun = '';
     const fileToDeletePath = tmpdir.resolve(fileToUpdate);
-    const interval = setInterval(() => {
-      if (existsSync(fileToDeletePath)) {
-        unlinkSync(fileToDeletePath);
-      } else {
-        ran2.resolve();
-        clearInterval(interval);
-      }
-    }, common.platformTimeout(2000));
-    await ran2.promise;
+    unlinkSync(fileToDeletePath);
+    await wait(common.platformTimeout(2000));
+    ran2.resolve();
     runs.push(currentRun);
     child.kill();
     await once(child, 'exit');
@@ -141,16 +137,10 @@ async function testWatch({
     runs.push(currentRun);
     currentRun = '';
     const newFilePath = tmpdir.resolve(fileToCreate);
-    const interval = setInterval(
-      () => writeFileSync(
-        newFilePath,
-        'module.exports = {};'
-      ),
-      common.platformTimeout(1000)
-    );
+    writeFileSync(newFilePath, 'module.exports = {};');
+    await wait(common.platformTimeout(1000));
     await ran2.promise;
     runs.push(currentRun);
-    clearInterval(interval);
     child.kill();
     await once(child, 'exit');
 
