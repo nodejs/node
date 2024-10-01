@@ -547,22 +547,60 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     for await (const _ of stream);
   });
 
-  it('should throw if an invalid cwd is provided', async () => {
-    assert.throws(() => run({
+  it('should handle a non-existent directory being provided as cwd', async () => {
+    const diagnostics = [];
+    const stream = run({
       cwd: fixtures.path('test-runner', 'cwd', 'non-existing')
-    }), {
-      code: 'ERR_INVALID_ARG_VALUE',
-      message: /expects an existing directory/
     });
+    stream.on('test:fail', common.mustNotCall());
+    stream.on('test:pass', common.mustNotCall());
+    stream.on('test:stderr', common.mustNotCall());
+    stream.on('test:diagnostic', ({ message }) => {
+      diagnostics.push(message);
+    });
+
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream);
+    for (const entry of [
+      'tests 0',
+      'suites 0',
+      'pass 0',
+      'fail 0',
+      'cancelled 0',
+      'skipped 0',
+      'todo 0',
+    ]
+    ) {
+      assert.strictEqual(diagnostics.includes(entry), true);
+    }
   });
 
-  it('should throw if a file is provided as cwd', async () => {
-    assert.throws(() => run({
+  it('should handle a non-existent file being provided as cwd', async () => {
+    const diagnostics = [];
+    const stream = run({
       cwd: fixtures.path('test-runner', 'default-behavior', 'test', 'random.cjs')
-    }), {
-      code: 'ERR_INVALID_ARG_VALUE',
-      message: /expects a directory, a file was provided/
     });
+    stream.on('test:fail', common.mustNotCall());
+    stream.on('test:pass', common.mustNotCall());
+    stream.on('test:stderr', common.mustNotCall());
+    stream.on('test:diagnostic', ({ message }) => {
+      diagnostics.push(message);
+    });
+
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream);
+    for (const entry of [
+      'tests 0',
+      'suites 0',
+      'pass 0',
+      'fail 0',
+      'cancelled 0',
+      'skipped 0',
+      'todo 0',
+    ]
+    ) {
+      assert.strictEqual(diagnostics.includes(entry), true);
+    }
   });
 
   it('should run with different cwd while in watch mode', async () => {
