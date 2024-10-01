@@ -1003,6 +1003,7 @@ following permissions are restricted:
 * Child Process - manageable through [`--allow-child-process`][] flag
 * Worker Threads - manageable through [`--allow-worker`][] flag
 * WASI - manageable through [`--allow-wasi`][] flag
+* Addons - manageable through [`--allow-addons`][] flag
 
 ### `--experimental-policy`
 
@@ -3303,6 +3304,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [V8 JavaScript code coverage]: https://v8project.blogspot.com/2017/12/javascript-code-coverage.html
 [Web Crypto API]: webcrypto.md
 [`"type"`]: packages.md#type
+[`--allow-addons`]: #--allow-addons
 [`--allow-child-process`]: #--allow-child-process
 [`--allow-fs-read`]: #--allow-fs-read
 [`--allow-fs-write`]: #--allow-fs-write
