@@ -6630,7 +6630,7 @@ added:
   - v20.12.0
 -->
 
-> Stability: 1 – Experimental
+> Stability: 1 - Experimental
 
 * {string}
 
