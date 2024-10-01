@@ -562,6 +562,40 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     stream.on('test:fail', common.mustNotCall());
     stream.on('test:pass', common.mustCall(1));
   });
+
+  it('should run with different cwd while in watch mode and isolation "none"', async () => {
+    const controller = new AbortController();
+    const stream = run({
+      cwd: fixtures.path('test-runner', 'cwd'),
+      watch: true,
+      signal: controller.signal,
+      isolation: 'none',
+    }).on('data', function({ type }) {
+      if (type === 'test:watch:drained') {
+        controller.abort();
+      }
+    });
+
+    stream.on('test:fail', common.mustNotCall());
+    stream.on('test:pass', common.mustCall(1));
+  });
+
+  it('should run with different cwd while in watch mode and isolation "process"', async () => {
+    const controller = new AbortController();
+    const stream = run({
+      cwd: fixtures.path('test-runner', 'cwd'),
+      watch: true,
+      signal: controller.signal,
+      isolation: 'process',
+    }).on('data', function({ type }) {
+      if (type === 'test:watch:drained') {
+        controller.abort();
+      }
+    });
+
+    stream.on('test:fail', common.mustNotCall());
+    stream.on('test:pass', common.mustCall(1));
+  });
 });
 
 describe('forceExit', () => {

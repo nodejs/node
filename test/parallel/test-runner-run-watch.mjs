@@ -265,20 +265,4 @@ describe('test runner watch mode', () => {
         }
       );
     });
-
-  // TODO: fix this case
-  // it(
-  //   'should execute run using a different cwd for the runner than the process cwd with isolation none',
-  //   async () => {
-  //     await testWatch(
-  //       {
-  //         fileToUpdate: 'test.js',
-  //         action: 'rename',
-  //         cwd: import.meta.dirname,
-  //         runnerCwd: tmpdir.path,
-  //         isolation: 'none'
-  //       }
-  //     );
-  //   }
-  // );
 });
