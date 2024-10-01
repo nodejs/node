@@ -1,5 +1,7 @@
 'use strict';
 
+// Flags: --experimental-eventsource --no-experimental-websocket --experimental-websocket
+
 require('../common');
 const assert = require('assert');
 
@@ -29,6 +31,22 @@ for (const StreamClass of [ReadableStream, WritableStream, TransformStream]) {
   assert.strictEqual(Object.getPrototypeOf(extendedTransfer), StreamClass.prototype);
   assert.ok(extendedTransfer instanceof StreamClass);
 }
+
+// Platform object that is not serializable should throw
+[
+  { platformClass: Response, brand: 'Response' },
+  { platformClass: Request, value: 'http://localhost', brand: 'Request' },
+  { platformClass: FormData, brand: 'FormData' },
+  { platformClass: MessageEvent, value: 'message', brand: 'MessageEvent' },
+  { platformClass: CloseEvent, value: 'dummy type', brand: 'CloseEvent' },
+  { platformClass: WebSocket, value: 'http://localhost', brand: 'WebSocket' },
+  { platformClass: EventSource, value: 'http://localhost', brand: 'EventSource' },
+].forEach((platformEntity) => {
+  assert.throws(() => structuredClone(new platformEntity.platformClass(platformEntity.value)),
+                new DOMException('Cannot clone object of unsupported type.', 'DataCloneError'),
+                `Cloning ${platformEntity.brand} should throw DOMException`);
+
+});
 
 for (const Transferrable of [File, Blob]) {
   const a2 = Transferrable === File ? '' : {};
