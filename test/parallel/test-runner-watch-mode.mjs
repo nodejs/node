@@ -93,7 +93,7 @@ async function testWatch({
     const fileToRenamePath = tmpdir.resolve(fileToUpdate);
     const newFileNamePath = tmpdir.resolve(`test-renamed-${fileToUpdate}`);
     const interval = setInterval(() => {
-      renameSync(fileToRenamePath, newFileNamePath)
+      renameSync(fileToRenamePath, newFileNamePath);
       clearInterval(interval);
     }, common.platformTimeout(1000));
     await ran2.promise;

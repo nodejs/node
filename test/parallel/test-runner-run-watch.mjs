@@ -59,8 +59,8 @@ async function testWatch(
   if (runnerCwd) args.push('--cwd', runnerCwd);
   if (isolation) args.push('--isolation', isolation);
   const child = spawn(process.execPath,
-    args,
-    { encoding: 'utf8', stdio: 'pipe', cwd });
+                      args,
+                      { encoding: 'utf8', stdio: 'pipe', cwd });
   let stdout = '';
   let currentRun = '';
   const runs = [];
@@ -104,9 +104,9 @@ async function testWatch(
     const fileToRenamePath = tmpdir.resolve(fileToUpdate);
     const newFileNamePath = tmpdir.resolve(`test-renamed-${fileToUpdate}`);
     const interval = setInterval(() => {
-      renameSync(fileToRenamePath, newFileNamePath), common.platformTimeout(1000)
+      renameSync(fileToRenamePath, newFileNamePath);
       clearInterval(interval);
-    });
+    }, common.platformTimeout(1000));
     await ran2.promise;
     runs.push(currentRun);
     child.kill();
