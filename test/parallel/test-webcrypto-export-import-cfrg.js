@@ -26,25 +26,6 @@ const keyData = {
       d: '1TFQvc0XtNSyGudW1JZWOddbKPVv-REbH4gyaRPkRbw'
     }
   },
-  'Ed448': {
-    jwsAlg: 'EdDSA',
-    spki: Buffer.from(
-      '3043300506032b6571033a0008cc38160c85bca5656ac4924af7ea97a9161b20' +
-      '2528273dcb84afd2eeb99ac912a401b34ef15ef4d9486406a6eecc31e5909219' +
-      'bd54866800', 'hex'),
-    pkcs8: Buffer.from(
-      '3047020100300506032b6571043b0439afd05b2fbb153b47c18dfa66baaed0de' +
-      'fb4e88c651487cdee0fafc40fa3d048fe1cd145a44143243c0468166b5bc161a' +
-      '82e3b904f3e2fcaaf9', 'hex'),
-    jwk: {
-      kty: 'OKP',
-      crv: 'Ed448',
-      x: 'CMw4FgyFvKVlasSSSvfql6kWGyAlKCc9y4Sv0u65mskSpAGzTvFe9NlIZAam7' +
-         'swx5ZCSGb1UhmgA',
-      d: 'r9BbL7sVO0fBjfpmuq7Q3vtOiMZRSHze4Pr8QPo9BI_hzRRaRBQyQ8BGgWa1v' +
-         'BYaguO5BPPi_Kr5'
-    }
-  },
   'X25519': {
     jwsAlg: 'ECDH-ES',
     spki: Buffer.from(
@@ -60,25 +41,6 @@ const keyData = {
       d: 'qDJ4UDF7SwOlqLTpI0E7HaSmQuDW96cs9NFqVJ5iil8'
     }
   },
-  'X448': {
-    jwsAlg: 'ECDH-ES',
-    spki: Buffer.from(
-      '3042300506032b656f0339001d451c8c0c369a42eadfc2875cd44953caeb46c4' +
-      '66dc86568280bfdbbb01f4709a1b0b1e0dd66cf7b11c84119ddc98890db72891' +
-      '29e30da4', 'hex'),
-    pkcs8: Buffer.from(
-      '3046020100300506032b656f043a0438fc818f6546a81f963c27765dc1c05bfd' +
-      'b169667e5e0cf45318ed1cb93872217ab0d9004e0c7dd0dcb00192f72039cc1a' +
-      '1dff750ec31c8afb', 'hex'),
-    jwk: {
-      kty: 'OKP',
-      crv: 'X448',
-      x: 'HUUcjAw2mkLq38KHXNRJU8rrRsRm3IZWgoC_27sB9HCaGwseDdZs97EchBGd3' +
-         'JiJDbcokSnjDaQ',
-      d: '_IGPZUaoH5Y8J3ZdwcBb_bFpZn5eDPRTGO0cuThyIXqw2QBODH3Q3LABkvcgO' +
-         'cwaHf91DsMcivs'
-    }
-  }
 };
 
 const testVectors = [
@@ -88,17 +50,7 @@ const testVectors = [
     publicUsages: ['verify']
   },
   {
-    name: 'Ed448',
-    privateUsages: ['sign'],
-    publicUsages: ['verify']
-  },
-  {
     name: 'X25519',
-    privateUsages: ['deriveKey', 'deriveBits'],
-    publicUsages: []
-  },
-  {
-    name: 'X448',
     privateUsages: ['deriveKey', 'deriveBits'],
     publicUsages: []
   },
@@ -368,7 +320,7 @@ async function testImportRaw({ name, publicUsages }) {
 
   for (const [name, publicUsages, privateUsages] of [
     ['Ed25519', ['verify'], ['sign']],
-    ['X448', [], ['deriveBits']],
+    ['X25519', [], ['deriveBits']],
   ]) {
     assert.rejects(subtle.importKey(
       'spki',

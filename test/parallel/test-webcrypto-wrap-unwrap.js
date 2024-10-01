@@ -123,23 +123,7 @@ async function generateKeysToWrap() {
     },
     {
       algorithm: {
-        name: 'Ed448',
-      },
-      privateUsages: ['sign'],
-      publicUsages: ['verify'],
-      pair: true,
-    },
-    {
-      algorithm: {
         name: 'X25519',
-      },
-      privateUsages: ['deriveBits'],
-      publicUsages: [],
-      pair: true,
-    },
-    {
-      algorithm: {
-        name: 'X448',
       },
       privateUsages: ['deriveBits'],
       publicUsages: [],

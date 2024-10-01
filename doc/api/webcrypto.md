@@ -2,6 +2,9 @@
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/55209
+    description: Removed the `'Ed448'` and `'X448'` algorithms.
   - version:
     - v20.0.0
     - v18.17.0
@@ -113,7 +116,7 @@ async function generateEcKey(namedCurve = 'P-521') {
 }
 ```
 
-#### Ed25519/Ed448/X25519/X448 key pairs
+#### Ed25519/X25519 key pairs
 
 > Stability: 1 - Experimental
 
@@ -360,10 +363,8 @@ implementation and the APIs supported for each:
 | `'RSA-OAEP'`                                              | ✔             | ✔           | ✔           | ✔         | ✔         | ✔         | ✔           |              |             |        |          |          |
 | `'ECDSA'`                                                 | ✔             | ✔           | ✔           |           |           |           |             |              |             | ✔      | ✔        |          |
 | `'Ed25519'` <span class="experimental-inline"></span>[^1] | ✔             | ✔           | ✔           |           |           |           |             |              |             | ✔      | ✔        |          |
-| `'Ed448'` <span class="experimental-inline"></span>[^1]   | ✔             | ✔           | ✔           |           |           |           |             |              |             | ✔      | ✔        |          |
 | `'ECDH'`                                                  | ✔             | ✔           | ✔           |           |           |           |             | ✔            | ✔           |        |          |          |
 | `'X25519'` <span class="experimental-inline"></span>[^1]  | ✔             | ✔           | ✔           |           |           |           |             | ✔            | ✔           |        |          |          |
-| `'X448'` <span class="experimental-inline"></span>[^1]    | ✔             | ✔           | ✔           |           |           |           |             | ✔            | ✔           |        |          |          |
 | `'AES-CTR'`                                               | ✔             | ✔           | ✔           | ✔         | ✔         | ✔         | ✔           |              |             |        |          |          |
 | `'AES-CBC'`                                               | ✔             | ✔           | ✔           | ✔         | ✔         | ✔         | ✔           |              |             |        |          |          |
 | `'AES-GCM'`                                               | ✔             | ✔           | ✔           | ✔         | ✔         | ✔         | ✔           |              |             |        |          |          |
@@ -504,10 +505,8 @@ Valid key usages depend on the key algorithm (identified by
 | `'AES-KW'`                                                |             |             |          |            |               |                | ✔           | ✔             |
 | `'ECDH'`                                                  |             |             |          |            | ✔             | ✔              |             |               |
 | `'X25519'` <span class="experimental-inline"></span>[^1]  |             |             |          |            | ✔             | ✔              |             |               |
-| `'X448'` <span class="experimental-inline"></span>[^1]    |             |             |          |            | ✔             | ✔              |             |               |
 | `'ECDSA'`                                                 |             |             | ✔        | ✔          |               |                |             |               |
 | `'Ed25519'` <span class="experimental-inline"></span>[^1] |             |             | ✔        | ✔          |               |                |             |               |
-| `'Ed448'` <span class="experimental-inline"></span>[^1]   |             |             | ✔        | ✔          |               |                |             |               |
 | `'HDKF'`                                                  |             |             |          |            | ✔             | ✔              |             |               |
 | `'HMAC'`                                                  |             |             | ✔        | ✔          |               |                |             |               |
 | `'PBKDF2'`                                                |             |             |          |            | ✔             | ✔              |             |               |
@@ -574,6 +573,9 @@ The algorithms currently supported include:
 <!-- YAML
 added: v15.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/55209
+    description: Removed the `'X448'` algorithm.
   - version:
     - v22.5.0
     - v20.17.0
@@ -604,7 +606,7 @@ The Node.js implementation requires that `length`, when a number, is a multiple
 of `8`.
 
 When `length` is not provided or `null` the maximum number of bits for a given
-algorithm is generated. This is allowed for the `'ECDH'`, `'X25519'`, and `'X448'`
+algorithm is generated. This is allowed for the `'ECDH'` and `'X25519'`
 algorithms, for other algorithms `length` is required to be a number.
 
 If successful, the returned promise will be resolved with an {ArrayBuffer}
@@ -614,7 +616,6 @@ The algorithms currently supported include:
 
 * `'ECDH'`
 * `'X25519'` <span class="experimental-inline"></span>[^1]
-* `'X448'` <span class="experimental-inline"></span>[^1]
 * `'HKDF'`
 * `'PBKDF2'`
 
@@ -623,6 +624,9 @@ The algorithms currently supported include:
 <!-- YAML
 added: v15.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/55209
+    description: Removed the `'X448'` algorithm.
   - version:
     - v18.4.0
     - v16.17.0
@@ -654,7 +658,6 @@ The algorithms currently supported include:
 
 * `'ECDH'`
 * `'X25519'` <span class="experimental-inline"></span>[^1]
-* `'X448'` <span class="experimental-inline"></span>[^1]
 * `'HKDF'`
 * `'PBKDF2'`
 
@@ -710,6 +713,9 @@ The algorithms currently supported include:
 <!-- YAML
 added: v15.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/55209
+    description: Removed the `'Ed448'` and `'X448'` algorithms.
   - version:
     - v18.4.0
     - v16.17.0
@@ -746,7 +752,6 @@ specification.
 | `'ECDH'`                                                  | ✔        | ✔         | ✔       | ✔       |
 | `'ECDSA'`                                                 | ✔        | ✔         | ✔       | ✔       |
 | `'Ed25519'` <span class="experimental-inline"></span>[^1] | ✔        | ✔         | ✔       | ✔       |
-| `'Ed448'` <span class="experimental-inline"></span>[^1]   | ✔        | ✔         | ✔       | ✔       |
 | `'HDKF'`                                                  |          |           |         |         |
 | `'HMAC'`                                                  |          |           | ✔       | ✔       |
 | `'PBKDF2'`                                                |          |           |         |         |
@@ -782,10 +787,8 @@ include:
 * `'RSA-OAEP'`
 * `'ECDSA'`
 * `'Ed25519'` <span class="experimental-inline"></span>[^1]
-* `'Ed448'` <span class="experimental-inline"></span>[^1]
 * `'ECDH'`
 * `'X25519'` <span class="experimental-inline"></span>[^1]
-* `'X448'` <span class="experimental-inline"></span>[^1]
 
 The {CryptoKey} (secret key) generating algorithms supported include:
 
@@ -800,6 +803,9 @@ The {CryptoKey} (secret key) generating algorithms supported include:
 <!-- YAML
 added: v15.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/55209
+    description: Removed the `'Ed448'` and `'X448'` algorithms.
   - version:
     - v18.4.0
     - v16.17.0
@@ -841,10 +847,8 @@ The algorithms currently supported include:
 | `'AES-KW'`                                                |          |           | ✔       | ✔       |
 | `'ECDH'`                                                  | ✔        | ✔         | ✔       | ✔       |
 | `'X25519'` <span class="experimental-inline"></span>[^1]  | ✔        | ✔         | ✔       | ✔       |
-| `'X448'` <span class="experimental-inline"></span>[^1]    | ✔        | ✔         | ✔       | ✔       |
 | `'ECDSA'`                                                 | ✔        | ✔         | ✔       | ✔       |
 | `'Ed25519'` <span class="experimental-inline"></span>[^1] | ✔        | ✔         | ✔       | ✔       |
-| `'Ed448'` <span class="experimental-inline"></span>[^1]   | ✔        | ✔         | ✔       | ✔       |
 | `'HDKF'`                                                  |          |           |         | ✔       |
 | `'HMAC'`                                                  |          |           | ✔       | ✔       |
 | `'PBKDF2'`                                                |          |           |         | ✔       |
@@ -857,6 +861,9 @@ The algorithms currently supported include:
 <!-- YAML
 added: v15.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/55209
+    description: Removed the `'Ed448'` algorithm.
   - version:
     - v18.4.0
     - v16.17.0
@@ -866,7 +873,7 @@ changes:
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `algorithm`: {AlgorithmIdentifier|RsaPssParams|EcdsaParams|Ed448Params}
+* `algorithm`: {AlgorithmIdentifier|RsaPssParams|EcdsaParams}
 * `key`: {CryptoKey}
 * `data`: {ArrayBuffer|TypedArray|DataView|Buffer}
 * Returns: {Promise} Fulfills with an {ArrayBuffer}
@@ -884,7 +891,6 @@ The algorithms currently supported include:
 * `'RSA-PSS'`
 * `'ECDSA'`
 * `'Ed25519'` <span class="experimental-inline"></span>[^1]
-* `'Ed448'` <span class="experimental-inline"></span>[^1]
 * `'HMAC'`
 
 ### `subtle.unwrapKey(format, wrappedKey, unwrappingKey, unwrapAlgo, unwrappedKeyAlgo, extractable, keyUsages)`
@@ -932,10 +938,8 @@ The unwrapped key algorithms supported include:
 * `'RSA-OAEP'`
 * `'ECDSA'`
 * `'Ed25519'` <span class="experimental-inline"></span>[^1]
-* `'Ed448'` <span class="experimental-inline"></span>[^1]
 * `'ECDH'`
 * `'X25519'` <span class="experimental-inline"></span>[^1]
-* `'X448'` <span class="experimental-inline"></span>[^1]
 * `'HMAC'`
 * `'AES-CTR'`
 * `'AES-CBC'`
@@ -947,6 +951,9 @@ The unwrapped key algorithms supported include:
 <!-- YAML
 added: v15.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/55209
+    description: Removed the `'Ed448'` algorithm.
   - version:
     - v18.4.0
     - v16.17.0
@@ -956,7 +963,7 @@ changes:
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `algorithm`: {AlgorithmIdentifier|RsaPssParams|EcdsaParams|Ed448Params}
+* `algorithm`: {AlgorithmIdentifier|RsaPssParams|EcdsaParams}
 * `key`: {CryptoKey}
 * `signature`: {ArrayBuffer|TypedArray|DataView|Buffer}
 * `data`: {ArrayBuffer|TypedArray|DataView|Buffer}
@@ -975,7 +982,6 @@ The algorithms currently supported include:
 * `'RSA-PSS'`
 * `'ECDSA'`
 * `'Ed25519'` <span class="experimental-inline"></span>[^1]
-* `'Ed448'` <span class="experimental-inline"></span>[^1]
 * `'HMAC'`
 
 ### `subtle.wrapKey(format, key, wrappingKey, wrapAlgo)`
@@ -1188,7 +1194,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {string} Must be `'ECDH'`, `'X25519'`, or `'X448'`.
+* Type: {string} Must be `'ECDH'` or `'X25519'`
 
 #### `ecdhKeyDeriveParams.public`
 
@@ -1278,37 +1284,6 @@ added: v15.0.0
 -->
 
 * Type: {string} Must be one of `'P-256'`, `'P-384'`, `'P-521'`.
-
-### Class: `Ed448Params`
-
-<!-- YAML
-added: v15.0.0
--->
-
-#### `ed448Params.name`
-
-<!-- YAML
-added:
-  - v18.4.0
-  - v16.17.0
--->
-
-* Type: {string} Must be `'Ed448'`.
-
-#### `ed448Params.context`
-
-<!-- YAML
-added:
-  - v18.4.0
-  - v16.17.0
--->
-
-* Type: {ArrayBuffer|TypedArray|DataView|Buffer|undefined}
-
-The `context` member represents the optional context data to associate with
-the message.
-The Node.js Web Crypto API implementation only supports zero-length context
-which is equivalent to not providing context at all.
 
 ### Class: `HkdfParams`
 

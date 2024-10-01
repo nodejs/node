@@ -34,4 +34,37 @@ module.exports = {
       ],
     },
   },
+  'sign_verify/eddsa_curve448.https.any.js': {
+    'skip': 'Not implemented',
+  },
+  'import_export/okp_importKey_failures_X448.https.any.js': {
+    'skip': 'Not implemented',
+  },
+  'import_export/okp_importKey_failures_Ed448.https.any.js': {
+    'skip': 'Not implemented',
+  },
+  'import_export/okp_importKey_Ed448.https.any.js': {
+    'skip': 'Not implemented',
+  },
+  'import_export/okp_importKey_X448.https.any.js': {
+    'skip': 'Not implemented',
+  },
+  'generateKey/successes_X448.https.any.js': {
+    'skip': 'Not implemented',
+  },
+  'generateKey/successes_Ed448.https.any.js': {
+    'skip': 'Not implemented',
+  },
+  'generateKey/failures_X448.https.any.js': {
+    'skip': 'Not implemented',
+  },
+  'generateKey/failures_Ed448.https.any.js': {
+    'skip': 'Not implemented',
+  },
+  'derive_bits_keys/cfrg_curves_keys_curve448.https.any.js': {
+    'skip': 'Not implemented',
+  },
+  'derive_bits_keys/cfrg_curves_bits_curve448.https.any.js': {
+    'skip': 'Not implemented',
+  },
 };

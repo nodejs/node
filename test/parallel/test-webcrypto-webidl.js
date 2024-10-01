@@ -506,13 +506,3 @@ const opts = { prefix, context };
     });
   }).then(common.mustCall());
 }
-
-// Ed448Params
-{
-  for (const good of [
-    { name: 'Ed448', context: new Uint8Array() },
-    { name: 'Ed448' },
-  ]) {
-    assert.deepStrictEqual(converters.Ed448Params({ ...good, filtered: 'out' }, opts), good);
-  }
-}

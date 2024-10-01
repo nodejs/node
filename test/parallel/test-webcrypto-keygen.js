@@ -134,21 +134,7 @@ const vectors = {
       'verify',
     ],
   },
-  'Ed448': {
-    result: 'CryptoKeyPair',
-    usages: [
-      'sign',
-      'verify',
-    ],
-  },
   'X25519': {
-    result: 'CryptoKeyPair',
-    usages: [
-      'deriveKey',
-      'deriveBits',
-    ],
-  },
-  'X448': {
     result: 'CryptoKeyPair',
     usages: [
       'deriveKey',
@@ -641,17 +627,7 @@ assert.throws(() => new CryptoKey(), { code: 'ERR_ILLEGAL_CONSTRUCTOR' });
       ['verify'],
     ],
     [
-      'Ed448',
-      ['sign'],
-      ['verify'],
-    ],
-    [
       'X25519',
-      ['deriveKey', 'deriveBits'],
-      [],
-    ],
-    [
-      'X448',
       ['deriveKey', 'deriveBits'],
       [],
     ],
