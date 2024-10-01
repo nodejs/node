@@ -2,7 +2,7 @@
 
 require('../common');
 const fixtures = require('../common/fixtures');
-const assert = require('assert/strict');
+const assert = require('assert');
 const path = require('path');
 const { getPackageJSON } = require('module');
 
@@ -15,7 +15,7 @@ const { getPackageJSON } = require('module');
 }
 
 { // Throw when `everything` is not a boolean
-  for (const invalid of ['', {}, [], Symbol(), 1, 0, ]) assert.throws(
+  for (const invalid of ['', {}, [], Symbol(), 1, 0]) assert.throws(
     () => getPackageJSON('', invalid),
     { code: 'ERR_INVALID_ARG_TYPE' }
   );
@@ -28,7 +28,7 @@ const pkgType = 'module'; // a non-default value
   const pathToDir = fixtures.path('packages/root-types-field/');
   const pkg = getPackageJSON(pathToDir);
 
-  assert.deepEqual(pkg, {
+  assert.deepStrictEqual(pkg, {
     path: path.join(pathToDir, 'package.json'),
     data: {
       __proto__: null,
@@ -42,7 +42,7 @@ const pkgType = 'module'; // a non-default value
   const pathToDir = fixtures.path('packages/root-types-field/');
   const pkg = getPackageJSON(pathToDir, true);
 
-  assert.deepEqual(pkg, {
+  assert.deepStrictEqual(pkg, {
     path: path.join(pathToDir, 'package.json'),
     data: {
       __proto__: null,
@@ -57,7 +57,7 @@ const pkgType = 'module'; // a non-default value
   const pathToDir = fixtures.path('packages/nested-types-field/');
   const pkg = getPackageJSON(pathToDir);
 
-  assert.deepEqual(pkg, {
+  assert.deepStrictEqual(pkg, {
     path: path.join(pathToDir, 'package.json'),
     data: {
       __proto__: null,
@@ -75,7 +75,7 @@ const pkgType = 'module'; // a non-default value
   const pathToDir = fixtures.path('packages/nested-types-field/');
   const pkg = getPackageJSON(pathToDir, true);
 
-  assert.deepEqual(pkg, {
+  assert.deepStrictEqual(pkg, {
     path: path.join(pathToDir, 'package.json'),
     data: {
       __proto__: null,
