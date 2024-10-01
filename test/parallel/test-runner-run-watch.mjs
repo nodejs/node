@@ -59,8 +59,8 @@ async function testWatch(
   if (runnerCwd) args.push('--cwd', runnerCwd);
   if (isolation) args.push('--isolation', isolation);
   const child = spawn(process.execPath,
-                      args,
-                      { encoding: 'utf8', stdio: 'pipe', cwd });
+    args,
+    { encoding: 'utf8', stdio: 'pipe', cwd });
   let stdout = '';
   let currentRun = '';
   const runs = [];
@@ -103,10 +103,12 @@ async function testWatch(
     currentRun = '';
     const fileToRenamePath = tmpdir.resolve(fileToUpdate);
     const newFileNamePath = tmpdir.resolve(`test-renamed-${fileToUpdate}`);
-    const interval = setInterval(() => renameSync(fileToRenamePath, newFileNamePath), common.platformTimeout(1000));
+    const interval = setInterval(() => {
+      renameSync(fileToRenamePath, newFileNamePath), common.platformTimeout(1000)
+      clearInterval(interval);
+    });
     await ran2.promise;
     runs.push(currentRun);
-    clearInterval(interval);
     child.kill();
     await once(child, 'exit');
 
@@ -141,11 +143,11 @@ async function testWatch(
         unlinkSync(fileToDeletePath);
       } else {
         ran2.resolve();
+        clearInterval(interval);
       }
     }, common.platformTimeout(1000));
     await ran2.promise;
     runs.push(currentRun);
-    clearInterval(interval);
     child.kill();
     await once(child, 'exit');
 
@@ -162,15 +164,17 @@ async function testWatch(
     currentRun = '';
     const newFilePath = tmpdir.resolve(fileToCreate);
     const interval = setInterval(
-      () => writeFileSync(
-        newFilePath,
-        'module.exports = {};'
-      ),
+      () => {
+        writeFileSync(
+          newFilePath,
+          'module.exports = {};'
+        );
+        clearInterval(interval);
+      },
       common.platformTimeout(1000)
     );
     await ran2.promise;
     runs.push(currentRun);
-    clearInterval(interval);
     child.kill();
     await once(child, 'exit');
 
