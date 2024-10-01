@@ -23,7 +23,7 @@ export type SerializedPackageConfig = [
 export interface ModulesBinding {
   readPackageJSON(path: string): SerializedPackageConfig | undefined;
   getNearestParentPackageJSON(path: string): RecognisedPackageConfig | undefined
-  getNearestRawParentPackageJSON(origin: URL['pathname']): ReturnType<JSON['stringify']> | undefined
+  getNearestRawParentPackageJSON(origin: URL['pathname']): [ReturnType<JSON['stringify']>, RecognisedPackageConfig['pjsonPath']] | undefined
   getNearestParentPackageJSONType(path: string): RecognisedPackageConfig['type']
   getPackageScopeConfig(path: string): SerializedPackageConfig | undefined
   getPackageJSONScripts(): string | undefined
