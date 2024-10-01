@@ -37,6 +37,6 @@ if (values.isolation) {
 run({
   files,
   watch: true,
-  ...(cwd ? { cwd } : {}),
-  ...(isolation ? { isolation } : {}),
+  cwd,
+  isolation,
 }).compose(tap).pipe(process.stdout);

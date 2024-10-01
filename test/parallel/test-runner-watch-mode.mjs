@@ -5,6 +5,7 @@ import { once } from 'node:events';
 import assert from 'node:assert';
 import { spawn } from 'node:child_process';
 import { writeFileSync, renameSync, unlinkSync } from 'node:fs';
+import { setTimeout } from 'node:timers/promises';
 import util from 'internal/util';
 import tmpdir from '../common/tmpdir.js';
 
@@ -28,10 +29,6 @@ import('./dependency.mjs');
 import('data:text/javascript,');
 test('test has ran');`,
 };
-
-function wait(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
 
 function refresh() {
   tmpdir.refresh();
@@ -74,7 +71,7 @@ async function testWatch({
     const content = fixtureContent[fileToUpdate];
     const path = fixturePaths[fileToUpdate];
     writeFileSync(path, content);
-    await wait(common.platformTimeout(1000));
+    await setTimeout(common.platformTimeout(1000));
     await ran2.promise;
     runs.push(currentRun);
     child.kill();
@@ -97,7 +94,7 @@ async function testWatch({
     const fileToRenamePath = tmpdir.resolve(fileToUpdate);
     const newFileNamePath = tmpdir.resolve(`test-renamed-${fileToUpdate}`);
     renameSync(fileToRenamePath, newFileNamePath);
-    await wait(common.platformTimeout(1000));
+    await setTimeout(common.platformTimeout(1000));
     await ran2.promise;
     runs.push(currentRun);
     child.kill();
@@ -119,7 +116,7 @@ async function testWatch({
     currentRun = '';
     const fileToDeletePath = tmpdir.resolve(fileToUpdate);
     unlinkSync(fileToDeletePath);
-    await wait(common.platformTimeout(2000));
+    await setTimeout(common.platformTimeout(2000));
     ran2.resolve();
     runs.push(currentRun);
     child.kill();
@@ -138,7 +135,7 @@ async function testWatch({
     currentRun = '';
     const newFilePath = tmpdir.resolve(fileToCreate);
     writeFileSync(newFilePath, 'module.exports = {};');
-    await wait(common.platformTimeout(1000));
+    await setTimeout(common.platformTimeout(1000));
     await ran2.promise;
     runs.push(currentRun);
     child.kill();
