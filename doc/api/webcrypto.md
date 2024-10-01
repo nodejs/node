@@ -1194,7 +1194,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {string} Must be `'ECDH'` or `'X25519'`
+* Type: {string} Must be `'ECDH'` or `'X25519'`.
 
 #### `ecdhKeyDeriveParams.public`
 
