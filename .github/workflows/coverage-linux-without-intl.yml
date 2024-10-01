@@ -13,6 +13,7 @@ on:
       - tools/test.py
       - .github/workflows/coverage-linux-without-intl.yml
       - codecov.yml
+      - .nycrc
   push:
     branches:
       - main
@@ -26,6 +27,7 @@ on:
       - tools/test.py
       - .github/workflows/coverage-linux-without-intl.yml
       - codecov.yml
+      - .nycrc
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
