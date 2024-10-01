@@ -679,6 +679,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "the line coverage minimum threshold",
             &EnvironmentOptions::test_coverage_lines,
             kAllowedInEnvvar);
+
   AddOption("--experimental-test-isolation",
             "configures the type of test isolation used in the test runner",
             &EnvironmentOptions::test_isolation);
