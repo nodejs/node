@@ -1137,17 +1137,6 @@ generated as part of the test runner output. If no tests are run, a coverage
 report is not generated. See the documentation on
 [collecting code coverage from tests][] for more details.
 
-### `--experimental-test-cwd=directory`
-
-<!-- YAML
-added: CHANGEME
--->
-
-> Stability: 1.0 - Early development
-
-Set the current working directory for the test runner. If not specified, the current
-working directory is used.
-
 ### `--experimental-test-isolation=mode`
 
 <!-- YAML
