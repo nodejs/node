@@ -1145,9 +1145,8 @@ added: CHANGEME
 
 > Stability: 1.0 - Early development
 
-Set the current working directory for the test runner.
-If not specified, the current working directory is used.
-This flag is particularly useful when running tests from a different directory.
+Set the current working directory for the test runner. If not specified, the current
+working directory is used.
 
 ### `--experimental-test-isolation=mode`
 
