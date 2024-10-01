@@ -220,7 +220,9 @@ needs to be pointed out separately during the onboarding.
   [mailmap](https://github.com/nodejs/node/blob/main/.mailmap) file if the email
   being added to the collaborator list does not match the email used for
   commits. Otherwise tooling will not see the collaborator as being active and
-  may suggest removing them.
+  may suggest removing them. See
+  [gitmailmap](https://git-scm.com/docs/gitmailmap) for information on the
+  format of the mailmap file.
 * Add the `Fixes: <collaborator-nomination-issue-url>` to the commit message
   so that when the commit lands, the nomination issue url will be
   automatically closed.
