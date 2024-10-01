@@ -547,6 +547,24 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     for await (const _ of stream);
   });
 
+  it('should throw if an invalid cwd is provided', async () => {
+    assert.throws(() => run({
+      cwd: fixtures.path('test-runner', 'cwd', 'non-existing')
+    }), {
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: /expects an existing directory/
+    });
+  });
+
+  it('should throw if a file is provided as cwd', async () => {
+    assert.throws(() => run({
+      cwd: fixtures.path('test-runner', 'default-behavior', 'test', 'random.cjs')
+    }), {
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: /expects a directory, a file was provided/
+    });
+  });
+
   it('should run with different cwd while in watch mode', async () => {
     const controller = new AbortController();
     const stream = run({
