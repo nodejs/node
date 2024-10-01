@@ -1,6 +1,6 @@
 // Flags: --expose-internals
 import * as common from '../common/index.mjs';
-import { describe, it, beforeEach } from 'node:test';
+import { describe, it, beforeEach, run } from 'node:test';
 import assert from 'node:assert';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
@@ -269,4 +269,60 @@ describe('test runner watch mode', () => {
         }
       );
     });
+
+  it('should run with different cwd while in watch mode', async () => {
+    const controller = new AbortController();
+    const stream = run({
+      cwd: tmpdir.path,
+      watch: true,
+      signal: controller.signal,
+    }).on('data', function({ type }) {
+      if (type === 'test:watch:drained') {
+        controller.abort();
+      }
+    });
+
+    stream.on('test:fail', common.mustNotCall());
+    stream.on('test:pass', common.mustCall(1));
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream);
+  });
+
+  it('should run with different cwd while in watch mode and isolation "none"', async () => {
+    const controller = new AbortController();
+    const stream = run({
+      cwd: tmpdir.path,
+      watch: true,
+      signal: controller.signal,
+      isolation: 'none',
+    }).on('data', function({ type }) {
+      if (type === 'test:watch:drained') {
+        controller.abort();
+      }
+    });
+
+    stream.on('test:fail', common.mustNotCall());
+    stream.on('test:pass', common.mustCall(1));
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream);
+  });
+
+  it('should run with different cwd while in watch mode and isolation "process"', async () => {
+    const controller = new AbortController();
+    const stream = run({
+      cwd: tmpdir.path,
+      watch: true,
+      signal: controller.signal,
+      isolation: 'process',
+    }).on('data', function({ type }) {
+      if (type === 'test:watch:drained') {
+        controller.abort();
+      }
+    });
+
+    stream.on('test:fail', common.mustNotCall());
+    stream.on('test:pass', common.mustCall(1));
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream);
+  });
 });
