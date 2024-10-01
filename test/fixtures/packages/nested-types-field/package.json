@@ -1,0 +1,9 @@
+{
+  "name": "package-with-unrecognised-fields",
+  "type": "module",
+  "exports": {
+    "default": "./index.js",
+    "types": "./index.d.ts"
+  },
+  "unrecognised": true
+}
