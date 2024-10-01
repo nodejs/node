@@ -41,11 +41,23 @@ function refresh() {
 
 const runner = join(import.meta.dirname, '..', 'fixtures', 'test-runner-watch.mjs');
 
-async function testWatch({ fileToUpdate, file, action = 'update', cwd = tmpdir.path, fileToCreate }) {
+async function testWatch(
+  {
+    fileToUpdate,
+    file,
+    action = 'update',
+    cwd = tmpdir.path,
+    fileToCreate,
+    runnerCwd,
+    isolation
+  }
+) {
   const ran1 = util.createDeferredPromise();
   const ran2 = util.createDeferredPromise();
   const args = [runner];
   if (file) args.push('--file', file);
+  if (runnerCwd) args.push('--cwd', runnerCwd);
+  if (isolation) args.push('--isolation', isolation);
   const child = spawn(process.execPath,
                       args,
                       { encoding: 'utf8', stdio: 'pipe', cwd });
@@ -221,7 +233,52 @@ describe('test runner watch mode', () => {
     });
   });
 
-  it('should run new tests when a new file is created in the watched directory', async () => {
-    await testWatch({ action: 'create', fileToCreate: 'new-test-file.test.js' });
-  });
+  it(
+    'should run new tests when a new file is created in the watched directory',
+    async () => {
+      await testWatch({ action: 'create', fileToCreate: 'new-test-file.test.js' });
+    });
+
+  it(
+    'should execute run using a different cwd for the runner than the process cwd',
+    async () => {
+      await testWatch(
+        {
+          fileToUpdate: 'test.js',
+          action: 'rename',
+          cwd: import.meta.dirname,
+          runnerCwd: tmpdir.path
+        }
+      );
+    });
+
+  it(
+    'should execute run using a different cwd for the runner than the process cwd with isolation process',
+    async () => {
+      await testWatch(
+        {
+          fileToUpdate: 'test.js',
+          action: 'rename',
+          cwd: import.meta.dirname,
+          runnerCwd: tmpdir.path,
+          isolation: 'process'
+        }
+      );
+    });
+
+  // TODO: fix this case
+  // it(
+  //   'should execute run using a different cwd for the runner than the process cwd with isolation none',
+  //   async () => {
+  //     await testWatch(
+  //       {
+  //         fileToUpdate: 'test.js',
+  //         action: 'rename',
+  //         cwd: import.meta.dirname,
+  //         runnerCwd: tmpdir.path,
+  //         isolation: 'none'
+  //       }
+  //     );
+  //   }
+  // );
 });
