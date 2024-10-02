@@ -243,86 +243,88 @@ describe('test runner watch mode', () => {
       await testWatch({ action: 'create', fileToCreate: 'new-test-file.test.js' });
     });
 
-  it(
-    'should execute run using a different cwd for the runner than the process cwd',
-    async () => {
-      await testWatch(
-        {
-          fileToUpdate: 'test.js',
-          action: 'rename',
-          cwd: import.meta.dirname,
-          runnerCwd: tmpdir.path
+  describe('test runner watch mode with different cwd', () => {
+    it(
+      'should execute run using a different cwd for the runner than the process cwd',
+      async () => {
+        await testWatch(
+          {
+            fileToUpdate: 'test.js',
+            action: 'rename',
+            cwd: import.meta.dirname,
+            runnerCwd: tmpdir.path
+          }
+        );
+      });
+
+    it(
+      'should execute run using a different cwd for the runner than the process cwd with isolation process',
+      async () => {
+        await testWatch(
+          {
+            fileToUpdate: 'test.js',
+            action: 'rename',
+            cwd: import.meta.dirname,
+            runnerCwd: tmpdir.path,
+            isolation: 'process'
+          }
+        );
+      });
+
+    it('should run with different cwd while in watch mode', async () => {
+      const controller = new AbortController();
+      const stream = run({
+        cwd: tmpdir.path,
+        watch: true,
+        signal: controller.signal,
+      }).on('data', function({ type }) {
+        if (type === 'test:watch:drained') {
+          controller.abort();
         }
-      );
+      });
+
+      stream.on('test:fail', common.mustNotCall());
+      stream.on('test:pass', common.mustCall(1));
+      // eslint-disable-next-line no-unused-vars
+      for await (const _ of stream);
     });
 
-  it(
-    'should execute run using a different cwd for the runner than the process cwd with isolation process',
-    async () => {
-      await testWatch(
-        {
-          fileToUpdate: 'test.js',
-          action: 'rename',
-          cwd: import.meta.dirname,
-          runnerCwd: tmpdir.path,
-          isolation: 'process'
+    it('should run with different cwd while in watch mode and isolation "none"', async () => {
+      const controller = new AbortController();
+      const stream = run({
+        cwd: tmpdir.path,
+        watch: true,
+        signal: controller.signal,
+        isolation: 'none',
+      }).on('data', function({ type }) {
+        if (type === 'test:watch:drained') {
+          controller.abort();
         }
-      );
+      });
+
+      stream.on('test:fail', common.mustNotCall());
+      stream.on('test:pass', common.mustCall(1));
+      // eslint-disable-next-line no-unused-vars
+      for await (const _ of stream);
     });
 
-  it('should run with different cwd while in watch mode', async () => {
-    const controller = new AbortController();
-    const stream = run({
-      cwd: tmpdir.path,
-      watch: true,
-      signal: controller.signal,
-    }).on('data', function({ type }) {
-      if (type === 'test:watch:drained') {
-        controller.abort();
-      }
+    it('should run with different cwd while in watch mode and isolation "process"', async () => {
+      const controller = new AbortController();
+      const stream = run({
+        cwd: tmpdir.path,
+        watch: true,
+        signal: controller.signal,
+        isolation: 'process',
+      }).on('data', function({ type }) {
+        if (type === 'test:watch:drained') {
+          controller.abort();
+        }
+      });
+
+      stream.on('test:fail', common.mustNotCall());
+      stream.on('test:pass', common.mustCall(1));
+      // eslint-disable-next-line no-unused-vars
+      for await (const _ of stream);
     });
-
-    stream.on('test:fail', common.mustNotCall());
-    stream.on('test:pass', common.mustCall(1));
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of stream);
-  });
-
-  it('should run with different cwd while in watch mode and isolation "none"', async () => {
-    const controller = new AbortController();
-    const stream = run({
-      cwd: tmpdir.path,
-      watch: true,
-      signal: controller.signal,
-      isolation: 'none',
-    }).on('data', function({ type }) {
-      if (type === 'test:watch:drained') {
-        controller.abort();
-      }
-    });
-
-    stream.on('test:fail', common.mustNotCall());
-    stream.on('test:pass', common.mustCall(1));
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of stream);
-  });
-
-  it('should run with different cwd while in watch mode and isolation "process"', async () => {
-    const controller = new AbortController();
-    const stream = run({
-      cwd: tmpdir.path,
-      watch: true,
-      signal: controller.signal,
-      isolation: 'process',
-    }).on('data', function({ type }) {
-      if (type === 'test:watch:drained') {
-        controller.abort();
-      }
-    });
-
-    stream.on('test:fail', common.mustNotCall());
-    stream.on('test:pass', common.mustCall(1));
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of stream);
   });
 });
