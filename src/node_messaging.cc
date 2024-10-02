@@ -25,6 +25,7 @@ using v8::Global;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Just;
+using v8::JustVoid;
 using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
@@ -42,7 +43,7 @@ using v8::WasmModuleObject;
 
 namespace node {
 
-using BaseObjectList = std::vector<BaseObjectPtr<BaseObject>>;
+using BaseObjectPtrList = std::vector<BaseObjectPtr<BaseObject>>;
 using TransferMode = BaseObject::TransferMode;
 
 // Hack to have WriteHostObject inform ReadHostObject that the value
@@ -337,7 +338,11 @@ class SerializerDelegate : public ValueSerializer::Delegate {
       // methods like toString(). It's probably confusing if that gets lost
       // in transmission.
       Local<Object> normal_object = Object::New(isolate);
-      env_->env_vars()->AssignToObject(isolate, env_->context(), normal_object);
+      if (env_->env_vars()
+              ->AssignToObject(isolate, env_->context(), normal_object)
+              .IsNothing()) {
+        return Nothing<bool>();
+      }
       serializer->WriteUint32(kNormalObject);  // Instead of a BaseObject.
       return serializer->WriteValue(env_->context(), normal_object);
     }
@@ -798,7 +803,7 @@ void MessagePort::OnMessage(MessageProcessingMode mode) {
   // The data_ could be freed or, the handle has been/is being closed.
   // A possible case for this, is transfer the MessagePort to another
   // context, it will call the constructor and trigger the async handle empty.
-  // Because all data was sent from the preivous context.
+  // Because all data was sent from the previous context.
   if (IsDetached()) return;
 
   HandleScope handle_scope(env()->isolate());
@@ -1347,8 +1352,7 @@ std::unique_ptr<TransferData> JSTransferable::TransferOrClone() const {
                                 Global<Value>(env()->isolate(), data));
 }
 
-Maybe<BaseObjectList>
-JSTransferable::NestedTransferables() const {
+Maybe<BaseObjectPtrList> JSTransferable::NestedTransferables() const {
   // Call `this[kTransferList]()` and return the resulting list of BaseObjects.
   HandleScope handle_scope(env()->isolate());
   Local<Context> context = env()->isolate()->GetCurrentContext();
@@ -1356,24 +1360,24 @@ JSTransferable::NestedTransferables() const {
 
   Local<Value> method;
   if (!target()->Get(context, method_name).ToLocal(&method)) {
-    return Nothing<BaseObjectList>();
+    return Nothing<BaseObjectPtrList>();
   }
-  if (!method->IsFunction()) return Just(BaseObjectList {});
+  if (!method->IsFunction()) return Just(BaseObjectPtrList{});
 
   Local<Value> list_v;
   if (!method.As<Function>()
            ->Call(context, target(), 0, nullptr)
            .ToLocal(&list_v)) {
-    return Nothing<BaseObjectList>();
+    return Nothing<BaseObjectPtrList>();
   }
-  if (!list_v->IsArray()) return Just(BaseObjectList {});
+  if (!list_v->IsArray()) return Just(BaseObjectPtrList{});
   Local<Array> list = list_v.As<Array>();
 
-  BaseObjectList ret;
+  BaseObjectPtrList ret;
   for (size_t i = 0; i < list->Length(); i++) {
     Local<Value> value;
     if (!list->Get(context, i).ToLocal(&value))
-      return Nothing<BaseObjectList>();
+      return Nothing<BaseObjectPtrList>();
     if (!value->IsObject()) {
       continue;
     }
@@ -1390,25 +1394,25 @@ JSTransferable::NestedTransferables() const {
   return Just(ret);
 }
 
-Maybe<bool> JSTransferable::FinalizeTransferRead(
+Maybe<void> JSTransferable::FinalizeTransferRead(
     Local<Context> context, ValueDeserializer* deserializer) {
   // Call `this[kDeserialize](data)` where `data` comes from the return value
   // of `this[kTransfer]()` or `this[kClone]()`.
   HandleScope handle_scope(env()->isolate());
   Local<Value> data;
-  if (!deserializer->ReadValue(context).ToLocal(&data)) return Nothing<bool>();
+  if (!deserializer->ReadValue(context).ToLocal(&data)) return Nothing<void>();
 
   Local<Symbol> method_name = env()->messaging_deserialize_symbol();
   Local<Value> method;
   if (!target()->Get(context, method_name).ToLocal(&method)) {
-    return Nothing<bool>();
+    return Nothing<void>();
   }
-  if (!method->IsFunction()) return Just(true);
+  if (!method->IsFunction()) return JustVoid();
 
   if (method.As<Function>()->Call(context, target(), 1, &data).IsEmpty()) {
-    return Nothing<bool>();
+    return Nothing<void>();
   }
-  return Just(true);
+  return JustVoid();
 }
 
 JSTransferable::Data::Data(std::string&& deserialize_info,

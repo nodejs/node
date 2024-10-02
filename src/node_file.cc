@@ -1040,8 +1040,9 @@ static void ExistsSync(const FunctionCallbackInfo<Value>& args) {
 static void InternalModuleStat(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  CHECK(args[0]->IsString());
-  BufferValue path(env->isolate(), args[0]);
+  CHECK_GE(args.Length(), 2);
+  CHECK(args[1]->IsString());
+  BufferValue path(env->isolate(), args[1]);
   CHECK_NOT_NULL(*path);
   ToNamespacedPath(env, &path);
   THROW_IF_INSUFFICIENT_PERMISSIONS(
@@ -1059,6 +1060,7 @@ static void InternalModuleStat(const FunctionCallbackInfo<Value>& args) {
 }
 
 static int32_t FastInternalModuleStat(
+    Local<Object> unused,
     Local<Object> recv,
     const FastOneByteString& input,
     // NOLINTNEXTLINE(runtime/references) This is V8 api.
@@ -3204,9 +3206,12 @@ static void CpSyncCheckPaths(const FunctionCallbackInfo<Value>& args) {
   }
 
   std::u8string dest_path_str = dest_path.u8string();
-
+  std::u8string src_path_str = src_path.u8string();
+  if (!src_path_str.ends_with(std::filesystem::path::preferred_separator)) {
+    src_path_str += std::filesystem::path::preferred_separator;
+  }
   // Check if dest_path is a subdirectory of src_path.
-  if (src_is_dir && dest_path_str.starts_with(src_path.u8string())) {
+  if (src_is_dir && dest_path_str.starts_with(src_path_str)) {
     std::u8string message = u8"Cannot copy " + src_path.u8string() +
                             u8" to a subdirectory of self " +
                             dest_path.u8string();
@@ -3331,37 +3336,18 @@ void BindingData::LegacyMainResolve(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   auto isolate = env->isolate();
 
-  Utf8Value utf8_package_json_url(isolate, args[0]);
-  auto package_json_url =
-      ada::parse<ada::url_aggregator>(utf8_package_json_url.ToStringView());
-
-  if (!package_json_url) {
-    THROW_ERR_INVALID_URL(isolate, "Invalid URL");
-    return;
-  }
+  auto utf8_package_path = Utf8Value(isolate, args[0]).ToString();
 
   std::string package_initial_file = "";
 
-  ada::result<ada::url_aggregator> file_path_url;
   std::optional<std::string> initial_file_path;
   std::string file_path;
 
   if (args.Length() >= 2 && args[1]->IsString()) {
     auto package_config_main = Utf8Value(isolate, args[1]).ToString();
 
-    file_path_url = ada::parse<ada::url_aggregator>(
-        std::string("./") + package_config_main, &package_json_url.value());
-
-    if (!file_path_url) {
-      THROW_ERR_INVALID_URL(isolate, "Invalid URL");
-      return;
-    }
-
-    initial_file_path = node::url::FileURLToPath(env, *file_path_url);
-    if (!initial_file_path.has_value()) {
-      return;
-    }
-
+    initial_file_path =
+        PathResolve(env, {utf8_package_path, package_config_main});
     FromNamespacedPath(&initial_file_path.value());
 
     package_initial_file = *initial_file_path;
@@ -3392,15 +3378,7 @@ void BindingData::LegacyMainResolve(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  file_path_url =
-      ada::parse<ada::url_aggregator>("./index", &package_json_url.value());
-
-  if (!file_path_url) {
-    THROW_ERR_INVALID_URL(isolate, "Invalid URL");
-    return;
-  }
-
-  initial_file_path = node::url::FileURLToPath(env, *file_path_url);
+  initial_file_path = PathResolve(env, {utf8_package_path, "./index"});
   if (!initial_file_path.has_value()) {
     return;
   }

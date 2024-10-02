@@ -81,8 +81,10 @@ directory contains the latest Hydrogen (Node.js 18) release.
 
 <https://nodejs.org/download/nightly/>
 
-Each directory name and filename contains a date (in UTC) and the commit
-SHA at the HEAD of the release.
+Each directory and filename includes the version (e.g., `v22.0.0`),
+followed by the UTC date (e.g., `20240424` for April 24, 2024),
+and the short commit SHA of the HEAD of the release (e.g., `ddd0a9e494`).
+For instance, a full directory name might look like `v22.0.0-nightly20240424ddd0a9e494`.
 
 #### API documentation
 
@@ -282,6 +284,8 @@ For information about the governance of the Node.js project, see
 
 ### Collaborators
 
+* [abmusse](https://github.com/abmusse) -
+  **Abdirahim Musse** <<abdirahim.musse@ibm.com>>
 * [addaleax](https://github.com/addaleax) -
   **Anna Henningsen** <<anna@addaleax.net>> (she/her)
 * [aduh95](https://github.com/aduh95) -

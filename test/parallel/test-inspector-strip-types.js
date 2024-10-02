@@ -18,13 +18,14 @@ async function runTest() {
 
   const session = await child.connectInspectorSession();
 
-  const commands = [
+  await session.send({ method: 'NodeRuntime.enable' });
+  await session.waitForNotification('NodeRuntime.waitingForDebugger');
+  await session.send([
     { 'method': 'Debugger.enable' },
     { 'method': 'Runtime.enable' },
     { 'method': 'Runtime.runIfWaitingForDebugger' },
-  ];
-
-  await session.send(commands);
+  ]);
+  await session.send({ method: 'NodeRuntime.disable' });
 
   const scriptParsed = await session.waitForNotification((notification) => {
     if (notification.method !== 'Debugger.scriptParsed') return false;

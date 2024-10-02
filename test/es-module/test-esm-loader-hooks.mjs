@@ -774,6 +774,7 @@ describe('Loader hooks', { concurrency: !process.env.TEST_PARALLEL }, () => {
 
   describe('should use hooks', async () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
+      '--no-experimental-require-module',
       '--import',
       fixtures.fileURL('es-module-loaders/builtin-named-exports.mjs'),
       fixtures.path('es-modules/require-esm-throws-with-loaders.js'),
@@ -822,7 +823,7 @@ describe('Loader hooks', { concurrency: !process.env.TEST_PARALLEL }, () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
       '--experimental-loader',
-      `data:text/javascript,const fixtures=${JSON.stringify(fixtures.path('empty.js'))};export ${
+      `data:text/javascript,const fixtures=${encodeURI(JSON.stringify(fixtures.path('empty.js')))};export ${
         encodeURIComponent(function resolve(s, c, n) {
           if (s.endsWith('entry-point')) {
             return {

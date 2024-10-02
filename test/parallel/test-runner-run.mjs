@@ -33,6 +33,20 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     for await (const _ of stream);
   });
 
+  const argPrintingFile = join(testFixtures, 'print-arguments.js');
+  it('should allow custom arguments via execArgv', async () => {
+    const result = await run({ files: [argPrintingFile], execArgv: ['-p', '"Printed"'] }).compose(spec).toArray();
+    assert.strictEqual(result[0].toString(), 'Printed\n');
+  });
+
+  it('should allow custom arguments via argv', async () => {
+    const stream = run({ files: [argPrintingFile], argv: ['--a-custom-argument'] });
+    stream.on('test:fail', common.mustNotCall());
+    stream.on('test:pass', common.mustCall());
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream);
+  });
+
   it('should run same file twice', async () => {
     const stream = run({
       files: [

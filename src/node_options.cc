@@ -374,9 +374,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::print_required_tla,
             kAllowedInEnvvar);
   AddOption("--experimental-require-module",
-            "Allow loading explicit ES Modules in require().",
+            "Allow loading synchronous ES Modules in require().",
             &EnvironmentOptions::require_module,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            true);
   AddOption("--diagnostic-dir",
             "set dir for all output files"
             " (default: current working directory)",
@@ -405,6 +406,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--enable-source-maps",
             "Source Map V3 support for stack traces",
             &EnvironmentOptions::enable_source_maps,
+            kAllowedInEnvvar);
+  AddOption("--entry-url",
+            "Treat the entrypoint as a URL",
+            &EnvironmentOptions::entry_is_url,
             kAllowedInEnvvar);
   AddOption("--experimental-abortcontroller", "", NoOp{}, kAllowedInEnvvar);
   AddOption("--experimental-eventsource",
@@ -899,7 +904,10 @@ PerIsolateOptionsParser::PerIsolateOptionsParser(
       "--perf-basic-prof-only-functions", "", V8Option{}, kAllowedInEnvvar);
   AddOption("--perf-prof", "", V8Option{}, kAllowedInEnvvar);
   AddOption("--perf-prof-unwinding-info", "", V8Option{}, kAllowedInEnvvar);
-  AddOption("--stack-trace-limit", "", V8Option{}, kAllowedInEnvvar);
+  AddOption("--stack-trace-limit",
+            "",
+            &PerIsolateOptions::stack_trace_limit,
+            kAllowedInEnvvar);
   AddOption("--disallow-code-generation-from-strings",
             "disallow eval and friends",
             V8Option{},
@@ -1286,6 +1294,11 @@ void GetCLIOptionsValues(const FunctionCallbackInfo<Value>& args) {
         if (item.first == "--abort-on-uncaught-exception") {
           value = Boolean::New(isolate,
                                s.original_per_env->abort_on_uncaught_exception);
+        } else if (item.first == "--stack-trace-limit") {
+          value =
+              Number::New(isolate,
+                          static_cast<double>(
+                              *_ppop_instance.Lookup<int64_t>(field, opts)));
         } else {
           value = undefined_value;
         }

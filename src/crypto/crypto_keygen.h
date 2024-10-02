@@ -178,7 +178,8 @@ struct KeyPairGenTraits final {
 
     auto data = KeyObjectData::CreateAsymmetric(KeyType::kKeyTypePrivate,
                                                 EVPKeyPointer(pkey));
-    if (UNLIKELY(!data)) return KeyGenJobStatus::FAILED;
+    if (!data) [[unlikely]]
+      return KeyGenJobStatus::FAILED;
     params->key = std::move(data);
     return KeyGenJobStatus::OK;
   }
