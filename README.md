@@ -284,6 +284,8 @@ For information about the governance of the Node.js project, see
 
 ### Collaborators
 
+* [kevinuehara](https://github.com/kevinuehara) -
+  **Kevin Uehara** <<uehara.kevin@gmail.com>> (he/him)
 * [abmusse](https://github.com/abmusse) -
   **Abdirahim Musse** <<abdirahim.musse@ibm.com>>
 * [addaleax](https://github.com/addaleax) -
