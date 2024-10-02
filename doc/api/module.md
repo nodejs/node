@@ -220,7 +220,7 @@ added: v22.8.0
 ### `module.getPackageJSON(startPath[, everything])`
 
 <!-- YAML
-added: VERSION
+added: REPLACEME
 -->
 
 > Stability: 1.1 - Active Development
