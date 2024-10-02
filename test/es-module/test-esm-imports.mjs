@@ -26,6 +26,10 @@ const { requireImport, importImport } = importer;
     ['#subpath//asdf.asdf', { default: 'test' }],
     // Double slash
     ['#subpath/as//df.asdf', { default: 'test' }],
+    // Target steps below the package base
+    ['#belowbase', { default: 'belowbase' }],
+    // Target steps uses pattern below the package base
+    ['#belowbase/nested', { default: 'nested' }],
   ]);
 
   for (const [validSpecifier, expected] of internalImports) {
@@ -38,8 +42,6 @@ const { requireImport, importImport } = importer;
   }
 
   const invalidImportTargets = new Set([
-    // Target steps below the package base
-    ['#belowbase', '#belowbase'],
     // Target is a URL
     ['#url', '#url'],
   ]);

@@ -522,7 +522,7 @@ where `import '#dep'` does not get the resolution of the external package
 file `./dep-polyfill.js` relative to the package in other environments.
 
 Unlike the `"exports"` field, the `"imports"` field permits mapping to external
-packages.
+packages and locations.
 
 The resolution rules for the imports field are otherwise analogous to the
 exports field.
