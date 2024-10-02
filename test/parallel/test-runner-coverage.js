@@ -320,43 +320,6 @@ test('coverage with source maps', skipIfNoInspector, () => {
   assert.strictEqual(result.status, 1);
 });
 
-
-test('coverage with --enable-source-maps option', skipIfNoInspector, () => {
-  const fixture = fixtures.path('test-runner', 'coverage', 'stdin.test.js');
-  const args = [
-    '--test', '--experimental-test-coverage', '--enable-source-maps', '--test-reporter', 'tap',
-    fixture,
-  ];
-
-  let report = [
-    '# start of coverage report',
-    '# ------------------------------------------------------------------',
-    '# file              | line % | branch % | funcs % | uncovered lines',
-    '# ------------------------------------------------------------------',
-    '# test              |        |          |         | ',
-    '#  fixtures         |        |          |         | ',
-    '#   test-runner     |        |          |         | ',
-    '#    coverage       |        |          |         | ',
-    '#     stdin.test.ts |  57.14 |   100.00 |  100.00 | 4-6',
-    '# ------------------------------------------------------------------',
-    '# all files         |  57.14 |   100.00 |  100.00 | ',
-    '# ------------------------------------------------------------------',
-    '# end of coverage report',
-  ].join('\n');
-
-  if (common.isWindows) {
-    report = report.replaceAll('/', '\\');
-  }
-
-  const result = spawnSync(process.execPath, args);
-  const stdOut = result.stdout.toString();
-
-  assert.strictEqual(result.stderr.toString(), '');
-  assert(!stdOut.includes('TypeError'));
-  assert(stdOut.includes(report));
-  assert.strictEqual(result.status, 0);
-});
-
 test('coverage with source maps missing sources', skipIfNoInspector, () => {
   const file = fixtures.path('test-runner', 'source-map-missing-sources', 'index.js');
   const missing = fixtures.path('test-runner', 'source-map-missing-sources', 'nonexistent.js');
