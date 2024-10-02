@@ -81,7 +81,7 @@ module.exports = {
         if (err.legacy) {
           context.report({
             node,
-            message: `"${code}" is marked as legacy, yet it still exists.`,
+            message: `"${code}" is marked as legacy, yet it is used in lib/.`,
           });
         }
       },
