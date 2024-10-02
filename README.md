@@ -370,6 +370,8 @@ For information about the governance of the Node.js project, see
   **Juan José Arboleda** <<soyjuanarbol@gmail.com>> (he/him)
 * [JungMinu](https://github.com/JungMinu) -
   **Minwoo Jung** <<nodecorelab@gmail.com>> (he/him)
+* [kevinuehara](https://github.com/kevinuehara) -
+  **Kevin Uehara** <<uehara.kevin@gmail.com>> (he/him)
 * [KhafraDev](https://github.com/KhafraDev) -
   **Matthew Aitken** <<maitken033380023@gmail.com>> (he/him)
 * [kvakil](https://github.com/kvakil) -
