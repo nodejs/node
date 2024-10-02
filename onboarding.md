@@ -217,7 +217,7 @@ needs to be pointed out separately during the onboarding.
 * Collaborators are in alphabetical order by GitHub username.
 * Optionally, include your personal pronouns.
 * The PR should include an addition to the
-  [mailmap](https://github.com/nodejs/node/blob/main/.mailmap) file if the email
+  [mailmap](.mailmap) file if the email
   being added to the collaborator list does not match the email used for
   commits. Otherwise tooling will not see the collaborator as being active and
   may suggest removing them. See
