@@ -1936,6 +1936,17 @@ added: v0.5.3
 
 A boolean value that is `true` if the current Node.js build includes support for IPv6.
 
+## `process.features.require_module`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+A boolean value that is `true` if the current Node.js build supports
+[loading ECMAScript modules using `require()`][].
+
 ## `process.features.tls`
 
 <!-- YAML
@@ -4431,6 +4442,7 @@ cases:
 [built-in modules with mandatory `node:` prefix]: modules.md#built-in-modules-with-mandatory-node-prefix
 [debugger]: debugger.md
 [deprecation code]: deprecations.md
+[loading ECMAScript modules using `require()`]: modules.md#loading-ecmascript-modules-using-require
 [note on process I/O]: #a-note-on-process-io
 [process.cpuUsage]: #processcpuusagepreviousvalue
 [process_emit_warning]: #processemitwarningwarning-type-code-ctor
