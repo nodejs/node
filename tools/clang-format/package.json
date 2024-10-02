@@ -1,5 +1,5 @@
 {
   "dependencies": {
-    "node-core-clang-format": "^0.0.6"
+    "node-core-clang-format": "^19.1.1"
   }
 }
