@@ -46,7 +46,7 @@ When using CommonJS, the error thrown can be caught using try/catch:
 
 ```cjs
 let crypto;
-try {
+try {un
   crypto = require('node:crypto');
 } catch (err) {
   console.error('crypto support is disabled!');
