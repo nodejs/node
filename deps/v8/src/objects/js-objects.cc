@@ -445,9 +445,7 @@ Maybe<bool> JSReceiver::SetOrCopyDataProperties(
       Nothing<bool>());
 
   if (!from->HasFastProperties() && target->HasFastProperties() &&
-      !target->IsJSGlobalProxy()) {
-    // JSProxy is always in slow-mode.
-    DCHECK(!target->IsJSProxy());
+      target->IsJSObject() && !target->IsJSGlobalProxy()) {
     // Convert to slow properties if we're guaranteed to overflow the number of
     // descriptors.
     int source_length;
