@@ -6,11 +6,11 @@
     "@babel/core": "^7.25.2",
     "@babel/eslint-parser": "^7.25.1",
     "@babel/plugin-syntax-import-attributes": "^7.25.6",
-    "@stylistic/eslint-plugin-js": "^2.7.2",
-    "eslint": "^9.9.1",
+    "@stylistic/eslint-plugin-js": "^2.8.0",
+    "eslint": "^9.11.1",
     "eslint-formatter-tap": "^8.40.0",
-    "eslint-plugin-jsdoc": "^50.2.2",
+    "eslint-plugin-jsdoc": "^50.3.1",
     "eslint-plugin-markdown": "^5.1.0",
-    "globals": "^15.9.0"
+    "globals": "^15.10.0"
   }
 }
