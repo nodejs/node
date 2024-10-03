@@ -594,6 +594,185 @@ describe('Mock Timers Test Suite', () => {
         });
       });
 
+      describe('scheduler.wait Suite', () => {
+        it('should advance in time and trigger timers when calling the .tick function multiple times', async (t) => {
+          t.mock.timers.enable({ apis: ['scheduler.wait'] });
+          const p = nodeTimersPromises.scheduler.wait(2000);
+
+          t.mock.timers.tick(1000);
+          t.mock.timers.tick(500);
+          t.mock.timers.tick(500);
+          t.mock.timers.tick(500);
+
+          p.then(common.mustCall((result) => {
+            assert.strictEqual(result, undefined);
+          }));
+        });
+
+        it('should work with the same params as the original timers/promises/scheduler/wait', async (t) => {
+          t.mock.timers.enable({ apis: ['scheduler.wait'] });
+          const expectedResult = 'result';
+          const controller = new AbortController();
+          const p = nodeTimersPromises.scheduler.wait(2000, expectedResult, {
+            ref: true,
+            signal: controller.signal,
+          });
+
+          t.mock.timers.tick(1000);
+          t.mock.timers.tick(500);
+          t.mock.timers.tick(500);
+          t.mock.timers.tick(500);
+
+          const result = await p;
+          assert.strictEqual(result, expectedResult);
+        });
+
+        it('should abort operation if timers/promises/scheduler.wait received an aborted signal', async (t) => {
+          t.mock.timers.enable({ apis: ['scheduler.wait'] });
+          const expectedResult = 'result';
+          const controller = new AbortController();
+          const p = nodeTimersPromises.scheduler.wait(2000, {
+            ref: true,
+            signal: controller.signal,
+          });
+
+          t.mock.timers.tick(1000);
+          controller.abort();
+          t.mock.timers.tick(500);
+          t.mock.timers.tick(500);
+          t.mock.timers.tick(500);
+          await assert.rejects(() => p, {
+            name: 'AbortError',
+          });
+        });
+
+
+        it('should abort operation even if the .tick was not called', async (t) => {
+          t.mock.timers.enable({ apis: ['scheduler.wait'] });
+          const controller = new AbortController();
+          const p = nodeTimersPromises.scheduler.wait(2000, {
+            ref: true,
+            signal: controller.signal,
+          });
+
+          controller.abort();
+
+          await assert.rejects(() => p, {
+            name: 'AbortError',
+          });
+        });
+
+        it('should abort operation when .abort is called before calling setInterval', async (t) => {
+          t.mock.timers.enable({ apis: ['setTimeout'] });
+          const expectedResult = 'result';
+          const controller = new AbortController();
+          controller.abort();
+          const p = nodeTimersPromises.setTimeout(2000, expectedResult, {
+            ref: true,
+            signal: controller.signal,
+          });
+
+          await assert.rejects(() => p, {
+            name: 'AbortError',
+          });
+        });
+
+        it('should reject given an an invalid signal instance', async (t) => {
+          t.mock.timers.enable({ apis: ['scheduler.wait'] });
+          const p = nodeTimersPromises.scheduler.wait(2000, {
+            ref: true,
+            signal: {},
+          });
+
+          await assert.rejects(() => p, {
+            name: 'TypeError',
+            code: 'ERR_INVALID_ARG_TYPE',
+          });
+        });
+
+        // Test for https://github.com/nodejs/node/issues/50365
+        it('should not affect other timers when aborting', async (t) => {
+          const f1 = t.mock.fn();
+          const f2 = t.mock.fn();
+          t.mock.timers.enable({ apis: ['scheduler.wait'] });
+          const ac = new AbortController();
+
+          // id 1 & pos 1 in priority queue
+          nodeTimersPromises.scheduler.wait(100, { signal: ac.signal }).then(f1, f1);
+          // id 2 & pos 1 in priority queue (id 1 is moved to pos 2)
+          nodeTimersPromises.scheduler.wait(50).then(f2, f2);
+
+          ac.abort(); // BUG: will remove timer at pos 1 not timer with id 1!
+
+          t.mock.timers.runAll();
+          await nodeTimersPromises.setImmediate(); // let promises settle
+
+          // First scheduler.wait is aborted
+          assert.strictEqual(f1.mock.callCount(), 1);
+          assert.strictEqual(f1.mock.calls[0].arguments[0].code, 'ABORT_ERR');
+
+          // Second scheduler.wait should resolve, but never settles, because it was eronously removed by ac.abort()
+          assert.strictEqual(f2.mock.callCount(), 1);
+        });
+
+        // Test for https://github.com/nodejs/node/issues/50365
+        // it('should not affect other timers when aborted after triggering', async (t) => {
+        //   const f1 = t.mock.fn();
+        //   const f2 = t.mock.fn();
+        //   t.mock.timers.enable({ apis: ['setTimeout'] });
+        //   const ac = new AbortController();
+
+        //   // id 1 & pos 1 in priority queue
+        //   nodeTimersPromises.setTimeout(50, true, { signal: ac.signal }).then(f1, f1);
+        //   // id 2 & pos 2 in priority queue
+        //   nodeTimersPromises.setTimeout(100).then(f2, f2);
+
+        //   // First setTimeout resolves
+        //   t.mock.timers.tick(50);
+        //   await nodeTimersPromises.setImmediate(); // let promises settle
+        //   assert.strictEqual(f1.mock.callCount(), 1);
+        //   assert.strictEqual(f1.mock.calls[0].arguments.length, 1);
+        //   assert.strictEqual(f1.mock.calls[0].arguments[0], true);
+
+        //   // Now timer with id 2 will be at pos 1 in priority queue
+        //   ac.abort(); // BUG: will remove timer at pos 1 not timer with id 1!
+
+        //   // Second setTimeout should resolve, but never settles, because it was eronously removed by ac.abort()
+        //   t.mock.timers.runAll();
+        //   await nodeTimersPromises.setImmediate(); // let promises settle
+        //   assert.strictEqual(f2.mock.callCount(), 1);
+        // });
+
+        // it('should not affect other timers when clearing timeout inside own callback', (t) => {
+        //   t.mock.timers.enable({ apis: ['setTimeout'] });
+        //   const f = t.mock.fn();
+
+        //   const timer = nodeTimers.setTimeout(() => {
+        //     f();
+        //     // Clearing the already-expired timeout should do nothing
+        //     nodeTimers.clearTimeout(timer);
+        //   }, 50);
+        //   nodeTimers.setTimeout(f, 50);
+        //   nodeTimers.setTimeout(f, 50);
+
+        //   t.mock.timers.runAll();
+        //   assert.strictEqual(f.mock.callCount(), 3);
+        // });
+
+        // it('should allow clearing timeout inside own callback', (t) => {
+        //   t.mock.timers.enable({ apis: ['setTimeout'] });
+        //   const f = t.mock.fn();
+
+        //   const timer = nodeTimers.setTimeout(() => {
+        //     f();
+        //     nodeTimers.clearTimeout(timer);
+        //   }, 50);
+
+        //   t.mock.timers.runAll();
+        //   assert.strictEqual(f.mock.callCount(), 1);
+        // });
+      });
+
       describe('setInterval Suite', () => {
         it('should tick three times using fake setInterval', async (t) => {
           t.mock.timers.enable({ apis: ['setInterval'] });
