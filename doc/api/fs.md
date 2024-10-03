@@ -265,6 +265,7 @@ added: v16.11.0
   * `start` {integer}
   * `end` {integer} **Default:** `Infinity`
   * `highWaterMark` {integer} **Default:** `64 * 1024`
+  * `signal` {AbortSignal|undefined} **Default:** `undefined`
 * Returns: {fs.ReadStream}
 
 Unlike the 16 KiB default `highWaterMark` for a {stream.Readable}, the stream
