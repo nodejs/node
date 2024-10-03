@@ -523,6 +523,14 @@ PropertyAccessInfo AccessorAccessInfoHelper(
     Handle<Cell> cell = broker->CanonicalPersistentHandle(
         Cell::cast(module_namespace->module().exports().Lookup(
             isolate, name.object(), Smi::ToInt(name.object()->GetHash()))));
+    if (IsAnyStore(access_mode)) {
+      // ES#sec-module-namespace-exotic-objects-set-p-v-receiver
+      // ES#sec-module-namespace-exotic-objects-defineownproperty-p-desc
+      // 
+      // Storing to a module namespace object is always an error or a no-op in
+      // JS.
+      return PropertyAccessInfo::Invalid(zone);
+    }        
     if (cell->value(kRelaxedLoad).IsTheHole(isolate)) {
       // This module has not been fully initialized yet.
       return PropertyAccessInfo::Invalid(zone);
