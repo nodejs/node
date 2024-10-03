@@ -1910,6 +1910,9 @@ int uv_fs_ftruncate(uv_loop_t* loop,
   INIT(FTRUNCATE);
   req->file = file;
   req->off = off;
+  if (cb != NULL)
+    if (uv__iou_fs_ftruncate(loop, req))
+      return 0;
   POST;
 }
 

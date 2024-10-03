@@ -344,6 +344,7 @@ int uv__random_sysctl(void* buf, size_t buflen);
 /* io_uring */
 #ifdef __linux__
 int uv__iou_fs_close(uv_loop_t* loop, uv_fs_t* req);
+int uv__iou_fs_ftruncate(uv_loop_t* loop, uv_fs_t* req);
 int uv__iou_fs_fsync_or_fdatasync(uv_loop_t* loop,
                                   uv_fs_t* req,
                                   uint32_t fsync_flags);
@@ -362,6 +363,7 @@ int uv__iou_fs_symlink(uv_loop_t* loop, uv_fs_t* req);
 int uv__iou_fs_unlink(uv_loop_t* loop, uv_fs_t* req);
 #else
 #define uv__iou_fs_close(loop, req) 0
+#define uv__iou_fs_ftruncate(loop, req) 0
 #define uv__iou_fs_fsync_or_fdatasync(loop, req, fsync_flags) 0
 #define uv__iou_fs_link(loop, req) 0
 #define uv__iou_fs_mkdir(loop, req) 0

@@ -103,7 +103,7 @@ void uv__winapi_init(void) {
 
   pNtQueryDirectoryFile = (sNtQueryDirectoryFile)
       GetProcAddress(ntdll_module, "NtQueryDirectoryFile");
-  if (pNtQueryVolumeInformationFile == NULL) {
+  if (pNtQueryDirectoryFile == NULL) {
     uv_fatal_error(GetLastError(), "GetProcAddress");
   }
 

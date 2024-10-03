@@ -172,3 +172,12 @@ int uv_translate_sys_error(int sys_errno) {
     default:                                return UV_UNKNOWN;
   }
 }
+
+int uv_translate_write_sys_error(int sys_errno) {
+  switch (sys_errno) {
+    case ERROR_BROKEN_PIPE:                 return UV_EPIPE;
+    case ERROR_NO_DATA:                     return UV_EPIPE;
+    default:
+      return uv_translate_sys_error(sys_errno);
+  }
+}

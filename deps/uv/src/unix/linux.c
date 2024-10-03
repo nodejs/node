@@ -148,6 +148,7 @@ enum {
   UV__IORING_OP_MKDIRAT = 37,
   UV__IORING_OP_SYMLINKAT = 38,
   UV__IORING_OP_LINKAT = 39,
+  UV__IORING_OP_FTRUNCATE = 55,
 };
 
 enum {
@@ -158,10 +159,6 @@ enum {
 enum {
   UV__IORING_SQ_NEED_WAKEUP = 1u,
   UV__IORING_SQ_CQ_OVERFLOW = 2u,
-};
-
-enum {
-  UV__MKDIRAT_SYMLINKAT_LINKAT = 1u,
 };
 
 struct uv__io_cqring_offsets {
@@ -607,10 +604,6 @@ static void uv__iou_init(int epollfd,
   iou->sqelen = sqelen;
   iou->ringfd = ringfd;
   iou->in_flight = 0;
-  iou->flags = 0;
-
-  if (kernel_version >= /* 5.15.0 */ 0x050F00)
-    iou->flags |= UV__MKDIRAT_SYMLINKAT_LINKAT;
 
   if (no_sqarray)
     return;
@@ -871,6 +864,26 @@ int uv__iou_fs_close(uv_loop_t* loop, uv_fs_t* req) {
 }
 
 
+int uv__iou_fs_ftruncate(uv_loop_t* loop, uv_fs_t* req) {
+  struct uv__io_uring_sqe* sqe;
+  struct uv__iou* iou;
+
+  if (uv__kernel_version() < /* 6.9 */0x060900)
+    return 0;
+
+  iou = &uv__get_internal_fields(loop)->iou;
+  sqe = uv__iou_get_sqe(iou, loop, req);
+  if (sqe == NULL)
+    return 0;
+
+  sqe->fd = req->file;
+  sqe->len = req->off;
+  sqe->opcode = UV__IORING_OP_FTRUNCATE;
+  uv__iou_submit(iou);
+
+  return 1;
+}
+
 int uv__iou_fs_fsync_or_fdatasync(uv_loop_t* loop,
                                   uv_fs_t* req,
                                   uint32_t fsync_flags) {
@@ -900,11 +913,10 @@ int uv__iou_fs_link(uv_loop_t* loop, uv_fs_t* req) {
   struct uv__io_uring_sqe* sqe;
   struct uv__iou* iou;
 
-  iou = &uv__get_internal_fields(loop)->iou;
-
-  if (!(iou->flags & UV__MKDIRAT_SYMLINKAT_LINKAT))
+  if (uv__kernel_version() < /* 5.15.0 */0x050F00)
     return 0;
 
+  iou = &uv__get_internal_fields(loop)->iou;
   sqe = uv__iou_get_sqe(iou, loop, req);
   if (sqe == NULL)
     return 0;
@@ -925,11 +937,10 @@ int uv__iou_fs_mkdir(uv_loop_t* loop, uv_fs_t* req) {
   struct uv__io_uring_sqe* sqe;
   struct uv__iou* iou;
 
-  iou = &uv__get_internal_fields(loop)->iou;
-
-  if (!(iou->flags & UV__MKDIRAT_SYMLINKAT_LINKAT))
+  if (uv__kernel_version() < /* 5.15.0 */0x050F00)
     return 0;
 
+  iou = &uv__get_internal_fields(loop)->iou;
   sqe = uv__iou_get_sqe(iou, loop, req);
   if (sqe == NULL)
     return 0;
@@ -993,11 +1004,10 @@ int uv__iou_fs_symlink(uv_loop_t* loop, uv_fs_t* req) {
   struct uv__io_uring_sqe* sqe;
   struct uv__iou* iou;
 
-  iou = &uv__get_internal_fields(loop)->iou;
-
-  if (!(iou->flags & UV__MKDIRAT_SYMLINKAT_LINKAT))
+  if (uv__kernel_version() < /* 5.15.0 */0x050F00)
     return 0;
 
+  iou = &uv__get_internal_fields(loop)->iou;
   sqe = uv__iou_get_sqe(iou, loop, req);
   if (sqe == NULL)
     return 0;
