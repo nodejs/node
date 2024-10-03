@@ -2003,13 +2003,6 @@ An invalid [`package.json`][] file failed parsing.
 The `package.json` [`"exports"`][] field contains an invalid target mapping
 value for the attempted module resolution.
 
-<a id="ERR_INVALID_PERFORMANCE_MARK"></a>
-
-### `ERR_INVALID_PERFORMANCE_MARK`
-
-While using the Performance Timing API (`perf_hooks`), a performance mark is
-invalid.
-
 <a id="ERR_INVALID_PROTOCOL"></a>
 
 ### `ERR_INVALID_PROTOCOL`
@@ -3412,6 +3405,18 @@ removed: v15.0.0
 -->
 
 An invalid or unknown file encoding was passed.
+
+<a id="ERR_INVALID_PERFORMANCE_MARK"></a>
+
+### `ERR_INVALID_PERFORMANCE_MARK`
+
+<!-- YAML
+added: v8.5.0
+removed: v16.7.0
+-->
+
+While using the Performance Timing API (`perf_hooks`), a performance mark is
+invalid.
 
 <a id="ERR_INVALID_TRANSFER_OBJECT"></a>
 
