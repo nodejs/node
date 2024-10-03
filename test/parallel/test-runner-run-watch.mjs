@@ -279,6 +279,8 @@ describe('test runner watch mode', () => {
         signal: controller.signal,
       }).on('data', function({ type }) {
         if (type === 'test:watch:drained') {
+          stream.removeAllListeners('test:fail');
+          stream.removeAllListeners('test:pass');
           controller.abort();
         }
       });
@@ -298,6 +300,8 @@ describe('test runner watch mode', () => {
         isolation: 'none',
       }).on('data', function({ type }) {
         if (type === 'test:watch:drained') {
+          stream.removeAllListeners('test:fail');
+          stream.removeAllListeners('test:pass');
           controller.abort();
         }
       });
@@ -317,6 +321,8 @@ describe('test runner watch mode', () => {
         isolation: 'process',
       }).on('data', function({ type }) {
         if (type === 'test:watch:drained') {
+          stream.removeAllListeners('test:fail');
+          stream.removeAllListeners('test:pass');
           controller.abort();
         }
       });
