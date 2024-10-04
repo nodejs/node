@@ -225,7 +225,7 @@ added: REPLACEME
 
 > Stability: 1.1 - Active Development
 
-* `startPath` {URL\['pathname']} Where to start looking
+* `startPath` {string} Where to start looking
 * `everything` {boolean} Whether to return the full contents of the found package.json
 * Returns: {undefined | {
   data: {
