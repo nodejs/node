@@ -36,15 +36,14 @@
     abort();                                                                   \
   } while (0)
 
-#define NODE_API_ASSERT_BASE(env, assertion, message, ret_val)           \
-  do {                                                                   \
-    if (!(assertion)) {                                                  \
-      napi_throw_error(                                                  \
-          (env),                                                         \
-        NULL,                                                            \
-          "assertion (" #assertion ") failed: " message);                \
-      return ret_val;                                                    \
-    }                                                                    \
+#define NODE_API_ASSERT_BASE(env, assertion, message, ret_val)                 \
+  do {                                                                         \
+    napi_env napiEnv = (napi_env)env;                                          \
+    if (!(assertion)) {                                                        \
+      napi_throw_error(                                                        \
+          napiEnv, NULL, "assertion (" #assertion ") failed: " message);       \
+      return ret_val;                                                          \
+    }                                                                          \
   } while (0)
 
 #define NODE_API_BASIC_ASSERT_BASE(assertion, message, ret_val)                \
