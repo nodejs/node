@@ -2521,9 +2521,6 @@ static int session_prep_frame(nghttp2_session *session,
     return 0;
   }
   case NGHTTP2_RST_STREAM:
-    if (session_is_closing(session)) {
-      return NGHTTP2_ERR_SESSION_CLOSING;
-    }
     nghttp2_frame_pack_rst_stream(&session->aob.framebufs, &frame->rst_stream);
     return 0;
   case NGHTTP2_SETTINGS: {
