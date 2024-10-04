@@ -1,0 +1,29 @@
+From 9581880841f5afa00075eb6089389c03015334ce Mon Sep 17 00:00:00 2001
+From: Szymon Marczak <36894700+szmarczak@users.noreply.github.com>
+Date: Fri, 4 Oct 2024 08:08:15 +0200
+Subject: [PATCH] Check if session_call_on_frame_received frees the stream in
+ session_after_header_block_received
+
+---
+ deps/nghttp2/lib/nghttp2_session.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/deps/nghttp2/lib/nghttp2_session.c b/deps/nghttp2/lib/nghttp2_session.c
+index 08efaf0f8e..8b818c30a2 100644
+--- a/deps/nghttp2/lib/nghttp2_session.c
++++ b/deps/nghttp2/lib/nghttp2_session.c
+@@ -4186,6 +4186,11 @@ static int session_after_header_block_received(nghttp2_session *session) {
+     return 0;
+   }
+ 
++  /* on_frame might free the stream */
++  if (!nghttp2_session_get_stream(session, frame->hd.stream_id)) {
++    return 0;
++  }
++
+   return session_end_stream_headers_received(session, frame, stream);
+ }
+ 
+-- 
+2.46.2
+
