@@ -4186,6 +4186,11 @@ static int session_after_header_block_received(nghttp2_session *session) {
     return 0;
   }
 
+  /* on_frame might free the stream */
+  if (!nghttp2_session_get_stream(session, frame->hd.stream_id)) {
+    return 0;
+  }
+
   return session_end_stream_headers_received(session, frame, stream);
 }
 
