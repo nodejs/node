@@ -30,9 +30,8 @@ concurrency:
 env:
   PYTHON_VERSION: '3.12'
   FLAKY_TESTS: keep_retrying
-  CC: sccache clang
-  CXX: sccache clang++
-  SCCACHE_GHA_ENABLED: 'true'
+  CC: clang
+  CXX: clang++
 
 permissions:
   contents: read
@@ -49,10 +48,6 @@ jobs:
         uses: actions/setup-python@f677139bbe7f9c59b41e40162b753c062f5d49a3  # v5.2.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-      - name: Set up sccache
-        uses: mozilla-actions/sccache-action@89e9040de88b577a072e3760aaf59f585da083af  # v0.0.5
-        with:
-          version: v0.8.1
       - name: Environment Information
         run: npx envinfo
       - name: Make tarball
@@ -79,10 +74,6 @@ jobs:
         uses: actions/setup-python@f677139bbe7f9c59b41e40162b753c062f5d49a3  # v5.2.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-      - name: Set up sccache
-        uses: mozilla-actions/sccache-action@89e9040de88b577a072e3760aaf59f585da083af  # v0.0.5
-        with:
-          version: v0.8.1
       - name: Environment Information
         run: npx envinfo
       - name: Download tarball
