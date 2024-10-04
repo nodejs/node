@@ -798,13 +798,8 @@ void Http2Session::Close(uint32_t code, bool socket_closed) {
   // the peer but the HTTP/2 spec recommends sending it anyway. We'll
   // make a best effort.
   if (!socket_closed) {
-    Debug(this, "goaway session with code %d", code);
-    int32_t lastStreamID =
-        nghttp2_session_get_last_proc_stream_id(session_.get());
-    CHECK_EQ(
-        nghttp2_submit_goaway(
-            session_.get(), NGHTTP2_FLAG_NONE, lastStreamID, code, nullptr, 0),
-        0);
+    Debug(this, "terminating session with code %d", code);
+    CHECK_EQ(nghttp2_session_terminate_session(session_.get(), code), 0);
     SendPendingData();
   } else if (stream_ != nullptr) {
     stream_->RemoveStreamListener(this);

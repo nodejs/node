@@ -1,0 +1,26 @@
+From a990ac8598241f939ca41bf7a7c53c40094663bf Mon Sep 17 00:00:00 2001
+From: Szymon Marczak <36894700+szmarczak@users.noreply.github.com>
+Date: Fri, 4 Oct 2024 11:52:30 +0200
+Subject: [PATCH] Allow RST_STREAM before GOAWAY
+
+---
+ deps/nghttp2/lib/nghttp2_session.c | 3 ---
+ 1 file changed, 3 deletions(-)
+
+diff --git a/deps/nghttp2/lib/nghttp2_session.c b/deps/nghttp2/lib/nghttp2_session.c
+index 8b818c30a2..67d8b08d36 100644
+--- a/deps/nghttp2/lib/nghttp2_session.c
++++ b/deps/nghttp2/lib/nghttp2_session.c
+@@ -2521,9 +2521,6 @@ static int session_prep_frame(nghttp2_session *session,
+     return 0;
+   }
+   case NGHTTP2_RST_STREAM:
+-    if (session_is_closing(session)) {
+-      return NGHTTP2_ERR_SESSION_CLOSING;
+-    }
+     nghttp2_frame_pack_rst_stream(&session->aob.framebufs, &frame->rst_stream);
+     return 0;
+   case NGHTTP2_SETTINGS: {
+-- 
+2.46.2
+
