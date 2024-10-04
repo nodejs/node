@@ -1335,21 +1335,6 @@ bench-addons-clean:
 	$(RM) -r benchmark/napi/*/build
 	$(RM) benchmark/napi/.buildstamp
 
-.PHONY: lint-md-rollup
-lint-md-rollup:
-	$(RM) tools/.*mdlintstamp
-	cd tools/lint-md && npm ci && npm run build
-
-.PHONY: lint-md-clean
-.NOTPARALLEL: lint-md-clean
-lint-md-clean:
-	$(RM) -r tools/lint-md/node_modules
-	$(RM) tools/.*mdlintstamp
-
-.PHONY: lint-md-build
-lint-md-build:
-	$(warning Deprecated no-op target 'lint-md-build')
-
 ifeq ("$(wildcard tools/.mdlintstamp)","")
 LINT_MD_NEWER =
 else
@@ -1361,8 +1346,13 @@ LINT_MD_FILES = $(shell $(FIND) $(LINT_MD_TARGETS) -type f \
 	! -path '*node_modules*' ! -path 'test/fixtures/*' -name '*.md' \
 	$(LINT_MD_NEWER))
 run-lint-md = tools/lint-md/lint-md.mjs $(LINT_MD_FILES)
+
+# Check for a specific file, as (empty) directories are persisted in git.
+tools/lint-md/node_modules/remark-parse/package.json:
+	-cd tools/lint-md && $(call available-node,$(run-npm-ci))
+
 # Lint all changed markdown files maintained by us
-tools/.mdlintstamp: $(LINT_MD_FILES)
+tools/.mdlintstamp: tools/lint-md/node_modules/remark-parse/package.json $(LINT_MD_FILES)
 	$(info Running Markdown linter...)
 	@$(call available-node,$(run-lint-md))
 	@touch $@
@@ -1372,7 +1362,7 @@ lint-md: lint-js-doc | tools/.mdlintstamp ## Lint the markdown documents maintai
 
 run-format-md = tools/lint-md/lint-md.mjs --format $(LINT_MD_FILES)
 .PHONY: format-md
-format-md: ## Format the markdown documents maintained by us in the codebase.
+format-md: tools/lint-md/node_modules/remark-parse/package.json ## Format the markdown documents maintained by us in the codebase.
 	@$(call available-node,$(run-format-md))
 
 
@@ -1601,6 +1591,7 @@ lint-clean: ## Remove linting artifacts.
 	$(RM) tools/.*lintstamp
 	$(RM) .eslintcache
 	$(RM) -r tools/eslint/node_modules
+	$(RM) -r tools/lint-md/node_modules
 	$(RM) tools/pip/site_packages
 
 HAS_DOCKER ?= $(shell command -v docker > /dev/null 2>&1; [ $$? -eq 0 ] && echo 1 || echo 0)
