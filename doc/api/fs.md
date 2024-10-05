@@ -7511,34 +7511,7 @@ added:
 Free blocks available to unprivileged users.
 
 Example:
-```mjs
-const fs = require('fs');
-
-// Specify the path you want to check (like '/' or 'C:/').
-fs.statfs('.', (err, stats) => {
-  if (err) {
-    console.error('Error reading file system stats:', err);
-    return;
-  }
-
-  // Calculate available space in bytes
-  const availableSpace = stats.bavail * stats.bsize;
-
-  console.log(`Available space for unprivileged users: ${availableSpace} bytes`);
-});
-```
-
-Example:
-```mjs
-const fs = require('fs');
-
-// Specify the path you want to check (like '/' or 'C:/').
-fs.statfs('.', (err, stats) => {
-  if (err) {
-    console.error('Error reading file system stats:', err);
-    return;
-  }
-
+```js
   // Calculate available space in bytes
   const availableSpace = stats.bavail * stats.bsize;
 
@@ -7559,16 +7532,7 @@ added:
 Free blocks in file system.
 
 Example:
-```mjs
-const fs = require('fs');
-
-// Specify the path of the filesystem to check (e.g., current directory).
-fs.statfs('.', (err, stats) => {
-  if (err) {
-    console.error('Error reading file system stats:', err);
-    return;
-  }
-
+```js
   // Calculate total free space in bytes using bfree and bsize
   const totalFreeSpace = stats.bfree * stats.bsize;
 
@@ -7589,16 +7553,7 @@ added:
 Total data blocks in file system.
 
 Example:
-```mjs
-const fs = require('fs');
-
-// Specify the path of the filesystem to check (e.g., current directory).
-fs.statfs('.', (err, stats) => {
-  if (err) {
-    console.error('Error reading file system stats:', err);
-    return;
-  }
-
+```js
   // Get the total number of blocks
   const totalBlocks = stats.blocks;
 
@@ -7643,16 +7598,7 @@ added:
 Total file nodes in file system.
 
 Example:
-```mjs
-const fs = require('fs');
-
-// Specify the path of the filesystem to check (e.g., current directory).
-fs.statfs('.', (err, stats) => {
-  if (err) {
-    console.error('Error reading file system stats:', err);
-    return;
-  }
-
+```js
   // Calculate total free space in bytes using bfree and bsize
   const totalFreeSpace = stats.bfree * stats.bsize;
 
