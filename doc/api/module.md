@@ -217,7 +217,7 @@ added: v22.8.0
 * Returns: {string|undefined} Path to the [module compile cache][] directory if it is enabled,
   or `undefined` otherwise.
 
-### `module.getPackageJSON(startPath[, everything])`
+### `module.getPackageJSON(startLocation[, everything])`
 
 <!-- YAML
 added: REPLACEME
@@ -225,7 +225,7 @@ added: REPLACEME
 
 > Stability: 1.1 - Active Development
 
-* `startPath` {string} Where to start looking
+* `startLocation` {string} A fully resolved FS path or file URL to start looking
 * `everything` {boolean} Whether to return the full contents of the found package.json
 * Returns: {Object | undefined}
   * data: {Object}
@@ -236,7 +236,7 @@ added: REPLACEME
     *  \[key: string]?: {unknown}
   * path: {string}
 
-Retreives the contents and location of the package.json closest to the supplied `startPath`;
+Retreives the contents and location of the package.json closest to the supplied `startLocation`;
 this behaves identically to node's own lookup and consumption of package.json for a given module.
 
 ```mjs

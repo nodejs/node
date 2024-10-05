@@ -5,6 +5,7 @@ const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const path = require('path');
 const { getPackageJSON } = require('module');
+const { pathToFileURL } = require('url');
 
 
 { // Throws when no arguments are provided
@@ -23,6 +24,20 @@ const { getPackageJSON } = require('module');
 
 const pkgName = 'package-with-unrecognised-fields';
 const pkgType = 'module'; // a non-default value
+
+{ // Accepts a file URL (string), like from `import.meta.resolve()`
+  const pathToDir = fixtures.path('packages/root-types-field/');
+  const pkg = getPackageJSON(`${pathToFileURL(pathToDir)}`);
+
+  assert.deepStrictEqual(pkg, {
+    path: path.join(pathToDir, 'package.json'),
+    data: {
+      __proto__: null,
+      name: pkgName,
+      type: pkgType,
+    }
+  });
+}
 
 { // Exclude unrecognised fields when `everything` is not `true`
   const pathToDir = fixtures.path('packages/root-types-field/');
