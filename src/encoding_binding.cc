@@ -267,7 +267,7 @@ void BindingData::DecodeLatin1(const FunctionCallbackInfo<Value>& args) {
   const uint8_t* data = buffer.data();
   size_t length = buffer.length();
 
-  if (ignore_bom && length > 0 && data[0] == 0xFF) {
+  if (ignore_bom && length > 0 && data[0] == 0xFEFF) {
     data++;
     length--;
   }
