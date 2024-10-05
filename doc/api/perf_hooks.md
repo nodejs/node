@@ -107,7 +107,7 @@ added:
   `eventLoopUtilization()`.
 * `utilization2` {Object} The result of a previous call to
   `eventLoopUtilization()` prior to `utilization1`.
-* Returns {Object}
+* Returns: {Object}
   * `idle` {number}
   * `active` {number}
   * `utilization` {number}
@@ -246,12 +246,16 @@ and can be queried with `performance.getEntries`,
 observation is performed, the entries should be cleared from the global
 Performance Timeline manually with `performance.clearMarks`.
 
-### `performance.markResourceTiming(timingInfo, requestedUrl, initiatorType, global, cacheMode)`
+### `performance.markResourceTiming(timingInfo, requestedUrl, initiatorType, global, cacheMode, bodyInfo, responseStatus[, deliveryType])`
 
 <!-- YAML
 added:
   - v18.2.0
   - v16.17.0
+changes:
+  - version: v22.2.0
+    pr-url: https://github.com/nodejs/node/pull/51589
+    description: Added bodyInfo, responseStatus, and deliveryType arguments.
 -->
 
 * `timingInfo` {Object} [Fetch Timing Info][]
@@ -259,6 +263,9 @@ added:
 * `initiatorType` {string} The initiator name, e.g: 'fetch'
 * `global` {Object}
 * `cacheMode` {string} The cache mode must be an empty string ('') or 'local'
+* `bodyInfo` {Object} [Fetch Response Body Info][]
+* `responseStatus` {number} The response's status code
+* `deliveryType` {string} The delivery type.  **Default:** `''`.
 
 _This property is an extension by Node.js. It is not available in Web browsers._
 
@@ -502,13 +509,16 @@ changes:
 
 The type of the performance entry. It may be one of:
 
-* `'node'` (Node.js only)
-* `'mark'` (available on the Web)
-* `'measure'` (available on the Web)
-* `'gc'` (Node.js only)
+* `'dns'` (Node.js only)
 * `'function'` (Node.js only)
+* `'gc'` (Node.js only)
 * `'http2'` (Node.js only)
 * `'http'` (Node.js only)
+* `'mark'` (available on the Web)
+* `'measure'` (available on the Web)
+* `'net'` (Node.js only)
+* `'node'` (Node.js only)
+* `'resource'` (available on the Web)
 
 ### `performanceEntry.name`
 
@@ -876,6 +886,42 @@ added: v8.5.0
 
 The high resolution millisecond timestamp at which the Node.js process was
 initialized.
+
+### `performanceNodeTiming.uvMetricsInfo`
+
+<!-- YAML
+added:
+  - v22.8.0
+  - v20.18.0
+-->
+
+* Returns: {Object}
+  * `loopCount` {number} Number of event loop iterations.
+  * `events` {number} Number of events that have been processed by the event handler.
+  * `eventsWaiting` {number} Number of events that were waiting to be processed when the event provider was called.
+
+This is a wrapper to the `uv_metrics_info` function.
+It returns the current set of event loop metrics.
+
+It is recommended to use this property inside a function whose execution was
+scheduled using `setImmediate` to avoid collecting metrics before finishing all
+operations scheduled during the current loop iteration.
+
+```cjs
+const { performance } = require('node:perf_hooks');
+
+setImmediate(() => {
+  console.log(performance.nodeTiming.uvMetricsInfo);
+});
+```
+
+```mjs
+import { performance } from 'node:perf_hooks';
+
+setImmediate(() => {
+  console.log(performance.nodeTiming.uvMetricsInfo);
+});
+```
 
 ### `performanceNodeTiming.v8Start`
 
@@ -1328,13 +1374,15 @@ const obs = new PerformanceObserver((perfObserverList, observer) => {
    *     name: 'test',
    *     entryType: 'mark',
    *     startTime: 81.465639,
-   *     duration: 0
+   *     duration: 0,
+   *     detail: null
    *   },
    *   PerformanceEntry {
    *     name: 'meow',
    *     entryType: 'mark',
    *     startTime: 81.860064,
-   *     duration: 0
+   *     duration: 0,
+   *     detail: null
    *   }
    * ]
    */
@@ -1378,7 +1426,8 @@ const obs = new PerformanceObserver((perfObserverList, observer) => {
    *     name: 'meow',
    *     entryType: 'mark',
    *     startTime: 98.545991,
-   *     duration: 0
+   *     duration: 0,
+   *     detail: null
    *   }
    * ]
    */
@@ -1391,7 +1440,8 @@ const obs = new PerformanceObserver((perfObserverList, observer) => {
    *     name: 'test',
    *     entryType: 'mark',
    *     startTime: 63.518931,
-   *     duration: 0
+   *     duration: 0,
+   *     detail: null
    *   }
    * ]
    */
@@ -1434,13 +1484,15 @@ const obs = new PerformanceObserver((perfObserverList, observer) => {
    *     name: 'test',
    *     entryType: 'mark',
    *     startTime: 55.897834,
-   *     duration: 0
+   *     duration: 0,
+   *     detail: null
    *   },
    *   PerformanceEntry {
    *     name: 'meow',
    *     entryType: 'mark',
    *     startTime: 56.350146,
-   *     duration: 0
+   *     duration: 0,
+   *     detail: null
    *   }
    * ]
    */
@@ -1470,7 +1522,7 @@ added:
     **Default:** `Number.MAX_SAFE_INTEGER`.
   * `figures` {number} The number of accuracy digits. Must be a number between
     `1` and `5`. **Default:** `3`.
-* Returns {RecordableHistogram}
+* Returns: {RecordableHistogram}
 
 Returns a {RecordableHistogram}.
 
@@ -1905,6 +1957,7 @@ dns.promises.resolve('localhost');
 ```
 
 [Async Hooks]: async_hooks.md
+[Fetch Response Body Info]: https://fetch.spec.whatwg.org/#response-body-info
 [Fetch Timing Info]: https://fetch.spec.whatwg.org/#fetch-timing-info
 [High Resolution Time]: https://www.w3.org/TR/hr-time-2
 [Performance Timeline]: https://w3c.github.io/performance-timeline/

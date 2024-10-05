@@ -1,3 +1,43 @@
+## 8.12.1 (2024-07-03)
+
+### Bug fixes
+
+Fix a regression that caused Acorn to no longer run on Node versions <8.10.
+
+## 8.12.0 (2024-06-14)
+
+### New features
+
+Support ES2025 duplicate capture group names in regular expressions.
+
+### Bug fixes
+
+Include `VariableDeclarator` in the `AnyNode` type so that walker objects can refer to it without getting a type error.
+
+Properly raise a parse error for invalid `for`/`of` statements using `async` as binding name.
+
+Properly recognize \"use strict\" when preceded by a string with an escaped newline.
+
+Mark the `Parser` constructor as protected, not private, so plugins can extend it without type errors.
+
+Fix a bug where some invalid `delete` expressions were let through when the operand was parenthesized and `preserveParens` was enabled.
+
+Properly normalize line endings in raw strings of invalid template tokens.
+
+Properly track line numbers for escaped newlines in strings.
+
+Fix a bug that broke line number accounting after a template literal with invalid escape sequences.
+
+## 8.11.3 (2023-12-29)
+
+### Bug fixes
+
+Add `Function` and `Class` to the `AggregateType` type, so that they can be used in walkers without raising a type error.
+
+Make sure `onToken` get an `import` keyword token when parsing `import.meta`.
+
+Fix a bug where `.loc.start` could be undefined for `new.target` `meta` nodes.
+
 ## 8.11.2 (2023-10-27)
 
 ### Bug fixes

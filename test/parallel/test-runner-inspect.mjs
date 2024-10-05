@@ -12,7 +12,7 @@ tmpdir.refresh();
 
 {
   const child = new NodeInstance(
-    ['--test', '--inspect-brk=0'],
+    ['--test', '--test-reporter=tap', '--inspect-brk=0'],
     undefined,
     fixtures.path('test-runner/default-behavior/index.test.js')
   );
@@ -24,9 +24,12 @@ tmpdir.refresh();
 
   const session = await child.connectInspectorSession();
 
+  await session.send({ method: 'NodeRuntime.enable' });
+  await session.waitForNotification('NodeRuntime.waitingForDebugger');
   await session.send([
     { method: 'Runtime.enable' },
     { method: 'Runtime.runIfWaitingForDebugger' }]);
+  await session.send({ method: 'NodeRuntime.disable' });
 
   session.disconnect();
   assert.match(stderr,
@@ -35,7 +38,10 @@ tmpdir.refresh();
 
 
 {
-  const args = ['--test', '--inspect=0', fixtures.path('test-runner/index.js')];
+  const args = [
+    '--test', '--test-reporter=tap', '--inspect=0',
+    fixtures.path('test-runner/index.js'),
+  ];
   const { stderr, stdout, code, signal } = await common.spawnPromisified(process.execPath, args);
 
   assert.match(stderr,

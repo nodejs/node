@@ -6,7 +6,6 @@
 #define V8_HEAP_HEAP_WRITE_BARRIER_H_
 
 #include "include/v8-internal.h"
-#include "src/base/optional.h"
 #include "src/common/globals.h"
 #include "src/objects/heap-object.h"
 
@@ -39,15 +38,23 @@ void WriteBarrierForCode(Tagged<InstructionStream> host, RelocInfo* rinfo,
 void CombinedWriteBarrier(Tagged<HeapObject> object, ObjectSlot slot,
                           Tagged<Object> value, WriteBarrierMode mode);
 void CombinedWriteBarrier(Tagged<HeapObject> object, MaybeObjectSlot slot,
-                          MaybeObject value, WriteBarrierMode mode);
+                          Tagged<MaybeObject> value, WriteBarrierMode mode);
+
+void CombinedWriteBarrier(HeapObjectLayout* object, TaggedMemberBase* slot,
+                          Tagged<Object> value, WriteBarrierMode mode);
 
 void CombinedEphemeronWriteBarrier(Tagged<EphemeronHashTable> object,
                                    ObjectSlot slot, Tagged<Object> value,
                                    WriteBarrierMode mode);
+
 void IndirectPointerWriteBarrier(Tagged<HeapObject> host,
                                  IndirectPointerSlot slot,
                                  Tagged<HeapObject> value,
                                  WriteBarrierMode mode);
+
+void JSDispatchHandleWriteBarrier(Tagged<HeapObject> host,
+                                  JSDispatchHandle handle,
+                                  WriteBarrierMode mode);
 
 // Generational write barrier.
 void GenerationalBarrierForCode(Tagged<InstructionStream> host,
@@ -62,31 +69,35 @@ class V8_EXPORT_PRIVATE WriteBarrier {
   static inline void Marking(Tagged<HeapObject> host, HeapObjectSlot,
                              Tagged<HeapObject> value);
   static inline void Marking(Tagged<HeapObject> host, MaybeObjectSlot,
-                             MaybeObject value);
+                             Tagged<MaybeObject> value);
   static inline void Marking(Tagged<InstructionStream> host, RelocInfo*,
                              Tagged<HeapObject> value);
   static inline void Marking(Tagged<JSArrayBuffer> host, ArrayBufferExtension*);
   static inline void Marking(Tagged<DescriptorArray>,
                              int number_of_own_descriptors);
   static inline void Marking(Tagged<HeapObject> host, IndirectPointerSlot slot);
+  static inline void Marking(Tagged<TrustedObject> host,
+                             ProtectedPointerSlot slot,
+                             Tagged<TrustedObject> value);
+  static inline void Marking(Tagged<HeapObject> host, JSDispatchHandle handle);
 
   static inline void Shared(Tagged<InstructionStream> host, RelocInfo*,
                             Tagged<HeapObject> value);
+  static void Shared(Tagged<TrustedObject> host, ProtectedPointerSlot slot,
+                     Tagged<TrustedObject> value);
 
   // It is invoked from generated code and has to take raw addresses.
   static int MarkingFromCode(Address raw_host, Address raw_slot);
-  static int IndirectPointerMarkingFromCode(Address raw_host, Address raw_slot);
+  static int IndirectPointerMarkingFromCode(Address raw_host, Address raw_slot,
+                                            Address raw_tag);
   static int SharedMarkingFromCode(Address raw_host, Address raw_slot);
   static int SharedFromCode(Address raw_host, Address raw_slot);
 
   // Invoked from global handles where no host object is available.
   static inline void MarkingFromGlobalHandle(Tagged<Object> value);
 
-  static inline void CombinedBarrierFromInternalFields(Tagged<JSObject> host,
-                                                       void* value);
-  static inline void CombinedBarrierFromInternalFields(Tagged<JSObject> host,
-                                                       size_t argc,
-                                                       void** values);
+  static inline void CombinedBarrierForCppHeapPointer(Tagged<JSObject> host,
+                                                      void* value);
 
   static MarkingBarrier* SetForThread(MarkingBarrier*);
 
@@ -96,6 +107,8 @@ class V8_EXPORT_PRIVATE WriteBarrier {
 #ifdef ENABLE_SLOW_DCHECKS
   template <typename T>
   static inline bool IsRequired(Tagged<HeapObject> host, T value);
+  template <typename T>
+  static inline bool IsRequired(const HeapObjectLayout* host, T value);
   static bool IsImmortalImmovableHeapObject(Tagged<HeapObject> object);
 #endif
 
@@ -111,13 +124,14 @@ class V8_EXPORT_PRIVATE WriteBarrier {
   static void MarkingSlow(Tagged<DescriptorArray>,
                           int number_of_own_descriptors);
   static void MarkingSlow(Tagged<HeapObject> host, IndirectPointerSlot slot);
+  static void MarkingSlow(Tagged<TrustedObject> host, ProtectedPointerSlot slot,
+                          Tagged<TrustedObject> value);
+  static void MarkingSlow(Tagged<HeapObject> host, JSDispatchHandle handle);
   static void MarkingSlowFromGlobalHandle(Tagged<HeapObject> value);
-  static void MarkingSlowFromInternalFields(Heap* heap, Tagged<JSObject> host);
+  static void MarkingSlowFromCppHeapWrappable(Heap* heap, void* object);
 
-  static inline void GenerationalBarrierFromInternalFields(
-      Tagged<JSObject> host, void* value);
-  static inline void GenerationalBarrierFromInternalFields(
-      Tagged<JSObject> host, size_t argc, void** values);
+  static inline void GenerationalBarrierForCppHeapPointer(Tagged<JSObject> host,
+                                                          void* value);
 
   static void SharedSlow(Tagged<InstructionStream> host, RelocInfo*,
                          Tagged<HeapObject> value);

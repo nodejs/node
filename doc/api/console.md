@@ -80,7 +80,11 @@ The `Console` class can be used to create a simple logger with configurable
 output streams and can be accessed using either `require('node:console').Console`
 or `console.Console` (or their destructured counterparts):
 
-```js
+```mjs
+import { Console } from 'node:console';
+```
+
+```cjs
 const { Console } = require('node:console');
 ```
 
@@ -132,7 +136,28 @@ Creates a new `Console` with one or two writable stream instances. `stdout` is a
 writable stream to print log or info output. `stderr` is used for warning or
 error output. If `stderr` is not provided, `stdout` is used for `stderr`.
 
-```js
+```mjs
+import { createWriteStream } from 'node:fs';
+import { Console } from 'node:console';
+// Alternatively
+// const { Console } = console;
+
+const output = createWriteStream('./stdout.log');
+const errorOutput = createWriteStream('./stderr.log');
+// Custom simple logger
+const logger = new Console({ stdout: output, stderr: errorOutput });
+// use it like console
+const count = 5;
+logger.log('count: %d', count);
+// In stdout.log: count 5
+```
+
+```cjs
+const fs = require('node:fs');
+const { Console } = require('node:console');
+// Alternatively
+// const { Console } = console;
+
 const output = fs.createWriteStream('./stdout.log');
 const errorOutput = fs.createWriteStream('./stderr.log');
 // Custom simple logger
@@ -420,18 +445,18 @@ console.table(undefined);
 
 console.table([{ a: 1, b: 'Y' }, { a: 'Z', b: 2 }]);
 // ┌─────────┬─────┬─────┐
-// │ (index) │  a  │  b  │
+// │ (index) │ a   │ b   │
 // ├─────────┼─────┼─────┤
-// │    0    │  1  │ 'Y' │
-// │    1    │ 'Z' │  2  │
+// │ 0       │ 1   │ 'Y' │
+// │ 1       │ 'Z' │ 2   │
 // └─────────┴─────┴─────┘
 
 console.table([{ a: 1, b: 'Y' }, { a: 'Z', b: 2 }], ['a']);
 // ┌─────────┬─────┐
-// │ (index) │  a  │
+// │ (index) │ a   │
 // ├─────────┼─────┤
-// │    0    │  1  │
-// │    1    │ 'Z' │
+// │ 0       │ 1   │
+// │ 1       │ 'Z' │
 // └─────────┴─────┘
 ```
 

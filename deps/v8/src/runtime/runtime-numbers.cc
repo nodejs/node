@@ -35,7 +35,7 @@ RUNTIME_FUNCTION(Runtime_StringParseInt) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, radix,
                                        Object::ToNumber(isolate, radix));
   }
-  int radix32 = DoubleToInt32(Object::Number(*radix));
+  int radix32 = DoubleToInt32(Object::NumberValue(*radix));
   if (radix32 != 0 && (radix32 < 2 || radix32 > 36)) {
     return ReadOnlyRoots(isolate).nan_value();
   }
@@ -74,7 +74,7 @@ RUNTIME_FUNCTION(Runtime_MaxSmi) {
 RUNTIME_FUNCTION(Runtime_IsSmi) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
-  Object obj = args[0];
+  Tagged<Object> obj = args[0];
   return isolate->heap()->ToBoolean(IsSmi(obj));
 }
 

@@ -50,6 +50,11 @@ struct TracedReferenceWrapper {
 
 class NonRootingEmbedderRootsHandler final : public v8::EmbedderRootsHandler {
  public:
+  START_ALLOW_USE_DEPRECATED()
+  NonRootingEmbedderRootsHandler()
+      : v8::EmbedderRootsHandler(v8::EmbedderRootsHandler::RootHandling::
+                                     kQueryEmbedderForNonDroppableReferences) {}
+  END_ALLOW_USE_DEPRECATED()
   bool IsRoot(const v8::TracedReference<v8::Value>& handle) final {
     return false;
   }
@@ -135,6 +140,7 @@ template <typename ConstructFunction, typename ModifierFunction,
 void WeakHandleTest(v8::Isolate* isolate, ConstructFunction construct_function,
                     ModifierFunction modifier_function, GCFunction gc_function,
                     SurvivalMode survives) {
+  ManualGCScope manual_gc_scope(reinterpret_cast<internal::Isolate*>(isolate));
   v8::HandleScope scope(isolate);
   v8::Local<v8::Context> context = v8::Context::New(isolate);
   v8::Context::Scope context_scope(context);
@@ -208,7 +214,7 @@ TEST_F(GlobalHandlesTest, EternalHandles) {
               v8::Integer::New(v8_isolate, i))
         .FromJust();
     // Create with internal api
-    eternal_handles->Create(isolate, *v8::Utils::OpenHandle(*object),
+    eternal_handles->Create(isolate, *v8::Utils::OpenDirectHandle(*object),
                             &indices[i]);
     // Create with external api
     CHECK(eternals[i].IsEmpty());
@@ -358,6 +364,7 @@ TEST_F(GlobalHandlesTest, WeakHandleToUnmodifiedJSApiObjectDiesOnScavenge) {
 TEST_F(GlobalHandlesTest,
        TracedReferenceToUnmodifiedJSApiObjectDiesOnScavenge) {
   if (v8_flags.single_generation) return;
+  if (!v8_flags.reclaim_unmodified_wrappers) return;
 
   ManualGCScope manual_gc(i_isolate());
   TracedReferenceTestWithScavenge(
@@ -380,7 +387,7 @@ TEST_F(GlobalHandlesTest,
         v8::HandleScope scope(v8_isolate());
         Handle<JSReceiver> key =
             Utils::OpenHandle(*fp->handle.Get(v8_isolate()));
-        Handle<Smi> smi(Smi::FromInt(23), isolate);
+        DirectHandle<Smi> smi(Smi::FromInt(23), isolate);
         int32_t hash = Object::GetOrCreateHash(*key, isolate).value();
         JSWeakCollection::Set(weakmap, key, smi, hash);
       },
@@ -492,6 +499,7 @@ void ForceMajorGC1(const v8::WeakCallbackInfo<FlagAndHandles>& data) {
 
 TEST_F(GlobalHandlesTest, GCFromWeakCallbacks) {
   v8::Isolate* isolate = v8_isolate();
+  ManualGCScope manual_gc_scope(i_isolate());
   DisableConservativeStackScanningScopeForTesting no_stack_scanning(
       i_isolate()->heap());
   v8::HandleScope scope(isolate);
@@ -594,15 +602,20 @@ TEST_F(GlobalHandlesTest, TotalSizeRegularNode) {
   v8::Isolate* isolate = v8_isolate();
   v8::HandleScope scope(isolate);
 
+  // This is not necessarily zero, if the implementation of tests uses global
+  // handles.
+  size_t initial_total = i_isolate()->global_handles()->TotalSize();
+  size_t initial_used = i_isolate()->global_handles()->UsedSize();
+
   v8::Global<v8::Object>* global = new Global<v8::Object>();
-  CHECK_EQ(i_isolate()->global_handles()->TotalSize(), 0);
-  CHECK_EQ(i_isolate()->global_handles()->UsedSize(), 0);
+  CHECK_EQ(i_isolate()->global_handles()->TotalSize(), initial_total);
+  CHECK_EQ(i_isolate()->global_handles()->UsedSize(), initial_used);
   ConstructJSObject(isolate, global);
-  CHECK_GT(i_isolate()->global_handles()->TotalSize(), 0);
-  CHECK_GT(i_isolate()->global_handles()->UsedSize(), 0);
+  CHECK_GE(i_isolate()->global_handles()->TotalSize(), initial_total);
+  CHECK_GT(i_isolate()->global_handles()->UsedSize(), initial_used);
   delete global;
-  CHECK_GT(i_isolate()->global_handles()->TotalSize(), 0);
-  CHECK_EQ(i_isolate()->global_handles()->UsedSize(), 0);
+  CHECK_GE(i_isolate()->global_handles()->TotalSize(), initial_total);
+  CHECK_EQ(i_isolate()->global_handles()->UsedSize(), initial_used);
 }
 
 TEST_F(GlobalHandlesTest, TotalSizeTracedNode) {

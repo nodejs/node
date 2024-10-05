@@ -48,7 +48,7 @@ namespace internal {
 
 bool CpuFeatures::SupportsOptimizer() { return true; }
 
-void RelocInfo::apply(intptr_t delta) {
+void WritableRelocInfo::apply(intptr_t delta) {
   // absolute code pointer inside code object moves with the code object.
   if (IsInternalReference(rmode_)) {
     // Jump table entry
@@ -148,12 +148,15 @@ Handle<Object> Assembler::code_target_object_handle_at(Address pc,
 Tagged<HeapObject> RelocInfo::target_object(PtrComprCageBase cage_base) {
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
   if (IsCompressedEmbeddedObject(rmode_)) {
-    return HeapObject::cast(Object(V8HeapCompressionScheme::DecompressTagged(
-        cage_base,
-        Assembler::target_compressed_address_at(pc_, constant_pool_))));
+    Tagged_t compressed =
+        Assembler::target_compressed_address_at(pc_, constant_pool_);
+    DCHECK(!HAS_SMI_TAG(compressed));
+    Tagged<Object> obj(
+        V8HeapCompressionScheme::DecompressTagged(cage_base, compressed));
+    return Cast<HeapObject>(obj);
   } else {
-    return HeapObject::cast(
-        Object(Assembler::target_address_at(pc_, constant_pool_)));
+    return Cast<HeapObject>(
+        Tagged<Object>(Assembler::target_address_at(pc_, constant_pool_)));
   }
 }
 
@@ -165,7 +168,7 @@ Handle<HeapObject> Assembler::compressed_embedded_object_handle_at(
 Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
   if (IsCodeTarget(rmode_)) {
-    return Handle<HeapObject>::cast(
+    return Cast<HeapObject>(
         origin->code_target_object_handle_at(pc_, constant_pool_));
   } else {
     if (IsCompressedEmbeddedObject(rmode_)) {
@@ -176,10 +179,16 @@ Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
   }
 }
 
-void RelocInfo::set_target_object(Tagged<HeapObject> target,
-                                  ICacheFlushMode icache_flush_mode) {
+void WritableRelocInfo::set_target_object(Tagged<HeapObject> target,
+                                          ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
   if (IsCompressedEmbeddedObject(rmode_)) {
+    DCHECK(COMPRESS_POINTERS_BOOL);
+    // We must not compress pointers to objects outside of the main pointer
+    // compression cage as we wouldn't be able to decompress them with the
+    // correct cage base.
+    DCHECK_IMPLIES(V8_ENABLE_SANDBOX_BOOL, !IsTrustedSpaceObject(target));
+    DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !IsCodeSpaceObject(target));
     Assembler::set_target_compressed_address_at(
         pc_, constant_pool_,
         V8HeapCompressionScheme::CompressObject(target.ptr()),
@@ -196,7 +205,7 @@ Address RelocInfo::target_external_reference() {
   return Assembler::target_address_at(pc_, constant_pool_);
 }
 
-void RelocInfo::set_target_external_reference(
+void WritableRelocInfo::set_target_external_reference(
     Address target, ICacheFlushMode icache_flush_mode) {
   DCHECK(rmode_ == RelocInfo::EXTERNAL_REFERENCE);
   Assembler::set_target_address_at(pc_, constant_pool_, target,
@@ -208,26 +217,6 @@ Builtin RelocInfo::target_builtin_at(Assembler* origin) { UNREACHABLE(); }
 Address RelocInfo::target_off_heap_target() {
   DCHECK(IsOffHeapTarget(rmode_));
   return Assembler::target_address_at(pc_, constant_pool_);
-}
-
-void RelocInfo::WipeOut() {
-  DCHECK(IsEmbeddedObjectMode(rmode_) || IsCodeTarget(rmode_) ||
-         IsExternalReference(rmode_) || IsInternalReference(rmode_) ||
-         IsInternalReferenceEncoded(rmode_) || IsOffHeapTarget(rmode_));
-  if (IsInternalReference(rmode_)) {
-    // Jump table entry
-    Memory<Address>(pc_) = kNullAddress;
-  } else if (IsCompressedEmbeddedObject(rmode_)) {
-    Assembler::set_target_compressed_address_at(pc_, constant_pool_,
-                                                kNullAddress);
-  } else if (IsInternalReferenceEncoded(rmode_) || IsOffHeapTarget(rmode_)) {
-    // mov sequence
-    // Currently used only by deserializer, no need to flush.
-    Assembler::set_target_address_at(pc_, constant_pool_, kNullAddress,
-                                     SKIP_ICACHE_FLUSH);
-  } else {
-    Assembler::set_target_address_at(pc_, constant_pool_, kNullAddress);
-  }
 }
 
 Operand::Operand(Register rm) : rm_(rm), rmode_(RelocInfo::NO_INFO) {}
@@ -483,6 +472,52 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
     return;
   }
   UNREACHABLE();
+}
+
+uint32_t Assembler::uint32_constant_at(Address pc, Address constant_pool) {
+  if (V8_EMBEDDED_CONSTANT_POOL_BOOL && constant_pool) {
+    ConstantPoolEntry::Access access;
+    CHECK(Assembler::IsConstantPoolLoadStart(pc, &access));
+    return Memory<uint32_t>(Assembler::target_constant_pool_address_at(
+        pc, constant_pool, access, ConstantPoolEntry::INTPTR));
+  }
+  Instr instr1 = instr_at(pc);
+  Instr instr2 = instr_at(pc + kInstrSize);
+  // Set by Assembler::mov.
+  CHECK(IsLis(instr1) && IsOri(instr2));
+  return static_cast<uint32_t>(((instr1 & kImm16Mask) << 16) |
+                               (instr2 & kImm16Mask));
+}
+
+void Assembler::set_uint32_constant_at(Address pc, Address constant_pool,
+                                       uint32_t new_constant,
+                                       ICacheFlushMode icache_flush_mode) {
+  if (V8_EMBEDDED_CONSTANT_POOL_BOOL && constant_pool) {
+    ConstantPoolEntry::Access access;
+    CHECK(Assembler::IsConstantPoolLoadStart(pc, &access));
+    Memory<uint32_t>(Assembler::target_constant_pool_address_at(
+        pc, constant_pool, access, ConstantPoolEntry::INTPTR)) = new_constant;
+    // Icache flushing not needed for Ldr via the constant pool.
+    return;
+  }
+  Instr instr1 = instr_at(pc);
+  Instr instr2 = instr_at(pc + kInstrSize);
+  // Set by Assembler::mov.
+  CHECK(IsLis(instr1) && IsOri(instr2));
+
+  uint32_t* p = reinterpret_cast<uint32_t*>(pc);
+  uint32_t lo_word = new_constant & kImm16Mask;
+  uint32_t hi_word = new_constant >> 16;
+  instr1 &= ~kImm16Mask;
+  instr1 |= hi_word;
+  instr2 &= ~kImm16Mask;
+  instr2 |= lo_word;
+
+  *p = instr1;
+  *(p + 1) = instr2;
+  if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
+    FlushInstructionCache(p, 2 * kInstrSize);
+  }
 }
 }  // namespace internal
 }  // namespace v8

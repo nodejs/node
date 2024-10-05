@@ -478,15 +478,18 @@ class Instruction {
       case CompareBranchType:
         static_assert(ImmCondBranch_mask == ImmCmpBranch_mask);
         static_assert(ImmCondBranch_offset == ImmCmpBranch_offset);
-        branch_imm = truncate_to_int19(offset) << ImmCondBranch_offset;
+        // We use a checked truncation here to catch certain bugs where we fail
+        // to check whether a veneer is required. See e.g. crbug.com/1485829.
+        branch_imm = checked_truncate_to_int19(offset) << ImmCondBranch_offset;
         imm_mask = ImmCondBranch_mask;
         break;
       case UncondBranchType:
-        branch_imm = truncate_to_int26(offset) << ImmUncondBranch_offset;
+        branch_imm = checked_truncate_to_int26(offset)
+                     << ImmUncondBranch_offset;
         imm_mask = ImmUncondBranch_mask;
         break;
       case TestBranchType:
-        branch_imm = truncate_to_int14(offset) << ImmTestBranch_offset;
+        branch_imm = checked_truncate_to_int14(offset) << ImmTestBranch_offset;
         imm_mask = ImmTestBranch_mask;
         break;
       default:
@@ -691,6 +694,13 @@ class NEONFormatDecoder {
     // NEON FP vector formats: NF_2S, NF_4S, NF_2D.
     static const NEONFormatMap map = {{22, 30},
                                       {NF_2S, NF_4S, NF_UNDEF, NF_2D}};
+    return &map;
+  }
+
+  // The FP half-precision format map uses one Q bit to encode the
+  // NEON FP vector formats: NF_4H, NF_8H.
+  static const NEONFormatMap* FPHPFormatMap() {
+    static const NEONFormatMap map = {{30}, {NF_4H, NF_8H}};
     return &map;
   }
 

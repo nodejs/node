@@ -64,7 +64,7 @@ async function runReplTests(socket, prompt, tests) {
 
         // Cut away the initial prompt
         while (lineBuffer.startsWith(prompt))
-          lineBuffer = lineBuffer.substr(prompt.length);
+          lineBuffer = lineBuffer.slice(prompt.length);
 
         // Allow to match partial text if no newline was received, because
         // sending newlines from the REPL itself would be redundant
@@ -76,13 +76,13 @@ async function runReplTests(socket, prompt, tests) {
 
       // Split off the current line.
       const newlineOffset = lineBuffer.indexOf('\n');
-      let actualLine = lineBuffer.substr(0, newlineOffset);
-      lineBuffer = lineBuffer.substr(newlineOffset + 1);
+      let actualLine = lineBuffer.slice(0, newlineOffset);
+      lineBuffer = lineBuffer.slice(newlineOffset + 1);
 
       // This might have been skipped in the loop above because the buffer
       // already contained a \n to begin with and the entire loop was skipped.
       while (actualLine.startsWith(prompt))
-        actualLine = actualLine.substr(prompt.length);
+        actualLine = actualLine.slice(prompt.length);
 
       console.error('in:', JSON.stringify(actualLine));
 
@@ -127,6 +127,17 @@ const strictModeTests = [
     send: 'ref = 1',
     expect: [/^Uncaught ReferenceError:\s/]
   },
+];
+
+const possibleTokensAfterIdentifierWithLineBreak = [
+  '(\n)',
+  '[\n0]',
+  '+\n1', '- \n1', '* \n1', '/ \n1', '% \n1', '** \n1',
+  '== \n1', '=== \n1', '!= \n1', '!== \n1', '< \n1', '> \n1', '<= \n1', '>= \n1',
+  '&& \n1', '|| \n1', '?? \n1',
+  '= \n1', '+= \n1', '-= \n1', '*= \n1', '/= \n1', '%= \n1',
+  ': \n',
+  '? \n1: 1',
 ];
 
 const errorTests = [
@@ -387,6 +398,16 @@ const errorTests = [
     ]
   },
   {
+    send: 'let npm = () => {};',
+    expect: 'undefined'
+  },
+  ...possibleTokensAfterIdentifierWithLineBreak.map((token) => (
+    {
+      send: `npm ${token}; undefined`,
+      expect: '... undefined'
+    }
+  )),
+  {
     send: '(function() {\n\nreturn 1;\n})()',
     expect: '... ... ... 1'
   },
@@ -577,10 +598,12 @@ const errorTests = [
       /^Uncaught Error: Cannot find module 'internal\/repl'/,
       /^Require stack:/,
       /^- <repl>/,
-      /^ {4}at .*/,
-      /^ {4}at .*/,
-      /^ {4}at .*/,
-      /^ {4}at .*/,
+      /^ {4}at .*/, // at Module._resolveFilename
+      /^ {4}at .*/, // at Module._load
+      /^ {4}at .*/, // at TracingChannel.traceSync
+      /^ {4}at .*/, // at wrapModuleLoad
+      /^ {4}at .*/, // at Module.require
+      /^ {4}at .*/, // at require
       "  code: 'MODULE_NOT_FOUND',",
       "  requireStack: [ '<repl>' ]",
       '}',

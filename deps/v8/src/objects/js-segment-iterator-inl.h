@@ -20,10 +20,13 @@ namespace internal {
 #include "torque-generated/src/objects/js-segment-iterator-tq-inl.inc"
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSSegmentIterator)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSSegmentDataObject)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSSegmentDataObjectWithIsWordLike)
 
 // Base segment iterator accessors.
 ACCESSORS(JSSegmentIterator, icu_break_iterator,
           Tagged<Managed<icu::BreakIterator>>, kIcuBreakIteratorOffset)
+ACCESSORS(JSSegmentIterator, raw_string, Tagged<String>, kRawStringOffset)
 ACCESSORS(JSSegmentIterator, unicode_string,
           Tagged<Managed<icu::UnicodeString>>, kUnicodeStringOffset)
 

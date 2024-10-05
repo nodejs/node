@@ -16,7 +16,7 @@ const { AsyncLocalStorage, AsyncResource } = require('async_hooks');
  */
 const bench = common.createBenchmark(main, {
   resourceCount: [10, 100, 1000],
-  n: [1e4],
+  n: [5e5],
 });
 
 function runBenchmark(store, n) {
@@ -38,9 +38,11 @@ function runInAsyncScopes(resourceCount, cb, i = 0) {
 
 function main({ n, resourceCount }) {
   const store = new AsyncLocalStorage();
-  runInAsyncScopes(resourceCount, () => {
-    bench.start();
-    runBenchmark(store, n);
-    bench.end(n);
+  store.run({}, () => {
+    runInAsyncScopes(resourceCount, () => {
+      bench.start();
+      runBenchmark(store, n);
+      bench.end(n);
+    });
   });
 }

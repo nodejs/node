@@ -4,12 +4,14 @@
 
 #include "src/builtins/builtins-iterator-gen.h"
 
+#include <optional>
+
 #include "src/builtins/builtins-collections-gen.h"
 #include "src/builtins/builtins-string-gen.h"
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/builtins/growable-fixed-array-gen.h"
-#include "src/codegen/code-stub-assembler.h"
+#include "src/codegen/code-stub-assembler-inl.h"
 #include "src/compiler/code-assembler.h"
 #include "src/heap/factory-inl.h"
 
@@ -61,7 +63,7 @@ IteratorRecord IteratorBuiltinsAssembler::GetIterator(TNode<Context> context,
 
 TNode<JSReceiver> IteratorBuiltinsAssembler::IteratorStep(
     TNode<Context> context, const IteratorRecord& iterator, Label* if_done,
-    base::Optional<TNode<Map>> fast_iterator_result_map) {
+    std::optional<TNode<Map>> fast_iterator_result_map) {
   DCHECK_NOT_NULL(if_done);
   // 1. a. Let result be ? Invoke(iterator, "next", « »).
   TNode<Object> result = Call(context, iterator.next, iterator.object);
@@ -71,34 +73,13 @@ TNode<JSReceiver> IteratorBuiltinsAssembler::IteratorStep(
   GotoIf(TaggedIsSmi(result), &if_notobject);
   TNode<HeapObject> heap_object_result = CAST(result);
   TNode<Map> result_map = LoadMap(heap_object_result);
+  GotoIfNot(JSAnyIsNotPrimitiveMap(result_map), &if_notobject);
 
-  if (fast_iterator_result_map) {
-    // Fast iterator result case:
-    Label if_generic(this);
-
-    // 4. Return result.
-    GotoIfNot(TaggedEqual(result_map, *fast_iterator_result_map), &if_generic);
-
-    // IteratorComplete
-    // 2. Return ToBoolean(? Get(iterResult, "done")).
-    TNode<Object> done =
-        LoadObjectField(heap_object_result, JSIteratorResult::kDoneOffset);
-    BranchIfToBooleanIsTrue(done, if_done, &return_result);
-
-    BIND(&if_generic);
-  }
-
-  // Generic iterator result case:
-  {
-    // 3. If Type(result) is not Object, throw a TypeError exception.
-    GotoIfNot(JSAnyIsNotPrimitiveMap(result_map), &if_notobject);
-
-    // IteratorComplete
-    // 2. Return ToBoolean(? Get(iterResult, "done")).
-    TNode<Object> done =
-        GetProperty(context, heap_object_result, factory()->done_string());
-    BranchIfToBooleanIsTrue(done, if_done, &return_result);
-  }
+  // IteratorComplete
+  // 2. Return ToBoolean(? Get(iterResult, "done")).
+  IteratorComplete(context, heap_object_result, if_done,
+                   fast_iterator_result_map);
+  Goto(&return_result);
 
   BIND(&if_notobject);
   CallRuntime(Runtime::kThrowIteratorResultNotAnObject, context, result);
@@ -108,9 +89,44 @@ TNode<JSReceiver> IteratorBuiltinsAssembler::IteratorStep(
   return CAST(heap_object_result);
 }
 
+void IteratorBuiltinsAssembler::IteratorComplete(
+    TNode<Context> context, const TNode<HeapObject> iterator, Label* if_done,
+    std::optional<TNode<Map>> fast_iterator_result_map) {
+  DCHECK_NOT_NULL(if_done);
+
+  Label return_result(this);
+
+  TNode<Map> result_map = LoadMap(iterator);
+
+  if (fast_iterator_result_map) {
+    // Fast iterator result case:
+    Label if_generic(this);
+
+    // 4. Return result.
+    GotoIfNot(TaggedEqual(result_map, *fast_iterator_result_map), &if_generic);
+
+    // 2. Return ToBoolean(? Get(iterResult, "done")).
+    TNode<Object> done =
+        LoadObjectField(iterator, JSIteratorResult::kDoneOffset);
+    BranchIfToBooleanIsTrue(done, if_done, &return_result);
+
+    BIND(&if_generic);
+  }
+
+  // Generic iterator result case:
+  {
+    // 2. Return ToBoolean(? Get(iterResult, "done")).
+    TNode<Object> done =
+        GetProperty(context, iterator, factory()->done_string());
+    BranchIfToBooleanIsTrue(done, if_done, &return_result);
+  }
+
+  BIND(&return_result);
+}
+
 TNode<Object> IteratorBuiltinsAssembler::IteratorValue(
     TNode<Context> context, TNode<JSReceiver> result,
-    base::Optional<TNode<Map>> fast_iterator_result_map) {
+    std::optional<TNode<Map>> fast_iterator_result_map) {
   Label exit(this);
   TVARIABLE(Object, var_value);
   if (fast_iterator_result_map) {
@@ -340,7 +356,8 @@ TF_BUILTIN(StringFixedArrayFromIterable, IteratorBuiltinsAssembler) {
 // will be copied to the new array, which is inconsistent with the behavior of
 // an actual iteration, where holes should be replaced with undefined (if the
 // prototype has no elements). To maintain the correct behavior for holey
-// arrays, use the builtins IterableToList or IterableToListWithSymbolLookup.
+// arrays, use the builtins IterableToList or IterableToListWithSymbolLookup or
+// IterableToListConvertHoles.
 TF_BUILTIN(IterableToListMayPreserveHoles, IteratorBuiltinsAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto iterable = Parameter<Object>(Descriptor::kIterable);
@@ -352,6 +369,29 @@ TF_BUILTIN(IterableToListMayPreserveHoles, IteratorBuiltinsAssembler) {
 
   // The fast path will copy holes to the new array.
   TailCallBuiltin(Builtin::kCloneFastJSArray, context, iterable);
+
+  BIND(&slow_path);
+  TailCallBuiltin(Builtin::kIterableToList, context, iterable, iterator_fn);
+}
+
+// This builtin always returns a new JSArray and is thus safe to use even in the
+// presence of code that may call back into user-JS. This builtin will take the
+// fast path if the iterable is a fast array and the Array prototype and the
+// Symbol.iterator is untouched. The fast path skips the iterator and copies the
+// backing store to the new array. Note that if the array has holes, the holes
+// will be converted to undefined values in the new array (unlike
+// IterableToListMayPreserveHoles builtin).
+TF_BUILTIN(IterableToListConvertHoles, IteratorBuiltinsAssembler) {
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto iterable = Parameter<Object>(Descriptor::kIterable);
+  auto iterator_fn = Parameter<Object>(Descriptor::kIteratorFn);
+
+  Label slow_path(this);
+
+  GotoIfNot(IsFastJSArrayWithNoCustomIteration(context, iterable), &slow_path);
+
+  // The fast path will convert holes to undefined values in the new array.
+  TailCallBuiltin(Builtin::kCloneFastJSArrayFillingHoles, context, iterable);
 
   BIND(&slow_path);
   TailCallBuiltin(Builtin::kIterableToList, context, iterable, iterator_fn);

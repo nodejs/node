@@ -49,11 +49,13 @@
 #include "src/codegen/riscv/base-assembler-riscv.h"
 #include "src/codegen/riscv/base-riscv-i.h"
 #include "src/codegen/riscv/extension-riscv-a.h"
+#include "src/codegen/riscv/extension-riscv-b.h"
 #include "src/codegen/riscv/extension-riscv-c.h"
 #include "src/codegen/riscv/extension-riscv-d.h"
 #include "src/codegen/riscv/extension-riscv-f.h"
 #include "src/codegen/riscv/extension-riscv-m.h"
 #include "src/codegen/riscv/extension-riscv-v.h"
+#include "src/codegen/riscv/extension-riscv-zicond.h"
 #include "src/codegen/riscv/extension-riscv-zicsr.h"
 #include "src/codegen/riscv/extension-riscv-zifencei.h"
 #include "src/codegen/riscv/register-riscv.h"
@@ -83,16 +85,16 @@ class Operand {
       : rm_(no_reg), rmode_(rmode) {
     value_.immediate = immediate;
   }
+
+  V8_INLINE explicit Operand(Tagged<Smi> value)
+      : Operand(static_cast<intptr_t>(value.ptr())) {}
+
   V8_INLINE explicit Operand(const ExternalReference& f)
       : rm_(no_reg), rmode_(RelocInfo::EXTERNAL_REFERENCE) {
     value_.immediate = static_cast<intptr_t>(f.address());
   }
 
   explicit Operand(Handle<HeapObject> handle);
-  V8_INLINE explicit Operand(Smi value)
-      : rm_(no_reg), rmode_(RelocInfo::NO_INFO) {
-    value_.immediate = static_cast<intptr_t>(value.ptr());
-  }
 
   static Operand EmbeddedNumber(double number);  // Smi or HeapNumber.
 
@@ -165,12 +167,14 @@ class V8_EXPORT_PRIVATE MemOperand : public Operand {
 class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
                                     public AssemblerRISCVI,
                                     public AssemblerRISCVA,
+                                    public AssemblerRISCVB,
                                     public AssemblerRISCVF,
                                     public AssemblerRISCVD,
                                     public AssemblerRISCVM,
                                     public AssemblerRISCVC,
                                     public AssemblerRISCVZifencei,
                                     public AssemblerRISCVZicsr,
+                                    public AssemblerRISCVZicond,
                                     public AssemblerRISCVV {
  public:
   // Create an assembler. Instructions and relocation information are emitted
@@ -278,9 +282,19 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   // See Assembler::CheckConstPool for more info.
   void EmitPoolGuard();
 
+#if defined(V8_TARGET_ARCH_RISCV64)
   static void set_target_value_at(
-      Address pc, uintptr_t target,
+      Address pc, uint64_t target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
+#elif defined(V8_TARGET_ARCH_RISCV32)
+  static void set_target_value_at(
+      Address pc, uint32_t target,
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
+#endif
+
+  static inline int32_t target_constant32_at(Address pc);
+  static inline void set_target_constant32_at(
+      Address pc, uint32_t target, ICacheFlushMode icache_flush_mode);
 
   static void JumpLabelToJumpRegister(Address pc);
 
@@ -288,7 +302,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   // This is for calls and branches within generated code.  The serializer
   // has already deserialized the lui/ori instructions etc.
   inline static void deserialization_set_special_target_at(Address location,
-                                                           Code code,
+                                                           Tagged<Code> code,
                                                            Address target);
 
   // Get the size of the special target encoded at 'instruction_payload'.
@@ -299,6 +313,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   inline static void deserialization_set_target_internal_reference_at(
       Address pc, Address target,
       RelocInfo::Mode mode = RelocInfo::INTERNAL_REFERENCE);
+
+  // Read/modify the uint32 constant used at pc.
+  static inline uint32_t uint32_constant_at(Address pc, Address constant_pool);
+  static inline void set_uint32_constant_at(
+      Address pc, Address constant_pool, uint32_t new_constant,
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   // Here we are patching the address in the LUI/ADDI instruction pair.
   // These values are used in the serialization process and must be zero for
@@ -375,24 +395,28 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   // Assembler Pseudo Instructions (Tables 25.2, 25.3, RISC-V Unprivileged ISA)
   void nop();
 #if defined(V8_TARGET_ARCH_RISCV64)
-  void RecursiveLiImpl(Register rd, intptr_t imm);
-  void RecursiveLi(Register rd, intptr_t imm);
-  static int RecursiveLiCount(intptr_t imm);
-  static int RecursiveLiImplCount(intptr_t imm);
-  void RV_li(Register rd, intptr_t imm);
+  void RecursiveLiImpl(Register rd, int64_t imm);
+  void RecursiveLi(Register rd, int64_t imm);
+  static int RecursiveLiCount(int64_t imm);
+  static int RecursiveLiImplCount(int64_t imm);
+  void RV_li(Register rd, int64_t imm);
   static int RV_li_count(int64_t imm, bool is_get_temp_reg = false);
   // Returns the number of instructions required to load the immediate
   void GeneralLi(Register rd, int64_t imm);
-  static int GeneralLiCount(intptr_t imm, bool is_get_temp_reg = false);
+  static int GeneralLiCount(int64_t imm, bool is_get_temp_reg = false);
+  // Loads an immediate, always using 8 instructions, regardless of the value,
+  // so that it can be modified later.
+  void li_constant(Register rd, int64_t imm);
+  void li_constant32(Register rd, int32_t imm);
+  void li_ptr(Register rd, int64_t imm);
 #endif
 #if defined(V8_TARGET_ARCH_RISCV32)
   void RV_li(Register rd, int32_t imm);
   static int RV_li_count(int32_t imm, bool is_get_temp_reg = false);
+
+  void li_constant(Register rd, int32_t imm);
+  void li_ptr(Register rd, int32_t imm);
 #endif
-  // Loads an immediate, always using 8 instructions, regardless of the value,
-  // so that it can be modified later.
-  void li_constant(Register rd, intptr_t imm);
-  void li_ptr(Register rd, intptr_t imm);
 
   void break_(uint32_t code, bool break_as_stop = false);
   void stop(uint32_t code = kMaxStopCode);
@@ -425,6 +449,24 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
    private:
     Assembler* assem_;
     DISALLOW_IMPLICIT_CONSTRUCTORS(BlockTrampolinePoolScope);
+  };
+
+  class V8_NODISCARD BlockPoolsScope {
+   public:
+    // Block Trampoline Pool and Constant Pool. Emits pools if necessary to
+    // ensure that {margin} more bytes can be emitted without triggering pool
+    // emission.
+    explicit BlockPoolsScope(Assembler* assem, size_t margin = 0)
+        : block_const_pool_(assem, margin), block_trampoline_pool_(assem) {}
+
+    BlockPoolsScope(Assembler* assem, PoolEmissionCheck check)
+        : block_const_pool_(assem, check), block_trampoline_pool_(assem) {}
+    ~BlockPoolsScope() {}
+
+   private:
+    BlockConstPoolScope block_const_pool_;
+    BlockTrampolinePoolScope block_trampoline_pool_;
+    DISALLOW_IMPLICIT_CONSTRUCTORS(BlockPoolsScope);
   };
 
   // Class for postponing the assembly buffer growth. Typically used for
@@ -463,6 +505,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   void dd(Label* label);
 
   Instruction* pc() const { return reinterpret_cast<Instruction*>(pc_); }
+
+  Instruction* InstructionAt(ptrdiff_t offset) const {
+    return reinterpret_cast<Instruction*>(buffer_start_ + offset);
+  }
 
   // Postpone the generation of the trampoline pool for the specified number of
   // instructions.
@@ -505,8 +551,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
       Address pc_) const;
 
   inline int UnboundLabelsCount() { return unbound_labels_count_; }
-
-  using BlockPoolsScope = BlockTrampolinePoolScope;
 
   void RecordConstPool(int size);
 
@@ -745,7 +789,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   template <typename T>
   inline void EmitHelper(T x);
 
-  static void disassembleInstr(Instr instr);
+  static void disassembleInstr(uint8_t* pc);
 
   // Labels.
   void print(const Label* L);

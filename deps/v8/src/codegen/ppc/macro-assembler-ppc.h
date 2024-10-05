@@ -120,13 +120,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void StubPrologue(StackFrame::Type type);
   void Prologue();
 
-  enum ArgumentsCountMode { kCountIncludesReceiver, kCountExcludesReceiver };
-  enum ArgumentsCountType { kCountIsInteger, kCountIsSmi, kCountIsBytes };
-  void DropArguments(Register count, ArgumentsCountType type,
-                     ArgumentsCountMode mode);
-  void DropArgumentsAndPushNewReceiver(Register argc, Register receiver,
-                                       ArgumentsCountType type,
-                                       ArgumentsCountMode mode);
+  void DropArguments(Register count);
+  void DropArgumentsAndPushNewReceiver(Register argc, Register receiver);
 
   // Push a standard frame, consisting of lr, fp, constant pool,
   // context and JS function
@@ -154,7 +149,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // load a literal signed int value <value> to GPR <dst>
   void LoadIntLiteral(Register dst, int value);
   // load an SMI value <value> to GPR <dst>
-  void LoadSmiLiteral(Register dst, Smi smi);
+  void LoadSmiLiteral(Register dst, Tagged<Smi> smi);
 
   void LoadPC(Register dst);
   void ComputeCodeStartAddress(Register dst);
@@ -553,6 +548,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void CallEphemeronKeyBarrier(Register object, Register slot_address,
                                SaveFPRegsMode fp_mode);
 
+  void CallIndirectPointerBarrier(Register object, Register slot_address,
+                                  SaveFPRegsMode fp_mode,
+                                  IndirectPointerTag tag);
+
   void CallRecordWriteStubSaveRegisters(
       Register object, Register slot_address, SaveFPRegsMode fp_mode,
       StubCallMode mode = StubCallMode::kCallBuiltinPointer);
@@ -657,24 +656,20 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // garbage collection, since that might move the code and invalidate the
   // return address (unless this is somehow accounted for by the called
   // function).
-  enum class SetIsolateDataSlots {
-    kNo,
-    kYes,
-  };
-  void CallCFunction(
+  int CallCFunction(
       ExternalReference function, int num_arguments,
       SetIsolateDataSlots set_isolate_data_slots = SetIsolateDataSlots::kYes,
       bool has_function_descriptor = true);
-  void CallCFunction(
+  int CallCFunction(
       Register function, int num_arguments,
       SetIsolateDataSlots set_isolate_data_slots = SetIsolateDataSlots::kYes,
       bool has_function_descriptor = true);
-  void CallCFunction(
+  int CallCFunction(
       ExternalReference function, int num_reg_arguments,
       int num_double_arguments,
       SetIsolateDataSlots set_isolate_data_slots = SetIsolateDataSlots::kYes,
       bool has_function_descriptor = true);
-  void CallCFunction(
+  int CallCFunction(
       Register function, int num_reg_arguments, int num_double_arguments,
       SetIsolateDataSlots set_isolate_data_slots = SetIsolateDataSlots::kYes,
       bool has_function_descriptor = true);
@@ -714,6 +709,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadFromConstantsTable(Register destination, int constant_index) final;
   void LoadRootRegisterOffset(Register destination, intptr_t offset) final;
   void LoadRootRelative(Register destination, int32_t offset) final;
+  void StoreRootRelative(int32_t offset, Register value) final;
 
   // Operand pointing to an external reference.
   // May emit code to set up the scratch register. The operand is
@@ -723,6 +719,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // that is guaranteed not to be clobbered.
   MemOperand ExternalReferenceAsOperand(ExternalReference reference,
                                         Register scratch);
+  MemOperand ExternalReferenceAsOperand(IsolateFieldId id) {
+    return ExternalReferenceAsOperand(ExternalReference::Create(id), no_reg);
+  }
 
   // Jump, Call, and Ret pseudo instructions implementing inter-working.
   void Jump(Register target);
@@ -745,12 +744,15 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   MemOperand EntryFromBuiltinAsOperand(Builtin builtin);
 
   // Load the code entry point from the Code object.
-  void LoadCodeInstructionStart(Register destination, Register code_object);
+  void LoadCodeInstructionStart(
+      Register destination, Register code_object,
+      CodeEntrypointTag tag = kDefaultCodeEntrypointTag);
   void CallCodeObject(Register code_object);
   void JumpCodeObject(Register code_object,
                       JumpMode jump_mode = JumpMode::kJump);
 
   void CallBuiltinByIndex(Register builtin_index, Register target);
+  void BailoutIfDeoptimized();
   void CallForDeoptimization(Builtin target, int deopt_id, Label* exit,
                              DeoptimizeKind kind, Label* ret,
                              Label* jump_deoptimization_entry_label);
@@ -804,6 +806,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void Move(Register dst, Handle<HeapObject> value,
             RelocInfo::Mode rmode = RelocInfo::FULL_EMBEDDED_OBJECT);
   void Move(Register dst, ExternalReference reference);
+  void LoadIsolateField(Register dst, IsolateFieldId id);
   void Move(Register dst, Register src, Condition cond = al);
   void Move(DoubleRegister dst, DoubleRegister src);
   void Move(Register dst, const MemOperand& src) {
@@ -931,6 +934,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void JumpIfLessThan(Register x, int32_t y, Label* dest);
 
   void LoadMap(Register destination, Register object);
+  void LoadCompressedMap(Register dst, Register object, Register scratch);
+
+  void LoadFeedbackVector(Register dst, Register closure, Register scratch,
+                          Label* fbv_undef);
 
 #if V8_TARGET_ARCH_PPC64
   inline void TestIfInt32(Register value, Register scratch,
@@ -1006,6 +1013,89 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void ExceptionHandler() {}
   // Define an exception handler and bind a label.
   void BindExceptionHandler(Label* label) { bind(label); }
+
+  // ---------------------------------------------------------------------------
+  // V8 Sandbox support
+
+  // Transform a SandboxedPointer from/to its encoded form, which is used when
+  // the pointer is stored on the heap and ensures that the pointer will always
+  // point into the sandbox.
+  void DecodeSandboxedPointer(Register value);
+  void LoadSandboxedPointerField(Register destination,
+                                 const MemOperand& field_operand,
+                                 Register scratch = no_reg);
+  void StoreSandboxedPointerField(Register value,
+                                  const MemOperand& dst_field_operand,
+                                  Register scratch = no_reg);
+
+  // Loads a field containing off-heap pointer and does necessary decoding
+  // if sandboxed external pointers are enabled.
+  void LoadExternalPointerField(Register destination, MemOperand field_operand,
+                                ExternalPointerTag tag,
+                                Register isolate_root = no_reg,
+                                Register scratch = no_reg);
+
+  // Load a trusted pointer field.
+  // When the sandbox is enabled, these are indirect pointers using the trusted
+  // pointer table. Otherwise they are regular tagged fields.
+  void LoadTrustedPointerField(Register destination, MemOperand field_operand,
+                               IndirectPointerTag tag,
+                               Register scratch = no_reg);
+
+  // Store a trusted pointer field.
+  // When the sandbox is enabled, these are indirect pointers using the trusted
+  // pointer table. Otherwise they are regular tagged fields.
+  void StoreTrustedPointerField(Register value, MemOperand dst_field_operand,
+                                Register scratch = no_reg);
+
+  // Load a code pointer field.
+  // These are special versions of trusted pointers that, when the sandbox is
+  // enabled, reference code objects through the code pointer table.
+  void LoadCodePointerField(Register destination, MemOperand field_operand,
+                            Register scratch) {
+    LoadTrustedPointerField(destination, field_operand, kCodeIndirectPointerTag,
+                            scratch);
+  }
+  // Store a code pointer field.
+  void StoreCodePointerField(Register value, MemOperand dst_field_operand,
+                             Register scratch = no_reg) {
+    StoreTrustedPointerField(value, dst_field_operand, scratch);
+  }
+
+  // Load an indirect pointer field.
+  // Only available when the sandbox is enabled.
+  void LoadIndirectPointerField(Register destination, MemOperand field_operand,
+                                IndirectPointerTag tag, Register scratch);
+
+  // Store an indirect pointer field.
+  // Only available when the sandbox is enabled.
+  void StoreIndirectPointerField(Register value, MemOperand dst_field_operand,
+                                 Register scratch);
+
+#ifdef V8_ENABLE_SANDBOX
+  // Retrieve the heap object referenced by the given indirect pointer handle,
+  // which can either be a trusted pointer handle or a code pointer handle.
+  void ResolveIndirectPointerHandle(Register destination, Register handle,
+                                    IndirectPointerTag tag,
+                                    Register scratch = no_reg);
+
+  // Retrieve the heap object referenced by the given trusted pointer handle.
+  void ResolveTrustedPointerHandle(Register destination, Register handle,
+                                   IndirectPointerTag tag,
+                                   Register scratch = no_reg);
+
+  // Retrieve the Code object referenced by the given code pointer handle.
+  void ResolveCodePointerHandle(Register destination, Register handle,
+                                Register scratch = no_reg);
+
+  // Load the pointer to a Code's entrypoint via a code pointer.
+  // Only available when the sandbox is enabled as it requires the code pointer
+  // table.
+  void LoadCodeEntrypointViaCodePointer(Register destination,
+                                        MemOperand field_operand,
+                                        Register scratch = no_reg);
+
+#endif
 
   // ---------------------------------------------------------------------------
   // Pointer compression Support
@@ -1495,26 +1585,28 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // stored.  value and scratch registers are clobbered by the operation.
   // The offset is the offset from the start of the object, not the offset from
   // the tagged HeapObject pointer.  For use with FieldMemOperand(reg, off).
-  void RecordWriteField(Register object, int offset, Register value,
-                        Register slot_address, LinkRegisterStatus lr_status,
-                        SaveFPRegsMode save_fp,
-                        SmiCheck smi_check = SmiCheck::kInline);
+  void RecordWriteField(
+      Register object, int offset, Register value, Register slot_address,
+      LinkRegisterStatus lr_status, SaveFPRegsMode save_fp,
+      SmiCheck smi_check = SmiCheck::kInline,
+      SlotDescriptor slot = SlotDescriptor::ForDirectPointerSlot());
 
   // For a given |object| notify the garbage collector that the slot |address|
   // has been written.  |value| is the object being stored. The value and
   // address registers are clobbered by the operation.
-  void RecordWrite(Register object, Register slot_address, Register value,
-                   LinkRegisterStatus lr_status, SaveFPRegsMode save_fp,
-                   SmiCheck smi_check = SmiCheck::kInline);
+  void RecordWrite(
+      Register object, Register slot_address, Register value,
+      LinkRegisterStatus lr_status, SaveFPRegsMode save_fp,
+      SmiCheck smi_check = SmiCheck::kInline,
+      SlotDescriptor slot = SlotDescriptor::ForDirectPointerSlot());
 
   // Enter exit frame.
   // stack_space - extra stack space, used for parameters before call to C.
-  void EnterExitFrame(int stack_space, StackFrame::Type frame_type);
+  void EnterExitFrame(Register scratch, int stack_space,
+                      StackFrame::Type frame_type);
 
-  // Leave the current exit frame. Expects the return value in r0.
-  // Expect the number of values, pushed prior to the exit frame, to
-  // remove in a register (or no_reg, if there is nothing to remove).
-  void LeaveExitFrame(Register argument_count, bool argument_count_is_length);
+  // Leave the current exit frame.
+  void LeaveExitFrame(Register scratch);
 
   // Load the global proxy from the current context.
   void LoadGlobalProxy(Register dst) {
@@ -1529,14 +1621,16 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // load a literal double value <value> to FPR <result>
 
-  void AddSmiLiteral(Register dst, Register src, Smi smi, Register scratch);
-  void SubSmiLiteral(Register dst, Register src, Smi smi, Register scratch);
-  void CmpSmiLiteral(Register src1, Smi smi, Register scratch,
+  void AddSmiLiteral(Register dst, Register src, Tagged<Smi> smi,
+                     Register scratch);
+  void SubSmiLiteral(Register dst, Register src, Tagged<Smi> smi,
+                     Register scratch);
+  void CmpSmiLiteral(Register src1, Tagged<Smi> smi, Register scratch,
                      CRegister cr = cr7);
-  void CmplSmiLiteral(Register src1, Smi smi, Register scratch,
+  void CmplSmiLiteral(Register src1, Tagged<Smi> smi, Register scratch,
                       CRegister cr = cr7);
-  void AndSmiLiteral(Register dst, Register src, Smi smi, Register scratch,
-                     RCBit rc = LeaveRC);
+  void AndSmiLiteral(Register dst, Register src, Tagged<Smi> smi,
+                     Register scratch, RCBit rc = LeaveRC);
 
   // ---------------------------------------------------------------------------
   // JavaScript invokes
@@ -1587,6 +1681,40 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Type_reg can be no_reg. In that case ip is used.
   void CompareObjectType(Register heap_object, Register map, Register type_reg,
                          InstanceType type);
+  // Variant of the above, which compares against a type range rather than a
+  // single type (lower_limit and higher_limit are inclusive).
+  //
+  // Always use unsigned comparisons: ls for a positive result.
+  void CompareObjectTypeRange(Register heap_object, Register map,
+                              Register type_reg, Register scratch,
+                              InstanceType lower_limit,
+                              InstanceType higher_limit);
+
+  // Variant of the above, which only guarantees to set the correct eq/ne flag.
+  // Neither map, nor type_reg might be set to any particular value.
+  void IsObjectType(Register heap_object, Register scratch1, Register scratch2,
+                    InstanceType type);
+
+#if V8_STATIC_ROOTS_BOOL
+  // Fast variant which is guaranteed to not actually load the instance type
+  // from the map.
+  void IsObjectTypeFast(Register heap_object, Register compressed_map_scratch,
+                        InstanceType type, Register scratch);
+  void CompareInstanceTypeWithUniqueCompressedMap(Register map,
+                                                  Register scratch,
+                                                  InstanceType type);
+#endif  // V8_STATIC_ROOTS_BOOL
+
+  // Compare object type for heap object, and branch if equal (or not.)
+  // heap_object contains a non-Smi whose object type should be compared with
+  // the given type.  This both sets the flags and leaves the object type in
+  // the type_reg register. It leaves the map in the map register (unless the
+  // type_reg and map register are the same register).  It leaves the heap
+  // object in the heap_object register unless the heap_object register is the
+  // same register as one of the other registers.
+  void JumpIfObjectType(Register object, Register map, Register type_reg,
+                        InstanceType type, Label* if_cond_pass,
+                        Condition cond = eq);
 
   // Compare instance type in a map.  map contains a valid map object whose
   // object type should be compared with the given type.  This both
@@ -1598,12 +1726,14 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   //
   // Always use unsigned comparisons: ls for a positive result.
   void CompareInstanceTypeRange(Register map, Register type_reg,
-                                InstanceType lower_limit,
+                                Register scratch, InstanceType lower_limit,
                                 InstanceType higher_limit);
 
   // Compare the object in a register to a value from the root list.
   // Uses the ip register as scratch.
   void CompareRoot(Register obj, RootIndex index);
+  void CompareTaggedRoot(const Register& with, RootIndex index);
+
   void PushRoot(RootIndex index) {
     LoadRoot(r0, index);
     Push(r0);
@@ -1623,12 +1753,25 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // Checks if value is in range [lower_limit, higher_limit] using a single
   // comparison.
-  void CompareRange(Register value, unsigned lower_limit,
+  void CompareRange(Register value, Register scratch, unsigned lower_limit,
                     unsigned higher_limit);
-  void JumpIfIsInRange(Register value, unsigned lower_limit,
+  void JumpIfIsInRange(Register value, Register scratch, unsigned lower_limit,
                        unsigned higher_limit, Label* on_in_range);
 
+  void JumpIfJSAnyIsNotPrimitive(
+      Register heap_object, Register scratch, Label* target,
+      Label::Distance distance = Label::kFar,
+      Condition condition = Condition::kUnsignedGreaterThanEqual);
+  void JumpIfJSAnyIsPrimitive(Register heap_object, Register scratch,
+                              Label* target,
+                              Label::Distance distance = Label::kFar) {
+    return JumpIfJSAnyIsNotPrimitive(heap_object, scratch, target, distance,
+                                     Condition::kUnsignedLessThan);
+  }
+
   // Tiering support.
+  void AssertFeedbackCell(Register object,
+                          Register scratch) NOOP_UNLESS_DEBUG_CODE;
   void AssertFeedbackVector(Register object,
                             Register scratch) NOOP_UNLESS_DEBUG_CODE;
   void ReplaceClosureCodeWithOptimizedCode(Register optimized_code,
@@ -1697,7 +1840,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   void StackOverflowCheck(Register num_args, Register scratch,
                           Label* stack_overflow);
-  void LoadStackLimit(Register destination, StackLimitKind kind);
+  void LoadStackLimit(Register destination, StackLimitKind kind,
+                      Register scratch);
 
   // ---------------------------------------------------------------------------
   // Smi utilities
@@ -1768,10 +1912,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   int CalculateStackPassedWords(int num_reg_arguments,
                                 int num_double_arguments);
-  void CallCFunctionHelper(Register function, int num_reg_arguments,
-                           int num_double_arguments,
-                           SetIsolateDataSlots set_isolate_data_slots,
-                           bool has_function_descriptor);
 
   // Helper functions for generating invokes.
   void InvokePrologue(Register expected_parameter_count,
@@ -1803,15 +1943,17 @@ inline MemOperand ExitFrameCallerStackSlotOperand(int index) {
               kSystemPointerSize);
 }
 
-// Calls an API function.  Allocates HandleScope, extracts returned value
-// from handle and propagates exceptions.  Restores context.  On return removes
-// *stack_space_operand * kSystemPointerSize or stack_space * kSystemPointerSize
+// Calls an API function. Allocates HandleScope, extracts returned value
+// from handle and propagates exceptions. Clobbers C argument registers
+// and C caller-saved registers. Restores context. On return removes
+//   (*argc_operand + slots_to_drop_on_return) * kSystemPointerSize
 // (GCed, includes the call JS arguments space and the additional space
 // allocated for the fast call).
 void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
                               Register function_address,
                               ExternalReference thunk_ref, Register thunk_arg,
-                              int stack_space, MemOperand* stack_space_operand,
+                              int slots_to_drop_on_return,
+                              MemOperand* argc_operand,
                               MemOperand return_value_operand);
 
 #define ACCESS_MASM(masm) masm->

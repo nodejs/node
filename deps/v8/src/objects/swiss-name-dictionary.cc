@@ -40,7 +40,8 @@ Handle<SwissNameDictionary> SwissNameDictionary::DeleteEntry(
 // static
 template <typename IsolateT>
 Handle<SwissNameDictionary> SwissNameDictionary::Rehash(
-    IsolateT* isolate, Handle<SwissNameDictionary> table, int new_capacity) {
+    IsolateT* isolate, DirectHandle<SwissNameDictionary> table,
+    int new_capacity) {
   DCHECK(IsValidCapacity(new_capacity));
   DCHECK_LE(table->NumberOfElements(), MaxUsableCapacity(new_capacity));
   ReadOnlyRoots roots(isolate);
@@ -63,7 +64,7 @@ Handle<SwissNameDictionary> SwissNameDictionary::Rehash(
       Tagged<Object> value = table->ValueAtRaw(entry);
       PropertyDetails details = table->DetailsAt(entry);
 
-      int new_entry = new_table->AddInternal(Name::cast(key), value, details);
+      int new_entry = new_table->AddInternal(Cast<Name>(key), value, details);
 
       // TODO(v8::11388) Investigate ways of hoisting the branching needed to
       // select the correct meta table entry size (based on the capacity of the
@@ -170,8 +171,8 @@ Handle<SwissNameDictionary> SwissNameDictionary::ShallowCopy(
   // where size of each entry depends on table capacity.
   int size_per_meta_table_entry = MetaTableSizePerEntryFor(capacity);
   int meta_table_used_bytes = (2 + used_capacity) * size_per_meta_table_entry;
-  new_table->meta_table()->copy_in(
-      0, table->meta_table()->GetDataStartAddress(), meta_table_used_bytes);
+  MemCopy(new_table->meta_table()->begin(), table->meta_table()->begin(),
+          meta_table_used_bytes);
 
   return new_table;
 }
@@ -212,14 +213,14 @@ void SwissNameDictionary::Rehash(IsolateT* isolate) {
   DisallowHeapAllocation no_gc;
 
   struct Entry {
-    Name key;
-    Object value;
+    Tagged<Name> key;
+    Tagged<Object> value;
     PropertyDetails details;
   };
 
   if (Capacity() == 0) return;
 
-  Entry dummy{Name(), Object(), PropertyDetails::Empty()};
+  Entry dummy{Tagged<Name>(), Tagged<Object>(), PropertyDetails::Empty()};
   std::vector<Entry> data(NumberOfElements(), dummy);
 
   ReadOnlyRoots roots(isolate);
@@ -230,7 +231,7 @@ void SwissNameDictionary::Rehash(IsolateT* isolate) {
     if (!ToKey(roots, entry, &key)) continue;
 
     data[data_index++] =
-        Entry{Name::cast(key), ValueAtRaw(entry), DetailsAt(entry)};
+        Entry{Cast<Name>(key), ValueAtRaw(entry), DetailsAt(entry)};
   }
 
   Initialize(isolate, meta_table(), Capacity());
@@ -303,10 +304,11 @@ template V8_EXPORT_PRIVATE void SwissNameDictionary::Initialize(
 
 template V8_EXPORT_PRIVATE Handle<SwissNameDictionary>
 SwissNameDictionary::Rehash(LocalIsolate* isolate,
-                            Handle<SwissNameDictionary> table,
+                            DirectHandle<SwissNameDictionary> table,
                             int new_capacity);
 template V8_EXPORT_PRIVATE Handle<SwissNameDictionary>
-SwissNameDictionary::Rehash(Isolate* isolate, Handle<SwissNameDictionary> table,
+SwissNameDictionary::Rehash(Isolate* isolate,
+                            DirectHandle<SwissNameDictionary> table,
                             int new_capacity);
 
 template V8_EXPORT_PRIVATE void SwissNameDictionary::Rehash(

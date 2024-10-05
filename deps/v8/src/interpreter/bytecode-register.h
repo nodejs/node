@@ -5,12 +5,13 @@
 #ifndef V8_INTERPRETER_BYTECODE_REGISTER_H_
 #define V8_INTERPRETER_BYTECODE_REGISTER_H_
 
-#include "src/interpreter/bytecodes.h"
+#include <optional>
 
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
 #include "src/common/globals.h"
 #include "src/execution/frame-constants.h"
+#include "src/interpreter/bytecodes.h"
 
 namespace v8 {
 namespace internal {
@@ -56,6 +57,10 @@ class V8_EXPORT_PRIVATE Register final {
   static constexpr Register bytecode_offset();
   constexpr bool is_bytecode_offset() const;
 
+  // Returns the register for the cached feedback vector.
+  static constexpr Register feedback_vector();
+  constexpr bool is_feedback_vector() const;
+
   // Returns the register for the argument count.
   static constexpr Register argument_count();
 
@@ -79,7 +84,7 @@ class V8_EXPORT_PRIVATE Register final {
                     static_cast<int>(bytecode));
   }
 
-  constexpr base::Optional<Bytecode> TryToShortStar() const {
+  constexpr std::optional<Bytecode> TryToShortStar() const {
     if (index() >= 0 && index() < Bytecodes::kShortStarCount) {
       Bytecode bytecode =
           static_cast<Bytecode>(static_cast<int>(Bytecode::kStar0) - index());
@@ -130,6 +135,9 @@ class V8_EXPORT_PRIVATE Register final {
   static constexpr int kBytecodeOffsetRegisterIndex =
       OffsetFromFPToRegisterIndex(
           InterpreterFrameConstants::kBytecodeOffsetFromFp);
+  static constexpr int kFeedbackVectorRegisterIndex =
+      OffsetFromFPToRegisterIndex(
+          InterpreterFrameConstants::kFeedbackVectorFromFp);
   static constexpr int kCallerPCOffsetRegisterIndex =
       OffsetFromFPToRegisterIndex(InterpreterFrameConstants::kCallerPCOffset);
   static constexpr int kArgumentCountRegisterIndex =
@@ -232,6 +240,14 @@ constexpr Register Register::bytecode_offset() {
 
 constexpr bool Register::is_bytecode_offset() const {
   return index() == kBytecodeOffsetRegisterIndex;
+}
+
+constexpr Register Register::feedback_vector() {
+  return Register(kFeedbackVectorRegisterIndex);
+}
+
+constexpr bool Register::is_feedback_vector() const {
+  return index() == kFeedbackVectorRegisterIndex;
 }
 
 // static

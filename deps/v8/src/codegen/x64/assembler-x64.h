@@ -387,14 +387,16 @@ static_assert(sizeof(Operand) <= 2 * kSystemPointerSize,
   V(mov)                              \
   V(movzxb)                           \
   V(movzxw)                           \
-  V(not)                              \
+  V(not )                             \
   V(or)                               \
   V(repmovs)                          \
   V(sbb)                              \
   V(sub)                              \
   V(test)                             \
   V(xchg)                             \
-  V(xor)
+  V(xor)                              \
+  V(aligned_cmp)                      \
+  V(aligned_test)
 
 // Shift instructions on operands/registers with kInt32Size and kInt64Size.
 #define SHIFT_INSTRUCTION_LIST(V) \
@@ -548,6 +550,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   inline Handle<Code> code_target_object_handle_at(Address pc);
   inline Handle<HeapObject> compressed_embedded_object_handle_at(Address pc);
 
+  // Read/modify the uint32 constant used at pc.
+  static inline uint32_t uint32_constant_at(Address pc, Address constant_pool);
+  static inline void set_uint32_constant_at(
+      Address pc, Address constant_pool, uint32_t new_constant,
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
+
   // Number of bytes taken up by the branch target in the code.
   static constexpr int kSpecialTargetSize = 4;  // 32-bit displacement.
 
@@ -615,6 +623,23 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void DataAlign(int m);
   void Nop(int bytes = 1);
 
+  // Intel CPUs with the Skylake microarchitecture suffer from a performance
+  // regression by the JCC erratum. To mitigate the performance impact, we align
+  // jcc instructions so that they will not cross or end at 32-byte boundaries.
+  // {inst_size} is the total size of the instructions which we will avoid to
+  // cross or end at the boundaries. For example, aaaabbbb is a fused jcc
+  // instructions, e.g., cmpq+jmp. In the fused case we have:
+  // ...aaaabbbbbb
+  //    ^         ^
+  //    |         pc_offset + inst_size
+  //    pc_offset
+  // And in the non-fused case:
+  // ...bbbb
+  //    ^   ^
+  //    |   pc_offset + inst_size
+  //    pc_offset
+  void AlignForJCCErratum(int inst_size);
+
   void emit_trace_instruction(Immediate markid);
 
   // Aligns code to something that's optimal for a jump target for the platform.
@@ -628,6 +653,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void pushq(Immediate value);
   // Push a 32 bit integer, and guarantee that it is actually pushed as a
   // 32 bit value, the normal push will optimize the 8 bit case.
+  static constexpr int kPushq32InstrSize = 5;
   void pushq_imm32(int32_t imm32);
   void pushq(Register src);
   void pushq(Operand src);
@@ -710,35 +736,129 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     immediate_arithmetic_op_8(0x7, dst, src);
   }
 
+  // Used for JCC erratum performance mitigation.
+  void aligned_cmpb(Register dst, Immediate src) {
+    DCHECK(CpuFeatures::IsSupported(INTEL_JCC_ERRATUM_MITIGATION));
+    // /* cmp */ 4 + /* jcc */ 6
+    const int kMaxMacroFusionLength = 10;
+    AlignForJCCErratum(kMaxMacroFusionLength);
+    cmpb(dst, src);
+  }
+
   void cmpb_al(Immediate src);
 
   void cmpb(Register dst, Register src) { arithmetic_op_8(0x3A, dst, src); }
 
+  // Used for JCC erratum performance mitigation.
+  void aligned_cmpb(Register dst, Register src) {
+    DCHECK(CpuFeatures::IsSupported(INTEL_JCC_ERRATUM_MITIGATION));
+    // /* cmp */ 3 + /* jcc */ 6
+    const int kMaxMacroFusionLength = 9;
+    AlignForJCCErratum(kMaxMacroFusionLength);
+    cmpb(dst, src);
+  }
+
   void cmpb(Register dst, Operand src) { arithmetic_op_8(0x3A, dst, src); }
+
+  // Used for JCC erratum performance mitigation.
+  void aligned_cmpb(Register dst, Operand src) {
+    DCHECK(CpuFeatures::IsSupported(INTEL_JCC_ERRATUM_MITIGATION));
+    // /* cmp */ 8 + /* jcc */ 6
+    const int kMaxMacroFusionLength = 14;
+    AlignForJCCErratum(kMaxMacroFusionLength);
+    cmpb(dst, src);
+  }
 
   void cmpb(Operand dst, Register src) { arithmetic_op_8(0x38, src, dst); }
 
+  // Used for JCC erratum performance mitigation.
+  void aligned_cmpb(Operand dst, Register src) {
+    DCHECK(CpuFeatures::IsSupported(INTEL_JCC_ERRATUM_MITIGATION));
+    // /* cmp */ 8 + /* jcc */ 6
+    const int kMaxMacroFusionLength = 14;
+    AlignForJCCErratum(kMaxMacroFusionLength);
+    cmpb(dst, src);
+  }
+
   void cmpb(Operand dst, Immediate src) {
     immediate_arithmetic_op_8(0x7, dst, src);
+  }
+
+  // Used for JCC erratum performance mitigation.
+  void aligned_cmpb(Operand dst, Immediate src) {
+    DCHECK(CpuFeatures::IsSupported(INTEL_JCC_ERRATUM_MITIGATION));
+    // cmp can not be fused when comparing MEM-IMM, so we would not align this
+    // instruction.
+    cmpb(dst, src);
   }
 
   void cmpw(Operand dst, Immediate src) {
     immediate_arithmetic_op_16(0x7, dst, src);
   }
 
+  // Used for JCC erratum performance mitigation.
+  void aligned_cmpw(Operand dst, Immediate src) {
+    DCHECK(CpuFeatures::IsSupported(INTEL_JCC_ERRATUM_MITIGATION));
+    // cmp can not be fused when comparing MEM-IMM, so we would not align this
+    // instruction.
+    cmpw(dst, src);
+  }
+
   void cmpw(Register dst, Immediate src) {
     immediate_arithmetic_op_16(0x7, dst, src);
   }
 
+  // Used for JCC erratum performance mitigation.
+  void aligned_cmpw(Register dst, Immediate src) {
+    DCHECK(CpuFeatures::IsSupported(INTEL_JCC_ERRATUM_MITIGATION));
+    // /* cmp */ 6 + /* jcc */ 6
+    const int kMaxMacroFusionLength = 12;
+    AlignForJCCErratum(kMaxMacroFusionLength);
+    cmpw(dst, src);
+  }
+
   void cmpw(Register dst, Operand src) { arithmetic_op_16(0x3B, dst, src); }
+
+  // Used for JCC erratum performance mitigation.
+  void aligned_cmpw(Register dst, Operand src) {
+    DCHECK(CpuFeatures::IsSupported(INTEL_JCC_ERRATUM_MITIGATION));
+    // /* cmp */ 9 + /* jcc */ 6
+    const int kMaxMacroFusionLength = 15;
+    AlignForJCCErratum(kMaxMacroFusionLength);
+    cmpw(dst, src);
+  }
 
   void cmpw(Register dst, Register src) { arithmetic_op_16(0x3B, dst, src); }
 
+  // Used for JCC erratum performance mitigation.
+  void aligned_cmpw(Register dst, Register src) {
+    DCHECK(CpuFeatures::IsSupported(INTEL_JCC_ERRATUM_MITIGATION));
+    // /* cmp */ 4 + /* jcc */ 6
+    const int kMaxMacroFusionLength = 10;
+    AlignForJCCErratum(kMaxMacroFusionLength);
+    cmpw(dst, src);
+  }
+
   void cmpw(Operand dst, Register src) { arithmetic_op_16(0x39, src, dst); }
+
+  // Used for JCC erratum performance mitigation.
+  void aligned_cmpw(Operand dst, Register src) {
+    DCHECK(CpuFeatures::IsSupported(INTEL_JCC_ERRATUM_MITIGATION));
+    // /* cmp */ 9 + /* jcc */ 6
+    const int kMaxMacroFusionLength = 15;
+    AlignForJCCErratum(kMaxMacroFusionLength);
+    cmpw(dst, src);
+  }
 
   void testb(Register reg, Operand op) { testb(op, reg); }
 
+  // Used for JCC erratum performance mitigation.
+  void aligned_testb(Register reg, Operand op) { aligned_testb(op, reg); }
+
   void testw(Register reg, Operand op) { testw(op, reg); }
+
+  // Used for JCC erratum performance mitigation.
+  void aligned_testw(Register reg, Operand op) { aligned_testw(op, reg); }
 
   void andb(Register dst, Immediate src) {
     immediate_arithmetic_op_8(0x4, dst, src);
@@ -825,14 +945,82 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void sub_sp_32(uint32_t imm);
 
   void testb(Register dst, Register src);
+  // Used for JCC erratum performance mitigation.
+  void aligned_testb(Register dst, Register src) {
+    DCHECK(CpuFeatures::IsSupported(INTEL_JCC_ERRATUM_MITIGATION));
+    // /* test */ 3 + /* jcc */ 6
+    const int kMaxMacroFusionLength = 9;
+    AlignForJCCErratum(kMaxMacroFusionLength);
+    testb(dst, src);
+  }
+
   void testb(Register reg, Immediate mask);
+  // Used for JCC erratum performance mitigation.
+  void aligned_testb(Register reg, Immediate mask) {
+    DCHECK(CpuFeatures::IsSupported(INTEL_JCC_ERRATUM_MITIGATION));
+    // /* test */ 4 + /* jcc */ 6
+    const int kMaxMacroFusionLength = 10;
+    AlignForJCCErratum(kMaxMacroFusionLength);
+    testb(reg, mask);
+  }
+
   void testb(Operand op, Immediate mask);
+  // Used for JCC erratum performance mitigation.
+  void aligned_testb(Operand op, Immediate mask) {
+    DCHECK(CpuFeatures::IsSupported(INTEL_JCC_ERRATUM_MITIGATION));
+    // test can not be fused when comparing MEM-IMM, so we would not align this
+    // instruction.
+    testb(op, mask);
+  }
+
   void testb(Operand op, Register reg);
+  // Used for JCC erratum performance mitigation.
+  void aligned_testb(Operand op, Register reg) {
+    DCHECK(CpuFeatures::IsSupported(INTEL_JCC_ERRATUM_MITIGATION));
+    // /* test */ 8 + /* jcc */ 6
+    const int kMaxMacroFusionLength = 14;
+    AlignForJCCErratum(kMaxMacroFusionLength);
+    testb(op, reg);
+  }
 
   void testw(Register dst, Register src);
+  // Used for JCC erratum performance mitigation.
+  void aligned_testw(Register dst, Register src) {
+    DCHECK(CpuFeatures::IsSupported(INTEL_JCC_ERRATUM_MITIGATION));
+    // /* test */ 4 + /* jcc */ 6
+    const int kMaxMacroFusionLength = 10;
+    AlignForJCCErratum(kMaxMacroFusionLength);
+    testw(dst, src);
+  }
+
   void testw(Register reg, Immediate mask);
+  // Used for JCC erratum performance mitigation.
+  void aligned_testw(Register reg, Immediate mask) {
+    DCHECK(CpuFeatures::IsSupported(INTEL_JCC_ERRATUM_MITIGATION));
+    // /* test */ 6 + /* jcc */ 6
+    const int kMaxMacroFusionLength = 12;
+    AlignForJCCErratum(kMaxMacroFusionLength);
+    testw(reg, mask);
+  }
+
   void testw(Operand op, Immediate mask);
+  // Used for JCC erratum performance mitigation.
+  void aligned_testw(Operand op, Immediate mask) {
+    DCHECK(CpuFeatures::IsSupported(INTEL_JCC_ERRATUM_MITIGATION));
+    // test can not be fused when comparing MEM-IMM, so we would not align this
+    // instruction.
+    testw(op, mask);
+  }
+
   void testw(Operand op, Register reg);
+  // Used for JCC erratum performance mitigation.
+  void aligned_testw(Operand op, Register reg) {
+    DCHECK(CpuFeatures::IsSupported(INTEL_JCC_ERRATUM_MITIGATION));
+    // /* test */ 9 + /* jcc */ 6
+    const int kMaxMacroFusionLength = 15;
+    AlignForJCCErratum(kMaxMacroFusionLength);
+    testw(op, reg);
+  }
 
   // Bit operations.
   void bswapl(Register dst);
@@ -860,6 +1048,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void ret(int imm16);
   void ud2();
   void setcc(Condition cc, Register reg);
+  void endbr64();
 
   void pblendw(XMMRegister dst, Operand src, uint8_t mask);
   void pblendw(XMMRegister dst, XMMRegister src, uint8_t mask);
@@ -900,6 +1089,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // the next instructions (which starts at {pc_offset() + kNearJmpInstrSize}).
   static constexpr int kNearJmpInstrSize = 5;
   void near_call(intptr_t disp, RelocInfo::Mode rmode);
+  void near_call(Builtin buitin, RelocInfo::Mode rmode);
   void near_jmp(intptr_t disp, RelocInfo::Mode rmode);
   void near_j(Condition cc, intptr_t disp, RelocInfo::Mode rmode);
 
@@ -914,11 +1104,23 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Use a 32-bit signed displacement.
   // Unconditional jump to L
   void jmp(Label* L, Label::Distance distance = Label::kFar);
+  // Used for JCC erratum performance mitigation.
+  void aligned_jmp(Label* L, Label::Distance distance = Label::kFar) {
+    DCHECK(CpuFeatures::IsSupported(INTEL_JCC_ERRATUM_MITIGATION));
+    const int kInstLength = distance == Label::kFar ? 6 : 2;
+    AlignForJCCErratum(kInstLength);
+    jmp(L, distance);
+  }
   void jmp(Handle<Code> target, RelocInfo::Mode rmode);
 
   // Jump near absolute indirect (r64)
+#ifdef V8_ENABLE_CET_IBT
+  void jmp(Register adr, bool notrack = false);
+  void jmp(Operand src, bool notrack = false);
+#else
   void jmp(Register adr);
   void jmp(Operand src);
+#endif
 
   // Unconditional jump relative to the current address. Low-level routine,
   // use with caution!
@@ -926,6 +1128,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Conditional jumps
   void j(Condition cc, Label* L, Label::Distance distance = Label::kFar);
+  // Used for JCC erratum performance mitigation.
+  void aligned_j(Condition cc, Label* L,
+                 Label::Distance distance = Label::kFar) {
+    DCHECK(CpuFeatures::IsSupported(INTEL_JCC_ERRATUM_MITIGATION));
+    const int kInstLength = distance == Label::kFar ? 6 : 2;
+    AlignForJCCErratum(kInstLength);
+    j(cc, L, distance);
+  }
   void j(Condition cc, Address entry, RelocInfo::Mode rmode);
   void j(Condition cc, Handle<Code> target, RelocInfo::Mode rmode);
 
@@ -1511,24 +1721,37 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
                    uint8_t lane);
   void vperm2f128(YMMRegister dst, YMMRegister src1, YMMRegister src2,
                   uint8_t lane);
+  void vextractf128(XMMRegister dst, YMMRegister src, uint8_t lane);
 
-  void fma_instr(uint8_t op, XMMRegister dst, XMMRegister src1,
-                 XMMRegister src2, VectorLength l, SIMDPrefix pp,
-                 LeadingOpcode m, VexW w);
-  void fma_instr(uint8_t op, XMMRegister dst, XMMRegister src1, Operand src2,
-                 VectorLength l, SIMDPrefix pp, LeadingOpcode m, VexW w);
+  template <typename Reg1, typename Reg2, typename Op>
+  void fma_instr(uint8_t op, Reg1 dst, Reg2 src1, Op src2, VectorLength l,
+                 SIMDPrefix pp, LeadingOpcode m, VexW w);
 
-#define FMA(instr, length, prefix, escape1, escape2, extension, opcode) \
-  void instr(XMMRegister dst, XMMRegister src1, XMMRegister src2) {     \
-    fma_instr(0x##opcode, dst, src1, src2, k##length, k##prefix,        \
-              k##escape1##escape2, k##extension);                       \
-  }                                                                     \
-  void instr(XMMRegister dst, XMMRegister src1, Operand src2) {         \
-    fma_instr(0x##opcode, dst, src1, src2, k##length, k##prefix,        \
-              k##escape1##escape2, k##extension);                       \
+#define FMA(instr, prefix, escape1, escape2, extension, opcode)     \
+  void instr(XMMRegister dst, XMMRegister src1, XMMRegister src2) { \
+    fma_instr(0x##opcode, dst, src1, src2, kL128, k##prefix,        \
+              k##escape1##escape2, k##extension);                   \
+  }                                                                 \
+  void instr(XMMRegister dst, XMMRegister src1, Operand src2) {     \
+    fma_instr(0x##opcode, dst, src1, src2, kL128, k##prefix,        \
+              k##escape1##escape2, k##extension);                   \
   }
   FMA_INSTRUCTION_LIST(FMA)
 #undef FMA
+
+#define DECLARE_FMA_YMM_INSTRUCTION(instr, prefix, escape1, escape2, \
+                                    extension, opcode)               \
+  void instr(YMMRegister dst, YMMRegister src1, YMMRegister src2) {  \
+    fma_instr(0x##opcode, dst, src1, src2, kL256, k##prefix,         \
+              k##escape1##escape2, k##extension);                    \
+  }                                                                  \
+  void instr(YMMRegister dst, YMMRegister src1, Operand src2) {      \
+    fma_instr(0x##opcode, dst, src1, src2, kL256, k##prefix,         \
+              k##escape1##escape2, k##extension);                    \
+  }
+  FMA_PS_INSTRUCTION_LIST(DECLARE_FMA_YMM_INSTRUCTION)
+  FMA_PD_INSTRUCTION_LIST(DECLARE_FMA_YMM_INSTRUCTION)
+#undef DECLARE_FMA_YMM_INSTRUCTION
 
   void vmovd(XMMRegister dst, Register src);
   void vmovd(XMMRegister dst, Operand src);
@@ -2044,6 +2267,20 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   AVX2_BROADCAST_LIST(AVX2_INSTRUCTION)
 #undef AVX2_INSTRUCTION
 
+  // F16C Instructions.
+  void vcvtph2ps(XMMRegister dst, XMMRegister src);
+  void vcvtph2ps(YMMRegister dst, XMMRegister src);
+  void vcvtps2ph(XMMRegister dst, XMMRegister src, uint8_t imm8);
+  void vcvtps2ph(XMMRegister dst, YMMRegister src, uint8_t imm8);
+
+  // AVX-VNNI instruction
+  void vpdpbusd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vinstr(0x50, dst, src1, src2, k66, k0F38, kW0, AVX_VNNI);
+  }
+  void vpdpbusd(YMMRegister dst, YMMRegister src1, YMMRegister src2) {
+    vinstr(0x50, dst, src1, src2, k66, k0F38, kW0, AVX_VNNI);
+  }
+
   // BMI instruction
   void andnq(Register dst, Register src1, Register src2) {
     bmi1q(0xf2, dst, src1, src2);
@@ -2546,20 +2783,65 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     arithmetic_op(0x3B, dst, src, size);
   }
 
+  // Used for JCC erratum performance mitigation.
+  void emit_aligned_cmp(Register dst, Register src, int size) {
+    DCHECK(CpuFeatures::IsSupported(INTEL_JCC_ERRATUM_MITIGATION));
+    // /* cmp */ 3 + /* jcc */ 6
+    const int kMaxMacroFusionLength = 9;
+    AlignForJCCErratum(kMaxMacroFusionLength);
+    emit_cmp(dst, src, size);
+  }
+
   void emit_cmp(Register dst, Operand src, int size) {
     arithmetic_op(0x3B, dst, src, size);
+  }
+
+  // Used for JCC erratum performance mitigation.
+  void emit_aligned_cmp(Register dst, Operand src, int size) {
+    DCHECK(CpuFeatures::IsSupported(INTEL_JCC_ERRATUM_MITIGATION));
+    // /* cmp */ 8 + /* jcc */ 6
+    const int kMaxMacroFusionLength = 14;
+    AlignForJCCErratum(kMaxMacroFusionLength);
+    emit_cmp(dst, src, size);
   }
 
   void emit_cmp(Operand dst, Register src, int size) {
     arithmetic_op(0x39, src, dst, size);
   }
 
+  // Used for JCC erratum performance mitigation.
+  void emit_aligned_cmp(Operand dst, Register src, int size) {
+    DCHECK(CpuFeatures::IsSupported(INTEL_JCC_ERRATUM_MITIGATION));
+    // /* cmp */ 8 + /* jcc */ 6
+    const int kMaxMacroFusionLength = 14;
+    AlignForJCCErratum(kMaxMacroFusionLength);
+    emit_cmp(dst, src, size);
+  }
+
   void emit_cmp(Register dst, Immediate src, int size) {
     immediate_arithmetic_op(0x7, dst, src, size);
   }
 
+  // Used for JCC erratum performance mitigation.
+  void emit_aligned_cmp(Register dst, Immediate src, int size) {
+    DCHECK(CpuFeatures::IsSupported(INTEL_JCC_ERRATUM_MITIGATION));
+    // /* cmpl */ 7 + /* jcc */ 6
+    // /* cmpq */ 11 + /* jcc */ 6
+    const int kMaxMacroFusionLength = 9 + size;
+    AlignForJCCErratum(kMaxMacroFusionLength);
+    emit_cmp(dst, src, size);
+  }
+
   void emit_cmp(Operand dst, Immediate src, int size) {
     immediate_arithmetic_op(0x7, dst, src, size);
+  }
+
+  // Used for JCC erratum performance mitigation.
+  void emit_aligned_cmp(Operand dst, Immediate src, int size) {
+    DCHECK(CpuFeatures::IsSupported(INTEL_JCC_ERRATUM_MITIGATION));
+    // cmp can not be fused when comparing MEM-IMM, so we would not align this
+    // instruction.
+    emit_cmp(dst, src, size);
   }
 
   // Compare {al,ax,eax,rax} with src.  If equal, set ZF and write dst into
@@ -2655,11 +2937,52 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   void emit_test(Register dst, Register src, int size);
+  // Used for JCC erratum performance mitigation.
+  void emit_aligned_test(Register dst, Register src, int size) {
+    DCHECK(CpuFeatures::IsSupported(INTEL_JCC_ERRATUM_MITIGATION));
+    // /* test */ 3 + /* jcc */ 6
+    const int kMaxMacroFusionLength = 9;
+    AlignForJCCErratum(kMaxMacroFusionLength);
+    emit_test(dst, src, size);
+  }
+
   void emit_test(Register reg, Immediate mask, int size);
+  // Used for JCC erratum performance mitigation.
+  void emit_aligned_test(Register reg, Immediate mask, int size) {
+    DCHECK(CpuFeatures::IsSupported(INTEL_JCC_ERRATUM_MITIGATION));
+    // /* testl */ 7 + /* jcc */ 6
+    // /* testq */ 11 + /* jcc */ 6
+    const int kMaxMacroFusionLength = 9 + size;
+    AlignForJCCErratum(kMaxMacroFusionLength);
+    emit_test(reg, mask, size);
+  }
+
   void emit_test(Operand op, Register reg, int size);
+  // Used for JCC erratum performance mitigation.
+  void emit_aligned_test(Operand op, Register reg, int size) {
+    DCHECK(CpuFeatures::IsSupported(INTEL_JCC_ERRATUM_MITIGATION));
+    // /* test */ 8 + /* jcc */ 6
+    const int kMaxMacroFusionLength = 14;
+    AlignForJCCErratum(kMaxMacroFusionLength);
+    emit_test(op, reg, size);
+  }
+
   void emit_test(Operand op, Immediate mask, int size);
+  // Used for JCC erratum performance mitigation.
+  void emit_aligned_test(Operand op, Immediate mask, int size) {
+    DCHECK(CpuFeatures::IsSupported(INTEL_JCC_ERRATUM_MITIGATION));
+    // test can not be fused when comparing MEM-IMM, so we would not align this
+    // instruction.
+    emit_test(op, mask, size);
+  }
+
   void emit_test(Register reg, Operand op, int size) {
     return emit_test(op, reg, size);
+  }
+
+  // Used for JCC erratum performance mitigation.
+  void emit_aligned_test(Register reg, Operand op, int size) {
+    return emit_aligned_test(op, reg, size);
   }
 
   void emit_xchg(Register dst, Register src, int size);
@@ -2736,6 +3059,32 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   std::unique_ptr<win64_unwindinfo::XdataEncoder> xdata_encoder_;
 #endif
 };
+
+extern template EXPORT_TEMPLATE_DECLARE(
+    V8_EXPORT_PRIVATE) void Assembler::fma_instr(uint8_t op, XMMRegister dst,
+                                                 XMMRegister src1,
+                                                 XMMRegister src2,
+                                                 VectorLength l, SIMDPrefix pp,
+                                                 LeadingOpcode m, VexW w);
+
+extern template EXPORT_TEMPLATE_DECLARE(
+    V8_EXPORT_PRIVATE) void Assembler::fma_instr(uint8_t op, YMMRegister dst,
+                                                 YMMRegister src1,
+                                                 YMMRegister src2,
+                                                 VectorLength l, SIMDPrefix pp,
+                                                 LeadingOpcode m, VexW w);
+
+extern template EXPORT_TEMPLATE_DECLARE(
+    V8_EXPORT_PRIVATE) void Assembler::fma_instr(uint8_t op, XMMRegister dst,
+                                                 XMMRegister src1, Operand src2,
+                                                 VectorLength l, SIMDPrefix pp,
+                                                 LeadingOpcode m, VexW w);
+
+extern template EXPORT_TEMPLATE_DECLARE(
+    V8_EXPORT_PRIVATE) void Assembler::fma_instr(uint8_t op, YMMRegister dst,
+                                                 YMMRegister src1, Operand src2,
+                                                 VectorLength l, SIMDPrefix pp,
+                                                 LeadingOpcode m, VexW w);
 
 extern template EXPORT_TEMPLATE_DECLARE(
     V8_EXPORT_PRIVATE) void Assembler::vinstr(uint8_t op, YMMRegister dst,

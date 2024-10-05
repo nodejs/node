@@ -255,8 +255,8 @@ class InspectorSession {
       const callFrame = message.params.callFrames[0];
       const location = callFrame.location;
       const scriptPath = this._scriptsIdsByUrl.get(location.scriptId);
-      assert.strictEqual(scriptPath.toString(),
-                         expectedScriptPath.toString(),
+      assert.strictEqual(decodeURIComponent(scriptPath),
+                         decodeURIComponent(expectedScriptPath),
                          `${scriptPath} !== ${expectedScriptPath}`);
       assert.strictEqual(location.lineNumber, line);
       return true;
@@ -269,6 +269,14 @@ class InspectorSession {
         (notification) =>
           this._isBreakOnLineNotification(notification, line, url),
         `break on ${url}:${line}`);
+  }
+
+  waitForPauseOnStart() {
+    return this
+      .waitForNotification(
+        (notification) =>
+          notification.method === 'Debugger.paused' && notification.params.reason === 'Break on start',
+        'break on start');
   }
 
   pausedDetails() {
@@ -303,9 +311,16 @@ class InspectorSession {
     console.log('[test]', 'Verify node waits for the frontend to disconnect');
     await this.send({ 'method': 'Debugger.resume' });
     await this.waitForNotification((notification) => {
+      if (notification.method === 'Debugger.paused') {
+        this.send({ 'method': 'Debugger.resume' });
+      }
       return notification.method === 'Runtime.executionContextDestroyed' &&
         notification.params.executionContextId === 1;
     });
+    await this.waitForDisconnect();
+  }
+
+  async waitForDisconnect() {
     while ((await this._instance.nextStderrString()) !==
               'Waiting for the debugger to disconnect...');
     await this.disconnect();

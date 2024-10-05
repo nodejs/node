@@ -29,7 +29,7 @@
 namespace v8 {
 namespace internal {
 
-static const int kProfilerStackSize = 64 * KB;
+static const int kProfilerStackSize = 256 * KB;
 
 class CpuSampler : public sampler::Sampler {
  public:
@@ -84,21 +84,21 @@ ProfilingScope::ProfilingScope(Isolate* isolate, ProfilerListener* listener)
   wasm::GetWasmEngine()->EnableCodeLogging(isolate_);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  V8FileLogger* logger = isolate_->v8_file_logger();
-  logger->AddLogEventListener(listener_);
+  CHECK(isolate_->logger()->AddListener(listener_));
+  V8FileLogger* file_logger = isolate_->v8_file_logger();
   // Populate the ProfilerCodeObserver with the initial functions and
   // callbacks on the heap.
   DCHECK(isolate_->heap()->HasBeenSetUp());
 
   if (!v8_flags.prof_browser_mode) {
-    logger->LogCodeObjects();
+    file_logger->LogCodeObjects();
   }
-  logger->LogCompiledFunctions();
-  logger->LogAccessorCallbacks();
+  file_logger->LogCompiledFunctions();
+  file_logger->LogAccessorCallbacks();
 }
 
 ProfilingScope::~ProfilingScope() {
-  isolate_->v8_file_logger()->RemoveLogEventListener(listener_);
+  CHECK(isolate_->logger()->RemoveListener(listener_));
 
   size_t profiler_count = isolate_->num_cpu_profilers();
   DCHECK_GT(profiler_count, 0);
@@ -342,7 +342,7 @@ void SamplingEventsProcessor::SetSamplingInterval(base::TimeDelta period) {
   period_ = period;
   running_.store(true, std::memory_order_relaxed);
 
-  StartSynchronously();
+  CHECK(StartSynchronously());
 }
 
 void* SamplingEventsProcessor::operator new(size_t size) {
@@ -665,7 +665,7 @@ void CpuProfiler::StartProcessorIfNotStarted() {
 
   // Enable stack sampling.
   processor_->AddCurrentStack();
-  processor_->StartSynchronously();
+  CHECK(processor_->StartSynchronously());
 }
 
 CpuProfile* CpuProfiler::StopProfiling(const char* title) {

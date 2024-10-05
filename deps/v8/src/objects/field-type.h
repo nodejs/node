@@ -5,46 +5,45 @@
 #ifndef V8_OBJECTS_FIELD_TYPE_H_
 #define V8_OBJECTS_FIELD_TYPE_H_
 
-#include "src/objects/heap-object.h"
-#include "src/objects/map.h"
-#include "src/objects/objects.h"
+#include "src/handles/handles.h"
+#include "src/objects/casting.h"
+#include "src/objects/tagged.h"
 
 namespace v8 {
 namespace internal {
 
-class FieldType : public Object {
+class FieldType;
+
+class FieldType : public AllStatic {
  public:
-  static Tagged<FieldType> None();
-  static Tagged<FieldType> Any();
+  // If the GC can clear field types we must ensure that every store updates
+  // field types.
+  static constexpr bool kFieldTypesCanBeClearedOnGC = true;
+
+  V8_EXPORT_PRIVATE static Tagged<FieldType> None();
+  V8_EXPORT_PRIVATE static Tagged<FieldType> Any();
   V8_EXPORT_PRIVATE static Handle<FieldType> None(Isolate* isolate);
   V8_EXPORT_PRIVATE static Handle<FieldType> Any(Isolate* isolate);
   V8_EXPORT_PRIVATE static Tagged<FieldType> Class(Tagged<Map> map);
-  V8_EXPORT_PRIVATE static Handle<FieldType> Class(Handle<Map> map,
+  V8_EXPORT_PRIVATE static Handle<FieldType> Class(DirectHandle<Map> map,
                                                    Isolate* isolate);
-  V8_EXPORT_PRIVATE static Tagged<FieldType> cast(Tagged<Object> object);
-  static constexpr Tagged<FieldType> unchecked_cast(Tagged<Object> object) {
-    return Tagged<FieldType>(object.ptr());
+
+  static bool NowContains(Tagged<FieldType> type, Tagged<Object> value);
+
+  static bool NowContains(Tagged<FieldType> type, DirectHandle<Object> value) {
+    return NowContains(type, *value);
   }
 
-  bool NowContains(Tagged<Object> value) const;
+  static Tagged<Map> AsClass(Tagged<FieldType> type);
+  static Handle<Map> AsClass(Handle<FieldType> type);
+  static bool NowStable(Tagged<FieldType> type);
+  static bool NowIs(Tagged<FieldType> type, Tagged<FieldType> other);
+  static bool NowIs(Tagged<FieldType> type, DirectHandle<FieldType> other);
 
-  bool NowContains(Handle<Object> value) const { return NowContains(*value); }
-
-  Tagged<Map> AsClass() const;
-  bool NowStable() const;
-  bool NowIs(Tagged<FieldType> other) const;
-  bool NowIs(Handle<FieldType> other) const;
-
-  V8_EXPORT_PRIVATE bool Equals(Tagged<FieldType> other) const;
-  V8_EXPORT_PRIVATE void PrintTo(std::ostream& os) const;
-
- private:
-  friend class Tagged<FieldType>;
-
-  explicit constexpr FieldType(Address ptr) : Object(ptr) {
-    // TODO(leszeks): Typecheck that this is Map or Smi.
-  }
-  explicit constexpr FieldType(Address ptr, SkipTypeCheckTag) : Object(ptr) {}
+  V8_EXPORT_PRIVATE static bool Equals(Tagged<FieldType> type,
+                                       Tagged<FieldType> other);
+  V8_EXPORT_PRIVATE static void PrintTo(Tagged<FieldType> type,
+                                        std::ostream& os);
 };
 
 bool IsClass(Tagged<FieldType> obj);

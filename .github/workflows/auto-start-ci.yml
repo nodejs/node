@@ -10,9 +10,8 @@ on:
 
 concurrency: ${{ github.workflow }}
 
-# todo (node-fetch not working on 18, waiting for node-core-utils to fix)
 env:
-  NODE_VERSION: 16
+  NODE_VERSION: lts/*
 
 permissions:
   contents: read
@@ -46,12 +45,12 @@ jobs:
     if: needs.get-prs-for-ci.outputs.numbers != ''
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+      - uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938  # v4.2.0
         with:
           persist-credentials: false
 
       - name: Install Node.js
-        uses: actions/setup-node@8f152de45cc393bb48ce5d89d36b731f54556e65  # v4.0.0
+        uses: actions/setup-node@0a44ba7841725637a19e28fa30b79a866c81b0a6  # v4.0.4
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -60,11 +59,15 @@ jobs:
 
       - name: Setup @node-core/utils
         run: |
-          ncu-config set username ${{ secrets.JENKINS_USER }}
-          ncu-config set token "${{ secrets.GH_USER_TOKEN }}"
-          ncu-config set jenkins_token ${{ secrets.JENKINS_TOKEN }}
+          ncu-config set username "$USERNAME"
+          ncu-config set token "$GH_TOKEN"
+          ncu-config set jenkins_token "$JENKINS_TOKEN"
           ncu-config set owner "${{ github.repository_owner }}"
           ncu-config set repo "$(echo ${{ github.repository }} | cut -d/ -f2)"
+        env:
+          USERNAME: ${{ secrets.JENKINS_USER }}
+          GH_TOKEN: ${{ secrets.GH_USER_TOKEN }}
+          JENKINS_TOKEN: ${{ secrets.JENKINS_TOKEN }}
 
       - name: Start the CI
         run: ./tools/actions/start-ci.sh ${{ needs.get-prs-for-ci.outputs.numbers }}

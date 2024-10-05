@@ -688,7 +688,7 @@ Running test: testDate
                 [0] : {
                     name : toString
                     type : function
-                    value : 
+                    value :
                 }
             ]
             subtype : date
@@ -1314,7 +1314,7 @@ Running test: testWeakMap
                             [0] : {
                                 name : setTimeout
                                 type : function
-                                value : 
+                                value :
                             }
                             [1] : {
                                 name : inspector
@@ -1398,7 +1398,7 @@ Running test: testWeakSet
                             [0] : {
                                 name : setTimeout
                                 type : function
-                                value : 
+                                value :
                             }
                             [1] : {
                                 name : inspector
@@ -2637,36 +2637,24 @@ Running test: testArray
     }
 }
 
-Running test: testArrayLike
-'({length: 5, splice: () => []})', returnByValue: false, generatePreview: false
+Running test: testArgumentsObject
+'(function() { return arguments; })(1, 2, 3)', returnByValue: false, generatePreview: false
 {
     result : {
-        className : Object
-        description : Object(5)
+        className : Arguments
+        description : Arguments(3)
         objectId : <objectId>
         subtype : array
         type : object
     }
 }
-'new (class Foo{constructor() {
-        this.length = 5;
-        this.splice = () => [];
-      }})', returnByValue: false, generatePreview: false
+'(function() { "use strict"; return arguments; })(-1, 0, 1, 2, 3)', returnByValue: false, generatePreview: false
 {
     result : {
-        className : Foo
-        description : Foo(5)
+        className : Arguments
+        description : Arguments(5)
         objectId : <objectId>
         subtype : array
-        type : object
-    }
-}
-'({length: -5, splice: () => []})', returnByValue: false, generatePreview: false
-{
-    result : {
-        className : Object
-        description : Object
-        objectId : <objectId>
         type : object
     }
 }
@@ -2748,7 +2736,7 @@ Running test: testOtherObjects
         type : object
     }
 }
-'inspector.createObjectWithAccessor('title', true)', returnByValue: false, generatePreview: true
+'inspector.createObjectWithNativeDataProperty('title', true)', returnByValue: false, generatePreview: true
 {
     id : <messageId>
     result : {
@@ -2771,7 +2759,7 @@ Running test: testOtherObjects
         }
     }
 }
-'inspector.createObjectWithAccessor('title', false)', returnByValue: false, generatePreview: true
+'inspector.createObjectWithNativeDataProperty('title', false)', returnByValue: false, generatePreview: true
 {
     id : <messageId>
     result : {
@@ -2794,7 +2782,7 @@ Running test: testOtherObjects
         }
     }
 }
-'inspector.createObjectWithAccessor('title', true)', returnByValue: true, generatePreview: false
+'inspector.createObjectWithNativeDataProperty('title', true)', returnByValue: true, generatePreview: false
 {
     error : {
         code : -32603
@@ -2859,7 +2847,7 @@ Running test: testOtherObjects
                     [0] : {
                         name : a
                         type : function
-                        value : 
+                        value :
                     }
                 ]
                 type : object
@@ -3049,12 +3037,12 @@ Running test: testOtherObjects
                     [0] : {
                         name : a1
                         type : function
-                        value : 
+                        value :
                     }
                     [1] : {
                         name : a2
                         type : function
-                        value : 
+                        value :
                     }
                 ]
                 type : object

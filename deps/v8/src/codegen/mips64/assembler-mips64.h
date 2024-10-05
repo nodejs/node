@@ -71,11 +71,10 @@ class Operand {
       : rm_(no_reg), rmode_(RelocInfo::EXTERNAL_REFERENCE) {
     value_.immediate = static_cast<int64_t>(f.address());
   }
+  V8_INLINE explicit Operand(Tagged<Smi> value)
+      : Operand(static_cast<intptr_t>(value.ptr())) {}
+
   explicit Operand(Handle<HeapObject> handle);
-  V8_INLINE explicit Operand(Smi value)
-      : rm_(no_reg), rmode_(RelocInfo::NO_INFO) {
-    value_.immediate = static_cast<intptr_t>(value.ptr());
-  }
 
   static Operand EmbeddedNumber(double number);  // Smi or HeapNumber.
 
@@ -285,6 +284,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   inline static void deserialization_set_target_internal_reference_at(
       Address pc, Address target,
       RelocInfo::Mode mode = RelocInfo::INTERNAL_REFERENCE);
+
+  // Read/modify the uint32 constant used at pc.
+  static inline uint32_t uint32_constant_at(Address pc, Address constant_pool);
+  static inline void set_uint32_constant_at(
+      Address pc, Address constant_pool, uint32_t new_constant,
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   // Difference between address of current opcode and target address offset.
   static constexpr int kBranchPCOffset = kInstrSize;

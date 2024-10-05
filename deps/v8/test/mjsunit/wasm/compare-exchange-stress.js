@@ -13,15 +13,19 @@ const kSequenceStartAddress = 32;
 function makeWorkerCodeForOpcode(compareExchangeOpcode, size, functionName,
     builder) {
     let loadMemOpcode = kTrapUnreachable;
+    let alignLog2;
     switch (size) {
         case 32:
             loadMemOpcode = kExprI32LoadMem;
+            alignLog2 = 2;
             break;
         case 16:
             loadMemOpcode = kExprI32LoadMem16U;
+            alignLog2 = 1;
             break;
         case 8:
             loadMemOpcode = kExprI32LoadMem8U;
+            alignLog2 = 0;
             break;
         default:
             throw "!";
@@ -101,7 +105,7 @@ function makeWorkerCodeForOpcode(compareExchangeOpcode, size, functionName,
                     // Load updated value.
                     kExprLocalGet, kLocalNextValue,
                     // Try update.
-                    kAtomicPrefix, compareExchangeOpcode, 0, 0,
+                    kAtomicPrefix, compareExchangeOpcode, alignLog2, 0,
                     // Load expected value.
                     kExprLocalGet, kLocalExpectedValue,
                     // Spin if not what expected.
@@ -140,7 +144,7 @@ function spawnWorker(module, memory, address, sequence) {
     let workers = [];
     for (let i = 0; i < kNumberOfWorkers; i++) {
         let worker = new Worker(
-            `onmessage = function(msg) {
+            `onmessage = function({data:msg}) {
                 this.instance = new WebAssembly.Instance(msg.module,
                     {m: {imported_mem: msg.memory}});
                 instance.exports.worker(msg.address, msg.sequence,

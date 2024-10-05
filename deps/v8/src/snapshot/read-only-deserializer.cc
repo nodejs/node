@@ -35,7 +35,10 @@ class ReadOnlyHeapImageDeserializer final {
       DCHECK_LT(bytecode_as_int, ro::kNumberOfBytecodes);
       switch (static_cast<Bytecode>(bytecode_as_int)) {
         case Bytecode::kAllocatePage:
-          AllocatePage();
+          AllocatePage(false);
+          break;
+        case Bytecode::kAllocatePageAt:
+          AllocatePage(true);
           break;
         case Bytecode::kSegment:
           DeserializeSegment();
@@ -52,14 +55,19 @@ class ReadOnlyHeapImageDeserializer final {
     }
   }
 
-  void AllocatePage() {
+  void AllocatePage(bool fixed_offset) {
+    CHECK_EQ(V8_STATIC_ROOTS_BOOL, fixed_offset);
     size_t expected_page_index = static_cast<size_t>(source_->GetUint30());
     size_t actual_page_index = static_cast<size_t>(-1);
     size_t area_size_in_bytes = static_cast<size_t>(source_->GetUint30());
-    if (V8_STATIC_ROOTS_BOOL) {
+    if (fixed_offset) {
+#ifdef V8_COMPRESS_POINTERS
       uint32_t compressed_page_addr = source_->GetUint32();
-      Address pos = isolate_->GetPtrComprCage()->base() + compressed_page_addr;
+      Address pos = isolate_->cage_base() + compressed_page_addr;
       actual_page_index = ro_space()->AllocateNextPageAt(pos);
+#else
+      UNREACHABLE();
+#endif  // V8_COMPRESS_POINTERS
     } else {
       actual_page_index = ro_space()->AllocateNextPage();
     }
@@ -70,7 +78,7 @@ class ReadOnlyHeapImageDeserializer final {
 
   void DeserializeSegment() {
     uint32_t page_index = source_->GetUint30();
-    ReadOnlyPage* page = PageAt(page_index);
+    ReadOnlyPageMetadata* page = PageAt(page_index);
 
     // Copy over raw contents.
     Address start = page->area_start() + source_->GetUint30();
@@ -92,7 +100,7 @@ class ReadOnlyHeapImageDeserializer final {
   }
 
   Address Decode(ro::EncodedTagged encoded) const {
-    ReadOnlyPage* page = PageAt(encoded.page_index);
+    ReadOnlyPageMetadata* page = PageAt(encoded.page_index);
     return page->OffsetToAddress(encoded.offset * kTaggedSize);
   }
 
@@ -114,7 +122,7 @@ class ReadOnlyHeapImageDeserializer final {
     }
   }
 
-  ReadOnlyPage* PageAt(size_t index) const {
+  ReadOnlyPageMetadata* PageAt(size_t index) const {
     DCHECK_LT(index, ro_space()->pages().size());
     return ro_space()->pages()[index];
   }
@@ -147,12 +155,14 @@ ReadOnlyDeserializer::ReadOnlyDeserializer(Isolate* isolate,
                    can_rehash) {}
 
 void ReadOnlyDeserializer::DeserializeIntoIsolate() {
+  base::ElapsedTimer timer;
+  if (V8_UNLIKELY(v8_flags.profile_deserialization)) timer.Start();
   NestedTimedHistogramScope histogram_timer(
       isolate()->counters()->snapshot_deserialize_rospace());
   HandleScope scope(isolate());
-  ReadOnlyHeap* ro_heap = isolate()->read_only_heap();
 
   ReadOnlyHeapImageDeserializer::Deserialize(isolate(), source());
+  ReadOnlyHeap* ro_heap = isolate()->read_only_heap();
   ro_heap->read_only_space()->RepairFreeSpacesAfterDeserialization();
   PostProcessNewObjects();
 
@@ -166,6 +176,15 @@ void ReadOnlyDeserializer::DeserializeIntoIsolate() {
     isolate()->heap()->InitializeHashSeed();
     Rehash();
   }
+
+  if (V8_UNLIKELY(v8_flags.profile_deserialization)) {
+    // ATTENTION: The Memory.json benchmark greps for this exact output. Do not
+    // change it without also updating Memory.json.
+    const int bytes = source()->length();
+    const double ms = timer.Elapsed().InMillisecondsF();
+    PrintF("[Deserializing read-only space (%d bytes) took %0.3f ms]\n", bytes,
+           ms);
+  }
 }
 
 void NoExternalReferencesCallback() {
@@ -177,16 +196,17 @@ void NoExternalReferencesCallback() {
 
 class ObjectPostProcessor final {
  public:
-  explicit ObjectPostProcessor(Isolate* isolate) : isolate_(isolate) {}
+  explicit ObjectPostProcessor(Isolate* isolate)
+      : isolate_(isolate), embedded_data_(EmbeddedData::FromBlob(isolate_)) {}
 
   void Finalize() {
 #ifdef V8_ENABLE_SANDBOX
     DCHECK(ReadOnlyHeap::IsReadOnlySpaceShared());
     std::vector<ReadOnlyArtifacts::ExternalPointerRegistryEntry> registry;
     registry.reserve(external_pointer_slots_.size());
-    for (auto& [slot, tag] : external_pointer_slots_) {
-      registry.emplace_back(slot.Relaxed_LoadHandle(), slot.load(isolate_, tag),
-                            tag);
+    for (auto& slot : external_pointer_slots_) {
+      registry.emplace_back(slot.Relaxed_LoadHandle(), slot.load(isolate_),
+                            slot.tag());
     }
 
     isolate_->read_only_artifacts()->set_external_pointer_registry(
@@ -195,15 +215,16 @@ class ObjectPostProcessor final {
   }
 #define POST_PROCESS_TYPE_LIST(V) \
   V(AccessorInfo)                 \
-  V(CallHandlerInfo)              \
+  V(FunctionTemplateInfo)         \
   V(Code)                         \
   V(SharedFunctionInfo)
 
-  void PostProcessIfNeeded(Tagged<HeapObject> o) {
-    const InstanceType itype = o->map(isolate_)->instance_type();
-#define V(TYPE)                               \
-  if (InstanceTypeChecker::Is##TYPE(itype)) { \
-    return PostProcess##TYPE(TYPE::cast(o));  \
+  V8_INLINE void PostProcessIfNeeded(Tagged<HeapObject> o,
+                                     InstanceType instance_type) {
+    DCHECK_EQ(o->map(isolate_)->instance_type(), instance_type);
+#define V(TYPE)                                       \
+  if (InstanceTypeChecker::Is##TYPE(instance_type)) { \
+    return PostProcess##TYPE(Cast<TYPE>(o));          \
   }
     POST_PROCESS_TYPE_LIST(V)
 #undef V
@@ -227,8 +248,8 @@ class ObjectPostProcessor final {
     return isolate_->external_reference_table_unsafe()->address(index);
   }
 
-  void DecodeExternalPointerSlot(ExternalPointerSlot slot,
-                                 ExternalPointerTag tag) {
+  void DecodeExternalPointerSlot(Tagged<HeapObject> host,
+                                 ExternalPointerSlot slot) {
     // Constructing no_gc here is not the intended use pattern (instead we
     // should pass it along the entire callchain); but there's little point of
     // doing that here - all of the code in this file relies on GC being
@@ -238,34 +259,35 @@ class ObjectPostProcessor final {
         slot.GetContentAsIndexAfterDeserialization(no_gc));
     Address slot_value =
         GetAnyExternalReferenceAt(encoded.index, encoded.is_api_reference);
-    slot.init(isolate_, slot_value, tag);
+    slot.init(isolate_, host, slot_value);
 #ifdef V8_ENABLE_SANDBOX
     // Register these slots during deserialization s.t. later isolates (which
     // share the RO space we are currently deserializing) can properly
     // initialize their external pointer table RO space. Note that slot values
     // are only fully finalized at the end of deserialization, thus we only
     // register the slot itself now and read the handle/value in Finalize.
-    external_pointer_slots_.emplace_back(slot, tag);
+    external_pointer_slots_.emplace_back(slot);
 #endif  // V8_ENABLE_SANDBOX
   }
   void PostProcessAccessorInfo(Tagged<AccessorInfo> o) {
     DecodeExternalPointerSlot(
-        o->RawExternalPointerField(AccessorInfo::kSetterOffset),
-        kAccessorInfoSetterTag);
-    DecodeExternalPointerSlot(
-        o->RawExternalPointerField(AccessorInfo::kMaybeRedirectedGetterOffset),
-        kAccessorInfoGetterTag);
+        o, o->RawExternalPointerField(AccessorInfo::kSetterOffset,
+                                      kAccessorInfoSetterTag));
+    DecodeExternalPointerSlot(o, o->RawExternalPointerField(
+                                     AccessorInfo::kMaybeRedirectedGetterOffset,
+                                     kAccessorInfoGetterTag));
     if (USE_SIMULATOR_BOOL) o->init_getter_redirection(isolate_);
   }
-  void PostProcessCallHandlerInfo(Tagged<CallHandlerInfo> o) {
+  void PostProcessFunctionTemplateInfo(Tagged<FunctionTemplateInfo> o) {
     DecodeExternalPointerSlot(
-        o->RawExternalPointerField(
-            CallHandlerInfo::kMaybeRedirectedCallbackOffset),
-        kCallHandlerInfoCallbackTag);
+        o, o->RawExternalPointerField(
+               FunctionTemplateInfo::kMaybeRedirectedCallbackOffset,
+               kFunctionTemplateInfoCallbackTag));
     if (USE_SIMULATOR_BOOL) o->init_callback_redirection(isolate_);
   }
   void PostProcessCode(Tagged<Code> o) {
-    o->init_instruction_start(isolate_, kNullAddress);
+    o->init_self_indirect_pointer(isolate_);
+    o->wrapper()->set_code(o);
     // RO space only contains builtin Code objects which don't have an
     // attached InstructionStream.
     DCHECK(o->is_builtin());
@@ -280,15 +302,10 @@ class ObjectPostProcessor final {
   }
 
   Isolate* const isolate_;
+  const EmbeddedData embedded_data_;
 
 #ifdef V8_ENABLE_SANDBOX
-  struct SlotAndTag {
-    SlotAndTag(ExternalPointerSlot slot, ExternalPointerTag tag)
-        : slot(slot), tag(tag) {}
-    ExternalPointerSlot slot;
-    ExternalPointerTag tag;
-  };
-  std::vector<SlotAndTag> external_pointer_slots_;
+  std::vector<ExternalPointerSlot> external_pointer_slots_;
 #endif  // V8_ENABLE_SANDBOX
 };
 
@@ -305,10 +322,10 @@ void ReadOnlyDeserializer::PostProcessNewObjects() {
   ObjectPostProcessor post_processor(isolate());
   ReadOnlyHeapObjectIterator it(isolate()->read_only_heap());
   for (Tagged<HeapObject> o = it.Next(); !o.is_null(); o = it.Next()) {
+    const InstanceType instance_type = o->map(cage_base)->instance_type();
     if (should_rehash()) {
-      const InstanceType instance_type = o->map(cage_base)->instance_type();
       if (InstanceTypeChecker::IsString(instance_type)) {
-        Tagged<String> str = String::cast(o);
+        Tagged<String> str = Cast<String>(o);
         str->set_raw_hash_field(Name::kEmptyHashField);
         PushObjectToRehash(handle(str, isolate()));
       } else if (o->NeedsRehashing(instance_type)) {
@@ -316,7 +333,7 @@ void ReadOnlyDeserializer::PostProcessNewObjects() {
       }
     }
 
-    post_processor.PostProcessIfNeeded(o);
+    post_processor.PostProcessIfNeeded(o, instance_type);
   }
   post_processor.Finalize();
 }

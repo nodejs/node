@@ -340,7 +340,7 @@ class JSTransferable : public BaseObject {
   std::unique_ptr<TransferData> CloneForMessaging() const override;
   v8::Maybe<std::vector<BaseObjectPtr<BaseObject>>>
       NestedTransferables() const override;
-  v8::Maybe<bool> FinalizeTransferRead(
+  v8::Maybe<void> FinalizeTransferRead(
       v8::Local<v8::Context> context,
       v8::ValueDeserializer* deserializer) override;
 
@@ -379,7 +379,7 @@ class JSTransferable : public BaseObject {
 };
 
 v8::Local<v8::FunctionTemplate> GetMessagePortConstructorTemplate(
-    Environment* env);
+    IsolateData* isolate_data);
 
 }  // namespace worker
 }  // namespace node

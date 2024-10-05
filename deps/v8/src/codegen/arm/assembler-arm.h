@@ -211,13 +211,15 @@ class V8_EXPORT_PRIVATE MemOperand {
     return MemOperand(array, key, LSL, kPointerSizeLog2 - kSmiTagSize, am);
   }
 
+  bool IsImmediateOffset() const { return rm_ == no_reg; }
+
   void set_offset(int32_t offset) {
-    DCHECK(rm_ == no_reg);
+    DCHECK(IsImmediateOffset());
     offset_ = offset;
   }
 
-  uint32_t offset() const {
-    DCHECK(rm_ == no_reg);
+  int32_t offset() const {
+    DCHECK(IsImmediateOffset());
     return offset_;
   }
 
@@ -380,6 +382,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   inline static void deserialization_set_target_internal_reference_at(
       Address pc, Address target,
       RelocInfo::Mode mode = RelocInfo::INTERNAL_REFERENCE);
+
+  // Read/modify the uint32 constant used at pc.
+  static inline uint32_t uint32_constant_at(Address pc, Address constant_pool);
+  static inline void set_uint32_constant_at(
+      Address pc, Address constant_pool, uint32_t new_constant,
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   // Here we are patching the address in the constant pool, not the actual call
   // instruction.  The address in the constant pool is the same size as a

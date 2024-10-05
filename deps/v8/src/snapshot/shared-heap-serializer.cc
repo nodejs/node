@@ -16,7 +16,7 @@ bool SharedHeapSerializer::CanBeInSharedOldSpace(Tagged<HeapObject> obj) {
   if (ReadOnlyHeap::Contains(obj)) return false;
   if (IsString(obj)) {
     return IsInternalizedString(obj) ||
-           String::IsInPlaceInternalizable(String::cast(obj));
+           String::IsInPlaceInternalizable(Cast<String>(obj));
   }
   return false;
 }
@@ -71,7 +71,7 @@ void SharedHeapSerializer::FinalizeSerialization() {
   IdentityMap<int, base::DefaultAllocationPolicy>::IteratableScope it_scope(
       &serialized_objects_);
   for (auto it = it_scope.begin(); it != it_scope.end(); ++it) {
-    Tagged<HeapObject> obj = HeapObject::cast(it.key());
+    Tagged<HeapObject> obj = Cast<HeapObject>(it.key());
     CHECK(CanBeInSharedOldSpace(obj));
     CHECK(!ReadOnlyHeap::Contains(obj));
   }
@@ -88,7 +88,7 @@ bool SharedHeapSerializer::SerializeUsingSharedHeapObjectCache(
   // because the live isolate may have had new internalized strings that were
   // not present in the startup snapshot to be serialized.
   if (ShouldReconstructSharedHeapObjectCacheForTesting()) {
-    std::vector<Object>* existing_cache =
+    std::vector<Tagged<Object>>* existing_cache =
         isolate()->shared_space_isolate()->shared_heap_object_cache();
     const size_t existing_cache_size = existing_cache->size();
     // This is strictly < because the existing cache contains the terminating
@@ -145,7 +145,7 @@ void SharedHeapSerializer::SerializeStringTable(StringTable* string_table) {
         Tagged<Object> obj = current.load(isolate);
         if (IsHeapObject(obj)) {
           DCHECK(IsInternalizedString(obj));
-          serializer_->SerializeObject(handle(HeapObject::cast(obj), isolate),
+          serializer_->SerializeObject(handle(Cast<HeapObject>(obj), isolate),
                                        SlotType::kAnySlot);
         }
       }
@@ -201,13 +201,13 @@ bool SharedHeapSerializer::ShouldReconstructSharedHeapObjectCacheForTesting()
 }
 
 void SharedHeapSerializer::ReconstructSharedHeapObjectCacheForTesting() {
-  std::vector<Object>* cache =
+  std::vector<Tagged<Object>>* cache =
       isolate()->shared_space_isolate()->shared_heap_object_cache();
   // Don't reconstruct the final element, which is always undefined and marks
   // the end of the cache, since serializing the live Isolate may extend the
   // shared object cache.
   for (size_t i = 0, size = cache->size(); i < size - 1; i++) {
-    Handle<HeapObject> obj(HeapObject::cast(cache->at(i)), isolate());
+    Handle<HeapObject> obj(Cast<HeapObject>(cache->at(i)), isolate());
     DCHECK(ShouldBeInSharedHeapObjectCache(*obj));
     int cache_index = SerializeInObjectCache(obj);
     USE(cache_index);

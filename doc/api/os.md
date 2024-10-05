@@ -9,7 +9,11 @@
 The `node:os` module provides operating system-related utility methods and
 properties. It can be accessed using:
 
-```js
+```mjs
+import os from 'node:os';
+```
+
+```cjs
 const os = require('node:os');
 ```
 
@@ -91,7 +95,7 @@ The properties included on each object include:
   * `idle` {number} The number of milliseconds the CPU has spent in idle mode.
   * `irq` {number} The number of milliseconds the CPU has spent in irq mode.
 
-<!-- eslint-disable semi -->
+<!-- eslint-disable @stylistic/js/semi -->
 
 ```js
 [
@@ -250,7 +254,7 @@ added:
   - v16.18.0
 -->
 
-* Returns {string}
+* Returns: {string}
 
 Returns the machine type as a string, such as `arm`, `arm64`, `aarch64`,
 `mips`, `mips64`, `ppc64`, `ppc64le`, `s390`, `s390x`, `i386`, `i686`, `x86_64`.
@@ -412,6 +416,19 @@ changes:
 Returns the operating system's default directory for temporary files as a
 string.
 
+On Windows, the result can be overridden by `TEMP` and `TMP` environment variables, and
+`TEMP` takes precedence over `TMP`. If neither is set, it defaults to `%SystemRoot%\temp`
+or `%windir%\temp`.
+
+On non-Windows platforms, `TMPDIR`, `TMP` and `TEMP` environment variables will be checked
+to override the result of this method, in the described order. If none of them is set, it
+defaults to `/tmp`.
+
+Some operating system distributions would either configure `TMPDIR` (non-Windows) or
+`TEMP` and `TMP` (Windows) by default without additional configurations by the system
+administrators. The result of `os.tmpdir()` typically reflects the system preference
+unless it's explicitly overridden by the users.
+
 ## `os.totalmem()`
 
 <!-- YAML
@@ -483,7 +500,7 @@ added:
  - v12.17.0
 -->
 
-* Returns {string}
+* Returns: {string}
 
 Returns a string identifying the kernel version.
 
@@ -1356,7 +1373,7 @@ The following process scheduling constants are exported by
   </tr>
 </table>
 
-[Android building]: https://github.com/nodejs/node/blob/HEAD/BUILDING.md#androidandroid-based-devices-eg-firefox-os
+[Android building]: https://github.com/nodejs/node/blob/HEAD/BUILDING.md#android
 [EUID]: https://en.wikipedia.org/wiki/User_identifier#Effective_user_ID
 [`SystemError`]: errors.md#class-systemerror
 [`process.arch`]: process.md#processarch

@@ -9,6 +9,8 @@ prefix async-hooks
 [$system==win32]
 
 [$system==linux]
+# https://github.com/nodejs/node/issues/54809
+test-writewrap: PASS, FLAKY
 
 [$system==macos]
 
@@ -21,5 +23,3 @@ test-callback-error: PASS, FLAKY
 [$system==freebsd]
 
 [$system==aix]
-# https://github.com/nodejs/node/issues/50245
-test-emit-after-on-destroyed: PASS, FLAKY

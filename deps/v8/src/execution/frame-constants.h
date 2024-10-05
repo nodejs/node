@@ -157,6 +157,7 @@ class StandardFrameConstants : public CommonFrameConstants {
 //
 class TypedFrameConstants : public CommonFrameConstants {
  public:
+  // FP-relative.
   static constexpr int kFrameTypeSize = kContextOrFrameTypeSize;
   static constexpr int kFrameTypeOffset = kContextOrFrameTypeOffset;
   static constexpr int kFixedFrameSizeFromFp = kCPSlotSize + kFrameTypeSize;
@@ -182,9 +183,18 @@ class TypedFrameConstants : public CommonFrameConstants {
       FRAME_SIZE_FROM_FP(parent, count);                                       \
   static constexpr int kFixedSlotCountFromFp =                                 \
       kFixedFrameSizeFromFp / kSystemPointerSize;                              \
+  static constexpr int kFirstPushedFrameValueOffset =                          \
+      parent::kFirstPushedFrameValueOffset - (count) * kSystemPointerSize;     \
+  /* The number of slots added on top of given parent frame type. */           \
+  template <typename TParentFrameConstants>                                    \
+  static constexpr int getExtraSlotsCountFrom() {                              \
+    return kFixedSlotCount - TParentFrameConstants::kFixedSlotCount;           \
+  }                                                                            \
+  /* TODO(ishell): remove in favour of getExtraSlotsCountFrom() because */     \
+  /* it's not clear from which base should we count "extra" - from direct */   \
+  /* parent or maybe from parent's parent? */                                  \
   static constexpr int kExtraSlotCount =                                       \
-      kFixedFrameSize / kSystemPointerSize -                                   \
-      parent::kFixedFrameSize / kSystemPointerSize
+      kFixedSlotCount - parent::kFixedSlotCount
 
 #define STANDARD_FRAME_EXTRA_PUSHED_VALUE_OFFSET(x) \
   FRAME_PUSHED_VALUE_OFFSET(StandardFrameConstants, x)
@@ -214,6 +224,7 @@ class ConstructFrameConstants : public TypedFrameConstants {
   static constexpr int kNewTargetOrImplicitReceiverOffset =
       TYPED_FRAME_PUSHED_VALUE_OFFSET(4);
   DEFINE_TYPED_FRAME_SIZES(5);
+  static constexpr int kLastObjectOffset = kContextOffset;
 };
 
 class FastConstructFrameConstants : public TypedFrameConstants {
@@ -238,6 +249,61 @@ class WasmFrameConstants : public TypedFrameConstants {
   // FP-relative.
   static constexpr int kWasmInstanceOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
   DEFINE_TYPED_FRAME_SIZES(1);
+
+  // The WasmTrapHandlerLandingPad builtin gets called from the WebAssembly
+  // trap handler when an out-of-bounds memory access happened or when a null
+  // reference gets dereferenced. This builtin then fakes a call from the
+  // instruction that triggered the signal to the runtime. This is done by
+  // setting a return address and then jumping to a builtin which will call
+  // further to the runtime. As the return address we use the fault address +
+  // {kProtectedInstructionReturnAddressOffset}. Using the fault address itself
+  // would cause problems with safepoints and source positions.
+  //
+  // The problem with safepoints is that a safepoint has to be registered at the
+  // return address, and that at most one safepoint should be registered at a
+  // location. However, there could already be a safepoint registered at the
+  // fault address if the fault address is the return address of a call.
+  //
+  // The problem with source positions is that the stack trace code looks for
+  // the source position of a call before the return address. The source
+  // position of the faulty memory access, however, is recorded at the fault
+  // address. Therefore the stack trace code would not find the source position
+  // if we used the fault address as the return address.
+  static constexpr int kProtectedInstructionReturnAddressOffset = 1;
+};
+
+#if V8_ENABLE_DRUMBRAKE
+class WasmInterpreterFrameConstants : public WasmFrameConstants {};
+
+// Fixed frame slots shared by the interpreter wasm-to-js wrapper.
+class WasmToJSInterpreterFrameConstants : public TypedFrameConstants {
+ public:
+  // This slot contains the number of slots at the top of the frame that need to
+  // be scanned by the GC.
+  static constexpr int kGCScanSlotCountOffset =
+      TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
+
+  // The stack pointer at the moment of the JS function call.
+  static constexpr int kGCSPOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
+};
+
+class WasmInterpreterCWasmEntryConstants : public TypedFrameConstants {
+ public:
+  // FP-relative:
+  static constexpr int kCEntryFPOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
+  static constexpr int kSPFPOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
+  DEFINE_TYPED_FRAME_SIZES(2);
+};
+#endif  // V8_ENABLE_DRUMBRAKE
+
+class WasmImportWrapperFrameConstants : public WasmFrameConstants {
+ public:
+  // FP-relative.
+  static constexpr int kCentralStackSPOffset =
+      TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
+  static constexpr int kSecondaryStackLimitOffset =
+      TYPED_FRAME_PUSHED_VALUE_OFFSET(2);
+  DEFINE_TYPED_FRAME_SIZES(3);
 };
 
 class WasmExitFrameConstants : public WasmFrameConstants {
@@ -252,7 +318,8 @@ class JSToWasmWrapperFrameConstants : public TypedFrameConstants {
  public:
   // FP-relative.
   static constexpr int kResultArrayParamOffset = 2 * kSystemPointerSize;
-  static constexpr int kInstanceParamOffset = 3 * kSystemPointerSize;
+  // A WasmTrustedInstanceData or WasmImportData depending on the callee.
+  static constexpr int kRefParamOffset = 3 * kSystemPointerSize;
 
   // Contains RawPtr to stack-allocated buffer.
   static constexpr int kWrapperBufferOffset =
@@ -310,8 +377,8 @@ class StackSwitchFrameConstants : public JSToWasmWrapperFrameConstants {
   // be scanned by the GC.
   static constexpr int kGCScanSlotCountOffset =
       TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
-  // Tagged pointer to wasm instance.
-  static constexpr int kInstanceOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(2);
+  // Tagged pointer to WasmTrustedInstanceData or WasmImportData.
+  static constexpr int kRefOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(2);
   // Tagged pointer to a JS Array for result values.
   static constexpr int kResultArrayOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(3);
 
@@ -323,7 +390,39 @@ class WasmToJSWrapperConstants {
  public:
   // FP-relative.
   static constexpr size_t kSignatureOffset = 2 * kSystemPointerSize;
+  static constexpr size_t kCentralStackSPOffset = 3 * kSystemPointerSize;
+  static constexpr size_t kSecondaryStackLimitOffset = 4 * kSystemPointerSize;
 };
+
+#if V8_ENABLE_DRUMBRAKE
+class BuiltinWasmInterpreterWrapperConstants : public TypedFrameConstants {
+ public:
+  // This slot contains the number of slots at the top of the frame that need to
+  // be scanned by the GC.
+  static constexpr int kGCScanSlotCountOffset =
+      TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
+  // The number of parameters passed to this function.
+  static constexpr int kInParamCountOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
+  // The number of parameters according to the signature.
+  static constexpr int kParamCountOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(2);
+  // The number of return values according to the siganture.
+  static constexpr int kReturnCountOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(3);
+  // `reps_` of wasm::FunctionSig.
+  static constexpr int kValueTypesArrayStartOffset =
+      TYPED_FRAME_PUSHED_VALUE_OFFSET(4);
+  // Array of arguments/return values.
+  static constexpr int kArgRetsAddressOffset =
+      TYPED_FRAME_PUSHED_VALUE_OFFSET(5);
+  // Whether the array is for arguments or return values.
+  static constexpr int kArgRetsIsArgsOffset =
+      TYPED_FRAME_PUSHED_VALUE_OFFSET(6);
+  // The index of the argument or return value being converted.
+  static constexpr int kCurrentIndexOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(7);
+  // Precomputed signature data.
+  static constexpr int kSignatureDataOffset =
+      TYPED_FRAME_PUSHED_VALUE_OFFSET(8);
+};
+#endif  // V8_ENABLE_DRUMBRAKE
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 class BuiltinContinuationFrameConstants : public TypedFrameConstants {
@@ -350,6 +449,7 @@ class BuiltinContinuationFrameConstants : public TypedFrameConstants {
 
 class ExitFrameConstants : public TypedFrameConstants {
  public:
+  // FP-relative.
   static constexpr int kSPOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
   static constexpr int kLastExitFrameField = kSPOffset;
   DEFINE_TYPED_FRAME_SIZES(1);
@@ -358,6 +458,9 @@ class ExitFrameConstants : public TypedFrameConstants {
   // below the saved PC.
   static constexpr int kCallerSPDisplacement = kCallerSPOffset;
 };
+#define EXIT_FRAME_PUSHED_VALUE_OFFSET(x) \
+  FRAME_PUSHED_VALUE_OFFSET(ExitFrameConstants, x)
+#define DEFINE_EXIT_FRAME_SIZES(x) DEFINE_FRAME_SIZES(ExitFrameConstants, x);
 
 // Behaves like an exit frame but with target, new target and arguments count
 // args.
@@ -376,42 +479,177 @@ class BuiltinExitFrameConstants : public ExitFrameConstants {
       kNumExtraArgsWithoutReceiver + 1;
 };
 
-// Behaves like an exit frame but with target and arguments count args followed
-// by v8::FunctionCallbackInfo's implicit arguments, followed by JS arguments
-// passed to the JS function (receiver and etc.).
+// Behaves like an exit frame but with v8::FunctionCallbackInfo's implicit
+// arguments (FCI), followed by JS arguments passed to the JS function
+// (receiver and etc.).
+//
+//  slot      JS frame
+//       +-----------------+--------------------------------
+// -n-1-k|   parameter n   |                            ^
+//       |- - - - - - - - -|                            |
+//  -n-k |  parameter n-1  |                          Caller
+//  ...  |       ...       |                       frame slots
+//  -2-k |   parameter 1   |                       (slot < 0)
+//       |- - - - - - - - -|                            |
+//  -1-k |    receiver     |                            v
+//  -----+-----------------+--------------------------------
+//  -k   |   FCI slot k-1  |                            ^
+//       |- - - - - - - - -|                            |
+//  -k+1 |   FCI slot k-2  |                 v8::FunctionCallbackInfo's
+//  ...  |       ...       |                   FCI::implicit_args[k]
+//  -2   |   FCI slot 1    |                   k := FCI::kArgsLength
+//       |- - - - - - - - -|                            |
+//  -1   |   FCI slot 0    |                            v
+//  -----+-----------------+--------------------------------
+//   0   |   return addr   |   ^                        ^
+//       |- - - - - - - - -|   |                        |
+//   1   | saved frame ptr | ExitFrame                  |
+//       |- - - - - - - - -| Header     <-- frame ptr   |
+//   2   | [Constant Pool] |   |                        |
+//       |- - - - - - - - -|   |                        |
+// 2+cp  |Frame Type Marker|   |   if a constant pool   |
+//       |- - - - - - - - -|   |    is used, cp = 1,    |
+// 3+cp  |    caller SP    |   v   otherwise, cp = 0    |
+//       |-----------------+----                        |
+// 4+cp  | FCI::argc_      |   ^                      Callee
+//       |- - - - - - - - -|   |                   frame slots
+// 5+cp  | FCI::values_    |   |                   (slot >= 0)
+//       |- - - - - - - - -|   |                        |
+// 6+cp  | FCI::imp._args_ | Frame slots                |
+//       |- - - - - - - - -|   |                        |
+//  ...  | C function args |   |                        |
+//       |- - - - - - - - -|   |                        |
+//       |                 |   v                        |
+//  -----+-----------------+----- <-- stack ptr -------------
+//
 class ApiCallbackExitFrameConstants : public ExitFrameConstants {
  public:
-  // The following two constants must be in sync with v8::FunctionCallbackInfo's
-  // layout.
+  // The following constants must be in sync with v8::FunctionCallbackInfo's
+  // layout. This is guaraneed by static_asserts elsewhere.
+  static constexpr int kFunctionCallbackInfoContextIndex = 2;
+  static constexpr int kFunctionCallbackInfoReturnValueIndex = 3;
+  static constexpr int kFunctionCallbackInfoTargetIndex = 4;
   static constexpr int kFunctionCallbackInfoNewTargetIndex = 5;
   static constexpr int kFunctionCallbackInfoArgsLength = 6;
 
-  // Target, argc, context and optional padding (for arm64).
-  static constexpr int kTargetOffset = kCallerPCOffset + 1 * kSystemPointerSize;
-  static constexpr int kArgcOffset = kTargetOffset + 1 * kSystemPointerSize;
-  static constexpr int kContextOffset = kArgcOffset + 1 * kSystemPointerSize;
+  // FP-relative.
+  // v8::FunctionCallbackInfo struct (implicit_args_, args_, argc_) is pushed
+  // on top of the ExitFrame.
+  static constexpr int kFCIArgcOffset = EXIT_FRAME_PUSHED_VALUE_OFFSET(0);
+  static constexpr int kFCIValuesOffset = EXIT_FRAME_PUSHED_VALUE_OFFSET(1);
+  static constexpr int kFCIImplicitArgsOffset =
+      EXIT_FRAME_PUSHED_VALUE_OFFSET(2);
+
+  // Padding might be required to keep the stack 16-byte aligned.
   static constexpr int kOptionalPaddingOffset =
-      kContextOffset + 1 * kSystemPointerSize;
+      EXIT_FRAME_PUSHED_VALUE_OFFSET(3);
 
 #if V8_TARGET_ARCH_ARM64
-  // Padding is required to keep the stack 16-byte aligned.
   static constexpr int kOptionalPaddingSize = kSystemPointerSize;
-  static constexpr int kAdditionalParametersCount = 4;
+
+  DEFINE_EXIT_FRAME_SIZES(4)
+  static_assert(kFixedFrameSize % 16 == 0);
 #else
   static constexpr int kOptionalPaddingSize = 0;
-  static constexpr int kAdditionalParametersCount = 3;
-#endif  // V8_TARGET_ARCH_ARM64
 
-  // FunctionCallbackInfo.
-  static constexpr int kFunctionCallbackInfoOffset =
-      kOptionalPaddingOffset + kOptionalPaddingSize;
+  DEFINE_EXIT_FRAME_SIZES(3)
+#endif  // V8_TARGET_ARCH_ARM64
+  static_assert(kSPOffset - kSystemPointerSize == kFCIArgcOffset);
+
+  // v8::FunctionCallbackInfo's struct allocated right below the exit frame.
+  static constexpr int kFunctionCallbackInfoOffset = kFCIImplicitArgsOffset;
+
+  // v8::FunctionCallbackInfo's implicit_args array.
+  static constexpr int kImplicitArgsArrayOffset = kFixedFrameSizeAboveFp;
+  static constexpr int kTargetOffset =
+      kImplicitArgsArrayOffset +
+      kFunctionCallbackInfoTargetIndex * kSystemPointerSize;
   static constexpr int kNewTargetOffset =
-      kFunctionCallbackInfoOffset +
+      kImplicitArgsArrayOffset +
       kFunctionCallbackInfoNewTargetIndex * kSystemPointerSize;
+  static constexpr int kContextOffset =
+      kImplicitArgsArrayOffset +
+      kFunctionCallbackInfoContextIndex * kSystemPointerSize;
+  static constexpr int kReturnValueOffset =
+      kImplicitArgsArrayOffset +
+      kFunctionCallbackInfoReturnValueIndex * kSystemPointerSize;
+
   // JS arguments.
-  static constexpr int kFirstArgumentOffset =
-      kFunctionCallbackInfoOffset +
+  static constexpr int kReceiverOffset =
+      kImplicitArgsArrayOffset +
       kFunctionCallbackInfoArgsLength * kSystemPointerSize;
+
+  static constexpr int kFirstArgumentOffset =
+      kReceiverOffset + kSystemPointerSize;
+};
+
+// Behaves like an exit frame but with v8::PropertyCallbackInfo's (PCI)
+// fields allocated in GC-ed area of the exit frame, followed by zero or
+// more parameters (required by some callback kinds).
+//
+//  slot      JS frame
+//       +-----------------+--------------------------------
+// -n-1-k|   parameter n   |                            ^
+//       |- - - - - - - - -|                            |
+//  -n-k |  parameter n-1  |                          Caller
+//  ...  |       ...       |                       frame slots
+//  -2-k |   parameter 1   |                       (slot < 0)
+//       |- - - - - - - - -|                            |
+//  -1-k |   parameter 0   |                            v
+//  -----+-----------------+--------------------------------
+//  -k   |   PCI slot k-1  |                            ^
+//       |- - - - - - - - -|                            |
+//  -k+1 |   PCI slot k-2  |                 v8::PropertyCallbackInfo's
+//  ...  |       ...       |                       PCI::args[k]
+//  -2   |   PCI slot 1    |                   k := PCI::kArgsLength
+//       |- - - - - - - - -|                            |
+//  -1   |   PCI slot 0    |                            v
+//  -----+-----------------+--------------------------------   <-- PCI object
+//   0   |   return addr   |   ^                        ^
+//       |- - - - - - - - -|   |                        |
+//   1   | saved frame ptr | ExitFrame                  |
+//       |- - - - - - - - -| Header     <-- frame ptr   |
+//   2   | [Constant Pool] |   |                        |
+//       |- - - - - - - - -|   |                        |
+// 2+cp  |Frame Type Marker|   |   if a constant pool   |
+//       |- - - - - - - - -|   |    is used, cp = 1,    |
+// 3+cp  |    caller SP    |   v   otherwise, cp = 0    |
+//       |-----------------+----                        |
+// 4+cp  |                 |   ^                      Callee
+//       |- - - - - - - - -|   |                   frame slots
+//  ...  | C function args | Frame slots           (slot >= 0)
+//       |- - - - - - - - -|   |                        |
+//       |                 |   v                        |
+//  -----+-----------------+----- <-- stack ptr -------------
+//
+class ApiAccessorExitFrameConstants : public ExitFrameConstants {
+ public:
+  // The following constants must be in sync with v8::PropertyCallbackInfo's
+  // layout. This is guaraneed by static_asserts elsewhere.
+  static constexpr int kPropertyCallbackInfoPropertyKeyIndex = 0;
+  static constexpr int kPropertyCallbackInfoHolderIndex = 2;
+  static constexpr int kPropertyCallbackInfoReturnValueIndex = 5;
+  static constexpr int kPropertyCallbackInfoReceiverIndex = 7;
+  static constexpr int kPropertyCallbackInfoArgsLength = 8;
+
+  // FP-relative.
+
+  // v8::PropertyCallbackInfo's args array.
+  static constexpr int kArgsArrayOffset = kFixedFrameSizeAboveFp;
+  static constexpr int kPropertyNameOffset =
+      kArgsArrayOffset +
+      kPropertyCallbackInfoPropertyKeyIndex * kSystemPointerSize;
+  static constexpr int kReturnValueOffset =
+      kArgsArrayOffset +
+      kPropertyCallbackInfoReturnValueIndex * kSystemPointerSize;
+  static constexpr int kReceiverOffset =
+      kArgsArrayOffset +
+      kPropertyCallbackInfoReceiverIndex * kSystemPointerSize;
+  static constexpr int kHolderOffset =
+      kArgsArrayOffset + kPropertyCallbackInfoHolderIndex * kSystemPointerSize;
+
+  // v8::PropertyCallbackInfo's address is equal to address of the args_ array.
+  static constexpr int kPropertyCallbackInfoOffset = kArgsArrayOffset;
 };
 
 // Unoptimized frames are used for interpreted and baseline-compiled JavaScript
@@ -442,16 +680,18 @@ class ApiCallbackExitFrameConstants : public ExitFrameConstants {
 // 4+cp  |      argc       |   v                        |
 //       +-----------------+----                        |
 // 5+cp  |  BytecodeArray  |   ^                        |
-//       |- - - - - - - - -| Unoptimized code header    |
-// 6+cp  |  offset or FBV  |   v                        |
+//       |- - - - - - - - -|   |                        |
+// 6+cp  |  offset / cell  | Unoptimized code header    |
+//       |- - - - - - - - -|   |                        |
+// 7+cp  |      FBV        |   v                        |
 //       +-----------------+----                        |
-// 7+cp  |   register 0    |   ^                     Callee
+// 8+cp  |   register 0    |   ^                     Callee
 //       |- - - - - - - - -|   |                   frame slots
-// 8+cp  |   register 1    | Register file         (slot >= 0)
+// 9+cp  |   register 1    | Register file         (slot >= 0)
 //  ...  |       ...       |   |                        |
 //       |  register n-1   |   |                        |
 //       |- - - - - - - - -|   |                        |
-// 8+cp+n|   register n    |   v                        v
+// 9+cp+n|   register n    |   v                        v
 //  -----+-----------------+----- <-- stack ptr -------------
 //
 class UnoptimizedFrameConstants : public StandardFrameConstants {
@@ -459,9 +699,11 @@ class UnoptimizedFrameConstants : public StandardFrameConstants {
   // FP-relative.
   static constexpr int kBytecodeArrayFromFp =
       STANDARD_FRAME_EXTRA_PUSHED_VALUE_OFFSET(0);
-  static constexpr int kBytecodeOffsetOrFeedbackVectorFromFp =
+  static constexpr int kBytecodeOffsetOrFeedbackCellFromFp =
       STANDARD_FRAME_EXTRA_PUSHED_VALUE_OFFSET(1);
-  DEFINE_STANDARD_FRAME_SIZES(2);
+  static constexpr int kFeedbackVectorFromFp =
+      STANDARD_FRAME_EXTRA_PUSHED_VALUE_OFFSET(2);
+  DEFINE_STANDARD_FRAME_SIZES(3);
 
   static constexpr int kFirstParamFromFp =
       StandardFrameConstants::kCallerSPOffset;
@@ -470,8 +712,9 @@ class UnoptimizedFrameConstants : public StandardFrameConstants {
   static constexpr int kExpressionsOffset = kRegisterFileFromFp;
 
   // Expression index for {JavaScriptFrame::GetExpressionAddress}.
-  static constexpr int kBytecodeArrayExpressionIndex = -2;
-  static constexpr int kBytecodeOffsetOrFeedbackVectorExpressionIndex = -1;
+  static constexpr int kBytecodeArrayExpressionIndex = -3;
+  static constexpr int kBytecodeOffsetOrFeedbackCellExpressionIndex = -2;
+  static constexpr int kFeedbackVectorExpressionIndex = -1;
   static constexpr int kRegisterFileExpressionIndex = 0;
 
   // Returns the number of stack slots needed for 'register_count' registers.
@@ -481,27 +724,27 @@ class UnoptimizedFrameConstants : public StandardFrameConstants {
 };
 
 // Interpreter frames are unoptimized frames that are being executed by the
-// interpreter. In this case, the "offset or FBV" slot contains the bytecode
+// interpreter. In this case, the "offset or cell" slot contains the bytecode
 // offset of the currently executing bytecode.
 class InterpreterFrameConstants : public UnoptimizedFrameConstants {
  public:
   static constexpr int kBytecodeOffsetExpressionIndex =
-      kBytecodeOffsetOrFeedbackVectorExpressionIndex;
+      kBytecodeOffsetOrFeedbackCellExpressionIndex;
 
   static constexpr int kBytecodeOffsetFromFp =
-      kBytecodeOffsetOrFeedbackVectorFromFp;
+      kBytecodeOffsetOrFeedbackCellFromFp;
 };
 
 // Sparkplug frames are unoptimized frames that are being executed by
-// sparkplug-compiled baseline code. base. In this case, the "offset or FBV"
-// slot contains a cached pointer to the feedback vector.
+// sparkplug-compiled baseline code. base. In this case, the "offset or cell"
+// slot contains the closure feedback cell.
 class BaselineFrameConstants : public UnoptimizedFrameConstants {
  public:
-  static constexpr int kFeedbackVectorExpressionIndex =
-      kBytecodeOffsetOrFeedbackVectorExpressionIndex;
+  static constexpr int kFeedbackCellExpressionIndex =
+      kBytecodeOffsetOrFeedbackCellExpressionIndex;
 
-  static constexpr int kFeedbackVectorFromFp =
-      kBytecodeOffsetOrFeedbackVectorFromFp;
+  static constexpr int kFeedbackCellFromFp =
+      kBytecodeOffsetOrFeedbackCellFromFp;
 };
 
 inline static int FPOffsetToFrameSlot(int frame_offset) {

@@ -5,6 +5,8 @@
 #ifndef V8_COMPILER_MACHINE_OPERATOR_H_
 #define V8_COMPILER_MACHINE_OPERATOR_H_
 
+#include <optional>
+
 #include "src/base/compiler-specific.h"
 #include "src/base/enum-set.h"
 #include "src/base/flags.h"
@@ -266,15 +268,17 @@ V8_EXPORT_PRIVATE StoreLaneParameters const& StoreLaneParametersOf(
 
 class StackSlotRepresentation final {
  public:
-  StackSlotRepresentation(int size, int alignment)
-      : size_(size), alignment_(alignment) {}
+  StackSlotRepresentation(int size, int alignment, bool is_tagged)
+      : size_(size), alignment_(alignment), is_tagged_(is_tagged) {}
 
   int size() const { return size_; }
   int alignment() const { return alignment_; }
+  bool is_tagged() const { return is_tagged_; }
 
  private:
   int size_;
   int alignment_;
+  bool is_tagged_;
 };
 
 V8_EXPORT_PRIVATE bool operator==(StackSlotRepresentation,
@@ -405,6 +409,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
     kWord32Select = 1u << 27,
     kWord64Select = 1u << 28,
     kLoadStorePairs = 1u << 29,
+    kFloat16 = 1u << 30,
+    kFloat64ToFloat16 = 1u << 31,
     kAllOptionalOps =
         kFloat32RoundDown | kFloat64RoundDown | kFloat32RoundUp |
         kFloat64RoundUp | kFloat32RoundTruncate | kFloat64RoundTruncate |
@@ -414,7 +420,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
         kInt32AbsWithOverflow | kInt64AbsWithOverflow | kWord32Rol |
         kWord64Rol | kWord64RolLowerable | kSatConversionIsSafe |
         kFloat32Select | kFloat64Select | kWord32Select | kWord64Select |
-        kLoadStorePairs
+        kLoadStorePairs | kFloat16 | kFloat64ToFloat16
   };
   using Flags = base::Flags<Flag, unsigned>;
 
@@ -611,8 +617,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   // Note, that it's illegal to "look" at the pointer bits of non-smi values.
   const Operator* BitcastTaggedToWordForTagAndSmiBits();
 
-  // This operator reinterprets the bits of a tagged MaybeObject pointer as
-  // word.
+  // This operator reinterprets the bits of a tagged Tagged<MaybeObject> pointer
+  // as word.
   const Operator* BitcastMaybeObjectToWord();
 
   // This operator reinterprets the bits of a word as tagged pointer.
@@ -783,6 +789,12 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   // Identity for any input that is not signalling NaN.
   const Operator* Float64SilenceNaN();
 
+  // SIMD operators also used outside of Wasm (e.g. swisstable).
+  const Operator* I8x16Splat();
+  const Operator* I8x16Eq();
+  const Operator* I8x16BitMask();
+
+#if V8_ENABLE_WEBASSEMBLY
   // SIMD operators.
   const Operator* F64x2Splat();
   const Operator* F64x2Abs();
@@ -839,6 +851,38 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* F32x4Trunc();
   const Operator* F32x4NearestInt();
   const Operator* F32x4DemoteF64x2Zero();
+
+  const Operator* F16x8Splat();
+  const Operator* F16x8ExtractLane(int32_t);
+  const Operator* F16x8ReplaceLane(int32_t);
+  const Operator* F16x8Abs();
+  const Operator* F16x8Neg();
+  const Operator* F16x8Sqrt();
+  const Operator* F16x8Ceil();
+  const Operator* F16x8Floor();
+  const Operator* F16x8Trunc();
+  const Operator* F16x8NearestInt();
+  const Operator* F16x8Add();
+  const Operator* F16x8Sub();
+  const Operator* F16x8Mul();
+  const Operator* F16x8Div();
+  const Operator* F16x8Min();
+  const Operator* F16x8Max();
+  const Operator* F16x8Pmin();
+  const Operator* F16x8Pmax();
+  const Operator* F16x8Eq();
+  const Operator* F16x8Ne();
+  const Operator* F16x8Lt();
+  const Operator* F16x8Le();
+  const Operator* F16x8SConvertI16x8();
+  const Operator* F16x8UConvertI16x8();
+  const Operator* I16x8SConvertF16x8();
+  const Operator* I16x8UConvertF16x8();
+  const Operator* F32x4PromoteLowF16x8();
+  const Operator* F16x8DemoteF32x4Zero();
+  const Operator* F16x8DemoteF64x2Zero();
+  const Operator* F16x8Qfma();
+  const Operator* F16x8Qfms();
 
   const Operator* I64x2Splat();
   const Operator* I64x2SplatI32Pair();
@@ -949,7 +993,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I16x8ExtAddPairwiseI8x16S();
   const Operator* I16x8ExtAddPairwiseI8x16U();
 
-  const Operator* I8x16Splat();
   const Operator* I8x16ExtractLaneU(int32_t);
   const Operator* I8x16ExtractLaneS(int32_t);
   const Operator* I8x16ReplaceLane(int32_t);
@@ -963,7 +1006,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I8x16SubSatS();
   const Operator* I8x16MinS();
   const Operator* I8x16MaxS();
-  const Operator* I8x16Eq();
   const Operator* I8x16Ne();
   const Operator* I8x16GtS();
   const Operator* I8x16GeS();
@@ -979,7 +1021,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I8x16RoundingAverageU();
   const Operator* I8x16Popcnt();
   const Operator* I8x16Abs();
-  const Operator* I8x16BitMask();
 
   const Operator* S128Const(const uint8_t value[16]);
 
@@ -1018,8 +1059,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I16x8RelaxedQ15MulRS();
   const Operator* I16x8DotI8x16I7x16S();
   const Operator* I32x4DotI8x16I7x16AddS();
-
-  const Operator* TraceInstruction(uint32_t markid);
 
   // SIMD256
   const Operator* F64x4Min();
@@ -1101,6 +1140,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I8x32GtU();
   const Operator* I8x32GeS();
   const Operator* I8x32GeU();
+  const Operator* I32x8SConvertF32x8();
   const Operator* I32x8UConvertF32x8();
   const Operator* F64x4ConvertI32x4S();
   const Operator* F32x8SConvertI32x8();
@@ -1162,12 +1202,21 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* S256Not();
   const Operator* S256Select();
   const Operator* S256AndNot();
-
-  // load [base + index]
-  const Operator* Load(LoadRepresentation rep);
-  const Operator* LoadImmutable(LoadRepresentation rep);
-  const Operator* ProtectedLoad(LoadRepresentation rep);
-  const Operator* LoadTrapOnNull(LoadRepresentation rep);
+  // 256-bit relaxed SIMD
+  const Operator* F32x8Qfma();
+  const Operator* F32x8Qfms();
+  const Operator* F64x4Qfma();
+  const Operator* F64x4Qfms();
+  const Operator* I64x4RelaxedLaneSelect();
+  const Operator* I32x8RelaxedLaneSelect();
+  const Operator* I16x16RelaxedLaneSelect();
+  const Operator* I8x32RelaxedLaneSelect();
+  const Operator* I32x8DotI8x32I7x32AddS();
+  const Operator* I16x16DotI8x32I7x32S();
+  const Operator* F32x8RelaxedMin();
+  const Operator* F32x8RelaxedMax();
+  const Operator* F64x4RelaxedMin();
+  const Operator* F64x4RelaxedMax();
 
   const Operator* LoadTransform(MemoryAccessKind kind,
                                 LoadTransformation transform);
@@ -1176,16 +1225,27 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* LoadLane(MemoryAccessKind kind, LoadRepresentation rep,
                            uint8_t laneidx);
 
-  // store [base + index], value
-  const Operator* Store(StoreRepresentation rep);
-  base::Optional<const Operator*> TryStorePair(StoreRepresentation rep1,
-                                               StoreRepresentation rep2);
-  const Operator* ProtectedStore(MachineRepresentation rep);
-  const Operator* StoreTrapOnNull(StoreRepresentation rep);
-
   // SIMD store: store a specified lane of value into [base + index].
   const Operator* StoreLane(MemoryAccessKind kind, MachineRepresentation rep,
                             uint8_t laneidx);
+
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+  const Operator* TraceInstruction(uint32_t markid);
+
+  // load [base + index]
+  const Operator* Load(LoadRepresentation rep);
+  const Operator* LoadImmutable(LoadRepresentation rep);
+  const Operator* ProtectedLoad(LoadRepresentation rep);
+  const Operator* LoadTrapOnNull(LoadRepresentation rep);
+
+  // store [base + index], value
+  const Operator* Store(StoreRepresentation rep);
+  std::optional<const Operator*> TryStorePair(StoreRepresentation rep1,
+                                              StoreRepresentation rep2);
+  const Operator* StoreIndirectPointer(WriteBarrierKind write_barrier_kind);
+  const Operator* ProtectedStore(MachineRepresentation rep);
+  const Operator* StoreTrapOnNull(StoreRepresentation rep);
 
   // unaligned load [base + index]
   const Operator* UnalignedLoad(LoadRepresentation rep);
@@ -1193,7 +1253,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   // unaligned store [base + index], value
   const Operator* UnalignedStore(UnalignedStoreRepresentation rep);
 
-  const Operator* StackSlot(int size, int alignment = 0);
+  const Operator* StackSlot(int size, int alignment = 0,
+                            bool is_tagged = false);
   const Operator* StackSlot(MachineRepresentation rep, int alignment = 0);
 
   // Note: Only use this operator to:
@@ -1205,6 +1266,10 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   // Access to the machine stack.
   const Operator* LoadFramePointer();
   const Operator* LoadParentFramePointer();
+#if V8_ENABLE_WEBASSEMBLY
+  const Operator* LoadStackPointer();
+  const Operator* SetStackPointer();
+#endif
 
   // Compares: stack_pointer [- offset] > value. The offset is optionally
   // applied for kFunctionEntry stack checks.

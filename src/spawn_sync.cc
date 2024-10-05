@@ -22,12 +22,13 @@
 #include "spawn_sync.h"
 #include "debug_utils-inl.h"
 #include "env-inl.h"
+#include "node_external_reference.h"
 #include "node_internals.h"
 #include "string_bytes.h"
 #include "util-inl.h"
 
 #include <cstring>
-
+#include "nbytes.h"
 
 namespace node {
 
@@ -40,6 +41,7 @@ using v8::Int32;
 using v8::Integer;
 using v8::Isolate;
 using v8::Just;
+using v8::JustVoid;
 using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
@@ -67,7 +69,7 @@ void SyncProcessOutputBuffer::OnRead(const uv_buf_t* buf, size_t nread) {
 
 
 size_t SyncProcessOutputBuffer::Copy(char* dest) const {
-  memcpy(dest, data_, used());
+  if (dest != nullptr) memcpy(dest, data_, used());
   return used();
 }
 
@@ -366,6 +368,10 @@ void SyncProcessRunner::Initialize(Local<Object> target,
   SetMethod(context, target, "spawn", Spawn);
 }
 
+void SyncProcessRunner::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(Spawn);
+}
 
 void SyncProcessRunner::Spawn(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -436,7 +442,7 @@ MaybeLocal<Object> SyncProcessRunner::Run(Local<Value> options) {
 
   CHECK_EQ(lifecycle_, kUninitialized);
 
-  Maybe<bool> r = TryInitializeAndRunLoop(options);
+  Maybe<void> r = TryInitializeAndRunLoop(options);
   CloseHandlesAndDeleteLoop();
   if (r.IsNothing()) return MaybeLocal<Object>();
 
@@ -445,7 +451,7 @@ MaybeLocal<Object> SyncProcessRunner::Run(Local<Value> options) {
   return scope.Escape(result);
 }
 
-Maybe<bool> SyncProcessRunner::TryInitializeAndRunLoop(Local<Value> options) {
+Maybe<void> SyncProcessRunner::TryInitializeAndRunLoop(Local<Value> options) {
   int r;
 
   // There is no recovery from failure inside TryInitializeAndRunLoop - the
@@ -456,7 +462,7 @@ Maybe<bool> SyncProcessRunner::TryInitializeAndRunLoop(Local<Value> options) {
   uv_loop_ = new uv_loop_t;
   if (uv_loop_ == nullptr) {
     SetError(UV_ENOMEM);
-    return Just(false);
+    return JustVoid();
   }
 
   r = uv_loop_init(uv_loop_);
@@ -464,21 +470,21 @@ Maybe<bool> SyncProcessRunner::TryInitializeAndRunLoop(Local<Value> options) {
     delete uv_loop_;
     uv_loop_ = nullptr;
     SetError(r);
-    return Just(false);
+    return JustVoid();
   }
 
-  if (!ParseOptions(options).To(&r)) return Nothing<bool>();
+  if (!ParseOptions(options).To(&r)) return Nothing<void>();
 
   if (r < 0) {
     SetError(r);
-    return Just(false);
+    return JustVoid();
   }
 
   if (timeout_ > 0) {
     r = uv_timer_init(uv_loop_, &uv_timer_);
     if (r < 0) {
       SetError(r);
-      return Just(false);
+      return JustVoid();
     }
 
     uv_unref(reinterpret_cast<uv_handle_t*>(&uv_timer_));
@@ -493,7 +499,7 @@ Maybe<bool> SyncProcessRunner::TryInitializeAndRunLoop(Local<Value> options) {
     r = uv_timer_start(&uv_timer_, KillTimerCallback, timeout_, 0);
     if (r < 0) {
       SetError(r);
-      return Just(false);
+      return JustVoid();
     }
   }
 
@@ -501,7 +507,7 @@ Maybe<bool> SyncProcessRunner::TryInitializeAndRunLoop(Local<Value> options) {
   r = uv_spawn(uv_loop_, &uv_process_, &uv_process_options_);
   if (r < 0) {
     SetError(r);
-    return Just(false);
+    return JustVoid();
   }
   uv_process_.data = this;
 
@@ -510,7 +516,7 @@ Maybe<bool> SyncProcessRunner::TryInitializeAndRunLoop(Local<Value> options) {
       r = pipe->Start();
       if (r < 0) {
         SetPipeError(r);
-        return Just(false);
+        return JustVoid();
       }
     }
   }
@@ -522,9 +528,8 @@ Maybe<bool> SyncProcessRunner::TryInitializeAndRunLoop(Local<Value> options) {
 
   // If we get here the process should have exited.
   CHECK_GE(exit_status_, 0);
-  return Just(true);
+  return JustVoid();
 }
-
 
 void SyncProcessRunner::CloseHandlesAndDeleteLoop() {
   CHECK_LT(lifecycle_, kHandlesClosed);
@@ -759,6 +764,13 @@ Maybe<int> SyncProcessRunner::ParseOptions(Local<Value> js_value) {
   if (!CopyJsString(js_file, &file_buffer_).To(&r)) return Nothing<int>();
   if (r < 0) return Just(r);
   uv_process_options_.file = file_buffer_;
+
+  // Undocumented feature of Win32 CreateProcess API allows spawning
+  // batch files directly but is potentially insecure because arguments
+  // are not escaped (and sometimes cannot be unambiguously escaped),
+  // hence why they are rejected here.
+  if (IsWindowsBatchFile(uv_process_options_.file))
+    return Just<int>(UV_EINVAL);
 
   Local<Value> js_args =
       js_options->Get(context, env()->args_string()).ToLocalChecked();
@@ -1057,7 +1069,7 @@ Maybe<int> SyncProcessRunner::CopyJsStringArray(Local<Value> js_value,
     Maybe<size_t> maybe_size = StringBytes::StorageSize(isolate, value, UTF8);
     if (maybe_size.IsNothing()) return Nothing<int>();
     data_size += maybe_size.FromJust() + 1;
-    data_size = RoundUp(data_size, sizeof(void*));
+    data_size = nbytes::RoundUp(data_size, sizeof(void*));
   }
 
   buffer = new char[list_size + data_size];
@@ -1074,7 +1086,7 @@ Maybe<int> SyncProcessRunner::CopyJsStringArray(Local<Value> js_value,
                                       value,
                                       UTF8);
     buffer[data_offset++] = '\0';
-    data_offset = RoundUp(data_offset, sizeof(void*));
+    data_offset = nbytes::RoundUp(data_offset, sizeof(void*));
   }
 
   list[length] = nullptr;
@@ -1107,3 +1119,5 @@ void SyncProcessRunner::KillTimerCloseCallback(uv_handle_t* handle) {
 
 NODE_BINDING_CONTEXT_AWARE_INTERNAL(spawn_sync,
                                     node::SyncProcessRunner::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(
+    spawn_sync, node::SyncProcessRunner::RegisterExternalReferences)

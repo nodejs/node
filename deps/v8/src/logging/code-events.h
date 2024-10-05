@@ -114,7 +114,7 @@ class LogEventListener {
   virtual bool allows_code_compaction() { return true; }
 };
 
-// Dispatches code events to a set of registered listeners.
+// Dispatches events to a set of registered listeners.
 class Logger {
  public:
   using Event = LogEventListener::Event;
@@ -125,28 +125,32 @@ class Logger {
   Logger& operator=(const Logger&) = delete;
 
   bool AddListener(LogEventListener* listener) {
-    base::MutexGuard guard(&mutex_);
+    base::RecursiveMutexGuard guard(&mutex_);
     auto position = std::find(listeners_.begin(), listeners_.end(), listener);
     if (position != listeners_.end()) return false;
     // Add the listener to the end and update the element
     listeners_.push_back(listener);
     return true;
   }
-  void RemoveListener(LogEventListener* listener) {
-    base::MutexGuard guard(&mutex_);
+
+  bool RemoveListener(LogEventListener* listener) {
+    base::RecursiveMutexGuard guard(&mutex_);
     auto position = std::find(listeners_.begin(), listeners_.end(), listener);
-    if (position == listeners_.end()) return;
+    if (position == listeners_.end()) return false;
     listeners_.erase(position);
+    return true;
   }
 
-  bool is_listening_to_code_events() const {
+  bool is_listening_to_code_events() {
+    base::RecursiveMutexGuard guard(&mutex_);
     for (auto listener : listeners_) {
       if (listener->is_listening_to_code_events()) return true;
     }
     return false;
   }
 
-  bool allows_code_compaction() const {
+  bool allows_code_compaction() {
+    base::RecursiveMutexGuard guard(&mutex_);
     for (auto listener : listeners_) {
       if (!listener->allows_code_compaction()) return false;
     }
@@ -155,123 +159,140 @@ class Logger {
 
   void CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
                        const char* comment) {
-    base::MutexGuard guard(&mutex_);
+    base::RecursiveMutexGuard guard(&mutex_);
     for (auto listener : listeners_) {
       listener->CodeCreateEvent(tag, code, comment);
     }
   }
+
   void CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
                        Handle<Name> name) {
-    base::MutexGuard guard(&mutex_);
+    base::RecursiveMutexGuard guard(&mutex_);
     for (auto listener : listeners_) {
       listener->CodeCreateEvent(tag, code, name);
     }
   }
+
   void CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
                        Handle<SharedFunctionInfo> shared, Handle<Name> name) {
-    base::MutexGuard guard(&mutex_);
+    base::RecursiveMutexGuard guard(&mutex_);
     for (auto listener : listeners_) {
       listener->CodeCreateEvent(tag, code, shared, name);
     }
   }
+
   void CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
                        Handle<SharedFunctionInfo> shared, Handle<Name> source,
                        int line, int column) {
-    base::MutexGuard guard(&mutex_);
+    base::RecursiveMutexGuard guard(&mutex_);
     for (auto listener : listeners_) {
       listener->CodeCreateEvent(tag, code, shared, source, line, column);
     }
   }
+
 #if V8_ENABLE_WEBASSEMBLY
   void CodeCreateEvent(CodeTag tag, const wasm::WasmCode* code,
                        wasm::WasmName name, const char* source_url,
                        int code_offset, int script_id) {
-    base::MutexGuard guard(&mutex_);
+    base::RecursiveMutexGuard guard(&mutex_);
     for (auto listener : listeners_) {
       listener->CodeCreateEvent(tag, code, name, source_url, code_offset,
                                 script_id);
     }
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
+
   void CallbackEvent(Handle<Name> name, Address entry_point) {
-    base::MutexGuard guard(&mutex_);
+    base::RecursiveMutexGuard guard(&mutex_);
     for (auto listener : listeners_) {
       listener->CallbackEvent(name, entry_point);
     }
   }
+
   void GetterCallbackEvent(Handle<Name> name, Address entry_point) {
-    base::MutexGuard guard(&mutex_);
+    base::RecursiveMutexGuard guard(&mutex_);
     for (auto listener : listeners_) {
       listener->GetterCallbackEvent(name, entry_point);
     }
   }
+
   void SetterCallbackEvent(Handle<Name> name, Address entry_point) {
-    base::MutexGuard guard(&mutex_);
+    base::RecursiveMutexGuard guard(&mutex_);
     for (auto listener : listeners_) {
       listener->SetterCallbackEvent(name, entry_point);
     }
   }
+
   void RegExpCodeCreateEvent(Handle<AbstractCode> code, Handle<String> source) {
-    base::MutexGuard guard(&mutex_);
+    base::RecursiveMutexGuard guard(&mutex_);
     for (auto listener : listeners_) {
       listener->RegExpCodeCreateEvent(code, source);
     }
   }
+
   void CodeMoveEvent(Tagged<InstructionStream> from,
                      Tagged<InstructionStream> to) {
-    base::MutexGuard guard(&mutex_);
+    base::RecursiveMutexGuard guard(&mutex_);
     for (auto listener : listeners_) {
       listener->CodeMoveEvent(from, to);
     }
   }
+
   void BytecodeMoveEvent(Tagged<BytecodeArray> from, Tagged<BytecodeArray> to) {
-    base::MutexGuard guard(&mutex_);
+    base::RecursiveMutexGuard guard(&mutex_);
     for (auto listener : listeners_) {
       listener->BytecodeMoveEvent(from, to);
     }
   }
+
   void SharedFunctionInfoMoveEvent(Address from, Address to) {
-    base::MutexGuard guard(&mutex_);
+    base::RecursiveMutexGuard guard(&mutex_);
     for (auto listener : listeners_) {
       listener->SharedFunctionInfoMoveEvent(from, to);
     }
   }
+
   void NativeContextMoveEvent(Address from, Address to) {
-    base::MutexGuard guard(&mutex_);
+    base::RecursiveMutexGuard guard(&mutex_);
     for (auto listener : listeners_) {
       listener->NativeContextMoveEvent(from, to);
     }
   }
+
   void CodeMovingGCEvent() {
-    base::MutexGuard guard(&mutex_);
+    base::RecursiveMutexGuard guard(&mutex_);
     for (auto listener : listeners_) {
       listener->CodeMovingGCEvent();
     }
   }
+
   void CodeDisableOptEvent(Handle<AbstractCode> code,
                            Handle<SharedFunctionInfo> shared) {
-    base::MutexGuard guard(&mutex_);
+    base::RecursiveMutexGuard guard(&mutex_);
     for (auto listener : listeners_) {
       listener->CodeDisableOptEvent(code, shared);
     }
   }
+
   void CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind, Address pc,
                       int fp_to_sp_delta) {
-    base::MutexGuard guard(&mutex_);
+    base::RecursiveMutexGuard guard(&mutex_);
     for (auto listener : listeners_) {
       listener->CodeDeoptEvent(code, kind, pc, fp_to_sp_delta);
     }
   }
+
   void CodeDependencyChangeEvent(Handle<Code> code,
                                  Handle<SharedFunctionInfo> sfi,
                                  const char* reason) {
-    base::MutexGuard guard(&mutex_);
+    base::RecursiveMutexGuard guard(&mutex_);
     for (auto listener : listeners_) {
       listener->CodeDependencyChangeEvent(code, sfi, reason);
     }
   }
+
   void WeakCodeClearEvent() {
-    base::MutexGuard guard(&mutex_);
+    base::RecursiveMutexGuard guard(&mutex_);
     for (auto listener : listeners_) {
       listener->WeakCodeClearEvent();
     }
@@ -279,7 +300,7 @@ class Logger {
 
  private:
   std::vector<LogEventListener*> listeners_;
-  base::Mutex mutex_;
+  base::RecursiveMutex mutex_;
 };
 
 }  // namespace internal

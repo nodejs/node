@@ -61,7 +61,7 @@ const char* ICStats::GetOrCacheScriptName(Tagged<Script> script) {
   }
   Tagged<Object> script_name_raw = script->name();
   if (IsString(script_name_raw)) {
-    Tagged<String> script_name = String::cast(script_name_raw);
+    Tagged<String> script_name = Cast<String>(script_name_raw);
     char* c_script_name =
         script_name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL)
             .release();
@@ -74,12 +74,13 @@ const char* ICStats::GetOrCacheScriptName(Tagged<Script> script) {
   return nullptr;
 }
 
-const char* ICStats::GetOrCacheFunctionName(Tagged<JSFunction> function) {
+const char* ICStats::GetOrCacheFunctionName(IsolateForSandbox isolate,
+                                            Tagged<JSFunction> function) {
   Address function_ptr = function.ptr();
   // Lookup the function name or add a null unique_ptr if no entry exists.
   std::unique_ptr<char[]>& function_name = function_name_map_[function_ptr];
   if (!function_name) {
-    ic_infos_[pos_].is_optimized = function->HasAttachedOptimizedCode();
+    ic_infos_[pos_].is_optimized = function->HasAttachedOptimizedCode(isolate);
     // Update the map entry with the actual debug name.
     function_name = function->shared()->DebugNameCStr();
   }

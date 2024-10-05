@@ -139,16 +139,6 @@ function define_tests() {
                             });
                         }, testName + " with missing info");
 
-                        // length null (OperationError)
-                        subsetTest(promise_test, function(test) {
-                            return subtle.deriveBits(algorithm, baseKeys[derivedKeySize], null)
-                            .then(function(derivation) {
-                                assert_unreached("null length should have thrown an OperationError");
-                            }, function(err) {
-                                assert_equals(err.name, "OperationError", "deriveBits with null length correctly threw OperationError: " + err.message);
-                            });
-                        }, testName + " with null length");
-
                         // length not multiple of 8 (OperationError)
                         subsetTest(promise_test, function(test) {
                             return subtle.deriveBits(algorithm, baseKeys[derivedKeySize], 44)

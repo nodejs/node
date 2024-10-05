@@ -17,7 +17,7 @@ DEPS_DIR="$BASE_DIR/deps"
 . "$BASE_DIR/tools/dep_updaters/utils.sh"
 
 NEW_VERSION=$("$NODE" "$NPM" view acorn dist-tags.latest)
-CURRENT_VERSION=$("$NODE" "$NPM" --prefix './deps/acorn/acorn/' pkg get version)
+CURRENT_VERSION=$("$NODE" -p "require('./deps/acorn/acorn/package.json').version")
 
 # This function exit with 0 if new version and current version are the same
 compare_dependency_version "acorn" "$NEW_VERSION" "$CURRENT_VERSION"
@@ -61,15 +61,6 @@ cat > "$BASE_DIR/src/acorn_version.h" <<EOF
 #define ACORN_VERSION "$NEW_VERSION"
 #endif  // SRC_ACORN_VERSION_H_
 EOF
-
-echo "All done!"
-echo ""
-echo "Please git add acorn, commit the new version:"
-echo ""
-echo "$ git add -A deps/acorn/acorn"
-echo "$ git add $BASE_DIR/src/acorn_version.h"
-echo "$ git commit -m \"deps: update acorn to $NEW_VERSION\""
-echo ""
 
 # Update the version number on maintaining-dependencies.md
 # and print the new version as the last line of the script as we need

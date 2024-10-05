@@ -1,4 +1,4 @@
-// META: global=window,worker
+// META: global=window,worker,shadowrealm
 // META: script=../resources/recording-streams.js
 // META: script=../resources/test-utils.js
 'use strict';
@@ -181,6 +181,46 @@ for (const reason of [null, undefined, error1]) {
     assert_array_equals(ws.events.slice(0, 5), ['write', 'a', 'write', 'b', 'abort'], 'events should match');
     assert_equals(ws.events[5], error, 'abort reason should be error');
   }, `(reason: '${reason}') all pending writes should complete on abort`);
+}
+
+for (const reason of [null, undefined, error1]) {
+  promise_test(async t => {
+    let rejectPull;
+    const pullPromise = new Promise((_, reject) => {
+      rejectPull = reject;
+    });
+    let rejectCancel;
+    const cancelPromise = new Promise((_, reject) => {
+      rejectCancel = reject;
+    });
+    const rs = recordingReadableStream({
+      async pull() {
+        await Promise.race([
+          pullPromise,
+          cancelPromise,
+        ]);
+      },
+      cancel(reason) {
+        rejectCancel(reason);
+      },
+    });
+    const ws = new WritableStream();
+    const abortController = new AbortController();
+    const signal = abortController.signal;
+    const pipeToPromise = rs.pipeTo(ws, { signal });
+    pipeToPromise.catch(() => {}); // Prevent unhandled rejection.
+    await delay(0);
+    abortController.abort(reason);
+    rejectPull('should not catch pull rejection');
+    await delay(0);
+    assert_equals(rs.eventsWithoutPulls.length, 2, 'cancel should have been called');
+    assert_equals(rs.eventsWithoutPulls[0], 'cancel', 'first event should be cancel');
+    if (reason !== undefined) {
+      await promise_rejects_exactly(t, reason, pipeToPromise, 'pipeTo rejects with abort reason');
+    } else {
+      await promise_rejects_dom(t, 'AbortError', pipeToPromise, 'pipeTo rejects with AbortError');
+    }
+  }, `(reason: '${reason}') underlyingSource.cancel() should called when abort, even with pending pull`);
 }
 
 promise_test(t => {

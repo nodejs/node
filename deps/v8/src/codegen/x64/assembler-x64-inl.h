@@ -241,11 +241,24 @@ Builtin Assembler::target_builtin_at(Address pc) {
   return static_cast<Builtin>(builtin_id);
 }
 
+uint32_t Assembler::uint32_constant_at(Address pc, Address constant_pool) {
+  return ReadUnalignedValue<uint32_t>(pc);
+}
+
+void Assembler::set_uint32_constant_at(Address pc, Address constant_pool,
+                                       uint32_t new_constant,
+                                       ICacheFlushMode icache_flush_mode) {
+  WriteUnalignedValue<uint32_t>(pc, new_constant);
+  if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
+    FlushInstructionCache(pc, sizeof(uint32_t));
+  }
+}
+
 // -----------------------------------------------------------------------------
 // Implementation of RelocInfo
 
 // The modes possibly affected by apply must be in kApplyMask.
-void RelocInfo::apply(intptr_t delta) {
+void WritableRelocInfo::apply(intptr_t delta) {
   if (IsCodeTarget(rmode_) || IsNearBuiltinEntry(rmode_) ||
       IsWasmStubCall(rmode_)) {
     WriteUnalignedValue(
@@ -287,15 +300,10 @@ Tagged<HeapObject> RelocInfo::target_object(PtrComprCageBase cage_base) {
     DCHECK(!HAS_SMI_TAG(compressed));
     Tagged<Object> obj(
         V8HeapCompressionScheme::DecompressTagged(cage_base, compressed));
-    // Embedding of compressed InstructionStream objects must not happen when
-    // external code space is enabled, because Codes must be used
-    // instead.
-    DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
-                   !IsCodeSpaceObject(HeapObject::cast(obj)));
-    return HeapObject::cast(obj);
+    return Cast<HeapObject>(obj);
   }
   DCHECK(IsFullEmbeddedObject(rmode_));
-  return HeapObject::cast(Object(ReadUnalignedValue<Address>(pc_)));
+  return Cast<HeapObject>(Tagged<Object>(ReadUnalignedValue<Address>(pc_)));
 }
 
 Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
@@ -307,7 +315,7 @@ Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
       return origin->compressed_embedded_object_handle_at(pc_);
     }
     DCHECK(IsFullEmbeddedObject(rmode_));
-    return Handle<HeapObject>::cast(ReadUnalignedValue<Handle<Object>>(pc_));
+    return Cast<HeapObject>(ReadUnalignedValue<Handle<Object>>(pc_));
   }
 }
 
@@ -316,7 +324,7 @@ Address RelocInfo::target_external_reference() {
   return ReadUnalignedValue<Address>(pc_);
 }
 
-void RelocInfo::set_target_external_reference(
+void WritableRelocInfo::set_target_external_reference(
     Address target, ICacheFlushMode icache_flush_mode) {
   DCHECK(rmode_ == RelocInfo::EXTERNAL_REFERENCE);
   WriteUnalignedValue(pc_, target);
@@ -335,11 +343,16 @@ Address RelocInfo::target_internal_reference_address() {
   return pc_;
 }
 
-void RelocInfo::set_target_object(Tagged<HeapObject> target,
-                                  ICacheFlushMode icache_flush_mode) {
+void WritableRelocInfo::set_target_object(Tagged<HeapObject> target,
+                                          ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
   if (IsCompressedEmbeddedObject(rmode_)) {
     DCHECK(COMPRESS_POINTERS_BOOL);
+    // We must not compress pointers to objects outside of the main pointer
+    // compression cage as we wouldn't be able to decompress them with the
+    // correct cage base.
+    DCHECK_IMPLIES(V8_ENABLE_SANDBOX_BOOL, !IsTrustedSpaceObject(target));
+    DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !IsCodeSpaceObject(target));
     Tagged_t tagged = V8HeapCompressionScheme::CompressObject(target.ptr());
     WriteUnalignedValue(pc_, tagged);
   } else {
@@ -359,23 +372,6 @@ Builtin RelocInfo::target_builtin_at(Assembler* origin) {
 Address RelocInfo::target_off_heap_target() {
   DCHECK(IsOffHeapTarget(rmode_));
   return ReadUnalignedValue<Address>(pc_);
-}
-
-void RelocInfo::WipeOut() {
-  if (IsFullEmbeddedObject(rmode_) || IsExternalReference(rmode_) ||
-      IsInternalReference(rmode_) || IsOffHeapTarget(rmode_)) {
-    WriteUnalignedValue(pc_, kNullAddress);
-  } else if (IsCompressedEmbeddedObject(rmode_)) {
-    Address smi_address = Smi::FromInt(0).ptr();
-    WriteUnalignedValue(pc_,
-                        V8HeapCompressionScheme::CompressObject(smi_address));
-  } else if (IsCodeTarget(rmode_) || IsNearBuiltinEntry(rmode_)) {
-    // Effectively write zero into the relocation.
-    Assembler::set_target_address_at(pc_, constant_pool_,
-                                     pc_ + sizeof(int32_t));
-  } else {
-    UNREACHABLE();
-  }
 }
 
 }  // namespace internal

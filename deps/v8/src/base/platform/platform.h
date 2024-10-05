@@ -23,15 +23,16 @@
 
 #include <cstdarg>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "include/v8-platform.h"
+#include "src/base/abort-mode.h"
 #include "src/base/base-export.h"
 #include "src/base/build_config.h"
 #include "src/base/compiler-specific.h"
 #include "src/base/macros.h"
-#include "src/base/optional.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/semaphore.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
@@ -63,13 +64,11 @@ extern "C" unsigned long __readfsdword(unsigned long);  // NOLINT(runtime/int)
 #endif                                       // V8_CC_MSVC && V8_HOST_ARCH_IA32
 #endif                                       // V8_NO_FAST_TLS
 
-namespace v8 {
-
-namespace internal {
-class HandleHelper;
+namespace heap::base {
+class Stack;
 }
 
-namespace base {
+namespace v8::base {
 
 // ----------------------------------------------------------------------------
 // Fast TLS support
@@ -141,9 +140,9 @@ class VirtualAddressSubspace;
 class V8_BASE_EXPORT OS {
  public:
   // Initialize the OS class.
-  // - hard_abort: If true, OS::Abort() will crash instead of aborting.
+  // - abort_mode: see src/base/abort-mode.h for details.
   // - gc_fake_mmap: Name of the file for fake gc mmap used in ll_prof.
-  static void Initialize(bool hard_abort, const char* const gc_fake_mmap);
+  static void Initialize(AbortMode abort_mode, const char* const gc_fake_mmap);
 
 #if V8_OS_WIN
   // On Windows, ensure the newer memory API is loaded if available.  This
@@ -156,11 +155,17 @@ class V8_BASE_EXPORT OS {
   static void EnsureWin32MemoryAPILoaded();
 #endif
 
+  // Check whether CET shadow stack is enabled.
+  static bool IsHardwareEnforcedShadowStacksEnabled();
+
   // Returns the accumulated user time for thread. This routine
   // can be used for profiling. The implementation should
   // strive for high-precision timer resolution, preferable
   // micro-second resolution.
   static int GetUserTime(uint32_t* secs,  uint32_t* usecs);
+
+  // Obtain the peak memory usage in kilobytes
+  static int GetPeakMemoryUsageKb();
 
   // Returns current time as the number of milliseconds since
   // 00:00:00 UTC, January 1, 1970.
@@ -309,9 +314,10 @@ class V8_BASE_EXPORT OS {
     uintptr_t end = 0;
   };
 
-  // Find gaps between existing virtual memory ranges that have enough space
-  // to place a region with minimum_size within (boundary_start, boundary_end)
-  static std::vector<MemoryRange> GetFreeMemoryRangesWithin(
+  // Find the first gap between existing virtual memory ranges that has enough
+  // space to place a region with minimum_size within (boundary_start,
+  // boundary_end)
+  static std::optional<MemoryRange> GetFirstFreeMemoryRangeWithin(
       Address boundary_start, Address boundary_end, size_t minimum_size,
       size_t alignment);
 
@@ -398,7 +404,7 @@ class V8_BASE_EXPORT OS {
 
   V8_WARN_UNUSED_RESULT static bool CanReserveAddressSpace();
 
-  V8_WARN_UNUSED_RESULT static Optional<AddressSpaceReservation>
+  V8_WARN_UNUSED_RESULT static std::optional<AddressSpaceReservation>
   CreateAddressSpaceReservation(void* hint, size_t size, size_t alignment,
                                 MemoryPermission max_permission);
 
@@ -413,16 +419,16 @@ class V8_BASE_EXPORT OS {
   DISALLOW_IMPLICIT_CONSTRUCTORS(OS);
 };
 
-#if (defined(_WIN32) || defined(_WIN64))
+#if defined(V8_OS_WIN)
 V8_BASE_EXPORT void EnsureConsoleOutputWin32();
-#endif  // (defined(_WIN32) || defined(_WIN64))
+#endif  // defined(V8_OS_WIN)
 
 inline void EnsureConsoleOutput() {
-#if (defined(_WIN32) || defined(_WIN64))
+#if defined(V8_OS_WIN)
   // Windows requires extra calls to send assert output to the console
   // rather than a dialog box.
   EnsureConsoleOutputWin32();
-#endif  // (defined(_WIN32) || defined(_WIN64))
+#endif  // defined(V8_OS_WIN)
 }
 
 // ----------------------------------------------------------------------------
@@ -470,8 +476,9 @@ class V8_BASE_EXPORT AddressSpaceReservation {
 
   V8_WARN_UNUSED_RESULT bool DecommitPages(void* address, size_t size);
 
-  V8_WARN_UNUSED_RESULT Optional<AddressSpaceReservation> CreateSubReservation(
-      void* address, size_t size, OS::MemoryPermission max_permission);
+  V8_WARN_UNUSED_RESULT std::optional<AddressSpaceReservation>
+  CreateSubReservation(void* address, size_t size,
+                       OS::MemoryPermission max_permission);
 
   V8_WARN_UNUSED_RESULT static bool FreeSubReservation(
       AddressSpaceReservation reservation);
@@ -519,6 +526,8 @@ class V8_BASE_EXPORT Thread {
   // Opaque data type for thread-local storage keys.
 #if V8_OS_STARBOARD
   using LocalStorageKey = SbThreadLocalKey;
+#elif V8_OS_ZOS
+  using LocalStorageKey = pthread_key_t;
 #else
   using LocalStorageKey = int32_t;
 #endif
@@ -680,14 +689,13 @@ class V8_BASE_EXPORT Stack {
   static StackSlot GetStackStartUnchecked();
   static Stack::StackSlot ObtainCurrentThreadStackStart();
 
-  friend v8::internal::HandleHelper;
+  friend class heap::base::Stack;
 };
 
 #if V8_HAS_PTHREAD_JIT_WRITE_PROTECT
 V8_BASE_EXPORT void SetJitWriteProtected(int enable);
 #endif
 
-}  // namespace base
-}  // namespace v8
+}  // namespace v8::base
 
 #endif  // V8_BASE_PLATFORM_PLATFORM_H_

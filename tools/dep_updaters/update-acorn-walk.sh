@@ -17,7 +17,7 @@ DEPS_DIR="$BASE_DIR/deps"
 . "$BASE_DIR/tools/dep_updaters/utils.sh"
 
 NEW_VERSION=$("$NODE" "$NPM" view acorn-walk dist-tags.latest)
-CURRENT_VERSION=$("$NODE" "$NPM" --prefix './deps/acorn/acorn-walk/' pkg get version)
+CURRENT_VERSION=$("$NODE" -p "require('./deps/acorn/acorn-walk/package.json').version")
 
 # This function exit with 0 if new version and current version are the same
 compare_dependency_version "acorn-walk" "$NEW_VERSION" "$CURRENT_VERSION"
@@ -51,14 +51,6 @@ rm -r "$DEPS_DIR/acorn/acorn-walk"/*
 tar -xf "$ACORN_WALK_TGZ"
 
 mv package/* "$DEPS_DIR/acorn/acorn-walk"
-
-echo "All done!"
-echo ""
-echo "Please git add acorn-walk, commit the new version:"
-echo ""
-echo "$ git add -A deps/acorn-walk"
-echo "$ git commit -m \"deps: update acorn-walk to $NEW_VERSION\""
-echo ""
 
 # Update the version number on maintaining-dependencies.md
 # and print the new version as the last line of the script as we need

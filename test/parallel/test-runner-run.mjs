@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { describe, it, run } from 'node:test';
 import { dot, spec, tap } from 'node:test/reporters';
 import assert from 'node:assert';
+import util from 'node:util';
 
 const testFixtures = fixtures.path('test-runner');
 
@@ -28,6 +29,20 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     const stream = run({ files: [join(testFixtures, 'default-behavior/test/random.cjs')] });
     stream.on('test:fail', common.mustNotCall());
     stream.on('test:pass', common.mustCall(1));
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream);
+  });
+
+  const argPrintingFile = join(testFixtures, 'print-arguments.js');
+  it('should allow custom arguments via execArgv', async () => {
+    const result = await run({ files: [argPrintingFile], execArgv: ['-p', '"Printed"'] }).compose(spec).toArray();
+    assert.strictEqual(result[0].toString(), 'Printed\n');
+  });
+
+  it('should allow custom arguments via argv', async () => {
+    const stream = run({ files: [argPrintingFile], argv: ['--a-custom-argument'] });
+    stream.on('test:fail', common.mustNotCall());
+    stream.on('test:pass', common.mustCall());
     // eslint-disable-next-line no-unused-vars
     for await (const _ of stream);
   });
@@ -68,10 +83,10 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     const result = await run({
       files: [join(testFixtures, 'default-behavior/test/random.cjs')]
     }).compose(dot).toArray();
-    assert.deepStrictEqual(result, [
-      '.',
-      '\n',
-    ]);
+
+    assert.strictEqual(result.length, 2);
+    assert.strictEqual(util.stripVTControlCharacters(result[0]), '.');
+    assert.strictEqual(result[1], '\n');
   });
 
   describe('should be piped with spec reporter', () => {
@@ -135,8 +150,10 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     })
       .compose(tap)
       .toArray();
-    assert.strictEqual(result[2], 'ok 1 - this should be skipped # SKIP test name does not match pattern\n');
-    assert.strictEqual(result[5], 'ok 2 - this should be executed\n');
+
+    assert.strictEqual(result[2], 'ok 1 - this should be executed\n');
+    assert.strictEqual(result[4], '1..1\n');
+    assert.strictEqual(result[5], '# tests 1\n');
   });
 
   it('should skip tests not matching testNamePatterns - string', async () => {
@@ -146,8 +163,9 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     })
       .compose(tap)
       .toArray();
-    assert.strictEqual(result[2], 'ok 1 - this should be skipped # SKIP test name does not match pattern\n');
-    assert.strictEqual(result[5], 'ok 2 - this should be executed\n');
+    assert.strictEqual(result[2], 'ok 1 - this should be executed\n');
+    assert.strictEqual(result[4], '1..1\n');
+    assert.strictEqual(result[5], '# tests 1\n');
   });
 
   it('should pass only to children', async () => {
@@ -158,8 +176,9 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
       .compose(tap)
       .toArray();
 
-    assert.strictEqual(result[2], 'ok 1 - this should be skipped # SKIP \'only\' option not set\n');
-    assert.strictEqual(result[5], 'ok 2 - this should be executed\n');
+    assert.strictEqual(result[2], 'ok 1 - this should be executed\n');
+    assert.strictEqual(result[4], '1..1\n');
+    assert.strictEqual(result[5], '# tests 1\n');
   });
 
   it('should emit "test:watch:drained" event on watch mode', async () => {
@@ -176,6 +195,17 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
   });
 
   describe('AbortSignal', () => {
+    it('should accept a signal', async () => {
+      const stream = run({ signal: AbortSignal.timeout(50), files: [
+        fixtures.path('test-runner', 'never_ending_sync.js'),
+        fixtures.path('test-runner', 'never_ending_async.js'),
+      ] });
+      stream.on('test:fail', common.mustCall(2));
+      stream.on('test:pass', common.mustNotCall());
+      // eslint-disable-next-line no-unused-vars
+      for await (const _ of stream);
+    });
+
     it('should stop watch mode when abortSignal aborts', async () => {
       const controller = new AbortController();
       const result = await run({
@@ -184,9 +214,16 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
         signal: controller.signal,
       })
         .compose(async function* (source) {
+          let waitForCancel = 2;
           for await (const chunk of source) {
-            if (chunk.type === 'test:pass') {
+            if (chunk.type === 'test:watch:drained' ||
+                (chunk.type === 'test:diagnostic' && chunk.data.message.startsWith('duration_ms'))) {
+              waitForCancel--;
+            }
+            if (waitForCancel === 0) {
               controller.abort();
+            }
+            if (chunk.type === 'test:pass') {
               yield chunk.data.name;
             }
           }
@@ -324,8 +361,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
         }), {
           name: 'RangeError',
           code: 'ERR_OUT_OF_RANGE',
-          // eslint-disable-next-line max-len
-          message: 'The value of "options.shard.index" is out of range. It must be >= 1 && <= 6 ("options.shard.total"). Received 0'
+          message: 'The value of "options.shard.index" is out of range. It must be >= 1 && <= 6. Received 0'
         });
       });
 
@@ -339,8 +375,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
         }), {
           name: 'RangeError',
           code: 'ERR_OUT_OF_RANGE',
-          // eslint-disable-next-line max-len
-          message: 'The value of "options.shard.index" is out of range. It must be >= 1 && <= 6 ("options.shard.total"). Received 7'
+          message: 'The value of "options.shard.index" is out of range. It must be >= 1 && <= 6. Received 7'
         });
       });
 
@@ -448,11 +483,151 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
         }));
     });
 
+    it('should only allow array in options.globPatterns', async () => {
+      [Symbol(), {}, () => {}, 0, 1, 0n, 1n, '', '1', Promise.resolve([]), true, false]
+        .forEach((globPatterns) => assert.throws(() => run({ globPatterns }), {
+          code: 'ERR_INVALID_ARG_TYPE'
+        }));
+    });
+
+    it('should not allow files and globPatterns used together', () => {
+      assert.throws(() => run({ files: ['a.js'], globPatterns: ['*.js'] }), {
+        code: 'ERR_INVALID_ARG_VALUE'
+      });
+    });
+
+    it('should only allow a string in options.cwd', async () => {
+      [Symbol(), {}, [], () => {}, 0, 1, 0n, 1n, true, false]
+        .forEach((cwd) => assert.throws(() => run({ cwd }), {
+          code: 'ERR_INVALID_ARG_TYPE'
+        }));
+    });
+
     it('should only allow object as options', () => {
       [Symbol(), [], () => {}, 0, 1, 0n, 1n, '', '1', true, false]
         .forEach((options) => assert.throws(() => run(options), {
           code: 'ERR_INVALID_ARG_TYPE'
         }));
     });
+
+    it('should pass instance of stream to setup', async () => {
+      const stream = run({
+        files: [join(testFixtures, 'default-behavior/test/random.cjs')],
+        setup: common.mustCall((root) => {
+          assert.strictEqual(root.constructor.name, 'TestsStream');
+        }),
+      });
+      stream.on('test:fail', common.mustNotCall());
+      stream.on('test:pass', common.mustCall());
+      // eslint-disable-next-line no-unused-vars
+      for await (const _ of stream);
+    });
   });
+
+  it('should avoid running recursively', async () => {
+    const stream = run({ files: [join(testFixtures, 'recursive_run.js')] });
+    let stderr = '';
+    stream.on('test:fail', common.mustNotCall());
+    stream.on('test:pass', common.mustCall(1));
+    stream.on('test:stderr', (c) => { stderr += c.message; });
+
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream);
+    assert.match(stderr, /Warning: node:test run\(\) is being called recursively/);
+  });
+
+  it('should run with different cwd', async () => {
+    const stream = run({
+      cwd: fixtures.path('test-runner', 'cwd')
+    });
+    stream.on('test:fail', common.mustNotCall());
+    stream.on('test:pass', common.mustCall(1));
+
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream);
+  });
+
+  it('should handle a non-existent directory being provided as cwd', async () => {
+    const diagnostics = [];
+    const stream = run({
+      cwd: fixtures.path('test-runner', 'cwd', 'non-existing')
+    });
+    stream.on('test:fail', common.mustNotCall());
+    stream.on('test:pass', common.mustNotCall());
+    stream.on('test:stderr', common.mustNotCall());
+    stream.on('test:diagnostic', ({ message }) => {
+      diagnostics.push(message);
+    });
+
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream);
+    for (const entry of [
+      'tests 0',
+      'suites 0',
+      'pass 0',
+      'fail 0',
+      'cancelled 0',
+      'skipped 0',
+      'todo 0',
+    ]
+    ) {
+      assert.strictEqual(diagnostics.includes(entry), true);
+    }
+  });
+
+  it('should handle a non-existent file being provided as cwd', async () => {
+    const diagnostics = [];
+    const stream = run({
+      cwd: fixtures.path('test-runner', 'default-behavior', 'test', 'random.cjs')
+    });
+    stream.on('test:fail', common.mustNotCall());
+    stream.on('test:pass', common.mustNotCall());
+    stream.on('test:stderr', common.mustNotCall());
+    stream.on('test:diagnostic', ({ message }) => {
+      diagnostics.push(message);
+    });
+
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream);
+    for (const entry of [
+      'tests 0',
+      'suites 0',
+      'pass 0',
+      'fail 0',
+      'cancelled 0',
+      'skipped 0',
+      'todo 0',
+    ]
+    ) {
+      assert.strictEqual(diagnostics.includes(entry), true);
+    }
+  });
+});
+
+describe('forceExit', () => {
+  it('throws for non-boolean values', () => {
+    [Symbol(), {}, 0, 1, '1', Promise.resolve([])].forEach((forceExit) => {
+      assert.throws(() => run({ forceExit }), {
+        code: 'ERR_INVALID_ARG_TYPE',
+        message: /The "options\.forceExit" property must be of type boolean\./
+      });
+    });
+  });
+
+  it('throws if enabled with watch mode', () => {
+    assert.throws(() => run({ forceExit: true, watch: true }), {
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: /The property 'options\.forceExit' is not supported with watch mode\./
+    });
+  });
+});
+
+
+// exitHandler doesn't run until after the tests / after hooks finish.
+process.on('exit', () => {
+  assert.strictEqual(process.listeners('uncaughtException').length, 0);
+  assert.strictEqual(process.listeners('unhandledRejection').length, 0);
+  assert.strictEqual(process.listeners('beforeExit').length, 0);
+  assert.strictEqual(process.listeners('SIGINT').length, 0);
+  assert.strictEqual(process.listeners('SIGTERM').length, 0);
 });

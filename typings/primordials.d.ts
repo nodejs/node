@@ -111,6 +111,7 @@ declare namespace primordials {
   export const ArrayPrototype: typeof Array.prototype
   export const ArrayIsArray: typeof Array.isArray
   export const ArrayFrom: typeof Array.from
+  export const ArrayFromAsync: typeof Array.fromAsync
   export const ArrayOf: typeof Array.of
   export const ArrayPrototypeConcat: UncurryThis<typeof Array.prototype.concat>
   export const ArrayPrototypeCopyWithin: UncurryThis<typeof Array.prototype.copyWithin>
@@ -128,6 +129,7 @@ declare namespace primordials {
   export const ArrayPrototypeSlice: UncurryThis<typeof Array.prototype.slice>
   export const ArrayPrototypeSort: UncurryThis<typeof Array.prototype.sort>
   export const ArrayPrototypeSplice: UncurryThis<typeof Array.prototype.splice>
+  export const ArrayPrototypeToSorted: UncurryThis<typeof Array.prototype.toSorted>
   export const ArrayPrototypeIncludes: UncurryThis<typeof Array.prototype.includes>
   export const ArrayPrototypeIndexOf: UncurryThis<typeof Array.prototype.indexOf>
   export const ArrayPrototypeJoin: UncurryThis<typeof Array.prototype.join>
@@ -149,7 +151,9 @@ declare namespace primordials {
   export import ArrayBuffer = globalThis.ArrayBuffer;
   export const ArrayBufferPrototype: typeof ArrayBuffer.prototype
   export const ArrayBufferIsView: typeof ArrayBuffer.isView
+  export const ArrayBufferPrototypeGetDetached: UncurryThis<typeof ArrayBuffer.prototype.detached>
   export const ArrayBufferPrototypeSlice: UncurryThis<typeof ArrayBuffer.prototype.slice>
+  export const ArrayBufferPrototypeTransfer: UncurryThis<typeof ArrayBuffer.prototype.transfer>
   export const AsyncIteratorPrototype: AsyncIterable<any>;
   export import BigInt = globalThis.BigInt;
   export const BigIntPrototype: typeof BigInt.prototype
@@ -420,6 +424,7 @@ declare namespace primordials {
   export const StringPrototypeToLocaleUpperCase: UncurryThis<typeof String.prototype.toLocaleUpperCase>
   export const StringPrototypeToLowerCase: UncurryThis<typeof String.prototype.toLowerCase>
   export const StringPrototypeToUpperCase: UncurryThis<typeof String.prototype.toUpperCase>
+  export const StringPrototypeToWellFormed: UncurryThis<typeof String.prototype.toWellFormed>
   export const StringPrototypeValueOf: UncurryThis<typeof String.prototype.valueOf>
   export const StringPrototypeReplaceAll: UncurryThis<typeof String.prototype.replaceAll>
   export import Symbol = globalThis.Symbol;
@@ -427,8 +432,6 @@ declare namespace primordials {
   export const SymbolFor: typeof Symbol.for
   export const SymbolKeyFor: typeof Symbol.keyFor
   export const SymbolAsyncIterator: typeof Symbol.asyncIterator
-  export const SymbolDispose: typeof Symbol.dispose
-  export const SymbolAsyncDispose: typeof Symbol.asyncDispose
   export const SymbolHasInstance: typeof Symbol.hasInstance
   export const SymbolIsConcatSpreadable: typeof Symbol.isConcatSpreadable
   export const SymbolIterator: typeof Symbol.iterator

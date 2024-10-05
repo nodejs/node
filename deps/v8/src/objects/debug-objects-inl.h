@@ -38,20 +38,27 @@ BIT_FIELD_ACCESSORS(DebugInfo, debugger_hints, debugging_id,
                     DebugInfo::DebuggingIdBits)
 
 bool DebugInfo::HasInstrumentedBytecodeArray() {
-  return IsBytecodeArray(debug_bytecode_array(kAcquireLoad));
+  return has_debug_bytecode_array();
 }
 
-Tagged<BytecodeArray> DebugInfo::OriginalBytecodeArray() {
+Tagged<BytecodeArray> DebugInfo::OriginalBytecodeArray(Isolate* isolate) {
   DCHECK(HasInstrumentedBytecodeArray());
-  return BytecodeArray::cast(original_bytecode_array(kAcquireLoad));
+  return original_bytecode_array(isolate, kAcquireLoad);
 }
 
-Tagged<BytecodeArray> DebugInfo::DebugBytecodeArray() {
+Tagged<BytecodeArray> DebugInfo::DebugBytecodeArray(Isolate* isolate) {
   DCHECK(HasInstrumentedBytecodeArray());
-  DCHECK_EQ(shared()->GetActiveBytecodeArray(),
-            debug_bytecode_array(kAcquireLoad));
-  return BytecodeArray::cast(debug_bytecode_array(kAcquireLoad));
+  Tagged<BytecodeArray> result = debug_bytecode_array(isolate, kAcquireLoad);
+  DCHECK_EQ(shared()->GetActiveBytecodeArray(isolate), result);
+  return result;
 }
+
+TRUSTED_POINTER_ACCESSORS(DebugInfo, debug_bytecode_array, BytecodeArray,
+                          kDebugBytecodeArrayOffset,
+                          kBytecodeArrayIndirectPointerTag)
+TRUSTED_POINTER_ACCESSORS(DebugInfo, original_bytecode_array, BytecodeArray,
+                          kOriginalBytecodeArrayOffset,
+                          kBytecodeArrayIndirectPointerTag)
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(StackFrameInfo)
 NEVER_READ_ONLY_SPACE_IMPL(StackFrameInfo)
@@ -59,9 +66,9 @@ NEVER_READ_ONLY_SPACE_IMPL(StackFrameInfo)
 Tagged<Script> StackFrameInfo::script() const {
   Tagged<HeapObject> object = shared_or_script();
   if (IsSharedFunctionInfo(object)) {
-    object = SharedFunctionInfo::cast(object)->script();
+    object = Cast<SharedFunctionInfo>(object)->script();
   }
-  return Script::cast(object);
+  return Cast<Script>(object);
 }
 
 BIT_FIELD_ACCESSORS(StackFrameInfo, flags, bytecode_offset_or_source_position,
@@ -85,9 +92,6 @@ bool ErrorStackData::HasCallSiteInfos() const { return !HasFormattedStack(); }
 ACCESSORS_RELAXED_CHECKED(ErrorStackData, call_site_infos, Tagged<FixedArray>,
                           kCallSiteInfosOrFormattedStackOffset,
                           !HasFormattedStack())
-
-NEVER_READ_ONLY_SPACE_IMPL(PromiseOnStack)
-TQ_OBJECT_CONSTRUCTORS_IMPL(PromiseOnStack)
 
 }  // namespace internal
 }  // namespace v8

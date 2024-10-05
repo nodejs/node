@@ -60,13 +60,14 @@ function checkOutput(str, check) {
   return { passed: true };
 }
 
-function expectSyncExit(child, {
+function expectSyncExit(caller, spawnArgs, {
   status,
   signal,
   stderr: stderrCheck,
   stdout: stdoutCheck,
   trim = false,
 }) {
+  const child = spawnSync(...spawnArgs);
   const failures = [];
   let stderrStr, stdoutStr;
   if (status !== undefined && child.status !== status) {
@@ -83,7 +84,18 @@ function expectSyncExit(child, {
     console.error(`${tag} --- stdout ---`);
     console.error(stdoutStr === undefined ? child.stdout.toString() : stdoutStr);
     console.error(`${tag} status = ${child.status}, signal = ${child.signal}`);
-    throw new Error(`${failures.join('\n')}`);
+
+    const error = new Error(`${failures.join('\n')}`);
+    if (spawnArgs[2]) {
+      error.options = spawnArgs[2];
+    }
+    let command = spawnArgs[0];
+    if (Array.isArray(spawnArgs[1])) {
+      command += ' ' + spawnArgs[1].join(' ');
+    }
+    error.command = command;
+    Error.captureStackTrace(error, caller);
+    throw error;
   }
 
   // If status and signal are not matching expectations, fail early.
@@ -114,15 +126,19 @@ function expectSyncExit(child, {
 function spawnSyncAndExit(...args) {
   const spawnArgs = args.slice(0, args.length - 1);
   const expectations = args[args.length - 1];
-  const child = spawnSync(...spawnArgs);
-  return expectSyncExit(child, expectations);
+  return expectSyncExit(spawnSyncAndExit, spawnArgs, expectations);
 }
 
 function spawnSyncAndExitWithoutError(...args) {
-  const spawnArgs = args.slice(0, args.length);
-  const expectations = args[args.length - 1];
-  const child = spawnSync(...spawnArgs);
-  return expectSyncExit(child, {
+  return expectSyncExit(spawnSyncAndExitWithoutError, [...args], {
+    status: 0,
+    signal: null,
+  });
+}
+
+function spawnSyncAndAssert(...args) {
+  const expectations = args.pop();
+  return expectSyncExit(spawnSyncAndAssert, [...args], {
     status: 0,
     signal: null,
     ...expectations,
@@ -134,6 +150,7 @@ module.exports = {
   logAfterTime,
   kExpiringChildRunTime,
   kExpiringParentTimer,
+  spawnSyncAndAssert,
   spawnSyncAndExit,
   spawnSyncAndExitWithoutError,
 };

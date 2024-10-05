@@ -95,12 +95,15 @@ class V8_BASE_EXPORT CPU final {
   bool has_osxsave() const { return has_osxsave_; }
   bool has_avx() const { return has_avx_; }
   bool has_avx2() const { return has_avx2_; }
+  bool has_avx_vnni() const { return has_avx_vnni_; }
   bool has_fma3() const { return has_fma3_; }
+  bool has_f16c() const { return has_f16c_; }
   bool has_bmi1() const { return has_bmi1_; }
   bool has_bmi2() const { return has_bmi2_; }
   bool has_lzcnt() const { return has_lzcnt_; }
   bool has_popcnt() const { return has_popcnt_; }
   bool is_atom() const { return is_atom_; }
+  bool has_intel_jcc_erratum() const { return has_intel_jcc_erratum_; }
   bool has_cetss() const { return has_cetss_; }
   bool has_non_stop_time_stamp_counter() const {
     return has_non_stop_time_stamp_counter_;
@@ -125,6 +128,9 @@ class V8_BASE_EXPORT CPU final {
   bool has_jscvt() const { return has_jscvt_; }
   bool has_dot_prod() const { return has_dot_prod_; }
   bool has_lse() const { return has_lse_; }
+  bool has_mte() const { return has_mte_; }
+  bool has_pmull1q() const { return has_pmull1q_; }
+  bool has_fp16() const { return has_fp16_; }
 
   // mips features
   bool is_fp64_mode() const { return is_fp64_mode_; }
@@ -168,11 +174,14 @@ class V8_BASE_EXPORT CPU final {
   bool has_sse41_;
   bool has_sse42_;
   bool is_atom_;
+  bool has_intel_jcc_erratum_;
   bool has_cetss_;
   bool has_osxsave_;
   bool has_avx_;
   bool has_avx2_;
+  bool has_avx_vnni_;
   bool has_fma3_;
+  bool has_f16c_;
   bool has_bmi1_;
   bool has_bmi2_;
   bool has_lzcnt_;
@@ -186,6 +195,9 @@ class V8_BASE_EXPORT CPU final {
   bool has_jscvt_;
   bool has_dot_prod_;
   bool has_lse_;
+  bool has_mte_;
+  bool has_pmull1q_;
+  bool has_fp16_;
   bool is_fp64_mode_;
   bool has_non_stop_time_stamp_counter_;
   bool is_running_in_vm_;

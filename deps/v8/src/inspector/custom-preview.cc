@@ -31,19 +31,20 @@ void reportError(v8::Local<v8::Context> context, const v8::TryCatch& tryCatch) {
       static_cast<V8InspectorImpl*>(v8::debug::GetInspector(isolate));
   int contextId = InspectedContext::contextId(context);
   int groupId = inspector->contextGroupId(contextId);
-  v8::Local<v8::String> message = tryCatch.Message()->Get();
+  v8::Local<v8::String> message = toV8String(isolate, "<no message available>");
+  if (!tryCatch.Message().IsEmpty()) message = tryCatch.Message()->Get();
   v8::Local<v8::String> prefix =
       toV8String(isolate, "Custom Formatter Failed: ");
   message = v8::String::Concat(isolate, prefix, message);
-  std::vector<v8::Local<v8::Value>> arguments;
+  v8::LocalVector<v8::Value> arguments(isolate);
   arguments.push_back(message);
   V8ConsoleMessageStorage* storage =
       inspector->ensureConsoleMessageStorage(groupId);
   if (!storage) return;
   storage->addMessage(V8ConsoleMessage::createForConsoleAPI(
       context, contextId, groupId, inspector,
-      inspector->client()->currentTimeMS(), ConsoleAPIType::kError, arguments,
-      String16(), nullptr));
+      inspector->client()->currentTimeMS(), ConsoleAPIType::kError,
+      {arguments.begin(), arguments.end()}, String16(), nullptr));
 }
 
 void reportError(v8::Local<v8::Context> context, const v8::TryCatch& tryCatch,
@@ -233,6 +234,10 @@ void bodyCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
   if (!bodyFunction->Call(context, formatter, 2, args)
            .ToLocal(&formattedValue)) {
     reportError(context, tryCatch);
+    return;
+  }
+  if (formattedValue->IsNull()) {
+    info.GetReturnValue().Set(formattedValue);
     return;
   }
   if (!formattedValue->IsArray()) {

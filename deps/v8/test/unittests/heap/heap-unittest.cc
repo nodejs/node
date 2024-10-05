@@ -12,12 +12,16 @@
 #include "include/v8-object.h"
 #include "src/flags/flags.h"
 #include "src/handles/handles-inl.h"
+#include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/marking-state-inl.h"
-#include "src/heap/memory-chunk.h"
+#include "src/heap/minor-mark-sweep.h"
+#include "src/heap/mutable-page-metadata.h"
 #include "src/heap/remembered-set.h"
 #include "src/heap/safepoint.h"
 #include "src/heap/spaces-inl.h"
+#include "src/heap/trusted-range.h"
+#include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/objects-inl.h"
 #include "test/unittests/heap/heap-utils.h"
 #include "test/unittests/test-utils.h"
@@ -192,21 +196,29 @@ TEST_F(HeapTest, HeapLayout) {
     EXPECT_TRUE(IsAligned(code_cage_base, size_t{4} * GB));
   }
 
+#if V8_ENABLE_SANDBOX
+  Address trusted_space_base =
+      TrustedRange::GetProcessWideTrustedRange()->base();
+  EXPECT_TRUE(IsAligned(trusted_space_base, size_t{4} * GB));
+  base::AddressRegion trusted_reservation(trusted_space_base, size_t{4} * GB);
+#endif
+
   // Check that all memory chunks belong this region.
   base::AddressRegion heap_reservation(cage_base, size_t{4} * GB);
   base::AddressRegion code_reservation(code_cage_base, size_t{4} * GB);
 
   IsolateSafepointScope scope(i_isolate()->heap());
   OldGenerationMemoryChunkIterator iter(i_isolate()->heap());
-  for (;;) {
-    MemoryChunk* chunk = iter.next();
-    if (chunk == nullptr) break;
-
-    Address address = chunk->address();
+  while (MutablePageMetadata* chunk = iter.next()) {
+    Address address = chunk->ChunkAddress();
     size_t size = chunk->area_end() - address;
     AllocationSpace owner_id = chunk->owner_identity();
     if (V8_EXTERNAL_CODE_SPACE_BOOL && IsAnyCodeSpace(owner_id)) {
       EXPECT_TRUE(code_reservation.contains(address, size));
+#if V8_ENABLE_SANDBOX
+    } else if (IsAnyTrustedSpace(owner_id)) {
+      EXPECT_TRUE(trusted_reservation.contains(address, size));
+#endif
     } else {
       EXPECT_TRUE(heap_reservation.contains(address, size));
     }
@@ -235,7 +247,7 @@ void ShrinkNewSpace(NewSpace* new_space) {
   for (auto it = paged_new_space->begin();
        it != paged_new_space->end() &&
        (paged_new_space->ShouldReleaseEmptyPage());) {
-    Page* page = *it++;
+    PageMetadata* page = *it++;
     if (page->allocated_bytes() == 0) {
       paged_new_space->ReleasePage(page);
     } else {
@@ -249,7 +261,7 @@ void ShrinkNewSpace(NewSpace* new_space) {
     }
   }
   paged_new_space->FinishShrinking();
-  for (Page* page : *paged_new_space) {
+  for (PageMetadata* page : *paged_new_space) {
     // We reset the number of live bytes to zero, as is expected after a GC.
     page->SetLiveBytes(0);
   }
@@ -360,6 +372,7 @@ TEST_F(HeapTest, OptimizedAllocationAlwaysInNewSpace) {
       v8_flags.stress_incremental_marking)
     return;
   v8::Isolate* iso = reinterpret_cast<v8::Isolate*>(isolate());
+  ManualGCScope manual_gc_scope(isolate());
   v8::HandleScope scope(iso);
   v8::Local<v8::Context> ctx = iso->GetCurrentContext();
   SimulateFullSpace(heap()->new_space());
@@ -383,17 +396,17 @@ TEST_F(HeapTest, OptimizedAllocationAlwaysInNewSpace) {
                   ->Int32Value(ctx)
                   .FromJust());
 
-  i::Handle<JSReceiver> o =
-      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(res));
+  i::DirectHandle<JSReceiver> o =
+      v8::Utils::OpenDirectHandle(*v8::Local<v8::Object>::Cast(res));
 
   CHECK(Heap::InYoungGeneration(*o));
 }
 
 namespace {
 template <RememberedSetType direction>
-static size_t GetRememberedSetSize(HeapObject obj) {
+static size_t GetRememberedSetSize(Tagged<HeapObject> obj) {
   size_t count = 0;
-  auto chunk = MemoryChunk::FromHeapObject(obj);
+  auto chunk = MutablePageMetadata::FromHeapObject(obj);
   RememberedSet<direction>::Iterate(
       chunk,
       [&count](MaybeObjectSlot slot) {
@@ -408,13 +421,14 @@ static size_t GetRememberedSetSize(HeapObject obj) {
 TEST_F(HeapTest, RememberedSet_InsertOnPromotingObjectToOld) {
   if (v8_flags.single_generation || v8_flags.stress_incremental_marking) return;
   v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
+  ManualGCScope manual_gc_scope(isolate());
   Factory* factory = isolate()->factory();
   Heap* heap = isolate()->heap();
   SealCurrentObjects();
   HandleScope scope(isolate());
 
   // Create a young object and age it one generation inside the new space.
-  Handle<FixedArray> arr = factory->NewFixedArray(1);
+  DirectHandle<FixedArray> arr = factory->NewFixedArray(1);
   std::vector<Handle<FixedArray>> handles;
   if (v8_flags.minor_ms) {
     NewSpace* new_space = heap->new_space();
@@ -432,7 +446,7 @@ TEST_F(HeapTest, RememberedSet_InsertOnPromotingObjectToOld) {
   // Add into 'arr' a reference to an object one generation younger.
   {
     HandleScope scope_inner(isolate());
-    Handle<Object> number = factory->NewHeapNumber(42);
+    DirectHandle<Object> number = factory->NewHeapNumber(42);
     arr->set(0, *number);
   }
 
@@ -464,12 +478,12 @@ TEST_F(HeapTest, Regress978156) {
   std::vector<Handle<FixedArray>> arrays;
   SimulateFullSpace(heap->new_space(), &arrays);
   // 3. Trim the last array by one word thus creating a one-word filler.
-  Handle<FixedArray> last = arrays.back();
+  DirectHandle<FixedArray> last = arrays.back();
   CHECK_GT(last->length(), 0);
-  heap->RightTrimFixedArray(*last, 1);
+  heap->RightTrimArray(*last, last->length() - 1, last->length());
   // 4. Get the last filler on the page.
-  HeapObject filler = HeapObject::FromAddress(
-      MemoryChunk::FromHeapObject(*last)->area_end() - kTaggedSize);
+  Tagged<HeapObject> filler = HeapObject::FromAddress(
+      MutablePageMetadata::FromHeapObject(*last)->area_end() - kTaggedSize);
   HeapObject::FromAddress(last->address() + last->Size());
   CHECK(IsFiller(filler));
   // 5. Start incremental marking.
@@ -485,6 +499,100 @@ TEST_F(HeapTest, Regress978156) {
   // 6. Mark the filler black to access its two markbits. This triggers
   // an out-of-bounds access of the marking bitmap in a bad case.
   heap->marking_state()->TryMarkAndAccountLiveBytes(filler);
+}
+
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+namespace {
+struct RandomGCIntervalTestSetter {
+  RandomGCIntervalTestSetter() {
+    static constexpr int kInterval = 87;
+    v8_flags.random_gc_interval = kInterval;
+  }
+  ~RandomGCIntervalTestSetter() { v8_flags.random_gc_interval = 0; }
+};
+
+struct HeapTestWithRandomGCInterval : RandomGCIntervalTestSetter, HeapTest {};
+}  // namespace
+
+TEST_F(HeapTestWithRandomGCInterval, AllocationTimeout) {
+  if (v8_flags.stress_incremental_marking) return;
+  if (v8_flags.stress_concurrent_allocation) return;
+
+  auto* allocator = heap()->allocator();
+
+  // Invoke major GC to cause the timeout to be updated.
+  InvokeMajorGC();
+  const int initial_allocation_timeout =
+      allocator->get_allocation_timeout_for_testing().value_or(0);
+  ASSERT_GT(initial_allocation_timeout, 0);
+
+  for (int i = 0; i < initial_allocation_timeout - 1; ++i) {
+    AllocationResult allocation = allocator->AllocateRaw(
+        2 * kTaggedAligned, AllocationType::kYoung, AllocationOrigin::kRuntime);
+    EXPECT_FALSE(allocation.IsFailure());
+  }
+
+  // The last allocation must fail.
+  AllocationResult allocation = allocator->AllocateRaw(
+      2 * kTaggedAligned, AllocationType::kYoung, AllocationOrigin::kRuntime);
+  EXPECT_TRUE(allocation.IsFailure());
+}
+#endif  // V8_ENABLE_ALLOCATION_TIMEOUT
+
+TEST_F(HeapTest, Regress341769455) {
+#ifdef V8_COMPRESS_POINTERS
+  if (!v8_flags.incremental_marking) return;
+  if (!v8_flags.minor_ms) return;
+  Isolate* iso = isolate();
+  bool original_concurrent_minor_ms_marking_value =
+      v8_flags.concurrent_minor_ms_marking;
+  ManualGCScope manual_gc_scope(iso);
+  v8_flags.concurrent_minor_ms_marking =
+      original_concurrent_minor_ms_marking_value;
+  Heap* heap = iso->heap();
+  HandleScope outer(iso);
+  DirectHandle<JSArrayBuffer> ab;
+  {
+    // Make sure new space is empty
+    InvokeAtomicMajorGC();
+    ab = iso->factory()
+             ->NewJSArrayBufferAndBackingStore(
+                 1, InitializedFlag::kZeroInitialized, AllocationType::kYoung)
+             .ToHandleChecked();
+    // Reset the EPT handle to null.
+    ab->init_extension();
+    // MinorMS promotes pages that haven't been allocated on since the last GC.
+    // Force a minor GC to reset the counter of bytes allocated on the page.
+    InvokeAtomicMinorGC();
+    // Set up a global to make sure the JSArrayBuffer is visited before the
+    // atomic pause.
+    Global<JSArrayBuffer> global(
+        v8_isolate(), Utils::Convert<JSArrayBuffer, JSArrayBuffer>(ab));
+    CHECK_EQ(Heap::HeapState::NOT_IN_GC, heap->gc_state());
+    CHECK(heap->incremental_marking()->IsStopped());
+    // Start incremental marking such that setting an extension (via
+    // `EnsureExtension`) triggers a write barrier.
+    v8_flags.incremental_marking = true;
+    heap->StartIncrementalMarking(GCFlag::kNoFlags,
+                                  GarbageCollectionReason::kTesting,
+                                  GCCallbackFlags::kNoGCCallbackFlags,
+                                  GarbageCollector::MINOR_MARK_SWEEPER);
+    CHECK(heap->incremental_marking()->IsMinorMarking());
+    heap->minor_mark_sweep_collector()->DrainMarkingWorklistForTesting();
+    ab->EnsureExtension();
+    heap->AppendArrayBufferExtension(*ab, ab->extension());
+  }
+  // Trigger a 2nd minor GC to promote the JSArrayBuffer to old space.
+  CHECK(Heap::InYoungGeneration(*ab));
+  InvokeAtomicMinorGC();
+  CHECK(!Heap::InYoungGeneration(*ab));
+  // If the EPT entry for the JSArrayBuffer wasn't promoted to the old table, a
+  // 3rd minor GC will observe it as unmarked (since the owning object is old)
+  // and free it. The major GC after it will then crash when trying to access
+  // the extension of the JSArrayBuffer although the entry has been freed.
+  InvokeAtomicMinorGC();
+  InvokeAtomicMajorGC();
+#endif  // V8_COMPRESS_POINTERS
 }
 
 }  // namespace internal

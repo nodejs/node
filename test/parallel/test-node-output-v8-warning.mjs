@@ -7,12 +7,13 @@ function replaceNodeVersion(str) {
   return str.replaceAll(process.version, '*');
 }
 
-describe('v8 output', { concurrency: true }, () => {
+describe('v8 output', { concurrency: !process.env.TEST_PARALLEL }, () => {
   function normalize(str) {
     return str.replaceAll(snapshot.replaceWindowsPaths(process.cwd()), '')
     .replaceAll(/:\d+/g, ':*')
     .replaceAll('/', '*')
     .replaceAll('*test*', '*')
+    .replaceAll(/.*?\*fixtures\*v8\*/g, '(node:*) V8: *') // Replace entire path before fixtures/v8
     .replaceAll('*fixtures*v8*', '*')
     .replaceAll('node --', '* --');
   }

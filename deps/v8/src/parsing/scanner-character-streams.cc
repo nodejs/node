@@ -26,10 +26,10 @@ class V8_NODISCARD ScopedExternalStringLock {
   explicit ScopedExternalStringLock(Tagged<ExternalString> string) {
     DCHECK(!string.is_null());
     if (IsExternalOneByteString(string)) {
-      resource_ = ExternalOneByteString::cast(string)->resource();
+      resource_ = Cast<ExternalOneByteString>(string)->resource();
     } else {
       DCHECK(IsExternalTwoByteString(string));
-      resource_ = ExternalTwoByteString::cast(string)->resource();
+      resource_ = Cast<ExternalTwoByteString>(string)->resource();
     }
     DCHECK(resource_);
     resource_->Lock();
@@ -100,10 +100,10 @@ class ExternalStringStream {
   using ExternalString = typename CharTraits<Char>::ExternalString;
 
  public:
-  ExternalStringStream(ExternalString string, size_t start_offset,
+  ExternalStringStream(Tagged<ExternalString> string, size_t start_offset,
                        size_t length)
       : lock_(string),
-        data_(string.GetChars(GetPtrComprCageBase(string)) + start_offset),
+        data_(string->GetChars() + start_offset),
         length_(length) {}
 
   ExternalStringStream(const ExternalStringStream& other) V8_NOEXCEPT
@@ -861,36 +861,35 @@ Utf16CharacterStream* ScannerStream::For(Isolate* isolate,
 
 Utf16CharacterStream* ScannerStream::For(Isolate* isolate, Handle<String> data,
                                          int start_pos, int end_pos) {
-  DCHECK_GE(start_pos, 0);
-  DCHECK_LE(start_pos, end_pos);
-  DCHECK_LE(end_pos, data->length());
+  CHECK_GE(start_pos, 0);
+  CHECK_LE(start_pos, end_pos);
+  CHECK_LE(end_pos, data->length());
   size_t start_offset = 0;
   if (IsSlicedString(*data)) {
-    Tagged<SlicedString> string = SlicedString::cast(*data);
+    Tagged<SlicedString> string = Cast<SlicedString>(*data);
     start_offset = string->offset();
     Tagged<String> parent = string->parent();
-    if (IsThinString(parent)) parent = ThinString::cast(parent)->actual();
+    if (IsThinString(parent)) parent = Cast<ThinString>(parent)->actual();
     data = handle(parent, isolate);
   } else {
     data = String::Flatten(isolate, data);
   }
   if (IsExternalOneByteString(*data)) {
     return new BufferedCharacterStream<ExternalStringStream>(
-        static_cast<size_t>(start_pos), ExternalOneByteString::cast(*data),
+        static_cast<size_t>(start_pos), Cast<ExternalOneByteString>(*data),
         start_offset, static_cast<size_t>(end_pos));
   } else if (IsExternalTwoByteString(*data)) {
     return new UnbufferedCharacterStream<ExternalStringStream>(
-        static_cast<size_t>(start_pos), ExternalTwoByteString::cast(*data),
+        static_cast<size_t>(start_pos), Cast<ExternalTwoByteString>(*data),
         start_offset, static_cast<size_t>(end_pos));
   } else if (IsSeqOneByteString(*data)) {
     return new BufferedCharacterStream<OnHeapStream>(
-        static_cast<size_t>(start_pos), Handle<SeqOneByteString>::cast(data),
+        static_cast<size_t>(start_pos), Cast<SeqOneByteString>(data),
         start_offset, static_cast<size_t>(end_pos));
   } else if (IsSeqTwoByteString(*data)) {
     return new RelocatingCharacterStream(
-        isolate, static_cast<size_t>(start_pos),
-        Handle<SeqTwoByteString>::cast(data), start_offset,
-        static_cast<size_t>(end_pos));
+        isolate, static_cast<size_t>(start_pos), Cast<SeqTwoByteString>(data),
+        start_offset, static_cast<size_t>(end_pos));
   } else {
     UNREACHABLE();
   }

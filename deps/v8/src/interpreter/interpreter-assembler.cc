@@ -7,7 +7,8 @@
 #include <limits>
 #include <ostream>
 
-#include "src/codegen/code-factory.h"
+#include "src/builtins/builtins-inl.h"
+#include "src/codegen/code-stub-assembler-inl.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/machine-type.h"
 #include "src/interpreter/bytecodes.h"
@@ -674,10 +675,10 @@ TNode<Uint32T> InterpreterAssembler::BytecodeOperandIntrinsicId(
 }
 
 TNode<Object> InterpreterAssembler::LoadConstantPoolEntry(TNode<WordT> index) {
-  TNode<FixedArray> constant_pool = CAST(LoadObjectField(
+  TNode<TrustedFixedArray> constant_pool = CAST(LoadProtectedPointerField(
       BytecodeArrayTaggedPointer(), BytecodeArray::kConstantPoolOffset));
-  return UnsafeLoadFixedArrayElement(constant_pool,
-                                     UncheckedCast<IntPtrT>(index), 0);
+  return CAST(LoadArrayElement(constant_pool, TrustedFixedArray::kHeaderSize,
+                               UncheckedCast<IntPtrT>(index), 0));
 }
 
 TNode<IntPtrT> InterpreterAssembler::LoadAndUntagConstantPoolEntry(
@@ -702,7 +703,7 @@ TNode<JSFunction> InterpreterAssembler::LoadFunctionClosure() {
 }
 
 TNode<HeapObject> InterpreterAssembler::LoadFeedbackVector() {
-  return CodeStubAssembler::LoadFeedbackVector(LoadFunctionClosure());
+  return CAST(LoadRegister(Register::feedback_vector()));
 }
 
 void InterpreterAssembler::CallPrologue() {
@@ -735,13 +736,11 @@ void InterpreterAssembler::CallJSAndDispatch(
     args_count = Int32Add(args_count, Int32Constant(kJSArgcReceiverSlots));
   }
 
-  Callable callable = CodeFactory::InterpreterPushArgsThenCall(
-      isolate(), receiver_mode, InterpreterPushArgsMode::kOther);
-  TNode<Code> code_target = HeapConstant(callable.code());
+  Builtin builtin = Builtins::InterpreterPushArgsThenCall(
+      receiver_mode, InterpreterPushArgsMode::kOther);
 
-  TailCallStubThenBytecodeDispatch(callable.descriptor(), code_target, context,
-                                   args_count, args.base_reg_location(),
-                                   function);
+  TailCallBuiltinThenBytecodeDispatch(builtin, context, args_count,
+                                      args.base_reg_location(), function);
   // TailCallStubThenDispatch updates accumulator with result.
   implicit_register_use_ =
       implicit_register_use_ | ImplicitRegisterUse::kWriteAccumulator;
@@ -757,18 +756,16 @@ void InterpreterAssembler::CallJSAndDispatch(TNode<Object> function,
   DCHECK(Bytecodes::IsCallOrConstruct(bytecode_) ||
          bytecode_ == Bytecode::kInvokeIntrinsic);
   DCHECK_EQ(Bytecodes::GetReceiverMode(bytecode_), receiver_mode);
-  Callable callable = CodeFactory::Call(isolate());
-  TNode<Code> code_target = HeapConstant(callable.code());
+  Builtin builtin = Builtins::Call();
 
   arg_count = JSParameterCount(arg_count);
   if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
     // The first argument parameter (the receiver) is implied to be undefined.
-    TailCallStubThenBytecodeDispatch(callable.descriptor(), code_target,
-                                     context, function, arg_count, args...,
-                                     UndefinedConstant());
+    TailCallBuiltinThenBytecodeDispatch(builtin, context, function, arg_count,
+                                        args..., UndefinedConstant());
   } else {
-    TailCallStubThenBytecodeDispatch(callable.descriptor(), code_target,
-                                     context, function, arg_count, args...);
+    TailCallBuiltinThenBytecodeDispatch(builtin, context, function, arg_count,
+                                        args...);
   }
   // TailCallStubThenDispatch updates accumulator with result.
   implicit_register_use_ =
@@ -799,21 +796,20 @@ void InterpreterAssembler::CallJSWithSpreadAndDispatch(
 
 #ifndef V8_JITLESS
   TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
-  LazyNode<Object> receiver = [=] { return LoadRegisterAtOperandIndex(1); };
+  LazyNode<Object> receiver = [=, this] {
+    return LoadRegisterAtOperandIndex(1);
+  };
   CollectCallFeedback(function, receiver, context, maybe_feedback_vector,
                       slot_id);
 #endif  // !V8_JITLESS
 
   Comment("call using CallWithSpread builtin");
-  Callable callable = CodeFactory::InterpreterPushArgsThenCall(
-      isolate(), ConvertReceiverMode::kAny,
-      InterpreterPushArgsMode::kWithFinalSpread);
-  TNode<Code> code_target = HeapConstant(callable.code());
+  Builtin builtin = Builtins::InterpreterPushArgsThenCall(
+      ConvertReceiverMode::kAny, InterpreterPushArgsMode::kWithFinalSpread);
 
   TNode<Word32T> args_count = args.reg_count();
-  TailCallStubThenBytecodeDispatch(callable.descriptor(), code_target, context,
-                                   args_count, args.base_reg_location(),
-                                   function);
+  TailCallBuiltinThenBytecodeDispatch(builtin, context, args_count,
+                                      args.base_reg_location(), function);
   // TailCallStubThenDispatch updates accumulator with result.
   implicit_register_use_ =
       implicit_register_use_ | ImplicitRegisterUse::kWriteAccumulator;
@@ -830,8 +826,10 @@ TNode<Object> InterpreterAssembler::Construct(
       construct_array(this, &var_site);
 
   TNode<Word32T> args_count = JSParameterCount(args.reg_count());
+  // TODO(42200059): Propagate TaggedIndex usage.
   CollectConstructFeedback(context, target, new_target, maybe_feedback_vector,
-                           slot_id, UpdateFeedbackMode::kOptionalFeedback,
+                           IntPtrToTaggedIndex(Signed(slot_id)),
+                           UpdateFeedbackMode::kOptionalFeedback,
                            &try_fast_construct, &construct_array, &var_site);
 
   BIND(&try_fast_construct);
@@ -839,11 +837,10 @@ TNode<Object> InterpreterAssembler::Construct(
     Comment("call using FastConstruct builtin");
     GotoIf(TaggedIsSmi(target), &construct_generic);
     GotoIfNot(IsJSFunction(CAST(target)), &construct_generic);
-    Callable callable = Builtins::CallableFor(
-        isolate(), Builtin::kInterpreterPushArgsThenFastConstructFunction);
     var_result =
-        CallStub(callable, context, args_count, args.base_reg_location(),
-                 target, new_target, UndefinedConstant());
+        CallBuiltin(Builtin::kInterpreterPushArgsThenFastConstructFunction,
+                    context, args_count, args.base_reg_location(), target,
+                    new_target, UndefinedConstant());
     Goto(&return_result);
   }
 
@@ -851,11 +848,11 @@ TNode<Object> InterpreterAssembler::Construct(
   {
     // TODO(bmeurer): Remove the generic type_info parameter from the Construct.
     Comment("call using Construct builtin");
-    Callable callable = CodeFactory::InterpreterPushArgsThenConstruct(
-        isolate(), InterpreterPushArgsMode::kOther);
+    Builtin builtin = Builtins::InterpreterPushArgsThenConstruct(
+        InterpreterPushArgsMode::kOther);
     var_result =
-        CallStub(callable, context, args_count, args.base_reg_location(),
-                 target, new_target, UndefinedConstant());
+        CallBuiltin(builtin, context, args_count, args.base_reg_location(),
+                    target, new_target, UndefinedConstant());
     Goto(&return_result);
   }
 
@@ -864,11 +861,11 @@ TNode<Object> InterpreterAssembler::Construct(
     // TODO(bmeurer): Introduce a dedicated builtin to deal with the Array
     // constructor feedback collection inside of Ignition.
     Comment("call using ConstructArray builtin");
-    Callable callable = CodeFactory::InterpreterPushArgsThenConstruct(
-        isolate(), InterpreterPushArgsMode::kArrayFunction);
+    Builtin builtin = Builtins::InterpreterPushArgsThenConstruct(
+        InterpreterPushArgsMode::kArrayFunction);
     var_result =
-        CallStub(callable, context, args_count, args.base_reg_location(),
-                 target, new_target, var_site.value());
+        CallBuiltin(builtin, context, args_count, args.base_reg_location(),
+                    target, new_target, var_site.value());
     Goto(&return_result);
   }
 
@@ -885,6 +882,8 @@ TNode<Object> InterpreterAssembler::ConstructWithSpread(
   DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
 
 #ifndef V8_JITLESS
+  // TODO(syg): Is the feedback collection logic here the same as
+  // CollectConstructFeedback?
   Label extra_checks(this, Label::kDeferred), construct(this);
   TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
   GotoIf(IsUndefined(maybe_feedback_vector), &construct);
@@ -906,7 +905,8 @@ TNode<Object> InterpreterAssembler::ConstructWithSpread(
     // Check if it is a megamorphic {new_target}.
     Comment("check if megamorphic");
     TNode<BoolT> is_megamorphic = TaggedEqual(
-        feedback, HeapConstant(FeedbackVector::MegamorphicSentinel(isolate())));
+        feedback,
+        HeapConstantNoHole(FeedbackVector::MegamorphicSentinel(isolate())));
     GotoIf(is_megamorphic, &construct);
 
     Comment("check if weak reference");
@@ -982,7 +982,7 @@ TNode<Object> InterpreterAssembler::ConstructWithSpread(
       DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kmegamorphic_symbol));
       StoreFeedbackVectorSlot(
           feedback_vector, slot_id,
-          HeapConstant(FeedbackVector::MegamorphicSentinel(isolate())),
+          HeapConstantNoHole(FeedbackVector::MegamorphicSentinel(isolate())),
           SKIP_WRITE_BARRIER);
       ReportFeedbackUpdate(feedback_vector, slot_id,
                            "ConstructWithSpread:TransitionMegamorphic");
@@ -993,11 +993,36 @@ TNode<Object> InterpreterAssembler::ConstructWithSpread(
   BIND(&construct);
 #endif  // !V8_JITLESS
   Comment("call using ConstructWithSpread builtin");
-  Callable callable = CodeFactory::InterpreterPushArgsThenConstruct(
-      isolate(), InterpreterPushArgsMode::kWithFinalSpread);
+  Builtin builtin = Builtins::InterpreterPushArgsThenConstruct(
+      InterpreterPushArgsMode::kWithFinalSpread);
   TNode<Word32T> args_count = JSParameterCount(args.reg_count());
-  return CallStub(callable, context, args_count, args.base_reg_location(),
-                  target, new_target, UndefinedConstant());
+  return CallBuiltin(builtin, context, args_count, args.base_reg_location(),
+                     target, new_target, UndefinedConstant());
+}
+
+// TODO(v8:13249): Add a FastConstruct variant to avoid pushing arguments twice
+// (once here, and once again in construct stub).
+TNode<Object> InterpreterAssembler::ConstructForwardAllArgs(
+    TNode<Object> target, TNode<Context> context, TNode<Object> new_target,
+    TNode<TaggedIndex> slot_id) {
+  DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
+  TVARIABLE(Object, var_result);
+  TVARIABLE(AllocationSite, var_site);
+
+#ifndef V8_JITLESS
+  Label construct(this);
+
+  TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
+  GotoIf(IsUndefined(maybe_feedback_vector), &construct);
+
+  CollectConstructFeedback(context, target, new_target, maybe_feedback_vector,
+                           slot_id, UpdateFeedbackMode::kOptionalFeedback,
+                           &construct, &construct, &var_site);
+  BIND(&construct);
+#endif  // !V8_JITLESS
+
+  return CallBuiltin(Builtin::kInterpreterForwardAllArgsThenConstruct, context,
+                     target, new_target);
 }
 
 template <class T>
@@ -1007,8 +1032,6 @@ TNode<T> InterpreterAssembler::CallRuntimeN(TNode<Uint32T> function_id,
                                             int return_count) {
   DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
   DCHECK(Bytecodes::IsCallRuntime(bytecode_));
-  Callable callable = CodeFactory::InterpreterCEntry(isolate(), return_count);
-  TNode<Code> code_target = HeapConstant(callable.code());
 
   // Get the function entry from the function id.
   TNode<RawPtrT> function_table = ReinterpretCast<RawPtrT>(ExternalConstant(
@@ -1020,9 +1043,9 @@ TNode<T> InterpreterAssembler::CallRuntimeN(TNode<Uint32T> function_id,
   TNode<RawPtrT> function_entry = Load<RawPtrT>(
       function, IntPtrConstant(offsetof(Runtime::Function, entry)));
 
-  return CallStub<T>(callable.descriptor(), code_target, context,
-                     args.reg_count(), args.base_reg_location(),
-                     function_entry);
+  Builtin centry = Builtins::InterpreterCEntry(return_count);
+  return CallBuiltin<T>(centry, context, args.reg_count(),
+                        args.base_reg_location(), function_entry);
 }
 
 template V8_EXPORT_PRIVATE TNode<Object> InterpreterAssembler::CallRuntimeN(
@@ -1036,7 +1059,7 @@ InterpreterAssembler::CallRuntimeN(TNode<Uint32T> function_id,
 
 TNode<Int32T> InterpreterAssembler::UpdateInterruptBudget(
     TNode<Int32T> weight) {
-  TNode<JSFunction> function = CAST(LoadRegister(Register::function_closure()));
+  TNode<JSFunction> function = LoadFunctionClosure();
   TNode<FeedbackCell> feedback_cell =
       LoadObjectField<FeedbackCell>(function, JSFunction::kFeedbackCellOffset);
   TNode<Int32T> old_budget = LoadObjectField<Int32T>(
@@ -1066,7 +1089,7 @@ void InterpreterAssembler::DecreaseInterruptBudget(
          &interrupt_check);
 
   BIND(&interrupt_check);
-  TNode<JSFunction> function = CAST(LoadRegister(Register::function_closure()));
+  TNode<JSFunction> function = LoadFunctionClosure();
   CallRuntime(stack_check_behavior == kEnableStackCheck
                   ? Runtime::kBytecodeBudgetInterruptWithStackCheck_Ignition
                   : Runtime::kBytecodeBudgetInterrupt_Ignition,
@@ -1190,6 +1213,13 @@ TNode<WordT> InterpreterAssembler::LoadBytecode(
   TNode<Uint8T> bytecode =
       Load<Uint8T>(BytecodeArrayTaggedPointer(), bytecode_offset);
   return ChangeUint32ToWord(bytecode);
+}
+
+TNode<IntPtrT> InterpreterAssembler::LoadParameterCountWithoutReceiver() {
+  TNode<Int32T> parameter_count =
+      LoadBytecodeArrayParameterCountWithoutReceiver(
+          BytecodeArrayTaggedPointer());
+  return ChangeInt32ToIntPtr(parameter_count);
 }
 
 void InterpreterAssembler::StarDispatchLookahead(TNode<WordT> target_bytecode) {
@@ -1390,6 +1420,9 @@ void InterpreterAssembler::OnStackReplacement(
     maybe_target_code = GetHeapObjectAssumeWeak(maybe_cached_osr_code);
 
     // Is it marked_for_deoptimization? If yes, clear the slot.
+    TNode<CodeWrapper> code_wrapper = CAST(maybe_target_code.value());
+    maybe_target_code =
+        LoadCodePointerFromObject(code_wrapper, CodeWrapper::kCodeOffset);
     GotoIfNot(IsMarkedForDeoptimization(CAST(maybe_target_code.value())),
               &osr_to_opt);
     StoreFeedbackVectorSlot(feedback_vector, Unsigned(feedback_slot),
@@ -1407,10 +1440,7 @@ void InterpreterAssembler::OnStackReplacement(
     DCHECK_EQ(params, OnStackReplacementParams::kDefault);
     TNode<SharedFunctionInfo> sfi = LoadObjectField<SharedFunctionInfo>(
         LoadFunctionClosure(), JSFunction::kSharedFunctionInfoOffset);
-    TNode<HeapObject> sfi_data = LoadObjectField<HeapObject>(
-        sfi, SharedFunctionInfo::kFunctionDataOffset);
-    GotoIf(InstanceTypeEqual(LoadInstanceType(sfi_data), CODE_TYPE),
-           &osr_to_sparkplug);
+    GotoIf(SharedFunctionInfoHasBaselineCode(sfi), &osr_to_sparkplug);
 
     // Case 3).
     {
@@ -1425,25 +1455,24 @@ void InterpreterAssembler::OnStackReplacement(
   BIND(&osr_to_opt);
   {
     TNode<Uint32T> length =
-        LoadAndUntagFixedArrayBaseLengthAsUint32(BytecodeArrayTaggedPointer());
+        LoadAndUntagBytecodeArrayLength(BytecodeArrayTaggedPointer());
     TNode<Uint32T> weight =
         Uint32Mul(length, Uint32Constant(v8_flags.osr_to_tierup));
     DecreaseInterruptBudget(Signed(weight), kDisableStackCheck);
-    Callable callable = CodeFactory::InterpreterOnStackReplacement(isolate());
-    CallStub(callable, context, maybe_target_code.value());
+    CallBuiltin(Builtin::kInterpreterOnStackReplacement, context,
+                maybe_target_code.value());
     UpdateInterruptBudget(Int32Mul(Signed(weight), Int32Constant(-1)));
     JumpBackward(relative_jump);
   }
 
   BIND(&osr_to_sparkplug);
   {
-    Callable callable =
-        CodeFactory::InterpreterOnStackReplacement_ToBaseline(isolate());
     // We already compiled the baseline code, so we don't need to handle failed
     // compilation as in the Ignition -> Turbofan case. Therefore we can just
     // tailcall to the OSR builtin.
     SaveBytecodeOffset();
-    TailCallStub(callable, context);
+    TailCallBuiltin(Builtin::kInterpreterOnStackReplacement_ToBaseline,
+                    context);
   }
 }
 
@@ -1493,14 +1522,14 @@ bool InterpreterAssembler::TargetSupportsUnalignedAccess() {
 }
 
 void InterpreterAssembler::AbortIfRegisterCountInvalid(
-    TNode<FixedArrayBase> parameters_and_registers,
-    TNode<IntPtrT> formal_parameter_count, TNode<UintPtrT> register_count) {
+    TNode<FixedArray> parameters_and_registers, TNode<IntPtrT> parameter_count,
+    TNode<UintPtrT> register_count) {
   TNode<IntPtrT> array_size =
       LoadAndUntagFixedArrayBaseLength(parameters_and_registers);
 
   Label ok(this), abort(this, Label::kDeferred);
-  Branch(UintPtrLessThanOrEqual(
-             IntPtrAdd(formal_parameter_count, register_count), array_size),
+  Branch(UintPtrLessThanOrEqual(IntPtrAdd(parameter_count, register_count),
+                                array_size),
          &ok, &abort);
 
   BIND(&abort);
@@ -1511,18 +1540,15 @@ void InterpreterAssembler::AbortIfRegisterCountInvalid(
 }
 
 TNode<FixedArray> InterpreterAssembler::ExportParametersAndRegisterFile(
-    TNode<FixedArray> array, const RegListNodePair& registers,
-    TNode<Int32T> formal_parameter_count) {
+    TNode<FixedArray> array, const RegListNodePair& registers) {
   // Store the formal parameters (without receiver) followed by the
   // registers into the generator's internal parameters_and_registers field.
-  TNode<IntPtrT> formal_parameter_count_intptr =
-      Signed(ChangeUint32ToWord(formal_parameter_count));
+  TNode<IntPtrT> parameter_count = LoadParameterCountWithoutReceiver();
   TNode<UintPtrT> register_count = ChangeUint32ToWord(registers.reg_count());
   if (v8_flags.debug_code) {
     CSA_DCHECK(this, IntPtrEqual(registers.base_reg_location(),
                                  RegisterLocation(Register(0))));
-    AbortIfRegisterCountInvalid(array, formal_parameter_count_intptr,
-                                register_count);
+    AbortIfRegisterCountInvalid(array, parameter_count, register_count);
   }
 
   {
@@ -1539,8 +1565,7 @@ TNode<FixedArray> InterpreterAssembler::ExportParametersAndRegisterFile(
     BIND(&loop);
     {
       TNode<IntPtrT> index = var_index.value();
-      GotoIfNot(UintPtrLessThan(index, formal_parameter_count_intptr),
-                &done_loop);
+      GotoIfNot(UintPtrLessThan(index, parameter_count), &done_loop);
 
       TNode<IntPtrT> reg_index = IntPtrAdd(reg_base, index);
       TNode<Object> value = LoadRegister(reg_index);
@@ -1571,8 +1596,7 @@ TNode<FixedArray> InterpreterAssembler::ExportParametersAndRegisterFile(
           IntPtrSub(IntPtrConstant(Register(0).ToOperand()), index);
       TNode<Object> value = LoadRegister(reg_index);
 
-      TNode<IntPtrT> array_index =
-          IntPtrAdd(formal_parameter_count_intptr, index);
+      TNode<IntPtrT> array_index = IntPtrAdd(parameter_count, index);
       StoreFixedArrayElement(array, array_index, value);
 
       var_index = IntPtrAdd(index, IntPtrConstant(1));
@@ -1585,16 +1609,13 @@ TNode<FixedArray> InterpreterAssembler::ExportParametersAndRegisterFile(
 }
 
 TNode<FixedArray> InterpreterAssembler::ImportRegisterFile(
-    TNode<FixedArray> array, const RegListNodePair& registers,
-    TNode<Int32T> formal_parameter_count) {
-  TNode<IntPtrT> formal_parameter_count_intptr =
-      Signed(ChangeUint32ToWord(formal_parameter_count));
+    TNode<FixedArray> array, const RegListNodePair& registers) {
+  TNode<IntPtrT> parameter_count = LoadParameterCountWithoutReceiver();
   TNode<UintPtrT> register_count = ChangeUint32ToWord(registers.reg_count());
   if (v8_flags.debug_code) {
     CSA_DCHECK(this, IntPtrEqual(registers.base_reg_location(),
                                  RegisterLocation(Register(0))));
-    AbortIfRegisterCountInvalid(array, formal_parameter_count_intptr,
-                                register_count);
+    AbortIfRegisterCountInvalid(array, parameter_count, register_count);
   }
 
   TVARIABLE(IntPtrT, var_index, IntPtrConstant(0));
@@ -1608,8 +1629,7 @@ TNode<FixedArray> InterpreterAssembler::ImportRegisterFile(
     TNode<IntPtrT> index = var_index.value();
     GotoIfNot(UintPtrLessThan(index, register_count), &done_loop);
 
-    TNode<IntPtrT> array_index =
-        IntPtrAdd(formal_parameter_count_intptr, index);
+    TNode<IntPtrT> array_index = IntPtrAdd(parameter_count, index);
     TNode<Object> value = LoadFixedArrayElement(array, array_index);
 
     TNode<IntPtrT> reg_index =

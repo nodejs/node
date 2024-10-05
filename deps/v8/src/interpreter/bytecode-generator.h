@@ -50,7 +50,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   Handle<BytecodeArray> FinalizeBytecode(IsolateT* isolate,
                                          Handle<Script> script);
   template <typename IsolateT>
-  Handle<ByteArray> FinalizeSourcePositionTable(IsolateT* isolate);
+  Handle<TrustedByteArray> FinalizeSourcePositionTable(IsolateT* isolate);
 
   // Check if hint2 is same or the subtype of hint1.
   static bool IsSameOrSubTypeHint(TypeHint hint1, TypeHint hint2) {
@@ -80,6 +80,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   class ContextScope;
   class ControlScope;
   class ControlScopeForBreakable;
+  class ControlScopeForDerivedConstructor;
   class ControlScopeForIteration;
   class ControlScopeForTopLevel;
   class ControlScopeForTryCatch;
@@ -93,11 +94,13 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   class IteratorRecord;
   class MultipleEntryBlockContextScope;
   class LoopScope;
+  class ForInScope;
   class NaryCodeCoverageSlots;
   class OptionalChainNullLabelScope;
   class RegisterAllocationScope;
   class TestResultScope;
   class TopLevelDeclarationsBuilder;
+  class DisposablesStackScope;
   class ValueResultScope;
 
   using ToBooleanMode = BytecodeArrayBuilder::ToBooleanMode;
@@ -195,6 +198,15 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   };
 
   void GenerateBytecodeBody();
+
+  void GenerateBaseConstructorBody();
+  void GenerateDerivedConstructorBody();
+  void GenerateAsyncFunctionBody();
+
+  void GenerateBodyPrologue();
+  void GenerateBodyStatements();
+  void GenerateBodyStatementsWithoutImplicitFinalReturn();
+
   template <typename IsolateT>
   void AllocateDeferredConstants(IsolateT* isolate, Handle<Script> script);
 
@@ -273,9 +285,13 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                              const AstRawString* name);
   void BuildStoreGlobal(Variable* variable);
 
+  void BuildLoadKeyedProperty(Register object, FeedbackSlot slot);
+
   bool IsVariableInRegister(Variable* var, Register reg);
 
   void SetVariableInRegister(Variable* var, Register reg);
+
+  Variable* GetPotentialVariableInAccumulator();
 
   void BuildVariableLoad(Variable* variable, HoleCheckMode hole_check_mode,
                          TypeofMode typeof_mode = TypeofMode::kNotInside);
@@ -350,6 +366,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitArgumentsObject(Variable* variable);
   void VisitRestArgumentsArray(Variable* rest);
   void VisitCallSuper(Call* call);
+  void BuildInstanceInitializationAfterSuperCall(Register this_function,
+                                                 Register instance);
   void BuildInvalidPropertyAccess(MessageTemplate tmpl, Property* property);
   void BuildPrivateBrandCheck(Property* property, Register object);
   void BuildPrivateMethodIn(Variable* private_name,
@@ -372,6 +390,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                                          Register instance);
   void BuildGeneratorObjectVariableInitialization();
   void VisitBlockDeclarationsAndStatements(Block* stmt);
+  void VisitBlockMaybeDispose(Block* stmt);
   void VisitLiteralAccessor(LiteralProperty* property, Register value_out);
   void VisitForInAssignment(Expression* expr);
   void VisitModuleNamespaceImports();
@@ -413,6 +432,9 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
   int AllocateBlockCoverageSlotIfEnabled(AstNode* node, SourceRangeKind kind);
   int AllocateNaryBlockCoverageSlotIfEnabled(NaryOperation* node, size_t index);
+  int AllocateConditionalChainBlockCoverageSlotIfEnabled(ConditionalChain* node,
+                                                         SourceRangeKind kind,
+                                                         size_t index);
 
   void BuildIncrementBlockCoverageCounterIfEnabled(AstNode* node,
                                                    SourceRangeKind kind);
@@ -430,10 +452,16 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                        FinallyBodyFunc finally_body_func,
                        HandlerTable::CatchPrediction catch_prediction,
                        TryFinallyStatement* stmt_for_coverage = nullptr);
+  template <typename WrappedFunc>
+  void BuildDisposeScope(WrappedFunc wrapped_func, bool has_await_using);
 
   template <typename ExpressionFunc>
   void BuildOptionalChain(ExpressionFunc expression_func);
 
+  void BuildGetAndCheckSuperConstructor(Register this_function,
+                                        Register new_target,
+                                        Register constructor,
+                                        BytecodeLabel* super_ctor_call_done);
   void BuildSuperCallOptimization(Register this_function, Register new_target,
                                   Register constructor_then_instance,
                                   BytecodeLabel* super_ctor_call_done);
@@ -549,6 +577,20 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
     current_loop_scope_ = loop_scope;
   }
 
+  inline ForInScope* current_for_in_scope() const {
+    return current_for_in_scope_;
+  }
+  inline void set_current_for_in_scope(ForInScope* for_in_scope) {
+    current_for_in_scope_ = for_in_scope;
+  }
+
+  Register current_disposables_stack() const {
+    return current_disposables_stack_;
+  }
+  void set_current_disposables_stack(Register disposables_stack) {
+    current_disposables_stack_ = disposables_stack;
+  }
+
   LocalIsolate* local_isolate_;
   Zone* zone_;
   BytecodeArrayBuilder builder_;
@@ -581,6 +623,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   ExpressionResultScope* execution_result_;
 
   Register incoming_new_target_or_generator_;
+  Register current_disposables_stack_;
 
   BytecodeLabels* optional_chaining_null_labels_;
 
@@ -598,6 +641,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   Variable::HoleCheckBitmap hole_check_bitmap_;
 
   LoopScope* current_loop_scope_;
+  ForInScope* current_for_in_scope_;
 
   HandlerTable::CatchPrediction catch_prediction_;
 };

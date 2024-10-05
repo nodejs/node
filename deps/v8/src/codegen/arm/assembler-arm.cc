@@ -36,6 +36,8 @@
 
 #include "src/codegen/arm/assembler-arm.h"
 
+#include <optional>
+
 #if V8_TARGET_ARCH_ARM
 
 #include "src/base/bits.h"
@@ -81,12 +83,12 @@ static unsigned CpuFeaturesFromCommandLine() {
   // If any of the old (deprecated) flags are specified, print a warning, but
   // otherwise try to respect them for now.
   // TODO(jbramley): When all the old bots have been updated, remove this.
-  base::Optional<bool> maybe_enable_armv7 = v8_flags.enable_armv7;
-  base::Optional<bool> maybe_enable_vfp3 = v8_flags.enable_vfp3;
-  base::Optional<bool> maybe_enable_32dregs = v8_flags.enable_32dregs;
-  base::Optional<bool> maybe_enable_neon = v8_flags.enable_neon;
-  base::Optional<bool> maybe_enable_sudiv = v8_flags.enable_sudiv;
-  base::Optional<bool> maybe_enable_armv8 = v8_flags.enable_armv8;
+  std::optional<bool> maybe_enable_armv7 = v8_flags.enable_armv7;
+  std::optional<bool> maybe_enable_vfp3 = v8_flags.enable_vfp3;
+  std::optional<bool> maybe_enable_32dregs = v8_flags.enable_32dregs;
+  std::optional<bool> maybe_enable_neon = v8_flags.enable_neon;
+  std::optional<bool> maybe_enable_sudiv = v8_flags.enable_sudiv;
+  std::optional<bool> maybe_enable_armv8 = v8_flags.enable_armv8;
   if (maybe_enable_armv7.has_value() || maybe_enable_vfp3.has_value() ||
       maybe_enable_32dregs.has_value() || maybe_enable_neon.has_value() ||
       maybe_enable_sudiv.has_value() || maybe_enable_armv8.has_value()) {
@@ -1250,7 +1252,7 @@ void Assembler::AddrMode1(Instr instr, Register rd, Register rn,
       // pool only for a MOV instruction which does not set the flags.
       DCHECK(!rn.is_valid());
       Move32BitImmediate(rd, x, cond);
-    } else if ((opcode == ADD) && !set_flags && (rd == rn) &&
+    } else if ((opcode == ADD || opcode == SUB) && !set_flags && (rd == rn) &&
                !temps.CanAcquire()) {
       // Split the operation into a sequence of additions if we cannot use a
       // scratch register. In this case, we cannot re-use rn and the assembler
@@ -1266,10 +1268,20 @@ void Assembler::AddrMode1(Instr instr, Register rd, Register rn,
         // immediate allows us to more efficiently split it:
         int trailing_zeroes = base::bits::CountTrailingZeros(imm) & ~1u;
         uint32_t mask = (0xFF << trailing_zeroes);
-        add(rd, rd, Operand(imm & mask), LeaveCC, cond);
+        if (opcode == ADD) {
+          add(rd, rd, Operand(imm & mask), LeaveCC, cond);
+        } else {
+          DCHECK_EQ(opcode, SUB);
+          sub(rd, rd, Operand(imm & mask), LeaveCC, cond);
+        }
         imm = imm & ~mask;
       } while (!ImmediateFitsAddrMode1Instruction(imm));
-      add(rd, rd, Operand(imm), LeaveCC, cond);
+      if (opcode == ADD) {
+        add(rd, rd, Operand(imm), LeaveCC, cond);
+      } else {
+        DCHECK_EQ(opcode, SUB);
+        sub(rd, rd, Operand(imm), LeaveCC, cond);
+      }
     } else {
       // The immediate operand cannot be encoded as a shifter operand, so load
       // it first to a scratch register and change the original instruction to

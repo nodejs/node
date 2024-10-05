@@ -33,22 +33,27 @@ class JSSegments : public TorqueGeneratedJSSegments<JSSegments, JSObject> {
  public:
   // ecma402 #sec-createsegmentsobject
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSSegments> Create(
-      Isolate* isolate, Handle<JSSegmenter> segmenter, Handle<String> string);
+      Isolate* isolate, DirectHandle<JSSegmenter> segmenter,
+      Handle<String> string);
 
   // ecma402 #sec-%segmentsprototype%.containing
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> Containing(
-      Isolate* isolate, Handle<JSSegments> segments_holder, double n);
+      Isolate* isolate, DirectHandle<JSSegments> segments_holder, double n);
 
   // ecma402 #sec-createsegmentdataobject
-  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> CreateSegmentDataObject(
-      Isolate* isolate, JSSegmenter::Granularity granularity,
-      icu::BreakIterator* break_iterator, const icu::UnicodeString& string,
-      int32_t start_index, int32_t end_index);
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSSegmentDataObject>
+  CreateSegmentDataObject(Isolate* isolate,
+                          JSSegmenter::Granularity granularity,
+                          icu::BreakIterator* break_iterator,
+                          DirectHandle<String> input_string,
+                          const icu::UnicodeString& unicode_string,
+                          int32_t start_index, int32_t end_index);
 
   Handle<String> GranularityAsString(Isolate* isolate) const;
 
   // SegmentIterator accessors.
   DECL_ACCESSORS(icu_break_iterator, Tagged<Managed<icu::BreakIterator>>)
+  DECL_ACCESSORS(raw_string, Tagged<String>)
   DECL_ACCESSORS(unicode_string, Tagged<Managed<icu::UnicodeString>>)
 
   DECL_PRINTER(JSSegments)

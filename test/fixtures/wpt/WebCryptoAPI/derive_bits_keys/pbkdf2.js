@@ -103,17 +103,6 @@ function define_tests() {
 
                         });
 
-                        // Test various error conditions for deriveBits below:
-                        // length null (OperationError)
-                        subsetTest(promise_test, function(test) {
-                            return subtle.deriveBits({name: "PBKDF2", salt: salts[saltSize], hash: hashName, iterations: parseInt(iterations)}, baseKeys[passwordSize], null)
-                            .then(function(derivation) {
-                                assert_unreached("null length should have thrown an OperationError");
-                            }, function(err) {
-                                assert_equals(err.name, "OperationError", "deriveBits with null length correctly threw OperationError: " + err.message);
-                            });
-                        }, testName + " with null length");
-
                         // 0 length (OperationError)
                         subsetTest(promise_test, function(test) {
                             return subtle.deriveBits({name: "PBKDF2", salt: salts[saltSize], hash: hashName, iterations: parseInt(iterations)}, baseKeys[passwordSize], 0)

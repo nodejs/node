@@ -19,7 +19,7 @@ file a new issue.
     * [OpenSSL asm support](#openssl-asm-support)
   * [Previous versions of this document](#previous-versions-of-this-document)
 * [Building Node.js on supported platforms](#building-nodejs-on-supported-platforms)
-  * [Note about Python](#note-about-python)
+  * [Prerequisites](#prerequisites)
   * [Unix and macOS](#unix-and-macos)
     * [Unix prerequisites](#unix-prerequisites)
     * [macOS prerequisites](#macos-prerequisites)
@@ -33,7 +33,7 @@ file a new issue.
     * [Speeding up frequent rebuilds when developing](#speeding-up-frequent-rebuilds-when-developing)
     * [Troubleshooting Unix and macOS builds](#troubleshooting-unix-and-macos-builds)
   * [Windows](#windows)
-    * [Prerequisites](#prerequisites)
+    * [Windows Prerequisites](#windows-prerequisites)
       * [Option 1: Manual install](#option-1-manual-install)
       * [Option 2: Automated install with Boxstarter](#option-2-automated-install-with-boxstarter)
     * [Building Node.js](#building-nodejs-2)
@@ -100,28 +100,28 @@ Node.js does not support a platform version if a vendor has expired support
 for it. In other words, Node.js does not support running on End-of-Life (EoL)
 platforms. This is true regardless of entries in the table below.
 
-| Operating System | Architectures    | Versions                          | Support Type                                    | Notes                                |
-| ---------------- | ---------------- | --------------------------------- | ----------------------------------------------- | ------------------------------------ |
-| GNU/Linux        | x64              | kernel >= 4.18[^1], glibc >= 2.28 | Tier 1                                          | e.g. Ubuntu 20.04, Debian 10, RHEL 8 |
-| GNU/Linux        | x64              | kernel >= 3.10, musl >= 1.1.19    | Experimental                                    | e.g. Alpine 3.8                      |
-| GNU/Linux        | x86              | kernel >= 3.10, glibc >= 2.17     | Experimental                                    | Downgraded as of Node.js 10          |
-| GNU/Linux        | arm64            | kernel >= 4.18[^1], glibc >= 2.28 | Tier 1                                          | e.g. Ubuntu 20.04, Debian 10, RHEL 8 |
-| GNU/Linux        | armv7            | kernel >= 4.18[^1], glibc >= 2.28 | Tier 1                                          | e.g. Ubuntu 20.04, Debian 11         |
-| GNU/Linux        | armv6            | kernel >= 4.14, glibc >= 2.24     | Experimental                                    | Downgraded as of Node.js 12          |
-| GNU/Linux        | ppc64le >=power8 | kernel >= 4.18[^1], glibc >= 2.28 | Tier 2                                          | e.g. Ubuntu 20.04, RHEL 8            |
-| GNU/Linux        | s390x            | kernel >= 4.18[^1], glibc >= 2.28 | Tier 2                                          | e.g. RHEL 8                          |
-| GNU/Linux        | loong64          | kernel >= 5.19, glibc >= 2.36     | Experimental                                    |                                      |
-| Windows          | x64, x86 (WoW64) | >= Windows 10/Server 2016         | Tier 1                                          | [^2],[^3]                            |
-| Windows          | x86 (native)     | >= Windows 10/Server 2016         | Tier 1 (running) / Experimental (compiling)[^4] |                                      |
-| Windows          | x64, x86         | Windows 8.1/Server 2012           | Experimental                                    |                                      |
-| Windows          | arm64            | >= Windows 10                     | Tier 2                                          |                                      |
-| macOS            | x64              | >= 11.0                           | Tier 1                                          | For notes about compilation see [^5] |
-| macOS            | arm64            | >= 11.0                           | Tier 1                                          |                                      |
-| SmartOS          | x64              | >= 18                             | Tier 2                                          |                                      |
-| AIX              | ppc64be >=power8 | >= 7.2 TL04                       | Tier 2                                          |                                      |
-| FreeBSD          | x64              | >= 12.4                           | Experimental                                    |                                      |
+| Operating System | Architectures    | Versions                          | Support Type | Notes                                |
+| ---------------- | ---------------- | --------------------------------- | ------------ | ------------------------------------ |
+| GNU/Linux        | x64              | kernel >= 4.18[^1], glibc >= 2.28 | Tier 1       | e.g. Ubuntu 20.04, Debian 10, RHEL 8 |
+| GNU/Linux        | x64              | kernel >= 3.10, musl >= 1.1.19    | Experimental | e.g. Alpine 3.8                      |
+| GNU/Linux        | x86              | kernel >= 3.10, glibc >= 2.17     | Experimental | Downgraded as of Node.js 10          |
+| GNU/Linux        | arm64            | kernel >= 4.18[^1], glibc >= 2.28 | Tier 1       | e.g. Ubuntu 20.04, Debian 10, RHEL 8 |
+| GNU/Linux        | armv7            | kernel >= 4.18[^1], glibc >= 2.28 | Tier 1       | e.g. Ubuntu 22.04, Debian 12         |
+| GNU/Linux        | armv6            | kernel >= 4.14, glibc >= 2.24     | Experimental | Downgraded as of Node.js 12          |
+| GNU/Linux        | ppc64le >=power8 | kernel >= 4.18[^1], glibc >= 2.28 | Tier 2       | e.g. Ubuntu 20.04, RHEL 8            |
+| GNU/Linux        | s390x            | kernel >= 4.18[^1], glibc >= 2.28 | Tier 2       | e.g. RHEL 8                          |
+| GNU/Linux        | loong64          | kernel >= 5.19, glibc >= 2.36     | Experimental |                                      |
+| Windows          | x64              | >= Windows 10/Server 2016         | Tier 1       | [^2],[^3]                            |
+| Windows          | arm64            | >= Windows 10                     | Tier 2       |                                      |
+| macOS            | x64              | >= 11.0                           | Tier 1       | For notes about compilation see [^4] |
+| macOS            | arm64            | >= 11.0                           | Tier 1       |                                      |
+| SmartOS          | x64              | >= 18                             | Tier 2       |                                      |
+| AIX              | ppc64be >=power8 | >= 7.2 TL04                       | Tier 2       |                                      |
+| FreeBSD          | x64              | >= 13.2                           | Experimental |                                      |
 
-[^1]: Older kernel versions may work. However official Node.js release
+<!--lint disable final-definition-->
+
+[^1]: Older kernel versions may work. However, official Node.js release
     binaries are [built on RHEL 8 systems](#official-binary-platforms-and-toolchains)
     with kernel 4.18.
 
@@ -139,13 +139,10 @@ platforms. This is true regardless of entries in the table below.
     Windows binary (`node.exe`) in WSL will not work without workarounds such as
     stdio redirection.
 
-[^4]: Running Node.js on x86 Windows should work and binaries
-    are provided. However, tests in our infrastructure only run on WoW64.
-    Furthermore, compiling on x86 Windows is Experimental and
-    may not be possible.
-
-[^5]: Our macOS x64 Binaries are compiled with 11.0 as a target. Xcode 13 is
+[^4]: Our macOS x64 Binaries are compiled with 11.0 as a target. Xcode 13 is
     required to compile.
+
+<!--lint enable final-definition-->
 
 ### Supported toolchains
 
@@ -153,7 +150,7 @@ Depending on the host platform, the selection of toolchains may vary.
 
 | Operating System | Compiler Versions                                              |
 | ---------------- | -------------------------------------------------------------- |
-| Linux            | GCC >= 10.1                                                    |
+| Linux            | GCC >= 12.2                                                    |
 | Windows          | Visual Studio >= 2022 with the Windows 10 SDK on a 64-bit host |
 | macOS            | Xcode >= 13 (Apple LLVM >= 12)                                 |
 
@@ -161,17 +158,23 @@ Depending on the host platform, the selection of toolchains may vary.
 
 Binaries at <https://nodejs.org/download/release/> are produced on:
 
-| Binary package          | Platform and Toolchain                                                                                      |
-| ----------------------- | ----------------------------------------------------------------------------------------------------------- |
-| aix-ppc64               | AIX 7.2 TL04 on PPC64BE with GCC 10                                                                         |
-| darwin-x64              | macOS 11, Xcode 13 with -mmacosx-version-min=11.0                                                           |
-| darwin-arm64 (and .pkg) | macOS 11 (arm64), Xcode 13 with -mmacosx-version-min=11.0                                                   |
-| linux-arm64             | RHEL 8 with GCC 10[^6]                                                                                      |
-| linux-armv7l            | Cross-compiled on RHEL 8 x64 with [custom GCC toolchain](https://github.com/rvagg/rpi-newer-crosstools)[^7] |
-| linux-ppc64le           | RHEL 8 with gcc-toolset-10[^6]                                                                              |
-| linux-s390x             | RHEL 8 with gcc-toolset-10[^6]                                                                              |
-| linux-x64               | RHEL 8 with gcc-toolset-10[^6]                                                                              |
-| win-x64 and win-x86     | Windows Server 2022 (x64) with Visual Studio 2022                                                           |
+| Binary package          | Platform and Toolchain                                                                                        |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------- |
+| aix-ppc64               | AIX 7.2 TL04 on PPC64BE with GCC 12[^5]                                                                       |
+| darwin-x64              | macOS 11, Xcode 13 with -mmacosx-version-min=11.0                                                             |
+| darwin-arm64 (and .pkg) | macOS 11 (arm64), Xcode 13 with -mmacosx-version-min=11.0                                                     |
+| linux-arm64             | RHEL 8 with gcc-toolset-12[^6]                                                                                |
+| linux-armv7l            | Cross-compiled on RHEL 9 x64 with a [custom GCC toolchain](https://github.com/rvagg/rpi-newer-crosstools)[^7] |
+| linux-ppc64le           | RHEL 8 with gcc-toolset-12[^6]                                                                                |
+| linux-s390x             | RHEL 8 with gcc-toolset-12[^6]                                                                                |
+| linux-x64               | RHEL 8 with gcc-toolset-12[^6]                                                                                |
+| win-arm64               | Windows Server 2022 (x64) with Visual Studio 2022                                                             |
+| win-x64                 | Windows Server 2022 (x64) with Visual Studio 2022                                                             |
+
+<!--lint disable final-definition-->
+
+[^5]: Binaries produced on these systems require libstdc++12, available
+    from the [AIX toolbox][].
 
 [^6]: Binaries produced on these systems are compatible with glibc >= 2.28
     and libstdc++ >= 6.0.25 (`GLIBCXX_3.4.25`). These are available on
@@ -179,9 +182,11 @@ Binaries at <https://nodejs.org/download/release/> are produced on:
     RHEL 8 and Ubuntu 20.04.
 
 [^7]: Binaries produced on these systems are compatible with glibc >= 2.28
-    and libstdc++ >= 6.0.28 (`GLIBCXX_3.4.28`). These are available on
-    distributions natively supporting GCC 9.3 or higher, such as Debian 11,
-    Ubuntu 20.04.
+    and libstdc++ >= 6.0.30 (`GLIBCXX_3.4.30`). These are available on
+    distributions natively supporting GCC 12.1 or higher, such as Debian 12,
+    Ubuntu 22.04.
+
+<!--lint enable final-definition-->
 
 #### OpenSSL asm support
 
@@ -202,8 +207,7 @@ For use of AVX2,
 * llvm version 3.3 or higher
 * nasm version 2.10 or higher in Windows
 
-Please refer to
-<https://www.openssl.org/docs/man1.1.1/man3/OPENSSL_ia32cap.html> for details.
+Please refer to <https://docs.openssl.org/1.1.1/man3/OPENSSL_ia32cap/> for details.
 
 If compiling without one of the above, use `configure` with the
 `--openssl-no-asm` flag. Otherwise, `configure` will fail.
@@ -214,21 +218,22 @@ Supported platforms and toolchains change with each major version of Node.js.
 This document is only valid for the current major version of Node.js.
 Consult previous versions of this document for older versions of Node.js:
 
-* [Node.js 19](https://github.com/nodejs/node/blob/v19.x/BUILDING.md)
+* [Node.js 21](https://github.com/nodejs/node/blob/v21.x/BUILDING.md)
+* [Node.js 20](https://github.com/nodejs/node/blob/v20.x/BUILDING.md)
 * [Node.js 18](https://github.com/nodejs/node/blob/v18.x/BUILDING.md)
-* [Node.js 16](https://github.com/nodejs/node/blob/v16.x/BUILDING.md)
 
 ## Building Node.js on supported platforms
 
-### Note about Python
+### Prerequisites
 
-The Node.js project supports Python >= 3 for building and testing.
+* [A supported version of Python][Python versions] for building and testing.
+* Memory: at least 8GB of RAM is typically required when compiling with 4 parallel jobs (e.g: `make -j4`)
 
 ### Unix and macOS
 
 #### Unix prerequisites
 
-* `gcc` and `g++` >= 10.1 or newer
+* `gcc` and `g++` >= 12.2 or newer
 * GNU Make 3.81 or newer
 * [A supported version of Python][Python versions]
   * For test coverage, your Python installation must include pip.
@@ -318,6 +323,8 @@ documentation tests.
 
 To run the linter without running tests, use
 `make lint`/`vcbuild lint`. It will lint JavaScript, C++, and Markdown files.
+
+To fix auto fixable JavaScript linting errors, use `make lint-js-fix`.
 
 If you are updating tests and want to run tests in a single test file
 (e.g. `test/parallel/test-stream2-transform.js`):
@@ -462,6 +469,12 @@ make docopen
 This will open a file URL to a one-page version of all the browsable HTML
 documents using the default browser.
 
+```bash
+make docclean
+```
+
+This will clean previously built doc.
+
 To test if Node.js was built correctly:
 
 ```bash
@@ -512,7 +525,7 @@ $ gdb /opt/node-debug/node core.node.8.1535359906
 [ASan](https://github.com/google/sanitizers) can help detect various memory
 related bugs. ASan builds are currently only supported on linux.
 If you want to check it on Windows or macOS or you want a consistent toolchain
-on Linux, you can try [Docker](https://www.docker.com/products/docker-desktop)
+on Linux, you can try [Docker](https://www.docker.com/products/docker-desktop/)
 (using an image like `gengjiawen/node-build:2020-02-14`).
 
 The `--debug` is not necessary and will slow down build and testing, but it can
@@ -525,23 +538,37 @@ make test-only
 
 #### Speeding up frequent rebuilds when developing
 
-If you plan to frequently rebuild Node.js, especially if using several branches,
-installing `ccache` can help to greatly reduce build times. Set up with:
+Tips: The `ccache` utility is widely used and should generally work fine.
+If you encounter any difficulties, consider disabling `mold` as a
+troubleshooting step.
+
+If you plan to frequently rebuild Node.js, especially if using several
+branches, installing `ccache` can help to greatly reduce build
+times. Set up with:
 
 On GNU/Linux:
 
+Tips: `mold` can speed up the link process, which can't be cached, you may
+need to install the latest version but not the apt version.
+
 ```bash
-sudo apt install ccache   # for Debian/Ubuntu, included in most Linux distros
-export CC="ccache gcc"    # add to your .profile
-export CXX="ccache g++"   # add to your .profile
+sudo apt install ccache mold   # for Debian/Ubuntu, included in most Linux distros
+export CC="ccache gcc"         # add to your .profile
+export CXX="ccache g++"        # add to your .profile
+export LDFLAGS="-fuse-ld=mold" # add to your .profile
 ```
+
+Refs:
+
+1. <https://ccache.dev/performance.html>
+2. <https://github.com/rui314/mold>
 
 On macOS:
 
 ```bash
-brew install ccache      # see https://brew.sh
-export CC="ccache cc"    # add to ~/.zshrc or other shell config file
-export CXX="ccache c++"  # add to ~/.zshrc or other shell config file
+brew install ccache            # see https://brew.sh
+export CC="ccache cc"          # add to ~/.zshrc or other shell config file
+export CXX="ccache c++"        # add to ~/.zshrc or other shell config file
 ```
 
 This will allow for near-instantaneous rebuilds when switching branches back
@@ -570,17 +597,42 @@ rebuild may take a lot more time than previous builds. Additionally,
 ran `./configure` with non-default options (such as `--debug`), you will need
 to run it again before invoking `make -j4`.
 
+If you received the error `nodejs g++ fatal error compilation terminated cc1plus`
+during compilation, this is likely a memory issue and you should either provide
+more RAM or create swap space to accommodate toolchain requirements or reduce
+the number of parallel build tasks (`-j<n>`).
+
 ### Windows
 
-#### Prerequisites
+#### Tips
+
+You may need disable vcpkg integration if you got link error about symbol
+redefine related to zlib.lib(zlib1.dll), even you never install it by hand,
+as vcpkg is part of CLion and Visual Studio now.
+
+```powershell
+# find your vcpkg
+# double check vcpkg install the related file
+vcpkg owns zlib.lib
+vcpkg owns zlib1.dll
+vcpkg integrate remove
+```
+
+Refs:
+
+1. <https://github.com/nodejs/node/issues/24448>
+2. <https://github.com/microsoft/vcpkg/issues/37518> / <https://github.com/microsoft/vcpkg/discussions/37546>
+3. [vcpkg](https://github.com/microsoft/vcpkg/)
+
+#### Windows Prerequisites
 
 ##### Option 1: Manual install
 
 * The current [version of Python][Python versions] from the
   [Microsoft Store](https://apps.microsoft.com/store/search?publisher=Python+Software+Foundation)
 * The "Desktop development with C++" workload from
-  [Visual Studio 2022](https://visualstudio.microsoft.com/downloads/) or
-  the "C++ build tools" workload from the
+  [Visual Studio 2022 (17.6 or newer)](https://visualstudio.microsoft.com/downloads/)
+  or the "C++ build tools" workload from the
   [Build Tools](https://aka.ms/vs/17/release/vs_buildtools.exe),
   with the default optional components
 * Basic Unix tools required for some tests,
@@ -596,13 +648,23 @@ Optional requirements to build the MSI installer package:
 * The .NET SDK component from [Visual Studio 2022](https://visualstudio.microsoft.com/downloads/)
   * This component can be installed via the Visual Studio Installer Application
 
-Optional requirements for compiling for Windows 10 on ARM (ARM64):
+Optional requirements for compiling for Windows on ARM (ARM64):
 
 * Visual Studio 17.6.0 or newer
+  > **Note:** There is [a bug](https://github.com/nodejs/build/issues/3739) in `17.10.x`
+  > preventing Node.js from compiling.
 * Visual Studio optional components
   * Visual C++ compilers and libraries for ARM64
   * Visual C++ ATL for ARM64
 * Windows 10 SDK 10.0.17763.0 or newer
+
+Optional requirements for compiling with ClangCL:
+
+* Visual Studio optional components
+  * C++ Clang Compiler for Windows
+  * MSBuild support for LLVM toolset
+
+NOTE: Currently we only support compiling with Clang that comes from Visual Studio.
 
 ##### Option 2: Automated install with Boxstarter
 
@@ -619,9 +681,9 @@ packages:
 * [NetWide Assembler](https://chocolatey.org/packages/nasm)
 
 To install Node.js prerequisites using
-[Boxstarter WebLauncher](https://boxstarter.org/weblauncher), open
+[Boxstarter WebLauncher](https://boxstarter.org/weblauncher), visit
 <https://boxstarter.org/package/nr/url?https://raw.githubusercontent.com/nodejs/node/HEAD/tools/bootstrap/windows_boxstarter>
-with Internet Explorer or Edge browser on the target machine.
+with a supported browser.
 
 Alternatively, you can use PowerShell. Run those commands from
 an elevated (Administrator) PowerShell terminal:
@@ -645,6 +707,15 @@ disk space.
   git clone https://github.com/nodejs/node.git
   cd node
   ```
+
+> \[!TIP]
+> If you are building from a Windows machine, symlinks are disabled by default, and can be enabled by cloning
+> with the `-c core.symlinks=true` flag.
+>
+> ```powershell
+> git clone -c core.symlinks=true <repository_url>
+> ```
+
 * If the path to your build directory contains a space or a non-ASCII character,
   the build will likely fail
 
@@ -687,7 +758,7 @@ architecture supports \[arm, arm64/aarch64, x86, x86\_64].
 
 ## `Intl` (ECMA-402) support
 
-[Intl](https://github.com/nodejs/node/blob/HEAD/doc/api/intl.md) support is
+[Intl](doc/api/intl.md) support is
 enabled by default.
 
 ### Build with full ICU support (all locales supported by ICU)
@@ -753,7 +824,7 @@ that works for both your host and target environments.
 ### Build with a specific ICU
 
 You can find other ICU releases at
-[the ICU homepage](http://site.icu-project.org/download).
+[the ICU homepage](https://icu.unicode.org/download).
 Download the file named something like `icu4c-**##.#**-src.tgz` (or
 `.zip`).
 
@@ -784,7 +855,7 @@ From a tarball URL:
 #### Windows
 
 First unpack latest ICU to `deps/icu`
-[icu4c-**##.#**-src.tgz](http://site.icu-project.org/download) (or `.zip`)
+[icu4c-**##.#**-src.tgz](https://icu.unicode.org/download) (or `.zip`)
 as `deps/icu` (You'll have: `deps/icu/source/...`)
 
 ```powershell
@@ -807,10 +878,10 @@ configure option:
 ## Building Node.js with FIPS-compliant OpenSSL
 
 Node.js supports FIPS when statically or dynamically linked with OpenSSL 3 via
-[OpenSSL's provider model](https://www.openssl.org/docs/man3.0/man7/crypto.html#OPENSSL-PROVIDERS).
+[OpenSSL's provider model](https://docs.openssl.org/3.0/man7/crypto/#OPENSSL-PROVIDERS).
 It is not necessary to rebuild Node.js to enable support for FIPS.
 
-See [FIPS mode](./doc/api/crypto.md#fips-mode) for more information on how to
+See [FIPS mode](doc/api/crypto.md#fips-mode) for more information on how to
 enable FIPS support in Node.js.
 
 ## Building Node.js with external core modules
@@ -889,4 +960,5 @@ version of a dependency), please reserve and use a custom `NODE_MODULE_VERSION`
 by opening a pull request against the registry available at
 <https://github.com/nodejs/node/blob/HEAD/doc/abi_version_registry.json>.
 
+[AIX toolbox]: https://www.ibm.com/support/pages/aix-toolbox-open-source-software-overview
 [Python versions]: https://devguide.python.org/versions/

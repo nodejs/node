@@ -25,11 +25,11 @@ namespace internal {
 class CodeAddressMap : public CodeEventLogger {
  public:
   explicit CodeAddressMap(Isolate* isolate) : CodeEventLogger(isolate) {
-    isolate->v8_file_logger()->AddLogEventListener(this);
+    CHECK(isolate->logger()->AddListener(this));
   }
 
   ~CodeAddressMap() override {
-    isolate_->v8_file_logger()->RemoveLogEventListener(this);
+    CHECK(isolate_->logger()->RemoveListener(this));
   }
 
   void CodeMoveEvent(Tagged<InstructionStream> from,
@@ -157,7 +157,7 @@ class ObjectCacheIndexMap {
     *index_out = *find_result.entry;
     return find_result.already_exists;
   }
-  bool LookupOrInsert(Handle<HeapObject> obj, int* index_out) {
+  bool LookupOrInsert(DirectHandle<HeapObject> obj, int* index_out) {
     return LookupOrInsert(*obj, index_out);
   }
 
@@ -188,7 +188,7 @@ class Serializer : public SerializerDeserializer {
 
   const std::vector<uint8_t>* Payload() const { return sink_.data(); }
 
-  bool ReferenceMapContains(Handle<HeapObject> o) {
+  bool ReferenceMapContains(DirectHandle<HeapObject> o) {
     return reference_map()->LookupReference(o) != nullptr;
   }
 
@@ -311,7 +311,7 @@ class Serializer : public SerializerDeserializer {
   void CountAllocation(Tagged<Map> map, int size, SnapshotSpace space);
 
 #ifdef DEBUG
-  void PushStack(Handle<HeapObject> o) { stack_.Push(*o); }
+  void PushStack(DirectHandle<HeapObject> o) { stack_.Push(*o); }
   void PopStack();
   void PrintStack();
   void PrintStack(std::ostream&);
@@ -487,10 +487,18 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
   void VisitOffHeapTarget(Tagged<InstructionStream> host,
                           RelocInfo* target) override;
 
-  void VisitExternalPointer(Tagged<HeapObject> host, ExternalPointerSlot slot,
-                            ExternalPointerTag tag) override;
+  void VisitExternalPointer(Tagged<HeapObject> host,
+                            ExternalPointerSlot slot) override;
   void VisitIndirectPointer(Tagged<HeapObject> host, IndirectPointerSlot slot,
                             IndirectPointerMode mode) override;
+  void VisitTrustedPointerTableEntry(Tagged<HeapObject> host,
+                                     IndirectPointerSlot slot) override;
+  void VisitProtectedPointer(Tagged<TrustedObject> host,
+                             ProtectedPointerSlot slot) override;
+  void VisitCppHeapPointer(Tagged<HeapObject> host,
+                           CppHeapPointerSlot slot) override;
+  void VisitJSDispatchTableEntry(Tagged<HeapObject> host,
+                                 JSDispatchHandle handle) override;
 
   Isolate* isolate() { return isolate_; }
 

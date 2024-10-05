@@ -49,7 +49,7 @@ FeedbackCellRef JSCreateClosureNode::GetFeedbackCellRefChecked(
     JSHeapBroker* broker) const {
   HeapObjectMatcher m(feedback_cell());
   CHECK(m.HasResolvedValue());
-  return MakeRef(broker, Handle<FeedbackCell>::cast(m.ResolvedValue()));
+  return MakeRef(broker, Cast<FeedbackCell>(m.ResolvedValue()));
 }
 
 std::ostream& operator<<(std::ostream& os, CallFrequency const& f) {
@@ -91,7 +91,8 @@ std::ostream& operator<<(std::ostream& os, ConstructParameters const& p) {
 ConstructParameters const& ConstructParametersOf(Operator const* op) {
   DCHECK(op->opcode() == IrOpcode::kJSConstruct ||
          op->opcode() == IrOpcode::kJSConstructWithArrayLike ||
-         op->opcode() == IrOpcode::kJSConstructWithSpread);
+         op->opcode() == IrOpcode::kJSConstructWithSpread ||
+         op->opcode() == IrOpcode::kJSConstructForwardAllArgs);
   return OpParameter<ConstructParameters>(op);
 }
 
@@ -180,7 +181,8 @@ std::ostream& operator<<(std::ostream& os, ContextAccess const& access) {
 
 ContextAccess const& ContextAccessOf(Operator const* op) {
   DCHECK(op->opcode() == IrOpcode::kJSLoadContext ||
-         op->opcode() == IrOpcode::kJSStoreContext);
+         op->opcode() == IrOpcode::kJSStoreContext ||
+         op->opcode() == IrOpcode::kJSStoreScriptContext);
   return OpParameter<ContextAccess>(op);
 }
 
@@ -758,6 +760,7 @@ Type JSWasmCallNode::TypeForWasmReturnType(const wasm::ValueType& type) {
   V(CreatePromise, Operator::kEliminatable, 0, 1)                        \
   V(CreateTypedArray, Operator::kNoProperties, 5, 1)                     \
   V(CreateObject, Operator::kNoProperties, 1, 1)                         \
+  V(CreateStringWrapper, Operator::kEliminatable, 1, 1)                  \
   V(ObjectIsArray, Operator::kNoProperties, 1, 1)                        \
   V(HasInPrototypeChain, Operator::kNoProperties, 2, 1)                  \
   V(OrdinaryHasInstance, Operator::kNoProperties, 2, 1)                  \
@@ -1005,6 +1008,20 @@ const Operator* JSOperatorBuilder::ConstructWithSpread(
       parameters);                                                // parameter
 }
 
+const Operator* JSOperatorBuilder::ConstructForwardAllArgs(
+    CallFrequency const& frequency, FeedbackSource const& feedback) {
+  // Use 0 as a fake arity. This operator will be reduced away to either a call
+  // to Builtin::kConstructForwardAllArgs or an ordinary
+  // JSConstruct.
+  ConstructParameters parameters(JSConstructForwardAllArgsNode::ArityForArgc(0),
+                                 frequency, feedback);
+  return zone()->New<Operator1<ConstructParameters>>(                 // --
+      IrOpcode::kJSConstructForwardAllArgs, Operator::kNoProperties,  // opcode
+      "JSConstructForwardAllArgs",                                    // name
+      parameters.arity(), 1, 1, 1, 1, 2,                              // counts
+      parameters);  // parameter
+}
+
 const Operator* JSOperatorBuilder::LoadNamed(NameRef name,
                                              const FeedbackSource& feedback) {
   static constexpr int kObject = 1;
@@ -1227,6 +1244,17 @@ const Operator* JSOperatorBuilder::StoreContext(size_t depth, size_t index) {
       IrOpcode::kJSStoreContext,                 // opcode
       Operator::kNoRead | Operator::kNoThrow,    // flags
       "JSStoreContext",                          // name
+      1, 1, 1, 0, 1, 0,                          // counts
+      access);                                   // parameter
+}
+
+const Operator* JSOperatorBuilder::StoreScriptContext(size_t depth,
+                                                      size_t index) {
+  ContextAccess access(depth, index, false);
+  return zone()->New<Operator1<ContextAccess>>(  // --
+      IrOpcode::kJSStoreScriptContext,           // opcode
+      Operator::kNoRead | Operator::kNoThrow,    // flags
+      "JSStoreScriptContext",                    // name
       1, 1, 1, 0, 1, 0,                          // counts
       access);                                   // parameter
 }

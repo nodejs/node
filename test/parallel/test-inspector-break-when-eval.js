@@ -20,7 +20,10 @@ async function setupDebugger(session) {
       'params': { 'maxDepth': 0 } },
     { 'method': 'Runtime.runIfWaitingForDebugger' },
   ];
-  session.send(commands);
+  await session.send({ method: 'NodeRuntime.enable' });
+  await session.waitForNotification('NodeRuntime.waitingForDebugger');
+  await session.send(commands);
+  await session.send({ method: 'NodeRuntime.disable' });
 
   await session.waitForNotification('Debugger.paused', 'Initial pause');
 
@@ -63,7 +66,7 @@ async function stepOverConsoleStatement(session) {
 }
 
 async function runTests() {
-  // NOTE(mmarchini): Use --inspect-brk to improve avoid undeterministic
+  // NOTE(mmarchini): Use --inspect-brk to improve avoid indeterministic
   // behavior.
   const child = new NodeInstance(['--inspect-brk=0'], undefined, script);
   const session = await child.connectInspectorSession();

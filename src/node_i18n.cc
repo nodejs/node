@@ -42,6 +42,7 @@
 
 #include "node_i18n.h"
 #include "node_external_reference.h"
+#include "simdutf.h"
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
 
@@ -69,6 +70,7 @@
 #include <unicode/utypes.h>
 #include <unicode/uvernum.h>
 #include <unicode/uversion.h>
+#include "nbytes.h"
 
 #ifdef NODE_HAVE_SMALL_ICU
 /* if this is defined, we have a 'secondary' entry point.
@@ -111,9 +113,9 @@ MaybeLocal<Object> ToBufferEndian(Environment* env, MaybeStackBuffer<T>* buf) {
 
   static_assert(sizeof(T) == 1 || sizeof(T) == 2,
                 "Currently only one- or two-byte buffers are supported");
-  if (sizeof(T) > 1 && IsBigEndian()) {
+  if constexpr (sizeof(T) > 1 && IsBigEndian()) {
     SPREAD_BUFFER_ARG(ret.ToLocalChecked(), retbuf);
-    SwapBytes16(retbuf_data, retbuf_length);
+    CHECK(nbytes::SwapBytes16(retbuf_data, retbuf_length));
   }
 
   return ret;
@@ -128,8 +130,8 @@ void CopySourceBuffer(MaybeStackBuffer<UChar>* dest,
   dest->AllocateSufficientStorage(length_in_chars);
   char* dst = reinterpret_cast<char*>(**dest);
   memcpy(dst, data, length);
-  if (IsBigEndian()) {
-    SwapBytes16(dst, length);
+  if constexpr (IsBigEndian()) {
+    CHECK(nbytes::SwapBytes16(dst, length));
   }
 }
 
@@ -146,7 +148,6 @@ MaybeLocal<Object> Transcode(Environment* env,
                              const char* source,
                              const size_t source_length,
                              UErrorCode* status) {
-  *status = U_ZERO_ERROR;
   MaybeLocal<Object> ret;
   MaybeStackBuffer<char> result;
   Converter to(toEncoding);
@@ -169,22 +170,21 @@ MaybeLocal<Object> Transcode(Environment* env,
   return ret;
 }
 
-MaybeLocal<Object> TranscodeToUcs2(Environment* env,
-                                   const char* fromEncoding,
-                                   const char* toEncoding,
-                                   const char* source,
-                                   const size_t source_length,
-                                   UErrorCode* status) {
-  *status = U_ZERO_ERROR;
-  MaybeLocal<Object> ret;
+MaybeLocal<Object> TranscodeLatin1ToUcs2(Environment* env,
+                                         const char* fromEncoding,
+                                         const char* toEncoding,
+                                         const char* source,
+                                         const size_t source_length,
+                                         UErrorCode* status) {
   MaybeStackBuffer<UChar> destbuf(source_length);
-  Converter from(fromEncoding);
-  const size_t length_in_chars = source_length * sizeof(UChar);
-  ucnv_toUChars(from.conv(), *destbuf, length_in_chars,
-                source, source_length, status);
-  if (U_SUCCESS(*status))
-    ret = ToBufferEndian(env, &destbuf);
-  return ret;
+  auto actual_length =
+      simdutf::convert_latin1_to_utf16le(source, source_length, destbuf.out());
+  if (actual_length == 0) {
+    *status = U_INVALID_CHAR_FOUND;
+    return {};
+  }
+
+  return Buffer::New(env, &destbuf);
 }
 
 MaybeLocal<Object> TranscodeFromUcs2(Environment* env,
@@ -193,13 +193,11 @@ MaybeLocal<Object> TranscodeFromUcs2(Environment* env,
                                      const char* source,
                                      const size_t source_length,
                                      UErrorCode* status) {
-  *status = U_ZERO_ERROR;
   MaybeStackBuffer<UChar> sourcebuf;
   MaybeLocal<Object> ret;
   Converter to(toEncoding);
 
-  size_t sublen = ucnv_getMinCharSize(to.conv());
-  std::string sub(sublen, '?');
+  std::string sub(to.min_char_size(), '?');
   to.set_subst_chars(sub.c_str());
 
   const size_t length_in_chars = source_length / sizeof(UChar);
@@ -220,26 +218,18 @@ MaybeLocal<Object> TranscodeUcs2FromUtf8(Environment* env,
                                          const char* source,
                                          const size_t source_length,
                                          UErrorCode* status) {
-  *status = U_ZERO_ERROR;
-  MaybeStackBuffer<UChar> destbuf;
-  int32_t result_length;
-  u_strFromUTF8(*destbuf, destbuf.capacity(), &result_length,
-                source, source_length, status);
-  MaybeLocal<Object> ret;
-  if (U_SUCCESS(*status)) {
-    destbuf.SetLength(result_length);
-    ret = ToBufferEndian(env, &destbuf);
-  } else if (*status == U_BUFFER_OVERFLOW_ERROR) {
-    *status = U_ZERO_ERROR;
-    destbuf.AllocateSufficientStorage(result_length);
-    u_strFromUTF8(*destbuf, result_length, &result_length,
-                  source, source_length, status);
-    if (U_SUCCESS(*status)) {
-      destbuf.SetLength(result_length);
-      ret = ToBufferEndian(env, &destbuf);
-    }
+  size_t expected_utf16_length =
+      simdutf::utf16_length_from_utf8(source, source_length);
+  MaybeStackBuffer<UChar> destbuf(expected_utf16_length);
+  auto actual_length =
+      simdutf::convert_utf8_to_utf16le(source, source_length, destbuf.out());
+
+  if (actual_length == 0) {
+    *status = U_INVALID_CHAR_FOUND;
+    return {};
   }
-  return ret;
+
+  return Buffer::New(env, &destbuf);
 }
 
 MaybeLocal<Object> TranscodeUtf8FromUcs2(Environment* env,
@@ -248,32 +238,25 @@ MaybeLocal<Object> TranscodeUtf8FromUcs2(Environment* env,
                                          const char* source,
                                          const size_t source_length,
                                          UErrorCode* status) {
-  *status = U_ZERO_ERROR;
-  MaybeLocal<Object> ret;
   const size_t length_in_chars = source_length / sizeof(UChar);
-  int32_t result_length;
-  MaybeStackBuffer<UChar> sourcebuf;
-  MaybeStackBuffer<char> destbuf;
-  CopySourceBuffer(&sourcebuf, source, source_length, length_in_chars);
-  u_strToUTF8(*destbuf, destbuf.capacity(), &result_length,
-              *sourcebuf, length_in_chars, status);
-  if (U_SUCCESS(*status)) {
-    destbuf.SetLength(result_length);
-    ret = ToBufferEndian(env, &destbuf);
-  } else if (*status == U_BUFFER_OVERFLOW_ERROR) {
-    *status = U_ZERO_ERROR;
-    destbuf.AllocateSufficientStorage(result_length);
-    u_strToUTF8(*destbuf, result_length, &result_length, *sourcebuf,
-                length_in_chars, status);
-    if (U_SUCCESS(*status)) {
-      destbuf.SetLength(result_length);
-      ret = ToBufferEndian(env, &destbuf);
-    }
+  size_t expected_utf8_length = simdutf::utf8_length_from_utf16le(
+      reinterpret_cast<const char16_t*>(source), length_in_chars);
+
+  MaybeStackBuffer<char> destbuf(expected_utf8_length);
+  auto actual_length = simdutf::convert_utf16le_to_utf8(
+      reinterpret_cast<const char16_t*>(source),
+      length_in_chars,
+      destbuf.out());
+
+  if (actual_length == 0) {
+    *status = U_INVALID_CHAR_FOUND;
+    return {};
   }
-  return ret;
+
+  return Buffer::New(env, &destbuf);
 }
 
-const char* EncodingName(const enum encoding encoding) {
+constexpr const char* EncodingName(const enum encoding encoding) {
   switch (encoding) {
     case ASCII: return "us-ascii";
     case LATIN1: return "iso8859-1";
@@ -283,7 +266,7 @@ const char* EncodingName(const enum encoding encoding) {
   }
 }
 
-bool SupportedEncoding(const enum encoding encoding) {
+constexpr bool SupportedEncoding(const enum encoding encoding) {
   switch (encoding) {
     case ASCII:
     case LATIN1:
@@ -308,8 +291,7 @@ void Transcode(const FunctionCallbackInfo<Value>&args) {
     switch (fromEncoding) {
       case ASCII:
       case LATIN1:
-        if (toEncoding == UCS2)
-          tfn = &TranscodeToUcs2;
+        if (toEncoding == UCS2) tfn = &TranscodeLatin1ToUcs2;
         break;
       case UTF8:
         if (toEncoding == UCS2)
@@ -527,8 +509,8 @@ void ConverterObject::Decode(const FunctionCallbackInfo<Value>& args) {
 
     char* value = reinterpret_cast<char*>(output) + beginning;
 
-    if (IsBigEndian()) {
-      SwapBytes16(value, length);
+    if constexpr (IsBigEndian()) {
+      CHECK(nbytes::SwapBytes16(value, length));
     }
 
     MaybeLocal<Value> encoded =

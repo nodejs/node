@@ -74,8 +74,8 @@ class InfoCellPair {
 
  private:
   IsCompiledScope is_compiled_scope_;
-  SharedFunctionInfo shared_;
-  FeedbackCell feedback_cell_;
+  Tagged<SharedFunctionInfo> shared_;
+  Tagged<FeedbackCell> feedback_cell_;
 };
 
 // A lookup result from the compilation cache for scripts. There are three
@@ -93,7 +93,7 @@ class CompilationCacheScriptLookupResult {
   MaybeHandle<SharedFunctionInfo> toplevel_sfi() const { return toplevel_sfi_; }
   IsCompiledScope is_compiled_scope() const { return is_compiled_scope_; }
 
-  using RawObjects = std::pair<Script, SharedFunctionInfo>;
+  using RawObjects = std::pair<Tagged<Script>, Tagged<SharedFunctionInfo>>;
 
   RawObjects GetRawObjects() const;
 
@@ -117,11 +117,12 @@ class CompilationCacheTable
   // SharedFunctionInfo has become old enough that its bytecode is flushed, the
   // entry is still present and can be used to get the Script.
   static CompilationCacheScriptLookupResult LookupScript(
-      Handle<CompilationCacheTable> table, Handle<String> src,
+      DirectHandle<CompilationCacheTable> table, Handle<String> src,
       const ScriptDetails& script_details, Isolate* isolate);
   static Handle<CompilationCacheTable> PutScript(
       Handle<CompilationCacheTable> cache, Handle<String> src,
-      Handle<SharedFunctionInfo> value, Isolate* isolate);
+      MaybeHandle<FixedArray> maybe_wrapped_arguments,
+      DirectHandle<SharedFunctionInfo> value, Isolate* isolate);
 
   // Eval code only gets cached after a second probe for the
   // code object. To do so, on first "put" only a hash identifying the
@@ -134,22 +135,23 @@ class CompilationCacheTable
   // either the recompilation stub, or to "old" code. This avoids memory
   // leaks due to premature caching of eval strings that are
   // never needed later.
-  static InfoCellPair LookupEval(Handle<CompilationCacheTable> table,
+  static InfoCellPair LookupEval(DirectHandle<CompilationCacheTable> table,
                                  Handle<String> src,
                                  Handle<SharedFunctionInfo> shared,
-                                 Handle<Context> native_context,
+                                 DirectHandle<Context> native_context,
                                  LanguageMode language_mode, int position);
   static Handle<CompilationCacheTable> PutEval(
       Handle<CompilationCacheTable> cache, Handle<String> src,
-      Handle<SharedFunctionInfo> outer_info, Handle<SharedFunctionInfo> value,
-      Handle<Context> native_context, Handle<FeedbackCell> feedback_cell,
-      int position);
+      Handle<SharedFunctionInfo> outer_info,
+      DirectHandle<SharedFunctionInfo> value,
+      DirectHandle<Context> native_context,
+      DirectHandle<FeedbackCell> feedback_cell, int position);
 
-  // The RegExp cache contains JSRegExp::data fixed arrays.
+  // The RegExp cache contains RegExpData objects.
   Handle<Object> LookupRegExp(Handle<String> source, JSRegExp::Flags flags);
   static Handle<CompilationCacheTable> PutRegExp(
       Isolate* isolate, Handle<CompilationCacheTable> cache, Handle<String> src,
-      JSRegExp::Flags flags, Handle<FixedArray> value);
+      JSRegExp::Flags flags, DirectHandle<RegExpData> value);
 
   void Remove(Tagged<Object> value);
   void RemoveEntry(InternalIndex entry);
@@ -164,8 +166,6 @@ class CompilationCacheTable
 
   // The initial placeholder insertion of the eval cache survives this many GCs.
   static constexpr int kHashGenerations = 10;
-
-  DECL_CAST(CompilationCacheTable)
 
  private:
   static Handle<CompilationCacheTable> EnsureScriptTableCapacity(

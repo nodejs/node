@@ -10,6 +10,7 @@
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/objects.h"
 #include "src/objects/slots.h"
+#include "src/sandbox/check.h"
 #include "src/tracing/trace-event.h"
 #include "src/utils/allocation.h"
 
@@ -52,7 +53,7 @@ class Arguments {
   }
 
   V8_INLINE Tagged<Object> operator[](int index) const {
-    return Object(*address_of_arg_at(index));
+    return Tagged<Object>(*address_of_arg_at(index));
   }
 
   template <class S = Object>
@@ -70,7 +71,12 @@ class Arguments {
   V8_INLINE Handle<Object> atOrUndefined(Isolate* isolate, int index) const;
 
   V8_INLINE Address* address_of_arg_at(int index) const {
-    DCHECK_LE(static_cast<uint32_t>(index), static_cast<uint32_t>(length_));
+    // Corruption of certain heap objects (see e.g. crbug.com/1507223) can lead
+    // to OOB arguments access, and therefore OOB stack access. This SBXCHECK
+    // defends against that.
+    // Note: "LE" is intentional: it's okay to compute the address of the
+    // first nonexistent entry.
+    SBXCHECK_LE(static_cast<uint32_t>(index), static_cast<uint32_t>(length_));
     uintptr_t offset = index * kSystemPointerSize;
     if (arguments_type == ArgumentsType::kJS) {
       offset = (length_ - index - 1) * kSystemPointerSize;
@@ -91,7 +97,7 @@ template <ArgumentsType T>
 template <class S>
 Handle<S> Arguments<T>::at(int index) const {
   Handle<Object> obj = Handle<Object>(address_of_arg_at(index));
-  return Handle<S>::cast(obj);
+  return Cast<S>(obj);
 }
 
 template <ArgumentsType T>
@@ -152,8 +158,9 @@ FullObjectSlot Arguments<T>::slot_from_address_at(int index, int offset) const {
 #define BUILTIN_CONVERT_RESULT_PAIR(x) (x)
 #endif  // DEBUG
 
-#define RUNTIME_FUNCTION(Name) \
-  RUNTIME_FUNCTION_RETURNS_TYPE(Address, Object, BUILTIN_CONVERT_RESULT, Name)
+#define RUNTIME_FUNCTION(Name)                           \
+  RUNTIME_FUNCTION_RETURNS_TYPE(Address, Tagged<Object>, \
+                                BUILTIN_CONVERT_RESULT, Name)
 
 #define RUNTIME_FUNCTION_RETURN_PAIR(Name)              \
   RUNTIME_FUNCTION_RETURNS_TYPE(ObjectPair, ObjectPair, \

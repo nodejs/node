@@ -28,6 +28,8 @@ added:
 A list of the names of all modules provided by Node.js. Can be used to verify
 if a module is maintained by a third party or not.
 
+Note: the list doesn't contain [prefix-only modules][] like `node:test`.
+
 `module` in this context isn't the same object that's provided
 by the [module wrapper][]. To access it, require the `Module` module:
 
@@ -62,6 +64,159 @@ const require = createRequire(import.meta.url);
 const siblingModule = require('./sibling-module');
 ```
 
+### `module.constants.compileCacheStatus`
+
+<!-- YAML
+added: v22.8.0
+-->
+
+> Stability: 1.1 - Active Development
+
+The following constants are returned as the `status` field in the object returned by
+[`module.enableCompileCache()`][] to indicate the result of the attempt to enable the
+[module compile cache][].
+
+<table>
+  <tr>
+    <th>Constant</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <td><code>ENABLED</code></td>
+    <td>
+      Node.js has enabled the compile cache successfully. The directory used to store the
+      compile cache will be returned in the <code>directory</code> field in the
+      returned object.
+    </td>
+  </tr>
+  <tr>
+    <td><code>ALREADY_ENABLED</code></td>
+    <td>
+      The compile cache has already been enabled before, either by a previous call to
+      <code>module.enableCompileCache()</code>, or by the <code>NODE_COMPILE_CACHE=dir</code>
+      environment variable. The directory used to store the
+      compile cache will be returned in the <code>directory</code> field in the
+      returned object.
+    </td>
+  </tr>
+  <tr>
+    <td><code>FAILED</code></td>
+    <td>
+      Node.js fails to enable the compile cache. This can be caused by the lack of
+      permission to use the specified directory, or various kinds of file system errors.
+      The detail of the failure will be returned in the <code>message</code> field in the
+      returned object.
+    </td>
+  </tr>
+  <tr>
+    <td><code>DISABLED</code></td>
+    <td>
+      Node.js cannot enable the compile cache because the environment variable
+      <code>NODE_DISABLE_COMPILE_CACHE=1</code> has been set.
+    </td>
+  </tr>
+</table>
+
+### `module.enableCompileCache([cacheDir])`
+
+<!-- YAML
+added: v22.8.0
+-->
+
+> Stability: 1.1 - Active Development
+
+* `cacheDir` {string|undefined} Optional path to specify the directory where the compile cache
+  will be stored/retrieved.
+* Returns: {Object}
+  * `status` {integer} One of the [`module.constants.compileCacheStatus`][]
+  * `message` {string|undefined} If Node.js cannot enable the compile cache, this contains
+    the error message. Only set if `status` is `module.constants.compileCacheStatus.FAILED`.
+  * `directory` {string|undefined} If the compile cache is enabled, this contains the directory
+    where the compile cache is stored. Only set if  `status` is
+    `module.constants.compileCacheStatus.ENABLED` or
+    `module.constants.compileCacheStatus.ALREADY_ENABLED`.
+
+Enable [module compile cache][] in the current Node.js instance.
+
+If `cacheDir` is not specified, Node.js will either use the directory specified by the
+[`NODE_COMPILE_CACHE=dir`][] environment variable if it's set, or use
+`path.join(os.tmpdir(), 'node-compile-cache')` otherwise. For general use cases, it's
+recommended to call `module.enableCompileCache()` without specifying the `cacheDir`,
+so that the directory can be overridden by the `NODE_COMPILE_CACHE` environment
+variable when necessary.
+
+Since compile cache is supposed to be a quiet optimization that is not required for the
+application to be functional, this method is designed to not throw any exception when the
+compile cache cannot be enabled. Instead, it will return an object containing an error
+message in the `message` field to aid debugging.
+If compile cache is enabled successfully, the `directory` field in the returned object
+contains the path to the directory where the compile cache is stored. The `status`
+field in the returned object would be one of the `module.constants.compileCacheStatus`
+values to indicate the result of the attempt to enable the [module compile cache][].
+
+This method only affects the current Node.js instance. To enable it in child worker threads,
+either call this method in child worker threads too, or set the
+`process.env.NODE_COMPILE_CACHE` value to compile cache directory so the behavior can
+be inherited into the child workers. The directory can be obtained either from the
+`directory` field returned by this method, or with [`module.getCompileCacheDir()`][].
+
+#### Module compile cache
+
+<!-- YAML
+added: v22.1.0
+changes:
+  - version: v22.8.0
+    pr-url: https://github.com/nodejs/node/pull/54501
+    description: add initial JavaScript APIs for runtime access.
+-->
+
+The module compile cache can be enabled either using the [`module.enableCompileCache()`][]
+method or the [`NODE_COMPILE_CACHE=dir`][] environment variable. After it is enabled,
+whenever Node.js compiles a CommonJS or a ECMAScript Module, it will use on-disk
+[V8 code cache][] persisted in the specified directory to speed up the compilation.
+This may slow down the first load of a module graph, but subsequent loads of the same module
+graph may get a significant speedup if the contents of the modules do not change.
+
+To clean up the generated compile cache on disk, simply remove the cache directory. The cache
+directory will be recreated the next time the same directory is used for for compile cache
+storage. To avoid filling up the disk with stale cache, it is recommended to use a directory
+under the [`os.tmpdir()`][]. If the compile cache is enabled by a call to
+[`module.enableCompileCache()`][] without specifying the directory, Node.js will use
+the [`NODE_COMPILE_CACHE=dir`][] environment variable if it's set, or defaults
+to `path.join(os.tmpdir(), 'node-compile-cache')` otherwise. To locate the compile cache
+directory used by a running Node.js instance, use [`module.getCompileCacheDir()`][].
+
+Currently when using the compile cache with [V8 JavaScript code coverage][], the
+coverage being collected by V8 may be less precise in functions that are
+deserialized from the code cache. It's recommended to turn this off when
+running tests to generate precise coverage.
+
+The enabled module compile cache can be disabled by the [`NODE_DISABLE_COMPILE_CACHE=1`][]
+environment variable. This can be useful when the compile cache leads to unexpected or
+undesired behaviors (e.g. less precise test coverage).
+
+Compilation cache generated by one version of Node.js can not be reused by a different
+version of Node.js. Cache generated by different versions of Node.js will be stored
+separately if the same base directory is used to persist the cache, so they can co-exist.
+
+At the moment, when the compile cache is enabled and a module is loaded afresh, the
+code cache is generated from the compiled code immediately, but will only be written
+to disk when the Node.js instance is about to exit. This is subject to change. The
+[`module.flushCompileCache()`][] method can be used to ensure the accumulated code cache
+is flushed to disk in case the application wants to spawn other Node.js instances
+and let them share the cache long before the parent exits.
+
+### `module.getCompileCacheDir()`
+
+<!-- YAML
+added: v22.8.0
+-->
+
+> Stability: 1.1 - Active Development
+
+* Returns: {string|undefined} Path to the [module compile cache][] directory if it is enabled,
+  or `undefined` otherwise.
+
 ### `module.isBuiltin(moduleName)`
 
 <!-- YAML
@@ -83,9 +238,13 @@ isBuiltin('wss'); // false
 ### `module.register(specifier[, parentURL][, options])`
 
 <!-- YAML
-added: v20.6.0
+added:
+  - v20.6.0
+  - v18.19.0
 changes:
-  - version: v20.8.0
+  - version:
+    - v20.8.0
+    - v18.19.0
     pr-url: https://github.com/nodejs/node/pull/49655
     description: Add support for WHATWG URL instances.
 -->
@@ -99,9 +258,13 @@ changes:
   URL, such as `import.meta.url`, you can pass that URL here. **Default:**
   `'data:'`
 * `options` {Object}
+  * `parentURL` {string|URL} If you want to resolve `specifier` relative to a
+    base URL, such as `import.meta.url`, you can pass that URL here. This
+    property is ignored if the `parentURL` is supplied as the second argument.
+    **Default:** `'data:'`
   * `data` {any} Any arbitrary, cloneable JavaScript value to pass into the
     [`initialize`][] hook.
-  * `transferList` {Object\[]} [transferrable objects][] to be passed into the
+  * `transferList` {Object\[]} [transferable objects][] to be passed into the
     `initialize` hook.
 
 Register a module that exports [hooks][] that customize Node.js module
@@ -153,7 +316,9 @@ import('node:fs').then((esmFS) => {
 <!-- YAML
 added: v8.8.0
 changes:
-  - version: v20.6.0
+  - version:
+    - v20.6.0
+    - v18.19.0
     pr-url: https://github.com/nodejs/node/pull/48842
     description: Added `initialize` hook to replace `globalPreload`.
   - version:
@@ -264,8 +429,8 @@ It's possible to call `register` more than once:
 // entrypoint.mjs
 import { register } from 'node:module';
 
-register('./first.mjs', import.meta.url);
-register('./second.mjs', import.meta.url);
+register('./foo.mjs', import.meta.url);
+register('./bar.mjs', import.meta.url);
 await import('./my-app.mjs');
 ```
 
@@ -275,20 +440,23 @@ const { register } = require('node:module');
 const { pathToFileURL } = require('node:url');
 
 const parentURL = pathToFileURL(__filename);
-register('./first.mjs', parentURL);
-register('./second.mjs', parentURL);
+register('./foo.mjs', parentURL);
+register('./bar.mjs', parentURL);
 import('./my-app.mjs');
 ```
 
-In this example, the registered hooks will form chains. If both `first.mjs` and
-`second.mjs` define a `resolve` hook, both will be called, in the order they
-were registered. The same applies to all the other hooks.
+In this example, the registered hooks will form chains. These chains run
+last-in, first out (LIFO). If both `foo.mjs` and `bar.mjs` define a `resolve`
+hook, they will be called like so (note the right-to-left):
+node's default ← `./foo.mjs` ← `./bar.mjs`
+(starting with `./bar.mjs`, then `./foo.mjs`, then the Node.js default).
+The same applies to all the other hooks.
 
 The registered hooks also affect `register` itself. In this example,
-`second.mjs` will be resolved and loaded per the hooks registered by
-`first.mjs`. This allows for things like writing hooks in non-JavaScript
-languages, so long as an earlier registered loader is one that transpiles into
-JavaScript.
+`bar.mjs` will be resolved and loaded via the hooks registered by `foo.mjs`
+(because `foo`'s hooks will have already been added to the chain). This allows
+for things like writing hooks in non-JavaScript languages, so long as
+earlier registered hooks transpile into JavaScript.
 
 The `register` method cannot be called from within the module that defines the
 hooks.
@@ -301,7 +469,7 @@ affect the other thread(s), and message channels must be used to communicate
 between the threads.
 
 The `register` method can be used to pass data to an [`initialize`][] hook. The
-data passed to the hook may include transferrable objects like ports.
+data passed to the hook may include transferable objects like ports.
 
 ```mjs
 import { register } from 'node:module';
@@ -314,6 +482,7 @@ const { port1, port2 } = new MessageChannel();
 port1.on('message', (msg) => {
   console.log(msg);
 });
+port1.unref();
 
 register('./my-hooks.mjs', {
   parentURL: import.meta.url,
@@ -334,6 +503,7 @@ const { port1, port2 } = new MessageChannel();
 port1.on('message', (msg) => {
   console.log(msg);
 });
+port1.unref();
 
 register('./my-hooks.mjs', {
   parentURL: pathToFileURL(__filename),
@@ -363,11 +533,11 @@ export async function load(url, context, nextLoad) {
 }
 ```
 
-Hooks are part of a chain, even if that chain consists of only one custom
-(user-provided) hook and the default hook, which is always present. Hook
+Hooks are part of a [chain][], even if that chain consists of only one
+custom (user-provided) hook and the default hook, which is always present. Hook
 functions nest: each one must always return a plain object, and chaining happens
 as a result of each function calling `next<hookName>()`, which is a reference to
-the subsequent loader's hook.
+the subsequent loader's hook (in LIFO order).
 
 A hook that returns a value lacking a required property triggers an exception. A
 hook that returns without calling `next<hookName>()` _and_ without returning
@@ -383,7 +553,9 @@ asynchronous operations (like `console.log`) to complete.
 #### `initialize()`
 
 <!-- YAML
-added: v20.6.0
+added:
+  - v20.6.0
+  - v18.19.0
 -->
 
 > Stability: 1.2 - Release candidate
@@ -395,7 +567,7 @@ the hooks thread when the hooks module is initialized. Initialization happens
 when the hooks module is registered via [`register`][].
 
 This hook can receive data from a [`register`][] invocation, including
-ports and other transferrable objects. The return value of `initialize` can be a
+ports and other transferable objects. The return value of `initialize` can be a
 {Promise}, in which case it will be awaited before the main application thread
 execution resumes.
 
@@ -424,6 +596,7 @@ const { port1, port2 } = new MessageChannel();
 port1.on('message', (msg) => {
   assert.strictEqual(msg, 'increment: 2');
 });
+port1.unref();
 
 register('./path-to-my-hooks.js', {
   parentURL: import.meta.url,
@@ -446,6 +619,7 @@ const { port1, port2 } = new MessageChannel();
 port1.on('message', (msg) => {
   assert.strictEqual(msg, 'increment: 2');
 });
+port1.unref();
 
 register('./path-to-my-hooks.js', {
   parentURL: pathToFileURL(__filename),
@@ -458,7 +632,10 @@ register('./path-to-my-hooks.js', {
 
 <!-- YAML
 changes:
-  - version: v21.0.0
+  - version:
+    - v21.0.0
+    - v20.10.0
+    - v18.19.0
     pr-url: https://github.com/nodejs/node/pull/50140
     description: The property `context.importAssertions` is replaced with
                  `context.importAttributes`. Using the old name is still
@@ -583,17 +760,17 @@ changes:
   * `importAttributes` {Object}
 * `nextLoad` {Function} The subsequent `load` hook in the chain, or the
   Node.js default `load` hook after the last user-supplied `load` hook
-  * `specifier` {string}
+  * `url` {string}
   * `context` {Object}
 * Returns: {Object}
   * `format` {string}
   * `shortCircuit` {undefined|boolean} A signal that this hook intends to
-    terminate the chain of `resolve` hooks. **Default:** `false`
+    terminate the chain of `load` hooks. **Default:** `false`
   * `source` {string|ArrayBuffer|TypedArray} The source for Node.js to evaluate
 
 The `load` hook provides a way to define a custom method of determining how a
 URL should be interpreted, retrieved, and parsed. It is also in charge of
-validating the import assertion.
+validating the import attributes.
 
 The final value of `format` must be one of the following:
 
@@ -622,7 +799,8 @@ Omitting vs providing a `source` for `'commonjs'` has very different effects:
   registered hooks. This behavior for nullish `source` is temporary — in the
   future, nullish `source` will not be supported.
 
-The Node.js internal `load` implementation, which is the value of `next` for the
+When `node` is run with `--experimental-default-type=commonjs`, the Node.js
+internal `load` implementation, which is the value of `next` for the
 last hook in the `load` chain, returns `null` for `source` when `format` is
 `'commonjs'` for backward compatibility. Here is an example hook that would
 opt-in to using the non-default behavior:
@@ -690,9 +868,6 @@ wide-ranging customizations of the Node.js code loading and evaluation
 behaviors.
 
 #### Import from HTTPS
-
-In current Node.js, specifiers starting with `https://` are experimental (see
-[HTTPS and HTTP imports][]).
 
 The hook below registers hooks to enable rudimentary support for such
 specifiers. While this may seem like a significant improvement to Node.js core
@@ -806,7 +981,7 @@ async function getPackageType(url) {
     .catch((err) => {
       if (err?.code !== 'ENOENT') console.error(err);
     });
-  // Ff package.json existed and contained a `type` field with a value, voila
+  // If package.json existed and contained a `type` field with a value, voilà
   if (type) return type;
   // Otherwise, (if not at the root) continue checking the next directory up
   // If at the root, stop and return false
@@ -930,6 +1105,21 @@ added:
 `path` is the resolved path for the file for which a corresponding source map
 should be fetched.
 
+### `module.flushCompileCache()`
+
+<!-- YAML
+added:
+ - REPLACEME
+-->
+
+> Stability: 1.1 - Active Development
+
+Flush the [module compile cache][] accumulated from modules already loaded
+in the current Node.js instance to disk. This returns after all the flushing
+file system operations come to an end, no matter they succeed or not. If there
+are any errors, this will fail silently, since compile cache misses should not
+interfere with the actual operation of the application.
+
 ### Class: `module.SourceMap`
 
 <!-- YAML
@@ -1004,16 +1194,16 @@ columnNumber)`
 
 * `lineNumber` {number} The 1-indexed line number of the call
   site in the generated source
-* `columnOffset` {number} The 1-indexed column number
+* `columnNumber` {number} The 1-indexed column number
   of the call site in the generated source
 * Returns: {Object}
 
-Given a 1-indexed lineNumber and columnNumber from a call site in
+Given a 1-indexed `lineNumber` and `columnNumber` from a call site in
 the generated source, find the corresponding call site location
 in the original source.
 
-If the lineNumber and columnNumber provided are not found in any
-source map, then an empty object is returned.  Otherwise, the
+If the `lineNumber` and `columnNumber` provided are not found in any
+source map, then an empty object is returned. Otherwise, the
 returned object contains the following keys:
 
 * name: {string | undefined} The name of the range in the
@@ -1029,24 +1219,35 @@ returned object contains the following keys:
 [Conditional exports]: packages.md#conditional-exports
 [Customization hooks]: #customization-hooks
 [ES Modules]: esm.md
-[HTTPS and HTTP imports]: esm.md#https-and-http-imports
 [Source map v3 format]: https://sourcemaps.info/spec.html#h.mofvlxcwqzej
+[V8 JavaScript code coverage]: https://v8project.blogspot.com/2017/12/javascript-code-coverage.html
+[V8 code cache]: https://v8.dev/blog/code-caching-for-devs
 [`"exports"`]: packages.md#exports
 [`--enable-source-maps`]: cli.md#--enable-source-maps
 [`ArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
+[`NODE_COMPILE_CACHE=dir`]: cli.md#node_compile_cachedir
+[`NODE_DISABLE_COMPILE_CACHE=1`]: cli.md#node_disable_compile_cache1
 [`NODE_V8_COVERAGE=dir`]: cli.md#node_v8_coveragedir
 [`SharedArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer
 [`SourceMap`]: #class-modulesourcemap
 [`TypedArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray
 [`Uint8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array
 [`initialize`]: #initialize
-[`module`]: modules.md#the-module-object
+[`module.constants.compileCacheStatus`]: #moduleconstantscompilecachestatus
+[`module.enableCompileCache()`]: #moduleenablecompilecachecachedir
+[`module.flushCompileCache()`]: #moduleflushcompilecache
+[`module.getCompileCacheDir()`]: #modulegetcompilecachedir
+[`module`]: #the-module-object
+[`os.tmpdir()`]: os.md#ostmpdir
 [`register`]: #moduleregisterspecifier-parenturl-options
 [`string`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String
 [`util.TextDecoder`]: util.md#class-utiltextdecoder
+[chain]: #chaining
 [hooks]: #customization-hooks
 [load hook]: #loadurl-context-nextload
+[module compile cache]: #module-compile-cache
 [module wrapper]: modules.md#the-module-wrapper
+[prefix-only modules]: modules.md#built-in-modules-with-mandatory-node-prefix
 [realm]: https://tc39.es/ecma262/#realm
 [source map include directives]: https://sourcemaps.info/spec.html#h.lmz475t4mvbx
-[transferrable objects]: worker_threads.md#portpostmessagevalue-transferlist
+[transferable objects]: worker_threads.md#portpostmessagevalue-transferlist

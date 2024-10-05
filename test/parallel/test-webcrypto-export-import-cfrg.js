@@ -322,6 +322,15 @@ async function testImportJwk({ name, publicUsages, privateUsages }, extractable)
       extractable,
       [/* empty usages */]),
     { name: 'SyntaxError', message: 'Usages cannot be empty when importing a private key.' });
+
+  await assert.rejects(
+    subtle.importKey(
+      'jwk',
+      { kty: jwk.kty, /* missing x */ crv: jwk.crv },
+      { name },
+      extractable,
+      publicUsages),
+    { name: 'DataError', message: 'Invalid keyData' });
 }
 
 async function testImportRaw({ name, publicUsages }) {
@@ -340,15 +349,14 @@ async function testImportRaw({ name, publicUsages }) {
 
 (async function() {
   const tests = [];
-  testVectors.forEach((vector) => {
-    [true, false].forEach((extractable) => {
+  for (const vector of testVectors) {
+    for (const extractable of [true, false]) {
       tests.push(testImportSpki(vector, extractable));
       tests.push(testImportPkcs8(vector, extractable));
       tests.push(testImportJwk(vector, extractable));
-    });
+    }
     tests.push(testImportRaw(vector));
-  });
-
+  }
   await Promise.all(tests);
 })().then(common.mustCall());
 

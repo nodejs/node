@@ -13,7 +13,7 @@
 namespace v8 {
 namespace internal {
 
-class StringSetShape : public BaseShape<String> {
+class StringSetShape : public BaseShape<Tagged<String>> {
  public:
   static inline bool IsMatch(Tagged<String> key, Tagged<Object> value);
   static inline uint32_t Hash(ReadOnlyRoots roots, Tagged<String> key);
@@ -32,10 +32,9 @@ class StringSet : public HashTable<StringSet, StringSetShape> {
   V8_EXPORT_PRIVATE static Handle<StringSet> New(Isolate* isolate);
   V8_EXPORT_PRIVATE static Handle<StringSet> Add(Isolate* isolate,
                                                  Handle<StringSet> stringset,
-                                                 Handle<String> name);
-  V8_EXPORT_PRIVATE bool Has(Isolate* isolate, Handle<String> name);
+                                                 DirectHandle<String> name);
+  V8_EXPORT_PRIVATE bool Has(Isolate* isolate, DirectHandle<String> name);
 
-  DECL_CAST(StringSet)
   OBJECT_CONSTRUCTORS(StringSet, HashTable<StringSet, StringSetShape>);
 };
 

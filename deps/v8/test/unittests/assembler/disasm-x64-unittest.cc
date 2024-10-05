@@ -147,12 +147,22 @@ TEST_F(DisasmX64Test, DisasmX64) {
   {
     if (CpuFeatures::IsSupported(FMA3)) {
       CpuFeatureScope scope(&assm, FMA3);
-#define EMIT_FMA(instr, notUsed1, notUsed2, notUsed3, notUsed4, notUsed5, \
-                 notUsed6)                                                \
+#define EMIT_FMA(instr, notUsed1, notUsed2, notUsed3, notUsed4, notUsed5) \
   __ instr(xmm9, xmm10, xmm11);                                           \
   __ instr(xmm9, xmm10, Operand(rbx, rcx, times_4, 10000));
       FMA_INSTRUCTION_LIST(EMIT_FMA)
 #undef EMIT_FMA
+    }
+  }
+
+  // F16C instruction
+  {
+    if (CpuFeatures::IsSupported(F16C)) {
+      CpuFeatureScope scope(&assm, F16C);
+      __ vcvtph2ps(ymm0, xmm1);
+      __ vcvtph2ps(xmm2, xmm3);
+      __ vcvtps2ph(xmm4, ymm5, 0);
+      __ vcvtps2ph(xmm6, xmm7, 0);
     }
   }
 
@@ -407,7 +417,7 @@ TEST_F(DisasmX64Test, DisasmX64CheckOutput) {
   COMPARE("4883448d0c0c         REX.W addq [rbp+rcx*4+0xc],0xc",
           addq(Operand(rbp, rcx, times_4, 12), Immediate(12)));
 
-  COMPARE("400fc8               bswapl rax", bswapl(rax));
+  COMPARE("0fc8                 bswapl rax", bswapl(rax));
   COMPARE("480fcf               REX.W bswapq rdi", bswapq(rdi));
   COMPARE("410fbdc7             bsrl rax,r15", bsrl(rax, r15));
   COMPARE("440fbd0ccd0f670100   bsrl r9,[rcx*8+0x1670f]",
@@ -636,7 +646,7 @@ TEST_F(DisasmX64Test, DisasmX64CheckOutput) {
   COMPARE("4883fb0c             REX.W cmpq rbx,0xc", cmpq(rbx, Immediate(12)));
   COMPARE("4883bc8a102700000c   REX.W cmpq [rdx+rcx*4+0x2710],0xc",
           cmpq(Operand(rdx, rcx, times_4, 10000), Immediate(12)));
-  COMPARE("80f864               cmpb al,0x64", cmpb(rax, Immediate(100)));
+  COMPARE("3c64                 cmpb al,0x64", cmpb(rax, Immediate(100)));
 
   COMPARE("4881cb39300000       REX.W orq rbx,0x3039",
           orq(rbx, Immediate(12345)));
@@ -1435,9 +1445,67 @@ TEST_F(DisasmX64Test, DisasmX64CheckOutputAVX) {
           vbroadcastss(xmm1, Operand(rbx, rcx, times_4, 10000)));
 }
 
+TEST_F(DisasmX64Test, DisasmX64CheckOutputVNNI) {
+  if (!CpuFeatures::IsSupported(AVX_VNNI)) {
+    return;
+  }
+
+  DisassemblerTester t;
+  CpuFeatureScope scope(&t.assm_, AVX_VNNI);
+  COMPARE("c4e26950cb           vpdpbusd xmm1,xmm2,xmm3",
+          vpdpbusd(xmm1, xmm2, xmm3));
+  COMPARE("c4622550c7           vpdpbusd ymm8,ymm11,ymm7",
+          vpdpbusd(ymm8, ymm11, ymm7));
+}
+
+TEST_F(DisasmX64Test, DisasmX64CheckOutputF16C) {
+  if (!CpuFeatures::IsSupported(F16C)) {
+    return;
+  }
+
+  DisassemblerTester t;
+  std::string actual, exp;
+  CpuFeatureScope scope(&t.assm_, F16C);
+
+  COMPARE("c4e27d13c1           vcvtph2ps ymm0,xmm1", vcvtph2ps(ymm0, xmm1));
+  COMPARE("c4e27913d3           vcvtph2ps xmm2,xmm3", vcvtph2ps(xmm2, xmm3));
+  COMPARE("c4e37d1dec00         vcvtps2ph xmm4,ymm5,0x0",
+          vcvtps2ph(xmm4, ymm5, 0));
+  COMPARE("c4e3791dfe00         vcvtps2ph xmm6,xmm7,0x0",
+          vcvtps2ph(xmm6, xmm7, 0));
+}
+
 TEST_F(DisasmX64Test, DisasmX64YMMRegister) {
   if (!CpuFeatures::IsSupported(AVX)) return;
   DisassemblerTester t;
+
+  {
+    CpuFeatureScope fscope(t.assm(), FMA3);
+    COMPARE("c4e26d98cc           vfmadd132ps ymm1,ymm2,ymm4",
+            vfmadd132ps(ymm1, ymm2, ymm4));
+    COMPARE("c4c255a8d9           vfmadd213ps ymm3,ymm5,ymm9",
+            vfmadd213ps(ymm3, ymm5, ymm9));
+    COMPARE("c4e265b8cd           vfmadd231ps ymm1,ymm3,ymm5",
+            vfmadd231ps(ymm1, ymm3, ymm5));
+    COMPARE("c4e26d9ccc           vfnmadd132ps ymm1,ymm2,ymm4",
+            vfnmadd132ps(ymm1, ymm2, ymm4));
+    COMPARE("c4c255acd9           vfnmadd213ps ymm3,ymm5,ymm9",
+            vfnmadd213ps(ymm3, ymm5, ymm9));
+    COMPARE("c4e265bccd           vfnmadd231ps ymm1,ymm3,ymm5",
+            vfnmadd231ps(ymm1, ymm3, ymm5));
+    COMPARE("c4e2ed98cc           vfmadd132pd ymm1,ymm2,ymm4",
+            vfmadd132pd(ymm1, ymm2, ymm4));
+    COMPARE("c4c2d5a8d9           vfmadd213pd ymm3,ymm5,ymm9",
+            vfmadd213pd(ymm3, ymm5, ymm9));
+    COMPARE("c4e2e5b8cd           vfmadd231pd ymm1,ymm3,ymm5",
+            vfmadd231pd(ymm1, ymm3, ymm5));
+    COMPARE("c4e2ed9ccc           vfnmadd132pd ymm1,ymm2,ymm4",
+            vfnmadd132pd(ymm1, ymm2, ymm4));
+    COMPARE("c4c2d5acd9           vfnmadd213pd ymm3,ymm5,ymm9",
+            vfnmadd213pd(ymm3, ymm5, ymm9));
+    COMPARE("c4e2e5bccd           vfnmadd231pd ymm1,ymm3,ymm5",
+            vfnmadd231pd(ymm1, ymm3, ymm5));
+  }
 
   {
     CpuFeatureScope fscope(t.assm(), AVX);

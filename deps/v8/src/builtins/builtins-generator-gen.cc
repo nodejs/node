@@ -4,8 +4,7 @@
 
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
-#include "src/codegen/code-factory.h"
-#include "src/codegen/code-stub-assembler.h"
+#include "src/codegen/code-stub-assembler-inl.h"
 #include "src/execution/isolate.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/objects-inl.h"
@@ -63,8 +62,8 @@ void GeneratorBuiltinsAssembler::InnerResume(
   {
     compiler::ScopedExceptionHandler handler(this, &if_exception,
                                              &var_exception);
-    result = CallStub(CodeFactory::ResumeGenerator(isolate()), context, value,
-                      receiver);
+    result = CallBuiltin(Builtin::kResumeGeneratorTrampoline, context, value,
+                         receiver);
   }
 
   // If the generator is not suspended (i.e., its state is 'executing'),
@@ -107,6 +106,9 @@ void GeneratorBuiltinsAssembler::InnerResume(
       case JSGeneratorObject::kThrow:
         builtin_result = CallRuntime(Runtime::kThrow, context, value);
         break;
+      case JSGeneratorObject::kRethrow:
+        // Currently only async generators use this mode.
+        UNREACHABLE();
     }
     args->PopAndReturn(builtin_result);
   }
@@ -237,7 +239,7 @@ TF_BUILTIN(SuspendGeneratorBaseline, GeneratorBuiltinsAssembler) {
   auto parent_frame_pointer = LoadParentFramePointer();
   BuildFastLoop<IntPtrT>(
       IntPtrConstant(0), formal_parameter_count,
-      [=](TNode<IntPtrT> index) {
+      [=, this](TNode<IntPtrT> index) {
         auto reg_index = IntPtrAdd(parameter_base_index, index);
         TNode<Object> value = LoadFullTagged(parent_frame_pointer,
                                              TimesSystemPointerSize(reg_index));
@@ -256,7 +258,7 @@ TF_BUILTIN(SuspendGeneratorBaseline, GeneratorBuiltinsAssembler) {
   CSA_CHECK(this, UintPtrLessThan(end_index, parameters_and_registers_length));
   BuildFastLoop<IntPtrT>(
       formal_parameter_count, end_index,
-      [=](TNode<IntPtrT> index) {
+      [=, this](TNode<IntPtrT> index) {
         auto reg_index = IntPtrSub(register_base_index, index);
         TNode<Object> value = LoadFullTagged(parent_frame_pointer,
                                              TimesSystemPointerSize(reg_index));
@@ -294,7 +296,7 @@ TF_BUILTIN(ResumeGeneratorBaseline, GeneratorBuiltinsAssembler) {
   auto parent_frame_pointer = LoadParentFramePointer();
   BuildFastLoop<IntPtrT>(
       formal_parameter_count, end_index,
-      [=](TNode<IntPtrT> index) {
+      [=, this](TNode<IntPtrT> index) {
         TNode<Object> value =
             UnsafeLoadFixedArrayElement(parameters_and_registers, index);
         auto reg_index = IntPtrSub(register_base_index, index);

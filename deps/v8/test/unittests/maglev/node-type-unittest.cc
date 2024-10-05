@@ -4,54 +4,12 @@
 
 #ifdef V8_ENABLE_MAGLEV
 
-#include "src/compiler/js-heap-broker.h"
-#include "src/execution/isolate.h"
-#include "src/handles/handles.h"
 #include "src/maglev/maglev-ir.h"
-#include "test/unittests/test-utils.h"
-#include "testing/gmock/include/gmock/gmock.h"
-#include "testing/gtest/include/gtest/gtest.h"
+#include "test/unittests/maglev/maglev-test.h"
 
 namespace v8 {
 namespace internal {
 namespace maglev {
-
-class MaglevTest : public TestWithNativeContextAndZone {
- public:
-  MaglevTest();
-  ~MaglevTest() override;
-
-  compiler::JSHeapBroker* broker() { return &broker_; }
-
- private:
-  compiler::JSHeapBroker broker_;
-  compiler::JSHeapBrokerScopeForTesting broker_scope_;
-  std::unique_ptr<PersistentHandlesScope> persistent_scope_;
-  compiler::CurrentHeapBrokerScope current_broker_;
-};
-
-MaglevTest::MaglevTest()
-    : TestWithNativeContextAndZone(kCompressGraphZone),
-      broker_(isolate(), zone(), v8_flags.trace_heap_broker, CodeKind::MAGLEV),
-      broker_scope_(&broker_, isolate(), zone()),
-      current_broker_(&broker_) {
-  // PersistentHandlesScope currently requires an active handle before it can
-  // be opened and they can't be nested.
-  // TODO(v8:13897): Remove once PersistentHandlesScopes can be opened
-  // uncontionally.
-  if (!PersistentHandlesScope::IsActive(isolate())) {
-    Handle<Object> dummy(ReadOnlyRoots(isolate()->heap()).empty_string(),
-                         isolate());
-    persistent_scope_ = std::make_unique<PersistentHandlesScope>(isolate());
-  }
-  broker()->SetTargetNativeContextRef(isolate()->native_context());
-}
-
-MaglevTest::~MaglevTest() {
-  if (persistent_scope_ != nullptr) {
-    persistent_scope_->Detach();
-  }
-}
 
 static std::initializer_list<NodeType> kAllNodeTypes{
 #define TYPE(Name, _) NodeType::k##Name,
@@ -91,12 +49,12 @@ TEST_F(MaglevTest, NodeTypeApproximationIsConsistent) {
   for (auto idx = RootIndex::kFirstRoot; idx <= RootIndex::kLastRoot; ++idx) {
     Tagged<Object> obj = isolate()->roots_table().slot(idx).load(isolate());
     if (obj.ptr() == kNullAddress || !IsMap(obj)) continue;
-    Tagged<Map> map = Map::cast(obj);
+    Tagged<Map> map = Cast<Map>(obj);
     compiler::MapRef map_ref = MakeRef(broker(), map);
 
     for (NodeType a : kAllNodeTypes) {
       bool isInstance = IsInstanceOfNodeType(map_ref, a, broker());
-      bool isSubtype = NodeTypeIs(StaticTypeForMap(map_ref), a);
+      bool isSubtype = NodeTypeIs(StaticTypeForMap(map_ref, broker()), a);
       CHECK_IMPLIES(isSubtype, isInstance);
       CHECK_IMPLIES(!isInstance, !isSubtype);
     }
@@ -108,7 +66,7 @@ TEST_F(MaglevTest, NodeTypeCombineIsConsistent) {
   for (auto idx = RootIndex::kFirstRoot; idx <= RootIndex::kLastRoot; ++idx) {
     Tagged<Object> obj = isolate()->roots_table().slot(idx).load(isolate());
     if (obj.ptr() == kNullAddress || !IsMap(obj)) continue;
-    Tagged<Map> map = Map::cast(obj);
+    Tagged<Map> map = Cast<Map>(obj);
     compiler::MapRef map_ref = MakeRef(broker(), map);
 
     for (NodeType a : kAllNodeTypes) {

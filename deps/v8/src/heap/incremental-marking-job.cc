@@ -4,6 +4,8 @@
 
 #include "src/heap/incremental-marking-job.h"
 
+#include <optional>
+
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/time.h"
 #include "src/execution/isolate.h"
@@ -91,6 +93,9 @@ void IncrementalMarkingJob::Task::RunInternal() {
   VMState<GC> state(isolate());
   TRACE_EVENT_CALL_STATS_SCOPED(isolate(), "v8",
                                 "V8.IncrementalMarkingJob.Task");
+  // In case multi-cage pointer compression mode is enabled ensure that
+  // current thread's cage base values are properly initialized.
+  PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate());
 
   isolate()->stack_guard()->ClearStartIncrementalMarking();
 
@@ -104,7 +109,7 @@ void IncrementalMarkingJob::Task::RunInternal() {
   }
 
   EmbedderStackStateScope scope(
-      heap, EmbedderStackStateScope::kImplicitThroughTask, stack_state_);
+      heap, EmbedderStackStateOrigin::kImplicitThroughTask, stack_state_);
 
   IncrementalMarking* incremental_marking = heap->incremental_marking();
   if (incremental_marking->IsStopped()) {
@@ -150,9 +155,9 @@ void IncrementalMarkingJob::Task::RunInternal() {
   }
 }
 
-base::Optional<base::TimeDelta> IncrementalMarkingJob::CurrentTimeToTask()
+std::optional<base::TimeDelta> IncrementalMarkingJob::CurrentTimeToTask()
     const {
-  base::Optional<base::TimeDelta> current_time_to_task;
+  std::optional<base::TimeDelta> current_time_to_task;
   if (pending_task_.has_value()) {
     const auto now = base::TimeTicks::Now();
     if (pending_task_.value() == TaskType::kNormal) {
@@ -170,7 +175,7 @@ base::Optional<base::TimeDelta> IncrementalMarkingJob::CurrentTimeToTask()
   return current_time_to_task;
 }
 
-base::Optional<v8::base::TimeDelta> IncrementalMarkingJob::AverageTimeToTask()
+std::optional<v8::base::TimeDelta> IncrementalMarkingJob::AverageTimeToTask()
     const {
   return heap_->tracer()->AverageTimeToIncrementalMarkingTask();
 }

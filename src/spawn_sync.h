@@ -30,8 +30,7 @@
 
 namespace node {
 
-
-
+class ExternalReferenceRegistry;
 class SyncProcessOutputBuffer;
 class SyncProcessStdioPipe;
 class SyncProcessRunner;
@@ -140,6 +139,7 @@ class SyncProcessRunner {
   };
 
  public:
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
   static void Initialize(v8::Local<v8::Object> target,
                          v8::Local<v8::Value> unused,
                          v8::Local<v8::Context> context,
@@ -155,7 +155,7 @@ class SyncProcessRunner {
   inline Environment* env() const;
 
   v8::MaybeLocal<v8::Object> Run(v8::Local<v8::Value> options);
-  v8::Maybe<bool> TryInitializeAndRunLoop(v8::Local<v8::Value> options);
+  v8::Maybe<void> TryInitializeAndRunLoop(v8::Local<v8::Value> options);
   void CloseHandlesAndDeleteLoop();
 
   void CloseStdioPipes();

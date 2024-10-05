@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2019, Oracle and/or its affiliates.  All rights reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -14,6 +14,7 @@
 #include <openssl/err.h>
 #include "internal/propertyerr.h"
 #include "internal/property.h"
+#include "internal/numbers.h"
 #include "crypto/ctype.h"
 #include "internal/nelem.h"
 #include "property_local.h"
@@ -97,9 +98,18 @@ static int parse_number(const char *t[], OSSL_PROPERTY_DEFINITION *res)
     const char *s = *t;
     int64_t v = 0;
 
-    if (!ossl_isdigit(*s))
-        return 0;
     do {
+        if (!ossl_isdigit(*s)) {
+            ERR_raise_data(ERR_LIB_PROP, PROP_R_NOT_A_DECIMAL_DIGIT,
+                           "HERE-->%s", *t);
+            return 0;
+        }
+        /* overflow check */
+        if (v > ((INT64_MAX - (*s - '0')) / 10)) {
+            ERR_raise_data(ERR_LIB_PROP, PROP_R_PARSE_FAILED,
+                           "Property %s overflows", *t);
+            return 0;
+        }
         v = v * 10 + (*s++ - '0');
     } while (ossl_isdigit(*s));
     if (!ossl_isspace(*s) && *s != '\0' && *s != ',') {
@@ -117,15 +127,27 @@ static int parse_hex(const char *t[], OSSL_PROPERTY_DEFINITION *res)
 {
     const char *s = *t;
     int64_t v = 0;
+    int sval;
 
-    if (!ossl_isxdigit(*s))
-        return 0;
     do {
+        if (ossl_isdigit(*s)) {
+            sval = *s - '0';
+        } else if (ossl_isxdigit(*s)) {
+            sval = ossl_tolower(*s) - 'a' + 10;
+        } else {
+            ERR_raise_data(ERR_LIB_PROP, PROP_R_NOT_AN_HEXADECIMAL_DIGIT,
+                           "%s", *t);
+            return 0;
+        }
+
+        if (v > ((INT64_MAX - sval) / 16)) {
+            ERR_raise_data(ERR_LIB_PROP, PROP_R_PARSE_FAILED,
+                           "Property %s overflows", *t);
+            return 0;
+        }
+
         v <<= 4;
-        if (ossl_isdigit(*s))
-            v += *s - '0';
-        else
-            v += ossl_tolower(*s) - 'a';
+        v += sval;
     } while (ossl_isxdigit(*++s));
     if (!ossl_isspace(*s) && *s != '\0' && *s != ',') {
         ERR_raise_data(ERR_LIB_PROP, PROP_R_NOT_AN_HEXADECIMAL_DIGIT,
@@ -143,9 +165,18 @@ static int parse_oct(const char *t[], OSSL_PROPERTY_DEFINITION *res)
     const char *s = *t;
     int64_t v = 0;
 
-    if (*s == '9' || *s == '8' || !ossl_isdigit(*s))
-        return 0;
     do {
+        if (*s == '9' || *s == '8' || !ossl_isdigit(*s)) {
+            ERR_raise_data(ERR_LIB_PROP, PROP_R_NOT_AN_OCTAL_DIGIT,
+                           "HERE-->%s", *t);
+            return 0;
+        }
+        if (v > ((INT64_MAX - (*s - '0')) / 8)) {
+            ERR_raise_data(ERR_LIB_PROP, PROP_R_PARSE_FAILED,
+                           "Property %s overflows", *t);
+            return 0;
+        }
+
         v = (v << 3) + (*s - '0');
     } while (ossl_isdigit(*++s) && *s != '9' && *s != '8');
     if (!ossl_isspace(*s) && *s != '\0' && *s != ',') {

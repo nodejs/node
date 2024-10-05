@@ -38,25 +38,7 @@ namespace internal {
 
 #ifdef DEBUG
 
-static const char* NameForNativeContextIntrinsicIndex(uint32_t idx) {
-  switch (idx) {
-#define NATIVE_CONTEXT_FIELDS_IDX(NAME, Type, name) \
-  case Context::NAME:                               \
-    return #name;
-
-    NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELDS_IDX)
-#undef NATIVE_CONTEXT_FIELDS_IDX
-
-    default:
-      break;
-  }
-
-  return "UnknownIntrinsicIndex";
-}
-
-void AstNode::Print(Isolate* isolate) {
-  AstPrinter::PrintOut(isolate, this);
-}
+void AstNode::Print(Isolate* isolate) { AstPrinter::PrintOut(isolate, this); }
 
 #endif  // DEBUG
 
@@ -198,20 +180,26 @@ Assignment::Assignment(NodeType node_type, Token::Value op, Expression* target,
   bit_field_ |= TokenField::encode(op);
 }
 
-void FunctionLiteral::set_inferred_name(Handle<String> inferred_name) {
-  DCHECK(!inferred_name.is_null());
-  inferred_name_ = inferred_name;
-  DCHECK(raw_inferred_name_ == nullptr || raw_inferred_name_->IsEmpty());
-  raw_inferred_name_ = nullptr;
+void FunctionLiteral::set_raw_inferred_name(AstConsString* raw_inferred_name) {
+  DCHECK_NOT_NULL(raw_inferred_name);
+  DCHECK(shared_function_info_.is_null());
+  raw_inferred_name_ = raw_inferred_name;
   scope()->set_has_inferred_function_name(true);
 }
 
-void FunctionLiteral::set_raw_inferred_name(AstConsString* raw_inferred_name) {
-  DCHECK_NOT_NULL(raw_inferred_name);
-  raw_inferred_name_ = raw_inferred_name;
-  DCHECK(inferred_name_.is_null());
-  inferred_name_ = Handle<String>();
-  scope()->set_has_inferred_function_name(true);
+Handle<String> FunctionLiteral::GetInferredName(Isolate* isolate) {
+  if (raw_inferred_name_ != nullptr) {
+    return raw_inferred_name_->GetString(isolate);
+  }
+  DCHECK(!shared_function_info_.is_null());
+  return handle(shared_function_info_->inferred_name(), isolate);
+}
+
+void FunctionLiteral::set_shared_function_info(
+    Handle<SharedFunctionInfo> shared_function_info) {
+  DCHECK(shared_function_info_.is_null());
+  CHECK_EQ(shared_function_info->function_literal_id(), function_literal_id_);
+  shared_function_info_ = shared_function_info;
 }
 
 bool FunctionLiteral::ShouldEagerCompile() const {
@@ -244,8 +232,8 @@ std::unique_ptr<char[]> FunctionLiteral::GetDebugName() const {
     cons_string = raw_name_;
   } else if (raw_inferred_name_ != nullptr && !raw_inferred_name_->IsEmpty()) {
     cons_string = raw_inferred_name_;
-  } else if (!inferred_name_.is_null()) {
-    return inferred_name_->ToCString();
+  } else if (!shared_function_info_.is_null()) {
+    return shared_function_info_->inferred_name()->ToCString();
   } else {
     char* empty_str = new char[1];
     empty_str[0] = 0;
@@ -315,7 +303,20 @@ ClassLiteralProperty::ClassLiteralProperty(Expression* key, Expression* value,
       kind_(kind),
       is_static_(is_static),
       is_private_(is_private),
-      private_or_computed_name_var_(nullptr) {}
+      private_or_computed_name_proxy_(nullptr) {}
+
+ClassLiteralProperty::ClassLiteralProperty(Expression* key, Expression* value,
+                                           AutoAccessorInfo* info,
+                                           bool is_static,
+                                           bool is_computed_name,
+                                           bool is_private)
+    : LiteralProperty(key, value, is_computed_name),
+      kind_(Kind::AUTO_ACCESSOR),
+      is_static_(is_static),
+      is_private_(is_private),
+      auto_accessor_info_(info) {
+  DCHECK_NOT_NULL(info);
+}
 
 bool ObjectLiteral::Property::IsCompileTimeValue() const {
   return kind_ == CONSTANT ||
@@ -512,13 +513,14 @@ void ObjectLiteralBoilerplateBuilder::BuildBoilerplateDescription(
     // in at runtime. The enumeration order is maintained.
     Literal* key_literal = property->key()->AsLiteral();
     uint32_t element_index = 0;
-    Handle<Object> key =
+    DirectHandle<Object> key =
         key_literal->AsArrayIndex(&element_index)
             ? isolate->factory()
                   ->template NewNumberFromUint<AllocationType::kOld>(
                       element_index)
-            : Handle<Object>::cast(key_literal->AsRawPropertyName()->string());
-    Handle<Object> value = GetBoilerplateValue(property->value(), isolate);
+            : Cast<Object>(key_literal->AsRawPropertyName()->string());
+    DirectHandle<Object> value =
+        GetBoilerplateValue(property->value(), isolate);
     boilerplate_description->set_key_value(position++, *key, *value);
   }
 
@@ -679,15 +681,15 @@ void ArrayLiteralBoilerplateBuilder::BuildBoilerplateDescription(
       if (literal && literal->type() == Literal::kTheHole) {
         DCHECK(IsHoleyElementsKind(kind));
         DCHECK(IsTheHole(*GetBoilerplateValue(element, isolate), isolate));
-        FixedDoubleArray::cast(*elements)->set_the_hole(array_index);
+        Cast<FixedDoubleArray>(*elements)->set_the_hole(array_index);
         continue;
       } else if (literal && literal->IsNumber()) {
-        FixedDoubleArray::cast(*elements)->set(array_index,
+        Cast<FixedDoubleArray>(*elements)->set(array_index,
                                                literal->AsNumber());
       } else {
         DCHECK(
             IsUninitialized(*GetBoilerplateValue(element, isolate), isolate));
-        FixedDoubleArray::cast(*elements)->set(array_index, 0);
+        Cast<FixedDoubleArray>(*elements)->set(array_index, 0);
       }
 
     } else {
@@ -717,7 +719,7 @@ void ArrayLiteralBoilerplateBuilder::BuildBoilerplateDescription(
                                     boilerplate_value,
                                     GetPtrComprCageBase(*elements))));
 
-      FixedArray::cast(*elements)->set(array_index, boilerplate_value);
+      Cast<FixedArray>(*elements)->set(array_index, boilerplate_value);
     }
   }  // namespace internal
 
@@ -831,7 +833,7 @@ Handle<TemplateObjectDescription> GetTemplateObject::GetOrBuildDescription(
       if (this->cooked_strings()->at(i) != nullptr) {
         cooked_strings->set(i, *this->cooked_strings()->at(i)->string());
       } else {
-        cooked_strings->set_undefined(roots, i);
+        cooked_strings->set(i, roots.undefined_value(), SKIP_WRITE_BARRIER);
       }
     }
   }
@@ -847,8 +849,8 @@ template EXPORT_TEMPLATE_DEFINE(V8_BASE_EXPORT)
 
 static bool IsCommutativeOperationWithSmiLiteral(Token::Value op) {
   // Add is not commutative due to potential for string addition.
-  return op == Token::MUL || op == Token::BIT_AND || op == Token::BIT_OR ||
-         op == Token::BIT_XOR;
+  return op == Token::kMul || op == Token::kBitAnd || op == Token::kBitOr ||
+         op == Token::kBitXor;
 }
 
 // Check for the pattern: x + 1.
@@ -869,32 +871,9 @@ bool BinaryOperation::IsSmiLiteralOperation(Expression** subexpr,
           MatchSmiLiteralOperation(right_, left_, subexpr, literal));
 }
 
-static bool IsTypeof(Expression* expr) {
-  UnaryOperation* maybe_unary = expr->AsUnaryOperation();
-  return maybe_unary != nullptr && maybe_unary->op() == Token::TYPEOF;
-}
-
-// Check for the pattern: typeof <expression> equals <string literal>.
-static bool MatchLiteralCompareTypeof(Expression* left, Token::Value op,
-                                      Expression* right, Expression** expr,
-                                      Literal** literal) {
-  if (IsTypeof(left) && right->IsStringLiteral() && Token::IsEqualityOp(op)) {
-    *expr = left->AsUnaryOperation()->expression();
-    *literal = right->AsLiteral();
-    return true;
-  }
-  return false;
-}
-
-bool CompareOperation::IsLiteralCompareTypeof(Expression** expr,
-                                              Literal** literal) {
-  return MatchLiteralCompareTypeof(left_, op(), right_, expr, literal) ||
-         MatchLiteralCompareTypeof(right_, op(), left_, expr, literal);
-}
-
 static bool IsVoidOfLiteral(Expression* expr) {
   UnaryOperation* maybe_unary = expr->AsUnaryOperation();
-  return maybe_unary != nullptr && maybe_unary->op() == Token::VOID &&
+  return maybe_unary != nullptr && maybe_unary->op() == Token::kVoid &&
          maybe_unary->expression()->IsLiteral();
 }
 
@@ -902,7 +881,7 @@ static bool MatchLiteralStrictCompareBoolean(Expression* left, Token::Value op,
                                              Expression* right,
                                              Expression** expr,
                                              Literal** literal) {
-  if (left->IsBooleanLiteral() && op == Token::EQ_STRICT) {
+  if (left->IsBooleanLiteral() && op == Token::kEqStrict) {
     *expr = right;
     *literal = left->AsLiteral();
     return true;
@@ -1152,15 +1131,6 @@ Literal* AstNodeFactory::NewNumberLiteral(double number, int pos) {
     return NewSmiLiteral(int_value, pos);
   }
   return zone_->New<Literal>(number, pos);
-}
-
-const char* CallRuntime::debug_name() {
-#ifdef DEBUG
-  return is_jsruntime() ? NameForNativeContextIntrinsicIndex(context_index_)
-                        : function_->name;
-#else
-  return is_jsruntime() ? "(context function)" : function_->name;
-#endif  // DEBUG
 }
 
 }  // namespace internal

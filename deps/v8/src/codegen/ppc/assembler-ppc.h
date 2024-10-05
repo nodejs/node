@@ -289,6 +289,12 @@ class Assembler : public AssemblerBase {
       Address pc, Address target,
       RelocInfo::Mode mode = RelocInfo::INTERNAL_REFERENCE);
 
+  // Read/modify the uint32 constant used at pc.
+  static inline uint32_t uint32_constant_at(Address pc, Address constant_pool);
+  static inline void set_uint32_constant_at(
+      Address pc, Address constant_pool, uint32_t new_constant,
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
+
   // Here we are patching the address in the LUI/ORI instruction pair.
   // These values are used in the serialization process and must be zero for
   // PPC platform, as Code, Embedded Object or External-reference pointers
@@ -375,7 +381,6 @@ class Assembler : public AssemblerBase {
   }
 #define DECLARE_PPC_X_INSTRUCTIONS_EH_L_FORM(name, instr_name, instr_value) \
   inline void name(const Register dst, const MemOperand& src) {             \
-    DCHECK(src.ra_ != r0);                                                  \
     x_form(instr_name, src.ra(), dst, src.rb(), SetEH);                     \
   }
 
@@ -1004,9 +1009,8 @@ class Assembler : public AssemblerBase {
   void bitwise_mov32(Register dst, int32_t value);
   void bitwise_add32(Register dst, Register src, int32_t value);
 
-  // Patch the offset to the return address after CallCFunction.
-  void patch_wasm_cpi_return_address(Register dst, int pc_offset,
-                                     int return_address_offset);
+  // Patch the offset to the return address after Call.
+  void patch_pc_address(Register dst, int pc_offset, int return_address_offset);
 
   // Load the position of the label relative to the generated code object
   // pointer in a register.

@@ -22,26 +22,35 @@ class Benchmark {
     this.name = require.main.filename.slice(__dirname.length + 1);
 
     // Execution arguments i.e. flags used to run the jobs
-    this.flags = process.env.NODE_BENCHMARK_FLAGS ?
-      process.env.NODE_BENCHMARK_FLAGS.split(/\s+/) :
-      [];
+    this.flags = process.env.NODE_BENCHMARK_FLAGS?.split(/\s+/) ?? [];
 
     // Parse job-specific configuration from the command line arguments
     const argv = process.argv.slice(2);
     const parsed_args = this._parseArgs(argv, configs, options);
+
     this.options = parsed_args.cli;
     this.extra_options = parsed_args.extra;
+    this.combinationFilter = typeof options.combinationFilter === 'function' ? options.combinationFilter : allow;
+
+    if (options.byGroups) {
+      this.queue = [];
+      const groupNames = process.env.NODE_RUN_BENCHMARK_GROUPS?.split(',') ?? Object.keys(configs);
+
+      for (const groupName of groupNames) {
+        const config = { ...configs[groupName][0], group: groupName };
+        const parsed_args = this._parseArgs(argv, config, options);
+
+        this.options = parsed_args.cli;
+        this.extra_options = parsed_args.extra;
+        this.queue = this.queue.concat(this._queue(this.options));
+      }
+    } else {
+      this.queue = this._queue(this.options);
+    }
+
     if (options.flags) {
       this.flags = this.flags.concat(options.flags);
     }
-
-    if (typeof options.combinationFilter === 'function')
-      this.combinationFilter = options.combinationFilter;
-    else
-      this.combinationFilter = allow;
-
-    // The configuration list as a queue of jobs
-    this.queue = this._queue(this.options);
 
     if (this.queue.length === 0)
       return;

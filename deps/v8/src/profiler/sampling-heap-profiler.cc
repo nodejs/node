@@ -81,11 +81,12 @@ void SamplingHeapProfiler::SampleObject(Address soon_object, size_t size) {
   Tagged<HeapObject> heap_object = HeapObject::FromAddress(soon_object);
   Handle<Object> obj(heap_object, isolate_);
 
-  // Since soon_object can be in code space we can't use v8::Utils::ToLocal.
+  // Since soon_object can be in code space or trusted space we can't use
+  // v8::Utils::ToLocal.
   DCHECK(obj.is_null() ||
          (IsSmi(*obj) ||
           (V8_EXTERNAL_CODE_SPACE_BOOL && IsCodeSpaceObject(heap_object)) ||
-          !IsTheHole(*obj)));
+          IsTrustedSpaceObject(heap_object) || !IsTheHole(*obj)));
   auto loc = Local<v8::Value>::FromSlot(obj.location());
 
   AllocationNode* node = AddStack();
@@ -149,7 +150,7 @@ SamplingHeapProfiler::AllocationNode* SamplingHeapProfiler::FindOrAddChildNode(
 SamplingHeapProfiler::AllocationNode* SamplingHeapProfiler::AddStack() {
   AllocationNode* node = &profile_root_;
 
-  std::vector<SharedFunctionInfo> stack;
+  std::vector<Tagged<SharedFunctionInfo>> stack;
   JavaScriptStackFrameIterator frame_it(isolate_);
   int frames_captured = 0;
   bool found_arguments_marker_frames = false;
@@ -191,6 +192,9 @@ SamplingHeapProfiler::AllocationNode* SamplingHeapProfiler::AddStack() {
       case EXTERNAL:
         name = "(EXTERNAL)";
         break;
+      case LOGGING:
+        name = "(LOGGING)";
+        break;
       case IDLE:
         name = "(IDLE)";
         break;
@@ -211,7 +215,7 @@ SamplingHeapProfiler::AllocationNode* SamplingHeapProfiler::AddStack() {
     const char* name = this->names()->GetCopy(shared->DebugNameCStr().get());
     int script_id = v8::UnboundScript::kNoScriptId;
     if (IsScript(shared->script())) {
-      Tagged<Script> script = Script::cast(shared->script());
+      Tagged<Script> script = Cast<Script>(shared->script());
       script_id = script->id();
     }
     node = FindOrAddChildNode(node, name, script_id, shared->StartPosition());
@@ -240,9 +244,9 @@ v8::AllocationProfile::Node* SamplingHeapProfiler::TranslateAllocationNode(
   if (node->script_id_ != v8::UnboundScript::kNoScriptId) {
     auto script_iterator = scripts.find(node->script_id_);
     if (script_iterator != scripts.end()) {
-      Handle<Script> script = script_iterator->second;
+      DirectHandle<Script> script = script_iterator->second;
       if (IsName(script->name())) {
-        Tagged<Name> name = Name::cast(script->name());
+        Tagged<Name> name = Cast<Name>(script->name());
         script_name = ToApiHandle<v8::String>(
             isolate_->factory()->InternalizeUtf8String(names_->GetName(name)));
       }

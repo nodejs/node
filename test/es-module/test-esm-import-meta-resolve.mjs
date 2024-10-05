@@ -1,5 +1,5 @@
 // Flags: --experimental-import-meta-resolve
-import '../common/index.mjs';
+import { spawnPromisified } from '../common/index.mjs';
 import assert from 'assert';
 import { spawn } from 'child_process';
 import { execPath } from 'process';
@@ -36,6 +36,28 @@ assert.strictEqual(import.meta.resolve('http://some-absolute/url'), 'http://some
 assert.strictEqual(import.meta.resolve('some://weird/protocol'), 'some://weird/protocol');
 assert.strictEqual(import.meta.resolve('baz/', fixtures),
                    fixtures + 'node_modules/baz/');
+assert.deepStrictEqual(
+  { ...await import('data:text/javascript,export default import.meta.resolve("http://some-absolute/url")') },
+  { default: 'http://some-absolute/url' },
+);
+assert.deepStrictEqual(
+  { ...await import('data:text/javascript,export default import.meta.resolve("some://weird/protocol")') },
+  { default: 'some://weird/protocol' },
+);
+assert.deepStrictEqual(
+  { ...await import(`data:text/javascript,export default import.meta.resolve("baz/", ${encodeURIComponent(JSON.stringify(fixtures))})`) },
+  { default: fixtures + 'node_modules/baz/' },
+);
+assert.deepStrictEqual(
+  { ...await import('data:text/javascript,export default import.meta.resolve("fs")') },
+  { default: 'node:fs' },
+);
+await assert.rejects(import('data:text/javascript,export default import.meta.resolve("does-not-exist")'), {
+  code: 'ERR_UNSUPPORTED_RESOLVE_REQUEST',
+});
+await assert.rejects(import('data:text/javascript,export default import.meta.resolve("./relative")'), {
+  code: 'ERR_UNSUPPORTED_RESOLVE_REQUEST',
+});
 
 {
   const cp = spawn(execPath, [
@@ -67,4 +89,21 @@ assert.strictEqual(import.meta.resolve('baz/', fixtures),
   ]);
   cp.stdin.end('import "data:text/javascript,console.log(import.meta.resolve(%22node:os%22))"');
   assert.match((await cp.stdout.toArray()).toString(), /^node:os\r?\n$/);
+}
+
+{
+  const result = await spawnPromisified(execPath, [
+    '--no-warnings',
+    '--input-type=module',
+    '--import', 'data:text/javascript,import{register}from"node:module";register("data:text/javascript,")',
+    '--eval',
+    'console.log(import.meta.resolve(new URL("http://example.com")))',
+  ]);
+
+  assert.deepStrictEqual(result, {
+    code: 0,
+    signal: null,
+    stderr: '',
+    stdout: 'http://example.com/\n',
+  });
 }

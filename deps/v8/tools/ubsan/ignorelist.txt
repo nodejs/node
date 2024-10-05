@@ -6,6 +6,10 @@
 fun:*v8*internal*PropertyCallbackArguments*CallAccessorGetter*
 fun:*v8*internal*PropertyCallbackArguments*CallAccessorSetter*
 fun:*v8*internal*InvokeAccessorGetterCallback*
+# Bug chromium:328490288: remove these two once the old interceptor callbacks
+# signatures are removed.
+fun:*v8*internal*PropertyCallbackArguments*CallNamed*
+fun:*v8*internal*PropertyCallbackArguments*CallIndexed*
 
 # Bug 8735: WeakCallbackInfo<void> vs. WeakCallbackInfo<T>.
 fun:*v8*internal*GlobalHandles*PendingPhantomCallback*Invoke*
@@ -16,6 +20,3 @@ fun:*v8*internal*UnsafeDirectApiCall*
 fun:*v8*internal*UnsafeDirectGetterCall*
 fun:*v8*internal*UnsafeGenericFunctionCall*
 fun:*v8*internal*UnsafeProfilingApiCall*
-
-# Bug chromium:1394654: New -fsanitize=alignment fails for PointerTOC in ICU.
-src:*/third_party/icu/*

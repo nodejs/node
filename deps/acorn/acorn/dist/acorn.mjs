@@ -661,7 +661,7 @@ var pp$9 = Parser.prototype;
 
 // ## Parser utilities
 
-var literal = /^(?:'((?:\\.|[^'\\])*?)'|"((?:\\.|[^"\\])*?)")/;
+var literal = /^(?:'((?:\\[^]|[^'\\])*?)'|"((?:\\[^]|[^"\\])*?)")/;
 pp$9.strictDirective = function(start) {
   if (this.options.ecmaVersion < 5) { return false }
   for (;;) {
@@ -847,7 +847,7 @@ pp$8.isLet = function(context) {
   // Statement) is allowed here. If context is not empty then only a Statement
   // is allowed. However, `let [` is an explicit negative lookahead for
   // ExpressionStatement, so special-case it first.
-  if (nextCh === 91 || nextCh === 92) { return true } // '[', '/'
+  if (nextCh === 91 || nextCh === 92) { return true } // '[', '\'
   if (context) { return false }
 
   if (nextCh === 123 || nextCh > 0xd7ff && nextCh < 0xdc00) { return true } // '{', astral
@@ -1040,13 +1040,19 @@ pp$8.parseForStatement = function(node) {
     return this.parseFor(node, init$1)
   }
   var startsWithLet = this.isContextual("let"), isForOf = false;
+  var containsEsc = this.containsEsc;
   var refDestructuringErrors = new DestructuringErrors;
-  var init = this.parseExpression(awaitAt > -1 ? "await" : true, refDestructuringErrors);
+  var initPos = this.start;
+  var init = awaitAt > -1
+    ? this.parseExprSubscripts(refDestructuringErrors, "await")
+    : this.parseExpression(true, refDestructuringErrors);
   if (this.type === types$1._in || (isForOf = this.options.ecmaVersion >= 6 && this.isContextual("of"))) {
-    if (this.options.ecmaVersion >= 9) {
-      if (this.type === types$1._in) {
-        if (awaitAt > -1) { this.unexpected(awaitAt); }
-      } else { node.await = awaitAt > -1; }
+    if (awaitAt > -1) { // implies `ecmaVersion >= 9` (see declaration of awaitAt)
+      if (this.type === types$1._in) { this.unexpected(awaitAt); }
+      node.await = true;
+    } else if (isForOf && this.options.ecmaVersion >= 8) {
+      if (init.start === initPos && !containsEsc && init.type === "Identifier" && init.name === "async") { this.unexpected(); }
+      else if (this.options.ecmaVersion >= 9) { node.await = false; }
     }
     if (startsWithLet && isForOf) { this.raise(init.start, "The left-hand side of a for-of loop may not start with 'let'."); }
     this.toAssignable(init, false, refDestructuringErrors);
@@ -2659,8 +2665,7 @@ pp$5.parseMaybeUnary = function(refDestructuringErrors, sawUnary, incDec, forIni
     node.argument = this.parseMaybeUnary(null, true, update, forInit);
     this.checkExpressionErrors(refDestructuringErrors, true);
     if (update) { this.checkLValSimple(node.argument); }
-    else if (this.strict && node.operator === "delete" &&
-             node.argument.type === "Identifier")
+    else if (this.strict && node.operator === "delete" && isLocalVariableAccess(node.argument))
       { this.raiseRecoverable(node.start, "Deleting local variable in strict mode"); }
     else if (node.operator === "delete" && isPrivateFieldAccess(node.argument))
       { this.raiseRecoverable(node.start, "Private fields can not be deleted"); }
@@ -2695,10 +2700,18 @@ pp$5.parseMaybeUnary = function(refDestructuringErrors, sawUnary, incDec, forIni
   }
 };
 
+function isLocalVariableAccess(node) {
+  return (
+    node.type === "Identifier" ||
+    node.type === "ParenthesizedExpression" && isLocalVariableAccess(node.expression)
+  )
+}
+
 function isPrivateFieldAccess(node) {
   return (
     node.type === "MemberExpression" && node.property.type === "PrivateIdentifier" ||
-    node.type === "ChainExpression" && isPrivateFieldAccess(node.expression)
+    node.type === "ChainExpression" && isPrivateFieldAccess(node.expression) ||
+    node.type === "ParenthesizedExpression" && isPrivateFieldAccess(node.expression)
   )
 }
 
@@ -2936,12 +2949,14 @@ pp$5.parseExprImport = function(forNew) {
   // Consume `import` as an identifier for `import.meta`.
   // Because `this.parseIdent(true)` doesn't check escape sequences, it needs the check of `this.containsEsc`.
   if (this.containsEsc) { this.raiseRecoverable(this.start, "Escape sequence in keyword import"); }
-  var meta = this.parseIdent(true);
+  this.next();
 
   if (this.type === types$1.parenL && !forNew) {
     return this.parseDynamicImport(node)
   } else if (this.type === types$1.dot) {
-    node.meta = meta;
+    var meta = this.startNodeAt(node.start, node.loc && node.loc.start);
+    meta.name = "import";
+    node.meta = this.finishNode(meta, "Identifier");
     return this.parseImportMeta(node)
   } else {
     this.unexpected();
@@ -3091,7 +3106,7 @@ pp$5.parseNew = function() {
   var node = this.startNode();
   this.next();
   if (this.options.ecmaVersion >= 6 && this.type === types$1.dot) {
-    var meta = this.startNodeAt(node.start, node.startLoc);
+    var meta = this.startNodeAt(node.start, node.loc && node.loc.start);
     meta.name = "new";
     node.meta = this.finishNode(meta, "Identifier");
     this.next();
@@ -3123,7 +3138,7 @@ pp$5.parseTemplateElement = function(ref) {
       this.raiseRecoverable(this.start, "Bad escape sequence in untagged template literal");
     }
     elem.value = {
-      raw: this.value,
+      raw: this.value.replace(/\r\n?/g, "\n"),
       cooked: null
     };
   } else {
@@ -3798,6 +3813,30 @@ for (var i = 0, list = [9, 10, 11, 12, 13, 14]; i < list.length; i += 1) {
 
 var pp$1 = Parser.prototype;
 
+// Track disjunction structure to determine whether a duplicate
+// capture group name is allowed because it is in a separate branch.
+var BranchID = function BranchID(parent, base) {
+  // Parent disjunction branch
+  this.parent = parent;
+  // Identifies this set of sibling branches
+  this.base = base || this;
+};
+
+BranchID.prototype.separatedFrom = function separatedFrom (alt) {
+  // A branch is separate from another branch if they or any of
+  // their parents are siblings in a given disjunction
+  for (var self = this; self; self = self.parent) {
+    for (var other = alt; other; other = other.parent) {
+      if (self.base === other.base && self !== other) { return true }
+    }
+  }
+  return false
+};
+
+BranchID.prototype.sibling = function sibling () {
+  return new BranchID(this.parent, this.base)
+};
+
 var RegExpValidationState = function RegExpValidationState(parser) {
   this.parser = parser;
   this.validFlags = "gim" + (parser.options.ecmaVersion >= 6 ? "uy" : "") + (parser.options.ecmaVersion >= 9 ? "s" : "") + (parser.options.ecmaVersion >= 13 ? "d" : "") + (parser.options.ecmaVersion >= 15 ? "v" : "");
@@ -3814,8 +3853,9 @@ var RegExpValidationState = function RegExpValidationState(parser) {
   this.lastAssertionIsQuantifiable = false;
   this.numCapturingParens = 0;
   this.maxBackReference = 0;
-  this.groupNames = [];
+  this.groupNames = Object.create(null);
   this.backReferenceNames = [];
+  this.branchID = null;
 };
 
 RegExpValidationState.prototype.reset = function reset (start, pattern, flags) {
@@ -3947,6 +3987,11 @@ pp$1.validateRegExpFlags = function(state) {
   }
 };
 
+function hasProp(obj) {
+  for (var _ in obj) { return true }
+  return false
+}
+
 /**
  * Validate the pattern part of a given RegExpLiteral.
  *
@@ -3961,7 +4006,7 @@ pp$1.validateRegExpPattern = function(state) {
   // |Pattern[~U, +N]| and use this result instead. Throw a *SyntaxError*
   // exception if _P_ did not conform to the grammar, if any elements of _P_
   // were not matched by the parse, or if any Early Error conditions exist.
-  if (!state.switchN && this.options.ecmaVersion >= 9 && state.groupNames.length > 0) {
+  if (!state.switchN && this.options.ecmaVersion >= 9 && hasProp(state.groupNames)) {
     state.switchN = true;
     this.regexp_pattern(state);
   }
@@ -3975,8 +4020,9 @@ pp$1.regexp_pattern = function(state) {
   state.lastAssertionIsQuantifiable = false;
   state.numCapturingParens = 0;
   state.maxBackReference = 0;
-  state.groupNames.length = 0;
+  state.groupNames = Object.create(null);
   state.backReferenceNames.length = 0;
+  state.branchID = null;
 
   this.regexp_disjunction(state);
 
@@ -3995,7 +4041,7 @@ pp$1.regexp_pattern = function(state) {
   for (var i = 0, list = state.backReferenceNames; i < list.length; i += 1) {
     var name = list[i];
 
-    if (state.groupNames.indexOf(name) === -1) {
+    if (!state.groupNames[name]) {
       state.raise("Invalid named capture referenced");
     }
   }
@@ -4003,10 +4049,14 @@ pp$1.regexp_pattern = function(state) {
 
 // https://www.ecma-international.org/ecma-262/8.0/#prod-Disjunction
 pp$1.regexp_disjunction = function(state) {
+  var trackDisjunction = this.options.ecmaVersion >= 16;
+  if (trackDisjunction) { state.branchID = new BranchID(state.branchID, null); }
   this.regexp_alternative(state);
   while (state.eat(0x7C /* | */)) {
+    if (trackDisjunction) { state.branchID = state.branchID.sibling(); }
     this.regexp_alternative(state);
   }
+  if (trackDisjunction) { state.branchID = state.branchID.parent; }
 
   // Make the same message as V8.
   if (this.regexp_eatQuantifier(state, true)) {
@@ -4019,8 +4069,7 @@ pp$1.regexp_disjunction = function(state) {
 
 // https://www.ecma-international.org/ecma-262/8.0/#prod-Alternative
 pp$1.regexp_alternative = function(state) {
-  while (state.pos < state.source.length && this.regexp_eatTerm(state))
-    { }
+  while (state.pos < state.source.length && this.regexp_eatTerm(state)) {}
 };
 
 // https://www.ecma-international.org/ecma-262/8.0/#prod-annexB-Term
@@ -4258,14 +4307,26 @@ pp$1.regexp_eatExtendedPatternCharacter = function(state) {
 //   `?` GroupName
 pp$1.regexp_groupSpecifier = function(state) {
   if (state.eat(0x3F /* ? */)) {
-    if (this.regexp_eatGroupName(state)) {
-      if (state.groupNames.indexOf(state.lastStringValue) !== -1) {
+    if (!this.regexp_eatGroupName(state)) { state.raise("Invalid group"); }
+    var trackDisjunction = this.options.ecmaVersion >= 16;
+    var known = state.groupNames[state.lastStringValue];
+    if (known) {
+      if (trackDisjunction) {
+        for (var i = 0, list = known; i < list.length; i += 1) {
+          var altID = list[i];
+
+          if (!altID.separatedFrom(state.branchID))
+            { state.raise("Duplicate capture group name"); }
+        }
+      } else {
         state.raise("Duplicate capture group name");
       }
-      state.groupNames.push(state.lastStringValue);
-      return
     }
-    state.raise("Invalid group");
+    if (trackDisjunction) {
+      (known || (state.groupNames[state.lastStringValue] = [])).push(state.branchID);
+    } else {
+      state.groupNames[state.lastStringValue] = true;
+    }
   }
 };
 
@@ -5770,15 +5831,18 @@ pp.readInvalidTemplateToken = function() {
       break
 
     case "$":
-      if (this.input[this.pos + 1] !== "{") {
-        break
-      }
-
-    // falls through
+      if (this.input[this.pos + 1] !== "{") { break }
+      // fall through
     case "`":
       return this.finishToken(types$1.invalidTemplate, this.input.slice(this.start, this.pos))
 
-    // no default
+    case "\r":
+      if (this.input[this.pos + 1] === "\n") { ++this.pos; }
+      // fall through
+    case "\n": case "\u2028": case "\u2029":
+      ++this.curLine;
+      this.lineStart = this.pos + 1;
+      break
     }
   }
   this.raise(this.start, "Unterminated template");
@@ -5841,6 +5905,7 @@ pp.readEscapedChar = function(inTemplate) {
     if (isNewLine(ch)) {
       // Unicode new line characters after \ get removed from output in both
       // template literals and strings
+      if (this.options.locations) { this.lineStart = this.pos; ++this.curLine; }
       return ""
     }
     return String.fromCharCode(ch)
@@ -5919,7 +5984,7 @@ pp.readWord = function() {
 // [walk]: util/walk.js
 
 
-var version = "8.11.2";
+var version = "8.12.1";
 
 Parser.acorn = {
   Parser: Parser,
@@ -5944,11 +6009,10 @@ Parser.acorn = {
 };
 
 // The main exported interface (under `self.acorn` when in the
-// browser) is a `parse` function that takes a code string and
-// returns an abstract syntax tree as specified by [Mozilla parser
-// API][api].
+// browser) is a `parse` function that takes a code string and returns
+// an abstract syntax tree as specified by the [ESTree spec][estree].
 //
-// [api]: https://developer.mozilla.org/en-US/docs/SpiderMonkey/Parser_API
+// [estree]: https://github.com/estree/estree
 
 function parse(input, options) {
   return Parser.parse(input, options)

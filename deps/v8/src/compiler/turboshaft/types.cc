@@ -4,6 +4,7 @@
 
 #include "src/compiler/turboshaft/types.h"
 
+#include <optional>
 #include <sstream>
 #include <string_view>
 
@@ -110,7 +111,7 @@ void Type::PrintTo(std::ostream& stream) const {
 void Type::Print() const {
   StdoutStream os;
   PrintTo(os);
-  os << std::endl;
+  os << '\n';
 }
 
 // static
@@ -143,8 +144,8 @@ Type Type::LeastUpperBound(const Type& lhs, const Type& rhs, Zone* zone) {
   }
 }
 
-base::Optional<Type> Type::ParseFromString(const std::string_view& str,
-                                           Zone* zone) {
+std::optional<Type> Type::ParseFromString(const std::string_view& str,
+                                          Zone* zone) {
   TypeParser parser(str, zone);
   return parser.Parse();
 }

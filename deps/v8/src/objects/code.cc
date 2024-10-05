@@ -9,6 +9,8 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/flush-instruction-cache.h"
 #include "src/codegen/reloc-info-inl.h"
+#include "src/codegen/source-position-table.h"
+#include "src/codegen/source-position.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/objects/code-inl.h"
 
@@ -20,13 +22,13 @@
 namespace v8 {
 namespace internal {
 
-Tagged<ByteArray> Code::raw_position_table() const {
-  return TaggedField<ByteArray, kPositionTableOffset>::load(*this);
+Tagged<Object> Code::raw_deoptimization_data_or_interpreter_data() const {
+  return RawProtectedPointerField(kDeoptimizationDataOrInterpreterDataOffset)
+      .load();
 }
 
-Tagged<HeapObject> Code::raw_deoptimization_data_or_interpreter_data() const {
-  return TaggedField<HeapObject,
-                     kDeoptimizationDataOrInterpreterDataOffset>::load(*this);
+Tagged<Object> Code::raw_position_table() const {
+  return RawProtectedPointerField(kPositionTableOffset).load();
 }
 
 void Code::ClearEmbeddedObjects(Heap* heap) {
@@ -35,8 +37,12 @@ void Code::ClearEmbeddedObjects(Heap* heap) {
   Tagged<InstructionStream> istream = unchecked_instruction_stream();
   int mode_mask = RelocInfo::EmbeddedObjectModeMask();
   {
-    CodePageMemoryModificationScope memory_modification_scope(istream);
-    for (RelocIterator it(*this, mode_mask); !it.done(); it.next()) {
+    WritableJitAllocation jit_allocation = ThreadIsolation::LookupJitAllocation(
+        istream->address(), istream->Size(),
+        ThreadIsolation::JitAllocationType::kInstructionStream);
+    for (WritableRelocIterator it(jit_allocation, istream, constant_pool(),
+                                  mode_mask);
+         !it.done(); it.next()) {
       DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));
       it.rinfo()->set_target_object(istream, undefined, SKIP_WRITE_BARRIER);
     }
@@ -46,6 +52,41 @@ void Code::ClearEmbeddedObjects(Heap* heap) {
 
 void Code::FlushICache() const {
   FlushInstructionCache(instruction_start(), instruction_size());
+}
+
+int Code::SourcePosition(int offset) const {
+  CHECK_NE(kind(), CodeKind::BASELINE);
+
+  // Subtract one because the current PC is one instruction after the call site.
+  offset--;
+
+  int position = 0;
+  if (!has_source_position_table()) return position;
+  for (SourcePositionTableIterator it(
+           source_position_table(),
+           SourcePositionTableIterator::kJavaScriptOnly,
+           SourcePositionTableIterator::kDontSkipFunctionEntry);
+       !it.done() && it.code_offset() <= offset; it.Advance()) {
+    position = it.source_position().ScriptOffset();
+  }
+  return position;
+}
+
+int Code::SourceStatementPosition(int offset) const {
+  CHECK_NE(kind(), CodeKind::BASELINE);
+
+  // Subtract one because the current PC is one instruction after the call site.
+  offset--;
+
+  int position = 0;
+  if (!has_source_position_table()) return position;
+  for (SourcePositionTableIterator it(source_position_table());
+       !it.done() && it.code_offset() <= offset; it.Advance()) {
+    if (it.is_statement()) {
+      position = it.source_position().ScriptOffset();
+    }
+  }
+  return position;
 }
 
 SafepointEntry Code::GetSafepointEntry(Isolate* isolate, Address pc) {
@@ -66,7 +107,8 @@ bool Code::IsIsolateIndependent(Isolate* isolate) {
       RelocInfo::AllRealModesMask() &
       ~RelocInfo::ModeMask(RelocInfo::CONST_POOL) &
       ~RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET) &
-      ~RelocInfo::ModeMask(RelocInfo::VENEER_POOL);
+      ~RelocInfo::ModeMask(RelocInfo::VENEER_POOL) &
+      ~RelocInfo::ModeMask(RelocInfo::WASM_CANONICAL_SIG_ID);
   static_assert(kModeMask ==
                 (RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
                  RelocInfo::ModeMask(RelocInfo::RELATIVE_CODE_TARGET) |
@@ -118,13 +160,13 @@ bool Code::Inlines(Tagged<SharedFunctionInfo> sfi) {
   DCHECK(is_optimized_code());
   DisallowGarbageCollection no_gc;
   Tagged<DeoptimizationData> const data =
-      DeoptimizationData::cast(deoptimization_data());
+      Cast<DeoptimizationData>(deoptimization_data());
   if (data->length() == 0) return false;
   if (data->SharedFunctionInfo() == sfi) return true;
   Tagged<DeoptimizationLiteralArray> const literals = data->LiteralArray();
   int const inlined_count = data->InlinedFunctionCount().value();
   for (int i = 0; i < inlined_count; ++i) {
-    if (SharedFunctionInfo::cast(literals->get(i)) == sfi) return true;
+    if (Cast<SharedFunctionInfo>(literals->get(i)) == sfi) return true;
   }
   return false;
 }
@@ -164,7 +206,7 @@ void Disassemble(const char* name, std::ostream& os, Isolate* isolate,
   if ((name != nullptr) && (name[0] != '\0')) {
     os << "name = " << name << "\n";
   }
-  if (CodeKindIsOptimizedJSFunction(kind) && kind != CodeKind::BASELINE) {
+  if (CodeKindIsOptimizedJSFunction(kind)) {
     os << "stack_slots = " << code->stack_slots() << "\n";
   }
   os << "compiler = "
@@ -195,7 +237,7 @@ void Disassemble(const char* name, std::ostream& os, Isolate* isolate,
   os << "\n";
 
   // TODO(cbruni): add support for baseline code.
-  if (kind != CodeKind::BASELINE) {
+  if (code->has_source_position_table()) {
     {
       SourcePositionTableIterator it(
           code->source_position_table(),
@@ -228,9 +270,9 @@ void Disassemble(const char* name, std::ostream& os, Isolate* isolate,
     }
   }
 
-  if (CodeKindCanDeoptimize(kind)) {
+  if (code->uses_deoptimization_data()) {
     Tagged<DeoptimizationData> data =
-        DeoptimizationData::cast(code->deoptimization_data());
+        Cast<DeoptimizationData>(code->deoptimization_data());
     data->PrintDeoptimizationData(os);
   }
   os << "\n";

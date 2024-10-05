@@ -5,6 +5,8 @@
 #ifndef V8_OBJECTS_JS_FUNCTION_INL_H_
 #define V8_OBJECTS_JS_FUNCTION_INL_H_
 
+#include <optional>
+
 #include "src/objects/js-function.h"
 
 // Include other inline headers *after* including js-function.h, such that e.g.
@@ -22,8 +24,7 @@
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 #include "torque-generated/src/objects/js-function-tq-inl.inc"
 
@@ -39,13 +40,13 @@ RELEASE_ACQUIRE_ACCESSORS(JSFunction, raw_feedback_cell, Tagged<FeedbackCell>,
 
 DEF_GETTER(JSFunction, feedback_vector, Tagged<FeedbackVector>) {
   DCHECK(has_feedback_vector(cage_base));
-  return FeedbackVector::cast(raw_feedback_cell(cage_base)->value(cage_base));
+  return Cast<FeedbackVector>(raw_feedback_cell(cage_base)->value(cage_base));
 }
 
 Tagged<ClosureFeedbackCellArray> JSFunction::closure_feedback_cell_array()
     const {
   DCHECK(has_closure_feedback_cell_array());
-  return ClosureFeedbackCellArray::cast(raw_feedback_cell()->value());
+  return Cast<ClosureFeedbackCellArray>(raw_feedback_cell()->value());
 }
 
 void JSFunction::reset_tiering_state() {
@@ -53,7 +54,9 @@ void JSFunction::reset_tiering_state() {
   feedback_vector()->reset_tiering_state();
 }
 
-bool JSFunction::ChecksTieringState() { return code()->checks_tiering_state(); }
+bool JSFunction::ChecksTieringState(IsolateForSandbox isolate) {
+  return code(isolate)->checks_tiering_state();
+}
 
 void JSFunction::CompleteInobjectSlackTrackingIfActive() {
   if (!has_prototype_slot()) return;
@@ -64,71 +67,77 @@ void JSFunction::CompleteInobjectSlackTrackingIfActive() {
 
 template <typename IsolateT>
 Tagged<AbstractCode> JSFunction::abstract_code(IsolateT* isolate) {
-  if (ActiveTierIsIgnition()) {
-    return AbstractCode::cast(shared()->GetBytecodeArray(isolate));
+  if (ActiveTierIsIgnition(isolate)) {
+    return Cast<AbstractCode>(shared()->GetBytecodeArray(isolate));
   } else {
-    return AbstractCode::cast(code(kAcquireLoad));
+    return Cast<AbstractCode>(code(isolate, kAcquireLoad));
   }
 }
 
 int JSFunction::length() { return shared()->length(); }
 
-Tagged<Code> JSFunction::code() const {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  return JSFunction::code(cage_base);
-}
-Tagged<Code> JSFunction::code(PtrComprCageBase cage_base) const {
-  return Code::cast(raw_code());
+Tagged<Code> JSFunction::code(IsolateForSandbox isolate) const {
+  return ReadCodePointerField(kCodeOffset, isolate);
 }
 
 void JSFunction::set_code(Tagged<Code> value, WriteBarrierMode mode) {
-#ifdef V8_CODE_POINTER_SANDBOXING
-  RawIndirectPointerField(kCodeOffset).Relaxed_Store(value);
-  CONDITIONAL_INDIRECT_POINTER_WRITE_BARRIER(*this, kCodeOffset, value, mode);
-#else
-  TaggedField<Code, kCodeOffset>::Relaxed_Store(*this, value);
-  CONDITIONAL_WRITE_BARRIER(*this, kCodeOffset, value, mode);
-#endif  // V8_CODE_POINTER_SANDBOXING
+  WriteCodePointerField(kCodeOffset, value);
+  CONDITIONAL_CODE_POINTER_WRITE_BARRIER(*this, kCodeOffset, value, mode);
 }
 
-Tagged<Code> JSFunction::code(AcquireLoadTag tag) const {
-  return Code::cast(raw_code(tag));
+Tagged<Code> JSFunction::code(IsolateForSandbox isolate,
+                              AcquireLoadTag tag) const {
+  return ReadCodePointerField(kCodeOffset, isolate);
 }
 
 void JSFunction::set_code(Tagged<Code> value, ReleaseStoreTag,
                           WriteBarrierMode mode) {
-#ifdef V8_CODE_POINTER_SANDBOXING
-  RawIndirectPointerField(kCodeOffset).Release_Store(value);
-  CONDITIONAL_INDIRECT_POINTER_WRITE_BARRIER(*this, kCodeOffset, value, mode);
-#else
-  TaggedField<Code, kCodeOffset>::Release_Store(*this, value);
-  CONDITIONAL_WRITE_BARRIER(*this, kCodeOffset, value, mode);
-#endif  // V8_CODE_POINTER_SANDBOXING
+  WriteCodePointerField(kCodeOffset, value);
+  CONDITIONAL_CODE_POINTER_WRITE_BARRIER(*this, kCodeOffset, value, mode);
+
   if (V8_UNLIKELY(v8_flags.log_function_events && has_feedback_vector())) {
     feedback_vector()->set_log_next_execution(true);
   }
 }
 
-Tagged<Object> JSFunction::raw_code() const {
-#ifdef V8_CODE_POINTER_SANDBOXING
-  return RawIndirectPointerField(kCodeOffset).Relaxed_Load();
+Tagged<Object> JSFunction::raw_code(IsolateForSandbox isolate) const {
+#ifdef V8_ENABLE_SANDBOX
+  return RawIndirectPointerField(kCodeOffset, kCodeIndirectPointerTag)
+      .Relaxed_Load(isolate);
 #else
   return RELAXED_READ_FIELD(*this, JSFunction::kCodeOffset);
-#endif  // V8_CODE_POINTER_SANDBOXING
+#endif  // V8_ENABLE_SANDBOX
 }
 
-Tagged<Object> JSFunction::raw_code(AcquireLoadTag tag) const {
-#ifdef V8_CODE_POINTER_SANDBOXING
-  return RawIndirectPointerField(kCodeOffset).Acquire_Load();
+Tagged<Object> JSFunction::raw_code(IsolateForSandbox isolate,
+                                    AcquireLoadTag tag) const {
+#ifdef V8_ENABLE_SANDBOX
+  return RawIndirectPointerField(kCodeOffset, kCodeIndirectPointerTag)
+      .Acquire_Load(isolate);
 #else
   return ACQUIRE_READ_FIELD(*this, JSFunction::kCodeOffset);
-#endif  // V8_CODE_POINTER_SANDBOXING
+#endif  // V8_ENABLE_SANDBOX
 }
+
+#ifdef V8_ENABLE_LEAPTIERING
+void JSFunction::initialize_dispatch_handle(IsolateForSandbox isolate,
+                                            uint16_t parameter_count) {
+  InitJSDispatchHandleField(kDispatchHandleOffset, isolate, parameter_count);
+}
+
+void JSFunction::clear_dispatch_handle() {
+  WriteField<JSDispatchHandle>(kDispatchHandleOffset, kNullJSDispatchHandle);
+}
+
+JSDispatchHandle JSFunction::dispatch_handle() {
+  return ReadField<JSDispatchHandle>(kDispatchHandleOffset);
+}
+#endif  // V8_ENABLE_LEAPTIERING
 
 RELEASE_ACQUIRE_ACCESSORS(JSFunction, context, Tagged<Context>, kContextOffset)
 
-Address JSFunction::instruction_start() const {
-  return Code::cast(code())->instruction_start();
+Address JSFunction::instruction_start(IsolateForSandbox isolate) const {
+  return code(isolate)->instruction_start();
 }
 
 // TODO(ishell): Why relaxed read but release store?
@@ -153,20 +162,21 @@ TieringState JSFunction::tiering_state() const {
   return feedback_vector()->tiering_state();
 }
 
-void JSFunction::set_tiering_state(TieringState state) {
+void JSFunction::set_tiering_state(IsolateForSandbox isolate,
+                                   TieringState state) {
   DCHECK(has_feedback_vector());
-  DCHECK(IsNone(state) || ChecksTieringState());
+  DCHECK(IsNone(state) || ChecksTieringState(isolate));
   feedback_vector()->set_tiering_state(state);
 }
 
-TieringState JSFunction::osr_tiering_state() {
+bool JSFunction::osr_tiering_in_progress() {
   DCHECK(has_feedback_vector());
-  return feedback_vector()->osr_tiering_state();
+  return feedback_vector()->osr_tiering_in_progress();
 }
 
-void JSFunction::set_osr_tiering_state(TieringState marker) {
+void JSFunction::set_osr_tiering_in_progress(bool osr_in_progress) {
   DCHECK(has_feedback_vector());
-  feedback_vector()->set_osr_tiering_state(marker);
+  feedback_vector()->set_osr_tiering_in_progress(osr_in_progress);
 }
 
 DEF_GETTER(JSFunction, has_feedback_vector, bool) {
@@ -210,7 +220,7 @@ DEF_GETTER(JSFunction, has_prototype_slot, bool) {
 }
 
 DEF_GETTER(JSFunction, initial_map, Tagged<Map>) {
-  return Map::cast(prototype_or_initial_map(cage_base, kAcquireLoad));
+  return Cast<Map>(prototype_or_initial_map(cage_base, kAcquireLoad));
 }
 
 DEF_GETTER(JSFunction, has_initial_map, bool) {
@@ -248,7 +258,7 @@ DEF_GETTER(JSFunction, instance_prototype, Tagged<HeapObject>) {
   }
   // When there is no initial map and the prototype is a JSReceiver, the
   // initial map field is used for the prototype field.
-  return HeapObject::cast(prototype_or_initial_map(cage_base, kAcquireLoad));
+  return Cast<HeapObject>(prototype_or_initial_map(cage_base, kAcquireLoad));
 }
 
 DEF_GETTER(JSFunction, prototype, Tagged<Object>) {
@@ -262,12 +272,12 @@ DEF_GETTER(JSFunction, prototype, Tagged<Object>) {
   return instance_prototype(cage_base);
 }
 
-bool JSFunction::is_compiled() const {
-  return code(kAcquireLoad)->builtin_id() != Builtin::kCompileLazy &&
+bool JSFunction::is_compiled(IsolateForSandbox isolate) const {
+  return code(isolate, kAcquireLoad)->builtin_id() != Builtin::kCompileLazy &&
          shared()->is_compiled();
 }
 
-bool JSFunction::NeedsResetDueToFlushedBytecode() {
+bool JSFunction::NeedsResetDueToFlushedBytecode(IsolateForSandbox isolate) {
   // Do a raw read for shared and code fields here since this function may be
   // called on a concurrent thread. JSFunction itself should be fully
   // initialized here but the SharedFunctionInfo, Code objects may not be
@@ -279,21 +289,23 @@ bool JSFunction::NeedsResetDueToFlushedBytecode() {
       ACQUIRE_READ_FIELD(*this, kSharedFunctionInfoOffset);
   if (!IsSharedFunctionInfo(maybe_shared)) return false;
 
-  Tagged<Object> maybe_code = raw_code(kAcquireLoad);
+  Tagged<Object> maybe_code = raw_code(isolate, kAcquireLoad);
   if (!IsCode(maybe_code)) return false;
-  Tagged<Code> code = Code::cast(maybe_code);
+  Tagged<Code> code = Cast<Code>(maybe_code);
 
-  Tagged<SharedFunctionInfo> shared = SharedFunctionInfo::cast(maybe_shared);
+  Tagged<SharedFunctionInfo> shared = Cast<SharedFunctionInfo>(maybe_shared);
   return !shared->is_compiled() && code->builtin_id() != Builtin::kCompileLazy;
 }
 
-bool JSFunction::NeedsResetDueToFlushedBaselineCode() {
-  return code()->kind() == CodeKind::BASELINE && !shared()->HasBaselineCode();
+bool JSFunction::NeedsResetDueToFlushedBaselineCode(IsolateForSandbox isolate) {
+  return code(isolate)->kind() == CodeKind::BASELINE &&
+         !shared()->HasBaselineCode();
 }
 
 void JSFunction::ResetIfCodeFlushed(
-    base::Optional<std::function<void(
-        Tagged<HeapObject> object, ObjectSlot slot, Tagged<HeapObject> target)>>
+    IsolateForSandbox isolate,
+    std::optional<std::function<void(Tagged<HeapObject> object, ObjectSlot slot,
+                                     Tagged<HeapObject> target)>>
         gc_notify_updated_slot) {
   const bool kBytecodeCanFlush =
       v8_flags.flush_bytecode || v8_flags.stress_snapshot;
@@ -301,8 +313,8 @@ void JSFunction::ResetIfCodeFlushed(
       v8_flags.flush_baseline_code || v8_flags.stress_snapshot;
   if (!kBytecodeCanFlush && !kBaselineCodeCanFlush) return;
 
-  DCHECK_IMPLIES(NeedsResetDueToFlushedBytecode(), kBytecodeCanFlush);
-  if (kBytecodeCanFlush && NeedsResetDueToFlushedBytecode()) {
+  DCHECK_IMPLIES(NeedsResetDueToFlushedBytecode(isolate), kBytecodeCanFlush);
+  if (kBytecodeCanFlush && NeedsResetDueToFlushedBytecode(isolate)) {
     // Bytecode was flushed and function is now uncompiled, reset JSFunction
     // by setting code to CompileLazy and clearing the feedback vector.
     set_code(*BUILTIN_CODE(GetIsolate(), CompileLazy));
@@ -310,15 +322,15 @@ void JSFunction::ResetIfCodeFlushed(
     return;
   }
 
-  DCHECK_IMPLIES(NeedsResetDueToFlushedBaselineCode(), kBaselineCodeCanFlush);
-  if (kBaselineCodeCanFlush && NeedsResetDueToFlushedBaselineCode()) {
+  DCHECK_IMPLIES(NeedsResetDueToFlushedBaselineCode(isolate),
+                 kBaselineCodeCanFlush);
+  if (kBaselineCodeCanFlush && NeedsResetDueToFlushedBaselineCode(isolate)) {
     // Flush baseline code from the closure if required
     set_code(*BUILTIN_CODE(GetIsolate(), InterpreterEntryTrampoline));
   }
 }
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #include "src/objects/object-macros-undef.h"
 

@@ -1,10 +1,11 @@
 #include "crypto/crypto_context.h"
+#include "base_object-inl.h"
 #include "crypto/crypto_bio.h"
 #include "crypto/crypto_common.h"
 #include "crypto/crypto_util.h"
-#include "base_object-inl.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
+#include "ncrypto.h"
 #include "node.h"
 #include "node_buffer.h"
 #include "node_options.h"
@@ -33,7 +34,7 @@ using v8::HandleScope;
 using v8::Int32;
 using v8::Integer;
 using v8::Isolate;
-using v8::Just;
+using v8::JustVoid;
 using v8::Local;
 using v8::Maybe;
 using v8::Nothing;
@@ -51,9 +52,9 @@ static const char* const root_certs[] = {
 
 static const char system_cert_path[] = NODE_OPENSSL_SYSTEM_CERT_PATH;
 
-static bool extra_root_certs_loaded = false;
+static std::string extra_root_certs_file;  // NOLINT(runtime/string)
 
-inline X509_STORE* GetOrCreateRootCertStore() {
+X509_STORE* GetOrCreateRootCertStore() {
   // Guaranteed thread-safe by standard, just don't use -fno-threadsafe-statics.
   static X509_STORE* store = NewRootCertStore();
   return store;
@@ -63,16 +64,17 @@ inline X509_STORE* GetOrCreateRootCertStore() {
 // Caller responsible for BIO_free_all-ing the returned object.
 BIOPointer LoadBIO(Environment* env, Local<Value> v) {
   if (v->IsString() || v->IsArrayBufferView()) {
-    BIOPointer bio(BIO_new(BIO_s_secmem()));
-    if (!bio) return nullptr;
+    auto bio = BIOPointer::NewSecMem();
+    if (!bio) return {};
     ByteSource bsrc = ByteSource::FromStringOrBuffer(env, v);
-    if (bsrc.size() > INT_MAX) return nullptr;
-    int written = BIO_write(bio.get(), bsrc.data<char>(), bsrc.size());
-    if (written < 0) return nullptr;
-    if (static_cast<size_t>(written) != bsrc.size()) return nullptr;
+    if (bsrc.size() > INT_MAX) return {};
+    int written = BIOPointer::Write(
+        &bio, std::string_view(bsrc.data<char>(), bsrc.size()));
+    if (written < 0) return {};
+    if (static_cast<size_t>(written) != bsrc.size()) return {};
     return bio;
   }
-  return nullptr;
+  return {};
 }
 
 namespace {
@@ -120,7 +122,7 @@ int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
       // TODO(tniessen): SSL_CTX_get_issuer does not allow the caller to
       // distinguish between a failed operation and an empty result. Fix that
       // and then handle the potential error properly here (set ret to 0).
-      *issuer_ = SSL_CTX_get_issuer(ctx, x.get());
+      *issuer_ = X509Pointer::IssuerFrom(ctx, x.view());
       // NOTE: get_cert_store doesn't increment reference count,
       // no need to free `store`
     } else {
@@ -139,6 +141,8 @@ int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
   }
   return ret;
 }
+
+}  // namespace
 
 // Read a file that contains our certificate in "PEM" format,
 // possibly followed by a sequence of CA certificates that should be
@@ -194,28 +198,66 @@ int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
                                        issuer);
 }
 
-}  // namespace
+unsigned long LoadCertsFromFile(  // NOLINT(runtime/int)
+    std::vector<X509*>* certs,
+    const char* file) {
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+
+  auto bio = BIOPointer::NewFile(file, "r");
+  if (!bio) return ERR_get_error();
+
+  while (X509* x509 = PEM_read_bio_X509(
+             bio.get(), nullptr, NoPasswordCallback, nullptr)) {
+    certs->push_back(x509);
+  }
+
+  unsigned long err = ERR_peek_last_error();  // NOLINT(runtime/int)
+  // Ignore error if its EOF/no start line found.
+  if (ERR_GET_LIB(err) == ERR_LIB_PEM &&
+      ERR_GET_REASON(err) == PEM_R_NO_START_LINE) {
+    return 0;
+  } else {
+    return err;
+  }
+}
 
 X509_STORE* NewRootCertStore() {
   static std::vector<X509*> root_certs_vector;
+  static bool root_certs_vector_loaded = false;
   static Mutex root_certs_vector_mutex;
   Mutex::ScopedLock lock(root_certs_vector_mutex);
 
-  if (root_certs_vector.empty() &&
-      per_process::cli_options->ssl_openssl_cert_store == false) {
-    for (size_t i = 0; i < arraysize(root_certs); i++) {
-      X509* x509 =
-          PEM_read_bio_X509(NodeBIO::NewFixed(root_certs[i],
-                                              strlen(root_certs[i])).get(),
-                            nullptr,   // no re-use of X509 structure
-                            NoPasswordCallback,
-                            nullptr);  // no callback data
+  if (!root_certs_vector_loaded) {
+    if (per_process::cli_options->ssl_openssl_cert_store == false) {
+      for (size_t i = 0; i < arraysize(root_certs); i++) {
+        X509* x509 = PEM_read_bio_X509(
+            NodeBIO::NewFixed(root_certs[i], strlen(root_certs[i])).get(),
+            nullptr,  // no re-use of X509 structure
+            NoPasswordCallback,
+            nullptr);  // no callback data
 
-      // Parse errors from the built-in roots are fatal.
-      CHECK_NOT_NULL(x509);
+        // Parse errors from the built-in roots are fatal.
+        CHECK_NOT_NULL(x509);
 
-      root_certs_vector.push_back(x509);
+        root_certs_vector.push_back(x509);
+      }
     }
+
+    if (!extra_root_certs_file.empty()) {
+      unsigned long err = LoadCertsFromFile(  // NOLINT(runtime/int)
+          &root_certs_vector,
+          extra_root_certs_file.c_str());
+      if (err) {
+        char buf[256];
+        ERR_error_string_n(err, buf, sizeof(buf));
+        fprintf(stderr,
+                "Warning: Ignoring extra certs from `%s`, load failed: %s\n",
+                extra_root_certs_file.c_str(),
+                buf);
+      }
+    }
+
+    root_certs_vector_loaded = true;
   }
 
   X509_STORE* store = X509_STORE_new();
@@ -227,12 +269,11 @@ X509_STORE* NewRootCertStore() {
 
   Mutex::ScopedLock cli_lock(node::per_process::cli_options_mutex);
   if (per_process::cli_options->ssl_openssl_cert_store) {
-    X509_STORE_set_default_paths(store);
-  } else {
-    for (X509* cert : root_certs_vector) {
-      X509_up_ref(cert);
-      X509_STORE_add_cert(store, cert);
-    }
+    CHECK_EQ(1, X509_STORE_set_default_paths(store));
+  }
+
+  for (X509* cert : root_certs_vector) {
+    CHECK_EQ(1, X509_STORE_add_cert(store, cert));
   }
 
   return store;
@@ -273,6 +314,8 @@ Local<FunctionTemplate> SecureContext::GetConstructorTemplate(
     SetProtoMethod(isolate, tmpl, "setKey", SetKey);
     SetProtoMethod(isolate, tmpl, "setCert", SetCert);
     SetProtoMethod(isolate, tmpl, "addCACert", AddCACert);
+    SetProtoMethod(
+        isolate, tmpl, "setAllowPartialTrustChain", SetAllowPartialTrustChain);
     SetProtoMethod(isolate, tmpl, "addCRL", AddCRL);
     SetProtoMethod(isolate, tmpl, "addRootCerts", AddRootCerts);
     SetProtoMethod(isolate, tmpl, "setCipherSuites", SetCipherSuites);
@@ -338,11 +381,6 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
 
   SetMethodNoSideEffect(
       context, target, "getRootCertificates", GetRootCertificates);
-  // Exposed for testing purposes only.
-  SetMethodNoSideEffect(context,
-                        target,
-                        "isExtraRootCertsFileLoaded",
-                        IsExtraRootCertsFileLoaded);
 }
 
 void SecureContext::RegisterExternalReferences(
@@ -354,6 +392,7 @@ void SecureContext::RegisterExternalReferences(
   registry->Register(AddCACert);
   registry->Register(AddCRL);
   registry->Register(AddRootCerts);
+  registry->Register(SetAllowPartialTrustChain);
   registry->Register(SetCipherSuites);
   registry->Register(SetCiphers);
   registry->Register(SetSigalgs);
@@ -382,7 +421,6 @@ void SecureContext::RegisterExternalReferences(
   registry->Register(CtxGetter);
 
   registry->Register(GetRootCertificates);
-  registry->Register(IsExtraRootCertsFileLoaded);
 }
 
 SecureContext* SecureContext::Create(Environment* env) {
@@ -422,7 +460,7 @@ void SecureContext::New(const FunctionCallbackInfo<Value>& args) {
 
 void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
   SecureContext* sc;
-  ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
   Environment* env = sc->env();
 
   CHECK_EQ(args.Length(), 3);
@@ -540,15 +578,15 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
                                  SSL_SESS_CACHE_NO_INTERNAL |
                                  SSL_SESS_CACHE_NO_AUTO_CLEAR);
 
-  SSL_CTX_set_min_proto_version(sc->ctx_.get(), min_version);
-  SSL_CTX_set_max_proto_version(sc->ctx_.get(), max_version);
+  CHECK(SSL_CTX_set_min_proto_version(sc->ctx_.get(), min_version));
+  CHECK(SSL_CTX_set_max_proto_version(sc->ctx_.get(), max_version));
 
   // OpenSSL 1.1.0 changed the ticket key size, but the OpenSSL 1.0.x size was
   // exposed in the public API. To retain compatibility, install a callback
   // which restores the old algorithm.
-  if (CSPRNG(sc->ticket_key_name_, sizeof(sc->ticket_key_name_)).is_err() ||
-      CSPRNG(sc->ticket_key_hmac_, sizeof(sc->ticket_key_hmac_)).is_err() ||
-      CSPRNG(sc->ticket_key_aes_, sizeof(sc->ticket_key_aes_)).is_err()) {
+  if (!ncrypto::CSPRNG(sc->ticket_key_name_, sizeof(sc->ticket_key_name_)) ||
+      !ncrypto::CSPRNG(sc->ticket_key_hmac_, sizeof(sc->ticket_key_hmac_)) ||
+      !ncrypto::CSPRNG(sc->ticket_key_aes_, sizeof(sc->ticket_key_aes_))) {
     return THROW_ERR_CRYPTO_OPERATION_FAILED(
         env, "Error generating ticket keys");
   }
@@ -575,27 +613,26 @@ void SecureContext::SetKeylogCallback(KeylogCb cb) {
   SSL_CTX_set_keylog_callback(ctx_.get(), cb);
 }
 
-Maybe<bool> SecureContext::UseKey(Environment* env,
-                                  std::shared_ptr<KeyObjectData> key) {
-  if (key->GetKeyType() != KeyType::kKeyTypePrivate) {
+Maybe<void> SecureContext::UseKey(Environment* env, const KeyObjectData& key) {
+  if (key.GetKeyType() != KeyType::kKeyTypePrivate) {
     THROW_ERR_CRYPTO_INVALID_KEYTYPE(env);
-    return Nothing<bool>();
+    return Nothing<void>();
   }
 
   ClearErrorOnReturn clear_error_on_return;
-  if (!SSL_CTX_use_PrivateKey(ctx_.get(), key->GetAsymmetricKey().get())) {
+  if (!SSL_CTX_use_PrivateKey(ctx_.get(), key.GetAsymmetricKey().get())) {
     ThrowCryptoError(env, ERR_get_error(), "SSL_CTX_use_PrivateKey");
-    return Nothing<bool>();
+    return Nothing<void>();
   }
 
-  return Just(true);
+  return JustVoid();
 }
 
 void SecureContext::SetKey(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   SecureContext* sc;
-  ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
 
   CHECK_GE(args.Length(), 1);  // Private key argument is mandatory
 
@@ -626,7 +663,7 @@ void SecureContext::SetKey(const FunctionCallbackInfo<Value>& args) {
 
 void SecureContext::SetSigalgs(const FunctionCallbackInfo<Value>& args) {
   SecureContext* sc;
-  ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
   Environment* env = sc->env();
   ClearErrorOnReturn clear_error_on_return;
 
@@ -644,37 +681,39 @@ void SecureContext::SetEngineKey(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   SecureContext* sc;
-  ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
 
   CHECK_EQ(args.Length(), 2);
 
-  if (UNLIKELY(env->permission()->enabled())) {
+  if (env->permission()->enabled()) [[unlikely]] {
     return THROW_ERR_CRYPTO_CUSTOM_ENGINE_NOT_SUPPORTED(
         env,
         "Programmatic selection of OpenSSL engines is unsupported while the "
         "experimental permission model is enabled");
   }
 
-  CryptoErrorStore errors;
+  ncrypto::CryptoErrorList errors;
   Utf8Value engine_id(env->isolate(), args[1]);
-  EnginePointer engine = LoadEngineById(*engine_id, &errors);
+  auto engine = ncrypto::EnginePointer::getEngineByName(
+      engine_id.ToStringView(), &errors);
   if (!engine) {
     Local<Value> exception;
-    if (errors.ToException(env).ToLocal(&exception))
+    if (errors.empty()) {
+      errors.add(getNodeCryptoErrorString(NodeCryptoError::ENGINE_NOT_FOUND,
+                                          *engine_id));
+    }
+    if (cryptoErrorListToException(env, errors).ToLocal(&exception))
       env->isolate()->ThrowException(exception);
     return;
   }
 
-  if (!ENGINE_init(engine.get())) {
+  if (!engine.init(true /* finish on exit*/)) {
     return THROW_ERR_CRYPTO_OPERATION_FAILED(
         env, "Failure to initialize engine");
   }
 
-  engine.finish_on_exit = true;
-
   Utf8Value key_name(env->isolate(), args[0]);
-  EVPKeyPointer key(ENGINE_load_private_key(engine.get(), *key_name,
-                                            nullptr, nullptr));
+  auto key = engine.loadPrivateKey(key_name.ToStringView());
 
   if (!key)
     return ThrowCryptoError(env, ERR_get_error(), "ENGINE_load_private_key");
@@ -686,9 +725,10 @@ void SecureContext::SetEngineKey(const FunctionCallbackInfo<Value>& args) {
 }
 #endif  // !OPENSSL_NO_ENGINE
 
-Maybe<bool> SecureContext::AddCert(Environment* env, BIOPointer&& bio) {
+Maybe<void> SecureContext::AddCert(Environment* env, BIOPointer&& bio) {
   ClearErrorOnReturn clear_error_on_return;
-  if (!bio) return Just(false);
+  // TODO(tniessen): this should be checked by the caller and not treated as ok
+  if (!bio) return JustVoid();
   cert_.reset();
   issuer_.reset();
 
@@ -698,16 +738,16 @@ Maybe<bool> SecureContext::AddCert(Environment* env, BIOPointer&& bio) {
   if (SSL_CTX_use_certificate_chain(
           ctx_.get(), std::move(bio), &cert_, &issuer_) == 0) {
     ThrowCryptoError(env, ERR_get_error(), "SSL_CTX_use_certificate_chain");
-    return Nothing<bool>();
+    return Nothing<void>();
   }
-  return Just(true);
+  return JustVoid();
 }
 
 void SecureContext::SetCert(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   SecureContext* sc;
-  ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
 
   CHECK_GE(args.Length(), 1);  // Certificate argument is mandatory
 
@@ -715,17 +755,39 @@ void SecureContext::SetCert(const FunctionCallbackInfo<Value>& args) {
   USE(sc->AddCert(env, std::move(bio)));
 }
 
+// NOLINTNEXTLINE(runtime/int)
+void SecureContext::SetX509StoreFlag(unsigned long flags) {
+  X509_STORE* cert_store = GetCertStoreOwnedByThisSecureContext();
+  CHECK_EQ(1, X509_STORE_set_flags(cert_store, flags));
+}
+
+X509_STORE* SecureContext::GetCertStoreOwnedByThisSecureContext() {
+  if (own_cert_store_cache_ != nullptr) return own_cert_store_cache_;
+
+  X509_STORE* cert_store = SSL_CTX_get_cert_store(ctx_.get());
+  if (cert_store == GetOrCreateRootCertStore()) {
+    cert_store = NewRootCertStore();
+    SSL_CTX_set_cert_store(ctx_.get(), cert_store);
+  }
+
+  return own_cert_store_cache_ = cert_store;
+}
+
+void SecureContext::SetAllowPartialTrustChain(
+    const FunctionCallbackInfo<Value>& args) {
+  SecureContext* sc;
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
+  sc->SetX509StoreFlag(X509_V_FLAG_PARTIAL_CHAIN);
+}
+
 void SecureContext::SetCACert(const BIOPointer& bio) {
   ClearErrorOnReturn clear_error_on_return;
   if (!bio) return;
-  X509_STORE* cert_store = SSL_CTX_get_cert_store(ctx_.get());
   while (X509Pointer x509 = X509Pointer(PEM_read_bio_X509_AUX(
              bio.get(), nullptr, NoPasswordCallback, nullptr))) {
-    if (cert_store == GetOrCreateRootCertStore()) {
-      cert_store = NewRootCertStore();
-      SSL_CTX_set_cert_store(ctx_.get(), cert_store);
-    }
-    CHECK_EQ(1, X509_STORE_add_cert(cert_store, x509.get()));
+    CHECK_EQ(1,
+             X509_STORE_add_cert(GetCertStoreOwnedByThisSecureContext(),
+                                 x509.get()));
     CHECK_EQ(1, SSL_CTX_add_client_CA(ctx_.get(), x509.get()));
   }
 }
@@ -734,7 +796,7 @@ void SecureContext::AddCACert(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   SecureContext* sc;
-  ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
 
   CHECK_GE(args.Length(), 1);  // CA certificate argument is mandatory
 
@@ -742,36 +804,33 @@ void SecureContext::AddCACert(const FunctionCallbackInfo<Value>& args) {
   sc->SetCACert(bio);
 }
 
-Maybe<bool> SecureContext::SetCRL(Environment* env, const BIOPointer& bio) {
+Maybe<void> SecureContext::SetCRL(Environment* env, const BIOPointer& bio) {
   ClearErrorOnReturn clear_error_on_return;
-  if (!bio) return Just(false);
+  // TODO(tniessen): this should be checked by the caller and not treated as ok
+  if (!bio) return JustVoid();
 
   DeleteFnPtr<X509_CRL, X509_CRL_free> crl(
       PEM_read_bio_X509_CRL(bio.get(), nullptr, NoPasswordCallback, nullptr));
 
   if (!crl) {
     THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to parse CRL");
-    return Nothing<bool>();
+    return Nothing<void>();
   }
 
-  X509_STORE* cert_store = SSL_CTX_get_cert_store(ctx_.get());
-  if (cert_store == GetOrCreateRootCertStore()) {
-    cert_store = NewRootCertStore();
-    SSL_CTX_set_cert_store(ctx_.get(), cert_store);
-  }
+  X509_STORE* cert_store = GetCertStoreOwnedByThisSecureContext();
 
   CHECK_EQ(1, X509_STORE_add_crl(cert_store, crl.get()));
   CHECK_EQ(1,
            X509_STORE_set_flags(
                cert_store, X509_V_FLAG_CRL_CHECK | X509_V_FLAG_CRL_CHECK_ALL));
-  return Just(true);
+  return JustVoid();
 }
 
 void SecureContext::AddCRL(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   SecureContext* sc;
-  ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
 
   CHECK_GE(args.Length(), 1);  // CRL argument is mandatory
 
@@ -790,7 +849,7 @@ void SecureContext::SetRootCerts() {
 
 void SecureContext::AddRootCerts(const FunctionCallbackInfo<Value>& args) {
   SecureContext* sc;
-  ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
   sc->SetRootCerts();
 }
 
@@ -798,7 +857,7 @@ void SecureContext::SetCipherSuites(const FunctionCallbackInfo<Value>& args) {
   // BoringSSL doesn't allow API config of TLS1.3 cipher suites.
 #ifndef OPENSSL_IS_BORINGSSL
   SecureContext* sc;
-  ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
   Environment* env = sc->env();
   ClearErrorOnReturn clear_error_on_return;
 
@@ -813,7 +872,7 @@ void SecureContext::SetCipherSuites(const FunctionCallbackInfo<Value>& args) {
 
 void SecureContext::SetCiphers(const FunctionCallbackInfo<Value>& args) {
   SecureContext* sc;
-  ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
   Environment* env = sc->env();
   ClearErrorOnReturn clear_error_on_return;
 
@@ -837,7 +896,7 @@ void SecureContext::SetCiphers(const FunctionCallbackInfo<Value>& args) {
 
 void SecureContext::SetECDHCurve(const FunctionCallbackInfo<Value>& args) {
   SecureContext* sc;
-  ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
   Environment* env = sc->env();
 
   CHECK_GE(args.Length(), 1);  // ECDH curve name argument is mandatory
@@ -882,7 +941,7 @@ void SecureContext::SetDHParam(const FunctionCallbackInfo<Value>& args) {
 
   const BIGNUM* p;
   DH_get0_pqg(dh.get(), &p, nullptr, nullptr);
-  const int size = BN_num_bits(p);
+  const int size = BignumPointer::GetBitCount(p);
   if (size < 1024) {
     return THROW_ERR_INVALID_ARG_VALUE(
         env, "DH parameter is less than 1024 bits");
@@ -899,7 +958,7 @@ void SecureContext::SetDHParam(const FunctionCallbackInfo<Value>& args) {
 
 void SecureContext::SetMinProto(const FunctionCallbackInfo<Value>& args) {
   SecureContext* sc;
-  ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
 
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsInt32());
@@ -911,7 +970,7 @@ void SecureContext::SetMinProto(const FunctionCallbackInfo<Value>& args) {
 
 void SecureContext::SetMaxProto(const FunctionCallbackInfo<Value>& args) {
   SecureContext* sc;
-  ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
 
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsInt32());
@@ -923,7 +982,7 @@ void SecureContext::SetMaxProto(const FunctionCallbackInfo<Value>& args) {
 
 void SecureContext::GetMinProto(const FunctionCallbackInfo<Value>& args) {
   SecureContext* sc;
-  ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
 
   CHECK_EQ(args.Length(), 0);
 
@@ -934,7 +993,7 @@ void SecureContext::GetMinProto(const FunctionCallbackInfo<Value>& args) {
 
 void SecureContext::GetMaxProto(const FunctionCallbackInfo<Value>& args) {
   SecureContext* sc;
-  ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
 
   CHECK_EQ(args.Length(), 0);
 
@@ -946,7 +1005,7 @@ void SecureContext::GetMaxProto(const FunctionCallbackInfo<Value>& args) {
 void SecureContext::SetOptions(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   SecureContext* sc;
-  ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
 
   CHECK_GE(args.Length(), 1);
   CHECK(args[0]->IsNumber());
@@ -960,7 +1019,7 @@ void SecureContext::SetOptions(const FunctionCallbackInfo<Value>& args) {
 void SecureContext::SetSessionIdContext(
     const FunctionCallbackInfo<Value>& args) {
   SecureContext* sc;
-  ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
   Environment* env = sc->env();
 
   CHECK_GE(args.Length(), 1);
@@ -974,16 +1033,15 @@ void SecureContext::SetSessionIdContext(
   if (SSL_CTX_set_session_id_context(sc->ctx_.get(), sid_ctx, sid_ctx_len) == 1)
     return;
 
-  BUF_MEM* mem;
   Local<String> message;
 
-  BIOPointer bio(BIO_new(BIO_s_mem()));
+  auto bio = BIOPointer::NewMem();
   if (!bio) {
     message = FIXED_ONE_BYTE_STRING(env->isolate(),
                                     "SSL_CTX_set_session_id_context error");
   } else {
     ERR_print_errors(bio.get());
-    BIO_get_mem_ptr(bio.get(), &mem);
+    BUF_MEM* mem = bio;
     message = OneByteString(env->isolate(), mem->data, mem->length);
   }
 
@@ -992,18 +1050,19 @@ void SecureContext::SetSessionIdContext(
 
 void SecureContext::SetSessionTimeout(const FunctionCallbackInfo<Value>& args) {
   SecureContext* sc;
-  ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
 
   CHECK_GE(args.Length(), 1);
   CHECK(args[0]->IsInt32());
 
   int32_t sessionTimeout = args[0].As<Int32>()->Value();
+  CHECK_GE(sessionTimeout, 0);
   SSL_CTX_set_timeout(sc->ctx_.get(), sessionTimeout);
 }
 
 void SecureContext::Close(const FunctionCallbackInfo<Value>& args) {
   SecureContext* sc;
-  ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
   sc->Reset();
 }
 
@@ -1015,7 +1074,7 @@ void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
   bool ret = false;
 
   SecureContext* sc;
-  ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
   ClearErrorOnReturn clear_error_on_return;
 
   if (args.Length() < 1) {
@@ -1040,8 +1099,6 @@ void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
   // Free previous certs
   sc->issuer_.reset();
   sc->cert_.reset();
-
-  X509_STORE* cert_store = SSL_CTX_get_cert_store(sc->ctx_.get());
 
   DeleteFnPtr<PKCS12, PKCS12_free> p12;
   EVPKeyPointer pkey;
@@ -1096,11 +1153,7 @@ void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
   for (int i = 0; i < sk_X509_num(extra_certs.get()); i++) {
     X509* ca = sk_X509_value(extra_certs.get(), i);
 
-    if (cert_store == GetOrCreateRootCertStore()) {
-      cert_store = NewRootCertStore();
-      SSL_CTX_set_cert_store(sc->ctx_.get(), cert_store);
-    }
-    X509_STORE_add_cert(cert_store, ca);
+    X509_STORE_add_cert(sc->GetCertStoreOwnedByThisSecureContext(), ca);
     SSL_CTX_add_client_CA(sc->ctx_.get(), ca);
   }
   ret = true;
@@ -1109,6 +1162,16 @@ done:
   if (!ret) {
     // TODO(@jasnell): Should this use ThrowCryptoError?
     unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
+
+#if OPENSSL_VERSION_MAJOR >= 3
+    if (ERR_GET_REASON(err) == ERR_R_UNSUPPORTED) {
+      // OpenSSL's "unsupported" error without any context is very
+      // common and not very helpful, so we override it:
+      return THROW_ERR_CRYPTO_UNSUPPORTED_OPERATION(
+          env, "Unsupported PKCS12 PFX data");
+    }
+#endif
+
     const char* str = ERR_reason_error_string(err);
     str = str != nullptr ? str : "Unknown error";
 
@@ -1124,7 +1187,7 @@ void SecureContext::SetClientCertEngine(
   CHECK(args[0]->IsString());
 
   SecureContext* sc;
-  ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
 
   MarkPopErrorOnReturn mark_pop_error_on_return;
 
@@ -1135,19 +1198,24 @@ void SecureContext::SetClientCertEngine(
   // support multiple calls to SetClientCertEngine.
   CHECK(!sc->client_cert_engine_provided_);
 
-  if (UNLIKELY(env->permission()->enabled())) {
+  if (env->permission()->enabled()) [[unlikely]] {
     return THROW_ERR_CRYPTO_CUSTOM_ENGINE_NOT_SUPPORTED(
         env,
         "Programmatic selection of OpenSSL engines is unsupported while the "
         "experimental permission model is enabled");
   }
 
-  CryptoErrorStore errors;
+  ncrypto::CryptoErrorList errors;
   const Utf8Value engine_id(env->isolate(), args[0]);
-  EnginePointer engine = LoadEngineById(*engine_id, &errors);
+  auto engine = ncrypto::EnginePointer::getEngineByName(
+      engine_id.ToStringView(), &errors);
   if (!engine) {
     Local<Value> exception;
-    if (errors.ToException(env).ToLocal(&exception))
+    if (errors.empty()) {
+      errors.add(getNodeCryptoErrorString(NodeCryptoError::ENGINE_NOT_FOUND,
+                                          *engine_id));
+    }
+    if (cryptoErrorListToException(env, errors).ToLocal(&exception))
       env->isolate()->ThrowException(exception);
     return;
   }
@@ -1161,7 +1229,7 @@ void SecureContext::SetClientCertEngine(
 
 void SecureContext::GetTicketKeys(const FunctionCallbackInfo<Value>& args) {
   SecureContext* wrap;
-  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
 
   Local<Object> buff;
   if (!Buffer::New(wrap->env(), 48).ToLocal(&buff))
@@ -1176,7 +1244,7 @@ void SecureContext::GetTicketKeys(const FunctionCallbackInfo<Value>& args) {
 
 void SecureContext::SetTicketKeys(const FunctionCallbackInfo<Value>& args) {
   SecureContext* wrap;
-  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
 
   CHECK_GE(args.Length(), 1);  // Ticket keys argument is mandatory
   CHECK(args[0]->IsArrayBufferView());
@@ -1196,7 +1264,7 @@ void SecureContext::SetTicketKeys(const FunctionCallbackInfo<Value>& args) {
 void SecureContext::EnableTicketKeyCallback(
     const FunctionCallbackInfo<Value>& args) {
   SecureContext* wrap;
-  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
 
   SSL_CTX_set_tlsext_ticket_key_cb(wrap->ctx_.get(), TicketKeyCallback);
 }
@@ -1313,7 +1381,7 @@ int SecureContext::TicketCompatibilityCallback(SSL* ssl,
 
   if (enc) {
     memcpy(name, sc->ticket_key_name_, sizeof(sc->ticket_key_name_));
-    if (CSPRNG(iv, 16).is_err() ||
+    if (!ncrypto::CSPRNG(iv, 16) ||
         EVP_EncryptInit_ex(
             ectx, EVP_aes_128_cbc(), nullptr, sc->ticket_key_aes_, iv) <= 0 ||
         HMAC_Init_ex(hctx,
@@ -1350,7 +1418,7 @@ void SecureContext::CtxGetter(const FunctionCallbackInfo<Value>& info) {
 template <bool primary>
 void SecureContext::GetCertificate(const FunctionCallbackInfo<Value>& args) {
   SecureContext* wrap;
-  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
   Environment* env = wrap->env();
   X509* cert;
 
@@ -1372,54 +1440,9 @@ void SecureContext::GetCertificate(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(buff);
 }
 
-namespace {
-unsigned long AddCertsFromFile(  // NOLINT(runtime/int)
-    X509_STORE* store,
-    const char* file) {
-  ERR_clear_error();
-  MarkPopErrorOnReturn mark_pop_error_on_return;
-
-  BIOPointer bio(BIO_new_file(file, "r"));
-  if (!bio)
-    return ERR_get_error();
-
-  while (X509Pointer x509 = X509Pointer(PEM_read_bio_X509(
-             bio.get(), nullptr, NoPasswordCallback, nullptr))) {
-    X509_STORE_add_cert(store, x509.get());
-  }
-
-  unsigned long err = ERR_peek_error();  // NOLINT(runtime/int)
-  // Ignore error if its EOF/no start line found.
-  if (ERR_GET_LIB(err) == ERR_LIB_PEM &&
-      ERR_GET_REASON(err) == PEM_R_NO_START_LINE) {
-    return 0;
-  }
-
-  return err;
-}
-}  // namespace
-
 // UseExtraCaCerts is called only once at the start of the Node.js process.
 void UseExtraCaCerts(const std::string& file) {
-  if (file.empty()) return;
-  ClearErrorOnReturn clear_error_on_return;
-  X509_STORE* store = GetOrCreateRootCertStore();
-  if (auto err = AddCertsFromFile(store, file.c_str())) {
-    char buf[256];
-    ERR_error_string_n(err, buf, sizeof(buf));
-    fprintf(stderr,
-            "Warning: Ignoring extra certs from `%s`, load failed: %s\n",
-            file.c_str(),
-            buf);
-  } else {
-    extra_root_certs_loaded = true;
-  }
-}
-
-// Exposed to JavaScript strictly for testing purposes.
-void IsExtraRootCertsFileLoaded(
-    const FunctionCallbackInfo<Value>& args) {
-  return args.GetReturnValue().Set(extra_root_certs_loaded);
+  extra_root_certs_file = file;
 }
 
 }  // namespace crypto

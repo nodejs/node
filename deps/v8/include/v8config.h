@@ -5,14 +5,23 @@
 #ifndef V8CONFIG_H_
 #define V8CONFIG_H_
 
+// gcc 10 defines __cplusplus to "an unspecified value strictly larger than
+// 201703L" for its experimental -std=gnu++2a config.
+// TODO(leszeks): Change to `__cplusplus <= 202002L` once we only support
+// compilers with full C++20 support.
+#if __cplusplus <= 201703L
+#error "C++20 or later required."
+#endif
+
 #ifdef V8_GN_HEADER
-#if __cplusplus >= 201703L && !__has_include("v8-gn.h")
+#if !__has_include("v8-gn.h")
 #error Missing v8-gn.h. The configuration for v8 is missing from the include \
 path. Add it with -I<path> to the command line
 #endif
 #include "v8-gn.h"  // NOLINT(build/include_directory)
 #endif
 
+#include <memory>
 // clang-format off
 
 // Platform headers for feature detection below.
@@ -22,6 +31,8 @@ path. Add it with -I<path> to the command line
 # include <TargetConditionals.h>
 #elif defined(__linux__)
 # include <features.h>
+#elif defined(__MVS__)
+# include "zos-base.h"
 #endif
 
 
@@ -82,6 +93,7 @@ path. Add it with -I<path> to the command line
 //  V8_OS_STARBOARD     - Starboard (platform abstraction for Cobalt)
 //  V8_OS_AIX           - AIX
 //  V8_OS_WIN           - Microsoft Windows
+//  V8_OS_ZOS           - z/OS
 
 #if defined(__ANDROID__)
 # define V8_OS_ANDROID 1
@@ -162,6 +174,11 @@ path. Add it with -I<path> to the command line
 #elif defined(_WIN32)
 # define V8_OS_WIN 1
 # define V8_OS_STRING "windows"
+
+#elif defined(__MVS__)
+# define V8_OS_POSIX 1
+# define V8_OS_ZOS 1
+# define V8_OS_STRING "zos"
 #endif
 
 // -----------------------------------------------------------------------------
@@ -297,12 +314,16 @@ path. Add it with -I<path> to the command line
 //  V8_HAS_ATTRIBUTE_NONNULL            - __attribute__((nonnull)) supported
 //  V8_HAS_ATTRIBUTE_NOINLINE           - __attribute__((noinline)) supported
 //  V8_HAS_ATTRIBUTE_UNUSED             - __attribute__((unused)) supported
+//  V8_HAS_ATTRIBUTE_USED               - __attribute__((used)) supported
+//  V8_HAS_ATTRIBUTE_RETAIN             - __attribute__((retain)) supported
 //  V8_HAS_ATTRIBUTE_VISIBILITY         - __attribute__((visibility)) supported
 //  V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT - __attribute__((warn_unused_result))
 //                                        supported
 //  V8_HAS_CPP_ATTRIBUTE_NODISCARD      - [[nodiscard]] supported
 //  V8_HAS_CPP_ATTRIBUTE_NO_UNIQUE_ADDRESS
 //                                      - [[no_unique_address]] supported
+//  V8_HAS_BUILTIN_ADD_OVERFLOW         - __builtin_add_overflow() supported
+//  V8_HAS_BUILTIN_BIT_CAST             - __builtin_bit_cast() supported
 //  V8_HAS_BUILTIN_BSWAP16              - __builtin_bswap16() supported
 //  V8_HAS_BUILTIN_BSWAP32              - __builtin_bswap32() supported
 //  V8_HAS_BUILTIN_BSWAP64              - __builtin_bswap64() supported
@@ -310,14 +331,13 @@ path. Add it with -I<path> to the command line
 //  V8_HAS_BUILTIN_CTZ                  - __builtin_ctz() supported
 //  V8_HAS_BUILTIN_EXPECT               - __builtin_expect() supported
 //  V8_HAS_BUILTIN_FRAME_ADDRESS        - __builtin_frame_address() supported
-//  V8_HAS_BUILTIN_POPCOUNT             - __builtin_popcount() supported
-//  V8_HAS_BUILTIN_ADD_OVERFLOW         - __builtin_add_overflow() supported
-//  V8_HAS_BUILTIN_SUB_OVERFLOW         - __builtin_sub_overflow() supported
 //  V8_HAS_BUILTIN_MUL_OVERFLOW         - __builtin_mul_overflow() supported
+//  V8_HAS_BUILTIN_POPCOUNT             - __builtin_popcount() supported
 //  V8_HAS_BUILTIN_SADD_OVERFLOW        - __builtin_sadd_overflow() supported
-//  V8_HAS_BUILTIN_SSUB_OVERFLOW        - __builtin_ssub_overflow() supported
-//  V8_HAS_BUILTIN_UADD_OVERFLOW        - __builtin_uadd_overflow() supported
 //  V8_HAS_BUILTIN_SMUL_OVERFLOW        - __builtin_smul_overflow() supported
+//  V8_HAS_BUILTIN_SSUB_OVERFLOW        - __builtin_ssub_overflow() supported
+//  V8_HAS_BUILTIN_SUB_OVERFLOW         - __builtin_sub_overflow() supported
+//  V8_HAS_BUILTIN_UADD_OVERFLOW        - __builtin_uadd_overflow() supported
 //  V8_HAS_COMPUTED_GOTO                - computed goto/labels as values
 //                                        supported
 //  V8_HAS_DECLSPEC_NOINLINE            - __declspec(noinline) supported
@@ -349,6 +369,8 @@ path. Add it with -I<path> to the command line
 # define V8_HAS_ATTRIBUTE_NONNULL (__has_attribute(nonnull))
 # define V8_HAS_ATTRIBUTE_NOINLINE (__has_attribute(noinline))
 # define V8_HAS_ATTRIBUTE_UNUSED (__has_attribute(unused))
+# define V8_HAS_ATTRIBUTE_USED (__has_attribute(used))
+# define V8_HAS_ATTRIBUTE_RETAIN (__has_attribute(retain))
 // Support for the "preserve_most" attribute is limited:
 // - 32-bit platforms do not implement it,
 // - component builds fail because _dl_runtime_resolve clobbers registers,
@@ -370,11 +392,19 @@ path. Add it with -I<path> to the command line
 # define V8_HAS_ATTRIBUTE_WEAK (__has_attribute(weak))
 
 # define V8_HAS_CPP_ATTRIBUTE_NODISCARD (V8_HAS_CPP_ATTRIBUTE(nodiscard))
+#if defined(V8_CC_MSVC)
+# define V8_HAS_CPP_ATTRIBUTE_NO_UNIQUE_ADDRESS       \
+    (V8_HAS_CPP_ATTRIBUTE(msvc::no_unique_address) || \
+     V8_HAS_CPP_ATTRIBUTE(no_unique_address))
+#else
 # define V8_HAS_CPP_ATTRIBUTE_NO_UNIQUE_ADDRESS \
     (V8_HAS_CPP_ATTRIBUTE(no_unique_address))
+#endif
 
+# define V8_HAS_BUILTIN_ADD_OVERFLOW (__has_builtin(__builtin_add_overflow))
 # define V8_HAS_BUILTIN_ASSUME (__has_builtin(__builtin_assume))
 # define V8_HAS_BUILTIN_ASSUME_ALIGNED (__has_builtin(__builtin_assume_aligned))
+# define V8_HAS_BUILTIN_BIT_CAST (__has_builtin(__builtin_bit_cast))
 # define V8_HAS_BUILTIN_BSWAP16 (__has_builtin(__builtin_bswap16))
 # define V8_HAS_BUILTIN_BSWAP32 (__has_builtin(__builtin_bswap32))
 # define V8_HAS_BUILTIN_BSWAP64 (__has_builtin(__builtin_bswap64))
@@ -382,14 +412,13 @@ path. Add it with -I<path> to the command line
 # define V8_HAS_BUILTIN_CTZ (__has_builtin(__builtin_ctz))
 # define V8_HAS_BUILTIN_EXPECT (__has_builtin(__builtin_expect))
 # define V8_HAS_BUILTIN_FRAME_ADDRESS (__has_builtin(__builtin_frame_address))
-# define V8_HAS_BUILTIN_POPCOUNT (__has_builtin(__builtin_popcount))
-# define V8_HAS_BUILTIN_ADD_OVERFLOW (__has_builtin(__builtin_add_overflow))
-# define V8_HAS_BUILTIN_SUB_OVERFLOW (__has_builtin(__builtin_sub_overflow))
 # define V8_HAS_BUILTIN_MUL_OVERFLOW (__has_builtin(__builtin_mul_overflow))
+# define V8_HAS_BUILTIN_POPCOUNT (__has_builtin(__builtin_popcount))
 # define V8_HAS_BUILTIN_SADD_OVERFLOW (__has_builtin(__builtin_sadd_overflow))
-# define V8_HAS_BUILTIN_SSUB_OVERFLOW (__has_builtin(__builtin_ssub_overflow))
-# define V8_HAS_BUILTIN_UADD_OVERFLOW (__has_builtin(__builtin_uadd_overflow))
 # define V8_HAS_BUILTIN_SMUL_OVERFLOW (__has_builtin(__builtin_smul_overflow))
+# define V8_HAS_BUILTIN_SSUB_OVERFLOW (__has_builtin(__builtin_ssub_overflow))
+# define V8_HAS_BUILTIN_SUB_OVERFLOW (__has_builtin(__builtin_sub_overflow))
+# define V8_HAS_BUILTIN_UADD_OVERFLOW (__has_builtin(__builtin_uadd_overflow))
 # define V8_HAS_BUILTIN_UNREACHABLE (__has_builtin(__builtin_unreachable))
 
 // Clang has no __has_feature for computed gotos.
@@ -410,6 +439,11 @@ path. Add it with -I<path> to the command line
 # endif
 # define V8_CC_MINGW (V8_CC_MINGW32 || V8_CC_MINGW64)
 
+// FYI: __has_builtin is only available with GCC 10 and later, so explicitly
+// check GCC version numbers to enable features. TODO(leszeks): Merge feature
+// enabling for GCC 10 and later into the Clang section above, and leave this
+// section for GCC 9 and earlier.
+
 // always_inline is available in gcc 4.0 but not very reliable until 4.4.
 // Works around "sorry, unimplemented: inlining failed" build errors with
 // older compilers.
@@ -425,6 +459,9 @@ path. Add it with -I<path> to the command line
 // for V8_HAS_CPP_ATTRIBUTE_NODISCARD. See https://crbug.com/v8/11707.
 
 # define V8_HAS_BUILTIN_ASSUME_ALIGNED 1
+# if __GNUC__ >= 11
+#  define V8_HAS_BUILTIN_BIT_CAST 1
+# endif
 # define V8_HAS_BUILTIN_CLZ 1
 # define V8_HAS_BUILTIN_CTZ 1
 # define V8_HAS_BUILTIN_EXPECT 1
@@ -462,27 +499,40 @@ path. Add it with -I<path> to the command line
 # define V8_INLINE inline
 #endif
 
+#if V8_HAS_BUILTIN_ASSUME
 #ifdef DEBUG
-// In debug mode, check assumptions instead of actually adding annotations.
-# define V8_ASSUME DCHECK
-#elif V8_HAS_BUILTIN_ASSUME
+// In debug mode, check assumptions in addition to adding annotations.
+// This helps GCC (and maybe other compilers) figure out that certain
+// situations are unreachable.
+# define V8_ASSUME(condition)    \
+  do {                           \
+    DCHECK(condition);           \
+    __builtin_assume(condition); \
+  } while (false)
+#else  // DEBUG
 # define V8_ASSUME __builtin_assume
+#endif  // DEBUG
 #elif V8_HAS_BUILTIN_UNREACHABLE
 # define V8_ASSUME(condition)                  \
   do {                                         \
+    DCHECK(condition);                         \
     if (!(condition)) __builtin_unreachable(); \
   } while (false)
 #else
 # define V8_ASSUME USE
 #endif
 
-#if V8_HAS_BUILTIN_ASSUME_ALIGNED
+// Prefer c++20 std::assume_aligned. Don't use it on MSVC though, because it's
+// not happy with our large 4GB alignment values.
+#if __cplusplus >= 202002L && defined(__cpp_lib_assume_aligned) && !V8_CC_MSVC
+# define V8_ASSUME_ALIGNED(ptr, alignment) \
+  std::assume_aligned<(alignment)>(ptr)
+#elif V8_HAS_BUILTIN_ASSUME_ALIGNED
 # define V8_ASSUME_ALIGNED(ptr, alignment) \
   __builtin_assume_aligned((ptr), (alignment))
 #else
 # define V8_ASSUME_ALIGNED(ptr, alignment) (ptr)
 #endif
-
 
 // A macro to mark functions whose values don't change (e.g. across calls)
 // and thereby compiler is free to hoist and fold multiple calls together.
@@ -627,7 +677,7 @@ path. Add it with -I<path> to the command line
 //   V8_NODISCARD Foo() { ... };
 // [[nodiscard]] comes in C++17 but supported in clang with -std >= c++11.
 #if V8_HAS_CPP_ATTRIBUTE_NODISCARD
-#define V8_NODISCARD [[nodiscard]]
+#define V8_NODISCARD
 #else
 #define V8_NODISCARD /* NOT SUPPORTED */
 #endif
@@ -648,7 +698,15 @@ path. Add it with -I<path> to the command line
 // [[no_unique_address]] comes in C++20 but supported in clang with
 // -std >= c++11.
 #if V8_HAS_CPP_ATTRIBUTE_NO_UNIQUE_ADDRESS
+#if defined(V8_CC_MSVC) && V8_HAS_CPP_ATTRIBUTE(msvc::no_unique_address)
+// Unfortunately MSVC ignores [[no_unique_address]] (see
+// https://devblogs.microsoft.com/cppblog/msvc-cpp20-and-the-std-cpp20-switch/#msvc-extensions-and-abi),
+// and clang-cl matches it for ABI compatibility reasons. We need to prefer
+// [[msvc::no_unique_address]] when available if we actually want any effect.
+#define V8_NO_UNIQUE_ADDRESS [[msvc::no_unique_address]]
+#else
 #define V8_NO_UNIQUE_ADDRESS [[no_unique_address]]
+#endif
 #else
 #define V8_NO_UNIQUE_ADDRESS /* NOT SUPPORTED */
 #endif
@@ -678,10 +736,12 @@ path. Add it with -I<path> to the command line
 #if defined(__clang__) && defined(__has_attribute)
 #if __has_attribute(trivial_abi)
 #define V8_TRIVIAL_ABI [[clang::trivial_abi]]
+#define V8_HAS_ATTRIBUTE_TRIVIAL_ABI 1
 #endif // __has_attribute(trivial_abi)
 #endif // defined(__clang__) && defined(__has_attribute)
 #if !defined(V8_TRIVIAL_ABI)
 #define V8_TRIVIAL_ABI
+#define V8_HAS_ATTRIBUTE_TRIVIAL_ABI 0
 #endif //!defined(V8_TRIVIAL_ABI)
 
 // Helper macro to define no_sanitize attributes only with clang.
@@ -692,6 +752,11 @@ path. Add it with -I<path> to the command line
 #endif
 #if !defined(V8_CLANG_NO_SANITIZE)
 #define V8_CLANG_NO_SANITIZE(what)
+#endif
+
+// Exposing private symbols requires exposing public symbols too.
+#ifdef BUILDING_V8_SHARED_PRIVATE
+#define BUILDING_V8_SHARED
 #endif
 
 #if defined(BUILDING_V8_SHARED) && defined(USING_V8_SHARED)

@@ -1,4 +1,5 @@
 #include "base_object-inl.h"
+#include "node_dotenv.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "util-inl.h"
@@ -21,6 +22,8 @@ using v8::Integer;
 using v8::Isolate;
 using v8::KeyCollectionMode;
 using v8::Local;
+using v8::LocalVector;
+using v8::Name;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::ONLY_CONFIGURABLE;
@@ -36,9 +39,6 @@ using v8::StackTrace;
 using v8::String;
 using v8::Uint32;
 using v8::Value;
-
-// Used in ToUSVString().
-constexpr char16_t kUnicodeReplacementCharacter = 0xFFFD;
 
 // If a UTF-16 character is a low/trailing surrogate.
 CHAR_TEST(16, IsUnicodeTrail, (ch & 0xFC00) == 0xDC00)
@@ -150,20 +150,17 @@ static void GetCallerLocation(const FunctionCallbackInfo<Value>& args) {
   }
 
   Local<StackFrame> frame = trace->GetFrame(isolate, 1);
-  Local<Value> ret[] = {Integer::New(isolate, frame->GetLineNumber()),
-                        Integer::New(isolate, frame->GetColumn()),
-                        frame->GetScriptNameOrSourceURL()};
+  Local<Value> file = frame->GetScriptNameOrSourceURL();
 
-  args.GetReturnValue().Set(Array::New(args.GetIsolate(), ret, arraysize(ret)));
-}
-
-static void IsArrayBufferDetached(const FunctionCallbackInfo<Value>& args) {
-  if (args[0]->IsArrayBuffer()) {
-    auto buffer = args[0].As<v8::ArrayBuffer>();
-    args.GetReturnValue().Set(buffer->WasDetached());
+  if (file.IsEmpty()) {
     return;
   }
-  args.GetReturnValue().Set(false);
+
+  Local<Value> ret[] = {Integer::New(isolate, frame->GetLineNumber()),
+                        Integer::New(isolate, frame->GetColumn()),
+                        file};
+
+  args.GetReturnValue().Set(Array::New(args.GetIsolate(), ret, arraysize(ret)));
 }
 
 static void PreviewEntries(const FunctionCallbackInfo<Value>& args) {
@@ -240,46 +237,73 @@ static uint32_t FastGuessHandleType(Local<Value> receiver, const uint32_t fd) {
 
 CFunction fast_guess_handle_type_(CFunction::Make(FastGuessHandleType));
 
-static void ToUSVString(const FunctionCallbackInfo<Value>& args) {
+static void ParseEnv(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  CHECK_GE(args.Length(), 2);
+  CHECK_EQ(args.Length(), 1);  // content
   CHECK(args[0]->IsString());
-  CHECK(args[1]->IsNumber());
+  Utf8Value content(env->isolate(), args[0]);
+  Dotenv dotenv{};
+  dotenv.ParseContent(content.ToStringView());
+  args.GetReturnValue().Set(dotenv.ToObject(env));
+}
 
-  TwoByteValue value(env->isolate(), args[0]);
+static void GetCallSite(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
 
-  int64_t start = args[1]->IntegerValue(env->context()).FromJust();
-  CHECK_GE(start, 0);
+  CHECK_EQ(args.Length(), 1);
+  CHECK(args[0]->IsNumber());
+  const uint32_t frames = args[0].As<Uint32>()->Value();
+  DCHECK(frames >= 1 && frames <= 200);
 
-  for (size_t i = start; i < value.length(); i++) {
-    char16_t c = value[i];
-    if (!IsUnicodeSurrogate(c)) {
-      continue;
-    } else if (IsUnicodeSurrogateTrail(c) || i == value.length() - 1) {
-      value[i] = kUnicodeReplacementCharacter;
-    } else {
-      char16_t d = value[i + 1];
-      if (IsUnicodeTrail(d)) {
-        i++;
-      } else {
-        value[i] = kUnicodeReplacementCharacter;
-      }
+  // +1 for disregarding node:util
+  Local<StackTrace> stack = StackTrace::CurrentStackTrace(isolate, frames + 1);
+  const int frame_count = stack->GetFrameCount();
+  LocalVector<Value> callsite_objects(isolate);
+
+  // Frame 0 is node:util. It should be skipped.
+  for (int i = 1; i < frame_count; ++i) {
+    Local<StackFrame> stack_frame = stack->GetFrame(isolate, i);
+
+    Local<Value> function_name = stack_frame->GetFunctionName();
+    if (function_name.IsEmpty()) {
+      function_name = v8::String::Empty(isolate);
     }
+
+    Local<Value> script_name = stack_frame->GetScriptName();
+    if (script_name.IsEmpty()) {
+      script_name = v8::String::Empty(isolate);
+    }
+
+    Local<Name> names[] = {
+        env->function_name_string(),
+        env->script_name_string(),
+        env->line_number_string(),
+        env->column_string(),
+    };
+    Local<Value> values[] = {
+        function_name,
+        script_name,
+        Integer::NewFromUnsigned(isolate, stack_frame->GetLineNumber()),
+        Integer::NewFromUnsigned(isolate, stack_frame->GetColumn()),
+    };
+    Local<Object> obj = Object::New(
+        isolate, v8::Null(isolate), names, values, arraysize(names));
+
+    callsite_objects.push_back(obj);
   }
 
-  args.GetReturnValue().Set(
-      String::NewFromTwoByte(env->isolate(),
-                             *value,
-                             v8::NewStringType::kNormal,
-                             value.length()).ToLocalChecked());
+  Local<Array> callsites =
+      Array::New(isolate, callsite_objects.data(), callsite_objects.size());
+  args.GetReturnValue().Set(callsites);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetPromiseDetails);
   registry->Register(GetProxyDetails);
   registry->Register(GetCallerLocation);
-  registry->Register(IsArrayBufferDetached);
   registry->Register(PreviewEntries);
+  registry->Register(GetCallSite);
   registry->Register(GetOwnNonIndexProperties);
   registry->Register(GetConstructorName);
   registry->Register(GetExternalValue);
@@ -288,7 +312,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GuessHandleType);
   registry->Register(FastGuessHandleType);
   registry->Register(fast_guess_handle_type_.GetTypeInfo());
-  registry->Register(ToUSVString);
+  registry->Register(ParseEnv);
 }
 
 void Initialize(Local<Object> target,
@@ -377,15 +401,15 @@ void Initialize(Local<Object> target,
   SetMethodNoSideEffect(context, target, "getProxyDetails", GetProxyDetails);
   SetMethodNoSideEffect(
       context, target, "getCallerLocation", GetCallerLocation);
-  SetMethodNoSideEffect(
-      context, target, "isArrayBufferDetached", IsArrayBufferDetached);
   SetMethodNoSideEffect(context, target, "previewEntries", PreviewEntries);
   SetMethodNoSideEffect(
       context, target, "getOwnNonIndexProperties", GetOwnNonIndexProperties);
   SetMethodNoSideEffect(
       context, target, "getConstructorName", GetConstructorName);
   SetMethodNoSideEffect(context, target, "getExternalValue", GetExternalValue);
+  SetMethodNoSideEffect(context, target, "getCallSite", GetCallSite);
   SetMethod(context, target, "sleep", Sleep);
+  SetMethod(context, target, "parseEnv", ParseEnv);
 
   SetMethod(
       context, target, "arrayBufferViewHasBuffer", ArrayBufferViewHasBuffer);
@@ -403,8 +427,6 @@ void Initialize(Local<Object> target,
                             "guessHandleType",
                             GuessHandleType,
                             &fast_guess_handle_type_);
-
-  SetMethodNoSideEffect(context, target, "toUSVString", ToUSVString);
 }
 
 }  // namespace util

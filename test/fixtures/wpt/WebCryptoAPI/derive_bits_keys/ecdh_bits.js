@@ -55,16 +55,6 @@ function define_tests() {
                 });
             }, namedCurve + " mixed case parameters");
 
-            // Null length
-            promise_test(function(test) {
-                return subtle.deriveBits({name: "ECDH", public: publicKeys[namedCurve]}, privateKeys[namedCurve], null)
-                .then(function(derivation) {
-                    assert_true(equalBuffers(derivation, derivations[namedCurve]), "Derived correct bits");
-                }, function(err) {
-                    assert_unreached("deriveBits failed with error " + err.name + ": " + err.message);
-                });
-            }, namedCurve + " with null length");
-
             // Shorter than entire derivation per algorithm
             promise_test(function(test) {
                 return subtle.deriveBits({name: "ECDH", public: publicKeys[namedCurve]}, privateKeys[namedCurve], 8 * sizes[namedCurve] - 32)

@@ -50,7 +50,7 @@ namespace internal {
 bool CpuFeatures::SupportsOptimizer() { return true; }
 
 // The modes possibly affected by apply must be in kApplyMask.
-void RelocInfo::apply(intptr_t delta) {
+void WritableRelocInfo::apply(intptr_t delta) {
   DCHECK_EQ(kApplyMask, (RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
                          RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
                          RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET) |
@@ -82,16 +82,16 @@ int RelocInfo::target_address_size() { return Assembler::kSpecialTargetSize; }
 
 Tagged<HeapObject> RelocInfo::target_object(PtrComprCageBase cage_base) {
   DCHECK(IsCodeTarget(rmode_) || IsFullEmbeddedObject(rmode_));
-  return HeapObject::cast(Object(ReadUnalignedValue<Address>(pc_)));
+  return Cast<HeapObject>(Tagged<Object>(ReadUnalignedValue<Address>(pc_)));
 }
 
 Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
   DCHECK(IsCodeTarget(rmode_) || IsFullEmbeddedObject(rmode_));
-  return Handle<HeapObject>::cast(ReadUnalignedValue<Handle<Object>>(pc_));
+  return Cast<HeapObject>(ReadUnalignedValue<Handle<Object>>(pc_));
 }
 
-void RelocInfo::set_target_object(Tagged<HeapObject> target,
-                                  ICacheFlushMode icache_flush_mode) {
+void WritableRelocInfo::set_target_object(Tagged<HeapObject> target,
+                                          ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || IsFullEmbeddedObject(rmode_));
   WriteUnalignedValue(pc_, target.ptr());
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
@@ -104,7 +104,7 @@ Address RelocInfo::target_external_reference() {
   return ReadUnalignedValue<Address>(pc_);
 }
 
-void RelocInfo::set_target_external_reference(
+void WritableRelocInfo::set_target_external_reference(
     Address target, ICacheFlushMode icache_flush_mode) {
   DCHECK(rmode_ == RelocInfo::EXTERNAL_REFERENCE);
   WriteUnalignedValue(pc_, target);
@@ -130,16 +130,16 @@ Address RelocInfo::target_off_heap_target() {
   return Assembler::target_address_at(pc_, constant_pool_);
 }
 
-void RelocInfo::WipeOut() {
-  if (IsFullEmbeddedObject(rmode_) || IsExternalReference(rmode_) ||
-      IsInternalReference(rmode_)) {
-    WriteUnalignedValue(pc_, kNullAddress);
-  } else if (IsCodeTarget(rmode_) || IsOffHeapTarget(rmode_)) {
-    // Effectively write zero into the relocation.
-    Assembler::set_target_address_at(pc_, constant_pool_,
-                                     pc_ + sizeof(int32_t));
-  } else {
-    UNREACHABLE();
+uint32_t Assembler::uint32_constant_at(Address pc, Address constant_pool) {
+  return ReadUnalignedValue<uint32_t>(pc);
+}
+
+void Assembler::set_uint32_constant_at(Address pc, Address constant_pool,
+                                       uint32_t new_constant,
+                                       ICacheFlushMode icache_flush_mode) {
+  WriteUnalignedValue<uint32_t>(pc, new_constant);
+  if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
+    FlushInstructionCache(pc, sizeof(uint32_t));
   }
 }
 

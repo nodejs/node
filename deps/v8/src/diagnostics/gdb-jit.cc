@@ -7,6 +7,7 @@
 #include <iterator>
 #include <map>
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "include/v8-callbacks.h"
@@ -909,7 +910,7 @@ class CodeDescription {
 #endif
 
   CodeDescription(const char* name, base::AddressRegion region,
-                  SharedFunctionInfo shared, LineInfo* lineinfo,
+                  Tagged<SharedFunctionInfo> shared, LineInfo* lineinfo,
                   bool is_function)
       : name_(name),
         shared_info_(shared),
@@ -925,7 +926,7 @@ class CodeDescription {
 
   bool has_scope_info() const { return !shared_info_.is_null(); }
 
-  ScopeInfo scope_info() const {
+  Tagged<ScopeInfo> scope_info() const {
     DCHECK(has_scope_info());
     return shared_info_->scope_info();
   }
@@ -940,7 +941,7 @@ class CodeDescription {
     return !shared_info_.is_null() && IsScript(shared_info_->script());
   }
 
-  Script script() { return Script::cast(shared_info_->script()); }
+  Tagged<Script> script() { return Cast<Script>(shared_info_->script()); }
 
   bool IsLineInfoAvailable() { return lineinfo_ != nullptr; }
 
@@ -960,7 +961,7 @@ class CodeDescription {
 
   std::unique_ptr<char[]> GetFilename() {
     if (!shared_info_.is_null() && IsString(script()->name())) {
-      return String::cast(script()->name())->ToCString();
+      return Cast<String>(script()->name())->ToCString();
     } else {
       std::unique_ptr<char[]> result(new char[1]);
       result[0] = 0;
@@ -978,7 +979,7 @@ class CodeDescription {
 
  private:
   const char* name_;
-  SharedFunctionInfo shared_info_;
+  Tagged<SharedFunctionInfo> shared_info_;
   LineInfo* lineinfo_;
   bool is_function_;
   base::AddressRegion code_region_;
@@ -1077,7 +1078,7 @@ class DebugInfoSection : public DebugSection {
     w->WriteString("v8value");
 
     if (desc_->has_scope_info()) {
-      ScopeInfo scope = desc_->scope_info();
+      Tagged<ScopeInfo> scope = desc_->scope_info();
       w->WriteULEB128(2);
       w->WriteString(desc_->name());
       w->Write<intptr_t>(desc_->CodeStart());
@@ -1265,7 +1266,7 @@ class DebugAbbrevSection : public DebugSection {
     w->WriteULEB128(0);
 
     if (extra_info) {
-      ScopeInfo scope = desc_->scope_info();
+      Tagged<ScopeInfo> scope = desc_->scope_info();
       int params = scope->ParameterCount();
       int context_slots = scope->ContextLocalCount();
       // The real slot ID is internal_slots + context_slot_id.
@@ -1747,7 +1748,7 @@ void __attribute__((noinline)) __jit_debug_register_code() { __asm__(""); }
 JITDescriptor __jit_debug_descriptor = {1, 0, nullptr, nullptr};
 
 #ifdef OBJECT_PRINT
-void __gdb_print_v8_object(Object object) {
+void __gdb_print_v8_object(TaggedBase object) {
   StdoutStream os;
   Print(object, os);
   os << std::flush;
@@ -1916,7 +1917,7 @@ static void AddUnwindInfo(CodeDescription* desc) {
 
 static base::LazyMutex mutex = LAZY_MUTEX_INITIALIZER;
 
-static base::Optional<std::pair<CodeMap::iterator, CodeMap::iterator>>
+static std::optional<std::pair<CodeMap::iterator, CodeMap::iterator>>
 GetOverlappingRegions(CodeMap* map, const base::AddressRegion region) {
   DCHECK_LT(region.begin(), region.end());
 
@@ -2006,7 +2007,7 @@ static void AddJITCodeEntry(CodeMap* map, const base::AddressRegion region,
 }
 
 static void AddCode(const char* name, base::AddressRegion region,
-                    SharedFunctionInfo shared, LineInfo* lineinfo,
+                    Tagged<SharedFunctionInfo> shared, LineInfo* lineinfo,
                     Isolate* isolate, bool is_function) {
   DisallowGarbageCollection no_gc;
   CodeDescription code_desc(name, region, shared, lineinfo, is_function);
@@ -2051,9 +2052,9 @@ void EventHandler(const v8::JitCodeEvent* event) {
       LineInfo* lineinfo = GetLineInfo(addr);
       std::string event_name(event->name.str, event->name.len);
       // It's called UnboundScript in the API but it's a SharedFunctionInfo.
-      SharedFunctionInfo shared = event->script.IsEmpty()
-                                      ? Tagged<SharedFunctionInfo>()
-                                      : *Utils::OpenHandle(*event->script);
+      Tagged<SharedFunctionInfo> shared =
+          event->script.IsEmpty() ? Tagged<SharedFunctionInfo>()
+                                  : *Utils::OpenDirectHandle(*event->script);
       Isolate* isolate = reinterpret_cast<Isolate*>(event->isolate);
       bool is_function = false;
       // TODO(zhin): See if we can use event->code_type to determine
@@ -2064,7 +2065,8 @@ void EventHandler(const v8::JitCodeEvent* event) {
       // use event->code_type here instead of finding the Code.
       // TODO(zhin): Rename is_function to be more accurate.
       if (event->code_type == v8::JitCodeEvent::JIT_CODE) {
-        Code lookup_result = isolate->heap()->FindCodeForInnerPointer(addr);
+        Tagged<Code> lookup_result =
+            isolate->heap()->FindCodeForInnerPointer(addr);
         is_function = CodeKindIsOptimizedJSFunction(lookup_result->kind());
       }
       AddCode(event_name.c_str(), {addr, event->code_len}, shared, lineinfo,

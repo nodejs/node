@@ -168,10 +168,6 @@ class V8FileLogger : public LogEventListener {
   void ScriptEvent(ScriptEventType type, int script_id);
   void ScriptDetails(Tagged<Script> script);
 
-  // ==== Events logged by --log-code. ====
-  V8_EXPORT_PRIVATE void AddLogEventListener(LogEventListener* listener);
-  V8_EXPORT_PRIVATE void RemoveLogEventListener(LogEventListener* listener);
-
   // LogEventListener implementation.
   void CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
                        const char* name) override;
@@ -212,13 +208,13 @@ class V8FileLogger : public LogEventListener {
                            Tagged<AbstractCode> code);
   void WeakCodeClearEvent() override {}
 
-  void ProcessDeoptEvent(Handle<Code> code, SourcePosition position,
+  void ProcessDeoptEvent(DirectHandle<Code> code, SourcePosition position,
                          const char* kind, const char* reason);
 
   // Emits a code line info record event.
-  void CodeLinePosInfoRecordEvent(Address code_start,
-                                  Tagged<ByteArray> source_position_table,
-                                  JitCodeEvent::CodeType code_type);
+  void CodeLinePosInfoRecordEvent(
+      Address code_start, Tagged<TrustedByteArray> source_position_table,
+      JitCodeEvent::CodeType code_type);
 #if V8_ENABLE_WEBASSEMBLY
   void WasmCodeLinePosInfoRecordEvent(
       Address code_start, base::Vector<const uint8_t> source_position_table);
@@ -227,7 +223,7 @@ class V8FileLogger : public LogEventListener {
   void CodeNameEvent(Address addr, int pos, const char* code_name);
 
   void ICEvent(const char* type, bool keyed, Handle<Map> map,
-               Handle<Object> key, char old_state, char new_state,
+               DirectHandle<Object> key, char old_state, char new_state,
                const char* modifier, const char* slow_stub_reason);
 
   void MapEvent(const char* type, Handle<Map> from, Handle<Map> to,
@@ -304,13 +300,15 @@ class V8FileLogger : public LogEventListener {
 #endif  // V8_OS_WIN && V8_ENABLE_ETW_STACK_WALKING
 
  private:
+  Logger* logger() const;
+
   void UpdateIsLogging(bool value);
 
   // Emits the profiler's first message.
   void ProfilerBeginEvent();
 
   // Emits callback event messages.
-  void CallbackEventInternal(const char* prefix, Handle<Name> name,
+  void CallbackEventInternal(const char* prefix, DirectHandle<Name> name,
                              Address entry_point);
 
   // Internal configurable move event.
@@ -331,8 +329,8 @@ class V8FileLogger : public LogEventListener {
   bool EnsureLogScriptSource(Tagged<Script> script);
 
   void LogSourceCodeInformation(Handle<AbstractCode> code,
-                                Handle<SharedFunctionInfo> shared);
-  void LogCodeDisassemble(Handle<AbstractCode> code);
+                                DirectHandle<SharedFunctionInfo> shared);
+  void LogCodeDisassemble(DirectHandle<AbstractCode> code);
 
   void WriteApiSecurityCheck();
   void WriteApiNamedPropertyAccess(const char* tag, Tagged<JSObject> holder,
@@ -358,7 +356,7 @@ class V8FileLogger : public LogEventListener {
   friend class Profiler;
 
   std::atomic<bool> is_logging_;
-  std::unique_ptr<LogFile> log_;
+  std::unique_ptr<LogFile> log_file_;
 #if V8_OS_LINUX
   std::unique_ptr<LinuxPerfBasicLogger> perf_basic_logger_;
   std::unique_ptr<LinuxPerfJitLogger> perf_jit_logger_;

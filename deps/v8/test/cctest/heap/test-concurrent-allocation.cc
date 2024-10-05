@@ -19,7 +19,6 @@
 #include "src/handles/handles.h"
 #include "src/handles/local-handles-inl.h"
 #include "src/handles/persistent-handles.h"
-#include "src/heap/concurrent-allocator-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/local-heap-inl.h"
 #include "src/heap/marking-state-inl.h"
@@ -38,11 +37,11 @@ void CreateFixedArray(Heap* heap, Address start, int size) {
   Tagged<HeapObject> object = HeapObject::FromAddress(start);
   object->set_map_after_allocation(ReadOnlyRoots(heap).fixed_array_map(),
                                    SKIP_WRITE_BARRIER);
-  Tagged<FixedArray> array = FixedArray::cast(object);
+  Tagged<FixedArray> array = Cast<FixedArray>(object);
   int length = (size - FixedArray::kHeaderSize) / kTaggedSize;
   array->set_length(length);
-  MemsetTagged(array->data_start(), ReadOnlyRoots(heap).undefined_value(),
-               length);
+  MemsetTagged(array->RawFieldOfFirstElement(),
+               ReadOnlyRoots(heap).undefined_value(), length);
 }
 
 const int kNumIterations = 2000;
@@ -133,8 +132,10 @@ UNINITIALIZED_TEST(ConcurrentAllocationInOldSpaceFromMainThread) {
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
 
-  AllocateSomeObjects(i_isolate->main_thread_local_heap());
-
+  {
+    PtrComprCageAccessScope ptr_compr_cage_access_scope(i_isolate);
+    AllocateSomeObjects(i_isolate->main_thread_local_heap());
+  }
   isolate->Dispose();
 }
 
@@ -157,20 +158,19 @@ UNINITIALIZED_TEST(ConcurrentAllocationWhileMainThreadIsParked) {
   std::vector<std::unique_ptr<ConcurrentAllocationThread>> threads;
   const int kThreads = 4;
 
-  {
-    ParkedScope scope(i_isolate->main_thread_local_isolate());
+  i_isolate->main_thread_local_isolate()->ExecuteMainThreadWhileParked(
+      [i_isolate, &threads]() {
+        for (int i = 0; i < kThreads; i++) {
+          auto thread =
+              std::make_unique<ConcurrentAllocationThread>(i_isolate->heap());
+          CHECK(thread->Start());
+          threads.push_back(std::move(thread));
+        }
 
-    for (int i = 0; i < kThreads; i++) {
-      auto thread =
-          std::make_unique<ConcurrentAllocationThread>(i_isolate->heap());
-      CHECK(thread->Start());
-      threads.push_back(std::move(thread));
-    }
-
-    for (auto& thread : threads) {
-      thread->Join();
-    }
-  }
+        for (auto& thread : threads) {
+          thread->Join();
+        }
+      });
 
   isolate->Dispose();
 }
@@ -205,16 +205,16 @@ UNINITIALIZED_TEST(ConcurrentAllocationWhileMainThreadParksAndUnparks) {
     }
 
     for (int i = 0; i < 300'000; i++) {
-      ParkedScope scope(i_isolate->main_thread_local_isolate());
+      i_isolate->main_thread_local_isolate()->ExecuteMainThreadWhileParked(
+          []() { /* nothing */ });
     }
 
-    {
-      ParkedScope scope(i_isolate->main_thread_local_isolate());
-
-      for (auto& thread : threads) {
-        thread->Join();
-      }
-    }
+    i_isolate->main_thread_local_isolate()->ExecuteMainThreadWhileParked(
+        [&threads]() {
+          for (auto& thread : threads) {
+            thread->Join();
+          }
+        });
   }
 
   isolate->Dispose();
@@ -255,13 +255,12 @@ UNINITIALIZED_TEST(ConcurrentAllocationWhileMainThreadRunsWithSafepoints) {
       i_isolate->main_thread_local_heap()->Safepoint();
     }
 
-    {
-      ParkedScope scope(i_isolate->main_thread_local_isolate());
-
-      for (auto& thread : threads) {
-        thread->Join();
-      }
-    }
+    i_isolate->main_thread_local_isolate()->ExecuteMainThreadWhileParked(
+        [&threads]() {
+          for (auto& thread : threads) {
+            thread->Join();
+          }
+        });
   }
 
   i_isolate->main_thread_local_heap()->Safepoint();
@@ -353,9 +352,10 @@ class ConcurrentBlackAllocationThread final : public v8::base::Thread {
 
     for (int i = 0; i < kNumIterations; i++) {
       if (i == kWhiteIterations) {
-        ParkedScope scope(&local_heap);
-        sema_white_->Signal();
-        sema_marking_started_->Wait();
+        local_heap.ExecuteWhileParked([this]() {
+          sema_white_->Signal();
+          sema_marking_started_->Wait();
+        });
       }
       Address address = local_heap.AllocateRawOrFail(
           kSmallObjectSize, AllocationType::kOld, AllocationOrigin::kRuntime,
@@ -383,36 +383,38 @@ UNINITIALIZED_TEST(ConcurrentBlackAllocation) {
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
   Heap* heap = i_isolate->heap();
+  {
+    PtrComprCageAccessScope ptr_compr_cage_access_scope(i_isolate);
 
-  std::vector<Address> objects;
+    std::vector<Address> objects;
 
-  base::Semaphore sema_white(0);
-  base::Semaphore sema_marking_started(0);
+    base::Semaphore sema_white(0);
+    base::Semaphore sema_marking_started(0);
 
-  auto thread = std::make_unique<ConcurrentBlackAllocationThread>(
-      heap, &objects, &sema_white, &sema_marking_started);
-  CHECK(thread->Start());
+    auto thread = std::make_unique<ConcurrentBlackAllocationThread>(
+        heap, &objects, &sema_white, &sema_marking_started);
+    CHECK(thread->Start());
 
-  sema_white.Wait();
-  heap->StartIncrementalMarking(i::GCFlag::kNoFlags,
-                                i::GarbageCollectionReason::kTesting);
-  sema_marking_started.Signal();
+    sema_white.Wait();
+    heap->StartIncrementalMarking(i::GCFlag::kNoFlags,
+                                  i::GarbageCollectionReason::kTesting);
+    sema_marking_started.Signal();
 
-  thread->Join();
+    thread->Join();
 
-  const int kObjectsAllocatedPerIteration = 2;
+    const int kObjectsAllocatedPerIteration = 2;
 
-  for (int i = 0; i < kNumIterations * kObjectsAllocatedPerIteration; i++) {
-    Address address = objects[i];
-    Tagged<HeapObject> object = HeapObject::FromAddress(address);
+    for (int i = 0; i < kNumIterations * kObjectsAllocatedPerIteration; i++) {
+      Address address = objects[i];
+      Tagged<HeapObject> object = HeapObject::FromAddress(address);
 
-    if (i < kWhiteIterations * kObjectsAllocatedPerIteration) {
-      CHECK(heap->marking_state()->IsUnmarked(object));
-    } else {
-      CHECK(heap->marking_state()->IsMarked(object));
+      if (i < kWhiteIterations * kObjectsAllocatedPerIteration) {
+        CHECK(heap->marking_state()->IsUnmarked(object));
+      } else {
+        CHECK(heap->marking_state()->IsMarked(object));
+      }
     }
   }
-
   isolate->Dispose();
 }
 
@@ -432,8 +434,8 @@ class ConcurrentWriteBarrierThread final : public v8::base::Thread {
   }
 
   Heap* heap_;
-  FixedArray fixed_array_;
-  HeapObject value_;
+  Tagged<FixedArray> fixed_array_;
+  Tagged<HeapObject> value_;
 };
 
 UNINITIALIZED_TEST(ConcurrentWriteBarrier) {
@@ -449,34 +451,35 @@ UNINITIALIZED_TEST(ConcurrentWriteBarrier) {
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
   Heap* heap = i_isolate->heap();
-
-  Tagged<FixedArray> fixed_array;
-  Tagged<HeapObject> value;
   {
-    HandleScope handle_scope(i_isolate);
-    Handle<FixedArray> fixed_array_handle(
-        i_isolate->factory()->NewFixedArray(1));
-    Handle<HeapNumber> value_handle(
-        i_isolate->factory()->NewHeapNumber<AllocationType::kOld>(1.1));
-    fixed_array = *fixed_array_handle;
-    value = *value_handle;
+    PtrComprCageAccessScope ptr_compr_cage_access_scope(i_isolate);
+    Tagged<FixedArray> fixed_array;
+    Tagged<HeapObject> value;
+    {
+      HandleScope handle_scope(i_isolate);
+      DirectHandle<FixedArray> fixed_array_handle(
+          i_isolate->factory()->NewFixedArray(1));
+      DirectHandle<HeapNumber> value_handle(
+          i_isolate->factory()->NewHeapNumber<AllocationType::kOld>(1.1));
+      fixed_array = *fixed_array_handle;
+      value = *value_handle;
+    }
+    heap->StartIncrementalMarking(i::GCFlag::kNoFlags,
+                                  i::GarbageCollectionReason::kTesting);
+    CHECK(heap->marking_state()->IsUnmarked(value));
+
+    // Mark host |fixed_array| to trigger the barrier.
+    heap->marking_state()->TryMarkAndAccountLiveBytes(fixed_array);
+
+    auto thread = std::make_unique<ConcurrentWriteBarrierThread>(
+        heap, fixed_array, value);
+    CHECK(thread->Start());
+
+    thread->Join();
+
+    CHECK(heap->marking_state()->IsMarked(value));
+    heap::InvokeMajorGC(heap);
   }
-  heap->StartIncrementalMarking(i::GCFlag::kNoFlags,
-                                i::GarbageCollectionReason::kTesting);
-  CHECK(heap->marking_state()->IsUnmarked(value));
-
-  // Mark host |fixed_array| to trigger the barrier.
-  heap->marking_state()->TryMarkAndAccountLiveBytes(fixed_array);
-
-  auto thread =
-      std::make_unique<ConcurrentWriteBarrierThread>(heap, fixed_array, value);
-  CHECK(thread->Start());
-
-  thread->Join();
-
-  CHECK(heap->marking_state()->IsMarked(value));
-  heap::InvokeMajorGC(heap);
-
   isolate->Dispose();
 }
 
@@ -492,21 +495,23 @@ class ConcurrentRecordRelocSlotThread final : public v8::base::Thread {
   void Run() override {
     LocalHeap local_heap(heap_, ThreadKind::kBackground);
     UnparkedScope unparked_scope(&local_heap);
-    // Modification of InstructionStream object requires write access.
-    RwxMemoryWriteScopeForTesting rwx_write_scope;
     DisallowGarbageCollection no_gc;
     Tagged<InstructionStream> istream = code_->instruction_stream();
     int mode_mask = RelocInfo::EmbeddedObjectModeMask();
-    CodePageMemoryModificationScope memory_modification_scope(istream);
-    for (RelocIterator it(code_, mode_mask); !it.done(); it.next()) {
+    WritableJitAllocation jit_allocation = ThreadIsolation::LookupJitAllocation(
+        istream->address(), istream->Size(),
+        ThreadIsolation::JitAllocationType::kInstructionStream);
+    for (WritableRelocIterator it(jit_allocation, istream,
+                                  code_->constant_pool(), mode_mask);
+         !it.done(); it.next()) {
       DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));
       it.rinfo()->set_target_object(istream, value_);
     }
   }
 
   Heap* heap_;
-  Code code_;
-  HeapObject value_;
+  Tagged<Code> code_;
+  Tagged<HeapObject> value_;
 };
 
 UNINITIALIZED_TEST(ConcurrentRecordRelocSlot) {
@@ -525,6 +530,7 @@ UNINITIALIZED_TEST(ConcurrentRecordRelocSlot) {
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
   Heap* heap = i_isolate->heap();
   {
+    PtrComprCageAccessScope ptr_compr_cage_access_scope(i_isolate);
     Tagged<Code> code;
     Tagged<HeapObject> value;
     {
@@ -548,9 +554,10 @@ UNINITIALIZED_TEST(ConcurrentRecordRelocSlot) {
       // Globalize the handle for |code| for the incremental marker to mark it.
       i_isolate->global_handles()->Create(*code_handle.location());
       heap::AbandonCurrentlyFreeMemory(heap->old_space());
-      Handle<HeapNumber> value_handle(
+      DirectHandle<HeapNumber> value_handle(
           i_isolate->factory()->NewHeapNumber<AllocationType::kOld>(1.1));
-      heap::ForceEvacuationCandidate(Page::FromHeapObject(*value_handle));
+      heap::ForceEvacuationCandidate(
+          PageMetadata::FromHeapObject(*value_handle));
       code = *code_handle;
       value = *value_handle;
     }

@@ -6,6 +6,7 @@
 #define V8_COMPILER_BACKEND_INSTRUCTION_SELECTOR_H_
 
 #include <map>
+#include <optional>
 
 #include "src/codegen/cpu-features.h"
 #include "src/codegen/machine-type.h"
@@ -111,7 +112,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
 
   ~InstructionSelector();
 
-  base::Optional<BailoutReason> SelectInstructions();
+  std::optional<BailoutReason> SelectInstructions();
 
   bool IsSupported(CpuFeature feature) const;
 
@@ -148,6 +149,18 @@ class FlagsContinuationT final {
   using node_t = typename Adapter::node_t;
   using id_t = typename Adapter::id_t;
 
+  struct ConditionalCompare {
+    InstructionCode code;
+    FlagsCondition compare_condition;
+    FlagsCondition default_flags;
+    node_t lhs;
+    node_t rhs;
+  };
+  // This limit covered almost all the opportunities when compiling the debug
+  // builtins.
+  static constexpr size_t kMaxCompareChainSize = 4;
+  using compare_chain_t = std::array<ConditionalCompare, kMaxCompareChainSize>;
+
   FlagsContinuationT() : mode_(kFlags_none) {}
 
   // Creates a new flags continuation from the given condition and true/false
@@ -156,6 +169,16 @@ class FlagsContinuationT final {
                                       block_t true_block, block_t false_block) {
     return FlagsContinuationT(kFlags_branch, condition, true_block,
                               false_block);
+  }
+
+  // Creates a new flags continuation from the given conditional compare chain
+  // and true/false blocks.
+  static FlagsContinuationT ForConditionalBranch(
+      compare_chain_t& compares, uint32_t num_conditional_compares,
+      FlagsCondition branch_condition, block_t true_block,
+      block_t false_block) {
+    return FlagsContinuationT(compares, num_conditional_compares,
+                              branch_condition, true_block, false_block);
   }
 
   // Creates a new flags continuation for an eager deoptimization exit.
@@ -180,6 +203,15 @@ class FlagsContinuationT final {
     return FlagsContinuationT(condition, result);
   }
 
+  // Creates a new flags continuation for a conditional boolean value.
+  static FlagsContinuationT ForConditionalSet(compare_chain_t& compares,
+                                              uint32_t num_conditional_compares,
+                                              FlagsCondition set_condition,
+                                              node_t result) {
+    return FlagsContinuationT(compares, num_conditional_compares, set_condition,
+                              result);
+  }
+
   // Creates a new flags continuation for a wasm trap.
   static FlagsContinuationT ForTrap(FlagsCondition condition, TrapId trap_id) {
     return FlagsContinuationT(condition, trap_id);
@@ -192,13 +224,21 @@ class FlagsContinuationT final {
 
   bool IsNone() const { return mode_ == kFlags_none; }
   bool IsBranch() const { return mode_ == kFlags_branch; }
+  bool IsConditionalBranch() const {
+    return mode_ == kFlags_conditional_branch;
+  }
   bool IsDeoptimize() const { return mode_ == kFlags_deoptimize; }
   bool IsSet() const { return mode_ == kFlags_set; }
+  bool IsConditionalSet() const { return mode_ == kFlags_conditional_set; }
   bool IsTrap() const { return mode_ == kFlags_trap; }
   bool IsSelect() const { return mode_ == kFlags_select; }
   FlagsCondition condition() const {
     DCHECK(!IsNone());
     return condition_;
+  }
+  FlagsCondition final_condition() const {
+    DCHECK(IsConditionalSet() || IsConditionalBranch());
+    return final_condition_;
   }
   DeoptimizeReason reason() const {
     DCHECK(IsDeoptimize());
@@ -217,7 +257,7 @@ class FlagsContinuationT final {
     return frame_state_or_result_;
   }
   node_t result() const {
-    DCHECK(IsSet() || IsSelect());
+    DCHECK(IsSet() || IsConditionalSet() || IsSelect());
     return frame_state_or_result_;
   }
   TrapId trap_id() const {
@@ -225,11 +265,11 @@ class FlagsContinuationT final {
     return trap_id_;
   }
   block_t true_block() const {
-    DCHECK(IsBranch());
+    DCHECK(IsBranch() || IsConditionalBranch());
     return true_block_;
   }
   block_t false_block() const {
-    DCHECK(IsBranch());
+    DCHECK(IsBranch() || IsConditionalBranch());
     return false_block_;
   }
   node_t true_value() const {
@@ -240,27 +280,42 @@ class FlagsContinuationT final {
     DCHECK(IsSelect());
     return false_value_;
   }
+  const compare_chain_t& compares() const {
+    DCHECK(IsConditionalSet() || IsConditionalBranch());
+    return compares_;
+  }
+  uint32_t num_conditional_compares() const {
+    DCHECK(IsConditionalSet() || IsConditionalBranch());
+    return num_conditional_compares_;
+  }
 
   void Negate() {
     DCHECK(!IsNone());
+    DCHECK(!IsConditionalSet() && !IsConditionalBranch());
     condition_ = NegateFlagsCondition(condition_);
   }
 
   void Commute() {
     DCHECK(!IsNone());
+    DCHECK(!IsConditionalSet() && !IsConditionalBranch());
     condition_ = CommuteFlagsCondition(condition_);
   }
 
-  void Overwrite(FlagsCondition condition) { condition_ = condition; }
+  void Overwrite(FlagsCondition condition) {
+    DCHECK(!IsConditionalSet() && !IsConditionalBranch());
+    condition_ = condition;
+  }
 
   void OverwriteAndNegateIfEqual(FlagsCondition condition) {
     DCHECK(condition_ == kEqual || condition_ == kNotEqual);
+    DCHECK(!IsConditionalSet() && !IsConditionalBranch());
     bool negate = condition_ == kEqual;
     condition_ = condition;
     if (negate) Negate();
   }
 
   void OverwriteUnsignedIfSigned() {
+    DCHECK(!IsConditionalSet() && !IsConditionalBranch());
     switch (condition_) {
       case kSignedLessThan:
         condition_ = kUnsignedLessThan;
@@ -300,6 +355,21 @@ class FlagsContinuationT final {
     DCHECK_NOT_NULL(false_block);
   }
 
+  FlagsContinuationT(compare_chain_t& compares,
+                     uint32_t num_conditional_compares,
+                     FlagsCondition branch_condition, block_t true_block,
+                     block_t false_block)
+      : mode_(kFlags_conditional_branch),
+        condition_(compares.front().compare_condition),
+        final_condition_(branch_condition),
+        num_conditional_compares_(num_conditional_compares),
+        compares_(compares),
+        true_block_(true_block),
+        false_block_(false_block) {
+    DCHECK_NOT_NULL(true_block);
+    DCHECK_NOT_NULL(false_block);
+  }
+
   FlagsContinuationT(FlagsMode mode, FlagsCondition condition,
                      DeoptimizeReason reason, id_t node_id,
                      FeedbackSource const& feedback, node_t frame_state)
@@ -316,6 +386,18 @@ class FlagsContinuationT final {
   FlagsContinuationT(FlagsCondition condition, node_t result)
       : mode_(kFlags_set),
         condition_(condition),
+        frame_state_or_result_(result) {
+    DCHECK(Adapter::valid(result));
+  }
+
+  FlagsContinuationT(compare_chain_t& compares,
+                     uint32_t num_conditional_compares,
+                     FlagsCondition set_condition, node_t result)
+      : mode_(kFlags_conditional_set),
+        condition_(compares.front().compare_condition),
+        final_condition_(set_condition),
+        num_conditional_compares_(num_conditional_compares),
+        compares_(compares),
         frame_state_or_result_(result) {
     DCHECK(Adapter::valid(result));
   }
@@ -337,6 +419,11 @@ class FlagsContinuationT final {
 
   FlagsMode const mode_;
   FlagsCondition condition_;
+  FlagsCondition final_condition_;     // Only valid if mode_ ==
+                                       // kFlags_conditional_set.
+  uint32_t num_conditional_compares_;  // Only valid if mode_ ==
+                                       // kFlags_conditional_set.
+  compare_chain_t compares_;  // Only valid if mode_ == kFlags_conditional_set.
   DeoptimizeReason reason_;         // Only valid if mode_ == kFlags_deoptimize*
   id_t node_id_;                    // Only valid if mode_ == kFlags_deoptimize*
   FeedbackSource feedback_;         // Only valid if mode_ == kFlags_deoptimize*
@@ -379,6 +466,7 @@ class InstructionSelectorT final : public Adapter {
   using block_t = typename Adapter::block_t;
   using block_range_t = typename Adapter::block_range_t;
   using node_t = typename Adapter::node_t;
+  using optional_node_t = typename Adapter::optional_node_t;
   using id_t = typename Adapter::id_t;
   using source_position_table_t = typename Adapter::source_position_table_t;
 
@@ -405,7 +493,7 @@ class InstructionSelectorT final : public Adapter {
           InstructionSelector::kDisableTraceTurboJson);
 
   // Visit code for the entire graph with the included schedule.
-  base::Optional<BailoutReason> SelectInstructions();
+  std::optional<BailoutReason> SelectInstructions();
 
   void StartBlock(RpoNumber rpo);
   void EndBlock(RpoNumber rpo);
@@ -478,7 +566,6 @@ class InstructionSelectorT final : public Adapter {
       size_t input_count, InstructionOperand* inputs, size_t temp_count,
       InstructionOperand* temps, FlagsContinuation* cont);
 
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(void, EmitIdentity)
   void EmitIdentity(node_t node);
 
   // ===========================================================================
@@ -506,7 +593,6 @@ class InstructionSelectorT final : public Adapter {
   // For pure nodes, CanCover(a,b) is checked to avoid duplicated execution:
   // If this is not the case, code for b must still be generated for other
   // users, and fusing is unlikely to improve performance.
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(bool, CanCover)
   bool CanCover(node_t user, node_t node) const;
 
   // Used in pattern matching during code generation.
@@ -536,29 +622,32 @@ class InstructionSelectorT final : public Adapter {
 
   // Checks if {node} was already defined, and therefore code was already
   // generated for it.
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(bool, IsDefined)
   bool IsDefined(node_t node) const;
 
   // Checks if {node} has any uses, and therefore code has to be generated for
-  // it.
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(bool, IsUsed)
+  // it. Always returns {true} if the node has effect IsRequiredWhenUnused.
   bool IsUsed(node_t node) const;
+  // Checks if {node} has any uses, and therefore code has to be generated for
+  // it. Ignores the IsRequiredWhenUnused effect.
+  bool IsReallyUsed(node_t node) const;
 
   // Checks if {node} is currently live.
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(bool, IsLive)
   bool IsLive(node_t node) const { return !IsDefined(node) && IsUsed(node); }
+  // Checks if {node} is currently live, ignoring the IsRequiredWhenUnused
+  // effect.
+  bool IsReallyLive(node_t node) const {
+    return !IsDefined(node) && IsReallyUsed(node);
+  }
 
   // Gets the effect level of {node}.
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(int, GetEffectLevel)
   int GetEffectLevel(node_t node) const;
 
   // Gets the effect level of {node}, appropriately adjusted based on
   // continuation flags if the node is a branch.
   int GetEffectLevel(node_t node, FlagsContinuation* cont) const;
 
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(int, GetVirtualRegister)
   int GetVirtualRegister(node_t node);
-  const std::map<NodeId, int> GetVirtualRegistersForTesting() const;
+  const std::map<id_t, int> GetVirtualRegistersForTesting() const;
 
   // Check if we can generate loads and stores of ExternalConstants relative
   // to the roots register.
@@ -571,6 +660,30 @@ class InstructionSelectorT final : public Adapter {
 
   const ZoneVector<std::pair<int, int>>& instr_origins() const {
     return instr_origins_;
+  }
+
+  node_t FindProjection(node_t node, size_t projection_index);
+
+  // Records that this ProtectedLoad node can be deleted if not used, even
+  // though it has a required_when_unused effect.
+  void SetProtectedLoadToRemove(node_t node) {
+    if constexpr (Adapter::IsTurboshaft) {
+      DCHECK(this->IsProtectedLoad(node));
+      protected_loads_to_remove_->Add(this->id(node));
+    } else {
+      UNREACHABLE();
+    }
+  }
+
+  // Records that this node embeds a ProtectedLoad as operand, and so it is
+  // itself a "protected" instruction, for which we'll need to record the source
+  // position.
+  void MarkAsProtected(node_t node) {
+    if constexpr (Adapter::IsTurboshaft) {
+      additional_protected_instructions_->Add(this->id(node));
+    } else {
+      UNREACHABLE();
+    }
   }
 
  private:
@@ -594,61 +707,48 @@ class InstructionSelectorT final : public Adapter {
 
   void TryRename(InstructionOperand* op);
   int GetRename(int virtual_register);
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(void, SetRename)
   void SetRename(node_t node, node_t rename);
   void UpdateRenames(Instruction* instruction);
   void UpdateRenamesInPhi(PhiInstruction* phi);
 
   // Inform the instruction selection that {node} was just defined.
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(void, MarkAsDefined)
   void MarkAsDefined(node_t node);
 
   // Inform the instruction selection that {node} has at least one use and we
   // will need to generate code for it.
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(void, MarkAsUsed)
   void MarkAsUsed(node_t node);
 
   // Sets the effect level of {node}.
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(void, SetEffectLevel)
   void SetEffectLevel(node_t node, int effect_level);
 
   // Inform the register allocation of the representation of the value produced
   // by {node}.
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(void, MarkAsRepresentation)
   void MarkAsRepresentation(MachineRepresentation rep, node_t node);
   void MarkAsRepresentation(turboshaft::RegisterRepresentation rep,
                             node_t node) {
     MarkAsRepresentation(rep.machine_representation(), node);
   }
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(void, MarkAsWord32)
   void MarkAsWord32(node_t node) {
     MarkAsRepresentation(MachineRepresentation::kWord32, node);
   }
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(void, MarkAsWord64)
   void MarkAsWord64(node_t node) {
     MarkAsRepresentation(MachineRepresentation::kWord64, node);
   }
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(void, MarkAsFloat32)
   void MarkAsFloat32(node_t node) {
     MarkAsRepresentation(MachineRepresentation::kFloat32, node);
   }
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(void, MarkAsFloat64)
   void MarkAsFloat64(node_t node) {
     MarkAsRepresentation(MachineRepresentation::kFloat64, node);
   }
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(void, MarkAsSimd128)
   void MarkAsSimd128(node_t node) {
     MarkAsRepresentation(MachineRepresentation::kSimd128, node);
   }
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(void, MarkAsSimd256)
   void MarkAsSimd256(node_t node) {
     MarkAsRepresentation(MachineRepresentation::kSimd256, node);
   }
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(void, MarkAsTagged)
   void MarkAsTagged(node_t node) {
     MarkAsRepresentation(MachineRepresentation::kTagged, node);
   }
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(void, MarkAsCompressed)
   void MarkAsCompressed(node_t node) {
     MarkAsRepresentation(MachineRepresentation::kCompressed, node);
   }
@@ -718,8 +818,6 @@ class InstructionSelectorT final : public Adapter {
   void VisitFloat64Ieee754Binop(node_t, InstructionCode code);
   void VisitFloat64Ieee754Unop(node_t, InstructionCode code);
 
-  node_t FindProjection(node_t node, size_t projection_index);
-
 #define DECLARE_GENERATOR_T(x) void Visit##x(node_t node);
   DECLARE_GENERATOR_T(Word32And)
   DECLARE_GENERATOR_T(Word32Xor)
@@ -787,6 +885,7 @@ class InstructionSelectorT final : public Adapter {
   DECLARE_GENERATOR_T(ProtectedStore)
   DECLARE_GENERATOR_T(BitcastTaggedToWord)
   DECLARE_GENERATOR_T(BitcastWordToTagged)
+  DECLARE_GENERATOR_T(BitcastSmiToWord)
   DECLARE_GENERATOR_T(ChangeInt32ToInt64)
   DECLARE_GENERATOR_T(ChangeInt32ToFloat64)
   DECLARE_GENERATOR_T(ChangeFloat32ToFloat64)
@@ -911,42 +1010,40 @@ class InstructionSelectorT final : public Adapter {
   DECLARE_GENERATOR_T(LoadFramePointer)
   DECLARE_GENERATOR_T(LoadParentFramePointer)
   DECLARE_GENERATOR_T(ProtectedLoad)
+  DECLARE_GENERATOR_T(Word32AtomicAdd)
+  DECLARE_GENERATOR_T(Word32AtomicSub)
+  DECLARE_GENERATOR_T(Word32AtomicAnd)
+  DECLARE_GENERATOR_T(Word32AtomicOr)
+  DECLARE_GENERATOR_T(Word32AtomicXor)
+  DECLARE_GENERATOR_T(Word32AtomicExchange)
+  DECLARE_GENERATOR_T(Word32AtomicCompareExchange)
+  DECLARE_GENERATOR_T(Word64AtomicAdd)
+  DECLARE_GENERATOR_T(Word64AtomicSub)
+  DECLARE_GENERATOR_T(Word64AtomicAnd)
+  DECLARE_GENERATOR_T(Word64AtomicOr)
+  DECLARE_GENERATOR_T(Word64AtomicXor)
+  DECLARE_GENERATOR_T(Word64AtomicExchange)
+  DECLARE_GENERATOR_T(Word64AtomicCompareExchange)
+  DECLARE_GENERATOR_T(Word32AtomicLoad)
+  DECLARE_GENERATOR_T(Word64AtomicLoad)
+  DECLARE_GENERATOR_T(Word32AtomicPairLoad)
+  DECLARE_GENERATOR_T(Word32AtomicPairStore)
+  DECLARE_GENERATOR_T(Word32AtomicPairAdd)
+  DECLARE_GENERATOR_T(Word32AtomicPairSub)
+  DECLARE_GENERATOR_T(Word32AtomicPairAnd)
+  DECLARE_GENERATOR_T(Word32AtomicPairOr)
+  DECLARE_GENERATOR_T(Word32AtomicPairXor)
+  DECLARE_GENERATOR_T(Word32AtomicPairExchange)
+  DECLARE_GENERATOR_T(Word32AtomicPairCompareExchange)
+  DECLARE_GENERATOR_T(Simd128ReverseBytes)
+  MACHINE_SIMD128_OP_LIST(DECLARE_GENERATOR_T)
+  MACHINE_SIMD256_OP_LIST(DECLARE_GENERATOR_T)
+  IF_WASM(DECLARE_GENERATOR_T, LoadStackPointer)
+  IF_WASM(DECLARE_GENERATOR_T, SetStackPointer)
 #undef DECLARE_GENERATOR_T
-
-#define DECLARE_GENERATOR(x) void Visit##x(Node* node);
-  DECLARE_GENERATOR(Word32AtomicLoad)
-  DECLARE_GENERATOR(Word32AtomicExchange)
-  DECLARE_GENERATOR(Word32AtomicCompareExchange)
-  DECLARE_GENERATOR(Word32AtomicAdd)
-  DECLARE_GENERATOR(Word32AtomicSub)
-  DECLARE_GENERATOR(Word32AtomicAnd)
-  DECLARE_GENERATOR(Word32AtomicOr)
-  DECLARE_GENERATOR(Word32AtomicXor)
-  DECLARE_GENERATOR(Word32AtomicPairLoad)
-  DECLARE_GENERATOR(Word32AtomicPairStore)
-  DECLARE_GENERATOR(Word32AtomicPairAdd)
-  DECLARE_GENERATOR(Word32AtomicPairSub)
-  DECLARE_GENERATOR(Word32AtomicPairAnd)
-  DECLARE_GENERATOR(Word32AtomicPairOr)
-  DECLARE_GENERATOR(Word32AtomicPairXor)
-  DECLARE_GENERATOR(Word32AtomicPairExchange)
-  DECLARE_GENERATOR(Word32AtomicPairCompareExchange)
-  DECLARE_GENERATOR(Word64AtomicLoad)
-  DECLARE_GENERATOR(Word64AtomicAdd)
-  DECLARE_GENERATOR(Word64AtomicSub)
-  DECLARE_GENERATOR(Word64AtomicAnd)
-  DECLARE_GENERATOR(Word64AtomicOr)
-  DECLARE_GENERATOR(Word64AtomicXor)
-  DECLARE_GENERATOR(Word64AtomicExchange)
-  DECLARE_GENERATOR(Word64AtomicCompareExchange)
-  DECLARE_GENERATOR(Simd128ReverseBytes)
-  MACHINE_SIMD128_OP_LIST(DECLARE_GENERATOR)
-  MACHINE_SIMD256_OP_LIST(DECLARE_GENERATOR)
-#undef DECLARE_GENERATOR
 
   // Visit the load node with a value and opcode to replace with.
   void VisitLoad(node_t node, node_t value, InstructionCode opcode);
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(void, VisitLoad)
   void VisitLoadTransform(Node* node, Node* value, InstructionCode opcode);
   void VisitFinishRegion(Node* node);
   void VisitParameter(node_t node);
@@ -972,7 +1069,7 @@ class InstructionSelectorT final : public Adapter {
   void VisitThrow(Node* node);
   void VisitRetain(node_t node);
   void VisitUnreachable(node_t node);
-  void VisitStaticAssert(Node* node);
+  void VisitStaticAssert(node_t node);
   void VisitDeadValue(Node* node);
   void VisitBitcastWord32PairToFloat64(node_t node);
 
@@ -1002,9 +1099,13 @@ class InstructionSelectorT final : public Adapter {
   void AddOutputToSelectContinuation(OperandGenerator* g, int first_input_index,
                                      node_t node);
 
+  void ConsumeEqualZero(turboshaft::OpIndex* user, turboshaft::OpIndex* value,
+                        FlagsContinuation* cont);
+
   // ===========================================================================
   // ============= Vector instruction (SIMD) helper fns. =======================
   // ===========================================================================
+  void VisitI8x16RelaxedSwizzle(node_t node);
 
 #if V8_ENABLE_WEBASSEMBLY
   // Canonicalize shuffles to make pattern matching simpler. Returns the shuffle
@@ -1012,35 +1113,52 @@ class InstructionSelectorT final : public Adapter {
   template <const int simd_size = kSimd128Size,
             typename = std::enable_if_t<simd_size == kSimd128Size ||
                                         simd_size == kSimd256Size>>
-  void CanonicalizeShuffle(Node* node, uint8_t* shuffle, bool* is_swizzle) {
+  void CanonicalizeShuffle(typename Adapter::SimdShuffleView& view,
+                           uint8_t* shuffle, bool* is_swizzle) {
     // Get raw shuffle indices.
     if constexpr (simd_size == kSimd128Size) {
-      memcpy(shuffle, S128ImmediateParameterOf(node->op()).data(),
-             kSimd128Size);
+      DCHECK(view.isSimd128());
+      memcpy(shuffle, view.data(), kSimd128Size);
     } else if constexpr (simd_size == kSimd256Size) {
-      memcpy(shuffle, S256ImmediateParameterOf(node->op()).data(),
-             kSimd256Size);
+      DCHECK(!view.isSimd128());
+      memcpy(shuffle, view.data(), kSimd256Size);
     } else {
       UNREACHABLE();
     }
     bool needs_swap;
-    bool inputs_equal = GetVirtualRegister(node->InputAt(0)) ==
-                        GetVirtualRegister(node->InputAt(1));
+    bool inputs_equal =
+        GetVirtualRegister(view.input(0)) == GetVirtualRegister(view.input(1));
     wasm::SimdShuffle::CanonicalizeShuffle<simd_size>(inputs_equal, shuffle,
                                                       &needs_swap, is_swizzle);
     if (needs_swap) {
-      SwapShuffleInputs(node);
+      SwapShuffleInputs(view);
     }
     // Duplicate the first input; for some shuffles on some architectures, it's
     // easiest to implement a swizzle as a shuffle so it might be used.
     if (*is_swizzle) {
-      node->ReplaceInput(1, node->InputAt(0));
+      view.DuplicateFirstInput();
     }
   }
 
   // Swaps the two first input operands of the node, to help match shuffles
   // to specific architectural instructions.
-  void SwapShuffleInputs(Node* node);
+  void SwapShuffleInputs(typename Adapter::SimdShuffleView& node);
+
+#if V8_ENABLE_WASM_SIMD256_REVEC
+  void VisitSimd256LoadTransform(node_t node);
+
+#ifdef V8_TARGET_ARCH_X64
+  void VisitSimd256Shufd(node_t node);
+  void VisitSimd256Shufps(node_t node);
+  void VisitSimd256Unpack(node_t node);
+  void VisitSimdPack128To256(node_t node);
+#endif  // V8_TARGET_ARCH_X64
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
+
+#ifdef V8_TARGET_ARCH_X64
+  bool CanOptimizeF64x2PromoteLowF32x4(node_t node);
+#endif
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   // ===========================================================================
@@ -1061,17 +1179,16 @@ class InstructionSelectorT final : public Adapter {
   }
   bool instruction_selection_failed() { return instruction_selection_failed_; }
 
+  FlagsCondition GetComparisonFlagCondition(
+      const turboshaft::ComparisonOp& op) const;
+
   void MarkPairProjectionsAsWord32(node_t node);
   bool IsSourcePositionUsed(node_t node);
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(void,
-                                          VisitWord32AtomicBinaryOperation)
   void VisitWord32AtomicBinaryOperation(node_t node, ArchOpcode int8_op,
                                         ArchOpcode uint8_op,
                                         ArchOpcode int16_op,
                                         ArchOpcode uint16_op,
                                         ArchOpcode word32_op);
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(void,
-                                          VisitWord64AtomicBinaryOperation)
   void VisitWord64AtomicBinaryOperation(node_t node, ArchOpcode uint8_op,
                                         ArchOpcode uint16_op,
                                         ArchOpcode uint32_op,
@@ -1080,7 +1197,6 @@ class InstructionSelectorT final : public Adapter {
                                     ArchOpcode uint16_op, ArchOpcode uint32_op);
 
 #if V8_TARGET_ARCH_64_BIT
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(bool, ZeroExtendsWord32ToWord64)
   bool ZeroExtendsWord32ToWord64(node_t node, int recursion_depth = 0);
   bool ZeroExtendsWord32ToWord64NoPhis(node_t node);
 
@@ -1161,7 +1277,9 @@ class InstructionSelectorT final : public Adapter {
   size_t* max_pushed_argument_count_;
 
   // Turboshaft-adapter only.
-  base::Optional<turboshaft::UseMap> turboshaft_use_map_;
+  std::optional<turboshaft::UseMap> turboshaft_use_map_;
+  std::optional<BitVector> protected_loads_to_remove_;
+  std::optional<BitVector> additional_protected_instructions_;
 
 #if V8_TARGET_ARCH_64_BIT
   // Holds lazily-computed results for whether phi nodes guarantee their upper

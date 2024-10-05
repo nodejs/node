@@ -13,11 +13,7 @@
 #include "src/compiler/backend/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
-#include "src/heap/memory-chunk.h"
-
-#if V8_ENABLE_WEBASSEMBLY
-#include "src/wasm/wasm-code-manager.h"
-#endif  // V8_ENABLE_WEBASSEMBLY
+#include "src/heap/mutable-page-metadata.h"
 
 namespace v8 {
 namespace internal {
@@ -294,17 +290,37 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool* predicate,
       *predicate = false;
       return EQ;
     case kUnsignedLessThan:
+    case kFloatLessThan:
       *predicate = true;
       return OLT;
     case kUnsignedGreaterThanOrEqual:
       *predicate = false;
       return OLT;
     case kUnsignedLessThanOrEqual:
+    case kFloatLessThanOrEqual:
       *predicate = true;
       return OLE;
     case kUnsignedGreaterThan:
       *predicate = false;
       return OLE;
+    case kFloatGreaterThan:
+      *predicate = false;
+      return ULE;
+    case kFloatGreaterThanOrEqual:
+      *predicate = false;
+      return ULT;
+    case kFloatLessThanOrUnordered:
+      *predicate = true;
+      return ULT;
+    case kFloatGreaterThanOrUnordered:
+      *predicate = false;
+      return OLE;
+    case kFloatGreaterThanOrEqualOrUnordered:
+      *predicate = false;
+      return OLT;
+    case kFloatLessThanOrEqualOrUnordered:
+      *predicate = true;
+      return ULE;
     case kUnorderedEqual:
     case kUnorderedNotEqual:
       *predicate = true;
@@ -556,8 +572,8 @@ void CodeGenerator::BailoutIfDeoptimized() {
   __ Lwu(kScratchReg, FieldMemOperand(kScratchReg, Code::kFlagsOffset));
   __ And(kScratchReg, kScratchReg,
          Operand(1 << Code::kMarkedForDeoptimizationBit));
-  __ Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
-          RelocInfo::CODE_TARGET, ne, kScratchReg, Operand(zero_reg));
+  __ TailCallBuiltin(Builtin::kCompileLazyDeoptimizedCode, ne, kScratchReg,
+                     Operand(zero_reg));
 }
 
 // Assembles an instruction after register allocation, producing machine code.
@@ -572,10 +588,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Call(i.InputCode(0), RelocInfo::CODE_TARGET);
       } else {
         Register reg = i.InputRegister(0);
+        CodeEntrypointTag tag =
+            i.InputCodeEntrypointTag(instr->CodeEnrypointTagInputIndex());
         DCHECK_IMPLIES(
             instr->HasCallDescriptorFlag(CallDescriptor::kFixedTargetRegister),
             reg == kJavaScriptCallCodeStartRegister);
-        __ CallCodeObject(reg);
+        __ CallCodeObject(reg, tag);
       }
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
@@ -626,10 +644,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Jump(i.InputCode(0), RelocInfo::CODE_TARGET);
       } else {
         Register reg = i.InputRegister(0);
+        CodeEntrypointTag tag =
+            i.InputCodeEntrypointTag(instr->CodeEnrypointTagInputIndex());
         DCHECK_IMPLIES(
             instr->HasCallDescriptorFlag(CallDescriptor::kFixedTargetRegister),
             reg == kJavaScriptCallCodeStartRegister);
-        __ JumpCodeObject(reg);
+        __ JumpCodeObject(reg, tag);
       }
       frame_access_state()->ClearSPDelta();
       frame_access_state()->SetFrameAccessToDefault();
@@ -696,46 +716,41 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchPrepareTailCall:
       AssemblePrepareTailCall();
       break;
+    case kArchCallCFunctionWithFrameState:
     case kArchCallCFunction: {
       int const num_gp_parameters = ParamField::decode(instr->opcode());
       int const num_fp_parameters = FPParamField::decode(instr->opcode());
+      SetIsolateDataSlots set_isolate_data_slots = SetIsolateDataSlots::kYes;
+      Label return_location;
 #if V8_ENABLE_WEBASSEMBLY
-      Label start_call;
       bool isWasmCapiFunction =
           linkage()->GetIncomingDescriptor()->IsWasmCapiFunction();
-      // from start_call to return address.
-      int offset = __ root_array_available() ? 64 : 112;
-#endif  // V8_ENABLE_WEBASSEMBLY
-#if V8_HOST_ARCH_MIPS64
-      if (v8_flags.debug_code) {
-        offset += 16;
-      }
-#endif
-#if V8_ENABLE_WEBASSEMBLY
       if (isWasmCapiFunction) {
         // Put the return address in a stack slot.
-        __ mov(kScratchReg, ra);
-        __ bind(&start_call);
-        __ nal();
-        __ nop();
-        __ Daddu(ra, ra, offset - 8);  // 8 = nop + nal
-        __ sd(ra, MemOperand(fp, WasmExitFrameConstants::kCallingPCOffset));
-        __ mov(ra, kScratchReg);
+        __ LoadAddressPCRelative(kScratchReg, &return_location);
+        __ sd(kScratchReg,
+              MemOperand(fp, WasmExitFrameConstants::kCallingPCOffset));
+        set_isolate_data_slots = SetIsolateDataSlots::kNo;
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
+      int pc_offset;
       if (instr->InputAt(0)->IsImmediate()) {
         ExternalReference ref = i.InputExternalReference(0);
-        __ CallCFunction(ref, num_gp_parameters, num_fp_parameters);
+        pc_offset = __ CallCFunction(ref, num_gp_parameters, num_fp_parameters,
+                                     set_isolate_data_slots, &return_location);
       } else {
         Register func = i.InputRegister(0);
-        __ CallCFunction(func, num_gp_parameters, num_fp_parameters);
+        pc_offset = __ CallCFunction(func, num_gp_parameters, num_fp_parameters,
+                                     set_isolate_data_slots, &return_location);
       }
-#if V8_ENABLE_WEBASSEMBLY
-      if (isWasmCapiFunction) {
-        CHECK_EQ(offset, __ SizeOfCodeGeneratedSince(&start_call));
-        RecordSafepoint(instr->reference_map());
+      RecordSafepoint(instr->reference_map(), pc_offset);
+
+      bool const needs_frame_state =
+          (arch_opcode == kArchCallCFunctionWithFrameState);
+      if (needs_frame_state) {
+        RecordDeoptInfo(instr, pc_offset);
       }
-#endif  // V8_ENABLE_WEBASSEMBLY
+
       frame_access_state()->SetFrameAccessToDefault();
       // Ideally, we should decrement SP delta to match the change of stack
       // pointer in CallCFunction. However, for certain architectures (e.g.
@@ -770,8 +785,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         // We don't actually want to generate a pile of code for this, so just
         // claim there is a stack frame, without generating one.
         FrameScope scope(masm(), StackFrame::NO_FRAME_TYPE);
-        __ Call(isolate()->builtins()->code_handle(Builtin::kAbortCSADcheck),
-                RelocInfo::CODE_TARGET);
+        __ CallBuiltin(Builtin::kAbortCSADcheck);
       }
       __ stop();
       break;
@@ -779,7 +793,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ DebugBreak();
       break;
     case kArchComment:
-      __ RecordComment(reinterpret_cast<const char*>(i.InputInt64(0)));
+      __ RecordComment(reinterpret_cast<const char*>(i.InputInt64(0)),
+                       SourceLocation());
       break;
     case kArchNop:
     case kArchThrowTerminator:
@@ -794,6 +809,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchRet:
       AssembleReturn(instr->InputAt(0));
       break;
+#if V8_ENABLE_WEBASSEMBLY
+    case kArchStackPointer:
+      // The register allocator expects an allocatable register for the output,
+      // we cannot use sp directly.
+      __ mov(i.OutputRegister(), sp);
+      break;
+    case kArchSetStackPointer: {
+      DCHECK(instr->InputAt(0)->IsRegister());
+      __ mov(sp, i.InputRegister(0));
+      break;
+    }
+#endif  // V8_ENABLE_WEBASSEMBLY
     case kArchStackPointerGreaterThan: {
       Register lhs_register = sp;
       uint32_t offset;
@@ -1470,11 +1497,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (instr->OutputCount() > 1) {
         // Check for inputs below INT32_MIN and NaN.
         __ li(i.OutputRegister(1), 1);
-        __ Move(i.TempDoubleRegister(0), static_cast<double>(INT32_MIN));
-        __ CompareF64(LE, i.TempDoubleRegister(0), i.InputDoubleRegister(0));
+        __ Move(scratch, static_cast<double>(INT32_MIN));
+        __ CompareF64(LE, scratch, i.InputDoubleRegister(0));
         __ LoadZeroIfNotFPUCondition(i.OutputRegister(1));
-        __ Move(i.TempDoubleRegister(0), static_cast<double>(INT32_MAX) + 1);
-        __ CompareF64(LE, i.TempDoubleRegister(0), i.InputDoubleRegister(0));
+        __ Move(scratch, static_cast<double>(INT32_MAX) + 1);
+        __ CompareF64(LE, scratch, i.InputDoubleRegister(0));
         __ LoadZeroIfFPUCondition(i.OutputRegister(1));
       }
       break;
@@ -1563,11 +1590,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Trunc_uw_d(i.OutputRegister(), i.InputDoubleRegister(0), scratch);
       if (instr->OutputCount() > 1) {
         __ li(i.OutputRegister(1), 1);
-        __ Move(i.TempDoubleRegister(0), static_cast<double>(-1.0));
-        __ CompareF64(LT, i.TempDoubleRegister(0), i.InputDoubleRegister(0));
+        __ Move(scratch, static_cast<double>(-1.0));
+        __ CompareF64(LT, scratch, i.InputDoubleRegister(0));
         __ LoadZeroIfNotFPUCondition(i.OutputRegister(1));
-        __ Move(i.TempDoubleRegister(0), static_cast<double>(UINT32_MAX) + 1);
-        __ CompareF64(LE, i.TempDoubleRegister(0), i.InputDoubleRegister(0));
+        __ Move(scratch, static_cast<double>(UINT32_MAX) + 1);
+        __ CompareF64(LE, scratch, i.InputDoubleRegister(0));
         __ LoadZeroIfFPUCondition(i.OutputRegister(1));
       }
       break;
@@ -1609,6 +1636,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kMips64Float64ExtractHighWord32:
       __ FmoveHigh(i.OutputRegister(), i.InputDoubleRegister(0));
+      break;
+    case kMips64Float64FromWord32Pair:
+      __ Move(i.OutputDoubleRegister(), i.InputRegister(1), i.InputRegister(0));
       break;
     case kMips64Float64InsertLowWord32:
       __ FmoveLow(i.OutputDoubleRegister(), i.InputRegister(1));
@@ -4046,6 +4076,15 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   }
 }
 
+void CodeGenerator::AssembleArchConditionalBoolean(Instruction* instr) {
+  UNREACHABLE();
+}
+
+void CodeGenerator::AssembleArchConditionalBranch(Instruction* instr,
+                                                  BranchInfo* branch) {
+  UNREACHABLE();
+}
+
 void CodeGenerator::AssembleArchBinarySearchSwitch(Instruction* instr) {
   MipsOperandConverter i(this, instr);
   Register input = i.InputRegister(0);
@@ -4129,12 +4168,21 @@ void CodeGenerator::AssembleConstructFrame() {
           call_descriptor->IsWasmImportWrapper() ||
           call_descriptor->IsWasmCapiFunction()) {
         // For import wrappers and C-API functions, this stack slot is only used
-        // for printing stack traces in V8. Also, it holds a WasmApiFunctionRef
+        // for printing stack traces in V8. Also, it holds a WasmImportData
         // instead of the instance itself, which is taken care of in the frames
         // accessors.
         __ Push(kWasmInstanceRegister);
       }
-      if (call_descriptor->IsWasmCapiFunction()) {
+      if (call_descriptor->IsWasmImportWrapper()) {
+        // If the wrapper is running on a secondary stack, it will switch to the
+        // central stack and fill these slots with the central stack pointer and
+        // secondary stack limit. Otherwise the slots remain empty.
+        static_assert(WasmImportWrapperFrameConstants::kCentralStackSPOffset ==
+                      -24);
+        static_assert(
+            WasmImportWrapperFrameConstants::kSecondaryStackLimitOffset == -32);
+        __ Push(zero_reg, zero_reg);
+      } else if (call_descriptor->IsWasmCapiFunction()) {
         // Reserve space for saving the PC later.
         __ Dsubu(sp, sp, Operand(kSystemPointerSize));
       }
@@ -4175,17 +4223,15 @@ void CodeGenerator::AssembleConstructFrame() {
       // exception unconditionally. Thereby we can avoid the integer overflow
       // check in the condition code.
       if (required_slots * kSystemPointerSize < v8_flags.stack_size * KB) {
-        __ Ld(
-             kScratchReg,
-             FieldMemOperand(kWasmInstanceRegister,
-                             WasmInstanceObject::kRealStackLimitAddressOffset));
-        __ Ld(kScratchReg, MemOperand(kScratchReg));
+        __ LoadStackLimit(kScratchReg,
+                          MacroAssembler::StackLimitKind::kRealStackLimit);
         __ Daddu(kScratchReg, kScratchReg,
                  Operand(required_slots * kSystemPointerSize));
         __ Branch(&done, uge, sp, Operand(kScratchReg));
       }
 
-      __ Call(wasm::WasmCode::kWasmStackOverflow, RelocInfo::WASM_STUB_CALL);
+      __ Call(static_cast<intptr_t>(Builtin::kWasmStackOverflow),
+              RelocInfo::WASM_STUB_CALL);
       // The call does not return, hence we can ignore any references and just
       // define an empty safepoint.
       ReferenceMap* reference_map = zone()->New<ReferenceMap>(zone());
@@ -4221,6 +4267,12 @@ void CodeGenerator::AssembleConstructFrame() {
   if (returns != 0) {
     // Create space for returns.
     __ Dsubu(sp, sp, Operand(returns * kSystemPointerSize));
+  }
+
+  for (int spill_slot : frame()->tagged_slots()) {
+    FrameOffset offset = frame_access_state()->GetFrameOffset(spill_slot);
+    DCHECK(offset.from_frame_pointer());
+    __ Sd(zero_reg, MemOperand(fp, offset.offset()));
   }
 }
 
@@ -4505,18 +4557,13 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           destination->IsRegister() ? g.ToRegister(destination) : kScratchReg;
       switch (src.type()) {
         case Constant::kInt32:
-          __ li(dst, Operand(src.ToInt32()));
+          __ li(dst, Operand(src.ToInt32(), src.rmode()));
           break;
         case Constant::kFloat32:
           __ li(dst, Operand::EmbeddedNumber(src.ToFloat32()));
           break;
         case Constant::kInt64:
-#if V8_ENABLE_WEBASSEMBLY
-          if (RelocInfo::IsWasmReference(src.rmode()))
-            __ li(dst, Operand(src.ToInt64(), src.rmode()));
-          else
-#endif  // V8_ENABLE_WEBASSEMBLY
-            __ li(dst, Operand(src.ToInt64()));
+          __ li(dst, Operand(src.ToInt64(), src.rmode()));
           break;
         case Constant::kFloat64:
           __ li(dst, Operand::EmbeddedNumber(src.ToFloat64().value()));

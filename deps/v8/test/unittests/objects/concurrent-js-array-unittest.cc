@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <optional>
+
 #include "src/api/api.h"
 #include "src/base/platform/semaphore.h"
 #include "src/handles/handles-inl.h"
@@ -52,8 +54,8 @@ class BackgroundThread final : public v8::base::Thread {
     // some point more likely.
     static constexpr int kIndex = 1;
     for (int i = 0; i < kNumArrays; i++) {
-      Handle<JSArray> x = handles_[i];
-      Handle<FixedArrayBase> elements =
+      DirectHandle<JSArray> x = handles_[i];
+      DirectHandle<FixedArrayBase> elements =
           local_heap.NewPersistentHandle(x->elements(isolate, kRelaxedLoad));
       ElementsKind elements_kind = x->map(isolate)->elements_kind();
 
@@ -63,14 +65,14 @@ class BackgroundThread final : public v8::base::Thread {
         continue;
       }
 
-      base::Optional<Tagged<Object>> result =
+      std::optional<Tagged<Object>> result =
           ConcurrentLookupIterator::TryGetOwnCowElement(
-              isolate, FixedArray::cast(*elements), elements_kind,
+              isolate, Cast<FixedArray>(*elements), elements_kind,
               Smi::ToInt(x->length(isolate, kRelaxedLoad)), kIndex);
 
       if (result.has_value()) {
         // On any success, the elements at index 1 must be the original value
-        // Smi(1).
+        // Tagged<Smi>(1).
         EXPECT_TRUE(IsSmi(result.value()));
         CHECK_EQ(Smi::ToInt(result.value()), 1);
       }
@@ -99,7 +101,7 @@ TEST_F(ConcurrentJsArrayTest, ArrayWithCowElements) {
 
   for (int i = 0; i < kNumArrays; i++) {
     Handle<JSArray> x =
-        Handle<JSArray>::cast(Utils::OpenHandle(*RunJS("xs[i++] = f();")));
+        Cast<JSArray>(Utils::OpenHandle(*RunJS("xs[i++] = f();")));
     EXPECT_EQ(x->elements()->map(),
               ReadOnlyRoots(i_isolate()).fixed_cow_array_map());
     handles.push_back(x);

@@ -24,7 +24,7 @@ bool CanonicalNumericIndexString(Isolate* isolate,
   *is_minus_zero = false;
   if (lookup_key.is_element()) return true;
 
-  Handle<String> key = Handle<String>::cast(lookup_key.name());
+  Handle<String> key = Cast<String>(lookup_key.name());
 
   // 3. Let n be ! ToNumber(argument).
   Handle<Object> result = String::ToNumber(isolate, key);
@@ -35,7 +35,8 @@ bool CanonicalNumericIndexString(Isolate* isolate,
     *is_minus_zero = true;
   } else {
     // 4. If SameValue(! ToString(n), argument) is false, return undefined.
-    Handle<String> str = Object::ToString(isolate, result).ToHandleChecked();
+    DirectHandle<String> str =
+        Object::ToString(isolate, result).ToHandleChecked();
     // Avoid treating strings like "2E1" and "20" as the same key.
     if (!Object::SameValue(*str, *key)) return false;
   }
@@ -52,10 +53,12 @@ void JSArrayBuffer::Setup(SharedFlag shared, ResizableFlag resizable,
   set_is_shared(shared == SharedFlag::kShared);
   set_is_resizable_by_js(resizable == ResizableFlag::kResizable);
   set_is_detachable(shared != SharedFlag::kShared);
+  init_extension();
+  SetupLazilyInitializedCppHeapPointerField(
+      JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset);
   for (int i = 0; i < v8::ArrayBuffer::kEmbedderFieldCount; i++) {
     SetEmbedderField(i, Smi::zero());
   }
-  set_extension(nullptr);
   if (!backing_store) {
     set_backing_store(isolate, EmptyBackingStoreBuffer());
     set_byte_length(0);
@@ -79,15 +82,19 @@ void JSArrayBuffer::Attach(std::shared_ptr<BackingStore> backing_store) {
   DCHECK(!was_detached());
   Isolate* isolate = GetIsolate();
 
-  if (backing_store->IsEmpty()) {
-    // Wasm memory always needs a backing store; this is guaranteed by reserving
-    // at least one page for the BackingStore (so {IsEmpty()} is always false).
-    CHECK(!backing_store->is_wasm_memory());
-    set_backing_store(isolate, EmptyBackingStoreBuffer());
-  } else {
-    DCHECK_NE(nullptr, backing_store->buffer_start());
-    set_backing_store(isolate, backing_store->buffer_start());
+  void* backing_store_buffer = backing_store->buffer_start();
+  // Wasm memory always needs a backing store; this is guaranteed by reserving
+  // at least one page for the BackingStore (so {IsEmpty()} is always false).
+  CHECK_IMPLIES(backing_store->is_wasm_memory(), !backing_store->IsEmpty());
+  // Non-empty backing stores must start at a non-null pointer.
+  DCHECK_IMPLIES(backing_store_buffer == nullptr, backing_store->IsEmpty());
+  // Empty backing stores can be backed by a null pointer or an externally
+  // provided pointer: Either is acceptable. If pointers are sandboxed then
+  // null pointers must be replaced by a special null entry.
+  if (V8_ENABLE_SANDBOX_BOOL && !backing_store_buffer) {
+    backing_store_buffer = EmptyBackingStoreBuffer();
   }
+  set_backing_store(isolate, backing_store_buffer);
 
   // GSABs need to read their byte_length from the BackingStore. Maintain the
   // invariant that their byte_length field is always 0.
@@ -103,7 +110,6 @@ void JSArrayBuffer::Attach(std::shared_ptr<BackingStore> backing_store) {
                                            : backing_store->byte_length();
   set_max_byte_length(max_byte_len);
   if (backing_store->is_wasm_memory()) set_is_detachable(false);
-  if (!backing_store->free_on_destruct()) set_is_external(true);
   ArrayBufferExtension* extension = EnsureExtension();
   size_t bytes = backing_store->PerIsolateAccountingLength();
   extension->set_accounting_length(bytes);
@@ -111,12 +117,12 @@ void JSArrayBuffer::Attach(std::shared_ptr<BackingStore> backing_store) {
   isolate->heap()->AppendArrayBufferExtension(*this, extension);
 }
 
-Maybe<bool> JSArrayBuffer::Detach(Handle<JSArrayBuffer> buffer,
+Maybe<bool> JSArrayBuffer::Detach(DirectHandle<JSArrayBuffer> buffer,
                                   bool force_for_wasm_memory,
                                   Handle<Object> maybe_key) {
   Isolate* const isolate = buffer->GetIsolate();
 
-  Handle<Object> detach_key = handle(buffer->detach_key(), isolate);
+  DirectHandle<Object> detach_key(buffer->detach_key(), isolate);
 
   bool key_mismatch = false;
 
@@ -155,7 +161,7 @@ void JSArrayBuffer::DetachInternal(bool force_for_wasm_memory,
 
   if (extension) {
     DisallowGarbageCollection disallow_gc;
-    isolate->heap()->DetachArrayBufferExtension(*this, extension);
+    isolate->heap()->DetachArrayBufferExtension(extension);
     std::shared_ptr<BackingStore> backing_store = RemoveExtension();
     CHECK_IMPLIES(force_for_wasm_memory, backing_store->is_wasm_memory());
   }
@@ -174,10 +180,10 @@ size_t JSArrayBuffer::GsabByteLength(Isolate* isolate,
                                      Address raw_array_buffer) {
   // TODO(v8:11111): Cache the last seen length in JSArrayBuffer and use it
   // in bounds checks to minimize the need for calling this function.
-  DCHECK(v8_flags.harmony_rab_gsab);
   DisallowGarbageCollection no_gc;
   DisallowJavascriptExecution no_js(isolate);
-  Tagged<JSArrayBuffer> buffer = JSArrayBuffer::cast(Object(raw_array_buffer));
+  Tagged<JSArrayBuffer> buffer =
+      Cast<JSArrayBuffer>(Tagged<Object>(raw_array_buffer));
   CHECK(buffer->is_resizable_by_js());
   CHECK(buffer->is_shared());
   return buffer->GetBackingStore()->byte_length(std::memory_order_seq_cst);
@@ -242,6 +248,7 @@ void JSArrayBuffer::MarkExtension() {
 void JSArrayBuffer::YoungMarkExtension() {
   ArrayBufferExtension* extension = this->extension();
   if (extension) {
+    DCHECK_EQ(ArrayBufferExtension::Age::kYoung, extension->age());
     extension->YoungMark();
   }
 }
@@ -255,9 +262,9 @@ void JSArrayBuffer::YoungMarkExtensionPromoted() {
 
 Handle<JSArrayBuffer> JSTypedArray::GetBuffer() {
   Isolate* isolate = GetIsolate();
-  Handle<JSTypedArray> self(*this, isolate);
+  DirectHandle<JSTypedArray> self(*this, isolate);
   DCHECK(IsTypedArrayOrRabGsabTypedArrayElementsKind(self->GetElementsKind()));
-  Handle<JSArrayBuffer> array_buffer(JSArrayBuffer::cast(self->buffer()),
+  Handle<JSArrayBuffer> array_buffer(Cast<JSArrayBuffer>(self->buffer()),
                                      isolate);
   if (!is_on_heap()) {
     // Already is off heap, so return the existing buffer.
@@ -401,10 +408,9 @@ size_t JSTypedArray::LengthTrackingGsabBackedTypedArrayLength(
     Isolate* isolate, Address raw_array) {
   // TODO(v8:11111): Cache the last seen length in JSArrayBuffer and use it
   // in bounds checks to minimize the need for calling this function.
-  DCHECK(v8_flags.harmony_rab_gsab);
   DisallowGarbageCollection no_gc;
   DisallowJavascriptExecution no_js(isolate);
-  Tagged<JSTypedArray> array = JSTypedArray::cast(Object(raw_array));
+  Tagged<JSTypedArray> array = Cast<JSTypedArray>(Tagged<Object>(raw_array));
   CHECK(array->is_length_tracking());
   Tagged<JSArrayBuffer> buffer = array->buffer();
   CHECK(buffer->is_resizable_by_js());

@@ -5,9 +5,9 @@
 #include <memory_tracker.h>
 #include <ngtcp2/ngtcp2.h>
 #include <string>
+#include "defs.h"
 
-namespace node {
-namespace quic {
+namespace node::quic {
 
 // CIDS are used to identify endpoints participating in a QUIC session.
 // Once created, CID instances are immutable.
@@ -50,9 +50,8 @@ class CID final : public MemoryRetainer {
   explicit CID(const ngtcp2_cid* cid);
 
   CID(const CID& other);
-  CID(CID&& other) = delete;
-
   CID& operator=(const CID& other);
+  CID(CID&&) = delete;
 
   struct Hash final {
     size_t operator()(const CID& cid) const;
@@ -111,10 +110,9 @@ class CID::Factory {
   virtual CID Generate(size_t length_hint = CID::kMaxLength) const = 0;
 
   // Generate a new CID into the given ngtcp2_cid. This variation of
-  // Generate should be used far less commonly. It is provided largely
-  // for a couple of internal cases.
-  virtual void GenerateInto(ngtcp2_cid* cid,
-                            size_t length_hint = CID::kMaxLength) const = 0;
+  // Generate should be used far less commonly.
+  virtual CID GenerateInto(ngtcp2_cid* cid,
+                           size_t length_hint = CID::kMaxLength) const = 0;
 
   // The default random CID generator instance.
   static const Factory& random();
@@ -123,8 +121,7 @@ class CID::Factory {
   // of CID::Factory that implement the QUIC Load Balancers spec.
 };
 
-}  // namespace quic
-}  // namespace node
+}  // namespace node::quic
 
 #endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

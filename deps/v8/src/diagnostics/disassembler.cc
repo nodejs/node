@@ -102,9 +102,8 @@ const char* V8NameConverter::NameOfAddress(uint8_t* pc) const {
     }
 
 #if V8_ENABLE_WEBASSEMBLY
-    wasm::WasmCodeRefScope wasm_code_ref_scope;
     if (auto* wasm_code = wasm::GetWasmCodeManager()->LookupCode(
-            reinterpret_cast<Address>(pc))) {
+            isolate_, reinterpret_cast<Address>(pc))) {
       SNPrintF(v8_buffer_, "%p  (%s)", static_cast<void*>(pc),
                wasm::GetWasmCodeKindAsString(wasm_code->kind()));
       return v8_buffer_.begin();
@@ -253,7 +252,8 @@ static void PrintRelocInfo(std::ostringstream& out, Isolate* isolate,
     const char* reference_name =
         ref_encoder
             ? ref_encoder->NameOfAddress(isolate, address)
-            : ExternalReferenceTable::NameOfIsolateIndependentAddress(address);
+            : ExternalReferenceTable::NameOfIsolateIndependentAddress(
+                  address, IsolateGroup::current()->external_ref_table());
     out << "    ;; external reference (" << reference_name << ")";
   } else if (RelocInfo::IsCodeTargetMode(rmode)) {
     out << "    ;; code:";
@@ -268,8 +268,8 @@ static void PrintRelocInfo(std::ostringstream& out, Isolate* isolate,
 #if V8_ENABLE_WEBASSEMBLY
   } else if (RelocInfo::IsWasmStubCall(rmode) && host.is_wasm_code()) {
     // Host is isolate-independent, try wasm native module instead.
-    const char* runtime_stub_name = GetRuntimeStubName(
-        host.as_wasm_code()->native_module()->GetRuntimeStubId(
+    const char* runtime_stub_name = Builtins::name(
+        host.as_wasm_code()->native_module()->GetBuiltinInJumptableSlot(
             relocinfo->wasm_stub_call_address()));
     out << "    ;; wasm stub: " << runtime_stub_name;
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -370,7 +370,13 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
 
     // Comments.
     for (size_t i = 0; i < comments.size(); i++) {
+      if (v8_flags.log_colour) {
+        out << "\033[34m";
+      }
       out << "                  " << comments[i];
+      if (v8_flags.log_colour) {
+        out << "\033[;m";
+      }
       DumpBuffer(os, out);
     }
 
@@ -392,10 +398,7 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
       const CodeReference& host = code;
       Address constant_pool =
           host.is_null() ? kNullAddress : host.constant_pool();
-      Handle<Code> code_handle;
       if (host.is_code()) {
-        code_handle = host.as_code();
-
         RelocInfo relocinfo(pcs[i], rmodes[i], datas[i], constant_pool);
         bool first_reloc_info = (i == 0);
         PrintRelocInfo(out, isolate, ref_encoder, os, code, &relocinfo,

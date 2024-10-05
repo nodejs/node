@@ -1010,7 +1010,8 @@ An invalid message length was provided.
 added: v15.0.0
 -->
 
-Invalid scrypt algorithm parameters were provided.
+One or more [`crypto.scrypt()`][] or [`crypto.scryptSync()`][] parameters are
+outside their legal range.
 
 <a id="ERR_CRYPTO_INVALID_STATE"></a>
 
@@ -1069,13 +1070,6 @@ A crypto operation failed for an otherwise unspecified reason.
 
 The PBKDF2 algorithm failed for unspecified reasons. OpenSSL does not provide
 more details and therefore neither does Node.js.
-
-<a id="ERR_CRYPTO_SCRYPT_INVALID_PARAMETER"></a>
-
-### `ERR_CRYPTO_SCRYPT_INVALID_PARAMETER`
-
-One or more [`crypto.scrypt()`][] or [`crypto.scryptSync()`][] parameters are
-outside their legal range.
 
 <a id="ERR_CRYPTO_SCRYPT_NOT_SUPPORTED"></a>
 
@@ -1301,18 +1295,20 @@ added: v16.7.0
 
 When using [`fs.cp()`][], `src` or `dest` pointed to an invalid path.
 
-<a id="ERR_FS_CP_FIFO_PIPE"></a>
+<a id="ERR_HTTP_BODY_NOT_ALLOWED"></a>
 
 ### `ERR_HTTP_BODY_NOT_ALLOWED`
 
 An error is thrown when writing to an HTTP response which does not allow
-contents. <a id="ERR_HTTP_BODY_NOT_ALLOWED"></a>
+contents.
+
+<a id="ERR_HTTP_CONTENT_LENGTH_MISMATCH"></a>
 
 ### `ERR_HTTP_CONTENT_LENGTH_MISMATCH`
 
 Response body size doesn't match with the specified content-length header value.
 
-<a id="ERR_HTTP_CONTENT_LENGTH_MISMATCH"></a>
+<a id="ERR_FS_CP_FIFO_PIPE"></a>
 
 ### `ERR_FS_CP_FIFO_PIPE`
 
@@ -1376,13 +1372,6 @@ Path is a directory.
 
 An attempt has been made to read a file whose size is larger than the maximum
 allowed size for a `Buffer`.
-
-<a id="ERR_FS_INVALID_SYMLINK_TYPE"></a>
-
-### `ERR_FS_INVALID_SYMLINK_TYPE`
-
-An invalid symlink type was passed to the [`fs.symlink()`][] or
-[`fs.symlinkSync()`][] methods.
 
 <a id="ERR_HTTP_HEADERS_SENT"></a>
 
@@ -1710,6 +1699,12 @@ When setting the priority for an HTTP/2 stream, the stream may be marked as
 a dependency for a parent stream. This error code is used when an attempt is
 made to mark a stream and dependent of itself.
 
+<a id="ERR_HTTP2_TOO_MANY_CUSTOM_SETTINGS"></a>
+
+### `ERR_HTTP2_TOO_MANY_CUSTOM_SETTINGS`
+
+The number of supported custom settings (10) has been exceeded.
+
 <a id="ERR_HTTP2_TOO_MANY_INVALID_FRAMES"></a>
 
 ### `ERR_HTTP2_TOO_MANY_INVALID_FRAMES`
@@ -1777,7 +1772,10 @@ An import attribute is missing, preventing the specified module to be imported.
 ### `ERR_IMPORT_ATTRIBUTE_UNSUPPORTED`
 
 <!-- YAML
-added: v21.0.0
+added:
+  - v21.0.0
+  - v20.10.0
+  - v18.19.0
 -->
 
 An import attribute is not supported by this version of Node.js.
@@ -1858,6 +1856,12 @@ the worker thread.
 
 There was a bug in Node.js or incorrect usage of Node.js internals.
 To fix the error, open an issue at <https://github.com/nodejs/node/issues>.
+
+<a id="ERR_INVALID_ADDRESS"></a>
+
+### `ERR_INVALID_ADDRESS`
+
+The provided address is not understood by the Node.js API.
 
 <a id="ERR_INVALID_ADDRESS_FAMILY"></a>
 
@@ -2157,68 +2161,6 @@ added:
 An ESM loader hook returned without calling `next()` and without explicitly
 signaling a short circuit.
 
-<a id="ERR_MANIFEST_ASSERT_INTEGRITY"></a>
-
-### `ERR_MANIFEST_ASSERT_INTEGRITY`
-
-An attempt was made to load a resource, but the resource did not match the
-integrity defined by the policy manifest. See the documentation for [policy][]
-manifests for more information.
-
-<a id="ERR_MANIFEST_DEPENDENCY_MISSING"></a>
-
-### `ERR_MANIFEST_DEPENDENCY_MISSING`
-
-An attempt was made to load a resource, but the resource was not listed as a
-dependency from the location that attempted to load it. See the documentation
-for [policy][] manifests for more information.
-
-<a id="ERR_MANIFEST_INTEGRITY_MISMATCH"></a>
-
-### `ERR_MANIFEST_INTEGRITY_MISMATCH`
-
-An attempt was made to load a policy manifest, but the manifest had multiple
-entries for a resource which did not match each other. Update the manifest
-entries to match in order to resolve this error. See the documentation for
-[policy][] manifests for more information.
-
-<a id="ERR_MANIFEST_INVALID_RESOURCE_FIELD"></a>
-
-### `ERR_MANIFEST_INVALID_RESOURCE_FIELD`
-
-A policy manifest resource had an invalid value for one of its fields. Update
-the manifest entry to match in order to resolve this error. See the
-documentation for [policy][] manifests for more information.
-
-<a id="ERR_MANIFEST_INVALID_SPECIFIER"></a>
-
-### `ERR_MANIFEST_INVALID_SPECIFIER`
-
-A policy manifest resource had an invalid value for one of its dependency
-mappings. Update the manifest entry to match to resolve this error. See the
-documentation for [policy][] manifests for more information.
-
-<a id="ERR_MANIFEST_PARSE_POLICY"></a>
-
-### `ERR_MANIFEST_PARSE_POLICY`
-
-An attempt was made to load a policy manifest, but the manifest was unable to
-be parsed. See the documentation for [policy][] manifests for more information.
-
-<a id="ERR_MANIFEST_TDZ"></a>
-
-### `ERR_MANIFEST_TDZ`
-
-An attempt was made to read from a policy manifest, but the manifest
-initialization has not yet taken place. This is likely a bug in Node.js.
-
-<a id="ERR_MANIFEST_UNKNOWN_ONERROR"></a>
-
-### `ERR_MANIFEST_UNKNOWN_ONERROR`
-
-A policy manifest was loaded, but had an unknown value for its "onerror"
-behavior. See the documentation for [policy][] manifests for more information.
-
 <a id="ERR_MEMORY_ALLOCATION_FAILED"></a>
 
 ### `ERR_MEMORY_ALLOCATION_FAILED`
@@ -2336,27 +2278,25 @@ function.
 An error occurred while attempting to retrieve the JavaScript `undefined`
 value.
 
-<a id="ERR_NAPI_TSFN_START_IDLE_LOOP"></a>
-
-### `ERR_NAPI_TSFN_START_IDLE_LOOP`
-
-On the main thread, values are removed from the queue associated with the
-thread-safe function in an idle loop. This error indicates that an error
-has occurred when attempting to start the loop.
-
-<a id="ERR_NAPI_TSFN_STOP_IDLE_LOOP"></a>
-
-### `ERR_NAPI_TSFN_STOP_IDLE_LOOP`
-
-Once no more items are left in the queue, the idle loop must be suspended. This
-error indicates that the idle loop has failed to stop.
-
 <a id="ERR_NOT_BUILDING_SNAPSHOT"></a>
 
 ### `ERR_NOT_BUILDING_SNAPSHOT`
 
 An attempt was made to use operations that can only be used when building
 V8 startup snapshot even though Node.js isn't building one.
+
+<a id="ERR_NOT_IN_SINGLE_EXECUTABLE_APPLICATION"></a>
+
+### `ERR_NOT_IN_SINGLE_EXECUTABLE_APPLICATION`
+
+<!-- YAML
+added:
+  - v21.7.0
+  - v20.12.0
+-->
+
+The operation cannot be performed when it's not in a single-executable
+application.
 
 <a id="ERR_NOT_SUPPORTED_IN_SNAPSHOT"></a>
 
@@ -2467,13 +2407,52 @@ Accessing `Object.prototype.__proto__` has been forbidden using
 [`Object.setPrototypeOf`][] should be used to get and set the prototype of an
 object.
 
+<a id="ERR_REQUIRE_CYCLE_MODULE"></a>
+
+### `ERR_REQUIRE_CYCLE_MODULE`
+
+> Stability: 1 - Experimental
+
+When trying to `require()` a [ES Module][], a CommonJS to ESM or ESM to CommonJS edge
+participates in an immediate cycle.
+This is not allowed because ES Modules cannot be evaluated while they are
+already being evaluated.
+
+To avoid the cycle, the `require()` call involved in a cycle should not happen
+at the top-level of either an ES Module (via `createRequire()`) or a CommonJS
+module, and should be done lazily in an inner function.
+
+<a id="ERR_REQUIRE_ASYNC_MODULE"></a>
+
+### `ERR_REQUIRE_ASYNC_MODULE`
+
+> Stability: 1 - Experimental
+
+When trying to `require()` a [ES Module][], the module turns out to be asynchronous.
+That is, it contains top-level await.
+
+To see where the top-level await is, use
+`--experimental-print-required-tla` (this would execute the modules
+before looking for the top-level awaits).
+
 <a id="ERR_REQUIRE_ESM"></a>
 
 ### `ERR_REQUIRE_ESM`
 
-> Stability: 1 - Experimental
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/55085
+    description: require() now supports loading synchronous ES modules by default.
+-->
+
+> Stability: 0 - Deprecated
 
 An attempt was made to `require()` an [ES Module][].
+
+This error has been deprecated since `require()` now supports loading synchronous
+ES modules. When `require()` encounters an ES module that contains top-level
+`await`, it will throw [`ERR_REQUIRE_ASYNC_MODULE`][] instead.
 
 <a id="ERR_SCRIPT_EXECUTION_INTERRUPTED"></a>
 
@@ -2503,6 +2482,19 @@ and HTTP/2 `Server` instances.
 The [`server.close()`][] method was called when a `net.Server` was not
 running. This applies to all instances of `net.Server`, including HTTP, HTTPS,
 and HTTP/2 `Server` instances.
+
+<a id="ERR_SINGLE_EXECUTABLE_APPLICATION_ASSET_NOT_FOUND"></a>
+
+### `ERR_SINGLE_EXECUTABLE_APPLICATION_ASSET_NOT_FOUND`
+
+<!-- YAML
+added:
+  - v21.7.0
+  - v20.12.0
+-->
+
+A key was passed to single executable application APIs to identify an asset,
+but no match could be found.
 
 <a id="ERR_SOCKET_ALREADY_BOUND"></a>
 
@@ -2576,6 +2568,22 @@ disconnected socket.
 
 A call was made and the UDP subsystem was not running.
 
+<a id="ERR_SOURCE_MAP_MISSING_SOURCE"></a>
+
+### `ERR_SOURCE_MAP_MISSING_SOURCE`
+
+A file imported from a source map was not found.
+
+<a id="ERR_SQLITE_ERROR"></a>
+
+### `ERR_SQLITE_ERROR`
+
+<!-- YAML
+added: v22.5.0
+-->
+
+An error was returned from [SQLite][].
+
 <a id="ERR_SRI_PARSE"></a>
 
 ### `ERR_SRI_PARSE`
@@ -2623,6 +2631,12 @@ or a pipeline ends non gracefully with no explicit error.
 
 An attempt was made to call [`stream.push()`][] after a `null`(EOF) had been
 pushed to the stream.
+
+<a id="ERR_STREAM_UNABLE_TO_PIPE"></a>
+
+### `ERR_STREAM_UNABLE_TO_PIPE`
+
+An attempt was made to pipe to a closed or destroyed stream in a pipeline.
 
 <a id="ERR_STREAM_UNSHIFT_AFTER_END_EVENT"></a>
 
@@ -2790,9 +2804,9 @@ event is emitted before continuing.
 Attempting to set a TLS protocol `minVersion` or `maxVersion` conflicts with an
 attempt to set the `secureProtocol` explicitly. Use one mechanism or the other.
 
-<a id="ERR_TLS_PSK_SET_IDENTIY_HINT_FAILED"></a>
+<a id="ERR_TLS_PSK_SET_IDENTITY_HINT_FAILED"></a>
 
-### `ERR_TLS_PSK_SET_IDENTIY_HINT_FAILED`
+### `ERR_TLS_PSK_SET_IDENTITY_HINT_FAILED`
 
 Failed to set PSK identity hint. Hint may be too long.
 
@@ -2938,9 +2952,7 @@ signal (such as [`subprocess.kill()`][]).
 [self-reference a package using its name][] and [define a custom subpath][] in
 the [`"exports"`][] field of the [`package.json`][] file.
 
-<!-- eslint-skip -->
-
-```js
+```mjs
 import './'; // unsupported
 import './index.js'; // supported
 import 'package-name'; // supported
@@ -2951,6 +2963,26 @@ import 'package-name'; // supported
 ### `ERR_UNSUPPORTED_ESM_URL_SCHEME`
 
 `import` with URL schemes other than `file` and `data` is unsupported.
+
+<a id="ERR_UNSUPPORTED_RESOLVE_REQUEST"></a>
+
+### `ERR_UNSUPPORTED_RESOLVE_REQUEST`
+
+An attempt was made to resolve an invalid module referrer. This can happen when
+importing or calling `import.meta.resolve()` with either:
+
+* a bare specifier that is not a builtin module from a module whose URL scheme
+  is not `file`.
+* a [relative URL][] from a module whose URL scheme is not a [special scheme][].
+
+```mjs
+try {
+  // Trying to import the package 'bare-specifier' from a `data:` URL module:
+  await import('data:text/javascript,import "bare-specifier"');
+} catch (e) {
+  console.log(e.code); // ERR_UNSUPPORTED_RESOLVE_REQUEST
+}
+```
 
 <a id="ERR_USE_AFTER_CLOSE"></a>
 
@@ -3083,6 +3115,54 @@ The `Worker` instance terminated because it reached its memory limit.
 The path for the main script of a worker is neither an absolute path
 nor a relative path starting with `./` or `../`.
 
+<a id="ERR_WORKER_MESSAGING_ERRORED"></a>
+
+### `ERR_WORKER_MESSAGING_ERRORED`
+
+<!-- YAML
+added: v22.5.0
+-->
+
+> Stability: 1.1 - Active development
+
+The destination thread threw an error while processing a message sent via [`postMessageToThread()`][].
+
+<a id="ERR_WORKER_MESSAGING_FAILED"></a>
+
+### `ERR_WORKER_MESSAGING_FAILED`
+
+<!-- YAML
+added: v22.5.0
+-->
+
+> Stability: 1.1 - Active development
+
+The thread requested in [`postMessageToThread()`][] is invalid or has no `workerMessage` listener.
+
+<a id="ERR_WORKER_MESSAGING_SAME_THREAD"></a>
+
+### `ERR_WORKER_MESSAGING_SAME_THREAD`
+
+<!-- YAML
+added: v22.5.0
+-->
+
+> Stability: 1.1 - Active development
+
+The thread id requested in [`postMessageToThread()`][] is the current thread id.
+
+<a id="ERR_WORKER_MESSAGING_TIMEOUT"></a>
+
+### `ERR_WORKER_MESSAGING_TIMEOUT`
+
+<!-- YAML
+added: v22.5.0
+-->
+
+> Stability: 1.1 - Active development
+
+Sending a message via [`postMessageToThread()`][] timed out.
+
 <a id="ERR_WORKER_UNSERIALIZABLE_ERROR"></a>
 
 ### `ERR_WORKER_UNSERIALIZABLE_ERROR`
@@ -3116,9 +3196,24 @@ changes:
 -->
 
 Too much HTTP header data was received. In order to protect against malicious or
-malconfigured clients, if more than 8 KiB of HTTP header data is received then
+malconfigured clients, if more than `maxHeaderSize` of HTTP header data is received then
 HTTP parsing will abort without a request or response object being created, and
 an `Error` with this code will be emitted.
+
+<a id="HPE_CHUNK_EXTENSIONS_OVERFLOW"></a>
+
+### `HPE_CHUNK_EXTENSIONS_OVERFLOW`
+
+<!-- YAML
+added:
+ - v21.6.2
+ - v20.11.1
+ - v18.19.1
+-->
+
+Too much data was received for a chunk extensions. In order to protect against
+malicious or malconfigured clients, if more than 16 KiB of data is received
+then an `Error` with this code will be emitted.
 
 <a id="HPE_UNEXPECTED_CONTENT_LENGTH"></a>
 
@@ -3176,6 +3271,29 @@ The UTF-16 encoding was used with [`hash.digest()`][]. While the
 `hash.digest()` method does allow an `encoding` argument to be passed in,
 causing the method to return a string rather than a `Buffer`, the UTF-16
 encoding (e.g. `ucs` or `utf16le`) is not supported.
+
+<a id="ERR_CRYPTO_SCRYPT_INVALID_PARAMETER"></a>
+
+### `ERR_CRYPTO_SCRYPT_INVALID_PARAMETER`
+
+<!-- YAML
+removed: REPLACEME
+-->
+
+An incompatible combination of options was passed to [`crypto.scrypt()`][] or
+[`crypto.scryptSync()`][]. New versions of Node.js use the error code
+[`ERR_INCOMPATIBLE_OPTION_PAIR`][] instead, which is consistent with other APIs.
+
+<a id="ERR_FS_INVALID_SYMLINK_TYPE"></a>
+
+### `ERR_FS_INVALID_SYMLINK_TYPE`
+
+<!-- YAML
+removed: REPLACEME
+-->
+
+An invalid symlink type was passed to the [`fs.symlink()`][] or
+[`fs.symlinkSync()`][] methods.
 
 <a id="ERR_HTTP2_FRAME_ERROR"></a>
 
@@ -3333,6 +3451,100 @@ removed: v21.1.0
 
 An import attribute is not supported by this version of Node.js.
 
+<a id="ERR_MANIFEST_ASSERT_INTEGRITY"></a>
+
+### `ERR_MANIFEST_ASSERT_INTEGRITY`
+
+<!-- YAML
+removed: v22.2.0
+-->
+
+An attempt was made to load a resource, but the resource did not match the
+integrity defined by the policy manifest. See the documentation for policy
+manifests for more information.
+
+<a id="ERR_MANIFEST_DEPENDENCY_MISSING"></a>
+
+### `ERR_MANIFEST_DEPENDENCY_MISSING`
+
+<!-- YAML
+removed: v22.2.0
+-->
+
+An attempt was made to load a resource, but the resource was not listed as a
+dependency from the location that attempted to load it. See the documentation
+for policy manifests for more information.
+
+<a id="ERR_MANIFEST_INTEGRITY_MISMATCH"></a>
+
+### `ERR_MANIFEST_INTEGRITY_MISMATCH`
+
+<!-- YAML
+removed: v22.2.0
+-->
+
+An attempt was made to load a policy manifest, but the manifest had multiple
+entries for a resource which did not match each other. Update the manifest
+entries to match in order to resolve this error. See the documentation for
+policy manifests for more information.
+
+<a id="ERR_MANIFEST_INVALID_RESOURCE_FIELD"></a>
+
+### `ERR_MANIFEST_INVALID_RESOURCE_FIELD`
+
+<!-- YAML
+removed: v22.2.0
+-->
+
+A policy manifest resource had an invalid value for one of its fields. Update
+the manifest entry to match in order to resolve this error. See the
+documentation for policy manifests for more information.
+
+<a id="ERR_MANIFEST_INVALID_SPECIFIER"></a>
+
+### `ERR_MANIFEST_INVALID_SPECIFIER`
+
+<!-- YAML
+removed: v22.2.0
+-->
+
+A policy manifest resource had an invalid value for one of its dependency
+mappings. Update the manifest entry to match to resolve this error. See the
+documentation for policy manifests for more information.
+
+<a id="ERR_MANIFEST_PARSE_POLICY"></a>
+
+### `ERR_MANIFEST_PARSE_POLICY`
+
+<!-- YAML
+removed: v22.2.0
+-->
+
+An attempt was made to load a policy manifest, but the manifest was unable to
+be parsed. See the documentation for policy manifests for more information.
+
+<a id="ERR_MANIFEST_TDZ"></a>
+
+### `ERR_MANIFEST_TDZ`
+
+<!-- YAML
+removed: v22.2.0
+-->
+
+An attempt was made to read from a policy manifest, but the manifest
+initialization has not yet taken place. This is likely a bug in Node.js.
+
+<a id="ERR_MANIFEST_UNKNOWN_ONERROR"></a>
+
+### `ERR_MANIFEST_UNKNOWN_ONERROR`
+
+<!-- YAML
+removed: v22.2.0
+-->
+
+A policy manifest was loaded, but had an unknown value for its "onerror"
+behavior. See the documentation for policy manifests for more information.
+
 <a id="ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST"></a>
 
 ### `ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST`
@@ -3378,22 +3590,38 @@ removed: v10.0.0
 
 Used by the `Node-API` when `Constructor.prototype` is not an object.
 
-<a id="ERR_NETWORK_IMPORT_BAD_RESPONSE"></a>
+<a id="ERR_NAPI_TSFN_START_IDLE_LOOP"></a>
 
-### `ERR_NETWORK_IMPORT_BAD_RESPONSE`
+### `ERR_NAPI_TSFN_START_IDLE_LOOP`
 
-> Stability: 1 - Experimental
+<!-- YAML
+added:
+  - v10.6.0
+  - v8.16.0
+removed:
+  - v14.2.0
+  - v12.17.0
+-->
 
-Response was received but was invalid when importing a module over the network.
+On the main thread, values are removed from the queue associated with the
+thread-safe function in an idle loop. This error indicates that an error
+has occurred when attempting to start the loop.
 
-<a id="ERR_NETWORK_IMPORT_DISALLOWED"></a>
+<a id="ERR_NAPI_TSFN_STOP_IDLE_LOOP"></a>
 
-### `ERR_NETWORK_IMPORT_DISALLOWED`
+### `ERR_NAPI_TSFN_STOP_IDLE_LOOP`
 
-> Stability: 1 - Experimental
+<!-- YAML
+added:
+  - v10.6.0
+  - v8.16.0
+removed:
+  - v14.2.0
+  - v12.17.0
+-->
 
-A network module attempted to load another module that it is not allowed to
-load. Likely this restriction is for security reasons.
+Once no more items are left in the queue, the idle loop must be suspended. This
+error indicates that the idle loop has failed to stop.
 
 <a id="ERR_NO_LONGER_SUPPORTED"></a>
 
@@ -3435,6 +3663,42 @@ removed: v10.0.0
 -->
 
 The `node:repl` module was unable to parse data from the REPL history file.
+
+<a id="ERR_QUIC_CONNECTION_FAILED"></a>
+
+### `ERR_QUIC_CONNECTION_FAILED`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Establishing a QUIC connection failed.
+
+<a id="ERR_QUIC_ENDPOINT_CLOSED"></a>
+
+### `ERR_QUIC_ENDPOINT_CLOSED`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+A QUIC Endpoint closed with an error.
+
+<a id="ERR_QUIC_OPEN_STREAM_FAILED"></a>
+
+### `ERR_QUIC_OPEN_STREAM_FAILED`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Opening a QUIC stream failed.
 
 <a id="ERR_SOCKET_CANNOT_SEND"></a>
 
@@ -3616,6 +3880,227 @@ removed: v15.0.0
 
 The native call from `process.cpuUsage` could not be processed.
 
+<a id="openssl-error-codes"></a>
+
+## OpenSSL Error Codes
+
+<a id="Time Validity Errors"></a>
+
+### Time Validity Errors
+
+<a id="CERT_NOT_YET_VALID"></a>
+
+#### `CERT_NOT_YET_VALID`
+
+The certificate is not yet valid: the notBefore date is after the current time.
+
+<a id="CERT_HAS_EXPIRED"></a>
+
+#### `CERT_HAS_EXPIRED`
+
+The certificate has expired: the notAfter date is before the current time.
+
+<a id="CRL_NOT_YET_VALID"></a>
+
+#### `CRL_NOT_YET_VALID`
+
+The certificate revocation list (CRL) has a future issue date.
+
+<a id="CRL_HAS_EXPIRED"></a>
+
+#### `CRL_HAS_EXPIRED`
+
+The certificate revocation list (CRL) has expired.
+
+<a id="CERT_REVOKED"></a>
+
+#### `CERT_REVOKED`
+
+The certificate has been revoked; it is on a certificate revocation list (CRL).
+
+<a id="Trust or Chain Related Errors"></a>
+
+### Trust or Chain Related Errors
+
+<a id="UNABLE_TO_GET_ISSUER_CERT"></a>
+
+#### `UNABLE_TO_GET_ISSUER_CERT`
+
+The issuer certificate of a looked up certificate could not be found. This
+normally means the list of trusted certificates is not complete.
+
+<a id="UNABLE_TO_GET_ISSUER_CERT_LOCALLY"></a>
+
+#### `UNABLE_TO_GET_ISSUER_CERT_LOCALLY`
+
+The certificate’s issuer is not known. This is the case if the issuer is not
+included in the trusted certificate list.
+
+<a id="DEPTH_ZERO_SELF_SIGNED_CERT"></a>
+
+#### `DEPTH_ZERO_SELF_SIGNED_CERT`
+
+The passed certificate is self-signed and the same certificate cannot be found
+in the list of trusted certificates.
+
+<a id="SELF_SIGNED_CERT_IN_CHAIN"></a>
+
+#### `SELF_SIGNED_CERT_IN_CHAIN`
+
+The certificate’s issuer is not known. This is the case if the issuer is not
+included in the trusted certificate list.
+
+<a id="CERT_CHAIN_TOO_LONG"></a>
+
+#### `CERT_CHAIN_TOO_LONG`
+
+The certificate chain length is greater than the maximum depth.
+
+<a id="UNABLE_TO_GET_CRL"></a>
+
+#### `UNABLE_TO_GET_CRL`
+
+The CRL reference by the certificate could not be found.
+
+<a id="UNABLE_TO_VERIFY_LEAF_SIGNATURE"></a>
+
+#### `UNABLE_TO_VERIFY_LEAF_SIGNATURE`
+
+No signatures could be verified because the chain contains only one certificate
+and it is not self signed.
+
+<a id="CERT_UNTRUSTED"></a>
+
+#### `CERT_UNTRUSTED`
+
+The root certificate authority (CA) is not marked as trusted for the specified
+purpose.
+
+<a id="Basic Extension Errors"></a>
+
+### Basic Extension Errors
+
+<a id="INVALID_CA"></a>
+
+#### `INVALID_CA`
+
+A CA certificate is invalid. Either it is not a CA or its extensions are not
+consistent with the supplied purpose.
+
+<a id="PATH_LENGTH_EXCEEDED"></a>
+
+#### `PATH_LENGTH_EXCEEDED`
+
+The basicConstraints pathlength parameter has been exceeded.
+
+<a id="Name Related Errors"></a>
+
+### Name Related Errors
+
+<a id="HOSTNAME_MISMATCH"></a>
+
+#### `HOSTNAME_MISMATCH`
+
+Certificate does not match provided name.
+
+<a id="Usage and Policy Errors"></a>
+
+### Usage and Policy Errors
+
+<a id="INVALID_PURPOSE"></a>
+
+#### `INVALID_PURPOSE`
+
+The supplied certificate cannot be used for the specified purpose.
+
+<a id="CERT_REJECTED"></a>
+
+#### `CERT_REJECTED`
+
+The root CA is marked to reject the specified purpose.
+
+<a id="Formatting Errors"></a>
+
+### Formatting Errors
+
+<a id="CERT_SIGNATURE_FAILURE"></a>
+
+#### `CERT_SIGNATURE_FAILURE`
+
+The signature of the certificate is invalid.
+
+<a id="CRL_SIGNATURE_FAILURE"></a>
+
+#### `CRL_SIGNATURE_FAILURE`
+
+The signature of the certificate revocation list (CRL) is invalid.
+
+<a id="ERROR_IN_CERT_NOT_BEFORE_FIELD"></a>
+
+#### `ERROR_IN_CERT_NOT_BEFORE_FIELD`
+
+The certificate notBefore field contains an invalid time.
+
+<a id="ERROR_IN_CERT_NOT_AFTER_FIELD"></a>
+
+#### `ERROR_IN_CERT_NOT_AFTER_FIELD`
+
+The certificate notAfter field contains an invalid time.
+
+<a id="ERROR_IN_CRL_LAST_UPDATE_FIELD"></a>
+
+#### `ERROR_IN_CRL_LAST_UPDATE_FIELD`
+
+The CRL lastUpdate field contains an invalid time.
+
+<a id="ERROR_IN_CRL_NEXT_UPDATE_FIELD"></a>
+
+#### `ERROR_IN_CRL_NEXT_UPDATE_FIELD`
+
+The CRL nextUpdate field contains an invalid time.
+
+<a id="UNABLE_TO_DECRYPT_CERT_SIGNATURE"></a>
+
+#### `UNABLE_TO_DECRYPT_CERT_SIGNATURE`
+
+The certificate signature could not be decrypted. This means that the actual
+signature value could not be determined rather than it not matching the expected
+value, this is only meaningful for RSA keys.
+
+<a id="UNABLE_TO_DECRYPT_CRL_SIGNATURE"></a>
+
+#### `UNABLE_TO_DECRYPT_CRL_SIGNATURE`
+
+The certificate revocation list (CRL) signature could not be decrypted: this
+means that the actual signature value could not be determined rather than it not
+matching the expected value.
+
+<a id="UNABLE_TO_DECODE_ISSUER_PUBLIC_KEY"></a>
+
+#### `UNABLE_TO_DECODE_ISSUER_PUBLIC_KEY`
+
+The public key in the certificate SubjectPublicKeyInfo could not be read.
+
+<a id="Other OpenSSL Errors"></a>
+
+### Other OpenSSL Errors
+
+<a id="OUT_OF_MEM"></a>
+
+#### `OUT_OF_MEM`
+
+An error occurred trying to allocate memory. This should never happen.
+
+<a id="ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING"></a>
+
+#### `ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`
+
+<!-- YAML
+added: v22.6.0
+-->
+
+Type stripping is not supported for files descendent of a `node_modules` directory.
+
 [ES Module]: esm.md
 [ICU]: intl.md#internationalization-support
 [JSON Web Key Elliptic Curve Registry]: https://www.iana.org/assignments/jose/jose.xhtml#web-key-elliptic-curve
@@ -3623,6 +4108,7 @@ The native call from `process.cpuUsage` could not be processed.
 [Node.js error codes]: #nodejs-error-codes
 [Permission Model]: permissions.md#permission-model
 [RFC 7230 Section 3]: https://tools.ietf.org/html/rfc7230#section-3
+[SQLite]: sqlite.md
 [Subresource Integrity specification]: https://www.w3.org/TR/SRI/#the-integrity-attribute
 [V8's stack trace API]: https://v8.dev/docs/stack-trace-api
 [WHATWG Supported Encodings]: util.md#whatwg-supported-encodings
@@ -3635,9 +4121,11 @@ The native call from `process.cpuUsage` could not be processed.
 [`--no-addons`]: cli.md#--no-addons
 [`--unhandled-rejections`]: cli.md#--unhandled-rejectionsmode
 [`Class: assert.AssertionError`]: assert.md#class-assertassertionerror
+[`ERR_INCOMPATIBLE_OPTION_PAIR`]: #err_incompatible_option_pair
 [`ERR_INVALID_ARG_TYPE`]: #err_invalid_arg_type
 [`ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST`]: #err_missing_message_port_in_transfer_list
 [`ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST`]: #err_missing_transferable_in_transfer_list
+[`ERR_REQUIRE_ASYNC_MODULE`]: #err_require_async_module
 [`EventEmitter`]: events.md#class-eventemitter
 [`MessagePort`]: worker_threads.md#class-messageport
 [`Object.getPrototypeOf`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/getPrototypeOf
@@ -3675,6 +4163,7 @@ The native call from `process.cpuUsage` could not be processed.
 [`new URLSearchParams(iterable)`]: url.md#new-urlsearchparamsiterable
 [`package.json`]: packages.md#nodejs-packagejson-field-definitions
 [`postMessage()`]: worker_threads.md#portpostmessagevalue-transferlist
+[`postMessageToThread()`]: worker_threads.md#workerpostmessagetothreadthreadid-value-transferlist-timeout
 [`process.on('exit')`]: process.md#event-exit
 [`process.send()`]: process.md#processsendmessage-sendhandle-options-callback
 [`process.setUncaughtExceptionCaptureCallback()`]: process.md#processsetuncaughtexceptioncapturecallbackfn
@@ -3702,8 +4191,9 @@ The native call from `process.cpuUsage` could not be processed.
 [domains]: domain.md
 [event emitter-based]: events.md#class-eventemitter
 [file descriptors]: https://en.wikipedia.org/wiki/File_descriptor
-[policy]: permissions.md#policies
+[relative URL]: https://url.spec.whatwg.org/#relative-url-string
 [self-reference a package using its name]: packages.md#self-referencing-a-package-using-its-name
+[special scheme]: https://url.spec.whatwg.org/#special-scheme
 [stream-based]: stream.md
 [syscall]: https://man7.org/linux/man-pages/man2/syscalls.2.html
 [try-catch]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/try...catch

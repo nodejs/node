@@ -31,7 +31,7 @@ struct ZoneCompactSetTraits<Handle<T>> {
     // Use address() instead of location() to get around handle access checks
     // (we're not actually dereferencing the handle so it's safe to read its
     // location)
-    return base::bit_cast<Address*>(handle.address());
+    return reinterpret_cast<Address*>(handle.address());
   }
   static handle_type PointerToHandle(data_type* ptr) {
     return handle_type(ptr);
@@ -88,6 +88,10 @@ class ZoneCompactSet final {
       std::sort(list->begin(), list->end());
       data_ = PointerWithPayload(list, kListTag);
     }
+  }
+
+  ZoneCompactSet<T> Clone(Zone* zone) const {
+    return ZoneCompactSet<T>(begin(), end(), zone);
   }
 
   bool is_empty() const { return data_ == EmptyValue(); }
@@ -332,6 +336,11 @@ class ZoneCompactSet<T>::const_iterator {
     return *this;
   }
   const_iterator operator++(int);
+
+  difference_type operator-(const const_iterator& other) const {
+    DCHECK_EQ(set_, other.set_);
+    return current_ - other.current_;
+  }
 
  private:
   friend class ZoneCompactSet<T>;

@@ -48,7 +48,7 @@ namespace internal {
 
 bool CpuFeatures::SupportsOptimizer() { return true; }
 
-void RelocInfo::apply(intptr_t delta) {
+void WritableRelocInfo::apply(intptr_t delta) {
   // Absolute code pointer inside code object moves with the code object.
   if (IsInternalReference(rmode_)) {
     // Jump table entry
@@ -142,12 +142,13 @@ Handle<Object> Assembler::code_target_object_handle_at(Address pc) {
 Tagged<HeapObject> RelocInfo::target_object(PtrComprCageBase cage_base) {
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
   if (IsCompressedEmbeddedObject(rmode_)) {
-    return HeapObject::cast(Object(V8HeapCompressionScheme::DecompressTagged(
-        cage_base,
-        Assembler::target_compressed_address_at(pc_, constant_pool_))));
+    return Cast<HeapObject>(
+        Tagged<Object>(V8HeapCompressionScheme::DecompressTagged(
+            cage_base,
+            Assembler::target_compressed_address_at(pc_, constant_pool_))));
   } else {
-    return HeapObject::cast(
-        Object(Assembler::target_address_at(pc_, constant_pool_)));
+    return Cast<HeapObject>(
+        Tagged<Object>(Assembler::target_address_at(pc_, constant_pool_)));
   }
 }
 
@@ -160,7 +161,7 @@ Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
   DCHECK(IsRelativeCodeTarget(rmode_) || IsCodeTarget(rmode_) ||
          IsEmbeddedObjectMode(rmode_));
   if (IsCodeTarget(rmode_) || IsRelativeCodeTarget(rmode_)) {
-    return Handle<HeapObject>::cast(origin->code_target_object_handle_at(pc_));
+    return Cast<HeapObject>(origin->code_target_object_handle_at(pc_));
   } else {
     if (IsCompressedEmbeddedObject(rmode_)) {
       return origin->compressed_embedded_object_handle_at(pc_, constant_pool_);
@@ -170,8 +171,8 @@ Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
   }
 }
 
-void RelocInfo::set_target_object(Tagged<HeapObject> target,
-                                  ICacheFlushMode icache_flush_mode) {
+void WritableRelocInfo::set_target_object(Tagged<HeapObject> target,
+                                          ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
   if (IsCompressedEmbeddedObject(rmode_)) {
     Assembler::set_target_compressed_address_at(
@@ -190,7 +191,7 @@ Address RelocInfo::target_external_reference() {
   return Assembler::target_address_at(pc_, constant_pool_);
 }
 
-void RelocInfo::set_target_external_reference(
+void WritableRelocInfo::set_target_external_reference(
     Address target, ICacheFlushMode icache_flush_mode) {
   DCHECK(rmode_ == RelocInfo::EXTERNAL_REFERENCE);
   Assembler::set_target_address_at(pc_, constant_pool_, target,
@@ -202,26 +203,6 @@ Builtin RelocInfo::target_builtin_at(Assembler* origin) { UNREACHABLE(); }
 Address RelocInfo::target_off_heap_target() {
   DCHECK(IsOffHeapTarget(rmode_));
   return Assembler::target_address_at(pc_, constant_pool_);
-}
-
-void RelocInfo::WipeOut() {
-  DCHECK(IsEmbeddedObjectMode(rmode_) || IsCodeTarget(rmode_) ||
-         IsExternalReference(rmode_) || IsInternalReference(rmode_) ||
-         IsInternalReferenceEncoded(rmode_) || IsOffHeapTarget(rmode_));
-  if (IsInternalReference(rmode_)) {
-    // Jump table entry
-    Memory<Address>(pc_) = kNullAddress;
-  } else if (IsCompressedEmbeddedObject(rmode_)) {
-    Assembler::set_target_compressed_address_at(pc_, constant_pool_,
-                                                kNullAddress);
-  } else if (IsInternalReferenceEncoded(rmode_) || IsOffHeapTarget(rmode_)) {
-    // mov sequence
-    // Currently used only by deserializer, no need to flush.
-    Assembler::set_target_address_at(pc_, constant_pool_, kNullAddress,
-                                     SKIP_ICACHE_FLUSH);
-  } else {
-    Assembler::set_target_address_at(pc_, constant_pool_, kNullAddress);
-  }
 }
 
 // Operand constructors
@@ -358,6 +339,35 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
 #endif
   }
   if (!patched) UNREACHABLE();
+}
+
+uint32_t Assembler::uint32_constant_at(Address pc, Address constant_pool) {
+  Opcode op1 =
+      Instruction::S390OpcodeValue(reinterpret_cast<const uint8_t*>(pc));
+  // Set by MacroAssembler::mov.
+  CHECK(op1 == LGFI);
+  SixByteInstr instr_1 =
+      Instruction::InstructionBits(reinterpret_cast<const uint8_t*>(pc));
+  return static_cast<uint32_t>((instr_1 << 32) >> 32);
+}
+
+void Assembler::set_uint32_constant_at(Address pc, Address constant_pool,
+                                       uint32_t new_constant,
+                                       ICacheFlushMode icache_flush_mode) {
+  Opcode op1 =
+      Instruction::S390OpcodeValue(reinterpret_cast<const uint8_t*>(pc));
+  // Set by MacroAssembler::mov.
+  CHECK(op1 == LGFI);
+  SixByteInstr instr_1 =
+      Instruction::InstructionBits(reinterpret_cast<const uint8_t*>(pc));
+  instr_1 >>= 32;  // Zero out the lower 32-bits
+  instr_1 <<= 32;
+  instr_1 |= new_constant;
+  Instruction::SetInstructionBits<SixByteInstr>(reinterpret_cast<uint8_t*>(pc),
+                                                instr_1);
+  if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
+    FlushInstructionCache(pc, 6);
+  }
 }
 
 }  // namespace internal

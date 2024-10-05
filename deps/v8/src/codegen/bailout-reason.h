@@ -23,6 +23,7 @@ namespace internal {
   V(kExpectedOptimizationSentinel,                                             \
     "Expected optimized code cell or optimization sentinel")                   \
   V(kExpectedUndefinedOrCell, "Expected undefined or cell in register")        \
+  V(kExpectedFeedbackCell, "Expected feedback cell")                           \
   V(kExpectedFeedbackVector, "Expected feedback vector")                       \
   V(kExpectedBaselineData, "Expected baseline data")                           \
   V(kFloat64IsNotAInt32,                                                       \
@@ -59,7 +60,6 @@ namespace internal {
   V(kOperandIsNotACode, "Operand is not a Code object")                        \
   V(kOperandIsNotAMap, "Operand is not a Map object")                          \
   V(kOperandIsNotASmi, "Operand is not a smi")                                 \
-  V(kMaglevOsrTodo, "OSR into maglev is not implemented yet")                  \
   V(kPromiseAlreadySettled, "Promise already settled")                         \
   V(kReceivedInvalidReturnAddress, "Received invalid return address")          \
   V(kRegisterDidNotMatchExpectedRoot, "Register did not match expected root")  \
@@ -100,7 +100,13 @@ namespace internal {
   V(kWrongFunctionContext, "Wrong context passed to function")                 \
   V(kUnexpectedThreadInWasmSet, "thread_in_wasm flag was already set")         \
   V(kUnexpectedThreadInWasmUnset, "thread_in_wasm flag was not set")           \
-  V(kInvalidReceiver, "Expected JS object or primitive object")
+  V(kInvalidReceiver, "Expected JS object or primitive object")                \
+  V(kUnexpectedInstanceType, "Unexpected instance type encountered")           \
+  V(kTurboshaftTypeAssertionFailed,                                            \
+    "A type assertion failed in Turboshaft-generated code")                    \
+  V(kMetadataAreaStartDoesNotMatch,                                            \
+    "The metadata doesn't belong to the "                                      \
+    "chunk")
 
 #define BAILOUT_MESSAGES_LIST(V)                                             \
   V(kNoReason, "no reason")                                                  \

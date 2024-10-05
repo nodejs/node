@@ -19,8 +19,9 @@ enum class SnapshotSpace : uint8_t {
   kReadOnlyHeap = 0,
   kOld = 1,
   kCode = 2,
+  kTrusted = 3,
 };
-static constexpr int kNumberOfSnapshotSpaces = 3;
+static constexpr int kNumberOfSnapshotSpaces = 4;
 
 class SerializerReference {
  private:
@@ -108,7 +109,8 @@ class SerializerReferenceMap {
     return map_.Find(object);
   }
 
-  const SerializerReference* LookupReference(Handle<HeapObject> object) const {
+  const SerializerReference* LookupReference(
+      DirectHandle<HeapObject> object) const {
     return map_.Find(object);
   }
 
