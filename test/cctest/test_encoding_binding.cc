@@ -132,5 +132,24 @@ TEST_F(EncodingBindingTest, DecodeLatin1_IgnoreBOMAndFatal) {
   EXPECT_STREQ(*utf8_result, "Áéó");
 }
 
+TEST_F(EncodingBindingTest, DecodeLatin1_BOMPresent) {
+  Environment* env = CreateEnvironment();
+  Isolate* isolate = env->isolate();
+  HandleScope handle_scope(isolate);
+
+  const uint8_t latin1_data[] = {0xFF, 0xC1, 0xE9, 0xF3};
+  Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, sizeof(latin1_data));
+  memcpy(ab->GetBackingStore()->Data(), latin1_data, sizeof(latin1_data));
+
+  Local<Uint8Array> array = Uint8Array::New(ab, 0, sizeof(latin1_data));
+  Local<Value> args[] = {array};
+
+  Local<Value> result;
+  EXPECT_TRUE(RunDecodeLatin1(env, args, true, false, &result));
+
+  String::Utf8Value utf8_result(isolate, result);
+  EXPECT_STREQ(*utf8_result, "Áéó");
+}
+
 }  // namespace encoding_binding
 }  // namespace node
