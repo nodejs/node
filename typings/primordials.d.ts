@@ -431,7 +431,9 @@ declare namespace primordials {
   export const SymbolPrototype: typeof Symbol.prototype
   export const SymbolFor: typeof Symbol.for
   export const SymbolKeyFor: typeof Symbol.keyFor
+  export const SymbolAsyncDispose: typeof Symbol.asyncDispose
   export const SymbolAsyncIterator: typeof Symbol.asyncIterator
+  export const SymbolDispose: typeof Symbol.dispose
   export const SymbolHasInstance: typeof Symbol.hasInstance
   export const SymbolIsConcatSpreadable: typeof Symbol.isConcatSpreadable
   export const SymbolIterator: typeof Symbol.iterator
