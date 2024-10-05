@@ -236,16 +236,27 @@ added: REPLACEME
     *  \[key: string]?: {unknown}
   * path: {string}
 
-In addition to being available to users, this utility is used internally when
-resolving various aspects about a module.
+Retreives the contents and location of the package.json closest to the supplied `startPath`;
+this behaves identically to node's own lookup and consumption of package.json for a given module.
 
 ```mjs
 import { getPackageJSON } from 'node:module';
 
-const pjson = getPackageJSON(import.meta.resolve('some-package'), true)?.data;
+const somePackage = getPackageJSON(import.meta.resolve('some-package'), true);
 
-pjson?.name; // 'some-package-real-name'
-pjson?.types; // './index.d.ts'
+somePackage?.path; // '/…/node_modules/some-package/package.json'
+somePackage?.data.name; // 'some-package-real-name'
+somePackage?.data.types; // './index.d.ts'
+
+const thisParentPackage = getPackageJSON(import.meta.resolve('..'));
+
+thisParentPackage?.path; // '../../package.json'
+thisParentPackage?.data.type; // 'module'
+
+const thisSubPackage = getPackageJSON(import.meta.url);
+
+thisSubPackage?.path; // './package.json'
+thisSubPackage?.data.type; // 'commonjs'
 ```
 
 ### `module.isBuiltin(moduleName)`
