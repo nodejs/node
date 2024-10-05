@@ -7577,7 +7577,7 @@ added:
 
 * {number|bigint}
 
-Optimal transfer block size (measured in bytes)
+Optimal transfer block size (measured in bytes).
 
 #### `statfs.ffree`
 
