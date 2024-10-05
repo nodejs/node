@@ -230,10 +230,10 @@ added: REPLACEME
 * Returns: {Object | undefined}
   * data: {Object}
     * name: {string}
-    * type: {'commonjs' | 'module' | undefined}
+    * type: {string | undefined}
     * exports: string | string\[] | Record\<string, unknown> | undefined
     * imports: string | string\[] | Record\<string, unknown> | undefined
-    *  \[key: string]?: {unknown}
+    * …
   * path: {string}
 
 Retreives the contents and location of the package.json closest to the supplied `startLocation`;
