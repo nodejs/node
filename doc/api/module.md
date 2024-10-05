@@ -227,16 +227,14 @@ added: REPLACEME
 
 * `startPath` {string} Where to start looking
 * `everything` {boolean} Whether to return the full contents of the found package.json
-* Returns: {undefined | {
-  data: {
-  name?: string,
-  type?: 'commonjs' | 'module' | 'none',
-  exports?: string | string\[] | Record\<string, unknown>,
-  imports?: string | string\[] | Record\<string, unknown>,
-  \[key: string]?: unknown,
-  },
-  path: URL\['pathname'],
-  }}
+* Returns: {Object | undefined}
+  * data: {Object}
+    * name: {string}
+    * type: {'commonjs' | 'module' | undefined}
+    * exports: string | string\[] | Record\<string, unknown> | undefined
+    * imports: string | string\[] | Record\<string, unknown> | undefined
+    *  \[key: string]?: {unknown}
+  * path: {string}
 
 In addition to being available to users, this utility is used internally when
 resolving various aspects about a module.
