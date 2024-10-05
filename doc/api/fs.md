@@ -7652,10 +7652,7 @@ added:
 
 * {number|bigint}
 
-Type of file system.
-This value is the decimal representation of the magic number* of the filesystem. Converting this number|bigint to hexadecimal will return the magic number.
-
-*magic number- refers to the hexadecimal numeric coding mapped to each filesystem.
+Type of file system, represented by the decimal form of the file's magic number.
 
 Here are some common filesystems and their magic numbers:
 <table>
