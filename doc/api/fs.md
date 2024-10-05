@@ -7598,7 +7598,7 @@ added:
 
 * {number|bigint}
 
-Optimal transfer block size(this value is in bytes for POSIX-compliant or UNIX-like Operating Systems including but not limited to Windows, Linux, MacOS, FreeBSD, OpenBSD, NetBSD, Solaris/Illumos etc).
+Optimal transfer block size (measured in bytes)
 
 #### `statfs.ffree`
 
