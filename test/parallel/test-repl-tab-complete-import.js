@@ -26,7 +26,7 @@ const testMe = repl.start({
 });
 
 // Some errors are passed to the domain, but do not callback
-testMe._domain.on('error', assert.ifError);
+testMe._onEvalError = assert.ifError;
 
 // Tab complete provides built in libs for import()
 testMe.complete('import(\'', common.mustCall((error, data) => {
