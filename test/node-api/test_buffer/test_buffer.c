@@ -141,6 +141,8 @@ static napi_value bufferFromArrayBuffer(napi_env env, napi_callback_info info) {
   napi_value buffer;
   size_t byte_length = 1024;
   void* data = NULL;
+  size_t buffer_length = 0;
+  void* buffer_data = NULL;
 
   status = napi_create_arraybuffer(env, byte_length, &data, &arraybuffer);
   NODE_API_ASSERT(env, status == napi_ok, "Failed to create arraybuffer");
@@ -149,6 +151,11 @@ static napi_value bufferFromArrayBuffer(napi_env env, napi_callback_info info) {
       env, arraybuffer, 0, byte_length, &buffer);
   NODE_API_ASSERT(
       env, status == napi_ok, "Failed to create buffer from arraybuffer");
+
+  status = napi_get_buffer_info(env, buffer, &buffer_data, &buffer_length);
+  NODE_API_ASSERT(env, status == napi_ok, "Failed to get buffer info");
+
+  NODE_API_ASSERT(env, buffer_length == byte_length, "Buffer length mismatch");
 
   return buffer;
 }

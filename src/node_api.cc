@@ -1428,6 +1428,8 @@ napi_status NAPI_CDECL node_api_get_module_file_name(
   return napi_clear_last_error(env);
 }
 
+#ifdef NAPI_EXPERIMENTAL
+
 napi_status NAPI_CDECL
 node_api_create_buffer_from_arraybuffer(napi_env env,
                                         napi_value arraybuffer,
@@ -1458,3 +1460,5 @@ node_api_create_buffer_from_arraybuffer(napi_env env,
   *result = v8impl::JsValueFromV8LocalValue(buffer);
   return napi_ok;
 }
+
+#endif
