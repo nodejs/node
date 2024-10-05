@@ -9,11 +9,18 @@ namespace encoding_binding {
 
 bool RunDecodeLatin1(Environment* env,
                      Local<Value> args[],
+                     bool ignore_bom,
+                     bool has_fatal,
                      Local<Value>* result) {
   Isolate* isolate = env->isolate();
   TryCatch try_catch(isolate);
 
-  BindingData::DecodeLatin1(FunctionCallbackInfo<Value>(args));
+  Local<Boolean> ignoreBOMValue = Boolean::New(isolate, ignore_bom);
+  Local<Boolean> fatalValue = Boolean::New(isolate, has_fatal);
+
+  Local<Value> updatedArgs[] = {args[0], ignoreBOMValue, fatalValue};
+
+  BindingData::DecodeLatin1(FunctionCallbackInfo<Value>(updatedArgs));
 
   if (try_catch.HasCaught()) {
     return false;
@@ -38,7 +45,7 @@ TEST_F(EncodingBindingTest, DecodeLatin1_ValidInput) {
   Local<Value> args[] = {array};
 
   Local<Value> result;
-  EXPECT_TRUE(RunDecodeLatin1(env, args, &result));
+  EXPECT_TRUE(RunDecodeLatin1(env, args, false, false, &result));
 
   String::Utf8Value utf8_result(isolate, result);
   EXPECT_STREQ(*utf8_result, "Áéó");
@@ -54,7 +61,7 @@ TEST_F(EncodingBindingTest, DecodeLatin1_EmptyInput) {
   Local<Value> args[] = {array};
 
   Local<Value> result;
-  EXPECT_TRUE(RunDecodeLatin1(env, args, &result));
+  EXPECT_TRUE(RunDecodeLatin1(env, args, false, false, &result));
 
   String::Utf8Value utf8_result(isolate, result);
   EXPECT_STREQ(*utf8_result, "");
@@ -68,7 +75,61 @@ TEST_F(EncodingBindingTest, DecodeLatin1_InvalidInput) {
   Local<Value> args[] = {String::NewFromUtf8Literal(isolate, "Invalid input")};
 
   Local<Value> result;
-  EXPECT_FALSE(RunDecodeLatin1(env, args, &result));
+  EXPECT_FALSE(RunDecodeLatin1(env, args, false, false, &result));
+}
+
+TEST_F(EncodingBindingTest, DecodeLatin1_IgnoreBOM) {
+  Environment* env = CreateEnvironment();
+  Isolate* isolate = env->isolate();
+  HandleScope handle_scope(isolate);
+
+  const uint8_t latin1_data[] = {0xFE, 0xFF, 0xC1, 0xE9, 0xF3};
+  Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, sizeof(latin1_data));
+  memcpy(ab->GetBackingStore()->Data(), latin1_data, sizeof(latin1_data));
+
+  Local<Uint8Array> array = Uint8Array::New(ab, 0, sizeof(latin1_data));
+  Local<Value> args[] = {array};
+
+  Local<Value> result;
+  EXPECT_TRUE(RunDecodeLatin1(env, args, true, false, &result));
+
+  String::Utf8Value utf8_result(isolate, result);
+  EXPECT_STREQ(*utf8_result, "Áéó");
+}
+
+TEST_F(EncodingBindingTest, DecodeLatin1_FatalInvalidInput) {
+  Environment* env = CreateEnvironment();
+  Isolate* isolate = env->isolate();
+  HandleScope handle_scope(isolate);
+
+  const uint8_t invalid_data[] = {0xFF, 0xFF, 0xFF};
+  Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, sizeof(invalid_data));
+  memcpy(ab->GetBackingStore()->Data(), invalid_data, sizeof(invalid_data));
+
+  Local<Uint8Array> array = Uint8Array::New(ab, 0, sizeof(invalid_data));
+  Local<Value> args[] = {array};
+
+  Local<Value> result;
+  EXPECT_FALSE(RunDecodeLatin1(env, args, false, true, &result));
+}
+
+TEST_F(EncodingBindingTest, DecodeLatin1_IgnoreBOMAndFatal) {
+  Environment* env = CreateEnvironment();
+  Isolate* isolate = env->isolate();
+  HandleScope handle_scope(isolate);
+
+  const uint8_t latin1_data[] = {0xFE, 0xFF, 0xC1, 0xE9, 0xF3};
+  Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, sizeof(latin1_data));
+  memcpy(ab->GetBackingStore()->Data(), latin1_data, sizeof(latin1_data));
+
+  Local<Uint8Array> array = Uint8Array::New(ab, 0, sizeof(latin1_data));
+  Local<Value> args[] = {array};
+
+  Local<Value> result;
+  EXPECT_TRUE(RunDecodeLatin1(env, args, true, true, &result));
+
+  String::Utf8Value utf8_result(isolate, result);
+  EXPECT_STREQ(*utf8_result, "Áéó");
 }
 
 }  // namespace encoding_binding
