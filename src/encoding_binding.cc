@@ -260,9 +260,17 @@ void BindingData::DecodeLatin1(const FunctionCallbackInfo<Value>& args) {
         "SharedArrayBuffer, or ArrayBufferView.");
   }
 
+  bool ignore_bom = args[1]->IsTrue();
+  bool has_fatal = args[2]->IsTrue();
+
   ArrayBufferViewContents<uint8_t> buffer(args[0]);
   const uint8_t* data = buffer.data();
   size_t length = buffer.length();
+
+  if (ignore_bom && length > 0 && data[0] == 0xFEFF) {
+    data++;
+    length--;
+  }
 
   if (length == 0) {
     return args.GetReturnValue().SetEmptyString();
@@ -273,7 +281,7 @@ void BindingData::DecodeLatin1(const FunctionCallbackInfo<Value>& args) {
   size_t written = simdutf::convert_latin1_to_utf8(
       reinterpret_cast<const char*>(data), length, &result[0]);
 
-  if (written == 0) {
+  if (has_fatal && written == 0) {
     return node::THROW_ERR_ENCODING_INVALID_ENCODED_DATA(
         env->isolate(), "The encoded data was not valid for encoding latin1");
   }
