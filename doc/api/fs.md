@@ -7528,6 +7528,24 @@ fs.statfs('.', (err, stats) => {
 });
 ```
 
+Example:
+```mjs
+const fs = require('fs');
+
+// Specify the path you want to check (like '/' or 'C:/').
+fs.statfs('.', (err, stats) => {
+  if (err) {
+    console.error('Error reading file system stats:', err);
+    return;
+  }
+
+  // Calculate available space in bytes
+  const availableSpace = stats.bavail * stats.bsize;
+
+  console.log(`Available space for unprivileged users: ${availableSpace} bytes`);
+});
+```
+
 #### `statfs.bfree`
 
 <!-- YAML
@@ -7598,7 +7616,7 @@ added:
 
 * {number|bigint}
 
-Optimal transfer block size(this value is in bytes for POSIX-compliant or UNIX-like Operating Systems including but not limited to Windows, Linux, MacOS, FreeBSD, OpenBSD, NetBSD, Solaris/Illumos etc).
+Optimal transfer block size (measured in bytes)
 
 #### `statfs.ffree`
 
@@ -7652,10 +7670,7 @@ added:
 
 * {number|bigint}
 
-Type of file system.
-This value is the decimal representation of the magic number* of the filesystem. Converting this number|bigint to hexadecimal will return the magic number.
-
-*magic number- refers to the hexadecimal numeric coding mapped to each filesystem.
+Type of file system, represented by the decimal form of the file's magic number.
 
 Here are some common filesystems and their magic numbers:
 <table>
