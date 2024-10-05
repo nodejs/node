@@ -7512,7 +7512,9 @@ Free blocks available to unprivileged users.
 
 Example:
 ```js
+  const fs = require('fs');
   // Calculate available space in bytes
+  fs.statfs('.', (err,stats) => {
   const availableSpace = stats.bavail * stats.bsize;
 
   console.log(`Available space for unprivileged users: ${availableSpace} bytes`);
@@ -7533,7 +7535,9 @@ Free blocks in file system.
 
 Example:
 ```js
+  const fs = require('fs');
   // Calculate total free space in bytes using bfree and bsize
+  fs.statfs('.', (err,stats) => {
   const totalFreeSpace = stats.bfree * stats.bsize;
 
   console.log(`Total free space (including reserved blocks): ${totalFreeSpace} bytes`);
@@ -7554,7 +7558,9 @@ Total data blocks in file system.
 
 Example:
 ```js
+  const fs = require('fs');
   // Get the total number of blocks
+  fs.statfs('.', (err,stats) => {
   const totalBlocks = stats.blocks;
 
   console.log(`Total number of blocks on the filesystem: ${totalBlocks}`);
@@ -7599,6 +7605,8 @@ Total file nodes in file system.
 
 Example:
 ```js
+  const fs = require('fs');
+  fs.statfs('.', (err, stats) => {
   // Calculate total free space in bytes using bfree and bsize
   const totalFreeSpace = stats.bfree * stats.bsize;
 
