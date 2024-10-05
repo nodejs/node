@@ -353,6 +353,34 @@ test('execute a TypeScript test mocking module', { skip: isWindows && process.ar
   strictEqual(result.code, 0);
 });
 
+test('expect process.features.typescript to be \'strip\' when --experimental-strip-types', async () => {
+  const result = await spawnPromisified(process.execPath, [
+    '--no-warnings',
+    '--experimental-strip-types',
+    '-p', 'process.features.typescript',
+  ]);
+
+  strictEqual(result.stderr, '');
+  strictEqual(result.stdout, 'strip\n');
+  strictEqual(result.code, 0);
+});
+
+test('expect process.features.typescript to be \'transform\' when --experimental-transform-types', async () => {
+  const result = await spawnPromisified(process.execPath, [
+    '--no-warnings',
+    '--experimental-transform-types',
+    '-p', 'process.features.typescript',
+  ]);
+
+  strictEqual(result.stderr, '');
+  strictEqual(result.stdout, 'transform\n');
+  strictEqual(result.code, 0);
+});
+
+test('expect process.features.typescript to be false without type-stripping', async () => {
+  strictEqual(process.features.typescript, false);
+});
+
 test('execute a TypeScript file with union types', async () => {
   const result = await spawnPromisified(process.execPath, [
     '--experimental-strip-types',
