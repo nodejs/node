@@ -286,8 +286,6 @@ void BindingData::DecodeLatin1(const FunctionCallbackInfo<Value>& args) {
         env->isolate(), "The encoded data was not valid for encoding latin1");
   }
 
-  result.resize(written);
-
   Local<Object> buffer_result =
       node::Buffer::Copy(env, result.c_str(), written).ToLocalChecked();
   args.GetReturnValue().Set(buffer_result);
