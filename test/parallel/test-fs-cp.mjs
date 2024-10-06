@@ -25,7 +25,7 @@ tmpdir.refresh();
 
 let dirc = 0;
 function nextdir(dirname) {
-  return tmpdir.resolve(dirname || `copy_${++dirc}`);
+  return tmpdir.resolve(dirname || `copy_%${++dirc}`);
 }
 
 // Synchronous implementation of copy.
