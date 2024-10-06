@@ -18,8 +18,11 @@ using v8::Array;
 using v8::ArrayBuffer;
 using v8::BigInt;
 using v8::Boolean;
+using v8::ConstructorBehavior;
 using v8::Context;
+using v8::DontDelete;
 using v8::Exception;
+using v8::FunctionCallback;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::Integer;
@@ -31,6 +34,7 @@ using v8::Name;
 using v8::Null;
 using v8::Number;
 using v8::Object;
+using v8::SideEffectType;
 using v8::String;
 using v8::Uint8Array;
 using v8::Value;
@@ -643,7 +647,7 @@ void StatementSync::Run(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(result);
 }
 
-void StatementSync::SourceSQL(const FunctionCallbackInfo<Value>& args) {
+void StatementSync::SourceSQLGetter(const FunctionCallbackInfo<Value>& args) {
   StatementSync* stmt;
   ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
   Environment* env = Environment::GetCurrent(args);
@@ -657,7 +661,7 @@ void StatementSync::SourceSQL(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(sql);
 }
 
-void StatementSync::ExpandedSQL(const FunctionCallbackInfo<Value>& args) {
+void StatementSync::ExpandedSQLGetter(const FunctionCallbackInfo<Value>& args) {
   StatementSync* stmt;
   ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
   Environment* env = Environment::GetCurrent(args);
@@ -717,6 +721,23 @@ void IllegalConstructor(const FunctionCallbackInfo<Value>& args) {
   node::THROW_ERR_ILLEGAL_CONSTRUCTOR(Environment::GetCurrent(args));
 }
 
+static inline void SetSideEffectFreeGetter(
+    Isolate* isolate,
+    Local<FunctionTemplate> class_template,
+    Local<String> name,
+    FunctionCallback fn) {
+  Local<FunctionTemplate> getter =
+      FunctionTemplate::New(isolate,
+                            fn,
+                            Local<Value>(),
+                            v8::Signature::New(isolate, class_template),
+                            /* length */ 0,
+                            ConstructorBehavior::kThrow,
+                            SideEffectType::kHasNoSideEffect);
+  class_template->InstanceTemplate()->SetAccessorProperty(
+      name, getter, Local<FunctionTemplate>(), DontDelete);
+}
+
 Local<FunctionTemplate> StatementSync::GetConstructorTemplate(
     Environment* env) {
   Local<FunctionTemplate> tmpl =
@@ -730,8 +751,14 @@ Local<FunctionTemplate> StatementSync::GetConstructorTemplate(
     SetProtoMethod(isolate, tmpl, "all", StatementSync::All);
     SetProtoMethod(isolate, tmpl, "get", StatementSync::Get);
     SetProtoMethod(isolate, tmpl, "run", StatementSync::Run);
-    SetProtoMethod(isolate, tmpl, "sourceSQL", StatementSync::SourceSQL);
-    SetProtoMethod(isolate, tmpl, "expandedSQL", StatementSync::ExpandedSQL);
+    SetSideEffectFreeGetter(isolate,
+                            tmpl,
+                            FIXED_ONE_BYTE_STRING(isolate, "sourceSQL"),
+                            StatementSync::SourceSQLGetter);
+    SetSideEffectFreeGetter(isolate,
+                            tmpl,
+                            FIXED_ONE_BYTE_STRING(isolate, "expandedSQL"),
+                            StatementSync::ExpandedSQLGetter);
     SetProtoMethod(isolate,
                    tmpl,
                    "setAllowBareNamedParameters",
