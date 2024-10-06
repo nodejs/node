@@ -50,6 +50,42 @@ suite('DatabaseSync() constructor', () => {
       message: /The "options\.open" argument must be a boolean/,
     });
   });
+
+  test('throws if options.enableForeignKeyConstraints is provided but is not a boolean', (t) => {
+    t.assert.throws(() => {
+      new DatabaseSync('foo', { enableForeignKeyConstraints: 5 });
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /The "options\.enableForeignKeyConstraints" argument must be a boolean/,
+    });
+  });
+
+  test('enables foreign key constraints by default', (t) => {
+    const dbPath = nextDb();
+    const db = new DatabaseSync(dbPath);
+    db.exec(`
+      CREATE TABLE foo (id INTEGER PRIMARY KEY);
+      CREATE TABLE bar (foo_id INTEGER REFERENCES foo(id));
+    `);
+    t.after(() => { db.close(); });
+    t.assert.throws(() => {
+      db.exec('INSERT INTO bar (foo_id) VALUES (1)');
+    }, {
+      code: 'ERR_SQLITE_ERROR',
+      message: 'FOREIGN KEY constraint failed',
+    });
+  });
+
+  test('allows disabling foreign key constraints', (t) => {
+    const dbPath = nextDb();
+    const db = new DatabaseSync(dbPath, { enableForeignKeyConstraints: false });
+    db.exec(`
+      CREATE TABLE foo (id INTEGER PRIMARY KEY);
+      CREATE TABLE bar (foo_id INTEGER REFERENCES foo(id));
+    `);
+    t.after(() => { db.close(); });
+    db.exec('INSERT INTO bar (foo_id) VALUES (1)');
+  });
 });
 
 suite('DatabaseSync.prototype.open()', () => {
