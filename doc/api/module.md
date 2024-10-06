@@ -229,7 +229,7 @@ added: REPLACEME
 * `everything` {boolean} Whether to return the full contents of the found package.json
 * Returns: {Object | undefined}
   * data: {Object}
-    * name: {string}
+    * name: {string | undefined}
     * type: {string | undefined}
     * exports: string | string\[] | Record\<string, unknown> | undefined
     * imports: string | string\[] | Record\<string, unknown> | undefined

@@ -1,6 +1,6 @@
 export type PackageType = 'commonjs' | 'module' | 'none'
 export type RecognizedPackageConfig = {
-  name: string
+  name?: string
   main?: any
   type: PackageType
   exports?: string | string[] | Record<string, unknown>
