@@ -21,7 +21,8 @@ class DatabaseSync : public BaseObject {
   DatabaseSync(Environment* env,
                v8::Local<v8::Object> object,
                v8::Local<v8::String> location,
-               bool open);
+               bool open,
+               bool enable_foreign_keys_on_open);
   void MemoryInfo(MemoryTracker* tracker) const override;
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Open(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -43,6 +44,7 @@ class DatabaseSync : public BaseObject {
   std::string location_;
   sqlite3* connection_;
   std::unordered_set<StatementSync*> statements_;
+  bool enable_foreign_keys_on_open_;
 };
 
 class StatementSync : public BaseObject {
@@ -60,8 +62,9 @@ class StatementSync : public BaseObject {
   static void All(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Get(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Run(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void SourceSQL(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void ExpandedSQL(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SourceSQLGetter(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ExpandedSQLGetter(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetAllowBareNamedParameters(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetReadBigInts(const v8::FunctionCallbackInfo<v8::Value>& args);

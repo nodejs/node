@@ -107,6 +107,11 @@ added: v22.5.0
   * `open` {boolean} If `true`, the database is opened by the constructor. When
     this value is `false`, the database must be opened via the `open()` method.
     **Default:** `true`.
+  * `enableForeignKeyConstraints` {boolean} If `true`, foreign key constraints
+    are enabled. This is recommended but can be disabled for compatibility with
+    legacy database schemas. The enforcement of foreign key constraints can be
+    enabled and disabled after opening the database using
+    [`PRAGMA foreign_keys`][]. **Default:** `true`.
 
 Constructs a new `DatabaseSync` instance.
 
@@ -189,17 +194,17 @@ objects. If the prepared statement does not return any results, this method
 returns an empty array. The prepared statement [parameters are bound][] using
 the values in `namedParameters` and `anonymousParameters`.
 
-### `statement.expandedSQL()`
+### `statement.expandedSQL`
 
 <!-- YAML
 added: v22.5.0
 -->
 
-* Returns: {string} The source SQL expanded to include parameter values.
+* {string} The source SQL expanded to include parameter values.
 
-This method returns the source SQL of the prepared statement with parameter
+The source SQL text of the prepared statement with parameter
 placeholders replaced by the values that were used during the most recent
-execution of this prepared statement. This method is a wrapper around
+execution of this prepared statement. This property is a wrapper around
 [`sqlite3_expanded_sql()`][].
 
 ### `statement.get([namedParameters][, ...anonymousParameters])`
@@ -288,15 +293,15 @@ be used to read `INTEGER` data using JavaScript `BigInt`s. This method has no
 impact on database write operations where numbers and `BigInt`s are both
 supported at all times.
 
-### `statement.sourceSQL()`
+### `statement.sourceSQL`
 
 <!-- YAML
 added: v22.5.0
 -->
 
-* Returns: {string} The source SQL used to create this prepared statement.
+* {string} The source SQL used to create this prepared statement.
 
-This method returns the source SQL of the prepared statement. This method is a
+The source SQL text of the prepared statement. This property is a
 wrapper around [`sqlite3_sql()`][].
 
 ### Type conversion between JavaScript and SQLite
@@ -317,6 +322,7 @@ exception.
 
 [SQL injection]: https://en.wikipedia.org/wiki/SQL_injection
 [`--experimental-sqlite`]: cli.md#--experimental-sqlite
+[`PRAGMA foreign_keys`]: https://www.sqlite.org/pragma.html#pragma_foreign_keys
 [`sqlite3_changes64()`]: https://www.sqlite.org/c3ref/changes.html
 [`sqlite3_close_v2()`]: https://www.sqlite.org/c3ref/close.html
 [`sqlite3_exec()`]: https://www.sqlite.org/c3ref/exec.html
