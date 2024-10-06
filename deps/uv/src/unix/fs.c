@@ -461,7 +461,12 @@ static ssize_t uv__pwritev_emul(int fd,
 
 /* The function pointer cache is an uintptr_t because _Atomic void*
  * doesn't work on macos/ios/etc...
+ * Disable optimization on armv7 to work around the bug described in
+ * https://github.com/libuv/libuv/issues/4532
  */
+#if defined(__arm__) && (__ARM_ARCH == 7)
+__attribute__((optimize("O0")))
+#endif
 static ssize_t uv__preadv_or_pwritev(int fd,
                                      const struct iovec* bufs,
                                      size_t nbufs,

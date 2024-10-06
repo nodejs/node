@@ -1651,12 +1651,12 @@ void fs__readdir(uv_fs_t* req) {
       goto error;
 
     /* Copy file type. */
-    if ((find_data->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0)
-      dent.d_type = UV__DT_DIR;
+    if ((find_data->dwFileAttributes & FILE_ATTRIBUTE_DEVICE) != 0)
+      dent.d_type = UV__DT_CHAR;
     else if ((find_data->dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0)
       dent.d_type = UV__DT_LINK;
-    else if ((find_data->dwFileAttributes & FILE_ATTRIBUTE_DEVICE) != 0)
-      dent.d_type = UV__DT_CHAR;
+    else if ((find_data->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0)
+      dent.d_type = UV__DT_DIR;
     else
       dent.d_type = UV__DT_FILE;
 

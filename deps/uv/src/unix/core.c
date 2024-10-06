@@ -1882,13 +1882,13 @@ int uv__search_path(const char* prog, char* buf, size_t* buflen) {
 #if defined(__linux__) || defined (__FreeBSD__)
 # define uv__cpu_count(cpuset) CPU_COUNT(cpuset)
 #elif defined(__NetBSD__)
-static int uv__cpu_count(cpuset_t *cpuset) {
+static int uv__cpu_count(cpuset_t* set) {
   int rc;
   cpuid_t i;
 
   rc = 0;
   for (i = 0;; i++) {
-    int r = cpuset_isset(cpu, set);
+    int r = cpuset_isset(i, set);
     if (r < 0)
       break;
     if (r)
