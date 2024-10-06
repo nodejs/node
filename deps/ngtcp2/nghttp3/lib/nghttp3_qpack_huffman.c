@@ -78,7 +78,7 @@ uint8_t *nghttp3_qpack_huffman_encode(uint8_t *dest, const uint8_t *src,
 }
 
 void nghttp3_qpack_huffman_decode_context_init(
-    nghttp3_qpack_huffman_decode_context *ctx) {
+  nghttp3_qpack_huffman_decode_context *ctx) {
   ctx->fstate = NGHTTP3_QPACK_HUFFMAN_ACCEPTED;
 }
 
@@ -119,6 +119,6 @@ nghttp3_qpack_huffman_decode(nghttp3_qpack_huffman_decode_context *ctx,
 }
 
 int nghttp3_qpack_huffman_decode_failure_state(
-    nghttp3_qpack_huffman_decode_context *ctx) {
+  nghttp3_qpack_huffman_decode_context *ctx) {
   return ctx->fstate == 0x100;
 }

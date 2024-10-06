@@ -29,7 +29,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <nghttp3/nghttp3.h>
 
@@ -134,4 +134,4 @@ void nghttp3_pq_remove(nghttp3_pq *pq, nghttp3_pq_entry *item);
  */
 void nghttp3_pq_clear(nghttp3_pq *pq);
 
-#endif /* NGHTTP3_PQ_H */
+#endif /* !defined(NGHTTP3_PQ_H) */

@@ -29,7 +29,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <nghttp3/nghttp3.h>
 
@@ -40,7 +40,6 @@
 typedef uint64_t nghttp3_map_key_type;
 
 typedef struct nghttp3_map_bucket {
-  uint32_t hash;
   uint32_t psl;
   nghttp3_map_key_type key;
   void *data;
@@ -50,7 +49,7 @@ typedef struct nghttp3_map {
   nghttp3_map_bucket *table;
   const nghttp3_mem *mem;
   size_t size;
-  size_t tablelenbits;
+  size_t hashbits;
 } nghttp3_map;
 
 /*
@@ -125,6 +124,6 @@ int nghttp3_map_each(const nghttp3_map *map, int (*func)(void *data, void *ptr),
 
 #ifndef WIN32
 void nghttp3_map_print_distance(const nghttp3_map *map);
-#endif /* !WIN32 */
+#endif /* !defined(WIN32) */
 
-#endif /* NGHTTP3_MAP_H */
+#endif /* !defined(NGHTTP3_MAP_H) */

@@ -28,7 +28,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <stddef.h>
 
@@ -71,4 +71,4 @@ nghttp3_min_def(uint32, uint32_t);
 nghttp3_min_def(uint64, uint64_t);
 nghttp3_min_def(size, size_t);
 
-#endif /* NGHTTP3_MACRO_H */
+#endif /* !defined(NGHTTP3_MACRO_H) */

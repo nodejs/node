@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <nghttp3/nghttp3.h>
 
@@ -282,7 +282,8 @@ void nghttp3_varint_read_state_reset(nghttp3_varint_read_state *rvint);
 void nghttp3_stream_read_state_reset(nghttp3_stream_read_state *rstate);
 
 nghttp3_ssize nghttp3_read_varint(nghttp3_varint_read_state *rvint,
-                                  const uint8_t *src, size_t srclen, int fin);
+                                  const uint8_t *begin, const uint8_t *end,
+                                  int fin);
 
 int nghttp3_stream_frq_add(nghttp3_stream *stream,
                            const nghttp3_frame_entry *frent);
@@ -393,4 +394,4 @@ int nghttp3_client_stream_uni(int64_t stream_id);
  */
 int nghttp3_server_stream_uni(int64_t stream_id);
 
-#endif /* NGHTTP3_STREAM_H */
+#endif /* !defined(NGHTTP3_STREAM_H) */

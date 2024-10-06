@@ -28,7 +28,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <nghttp3/nghttp3.h>
 
@@ -96,4 +96,4 @@ int nghttp3_gaptr_is_pushed(nghttp3_gaptr *gaptr, uint64_t offset,
  */
 void nghttp3_gaptr_drop_first_gap(nghttp3_gaptr *gaptr);
 
-#endif /* NGHTTP3_GAPTR_H */
+#endif /* !defined(NGHTTP3_GAPTR_H) */

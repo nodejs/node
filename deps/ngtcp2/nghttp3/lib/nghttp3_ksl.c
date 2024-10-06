@@ -114,7 +114,7 @@ static void ksl_free_blk(nghttp3_ksl *ksl, nghttp3_ksl_blk *blk) {
 
   ksl_blk_objalloc_del(ksl, blk);
 }
-#endif /* NOMEMPOOL */
+#endif /* defined(NOMEMPOOL) */
 
 void nghttp3_ksl_free(nghttp3_ksl *ksl) {
   if (!ksl || !ksl->head) {
@@ -123,7 +123,7 @@ void nghttp3_ksl_free(nghttp3_ksl *ksl) {
 
 #ifdef NOMEMPOOL
   ksl_free_blk(ksl, ksl->head);
-#endif /* NOMEMPOOL */
+#endif /* defined(NOMEMPOOL) */
 
   nghttp3_objalloc_free(&ksl->blkalloc);
 }
@@ -732,7 +732,7 @@ void nghttp3_ksl_clear(nghttp3_ksl *ksl) {
 
 #ifdef NOMEMPOOL
   ksl_free_blk(ksl, ksl->head);
-#endif /* NOMEMPOOL */
+#endif /* defined(NOMEMPOOL) */
 
   ksl->front = ksl->back = ksl->head = NULL;
   ksl->n = 0;
@@ -771,7 +771,7 @@ void nghttp3_ksl_print(const nghttp3_ksl *ksl) {
 
   ksl_print(ksl, ksl->head, 0);
 }
-#endif /* !WIN32 */
+#endif /* !defined(WIN32) */
 
 nghttp3_ksl_it nghttp3_ksl_begin(const nghttp3_ksl *ksl) {
   nghttp3_ksl_it it;

@@ -73,8 +73,8 @@ int nghttp3_tnode_schedule(nghttp3_tnode *tnode, nghttp3_pq *pq,
 
   if (tnode->pe.index == NGHTTP3_PQ_BAD_INDEX) {
     tnode->cycle =
-        pq_get_first_cycle(pq) +
-        ((nwrite == 0 || !tnode->pri.inc) ? 0 : nghttp3_max_uint64(1, penalty));
+      pq_get_first_cycle(pq) +
+      ((nwrite == 0 || !tnode->pri.inc) ? 0 : nghttp3_max_uint64(1, penalty));
   } else if (nwrite > 0) {
     if (!tnode->pri.inc || nghttp3_pq_size(pq) == 1) {
       return 0;

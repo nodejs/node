@@ -28,7 +28,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <nghttp3/nghttp3.h>
 
@@ -92,4 +92,4 @@ int nghttp3_balloc_get(nghttp3_balloc *balloc, void **pbuf, size_t n);
  */
 void nghttp3_balloc_clear(nghttp3_balloc *balloc);
 
-#endif /* NGHTTP3_BALLOC_H */
+#endif /* !defined(NGHTTP3_BALLOC_H) */

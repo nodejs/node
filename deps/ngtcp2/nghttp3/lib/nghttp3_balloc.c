@@ -76,10 +76,10 @@ int nghttp3_balloc_get(nghttp3_balloc *balloc, void **pbuf, size_t n) {
     hd->next = balloc->head;
     balloc->head = hd;
     nghttp3_buf_wrap_init(
-        &balloc->buf,
-        (uint8_t *)(((uintptr_t)p + sizeof(nghttp3_memblock_hd) + 0xfu) &
-                    ~(uintptr_t)0xfu),
-        balloc->blklen);
+      &balloc->buf,
+      (uint8_t *)(((uintptr_t)p + sizeof(nghttp3_memblock_hd) + 0xfu) &
+                  ~(uintptr_t)0xfu),
+      balloc->blklen);
   }
 
   assert(((uintptr_t)balloc->buf.last & 0xfu) == 0);

@@ -28,7 +28,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <stdlib.h>
 
@@ -273,7 +273,7 @@ void nghttp3_ksl_clear(nghttp3_ksl *ksl);
  * the debugging purpose only.
  */
 void nghttp3_ksl_print(const nghttp3_ksl *ksl);
-#endif /* !WIN32 */
+#endif /* !defined(WIN32) */
 
 /*
  * nghttp3_ksl_it_init initializes |it|.
@@ -296,8 +296,8 @@ void nghttp3_ksl_it_init(nghttp3_ksl_it *it, const nghttp3_ksl *ksl,
  */
 #define nghttp3_ksl_it_next(IT)                                                \
   (++(IT)->i == (IT)->blk->n && (IT)->blk->next                                \
-       ? ((IT)->blk = (IT)->blk->next, (IT)->i = 0)                            \
-       : 0)
+     ? ((IT)->blk = (IT)->blk->next, (IT)->i = 0)                              \
+     : 0)
 
 /*
  * nghttp3_ksl_it_prev moves backward the iterator by one.  It is
@@ -348,4 +348,4 @@ int nghttp3_ksl_range_compar(const nghttp3_ksl_key *lhs,
 int nghttp3_ksl_range_exclusive_compar(const nghttp3_ksl_key *lhs,
                                        const nghttp3_ksl_key *rhs);
 
-#endif /* NGHTTP3_KSL_H */
+#endif /* !defined(NGHTTP3_KSL_H) */
