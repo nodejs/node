@@ -80,4 +80,18 @@ describe('Coverage with source maps', async () => {
     t.assert.ok(spawned.stdout.includes(error));
     t.assert.strictEqual(spawned.code, 1);
   });
+
+  for (const [file, message] of [
+    [fixtures.path('test-runner', 'source-maps', 'invalid-json', 'index.js'), 'is not valid JSON'],
+    [fixtures.path('test-runner', 'source-maps', 'missing-map.js'), 'does not exist'],
+  ]) {
+    await it(`should throw when a source map ${message}`, async (t) => {
+      const spawned = await common.spawnPromisified(process.execPath, [...flags, file]);
+
+      const error = `The source map for '${pathToFileURL(file)}' does not exist or is corrupt`;
+      t.assert.strictEqual(spawned.stderr, '');
+      t.assert.ok(spawned.stdout.includes(error));
+      t.assert.strictEqual(spawned.code, 1);
+    });
+  }
 }).then(common.mustCall());

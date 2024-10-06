@@ -2568,6 +2568,12 @@ disconnected socket.
 
 A call was made and the UDP subsystem was not running.
 
+<a id="ERR_SOURCE_MAP_CORRUPT"></a>
+
+### `ERR_SOURCE_MAP_CORRUPT`
+
+The source map could not be parsed because it does not exist, or is corrupt.
+
 <a id="ERR_SOURCE_MAP_MISSING_SOURCE"></a>
 
 ### `ERR_SOURCE_MAP_MISSING_SOURCE`
