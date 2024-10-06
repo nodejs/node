@@ -62,8 +62,9 @@ class StatementSync : public BaseObject {
   static void All(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Get(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Run(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void SourceSQL(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void ExpandedSQL(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SourceSQLGetter(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ExpandedSQLGetter(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetAllowBareNamedParameters(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetReadBigInts(const v8::FunctionCallbackInfo<v8::Value>& args);
