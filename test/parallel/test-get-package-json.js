@@ -104,3 +104,36 @@ const pkgType = 'module'; // a non-default value
     },
   });
 }
+
+{ // Throws on unresolved location
+  let err;
+  try {
+    getPackageJSON('..');
+  } catch (e) {
+    err = e;
+  }
+
+  assert.strictEqual(err.code, 'ERR_INVALID_ARG_VALUE');
+  assert.match(err.message, /fully resolved/);
+  assert.match(err.message, /relative/);
+  assert.match(err.message, /import\.meta\.resolve/);
+  assert.match(err.message, /path\.resolve\(__dirname/);
+}
+
+{ // Can crawl up (CJS)
+  const pathToMod = fixtures.path('packages/nested/sub-pkg-cjs/index.js');
+  const parentPkg = require(pathToMod);
+
+  assert.strictEqual(parentPkg.data.name, 'package-with-sub-package');
+  const pathToParent = fixtures.path('packages/nested/package.json');
+  assert.strictEqual(parentPkg.path, pathToParent);
+}
+
+{ // Can crawl up (ESM)
+  const pathToMod = fixtures.path('packages/nested/sub-pkg-mjs/index.js');
+  const parentPkg = require(pathToMod).default;
+
+  assert.strictEqual(parentPkg.data.name, 'package-with-sub-package');
+  const pathToParent = fixtures.path('packages/nested/package.json');
+  assert.strictEqual(parentPkg.path, pathToParent);
+}
