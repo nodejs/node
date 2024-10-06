@@ -596,9 +596,6 @@ Using the method and parameters specified in `algorithm` and the keying
 material provided by `baseKey`, `subtle.deriveBits()` attempts to generate
 `length` bits.
 
-The Node.js implementation requires that `length`, when a number, is a multiple
-of `8`.
-
 When `length` is not provided or `null` the maximum number of bits for a given
 algorithm is generated. This is allowed for the `'ECDH'`, `'X25519'`, and `'X448'`
 algorithms, for other algorithms `length` is required to be a number.
