@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <ngtcp2/ngtcp2.h>
 
@@ -77,4 +77,4 @@ void ngtcp2_range_cut(ngtcp2_range *left, ngtcp2_range *right,
  */
 int ngtcp2_range_not_after(const ngtcp2_range *a, const ngtcp2_range *b);
 
-#endif /* NGTCP2_RANGE_H */
+#endif /* !defined(NGTCP2_RANGE_H) */

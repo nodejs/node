@@ -57,7 +57,7 @@ int ngtcp2_idtr_open(ngtcp2_idtr *idtr, int64_t stream_id) {
   return ngtcp2_gaptr_push(&idtr->gap, q, 1);
 }
 
-int ngtcp2_idtr_is_open(ngtcp2_idtr *idtr, int64_t stream_id) {
+int ngtcp2_idtr_is_open(const ngtcp2_idtr *idtr, int64_t stream_id) {
   uint64_t q;
 
   q = id_from_stream_id(stream_id);

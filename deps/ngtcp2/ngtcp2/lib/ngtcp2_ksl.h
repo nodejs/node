@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <stdlib.h>
 
@@ -272,7 +272,7 @@ void ngtcp2_ksl_clear(ngtcp2_ksl *ksl);
  * the debugging purpose only.
  */
 void ngtcp2_ksl_print(const ngtcp2_ksl *ksl);
-#endif /* !WIN32 */
+#endif /* !defined(WIN32) */
 
 /*
  * ngtcp2_ksl_it_init initializes |it|.
@@ -295,8 +295,8 @@ void ngtcp2_ksl_it_init(ngtcp2_ksl_it *it, const ngtcp2_ksl *ksl,
  */
 #define ngtcp2_ksl_it_next(IT)                                                 \
   (++(IT)->i == (IT)->blk->n && (IT)->blk->next                                \
-       ? ((IT)->blk = (IT)->blk->next, (IT)->i = 0)                            \
-       : 0)
+     ? ((IT)->blk = (IT)->blk->next, (IT)->i = 0)                              \
+     : 0)
 
 /*
  * ngtcp2_ksl_it_prev moves backward the iterator by one.  It is
@@ -346,4 +346,4 @@ int ngtcp2_ksl_range_compar(const ngtcp2_ksl_key *lhs,
 int ngtcp2_ksl_range_exclusive_compar(const ngtcp2_ksl_key *lhs,
                                       const ngtcp2_ksl_key *rhs);
 
-#endif /* NGTCP2_KSL_H */
+#endif /* !defined(NGTCP2_KSL_H) */

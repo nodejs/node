@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <ngtcp2/ngtcp2.h>
 
@@ -108,13 +108,13 @@ ngtcp2_ssize ngtcp2_ppe_final(ngtcp2_ppe *ppe, const uint8_t **ppkt);
  * ngtcp2_ppe_left returns the number of bytes left to write
  * additional frames.  This does not count AEAD overhead.
  */
-size_t ngtcp2_ppe_left(ngtcp2_ppe *ppe);
+size_t ngtcp2_ppe_left(const ngtcp2_ppe *ppe);
 
 /*
  * ngtcp2_ppe_pktlen returns the provisional packet length.  It
  * includes AEAD overhead.
  */
-size_t ngtcp2_ppe_pktlen(ngtcp2_ppe *ppe);
+size_t ngtcp2_ppe_pktlen(const ngtcp2_ppe *ppe);
 
 /*
  * ngtcp2_ppe_dgram_padding is equivalent to call
@@ -166,4 +166,4 @@ size_t ngtcp2_ppe_padding_size(ngtcp2_ppe *ppe, size_t n);
  */
 int ngtcp2_ppe_ensure_hp_sample(ngtcp2_ppe *ppe);
 
-#endif /* NGTCP2_PPE_H */
+#endif /* !defined(NGTCP2_PPE_H) */

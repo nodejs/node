@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <ngtcp2/ngtcp2.h>
 
@@ -73,15 +73,6 @@ typedef enum {
    data which is not continuous.  In other words, there is a gap of
    unreceived data. */
 #define NGTCP2_MAX_REORDERED_CRYPTO_DATA 65536
-
-/* NGTCP2_MAX_RX_INITIAL_CRYPTO_DATA is the maximum offset of received
-   crypto stream in Initial packet.  We set this hard limit here
-   because crypto stream is unbounded. */
-#define NGTCP2_MAX_RX_INITIAL_CRYPTO_DATA 65536
-/* NGTCP2_MAX_RX_HANDSHAKE_CRYPTO_DATA is the maximum offset of
-   received crypto stream in Handshake packet.  We set this hard limit
-   here because crypto stream is unbounded. */
-#define NGTCP2_MAX_RX_HANDSHAKE_CRYPTO_DATA 65536
 
 /* NGTCP2_MAX_RETRIES is the number of Retry packet which client can
    accept. */
@@ -322,6 +313,7 @@ typedef struct ngtcp2_pktns {
 
   ngtcp2_acktr acktr;
   ngtcp2_rtb rtb;
+  ngtcp2_pktns_id id;
 } ngtcp2_pktns;
 
 typedef enum ngtcp2_ecn_state {
@@ -883,9 +875,9 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
  *     User-defined callback function failed.
  */
 ngtcp2_ssize ngtcp2_conn_write_single_frame_pkt(
-    ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest, size_t destlen,
-    uint8_t type, uint8_t flags, const ngtcp2_cid *dcid, ngtcp2_frame *fr,
-    uint16_t rtb_entry_flags, const ngtcp2_path *path, ngtcp2_tstamp ts);
+  ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest, size_t destlen,
+  uint8_t type, uint8_t flags, const ngtcp2_cid *dcid, ngtcp2_frame *fr,
+  uint16_t rtb_entry_flags, const ngtcp2_path *path, ngtcp2_tstamp ts);
 
 /*
  * ngtcp2_conn_commit_local_transport_params commits the local
@@ -1031,9 +1023,9 @@ ngtcp2_conn_server_negotiate_version(ngtcp2_conn *conn,
  *     User callback failed
  */
 ngtcp2_ssize ngtcp2_conn_write_connection_close_pkt(
-    ngtcp2_conn *conn, ngtcp2_path *path, ngtcp2_pkt_info *pi, uint8_t *dest,
-    size_t destlen, uint64_t error_code, const uint8_t *reason,
-    size_t reasonlen, ngtcp2_tstamp ts);
+  ngtcp2_conn *conn, ngtcp2_path *path, ngtcp2_pkt_info *pi, uint8_t *dest,
+  size_t destlen, uint64_t error_code, const uint8_t *reason, size_t reasonlen,
+  ngtcp2_tstamp ts);
 
 /**
  * @function
@@ -1077,9 +1069,9 @@ ngtcp2_ssize ngtcp2_conn_write_connection_close_pkt(
  *     User callback failed
  */
 ngtcp2_ssize ngtcp2_conn_write_application_close_pkt(
-    ngtcp2_conn *conn, ngtcp2_path *path, ngtcp2_pkt_info *pi, uint8_t *dest,
-    size_t destlen, uint64_t app_error_code, const uint8_t *reason,
-    size_t reasonlen, ngtcp2_tstamp ts);
+  ngtcp2_conn *conn, ngtcp2_path *path, ngtcp2_pkt_info *pi, uint8_t *dest,
+  size_t destlen, uint64_t app_error_code, const uint8_t *reason,
+  size_t reasonlen, ngtcp2_tstamp ts);
 
 int ngtcp2_conn_start_pmtud(ngtcp2_conn *conn);
 
@@ -1104,7 +1096,7 @@ void ngtcp2_conn_stop_pmtud(ngtcp2_conn *conn);
  *     Out of memory.
  */
 int ngtcp2_conn_set_remote_transport_params(
-    ngtcp2_conn *conn, const ngtcp2_transport_params *params);
+  ngtcp2_conn *conn, const ngtcp2_transport_params *params);
 
 /**
  * @function
@@ -1143,7 +1135,7 @@ int ngtcp2_conn_set_remote_transport_params(
  *     Out of memory.
  */
 int ngtcp2_conn_set_0rtt_remote_transport_params(
-    ngtcp2_conn *conn, const ngtcp2_transport_params *params);
+  ngtcp2_conn *conn, const ngtcp2_transport_params *params);
 
 /*
  * ngtcp2_conn_create_ack_frame creates ACK frame, and assigns its
@@ -1179,4 +1171,4 @@ void ngtcp2_conn_discard_initial_state(ngtcp2_conn *conn, ngtcp2_tstamp ts);
  */
 void ngtcp2_conn_discard_handshake_state(ngtcp2_conn *conn, ngtcp2_tstamp ts);
 
-#endif /* NGTCP2_CONN_H */
+#endif /* !defined(NGTCP2_CONN_H) */

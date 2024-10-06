@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <ngtcp2/ngtcp2.h>
 
@@ -203,7 +203,7 @@ void ngtcp2_strm_free(ngtcp2_strm *strm);
  * ngtcp2_strm_rx_offset returns the minimum offset of stream data
  * which is not received yet.
  */
-uint64_t ngtcp2_strm_rx_offset(ngtcp2_strm *strm);
+uint64_t ngtcp2_strm_rx_offset(const ngtcp2_strm *strm);
 
 /*
  * ngtcp2_strm_recv_reordering handles reordered data.
@@ -269,18 +269,18 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm, ngtcp2_frame_chain **pfrc,
  * ngtcp2_strm_streamfrq_unacked_offset returns the smallest offset of
  * unacknowledged stream data held in strm->tx.streamfrq.
  */
-uint64_t ngtcp2_strm_streamfrq_unacked_offset(ngtcp2_strm *strm);
+uint64_t ngtcp2_strm_streamfrq_unacked_offset(const ngtcp2_strm *strm);
 
 /*
  * ngtcp2_strm_streamfrq_top returns the first ngtcp2_frame_chain.
  * The queue must not be empty.
  */
-ngtcp2_frame_chain *ngtcp2_strm_streamfrq_top(ngtcp2_strm *strm);
+ngtcp2_frame_chain *ngtcp2_strm_streamfrq_top(const ngtcp2_strm *strm);
 
 /*
  * ngtcp2_strm_streamfrq_empty returns nonzero if streamfrq is empty.
  */
-int ngtcp2_strm_streamfrq_empty(ngtcp2_strm *strm);
+int ngtcp2_strm_streamfrq_empty(const ngtcp2_strm *strm);
 
 /*
  * ngtcp2_strm_streamfrq_clear removes all frames from streamfrq.
@@ -290,26 +290,26 @@ void ngtcp2_strm_streamfrq_clear(ngtcp2_strm *strm);
 /*
  * ngtcp2_strm_is_tx_queued returns nonzero if |strm| is queued.
  */
-int ngtcp2_strm_is_tx_queued(ngtcp2_strm *strm);
+int ngtcp2_strm_is_tx_queued(const ngtcp2_strm *strm);
 
 /*
  * ngtcp2_strm_is_all_tx_data_acked returns nonzero if all outgoing
  * data for |strm| which have sent so far have been acknowledged.
  */
-int ngtcp2_strm_is_all_tx_data_acked(ngtcp2_strm *strm);
+int ngtcp2_strm_is_all_tx_data_acked(const ngtcp2_strm *strm);
 
 /*
  * ngtcp2_strm_is_all_tx_data_fin_acked behaves like
  * ngtcp2_strm_is_all_tx_data_acked, but it also requires that STREAM
  * frame with fin bit set is acknowledged.
  */
-int ngtcp2_strm_is_all_tx_data_fin_acked(ngtcp2_strm *strm);
+int ngtcp2_strm_is_all_tx_data_fin_acked(const ngtcp2_strm *strm);
 
 /*
  * ngtcp2_strm_get_unacked_range_after returns the range that is not
  * acknowledged yet and includes or comes after |offset|.
  */
-ngtcp2_range ngtcp2_strm_get_unacked_range_after(ngtcp2_strm *strm,
+ngtcp2_range ngtcp2_strm_get_unacked_range_after(const ngtcp2_strm *strm,
                                                  uint64_t offset);
 
 /*
@@ -317,7 +317,7 @@ ngtcp2_range ngtcp2_strm_get_unacked_range_after(ngtcp2_strm *strm,
  * this offset have been acknowledged by a remote endpoint.  It
  * returns 0 if no data is acknowledged.
  */
-uint64_t ngtcp2_strm_get_acked_offset(ngtcp2_strm *strm);
+uint64_t ngtcp2_strm_get_acked_offset(const ngtcp2_strm *strm);
 
 /*
  * ngtcp2_strm_ack_data tells |strm| that the data [|offset|, |offset|
@@ -336,26 +336,26 @@ void ngtcp2_strm_set_app_error_code(ngtcp2_strm *strm, uint64_t app_error_code);
  * ngtcp2_strm_require_retransmit_reset_stream returns nonzero if
  * RESET_STREAM frame should be retransmitted.
  */
-int ngtcp2_strm_require_retransmit_reset_stream(ngtcp2_strm *strm);
+int ngtcp2_strm_require_retransmit_reset_stream(const ngtcp2_strm *strm);
 
 /*
  * ngtcp2_strm_require_retransmit_stop_sending returns nonzero if
  * STOP_SENDING frame should be retransmitted.
  */
-int ngtcp2_strm_require_retransmit_stop_sending(ngtcp2_strm *strm);
+int ngtcp2_strm_require_retransmit_stop_sending(const ngtcp2_strm *strm);
 
 /*
  * ngtcp2_strm_require_retransmit_max_stream_data returns nonzero if
  * MAX_STREAM_DATA frame should be retransmitted.
  */
-int ngtcp2_strm_require_retransmit_max_stream_data(ngtcp2_strm *strm,
-                                                   ngtcp2_max_stream_data *fr);
+int ngtcp2_strm_require_retransmit_max_stream_data(
+  const ngtcp2_strm *strm, const ngtcp2_max_stream_data *fr);
 
 /*
  * ngtcp2_strm_require_retransmit_stream_data_blocked returns nonzero
  * if STREAM_DATA_BLOCKED frame frame should be retransmitted.
  */
 int ngtcp2_strm_require_retransmit_stream_data_blocked(
-    ngtcp2_strm *strm, ngtcp2_stream_data_blocked *fr);
+  const ngtcp2_strm *strm, const ngtcp2_stream_data_blocked *fr);
 
-#endif /* NGTCP2_STRM_H */
+#endif /* !defined(NGTCP2_STRM_H) */

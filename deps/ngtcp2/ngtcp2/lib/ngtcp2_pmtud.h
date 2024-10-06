@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <ngtcp2/ngtcp2.h>
 
@@ -129,4 +129,4 @@ void ngtcp2_pmtud_handle_expiry(ngtcp2_pmtud *pmtud, ngtcp2_tstamp ts);
  */
 int ngtcp2_pmtud_finished(ngtcp2_pmtud *pmtud);
 
-#endif /* NGTCP2_PMTUD_H */
+#endif /* !defined(NGTCP2_PMTUD_H) */

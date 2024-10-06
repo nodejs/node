@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <ngtcp2/ngtcp2.h>
 
@@ -169,13 +169,13 @@ void ngtcp2_acktr_forget(ngtcp2_acktr *acktr, ngtcp2_acktr_entry *ent);
  * has the largest packet number to be acked.  If there is no entry,
  * returned value satisfies ngtcp2_ksl_it_end(&it) != 0.
  */
-ngtcp2_ksl_it ngtcp2_acktr_get(ngtcp2_acktr *acktr);
+ngtcp2_ksl_it ngtcp2_acktr_get(const ngtcp2_acktr *acktr);
 
 /*
  * ngtcp2_acktr_empty returns nonzero if it has no packet to
  * acknowledge.
  */
-int ngtcp2_acktr_empty(ngtcp2_acktr *acktr);
+int ngtcp2_acktr_empty(const ngtcp2_acktr *acktr);
 
 /*
  * ngtcp2_acktr_add_ack records outgoing ACK frame whose largest
@@ -203,7 +203,7 @@ void ngtcp2_acktr_commit_ack(ngtcp2_acktr *acktr);
  * ngtcp2_acktr_require_active_ack returns nonzero if ACK frame should
  * be generated actively.
  */
-int ngtcp2_acktr_require_active_ack(ngtcp2_acktr *acktr,
+int ngtcp2_acktr_require_active_ack(const ngtcp2_acktr *acktr,
                                     ngtcp2_duration max_ack_delay,
                                     ngtcp2_tstamp ts);
 
@@ -213,4 +213,4 @@ int ngtcp2_acktr_require_active_ack(ngtcp2_acktr *acktr,
  */
 void ngtcp2_acktr_immediate_ack(ngtcp2_acktr *acktr);
 
-#endif /* NGTCP2_ACKTR_H */
+#endif /* !defined(NGTCP2_ACKTR_H) */

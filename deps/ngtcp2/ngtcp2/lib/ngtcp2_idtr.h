@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <ngtcp2/ngtcp2.h>
 
@@ -71,6 +71,6 @@ int ngtcp2_idtr_open(ngtcp2_idtr *idtr, int64_t stream_id);
 /*
  * ngtcp2_idtr_open returns nonzero if |stream_id| is in use.
  */
-int ngtcp2_idtr_is_open(ngtcp2_idtr *idtr, int64_t stream_id);
+int ngtcp2_idtr_is_open(const ngtcp2_idtr *idtr, int64_t stream_id);
 
-#endif /* NGTCP2_IDTR_H */
+#endif /* !defined(NGTCP2_IDTR_H) */

@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <ngtcp2/ngtcp2.h>
 
@@ -115,4 +115,4 @@ void ngtcp2_transport_params_convert_to_old(int transport_params_version,
                                             ngtcp2_transport_params *dest,
                                             const ngtcp2_transport_params *src);
 
-#endif /* NGTCP2_TRANSPORT_PARAMS_H */
+#endif /* !defined(NGTCP2_TRANSPORT_PARAMS_H) */

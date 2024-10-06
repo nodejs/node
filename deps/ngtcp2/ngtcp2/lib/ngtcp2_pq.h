@@ -28,7 +28,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <ngtcp2/ngtcp2.h>
 
@@ -126,4 +126,4 @@ int ngtcp2_pq_each(const ngtcp2_pq *pq, ngtcp2_pq_item_cb fun, void *arg);
  */
 void ngtcp2_pq_remove(ngtcp2_pq *pq, ngtcp2_pq_entry *item);
 
-#endif /* NGTCP2_PQ_H */
+#endif /* !defined(NGTCP2_PQ_H) */

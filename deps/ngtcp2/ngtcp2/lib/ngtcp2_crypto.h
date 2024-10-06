@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <ngtcp2/ngtcp2.h>
 
@@ -38,7 +38,7 @@
    bytes. */
 #define NGTCP2_INITIAL_AEAD_OVERHEAD 16
 
-/* NGTCP2_MAX_AEAD_OVERHEAD is expected maximum AEAD overhead. */
+/* NGTCP2_MAX_AEAD_OVERHEAD is the maximum AEAD overhead. */
 #define NGTCP2_MAX_AEAD_OVERHEAD 16
 
 /* NGTCP2_CRYPTO_KM_FLAG_NONE indicates that no flag is set. */
@@ -56,8 +56,7 @@ typedef struct ngtcp2_crypto_km {
      a packet.  For decryption key, it is the lowest packet number of
      a packet which can be decrypted with this keying material. */
   int64_t pkt_num;
-  /* use_count is the number of encryption applied with this key.
-     This field is only used for tx key. */
+  /* use_count is the number of encryption applied with this key. */
   uint64_t use_count;
   /* flags is the bitwise OR of zero or more of
      NGTCP2_CRYPTO_KM_FLAG_*. */
@@ -65,12 +64,12 @@ typedef struct ngtcp2_crypto_km {
 } ngtcp2_crypto_km;
 
 /*
- * ngtcp2_crypto_km_new creates new ngtcp2_crypto_km object and
+ * ngtcp2_crypto_km_new creates new ngtcp2_crypto_km object, and
  * assigns its pointer to |*pckm|.  The |secret| of length
- * |secretlen|, the |key| of length |keylen| and the |iv| of length
- * |ivlen| are copied to |*pckm|.  If |secretlen| == 0, the function
- * assumes no secret is given which is acceptable.  The sole reason to
- * store secret is update keys.  Only 1RTT key can be updated.
+ * |secretlen|, |aead_ctx|, and the |iv| of length |ivlen| are copied
+ * to |*pckm|.  If |secretlen| == 0, the function assumes no secret is
+ * given which is acceptable.  The sole reason to store secret is
+ * update keys.  Only 1RTT key can be updated.
  */
 int ngtcp2_crypto_km_new(ngtcp2_crypto_km **pckm, const uint8_t *secret,
                          size_t secretlen,
@@ -80,7 +79,7 @@ int ngtcp2_crypto_km_new(ngtcp2_crypto_km **pckm, const uint8_t *secret,
 
 /*
  * ngtcp2_crypto_km_nocopy_new is similar to ngtcp2_crypto_km_new, but
- * it does not copy secret, key and IV.
+ * it does not copy secret, aead context, and IV.
  */
 int ngtcp2_crypto_km_nocopy_new(ngtcp2_crypto_km **pckm, size_t secretlen,
                                 size_t ivlen, const ngtcp2_mem *mem);
@@ -100,4 +99,4 @@ typedef struct ngtcp2_crypto_cc {
 void ngtcp2_crypto_create_nonce(uint8_t *dest, const uint8_t *iv, size_t ivlen,
                                 int64_t pkt_num);
 
-#endif /* NGTCP2_CRYPTO_H */
+#endif /* !defined(NGTCP2_CRYPTO_H) */

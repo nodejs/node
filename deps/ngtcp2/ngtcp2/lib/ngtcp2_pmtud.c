@@ -34,11 +34,11 @@
 #define NGTCP2_PMTUD_PROBE_NUM_MAX 3
 
 static uint16_t pmtud_default_probes[] = {
-    1454 - 48, /* The well known MTU used by a domestic optic fiber
-                  service in Japan. */
-    1390 - 48, /* Typical Tunneled MTU */
-    1280 - 48, /* IPv6 minimum MTU */
-    1492 - 48, /* PPPoE */
+  1454 - 48, /* The well known MTU used by a domestic optic fiber
+                service in Japan. */
+  1390 - 48, /* Typical Tunneled MTU */
+  1280 - 48, /* IPv6 minimum MTU */
+  1492 - 48, /* PPPoE */
 };
 
 int ngtcp2_pmtud_new(ngtcp2_pmtud **ppmtud, size_t max_udp_payload_size,
@@ -134,7 +134,7 @@ static void pmtud_next_probe(ngtcp2_pmtud *pmtud) {
 
 void ngtcp2_pmtud_probe_success(ngtcp2_pmtud *pmtud, size_t payloadlen) {
   pmtud->max_udp_payload_size =
-      ngtcp2_max_size(pmtud->max_udp_payload_size, payloadlen);
+    ngtcp2_max_size(pmtud->max_udp_payload_size, payloadlen);
 
   assert(pmtud->mtu_idx < pmtud->probeslen);
 
@@ -157,7 +157,7 @@ void ngtcp2_pmtud_handle_expiry(ngtcp2_pmtud *pmtud, ngtcp2_tstamp ts) {
   }
 
   pmtud->min_fail_udp_payload_size = ngtcp2_min_size(
-      pmtud->min_fail_udp_payload_size, pmtud->probes[pmtud->mtu_idx]);
+    pmtud->min_fail_udp_payload_size, pmtud->probes[pmtud->mtu_idx]);
 
   pmtud_next_probe(pmtud);
 }

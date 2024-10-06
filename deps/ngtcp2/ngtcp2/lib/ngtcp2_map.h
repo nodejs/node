@@ -28,7 +28,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <ngtcp2/ngtcp2.h>
 
@@ -39,7 +39,6 @@
 typedef uint64_t ngtcp2_map_key_type;
 
 typedef struct ngtcp2_map_bucket {
-  uint32_t hash;
   uint32_t psl;
   ngtcp2_map_key_type key;
   void *data;
@@ -49,7 +48,7 @@ typedef struct ngtcp2_map {
   ngtcp2_map_bucket *table;
   const ngtcp2_mem *mem;
   size_t size;
-  size_t tablelenbits;
+  size_t hashbits;
 } ngtcp2_map;
 
 /*
@@ -124,6 +123,6 @@ int ngtcp2_map_each(const ngtcp2_map *map, int (*func)(void *data, void *ptr),
 
 #ifndef WIN32
 void ngtcp2_map_print_distance(const ngtcp2_map *map);
-#endif /* !WIN32 */
+#endif /* !defined(WIN32) */
 
-#endif /* NGTCP2_MAP_H */
+#endif /* !defined(NGTCP2_MAP_H) */

@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <ngtcp2/ngtcp2.h>
 
@@ -130,4 +130,4 @@ typedef struct ngtcp2_conn_stat {
   size_t send_quantum;
 } ngtcp2_conn_stat;
 
-#endif /* NGTCP2_CONN_STAT_H */
+#endif /* !defined(NGTCP2_CONN_STAT_H) */

@@ -71,7 +71,7 @@ int ngtcp2_frame_chain_stream_datacnt_objalloc_new(ngtcp2_frame_chain **pfrc,
   if (datacnt > NGTCP2_FRAME_CHAIN_STREAM_DATACNT_THRES) {
     return ngtcp2_frame_chain_extralen_new(pfrc,
                                            sizeof(ngtcp2_vec) * (datacnt - 1) -
-                                               NGTCP2_FRAME_CHAIN_STREAM_AVAIL,
+                                             NGTCP2_FRAME_CHAIN_STREAM_AVAIL,
                                            mem);
   }
 

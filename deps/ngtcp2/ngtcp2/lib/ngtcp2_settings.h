@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <ngtcp2/ngtcp2.h>
 
@@ -70,4 +70,4 @@ void ngtcp2_settings_convert_to_old(int settings_version, ngtcp2_settings *dest,
  */
 size_t ngtcp2_settingslen_version(int settings_version);
 
-#endif /* NGTCP2_SETTINGS_H */
+#endif /* !defined(NGTCP2_SETTINGS_H) */

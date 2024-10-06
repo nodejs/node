@@ -78,7 +78,7 @@ void ngtcp2_acktr_init(ngtcp2_acktr *acktr, ngtcp2_log *log,
 void ngtcp2_acktr_free(ngtcp2_acktr *acktr) {
 #ifdef NOMEMPOOL
   ngtcp2_ksl_it it;
-#endif /* NOMEMPOOL */
+#endif /* defined(NOMEMPOOL) */
 
   if (acktr == NULL) {
     return;
@@ -89,7 +89,7 @@ void ngtcp2_acktr_free(ngtcp2_acktr *acktr) {
        ngtcp2_ksl_it_next(&it)) {
     ngtcp2_acktr_entry_objalloc_del(ngtcp2_ksl_it_get(&it), &acktr->objalloc);
   }
-#endif /* NOMEMPOOL */
+#endif /* defined(NOMEMPOOL) */
 
   ngtcp2_ksl_free(&acktr->ents);
 
@@ -199,11 +199,11 @@ void ngtcp2_acktr_forget(ngtcp2_acktr *acktr, ngtcp2_acktr_entry *ent) {
   }
 }
 
-ngtcp2_ksl_it ngtcp2_acktr_get(ngtcp2_acktr *acktr) {
+ngtcp2_ksl_it ngtcp2_acktr_get(const ngtcp2_acktr *acktr) {
   return ngtcp2_ksl_begin(&acktr->ents);
 }
 
-int ngtcp2_acktr_empty(ngtcp2_acktr *acktr) {
+int ngtcp2_acktr_empty(const ngtcp2_acktr *acktr) {
   ngtcp2_ksl_it it = ngtcp2_ksl_begin(&acktr->ents);
   return ngtcp2_ksl_it_end(&it);
 }
@@ -255,7 +255,7 @@ static void acktr_on_ack(ngtcp2_acktr *acktr, ngtcp2_ringbuf *rb,
 
     assert(ent->pkt_num > ack_ent->largest_ack);
 
-    if (ack_ent->largest_ack >= ent->pkt_num - (int64_t)(ent->len - 1)) {
+    if (ack_ent->largest_ack + (int64_t)ent->len > ent->pkt_num) {
       ent->len = (size_t)(ent->pkt_num - ack_ent->largest_ack);
     }
   }
@@ -283,7 +283,7 @@ void ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, const ngtcp2_ack *fr) {
 
   min_ack = largest_ack - (int64_t)fr->first_ack_range;
 
-  if (min_ack <= ent->pkt_num && ent->pkt_num <= largest_ack) {
+  if (min_ack <= ent->pkt_num) {
     acktr_on_ack(acktr, rb, j);
     return;
   }
@@ -317,7 +317,7 @@ void ngtcp2_acktr_commit_ack(ngtcp2_acktr *acktr) {
   acktr->rx_npkt = 0;
 }
 
-int ngtcp2_acktr_require_active_ack(ngtcp2_acktr *acktr,
+int ngtcp2_acktr_require_active_ack(const ngtcp2_acktr *acktr,
                                     ngtcp2_duration max_ack_delay,
                                     ngtcp2_tstamp ts) {
   return ngtcp2_tstamp_elapsed(acktr->first_unacked_ts, max_ack_delay, ts);

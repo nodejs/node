@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <ngtcp2/ngtcp2.h>
 
@@ -191,4 +191,4 @@ ngtcp2_tstamp ngtcp2_pv_next_expiry(ngtcp2_pv *pv);
  */
 void ngtcp2_pv_cancel_expired_timer(ngtcp2_pv *pv, ngtcp2_tstamp ts);
 
-#endif /* NGTCP2_PV_H */
+#endif /* !defined(NGTCP2_PV_H) */

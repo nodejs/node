@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <ngtcp2/ngtcp2.h>
 
@@ -185,4 +185,4 @@ void ngtcp2_frame_chain_list_objalloc_del(ngtcp2_frame_chain *frc,
                                           ngtcp2_objalloc *objalloc,
                                           const ngtcp2_mem *mem);
 
-#endif /* NGTCP2_FRAME_CHAIN_H */
+#endif /* !defined(NGTCP2_FRAME_CHAIN_H) */

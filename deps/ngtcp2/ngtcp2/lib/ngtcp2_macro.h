@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <stddef.h>
 
@@ -78,4 +78,4 @@ ngtcp2_min_def(uint32, uint32_t);
 ngtcp2_min_def(uint64, uint64_t);
 ngtcp2_min_def(size, size_t);
 
-#endif /* NGTCP2_MACRO_H */
+#endif /* !defined(NGTCP2_MACRO_H) */

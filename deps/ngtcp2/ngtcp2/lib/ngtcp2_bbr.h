@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <ngtcp2/ngtcp2.h>
 
@@ -138,4 +138,4 @@ void ngtcp2_cc_bbr_init(ngtcp2_cc_bbr *bbr, ngtcp2_log *log,
                         ngtcp2_tstamp initial_ts, ngtcp2_rand rand,
                         const ngtcp2_rand_ctx *rand_ctx);
 
-#endif /* NGTCP2_BBR_H */
+#endif /* !defined(NGTCP2_BBR_H) */

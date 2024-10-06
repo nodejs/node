@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <ngtcp2/ngtcp2.h>
 
@@ -161,7 +161,7 @@ void ngtcp2_rob_remove_prefix(ngtcp2_rob *rob, uint64_t offset);
  * returns 0.  This function only returns the data before the first
  * gap.  It returns 0 even if data is available after the first gap.
  */
-size_t ngtcp2_rob_data_at(ngtcp2_rob *rob, const uint8_t **pdest,
+size_t ngtcp2_rob_data_at(const ngtcp2_rob *rob, const uint8_t **pdest,
                           uint64_t offset);
 
 /*
@@ -181,11 +181,11 @@ void ngtcp2_rob_pop(ngtcp2_rob *rob, uint64_t offset, size_t len);
  * ngtcp2_rob_first_gap_offset returns the offset to the first gap.
  * If there is no gap, it returns UINT64_MAX.
  */
-uint64_t ngtcp2_rob_first_gap_offset(ngtcp2_rob *rob);
+uint64_t ngtcp2_rob_first_gap_offset(const ngtcp2_rob *rob);
 
 /*
  * ngtcp2_rob_data_buffered returns nonzero if any data is buffered.
  */
-int ngtcp2_rob_data_buffered(ngtcp2_rob *rob);
+int ngtcp2_rob_data_buffered(const ngtcp2_rob *rob);
 
-#endif /* NGTCP2_ROB_H */
+#endif /* !defined(NGTCP2_ROB_H) */
