@@ -279,7 +279,7 @@ void BindingData::DecodeLatin1(const FunctionCallbackInfo<Value>& args) {
   std::string result(length * 2, '\0');
 
   size_t written = simdutf::convert_latin1_to_utf8(
-      reinterpret_cast<const char*>(data), length, &result.begin());
+      reinterpret_cast<const char*>(data), length, result.data());
 
   if (has_fatal && written == 0) {
     return node::THROW_ERR_ENCODING_INVALID_ENCODED_DATA(
