@@ -44,6 +44,7 @@
 * [Modules: TypeScript](typescript.md)
 * [Net](net.md)
 * [OS](os.md)
+* [Parser](parser.md)
 * [Path](path.md)
 * [Performance hooks](perf_hooks.md)
 * [Permissions](permissions.md)

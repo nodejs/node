@@ -140,6 +140,7 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
         "wasi",    // Experimental.
         "internal/test/binding", "internal/v8_prof_polyfill",
         "internal/v8_prof_processor",
+        "parser",  // Experimental.
   };
 
   auto source = source_.read();
