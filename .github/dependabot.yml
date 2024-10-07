@@ -5,7 +5,7 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: monthly
+      interval: "15 minutes"
     commit-message:
       prefix: meta
     open-pull-requests-limit: 10
@@ -13,7 +13,7 @@ updates:
   - package-ecosystem: npm
     directory: /tools/eslint
     schedule:
-      interval: monthly
+      interval: "15 minutes"
     commit-message:
       prefix: tools
     open-pull-requests-limit: 10
