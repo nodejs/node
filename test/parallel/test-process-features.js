@@ -14,6 +14,7 @@ const expectedKeys = new Map([
   ['tls_ocsp', ['boolean']],
   ['tls', ['boolean']],
   ['cached_builtins', ['boolean']],
+  ['require_module', ['boolean']],
   ['typescript', ['boolean', 'string']],
 ]);
 
