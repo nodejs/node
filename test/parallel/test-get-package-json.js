@@ -137,3 +137,11 @@ const pkgType = 'module'; // a non-default value
   const pathToParent = fixtures.path('packages/nested/package.json');
   assert.strictEqual(parentPkg.path, pathToParent);
 }
+
+{ // Can require via package.json
+  const pathToMod = fixtures.path('packages/cjs-main-no-index/other.js');
+  // require() falls back to package.json values like "main" to resolve when there is no index
+  const answer = require(pathToMod);
+
+  assert.strictEqual(answer, 43);
+}
