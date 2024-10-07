@@ -4,7 +4,7 @@ const common = require('../common.js');
 const assert = require('assert');
 
 const bench = common.createBenchmark(main, {
-  n: [25, 2e2 ],
+  n: [25, 2e2],
   size: [1e2, 1e4],
   method: ['deepEqual', 'notDeepEqual', 'deepStrictEqual', 'notDeepStrictEqual'],
 }, {
