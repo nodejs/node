@@ -250,6 +250,9 @@ If `--experimental-print-required-tla` is enabled, instead of throwing
 module, try to locate the top-level awaits, and print their location to
 help users fix them.
 
+This feature can be detected by checking if
+[`process.features.require_module`][] is `true`.
+
 ## All together
 
 <!-- type=misc -->
@@ -1214,6 +1217,7 @@ This section was moved to
 [`node:test`]: test.md
 [`package.json`]: packages.md#nodejs-packagejson-field-definitions
 [`path.dirname()`]: path.md#pathdirnamepath
+[`process.features.require_module`]: process.md#processfeaturesrequire_module
 [`require.main`]: #requiremain
 [exports shortcut]: #exports-shortcut
 [module resolution]: #all-together
