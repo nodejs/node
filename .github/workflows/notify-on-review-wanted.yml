@@ -11,7 +11,7 @@ permissions:
 jobs:
   notifyOnReviewWanted:
     name: Notify on Review Wanted
-    if: github.repository == 'nodejs/node' && github.event.label == 'review wanted'
+    if: github.repository == 'nodejs/node' && github.event.label.name == 'review wanted'
     runs-on: ubuntu-latest
     steps:
       - name: Determine PR or Issue
