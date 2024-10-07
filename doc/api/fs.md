@@ -7510,13 +7510,19 @@ added:
 
 Free blocks available to unprivileged users.
 
-Example:
 ```js
-  const fs = require('fs');
-  // Calculate available space in bytes
-  fs.statfs('.', (err,stats) => {
+const fs = require('fs');
+// Calculate available space in bytes
+fs.statfs('.', (err,stats) => {
   const availableSpace = stats.bavail * stats.bsize;
-
+  console.log(`Available space for unprivileged users: ${availableSpace} bytes`);
+});
+```
+```mjs
+import { statfs } from 'fs';
+// Calculate available space in bytes
+statfs('.', (err, stats) => {
+  const availableSpace = stats.bavail * stats.bsize;
   console.log(`Available space for unprivileged users: ${availableSpace} bytes`);
 });
 ```
@@ -7533,13 +7539,19 @@ added:
 
 Free blocks in file system.
 
-Example:
 ```js
-  const fs = require('fs');
-  // Calculate total free space in bytes using bfree and bsize
-  fs.statfs('.', (err,stats) => {
+const fs = require('fs');
+// Calculate total free space in bytes using bfree and bsize
+fs.statfs('.', (err,stats) => {
   const totalFreeSpace = stats.bfree * stats.bsize;
-
+  console.log(`Total free space (including reserved blocks): ${totalFreeSpace} bytes`);
+});
+```
+```mjs
+import { statfs } from 'fs';
+// Calculate total free space in bytes using bfree and bsize
+statfs('.', (err, stats) => {
+  const totalFreeSpace = stats.bfree * stats.bsize;
   console.log(`Total free space (including reserved blocks): ${totalFreeSpace} bytes`);
 });
 ```
@@ -7556,13 +7568,19 @@ added:
 
 Total data blocks in file system.
 
-Example:
 ```js
-  const fs = require('fs');
-  // Get the total number of blocks
-  fs.statfs('.', (err,stats) => {
+const fs = require('fs');
+// Get the total number of blocks
+fs.statfs('.', (err,stats) => {
   const totalBlocks = stats.blocks;
-
+  console.log(`Total number of blocks on the filesystem: ${totalBlocks}`);
+});
+```
+```mjs
+import { statfs } from 'fs';
+// Get the total number of blocks
+statfs('.', (err, stats) => {
+  const totalBlocks = stats.blocks;
   console.log(`Total number of blocks on the filesystem: ${totalBlocks}`);
 });
 ```
@@ -7603,14 +7621,20 @@ added:
 
 Total file nodes in file system.
 
-Example:
 ```js
-  const fs = require('fs');
-  fs.statfs('.', (err, stats) => {
-  // Calculate total free space in bytes using bfree and bsize
-  const totalFreeSpace = stats.bfree * stats.bsize;
-
-  console.log(`Total free space (including reserved blocks): ${totalFreeSpace} bytes`);
+const fs = require('fs');
+//Calculate total file nodes in file system
+fs.statfs('.', (err, stats) => {
+  const totalInodes = stats.files;
+  console.log(`Total number of inodes (files) on filesystem: ${totalInodes}`);
+});
+```
+```mjs
+import { statfs } from 'fs';
+//Calculate total file nodes in file system
+statfs('.', (err, stats) => {
+  const totalInodes = stats.files;
+  console.log(`Total number of inodes (files) on filesystem: ${totalInodes}`);
 });
 ```
 
