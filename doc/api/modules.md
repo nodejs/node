@@ -318,6 +318,8 @@ experimental and can be disabled using `--no-experimental-require-module`.
 When `require()` actually encounters an ES module for the
 first time in the process, it will emit an experimental warning. The
 warning is expected to be removed when this feature stablizes.
+This feature can be detected by checking if
+[`process.features.require_module`][] is `true`.
 
 ## All together
 
@@ -1280,6 +1282,7 @@ This section was moved to
 [`node:test`]: test.md
 [`package.json`]: packages.md#nodejs-packagejson-field-definitions
 [`path.dirname()`]: path.md#pathdirnamepath
+[`process.features.require_module`]: process.md#processfeaturesrequire_module
 [`require.main`]: #requiremain
 [exports shortcut]: #exports-shortcut
 [module resolution]: #all-together
