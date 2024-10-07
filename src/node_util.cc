@@ -305,11 +305,12 @@ static void IsInsideNodeModules(const FunctionCallbackInfo<Value>& args) {
   // The second argument is the default value.
 
   int frames_limit = args[0].As<v8::Int32>()->Value();
-  Local<StackTrace> stack = StackTrace::CurrentStackTrace(isolate, frames_limit);
+  Local<StackTrace> stack =
+      StackTrace::CurrentStackTrace(isolate, frames_limit);
   int frame_count = stack->GetFrameCount();
 
-  // If the search requires looking into more than |frames_limit| frames, give up
-  // and return the specified default value.
+  // If the search requires looking into more than |frames_limit| frames, give
+  // up and return the specified default value.
   if (frame_count == frames_limit) {
     return args.GetReturnValue().Set(args[1]);
   }
@@ -438,8 +439,7 @@ void Initialize(Local<Object> target,
     target->Set(context, env->constants_string(), constants).Check();
   }
 
-  SetMethod(
-      context, target, "isInsideNodeModules", IsInsideNodeModules);
+  SetMethod(context, target, "isInsideNodeModules", IsInsideNodeModules);
   SetMethodNoSideEffect(
       context, target, "getPromiseDetails", GetPromiseDetails);
   SetMethodNoSideEffect(context, target, "getProxyDetails", GetProxyDetails);
