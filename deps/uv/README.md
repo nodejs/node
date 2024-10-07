@@ -343,10 +343,6 @@ after the process terminates unless the event loop is closed.
 
 Use the `ipcrm` command to manually clear up System V resources.
 
-## Known Issues
-
-- A possible arm-linux-gnueabihf-gcc bug causing, sometimes, incorrect generated code on `armv7` when calling `preadv()`: https://github.com/libuv/libuv/issues/4532.
-
 ## Patches
 
 See the [guidelines for contributing][].
