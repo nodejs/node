@@ -361,7 +361,7 @@ test('expect process.features.typescript to be \'strip\' when --experimental-str
   ]);
 
   strictEqual(result.stderr, '');
-  strictEqual(result.stdout, 'strip\n');
+  strictEqual(result.stdout, process.config.variables.node_use_amaro ? 'strip\n' : 'false\n');
   strictEqual(result.code, 0);
 });
 
@@ -373,7 +373,7 @@ test('expect process.features.typescript to be \'transform\' when --experimental
   ]);
 
   strictEqual(result.stderr, '');
-  strictEqual(result.stdout, 'transform\n');
+  strictEqual(result.stdout, process.config.variables.node_use_amaro ? 'transform\n' : 'false\n');
   strictEqual(result.code, 0);
 });
 
