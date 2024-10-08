@@ -298,6 +298,48 @@ static void GetCallSite(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(callsites);
 }
 
+static void IsInsideNodeModules(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  CHECK_EQ(args.Length(), 2);
+  CHECK(args[0]->IsInt32());  // frame_limit
+  // The second argument is the default value.
+
+  int frames_limit = args[0].As<v8::Int32>()->Value();
+  Local<StackTrace> stack =
+      StackTrace::CurrentStackTrace(isolate, frames_limit);
+  int frame_count = stack->GetFrameCount();
+
+  // If the search requires looking into more than |frames_limit| frames, give
+  // up and return the specified default value.
+  if (frame_count == frames_limit) {
+    return args.GetReturnValue().Set(args[1]);
+  }
+
+  bool result = false;
+  for (int i = 0; i < frame_count; ++i) {
+    Local<StackFrame> stack_frame = stack->GetFrame(isolate, i);
+    Local<String> script_name = stack_frame->GetScriptName();
+
+    if (script_name.IsEmpty() || script_name->Length() == 0) {
+      continue;
+    }
+    Utf8Value script_name_utf8(isolate, script_name);
+    std::string_view script_name_str = script_name_utf8.ToStringView();
+    if (script_name_str.starts_with("node:")) {
+      continue;
+    }
+    if (script_name_str.find("/node_modules/") != std::string::npos ||
+        script_name_str.find("\\node_modules\\") != std::string::npos ||
+        script_name_str.find("/node_modules\\") != std::string::npos ||
+        script_name_str.find("\\node_modules/") != std::string::npos) {
+      result = true;
+      break;
+    }
+  }
+
+  args.GetReturnValue().Set(result);
+}
+
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetPromiseDetails);
   registry->Register(GetProxyDetails);
@@ -313,6 +355,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(FastGuessHandleType);
   registry->Register(fast_guess_handle_type_.GetTypeInfo());
   registry->Register(ParseEnv);
+  registry->Register(IsInsideNodeModules);
 }
 
 void Initialize(Local<Object> target,
@@ -396,6 +439,7 @@ void Initialize(Local<Object> target,
     target->Set(context, env->constants_string(), constants).Check();
   }
 
+  SetMethod(context, target, "isInsideNodeModules", IsInsideNodeModules);
   SetMethodNoSideEffect(
       context, target, "getPromiseDetails", GetPromiseDetails);
   SetMethodNoSideEffect(context, target, "getProxyDetails", GetProxyDetails);
