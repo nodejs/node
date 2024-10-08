@@ -4,35 +4,85 @@ const fs = require('fs');
 const path = require('path');
 const { isDefiningError } = require('./rules-utils.js');
 
-const doc = fs.readFileSync(path.resolve(__dirname, '../../doc/api/errors.md'),
-                            'utf8');
+// Load the errors documentation file once
+const docPath = path.resolve(__dirname, '../../doc/api/errors.md');
+const doc = fs.readFileSync(docPath, 'utf8');
 
-function isInDoc(code) {
-  return doc.includes(`### \`${code}\``);
+// Helper function to parse errors documentation and return a Map
+function getErrorsInDoc() {
+  const lines = doc.split('\n');
+  let currentHeader;
+  const errors = new Map();
+  const codePattern = /^### `([^`]+)`$/;
+  const anchorPattern = /^<a id="([^"]+)"><\/a>$/;
+
+  function parse(line, legacy) {
+    const error = { legacy };
+    let code;
+
+    const codeMatch = line.match(codePattern);
+    if (codeMatch) {
+      error.header = true;
+      code = codeMatch[1];
+    }
+
+    const anchorMatch = line.match(anchorPattern);
+    if (anchorMatch) {
+      error.anchor = true;
+      code ??= anchorMatch[1];
+    }
+
+    if (!code) return;
+
+    // If the code already exists in the Map, merge the new error data
+    errors.set(code, {
+      ...errors.get(code),
+      ...error,
+    });
+  }
+
+  for (const line of lines) {
+    if (line.startsWith('## ')) currentHeader = line.substring(3);
+    if (currentHeader === 'Node.js error codes') parse(line, false);
+    if (currentHeader === 'Legacy Node.js error codes') parse(line, true);
+  }
+
+  return errors;
 }
 
-function includesAnchor(code) {
-  return doc.includes(`<a id="${code}"></a>`);
-}
-
-function errorForNode(node) {
-  return node.expression.arguments[0].value;
-}
-
+// Main rule export
 module.exports = {
-  create: function(context) {
+  create(context) {
+    const errors = getErrorsInDoc();
     return {
-      ExpressionStatement: function(node) {
-        if (!isDefiningError(node) || !errorForNode(node)) return;
-        const code = errorForNode(node);
-        if (!isInDoc(code)) {
-          const message = `"${code}" is not documented in doc/api/errors.md`;
-          context.report({ node, message });
+      ExpressionStatement(node) {
+        if (!isDefiningError(node)) return;
+
+        const code = node.expression.arguments?.[0]?.value;
+        if (!code) return;
+
+        const err = errors.get(code); // Use Map's get method to retrieve the error
+
+        if (!err || !err.header) {
+          context.report({
+            node,
+            message: `"${code}" is not documented in doc/api/errors.md`,
+          });
+          if (!err) return;
         }
-        if (!includesAnchor(code)) {
-          const message =
-            `doc/api/errors.md does not have an anchor for "${code}"`;
-          context.report({ node, message });
+
+        if (!err.anchor) {
+          context.report({
+            node,
+            message: `doc/api/errors.md does not have an anchor for "${code}"`,
+          });
+        }
+
+        if (err.legacy) {
+          context.report({
+            node,
+            message: `"${code}" is marked as legacy, yet it is used in lib/.`,
+          });
         }
       },
     };

@@ -2325,6 +2325,17 @@ compiled with ICU support.
 
 A non-context-aware native addon was loaded in a process that disallows them.
 
+<a id="ERR_OPERATION_FAILED"></a>
+
+### `ERR_OPERATION_FAILED`
+
+<!-- YAML
+added: v15.0.0
+-->
+
+An operation failed. This is typically used to signal the general failure
+of an asynchronous operation.
+
 <a id="ERR_OUT_OF_RANGE"></a>
 
 ### `ERR_OUT_OF_RANGE`
@@ -2406,6 +2417,42 @@ Accessing `Object.prototype.__proto__` has been forbidden using
 [`--disable-proto=throw`][]. [`Object.getPrototypeOf`][] and
 [`Object.setPrototypeOf`][] should be used to get and set the prototype of an
 object.
+
+<a id="ERR_QUIC_CONNECTION_FAILED"></a>
+
+### `ERR_QUIC_CONNECTION_FAILED`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Establishing a QUIC connection failed.
+
+<a id="ERR_QUIC_ENDPOINT_CLOSED"></a>
+
+### `ERR_QUIC_ENDPOINT_CLOSED`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+A QUIC Endpoint closed with an error.
+
+<a id="ERR_QUIC_OPEN_STREAM_FAILED"></a>
+
+### `ERR_QUIC_OPEN_STREAM_FAILED`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Opening a QUIC stream failed.
 
 <a id="ERR_REQUIRE_CYCLE_MODULE"></a>
 
@@ -2989,6 +3036,16 @@ try {
   console.log(e.code); // ERR_UNSUPPORTED_RESOLVE_REQUEST
 }
 ```
+
+<a id="ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING"></a>
+
+### `ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`
+
+<!-- YAML
+added: v22.6.0
+-->
+
+Type stripping is not supported for files descendent of a `node_modules` directory.
 
 <a id="ERR_USE_AFTER_CLOSE"></a>
 
@@ -3636,17 +3693,6 @@ error indicates that the idle loop has failed to stop.
 A Node.js API was called in an unsupported manner, such as
 `Buffer.write(string, encoding, offset[, length])`.
 
-<a id="ERR_OPERATION_FAILED"></a>
-
-### `ERR_OPERATION_FAILED`
-
-<!-- YAML
-added: v15.0.0
--->
-
-An operation failed. This is typically used to signal the general failure
-of an asynchronous operation.
-
 <a id="ERR_OUTOFMEMORY"></a>
 
 ### `ERR_OUTOFMEMORY`
@@ -3669,42 +3715,6 @@ removed: v10.0.0
 -->
 
 The `node:repl` module was unable to parse data from the REPL history file.
-
-<a id="ERR_QUIC_CONNECTION_FAILED"></a>
-
-### `ERR_QUIC_CONNECTION_FAILED`
-
-<!-- YAML
-added: REPLACEME
--->
-
-> Stability: 1 - Experimental
-
-Establishing a QUIC connection failed.
-
-<a id="ERR_QUIC_ENDPOINT_CLOSED"></a>
-
-### `ERR_QUIC_ENDPOINT_CLOSED`
-
-<!-- YAML
-added: REPLACEME
--->
-
-> Stability: 1 - Experimental
-
-A QUIC Endpoint closed with an error.
-
-<a id="ERR_QUIC_OPEN_STREAM_FAILED"></a>
-
-### `ERR_QUIC_OPEN_STREAM_FAILED`
-
-<!-- YAML
-added: REPLACEME
--->
-
-> Stability: 1 - Experimental
-
-Opening a QUIC stream failed.
 
 <a id="ERR_SOCKET_CANNOT_SEND"></a>
 
@@ -4096,16 +4106,6 @@ The public key in the certificate SubjectPublicKeyInfo could not be read.
 #### `OUT_OF_MEM`
 
 An error occurred trying to allocate memory. This should never happen.
-
-<a id="ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING"></a>
-
-#### `ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`
-
-<!-- YAML
-added: v22.6.0
--->
-
-Type stripping is not supported for files descendent of a `node_modules` directory.
 
 [ES Module]: esm.md
 [ICU]: intl.md#internationalization-support
