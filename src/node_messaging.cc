@@ -1578,28 +1578,21 @@ static void StructuredClone(const FunctionCallbackInfo<Value>& args) {
   Realm* realm = Realm::GetCurrent(context);
   Environment* env = realm->env();
 
-  if (args.Length() == 0) {
-    return THROW_ERR_MISSING_ARGS(env, "The value argument must be specified");
-  }
-
   Local<Value> value = args[0];
 
   TransferList transfer_list;
-  if (!args[1]->IsNullOrUndefined()) {
-    if (!args[1]->IsObject()) {
-      return THROW_ERR_INVALID_ARG_TYPE(
-          env, "The options argument must be either an object or undefined");
-    }
-    Local<Object> options = args[1].As<Object>();
-    Local<Value> transfer_list_v;
-    if (!options->Get(context, env->transfer_string())
-             .ToLocal(&transfer_list_v)) {
-      return;
-    }
+  Local<Object> options = args[1].As<Object>();
+  Local<Value> transfer_list_v;
+  if (!options->Get(context, env->transfer_string())
+           .ToLocal(&transfer_list_v)) {
+    return;
+  }
 
-    // TODO(joyeecheung): implement this in JS land to avoid the C++ -> JS
-    // cost to convert a sequence into an array.
-    if (!GetTransferList(env, context, transfer_list_v, &transfer_list)) {
+  Local<Array> arr = transfer_list_v.As<Array>();
+  size_t length = arr->Length();
+  transfer_list.AllocateSufficientStorage(length);
+  for (size_t i = 0; i < length; i++) {
+    if (!arr->Get(context, i).ToLocal(&transfer_list[i])) {
       return;
     }
   }
