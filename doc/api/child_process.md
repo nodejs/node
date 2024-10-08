@@ -6,7 +6,7 @@
 
 <!-- source_link=lib/child_process.js -->
 
-The `node:child_process` module provides the ability to spawn subprocesses in
+The `node:child_process` module provides the ability to spawn subprocesses inf
 a manner that is similar, but not identical, to popen(3). This capability
 is primarily provided by the [`child_process.spawn()`][] function:
 
@@ -1061,6 +1061,9 @@ pipes between the parent and child. The value is one of the following:
    corresponds to the index in the `stdio` array. The stream must have an
    underlying descriptor (file streams do not start until the `'open'` event has
    occurred).
+   **NOTE:** You cannot pass `stdin` as a writable or `stdout`/`stderr` as readable
+   under `options.stdio`. If you do so on a stream object, there is no guarantee
+   that the callback will be called. If the stream errors, all callbacks will be dropped.
 7. Positive integer: The integer value is interpreted as a file descriptor
    that is open in the parent process. It is shared with the child
    process, similar to how {Stream} objects can be shared. Passing sockets
