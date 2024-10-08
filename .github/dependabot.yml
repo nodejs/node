@@ -20,3 +20,298 @@ updates:
         applies-to: version-updates
         patterns:
           - '*'
+
+  - package-ecosystem: npm
+    directory: /deps/acorn/acorn-walk
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /deps/acorn/acorn
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /deps/amaro/dist
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /deps/amaro
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /deps/cjs-module-lexer
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /deps/corepack
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /deps/minimatch/dist/commonjs
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /deps/minimatch/dist/esm
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /deps/minimatch
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /deps/npm
+    schedule:
+      interval: daily
+
+  - package-ecosystem: docker
+    directory: /deps/openssl/config
+    schedule:
+      interval: daily
+
+  - package-ecosystem: docker
+    directory: /deps/undici/src/build
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /deps/undici/src
+    schedule:
+      interval: daily
+
+  - package-ecosystem: pip
+    directory: /deps/uv/docs
+    schedule:
+      interval: daily
+
+  - package-ecosystem: pip
+    directory: /deps/v8/bazel
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /deps/v8/tools/clusterfuzz/js_fuzzer
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /deps/v8/tools
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /deps/v8/tools/tracing/proto-converter
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /deps/v8/tools/turbolizer
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /test/common
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /test/fixtures/0-dns
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /test/fixtures/es-module-specifiers
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /test/fixtures/es-modules/deprecated-folders-ignore
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /test/fixtures/es-modules/module-counter-by-type
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /test/fixtures/es-modules/package-cjs-named-error/json-hack
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /test/fixtures/es-modules/package-cjs-named-error
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /test/fixtures/es-modules/package-ends-node_modules
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /test/fixtures/es-modules/package-type-commonjs
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /test/fixtures/es-modules/package-type-module/nested-default-type
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /test/fixtures/es-modules/package-type-module
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /test/fixtures/es-modules/package-without-type
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /test/fixtures/es-modules/pjson-invalid
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /test/fixtures/es-modules/pjson-main
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /test/fixtures/es-modules/pkgimports
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /test/fixtures/es-modules/self-deprecated-folders
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /test/fixtures/json-with-directory-name-module/module-stub
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /test/fixtures/module-extension-over-directory/inner
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /test/fixtures/package-main-enoent
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /test/fixtures/packages/index
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /test/fixtures/packages/main-index
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /test/fixtures/packages/main
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /test/fixtures/packages/missing-main-no-index
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /test/fixtures/packages/missing-main
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /test/fixtures/packages/unparseable
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /test/fixtures/postject-copy
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /test/fixtures/require-bin
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /test/fixtures/require-empty-main
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /test/fixtures/run-script/cannot-find-script
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /test/fixtures/run-script/cannot-parse
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /test/fixtures/run-script/invalid-json
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /test/fixtures/run-script/invalid-schema
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /test/fixtures/run-script/missing-scripts
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /test/fixtures/run-script
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /test/fixtures/self_ref_module
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /test/fixtures/x509-escaping
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /tools/clang-format
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /tools/doc
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /tools/github_reporter
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /tools/lint-md
+    schedule:
+      interval: daily

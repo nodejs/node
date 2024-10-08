@@ -13,6 +13,11 @@ jobs:
     if: github.repository == 'nodejs/node'
     runs-on: ubuntu-latest
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@91182cccc01eb5e619899d80e4e971d6181294a7 # v2.10.1
+        with:
+          egress-policy: audit
+
       - name: Trigger update-links workflow on nodejs/release-cloudflare-worker
         run: |
           gh workflow run update-links.yml --repo nodejs/release-cloudflare-worker
