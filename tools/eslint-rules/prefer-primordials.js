@@ -117,7 +117,7 @@ module.exports = {
       }
       if (option.polyfilled) {
         for (const propertyName of option.polyfilled) {
-          polyfilledSet.add(`${option.name}${propertyName[0].toUpperCase()}${propertyName.slice(1)}`)
+          polyfilledSet.add(`${option.name}${propertyName[0].toUpperCase()}${propertyName.slice(1)}`);
         }
       }
     }
@@ -197,8 +197,8 @@ module.exports = {
       },
       VariableDeclarator(node) {
         const name = node.init?.name;
-        if (name === 'primordials' && node.id.type === 'ObjectPattern'){
-          const name = node.id.properties.find(({key}) => polyfilledSet.has(key.name))?.key.name;
+        if (name === 'primordials' && node.id.type === 'ObjectPattern') {
+          const name = node.id.properties.find(({ key }) => polyfilledSet.has(key.name))?.key.name;
           if (name) {
             context.report({
               node,
