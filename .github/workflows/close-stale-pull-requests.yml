@@ -35,6 +35,11 @@ jobs:
     if: github.repository == 'nodejs/node'
     runs-on: ubuntu-latest
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@91182cccc01eb5e619899d80e4e971d6181294a7 # v2.10.1
+        with:
+          egress-policy: audit
+
       - name: Set default end date which is 1 year ago
         run: echo "END_DATE=$(date --date='525600 minutes ago' --rfc-2822)"  >> "$GITHUB_ENV"
       - name: if date set in event override the default end date
