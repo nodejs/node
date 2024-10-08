@@ -487,7 +487,10 @@ static ssize_t uv__preadv_or_pwritev(int fd,
     atomic_store_explicit(cache, (uintptr_t) p, memory_order_relaxed);
   }
 
-  f = p;
+  /* Use memcpy instead of `f = p` to work around a compiler bug,
+   * see https://github.com/libuv/libuv/issues/4532
+   */
+  memcpy(&f, &p, sizeof(p));
   return f(fd, bufs, nbufs, off);
 }
 
