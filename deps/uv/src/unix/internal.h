@@ -496,7 +496,7 @@ typedef struct {
 int uv__get_constrained_cpu(uv__cpu_constraint* constraint);
 #endif
 
-#ifdef __sun
+#if defined(__sun) && !defined(__illumos__)
 #ifdef SO_FLOW_NAME
 /* Since it's impossible to detect the Solaris 11.4 version via OS macros,
  * so we check the presence of the socket option SO_FLOW_NAME that was first
