@@ -6,7 +6,7 @@
 
 <!-- source_link=lib/child_process.js -->
 
-The `node:child_process` module provides the ability to spawn subprocesses inf
+The `node:child_process` module provides the ability to spawn subprocesses in
 a manner that is similar, but not identical, to popen(3). This capability
 is primarily provided by the [`child_process.spawn()`][] function:
 
