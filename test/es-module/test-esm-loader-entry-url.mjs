@@ -76,7 +76,7 @@ describe('--entry-url', { concurrency: true }, () => {
     );
   });
 
-  it('should support loading TypeScript URLs', async () => {
+  it('should support loading TypeScript URLs', { skip: !process.config.variables.node_use_amaro }, async () => {
     const typescriptUrls = [
       'typescript/cts/test-require-ts-file.cts',
       'typescript/mts/test-import-ts-file.mts',
