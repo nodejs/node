@@ -1360,13 +1360,6 @@ Path is a directory.
 An attempt has been made to read a file whose size is larger than the maximum
 allowed size for a `Buffer`.
 
-<a id="ERR_FS_FILE_TOO_LARGE"></a>
-
-### `ERR_FS_FILE_TOO_LARGE`
-
-An attempt has been made to read a file whose size is larger than the maximum
-allowed size for a `Buffer`.
-
 <a id="ERR_HTTP2_ALTSVC_INVALID_ORIGIN"></a>
 
 ### `ERR_HTTP2_ALTSVC_INVALID_ORIGIN`
