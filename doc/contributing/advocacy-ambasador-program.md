@@ -43,7 +43,7 @@ If there is no objection from the TSC within 14 days, the nomination is approved
 
 ## Onboarding
 
-To onboard an ambassador, the a member of the TSC will:
+To onboard an ambassador, a member of the TSC will:
 
 * \[] Add the ambassador to the nodejs/ambassadors team.
 * \[] Add the ambassador to the nodejs/ambassadors `README.md`.
