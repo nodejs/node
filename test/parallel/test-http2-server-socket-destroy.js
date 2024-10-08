@@ -39,9 +39,6 @@ function onStream(stream) {
     message: 'Stream closed with error code NGHTTP2_CANCEL'
   }));
 
-  // Do not use destroy() as it sends FIN on Linux.
-  // On macOS, it sends RST.
-
   // Always send RST.
   socket.resetAndDestroy();
 }
@@ -50,18 +47,14 @@ server.listen(0);
 
 server.on('listening', common.mustCall(async () => {
   const client = h2.connect(`http://localhost:${server.address().port}`);
-  client.on('error', common.expectsError({
-    name: 'Error',
-    code: 'ECONNRESET',
-    message: 'read ECONNRESET'
-  }));
+  client.on('error', common.mustNotCall());
   client.on('close', common.mustCall());
 
   const req = client.request({ ':method': 'POST' });
   req.on('error', common.expectsError({
     name: 'Error',
-    code: 'ECONNRESET',
-    message: 'read ECONNRESET'
+    code: 'ERR_HTTP2_STREAM_ERROR',
+    message: 'Stream closed with error code NGHTTP2_INTERNAL_ERROR'
   }));
 
   req.on('aborted', common.mustCall());

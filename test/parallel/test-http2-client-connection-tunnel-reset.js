@@ -20,18 +20,14 @@ h2Server.on('connect', (req, res) => {
 
 h2Server.listen(0, common.mustCall(() => {
   const proxyClient = h2.connect(`http://localhost:${h2Server.address().port}`);
-  proxyClient.once('error', common.expectsError({
-    name: 'Error',
-    code: 'ECONNRESET',
-    message: 'read ECONNRESET'
-  }));
+  proxyClient.once('error', common.mustNotCall());
   const proxyReq = proxyClient.request({
     ':method': 'CONNECT',
     ':authority': 'example.com:443'
   });
   proxyReq.once('error', common.expectsError({
     name: 'Error',
-    code: 'ECONNRESET',
-    message: 'read ECONNRESET'
+    code: 'ERR_HTTP2_STREAM_ERROR',
+    message: 'Stream closed with error code NGHTTP2_CONNECT_ERROR'
   }));
 }));

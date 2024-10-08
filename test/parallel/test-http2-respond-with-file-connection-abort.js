@@ -13,7 +13,11 @@ const {
 
 const server = http2.createServer();
 server.on('stream', common.mustCall((stream) => {
-  stream.on('error', (err) => assert.strictEqual(err.code, 'ECONNRESET'));
+  stream.on('error', common.expectsError({
+    code: 'ERR_HTTP2_STREAM_ERROR',
+    name: 'Error',
+    message: 'Stream closed with error code NGHTTP2_CANCEL'
+  }));
   stream.respondWithFile(process.execPath, {
     [HTTP2_HEADER_CONTENT_TYPE]: 'application/octet-stream'
   });
