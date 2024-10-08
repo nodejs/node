@@ -913,7 +913,7 @@ _repository = None
 # Files to exclude from linting. This is set by the --exclude flag.
 _excludes = None
 
-# Whether to suppress all PrintInfo messages, UNRELATED to --quiet flag
+# Whether to supress all PrintInfo messages, UNRELATED to --quiet flag
 _quiet = False
 
 # The allowed line length of files.
@@ -1040,7 +1040,7 @@ def ParseNolintSuppressions(filename, raw_line, linenum, error):
                 'Unknown NOLINT error category: %s' % category)
 
 
-def ProcessGlobalSuppressions(lines):
+def ProcessGlobalSuppresions(lines):
   """Updates the list of global error suppressions.
 
   Parses any lint directives in the file that have global effect.
@@ -1068,7 +1068,7 @@ def IsErrorSuppressedByNolint(category, linenum):
   """Returns true if the specified error category is suppressed on this line.
 
   Consults the global error_suppressions map populated by
-  ParseNolintSuppressions/ProcessGlobalSuppressions/ResetNolintSuppressions.
+  ParseNolintSuppressions/ProcessGlobalSuppresions/ResetNolintSuppressions.
 
   Args:
     category: str, the category of the error.
@@ -1311,7 +1311,7 @@ class _CppLintState(object):
     self._filters_backup = self.filters[:]
     self.counting = 'total'  # In what way are we counting errors?
     self.errors_by_category = {}  # string to int dict storing error counts
-    self.quiet = False  # Suppress non-error messages?
+    self.quiet = False  # Suppress non-error messagess?
 
     # output format:
     # "emacs" - format that emacs can parse (default)
@@ -6617,7 +6617,7 @@ def ProcessFileData(filename, file_extension, lines, error,
   ResetNolintSuppressions()
 
   CheckForCopyright(filename, lines, error)
-  ProcessGlobalSuppressions(lines)
+  ProcessGlobalSuppresions(lines)
   RemoveMultiLineComments(filename, lines, error)
   clean_lines = CleansedLines(lines)
 
