@@ -22,7 +22,8 @@ class DatabaseSync : public BaseObject {
                v8::Local<v8::Object> object,
                v8::Local<v8::String> location,
                bool open,
-               bool enable_foreign_keys_on_open);
+               bool enable_foreign_keys_on_open,
+               bool enable_dqs_on_open);
   void MemoryInfo(MemoryTracker* tracker) const override;
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Open(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -45,6 +46,7 @@ class DatabaseSync : public BaseObject {
   sqlite3* connection_;
   std::unordered_set<StatementSync*> statements_;
   bool enable_foreign_keys_on_open_;
+  bool enable_dqs_on_open_;
 };
 
 class StatementSync : public BaseObject {

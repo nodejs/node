@@ -96,13 +96,15 @@ DatabaseSync::DatabaseSync(Environment* env,
                            Local<Object> object,
                            Local<String> location,
                            bool open,
-                           bool enable_foreign_keys_on_open)
+                           bool enable_foreign_keys_on_open,
+                           bool enable_dqs_on_open)
     : BaseObject(env, object) {
   MakeWeak();
   node::Utf8Value utf8_location(env->isolate(), location);
   location_ = utf8_location.ToString();
   connection_ = nullptr;
   enable_foreign_keys_on_open_ = enable_foreign_keys_on_open;
+  enable_dqs_on_open_ = enable_dqs_on_open;
 
   if (open) {
     Open();
@@ -130,6 +132,17 @@ bool DatabaseSync::Open() {
   // TODO(cjihrig): Support additional flags.
   int flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
   int r = sqlite3_open_v2(location_.c_str(), &connection_, flags, nullptr);
+  CHECK_ERROR_OR_THROW(env()->isolate(), connection_, r, SQLITE_OK, false);
+
+  r = sqlite3_db_config(connection_,
+                        SQLITE_DBCONFIG_DQS_DML,
+                        static_cast<int>(enable_dqs_on_open_),
+                        nullptr);
+  CHECK_ERROR_OR_THROW(env()->isolate(), connection_, r, SQLITE_OK, false);
+  r = sqlite3_db_config(connection_,
+                        SQLITE_DBCONFIG_DQS_DDL,
+                        static_cast<int>(enable_dqs_on_open_),
+                        nullptr);
   CHECK_ERROR_OR_THROW(env()->isolate(), connection_, r, SQLITE_OK, false);
 
   int foreign_keys_enabled;
@@ -182,6 +195,7 @@ void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
 
   bool open = true;
   bool enable_foreign_keys = true;
+  bool enable_dqs = false;
 
   if (args.Length() > 1) {
     if (!args[1]->IsObject()) {
@@ -222,10 +236,32 @@ void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
       }
       enable_foreign_keys = enable_foreign_keys_v.As<Boolean>()->Value();
     }
+
+    Local<String> enable_dqs_string = FIXED_ONE_BYTE_STRING(
+        env->isolate(), "enableDoubleQuotedStringLiterals");
+    Local<Value> enable_dqs_v;
+    if (!options->Get(env->context(), enable_dqs_string)
+             .ToLocal(&enable_dqs_v)) {
+      return;
+    }
+    if (!enable_dqs_v->IsUndefined()) {
+      if (!enable_dqs_v->IsBoolean()) {
+        node::THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            "The \"options.enableDoubleQuotedStringLiterals\" argument must be "
+            "a boolean.");
+        return;
+      }
+      enable_dqs = enable_dqs_v.As<Boolean>()->Value();
+    }
   }
 
-  new DatabaseSync(
-      env, args.This(), args[0].As<String>(), open, enable_foreign_keys);
+  new DatabaseSync(env,
+                   args.This(),
+                   args[0].As<String>(),
+                   open,
+                   enable_foreign_keys,
+                   enable_dqs);
 }
 
 void DatabaseSync::Open(const FunctionCallbackInfo<Value>& args) {
