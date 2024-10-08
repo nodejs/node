@@ -31,7 +31,7 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Add MSBuild to PATH
-      uses: microsoft/setup-msbuild@v1.0.2
+      uses: microsoft/setup-msbuild@v2.0.0
 
     - name: Restore NuGet packages
       working-directory: ${{env.GITHUB_WORKSPACE}}
