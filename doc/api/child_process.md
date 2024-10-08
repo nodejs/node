@@ -1062,7 +1062,7 @@ pipes between the parent and child. The value is one of the following:
    underlying descriptor (file streams do not start until the `'open'` event has
    occurred).
    **NOTE:** While it is technically possible to pass `stdin` as a writable or
-   `stdout`/`stderr` as readable under `options.stdio`, it is not recommended.
+   `stdout`/`stderr` as readable, it is not recommended.
    Readable and writable streams are designed with distinct behaviors, and using
    them incorrectly (e.g., passing a readable stream where a writable stream is
    expected) can lead to unexpected results or errors. This practice is discouraged
