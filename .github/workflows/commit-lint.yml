@@ -12,6 +12,11 @@ jobs:
   lint-commit-message:
     runs-on: ubuntu-latest
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@91182cccc01eb5e619899d80e4e971d6181294a7 # v2.10.1
+        with:
+          egress-policy: audit
+
       - name: Compute number of commits in the PR
         id: nb-of-commits
         run: |
