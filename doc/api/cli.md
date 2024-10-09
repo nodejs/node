@@ -799,7 +799,7 @@ of `--enable-source-maps`.
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v22.10.0
 -->
 
 > Stability: 1 - Experimental

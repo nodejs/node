@@ -197,7 +197,7 @@ There is no equivalent to this API in browsers.
 ## `worker.markAsUncloneable(object)`
 
 <!-- YAML
-added: REPLACEME
+added: v22.10.0
 -->
 
 * `object` {any} Any arbitrary JavaScript value.
