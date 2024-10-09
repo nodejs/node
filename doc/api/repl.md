@@ -235,8 +235,7 @@ undefined
 ```
 
 One known limitation of using the `await` keyword in the REPL is that
-it will invalidate the lexical scoping of the `const` and `let`
-keywords.
+it will invalidate the lexical scoping of the `const` keywords.
 
 For example:
 
@@ -245,9 +244,7 @@ For example:
 undefined
 > m
 123
-> const m = await Promise.resolve(234)
-undefined
-> m
+> m = await Promise.resolve(234)
 234
 ```
 
