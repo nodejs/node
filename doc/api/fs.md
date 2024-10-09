@@ -6828,7 +6828,7 @@ deprecated:
   - v20.12.0
   - v18.20.0
 changes:
-  - version: REPLACEME
+  - version: v23.0.0
     pr-url: https://github.com/nodejs/node/pull/51050
     description: Accessing this property emits a warning. It is now read-only.
 -->
