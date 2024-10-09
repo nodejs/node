@@ -105,6 +105,25 @@ Local<Object> Dotenv::ToObject(Environment* env) const {
   return result;
 }
 
+/**
+ * Remove trailing and leading quotes from a string
+ * if they match.
+ */
+std::string_view trim_quotes(std::string_view input) {
+  if (input.empty()) return "";
+  auto first = input.front();
+  if ((first == '\'' || first == '"' || first == '`') &&
+      input.back() == first) {
+    input.remove_prefix(1);
+    input.remove_suffix(1);
+  }
+
+  return input;
+}
+
+/**
+ * Remove leading and trailing spaces from a string.
+ */
 std::string_view trim_spaces(std::string_view input) {
   if (input.empty()) return "";
   if (input.front() == ' ') {
@@ -116,126 +135,116 @@ std::string_view trim_spaces(std::string_view input) {
   return input;
 }
 
+/**
+ * Trim key from .env file, remove leading "export" if found,
+ * like it is ignored in dotenv.
+ */
+std::string_view parse_key(std::string_view key) {
+  key = trim_spaces(key);
+  if (key.empty()) return key;
+
+  if (key.starts_with("export ")) {
+    key.remove_prefix(7);
+  }
+  return key;
+}
+
+/**
+ * Parse single value from .env file.
+ * Remove leading and trailing spaces and quotes.
+ * Leave empty space inside the quotes as is.
+ * Expand \n to newline only in double-quote strings.
+ * (like dotenv)
+ */
+std::string parse_value(std::string_view value) {
+  value = trim_spaces(value);
+  if (value.empty()) return "";
+
+  auto trimmed = trim_quotes(value);
+  if (value.front() != '\"' || value.back() != '\"') {
+    return std::string(trimmed);
+  }
+
+  // Expand \n to newline in double-quote strings
+  size_t pos = 0;
+  auto expanded = std::string(trimmed);
+  while ((pos = expanded.find("\\n", pos)) != std::string::npos) {
+    expanded.replace(pos, 2, "\n");
+    pos += 1;
+  }
+  return expanded;
+}
+
+/**
+ * Parse the content of a .env file.
+ * We want to be compatible with motdotla/dotenv js package,
+ * so some edge-cases might be handled differently than you expect.
+ *
+ * Check the test cases in test/cctest/test_dotenv.cc for more details.
+ */
 void Dotenv::ParseContent(const std::string_view input) {
-  std::string lines(input);
-
-  // Handle windows newlines "\r\n": remove "\r" and keep only "\n"
-  lines.erase(std::remove(lines.begin(), lines.end(), '\r'), lines.end());
-
-  std::string_view content = lines;
-  content = trim_spaces(content);
-
   std::string_view key;
   std::string_view value;
 
-  while (!content.empty()) {
-    // Skip empty lines and comments
-    if (content.front() == '\n' || content.front() == '#') {
-      auto newline = content.find('\n');
-      if (newline != std::string_view::npos) {
-        content.remove_prefix(newline + 1);
-        continue;
+  char quote = 0;
+  bool inComment = false;
+  std::string::size_type start = 0;
+  std::string::size_type end = 0;
+
+  for (std::string::size_type i = 0; i < input.size(); i++) {
+    char c = input[i];
+    // Finished parsing a new key
+    if (!inComment && c == '=' && key.empty()) {
+      key = parse_key(input.substr(start, i - start));
+      while (i + 1 < input.size() && input[i + 1] == ' ') {
+        // Skip whitespace after key
+        i++;
       }
-    }
-
-    // If there is no equal character, then ignore everything
-    auto equal = content.find('=');
-    if (equal == std::string_view::npos) {
-      break;
-    }
-
-    key = content.substr(0, equal);
-    content.remove_prefix(equal + 1);
-    key = trim_spaces(key);
-    content = trim_spaces(content);
-
-    if (key.empty()) {
-      break;
-    }
-
-    // Remove export prefix from key
-    if (key.starts_with("export ")) {
-      key.remove_prefix(7);
-    }
-
-    // SAFETY: Content is guaranteed to have at least one character
-    if (content.empty()) {
-      // In case the last line is a single key without value
-      // Example: KEY= (without a newline at the EOF)
-      store_.insert_or_assign(std::string(key), "");
-      break;
-    }
-
-    // Expand new line if \n it's inside double quotes
-    // Example: EXPAND_NEWLINES = 'expand\nnew\nlines'
-    if (content.front() == '"') {
-      auto closing_quote = content.find(content.front(), 1);
-      if (closing_quote != std::string_view::npos) {
-        value = content.substr(1, closing_quote - 1);
-        std::string multi_line_value = std::string(value);
-
-        size_t pos = 0;
-        while ((pos = multi_line_value.find("\\n", pos)) !=
-               std::string_view::npos) {
-          multi_line_value.replace(pos, 2, "\n");
-          pos += 1;
-        }
-
-        store_.insert_or_assign(std::string(key), multi_line_value);
-        content.remove_prefix(content.find('\n', closing_quote + 1));
-        continue;
-      }
-    }
-
-    // Check if the value is wrapped in quotes, single quotes or backticks
-    if ((content.front() == '\'' || content.front() == '"' ||
-         content.front() == '`')) {
-      auto closing_quote = content.find(content.front(), 1);
-
-      // Check if the closing quote is not found
-      // Example: KEY="value
-      if (closing_quote == std::string_view::npos) {
-        // Check if newline exist. If it does, take the entire line as the value
-        // Example: KEY="value\nKEY2=value2
-        // The value pair should be `"value`
-        auto newline = content.find('\n');
-        if (newline != std::string_view::npos) {
-          value = content.substr(0, newline);
-          store_.insert_or_assign(std::string(key), value);
-          content.remove_prefix(newline);
-        }
-      } else {
-        // Example: KEY="value"
-        value = content.substr(1, closing_quote - 1);
-        store_.insert_or_assign(std::string(key), value);
-        // Select the first newline after the closing quotation mark
-        // since there could be newline characters inside the value.
-        content.remove_prefix(content.find('\n', closing_quote + 1));
-      }
-    } else {
-      // Regular key value pair.
-      // Example: `KEY=this is value`
-      auto newline = content.find('\n');
-
-      if (newline != std::string_view::npos) {
-        value = content.substr(0, newline);
-        auto hash_character = value.find('#');
-        // Check if there is a comment in the line
-        // Example: KEY=value # comment
-        // The value pair should be `value`
-        if (hash_character != std::string_view::npos) {
-          value = content.substr(0, hash_character);
-        }
-        content.remove_prefix(newline);
-      } else {
-        // In case the last line is a single key/value pair
-        // Example: KEY=VALUE (without a newline at the EOF)
-        value = content.substr(0);
+      // Move start/end pointers to the beginning of the value
+      start = i + 1;
+      end = i + 1;
+      continue;
+    } else if (!inComment && (c == '"' || c == '\'' || c == '`')) {
+      if (start == i) {
+        // Whole value stars with a quote, parse it as a quoted string
+        quote = c;
+      } else if (quote == c) {
+        // Closing quote for quoted string found, no longer in quoted value
+        quote = 0;
       }
 
-      value = trim_spaces(value);
-      store_.insert_or_assign(std::string(key), value);
+      end++;
+    } else if (!inComment && c == '#' && quote == 0) {
+      // Mark end as i, skips rest of the line
+      end = i;
+      inComment = true;
+    } else if ((c == '\n' || c == '\r') && quote == 0) {
+      // If found any key store it
+      if (!key.empty()) {
+        auto value_str = parse_value(input.substr(start, end - start));
+        store_.insert_or_assign(std::string(key), value_str);
+      }
+
+      // Skip \n if it is a part of a \r
+      if (i + 1 < input.size() && input[i + 1] == '\n') {
+        i++;
+      }
+      // Reset counters and flags as we're about to parse a new key
+      start = i + 1;
+      end = start;
+      value = "";
+      key = "";
+      quote = 0;
+      inComment = false;
+    } else if (!inComment) {
+      // Char is not a comment, advance the key/value end pointer
+      end++;
     }
+  }
+
+  if (!key.empty()) {
+    auto value_str = parse_value(input.substr(start, end - start));
+    store_.insert_or_assign(std::string(key), value_str);
   }
 }
 
@@ -283,6 +292,16 @@ void Dotenv::AssignNodeOptionsIfAvailable(std::string* node_options) const {
   if (match != store_.end()) {
     *node_options = match->second;
   }
+}
+
+std::optional<std::string_view> Dotenv::GetValue(
+    const std::string_view key) const {
+  auto match = store_.find(key.data());
+
+  if (match != store_.end()) {
+    return match->second;
+  }
+  return std::nullopt;
 }
 
 }  // namespace node
