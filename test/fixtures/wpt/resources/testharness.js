@@ -600,7 +600,7 @@
 
     /**
      * @callback TestFunction
-     * @param {Test} test - The test currently being run.
+     * @param {Test} test - The test currnetly being run.
      * @param {Any[]} args - Additional args to pass to function.
      *
      */
@@ -852,7 +852,7 @@
             promise = promiseOrConstructor;
             description = descriptionOrPromise;
             assert(maybeDescription === undefined,
-                   "Too many args passed to no-constructor version of promise_rejects_dom");
+                   "Too many args pased to no-constructor version of promise_rejects_dom");
         }
         return bring_promise_to_current_realm(promise)
             .then(test.unreached_func("Should have rejected: " + description))
@@ -2151,7 +2151,7 @@
             func = funcOrConstructor;
             description = descriptionOrFunc;
             assert(maybeDescription === undefined,
-                   "Too many args passed to no-constructor version of assert_throws_dom");
+                   "Too many args pased to no-constructor version of assert_throws_dom");
         }
         assert_throws_dom_impl(type, func, description, "assert_throws_dom", constructor)
     }

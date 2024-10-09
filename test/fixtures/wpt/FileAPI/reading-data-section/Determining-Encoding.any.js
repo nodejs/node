@@ -1,6 +1,6 @@
 // META: title=FileAPI Test: Blob Determining Encoding
 
-var t = async_test("Blob Determining Encoding with encoding argument");
+var t = async_test("Blob Determing Encoding with encoding argument");
 t.step(function() {
     // string 'hello'
     var data = [0xFE,0xFF,0x00,0x68,0x00,0x65,0x00,0x6C,0x00,0x6C,0x00,0x6F];
@@ -14,7 +14,7 @@ t.step(function() {
     reader.readAsText(blob, "UTF-16BE");
 });
 
-var t = async_test("Blob Determining Encoding with type attribute");
+var t = async_test("Blob Determing Encoding with type attribute");
 t.step(function() {
     var data = [0xFE,0xFF,0x00,0x68,0x00,0x65,0x00,0x6C,0x00,0x6C,0x00,0x6F];
     var blob = new Blob([new Uint8Array(data)], {type:"text/plain;charset=UTF-16BE"});
@@ -28,7 +28,7 @@ t.step(function() {
 });
 
 
-var t = async_test("Blob Determining Encoding with UTF-8 BOM");
+var t = async_test("Blob Determing Encoding with UTF-8 BOM");
 t.step(function() {
     var data = [0xEF,0xBB,0xBF,0x68,0x65,0x6C,0x6C,0xC3,0xB6];
     var blob = new Blob([new Uint8Array(data)]);
@@ -41,7 +41,7 @@ t.step(function() {
     reader.readAsText(blob);
 });
 
-var t = async_test("Blob Determining Encoding without anything implying charset.");
+var t = async_test("Blob Determing Encoding without anything implying charset.");
 t.step(function() {
     var data = [0x68,0x65,0x6C,0x6C,0xC3,0xB6];
     var blob = new Blob([new Uint8Array(data)]);
@@ -54,7 +54,7 @@ t.step(function() {
     reader.readAsText(blob);
 });
 
-var t = async_test("Blob Determining Encoding with UTF-16BE BOM");
+var t = async_test("Blob Determing Encoding with UTF-16BE BOM");
 t.step(function() {
     var data = [0xFE,0xFF,0x00,0x68,0x00,0x65,0x00,0x6C,0x00,0x6C,0x00,0x6F];
     var blob = new Blob([new Uint8Array(data)]);
@@ -67,7 +67,7 @@ t.step(function() {
     reader.readAsText(blob);
 });
 
-var t = async_test("Blob Determining Encoding with UTF-16LE BOM");
+var t = async_test("Blob Determing Encoding with UTF-16LE BOM");
 t.step(function() {
     var data = [0xFF,0xFE,0x68,0x00,0x65,0x00,0x6C,0x00,0x6C,0x00,0x6F,0x00];
     var blob = new Blob([new Uint8Array(data)]);

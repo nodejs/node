@@ -32,4 +32,4 @@ test(function() {
   const measureEntry = performance.measure("A", "mark", "mark");
   assert_equals(endTime(measureEntry), markEntry.startTime);
   assert_equals(measureEntry.startTime, markEntry.startTime);
-}, "When start and end mark are both given, the start time and end time of the measure entry should be the the marks' time, respectively");
+}, "When start and end mark are both given, the start time and end time of the measure entry should be the the marks' time, repectively");
