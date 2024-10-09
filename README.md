@@ -410,6 +410,8 @@ For information about the governance of the Node.js project, see
   **Filip Skokan** <<panva.ip@gmail.com>> (he/him)
 * [pimterry](https://github.com/pimterry) -
   **Tim Perry** <<pimterry@gmail.com>> (he/him)
+* [pmarchini](https://github.com/pmarchini)
+  **Pietro Marchini** <<pietro.marchini94@gmail.com>> (he/him)
 * [Qard](https://github.com/Qard) -
   **Stephen Belanger** <<admin@stephenbelanger.com>> (he/him)
 * [RafaelGSS](https://github.com/RafaelGSS) -
