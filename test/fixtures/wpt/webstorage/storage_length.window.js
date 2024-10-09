@@ -19,5 +19,5 @@
         storage.setItem("age", "20");
 
         assert_equals(storage.length, 2, "storage.length")
-    }, name + ".length (property access)");
+    }, name + ".length (proprty access)");
 });

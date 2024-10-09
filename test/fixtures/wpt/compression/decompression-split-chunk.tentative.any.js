@@ -39,15 +39,15 @@ for (let chunkSize = 1; chunkSize < 16; ++chunkSize) {
   promise_test(async t => {
     const decompressedData = await decompressArrayBuffer(compressedBytesWithDeflate, 'deflate', chunkSize);
     assert_array_equals(decompressedData, expectedChunkValue, "value should match");
-  }, `decompressing split chunk into pieces of size ${chunkSize} should work in deflate`);
+  }, `decompressing splitted chunk into pieces of size ${chunkSize} should work in deflate`);
 
   promise_test(async t => {
     const decompressedData = await decompressArrayBuffer(compressedBytesWithGzip, 'gzip', chunkSize);
     assert_array_equals(decompressedData, expectedChunkValue, "value should match");
-  }, `decompressing split chunk into pieces of size ${chunkSize} should work in gzip`);
+  }, `decompressing splitted chunk into pieces of size ${chunkSize} should work in gzip`);
 
   promise_test(async t => {
     const decompressedData = await decompressArrayBuffer(compressedBytesWithDeflateRaw, 'deflate-raw', chunkSize);
     assert_array_equals(decompressedData, expectedChunkValue, "value should match");
-  }, `decompressing split chunk into pieces of size ${chunkSize} should work in deflate-raw`);
+  }, `decompressing splitted chunk into pieces of size ${chunkSize} should work in deflate-raw`);
 }

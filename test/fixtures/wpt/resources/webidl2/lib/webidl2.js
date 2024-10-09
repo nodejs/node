@@ -529,8 +529,8 @@ __webpack_require__.r(__webpack_exports__);
  * @param {string} text
  */
 function lastLine(text) {
-  const split = text.split("\n");
-  return split[split.length - 1];
+  const splitted = text.split("\n");
+  return splitted[splitted.length - 1];
 }
 
 function appendIfExist(base, target) {
