@@ -62,6 +62,7 @@ for (const isolation of ['none', 'process']) {
   }
 
   for (const type of ['strip', 'transform']) {
+    if (!process.config.variables.node_use_amaro) break;
     // Should match files with "-test.(c|m)(t|j)s" suffix when typescript support is enabled
     const args = ['--test', '--test-reporter=tap', '--no-warnings',
                   `--experimental-${type}-types`, `--experimental-test-isolation=${isolation}`];

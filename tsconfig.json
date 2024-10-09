@@ -53,6 +53,7 @@
       "module": ["./lib/module.js"],
       "net": ["./lib/net.js"],
       "os": ["./lib/os.js"],
+      "parser": ["./lib/parser.js"],
       "path": ["./lib/path.js"],
       "path/posix": ["./lib/path/posix.js"],
       "path/win32": ["./lib/path/win32.js"],
