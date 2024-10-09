@@ -146,7 +146,7 @@ class ActivityCollector {
 
   _stamp(h, hook) {
     if (h == null) return;
-    if (h[hook] == null) h[hook] = [];
+    h[hook] ??= [];
     const time = process.hrtime(this._start);
     h[hook].push((time[0] * 1e9) + time[1]);
   }
