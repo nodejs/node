@@ -22,6 +22,8 @@ static pfnWldpGetApplicationSettingBoolean WldpGetApplicationSettingBoolean;
 static pfnWldpQuerySecurityPolicy WldpQuerySecurityPolicy;
 static PCWSTR NODEJS = L"Node.js";
 static PCWSTR ENFORCE_CODE_INTEGRITY_SETTING_NAME = L"EnforceCodeIntegrity";
+static PCWSTR DISABLE_INTERPRETIVE_MODE_SETTING_NAME =
+  L"DisableInteractiveMode";
 
 void InitWldp(Environment* env) {
   if (isWldpInitialized) {
@@ -101,6 +103,66 @@ static void IsFileTrustedBySystemCodeIntegrityPolicy(
   args.GetReturnValue().Set(isFileTrusted);
 }
 
+static void IsInteractiveModeDisabled(
+  const FunctionCallbackInfo<Value>& args) {
+  CHECK_EQ(args.Length(), 0);
+
+  Environment* env = Environment::GetCurrent(args);
+
+  if (!isWldpInitialized) {
+    InitWldp(env);
+  }
+
+  if (WldpGetApplicationSettingBoolean != nullptr) {
+    BOOL ret;
+    HRESULT hr = WldpGetApplicationSettingBoolean(
+      NODEJS,
+      DISABLE_INTERPRETIVE_MODE_SETTING_NAME,
+      &ret);
+
+    if (SUCCEEDED(hr)) {
+      args.GetReturnValue().Set(
+        Boolean::New(env->isolate(), ret));
+      return;
+    } else if (hr != E_NOTFOUND) {
+      // If the setting is not found, continue through to attempt
+      // WldpQuerySecurityPolicy, as the setting may be defined
+      // in the old settings format
+      args.GetReturnValue().Set(Boolean::New(env->isolate(), false));
+      return;
+    }
+  }
+
+  // WldpGetApplicationSettingBoolean is the preferred way for applications to
+  // query security policy values. However, this method only exists on Windows
+  // versions going back to circa Win10 2023H2. In order to support systems
+  // older than that (down to Win10RS2), we can use the deprecated
+  // WldpQuerySecurityPolicy
+  if (WldpQuerySecurityPolicy != nullptr) {
+    DECLARE_CONST_UNICODE_STRING(providerName, L"Node.js");
+    DECLARE_CONST_UNICODE_STRING(keyName, L"Settings");
+    DECLARE_CONST_UNICODE_STRING(valueName, L"DisableInteractiveMode");
+    WLDP_SECURE_SETTING_VALUE_TYPE valueType =
+      WLDP_SECURE_SETTING_VALUE_TYPE_BOOLEAN;
+    ULONG valueSize = sizeof(int);
+    int ret = 0;
+    HRESULT hr = WldpQuerySecurityPolicy(
+              &providerName,
+              &keyName,
+              &valueName,
+              &valueType,
+              &ret,
+              &valueSize);
+    if (FAILED(hr)) {
+      args.GetReturnValue().Set(Boolean::New(env->isolate(), false));
+      return;
+    }
+
+    args.GetReturnValue().Set(
+        Boolean::New(env->isolate(), static_cast<bool>(ret)));
+  }
+}
+
 static void IsSystemEnforcingCodeIntegrity(
   const FunctionCallbackInfo<Value>& args) {
   CHECK_EQ(args.Length(), 0);
@@ -168,6 +230,11 @@ static void IsFileTrustedBySystemCodeIntegrityPolicy(
     args.GetReturnValue().Set(true);
 }
 
+static void IsInterpretiveModeDisabled(
+  const FunctionCallbackInfo<Value>& args) {
+    args.GetReturnValue().Set(false);
+}
+
 static void IsSystemEnforcingCodeIntegrity(
   const FunctionCallbackInfo<Value>& args) {
     args.GetReturnValue().Set(false);
@@ -187,12 +254,19 @@ void Initialize(Local<Object> target,
   SetMethod(
     context,
     target,
+    "isInteractiveModeDisabled",
+    IsInteractiveModeDisabled);
+
+  SetMethod(
+    context,
+    target,
     "isSystemEnforcingCodeIntegrity",
     IsSystemEnforcingCodeIntegrity);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(IsFileTrustedBySystemCodeIntegrityPolicy);
+  registry->Register(IsInteractiveModeDisabled);
   registry->Register(IsSystemEnforcingCodeIntegrity);
 }
 
