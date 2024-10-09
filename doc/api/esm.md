@@ -477,7 +477,7 @@ See [Loading ECMAScript modules using `require()`][] for details.
 <!-- YAML
 added: v14.13.0
 changes:
-  - version: REPLACEME
+  - version: v23.0.0
     pr-url: https://github.com/nodejs/node/pull/53848
     description: Added `'module.exports'` export marker to CJS namespaces.
 -->
