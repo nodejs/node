@@ -37,6 +37,17 @@ if (!require('fs').existsSync(exePath)) {
   common.skip(exe + ' binary is not available');
 }
 
+// We can't synchronously write to the child (the 'input' and 'stdio' options
+// conflict) but we can at least verify it starts up normally and is then
+// terminated by the timer watchdog.
+const { error } = child_process.spawnSync(exePath, [], {
+  stdio: ['overlapped', 'pipe', 'pipe'],
+  timeout: 42,
+});
+
+assert.ok(error);
+assert.strictEqual(error.code, 'ETIMEDOUT');
+
 const child = child_process.spawn(exePath, [], {
   stdio: ['overlapped', 'pipe', 'pipe']
 });
