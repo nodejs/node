@@ -203,7 +203,7 @@ WebCryptoCipherStatus RSA_Cipher(Environment* env,
   Mutex::ScopedLock lock(key_data.mutex());
   const auto& m_pkey = key_data.GetAsymmetricKey();
 
-  EVPKeyCtxPointer ctx(EVP_PKEY_CTX_new(m_pkey.get(), nullptr));
+  EVPKeyCtxPointer ctx = m_pkey.newCtx();
 
   if (!ctx || init(ctx.get()) <= 0)
     return WebCryptoCipherStatus::FAILED;
@@ -320,7 +320,7 @@ Maybe<void> RSACipherTraits::AdditionalConfig(
 
       if (IsAnyBufferSource(args[offset + 2])) {
         ArrayBufferOrViewContents<char> label(args[offset + 2]);
-        if (UNLIKELY(!label.CheckSizeInt32())) {
+        if (!label.CheckSizeInt32()) [[unlikely]] {
           THROW_ERR_OUT_OF_RANGE(env, "label is too big");
           return Nothing<void>();
         }
@@ -360,7 +360,7 @@ Maybe<void> ExportJWKRsaKey(Environment* env,
                             Local<Object> target) {
   Mutex::ScopedLock lock(key.mutex());
   const auto& m_pkey = key.GetAsymmetricKey();
-  int type = EVP_PKEY_id(m_pkey.get());
+  int type = m_pkey.id();
   CHECK(type == EVP_PKEY_RSA || type == EVP_PKEY_RSA_PSS);
 
   // TODO(tniessen): Remove the "else" branch once we drop support for OpenSSL
@@ -493,7 +493,7 @@ KeyObjectData ImportJWKRsaKey(Environment* env,
     }
   }
 
-  EVPKeyPointer pkey(EVP_PKEY_new());
+  auto pkey = EVPKeyPointer::New();
   CHECK_EQ(EVP_PKEY_set1_RSA(pkey.get(), rsa.get()), 1);
 
   return KeyObjectData::CreateAsymmetric(type, std::move(pkey));
@@ -507,7 +507,7 @@ Maybe<void> GetRsaKeyDetail(Environment* env,
 
   Mutex::ScopedLock lock(key.mutex());
   const auto& m_pkey = key.GetAsymmetricKey();
-  int type = EVP_PKEY_id(m_pkey.get());
+  int type = m_pkey.id();
   CHECK(type == EVP_PKEY_RSA || type == EVP_PKEY_RSA_PSS);
 
   // TODO(tniessen): Remove the "else" branch once we drop support for OpenSSL

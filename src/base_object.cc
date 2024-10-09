@@ -10,6 +10,7 @@ using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Just;
+using v8::JustVoid;
 using v8::Local;
 using v8::Maybe;
 using v8::Object;
@@ -31,7 +32,7 @@ BaseObject::~BaseObject() {
   realm()->modify_base_object_count(-1);
   realm()->RemoveCleanupHook(DeleteMe, static_cast<void*>(this));
 
-  if (UNLIKELY(has_pointer_data())) {
+  if (has_pointer_data()) [[unlikely]] {
     PointerData* metadata = pointer_data();
     CHECK_EQ(metadata->strong_ptr_count, 0);
     metadata->self = nullptr;
@@ -110,9 +111,9 @@ Maybe<std::vector<BaseObjectPtr<BaseObject>>> BaseObject::NestedTransferables()
   return Just(std::vector<BaseObjectPtr<BaseObject>>{});
 }
 
-Maybe<bool> BaseObject::FinalizeTransferRead(Local<Context> context,
+Maybe<void> BaseObject::FinalizeTransferRead(Local<Context> context,
                                              ValueDeserializer* deserializer) {
-  return Just(true);
+  return JustVoid();
 }
 
 BaseObject::PointerData* BaseObject::pointer_data() {

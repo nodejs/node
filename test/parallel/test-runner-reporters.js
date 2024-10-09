@@ -113,7 +113,7 @@ describe('node:test reporters', { concurrency: true }, () => {
                                testFile]);
       assert.strictEqual(child.stderr.toString(), '');
       const stdout = child.stdout.toString();
-      assert.match(stdout, /{"test:enqueue":5,"test:dequeue":5,"test:complete":5,"test:start":4,"test:pass":2,"test:fail":2,"test:plan":2,"test:diagnostic":\d+}$/);
+      assert.match(stdout, /{"test:enqueue":5,"test:dequeue":5,"test:complete":5,"test:start":4,"test:pass":2,"test:fail":2,"test:plan":2,"test:summary":2,"test:diagnostic":\d+}$/);
       assert.strictEqual(stdout.slice(0, filename.length + 2), `${filename} {`);
     });
   });
@@ -125,7 +125,7 @@ describe('node:test reporters', { concurrency: true }, () => {
     assert.strictEqual(child.stderr.toString(), '');
     assert.match(
       child.stdout.toString(),
-      /^package: reporter-cjs{"test:enqueue":5,"test:dequeue":5,"test:complete":5,"test:start":4,"test:pass":2,"test:fail":2,"test:plan":2,"test:diagnostic":\d+}$/,
+      /^package: reporter-cjs{"test:enqueue":5,"test:dequeue":5,"test:complete":5,"test:start":4,"test:pass":2,"test:fail":2,"test:plan":2,"test:summary":2,"test:diagnostic":\d+}$/,
     );
   });
 
@@ -136,7 +136,7 @@ describe('node:test reporters', { concurrency: true }, () => {
     assert.strictEqual(child.stderr.toString(), '');
     assert.match(
       child.stdout.toString(),
-      /^package: reporter-esm{"test:enqueue":5,"test:dequeue":5,"test:complete":5,"test:start":4,"test:pass":2,"test:fail":2,"test:plan":2,"test:diagnostic":\d+}$/,
+      /^package: reporter-esm{"test:enqueue":5,"test:dequeue":5,"test:complete":5,"test:start":4,"test:pass":2,"test:fail":2,"test:plan":2,"test:summary":2,"test:diagnostic":\d+}$/,
     );
   });
 

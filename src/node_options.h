@@ -133,6 +133,7 @@ class EnvironmentOptions : public Options {
   bool experimental_import_meta_resolve = false;
   std::string input_type;  // Value of --input-type
   std::string type;        // Value of --experimental-default-type
+  bool entry_is_url = false;
   bool experimental_permission = false;
   std::vector<std::string> allow_fs_read;
   std::vector<std::string> allow_fs_write;
@@ -272,6 +273,7 @@ class PerIsolateOptions : public Options {
   bool report_uncaught_exception = false;
   bool report_on_signal = false;
   bool experimental_shadow_realm = false;
+  int64_t stack_trace_limit = 10;
   std::string report_signal = "SIGUSR2";
   bool build_snapshot = false;
   std::string build_snapshot_config;

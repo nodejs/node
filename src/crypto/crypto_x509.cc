@@ -21,6 +21,7 @@ using v8::ArrayBufferView;
 using v8::BackingStore;
 using v8::Boolean;
 using v8::Context;
+using v8::Date;
 using v8::EscapableHandleScope;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -238,6 +239,18 @@ MaybeLocal<Value> GetValidTo(Environment* env, const ncrypto::X509View& view) {
   return ret;
 }
 
+MaybeLocal<Value> GetValidFromDate(Environment* env,
+                                   const ncrypto::X509View& view) {
+  int64_t validFromTime = view.getValidFromTime();
+  return Date::New(env->context(), validFromTime * 1000.);
+}
+
+MaybeLocal<Value> GetValidToDate(Environment* env,
+                                 const ncrypto::X509View& view) {
+  int64_t validToTime = view.getValidToTime();
+  return Date::New(env->context(), validToTime * 1000.);
+}
+
 MaybeLocal<Value> GetSerialNumber(Environment* env,
                                   const ncrypto::X509View& view) {
   if (auto serial = view.getSerialNumber()) {
@@ -345,6 +358,26 @@ void ValidTo(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
   Local<Value> ret;
   if (GetValidTo(env, cert->view()).ToLocal(&ret)) {
+    args.GetReturnValue().Set(ret);
+  }
+}
+
+void ValidFromDate(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  X509Certificate* cert;
+  ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
+  Local<Value> ret;
+  if (GetValidFromDate(env, cert->view()).ToLocal(&ret)) {
+    args.GetReturnValue().Set(ret);
+  }
+}
+
+void ValidToDate(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  X509Certificate* cert;
+  ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
+  Local<Value> ret;
+  if (GetValidToDate(env, cert->view()).ToLocal(&ret)) {
     args.GetReturnValue().Set(ret);
   }
 }
@@ -834,6 +867,8 @@ Local<FunctionTemplate> X509Certificate::GetConstructorTemplate(
     SetProtoMethodNoSideEffect(isolate, tmpl, "issuer", Issuer);
     SetProtoMethodNoSideEffect(isolate, tmpl, "validTo", ValidTo);
     SetProtoMethodNoSideEffect(isolate, tmpl, "validFrom", ValidFrom);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "validToDate", ValidToDate);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "validFromDate", ValidFromDate);
     SetProtoMethodNoSideEffect(
         isolate, tmpl, "fingerprint", Fingerprint<EVP_sha1>);
     SetProtoMethodNoSideEffect(
@@ -1001,6 +1036,8 @@ void X509Certificate::RegisterExternalReferences(
   registry->Register(Issuer);
   registry->Register(ValidTo);
   registry->Register(ValidFrom);
+  registry->Register(ValidToDate);
+  registry->Register(ValidFromDate);
   registry->Register(Fingerprint<EVP_sha1>);
   registry->Register(Fingerprint<EVP_sha256>);
   registry->Register(Fingerprint<EVP_sha512>);

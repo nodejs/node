@@ -1,10 +1,10 @@
 
-function run_test() {
+function run_test(algorithmName) {
   var subtle = self.crypto.subtle; // Change to test prefixed implementations
 
   // Source file [algorithm_name]_vectors.js provides the getTestVectors method
   // for the algorithm that drives these tests.
-  var testVectors = getTestVectors();
+  var testVectors = getTestVectors(algorithmName);
 
   testVectors.forEach(function(vector) {
       var algorithm = {name: vector.algorithmName};

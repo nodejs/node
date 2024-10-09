@@ -148,7 +148,7 @@ public:
   NCRYPTO_DISALLOW_COPY_AND_MOVE(ClearErrorOnReturn)
   NCRYPTO_DISALLOW_NEW_DELETE()
 
-  int peeKError();
+  int peekError();
 
 private:
   CryptoErrorList* errors_;
@@ -172,12 +172,20 @@ private:
   CryptoErrorList* errors_;
 };
 
+// TODO(@jasnell): Eventually replace with std::expected when we are able to
+// bump up to c++23.
 template <typename T, typename E>
 struct Result final {
+  const bool has_value;
   T value;
-  std::optional<E> error;
-  Result(T&& value) : value(std::move(value)) {}
-  Result(E&& error) : error(std::move(error)) {}
+  std::optional<E> error = std::nullopt;
+  std::optional<int> openssl_error = std::nullopt;
+  Result(T&& value) : has_value(true), value(std::move(value)) {}
+  Result(E&& error, std::optional<int> openssl_error = std::nullopt)
+      : has_value(false),
+        error(std::move(error)),
+        openssl_error(std::move(openssl_error)) {}
+  inline operator bool() const { return has_value; }
 };
 
 // ============================================================================
@@ -202,7 +210,6 @@ using ECGroupPointer = DeleteFnPtr<EC_GROUP, EC_GROUP_free>;
 using ECKeyPointer = DeleteFnPtr<EC_KEY, EC_KEY_free>;
 using ECPointPointer = DeleteFnPtr<EC_POINT, EC_POINT_free>;
 using EVPKeyCtxPointer = DeleteFnPtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free>;
-using EVPKeyPointer = DeleteFnPtr<EVP_PKEY, EVP_PKEY_free>;
 using EVPMDCtxPointer = DeleteFnPtr<EVP_MD_CTX, EVP_MD_CTX_free>;
 using HMACCtxPointer = DeleteFnPtr<HMAC_CTX, HMAC_CTX_free>;
 using NetscapeSPKIPointer = DeleteFnPtr<NETSCAPE_SPKI, NETSCAPE_SPKI_free>;
@@ -252,9 +259,10 @@ class DataPointer final {
   Buffer<void> release();
 
   // Returns a Buffer struct that is a view of the underlying data.
-  inline operator const Buffer<void>() const {
+  template <typename T = void>
+  inline operator const Buffer<T>() const {
     return {
-      .data = data_,
+      .data = static_cast<T*>(data_),
       .len = len_,
     };
   }
@@ -272,6 +280,11 @@ public:
   static BIOPointer New(const void* data, size_t len);
   static BIOPointer NewFile(std::string_view filename, std::string_view mode);
   static BIOPointer NewFp(FILE* fd, int flags);
+
+  template <typename T>
+  static BIOPointer New(const Buffer<T>& buf) {
+    return New(buf.data, buf.len);
+  }
 
   BIOPointer() = default;
   BIOPointer(std::nullptr_t) : bio_(nullptr) {}
@@ -357,6 +370,86 @@ class BignumPointer final {
 
  private:
   DeleteFnPtr<BIGNUM, BN_clear_free> bn_;
+};
+
+class EVPKeyPointer final {
+public:
+  static EVPKeyPointer New();
+  static EVPKeyPointer NewRawPublic(int id, const Buffer<const unsigned char>& data);
+  static EVPKeyPointer NewRawPrivate(int id, const Buffer<const unsigned char>& data);
+
+  enum class PKEncodingType {
+    // RSAPublicKey / RSAPrivateKey according to PKCS#1.
+    PKCS1,
+    // PrivateKeyInfo or EncryptedPrivateKeyInfo according to PKCS#8.
+    PKCS8,
+    // SubjectPublicKeyInfo according to X.509.
+    SPKI,
+    // ECPrivateKey according to SEC1.
+    SEC1
+  };
+
+  enum class PKFormatType {
+    DER,
+    PEM,
+    JWK
+  };
+
+  enum class PKParseError {
+    NOT_RECOGNIZED,
+    NEED_PASSPHRASE,
+    FAILED
+  };
+  using ParseKeyResult = Result<EVPKeyPointer, PKParseError>;
+
+  static ParseKeyResult TryParsePublicKey(
+      PKFormatType format,
+      PKEncodingType encoding,
+      const Buffer<const unsigned char>& buffer);
+
+  static ParseKeyResult TryParsePublicKeyPEM(
+      const Buffer<const unsigned char>& buffer);
+
+  static ParseKeyResult TryParsePrivateKey(
+      PKFormatType format,
+      PKEncodingType encoding,
+      std::optional<Buffer<char>> passphrase,
+      const Buffer<const unsigned char>& buffer);
+
+  EVPKeyPointer() = default;
+  explicit EVPKeyPointer(EVP_PKEY* pkey);
+  EVPKeyPointer(EVPKeyPointer&& other) noexcept;
+  EVPKeyPointer& operator=(EVPKeyPointer&& other) noexcept;
+  NCRYPTO_DISALLOW_COPY(EVPKeyPointer)
+  ~EVPKeyPointer();
+
+  inline bool operator==(std::nullptr_t) const noexcept { return pkey_ == nullptr; }
+  inline operator bool() const { return pkey_ != nullptr; }
+  inline EVP_PKEY* get() const { return pkey_.get(); }
+  void reset(EVP_PKEY* pkey = nullptr);
+  EVP_PKEY* release();
+
+  static int id(const EVP_PKEY* key);
+  static int base_id(const EVP_PKEY* key);
+
+  int id() const;
+  int base_id() const;
+  int bits() const;
+  size_t size() const;
+
+  size_t rawPublicKeySize() const;
+  size_t rawPrivateKeySize() const;
+  DataPointer rawPublicKey() const;
+  DataPointer rawPrivateKey() const;
+
+  BIOPointer derPublicKey() const;
+
+  EVPKeyCtxPointer newCtx() const;
+
+  static bool IsRSAPrivateKey(const Buffer<const unsigned char>& buffer);
+
+private:
+  DeleteFnPtr<EVP_PKEY, EVP_PKEY_free> pkey_;
 };
 
 class DHPointer final {
@@ -462,6 +555,8 @@ class X509View final {
   BIOPointer getInfoAccess() const;
   BIOPointer getValidFrom() const;
   BIOPointer getValidTo() const;
+  int64_t getValidFromTime() const;
+  int64_t getValidToTime() const;
   DataPointer getSerialNumber() const;
   Result<EVPKeyPointer, int> getPublicKey() const;
   StackOfASN1 getKeyUsage() const;

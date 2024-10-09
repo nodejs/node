@@ -176,7 +176,7 @@ function checkFrozen(context) {
     const namespace = await import(moduleUrl.href);
     // Check dynamic import works
     const context = vm.createContext(vm.constants.DONT_CONTEXTIFY);
-    const script = new vm.Script(`import('${encodeURI(moduleUrl.href)}')`, {
+    const script = new vm.Script(`import(${JSON.stringify(moduleUrl)})`, {
       importModuleDynamically: vm.constants.USE_MAIN_CONTEXT_DEFAULT_LOADER,
     });
     const promise = script.runInContext(context);

@@ -45,7 +45,7 @@ assert.deepStrictEqual(
   { default: 'some://weird/protocol' },
 );
 assert.deepStrictEqual(
-  { ...await import(`data:text/javascript,export default import.meta.resolve("baz/", ${JSON.stringify(fixtures)})`) },
+  { ...await import(`data:text/javascript,export default import.meta.resolve("baz/", ${encodeURIComponent(JSON.stringify(fixtures))})`) },
   { default: fixtures + 'node_modules/baz/' },
 );
 assert.deepStrictEqual(

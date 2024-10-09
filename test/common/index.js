@@ -30,7 +30,7 @@ const net = require('net');
 // Do not require 'os' until needed so that test-os-checked-function can
 // monkey patch it. If 'os' is required here, that test will fail.
 const path = require('path');
-const { inspect } = require('util');
+const { inspect, getCallSite } = require('util');
 const { isMainThread } = require('worker_threads');
 const { isModuleNamespaceObject } = require('util/types');
 
@@ -249,15 +249,13 @@ const PIPE = (() => {
 // `$node --abort-on-uncaught-exception $file child`
 // the process aborts.
 function childShouldThrowAndAbort() {
-  let testCmd = '';
+  const escapedArgs = escapePOSIXShell`"${process.argv[0]}" --abort-on-uncaught-exception "${process.argv[1]}" child`;
   if (!isWindows) {
     // Do not create core files, as it can take a lot of disk space on
     // continuous testing and developers' machines
-    testCmd += 'ulimit -c 0 && ';
+    escapedArgs[0] = 'ulimit -c 0 && ' + escapedArgs[0];
   }
-  testCmd += `"${process.argv[0]}" --abort-on-uncaught-exception `;
-  testCmd += `"${process.argv[1]}" child`;
-  const child = exec(testCmd);
+  const child = exec(...escapedArgs);
   child.on('exit', function onExit(exitCode, signal) {
     const errMsg = 'Test should have aborted ' +
                    `but instead exited with exit code ${exitCode}` +
@@ -551,25 +549,13 @@ function canCreateSymLink() {
   return true;
 }
 
-function getCallSite(top) {
-  const originalStackFormatter = Error.prepareStackTrace;
-  Error.prepareStackTrace = (err, stack) =>
-    `${stack[0].getFileName()}:${stack[0].getLineNumber()}`;
-  const err = new Error();
-  Error.captureStackTrace(err, top);
-  // With the V8 Error API, the stack is not formatted until it is accessed
-  err.stack; // eslint-disable-line no-unused-expressions
-  Error.prepareStackTrace = originalStackFormatter;
-  return err.stack;
-}
-
 function mustNotCall(msg) {
-  const callSite = getCallSite(mustNotCall);
+  const callSite = getCallSite()[1];
   return function mustNotCall(...args) {
     const argsInfo = args.length > 0 ?
       `\ncalled with arguments: ${args.map((arg) => inspect(arg)).join(', ')}` : '';
     assert.fail(
-      `${msg || 'function should not have been called'} at ${callSite}` +
+      `${msg || 'function should not have been called'} at ${callSite.scriptName}:${callSite.lineNumber}` +
       argsInfo);
   };
 }
@@ -900,6 +886,32 @@ function spawnPromisified(...args) {
   });
 }
 
+/**
+ * Escape values in a string template literal. On Windows, this function
+ * does not escape anything (which is fine for paths, as `"` is not a valid char
+ * in a path on Windows), so you should use it only to escape paths – or other
+ * values on tests which are skipped on Windows.
+ * This function is meant to be used for tagged template strings.
+ * @returns {[string, object | undefined]} An array that can be passed as
+ *                                         arguments to `exec` or `execSync`.
+ */
+function escapePOSIXShell(cmdParts, ...args) {
+  if (common.isWindows) {
+    // On Windows, paths cannot contain `"`, so we can return the string unchanged.
+    return [String.raw({ raw: cmdParts }, ...args)];
+  }
+  // On POSIX shells, we can pass values via the env, as there's a standard way for referencing a variable.
+  const env = { ...process.env };
+  let cmd = cmdParts[0];
+  for (let i = 0; i < args.length; i++) {
+    const envVarName = `ESCAPED_${i}`;
+    env[envVarName] = args[i];
+    cmd += '${' + envVarName + '}' + cmdParts[i + 1];
+  }
+
+  return [cmd, { env }];
+};
+
 function getPrintedStackTrace(stderr) {
   const lines = stderr.split('\n');
 
@@ -963,12 +975,12 @@ const common = {
   childShouldThrowAndAbort,
   createZeroFilledFile,
   defaultAutoSelectFamilyAttemptTimeout,
+  escapePOSIXShell,
   expectsError,
   expectRequiredModule,
   expectWarning,
   getArrayBufferViews,
   getBufferSources,
-  getCallSite,
   getPrintedStackTrace,
   getTTYfd,
   hasIntl,

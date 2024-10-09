@@ -216,6 +216,13 @@ needs to be pointed out separately during the onboarding.
     `git show --format=%B 6669b3857f0f43ee0296eb7ac45086cd907b9e94`
 * Collaborators are in alphabetical order by GitHub username.
 * Optionally, include your personal pronouns.
+* The PR should include an addition to the
+  [mailmap](.mailmap) file if the email
+  being added to the collaborator list does not match the email used for
+  commits. Otherwise tooling will not see the collaborator as being active and
+  may suggest removing them. See
+  [gitmailmap](https://git-scm.com/docs/gitmailmap) for information on the
+  format of the mailmap file.
 * Add the `Fixes: <collaborator-nomination-issue-url>` to the commit message
   so that when the commit lands, the nomination issue url will be
   automatically closed.

@@ -313,6 +313,7 @@ export default [
       'node-core/no-unescaped-regexp-dot': 'error',
       'node-core/no-duplicate-requires': 'error',
       'node-core/prefer-proto': 'error',
+      'node-core/prefer-optional-chaining': 'error',
     },
   },
   // #endregion

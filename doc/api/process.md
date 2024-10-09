@@ -1888,6 +1888,110 @@ a code.
 Specifying a code to [`process.exit(code)`][`process.exit()`] will override any
 previous setting of `process.exitCode`.
 
+## `process.features.cached_builtins`
+
+<!-- YAML
+added: v12.0.0
+-->
+
+* {boolean}
+
+A boolean value that is `true` if the current Node.js build is caching builtin modules.
+
+## `process.features.debug`
+
+<!-- YAML
+added: v0.5.5
+-->
+
+* {boolean}
+
+A boolean value that is `true` if the current Node.js build is a debug build.
+
+## `process.features.inspector`
+
+<!-- YAML
+added: v11.10.0
+-->
+
+* {boolean}
+
+A boolean value that is `true` if the current Node.js build includes the inspector.
+
+## `process.features.ipv6`
+
+<!-- YAML
+added: v0.5.3
+-->
+
+* {boolean}
+
+A boolean value that is `true` if the current Node.js build includes support for IPv6.
+
+## `process.features.tls`
+
+<!-- YAML
+added: v0.5.3
+-->
+
+* {boolean}
+
+A boolean value that is `true` if the current Node.js build includes support for TLS.
+
+## `process.features.tls_alpn`
+
+<!-- YAML
+added: v4.8.0
+-->
+
+* {boolean}
+
+A boolean value that is `true` if the current Node.js build includes support for ALPN in TLS.
+
+## `process.features.tls_ocsp`
+
+<!-- YAML
+added: v0.11.13
+-->
+
+* {boolean}
+
+A boolean value that is `true` if the current Node.js build includes support for OCSP in TLS.
+
+## `process.features.tls_sni`
+
+<!-- YAML
+added: v0.5.3
+-->
+
+* {boolean}
+
+A boolean value that is `true` if the current Node.js build includes support for SNI in TLS.
+
+## `process.features.typescript`
+
+<!-- YAML
+added: v22.10.0
+-->
+
+> Stability: 1.0 - Early development
+
+* {boolean|string}
+
+A value that is `"strip"` if Node.js is run with `--experimental-strip-types`,
+`"transform"` if Node.js is run with `--experimental-transform-types`, and `false` otherwise.
+
+## `process.features.uv`
+
+<!-- YAML
+added: v0.5.3
+-->
+
+* {boolean}
+
+A boolean value that is `true` if the current Node.js build includes support for libuv.
+Since it's currently not possible to build Node.js without libuv, this value is always `true`.
+
 ## `process.finalization.register(ref, callback)`
 
 <!-- YAML

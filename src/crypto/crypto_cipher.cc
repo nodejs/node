@@ -522,15 +522,16 @@ void CipherBase::InitIv(const FunctionCallbackInfo<Value>& args) {
   // raw bytes and proceed...
   const ByteSource key_buf = ByteSource::FromSecretKeyBytes(env, args[1]);
 
-  if (UNLIKELY(key_buf.size() > INT_MAX))
+  if (key_buf.size() > INT_MAX) [[unlikely]] {
     return THROW_ERR_OUT_OF_RANGE(env, "key is too big");
+  }
 
   ArrayBufferOrViewContents<unsigned char> iv_buf(
       !args[2]->IsNull() ? args[2] : Local<Value>());
 
-  if (UNLIKELY(!iv_buf.CheckSizeInt32()))
+  if (!iv_buf.CheckSizeInt32()) [[unlikely]] {
     return THROW_ERR_OUT_OF_RANGE(env, "iv is too big");
-
+  }
   // Don't assign to cipher->auth_tag_len_ directly; the value might not
   // represent a valid length at this point.
   unsigned int auth_tag_len;
@@ -672,9 +673,9 @@ void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
   }
 
   ArrayBufferOrViewContents<char> auth_tag(args[0]);
-  if (UNLIKELY(!auth_tag.CheckSizeInt32()))
+  if (!auth_tag.CheckSizeInt32()) [[unlikely]] {
     return THROW_ERR_OUT_OF_RANGE(env, "buffer is too big");
-
+  }
   unsigned int tag_len = auth_tag.size();
 
   const int mode = EVP_CIPHER_CTX_mode(cipher->ctx_.get());
@@ -782,8 +783,9 @@ void CipherBase::SetAAD(const FunctionCallbackInfo<Value>& args) {
   int plaintext_len = args[1].As<Int32>()->Value();
   ArrayBufferOrViewContents<unsigned char> buf(args[0]);
 
-  if (UNLIKELY(!buf.CheckSizeInt32()))
+  if (!buf.CheckSizeInt32()) [[unlikely]] {
     return THROW_ERR_OUT_OF_RANGE(env, "buffer is too big");
+  }
   args.GetReturnValue().Set(cipher->SetAAD(buf, plaintext_len));
 }
 
@@ -859,9 +861,9 @@ void CipherBase::Update(const FunctionCallbackInfo<Value>& args) {
     std::unique_ptr<BackingStore> out;
     Environment* env = Environment::GetCurrent(args);
 
-    if (UNLIKELY(size > INT_MAX))
+    if (size > INT_MAX) [[unlikely]] {
       return THROW_ERR_OUT_OF_RANGE(env, "data is too long");
-
+    }
     UpdateResult r = cipher->Update(data, size, &out);
 
     if (r != kSuccess) {
@@ -996,7 +998,7 @@ bool PublicKeyCipher::Cipher(
     const ArrayBufferOrViewContents<unsigned char>& oaep_label,
     const ArrayBufferOrViewContents<unsigned char>& data,
     std::unique_ptr<BackingStore>* out) {
-  EVPKeyCtxPointer ctx(EVP_PKEY_CTX_new(pkey.get(), nullptr));
+  EVPKeyCtxPointer ctx = pkey.newCtx();
   if (!ctx)
     return false;
   if (EVP_PKEY_cipher_init(ctx.get()) <= 0)
@@ -1064,15 +1066,15 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
     return;
 
   ArrayBufferOrViewContents<unsigned char> buf(args[offset]);
-  if (UNLIKELY(!buf.CheckSizeInt32()))
+  if (!buf.CheckSizeInt32()) [[unlikely]] {
     return THROW_ERR_OUT_OF_RANGE(env, "buffer is too long");
-
+  }
   uint32_t padding;
   if (!args[offset + 1]->Uint32Value(env->context()).To(&padding)) return;
 
   if (EVP_PKEY_cipher == EVP_PKEY_decrypt &&
       operation == PublicKeyCipher::kPrivate && padding == RSA_PKCS1_PADDING) {
-    EVPKeyCtxPointer ctx(EVP_PKEY_CTX_new(pkey.get(), nullptr));
+    EVPKeyCtxPointer ctx = pkey.newCtx();
     CHECK(ctx);
 
     if (EVP_PKEY_decrypt_init(ctx.get()) <= 0) {
@@ -1106,9 +1108,9 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
 
   ArrayBufferOrViewContents<unsigned char> oaep_label(
       !args[offset + 3]->IsUndefined() ? args[offset + 3] : Local<Value>());
-  if (UNLIKELY(!oaep_label.CheckSizeInt32()))
+  if (!oaep_label.CheckSizeInt32()) [[unlikely]] {
     return THROW_ERR_OUT_OF_RANGE(env, "oaepLabel is too big");
-
+  }
   std::unique_ptr<BackingStore> out;
   if (!Cipher<operation, EVP_PKEY_cipher_init, EVP_PKEY_cipher>(
           env, pkey, padding, digest, oaep_label, buf, &out)) {

@@ -14,8 +14,6 @@ test-watch-mode-inspect: PASS, FLAKY
 test-http2-large-file: PASS, FLAKY
 
 [$system==win32]
-# https://github.com/nodejs/node/issues/47116
-test-http-max-sockets: PASS, FLAKY
 # https://github.com/nodejs/node/issues/49630
 test-single-executable-application-snapshot: PASS, FLAKY
 test-single-executable-application-snapshot-and-code-cache: PASS, FLAKY

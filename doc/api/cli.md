@@ -220,7 +220,7 @@ The initializer module also needs to be allowed. Consider the following example:
 ```console
 $ node --experimental-permission t.js
 node:internal/modules/cjs/loader:162
-  const result = internalModuleStat(filename);
+  const result = internalModuleStat(receiver, filename);
                  ^
 
 Error: Access to this API has been restricted
@@ -795,6 +795,28 @@ when `Error.stack` is accessed. If you access `Error.stack` frequently
 in your application, take into account the performance implications
 of `--enable-source-maps`.
 
+### `--entry-url`
+
+<!-- YAML
+added:
+  - v22.10.0
+-->
+
+> Stability: 1 - Experimental
+
+When present, Node.js will interpret the entry point as a URL, rather than a
+path.
+
+Follows [ECMAScript module][] resolution rules.
+
+Any query parameter or hash in the URL will be accessible via [`import.meta.url`][].
+
+```bash
+node --entry-url 'file:///path/to/file.js?queryparams=work#and-hashes-too'
+node --entry-url --experimental-strip-types 'file.ts?query#hash'
+node --entry-url 'data:text/javascript,console.log("Hello")'
+```
+
 ### `--env-file=config`
 
 > Stability: 1.1 - Active development
@@ -861,6 +883,15 @@ export USERNAME="nodejs" # will result in `nodejs` as the value.
 
 If you want to load environment variables from a file that may not exist, you
 can use the [`--env-file-if-exists`][] flag instead.
+
+### `--env-file-if-exists=config`
+
+<!-- YAML
+added: v22.9.0
+-->
+
+Behavior is the same as [`--env-file`][], but an error is not thrown if the file
+does not exist.
 
 ### `-e`, `--eval "script"`
 
@@ -1017,6 +1048,7 @@ following permissions are restricted:
 * Child Process - manageable through [`--allow-child-process`][] flag
 * Worker Threads - manageable through [`--allow-worker`][] flag
 * WASI - manageable through [`--allow-wasi`][] flag
+* Addons - manageable through [`--allow-addons`][] flag
 
 ### `--experimental-require-module`
 
@@ -1770,15 +1802,6 @@ is being linked to Node.js. Sharing the OpenSSL configuration may have unwanted
 implications and it is recommended to use a configuration section specific to
 Node.js which is `nodejs_conf` and is default when this option is not used.
 
-### `--env-file-if-exists=config`
-
-<!-- YAML
-added: v22.9.0
--->
-
-Behavior is the same as [`--env-file`][], but an error is not thrown if the file
-does not exist.
-
 ### `--pending-deprecation`
 
 <!-- YAML
@@ -2097,7 +2120,7 @@ changes:
                  `PATH` environment variable accordingly.
 -->
 
-> Stability: 1.2 - Release candidate
+> Stability: 2 - Stable
 
 This runs a specified command from a package.json's `"scripts"` object.
 If a missing `"command"` is provided, it will list the available scripts.
@@ -2109,6 +2132,8 @@ file to run the command from.
 the current directory, to the `PATH` in order to execute the binaries from
 different folders where multiple `node_modules` directories are present, if
 `ancestor-folder/node_modules/.bin` is a directory.
+
+`--run` executes the command in the directory containing the related `package.json`.
 
 For example, the following command will run the `test` script of
 the `package.json` in the current folder:
@@ -3022,6 +3047,7 @@ one is included in the list below.
 * `--enable-fips`
 * `--enable-network-family-autoselection`
 * `--enable-source-maps`
+* `--entry-url`
 * `--experimental-abortcontroller`
 * `--experimental-async-context-frame`
 * `--experimental-default-type`
@@ -3587,6 +3613,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [V8 JavaScript code coverage]: https://v8project.blogspot.com/2017/12/javascript-code-coverage.html
 [Web Crypto API]: webcrypto.md
 [`"type"`]: packages.md#type
+[`--allow-addons`]: #--allow-addons
 [`--allow-child-process`]: #--allow-child-process
 [`--allow-fs-read`]: #--allow-fs-read
 [`--allow-fs-write`]: #--allow-fs-write
@@ -3621,6 +3648,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`dns.lookup()`]: dns.md#dnslookuphostname-options-callback
 [`dns.setDefaultResultOrder()`]: dns.md#dnssetdefaultresultorderorder
 [`dnsPromises.lookup()`]: dns.md#dnspromiseslookuphostname-options
+[`import.meta.url`]: esm.md#importmetaurl
 [`import` specifier]: esm.md#import-specifiers
 [`net.getDefaultAutoSelectFamilyAttemptTimeout()`]: net.md#netgetdefaultautoselectfamilyattempttimeout
 [`node:sqlite`]: sqlite.md

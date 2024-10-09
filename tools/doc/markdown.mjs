@@ -15,7 +15,7 @@ export function replaceLinks({ filename, linksMapper }) {
       }
     });
     visit(tree, 'definition', (node) => {
-      const htmlUrl = fileHtmlUrls && fileHtmlUrls[node.identifier];
+      const htmlUrl = fileHtmlUrls?.[node.identifier];
 
       if (htmlUrl && typeof htmlUrl === 'string') {
         node.url = htmlUrl;

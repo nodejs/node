@@ -257,6 +257,11 @@ changes:
     - v18.14.0
     pr-url: https://github.com/nodejs/node/pull/46205
     description: Added support for `ReadableStream` and `WritableStream`.
+  - version:
+    - v19.1.0
+    - v18.13.0
+    pr-url: https://github.com/nodejs/node/pull/44862
+    description: The `cleanup` option was added.
 -->
 
 * `stream` {Stream|ReadableStream|WritableStream} A readable and/or writable
@@ -265,7 +270,9 @@ changes:
   * `error` {boolean|undefined}
   * `readable` {boolean|undefined}
   * `writable` {boolean|undefined}
-  * `signal`: {AbortSignal|undefined}
+  * `signal` {AbortSignal|undefined}
+  * `cleanup` {boolean|undefined} If `true`, removes the listeners registered by
+    this function before the promise is fulfilled. **Default:** `false`.
 * Returns: {Promise} Fulfills when the stream is no
   longer readable or writable.
 
@@ -300,6 +307,17 @@ rs.resume(); // Drain the stream.
 ```
 
 The `finished` API also provides a [callback version][stream-finished].
+
+`stream.finished()` leaves dangling event listeners (in particular
+`'error'`, `'end'`, `'finish'` and `'close'`) after the returned promise is
+resolved or rejected. The reason for this is so that unexpected `'error'`
+events (due to incorrect stream implementations) do not cause unexpected
+crashes. If this is unwanted behavior then `options.cleanup` should be set to
+`true`:
+
+```js
+await finished(rs, { cleanup: true });
+```
 
 ### Object mode
 
@@ -2744,8 +2762,6 @@ changes:
     underlying stream will _not_ be aborted if the signal is aborted. The
     callback will get called with an `AbortError`. All registered
     listeners added by this function will also be removed.
-  * `cleanup` {boolean} remove all registered stream listeners.
-    **Default:** `false`.
 * `callback` {Function} A callback function that takes an optional error
   argument.
 * Returns: {Function} A cleanup function which removes all registered
