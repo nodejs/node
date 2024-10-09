@@ -603,11 +603,24 @@ changes:
 
 * {integer}
 
-Set this property to reject connections when the server's connection count gets
-high.
+When the number of connections reaches the `server.maxConnections` threshold:
+
+1. If the process is not running in cluster mode, Node.js will close the connection.
+
+2. If the process is running in cluster mode, Node.js will, by default, route the connection to another worker process. To close the connection instead, set \[`server.dropMaxConnection`]\[] to `true`.
 
 It is not recommended to use this option once a socket has been sent to a child
 with [`child_process.fork()`][].
+
+### `server.dropMaxConnection`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+Set this property to `true` to begin closing connections once the number of connections reaches the \[`server.maxConnections`]\[] threshold. This setting is only effective in cluster mode.
 
 ### `server.ref()`
 
