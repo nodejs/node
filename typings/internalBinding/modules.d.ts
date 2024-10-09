@@ -10,7 +10,8 @@ export type FullPackageConfig = RecognizedPackageConfig & {
   [key: string]: unknown,
 }
 export type DeserializedPackageConfig<everything = false> = {
-  data: everything extends true ? FullPackageConfig : RecognizedPackageConfig
+  data: everything extends true ? FullPackageConfig : RecognizedPackageConfig,
+  exists: boolean,
   path: URL['pathname'],
 }
 export type SerializedPackageConfig = [

@@ -31,6 +31,7 @@ const pkgType = 'module'; // a non-default value
 
   assert.deepStrictEqual(pkg, {
     path: path.join(pathToDir, 'package.json'),
+    exists: true,
     data: {
       __proto__: null,
       name: pkgName,
@@ -45,6 +46,7 @@ const pkgType = 'module'; // a non-default value
 
   assert.deepStrictEqual(pkg, {
     path: path.join(pathToDir, 'package.json'),
+    exists: true,
     data: {
       __proto__: null,
       name: pkgName,
@@ -59,6 +61,7 @@ const pkgType = 'module'; // a non-default value
 
   assert.deepStrictEqual(pkg, {
     path: path.join(pathToDir, 'package.json'),
+    exists: true,
     data: {
       __proto__: null,
       name: pkgName,
@@ -74,6 +77,7 @@ const pkgType = 'module'; // a non-default value
 
   assert.deepStrictEqual(pkg, {
     path: path.join(pathToDir, 'package.json'),
+    exists: true,
     data: {
       __proto__: null,
       name: pkgName,
@@ -92,6 +96,7 @@ const pkgType = 'module'; // a non-default value
 
   assert.deepStrictEqual(pkg, {
     path: path.join(pathToDir, 'package.json'),
+    exists: true,
     data: {
       __proto__: null,
       name: pkgName,
