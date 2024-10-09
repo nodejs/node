@@ -2768,6 +2768,7 @@ added: v8.4.0
 changes:
   - version:
       - v23.0.0
+      - v22.10.0
     pr-url: https://github.com/nodejs/node/pull/54875
     description: Added `streamResetBurst` and `streamResetRate`.
   - version:

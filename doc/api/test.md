@@ -1259,7 +1259,9 @@ changes:
   - version: v23.0.0
     pr-url: https://github.com/nodejs/node/pull/54705
     description: Added the `cwd` option.
-  - version: v23.0.0
+  - version:
+    - v23.0.0
+    - v22.10.0
     pr-url: https://github.com/nodejs/node/pull/53937
     description: Added coverage options.
   - version: v22.8.0

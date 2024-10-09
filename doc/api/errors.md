@@ -2092,7 +2092,9 @@ does not consist of exactly two elements.
 ### `ERR_INVALID_TYPESCRIPT_SYNTAX`
 
 <!-- YAML
-added: v23.0.0
+added:
+ - v23.0.0
+ - v22.10.0
 -->
 
 The provided TypeScript syntax is not valid or unsupported.
@@ -2439,7 +2441,9 @@ object.
 ### `ERR_QUIC_CONNECTION_FAILED`
 
 <!-- YAML
-added: v23.0.0
+added:
+ - v23.0.0
+ - v22.10.0
 -->
 
 > Stability: 1 - Experimental
@@ -2451,7 +2455,9 @@ Establishing a QUIC connection failed.
 ### `ERR_QUIC_ENDPOINT_CLOSED`
 
 <!-- YAML
-added: v23.0.0
+added:
+ - v23.0.0
+ - v22.10.0
 -->
 
 > Stability: 1 - Experimental
@@ -2463,7 +2469,9 @@ A QUIC Endpoint closed with an error.
 ### `ERR_QUIC_OPEN_STREAM_FAILED`
 
 <!-- YAML
-added: v23.0.0
+added:
+ - v23.0.0
+ - v22.10.0
 -->
 
 > Stability: 1 - Experimental
