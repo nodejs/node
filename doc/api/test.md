@@ -2976,7 +2976,6 @@ test('top level test', async (t) => {
 <!-- YAML
 added:
   - v22.2.0
-  - v20.15.0
 -->
 
 An object containing assertion methods bound to `context`. The top-level
