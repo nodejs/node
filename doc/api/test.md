@@ -3292,6 +3292,42 @@ test('snapshot test with custom serialization', (t) => {
 });
 ```
 
+#### `context.assert.inlineSnapshot(value, expectedSnapshot[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+* `value` {any} A value to serialize to a string.
+* `expectedSnapshot` {any} The expected snapshot serialized to string.
+* `options` {Object} Optional configuration options. The following properties
+  are supported:
+  * `serializers` {Array} An array of synchronous functions used to serialize
+    `value` into a string. `value` is passed as the only argument to the first
+    serializer function. The return value of each serializer is passed as input
+    to the next serializer. Once all serializers have run, the resulting value
+    is coerced to a string. **Default:** If no serializers are provided, the
+    test runner's default serializers are used.
+
+This function implements assertions for snapshot testing.
+
+```js
+test('inline snapshot test with default serialization', (t) => {
+  t.assert.inlineSnapshot({ value1: 1, value2: 2 }, `{
+  "value1": 1,
+  "value2": 2
+}`);
+});
+
+test('inline snapshot test with custom serialization', (t) => {
+  t.assert.inlineSnapshot({ value3: 3, value4: 4 }, `{"value3":3,"value4":4}`, {
+    serializers: [(value) => JSON.stringify(value)]
+  });
+});
+```
+
 ### `context.diagnostic(message)`
 
 <!-- YAML

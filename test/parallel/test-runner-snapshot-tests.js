@@ -79,20 +79,22 @@ suite('SnapshotManager', () => {
       },
     };
 
-    t.assert.throws(() => {
-      manager.serialize(input, [(value) => { return value; }]);
-    }, (err) => {
-      t.assert.strictEqual(err.code, 'ERR_INVALID_STATE');
-      t.assert.match(err.message, /The provided serializers did not generate a string/);
-      t.assert.strictEqual(err.input, input);
-      t.assert.strictEqual(err.cause, cause);
-      return true;
-    });
+    for (const inline of [true, false]) {
+      t.assert.throws(() => {
+        manager.serialize(input, inline, [(value) => { return value; }]);
+      }, (err) => {
+        t.assert.strictEqual(err.code, 'ERR_INVALID_STATE');
+        t.assert.match(err.message, /The provided serializers did not generate a string/);
+        t.assert.strictEqual(err.input, input);
+        t.assert.strictEqual(err.cause, cause);
+        return true;
+      });
+    }
   });
 
-  test('serializes values using provided functions', (t) => {
+  test('serializes values using provided functions when inline is false', (t) => {
     const manager = new SnapshotManager(false);
-    const output = manager.serialize({ foo: 1 }, [
+    const output = manager.serialize({ foo: 1 }, false, [
       (value) => { return JSON.stringify(value); },
       (value) => { return value + '424242'; },
     ]);
@@ -100,18 +102,51 @@ suite('SnapshotManager', () => {
     t.assert.strictEqual(output, '\n{"foo":1}424242\n');
   });
 
-  test('serialized values get cast to string', (t) => {
+  test('serializes values using provided functions when inline is true', (t) => {
     const manager = new SnapshotManager(false);
-    const output = manager.serialize(5, []);
+    const output = manager.serialize({ foo: 1 }, true, [
+      (value) => { return JSON.stringify(value); },
+      (value) => { return value + '424242'; },
+    ]);
+
+    t.assert.strictEqual(output, '{"foo":1}424242');
+  });
+
+  test('serialized values get cast to string when inline is false', (t) => {
+    const manager = new SnapshotManager(false);
+    const output = manager.serialize(5, false, []);
 
     t.assert.strictEqual(output, '\n5\n');
   });
 
-  test('serialized values get escaped', (t) => {
+  test('serialized values get cast to string when inline is true', (t) => {
     const manager = new SnapshotManager(false);
-    const output = manager.serialize('fo\\o`${x}`', []);
+    const output = manager.serialize(5, true, []);
+
+    t.assert.strictEqual(output, '5');
+  });
+
+  test('serialized values get escaped when inline is false', (t) => {
+    const manager = new SnapshotManager(false);
+    const output = manager.serialize('fo\\o`${x}`', false, []);
 
     t.assert.strictEqual(output, '\nfo\\\\o\\`\\${x}\\`\n');
+  });
+
+  test('should not do anything to the input when it is a string, no serializers exists and inline is true', (t) => {
+    const manager = new SnapshotManager(false);
+    const input = 'fo\\o`${x}`';
+    const output = manager.serialize(input, true, []);
+
+    t.assert.strictEqual(output, input);
+  });
+
+  test('should use default serializers and inline is true', (t) => {
+    const manager = new SnapshotManager(false);
+    const input = 'fo\\o`${x}`';
+    const output = manager.serialize(input, true);
+
+    t.assert.strictEqual(output, JSON.stringify(input, null, 2));
   });
 
   test('reads individual snapshots from snapshot file', (t) => {
@@ -250,6 +285,32 @@ suite('t.assert.snapshot() validation', () => {
   });
 });
 
+suite('t.assert.inlineSnapshot() validation', () => {
+  test('options must be an object', (t) => {
+    t.assert.throws(() => {
+      t.assert.inlineSnapshot('', '', null);
+    }, /The "options" argument must be of type object/);
+  });
+
+  test('expected must be a string', (t) => {
+    t.assert.throws(() => {
+      t.assert.inlineSnapshot('', null, {});
+    }, /The "expected" argument must be of type string/);
+  });
+
+  test('options.serializers must be an array if present', (t) => {
+    t.assert.throws(() => {
+      t.assert.inlineSnapshot('', '', { serializers: 5 });
+    }, /The "options\.serializers" property must be an instance of Array/);
+  });
+
+  test('options.serializers must only contain functions', (t) => {
+    t.assert.throws(() => {
+      t.assert.inlineSnapshot('', '', { serializers: [() => {}, ''] });
+    }, /The "options\.serializers\[1\]" property must be of type function/);
+  });
+});
+
 suite('setResolveSnapshotPath()', () => {
   test('throws if input is not a function', (t) => {
     t.assert.throws(() => {
@@ -292,6 +353,8 @@ suite('setDefaultSnapshotSerializers()', () => {
 });
 
 test('t.assert.snapshot()', async (t) => {
+  tmpdir.refresh();
+
   const fixture = fixtures.path(
     'test-runner', 'snapshots', 'unit.js'
   );
@@ -337,6 +400,48 @@ test('t.assert.snapshot()', async (t) => {
     t.assert.match(child.stdout, /tests 5/);
     t.assert.match(child.stdout, /pass 5/);
     t.assert.match(child.stdout, /fail 0/);
+  });
+});
+
+test('t.assert.inlineSnapshot()', async (t) => {
+  tmpdir.refresh();
+
+  const fixture = fixtures.path(
+    'test-runner', 'snapshots', 'unit-inline.js'
+  );
+
+  await t.test('should not generate snapshot files when using inline snapshot', async (t) => {
+    const child = await common.spawnPromisified(
+      process.execPath,
+      ['--experimental-test-snapshots', '--test-update-snapshots', fixture],
+      { cwd: tmpdir.path }
+    );
+
+    const dirContent = await fs.promises.readdir(tmpdir.path);
+
+    t.assert.deepStrictEqual(dirContent, []);
+
+    t.assert.strictEqual(child.code, 0);
+    t.assert.strictEqual(child.signal, null);
+
+    t.assert.match(child.stdout, /# tests 7/);
+    t.assert.match(child.stdout, /# pass 7/);
+    t.assert.match(child.stdout, /# fail 0/);
+  });
+
+  await t.test('passes with correct snapshot', async (t) => {
+    const child = await common.spawnPromisified(
+      process.execPath,
+      ['--experimental-test-snapshots', fixture],
+      { cwd: tmpdir.path }
+    );
+
+    t.assert.strictEqual(child.code, 0);
+    t.assert.strictEqual(child.signal, null);
+
+    t.assert.match(child.stdout, /# tests 7/);
+    t.assert.match(child.stdout, /# pass 7/);
+    t.assert.match(child.stdout, /# fail 0/);
   });
 });
 
