@@ -982,7 +982,6 @@ channels.asyncStart.bindStore(myStore, (data) => {
 <!-- YAML
 added:
  - v22.0.0
- - v20.13.0
 -->
 
 > Stability: 1 - Experimental

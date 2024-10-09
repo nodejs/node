@@ -518,7 +518,6 @@ the `Blob` data.
 <!-- YAML
 added:
   - v22.3.0
-  - v20.16.0
 -->
 
 The `blob.bytes()` method returns the byte of the `Blob` object as a `Promise<Uint8Array>`.
