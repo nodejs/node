@@ -7,7 +7,7 @@ test('expect process.features.typescript to be \'strip\' when --experimental-str
   const result = await spawnPromisified(process.execPath, [
     '--no-warnings',
     '--experimental-strip-types',
-    '-p', 'process.features.typescript',
+    fixtures.path('typescript/echo-process-features-typescript.cjs'),
   ]);
 
   strictEqual(result.stderr, '');
@@ -19,7 +19,7 @@ test('expect process.features.typescript to be \'transform\' when --experimental
   const result = await spawnPromisified(process.execPath, [
     '--no-warnings',
     '--experimental-transform-types',
-    '-p', 'process.features.typescript',
+    fixtures.path('typescript/echo-process-features-typescript.cjs'),
   ]);
 
   strictEqual(result.stderr, '');
