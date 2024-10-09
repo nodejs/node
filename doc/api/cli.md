@@ -3567,6 +3567,15 @@ for MiB in 16 32 64 128; do
 done
 ```
 
+### --localstorage-file
+
+The --localstorage-file option specifies the file used for localStorage in Node.js.
+
+* This file can be accessed by multiple processes simultaneously, which
+  might require implementing file locking or other synchronization
+  mechanisms to ensure data integrity.
+* The storage quota for `localStorage` is 10MB per process.
+
 ### `--security-revert`
 
 ### `--stack-trace-limit=limit`
