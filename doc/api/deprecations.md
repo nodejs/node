@@ -999,7 +999,7 @@ instead.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v23.0.0
     pr-url: https://github.com/nodejs/node/pull/52744
     description: End-of-Life deprecation.
   - version: v22.0.0
@@ -1026,7 +1026,7 @@ The `util.isBoolean()` API has been removed. Please use
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v23.0.0
     pr-url: https://github.com/nodejs/node/pull/52744
     description: End-of-Life deprecation.
   - version: v22.0.0
@@ -1053,7 +1053,7 @@ The `util.isBuffer()` API has been removed. Please use
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v23.0.0
     pr-url: https://github.com/nodejs/node/pull/52744
     description: End-of-Life deprecation.
   - version: v22.0.0
@@ -1080,7 +1080,7 @@ The `util.isDate()` API has been removed. Please use
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v23.0.0
     pr-url: https://github.com/nodejs/node/pull/52744
     description: End-of-Life deprecation.
   - version: v22.0.0
@@ -1108,7 +1108,7 @@ instead.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v23.0.0
     pr-url: https://github.com/nodejs/node/pull/52744
     description: End-of-Life deprecation.
   - version: v22.0.0
@@ -1135,7 +1135,7 @@ The `util.isFunction()` API has been removed. Please use
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v23.0.0
     pr-url: https://github.com/nodejs/node/pull/52744
     description: End-of-Life deprecation.
   - version: v22.0.0
@@ -1162,7 +1162,7 @@ The `util.isNull()` API has been removed. Please use
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v23.0.0
     pr-url: https://github.com/nodejs/node/pull/52744
     description: End-of-Life deprecation.
   - version: v22.0.0
@@ -1189,7 +1189,7 @@ The `util.isNullOrUndefined()` API has been removed. Please use
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v23.0.0
     pr-url: https://github.com/nodejs/node/pull/52744
     description: End-of-Life deprecation.
   - version: v22.0.0
@@ -1216,7 +1216,7 @@ The `util.isNumber()` API has been removed. Please use
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v23.0.0
     pr-url: https://github.com/nodejs/node/pull/52744
     description: End-of-Life deprecation.
   - version: v22.0.0
@@ -1243,7 +1243,7 @@ The `util.isObject()` API has been removed. Please use
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v23.0.0
     pr-url: https://github.com/nodejs/node/pull/52744
     description: End-of-Life deprecation.
   - version: v22.0.0
@@ -1271,7 +1271,7 @@ instead.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v23.0.0
     pr-url: https://github.com/nodejs/node/pull/52744
     description: End-of-Life deprecation.
   - version: v22.0.0
@@ -1298,7 +1298,7 @@ The `util.isRegExp()` API has been removed. Please use
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v23.0.0
     pr-url: https://github.com/nodejs/node/pull/52744
     description: End-of-Life deprecation.
   - version: v22.0.0
@@ -1325,7 +1325,7 @@ The `util.isString()` API has been removed. Please use
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v23.0.0
     pr-url: https://github.com/nodejs/node/pull/52744
     description: End-of-Life deprecation.
   - version: v22.0.0
@@ -1352,7 +1352,7 @@ The `util.isSymbol()` API has been removed. Please use
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v23.0.0
     pr-url: https://github.com/nodejs/node/pull/52744
     description: End-of-Life deprecation.
   - version: v22.0.0
@@ -1379,7 +1379,7 @@ The `util.isUndefined()` API has been removed. Please use
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v23.0.0
     pr-url: https://github.com/nodejs/node/pull/52744
     description: End-of-Life deprecation.
   - version: v22.0.0
@@ -2033,7 +2033,7 @@ or `module.exports` instead.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v23.0.0
     pr-url: https://github.com/nodejs/node/pull/55019
     description: Runtime deprecation.
   - version: v10.0.0
@@ -2148,7 +2148,7 @@ parameter.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v23.0.0
     pr-url: https://github.com/nodejs/node/pull/55035
     description: End-of-Life.
   - version: v10.0.0
@@ -2293,7 +2293,7 @@ core and obsoleted by the removal of NPN (Next Protocol Negotiation) support.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v23.0.0
     pr-url: https://github.com/nodejs/node/pull/55020
     description: End-of-Life.
   - version: v11.0.0
@@ -3370,7 +3370,7 @@ Values other than `undefined`, `null`, integer numbers, and integer strings
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v23.0.0
     pr-url: https://github.com/nodejs/node/pull/52747
     description: End-of-Life.
   - version: v22.0.0
@@ -3611,7 +3611,7 @@ Please use `value instanceof WebAssembly.Module` instead.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v23.0.0
     pr-url: https://github.com/nodejs/node/pull/51050
     description: Runtime deprecation.
   - version:
@@ -3686,7 +3686,7 @@ Please use the [`crypto.createHmac()`][] method to create Hmac instances.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v23.0.0
     pr-url: https://github.com/nodejs/node/pull/52552
     description: Runtime deprecation.
   - version: v20.13.0

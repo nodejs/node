@@ -2767,7 +2767,7 @@ Throws `ERR_INVALID_ARG_TYPE` for invalid `settings` argument.
 added: v8.4.0
 changes:
   - version:
-      - REPLACEME
+      - v23.0.0
     pr-url: https://github.com/nodejs/node/pull/54875
     description: Added `streamResetBurst` and `streamResetRate`.
   - version:
