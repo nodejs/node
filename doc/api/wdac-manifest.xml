@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AppManifest Id="NodeJS" xmlns="urn:schemas-microsoft-com:windows-defender-application-control">
+  <SettingDefinition Name="EnforceCodeIntegrity" Type="Boolean" IgnoreAuditPolicies="false"/>
+  <SettingDefinition Name="DisableInterpretiveMode" Type="Boolean" IgnoreAuditPolicies="false"/>
+</AppManifest>
