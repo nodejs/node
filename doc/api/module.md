@@ -217,6 +217,48 @@ added: v22.8.0
 * Returns: {string|undefined} Path to the [module compile cache][] directory if it is enabled,
   or `undefined` otherwise.
 
+### `module.getPackageJSON(startLocation[, everything])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active Development
+
+* `startLocation` {string} A fully resolved FS path or file URL to start looking
+* `everything` {boolean} Whether to return the full contents of the found package.json
+* Returns: {Object | undefined}
+  * data: {Object}
+    * name: {string | undefined}
+    * type: {string | undefined}
+    * exports: string | string\[] | Record\<string, unknown> | undefined
+    * imports: string | string\[] | Record\<string, unknown> | undefined
+    * …
+  * path: {string}
+
+Retreives the contents and location of the package.json closest to the supplied `startLocation`;
+this behaves identically to node's own lookup and consumption of package.json for a given module.
+
+```mjs
+import { getPackageJSON } from 'node:module';
+
+const somePackage = getPackageJSON(import.meta.resolve('some-package'), true);
+
+somePackage?.path; // '/…/node_modules/some-package/package.json'
+somePackage?.data.name; // 'some-package-real-name'
+somePackage?.data.types; // './index.d.ts'
+
+const thisParentPackage = getPackageJSON(import.meta.resolve('..'));
+
+thisParentPackage?.path; // '../../package.json'
+thisParentPackage?.data.type; // 'module'
+
+const thisSubPackage = getPackageJSON(import.meta.url);
+
+thisSubPackage?.path; // './package.json'
+thisSubPackage?.data.type; // 'commonjs'
+```
+
 ### `module.isBuiltin(moduleName)`
 
 <!-- YAML
