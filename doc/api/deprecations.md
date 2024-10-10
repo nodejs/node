@@ -3556,12 +3556,15 @@ the result of said promise, which can lead to unhandled promise rejections.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/55018
+    description: Runtime deprecation.
   - version: v20.8.0
     pr-url: https://github.com/nodejs/node/pull/49725
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
 The [`util.toUSVString()`][] API is deprecated. Please use
 [`String.prototype.toWellFormed`][] instead.
