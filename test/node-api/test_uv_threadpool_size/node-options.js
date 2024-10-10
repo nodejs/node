@@ -13,11 +13,8 @@ const uvThreadPoolPath = '../../fixtures/dotenv/uv-threadpool.env';
 
 // Should update UV_THREADPOOL_SIZE
 let filePath = path.join(__dirname, `./build/${common.buildType}/test_uv_threadpool_size`);
-if (common.isWindows) {
-  filePath = filePath.replaceAll('\\', '\\\\');
-}
 const code = `
-   const { test } = require('${filePath}');
+   const { test } = require(${JSON.stringify(filePath)});
    const size = parseInt(process.env.UV_THREADPOOL_SIZE, 10);
    require('assert').strictEqual(size, 4);
    test(size);
