@@ -247,6 +247,20 @@ var require_errors = __commonJS({
         this.headers = headers;
       }
     };
+    var ResponseError = class extends UndiciError {
+      static {
+        __name(this, "ResponseError");
+      }
+      constructor(message, code, { headers, data }) {
+        super(message);
+        this.name = "ResponseError";
+        this.message = message || "Response error";
+        this.code = "UND_ERR_RESPONSE";
+        this.statusCode = code;
+        this.data = data;
+        this.headers = headers;
+      }
+    };
     var SecureProxyConnectionError = class extends UndiciError {
       static {
         __name(this, "SecureProxyConnectionError");
@@ -281,6 +295,7 @@ var require_errors = __commonJS({
       BalancedPoolMissingUpstreamError,
       ResponseExceededMaxSizeError,
       RequestRetryError,
+      ResponseError,
       SecureProxyConnectionError
     };
   }
@@ -1266,7 +1281,7 @@ var require_util = __commonJS({
       if (!host) {
         return null;
       }
-      assert.strictEqual(typeof host, "string");
+      assert(typeof host === "string");
       const servername = getHostname(host);
       if (net.isIP(servername)) {
         return "";
@@ -2166,6 +2181,242 @@ var require_request = __commonJS({
   }
 });
 
+// lib/util/timers.js
+var require_timers = __commonJS({
+  "lib/util/timers.js"(exports2, module2) {
+    "use strict";
+    var fastNow = 0;
+    var RESOLUTION_MS = 1e3;
+    var TICK_MS = (RESOLUTION_MS >> 1) - 1;
+    var fastNowTimeout;
+    var kFastTimer = Symbol("kFastTimer");
+    var fastTimers = [];
+    var NOT_IN_LIST = -2;
+    var TO_BE_CLEARED = -1;
+    var PENDING = 0;
+    var ACTIVE = 1;
+    function onTick() {
+      fastNow += TICK_MS;
+      let idx = 0;
+      let len = fastTimers.length;
+      while (idx < len) {
+        const timer = fastTimers[idx];
+        if (timer._state === PENDING) {
+          timer._idleStart = fastNow - TICK_MS;
+          timer._state = ACTIVE;
+        } else if (timer._state === ACTIVE && fastNow >= timer._idleStart + timer._idleTimeout) {
+          timer._state = TO_BE_CLEARED;
+          timer._idleStart = -1;
+          timer._onTimeout(timer._timerArg);
+        }
+        if (timer._state === TO_BE_CLEARED) {
+          timer._state = NOT_IN_LIST;
+          if (--len !== 0) {
+            fastTimers[idx] = fastTimers[len];
+          }
+        } else {
+          ++idx;
+        }
+      }
+      fastTimers.length = len;
+      if (fastTimers.length !== 0) {
+        refreshTimeout();
+      }
+    }
+    __name(onTick, "onTick");
+    function refreshTimeout() {
+      if (fastNowTimeout) {
+        fastNowTimeout.refresh();
+      } else {
+        clearTimeout(fastNowTimeout);
+        fastNowTimeout = setTimeout(onTick, TICK_MS);
+        if (fastNowTimeout.unref) {
+          fastNowTimeout.unref();
+        }
+      }
+    }
+    __name(refreshTimeout, "refreshTimeout");
+    var FastTimer = class {
+      static {
+        __name(this, "FastTimer");
+      }
+      [kFastTimer] = true;
+      /**
+       * The state of the timer, which can be one of the following:
+       * - NOT_IN_LIST (-2)
+       * - TO_BE_CLEARED (-1)
+       * - PENDING (0)
+       * - ACTIVE (1)
+       *
+       * @type {-2|-1|0|1}
+       * @private
+       */
+      _state = NOT_IN_LIST;
+      /**
+       * The number of milliseconds to wait before calling the callback.
+       *
+       * @type {number}
+       * @private
+       */
+      _idleTimeout = -1;
+      /**
+       * The time in milliseconds when the timer was started. This value is used to
+       * calculate when the timer should expire.
+       *
+       * @type {number}
+       * @default -1
+       * @private
+       */
+      _idleStart = -1;
+      /**
+       * The function to be executed when the timer expires.
+       * @type {Function}
+       * @private
+       */
+      _onTimeout;
+      /**
+       * The argument to be passed to the callback when the timer expires.
+       *
+       * @type {*}
+       * @private
+       */
+      _timerArg;
+      /**
+       * @constructor
+       * @param {Function} callback A function to be executed after the timer
+       * expires.
+       * @param {number} delay The time, in milliseconds that the timer should wait
+       * before the specified function or code is executed.
+       * @param {*} arg
+       */
+      constructor(callback, delay, arg) {
+        this._onTimeout = callback;
+        this._idleTimeout = delay;
+        this._timerArg = arg;
+        this.refresh();
+      }
+      /**
+       * Sets the timer's start time to the current time, and reschedules the timer
+       * to call its callback at the previously specified duration adjusted to the
+       * current time.
+       * Using this on a timer that has already called its callback will reactivate
+       * the timer.
+       *
+       * @returns {void}
+       */
+      refresh() {
+        if (this._state === NOT_IN_LIST) {
+          fastTimers.push(this);
+        }
+        if (!fastNowTimeout || fastTimers.length === 1) {
+          refreshTimeout();
+        }
+        this._state = PENDING;
+      }
+      /**
+       * The `clear` method cancels the timer, preventing it from executing.
+       *
+       * @returns {void}
+       * @private
+       */
+      clear() {
+        this._state = TO_BE_CLEARED;
+        this._idleStart = -1;
+      }
+    };
+    module2.exports = {
+      /**
+       * The setTimeout() method sets a timer which executes a function once the
+       * timer expires.
+       * @param {Function} callback A function to be executed after the timer
+       * expires.
+       * @param {number} delay The time, in milliseconds that the timer should
+       * wait before the specified function or code is executed.
+       * @param {*} [arg] An optional argument to be passed to the callback function
+       * when the timer expires.
+       * @returns {NodeJS.Timeout|FastTimer}
+       */
+      setTimeout(callback, delay, arg) {
+        return delay <= RESOLUTION_MS ? setTimeout(callback, delay, arg) : new FastTimer(callback, delay, arg);
+      },
+      /**
+       * The clearTimeout method cancels an instantiated Timer previously created
+       * by calling setTimeout.
+       *
+       * @param {NodeJS.Timeout|FastTimer} timeout
+       */
+      clearTimeout(timeout) {
+        if (timeout[kFastTimer]) {
+          timeout.clear();
+        } else {
+          clearTimeout(timeout);
+        }
+      },
+      /**
+       * The setFastTimeout() method sets a fastTimer which executes a function once
+       * the timer expires.
+       * @param {Function} callback A function to be executed after the timer
+       * expires.
+       * @param {number} delay The time, in milliseconds that the timer should
+       * wait before the specified function or code is executed.
+       * @param {*} [arg] An optional argument to be passed to the callback function
+       * when the timer expires.
+       * @returns {FastTimer}
+       */
+      setFastTimeout(callback, delay, arg) {
+        return new FastTimer(callback, delay, arg);
+      },
+      /**
+       * The clearTimeout method cancels an instantiated FastTimer previously
+       * created by calling setFastTimeout.
+       *
+       * @param {FastTimer} timeout
+       */
+      clearFastTimeout(timeout) {
+        timeout.clear();
+      },
+      /**
+       * The now method returns the value of the internal fast timer clock.
+       *
+       * @returns {number}
+       */
+      now() {
+        return fastNow;
+      },
+      /**
+       * Trigger the onTick function to process the fastTimers array.
+       * Exported for testing purposes only.
+       * Marking as deprecated to discourage any use outside of testing.
+       * @deprecated
+       * @param {number} [delay=0] The delay in milliseconds to add to the now value.
+       */
+      tick(delay = 0) {
+        fastNow += delay - RESOLUTION_MS + 1;
+        onTick();
+        onTick();
+      },
+      /**
+       * Reset FastTimers.
+       * Exported for testing purposes only.
+       * Marking as deprecated to discourage any use outside of testing.
+       * @deprecated
+       */
+      reset() {
+        fastNow = 0;
+        fastTimers.length = 0;
+        clearTimeout(fastNowTimeout);
+        fastNowTimeout = null;
+      },
+      /**
+       * Exporting for testing purposes only.
+       * Marking as deprecated to discourage any use outside of testing.
+       * @deprecated
+       */
+      kFastTimer
+    };
+  }
+});
+
 // lib/core/connect.js
 var require_connect = __commonJS({
   "lib/core/connect.js"(exports2, module2) {
@@ -2174,6 +2425,10 @@ var require_connect = __commonJS({
     var assert = require("node:assert");
     var util = require_util();
     var { InvalidArgumentError, ConnectTimeoutError } = require_errors();
+    var timers = require_timers();
+    function noop() {
+    }
+    __name(noop, "noop");
     var tls;
     var SessionCache;
     if (global.FinalizationRegistry && !(process.env.NODE_V8_COVERAGE || process.env.UNDICI_NO_FG)) {
@@ -2246,8 +2501,9 @@ var require_connect = __commonJS({
           }
           servername = servername || options.servername || util.getServerName(host) || null;
           const sessionKey = servername || hostname;
-          const session = customSession || sessionCache.get(sessionKey) || null;
           assert(sessionKey);
+          const session = customSession || sessionCache.get(sessionKey) || null;
+          port = port || 443;
           socket = tls.connect({
             highWaterMark: 16384,
             // TLS in node can't have bigger HWM anyway...
@@ -2259,7 +2515,7 @@ var require_connect = __commonJS({
             ALPNProtocols: allowH2 ? ["http/1.1", "h2"] : ["http/1.1"],
             socket: httpSocket,
             // upgrade socket connection
-            port: port || 443,
+            port,
             host: hostname
           });
           socket.on("session", function(session2) {
@@ -2267,12 +2523,13 @@ var require_connect = __commonJS({
           });
         } else {
           assert(!httpSocket, "httpSocket can only be sent on TLS update");
+          port = port || 80;
           socket = net.connect({
             highWaterMark: 64 * 1024,
             // Same as nodejs fs streams.
             ...options,
             localAddress,
-            port: port || 80,
+            port,
             host: hostname
           });
         }
@@ -2280,16 +2537,16 @@ var require_connect = __commonJS({
           const keepAliveInitialDelay = options.keepAliveInitialDelay === void 0 ? 6e4 : options.keepAliveInitialDelay;
           socket.setKeepAlive(true, keepAliveInitialDelay);
         }
-        const cancelTimeout = setupTimeout(() => onConnectTimeout(socket), timeout);
+        const clearConnectTimeout = setupConnectTimeout(new WeakRef(socket), { timeout, hostname, port });
         socket.setNoDelay(true).once(protocol === "https:" ? "secureConnect" : "connect", function() {
-          cancelTimeout();
+          queueMicrotask(clearConnectTimeout);
           if (callback) {
             const cb = callback;
             callback = null;
             cb(null, this);
           }
         }).on("error", function(err) {
-          cancelTimeout();
+          queueMicrotask(clearConnectTimeout);
           if (callback) {
             const cb = callback;
             callback = null;
@@ -2300,126 +2557,49 @@ var require_connect = __commonJS({
       }, "connect");
     }
     __name(buildConnector, "buildConnector");
-    function setupTimeout(onConnectTimeout2, timeout) {
-      if (!timeout) {
-        return () => {
-        };
+    var setupConnectTimeout = process.platform === "win32" ? (socketWeakRef, opts) => {
+      if (!opts.timeout) {
+        return noop;
       }
       let s1 = null;
       let s2 = null;
-      const timeoutId = setTimeout(() => {
+      const fastTimer = timers.setFastTimeout(() => {
         s1 = setImmediate(() => {
-          if (process.platform === "win32") {
-            s2 = setImmediate(() => onConnectTimeout2());
-          } else {
-            onConnectTimeout2();
-          }
+          s2 = setImmediate(() => onConnectTimeout(socketWeakRef.deref(), opts));
         });
-      }, timeout);
+      }, opts.timeout);
       return () => {
-        clearTimeout(timeoutId);
+        timers.clearFastTimeout(fastTimer);
         clearImmediate(s1);
         clearImmediate(s2);
       };
-    }
-    __name(setupTimeout, "setupTimeout");
-    function onConnectTimeout(socket) {
+    } : (socketWeakRef, opts) => {
+      if (!opts.timeout) {
+        return noop;
+      }
+      let s1 = null;
+      const fastTimer = timers.setFastTimeout(() => {
+        s1 = setImmediate(() => {
+          onConnectTimeout(socketWeakRef.deref(), opts);
+        });
+      }, opts.timeout);
+      return () => {
+        timers.clearFastTimeout(fastTimer);
+        clearImmediate(s1);
+      };
+    };
+    function onConnectTimeout(socket, opts) {
       let message = "Connect Timeout Error";
       if (Array.isArray(socket.autoSelectFamilyAttemptedAddresses)) {
-        message += ` (attempted addresses: ${socket.autoSelectFamilyAttemptedAddresses.join(", ")})`;
+        message += ` (attempted addresses: ${socket.autoSelectFamilyAttemptedAddresses.join(", ")},`;
+      } else {
+        message += ` (attempted address: ${opts.hostname}:${opts.port},`;
       }
+      message += ` timeout: ${opts.timeout}ms)`;
       util.destroy(socket, new ConnectTimeoutError(message));
     }
     __name(onConnectTimeout, "onConnectTimeout");
     module2.exports = buildConnector;
-  }
-});
-
-// lib/util/timers.js
-var require_timers = __commonJS({
-  "lib/util/timers.js"(exports2, module2) {
-    "use strict";
-    var TICK_MS = 499;
-    var fastNow = Date.now();
-    var fastNowTimeout;
-    var fastTimers = [];
-    function onTimeout() {
-      fastNow = Date.now();
-      let len = fastTimers.length;
-      let idx = 0;
-      while (idx < len) {
-        const timer = fastTimers[idx];
-        if (timer.state === 0) {
-          timer.state = fastNow + timer.delay - TICK_MS;
-        } else if (timer.state > 0 && fastNow >= timer.state) {
-          timer.state = -1;
-          timer.callback(timer.opaque);
-        }
-        if (timer.state === -1) {
-          timer.state = -2;
-          if (idx !== len - 1) {
-            fastTimers[idx] = fastTimers.pop();
-          } else {
-            fastTimers.pop();
-          }
-          len -= 1;
-        } else {
-          idx += 1;
-        }
-      }
-      if (fastTimers.length > 0) {
-        refreshTimeout();
-      }
-    }
-    __name(onTimeout, "onTimeout");
-    function refreshTimeout() {
-      if (fastNowTimeout?.refresh) {
-        fastNowTimeout.refresh();
-      } else {
-        clearTimeout(fastNowTimeout);
-        fastNowTimeout = setTimeout(onTimeout, TICK_MS);
-        if (fastNowTimeout.unref) {
-          fastNowTimeout.unref();
-        }
-      }
-    }
-    __name(refreshTimeout, "refreshTimeout");
-    var Timeout = class {
-      static {
-        __name(this, "Timeout");
-      }
-      constructor(callback, delay, opaque) {
-        this.callback = callback;
-        this.delay = delay;
-        this.opaque = opaque;
-        this.state = -2;
-        this.refresh();
-      }
-      refresh() {
-        if (this.state === -2) {
-          fastTimers.push(this);
-          if (!fastNowTimeout || fastTimers.length === 1) {
-            refreshTimeout();
-          }
-        }
-        this.state = 0;
-      }
-      clear() {
-        this.state = -1;
-      }
-    };
-    module2.exports = {
-      setTimeout(callback, delay, opaque) {
-        return delay <= 1e3 ? setTimeout(callback, delay, opaque) : new Timeout(callback, delay, opaque);
-      },
-      clearTimeout(timeout) {
-        if (timeout instanceof Timeout) {
-          timeout.clear();
-        } else {
-          clearTimeout(timeout);
-        }
-      }
-    };
   }
 });
 
@@ -4523,13 +4703,19 @@ var require_util2 = __commonJS({
       static {
         __name(this, "InflateStream");
       }
+      #zlibOptions;
+      /** @param {zlib.ZlibOptions} [zlibOptions] */
+      constructor(zlibOptions) {
+        super();
+        this.#zlibOptions = zlibOptions;
+      }
       _transform(chunk, encoding, callback) {
         if (!this._inflateStream) {
           if (chunk.length === 0) {
             callback();
             return;
           }
-          this._inflateStream = (chunk[0] & 15) === 8 ? zlib.createInflate() : zlib.createInflateRaw();
+          this._inflateStream = (chunk[0] & 15) === 8 ? zlib.createInflate(this.#zlibOptions) : zlib.createInflateRaw(this.#zlibOptions);
           this._inflateStream.on("data", this.push.bind(this));
           this._inflateStream.on("end", () => this.push(null));
           this._inflateStream.on("error", (err) => this.destroy(err));
@@ -4544,8 +4730,8 @@ var require_util2 = __commonJS({
         callback();
       }
     };
-    function createInflate() {
-      return new InflateStream();
+    function createInflate(zlibOptions) {
+      return new InflateStream(zlibOptions);
     }
     __name(createInflate, "createInflate");
     function extractMimeType(headers) {
@@ -4984,8 +5170,15 @@ var require_formdata_parser = __commonJS({
       const boundary = Buffer.from(`--${boundaryString}`, "utf8");
       const entryList = [];
       const position = { position: 0 };
-      if (input[0] === 13 && input[1] === 10) {
+      while (input[position.position] === 13 && input[position.position + 1] === 10) {
         position.position += 2;
+      }
+      let trailing = input.length;
+      while (input[trailing - 1] === 10 && input[trailing - 2] === 13) {
+        trailing -= 2;
+      }
+      if (trailing !== input.length) {
+        input = input.subarray(0, trailing);
       }
       while (true) {
         if (input.subarray(position.position, position.position + boundary.length).equals(boundary)) {
@@ -5584,35 +5777,35 @@ var require_client_h1 = __commonJS({
             return 0;
           },
           wasm_on_status: (p, at, len) => {
-            assert.strictEqual(currentParser.ptr, p);
+            assert(currentParser.ptr === p);
             const start = at - currentBufferPtr + currentBufferRef.byteOffset;
             return currentParser.onStatus(new FastBuffer(currentBufferRef.buffer, start, len)) || 0;
           },
           wasm_on_message_begin: (p) => {
-            assert.strictEqual(currentParser.ptr, p);
+            assert(currentParser.ptr === p);
             return currentParser.onMessageBegin() || 0;
           },
           wasm_on_header_field: (p, at, len) => {
-            assert.strictEqual(currentParser.ptr, p);
+            assert(currentParser.ptr === p);
             const start = at - currentBufferPtr + currentBufferRef.byteOffset;
             return currentParser.onHeaderField(new FastBuffer(currentBufferRef.buffer, start, len)) || 0;
           },
           wasm_on_header_value: (p, at, len) => {
-            assert.strictEqual(currentParser.ptr, p);
+            assert(currentParser.ptr === p);
             const start = at - currentBufferPtr + currentBufferRef.byteOffset;
             return currentParser.onHeaderValue(new FastBuffer(currentBufferRef.buffer, start, len)) || 0;
           },
           wasm_on_headers_complete: (p, statusCode, upgrade, shouldKeepAlive) => {
-            assert.strictEqual(currentParser.ptr, p);
+            assert(currentParser.ptr === p);
             return currentParser.onHeadersComplete(statusCode, Boolean(upgrade), Boolean(shouldKeepAlive)) || 0;
           },
           wasm_on_body: (p, at, len) => {
-            assert.strictEqual(currentParser.ptr, p);
+            assert(currentParser.ptr === p);
             const start = at - currentBufferPtr + currentBufferRef.byteOffset;
             return currentParser.onBody(new FastBuffer(currentBufferRef.buffer, start, len)) || 0;
           },
           wasm_on_message_complete: (p) => {
-            assert.strictEqual(currentParser.ptr, p);
+            assert(currentParser.ptr === p);
             return currentParser.onMessageComplete() || 0;
           }
           /* eslint-enable camelcase */
@@ -5627,9 +5820,11 @@ var require_client_h1 = __commonJS({
     var currentBufferRef = null;
     var currentBufferSize = 0;
     var currentBufferPtr = null;
-    var TIMEOUT_HEADERS = 1;
-    var TIMEOUT_BODY = 2;
-    var TIMEOUT_IDLE = 3;
+    var USE_NATIVE_TIMER = 0;
+    var USE_FAST_TIMER = 1;
+    var TIMEOUT_HEADERS = 2 | USE_FAST_TIMER;
+    var TIMEOUT_BODY = 4 | USE_FAST_TIMER;
+    var TIMEOUT_KEEP_ALIVE = 8 | USE_NATIVE_TIMER;
     var Parser = class {
       static {
         __name(this, "Parser");
@@ -5658,24 +5853,27 @@ var require_client_h1 = __commonJS({
         this.connection = "";
         this.maxResponseSize = client[kMaxResponseSize];
       }
-      setTimeout(value, type) {
-        this.timeoutType = type;
-        if (value !== this.timeoutValue) {
-          timers.clearTimeout(this.timeout);
-          if (value) {
-            this.timeout = timers.setTimeout(onParserTimeout, value, this);
-            if (this.timeout.unref) {
-              this.timeout.unref();
-            }
-          } else {
+      setTimeout(delay, type) {
+        if (delay !== this.timeoutValue || type & USE_FAST_TIMER ^ this.timeoutType & USE_FAST_TIMER) {
+          if (this.timeout) {
+            timers.clearTimeout(this.timeout);
             this.timeout = null;
           }
-          this.timeoutValue = value;
+          if (delay) {
+            if (type & USE_FAST_TIMER) {
+              this.timeout = timers.setFastTimeout(onParserTimeout, delay, new WeakRef(this));
+            } else {
+              this.timeout = setTimeout(onParserTimeout, delay, new WeakRef(this));
+              this.timeout.unref();
+            }
+          }
+          this.timeoutValue = delay;
         } else if (this.timeout) {
           if (this.timeout.refresh) {
             this.timeout.refresh();
           }
         }
+        this.timeoutType = type;
       }
       resume() {
         if (this.socket.destroyed || !this.paused) {
@@ -5752,7 +5950,7 @@ var require_client_h1 = __commonJS({
         assert(currentParser == null);
         this.llhttp.llhttp_free(this.ptr);
         this.ptr = null;
-        timers.clearTimeout(this.timeout);
+        this.timeout && timers.clearTimeout(this.timeout);
         this.timeout = null;
         this.timeoutValue = null;
         this.timeoutType = null;
@@ -5811,16 +6009,16 @@ var require_client_h1 = __commonJS({
       onUpgrade(head) {
         const { upgrade, client, socket, headers, statusCode } = this;
         assert(upgrade);
+        assert(client[kSocket] === socket);
+        assert(!socket.destroyed);
+        assert(!this.paused);
+        assert((headers.length & 1) === 0);
         const request = client[kQueue][client[kRunningIdx]];
         assert(request);
-        assert(!socket.destroyed);
-        assert(socket === client[kSocket]);
-        assert(!this.paused);
         assert(request.upgrade || request.method === "CONNECT");
         this.statusCode = null;
         this.statusText = "";
         this.shouldKeepAlive = null;
-        assert(this.headers.length % 2 === 0);
         this.headers = [];
         this.headersSize = 0;
         socket.unshift(head);
@@ -5859,7 +6057,7 @@ var require_client_h1 = __commonJS({
           util.destroy(socket, new SocketError("bad upgrade", util.getSocketInfo(socket)));
           return -1;
         }
-        assert.strictEqual(this.timeoutType, TIMEOUT_HEADERS);
+        assert(this.timeoutType === TIMEOUT_HEADERS);
         this.statusCode = statusCode;
         this.shouldKeepAlive = shouldKeepAlive || // Override llhttp value which does not allow keepAlive for HEAD.
         request.method === "HEAD" && !socket[kReset] && this.connection.toLowerCase() === "keep-alive";
@@ -5881,7 +6079,7 @@ var require_client_h1 = __commonJS({
           this.upgrade = true;
           return 2;
         }
-        assert(this.headers.length % 2 === 0);
+        assert((this.headers.length & 1) === 0);
         this.headers = [];
         this.headersSize = 0;
         if (this.shouldKeepAlive && client[kPipelining]) {
@@ -5925,7 +6123,7 @@ var require_client_h1 = __commonJS({
         }
         const request = client[kQueue][client[kRunningIdx]];
         assert(request);
-        assert.strictEqual(this.timeoutType, TIMEOUT_BODY);
+        assert(this.timeoutType === TIMEOUT_BODY);
         if (this.timeout) {
           if (this.timeout.refresh) {
             this.timeout.refresh();
@@ -5949,16 +6147,16 @@ var require_client_h1 = __commonJS({
         if (upgrade) {
           return;
         }
+        assert(statusCode >= 100);
+        assert((this.headers.length & 1) === 0);
         const request = client[kQueue][client[kRunningIdx]];
         assert(request);
-        assert(statusCode >= 100);
         this.statusCode = null;
         this.statusText = "";
         this.bytesRead = 0;
         this.contentLength = "";
         this.keepAlive = "";
         this.connection = "";
-        assert(this.headers.length % 2 === 0);
         this.headers = [];
         this.headersSize = 0;
         if (statusCode < 200) {
@@ -5971,7 +6169,7 @@ var require_client_h1 = __commonJS({
         request.onComplete(headers);
         client[kQueue][client[kRunningIdx]++] = null;
         if (socket[kWriting]) {
-          assert.strictEqual(client[kRunning], 0);
+          assert(client[kRunning] === 0);
           util.destroy(socket, new InformationalError("reset"));
           return constants.ERROR.PAUSED;
         } else if (!shouldKeepAlive) {
@@ -5988,17 +6186,17 @@ var require_client_h1 = __commonJS({
       }
     };
     function onParserTimeout(parser) {
-      const { socket, timeoutType, client } = parser;
+      const { socket, timeoutType, client, paused } = parser.deref();
       if (timeoutType === TIMEOUT_HEADERS) {
         if (!socket[kWriting] || socket.writableNeedDrain || client[kRunning] > 1) {
-          assert(!parser.paused, "cannot be paused while waiting for headers");
+          assert(!paused, "cannot be paused while waiting for headers");
           util.destroy(socket, new HeadersTimeoutError());
         }
       } else if (timeoutType === TIMEOUT_BODY) {
-        if (!parser.paused) {
+        if (!paused) {
           util.destroy(socket, new BodyTimeoutError());
         }
-      } else if (timeoutType === TIMEOUT_IDLE) {
+      } else if (timeoutType === TIMEOUT_KEEP_ALIVE) {
         assert(client[kRunning] === 0 && client[kKeepAliveTimeoutValue]);
         util.destroy(socket, new InformationalError("socket idle timeout"));
       }
@@ -6016,8 +6214,8 @@ var require_client_h1 = __commonJS({
       socket[kBlocking] = false;
       socket[kParser] = new Parser(client, socket, llhttpInstance);
       addListener(socket, "error", function(err) {
-        const parser = this[kParser];
         assert(err.code !== "ERR_TLS_CERT_ALTNAME_INVALID");
+        const parser = this[kParser];
         if (err.code === "ECONNRESET" && parser.statusCode && !parser.shouldKeepAlive) {
           parser.onMessageComplete();
           return;
@@ -6125,8 +6323,8 @@ var require_client_h1 = __commonJS({
           socket[kNoRef] = false;
         }
         if (client[kSize] === 0) {
-          if (socket[kParser].timeoutType !== TIMEOUT_IDLE) {
-            socket[kParser].setTimeout(client[kKeepAliveTimeoutValue], TIMEOUT_IDLE);
+          if (socket[kParser].timeoutType !== TIMEOUT_KEEP_ALIVE) {
+            socket[kParser].setTimeout(client[kKeepAliveTimeoutValue], TIMEOUT_KEEP_ALIVE);
           }
         } else if (client[kRunning] > 0 && socket[kParser].statusCode < 200) {
           if (socket[kParser].timeoutType !== TIMEOUT_HEADERS) {
@@ -10889,22 +11087,31 @@ var require_fetch = __commonJS({
                       finishFlush: zlib.constants.Z_SYNC_FLUSH
                     }));
                   } else if (coding === "deflate") {
-                    decoders.push(createInflate());
+                    decoders.push(createInflate({
+                      flush: zlib.constants.Z_SYNC_FLUSH,
+                      finishFlush: zlib.constants.Z_SYNC_FLUSH
+                    }));
                   } else if (coding === "br") {
-                    decoders.push(zlib.createBrotliDecompress());
+                    decoders.push(zlib.createBrotliDecompress({
+                      flush: zlib.constants.BROTLI_OPERATION_FLUSH,
+                      finishFlush: zlib.constants.BROTLI_OPERATION_FLUSH
+                    }));
                   } else {
                     decoders.length = 0;
                     break;
                   }
                 }
               }
+              const onError = this.onError.bind(this);
               resolve({
                 status,
                 statusText,
                 headersList,
-                body: decoders.length ? pipeline(this.body, ...decoders, () => {
-                }) : this.body.on("error", () => {
-                })
+                body: decoders.length ? pipeline(this.body, ...decoders, (err) => {
+                  if (err) {
+                    this.onError(err);
+                  }
+                }).on("error", onError) : this.body.on("error", onError)
               });
               return true;
             },

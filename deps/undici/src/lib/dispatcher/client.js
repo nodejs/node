@@ -385,6 +385,10 @@ function onError (client, err) {
   }
 }
 
+/**
+ * @param {Client} client
+ * @returns
+ */
 async function connect (client) {
   assert(!client[kConnecting])
   assert(!client[kHTTPContext])
