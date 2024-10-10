@@ -1508,7 +1508,7 @@ lint-cpp: tools/.cpplintstamp ## Lint the C++ code with cpplint.py and checkimpo
 
 tools/.cpplintstamp: $(LINT_CPP_FILES)
 	$(info Running C++ linter...)
-	@$(PYTHON) tools/cpplint.py $(CPPLINT_QUIET) $?
+	@$(PYTHON) tools/cpplint.py --config .cpplint $(CPPLINT_QUIET) $?
 	@$(PYTHON) tools/checkimports.py $?
 	@touch $@
 
