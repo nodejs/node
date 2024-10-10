@@ -77,7 +77,7 @@ function checkPromiseFn(promiseFn, p, args, fail) {
       console.log(failMsg, err);
       throw err;
     });
-    r?.close();
+    r?.close?.();
   } else {
     assert.rejects(
       promiseFn(p, ...args), {
