@@ -3746,9 +3746,12 @@ changes:
     - v20.18.0
     pr-url: https://github.com/nodejs/node/pull/54842
     description: Documentation-only deprecation.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/54869
+    description: Runtime deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
 Instantiating classes without the `new` qualifier exported by the `node:repl` module is deprecated.
 It is recommended to use the `new` qualifier instead. This applies to all REPL classes, including
