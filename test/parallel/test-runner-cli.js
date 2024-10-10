@@ -67,8 +67,6 @@ for (const isolation of ['none', 'process']) {
                   `--experimental-${type}-types`, `--experimental-test-isolation=${isolation}`];
     const child = spawnSync(process.execPath, args, { cwd: join(testFixtures, 'matching-patterns') });
 
-    assert.strictEqual(child.status, 0);
-    assert.strictEqual(child.signal, null);
     assert.strictEqual(child.stderr.toString(), '');
     const stdout = child.stdout.toString();
 
@@ -78,6 +76,8 @@ for (const isolation of ['none', 'process']) {
     assert.match(stdout, /ok 4 - this should pass/);
     assert.match(stdout, /ok 5 - this should pass/);
     assert.match(stdout, /ok 6 - this should pass/);
+    assert.strictEqual(child.status, 0);
+    assert.strictEqual(child.signal, null);
   }
 
   {
@@ -97,9 +97,9 @@ for (const isolation of ['none', 'process']) {
     assert.match(stdout, /ok 4 - this should pass/);
     assert.match(stdout, /ok 5 - this should be skipped/);
     assert.match(stdout, /ok 6 - this should be executed/);
+    assert.strictEqual(child.stderr.toString(), '');
     assert.strictEqual(child.status, 1);
     assert.strictEqual(child.signal, null);
-    assert.strictEqual(child.stderr.toString(), '');
   }
 
   {
@@ -112,11 +112,11 @@ for (const isolation of ['none', 'process']) {
     ];
     const child = spawnSync(process.execPath, args, { cwd: testFixtures });
 
-    assert.strictEqual(child.status, 1);
-    assert.strictEqual(child.signal, null);
     assert.strictEqual(child.stderr.toString(), '');
     const stdout = child.stdout.toString();
     assert.match(stdout, /not ok 1 - .+index\.js/);
+    assert.strictEqual(child.status, 1);
+    assert.strictEqual(child.signal, null);
   }
 
   {
@@ -129,11 +129,11 @@ for (const isolation of ['none', 'process']) {
     ];
     const child = spawnSync(process.execPath, args);
 
-    assert.strictEqual(child.status, 1);
-    assert.strictEqual(child.signal, null);
     assert.strictEqual(child.stderr.toString(), '');
     const stdout = child.stdout.toString();
     assert.match(stdout, /not ok 1 - .+test-nm\.js/);
+    assert.strictEqual(child.status, 1);
+    assert.strictEqual(child.signal, null);
   }
 
   {
@@ -142,8 +142,6 @@ for (const isolation of ['none', 'process']) {
     const options = { cwd: join(testFixtures, 'default-behavior') };
     const child = spawnSync(process.execPath, args, options);
 
-    assert.strictEqual(child.status, 1);
-    assert.strictEqual(child.signal, null);
     assert.strictEqual(child.stderr.toString(), '');
     const stdout = child.stdout.toString();
     assert.match(stdout, /this should pass/);
@@ -152,6 +150,9 @@ for (const isolation of ['none', 'process']) {
     assert.match(stdout, /this should pass/);
     assert.match(stdout, /this should be skipped/);
     assert.match(stdout, /this should be executed/);
+
+    assert.strictEqual(child.status, 1);
+    assert.strictEqual(child.signal, null);
   }
 
   {
@@ -166,8 +167,6 @@ for (const isolation of ['none', 'process']) {
     ];
     const child = spawnSync(process.execPath, args);
 
-    assert.strictEqual(child.status, 1);
-    assert.strictEqual(child.signal, null);
     assert.strictEqual(child.stderr.toString(), '');
     const stdout = child.stdout.toString();
     assert.match(stdout, /# Subtest: this should pass/);
@@ -204,6 +203,9 @@ for (const isolation of ['none', 'process']) {
     assert.match(stdout, /# cancelled 0/);
     assert.match(stdout, /# skipped 1/);
     assert.match(stdout, /# todo 0/);
+
+    assert.strictEqual(child.status, 1);
+    assert.strictEqual(child.signal, null);
   }
 }
 
@@ -219,11 +221,11 @@ for (const isolation of ['none', 'process']) {
   for (const args of flags) {
     const child = spawnSync(process.execPath, args);
 
-    assert.notStrictEqual(child.status, 0);
-    assert.strictEqual(child.signal, null);
     assert.strictEqual(child.stdout.toString(), '');
     const stderr = child.stderr.toString();
     assert.match(stderr, /--test/);
+    assert.notStrictEqual(child.status, 0);
+    assert.strictEqual(child.signal, null);
   }
 }
 
@@ -236,8 +238,6 @@ for (const isolation of ['none', 'process']) {
   ];
   const child = spawnSync(process.execPath, args);
 
-  assert.strictEqual(child.status, 0);
-  assert.strictEqual(child.signal, null);
   assert.strictEqual(child.stderr.toString(), '');
   const stdout = child.stdout.toString();
   assert.match(stdout, /# stderr 1/);
@@ -251,6 +251,9 @@ for (const isolation of ['none', 'process']) {
   assert.match(stdout, /ok 1 - a test/);
   assert.match(stdout, /# tests 1/);
   assert.match(stdout, /# pass 1/);
+
+  assert.strictEqual(child.status, 0);
+  assert.strictEqual(child.signal, null);
 }
 
 {
@@ -263,10 +266,10 @@ for (const isolation of ['none', 'process']) {
   const child = spawnSync(process.execPath, args);
 
   assert.strictEqual(child.stderr.toString(), '');
-  assert.strictEqual(child.status, 0);
-  assert.strictEqual(child.signal, null);
   const stdout = child.stdout.toString();
   assert.match(stdout, /this should pass/);
+  assert.strictEqual(child.status, 0);
+  assert.strictEqual(child.signal, null);
 }
 
 {
@@ -274,11 +277,11 @@ for (const isolation of ['none', 'process']) {
   const args = ['--test', '--test-shard=1', join(testFixtures, 'index.js')];
   const child = spawnSync(process.execPath, args, { cwd: testFixtures });
 
-  assert.strictEqual(child.status, 1);
-  assert.strictEqual(child.signal, null);
   assert.match(child.stderr.toString(), /The argument '--test-shard' must be in the form of <index>\/<total>\. Received '1'/);
   const stdout = child.stdout.toString();
   assert.strictEqual(stdout, '');
+  assert.strictEqual(child.status, 1);
+  assert.strictEqual(child.signal, null);
 }
 
 {
@@ -286,11 +289,11 @@ for (const isolation of ['none', 'process']) {
   const args = ['--test', '--test-shard=1/2/3', join(testFixtures, 'index.js')];
   const child = spawnSync(process.execPath, args, { cwd: testFixtures });
 
-  assert.strictEqual(child.status, 1);
-  assert.strictEqual(child.signal, null);
   assert.match(child.stderr.toString(), /The argument '--test-shard' must be in the form of <index>\/<total>\. Received '1\/2\/3'/);
   const stdout = child.stdout.toString();
   assert.strictEqual(stdout, '');
+  assert.strictEqual(child.status, 1);
+  assert.strictEqual(child.signal, null);
 }
 
 {
@@ -298,11 +301,11 @@ for (const isolation of ['none', 'process']) {
   const args = ['--test', '--test-shard=0/3', join(testFixtures, 'index.js')];
   const child = spawnSync(process.execPath, args, { cwd: testFixtures });
 
-  assert.strictEqual(child.status, 1);
-  assert.strictEqual(child.signal, null);
   assert.match(child.stderr.toString(), /The value of "options\.shard\.index" is out of range\. It must be >= 1 && <= 3\. Received 0/);
   const stdout = child.stdout.toString();
   assert.strictEqual(stdout, '');
+  assert.strictEqual(child.status, 1);
+  assert.strictEqual(child.signal, null);
 }
 
 {
@@ -310,11 +313,11 @@ for (const isolation of ['none', 'process']) {
   const args = ['--test', '--test-shard=0xf/20abcd', join(testFixtures, 'index.js')];
   const child = spawnSync(process.execPath, args, { cwd: testFixtures });
 
-  assert.strictEqual(child.status, 1);
-  assert.strictEqual(child.signal, null);
   assert.match(child.stderr.toString(), /The argument '--test-shard' must be in the form of <index>\/<total>\. Received '0xf\/20abcd'/);
   const stdout = child.stdout.toString();
   assert.strictEqual(stdout, '');
+  assert.strictEqual(child.status, 1);
+  assert.strictEqual(child.signal, null);
 }
 
 {
@@ -322,11 +325,11 @@ for (const isolation of ['none', 'process']) {
   const args = ['--test', '--test-shard=hello', join(testFixtures, 'index.js')];
   const child = spawnSync(process.execPath, args, { cwd: testFixtures });
 
-  assert.strictEqual(child.status, 1);
-  assert.strictEqual(child.signal, null);
   assert.match(child.stderr.toString(), /The argument '--test-shard' must be in the form of <index>\/<total>\. Received 'hello'/);
   const stdout = child.stdout.toString();
   assert.strictEqual(stdout, '');
+  assert.strictEqual(child.status, 1);
+  assert.strictEqual(child.signal, null);
 }
 
 {
@@ -339,8 +342,6 @@ for (const isolation of ['none', 'process']) {
   ];
   const child = spawnSync(process.execPath, args);
 
-  assert.strictEqual(child.status, 0);
-  assert.strictEqual(child.signal, null);
   assert.strictEqual(child.stderr.toString(), '');
   const stdout = child.stdout.toString();
   assert.match(stdout, /# Subtest: a\.cjs this should pass/);
@@ -362,6 +363,9 @@ for (const isolation of ['none', 'process']) {
   assert.match(stdout, /# pass 5/);
   assert.match(stdout, /# fail 0/);
   assert.match(stdout, /# skipped 0/);
+
+  assert.strictEqual(child.status, 0);
+  assert.strictEqual(child.signal, null);
 }
 
 {
@@ -374,8 +378,6 @@ for (const isolation of ['none', 'process']) {
   ];
   const child = spawnSync(process.execPath, args);
 
-  assert.strictEqual(child.status, 0);
-  assert.strictEqual(child.signal, null);
   assert.strictEqual(child.stderr.toString(), '');
   const stdout = child.stdout.toString();
   assert.match(stdout, /# Subtest: b\.cjs this should pass/);
@@ -397,6 +399,9 @@ for (const isolation of ['none', 'process']) {
   assert.match(stdout, /# pass 5/);
   assert.match(stdout, /# fail 0/);
   assert.match(stdout, /# skipped 0/);
+
+  assert.strictEqual(child.status, 0);
+  assert.strictEqual(child.signal, null);
 }
 
 {
@@ -404,8 +409,6 @@ for (const isolation of ['none', 'process']) {
   const args = ['--test', '--test-reporter=tap'];
   const child = spawnSync(process.execPath, args, { cwd: join(testFixtures, 'issue-54726') });
 
-  assert.strictEqual(child.status, 0);
-  assert.strictEqual(child.signal, null);
   assert.strictEqual(child.stderr.toString(), '');
   const stdout = child.stdout.toString();
 
@@ -416,4 +419,7 @@ for (const isolation of ['none', 'process']) {
   assert.match(stdout, /cancelled 0/);
   assert.match(stdout, /skipped 0/);
   assert.match(stdout, /todo 0/);
+
+  assert.strictEqual(child.status, 0);
+  assert.strictEqual(child.signal, null);
 }
