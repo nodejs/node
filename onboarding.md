@@ -219,7 +219,7 @@ needs to be pointed out separately during the onboarding.
 * Commit, including a `Fixes: <collaborator-nomination-issue-url>` trailer
   so that when the commit lands, the nomination issue url will be
   automatically closed.
-* Run `tools/find-inactive-collaborators.mjs`. If that command output your name,
+* Run `tools/find-inactive-collaborators.mjs`. If that command outputs your name,
   amend the commit to include an addition to the [mailmap](.mailmap) file. See
   [gitmailmap](https://git-scm.com/docs/gitmailmap) for information on the
   format of the mailmap file.
