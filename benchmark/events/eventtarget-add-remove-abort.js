@@ -14,12 +14,11 @@ function main({ n, nListener }) {
 
   bench.start();
   for (let i = 0; i < n; i += 1) {
-    const dummy = (i % 2 === 0) ? 'dummy0' : 'dummy1';
     for (let k = listeners.length; --k >= 0;) {
-      target.addEventListener(dummy, listeners[k]);
+      target.addEventListener('abort', listeners[k]);
     }
     for (let k = listeners.length; --k >= 0;) {
-      target.removeEventListener(dummy, listeners[k]);
+      target.removeEventListener('abort', listeners[k]);
     }
   }
   bench.end(n);
