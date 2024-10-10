@@ -122,7 +122,6 @@ if /i "%1"=="lint-js-build" set lint_js_build=1&goto arg-ok
 if /i "%1"=="lint-js-fix"   set lint_js_fix=1&goto arg-ok
 if /i "%1"=="jslint"        set lint_js=1&echo Please use lint-js instead of jslint&goto arg-ok
 if /i "%1"=="lint-md"       set lint_md=1&goto arg-ok
-if /i "%1"=="lint-md-build" set lint_md_build=1&goto arg-ok
 if /i "%1"=="lint"          set lint_cpp=1&set lint_js=1&set lint_md=1&goto arg-ok
 if /i "%1"=="lint-ci"       set lint_cpp=1&set lint_js_ci=1&goto arg-ok
 if /i "%1"=="format-md"     set format_md=1&goto arg-ok
@@ -750,24 +749,21 @@ echo running lint-js
 goto lint-js-fix
 
 :lint-js-fix
-if not defined lint_js_fix goto lint-md-build
+if not defined lint_js_fix goto lint-md
 if not exist tools\eslint\node_modules\eslint goto no-lint
 echo running lint-js-fix
 %node_exe% tools\eslint\node_modules\eslint\bin\eslint.js --cache --max-warnings=0 --report-unused-disable-directives --rule "@stylistic/js/linebreak-style: 0" eslint.config.mjs benchmark doc lib test tools --fix
 goto lint-md-build
 
-:no-lint
-echo Linting is not available through the source tarball.
-echo Use the git repo instead: $ git clone https://github.com/nodejs/node.git
-goto lint-md-build
-
 :lint-md-build
-if not defined lint_md_build goto lint-md
-echo "Deprecated no-op target 'lint_md_build'"
-goto lint-md
+if not defined lint_md if not defined format_md goto lint-md
+cd tools\lint-md
+%npm_exe% ci
+cd ..\..
 
 :lint-md
 if not defined lint_md goto format-md
+if not exist tools\lint-md\node_modules goto no-lint
 echo Running Markdown linter on docs...
 SETLOCAL ENABLEDELAYEDEXPANSION
 set lint_md_files=
@@ -782,6 +778,7 @@ goto format-md
 
 :format-md
 if not defined format_md goto exit
+if not exist tools\lint-md\node_modules goto no-lint
 echo Running Markdown formatter on docs...
 SETLOCAL ENABLEDELAYEDEXPANSION
 set lint_md_files=
@@ -792,6 +789,10 @@ for /D %%D IN (doc\*) do (
 )
 %node_exe% tools\lint-md\lint-md.mjs --format %lint_md_files%
 ENDLOCAL
+
+:no-lint
+echo Linting is not available through the source tarball.
+echo Use the git repo instead: $ git clone https://github.com/nodejs/node.git
 goto exit
 
 :create-msvs-files-failed
