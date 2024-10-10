@@ -157,28 +157,11 @@ changes:
                  repl is used as standalone program.
 -->
 
-The REPL uses the [`domain`][] module to catch all uncaught exceptions for that
-REPL session.
+The REPL uses the [`process.setUncaughtExceptionCaptureCallback()`][] to catch all uncaught exceptions for that
+REPL session. For more information on potential side effects, refer to it's documentation.
 
-This use of the [`domain`][] module in the REPL has these side effects:
-
-* Uncaught exceptions only emit the [`'uncaughtException'`][] event in the
-  standalone REPL. Adding a listener for this event in a REPL within
-  another Node.js program results in [`ERR_INVALID_REPL_INPUT`][].
-
-  ```js
-  const r = repl.start();
-
-  r.write('process.on("uncaughtException", () => console.log("Foobar"));\n');
-  // Output stream includes:
-  //   TypeError [ERR_INVALID_REPL_INPUT]: Listeners for `uncaughtException`
-  //   cannot be used in the REPL
-
-  r.close();
-  ```
-
-* Trying to use [`process.setUncaughtExceptionCaptureCallback()`][] throws
-  an [`ERR_DOMAIN_CANNOT_SET_UNCAUGHT_EXCEPTION_CAPTURE`][] error.
+When trying to use [`process.setUncaughtExceptionCaptureCallback()`][] while a REPL
+is active, [`ERR_INVALID_REPL_INPUT`][] will be thrown.
 
 #### Assignment of the `_` (underscore) variable
 
@@ -768,12 +751,9 @@ avoiding open network interfaces.
 
 [TTY keybindings]: readline.md#tty-keybindings
 [ZSH]: https://en.wikipedia.org/wiki/Z_shell
-[`'uncaughtException'`]: process.md#event-uncaughtexception
 [`--no-experimental-repl-await`]: cli.md#--no-experimental-repl-await
-[`ERR_DOMAIN_CANNOT_SET_UNCAUGHT_EXCEPTION_CAPTURE`]: errors.md#err_domain_cannot_set_uncaught_exception_capture
 [`ERR_INVALID_REPL_INPUT`]: errors.md#err_invalid_repl_input
 [`curl(1)`]: https://curl.haxx.se/docs/manpage.html
-[`domain`]: domain.md
 [`process.setUncaughtExceptionCaptureCallback()`]: process.md#processsetuncaughtexceptioncapturecallbackfn
 [`readline.InterfaceCompleter`]: readline.md#use-of-the-completer-function
 [`repl.ReplServer`]: #class-replserver
