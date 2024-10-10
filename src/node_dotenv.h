@@ -3,10 +3,9 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include <map>
 #include "util-inl.h"
 #include "v8.h"
-
-#include <map>
 
 namespace node {
 
