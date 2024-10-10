@@ -691,23 +691,6 @@ Type: End-of-Life
 
 `util.error()` has been removed. Please use [`console.error()`][] instead.
 
-### DEP0030: `SlowBuffer`
-
-<!-- YAML
-changes:
-  - version: v6.12.0
-    pr-url: https://github.com/nodejs/node/pull/10116
-    description: A deprecation code has been assigned.
-  - version: v6.0.0
-    pr-url: https://github.com/nodejs/node/pull/5833
-    description: Documentation-only deprecation.
--->
-
-Type: Documentation-only
-
-The [`SlowBuffer`][] class is deprecated. Please use
-[`Buffer.allocUnsafeSlow(size)`][] instead.
-
 ### DEP0031: `ecdh.setPublicKey()`
 
 <!-- YAML
@@ -3774,7 +3757,6 @@ It is recommended to use the `new` qualifier instead. This applies to all REPL c
 [`ReadStream.open()`]: fs.md#class-fsreadstream
 [`Server.getConnections()`]: net.md#servergetconnectionscallback
 [`Server.listen({fd: <number>})`]: net.md#serverlistenhandle-backlog-callback
-[`SlowBuffer`]: buffer.md#class-slowbuffer
 [`String.prototype.toWellFormed`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/toWellFormed
 [`WriteStream.open()`]: fs.md#class-fswritestream
 [`assert.CallTracker`]: assert.md#class-assertcalltracker

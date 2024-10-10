@@ -981,8 +981,7 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             &PerProcessOptions::v8_thread_pool_size,
             kAllowedInEnvvar);
   AddOption("--zero-fill-buffers",
-            "automatically zero-fill all newly allocated Buffer and "
-            "SlowBuffer instances",
+            "automatically zero-fill all newly allocated Buffer",
             &PerProcessOptions::zero_fill_all_buffers,
             kAllowedInEnvvar);
   AddOption("--debug-arraybuffer-allocations",

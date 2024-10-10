@@ -1,11 +1,9 @@
 'use strict';
-const SlowBuffer = require('buffer').SlowBuffer;
 const common = require('../common.js');
 const assert = require('assert');
 
 const bench = common.createBenchmark(main, {
   size: [512, 4096, 16386],
-  type: ['fast'],
   method: ['for', 'forOf', 'iterator'],
   n: [1e3],
 });
@@ -16,10 +14,8 @@ const methods = {
   'iterator': benchIterator,
 };
 
-function main({ size, type, method, n }) {
-  const buffer = type === 'fast' ?
-    Buffer.alloc(size) :
-    SlowBuffer(size).fill(0);
+function main({ size, method, n }) {
+  const buffer = Buffer.alloc(size);
 
   const fn = methods[method];
 
