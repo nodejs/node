@@ -3,6 +3,31 @@ import * as fixtures from '../common/fixtures.mjs';
 import { match, strictEqual } from 'node:assert';
 import { test } from 'node:test';
 
+test('expect process.features.typescript to be \'strip\' when --experimental-strip-types', async () => {
+  const result = await spawnPromisified(process.execPath, [
+    '--no-warnings',
+    '--experimental-strip-types',
+    fixtures.path('typescript/echo-process-features-typescript.cjs'),
+  ]);
+
+  strictEqual(result.stderr, '');
+  strictEqual(result.stdout, process.config.variables.node_use_amaro ? 'strip\n' : 'false\n');
+  strictEqual(result.code, 0);
+});
+
+test('expect process.features.typescript to be \'transform\' when --experimental-transform-types', async () => {
+  const result = await spawnPromisified(process.execPath, [
+    '--no-warnings',
+    '--experimental-transform-types',
+    fixtures.path('typescript/echo-process-features-typescript.cjs'),
+  ]);
+
+  strictEqual(result.stderr, '');
+  strictEqual(result.stdout, process.config.variables.node_use_amaro ? 'transform\n' : 'false\n');
+  strictEqual(result.code, 0);
+});
+
+
 if (!process.config.variables.node_use_amaro) skip('Requires Amaro');
 
 test('execute a TypeScript file', async () => {
@@ -350,30 +375,6 @@ test('execute a TypeScript test mocking module', { skip: isWindows && process.ar
   strictEqual(result.stderr, '');
   match(result.stdout, /Hello, TypeScript-Module!/);
   match(result.stdout, /Hello, TypeScript-CommonJS!/);
-  strictEqual(result.code, 0);
-});
-
-test('expect process.features.typescript to be \'strip\' when --experimental-strip-types', async () => {
-  const result = await spawnPromisified(process.execPath, [
-    '--no-warnings',
-    '--experimental-strip-types',
-    '-p', 'process.features.typescript',
-  ]);
-
-  strictEqual(result.stderr, '');
-  strictEqual(result.stdout, 'strip\n');
-  strictEqual(result.code, 0);
-});
-
-test('expect process.features.typescript to be \'transform\' when --experimental-transform-types', async () => {
-  const result = await spawnPromisified(process.execPath, [
-    '--no-warnings',
-    '--experimental-transform-types',
-    '-p', 'process.features.typescript',
-  ]);
-
-  strictEqual(result.stderr, '');
-  strictEqual(result.stdout, 'transform\n');
   strictEqual(result.code, 0);
 });
 
