@@ -7510,7 +7510,7 @@ added:
 
 Free blocks available to unprivileged users.
 
-```js
+```cjs
 const fs = require('fs');
 // Calculate available space in bytes
 fs.statfs('.', (err,stats) => {
