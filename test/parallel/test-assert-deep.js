@@ -1346,3 +1346,47 @@ test('Comparing two different WeakSet instances', () => {
   const weakSet2 = new WeakSet();
   assertNotDeepOrStrict(weakSet1, weakSet2);
 });
+
+// check URL
+{
+  const a = new URL('http://foo');
+  const b = new URL('http://bar');
+
+  assertNotDeepOrStrict(a, b);
+}
+
+{
+  const a = new URL('http://foo');
+  const b = new URL('http://foo');
+
+  assertDeepAndStrictEqual(a, b);
+}
+
+{
+  const a = new URL('http://foo');
+  const b = new URL('http://foo');
+  a.bar = 1;
+  b.bar = 2;
+  assertNotDeepOrStrict(a, b);
+}
+
+{
+  const a = new URL('http://foo');
+  const b = new URL('http://foo');
+  a.bar = 1;
+  b.bar = 1;
+  assertDeepAndStrictEqual(a, b);
+}
+
+{
+  const a = new URL('http://foo');
+  const b = new URL('http://bar');
+  assert.throws(
+    () => assert.deepStrictEqual(a, b),
+    {
+      code: 'ERR_ASSERTION',
+      name: 'AssertionError',
+      message: /http:\/\/bar/
+    }
+  );
+}
