@@ -36,7 +36,6 @@ server.on('stream', common.mustCall((stream) => {
   );
   // When session is destroyed all streams are destroyed and no further
   // error should be emitted.
-  stream.on('error', common.mustNotCall());
   assert.strictEqual(stream.write('data', common.expectsError({
     name: 'Error',
     code: 'ERR_STREAM_WRITE_AFTER_END',
@@ -48,6 +47,11 @@ server.listen(0, common.mustCall(() => {
   const client = h2.connect(`http://localhost:${server.address().port}`);
   const req = client.request();
   req.resume();
-  req.on('end', common.mustCall());
+  req.once('error', common.expectsError({
+    code: 'ERR_HTTP2_STREAM_ERROR',
+    name: 'Error',
+    message: 'Stream closed with error code NGHTTP2_INTERNAL_ERROR'
+  }));
+  req.on('end', common.mustNotCall());
   req.on('close', common.mustCall(() => server.close(common.mustCall())));
 }));

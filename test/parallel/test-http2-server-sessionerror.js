@@ -47,7 +47,7 @@ server.listen(0, common.mustCall(() => {
     .on('error', common.mustCall((err) => {
       if (err.code !== 'ECONNRESET') {
         assert.strictEqual(err.code, 'ERR_HTTP2_SESSION_ERROR');
-        assert.strictEqual(err.message, 'Session closed with error code 2');
+        assert.strictEqual(err.message, 'Session closed with error code NGHTTP2_INTERNAL_ERROR');
       }
     }))
     .on('close', () => {
@@ -56,7 +56,7 @@ server.listen(0, common.mustCall(() => {
       .on('error', common.mustCall((err) => {
         if (err.code !== 'ECONNRESET') {
           assert.strictEqual(err.code, 'ERR_HTTP2_SESSION_ERROR');
-          assert.strictEqual(err.message, 'Session closed with error code 2');
+          assert.strictEqual(err.message, 'Session closed with error code NGHTTP2_INTERNAL_ERROR');
         }
       }))
         .on('close', () => server.close());

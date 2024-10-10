@@ -8,6 +8,11 @@ const h2 = require('http2');
 
 const server = h2.createServer();
 server.on('stream', (stream) => {
+  stream.once('error', common.expectsError({
+    name: 'Error',
+    code: 'ERR_HTTP2_STREAM_ERROR',
+    message: 'Stream closed with error code NGHTTP2_PROTOCOL_ERROR'
+  }));
   stream.on('close', common.mustCall());
   stream.respond();
   stream.end('ok');
@@ -54,12 +59,6 @@ server.listen(0, common.mustCall(() => {
     assert.strictEqual(req.rstCode, closeCode);
     server.close();
     client.close();
-  }));
-
-  req.on('error', common.expectsError({
-    code: 'ERR_HTTP2_STREAM_ERROR',
-    name: 'Error',
-    message: 'Stream closed with error code NGHTTP2_PROTOCOL_ERROR'
   }));
 
   // The `response` event should not fire as the server should receive the
