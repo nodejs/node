@@ -79,7 +79,7 @@ jobs:
       - name: Clean tmp
         run: rm -rf coverage/tmp && rm -rf out
       - name: Upload
-        uses: codecov/codecov-action@e28ff129e5465c2c0dcc6f003fc735cb6ae0c673  # v4.5.0
+        uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238  # v4.6.0
         with:
           directory: ./coverage
           token: ${{ secrets.CODECOV_TOKEN }}
