@@ -519,7 +519,8 @@ Maybe<void> Decorate(Environment* env,
 #define V(name) case ERR_LIB_##name: lib = #name "_"; break;
     const char* lib = "";
     const char* prefix = "OSSL_";
-    switch (ERR_GET_LIB(err)) { OSSL_ERROR_CODES_MAP(V) }
+    switch (ERR_GET_LIB(err))
+      OSSL_ERROR_CODES_MAP(V)
 #undef V
 #undef OSSL_ERROR_CODES_MAP
     // Don't generate codes like "ERR_OSSL_SSL_".

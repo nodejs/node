@@ -205,7 +205,7 @@ static bool IsIPAddress(const std::string& host) {
     // (other than ::/128) that represent non-routable IPv4 addresses. However,
     // this translation assumes that the host is interpreted as an IPv6 address
     // in the first place, at which point DNS rebinding should not be an issue.
-    if (std::all_of(ipv6, ipv6 + sizeof(ipv6), [](auto b) { return b == 0; })) {
+    if (std::all_of(ipv6, ipv6 + sizeof(ipv6), [](auto b) { return b == 0; })) { //NOLINT
       return false;
     }
 

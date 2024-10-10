@@ -1506,9 +1506,11 @@ endif
 .PHONY: lint-cpp
 lint-cpp: tools/.cpplintstamp ## Lint the C++ code with cpplint.py and checkimports.py.
 
+# TODO(RedYetiDev): Replace cpplint with clang-tidy, so that it is fully compatible with
+# clang-format, and messy 'NOLINT' comments don't need to be used to ensure compatability
 tools/.cpplintstamp: $(LINT_CPP_FILES)
 	$(info Running C++ linter...)
-	@$(PYTHON) tools/cpplint.py $(CPPLINT_QUIET) $?
+	@$(PYTHON) tools/cpplint.py --config .cpplint $(CPPLINT_QUIET) $?
 	@$(PYTHON) tools/checkimports.py $?
 	@touch $@
 
