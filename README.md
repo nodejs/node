@@ -737,6 +737,8 @@ responding to new issues.
 
 Primary GPG keys for Node.js Releasers (some Releasers sign with subkeys):
 
+* **Antoine du Hamel** <<duhamelantoine1995@gmail.com>>
+  `C0D6248439F1D5604AAFFB4021D900FFDB233756`
 * **Beth Griggs** <<bethanyngriggs@gmail.com>>
   `4ED778F539E3634C779C87C6D7062848A1AB005C`
 * **Bryan English** <<bryan@bryanenglish.com>>
@@ -764,6 +766,7 @@ To import the full set of trusted release keys (including subkeys possibly used
 to sign releases):
 
 ```bash
+gpg --keyserver hkps://keys.openpgp.org --recv-keys C0D6248439F1D5604AAFFB4021D900FFDB233756 # Antoine du Hamel
 gpg --keyserver hkps://keys.openpgp.org --recv-keys 4ED778F539E3634C779C87C6D7062848A1AB005C # Beth Griggs
 gpg --keyserver hkps://keys.openpgp.org --recv-keys 141F07595B7B3FFE74309A937405533BE57C7D57 # Bryan English
 gpg --keyserver hkps://keys.openpgp.org --recv-keys 74F12602B6F1C4E913FAA37AD3A89613643B6201 # Danielle Adams
