@@ -2107,6 +2107,18 @@ An element in the `iterable` provided to the [WHATWG][WHATWG URL API]
 represent a `[name, value]` tuple – that is, if an element is not iterable, or
 does not consist of exactly two elements.
 
+<a id="ERR_INVALID_TYPESCRIPT_SYNTAX"></a>
+
+### `ERR_INVALID_TYPESCRIPT_SYNTAX`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The provided TypeScript syntax is not valid or unsupported.
+This could happen when using TypeScript syntax that requires
+transformation with [type-stripping][].
+
 <a id="ERR_INVALID_URI"></a>
 
 ### `ERR_INVALID_URI`
@@ -4177,4 +4189,5 @@ An error occurred trying to allocate memory. This should never happen.
 [stream-based]: stream.md
 [syscall]: https://man7.org/linux/man-pages/man2/syscalls.2.html
 [try-catch]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/try...catch
+[type-stripping]: typescript.md#type-stripping
 [vm]: vm.md
