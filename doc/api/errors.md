@@ -2670,6 +2670,13 @@ An attempt was made to call [`stream.pipe()`][] on a [`Writable`][] stream.
 A stream method was called that cannot complete because the stream was
 destroyed using `stream.destroy()`.
 
+<a id="ERR_STREAM_INCOMPATIBLE_OBJECT_MODE"></a>
+
+### `ERR_STREAM_INCOMPATIBLE_OBJECT_MODE`
+
+An attempt was made when piping from object mode to non-object mode while the
+chunk is an `object`.
+
 <a id="ERR_STREAM_NULL_VALUES"></a>
 
 ### `ERR_STREAM_NULL_VALUES`
