@@ -1893,7 +1893,7 @@
           ['enable_lto=="true"', {
             'cflags_cc': [ '-fno-lto' ],
           }],
-          # Chnges in push_registers_asm.cc in V8 v12.8 requires using
+          # Changes in push_registers_asm.cc in V8 v12.8 requires using
           # push_registers_masm on Windows even with ClangCL on x64
           ['OS=="win"', {
             'conditions': [
