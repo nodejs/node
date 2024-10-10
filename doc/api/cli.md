@@ -592,13 +592,13 @@ Affects the default output directory of:
 
 ### `--disable-warning=code-or-type`
 
-> Stability: 1.1 - Active development
-
 <!-- YAML
 added:
   - v21.3.0
   - v20.11.0
 -->
+
+> Stability: 1.1 - Active development
 
 Disable specific process warnings by `code` or `type`.
 
@@ -832,8 +832,6 @@ node --entry-url 'data:text/javascript,console.log("Hello")'
 
 ### `--env-file=config`
 
-> Stability: 1.1 - Active development
-
 <!-- YAML
 added: v20.6.0
 changes:
@@ -843,6 +841,8 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/51289
     description: Add support to multi-line values.
 -->
+
+> Stability: 1.1 - Active development
 
 Loads environment variables from a file relative to the current directory,
 making them available to applications on `process.env`. The [environment
@@ -955,7 +955,8 @@ added:
 
 > Stability: 1.0 - Early development
 
-Define which module system, `module` or `commonjs`, to use for the following:
+Define which module system to use, `module` or `commonjs`. This applies to the
+following:
 
 * String input provided via `--eval` or STDIN, if `--input-type` is unspecified.
 
@@ -1975,7 +1976,7 @@ Write reports in a compact format, single-line JSON, more easily consumable
 by log processing systems than the default multi-line format designed for
 human consumption.
 
-### `--report-dir=directory`, `report-directory=directory`
+### `--report-dir=directory`, `--report-directory=directory`
 
 <!-- YAML
 added: v11.8.0
@@ -3052,7 +3053,6 @@ one is included in the list below.
 * `--experimental-abortcontroller`
 * `--experimental-async-context-frame`
 * `--experimental-default-type`
-* `--experimental-detect-module`
 * `--experimental-eventsource`
 * `--experimental-import-meta-resolve`
 * `--experimental-json-modules`
@@ -3060,7 +3060,6 @@ one is included in the list below.
 * `--experimental-modules`
 * `--experimental-permission`
 * `--experimental-print-required-tla`
-* `--experimental-require-module`
 * `--experimental-shadow-realm`
 * `--experimental-specifier-resolution`
 * `--experimental-sqlite`
@@ -3093,8 +3092,10 @@ one is included in the list below.
 * `--network-family-autoselection-attempt-timeout`
 * `--no-addons`
 * `--no-deprecation`
+* `--no-experimental-detect-module`
 * `--no-experimental-global-navigator`
 * `--no-experimental-repl-await`
+* `--no-experimental-require-module`
 * `--no-experimental-websocket`
 * `--no-extra-info-on-fatal-exception`
 * `--no-force-async-hooks-checks`
