@@ -320,6 +320,7 @@ class PerProcessOptions : public Options {
 
 #ifdef NODE_HAVE_I18N_SUPPORT
   std::string icu_data_dir;
+  std::string icu_locale;
 #endif
 
   // Per-process because they affect singleton OpenSSL shared library state,

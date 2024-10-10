@@ -42,6 +42,8 @@ bool InitializeICUDirectory(const std::string& path, std::string* error);
 
 void SetDefaultTimeZone(const char* tzid);
 
+void SetDefaultLocale(const char* localid);
+
 enum class idna_mode {
   // Default mode for maximum compatibility.
   kDefault,
