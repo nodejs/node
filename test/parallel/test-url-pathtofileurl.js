@@ -13,10 +13,7 @@ const url = require('url');
 {
   const fileURL = url.pathToFileURL('test\\').href;
   assert.ok(fileURL.startsWith('file:///'));
-  if (isWindows)
-    assert.ok(fileURL.endsWith('/'));
-  else
-    assert.ok(fileURL.endsWith('%5C'));
+  assert.match(fileURL, isWindows ? /\/$/ : /%5C$/);
 }
 
 {
@@ -104,6 +101,12 @@ const windowsTestCases = [
   { path: 'C:\\€', expected: 'file:///C:/%E2%82%AC' },
   // Rocket emoji (non-BMP code point)
   { path: 'C:\\🚀', expected: 'file:///C:/%F0%9F%9A%80' },
+  // caret
+  { path: 'C:\\foo^bar', expected: 'file:///C:/foo%5Ebar' },
+  // left bracket
+  { path: 'C:\\foo[bar', expected: 'file:///C:/foo%5Bbar' },
+  // right bracket
+  { path: 'C:\\foo]bar', expected: 'file:///C:/foo%5Dbar' },
   // Local extended path
   { path: '\\\\?\\C:\\path\\to\\file.txt', expected: 'file:///C:/path/to/file.txt' },
   // UNC path (see https://docs.microsoft.com/en-us/archive/blogs/ie/file-uris-in-windows)
@@ -154,6 +157,8 @@ const posixTestCases = [
   { path: '/€', expected: 'file:///%E2%82%AC' },
   // Rocket emoji (non-BMP code point)
   { path: '/🚀', expected: 'file:///%F0%9F%9A%80' },
+  // "unsafe" chars
+  { path: '/foo\r\n\t<>"#%{}|^[\\~]`?bar', expected: 'file:///foo%0D%0A%09%3C%3E%22%23%25%7B%7D%7C%5E%5B%5C%7E%5D%60%3Fbar' },
 ];
 
 for (const { path, expected } of windowsTestCases) {
