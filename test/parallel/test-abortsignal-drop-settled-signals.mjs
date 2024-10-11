@@ -8,17 +8,17 @@ if (common.isASan) {
 
 import { describe, it } from 'node:test';
 
-const makeSubseSequentCalls = (limit, done, holdReferences = false) => {
+const makeSubsequentCalls = (limit, done, holdReferences = false) => {
   const ac = new AbortController();
-  const x = [];
+  const retainedSignals = [];
   let dependantSymbol;
 
   let i = 0;
   function run() {
-    if (!holdReferences) {
-      AbortSignal.any([ac.signal]);
+    if (holdReferences) {
+      retainedSignals.push(AbortSignal.any([ac.signal]));
     } else {
-      x.push(AbortSignal.any([ac.signal]));
+      AbortSignal.any([ac.signal]);
     }
 
     if (!dependantSymbol) {
@@ -41,24 +41,20 @@ const makeSubseSequentCalls = (limit, done, holdReferences = false) => {
 const limit = 50000;
 
 describe('when there is a long-lived signal', () => {
-  describe('and dependant signals are Ced', () => {
-    it('drops settled signals', (t, done) => {
-      makeSubseSequentCalls(limit, (totalDependantSignals) => {
-        // We're unable to assert how many signals are dropped (since it depens on gc), but we can assert that some are.
-        t.assert.equal(totalDependantSignals < limit, true);
+  it('drops settled signals', (t, done) => {
+    makeSubsequentCalls(limit, (totalDependantSignals) => {
+      // We're unable to assert how many signals are dropped (since it depends on gc), but we can assert that some are.
+      t.assert.equal(totalDependantSignals < limit, true);
 
-        done();
-      });
+      done();
     });
   });
 
-  describe('and dependant signals are still valid references', () => {
-    it('keeps all dependant signals', (t, done) => {
-      makeSubseSequentCalls(limit, (totalDependantSignals) => {
-        t.assert.equal(totalDependantSignals, limit);
+  it('keeps all dependant signals', (t, done) => {
+    makeSubsequentCalls(limit, (totalDependantSignals) => {
+      t.assert.equal(totalDependantSignals, limit);
 
-        done();
-      }, true);
-    });
+      done();
+    }, true);
   });
 });
