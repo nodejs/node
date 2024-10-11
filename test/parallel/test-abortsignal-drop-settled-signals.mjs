@@ -9,21 +9,29 @@ if (common.isASan) {
 import { describe, it } from 'node:test';
 
 const makeSubsequentCalls = (limit, done, holdReferences = false) => {
+  let dependantSymbol;
+  let signalRef;
   const ac = new AbortController();
   const retainedSignals = [];
-  let dependantSymbol;
+  const handler = () => {};
 
   function run(iteration) {
     if (iteration > limit) {
-      global.gc();
-      done(ac.signal, dependantSymbol);
+      // This setImmediate is necessary to ensure that in the last iteration the remaining signal is GCed (if not
+      // retained)
+      setImmediate(() => {
+        global.gc();
+        done(ac.signal, dependantSymbol);
+      });
       return;
     }
 
     if (holdReferences) {
       retainedSignals.push(AbortSignal.any([ac.signal]));
     } else {
-      AbortSignal.any([ac.signal]);
+      // Using a WeakRef to avoid retaining information that will interfere with the test
+      signalRef = new WeakRef(AbortSignal.any([ac.signal]));
+      signalRef.deref().addEventListener('abort', handler);
     }
 
     if (!dependantSymbol) {
@@ -33,7 +41,12 @@ const makeSubsequentCalls = (limit, done, holdReferences = false) => {
       dependantSymbol = kDependantSignals;
     }
 
-    setImmediate(() => run(iteration + 1));
+    setImmediate(() => {
+      // Removing the event listener at some moment in the future
+      // Which will then allow the signal to be GCed
+      signalRef?.deref()?.removeEventListener('abort', handler);
+      run(iteration + 1);
+    });
   }
 
   run(1);
@@ -92,3 +105,29 @@ describe('when there is a short-lived signal', () => {
     });
   });
 });
+
+// describe('when provided signal is composed', () => {
+//   it('drops settled dependant signals', (t, done) => {
+//     const controllers = Array.from({ length: 2 }, () => new AbortController());
+//     const composedSignal1 = AbortSignal.any([controllers[0].signal]);
+//     const composedSignalRef = new WeakRef(AbortSignal.any([composedSignal1, controllers[1].signal]));
+
+//     global.gc();
+
+//     setImmediate(() => {
+//       // Object.getOwnPropertySymbols(composedSignal1).forEach((s) => {
+//       //   console.log(s, composedSignal1[s]);
+//       // });
+
+//       // console.log('signal 2 ====')
+
+//       const composedSignal2 = composedSignalRef.deref();
+
+//       Object.getOwnPropertySymbols(composedSignal2).forEach((s) => {
+//         console.log(s, composedSignal2[s]);
+//       });
+//       done();
+//     });
+
+//   });
+// });
