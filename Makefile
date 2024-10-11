@@ -1438,6 +1438,8 @@ LINT_CPP_FILES = $(filter-out $(LINT_CPP_EXCLUDE), $(wildcard \
 	tools/code_cache/*.h \
 	tools/snapshot/*.cc \
 	tools/snapshot/*.h \
+	deps/ncrypto/*.cc \
+	deps/ncrypto/*.h \
 	))
 
 FORMAT_CPP_FILES ?=
