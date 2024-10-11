@@ -39,6 +39,26 @@ const makeSubsequentCalls = (limit, done, holdReferences = false) => {
   run(1);
 };
 
+const runShortLivedSourceSignal = (limit, done) => {
+  const signalRefs = new Set();
+
+  function run(iteration) {
+    if (iteration > limit) {
+      global.gc();
+      done(signalRefs);
+      return;
+    }
+
+    const ac = new AbortController();
+    signalRefs.add(new WeakRef(ac.signal));
+    AbortSignal.any([ac.signal]);
+
+    setImmediate(() => run(iteration + 1));
+  }
+
+  run(1);
+};
+
 const limit = 10_000;
 
 describe('when there is a long-lived signal', () => {
@@ -57,5 +77,18 @@ describe('when there is a long-lived signal', () => {
 
       done();
     }, true);
+  });
+});
+
+describe('when there is a short-lived signal', () => {
+  it('does not prevent source signal from being GCed', (t, done) => {
+    runShortLivedSourceSignal(limit, (signalRefs) => {
+      setImmediate(() => {
+        const unGCedSignals = [...signalRefs].filter((ref) => ref.deref());
+
+        t.assert.equal(unGCedSignals, 0);
+        done();
+      });
+    });
   });
 });
