@@ -93,15 +93,13 @@ describe('when there is a long-lived signal', () => {
   });
 });
 
-describe('when there is a short-lived signal', () => {
-  it('does not prevent source signal from being GCed', (t, done) => {
-    runShortLivedSourceSignal(limit, (signalRefs) => {
-      setImmediate(() => {
-        const unGCedSignals = [...signalRefs].filter((ref) => ref.deref());
+it('does not prevent source signal from being GCed if it is short-lived', (t, done) => {
+  runShortLivedSourceSignal(limit, (signalRefs) => {
+    setImmediate(() => {
+      const unGCedSignals = [...signalRefs].filter((ref) => ref.deref());
 
-        t.assert.equal(unGCedSignals, 0);
-        done();
-      });
+      t.assert.equal(unGCedSignals, 0);
+      done();
     });
   });
 });
