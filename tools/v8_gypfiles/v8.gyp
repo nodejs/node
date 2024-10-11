@@ -48,7 +48,7 @@
       'type': 'none',
       'toolsets': ['host', 'target'],
       'conditions': [
-        ['OS=="win" and clang==0', {
+        ['OS=="win"', {
           'direct_dependent_settings': {
             'msvs_precompiled_header': '<(V8_ROOT)/../../tools/msvs/pch/v8_pch.h',
             'msvs_precompiled_source': '<(V8_ROOT)/../../tools/msvs/pch/v8_pch.cc',
