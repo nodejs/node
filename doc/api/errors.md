@@ -2343,6 +2343,17 @@ OpenSSL crypto support.
 An attempt was made to use features that require [ICU][], but Node.js was not
 compiled with ICU support.
 
+<a id="ERR_NO_TYPESCRIPT"></a>
+
+### `ERR_NO_TYPESCRIPT`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+An attempt was made to use features that require [Native TypeScript support][], but Node.js was not
+compiled with TypeScript support.
+
 <a id="ERR_OPERATION_FAILED"></a>
 
 ### `ERR_OPERATION_FAILED`
@@ -4112,6 +4123,7 @@ An error occurred trying to allocate memory. This should never happen.
 [ICU]: intl.md#internationalization-support
 [JSON Web Key Elliptic Curve Registry]: https://www.iana.org/assignments/jose/jose.xhtml#web-key-elliptic-curve
 [JSON Web Key Types Registry]: https://www.iana.org/assignments/jose/jose.xhtml#web-key-types
+[Native TypeScript support]: typescript.md#type-stripping
 [Node.js error codes]: #nodejs-error-codes
 [Permission Model]: permissions.md#permission-model
 [RFC 7230 Section 3]: https://tools.ietf.org/html/rfc7230#section-3
