@@ -7511,9 +7511,9 @@ added:
 Free blocks available to unprivileged users.
 
 ```cjs
-const fs = require('node:fs');
+const { statfs } = require('node:fs');
 // Calculate available space in bytes
-fs.statfs('.', (err, stats) => {
+statfs('.', (err, stats) => {
   const availableSpace = stats.bavail * stats.bsize;
   console.log(`Available space for unprivileged users: ${availableSpace} bytes`);
 });
