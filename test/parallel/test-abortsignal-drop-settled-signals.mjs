@@ -13,8 +13,14 @@ const makeSubsequentCalls = (limit, done, holdReferences = false) => {
   const retainedSignals = [];
   let dependantSymbol;
 
-  let i = 0;
-  function run() {
+  // let i = 0;
+  function run(iteration) {
+    if (iteration > limit) {
+      global.gc();
+      done(ac.signal, dependantSymbol);
+      return;
+    }
+
     if (holdReferences) {
       retainedSignals.push(AbortSignal.any([ac.signal]));
     } else {
@@ -25,34 +31,30 @@ const makeSubsequentCalls = (limit, done, holdReferences = false) => {
       const kDependantSignals = Object.getOwnPropertySymbols(ac.signal).filter(
         (s) => s.toString() === 'Symbol(kDependantSignals)'
       )[0];
-      dependantSymbol ??= kDependantSignals;
+      dependantSymbol = kDependantSignals;
     }
 
-    if (++i >= limit) {
-      global.gc();
-      done(ac.signal[dependantSymbol].size);
-      return;
-    }
-    setImmediate(run);
+    setImmediate(() => run(iteration + 1));
   }
-  return run();
+
+  run(1);
 };
 
-const limit = 50000;
+const limit = 10_000;
 
 describe('when there is a long-lived signal', () => {
-  it('drops settled signals', (t, done) => {
-    makeSubsequentCalls(limit, (totalDependantSignals) => {
-      // We're unable to assert how many signals are dropped (since it depends on gc), but we can assert that some are.
-      t.assert.equal(totalDependantSignals < limit, true);
-
-      done();
+  it('drops settled dependant signals', (t, done) => {
+    makeSubsequentCalls(limit, (signal, depandantSignalsKey) => {
+      setImmediate(() => {
+        t.assert.equal(signal[depandantSignalsKey].size, 0);
+        done();
+      });
     });
   });
 
-  it('keeps all dependant signals', (t, done) => {
-    makeSubsequentCalls(limit, (totalDependantSignals) => {
-      t.assert.equal(totalDependantSignals, limit);
+  it('keeps all active dependant signals', (t, done) => {
+    makeSubsequentCalls(limit, (signal, depandantSignalsKey) => {
+      t.assert.equal(signal[depandantSignalsKey].size, limit);
 
       done();
     }, true);
