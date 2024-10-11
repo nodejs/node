@@ -713,11 +713,9 @@ const rl = createInterface({
 ```
 
 ```cjs
-const readlinePromises = require('node:readline/promises');
-const rl = readlinePromises.createInterface({
-  input: process.stdin,
-  output: process.stdout,
-});
+const { createInterface } = require('node:readline/promises');
+const { stdin: input, stdout: output } = require('node:process');
+const rl = createInterface({ input, output });
 ```
 
 Once the `readlinePromises.Interface` instance is created, the most common case
@@ -979,11 +977,9 @@ const rl = createInterface({
 ```
 
 ```cjs
-const readline = require('node:readline');
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout,
-});
+const { createInterface } = require('node:readline');
+const { stdin: input, stdout: output } = require('node:process');
+const rl = createInterface({ input, output });
 ```
 
 Once the `readline.Interface` instance is created, the most common case is to
@@ -1144,10 +1140,11 @@ rl.on('line', (line) => {
 ```
 
 ```cjs
-const readline = require('node:readline');
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout,
+const { createInterface } = require('node:readline');
+const { exit, stdin, stdout } = require('node:process');
+const rl = createInterface({
+  input: stdin,
+  output: stdout,
   prompt: 'OHAI> ',
 });
 
@@ -1165,7 +1162,7 @@ rl.on('line', (line) => {
   rl.prompt();
 }).on('close', () => {
   console.log('Have a great day!');
-  process.exit(0);
+  exit(0);
 });
 ```
 
@@ -1199,13 +1196,13 @@ processLineByLine();
 ```
 
 ```cjs
-const fs = require('node:fs');
-const readline = require('node:readline');
+const { createReadStream } = require('node:fs');
+const { createInterface } = require('node:readline');
 
 async function processLineByLine() {
-  const fileStream = fs.createReadStream('input.txt');
+  const fileStream = createReadStream('input.txt');
 
-  const rl = readline.createInterface({
+  const rl = createInterface({
     input: fileStream,
     crlfDelay: Infinity,
   });
@@ -1238,11 +1235,11 @@ rl.on('line', (line) => {
 ```
 
 ```cjs
-const fs = require('node:fs');
-const readline = require('node:readline');
+const { createReadStream } = require('node:fs');
+const { createInterface } = require('node:readline');
 
-const rl = readline.createInterface({
-  input: fs.createReadStream('sample.txt'),
+const rl = createInterface({
+  input: createReadStream('sample.txt'),
   crlfDelay: Infinity,
 });
 
