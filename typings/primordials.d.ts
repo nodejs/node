@@ -111,6 +111,7 @@ declare namespace primordials {
   export const ArrayPrototype: typeof Array.prototype
   export const ArrayIsArray: typeof Array.isArray
   export const ArrayFrom: typeof Array.from
+  export const ArrayFromAsync: typeof Array.fromAsync
   export const ArrayOf: typeof Array.of
   export const ArrayPrototypeConcat: UncurryThis<typeof Array.prototype.concat>
   export const ArrayPrototypeCopyWithin: UncurryThis<typeof Array.prototype.copyWithin>
@@ -430,7 +431,9 @@ declare namespace primordials {
   export const SymbolPrototype: typeof Symbol.prototype
   export const SymbolFor: typeof Symbol.for
   export const SymbolKeyFor: typeof Symbol.keyFor
+  export const SymbolAsyncDispose: typeof Symbol.asyncDispose
   export const SymbolAsyncIterator: typeof Symbol.asyncIterator
+  export const SymbolDispose: typeof Symbol.dispose
   export const SymbolHasInstance: typeof Symbol.hasInstance
   export const SymbolIsConcatSpreadable: typeof Symbol.isConcatSpreadable
   export const SymbolIterator: typeof Symbol.iterator

@@ -312,7 +312,7 @@ MaybeLocal<Object> New(Isolate* isolate,
   if (length > 0) {
     store = ArrayBuffer::NewBackingStore(isolate, length);
 
-    if (UNLIKELY(!store)) {
+    if (!store) [[unlikely]] {
       THROW_ERR_MEMORY_ALLOCATION_FAILED(isolate);
       return Local<Object>();
     }
@@ -325,7 +325,7 @@ MaybeLocal<Object> New(Isolate* isolate,
         enc);
     CHECK(actual <= length);
 
-    if (LIKELY(actual > 0)) {
+    if (actual > 0) [[likely]] {
       if (actual < length) {
         std::unique_ptr<BackingStore> old_store = std::move(store);
         store = ArrayBuffer::NewBackingStore(isolate, actual);
@@ -335,8 +335,9 @@ MaybeLocal<Object> New(Isolate* isolate,
       }
       Local<ArrayBuffer> buf = ArrayBuffer::New(isolate, std::move(store));
       Local<Object> obj;
-      if (UNLIKELY(!New(isolate, buf, 0, actual).ToLocal(&obj)))
-        return MaybeLocal<Object>();
+      if (!New(isolate, buf, 0, actual).ToLocal(&obj)) [[unlikely]] {
+        return {};
+      }
       return scope.Escape(obj);
     }
   }

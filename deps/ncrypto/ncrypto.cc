@@ -33,7 +33,7 @@ ClearErrorOnReturn::~ClearErrorOnReturn() {
   ERR_clear_error();
 }
 
-int ClearErrorOnReturn::peeKError() { return ERR_peek_error(); }
+int ClearErrorOnReturn::peekError() { return ERR_peek_error(); }
 
 MarkPopErrorOnReturn::MarkPopErrorOnReturn(CryptoErrorList* errors) : errors_(errors) {
   ERR_set_mark();
@@ -1570,11 +1570,66 @@ EVPKeyPointer::ParseKeyResult TryParsePublicKeyInner(
   return EVPKeyPointer::ParseKeyResult(std::move(pkey));
 }
 
-EVPKeyPointer::ParseKeyResult TryParsePublicKeyPEM(
+constexpr bool IsASN1Sequence(const unsigned char* data, size_t size,
+                              size_t* data_offset, size_t* data_size) {
+  if (size < 2 || data[0] != 0x30)
+    return false;
+
+  if (data[1] & 0x80) {
+    // Long form.
+    size_t n_bytes = data[1] & ~0x80;
+    if (n_bytes + 2 > size || n_bytes > sizeof(size_t))
+      return false;
+    size_t length = 0;
+    for (size_t i = 0; i < n_bytes; i++)
+      length = (length << 8) | data[i + 2];
+    *data_offset = 2 + n_bytes;
+    *data_size = std::min(size - 2 - n_bytes, length);
+  } else {
+    // Short form.
+    *data_offset = 2;
+    *data_size = std::min<size_t>(size - 2, data[1]);
+  }
+
+  return true;
+}
+
+constexpr bool IsEncryptedPrivateKeyInfo(const Buffer<const unsigned char>& buffer) {
+  // Both PrivateKeyInfo and EncryptedPrivateKeyInfo start with a SEQUENCE.
+  if (buffer.len == 0 || buffer.data == nullptr) return false;
+  size_t offset, len;
+  if (!IsASN1Sequence(buffer.data, buffer.len, &offset, &len))
+    return false;
+
+  // A PrivateKeyInfo sequence always starts with an integer whereas an
+  // EncryptedPrivateKeyInfo starts with an AlgorithmIdentifier.
+  return len >= 1 && buffer.data[offset] != 2;
+}
+
+}  // namespace
+
+bool EVPKeyPointer::IsRSAPrivateKey(const Buffer<const unsigned char>& buffer) {
+  // Both RSAPrivateKey and RSAPublicKey structures start with a SEQUENCE.
+  size_t offset, len;
+  if (!IsASN1Sequence(buffer.data, buffer.len, &offset, &len))
+    return false;
+
+  // An RSAPrivateKey sequence always starts with a single-byte integer whose
+  // value is either 0 or 1, whereas an RSAPublicKey starts with the modulus
+  // (which is the product of two primes and therefore at least 4), so we can
+  // decide the type of the structure based on the first three bytes of the
+  // sequence.
+  return len >= 3 &&
+         buffer.data[offset] == 2 &&
+         buffer.data[offset + 1] == 1 &&
+         !(buffer.data[offset + 2] & 0xfe);
+}
+
+EVPKeyPointer::ParseKeyResult EVPKeyPointer::TryParsePublicKeyPEM(
     const Buffer<const unsigned char>& buffer) {
   auto bp = BIOPointer::New(buffer.data, buffer.len);
   if (!bp)
-    return EVPKeyPointer::ParseKeyResult(EVPKeyPointer::PKParseError::FAILED);
+    return ParseKeyResult(PKParseError::FAILED);
 
   // Try parsing as SubjectPublicKeyInfo (SPKI) first.
   if (auto ret = TryParsePublicKeyInner(bp, "PUBLIC KEY",
@@ -1601,9 +1656,8 @@ EVPKeyPointer::ParseKeyResult TryParsePublicKeyPEM(
     return ret;
   };
 
-  return EVPKeyPointer::ParseKeyResult(EVPKeyPointer::PKParseError::NOT_RECOGNIZED);
+  return ParseKeyResult(PKParseError::NOT_RECOGNIZED);
 }
-}  // namespace
 
 EVPKeyPointer::ParseKeyResult EVPKeyPointer::TryParsePublicKey(
     PKFormatType format,
@@ -1632,6 +1686,72 @@ EVPKeyPointer::ParseKeyResult EVPKeyPointer::TryParsePublicKey(
   }
 
   return ParseKeyResult(PKParseError::FAILED);
+}
+
+EVPKeyPointer::ParseKeyResult EVPKeyPointer::TryParsePrivateKey(
+    PKFormatType format,
+    PKEncodingType encoding,
+    std::optional<Buffer<char>> maybe_passphrase,
+    const Buffer<const unsigned char>& buffer) {
+
+  static auto keyOrError = [&](EVPKeyPointer pkey, bool had_passphrase = false) {
+    if (int err = ERR_peek_error()) {
+      if (ERR_GET_LIB(err) == ERR_LIB_PEM &&
+          ERR_GET_REASON(err) == PEM_R_BAD_PASSWORD_READ &&
+          !had_passphrase) {
+        return ParseKeyResult(PKParseError::NEED_PASSPHRASE);
+      }
+      return ParseKeyResult(PKParseError::FAILED, err);
+    }
+    if (!pkey) return ParseKeyResult(PKParseError::FAILED);
+    return ParseKeyResult(std::move(pkey));
+  };
+
+  Buffer<char>* passphrase = nullptr;
+  if (maybe_passphrase.has_value()) {
+    passphrase = &maybe_passphrase.value();
+  }
+
+  auto bio = BIOPointer::New(buffer);
+  if (!bio) return ParseKeyResult(PKParseError::FAILED);
+
+  if (format == PKFormatType::PEM) {
+    auto key = PEM_read_bio_PrivateKey(bio.get(), nullptr, PasswordCallback, passphrase);
+    return keyOrError(EVPKeyPointer(key), maybe_passphrase.has_value());
+  }
+
+  if (format != PKFormatType::DER) {
+    return ParseKeyResult(PKParseError::FAILED);
+  }
+
+  switch (encoding) {
+    case PKEncodingType::PKCS1: {
+      auto key = d2i_PrivateKey_bio(bio.get(), nullptr);
+      return keyOrError(EVPKeyPointer(key));
+    }
+    case PKEncodingType::PKCS8: {
+      if (IsEncryptedPrivateKeyInfo(buffer)) {
+        auto key = d2i_PKCS8PrivateKey_bio(bio.get(),
+                                           nullptr,
+                                           PasswordCallback,
+                                           passphrase);
+        return keyOrError(EVPKeyPointer(key), maybe_passphrase.has_value());
+      }
+
+      PKCS8Pointer p8inf(d2i_PKCS8_PRIV_KEY_INFO_bio(bio.get(), nullptr));
+      if (!p8inf) {
+        return ParseKeyResult(PKParseError::FAILED, ERR_peek_error());
+      }
+      return keyOrError(EVPKeyPointer(EVP_PKCS82PKEY(p8inf.get())));
+    }
+    case PKEncodingType::SEC1: {
+      auto key = d2i_PrivateKey_bio(bio.get(), nullptr);
+      return keyOrError(EVPKeyPointer(key));
+    }
+    default: {
+      return ParseKeyResult(PKParseError::FAILED, ERR_peek_error());
+    }
+  };
 }
 
 }  // namespace ncrypto

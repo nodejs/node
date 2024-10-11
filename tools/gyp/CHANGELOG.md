@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.18.2](https://github.com/nodejs/gyp-next/compare/v0.18.1...v0.18.2) (2024-09-23)
+
+
+### Bug Fixes
+
+* do not assume that /usr/bin/env exists on macOS ([#216](https://github.com/nodejs/gyp-next/issues/216)) ([706d04a](https://github.com/nodejs/gyp-next/commit/706d04aba5bd18f311dc56f84720e99f64c73466))
+* fix E721 lint errors ([#206](https://github.com/nodejs/gyp-next/issues/206)) ([d1299a4](https://github.com/nodejs/gyp-next/commit/d1299a49d313eccabecf97ccb56fc033afad39ad))
+
 ## [0.18.1](https://github.com/nodejs/gyp-next/compare/v0.18.0...v0.18.1) (2024-05-26)
 
 

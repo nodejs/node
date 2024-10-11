@@ -18,8 +18,11 @@ using v8::Array;
 using v8::ArrayBuffer;
 using v8::BigInt;
 using v8::Boolean;
+using v8::ConstructorBehavior;
 using v8::Context;
+using v8::DontDelete;
 using v8::Exception;
+using v8::FunctionCallback;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::Integer;
@@ -31,6 +34,7 @@ using v8::Name;
 using v8::Null;
 using v8::Number;
 using v8::Object;
+using v8::SideEffectType;
 using v8::String;
 using v8::Uint8Array;
 using v8::Value;
@@ -91,12 +95,16 @@ inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, const char* message) {
 DatabaseSync::DatabaseSync(Environment* env,
                            Local<Object> object,
                            Local<String> location,
-                           bool open)
+                           bool open,
+                           bool enable_foreign_keys_on_open,
+                           bool enable_dqs_on_open)
     : BaseObject(env, object) {
   MakeWeak();
   node::Utf8Value utf8_location(env->isolate(), location);
   location_ = utf8_location.ToString();
   connection_ = nullptr;
+  enable_foreign_keys_on_open_ = enable_foreign_keys_on_open;
+  enable_dqs_on_open_ = enable_dqs_on_open;
 
   if (open) {
     Open();
@@ -125,6 +133,26 @@ bool DatabaseSync::Open() {
   int flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
   int r = sqlite3_open_v2(location_.c_str(), &connection_, flags, nullptr);
   CHECK_ERROR_OR_THROW(env()->isolate(), connection_, r, SQLITE_OK, false);
+
+  r = sqlite3_db_config(connection_,
+                        SQLITE_DBCONFIG_DQS_DML,
+                        static_cast<int>(enable_dqs_on_open_),
+                        nullptr);
+  CHECK_ERROR_OR_THROW(env()->isolate(), connection_, r, SQLITE_OK, false);
+  r = sqlite3_db_config(connection_,
+                        SQLITE_DBCONFIG_DQS_DDL,
+                        static_cast<int>(enable_dqs_on_open_),
+                        nullptr);
+  CHECK_ERROR_OR_THROW(env()->isolate(), connection_, r, SQLITE_OK, false);
+
+  int foreign_keys_enabled;
+  r = sqlite3_db_config(connection_,
+                        SQLITE_DBCONFIG_ENABLE_FKEY,
+                        static_cast<int>(enable_foreign_keys_on_open_),
+                        &foreign_keys_enabled);
+  CHECK_ERROR_OR_THROW(env()->isolate(), connection_, r, SQLITE_OK, false);
+  CHECK_EQ(foreign_keys_enabled, enable_foreign_keys_on_open_);
+
   return true;
 }
 
@@ -166,6 +194,8 @@ void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
   }
 
   bool open = true;
+  bool enable_foreign_keys = true;
+  bool enable_dqs = false;
 
   if (args.Length() > 1) {
     if (!args[1]->IsObject()) {
@@ -188,9 +218,50 @@ void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
       }
       open = open_v.As<Boolean>()->Value();
     }
+
+    Local<String> enable_foreign_keys_string =
+        FIXED_ONE_BYTE_STRING(env->isolate(), "enableForeignKeyConstraints");
+    Local<Value> enable_foreign_keys_v;
+    if (!options->Get(env->context(), enable_foreign_keys_string)
+             .ToLocal(&enable_foreign_keys_v)) {
+      return;
+    }
+    if (!enable_foreign_keys_v->IsUndefined()) {
+      if (!enable_foreign_keys_v->IsBoolean()) {
+        node::THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            "The \"options.enableForeignKeyConstraints\" argument must be a "
+            "boolean.");
+        return;
+      }
+      enable_foreign_keys = enable_foreign_keys_v.As<Boolean>()->Value();
+    }
+
+    Local<String> enable_dqs_string = FIXED_ONE_BYTE_STRING(
+        env->isolate(), "enableDoubleQuotedStringLiterals");
+    Local<Value> enable_dqs_v;
+    if (!options->Get(env->context(), enable_dqs_string)
+             .ToLocal(&enable_dqs_v)) {
+      return;
+    }
+    if (!enable_dqs_v->IsUndefined()) {
+      if (!enable_dqs_v->IsBoolean()) {
+        node::THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            "The \"options.enableDoubleQuotedStringLiterals\" argument must be "
+            "a boolean.");
+        return;
+      }
+      enable_dqs = enable_dqs_v.As<Boolean>()->Value();
+    }
   }
 
-  new DatabaseSync(env, args.This(), args[0].As<String>(), open);
+  new DatabaseSync(env,
+                   args.This(),
+                   args[0].As<String>(),
+                   open,
+                   enable_foreign_keys,
+                   enable_dqs);
 }
 
 void DatabaseSync::Open(const FunctionCallbackInfo<Value>& args) {
@@ -612,7 +683,7 @@ void StatementSync::Run(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(result);
 }
 
-void StatementSync::SourceSQL(const FunctionCallbackInfo<Value>& args) {
+void StatementSync::SourceSQLGetter(const FunctionCallbackInfo<Value>& args) {
   StatementSync* stmt;
   ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
   Environment* env = Environment::GetCurrent(args);
@@ -626,7 +697,7 @@ void StatementSync::SourceSQL(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(sql);
 }
 
-void StatementSync::ExpandedSQL(const FunctionCallbackInfo<Value>& args) {
+void StatementSync::ExpandedSQLGetter(const FunctionCallbackInfo<Value>& args) {
   StatementSync* stmt;
   ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
   Environment* env = Environment::GetCurrent(args);
@@ -686,6 +757,23 @@ void IllegalConstructor(const FunctionCallbackInfo<Value>& args) {
   node::THROW_ERR_ILLEGAL_CONSTRUCTOR(Environment::GetCurrent(args));
 }
 
+static inline void SetSideEffectFreeGetter(
+    Isolate* isolate,
+    Local<FunctionTemplate> class_template,
+    Local<String> name,
+    FunctionCallback fn) {
+  Local<FunctionTemplate> getter =
+      FunctionTemplate::New(isolate,
+                            fn,
+                            Local<Value>(),
+                            v8::Signature::New(isolate, class_template),
+                            /* length */ 0,
+                            ConstructorBehavior::kThrow,
+                            SideEffectType::kHasNoSideEffect);
+  class_template->InstanceTemplate()->SetAccessorProperty(
+      name, getter, Local<FunctionTemplate>(), DontDelete);
+}
+
 Local<FunctionTemplate> StatementSync::GetConstructorTemplate(
     Environment* env) {
   Local<FunctionTemplate> tmpl =
@@ -699,8 +787,14 @@ Local<FunctionTemplate> StatementSync::GetConstructorTemplate(
     SetProtoMethod(isolate, tmpl, "all", StatementSync::All);
     SetProtoMethod(isolate, tmpl, "get", StatementSync::Get);
     SetProtoMethod(isolate, tmpl, "run", StatementSync::Run);
-    SetProtoMethod(isolate, tmpl, "sourceSQL", StatementSync::SourceSQL);
-    SetProtoMethod(isolate, tmpl, "expandedSQL", StatementSync::ExpandedSQL);
+    SetSideEffectFreeGetter(isolate,
+                            tmpl,
+                            FIXED_ONE_BYTE_STRING(isolate, "sourceSQL"),
+                            StatementSync::SourceSQLGetter);
+    SetSideEffectFreeGetter(isolate,
+                            tmpl,
+                            FIXED_ONE_BYTE_STRING(isolate, "expandedSQL"),
+                            StatementSync::ExpandedSQLGetter);
     SetProtoMethod(isolate,
                    tmpl,
                    "setAllowBareNamedParameters",

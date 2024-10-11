@@ -589,7 +589,7 @@ ssize_t UDPWrap::Send(uv_buf_t* bufs_ptr,
     msg_size += bufs_ptr[i].len;
 
   int err = 0;
-  if (!UNLIKELY(env()->options()->test_udp_no_try_send)) {
+  if (!env()->options()->test_udp_no_try_send) [[unlikely]] {
     err = uv_udp_try_send(&handle_, bufs_ptr, count, addr);
     if (err == UV_ENOSYS || err == UV_EAGAIN) {
       err = 0;

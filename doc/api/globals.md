@@ -477,7 +477,9 @@ A browser-compatible implementation of the `Event` class. See
 ## `EventSource`
 
 <!-- YAML
-added: v22.3.0
+added:
+  - v22.3.0
+  - v20.18.0
 -->
 
 > Stability: 1 - Experimental. Enable this API with the [`--experimental-eventsource`][]

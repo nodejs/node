@@ -422,12 +422,22 @@ node --test
 
 By default, Node.js will run all files matching these patterns:
 
-* `**/*.test.?(c|m)js`
-* `**/*-test.?(c|m)js`
-* `**/*_test.?(c|m)js`
-* `**/test-*.?(c|m)js`
-* `**/test.?(c|m)js`
-* `**/test/**/*.?(c|m)js`
+* `**/*.test.{cjs,mjs,js}`
+* `**/*-test.{cjs,mjs,js}`
+* `**/*_test.{cjs,mjs,js}`
+* `**/test-*.{cjs,mjs,js}`
+* `**/test.{cjs,mjs,js}`
+* `**/test/**/*.{cjs,mjs,js}`
+
+When [`--experimental-strip-types`][] is supplied, the following
+additional patterns are matched:
+
+* `**/*.test.{cts,mts,ts}`
+* `**/*-test.{cts,mts,ts}`
+* `**/*_test.{cts,mts,ts}`
+* `**/test-*.{cts,mts,ts}`
+* `**/test.{cts,mts,ts}`
+* `**/test/**/*.{cts,mts,ts}`
 
 Alternatively, one or more glob patterns can be provided as the
 final argument(s) to the Node.js command, as shown below.
@@ -475,7 +485,7 @@ all tests have completed. If the [`NODE_V8_COVERAGE`][] environment variable is
 used to specify a code coverage directory, the generated V8 coverage files are
 written to that directory. Node.js core modules and files within
 `node_modules/` directories are, by default, not included in the coverage report.
-However, they can be explicity included via the [`--test-coverage-include`][] flag. If
+However, they can be explicitly included via the [`--test-coverage-include`][] flag. If
 coverage is enabled, the coverage report is sent to any [test reporters][] via
 the `'test:coverage'` event.
 
@@ -1247,6 +1257,9 @@ added:
   - v16.19.0
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/54705
+    description: Added the `cwd` option.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/53937
     description: Added coverage options.
   - version: v22.8.0
@@ -1276,8 +1289,11 @@ changes:
     parallel.
     If `false`, it would only run one test file at a time.
     **Default:** `false`.
+  * `cwd`: {string} Specifies the current working directory to be used by the test runner.
+    Serves as the base path for resolving files according to the [test runner execution model][].
+    **Default:** `process.cwd()`.
   * `files`: {Array} An array containing the list of files to run.
-    **Default** matching files from [test runner execution model][].
+    **Default:** matching files from [test runner execution model][].
   * `forceExit`: {boolean} Configures the test runner to exit the process once
     all known tests have finished executing even if the event loop would
     otherwise remain active. **Default:** `false`.
@@ -1299,6 +1315,12 @@ changes:
   * `setup` {Function} A function that accepts the `TestsStream` instance
     and can be used to setup listeners before any tests are run.
     **Default:** `undefined`.
+  * `execArgv` {Array} An array of CLI flags to pass to the `node` executable when
+    spawning the subprocesses. This option has no effect when `isolation` is `'none`'.
+    **Default:** `[]`
+  * `argv` {Array} An array of CLI flags to pass to each test file when spawning the
+    subprocesses. This option has no effect when `isolation` is `'none'`.
+    **Default:** `[]`.
   * `signal` {AbortSignal} Allows aborting an in-progress test execution.
   * `testNamePatterns` {string|RegExp|Array} A String, RegExp or a RegExp Array,
     that can be used to only run tests whose name matches the provided pattern.
@@ -1934,7 +1956,9 @@ mock can still be used after calling this function.
 ## Class: `MockModuleContext`
 
 <!-- YAML
-added: v22.3.0
+added:
+  - v22.3.0
+  - v20.18.0
 -->
 
 > Stability: 1.0 - Early development
@@ -1945,7 +1969,9 @@ created via the [`MockTracker`][] APIs.
 ### `ctx.restore()`
 
 <!-- YAML
-added: v22.3.0
+added:
+  - v22.3.0
+  - v20.18.0
 -->
 
 Resets the implementation of the mock module.
@@ -2086,7 +2112,9 @@ test('spies on an object method', (t) => {
 ### `mock.module(specifier[, options])`
 
 <!-- YAML
-added: v22.3.0
+added:
+  - v22.3.0
+  - v20.18.0
 -->
 
 > Stability: 1.0 - Early development
@@ -3215,6 +3243,7 @@ test('top level test', async (t) => {
 <!-- YAML
 added:
   - v22.2.0
+  - v20.15.0
 -->
 
 An object containing assertion methods bound to `context`. The top-level
@@ -3562,6 +3591,7 @@ added:
 Can be used to abort test subtasks when the test has been aborted.
 
 [TAP]: https://testanything.org/
+[`--experimental-strip-types`]: cli.md#--experimental-strip-types
 [`--experimental-test-coverage`]: cli.md#--experimental-test-coverage
 [`--experimental-test-module-mocks`]: cli.md#--experimental-test-module-mocks
 [`--experimental-test-snapshots`]: cli.md#--experimental-test-snapshots
