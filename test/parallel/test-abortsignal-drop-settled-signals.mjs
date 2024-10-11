@@ -13,7 +13,7 @@ const makeSubsequentCalls = (limit, done, holdReferences = false) => {
   let signalRef;
   const ac = new AbortController();
   const retainedSignals = [];
-  const handler = () => {};
+  const handler = () => { };
 
   function run(iteration) {
     if (iteration > limit) {
@@ -106,28 +106,27 @@ describe('when there is a short-lived signal', () => {
   });
 });
 
-// describe('when provided signal is composed', () => {
-//   it('drops settled dependant signals', (t, done) => {
-//     const controllers = Array.from({ length: 2 }, () => new AbortController());
-//     const composedSignal1 = AbortSignal.any([controllers[0].signal]);
-//     const composedSignalRef = new WeakRef(AbortSignal.any([composedSignal1, controllers[1].signal]));
+it('drops settled dependant signals when signal is composite', (t, done) => {
+  const controllers = Array.from({ length: 2 }, () => new AbortController());
+  const composedSignal1 = AbortSignal.any([controllers[0].signal]);
+  const composedSignalRef = new WeakRef(AbortSignal.any([composedSignal1, controllers[1].signal]));
 
-//     global.gc();
+  const kDependantSignals = Object.getOwnPropertySymbols(controllers[0].signal).find(
+    (s) => s.toString() === 'Symbol(kDependantSignals)'
+  );
 
-//     setImmediate(() => {
-//       // Object.getOwnPropertySymbols(composedSignal1).forEach((s) => {
-//       //   console.log(s, composedSignal1[s]);
-//       // });
+  setImmediate(() => {
+    global.gc();
 
-//       // console.log('signal 2 ====')
+    t.assert.equal(composedSignalRef.deref(), undefined);
+    t.assert.equal(controllers[0].signal[kDependantSignals].size, 2);
+    t.assert.equal(controllers[1].signal[kDependantSignals].size, 1);
 
-//       const composedSignal2 = composedSignalRef.deref();
+    setImmediate(() => {
+      t.assert.equal(controllers[0].signal[kDependantSignals].size, 0);
+      t.assert.equal(controllers[1].signal[kDependantSignals].size, 0);
 
-//       Object.getOwnPropertySymbols(composedSignal2).forEach((s) => {
-//         console.log(s, composedSignal2[s]);
-//       });
-//       done();
-//     });
-
-//   });
-// });
+      done();
+    });
+  });
+});
