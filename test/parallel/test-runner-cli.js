@@ -67,17 +67,22 @@ for (const isolation of ['none', 'process']) {
                   `--experimental-${type}-types`, `--experimental-test-isolation=${isolation}`];
     const child = spawnSync(process.execPath, args, { cwd: join(testFixtures, 'matching-patterns') });
 
-    assert.strictEqual(child.stderr.toString(), '');
-    const stdout = child.stdout.toString();
+    if (!process.config.variables.node_use_amaro) {
+      // e.g. Compiled with `--without-amaro`.
+      assert.strictEqual(child.status, 1);
+    } else {
+      assert.strictEqual(child.stderr.toString(), '');
+      const stdout = child.stdout.toString();
 
-    assert.match(stdout, /ok 1 - this should pass/);
-    assert.match(stdout, /ok 2 - this should pass/);
-    assert.match(stdout, /ok 3 - this should pass/);
-    assert.match(stdout, /ok 4 - this should pass/);
-    assert.match(stdout, /ok 5 - this should pass/);
-    assert.match(stdout, /ok 6 - this should pass/);
-    assert.strictEqual(child.status, 0);
-    assert.strictEqual(child.signal, null);
+      assert.match(stdout, /ok 1 - this should pass/);
+      assert.match(stdout, /ok 2 - this should pass/);
+      assert.match(stdout, /ok 3 - this should pass/);
+      assert.match(stdout, /ok 4 - this should pass/);
+      assert.match(stdout, /ok 5 - this should pass/);
+      assert.match(stdout, /ok 6 - this should pass/);
+      assert.strictEqual(child.status, 0);
+      assert.strictEqual(child.signal, null);
+    }
   }
 
   {
