@@ -7511,15 +7511,15 @@ added:
 Free blocks available to unprivileged users.
 
 ```cjs
-const fs = require('fs');
+const fs = require('node:fs');
 // Calculate available space in bytes
-fs.statfs('.', (err,stats) => {
+fs.statfs('.', (err, stats) => {
   const availableSpace = stats.bavail * stats.bsize;
   console.log(`Available space for unprivileged users: ${availableSpace} bytes`);
 });
 ```
 ```mjs
-import { statfs } from 'fs';
+import { statfs } from 'node:fs';
 // Calculate available space in bytes
 statfs('.', (err, stats) => {
   const availableSpace = stats.bavail * stats.bsize;
@@ -7540,7 +7540,7 @@ added:
 Free blocks in file system.
 
 ```cjs
-const { statfs } = require('fs');
+const { statfs } = require('node:fs');
 // Calculate total free space in bytes using bfree and bsize
 statfs('.', (err, stats) => {
   const totalFreeSpace = stats.bfree * stats.bsize;
@@ -7548,7 +7548,7 @@ statfs('.', (err, stats) => {
 });
 ```
 ```mjs
-import { statfs } from 'fs';
+import { statfs } from 'node:fs';
 // Calculate total free space in bytes using bfree and bsize
 statfs('.', (err, stats) => {
   const totalFreeSpace = stats.bfree * stats.bsize;
@@ -7569,7 +7569,7 @@ added:
 Total data blocks in file system.
 
 ```cjs
-const { statfs } = require('fs');
+const { statfs } = require('node:fs');
 // Get the total number of blocks
 statfs('.', (err, stats) => {
   const totalBlocks = stats.blocks;
@@ -7577,7 +7577,7 @@ statfs('.', (err, stats) => {
 });
 ```
 ```mjs
-import { statfs } from 'fs';
+import { statfs } from 'node:fs';
 // Get the total number of blocks
 statfs('.', (err, stats) => {
   const totalBlocks = stats.blocks;
@@ -7622,15 +7622,15 @@ added:
 Total file nodes in file system.
 
 ```cjs
-const { statfs } = require('fs');
-//Calculate total file nodes in file system
+const { statfs } = require('node:fs');
+// Calculate total file nodes in file system
 statfs('.', (err, stats) => {
   const totalInodes = stats.files;
   console.log(`Total number of inodes (files) on filesystem: ${totalInodes}`);
 });
 ```
 ```mjs
-import { statfs } from 'fs';
+import { statfs } from 'node:fs';
 //Calculate total file nodes in file system
 statfs('.', (err, stats) => {
   const totalInodes = stats.files;
