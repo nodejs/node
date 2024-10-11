@@ -13,7 +13,6 @@ const makeSubsequentCalls = (limit, done, holdReferences = false) => {
   const retainedSignals = [];
   let dependantSymbol;
 
-  // let i = 0;
   function run(iteration) {
     if (iteration > limit) {
       global.gc();
@@ -28,9 +27,9 @@ const makeSubsequentCalls = (limit, done, holdReferences = false) => {
     }
 
     if (!dependantSymbol) {
-      const kDependantSignals = Object.getOwnPropertySymbols(ac.signal).filter(
+      const kDependantSignals = Object.getOwnPropertySymbols(ac.signal).find(
         (s) => s.toString() === 'Symbol(kDependantSignals)'
-      )[0];
+      );
       dependantSymbol = kDependantSignals;
     }
 
