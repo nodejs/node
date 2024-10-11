@@ -2696,6 +2696,37 @@ is raised.
 JavaScript `TypedArray` objects are described in
 [Section 22.2][] of the ECMAScript Language Specification.
 
+#### `node_api_create_buffer_from_arraybuffer`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+```c
+napi_status NAPI_CDECL node_api_create_buffer_from_arraybuffer(napi_env env,
+                                                              napi_value arraybuffer,
+                                                              size_t byte_offset,
+                                                              size_t byte_length,
+                                                              napi_value* result)
+```
+
+* **`[in] env`**: The environment that the API is invoked under.
+* **`[in] arraybuffer`**: The `ArrayBuffer` from which the buffer will be created.
+* **`[in] byte_offset`**: The byte offset within the `ArrayBuffer` from which to start creating the buffer.
+* **`[in] byte_length`**: The length in bytes of the buffer to be created from the `ArrayBuffer`.
+* **`[out] result`**: A `napi_value` representing the created JavaScript `Buffer` object.
+
+Returns `napi_ok` if the API succeeded.
+
+This API creates a JavaScript `Buffer` object from an existing `ArrayBuffer`.
+The `Buffer` object is a Node.js-specific class that provides a way to work with binary data directly in JavaScript.
+
+The byte range `[byte_offset, byte_offset + byte_length)`
+must be within the bounds of the `ArrayBuffer`. If `byte_offset + byte_length`
+exceeds the size of the `ArrayBuffer`, a `RangeError` exception is raised.
+
 #### `napi_create_dataview`
 
 <!-- YAML
