@@ -7631,7 +7631,7 @@ statfs('.', (err, stats) => {
 ```
 ```mjs
 import { statfs } from 'node:fs';
-//Calculate total file nodes in file system
+// Calculate total file nodes in file system
 statfs('.', (err, stats) => {
   const totalInodes = stats.files;
   console.log(`Total number of inodes (files) on filesystem: ${totalInodes}`);
