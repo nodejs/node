@@ -251,14 +251,10 @@ changes:
     description: Switch from Import Assertions to Import Attributes.
 -->
 
-> Stability: 1.1 - Active development
+> Stability: 2 - Stable
 
-> This feature was previously named "Import assertions", and using the `assert`
-> keyword instead of `with`. Any uses in code of the prior `assert` keyword
-> should be updated to use `with` instead.
-
-The [Import Attributes proposal][] adds an inline syntax for module import
-statements to pass on more information alongside the module specifier.
+[Import attributes][Import Attributes MDN] are an inline syntax for module
+import statements to pass on more information alongside the module specifier.
 
 ```js
 import fooData from './foo.json' with { type: 'json' };
@@ -267,12 +263,14 @@ const { default: barData } =
   await import('./bar.json', { with: { type: 'json' } });
 ```
 
-Node.js supports the following `type` values, for which the attribute is
-mandatory:
+Node.js only supports the `type` attribute, for which it supports the following
+values:
 
 | Attribute `type` | Needed for       |
 | ---------------- | ---------------- |
 | `'json'`         | [JSON modules][] |
+
+The `type: 'json'` attribute is mandatory when importing JSON modules.
 
 ## Builtin modules
 
@@ -552,7 +550,7 @@ separate cache.
 
 ## JSON modules
 
-> Stability: 1 - Experimental
+> Stability: 2 - Stable
 
 JSON files can be referenced by `import`:
 
@@ -1090,7 +1088,7 @@ success!
 [Dynamic `import()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import
 [ES Module Integration Proposal for WebAssembly]: https://github.com/webassembly/esm-integration
 [Import Attributes]: #import-attributes
-[Import Attributes proposal]: https://github.com/tc39/proposal-import-attributes
+[Import Attributes MDN]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import/with
 [JSON modules]: #json-modules
 [Module customization hooks]: module.md#customization-hooks
 [Node.js Module Resolution And Loading Algorithm]: #resolution-algorithm-specification
