@@ -7739,7 +7739,6 @@ Here are some common filesystems and their magic numbers:
   </tr>
 </table>
 
-
 ### Class: `fs.WriteStream`
 
 <!-- YAML
