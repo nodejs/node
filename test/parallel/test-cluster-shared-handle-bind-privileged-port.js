@@ -21,6 +21,7 @@
 
 'use strict';
 const common = require('../common');
+const { readFileSync } = require('fs');
 
 // Skip on macOS Mojave. https://github.com/nodejs/node/issues/21679
 if (common.isMacOS)
@@ -34,6 +35,18 @@ if (common.isWindows)
 
 if (process.getuid() === 0)
   common.skip('as this test should not be run as `root`');
+
+if (common.isLinux) {
+  try {
+    const unprivilegedPortStart = parseInt(readFileSync('/proc/sys/net/ipv4/ip_unprivileged_port_start'));
+    if (unprivilegedPortStart <= 42) {
+      common.skip('Port 42 is unprivileged');
+    }
+  } catch {
+    // Do nothing, feature doesn't exist, minimum is 1024 so 42 is usable.
+    // Continue...
+  }
+}
 
 const assert = require('assert');
 const cluster = require('cluster');
