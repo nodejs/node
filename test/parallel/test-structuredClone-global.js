@@ -8,12 +8,12 @@ assert.throws(() => structuredClone(undefined, ''), { code: 'ERR_INVALID_ARG_TYP
 assert.throws(() => structuredClone(undefined, 1), { code: 'ERR_INVALID_ARG_TYPE' });
 assert.throws(() => structuredClone(undefined, { transfer: 1 }), { code: 'ERR_INVALID_ARG_TYPE' });
 assert.throws(() => structuredClone(undefined, { transfer: '' }), { code: 'ERR_INVALID_ARG_TYPE' });
+assert.throws(() => structuredClone(undefined, { transfer: null }), { code: 'ERR_INVALID_ARG_TYPE' });
 
 // Options can be null or undefined.
 assert.strictEqual(structuredClone(undefined), undefined);
 assert.strictEqual(structuredClone(undefined, null), undefined);
 // Transfer can be null or undefined.
-assert.strictEqual(structuredClone(undefined, { transfer: null }), undefined);
 assert.strictEqual(structuredClone(undefined, { }), undefined);
 
 // Transferables or its subclasses should be received with its closest transferable superclass
