@@ -36,6 +36,8 @@ if (common.isWindows)
 if (process.getuid() === 0)
   common.skip('as this test should not be run as `root`');
 
+// Some systems won't have port 42 set as a privileged port, in that
+// case, skip the test.
 if (common.isLinux) {
   try {
     const unprivilegedPortStart = parseInt(readFileSync('/proc/sys/net/ipv4/ip_unprivileged_port_start'));
