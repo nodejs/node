@@ -687,6 +687,7 @@ changes:
   with. **Default:** `0`.
 * `encoding` {string} If `fill` is a string, this is its encoding.
   **Default:** `'utf8'`.
+* Returns: {Buffer}
 
 Allocates a new `Buffer` of `size` bytes. If `fill` is `undefined`, the
 `Buffer` will be zero-filled.
@@ -781,6 +782,7 @@ changes:
 -->
 
 * `size` {integer} The desired length of the new `Buffer`.
+* Returns: {Buffer}
 
 Allocates a new `Buffer` of `size` bytes. If `size` is larger than
 [`buffer.constants.MAX_LENGTH`][] or smaller than 0, [`ERR_OUT_OF_RANGE`][]
@@ -851,6 +853,7 @@ changes:
 -->
 
 * `size` {integer} The desired length of the new `Buffer`.
+* Returns: {Buffer}
 
 Allocates a new `Buffer` of `size` bytes. If `size` is larger than
 [`buffer.constants.MAX_LENGTH`][] or smaller than 0, [`ERR_OUT_OF_RANGE`][]
@@ -1095,6 +1098,7 @@ added: v19.8.0
 * `offset` {integer} The starting offset within `view`. **Default:**: `0`.
 * `length` {integer} The number of elements from `view` to copy.
   **Default:** `view.length - offset`.
+* Returns: {Buffer}
 
 Copies the underlying memory of `view` into a new `Buffer`.
 
@@ -1114,6 +1118,7 @@ added: v5.10.0
 -->
 
 * `array` {integer\[]}
+* Returns: {Buffer}
 
 Allocates a new `Buffer` using an `array` of bytes in the range `0` – `255`.
 Array entries outside that range will be truncated to fit into it.
@@ -1156,6 +1161,7 @@ added: v5.10.0
 * `byteOffset` {integer} Index of first byte to expose. **Default:** `0`.
 * `length` {integer} Number of bytes to expose.
   **Default:** `arrayBuffer.byteLength - byteOffset`.
+* Returns: {Buffer}
 
 This creates a view of the [`ArrayBuffer`][] without copying the underlying
 memory. For example, when passed a reference to the `.buffer` property of a
@@ -1268,6 +1274,7 @@ added: v5.10.0
 
 * `buffer` {Buffer|Uint8Array} An existing `Buffer` or [`Uint8Array`][] from
   which to copy data.
+* Returns: {Buffer}
 
 Copies the passed `buffer` data onto a new `Buffer` instance.
 
@@ -1311,6 +1318,7 @@ added: v8.2.0
 * `object` {Object} An object supporting `Symbol.toPrimitive` or `valueOf()`.
 * `offsetOrEncoding` {integer|string} A byte-offset or encoding.
 * `length` {integer} A length.
+* Returns: {Buffer}
 
 For objects whose `valueOf()` function returns a value not strictly equal to
 `object`, returns `Buffer.from(object.valueOf(), offsetOrEncoding, length)`.
@@ -1369,6 +1377,7 @@ added: v5.10.0
 
 * `string` {string} A string to encode.
 * `encoding` {string} The encoding of `string`. **Default:** `'utf8'`.
+* Returns: {Buffer}
 
 Creates a new `Buffer` containing `string`. The `encoding` parameter identifies
 the character encoding to be used when converting `string` into bytes.
