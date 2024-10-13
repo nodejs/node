@@ -104,12 +104,6 @@ static int rst_is_newest_pkt(const ngtcp2_rst *rst, const ngtcp2_rtb_entry *ent,
          (ent->ts == rst->first_sent_ts && ent->rst.end_seq > rs->last_end_seq);
 }
 
-static int rst_is_newest_pkt(const ngtcp2_rst *rst, const ngtcp2_rtb_entry *ent,
-                             const ngtcp2_rs *rs) {
-  return ent->ts > rst->first_sent_ts ||
-         (ent->ts == rst->first_sent_ts && ent->rst.end_seq > rs->last_end_seq);
-}
-
 void ngtcp2_rst_update_rate_sample(ngtcp2_rst *rst, const ngtcp2_rtb_entry *ent,
                                    ngtcp2_tstamp ts) {
   ngtcp2_rs *rs = &rst->rs;
