@@ -45,9 +45,9 @@ If there is no objection within 14 days, the nomination is approved.
 
 To onboard an ambassador, a member of the TSC will:
 
-* \[] Add the ambassador to the nodejs/ambassadors team.
-* \[] Add the ambassador to the nodejs/ambassadors `README.md`.
-* \[] Add the ambassador to the OpenJS Slack channel.
+* \[ ] Add the ambassador to the nodejs/ambassadors team.
+* \[ ] Add the ambassador to the nodejs/ambassadors `README.md`.
+* \[ ] Add the ambassador to the OpenJS Slack channel.
 
 ## Reviewing content
 
