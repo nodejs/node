@@ -1,14 +1,9 @@
 // Flags: --expose_gc
-
-import * as common from '../common/index.mjs';
-
-if (common.isASan) {
-  common.skip('ASan messes with memory measurements');
-}
-
+//
+import '../common/index.mjs';
 import { describe, it } from 'node:test';
 
-const makeSubsequentCalls = (limit, done, holdReferences = false) => {
+function makeSubsequentCalls(limit, done, holdReferences = false) {
   let dependantSymbol;
   let signalRef;
   const ac = new AbortController();
@@ -34,12 +29,9 @@ const makeSubsequentCalls = (limit, done, holdReferences = false) => {
       signalRef.deref().addEventListener('abort', handler);
     }
 
-    if (!dependantSymbol) {
-      const kDependantSignals = Object.getOwnPropertySymbols(ac.signal).find(
-        (s) => s.toString() === 'Symbol(kDependantSignals)'
-      );
-      dependantSymbol = kDependantSignals;
-    }
+    dependantSymbol ??= Object.getOwnPropertySymbols(ac.signal).find(
+      (s) => s.toString() === 'Symbol(kDependantSignals)'
+    );
 
     setImmediate(() => {
       // Removing the event listener at some moment in the future
@@ -52,7 +44,7 @@ const makeSubsequentCalls = (limit, done, holdReferences = false) => {
   run(1);
 };
 
-const runShortLivedSourceSignal = (limit, done) => {
+function runShortLivedSourceSignal(limit, done) {
   const signalRefs = new Set();
 
   function run(iteration) {
@@ -78,7 +70,7 @@ describe('when there is a long-lived signal', () => {
   it('drops settled dependant signals', (t, done) => {
     makeSubsequentCalls(limit, (signal, depandantSignalsKey) => {
       setImmediate(() => {
-        t.assert.equal(signal[depandantSignalsKey].size, 0);
+        t.assert.strictEqual(signal[depandantSignalsKey].size, 0);
         done();
       });
     });
@@ -86,7 +78,7 @@ describe('when there is a long-lived signal', () => {
 
   it('keeps all active dependant signals', (t, done) => {
     makeSubsequentCalls(limit, (signal, depandantSignalsKey) => {
-      t.assert.equal(signal[depandantSignalsKey].size, limit);
+      t.assert.strictEqual(signal[depandantSignalsKey].size, limit);
 
       done();
     }, true);
@@ -98,7 +90,7 @@ it('does not prevent source signal from being GCed if it is short-lived', (t, do
     setImmediate(() => {
       const unGCedSignals = [...signalRefs].filter((ref) => ref.deref());
 
-      t.assert.equal(unGCedSignals, 0);
+      t.assert.strictEqual(unGCedSignals.length, 0);
       done();
     });
   });
@@ -116,13 +108,13 @@ it('drops settled dependant signals when signal is composite', (t, done) => {
   setImmediate(() => {
     global.gc();
 
-    t.assert.equal(composedSignalRef.deref(), undefined);
-    t.assert.equal(controllers[0].signal[kDependantSignals].size, 2);
-    t.assert.equal(controllers[1].signal[kDependantSignals].size, 1);
+    t.assert.strictEqual(composedSignalRef.deref(), undefined);
+    t.assert.strictEqual(controllers[0].signal[kDependantSignals].size, 2);
+    t.assert.strictEqual(controllers[1].signal[kDependantSignals].size, 1);
 
     setImmediate(() => {
-      t.assert.equal(controllers[0].signal[kDependantSignals].size, 0);
-      t.assert.equal(controllers[1].signal[kDependantSignals].size, 0);
+      t.assert.strictEqual(controllers[0].signal[kDependantSignals].size, 0);
+      t.assert.strictEqual(controllers[1].signal[kDependantSignals].size, 0);
 
       done();
     });
