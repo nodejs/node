@@ -252,10 +252,10 @@ describe('Mock Timers Test Suite', () => {
         }), timeout);
       });
 
-      it('should change the delay to one if timeout > 2_147_483_647', (t) => {
+      it('should change timeout to 1ms when it is >= 2 ** 31', (t) => {
         t.mock.timers.enable({ apis: ['setTimeout'] });
         const fn = t.mock.fn();
-        global.setTimeout(fn, 2_147_483_647 + 1);
+        global.setTimeout(fn, 2 ** 31);
         t.mock.timers.tick(1);
         assert.strictEqual(fn.mock.callCount(), 1);
       });
