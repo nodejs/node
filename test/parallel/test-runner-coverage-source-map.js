@@ -19,6 +19,7 @@ function generateReport(report) {
 }
 
 const flags = [
+  '--enable-source-maps',
   '--test', '--experimental-test-coverage', '--test-reporter', 'tap',
 ];
 
@@ -38,6 +39,28 @@ describe('Coverage with source maps', async () => {
     ]);
 
     const spawned = await common.spawnPromisified(process.execPath, flags, {
+      cwd: fixtures.path('test-runner', 'coverage')
+    });
+
+    t.assert.strictEqual(spawned.stderr, '');
+    t.assert.ok(spawned.stdout.includes(report));
+    t.assert.strictEqual(spawned.code, 1);
+  });
+
+  await it('should only work with --enable-source-maps', async (t) => {
+    const report = generateReport([
+      '# --------------------------------------------------------------',
+      '# file          | line % | branch % | funcs % | uncovered lines',
+      '# --------------------------------------------------------------',
+      '# a.test.mjs    | 100.00 |   100.00 |  100.00 | ',
+      '# index.test.js |  71.43 |    66.67 |  100.00 | 6-7',
+      '# stdin.test.js | 100.00 |   100.00 |  100.00 | ',
+      '# --------------------------------------------------------------',
+      '# all files     |  85.71 |    87.50 |  100.00 | ',
+      '# --------------------------------------------------------------',
+    ]);
+
+    const spawned = await common.spawnPromisified(process.execPath, flags.slice(1), {
       cwd: fixtures.path('test-runner', 'coverage')
     });
     t.assert.strictEqual(spawned.stderr, '');
