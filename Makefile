@@ -240,7 +240,7 @@ coverage-clean:
 	$(RM) -r coverage/tmp
 	@if [ -d "out/Release/obj.target" ]; then \
 		$(FIND) out/$(BUILDTYPE)/obj.target \( -name "*.gcda" -o -name "*.gcno" \) \
-			-type f -exec $(RM) {};\
+			-type f | xargs $(RM); \
 	fi
 
 .PHONY: coverage
@@ -266,7 +266,7 @@ coverage-build-js:
 .PHONY: coverage-test
 coverage-test: coverage-build
 	@if [ -d "out/Release/obj.target" ]; then \
-		$(FIND) out/$(BUILDTYPE)/obj.target -name "*.gcda" -type f -exec $(RM) {}; \
+		$(FIND) out/$(BUILDTYPE)/obj.target -name "*.gcda" -type f | xargs $(RM); \
 	fi
 	-NODE_V8_COVERAGE=coverage/tmp \
 		TEST_CI_ARGS="$(TEST_CI_ARGS) --type=coverage" $(MAKE) $(COVTESTS)
