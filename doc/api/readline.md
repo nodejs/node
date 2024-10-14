@@ -714,8 +714,10 @@ const rl = createInterface({
 
 ```cjs
 const { createInterface } = require('node:readline/promises');
-const { stdin: input, stdout: output } = require('node:process');
-const rl = createInterface({ input, output });
+const rl = createInterface({
+  input: process.stdin,
+  output: process.stdout,
+});
 ```
 
 Once the `readlinePromises.Interface` instance is created, the most common case
@@ -978,8 +980,10 @@ const rl = createInterface({
 
 ```cjs
 const { createInterface } = require('node:readline');
-const { stdin: input, stdout: output } = require('node:process');
-const rl = createInterface({ input, output });
+const rl = createInterface({
+  input: process.stdin,
+  output: process.stdout,
+});
 ```
 
 Once the `readline.Interface` instance is created, the most common case is to
@@ -1141,10 +1145,9 @@ rl.on('line', (line) => {
 
 ```cjs
 const { createInterface } = require('node:readline');
-const { exit, stdin, stdout } = require('node:process');
 const rl = createInterface({
-  input: stdin,
-  output: stdout,
+  input: process.stdin,
+  output: process.stdout,
   prompt: 'OHAI> ',
 });
 
@@ -1162,7 +1165,7 @@ rl.on('line', (line) => {
   rl.prompt();
 }).on('close', () => {
   console.log('Have a great day!');
-  exit(0);
+  process.exit(0);
 });
 ```
 
