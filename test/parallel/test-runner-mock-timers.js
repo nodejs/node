@@ -260,7 +260,7 @@ describe('Mock Timers Test Suite', () => {
         assert.strictEqual(fn.mock.callCount(), 1);
       });
 
-      it('sould change the delay to one if timeout < 0', (t) => {
+      it('should change the delay to one if timeout < 0', (t) => {
         t.mock.timers.enable({ apis: ['setTimeout'] });
         const fn = t.mock.fn();
         global.setTimeout(fn, -1);
