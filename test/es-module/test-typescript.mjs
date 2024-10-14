@@ -414,3 +414,15 @@ test('expect error when executing a TypeScript file with generics', async () => 
   strictEqual(result.stdout, '');
   strictEqual(result.code, 1);
 });
+
+test('execute TypeScript file from node_modules with private: true', async () => {
+  const result = await spawnPromisified(process.execPath, [
+    '--experimental-strip-types',
+    '--no-warnings',
+    fixtures.path('typescript/ts/test-import-private-ts-node-module.ts'),
+  ]);
+
+  strictEqual(result.stderr, '');
+  match(result.stdout, /Hello, TypeScript!/);
+  strictEqual(result.code, 0);
+});

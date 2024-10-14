@@ -6,7 +6,8 @@ export type PackageConfig = {
   main?: any
   type: PackageType
   exports?: string | string[] | Record<string, unknown>
-  imports?: string | string[] | Record<string, unknown>
+  imports?: string | string[] | Record<string, unknown>,
+  isPrivate?: boolean
 }
 export type SerializedPackageConfig = [
   PackageConfig['name'],
@@ -15,6 +16,7 @@ export type SerializedPackageConfig = [
   string | undefined, // exports
   string | undefined, // imports
   string | undefined, // raw json available for experimental policy
+  boolean | undefined // isPrivate
 ]
 
 export interface ModulesBinding {

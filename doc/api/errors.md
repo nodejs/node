@@ -3041,7 +3041,8 @@ import 'package-name'; // supported
 added: v22.6.0
 -->
 
-Type stripping is not supported for files descendent of a `node_modules` directory.
+Type stripping is not supported for files descendent of a `node_modules` directory,
+where package.json is missing or does not contain the property `"private": true`.
 
 <a id="ERR_UNSUPPORTED_RESOLVE_REQUEST"></a>
 

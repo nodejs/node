@@ -155,7 +155,7 @@ are enabled by default.
 
 To discourage package authors from publishing packages written in TypeScript,
 Node.js will by default refuse to handle TypeScript files inside folders under
-a `node_modules` path.
+a `node_modules` path, unless the package.json contains the property `"private": true`.
 
 [CommonJS]: modules.md
 [ES Modules]: esm.md
