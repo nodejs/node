@@ -251,6 +251,22 @@ describe('Mock Timers Test Suite', () => {
           done();
         }), timeout);
       });
+
+      it('should change timeout to 1ms when it is >= 2 ** 31', (t) => {
+        t.mock.timers.enable({ apis: ['setTimeout'] });
+        const fn = t.mock.fn();
+        global.setTimeout(fn, 2 ** 31);
+        t.mock.timers.tick(1);
+        assert.strictEqual(fn.mock.callCount(), 1);
+      });
+
+      it('should change the delay to one if timeout < 0', (t) => {
+        t.mock.timers.enable({ apis: ['setTimeout'] });
+        const fn = t.mock.fn();
+        global.setTimeout(fn, -1);
+        t.mock.timers.tick(1);
+        assert.strictEqual(fn.mock.callCount(), 1);
+      });
     });
 
     describe('clearTimeout Suite', () => {
