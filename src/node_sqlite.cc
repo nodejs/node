@@ -561,23 +561,32 @@ void StatementSync::All(const FunctionCallbackInfo<Value>& args) {
   auto reset = OnScopeLeave([&]() { sqlite3_reset(stmt->statement_); });
   int num_cols = sqlite3_column_count(stmt->statement_);
   LocalVector<Value> rows(isolate);
+  LocalVector<Name> row_keys(isolate);
   while ((r = sqlite3_step(stmt->statement_)) == SQLITE_ROW) {
-    LocalVector<Name> row_keys(isolate);
-    row_keys.reserve(num_cols);
+    if (row_keys.size() == 0) {
+      row_keys.reserve(num_cols);
+
+      for (int i = 0; i < num_cols; ++i) {
+        Local<Name> key;
+        if (!stmt->ColumnNameToName(i).ToLocal(&key)) return;
+        row_keys.emplace_back(key);
+      }
+    }
+
     LocalVector<Value> row_values(isolate);
     row_values.reserve(num_cols);
 
-    for (int i = 0; i < num_cols; ++i) {
-      Local<Name> key;
-      if (!stmt->ColumnNameToName(i).ToLocal(&key)) return;
+    for (size_t i = 0; i < row_keys.size(); ++i) {
       Local<Value> val;
       if (!stmt->ColumnToValue(i).ToLocal(&val)) return;
-      row_keys.emplace_back(key);
       row_values.emplace_back(val);
     }
 
-    Local<Object> row = Object::New(
-        isolate, Null(isolate), row_keys.data(), row_values.data(), num_cols);
+    Local<Object> row = Object::New(isolate,
+                                    Null(isolate),
+                                    row_keys.data(),
+                                    row_values.data(),
+                                    row_keys.size());
     rows.emplace_back(row);
   }
 
