@@ -114,6 +114,9 @@ MANPAGES = ares_cancel.3		\
   ares_parse_txt_reply.3		\
   ares_parse_uri_reply.3		\
   ares_process.3			\
+  ares_process_fd.3			\
+  ares_process_fds.3			\
+  ares_process_pending_write.3		\
   ares_query.3				\
   ares_query_dnsrec.3			\
   ares_queue.3				\
@@ -128,6 +131,7 @@ MANPAGES = ares_cancel.3		\
   ares_set_local_dev.3			\
   ares_set_local_ip4.3			\
   ares_set_local_ip6.3			\
+  ares_set_pending_write_cb.3	\
   ares_set_server_state_callback.3	\
   ares_set_servers.3			\
   ares_set_servers_csv.3		\
