@@ -37,7 +37,7 @@ server.on('stream', common.mustCall((stream) => {
   server.listen(0, common.mustCall(() => {
     const client = http2.connect(`http://localhost:${server.address().port}`);
     const req = client.request();
-  
+
     req.once('error', common.expectsError({
       code: 'ERR_HTTP2_STREAM_ERROR',
       name: 'Error',
@@ -48,7 +48,7 @@ server.on('stream', common.mustCall((stream) => {
       net.Socket.prototype.destroy.call(client.socket);
       server.close();
     }));
-    //req.once('end', common.mustNotCall());
+    req.once('end', common.mustNotCall());
     req.end();
   }));
-})();
+})().then(common.mustCall());
