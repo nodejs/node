@@ -45,19 +45,15 @@ server.listen(0, common.mustCall(() => {
   const url = `http://localhost:${server.address().port}`;
   http2.connect(url)
     .on('error', common.mustCall((err) => {
-      if (err.code !== 'ECONNRESET') {
-        assert.strictEqual(err.code, 'ERR_HTTP2_SESSION_ERROR');
-        assert.strictEqual(err.message, 'Session closed with error code NGHTTP2_INTERNAL_ERROR');
-      }
+      assert.strictEqual(err.code, 'ERR_HTTP2_SESSION_ERROR');
+      assert.strictEqual(err.message, 'Session closed with error code NGHTTP2_INTERNAL_ERROR');
     }))
     .on('close', () => {
       server.removeAllListeners('error');
       http2.connect(url)
       .on('error', common.mustCall((err) => {
-        if (err.code !== 'ECONNRESET') {
-          assert.strictEqual(err.code, 'ERR_HTTP2_SESSION_ERROR');
-          assert.strictEqual(err.message, 'Session closed with error code NGHTTP2_INTERNAL_ERROR');
-        }
+        assert.strictEqual(err.code, 'ERR_HTTP2_SESSION_ERROR');
+        assert.strictEqual(err.message, 'Session closed with error code NGHTTP2_INTERNAL_ERROR');
       }))
         .on('close', () => server.close());
     });
