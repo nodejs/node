@@ -3,10 +3,10 @@
 const common = require('../common');
 const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir')
-const assert = require('assert');
-const { findPackageJSON } = require('module');
+const assert = require('node:assert');
+const { findPackageJSON } = require('node:module');
 const { describe, it } = require('node:test');
-const { pathToFileURL } = require('url');
+const { pathToFileURL } = require('node:url');
 
 
 describe('findPackageJSON', () => { // Throws when no arguments are provided
