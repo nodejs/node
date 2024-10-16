@@ -217,6 +217,69 @@ added: v22.8.0
 * Returns: {string|undefined} Path to the [module compile cache][] directory if it is enabled,
   or `undefined` otherwise.
 
+### `module.findPackageJSON(startLocation, parentLocation)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active Development
+
+* `startLocation` {string} Where to look (relative to `parentLocation`). This can be a
+  relative/unresolved specifier (ex `'..'`) or a package name.
+* `parentLocation` {string} The absolute location (file URL string or FS path) of the containing
+  module. For CJS, use `__filename` (not `__dirname`!); for ESM, use `import.meta.url`.
+* Returns: {string} A file URL string. When `startLocation` is a package, the package's root
+  package.json; when a relative or unresolved, the closest package.json to the `startLocation`.
+
+> **Caveat**: Do not use this to try to determine module format. There are many things effecting
+> that determination; the `type` field of package.json is the _least_ definitive (ex file extension
+> superceeds it, and a loader hook superceeds that).
+
+```
+/path/to/project
+  ├ packages/
+    ├ bar/
+      ├ bar.js
+      └ package.json // name = '@foo/bar'
+    └ qux/
+      ├ node_modules/
+        └ some-package/
+          └ package.json // name = 'some-package'
+      ├ qux.js
+      └ package.json // name = '@foo/qux'
+  ├ main.js
+  └ package.json // name = '@foo'
+```
+
+```mjs
+// /path/to/project/packages/bar/bar.js
+import { findPackageJSON } from 'node:module';
+
+findPackageJSON('..', import.meta.url);
+// 'file:///path/to/project/package.json'
+
+findPackageJSON('some-package', import.meta.url);
+// 'file:///path/to/project/packages/bar/node_modules/some-package/package.json'
+
+findPackageJSON('@foo/qux', import.meta.url);
+// 'file:///path/to/project/packages/qux/package.json'
+```
+
+```cjs
+// /path/to/project/packages/bar/bar.js
+const { findPackageJSON } = require('node:module');
+
+findPackageJSON('..', __filename);
+// 'file:///path/to/project/package.json'
+
+findPackageJSON('some-package', __filename);
+// 'file:///path/to/project/packages/bar/node_modules/some-package/package.json'
+
+findPackageJSON('@foo/qux', __filename);
+// 'file:///path/to/project/packages/qux/package.json'
+```
+
 ### `module.isBuiltin(moduleName)`
 
 <!-- YAML
