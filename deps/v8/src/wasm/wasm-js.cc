@@ -2046,11 +2046,12 @@ void WebAssemblyExceptionImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     Local<Context> context = isolate->GetCurrentContext();
     Local<Object> trace_stack_obj = Local<Object>::Cast(info[2]);
     Local<String> trace_stack_key = v8_str(isolate, "traceStack");
-    v8::MaybeLocal<v8::Value> maybe_trace_stack =
-        trace_stack_obj->Get(context, trace_stack_key);
     v8::Local<Value> trace_stack_value;
-    if (maybe_trace_stack.ToLocal(&trace_stack_value) &&
-        trace_stack_value->BooleanValue(isolate)) {
+    if (!trace_stack_obj->Get(context, trace_stack_key)
+             .ToLocal(&trace_stack_value)) {
+      return;
+    }
+    if (trace_stack_value->BooleanValue(isolate)) {
       auto caller = Utils::OpenHandle(*info.NewTarget());
 
       i::Handle<i::Object> capture_result;
