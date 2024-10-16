@@ -712,7 +712,7 @@ __webpack_require__.r(__webpack_exports__);
  * @param {string} identifier
  */
 function unescape(identifier) {
-  return identifier.startsWith("_") ? identifier.slice(1) : identifier;
+  return identifier && identifier[0] === "_" ? identifier.slice(1) : identifier;
 }
 
 /**
@@ -775,7 +775,7 @@ function const_data({ type, value }) {
       return { type: "boolean", value: value === "true" };
     case "Infinity":
     case "-Infinity":
-      return { type: "Infinity", negative: value.startsWith("-") };
+      return { type: "Infinity", negative: value[0] === "-" };
     case "[":
       return { type: "sequence", value: [] };
     case "{":
@@ -3590,7 +3590,7 @@ class Writer {
    */
   reference(raw, { unescaped, context }) {
     if (!unescaped) {
-      unescaped = raw.startsWith("_") ? raw.slice(1) : raw;
+      unescaped = raw && raw[0] === "_" ? raw.slice(1) : raw;
     }
     return this.ts.reference(raw, unescaped, context);
   }
