@@ -1406,7 +1406,7 @@ class WasmGraphBuildingInterface {
 
     if (catch_case.kind == kCatchAll || catch_case.kind == kCatchAllRef) {
       if (catch_case.kind == kCatchAllRef) {
-        DCHECK_EQ(values[0].type, kWasmExnRef);
+        DCHECK_EQ(values[0].type, ValueType::Ref(HeapType::kExn));
         values[0].node = block->try_info->exception;
       }
       BrOrRet(decoder, catch_case.br_imm.depth);
@@ -1473,7 +1473,7 @@ class WasmGraphBuildingInterface {
     }
 
     if (catch_case.kind == kCatchRef) {
-      DCHECK_EQ(values.last().type, kWasmExnRef);
+      DCHECK_EQ(values.last().type, ValueType::Ref(HeapType::kExn));
       values.last().node = block->try_info->exception;
     }
     BrOrRet(decoder, catch_case.br_imm.depth);
