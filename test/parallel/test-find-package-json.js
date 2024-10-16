@@ -27,10 +27,10 @@ describe('findPackageJSON', () => { // Throws when no arguments are provided
   });
 
   it('should accept a file URL (string), like from `import.meta.resolve()`', () => {
-    const importMetaUrl = `${pathToFileURL(fixtures.fixturesDir)}/`;
+    const importMetaUrl = `${pathToFileURL(fixtures.fixturesDir)}/whatever.ext`;
     const specifierBase = './packages/root-types-field/';
     assert.strictEqual(
-      findPackageJSON(`${specifierBase}/index.js`, importMetaUrl),
+      findPackageJSON(`${specifierBase}index.js`, importMetaUrl),
       fixtures.path(specifierBase, 'package.json')
     );
   });
