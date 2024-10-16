@@ -1,4 +1,3 @@
-const { getPackageJSON } = require('node:module');
-const { resolve } = require('node:path');
+const { findPackageJSON } = require('node:module');
 
-module.exports = getPackageJSON(resolve(__dirname, '..'));
+module.exports = findPackageJSON('..', __filename);

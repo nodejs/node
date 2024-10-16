@@ -10,17 +10,18 @@ const { pathToFileURL } = require('url');
 
 
 describe('findPackageJSON', () => { // Throws when no arguments are provided
-  it.skip('should throw when no arguments are provided', () => {
+  it('should throw when no arguments are provided', () => {
     assert.throws(
       () => findPackageJSON(),
       { code: 'ERR_INVALID_ARG_TYPE' }
     );
   });
 
-  it.skip('should throw when base is invalid', () => {
+  it('should throw when parentURL is invalid', () => {
     for (const invalid of ['', null, undefined, {}, [], Symbol(), 1, 0]) assert.throws(
       () => findPackageJSON('', invalid),
-      { code: 'ERR_INVALID_ARG_TYPE' }
+      { code: 'ERR_INVALID_ARG_TYPE' },
+      invalid
     );
   });
 
@@ -32,118 +33,31 @@ describe('findPackageJSON', () => { // Throws when no arguments are provided
       fixtures.path(specifierBase, 'package.json')
     );
   });
+
+  it('should be able to crawl up (CJS)', () => {
+    const pathToMod = fixtures.path('packages/nested/sub-pkg-cjs/index.js');
+    const parentPkg = require(pathToMod);
+
+    const pathToParent = fixtures.path('packages/nested/package.json');
+    assert.strictEqual(parentPkg, pathToParent);
+  });
+
+  it('should be able to crawl up (ESM)', () => {
+    const pathToMod = fixtures.path('packages/nested/sub-pkg-esm/index.js');
+    const parentPkg = require(pathToMod).default; // this test is a CJS file
+
+    const pathToParent = fixtures.path('packages/nested/package.json');
+    assert.strictEqual(parentPkg, pathToParent);
+  });
+
+  it('can require via package.json', () => {
+    const pathToMod = fixtures.path('packages/cjs-main-no-index/other.js');
+    // require() falls back to package.json values like "main" to resolve when there is no index
+    const answer = require(pathToMod);
+
+    assert.strictEqual(answer, 43);
+  });
 });
-
-// { // Exclude unrecognised fields when `everything` is not `true`
-//   const pathToDir = fixtures.path('packages/root-types-field/');
-//   const pkg = findPackageJSON(pathToDir);
-
-//   assert.deepStrictEqual(pkg, {
-//     path: path.join(pathToDir, 'package.json'),
-//     exists: true,
-//     data: {
-//       __proto__: null,
-//       name: pkgName,
-//       type: pkgType,
-//     }
-//   });
-// }
-
-// { // Include unrecognised fields when `everything` is `true`
-//   const pathToDir = fixtures.path('packages/root-types-field/');
-//   const pkg = findPackageJSON(pathToDir, true);
-
-//   assert.deepStrictEqual(pkg, {
-//     path: path.join(pathToDir, 'package.json'),
-//     exists: true,
-//     data: {
-//       __proto__: null,
-//       name: pkgName,
-//       type: pkgType,
-//       types: './index.d.ts',
-//     }
-//   });
-// }
-
-// { // Exclude unrecognised fields when `everything` is not `true`
-//   const pathToDir = fixtures.path('packages/nested-types-field/');
-//   const pkg = findPackageJSON(pathToDir);
-
-//   assert.deepStrictEqual(pkg, {
-//     path: path.join(pathToDir, 'package.json'),
-//     exists: true,
-//     data: {
-//       __proto__: null,
-//       name: pkgName,
-//       type: pkgType,
-//       exports: {
-//         default: './index.js',
-//         types: './index.d.ts', // I think this is unexpected?
-//       },
-//     },
-//   });
-// }
-
-// { // Include unrecognised fields when `everything` is not `true`
-//   const pathToDir = fixtures.path('packages/nested-types-field/');
-//   const pkg = findPackageJSON(pathToDir, true);
-
-//   assert.deepStrictEqual(pkg, {
-//     path: path.join(pathToDir, 'package.json'),
-//     exists: true,
-//     data: {
-//       __proto__: null,
-//       name: pkgName,
-//       type: pkgType,
-//       exports: {
-//         default: './index.js',
-//         types: './index.d.ts', // I think this is unexpected?
-//       },
-//       unrecognised: true,
-//     },
-//   });
-// }
-
-// { // Throws on unresolved location
-//   let err;
-//   try {
-//     findPackageJSON('..');
-//   } catch (e) {
-//     err = e;
-//   }
-
-//   assert.strictEqual(err.code, 'ERR_INVALID_ARG_VALUE');
-//   assert.match(err.message, /fully resolved/);
-//   assert.match(err.message, /relative/);
-//   assert.match(err.message, /import\.meta\.resolve/);
-//   assert.match(err.message, /path\.resolve\(__dirname/);
-// }
-
-// { // Can crawl up (CJS)
-//   const pathToMod = fixtures.path('packages/nested/sub-pkg-cjs/index.js');
-//   const parentPkg = require(pathToMod);
-
-//   assert.strictEqual(parentPkg.data.name, 'package-with-sub-package');
-//   const pathToParent = fixtures.path('packages/nested/package.json');
-//   assert.strictEqual(parentPkg.path, pathToParent);
-// }
-
-// { // Can crawl up (ESM)
-//   const pathToMod = fixtures.path('packages/nested/sub-pkg-mjs/index.js');
-//   const parentPkg = require(pathToMod).default;
-
-//   assert.strictEqual(parentPkg.data.name, 'package-with-sub-package');
-//   const pathToParent = fixtures.path('packages/nested/package.json');
-//   assert.strictEqual(parentPkg.path, pathToParent);
-// }
-
-// { // Can require via package.json
-//   const pathToMod = fixtures.path('packages/cjs-main-no-index/other.js');
-//   // require() falls back to package.json values like "main" to resolve when there is no index
-//   const answer = require(pathToMod);
-
-//   assert.strictEqual(answer, 43);
-// }
 
 // tmpdir.refresh();
 
