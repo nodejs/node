@@ -32,7 +32,7 @@ jobs:
       - name: Slack Notification
         uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907  # 2.3.0
         env:
-          SLACK_COLOR: '#DE512A'
+          SLACK_COLOR: '#3d85c6'
           SLACK_ICON: https://github.com/nodejs.png?size=48
           SLACK_TITLE: ${{ steps.define-message.outputs.title }}
           SLACK_MESSAGE: ${{ steps.define-message.outputs.message }}
