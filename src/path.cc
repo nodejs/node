@@ -242,10 +242,6 @@ std::string PathResolve(Environment* env,
     const std::string& path = (i >= 0) ? std::string(paths[i]) : cwd;
 
     if (!path.empty()) {
-      if (static_cast<size_t>(i) == numArgs - 1 && path.back() == '/') {
-        slashCheck = true;
-      }
-
       resolvedPath = std::string(path) + "/" + resolvedPath;
 
       if (path.front() == '/') {
