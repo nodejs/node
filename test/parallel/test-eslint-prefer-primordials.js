@@ -178,6 +178,22 @@ new RuleTester({
       },
       {
         code: `
+          const { SymbolAsyncDispose } = primordials;
+          const a = { [SymbolAsyncDispose] () {} }
+        `,
+        options: [{ name: 'Symbol', polyfilled: ['asyncDispose', 'dispose'] }],
+        errors: [{ message: /const { SymbolAsyncDispose } = require\("internal\/util"\)/ }]
+      },
+      {
+        code: `
+          const { SymbolDispose } = primordials;
+          const a = { [SymbolDispose] () {} }
+        `,
+        options: [{ name: 'Symbol', polyfilled: ['asyncDispose', 'dispose'] }],
+        errors: [{ message: /const { SymbolDispose } = require\("internal\/util"\)/ }]
+      },
+      {
+        code: `
           const { ObjectDefineProperty, Symbol } = primordials;
           ObjectDefineProperty(o, Symbol.toStringTag, { value: "o" })
         `,
