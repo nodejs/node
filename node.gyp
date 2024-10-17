@@ -110,6 +110,7 @@
       'src/node_debug.cc',
       'src/node_dir.cc',
       'src/node_dotenv.cc',
+      'src/node_embedding_api.cc',
       'src/node_env_var.cc',
       'src/node_errors.cc',
       'src/node_external_reference.cc',
@@ -223,6 +224,7 @@
       'src/module_wrap.h',
       'src/node.h',
       'src/node_api.h',
+      'src/node_api_internals.h',
       'src/node_api_types.h',
       'src/node_binding.h',
       'src/node_blob.h',
@@ -234,6 +236,7 @@
       'src/node_debug.h',
       'src/node_dir.h',
       'src/node_dotenv.h',
+      'src/node_embedding_api.h',
       'src/node_errors.h',
       'src/node_exit_code.h',
       'src/node_external_reference.h',
@@ -1284,6 +1287,13 @@
       'sources': [
         'src/node_snapshot_stub.cc',
         'test/embedding/embedtest.cc',
+        'test/embedding/embedtest_main.cc',
+        'test/embedding/embedtest_modules_node_api.cc',
+        'test/embedding/embedtest_node_api.cc',
+        'test/embedding/embedtest_node_api.h',
+        'test/embedding/embedtest_nodejs_main_node_api.cc',
+        'test/embedding/embedtest_preload_node_api.cc',
+        'test/embedding/embedtest_threading_node_api.cc',
       ],
 
       'conditions': [
