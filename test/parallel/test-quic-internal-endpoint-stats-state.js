@@ -127,7 +127,7 @@ describe('quic internal endpoint stats and state', { skip: !hasQuic }, () => {
     });
   });
 
-  it('stats are still readble after close', () => {
+  it('stats are still readable after close', () => {
     const endpoint = new Endpoint({
       onsession() {},
       session: {},
