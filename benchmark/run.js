@@ -87,28 +87,26 @@ async function runBenchmark(filename) {
         console.log(`${data.name} ${conf}: ${rate}`);
       }
     });
-    child.once('error', (err) => reject(err));
     child.once('close', (code) => {
       if (code) {
-        reject(code);
-      } else {
         resolve(code);
+      } else {
+        reject(code);
       }
     });
   });
 }
 
-let runs = cli.optional.runs ?? 1;
-
 async function run() {
   for (let i = 0; i < benchmarks.length; ++i) {
+    let runs = cli.optional.runs ?? 1;
     const filename = benchmarks[i];
     if (format !== 'csv') {
       console.log();
       console.log(filename);
     }
 
-    while (runs--) {
+    while (runs-- > 0) {
       await runBenchmark(filename);
     }
   }
