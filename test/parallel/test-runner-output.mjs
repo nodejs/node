@@ -205,7 +205,7 @@ const tests = [
   },
   {
     name: 'test-runner/output/non-tty-forced-color-output.js',
-    flags: ['--test-reporter=spec'],
+    transform: specTransform,
   },
   {
     name: 'test-runner/output/async-test-scheduling.mjs',
