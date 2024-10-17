@@ -92,7 +92,7 @@ const filename = 'foo';
         'DeprecationWarning',
         'dirent.path is deprecated in favor of dirent.parentPath',
         'DEP0178');
-      assert.deepStrictEqual(dirent.path, Buffer.from(tmpdir.resolve(`${filename}`)));
+      assert.deepStrictEqual(dirent.path, Buffer.from(tmpdir.resolve(`${filename}/`)));
     },
     ));
 }
