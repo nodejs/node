@@ -61,7 +61,7 @@ According to the release schedule, Node.js 23 will remain the ‘Current’ rele
 * \[[`d473606040`](https://github.com/nodejs/node/commit/d473606040)] - **(SEMVER-MINOR)** **lib**: propagate aborted state to dependent signals before firing events (jazelly) [#54826](https://github.com/nodejs/node/pull/54826)
 * \[[`06206af181`](https://github.com/nodejs/node/commit/06206af181)] - **(SEMVER-MINOR)** **module**: unflag --experimental-require-module (Joyee Cheung) [#55085](https://github.com/nodejs/node/pull/55085)
 * \[[`0b9249e335`](https://github.com/nodejs/node/commit/0b9249e335)] - **(SEMVER-MINOR)** **module**: implement the "module-sync" exports condition (Joyee Cheung) [#54648](https://github.com/nodejs/node/pull/54648)
-* \[[`92a25abca9`](https://github.com/nodejs/node/commit/92a25abca9)] - **(SEMVER-MINOR)** **path**: add `matchGlob` method (Aviv Keller) [#52881](https://github.com/nodejs/node/pull/52881)
+* \[[`92a25abca9`](https://github.com/nodejs/node/commit/92a25abca9)] - **(SEMVER-MINOR)** **path**: add `matchesGlob` method (Aviv Keller) [#52881](https://github.com/nodejs/node/pull/52881)
 * \[[`12dd4c7575`](https://github.com/nodejs/node/commit/12dd4c7575)] - **src**: mark node --run as stable (Yagiz Nizipli) [#53763](https://github.com/nodejs/node/pull/53763)
 * \[[`4174b73153`](https://github.com/nodejs/node/commit/4174b73153)] - **test**: support glob matching coverage files (Aviv Keller) [#53553](https://github.com/nodejs/node/pull/53553)
 
@@ -174,7 +174,7 @@ According to the release schedule, Node.js 23 will remain the ‘Current’ rele
 * \[[`62383cd113`](https://github.com/nodejs/node/commit/62383cd113)] - **(SEMVER-MINOR)** **module**: implement flushCompileCache() (Joyee Cheung) [#54971](https://github.com/nodejs/node/pull/54971)
 * \[[`4dfed556ba`](https://github.com/nodejs/node/commit/4dfed556ba)] - **(SEMVER-MINOR)** **module**: throw when invalid argument is passed to enableCompileCache() (Joyee Cheung) [#54971](https://github.com/nodejs/node/pull/54971)
 * \[[`9a73aa0d15`](https://github.com/nodejs/node/commit/9a73aa0d15)] - **(SEMVER-MINOR)** **module**: write compile cache to temporary file and then rename it (Joyee Cheung) [#54971](https://github.com/nodejs/node/pull/54971)
-* \[[`92a25abca9`](https://github.com/nodejs/node/commit/92a25abca9)] - **(SEMVER-MINOR)** **path**: add `matchGlob` method (Aviv Keller) [#52881](https://github.com/nodejs/node/pull/52881)
+* \[[`92a25abca9`](https://github.com/nodejs/node/commit/92a25abca9)] - **(SEMVER-MINOR)** **path**: add `matchesGlob` method (Aviv Keller) [#52881](https://github.com/nodejs/node/pull/52881)
 * \[[`b0f025208f`](https://github.com/nodejs/node/commit/b0f025208f)] - **(SEMVER-MINOR)** **process**: add process.features.require\_module (Joyee Cheung) [#55241](https://github.com/nodejs/node/pull/55241)
 * \[[`bf11e5793b`](https://github.com/nodejs/node/commit/bf11e5793b)] - **(SEMVER-MINOR)** **test\_runner**: support custom arguments in `run()` (Aviv Keller) [#55126](https://github.com/nodejs/node/pull/55126)
 * \[[`059e08bb21`](https://github.com/nodejs/node/commit/059e08bb21)] - **(SEMVER-MINOR)** **test\_runner**: add 'test:summary' event (Colin Ihrig) [#54851](https://github.com/nodejs/node/pull/54851)
