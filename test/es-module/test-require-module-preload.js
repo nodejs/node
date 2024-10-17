@@ -4,11 +4,9 @@ require('../common');
 const { spawnSyncAndAssert } = require('../common/child_process');
 const { fixturesDir } = require('../common/fixtures');
 
-const warningRE = /ExperimentalWarning: Support for loading ES Module in require/;
 function testPreload(preloadFlag) {
   // The warning is only emitted when ESM is loaded by --require.
-  const stderr = preloadFlag !== '--import' ? warningRE : undefined;
-
+  const isRequire = preloadFlag === '--require';
   // Test named exports.
   {
     spawnSyncAndAssert(
@@ -24,7 +22,8 @@ function testPreload(preloadFlag) {
       },
       {
         stdout: 'A',
-        stderr,
+        stderr: isRequire ?
+          /ExperimentalWarning: --require is loading ES Module .*module-named-exports\.mjs using require/ : undefined,
         trim: true,
       }
     );
@@ -44,7 +43,8 @@ function testPreload(preloadFlag) {
         cwd: fixturesDir
       },
       {
-        stderr,
+        stderr: isRequire ?
+          /ExperimentalWarning: --require is loading ES Module .*import-esm\.mjs using require/ : undefined,
         stdout: /^world\s+A$/,
         trim: true,
       }
@@ -66,7 +66,8 @@ function testPreload(preloadFlag) {
       },
       {
         stdout: /^ok\s+A$/,
-        stderr,
+        stderr: isRequire ?
+          /ExperimentalWarning: --require is loading ES Module .*cjs-exports\.mjs using require/ : undefined,
         trim: true,
       }
     );
@@ -89,7 +90,8 @@ function testPreload(preloadFlag) {
       },
       {
         stdout: /^world\s+A$/,
-        stderr,
+        stderr: isRequire ?
+          /ExperimentalWarning: --require is loading ES Module .*require-cjs\.mjs using require/ : undefined,
         trim: true,
       }
     );
@@ -115,7 +117,7 @@ testPreload('--import');
     },
     {
       stdout: /^package-type-module\s+A$/,
-      stderr: warningRE,
+      stderr: /ExperimentalWarning: --require is loading ES Module .*package-type-module\/index\.js using require/,
       trim: true,
     }
   );
