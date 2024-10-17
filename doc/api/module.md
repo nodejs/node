@@ -1109,7 +1109,8 @@ should be fetched.
 
 <!-- YAML
 added:
- - REPLACEME
+ - v23.0.0
+ - v22.10.0
 -->
 
 > Stability: 1.1 - Active Development

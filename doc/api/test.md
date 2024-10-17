@@ -1256,10 +1256,12 @@ added:
   - v18.9.0
   - v16.19.0
 changes:
-  - version: REPLACEME
+  - version: v23.0.0
     pr-url: https://github.com/nodejs/node/pull/54705
     description: Added the `cwd` option.
-  - version: REPLACEME
+  - version:
+    - v23.0.0
+    - v22.10.0
     pr-url: https://github.com/nodejs/node/pull/53937
     description: Added coverage options.
   - version: v22.8.0

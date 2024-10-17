@@ -2092,7 +2092,9 @@ does not consist of exactly two elements.
 ### `ERR_INVALID_TYPESCRIPT_SYNTAX`
 
 <!-- YAML
-added: REPLACEME
+added:
+ - v23.0.0
+ - v22.10.0
 -->
 
 The provided TypeScript syntax is not valid or unsupported.
@@ -2335,7 +2337,7 @@ compiled with ICU support.
 ### `ERR_NO_TYPESCRIPT`
 
 <!-- YAML
-added: REPLACEME
+added: v23.0.0
 -->
 
 An attempt was made to use features that require [Native TypeScript support][], but Node.js was not
@@ -2439,7 +2441,9 @@ object.
 ### `ERR_QUIC_CONNECTION_FAILED`
 
 <!-- YAML
-added: REPLACEME
+added:
+ - v23.0.0
+ - v22.10.0
 -->
 
 > Stability: 1 - Experimental
@@ -2451,7 +2455,9 @@ Establishing a QUIC connection failed.
 ### `ERR_QUIC_ENDPOINT_CLOSED`
 
 <!-- YAML
-added: REPLACEME
+added:
+ - v23.0.0
+ - v22.10.0
 -->
 
 > Stability: 1 - Experimental
@@ -2463,7 +2469,9 @@ A QUIC Endpoint closed with an error.
 ### `ERR_QUIC_OPEN_STREAM_FAILED`
 
 <!-- YAML
-added: REPLACEME
+added:
+ - v23.0.0
+ - v22.10.0
 -->
 
 > Stability: 1 - Experimental
@@ -2504,7 +2512,7 @@ module, and should be done lazily in an inner function.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v23.0.0
     pr-url: https://github.com/nodejs/node/pull/55085
     description: require() now supports loading synchronous ES modules by default.
 -->
@@ -3366,7 +3374,7 @@ encoding (e.g. `ucs` or `utf16le`) is not supported.
 ### `ERR_CRYPTO_SCRYPT_INVALID_PARAMETER`
 
 <!-- YAML
-removed: REPLACEME
+removed: v23.0.0
 -->
 
 An incompatible combination of options was passed to [`crypto.scrypt()`][] or
@@ -3378,7 +3386,7 @@ An incompatible combination of options was passed to [`crypto.scrypt()`][] or
 ### `ERR_FS_INVALID_SYMLINK_TYPE`
 
 <!-- YAML
-removed: REPLACEME
+removed: v23.0.0
 -->
 
 An invalid symlink type was passed to the [`fs.symlink()`][] or

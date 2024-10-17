@@ -812,7 +812,8 @@ of `--enable-source-maps`.
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v23.0.0
+  - v22.10.0
 -->
 
 > Stability: 1 - Experimental
@@ -1073,7 +1074,7 @@ added:
   - v22.0.0
   - v20.17.0
 changes:
-  - version: REPLACEME
+  - version: v23.0.0
     pr-url: https://github.com/nodejs/node/pull/55085
     description: This is now true by default.
 -->
@@ -1710,7 +1711,7 @@ added:
   - v22.0.0
   - v20.17.0
 changes:
-  - version: REPLACEME
+  - version: v23.0.0
     pr-url: https://github.com/nodejs/node/pull/55085
     description: This is now false by default.
 -->
