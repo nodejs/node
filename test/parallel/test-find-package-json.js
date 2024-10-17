@@ -83,20 +83,19 @@ describe('findPackageJSON', () => { // Throws when no arguments are provided
 
       const readPJSON = (locus) => JSON.parse(fs.readFileSync(locus, 'utf8'));
 
-      const { secretNumber1 } = readPJSON(findPackageJSON('pkg', import.meta.url));
-      // This is impossible to resolve because pkg's pjson.exports blocks access
-      let secretNumber2Location = NaN;
-      try { secretNumber2Location = findPackageJSON('pkg/subfolder/', import.meta.url) } catch {}
-      const { secretNumber3 } = readPJSON(findPackageJSON('pkg2', import.meta.url));
-      const { secretNumber4 } = readPJSON(findPackageJSON('pkg2/package.json', import.meta.url));
+      const { secretNumberRoot } = readPJSON(findPackageJSON('pkg', import.meta.url));
+      let secretNumberSubfolder; // Impossible to resolve because pkg's pjson.exports blocks access
+      try { ({ secretNumberSubfolder } = findPackageJSON('pkg/subfolder/', import.meta.url)) } catch {}
+      const { secretNumberSubfolder2 } = readPJSON(findPackageJSON('pkg2', import.meta.url));
+      const { secretNumberPkg2 } = readPJSON(findPackageJSON('pkg2/package.json', import.meta.url));
 
-      console.log(secretNumber1, secretNumber2Location, secretNumber3, secretNumber4);
+      console.log(secretNumberRoot, secretNumberSubfolder, secretNumberSubfolder2, secretNumberPkg2);
     `);
 
-    const secretNumber1 = Math.ceil(Math.random() * 999);
-    const secretNumber2 = Math.ceil(Math.random() * 999);
-    const secretNumber3 = Math.ceil(Math.random() * 999);
-    const secretNumber4 = Math.ceil(Math.random() * 999);
+    const secretNumberRoot = Math.ceil(Math.random() * 999);
+    const secretNumberSubfolder = Math.ceil(Math.random() * 999);
+    const secretNumberSubfolder2 = Math.ceil(Math.random() * 999);
+    const secretNumberPkg2 = Math.ceil(Math.random() * 999);
 
     fs.mkdirSync(tmpdir.resolve('node_modules/pkg/subfolder'), { recursive: true });
     fs.writeFileSync(
@@ -107,7 +106,7 @@ describe('findPackageJSON', () => { // Throws when no arguments are provided
       tmpdir.resolve('node_modules/pkg/subfolder/package.json'),
       JSON.stringify({
         type: 'module',
-        secretNumber1,
+        secretNumberRoot,
       }),
     );
     fs.writeFileSync(
@@ -115,7 +114,7 @@ describe('findPackageJSON', () => { // Throws when no arguments are provided
       JSON.stringify({
         name: 'pkg',
         exports: './subfolder/index.js',
-        secretNumber2,
+        secretNumberSubfolder,
       }),
     );
 
@@ -124,7 +123,7 @@ describe('findPackageJSON', () => { // Throws when no arguments are provided
       tmpdir.resolve('node_modules/pkg/subfolder2/package.json'),
       JSON.stringify({
         type: 'module',
-        secretNumber3,
+        secretNumberSubfolder2,
       }),
     );
     fs.writeFileSync(
@@ -138,7 +137,7 @@ describe('findPackageJSON', () => { // Throws when no arguments are provided
       JSON.stringify({
         name: 'pkg',
         main: tmpdir.resolve('node_modules/pkg/subfolder2/index.js'),
-        secretNumber4,
+        secretNumberPkg2,
       }),
     );
 
@@ -146,7 +145,7 @@ describe('findPackageJSON', () => { // Throws when no arguments are provided
       console.error(result.stderr);
       console.log(result.stdout);
       assert.deepStrictEqual(result, {
-        stdout: `${secretNumber1} NaN ${secretNumber3} ${secretNumber4}\n`,
+        stdout: `${secretNumberRoot} undefined ${secretNumberSubfolder2} ${secretNumberPkg2}\n`,
         stderr: '',
         code: 0,
         signal: null,
