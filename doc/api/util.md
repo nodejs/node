@@ -463,6 +463,26 @@ fs.access('file/that/does/not/exist', (err) => {
 });
 ```
 
+## `util.getSystemErrorMessage(err)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `err` {number}
+* Returns: {string}
+
+Returns the string message for a numeric error code that comes from a Node.js
+API.
+The mapping between error codes and string messages is platform-dependent.
+
+```js
+fs.access('file/that/does/not/exist', (err) => {
+  const name = util.getSystemErrorMessage(err.errno);
+  console.error(name);  // no such file or directory
+});
+```
+
 ## `util.inherits(constructor, superConstructor)`
 
 <!-- YAML
