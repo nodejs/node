@@ -63,9 +63,8 @@ describe('findPackageJSON', () => { // Throws when no arguments are provided
     tmpdir.refresh();
 
     fs.writeFileSync(tmpdir.resolve('entry.mjs'), `
-      import { findPackageJSON, createRequire } from 'node:module';
+      import { findPackageJSON } from 'node:module';
       import fs from 'node:fs';
-      const require = createRequire(import.meta.url);
 
       const readPJSON = (locus) => JSON.parse(fs.readFileSync(locus, 'utf8'));
 
