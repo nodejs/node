@@ -55,6 +55,7 @@
 #include "util-inl.h"
 #include "v8.h"
 
+#include <unicode/locid.h>
 #include <unicode/putil.h>
 #include <unicode/timezone.h>
 #include <unicode/uchar.h>
@@ -62,6 +63,7 @@
 #include <unicode/ucnv.h>
 #include <unicode/udata.h>
 #include <unicode/uidna.h>
+#include <unicode/uloc.h>
 #include <unicode/ulocdata.h>
 #include <unicode/urename.h>
 #include <unicode/ustring.h>
@@ -580,6 +582,37 @@ void SetDefaultTimeZone(const char* tzid) {
   u_charsToUChars(tzid, id.out(), tzidlen);
   // This is threadsafe:
   ucal_setDefaultTimeZone(id.out(), &status);
+  CHECK(U_SUCCESS(status));
+}
+
+void SetDefaultLocale(const char* localeid) {
+  UErrorCode status = U_ZERO_ERROR;
+
+  // Set the locale to the requested locale, no matter if it is
+  // supported or not. Let ICU handle the conversion to a supported locale.
+  // E.g. "en_US" and "en-US" will be internally converted to "en_US".
+  uloc_setDefault(localeid, &status);
+  CHECK(U_SUCCESS(status));
+
+  // Now check if the locale was actually set to a supported locale.
+  // We iterate over all supported locales and check if the default locale
+  // is among them. If so, we can finish here.
+  const char* newDefaultLocale = uloc_getDefault();
+  int newDefaultLocaleLen = strlen(newDefaultLocale);
+  int32_t locCount = 0;
+  const icu::Locale* supportedLocales =
+      icu::Locale::getAvailableLocales(locCount);
+  for (int32_t i = 0; i < locCount; ++i) {
+    if (strncmp(newDefaultLocale,
+                supportedLocales[i].getName(),
+                newDefaultLocaleLen) == 0) {
+      return;
+    }
+  }
+
+  // The default locale is not supported. We need to set it to a supported
+  // locale. We use the root locale as a fallback.
+  uloc_setDefault(nullptr, &status);
   CHECK(U_SUCCESS(status));
 }
 

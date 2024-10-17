@@ -1434,6 +1434,19 @@ added: v0.1.3
 Print node command-line options.
 The output of this option is less detailed than this document.
 
+### `--icu-locale`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Set the default locale used by ICU (`Intl` object). It expects a string
+representing the language version as defined in [RFC 5646][] (also known as
+BCP 47).
+
+Examples of valid language codes include "en", "en-US", "fr", "fr-FR", "es-ES",
+etc.
+
 ### `--icu-data-dir=file`
 
 <!-- YAML
@@ -3080,6 +3093,7 @@ one is included in the list below.
 * `--heapsnapshot-signal`
 * `--http-parser`
 * `--icu-data-dir`
+* `--icu-locale`
 * `--import`
 * `--input-type`
 * `--insecure-http-parser`
@@ -3582,6 +3596,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [OSSL_PROVIDER-legacy]: https://www.openssl.org/docs/man3.0/man7/OSSL_PROVIDER-legacy.html
 [Permission Model]: permissions.md#permission-model
 [REPL]: repl.md
+[RFC 5646]: https://www.rfc-editor.org/rfc/rfc5646.txt
 [ScriptCoverage]: https://chromedevtools.github.io/devtools-protocol/tot/Profiler#type-ScriptCoverage
 [ShadowRealm]: https://github.com/tc39/proposal-shadowrealm
 [Source Map]: https://sourcemaps.info/spec.html
