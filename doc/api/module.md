@@ -236,7 +236,7 @@ added: REPLACEME
 > that determination; the `type` field of package.json is the _least_ definitive (ex file extension
 > superceeds it, and a loader hook superceeds that).
 
-```
+```text
 /path/to/project
   ├ packages/
     ├ bar/
