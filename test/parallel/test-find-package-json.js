@@ -83,16 +83,16 @@ describe('findPackageJSON', () => { // Throws when no arguments are provided
 
       const readPJSON = (locus) => JSON.parse(fs.readFileSync(locus, 'utf8'));
 
-      const { secretNumberRoot } = readPJSON(findPackageJSON('pkg', import.meta.url));
-      let secretNumberSubfolder; // Impossible to resolve because pkg's pjson.exports blocks access
-      try { ({ secretNumberSubfolder } = findPackageJSON('pkg/subfolder/', import.meta.url)) } catch {}
+      const { secretNumberSubfolder } = readPJSON(findPackageJSON('pkg', import.meta.url));
+      let secretNumberPkgRoot; // Impossible to resolve because pkg's pjson.exports blocks access
+      try { ({ secretNumberPkgRoot } = findPackageJSON('pkg/subfolder/', import.meta.url)) } catch {}
       const { secretNumberSubfolder2 } = readPJSON(findPackageJSON('pkg2', import.meta.url));
       const { secretNumberPkg2 } = readPJSON(findPackageJSON('pkg2/package.json', import.meta.url));
 
       console.log(secretNumberRoot, secretNumberSubfolder, secretNumberSubfolder2, secretNumberPkg2);
     `);
 
-    const secretNumberRoot = Math.ceil(Math.random() * 999);
+    const secretNumberPkgRoot = Math.ceil(Math.random() * 999);
     const secretNumberSubfolder = Math.ceil(Math.random() * 999);
     const secretNumberSubfolder2 = Math.ceil(Math.random() * 999);
     const secretNumberPkg2 = Math.ceil(Math.random() * 999);
@@ -106,7 +106,7 @@ describe('findPackageJSON', () => { // Throws when no arguments are provided
       tmpdir.resolve('node_modules/pkg/subfolder/package.json'),
       JSON.stringify({
         type: 'module',
-        secretNumberRoot,
+        secretNumberSubfolder,
       }),
     );
     fs.writeFileSync(
@@ -114,7 +114,7 @@ describe('findPackageJSON', () => { // Throws when no arguments are provided
       JSON.stringify({
         name: 'pkg',
         exports: './subfolder/index.js',
-        secretNumberSubfolder,
+        secretNumberPkgRoot,
       }),
     );
 
