@@ -151,6 +151,7 @@ class ExternalReferenceRegistry {
   V(builtins)                                                                  \
   V(cares_wrap)                                                                \
   V(config)                                                                    \
+  V(code_integrity)                                                            \
   V(contextify)                                                                \
   V(credentials)                                                               \
   V(encoding_binding)                                                          \
