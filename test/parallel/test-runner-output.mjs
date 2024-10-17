@@ -208,6 +208,12 @@ const tests = [
     transform: specTransform,
   },
   {
+    name: 'test-runner/output/assertion-color-tty.mjs',
+    flags: ['--test', '--stack-trace-limit=0'],
+    transform: specTransform,
+    tty: true,
+  },
+  {
     name: 'test-runner/output/async-test-scheduling.mjs',
     flags: ['--test-reporter=tap'],
   },
