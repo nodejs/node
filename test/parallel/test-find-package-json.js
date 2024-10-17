@@ -18,12 +18,14 @@ describe('findPackageJSON', () => { // Throws when no arguments are provided
     );
   });
 
-  it('should throw when parentURL is invalid', () => {
-    for (const invalid of ['', null, undefined, {}, [], Symbol(), 1, 0]) assert.throws(
-      () => findPackageJSON('', invalid),
-      { code: 'ERR_INVALID_ARG_TYPE' },
-      invalid
-    );
+  it('should throw when parentLocation is invalid', () => {
+    for (const invalid of ['', null, undefined, {}, [], Symbol(), 1, 0]) {
+      assert.throws(
+        () => findPackageJSON('', invalid),
+        { code: 'ERR_INVALID_ARG_TYPE' },
+        invalid
+      );
+    }
   });
 
   it('should accept a file URL (string), like from `import.meta.resolve()`', () => {
@@ -32,6 +34,19 @@ describe('findPackageJSON', () => { // Throws when no arguments are provided
     assert.strictEqual(
       findPackageJSON(`${specifierBase}index.js`, importMetaUrl),
       fixtures.path(specifierBase, 'package.json')
+    );
+  });
+
+  it('should accept a file URL instance', () => {
+    const fixturesDirUrl = `${pathToFileURL(fixtures.fixturesDir)}`;
+    const importMetaUrl = `${fixturesDirUrl}/whatever.ext`;
+    const specifierBase = './packages/root-types-field/';
+    assert.strictEqual(
+      findPackageJSON(
+        new URL('index.js', `${fixturesDirUrl}${specifierBase.slice(1)}`),
+        new URL(importMetaUrl),
+      ),
+      fixtures.path(specifierBase, 'package.json'),
     );
   });
 
