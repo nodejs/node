@@ -186,9 +186,11 @@
 # TypeScript
 
 /deps/amaro/ @nodejs/typescript
+/doc/api/parser.md @nodejs/typescript
 /doc/api/typescript.md @nodejs/typescript
 /test/fixtures/typescript/ @nodejs/typescript
 /tools/dep_updaters/update-amaro.sh @nodejs/typescript
+/lib/parser.js @nodejs/typescript
 
 # Performance
 /benchmark/* @nodejs/performance

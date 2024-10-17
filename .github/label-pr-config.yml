@@ -102,6 +102,7 @@ subSystemLabels:
   /^lib\/internal\/modules/: module
   /^lib\/internal\/webstreams/: web streams
   /^lib\/internal\/test_runner/: test_runner
+  /^lib\/parser.js$/: strip-types
 
   # All other lib/ files map directly
   /^lib\/_(\w+)_\w+\.js?$/: $1  # e.g. _(stream)_wrap
@@ -183,6 +184,7 @@ allJsSubSystems:
   - module
   - net
   - os
+  - parser
   - path
   - perf_hooks
   - process
