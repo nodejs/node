@@ -1356,7 +1356,7 @@ def configure_zos(o):
   o['variables']['node_static_zoslib'] = b(True)
   if options.static_zoslib_gyp:
     # Apply to all Node.js components for now
-    o['variables']['zoslib_include_dir'] = Path(options.static_zoslib_gyp).parent + '/include'
+    o['variables']['zoslib_include_dir'] = Path(options.static_zoslib_gyp).parent / 'include'
     o['include_dirs'] += [o['variables']['zoslib_include_dir']]
   else:
     raise Exception('--static-zoslib-gyp=<path to zoslib.gyp file> is required.')
