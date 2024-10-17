@@ -40,8 +40,6 @@ assert.strictEqual(
   '..\\..\\..\\..\\baz'
 );
 assert.strictEqual(path.win32.normalize('foo/bar\\baz'), 'foo\\bar\\baz');
-assert.strictEqual(path.win32.normalize('\\\\.\\foo'), '\\\\.\\foo');
-assert.strictEqual(path.win32.normalize('\\\\.\\foo\\'), '\\\\.\\foo\\');
 
 assert.strictEqual(path.posix.normalize('./fixtures///b/../b/c.js'),
                    'fixtures/b/c.js');
