@@ -70,9 +70,16 @@ test('deepEqual', () => {
     () => assert.deepStrictEqual(arr, buf),
     {
       code: 'ERR_ASSERTION',
-      message: `${defaultMsgStartFull} ... Lines skipped\n\n` +
-              '+ Uint8Array(4) [\n' +
-              '- Buffer(4) [Uint8Array] [\n    120,\n...\n    122,\n    10\n  ]'
+      message: 'Expected values to be strictly deep-equal:\n' +
+        '+ actual - expected\n' +
+        '\n' +
+        '+ Uint8Array(4) [\n' +
+        '- Buffer(4) [Uint8Array] [\n' +
+        '    120,\n' +
+        '    121,\n' +
+        '    122,\n' +
+        '    10\n' +
+        '  ]\n'
     }
   );
   assert.deepEqual(arr, buf);
@@ -92,7 +99,7 @@ test('deepEqual', () => {
                 '    122,\n' +
                 '    10,\n' +
                 '+   prop: 1\n' +
-                '  ]'
+                '  ]\n'
       }
     );
     assert.notDeepEqual(buf2, buf);
@@ -112,7 +119,7 @@ test('deepEqual', () => {
                 '    122,\n' +
                 '    10,\n' +
                 '-   prop: 5\n' +
-                '  ]'
+                '  ]\n'
       }
     );
     assert.notDeepEqual(arr, arr2);
@@ -127,7 +134,7 @@ test('date', () => {
       code: 'ERR_ASSERTION',
       message: `${defaultMsgStartFull}\n\n` +
               '+ 2016-01-01T00:00:00.000Z\n- MyDate 2016-01-01T00:00:00.000Z' +
-              " {\n-   '0': '1'\n- }"
+              " {\n-   '0': '1'\n- }\n"
     }
   );
   assert.throws(
@@ -136,7 +143,7 @@ test('date', () => {
       code: 'ERR_ASSERTION',
       message: `${defaultMsgStartFull}\n\n` +
               '+ MyDate 2016-01-01T00:00:00.000Z {\n' +
-              "+   '0': '1'\n+ }\n- 2016-01-01T00:00:00.000Z"
+              "+   '0': '1'\n+ }\n- 2016-01-01T00:00:00.000Z\n"
     }
   );
 });
@@ -151,7 +158,7 @@ test('regexp', () => {
     {
       code: 'ERR_ASSERTION',
       message: `${defaultMsgStartFull}\n\n` +
-              "+ /test/\n- MyRegExp /test/ {\n-   '0': '1'\n- }"
+              "+ /test/\n- MyRegExp /test/ {\n-   '0': '1'\n- }\n"
     }
   );
 });
@@ -474,7 +481,7 @@ test('es6 Maps and Sets', () => {
       {
         code: 'ERR_ASSERTION',
         message: `${defaultMsgStartFull}\n\n` +
-                 "  Map(1) {\n+   1 => 1\n-   1 => '1'\n  }"
+                 "  Map(1) {\n+   1 => 1\n-   1 => '1'\n  }\n"
       }
     );
   }
@@ -846,35 +853,55 @@ test('Additional tests', () => {
     {
       code: 'ERR_ASSERTION',
       name: 'AssertionError',
-      message: `${defaultMsgStartFull}\n\n+ /ab/\n- /a/`
+      message: 'Expected values to be strictly deep-equal:\n' +
+        '+ actual - expected\n' +
+        '\n' +
+        '+ /ab/\n' +
+        '- /a/\n'
     });
   assert.throws(
     () => assert.deepStrictEqual(/a/g, /a/),
     {
       code: 'ERR_ASSERTION',
       name: 'AssertionError',
-      message: `${defaultMsgStartFull}\n\n+ /a/g\n- /a/`
+      message: 'Expected values to be strictly deep-equal:\n' +
+        '+ actual - expected\n' +
+        '\n' +
+        '+ /a/g\n' +
+        '- /a/\n'
     });
   assert.throws(
     () => assert.deepStrictEqual(/a/i, /a/),
     {
       code: 'ERR_ASSERTION',
       name: 'AssertionError',
-      message: `${defaultMsgStartFull}\n\n+ /a/i\n- /a/`
+      message: 'Expected values to be strictly deep-equal:\n' +
+        '+ actual - expected\n' +
+        '\n' +
+        '+ /a/i\n' +
+        '- /a/\n'
     });
   assert.throws(
     () => assert.deepStrictEqual(/a/m, /a/),
     {
       code: 'ERR_ASSERTION',
       name: 'AssertionError',
-      message: `${defaultMsgStartFull}\n\n+ /a/m\n- /a/`
+      message: 'Expected values to be strictly deep-equal:\n' +
+        '+ actual - expected\n' +
+        '\n' +
+        '+ /a/m\n' +
+        '- /a/\n'
     });
   assert.throws(
     () => assert.deepStrictEqual(/aa/igm, /aa/im),
     {
       code: 'ERR_ASSERTION',
       name: 'AssertionError',
-      message: `${defaultMsgStartFull}\n\n+ /aa/gim\n- /aa/im\n      ^`
+      message: 'Expected values to be strictly deep-equal:\n' +
+        '+ actual - expected\n' +
+        '\n' +
+        '+ /aa/gim\n' +
+        '- /aa/im\n'
     });
 
   {
@@ -909,7 +936,7 @@ test('Having the same number of owned properties && the same set of keys', () =>
                 {
                   code: 'ERR_ASSERTION',
                   name: 'AssertionError',
-                  message: `${defaultMsgStartFull}\n\n  [\n+   4\n-   '4'\n  ]`
+                  message: `${defaultMsgStartFull}\n\n  [\n+   4\n-   '4'\n  ]\n`
                 });
   assert.throws(
     () => assert.deepStrictEqual({ a: 4 }, { a: 4, b: true }),
@@ -917,7 +944,7 @@ test('Having the same number of owned properties && the same set of keys', () =>
       code: 'ERR_ASSERTION',
       name: 'AssertionError',
       message: `${defaultMsgStartFull}\n\n  ` +
-              '{\n    a: 4,\n-   b: true\n  }'
+              '{\n    a: 4,\n-   b: true\n  }\n'
     });
   assert.throws(
     () => assert.deepStrictEqual(['a'], { 0: 'a' }),
@@ -925,7 +952,7 @@ test('Having the same number of owned properties && the same set of keys', () =>
       code: 'ERR_ASSERTION',
       name: 'AssertionError',
       message: `${defaultMsgStartFull}\n\n` +
-              "+ [\n+   'a'\n+ ]\n- {\n-   '0': 'a'\n- }"
+              "+ [\n+   'a'\n+ ]\n- {\n-   '0': 'a'\n- }\n"
     });
 });
 
@@ -964,25 +991,25 @@ test('Check extra properties on errors', () => {
       () => assert.deepStrictEqual(a, b),
       {
         operator: 'throws',
-        message: `${defaultMsgStartFull}\n\n` +
-                '  [TypeError: foo] {\n+   foo: \'bar\'\n-   foo: \'baz\'\n  }',
+        message: '',
       }
     ),
     {
       message: 'Expected values to be strictly deep-equal:\n' +
-        '+ actual - expected ... Lines skipped\n' +
+        '+ actual - expected\n' +
         '\n' +
         '  Comparison {\n' +
-        "    message: 'Expected values to be strictly deep-equal:\\n' +\n" +
-        '...\n' +
-        "      '  [TypeError: foo] {\\n' +\n" +
-        "      \"+   foo: 'bar'\\n\" +\n" +
-        "+     \"-   foo: 'baz.'\\n\" +\n" +
-        "-     \"-   foo: 'baz'\\n\" +\n" +
-        "      '  }',\n" +
+        "+   message: 'Expected values to be strictly deep-equal:\\n' +\n" +
+        "+     '+ actual - expected\\n' +\n" +
+        "+     '\\n' +\n" +
+        "+     '  [TypeError: foo] {\\n' +\n" +
+        `+     "+   foo: 'bar'\\n" +\n` +
+        `+     "-   foo: 'baz.'\\n" +\n` +
+        "+     '  }\\n',\n" +
         "+   operator: 'deepStrictEqual'\n" +
+        "-   message: '',\n" +
         "-   operator: 'throws'\n" +
-        '  }'
+        '  }\n'
     }
   );
 });
@@ -995,7 +1022,7 @@ test('Check proxies', () => {
   assert.throws(
     () => assert.deepStrictEqual(arrProxy, [1, 2, 3]),
     { message: `${defaultMsgStartFull}\n\n` +
-               '  [\n    1,\n    2,\n-   3\n  ]' }
+               '  [\n    1,\n    2,\n-   3\n  ]\n' }
   );
   util.inspect.defaultOptions = tmp;
 
@@ -1052,7 +1079,7 @@ test('Basic array out of bounds check', () => {
               '    1,\n' +
               '    2,\n' +
               '+   3\n' +
-              '  ]'
+              '  ]\n'
     }
   );
 });
