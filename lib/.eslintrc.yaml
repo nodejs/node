@@ -243,6 +243,9 @@ rules:
       into: Safe
     - name: String
     - name: Symbol
+      polyfilled:
+        - asyncDispose
+        - dispose
     - name: SyntaxError
     - name: TypeError
     - name: Uint16Array
