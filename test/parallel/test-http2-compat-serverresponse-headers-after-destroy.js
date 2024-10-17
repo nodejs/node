@@ -38,9 +38,15 @@ server.listen(0, common.mustCall(function() {
       ':authority': `localhost:${port}`
     };
     const request = client.request(headers);
-    request.on('end', common.mustCall(function() {
+    request.once('error', common.mustCall(function(error) {
+      common.expectsError({
+        code: 'ERR_HTTP2_STREAM_ERROR',
+        name: 'Error',
+        message: 'Stream closed with error code NGHTTP2_INTERNAL_ERROR'
+      })(error);
       client.close();
     }));
+    request.on('end', common.mustNotCall());
     request.end();
     request.resume();
   }));

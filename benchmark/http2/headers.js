@@ -45,7 +45,7 @@ function main({ n, nheaders }) {
         } else {
           bench.end(n);
           server.close();
-          client.destroy();
+          client.close();
         }
       });
     }
