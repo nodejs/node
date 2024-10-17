@@ -303,33 +303,34 @@ When a new [`repl.REPLServer`][] is created, a custom evaluation function may be
 provided. This can be used, for instance, to implement fully customized REPL
 applications.
 
-The following illustrates a hypothetical example of a REPL that performs
-translation of text from one language to another:
+The following illustrates an example of a REPL that squares a given number:
 
 ```mjs
 import repl from 'node:repl';
-import { Translator } from 'translator';
 
-const myTranslator = new Translator('en', 'fr');
-
-function myEval(cmd, context, filename, callback) {
-  callback(null, myTranslator.translate(cmd));
+function byThePowerOfTwo(number) {
+  return number * number;
 }
 
-repl.start({ prompt: '> ', eval: myEval });
+function myEval(cmd, context, filename, callback) {
+  callback(null, byThePowerOfTwo(cmd));
+}
+
+repl.start({ prompt: 'Enter a number: ', eval: myEval });
 ```
 
 ```cjs
 const repl = require('node:repl');
-const { Translator } = require('translator');
 
-const myTranslator = new Translator('en', 'fr');
-
-function myEval(cmd, context, filename, callback) {
-  callback(null, myTranslator.translate(cmd));
+function byThePowerOfTwo(number) {
+  return number * number;
 }
 
-repl.start({ prompt: '> ', eval: myEval });
+function myEval(cmd, context, filename, callback) {
+  callback(null, byThePowerOfTwo(cmd));
+}
+
+repl.start({ prompt: 'Enter a number: ', eval: myEval });
 ```
 
 #### Recoverable errors
