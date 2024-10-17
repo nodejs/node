@@ -225,12 +225,12 @@ added: REPLACEME
 
 > Stability: 1.1 - Active Development
 
-* `startLocation` {string} Where to look (relative to `parentLocation`). This can be a
+* `startLocation` {string|URL} Where to look (relative to `parentLocation`). This can be a
   relative/unresolved specifier (ex `'..'`) or a package name.
-* `parentLocation` {string} The absolute location (file URL string or FS path) of the containing
+* `parentLocation` {string|URL} The absolute location (`file:` URL string or FS path) of the containing
   module. For CJS, use `__filename` (not `__dirname`!); for ESM, use `import.meta.url`.
 * Returns: {string} A file URL string. When `startLocation` is a package, the package's root
-  package.json; when a relative or unresolved, the closest package.json to the `startLocation`.
+  `package.json`; when a relative or unresolved, the closest `package.json` to the `startLocation`.
 
 > **Caveat**: Do not use this to try to determine module format. There are many things effecting
 > that determination; the `type` field of package.json is the _least_ definitive (ex file extension
