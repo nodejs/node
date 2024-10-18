@@ -117,7 +117,7 @@ testPreload('--import');
     },
     {
       stdout: /^package-type-module\s+A$/,
-      stderr: /ExperimentalWarning: --require is loading ES Module .*package-type-module\/index\.js using require/,
+      stderr: /ExperimentalWarning: --require is loading ES Module .*package-type-module[\\/]index\.js using require/,
       trim: true,
     }
   );
