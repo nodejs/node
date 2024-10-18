@@ -89,9 +89,9 @@ async function runBenchmark(filename) {
     });
     child.once('close', (code) => {
       if (code) {
-        resolve(code);
-      } else {
         reject(code);
+      } else {
+        resolve(code);
       }
     });
   });
