@@ -5,7 +5,7 @@ const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
-const URL = require('url').URL;
+const { pathToFileURL } = require('url');
 
 tmpdir.refresh();
 
@@ -15,7 +15,7 @@ const nextFile = () => path.join(tmpdir.path, `file${fileCounter++}`);
 const generateStringPath = (file, suffix = '') => file + suffix;
 
 const generateURLPath = (file, suffix = '') =>
-  new URL('file://' + path.resolve(file) + suffix);
+  pathToFileURL(file + suffix);
 
 const generateUint8ArrayPath = (file, suffix = '') =>
   new Uint8Array(Buffer.from(file + suffix));
