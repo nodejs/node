@@ -769,7 +769,7 @@ Maybe<void> InitializePrimordials(Local<Context> context) {
 
   // Create primordials first and make it available to per-context scripts.
   Local<Object> primordials = Object::New(isolate);
-  if (primordials->SetPrototype(context, Null(isolate)).IsNothing() ||
+  if (primordials->SetPrototypeV2(context, Null(isolate)).IsNothing() ||
       !GetPerContextExports(context).ToLocal(&exports) ||
       exports->Set(context, primordials_string, primordials).IsNothing()) {
     return Nothing<void>();
