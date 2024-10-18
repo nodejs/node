@@ -19,11 +19,10 @@ describe('findPackageJSON', () => { // Throws when no arguments are provided
   });
 
   it('should throw when parentLocation is invalid', () => {
-    for (const invalid of ['', null, undefined, {}, [], Symbol(), 1, 0]) {
+    for (const invalid of [null, undefined, {}, [], Symbol(), () => {}, true, false, 1, 0]) {
       assert.throws(
         () => findPackageJSON('', invalid),
         { code: 'ERR_INVALID_ARG_TYPE' },
-        invalid
       );
     }
   });
@@ -83,13 +82,12 @@ describe('findPackageJSON', () => { // Throws when no arguments are provided
 
       const readPJSON = (locus) => JSON.parse(fs.readFileSync(locus, 'utf8'));
 
-      const { secretNumberSubfolder } = readPJSON(findPackageJSON('pkg', import.meta.url));
-      let secretNumberPkgRoot; // Impossible to resolve because pkg's pjson.exports blocks access
-      try { ({ secretNumberPkgRoot } = findPackageJSON('pkg/subfolder/', import.meta.url)) } catch {}
-      const { secretNumberSubfolder2 } = readPJSON(findPackageJSON('pkg2', import.meta.url));
-      const { secretNumberPkg2 } = readPJSON(findPackageJSON('pkg2/package.json', import.meta.url));
+      const { secretNumberPkgRoot } = readPJSON(findPackageJSON('pkg', import.meta.url));
+      const { secretNumberSubfolder } = readPJSON(findPackageJSON('pkg', import.meta.url, false));
+      const { secretNumberSubfolder2 } = readPJSON(findPackageJSON('pkg2', import.meta.url, false));
+      const { secretNumberPkg2 } = readPJSON(findPackageJSON('pkg2', import.meta.url));
 
-      console.log(secretNumberRoot, secretNumberSubfolder, secretNumberSubfolder2, secretNumberPkg2);
+      console.log(secretNumberPkgRoot, secretNumberSubfolder, secretNumberSubfolder2, secretNumberPkg2);
     `);
 
     const secretNumberPkgRoot = Math.ceil(Math.random() * 999);
@@ -145,7 +143,7 @@ describe('findPackageJSON', () => { // Throws when no arguments are provided
       console.error(result.stderr);
       console.log(result.stdout);
       assert.deepStrictEqual(result, {
-        stdout: `${secretNumberRoot} undefined ${secretNumberSubfolder2} ${secretNumberPkg2}\n`,
+        stdout: `${secretNumberPkgRoot} ${secretNumberSubfolder} ${secretNumberSubfolder2} ${secretNumberPkg2}\n`,
         stderr: '',
         code: 0,
         signal: null,
