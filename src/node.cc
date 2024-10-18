@@ -966,6 +966,10 @@ static ExitCode InitializeNodeWithArgsInternal(
   }
 # endif
 
+  if (!per_process::cli_options->icu_locale.empty()) {
+    i18n::SetDefaultLocale(per_process::cli_options->icu_locale.c_str());
+  }
+
 #endif  // defined(NODE_HAVE_I18N_SUPPORT)
 
   // We should set node_is_initialized here instead of in node::Start,

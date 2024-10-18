@@ -1051,6 +1051,11 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             ,
             &PerProcessOptions::icu_data_dir,
             kAllowedInEnvvar);
+
+  AddOption("--icu-locale",
+            "Set the locale of the ICU used by the node instance",
+            &PerProcessOptions::icu_locale,
+            kAllowedInEnvvar);
 #endif
 
 #if HAVE_OPENSSL
