@@ -507,7 +507,7 @@ added: v8.4.0
   due to an error.
 * `code` {number} The HTTP/2 error code to send in the final `GOAWAY` frame.
   If unspecified, and `error` is not undefined, the default is `INTERNAL_ERROR`,
-  otherwise defaults to `NO_ERROR`.
+  otherwise defaults to `CANCEL`.
 
 Immediately terminates the `Http2Session` and the associated `net.Socket` or
 `tls.TLSSocket`.
