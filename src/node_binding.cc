@@ -42,6 +42,7 @@
   V(buffer)                                                                    \
   V(builtins)                                                                  \
   V(cares_wrap)                                                                \
+  V(code_integrity)                                                            \
   V(config)                                                                    \
   V(constants)                                                                 \
   V(contextify)                                                                \
