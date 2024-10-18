@@ -984,191 +984,84 @@ following conditions:
    browsers.
 6. The hazards described in the previous section are avoided or minimized.
 
-#### Approach #1: Use an ES module wrapper
+#### Approach: Use Node/Default Conditions
 
-Write the package in CommonJS or transpile ES module sources into CommonJS, and
-create an ES module wrapper file that defines the named exports. Using
-[Conditional exports][], the ES module wrapper is used for `import` and the
-CommonJS entry point for `require`.
+This approach leverages the node and default conditions in the exports field of package.json to provide the appropriate entry points based on the environment.
+
+1. Use the exports field in package.json to define separate entry points for Node.js and other environments. This ensures that Node.js always loads the CommonJS version, while other environments load the ES Module version.
 
 ```json
-// ./node_modules/pkg/package.json
+// package.json
 {
-  "type": "module",
+  "name": "your-package",
+  "version": "1.0.0",
+  "main": "./index.cjs",
   "exports": {
-    "import": "./wrapper.mjs",
-    "require": "./index.cjs"
+    "node": "./index.cjs",
+    "default": "./index.mjs"
   }
 }
 ```
 
-The preceding example uses explicit extensions `.mjs` and `.cjs`.
-If your files use the `.js` extension, `"type": "module"` will cause such files
-to be treated as ES modules, just as `"type": "commonjs"` would cause them
-to be treated as CommonJS.
-See [Enabling](esm.md#enabling).
+2. Write your CommonJS entry point, which will be used by Node.js.
 
 ```cjs
-// ./node_modules/pkg/index.cjs
+// index.cjs
 exports.name = 'value';
 ```
 
+3. Write your ES Module entry point, which will be used by other environments like browsers.
+
+```mjs
+// index.mjs
+export const name = 'value';
+```
+
+4. Ensure that the module is stateless or properly isolates state to avoid issues when both the CommonJS and ES Module versions are used.
+
+Stateless Module:
+If your module does not maintain state, it can be safely used in both environments without additional considerations.
+
+Stateful Module:
+If your module maintains state, ensure that the state is isolated or managed in a way that avoids conflicts between the CommonJS and ES Module versions.
+
+```cjs
+// state.cjs
+const state = {
+  value: 'some state',
+};
+module.exports = state;
+```
+
+```mjs
+// index.mjs
+import state from './state.cjs';
+export { state };
+```
+
+5. When your package is used in Node.js, it will automatically load the CommonJS version.
+
 ```js
-// ./node_modules/pkg/wrapper.mjs
-import cjsModule from './index.cjs';
-export const name = cjsModule.name;
+const { name } = require('your-package');
+console.log(name); // Outputs: value
 ```
 
-In this example, the `name` from `import { name } from 'pkg'` is the same
-singleton as the `name` from `const { name } = require('pkg')`. Therefore `===`
-returns `true` when comparing the two `name`s and the divergent specifier hazard
-is avoided.
-
-If the module is not simply a list of named exports, but rather contains a
-unique function or object export like `module.exports = function () { ... }`,
-or if support in the wrapper for the `import pkg from 'pkg'` pattern is desired,
-then the wrapper would instead be written to export the default optionally
-along with any named exports as well:
+6. When your package is used in ES Module environments like browsers, it will load the ES Module version.
 
 ```js
-import cjsModule from './index.cjs';
-export const name = cjsModule.name;
-export default cjsModule;
+import { name } from 'your-package';
+console.log(name); // Outputs: value
 ```
 
-This approach is appropriate for any of the following use cases:
+#### Benefits of Using Node/Default Conditions
 
-* The package is currently written in CommonJS and the author would prefer not
-  to refactor it into ES module syntax, but wishes to provide named exports for
-  ES module consumers.
-* The package has other packages that depend on it, and the end user might
-  install both this package and those other packages. For example a `utilities`
-  package is used directly in an application, and a `utilities-plus` package
-  adds a few more functions to `utilities`. Because the wrapper exports
-  underlying CommonJS files, it doesn't matter if `utilities-plus` is written in
-  CommonJS or ES module syntax; it will work either way.
-* The package stores internal state, and the package author would prefer not to
-  refactor the package to isolate its state management. See the next section.
+1. Node.js will always load the CommonJS version, avoiding the dual-package hazard.
 
-A variant of this approach not requiring conditional exports for consumers could
-be to add an export, e.g. `"./module"`, to point to an all-ES module-syntax
-version of the package. This could be used via `import 'pkg/module'` by users
-who are certain that the CommonJS version will not be loaded anywhere in the
-application, such as by dependencies; or if the CommonJS version can be loaded
-but doesn't affect the ES module version (for example, because the package is
-stateless):
+2. Bundlers will load the appropriate version based on their configuration, ensuring that either the Node.js version or the default version is loaded, but not both.
 
-```json
-// ./node_modules/pkg/package.json
-{
-  "type": "module",
-  "exports": {
-    ".": "./index.cjs",
-    "./module": "./wrapper.mjs"
-  }
-}
-```
+3. This approach allows for an ES Module-only version to be used in environments that support ESM, leveraging the advantages of ESM syntax without risking the dual-package hazard.
 
-#### Approach #2: Isolate state
-
-A [`package.json`][] file can define the separate CommonJS and ES module entry
-points directly:
-
-```json
-// ./node_modules/pkg/package.json
-{
-  "type": "module",
-  "exports": {
-    "import": "./index.mjs",
-    "require": "./index.cjs"
-  }
-}
-```
-
-This can be done if both the CommonJS and ES module versions of the package are
-equivalent, for example because one is the transpiled output of the other; and
-the package's management of state is carefully isolated (or the package is
-stateless).
-
-The reason that state is an issue is because both the CommonJS and ES module
-versions of the package might get used within an application; for example, the
-user's application code could `import` the ES module version while a dependency
-`require`s the CommonJS version. If that were to occur, two copies of the
-package would be loaded in memory and therefore two separate states would be
-present. This would likely cause hard-to-troubleshoot bugs.
-
-Aside from writing a stateless package (if JavaScript's `Math` were a package,
-for example, it would be stateless as all of its methods are static), there are
-some ways to isolate state so that it's shared between the potentially loaded
-CommonJS and ES module instances of the package:
-
-1. If possible, contain all state within an instantiated object. JavaScript's
-   `Date`, for example, needs to be instantiated to contain state; if it were a
-   package, it would be used like this:
-
-   ```js
-   import Date from 'date';
-   const someDate = new Date();
-   // someDate contains state; Date does not
-   ```
-
-   The `new` keyword isn't required; a package's function can return a new
-   object, or modify a passed-in object, to keep the state external to the
-   package.
-
-2. Isolate the state in one or more CommonJS files that are shared between the
-   CommonJS and ES module versions of the package. For example, if the CommonJS
-   and ES module entry points are `index.cjs` and `index.mjs`, respectively:
-
-   ```cjs
-   // ./node_modules/pkg/index.cjs
-   const state = require('./state.cjs');
-   module.exports.state = state;
-   ```
-
-   ```js
-   // ./node_modules/pkg/index.mjs
-   import state from './state.cjs';
-   export {
-     state,
-   };
-   ```
-
-   Even if `pkg` is used via both `require` and `import` in an application (for
-   example, via `import` in application code and via `require` by a dependency)
-   each reference of `pkg` will contain the same state; and modifying that
-   state from either module system will apply to both.
-
-Any plugins that attach to the package's singleton would need to separately
-attach to both the CommonJS and ES module singletons.
-
-This approach is appropriate for any of the following use cases:
-
-* The package is currently written in ES module syntax and the package author
-  wants that version to be used wherever such syntax is supported.
-* The package is stateless or its state can be isolated without too much
-  difficulty.
-* The package is unlikely to have other public packages that depend on it, or if
-  it does, the package is stateless or has state that need not be shared between
-  dependencies or with the overall application.
-
-Even with isolated state, there is still the cost of possible extra code
-execution between the CommonJS and ES module versions of a package.
-
-As with the previous approach, a variant of this approach not requiring
-conditional exports for consumers could be to add an export, e.g.
-`"./module"`, to point to an all-ES module-syntax version of the package:
-
-```json
-// ./node_modules/pkg/package.json
-{
-  "type": "module",
-  "exports": {
-    ".": "./index.cjs",
-    "./module": "./index.mjs"
-  }
-}
-```
+By following these steps and utilizing the node and default conditions, you can effectively write dual packages that avoid or minimize hazards, ensuring compatibility and proper functionality across different environments.
 
 ## Node.js `package.json` field definitions
 
@@ -1235,7 +1128,7 @@ added: v0.4.0
 ```
 
 The `"main"` field defines the entry point of a package when imported by name
-via a `node_modules` lookup.  Its value is a path.
+via a `node_modules` lookup. Its value is a path.
 
 When a package has an [`"exports"`][] field, this will take precedence over the
 `"main"` field when importing the package by name.
