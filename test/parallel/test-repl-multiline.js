@@ -3,6 +3,7 @@ const common = require('../common');
 const ArrayStream = require('../common/arraystream');
 const assert = require('assert');
 const repl = require('repl');
+const util = require('util');
 const input = ['const foo = {', '};', 'foo'];
 
 function run({ useColors }) {
@@ -25,11 +26,11 @@ function run({ useColors }) {
 
     // Validate the output, which contains terminal escape codes.
     assert.strictEqual(actual.length, 6);
-    assert.ok(actual[0].endsWith(input[0]));
-    assert.ok(actual[1].includes('... '));
-    assert.ok(actual[1].endsWith(input[1]));
-    assert.ok(actual[2].includes('undefined'));
-    assert.ok(actual[3].endsWith(input[2]));
+    assert.ok(util.stripVTControlCharacters(actual[0]).endsWith(input[0]));
+    assert.ok(util.stripVTControlCharacters(actual[1]).includes('... '));
+    assert.ok(util.stripVTControlCharacters(actual[1]).endsWith(input[1]));
+    assert.ok(util.stripVTControlCharacters(actual[2]).includes('undefined'));
+    assert.ok(util.stripVTControlCharacters(actual[3]).endsWith(input[2]));
     assert.strictEqual(actual[4], '{}');
   }));
 
