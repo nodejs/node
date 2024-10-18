@@ -509,9 +509,6 @@
           '-Wl,-bnoerrmsg',
         ],
       }],
-      ['OS=="linux" and clang==1', {
-        'libraries': ['-latomic'],
-      }],
     ],
   },
 
