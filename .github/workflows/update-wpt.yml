@@ -14,6 +14,9 @@ on:
 permissions:
   contents: read
 
+env:
+  NODE_VERSION: lts/*
+
 jobs:
   wpt-subsystem-update:
     if: github.repository == 'nodejs/node' || github.event_name == 'workflow_dispatch'
@@ -28,17 +31,25 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install @node-core/utils
-        run: |
-          npm install -g @node-core/utils
+      - name: Install Node.js
+        uses: actions/setup-node@1e60f620b9541d16bece96c5465dc8ee9832be0b  # v4.0.3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
 
-      - name: Configure ncu
+      - name: Install @node-core/utils
+        run: npm install -g @node-core/utils
+
+      - name: Setup @node-core/utils
         run: |
           ncu-config set username "$USERNAME"
           ncu-config set token "$GH_TOKEN"
+          ncu-config set jenkins_token "$JENKINS_TOKEN"
+          ncu-config set owner "${{ github.repository_owner }}"
+          ncu-config set repo "$(echo ${{ github.repository }} | cut -d/ -f2)"
         env:
           USERNAME: ${{ secrets.JENKINS_USER }}
           GH_TOKEN: ${{ secrets.GH_USER_TOKEN }}
+          JENKINS_TOKEN: ${{ secrets.JENKINS_TOKEN }}
 
       - name: Update WPT for subsystem ${{ matrix.subsystem }}
         run: |
@@ -49,29 +60,15 @@ jobs:
           new_version=$(jq -r '.${{ matrix.subsystem }}.commit' test/fixtures/wpt/versions.json)
           echo "new_version=$new_version" >> $GITHUB_ENV
 
-      - name: Handle changes
-        run: |
-          if [[ "$(git status --porcelain)" != "" ]]; then
-            git config --global user.name "${{ github.actor }}[bot]"
-            git config --global user.email "${{ github.actor }}@users.noreply.github.com"
-            git checkout -b actions/update-wpt-${{ matrix.subsystem }}
-            git add .
-            git commit -m "test: update WPT for ${{ matrix.subsystem }} to ${{ env.new_version }}"
-            gh auth setup-git
-            git push origin actions/update-wpt-${{ matrix.subsystem }} -fu --no-verify
-            echo "createPR=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "No changes to commit."
-          fi
-        env:
-          GH_TOKEN: ${{ secrets.GH_USER_TOKEN }}
-
       - name: Open or update PR for the subsystem update
-        if: steps.push-changes.outputs.createPR
         uses: gr2m/create-or-update-pull-request-action@86ec1766034c8173518f61d2075cc2a173fb8c97
         with:
           branch: actions/update-wpt-${{ matrix.subsystem }}
+          author: Node.js GitHub Bot <github-bot@iojs.org>
           title: 'test: update WPT for ${{ matrix.subsystem }} to ${{ env.new_version }}'
+          commit-message: 'test: update WPT for ${{ matrix.subsystem }} to ${{ env.new_version }}'
+          labels: test
+          update-pull-request-title-and-body: true
           body: |
             This is an automated update of the WPT for ${{ matrix.subsystem }} to ${{ env.new_version }}.
         env:
