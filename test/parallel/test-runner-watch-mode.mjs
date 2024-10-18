@@ -1,4 +1,3 @@
-// Flags: --expose-internals
 import * as common from '../common/index.mjs';
 import { describe, it, beforeEach } from 'node:test';
 import { once } from 'node:events';
@@ -6,7 +5,6 @@ import assert from 'node:assert';
 import { spawn } from 'node:child_process';
 import { writeFileSync, renameSync, unlinkSync } from 'node:fs';
 import { setTimeout } from 'node:timers/promises';
-import util from 'internal/util';
 import tmpdir from '../common/tmpdir.js';
 
 if (common.isIBMi)
@@ -45,8 +43,8 @@ async function testWatch({
   fileToCreate,
   isolation,
 }) {
-  const ran1 = util.createDeferredPromise();
-  const ran2 = util.createDeferredPromise();
+  const ran1 = Promise.withResolvers();
+  const ran2 = Promise.withResolvers();
   const child = spawn(process.execPath,
                       ['--watch', '--test', '--test-reporter=spec',
                        isolation ? `--experimental-test-isolation=${isolation}` : '',
