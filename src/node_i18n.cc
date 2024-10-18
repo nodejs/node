@@ -69,6 +69,8 @@
 #include "nbytes.h"
 
 #ifdef NODE_HAVE_SMALL_ICU
+#include <unicode/udata.h>
+
 /* if this is defined, we have a 'secondary' entry point.
    compare following to utypes.h defs for U_ICUDATA_ENTRY_POINT */
 #define SMALL_ICUDATA_ENTRY_POINT \
