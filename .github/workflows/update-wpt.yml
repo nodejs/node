@@ -1,0 +1,78 @@
+name: WPT update
+
+on:
+  schedule:
+    # Run once a week at 12:00 AM UTC on Sunday.
+    - cron: 0 0 * * *
+  workflow_dispatch:
+    inputs:
+      subsystems:
+        description: Subsystem to run the update for
+        required: false
+        default: '["url"]'
+
+permissions:
+  contents: read
+
+jobs:
+  wpt-subsystem-update:
+    if: github.repository == 'nodejs/node' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        subsystem: ${{ fromJSON(github.event.inputs.subsystems || '["url"]') }}
+
+    steps:
+      - uses: actions/checkout@6d193bf28034eafb982f37bd894289fe649468fc  # v4.1.7
+        with:
+          persist-credentials: false
+
+      - name: Install @node-core/utils
+        run: |
+          npm install -g @node-core/utils
+
+      - name: Configure ncu
+        run: |
+          ncu-config set username "$USERNAME"
+          ncu-config set token "$GH_TOKEN"
+        env:
+          USERNAME: ${{ secrets.JENKINS_USER }}
+          GH_TOKEN: ${{ secrets.GH_USER_TOKEN }}
+
+      - name: Update WPT for subsystem ${{ matrix.subsystem }}
+        run: |
+          git node wpt ${{ matrix.subsystem }}
+
+      - name: Calculate new version for WPT using jq
+        run: |
+          new_version=$(jq -r '.${{ matrix.subsystem }}.commit' test/fixtures/wpt/versions.json)
+          echo "new_version=$new_version" >> $GITHUB_ENV
+
+      - name: Handle changes
+        run: |
+          if [[ "$(git status --porcelain)" != "" ]]; then
+            git config --global user.name "${{ github.actor }}[bot]"
+            git config --global user.email "${{ github.actor }}@users.noreply.github.com"
+            git checkout -b actions/update-wpt-${{ matrix.subsystem }}
+            git add .
+            git commit -m "test: update WPT for ${{ matrix.subsystem }} to ${{ env.new_version }}"
+            gh auth setup-git
+            git push origin actions/update-wpt-${{ matrix.subsystem }} -fu --no-verify
+            echo "createPR=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No changes to commit."
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GH_USER_TOKEN }}
+
+      - name: Open or update PR for the subsystem update
+        if: steps.push-changes.outputs.createPR
+        uses: gr2m/create-or-update-pull-request-action@86ec1766034c8173518f61d2075cc2a173fb8c97
+        with:
+          branch: actions/update-wpt-${{ matrix.subsystem }}
+          title: 'test: update WPT for ${{ matrix.subsystem }} to ${{ env.new_version }}'
+          body: |
+            This is an automated update of the WPT for ${{ matrix.subsystem }} to ${{ env.new_version }}.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
