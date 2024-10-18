@@ -47,7 +47,7 @@ if (format === 'csv') {
   console.log('"filename", "configuration", "rate", "time"');
 }
 
-async function runBenchmark(filename) {
+function runBenchmark(filename) {
   const scriptPath = path.resolve(__dirname, filename);
 
   const args = cli.test ? ['--test'] : cli.optional.set;
