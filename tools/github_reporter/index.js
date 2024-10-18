@@ -19304,6 +19304,7 @@ var require_stack_utils = __commonJS({
 });
 
 // node_modules/@reporters/github/index.js
+var { fileURLToPath } = require("node:url");
 var path = require("node:path");
 var util = require("node:util");
 var { EOL } = require("node:os");
@@ -19312,10 +19313,13 @@ var StackUtils = require_stack_utils();
 var WORKSPACE = process.env.GITHUB_WORKSPACE ?? "";
 var stack = new StackUtils({ cwd: WORKSPACE, internals: StackUtils.nodeInternals() });
 var isFile = (name) => name?.startsWith(WORKSPACE);
-var getRelativeFilePath = (name) => isFile(name) ? path.relative(WORKSPACE, require.resolve(name) ?? "") : null;
+var getRelativeFilePath = (name) => isFile(name) ? path.relative(WORKSPACE, name) : null;
 function getFilePath(fileName) {
   if (fileName.startsWith("file://")) {
-    return getRelativeFilePath(new URL(fileName).pathname);
+    return getRelativeFilePath(fileURLToPath(fileName));
+  }
+  if (!path.isAbsolute(fileName)) {
+    return getRelativeFilePath(path.resolve(fileName) ?? "");
   }
   return getRelativeFilePath(fileName);
 }
