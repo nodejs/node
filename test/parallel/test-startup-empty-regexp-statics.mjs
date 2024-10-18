@@ -1,7 +1,7 @@
 // We must load the CJS version here because the ESM wrapper call `hasIPv6`
 // which compiles a RegEx.
 // eslint-disable-next-line node-core/require-common-first
-import '../common/index.js';
+import common from '../common/index.js';
 import assert from 'node:assert';
 
 if (!common.isInsideDirWithUnusualChars) {
