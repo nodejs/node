@@ -618,6 +618,12 @@ test('Handle different error messages', () => {
   assertNotDeepOrStrict(err1, {}, AssertionError);
 });
 
+test.only('Handle error causes', () => {
+  // This should fail as in assert.notEqual(1, 1) (?)
+  assert.notEqual(new Error("a"), new Error("b", { cause: new Error("y") }));
+  assert.deepStrictEqual(new Error("a"), new Error("a", { cause: new Error("y") }))
+});
+
 test('Handle NaN', () => {
   assertDeepAndStrictEqual(NaN, NaN);
   assertDeepAndStrictEqual({ a: NaN }, { a: NaN });
