@@ -1808,12 +1808,6 @@ def configure_intl(o):
     attemptdownload = nodedownload.candownload(auto_downloads, "icu")
     for icu in icus:
       url = icu['url']
-      (expectHash, hashAlgo, allAlgos) = nodedownload.findHash(icu)
-      if not expectHash:
-        error(f'''Could not find a hash to verify ICU download.
-          {depFile} may be incorrect.
-          For the entry {url},
-          Expected one of these keys: {' '.join(allAlgos)}''')
       local = url.split('/')[-1]
       targetfile = Path(options.download_path, local)
       if not targetfile.is_file():
@@ -1822,14 +1816,42 @@ def configure_intl(o):
       else:
         print(f'Re-using existing {targetfile}')
       if targetfile.is_file():
-        print(f'Checking file integrity with {hashAlgo}:\r')
-        gotHash = nodedownload.checkHash(targetfile, hashAlgo)
-        print(f'{hashAlgo}:      {gotHash}  {targetfile}')
-        if expectHash == gotHash:
-          return targetfile
+        if "gpg" not in icu and "md5" not in icu:
+          warn(f'No GPG or MD5 hash provided for {url}')
+          return None
 
-        warn(f'Expected: {expectHash}      *MISMATCH*')
-        warn(f'\n ** Corrupted ZIP? Delete {targetfile} to retry download.\n')
+        if "gpg" in icu and nodedownload.is_gpg_available():
+          key_url = icu['gpg']["key"]
+          sig_url = icu['gpg']["asc"]
+          try:
+            print('Checking GPG signature:\r')
+            nodedownload.checkGPG(targetfile, key_url, sig_url)
+          except Exception as e:
+            warn(e)
+            return None
+        elif not nodedownload.is_gpg_available():
+          warn('GPG is not available, skipping GPG signature check.')
+        else:
+          warn('No GPG signature to verify.')
+
+        if "md5" in icu:
+          (expectHash, hashAlgo, allAlgos) = nodedownload.findHash(icu)
+          if not expectHash:
+            error(f'''Could not find a hash to verify ICU download.
+              {depFile} may be incorrect.
+              For the entry {url},
+              Expected one of these keys: {' '.join(allAlgos)}''')
+          print(f'Checking file integrity with {hashAlgo}:\r')
+          gotHash = nodedownload.checkHash(targetfile, hashAlgo)
+          print(f'{hashAlgo}:      {gotHash}  {targetfile}')
+          if expectHash != gotHash:
+            warn(f'Expected: {expectHash}      *MISMATCH*')
+            warn(f'\n ** Corrupted ZIP? Delete {targetfile} to retry download.\n')
+            return None
+        else:
+          warn('No MD5 hash to verify.')
+
+        return targetfile
     return None
   icu_config = {
     'variables': {}
