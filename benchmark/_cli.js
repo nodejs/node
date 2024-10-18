@@ -24,6 +24,7 @@ function CLI(usage, settings) {
   this.optional = {};
   this.items = [];
   this.test = false;
+  this.coverage = false;
 
   for (const argName of settings.arrayArgs) {
     this.optional[argName] = [];
@@ -66,6 +67,14 @@ function CLI(usage, settings) {
       mode = 'both';
     } else if (arg === 'test') {
       this.test = true;
+    } else if (arg === 'coverage') {
+      this.coverage = true;
+      // TODO: add support to those benchmarks
+      const excludedBenchmarks = ['napi', 'http'];
+      this.items = Object.keys(benchmarks)
+        .filter((b) => !excludedBenchmarks.includes(b));
+      // Run once
+      this.optional.set = ['n=1'];
     } else if (['both', 'item'].includes(mode)) {
       // item arguments
       this.items.push(arg);
@@ -140,8 +149,8 @@ CLI.prototype.getCpuCoreSetting = function() {
   const isValid = /^(\d+(-\d+)?)(,\d+(-\d+)?)*$/.test(value);
   if (!isValid) {
     throw new Error(`
-        Invalid CPUSET format: "${value}". Please use a single core number (e.g., "0"), 
-        a range of cores (e.g., "0-3"), or a list of cores/ranges 
+        Invalid CPUSET format: "${value}". Please use a single core number (e.g., "0"),
+        a range of cores (e.g., "0-3"), or a list of cores/ranges
         (e.g., "0,2,4" or "0-2,4").\n\n${this.usage}
     `);
   }
