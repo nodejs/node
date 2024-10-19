@@ -171,7 +171,7 @@ const buildType = process.config.target_defaults ?
 
 // If env var is set then enable async_hook hooks for all tests.
 if (process.env.NODE_TEST_WITH_ASYNC_HOOKS) {
-  const destroydIdsList = {};
+  const destroyedIdsList = {};
   const destroyListList = {};
   const initHandles = {};
   const { internalBinding } = require('internal/test/binding');
@@ -210,12 +210,12 @@ if (process.env.NODE_TEST_WITH_ASYNC_HOOKS) {
     before() { },
     after() { },
     destroy(id) {
-      if (destroydIdsList[id] !== undefined) {
-        process._rawDebug(destroydIdsList[id]);
+      if (destroyedIdsList[id] !== undefined) {
+        process._rawDebug(destroyedIdsList[id]);
         process._rawDebug();
         throw new Error(`destroy called for same id (${id})`);
       }
-      destroydIdsList[id] = inspect(new Error());
+      destroyedIdsList[id] = inspect(new Error());
     },
   }).enable();
 }
