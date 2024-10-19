@@ -965,10 +965,9 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
   size_t result = haystack_length;
 
   if (enc == UCS2) {
-    uint16_t* needle_buffer = new uint16_t[needle->Length()];
-    int needle_length = needle->Write(isolate, needle_buffer);
+    TwoByteValue needle_buffer(isolate, needle);
 
-    if (haystack_length < 2 || needle_length < 1) {
+    if (haystack_length < 2 || needle_buffer.length()) {
       return args.GetReturnValue().Set(-1);
     }
 
@@ -990,8 +989,8 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
     } else {
       result = nbytes::SearchString(reinterpret_cast<const uint16_t*>(haystack),
                                     haystack_length / 2,
-                                    needle_buffer,
-                                    needle_length,
+                                    needle_buffer.out(),
+                                    needle_buffer.length(),
                                     offset / 2,
                                     is_forward);
     }
