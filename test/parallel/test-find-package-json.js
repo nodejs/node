@@ -14,12 +14,12 @@ describe('findPackageJSON', () => { // Throws when no arguments are provided
   it('should throw when no arguments are provided', () => {
     assert.throws(
       () => findPackageJSON(),
-      { code: 'ERR_INVALID_ARG_TYPE' }
+      { code: 'ERR_MISSING_ARGS' }
     );
   });
 
   it('should throw when parentLocation is invalid', () => {
-    for (const invalid of [null, undefined, {}, [], Symbol(), () => {}, true, false, 1, 0]) {
+    for (const invalid of [null, {}, [], Symbol(), () => {}, true, false, 1, 0]) {
       assert.throws(
         () => findPackageJSON('', invalid),
         { code: 'ERR_INVALID_ARG_TYPE' },
@@ -83,8 +83,8 @@ describe('findPackageJSON', () => { // Throws when no arguments are provided
       const readPJSON = (locus) => JSON.parse(fs.readFileSync(locus, 'utf8'));
 
       const { secretNumberPkgRoot } = readPJSON(findPackageJSON('pkg', import.meta.url));
-      const { secretNumberSubfolder } = readPJSON(findPackageJSON('pkg', import.meta.url, false));
-      const { secretNumberSubfolder2 } = readPJSON(findPackageJSON('pkg2', import.meta.url, false));
+      const { secretNumberSubfolder } = readPJSON(findPackageJSON(import.meta.resolve('pkg')));
+      const { secretNumberSubfolder2 } = readPJSON(findPackageJSON(import.meta.resolve('pkg2')));
       const { secretNumberPkg2 } = readPJSON(findPackageJSON('pkg2', import.meta.url));
 
       console.log(secretNumberPkgRoot, secretNumberSubfolder, secretNumberSubfolder2, secretNumberPkg2);
