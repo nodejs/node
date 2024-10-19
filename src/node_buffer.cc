@@ -967,7 +967,7 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
   if (enc == UCS2) {
     TwoByteValue needle_buffer(isolate, needle);
 
-    if (haystack_length < 2 || needle_buffer.length()) {
+    if (haystack_length < 2 || needle_buffer.length() < 1) {
       return args.GetReturnValue().Set(-1);
     }
 
