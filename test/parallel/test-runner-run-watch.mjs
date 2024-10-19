@@ -1,11 +1,9 @@
-// Flags: --expose-internals
 import * as common from '../common/index.mjs';
 import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { writeFileSync, renameSync, unlinkSync, existsSync } from 'node:fs';
-import util from 'internal/util';
 import tmpdir from '../common/tmpdir.js';
 import { join } from 'node:path';
 
@@ -42,8 +40,8 @@ function refresh() {
 const runner = join(import.meta.dirname, '..', 'fixtures', 'test-runner-watch.mjs');
 
 async function testWatch({ fileToUpdate, file, action = 'update', cwd = tmpdir.path, fileToCreate }) {
-  const ran1 = util.createDeferredPromise();
-  const ran2 = util.createDeferredPromise();
+  const ran1 = Promise.withResolvers();
+  const ran2 = Promise.withResolvers();
   const args = [runner];
   if (file) args.push('--file', file);
   const child = spawn(process.execPath,
