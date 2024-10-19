@@ -67,7 +67,7 @@ const assert = require('assert');
         port: server.address().port,
         method: 'GET'
       })
-      .on('response', common.mustCall(res => {
+      .on('response', common.mustCall((res) => {
         res.resume().on('end', common.mustCall(() => {
           server.close();
         }));
