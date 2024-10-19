@@ -2362,7 +2362,7 @@ util.types.isBigInt64Array(new BigUint64Array());  // Returns false
 ### `util.types.isBigIntObject(value)`
 
 <!-- YAML
-added: v22.9.0
+added: v10.4.0
 -->
 
 * `value` {any}
