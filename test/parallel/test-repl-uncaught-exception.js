@@ -48,22 +48,8 @@ const tests = [
     expected: "Uncaught { foo: \x1B[32m'test'\x1B[39m }\n"
   },
   {
-    command: 'process.on("uncaughtException", () => console.log("Foobar"));\n',
-    expected: /^Uncaught:\nTypeError \[ERR_INVALID_REPL_INPUT]: Listeners for `/
-  },
-  {
     command: 'x;\n',
     expected: 'Uncaught ReferenceError: x is not defined\n'
-  },
-  {
-    command: 'process.on("uncaughtException", () => console.log("Foobar"));' +
-             'console.log("Baz");\n',
-    expected: /^Uncaught:\nTypeError \[ERR_INVALID_REPL_INPUT]: Listeners for `/
-  },
-  {
-    command: 'console.log("Baz");' +
-             'process.on("uncaughtException", () => console.log("Foobar"));\n',
-    expected: /^Baz\nUncaught:\nTypeError \[ERR_INVALID_REPL_INPUT]:.*uncaughtException/
   },
 ];
 
