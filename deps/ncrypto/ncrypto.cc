@@ -5,6 +5,7 @@
 #include <openssl/bn.h>
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
+#include <openssl/rand.h>
 #include <openssl/pkcs12.h>
 #include <openssl/x509v3.h>
 #if OPENSSL_VERSION_MAJOR >= 3
