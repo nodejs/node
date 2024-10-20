@@ -3076,6 +3076,10 @@ one is included in the list below.
 * `--force-fips`
 * `--force-node-api-uncaught-exceptions-policy`
 * `--frozen-intrinsics`
+* `--heap-prof-dir`
+* `--heap-prof-interval`
+* `--heap-prof-name`
+* `--heap-prof`
 * `--heapsnapshot-near-heap-limit`
 * `--heapsnapshot-signal`
 * `--http-parser`
