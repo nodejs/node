@@ -207,7 +207,7 @@ const tests = [
     name: 'test-runner/output/non-tty-forced-color-output.js',
     transform: specTransform,
   },
-  !skipForceColors ? {
+  canColorize ? {
     name: 'test-runner/output/assertion-color-tty.mjs',
     flags: ['--test', '--stack-trace-limit=0'],
     transform: specTransform,
