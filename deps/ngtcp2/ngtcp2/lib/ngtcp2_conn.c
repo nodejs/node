@@ -2187,6 +2187,8 @@ static uint8_t conn_pkt_flags_short(ngtcp2_conn *conn) {
                                              : NGTCP2_PKT_FLAG_NONE));
 }
 
+static size_t conn_min_pktlen(ngtcp2_conn *conn);
+
 /*
  * conn_write_handshake_pkt writes handshake packet in the buffer
  * pointed by |dest| whose length is |destlen|.  |dgram_offset| is the
@@ -2224,6 +2226,7 @@ conn_write_handshake_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest,
   uint16_t rtb_entry_flags = NGTCP2_RTB_ENTRY_FLAG_NONE;
   int require_padding = (flags & NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING) != 0;
   int pkt_empty = 1;
+  int min_padded = 0;
   int padded = 0;
   int hd_logged = 0;
   uint64_t crypto_offset;
@@ -2407,6 +2410,7 @@ conn_write_handshake_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest,
           } else {
             rtb_entry_flags |= NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING;
             pktns->tx.non_ack_pkt_start_ts = UINT64_MAX;
+            pkt_empty = 0;
           }
         } else if (pktns->tx.non_ack_pkt_start_ts == UINT64_MAX) {
           pktns->tx.non_ack_pkt_start_ts = ts;
@@ -2433,11 +2437,15 @@ conn_write_handshake_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest,
     return 0;
   } else {
     lfr.type = NGTCP2_FRAME_PADDING;
-    lfr.padding.len = ngtcp2_ppe_padding_hp_sample(&ppe);
+    lfr.padding.len = ngtcp2_ppe_padding_size(&ppe, conn_min_pktlen(conn));
+    min_padded = 1;
   }
 
   if (lfr.padding.len) {
-    padded = 1;
+    if (!min_padded ||
+        (rtb_entry_flags & NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING)) {
+      padded = 1;
+    }
     ngtcp2_log_tx_fr(&conn->log, &hd, &lfr);
     ngtcp2_qlog_write_frame(&conn->qlog, &lfr);
   }
@@ -3081,12 +3089,12 @@ static int conn_remove_retired_connection_id(ngtcp2_conn *conn,
 }
 
 /*
- * conn_min_short_pktlen returns the minimum length of Short packet
- * this endpoint sends.
+ * conn_min_pktlen returns the minimum length of packet this endpoint
+ * sends.  It may underestimate the length because this does not take
+ * into account header protection sample.
  */
-static size_t conn_min_short_pktlen(ngtcp2_conn *conn) {
-  return ngtcp2_max_size(conn->dcid.current.cid.datalen, conn->oscid.datalen) +
-         NGTCP2_MIN_PKT_EXPANDLEN;
+static size_t conn_min_pktlen(ngtcp2_conn *conn) {
+  return conn->oscid.datalen + NGTCP2_MIN_PKT_EXPANDLEN;
 }
 
 /*
@@ -3203,7 +3211,8 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
   int require_padding = (flags & NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING) != 0;
   int write_more = (flags & NGTCP2_WRITE_PKT_FLAG_MORE) != 0;
   int ppe_pending = (conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING) != 0;
-  size_t min_pktlen = conn_min_short_pktlen(conn);
+  size_t min_pktlen = conn_min_pktlen(conn);
+  int min_padded = 0;
   int padded = 0;
   ngtcp2_cc_pkt cc_pkt;
   uint64_t crypto_offset;
@@ -4151,6 +4160,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
           rtb_entry_flags |= NGTCP2_RTB_ENTRY_FLAG_PTO_ELICITING;
         }
         pktns->tx.non_ack_pkt_start_ts = UINT64_MAX;
+        pkt_empty = 0;
       }
     } else if (pktns->tx.non_ack_pkt_start_ts == UINT64_MAX) {
       pktns->tx.non_ack_pkt_start_ts = ts;
@@ -4163,15 +4173,17 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
      before ngtcp2_rtb_entry is safely created and added. */
   if (require_padding) {
     lfr.padding.len = ngtcp2_ppe_dgram_padding(ppe);
-  } else if (type == NGTCP2_PKT_1RTT) {
-    lfr.padding.len = ngtcp2_ppe_padding_size(ppe, min_pktlen);
   } else {
-    lfr.padding.len = ngtcp2_ppe_padding_hp_sample(ppe);
+    lfr.padding.len = ngtcp2_ppe_padding_size(ppe, min_pktlen);
+    min_padded = 1;
   }
 
   if (lfr.padding.len) {
+    if (!min_padded ||
+        (rtb_entry_flags & NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING)) {
+      padded = 1;
+    }
     lfr.type = NGTCP2_FRAME_PADDING;
-    padded = 1;
     ngtcp2_log_tx_fr(&conn->log, hd, &lfr);
     ngtcp2_qlog_write_frame(&conn->qlog, &lfr);
   }
@@ -4362,12 +4374,7 @@ ngtcp2_ssize ngtcp2_conn_write_single_frame_pkt(
       }
       break;
     default:
-      if (type == NGTCP2_PKT_1RTT) {
-        lfr.padding.len =
-          ngtcp2_ppe_padding_size(&ppe, conn_min_short_pktlen(conn));
-      } else {
-        lfr.padding.len = ngtcp2_ppe_padding_hp_sample(&ppe);
-      }
+      lfr.padding.len = ngtcp2_ppe_padding_size(&ppe, conn_min_pktlen(conn));
     }
   }
   if (lfr.padding.len) {
@@ -4397,6 +4404,12 @@ ngtcp2_ssize ngtcp2_conn_write_single_frame_pkt(
       conn_handle_unconfirmed_key_update_from_remote(conn, fr->ack.largest_ack,
                                                      ts);
     }
+
+    if (!(flags & (NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING_FULL |
+                   NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING))) {
+      padded = 0;
+    }
+
     break;
   }
 

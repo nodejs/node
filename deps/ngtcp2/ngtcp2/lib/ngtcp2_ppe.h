@@ -138,22 +138,16 @@ size_t ngtcp2_ppe_dgram_padding(ngtcp2_ppe *ppe);
 size_t ngtcp2_ppe_dgram_padding_size(ngtcp2_ppe *ppe, size_t n);
 
 /*
- * ngtcp2_ppe_padding_hp_sample adds PADDING frame if the current
- * payload does not have enough space for header protection sample.
- * This function should be called just before calling
- * ngtcp2_ppe_final().
- *
- * This function returns the number of bytes added as padding.
- */
-size_t ngtcp2_ppe_padding_hp_sample(ngtcp2_ppe *ppe);
-
-/*
  * ngtcp2_ppe_padding_size adds PADDING frame so that the size of QUIC
- * packet is at least |n| bytes long.  If it is unable to add PADDING
- * in that way, this function still adds PADDING frame as much as
- * possible.  This function should be called just before calling
- * ngtcp2_ppe_final().  For Short packet, this function should be
- * called instead of ngtcp2_ppe_padding_hp_sample.
+ * packet is at least |n| bytes long and the current payload has
+ * enough space for header protection sample.  If it is unable to add
+ * PADDING at least |n| bytes, this function still adds PADDING frames
+ * as much as possible.  This function also adds PADDING frames so
+ * that the minimum padding requirement of header protection is met.
+ * Those padding may be larger than |n| bytes.  It is recommended to
+ * make sure that ngtcp2_ppe_ensure_hp_sample succeeds after writing
+ * QUIC packet header.  This function should be called just before
+ * calling ngtcp2_ppe_final().
  *
  * This function returns the number of bytes added as padding.
  */

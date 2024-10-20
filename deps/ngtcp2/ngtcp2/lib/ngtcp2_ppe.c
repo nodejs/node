@@ -186,39 +186,51 @@ size_t ngtcp2_ppe_pktlen(const ngtcp2_ppe *ppe) {
   return ngtcp2_buf_len(&ppe->buf) + cc->aead.max_overhead;
 }
 
-size_t ngtcp2_ppe_padding_hp_sample(ngtcp2_ppe *ppe) {
-  ngtcp2_crypto_cc *cc = ppe->cc;
-  ngtcp2_buf *buf = &ppe->buf;
-  size_t max_samplelen;
-  size_t len = 0;
-
-  assert(cc->aead.max_overhead);
-
-  max_samplelen =
-    ngtcp2_buf_len(buf) + cc->aead.max_overhead - ppe_sample_offset(ppe);
-  if (max_samplelen < NGTCP2_HP_SAMPLELEN) {
-    len = NGTCP2_HP_SAMPLELEN - max_samplelen;
-    assert(ngtcp2_ppe_left(ppe) >= len);
-    memset(buf->last, 0, len);
-    buf->last += len;
-  }
-
-  return len;
-}
-
 size_t ngtcp2_ppe_padding_size(ngtcp2_ppe *ppe, size_t n) {
   ngtcp2_crypto_cc *cc = ppe->cc;
   ngtcp2_buf *buf = &ppe->buf;
   size_t pktlen = ngtcp2_buf_len(buf) + cc->aead.max_overhead;
-  size_t len;
+  size_t len = 0;
+  size_t max_samplelen;
 
   n = ngtcp2_min_size(n, ngtcp2_buf_cap(buf));
+  if (pktlen < n) {
+    len = n - pktlen;
+  }
 
-  if (pktlen >= n) {
+  /* Ensure header protection sample */
+  max_samplelen =
+    ngtcp2_buf_len(buf) + cc->aead.max_overhead - ppe_sample_offset(ppe);
+
+  if (max_samplelen < NGTCP2_HP_SAMPLELEN) {
+    len = ngtcp2_max_size(len, NGTCP2_HP_SAMPLELEN - max_samplelen);
+  }
+
+  assert(ngtcp2_buf_left(buf) >= len + cc->aead.max_overhead);
+
+  buf->last = ngtcp2_setmem(buf->last, 0, len);
+
+  return len;
+}
+
+size_t ngtcp2_ppe_dgram_padding(ngtcp2_ppe *ppe) {
+  return ngtcp2_ppe_dgram_padding_size(ppe, NGTCP2_MAX_UDP_PAYLOAD_SIZE);
+}
+
+size_t ngtcp2_ppe_dgram_padding_size(ngtcp2_ppe *ppe, size_t n) {
+  ngtcp2_crypto_cc *cc = ppe->cc;
+  ngtcp2_buf *buf = &ppe->buf;
+  size_t dgramlen =
+    ppe->dgram_offset + ngtcp2_buf_len(buf) + cc->aead.max_overhead;
+  size_t len;
+
+  n = ngtcp2_min_size(n, ppe->dgram_offset + ngtcp2_buf_cap(buf));
+
+  if (dgramlen >= n) {
     return 0;
   }
 
-  len = n - pktlen;
+  len = n - dgramlen;
   buf->last = ngtcp2_setmem(buf->last, 0, len);
 
   return len;
