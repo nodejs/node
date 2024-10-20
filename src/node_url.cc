@@ -75,6 +75,73 @@ void BindingData::Deserialize(v8::Local<v8::Context> context,
   CHECK_NOT_NULL(binding);
 }
 
+std::string EncodePathChars(const std::string &input_str, bool windows) {
+  std::ostringstream encoded;
+  encoded << "file://";
+  for (char i : input_str) {
+        switch (i) {
+          #define URL_ENCODE(char, code) \
+            case char: \
+              encoded << code;\
+              break; \
+
+            URL_ENCODE('%', "%25");
+            URL_ENCODE('\t', "%09");
+            URL_ENCODE('\n', "%0A");
+            URL_ENCODE('\r', "%0D");
+            URL_ENCODE(' ', "%20");
+            URL_ENCODE('"', "%22");
+            URL_ENCODE('#', "%23");
+            URL_ENCODE('?', "%3F");
+            URL_ENCODE('[', "%5B");
+            URL_ENCODE(']', "%5D");
+            URL_ENCODE('^', "%5E");
+            URL_ENCODE('|', "%7C");
+            URL_ENCODE('~', "%7E");
+          #undef URL_ENCODE
+
+            case '\\':
+              if (!windows) {
+                encoded << "%5C";
+                break;
+              }
+            // fallthrough
+            default:
+                encoded << i; // Append the character as is
+                break;
+        }
+    }
+
+    return encoded.str();
+}
+
+void BindingData::PathToFileURL(const FunctionCallbackInfo<Value>& args) {
+  CHECK_GE(args.Length(), 2);  // input
+  CHECK(args[0]->IsString());
+  CHECK(args[1]->IsBoolean());
+
+  Realm* realm = Realm::GetCurrent(args);
+  BindingData* binding_data = realm->GetBindingData<BindingData>();
+  Isolate* isolate = realm->isolate();
+  std::optional<std::string> base_{};
+  auto windows = args[1]->IsTrue();
+
+  Utf8Value input(isolate, args[0]);
+  auto input_str = input.ToString();
+
+  auto out =
+      ada::parse<ada::url_aggregator>(EncodePathChars(input_str, windows), nullptr);
+
+  if (!out) {
+    return ThrowInvalidURL(realm->env(), input.ToStringView(), base_);
+  }
+
+  binding_data->UpdateComponents(out->get_components(), out->type);
+
+  args.GetReturnValue().Set(
+      ToV8Value(realm->context(), out->get_href(), isolate).ToLocalChecked());
+}
+
 void BindingData::DomainToASCII(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK_GE(args.Length(), 1);  // input
@@ -371,6 +438,7 @@ void BindingData::CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethodNoSideEffect(isolate, target, "format", Format);
   SetMethodNoSideEffect(isolate, target, "getOrigin", GetOrigin);
   SetMethod(isolate, target, "parse", Parse);
+  SetMethod(isolate, target, "pathToFileURL", PathToFileURL);
   SetMethod(isolate, target, "update", Update);
   SetFastMethodNoSideEffect(
       isolate, target, "canParse", CanParse, {fast_can_parse_methods_, 2});
