@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.18.3](https://github.com/nodejs/gyp-next/compare/v0.18.2...v0.18.3) (2024-10-08)
+
+
+### Bug Fixes
+
+* enable pch for clang on windows ([#268](https://github.com/nodejs/gyp-next/issues/268)) ([cc5838c](https://github.com/nodejs/gyp-next/commit/cc5838c4e9260bf459d71de53fbb2eebd1a6f508))
+
 ## [0.18.2](https://github.com/nodejs/gyp-next/compare/v0.18.1...v0.18.2) (2024-09-23)
 
 
