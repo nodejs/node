@@ -2,7 +2,7 @@ dnl Copyright (C) The c-ares project and its contributors
 dnl SPDX-License-Identifier: MIT
 AC_PREREQ([2.69])
 
-AC_INIT([c-ares], [1.34.1],
+AC_INIT([c-ares], [1.34.2],
   [c-ares mailing list: http://lists.haxx.se/listinfo/c-ares])
 
 CARES_VERSION_INFO="21:1:19"
