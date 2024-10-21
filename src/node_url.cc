@@ -75,26 +75,25 @@ void BindingData::Deserialize(v8::Local<v8::Context> context,
   CHECK_NOT_NULL(binding);
 }
 
-const std::unordered_map<char, std::string> lookup_table = {
-    {'%', "%25"},
-    {'\t', "%09"},
-    {'\n', "%0A"},
-    {'\r', "%0D"},
-    {' ', "%20"},
-    {'"', "%22"},
-    {'#', "%23"},
-    {'?', "%3F"},
-    {'[', "%5B"},
-    {'\\', "%5C"},
-    {']', "%5D"},
-    {'^', "%5E"},
-    {'|', "%7C"},
-    {'~', "%7E"}
-};
+const std::unordered_map<char, std::string> lookup_table = {{'%', "%25"},
+                                                            {'\t', "%09"},
+                                                            {'\n', "%0A"},
+                                                            {'\r', "%0D"},
+                                                            {' ', "%20"},
+                                                            {'"', "%22"},
+                                                            {'#', "%23"},
+                                                            {'?', "%3F"},
+                                                            {'[', "%5B"},
+                                                            {'\\', "%5C"},
+                                                            {']', "%5D"},
+                                                            {'^', "%5E"},
+                                                            {'|', "%7C"},
+                                                            {'~', "%7E"}};
 
-std::string EncodePathChars(const std::string& input_str, bool windows) {
+std::string EncodePathChars(const std::string_view& input_str, bool windows) {
   std::string encoded;
-  encoded.reserve(input_str.size() + 7); // Reserve space for "file://" and input_str
+  encoded.reserve(input_str.size() +
+                  7); // Reserve space for "file://" and input_str
 
   encoded.append("file://");
   for (char i : input_str) {
@@ -124,7 +123,7 @@ void BindingData::PathToFileURL(const FunctionCallbackInfo<Value>& args) {
   auto windows = args[1]->IsTrue();
 
   Utf8Value input(isolate, args[0]);
-  auto input_str = input.ToString();
+  auto input_str = input.ToStringView();
   CHECK(!input_str.empty());
 
   auto out = ada::parse<ada::url_aggregator>(
