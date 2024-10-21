@@ -90,14 +90,16 @@ const std::unordered_map<char, std::string> lookup_table = {{'%', "%25"},
                                                             {'|', "%7C"},
                                                             {'~', "%7E"}};
 
-std::string EncodePathChars(const std::string_view& input_str, bool windows) {
+enum class OS { WINDOWS, POSIX };
+
+std::string EncodePathChars(const std::string_view& input_str, OS os) {
   std::string encoded;
   encoded.reserve(input_str.size() +
-                  7); // Reserve space for "file://" and input_str
+                  7);  // Reserve space for "file://" and input_str
 
   encoded.append("file://");
   for (char i : input_str) {
-    if (i == '\\' && windows) {
+    if (i == '\\' && os == OS::WINDOWS) {
       encoded.push_back('/');
     } else {
       auto it = lookup_table.find(i);
@@ -120,14 +122,14 @@ void BindingData::PathToFileURL(const FunctionCallbackInfo<Value>& args) {
   Realm* realm = Realm::GetCurrent(args);
   BindingData* binding_data = realm->GetBindingData<BindingData>();
   Isolate* isolate = realm->isolate();
-  auto windows = args[1]->IsTrue();
+  OS os = args[1]->IsTrue() ? OS::WINDOWS : OS::POSIX;
 
   Utf8Value input(isolate, args[0]);
   auto input_str = input.ToStringView();
   CHECK(!input_str.empty());
 
   auto out = ada::parse<ada::url_aggregator>(
-      EncodePathChars(input_str, windows), nullptr);
+      EncodePathChars(input_str, os), nullptr);
 
   if (!out) {
     return ThrowInvalidURL(realm->env(), input.ToStringView(), nullptr);
