@@ -64,6 +64,12 @@ const server = createServer(
       res.write('BODY');
       res.end();
 
+      assert.throws(() => res.appendHeader(), {
+        code: 'ERR_HTTP_HEADERS_SENT',
+        name: 'Error',
+        message: 'Cannot append headers after they are sent to the client'
+      });
+
       assert.deepStrictEqual(res.getHeader('X-Res-a'), ['AAA', 'BBB', 'CCC']);
       assert.deepStrictEqual(res.getHeader('x-res-a'), ['AAA', 'BBB', 'CCC']);
       assert.deepStrictEqual(
