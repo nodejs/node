@@ -75,44 +75,42 @@ void BindingData::Deserialize(v8::Local<v8::Context> context,
   CHECK_NOT_NULL(binding);
 }
 
+const std::unordered_map<char, std::string> lookup_table = {
+    {'%', "%25"},
+    {'\t', "%09"},
+    {'\n', "%0A"},
+    {'\r', "%0D"},
+    {' ', "%20"},
+    {'"', "%22"},
+    {'#', "%23"},
+    {'?', "%3F"},
+    {'[', "%5B"},
+    {'\\', "%5C"},
+    {']', "%5D"},
+    {'^', "%5E"},
+    {'|', "%7C"},
+    {'~', "%7E"}
+};
+
 std::string EncodePathChars(const std::string& input_str, bool windows) {
-  std::ostringstream encoded;
-  encoded << "file://";
+  std::string encoded;
+  encoded.reserve(input_str.size() + 7); // Reserve space for "file://" and input_str
+
+  encoded.append("file://");
   for (char i : input_str) {
-    switch (i) {
-#define URL_ENCODE(char, code)                                                 \
-  case char:                                                                   \
-    encoded << code;                                                           \
-    break;
-
-      URL_ENCODE('%', "%25");
-      URL_ENCODE('\t', "%09");
-      URL_ENCODE('\n', "%0A");
-      URL_ENCODE('\r', "%0D");
-      URL_ENCODE(' ', "%20");
-      URL_ENCODE('"', "%22");
-      URL_ENCODE('#', "%23");
-      URL_ENCODE('?', "%3F");
-      URL_ENCODE('[', "%5B");
-      URL_ENCODE(']', "%5D");
-      URL_ENCODE('^', "%5E");
-      URL_ENCODE('|', "%7C");
-      URL_ENCODE('~', "%7E");
-#undef URL_ENCODE
-
-      case '\\':
-        if (!windows) {
-          encoded << "%5C";
-          break;
-        }
-      // fallthrough
-      default:
-        encoded << i;  // Append the character as is
-        break;
+    if (i == '\\' && windows) {
+      encoded.push_back('/');
+    } else {
+      auto it = lookup_table.find(i);
+      if (it != lookup_table.end()) {
+        encoded.append(it->second);
+      } else {
+        encoded.push_back(i);  // Append the character as is
+      }
     }
   }
 
-  return encoded.str();
+  return encoded;
 }
 
 void BindingData::PathToFileURL(const FunctionCallbackInfo<Value>& args) {
@@ -459,6 +457,7 @@ void BindingData::RegisterExternalReferences(
   registry->Register(Format);
   registry->Register(GetOrigin);
   registry->Register(Parse);
+  registry->Register(PathToFileURL);
   registry->Register(Update);
   registry->Register(CanParse);
   registry->Register(FastCanParse);
