@@ -32,4 +32,4 @@ const server = net.createServer();
 
 server.listen({ ...options, port: +process.env.port }, common.mustCall(() => {
   server.close();
-})).on('error', common.mustNotCall());
+}));

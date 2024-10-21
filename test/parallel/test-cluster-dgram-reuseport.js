@@ -35,5 +35,5 @@ socket1.bind(0, () => {
   socket2.bind(socket1.address().port, () => {
     socket1.close(close);
     socket2.close(close);
-  }).on('error', common.mustNotCall());
-}).on('error', common.mustNotCall());
+  });
+});
