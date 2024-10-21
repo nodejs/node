@@ -128,8 +128,8 @@ void BindingData::PathToFileURL(const FunctionCallbackInfo<Value>& args) {
   auto input_str = input.ToStringView();
   CHECK(!input_str.empty());
 
-  auto out = ada::parse<ada::url_aggregator>(
-      EncodePathChars(input_str, os), nullptr);
+  auto out =
+      ada::parse<ada::url_aggregator>(EncodePathChars(input_str, os), nullptr);
 
   if (!out) {
     return ThrowInvalidURL(realm->env(), input.ToStringView(), nullptr);
