@@ -13,7 +13,6 @@ const server = http2.createServer();
 
 Http2Stream.prototype.respond = () => 1;
 server.on('stream', common.mustCall((stream) => {
-
   // Send headers
   stream.respond({ 'content-type': 'text/plain' });
 
@@ -43,7 +42,13 @@ server.listen(0, common.mustCall(() => {
   const client = http2.connect(`http://localhost:${server.address().port}`);
   const req = client.request();
 
-  req.on('end', common.mustCall(() => {
+  req.once('error', common.expectsError({
+    name: 'Error',
+    code: 'ERR_HTTP2_STREAM_ERROR',
+    message: 'Stream closed with error code NGHTTP2_INTERNAL_ERROR'
+  }));
+  req.on('end', common.mustNotCall());
+  req.on('close', common.mustCall(() => {
     client.close();
     server.close();
   }));

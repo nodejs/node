@@ -29,7 +29,6 @@ const fname = fixtures.path('elipses.txt');
 const server = http2.createServer();
 
 server.on('stream', common.mustCall((stream) => {
-
   // Check for all possible TypeError triggers on options
   Object.keys(optionsWithTypeError).forEach((option) => {
     Object.keys(types).forEach((type) => {
@@ -94,6 +93,11 @@ server.listen(0, common.mustCall(() => {
   const client = http2.connect(`http://localhost:${server.address().port}`);
   const req = client.request();
 
+  req.once('error', common.expectsError({
+    name: 'Error',
+    code: 'ERR_HTTP2_STREAM_ERROR',
+    message: 'Stream closed with error code NGHTTP2_INTERNAL_ERROR'
+  }));
   req.on('close', common.mustCall(() => {
     client.close();
     server.close();
