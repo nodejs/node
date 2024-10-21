@@ -80,24 +80,39 @@ void BindingData::Deserialize(v8::Local<v8::Context> context,
 #endif
 
 std::array<std::string, LARGEST_ASCII_CHAR_CODE_TO_ENCORE> lookup_table = []() {
-  std::array<std::string, LARGEST_ASCII_CHAR_CODE_TO_ENCORE> result {};
+  std::array<std::string, LARGEST_ASCII_CHAR_CODE_TO_ENCORE> result{};
 
-  for(uint8_t i = 0; i < LARGEST_ASCII_CHAR_CODE_TO_ENCORE; i++) {
-    if (i == '%') result[i] = "%25";
-    else if (i == '\t') result[i] = "%09";
-    else if (i == '\n') result[i] = "%0A";
-    else if (i == '\r') result[i] = "%0D";
-    else if (i == ' ') result[i] = "%20";
-    else if (i == '"') result[i] = "%22";
-    else if (i == '#') result[i] = "%23";
-    else if (i == '?') result[i] = "%3F";
-    else if (i == '[') result[i] = "%5B";
-    else if (i == '\\') result[i] = "%5C";
-    else if (i == ']') result[i] = "%5D";
-    else if (i == '^') result[i] = "%5E";
-    else if (i == '|') result[i] = "%7C";
-    else if (i == '~') result[i] = "%7E";
-    else result[i] = std::string(1, static_cast<char>(i));
+  for (uint8_t i = 0; i < LARGEST_ASCII_CHAR_CODE_TO_ENCORE; i++) {
+    if (i == '%')
+      result[i] = "%25";
+    else if (i == '\t')
+      result[i] = "%09";
+    else if (i == '\n')
+      result[i] = "%0A";
+    else if (i == '\r')
+      result[i] = "%0D";
+    else if (i == ' ')
+      result[i] = "%20";
+    else if (i == '"')
+      result[i] = "%22";
+    else if (i == '#')
+      result[i] = "%23";
+    else if (i == '?')
+      result[i] = "%3F";
+    else if (i == '[')
+      result[i] = "%5B";
+    else if (i == '\\')
+      result[i] = "%5C";
+    else if (i == ']')
+      result[i] = "%5D";
+    else if (i == '^')
+      result[i] = "%5E";
+    else if (i == '|')
+      result[i] = "%7C";
+    else if (i == '~')
+      result[i] = "%7E";
+    else
+      result[i] = std::string(1, static_cast<char>(i));
   }
 
   return result;
