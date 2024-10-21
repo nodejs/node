@@ -1,7 +1,7 @@
 import fs from 'fs';
-import path$2 from 'path';
+import path$1 from 'path';
 import { pathToFileURL } from 'url';
-import path$1 from 'node:path';
+import minpath from 'node:path';
 import process$1 from 'node:process';
 import { fileURLToPath } from 'node:url';
 import fs$1 from 'node:fs';
@@ -14,96 +14,103 @@ function bail(error) {
   }
 }
 
-var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
-
 function getDefaultExportFromCjs (x) {
 	return x && x.__esModule && Object.prototype.hasOwnProperty.call(x, 'default') ? x['default'] : x;
 }
 
-var hasOwn = Object.prototype.hasOwnProperty;
-var toStr = Object.prototype.toString;
-var defineProperty = Object.defineProperty;
-var gOPD = Object.getOwnPropertyDescriptor;
-var isArray = function isArray(arr) {
-	if (typeof Array.isArray === 'function') {
-		return Array.isArray(arr);
-	}
-	return toStr.call(arr) === '[object Array]';
-};
-var isPlainObject$1 = function isPlainObject(obj) {
-	if (!obj || toStr.call(obj) !== '[object Object]') {
-		return false;
-	}
-	var hasOwnConstructor = hasOwn.call(obj, 'constructor');
-	var hasIsPrototypeOf = obj.constructor && obj.constructor.prototype && hasOwn.call(obj.constructor.prototype, 'isPrototypeOf');
-	if (obj.constructor && !hasOwnConstructor && !hasIsPrototypeOf) {
-		return false;
-	}
-	var key;
-	for (key in obj) {  }
-	return typeof key === 'undefined' || hasOwn.call(obj, key);
-};
-var setProperty = function setProperty(target, options) {
-	if (defineProperty && options.name === '__proto__') {
-		defineProperty(target, options.name, {
-			enumerable: true,
-			configurable: true,
-			value: options.newValue,
-			writable: true
-		});
-	} else {
-		target[options.name] = options.newValue;
-	}
-};
-var getProperty = function getProperty(obj, name) {
-	if (name === '__proto__') {
-		if (!hasOwn.call(obj, name)) {
-			return void 0;
-		} else if (gOPD) {
-			return gOPD(obj, name).value;
+var extend$2;
+var hasRequiredExtend;
+function requireExtend () {
+	if (hasRequiredExtend) return extend$2;
+	hasRequiredExtend = 1;
+	var hasOwn = Object.prototype.hasOwnProperty;
+	var toStr = Object.prototype.toString;
+	var defineProperty = Object.defineProperty;
+	var gOPD = Object.getOwnPropertyDescriptor;
+	var isArray = function isArray(arr) {
+		if (typeof Array.isArray === 'function') {
+			return Array.isArray(arr);
 		}
-	}
-	return obj[name];
-};
-var extend$1 = function extend() {
-	var options, name, src, copy, copyIsArray, clone;
-	var target = arguments[0];
-	var i = 1;
-	var length = arguments.length;
-	var deep = false;
-	if (typeof target === 'boolean') {
-		deep = target;
-		target = arguments[1] || {};
-		i = 2;
-	}
-	if (target == null || (typeof target !== 'object' && typeof target !== 'function')) {
-		target = {};
-	}
-	for (; i < length; ++i) {
-		options = arguments[i];
-		if (options != null) {
-			for (name in options) {
-				src = getProperty(target, name);
-				copy = getProperty(options, name);
-				if (target !== copy) {
-					if (deep && copy && (isPlainObject$1(copy) || (copyIsArray = isArray(copy)))) {
-						if (copyIsArray) {
-							copyIsArray = false;
-							clone = src && isArray(src) ? src : [];
-						} else {
-							clone = src && isPlainObject$1(src) ? src : {};
+		return toStr.call(arr) === '[object Array]';
+	};
+	var isPlainObject = function isPlainObject(obj) {
+		if (!obj || toStr.call(obj) !== '[object Object]') {
+			return false;
+		}
+		var hasOwnConstructor = hasOwn.call(obj, 'constructor');
+		var hasIsPrototypeOf = obj.constructor && obj.constructor.prototype && hasOwn.call(obj.constructor.prototype, 'isPrototypeOf');
+		if (obj.constructor && !hasOwnConstructor && !hasIsPrototypeOf) {
+			return false;
+		}
+		var key;
+		for (key in obj) {  }
+		return typeof key === 'undefined' || hasOwn.call(obj, key);
+	};
+	var setProperty = function setProperty(target, options) {
+		if (defineProperty && options.name === '__proto__') {
+			defineProperty(target, options.name, {
+				enumerable: true,
+				configurable: true,
+				value: options.newValue,
+				writable: true
+			});
+		} else {
+			target[options.name] = options.newValue;
+		}
+	};
+	var getProperty = function getProperty(obj, name) {
+		if (name === '__proto__') {
+			if (!hasOwn.call(obj, name)) {
+				return void 0;
+			} else if (gOPD) {
+				return gOPD(obj, name).value;
+			}
+		}
+		return obj[name];
+	};
+	extend$2 = function extend() {
+		var options, name, src, copy, copyIsArray, clone;
+		var target = arguments[0];
+		var i = 1;
+		var length = arguments.length;
+		var deep = false;
+		if (typeof target === 'boolean') {
+			deep = target;
+			target = arguments[1] || {};
+			i = 2;
+		}
+		if (target == null || (typeof target !== 'object' && typeof target !== 'function')) {
+			target = {};
+		}
+		for (; i < length; ++i) {
+			options = arguments[i];
+			if (options != null) {
+				for (name in options) {
+					src = getProperty(target, name);
+					copy = getProperty(options, name);
+					if (target !== copy) {
+						if (deep && copy && (isPlainObject(copy) || (copyIsArray = isArray(copy)))) {
+							if (copyIsArray) {
+								copyIsArray = false;
+								clone = src && isArray(src) ? src : [];
+							} else {
+								clone = src && isPlainObject(src) ? src : {};
+							}
+							setProperty(target, { name: name, newValue: extend(deep, clone, copy) });
+						} else if (typeof copy !== 'undefined') {
+							setProperty(target, { name: name, newValue: copy });
 						}
-						setProperty(target, { name: name, newValue: extend(deep, clone, copy) });
-					} else if (typeof copy !== 'undefined') {
-						setProperty(target, { name: name, newValue: copy });
 					}
 				}
 			}
 		}
-	}
-	return target;
-};
-var extend$2 = getDefaultExportFromCjs(extend$1);
+		return target;
+	};
+	return extend$2;
+}
+
+var extendExports = requireExtend();
+var extend$1 = /*@__PURE__*/getDefaultExportFromCjs(extendExports);
 
 function ok$1() {}
 
@@ -348,7 +355,7 @@ class VFile {
     } else {
       options = value;
     }
-    this.cwd = process$1.cwd();
+    this.cwd = 'cwd' in options ? '' : process$1.cwd();
     this.data = {};
     this.history = [];
     this.messages = [];
@@ -358,39 +365,45 @@ class VFile {
     this.stored;
     let index = -1;
     while (++index < order.length) {
-      const prop = order[index];
+      const field = order[index];
       if (
-        prop in options &&
-        options[prop] !== undefined &&
-        options[prop] !== null
+        field in options &&
+        options[field] !== undefined &&
+        options[field] !== null
       ) {
-        this[prop] = prop === 'history' ? [...options[prop]] : options[prop];
+        this[field] = field === 'history' ? [...options[field]] : options[field];
       }
     }
-    let prop;
-    for (prop in options) {
-      if (!order.includes(prop)) {
-        this[prop] = options[prop];
+    let field;
+    for (field in options) {
+      if (!order.includes(field)) {
+        this[field] = options[field];
       }
     }
   }
   get basename() {
-    return typeof this.path === 'string' ? path$1.basename(this.path) : undefined
+    return typeof this.path === 'string'
+      ? minpath.basename(this.path)
+      : undefined
   }
   set basename(basename) {
     assertNonEmpty(basename, 'basename');
     assertPart(basename, 'basename');
-    this.path = path$1.join(this.dirname || '', basename);
+    this.path = minpath.join(this.dirname || '', basename);
   }
   get dirname() {
-    return typeof this.path === 'string' ? path$1.dirname(this.path) : undefined
+    return typeof this.path === 'string'
+      ? minpath.dirname(this.path)
+      : undefined
   }
   set dirname(dirname) {
     assertPath(this.basename, 'dirname');
-    this.path = path$1.join(dirname || '', this.basename);
+    this.path = minpath.join(dirname || '', this.basename);
   }
   get extname() {
-    return typeof this.path === 'string' ? path$1.extname(this.path) : undefined
+    return typeof this.path === 'string'
+      ? minpath.extname(this.path)
+      : undefined
   }
   set extname(extname) {
     assertPart(extname, 'extname');
@@ -403,7 +416,7 @@ class VFile {
         throw new Error('`extname` cannot contain multiple dots')
       }
     }
-    this.path = path$1.join(this.dirname, this.stem + (extname || ''));
+    this.path = minpath.join(this.dirname, this.stem + (extname || ''));
   }
   get path() {
     return this.history[this.history.length - 1]
@@ -419,13 +432,13 @@ class VFile {
   }
   get stem() {
     return typeof this.path === 'string'
-      ? path$1.basename(this.path, this.extname)
+      ? minpath.basename(this.path, this.extname)
       : undefined
   }
   set stem(stem) {
     assertNonEmpty(stem, 'stem');
     assertPart(stem, 'stem');
-    this.path = path$1.join(this.dirname || '', stem + (this.extname || ''));
+    this.path = minpath.join(this.dirname || '', stem + (this.extname || ''));
   }
   fail(causeOrReason, optionsOrParentOrPlace, origin) {
     const message = this.message(causeOrReason, optionsOrParentOrPlace, origin);
@@ -463,9 +476,9 @@ class VFile {
   }
 }
 function assertPart(part, name) {
-  if (part && part.includes(path$1.sep)) {
+  if (part && part.includes(minpath.sep)) {
     throw new Error(
-      '`' + name + '` cannot be a path: did not expect `' + path$1.sep + '`'
+      '`' + name + '` cannot be a path: did not expect `' + minpath.sep + '`'
     )
   }
 }
@@ -531,7 +544,7 @@ class Processor extends CallableInstance {
       const attacher = this.attachers[index];
       destination.use(...attacher);
     }
-    destination.data(extend$2(true, {}, this.namespace));
+    destination.data(extend$1(true, {}, this.namespace));
     return destination
   }
   data(key, value) {
@@ -719,7 +732,7 @@ class Processor extends CallableInstance {
       }
       addList(result.plugins);
       if (result.settings) {
-        namespace.settings = extend$2(true, namespace.settings, result.settings);
+        namespace.settings = extend$1(true, namespace.settings, result.settings);
       }
     }
     function addList(plugins) {
@@ -749,7 +762,7 @@ class Processor extends CallableInstance {
         let [primary, ...rest] = parameters;
         const currentPrimary = attachers[entryIndex][1];
         if (isPlainObject(currentPrimary) && isPlainObject(primary)) {
-          primary = extend$2(true, currentPrimary, primary);
+          primary = extend$1(true, currentPrimary, primary);
         }
         attachers[entryIndex] = [plugin, primary, ...rest];
       }
@@ -6726,7 +6739,7 @@ var defaultConstructs = /*#__PURE__*/Object.freeze({
   text: text$2
 });
 
-function parse$2(options) {
+function parse$1(options) {
   const settings = options || {};
   const constructs =
     combineExtensions([defaultConstructs, ...(settings.extensions || [])]);
@@ -6755,7 +6768,7 @@ function postprocess(events) {
   return events
 }
 
-const search$1 = /[\0\t\n\r]/g;
+const search = /[\0\t\n\r]/g;
 function preprocess() {
   let column = 1;
   let buffer = '';
@@ -6783,8 +6796,8 @@ function preprocess() {
       start = undefined;
     }
     while (startPosition < value.length) {
-      search$1.lastIndex = startPosition;
-      match = search$1.exec(value);
+      search.lastIndex = startPosition;
+      match = search.exec(value);
       endPosition =
         match && match.index !== undefined ? match.index : value.length;
       code = value.charCodeAt(endPosition);
@@ -6862,7 +6875,7 @@ function fromMarkdown(value, encoding, options) {
     options = encoding;
     encoding = undefined;
   }
-  return compiler(options)(postprocess(parse$2(options).document().write(preprocess()(value, encoding, true))));
+  return compiler(options)(postprocess(parse$1(options).document().write(preprocess()(value, encoding, true))));
 }
 function compiler(options) {
   const config = {
@@ -9355,7 +9368,7 @@ function transformGfmAutolinkLiterals(tree) {
     tree,
     [
       [/(https?:\/\/|www(?=\.))([-.\w]+)([^ \t\r\n]*)/gi, findUrl],
-      [/([-.\w+]+)@([-\w]+(?:\.[-\w]+)+)/g, findEmail]
+      [/(?<=^|\s|\p{P}|\p{S})([-.\w+]+)@([-\w]+(?:\.[-\w]+)+)/gu, findEmail]
     ],
     {ignore: ['link', 'linkReference']}
   );
@@ -11301,55 +11314,63 @@ function isNode(value) {
   return Boolean(value && typeof value === 'object' && 'type' in value)
 }
 
-function parse$1(value) {
+function parse(value) {
   const input = String(value || '').trim();
   return input ? input.split(/[ \t\n\r\f]+/g) : []
 }
 
-const search = /\r?\n|\r/g;
 function location(file) {
   const value = String(file);
   const indices = [];
-  search.lastIndex = 0;
-  while (search.test(value)) {
-    indices.push(search.lastIndex);
-  }
-  indices.push(value.length + 1);
-  return {toPoint, toOffset}
+  return {toOffset, toPoint}
   function toPoint(offset) {
-    let index = -1;
-    if (
-      typeof offset === 'number' &&
-      offset > -1 &&
-      offset < indices[indices.length - 1]
-    ) {
-      while (++index < indices.length) {
-        if (indices[index] > offset) {
+    if (typeof offset === 'number' && offset > -1 && offset <= value.length) {
+      let index = 0;
+      while (true) {
+        let end = indices[index];
+        if (end === undefined) {
+          const eol = next(value, indices[index - 1]);
+          end = eol === -1 ? value.length + 1 : eol + 1;
+          indices[index] = end;
+        }
+        if (end > offset) {
           return {
             line: index + 1,
             column: offset - (index > 0 ? indices[index - 1] : 0) + 1,
             offset
           }
         }
+        index++;
       }
     }
   }
   function toOffset(point) {
-    const line = point && point.line;
-    const column = point && point.column;
     if (
-      typeof line === 'number' &&
-      typeof column === 'number' &&
-      !Number.isNaN(line) &&
-      !Number.isNaN(column) &&
-      line - 1 in indices
+      point &&
+      typeof point.line === 'number' &&
+      typeof point.column === 'number' &&
+      !Number.isNaN(point.line) &&
+      !Number.isNaN(point.column)
     ) {
-      const offset = (indices[line - 2] || 0) + column - 1 || 0;
-      if (offset > -1 && offset < indices[indices.length - 1]) {
-        return offset
+      while (indices.length < point.line) {
+        const from = indices[indices.length - 1];
+        const eol = next(value, from);
+        const end = eol === -1 ? value.length + 1 : eol + 1;
+        if (from === end) break
+        indices.push(end);
       }
+      const offset =
+        (point.line > 1 ? indices[point.line - 2] : 0) + point.column - 1;
+      if (offset < indices[point.line - 1]) return offset
     }
   }
+}
+function next(value, from) {
+  const cr = value.indexOf('\r', from);
+  const lf = value.indexOf('\n', from);
+  if (lf === -1) return cr
+  if (cr === -1 || cr + 1 === lf) return lf
+  return cr < lf ? cr : lf
 }
 
 const own = {}.hasOwnProperty;
@@ -11386,7 +11407,7 @@ function messageControl(tree, options) {
     if (!point || !mark || mark.name !== name) {
       return
     }
-    const ruleIds = parse$1(mark.attributes);
+    const ruleIds = parse(mark.attributes);
     const verb = ruleIds.shift();
     const fn =
       verb === 'enable'
@@ -11573,7 +11594,7 @@ function lintRule$1(meta, rule) {
   Object.defineProperty(plugin, 'name', {value: id});
   return plugin
   function plugin(config) {
-    const [severity, options] = coerce$2(ruleId, config);
+    const [severity, options] = coerce$1(ruleId, config);
     const fatal = severity === 2;
     if (!severity) return
     return function (tree, file, next) {
@@ -11593,7 +11614,7 @@ function lintRule$1(meta, rule) {
     }
   }
 }
-function coerce$2(name, config) {
+function coerce$1(name, config) {
   if (!Array.isArray(config)) {
     return [1, config]
   }
@@ -11858,334 +11879,342 @@ function commonjsRequire(path) {
 	throw new Error('Could not dynamically require "' + path + '". Please configure the dynamicRequireTargets or/and ignoreDynamicRequires option of @rollup/plugin-commonjs appropriately for this require call to work.');
 }
 
-var pluralize$1 = {exports: {}};
+var pluralize$2 = {exports: {}};
 
-(function (module, exports) {
-	(function (root, pluralize) {
-	  if (typeof commonjsRequire === 'function' && 'object' === 'object' && 'object' === 'object') {
-	    module.exports = pluralize();
-	  } else {
-	    root.pluralize = pluralize();
-	  }
-	})(commonjsGlobal, function () {
-	  var pluralRules = [];
-	  var singularRules = [];
-	  var uncountables = {};
-	  var irregularPlurals = {};
-	  var irregularSingles = {};
-	  function sanitizeRule (rule) {
-	    if (typeof rule === 'string') {
-	      return new RegExp('^' + rule + '$', 'i');
-	    }
-	    return rule;
-	  }
-	  function restoreCase (word, token) {
-	    if (word === token) return token;
-	    if (word === word.toLowerCase()) return token.toLowerCase();
-	    if (word === word.toUpperCase()) return token.toUpperCase();
-	    if (word[0] === word[0].toUpperCase()) {
-	      return token.charAt(0).toUpperCase() + token.substr(1).toLowerCase();
-	    }
-	    return token.toLowerCase();
-	  }
-	  function interpolate (str, args) {
-	    return str.replace(/\$(\d{1,2})/g, function (match, index) {
-	      return args[index] || '';
-	    });
-	  }
-	  function replace (word, rule) {
-	    return word.replace(rule[0], function (match, index) {
-	      var result = interpolate(rule[1], arguments);
-	      if (match === '') {
-	        return restoreCase(word[index - 1], result);
-	      }
-	      return restoreCase(match, result);
-	    });
-	  }
-	  function sanitizeWord (token, word, rules) {
-	    if (!token.length || uncountables.hasOwnProperty(token)) {
-	      return word;
-	    }
-	    var len = rules.length;
-	    while (len--) {
-	      var rule = rules[len];
-	      if (rule[0].test(word)) return replace(word, rule);
-	    }
-	    return word;
-	  }
-	  function replaceWord (replaceMap, keepMap, rules) {
-	    return function (word) {
-	      var token = word.toLowerCase();
-	      if (keepMap.hasOwnProperty(token)) {
-	        return restoreCase(word, token);
-	      }
-	      if (replaceMap.hasOwnProperty(token)) {
-	        return restoreCase(word, replaceMap[token]);
-	      }
-	      return sanitizeWord(token, word, rules);
-	    };
-	  }
-	  function checkWord (replaceMap, keepMap, rules, bool) {
-	    return function (word) {
-	      var token = word.toLowerCase();
-	      if (keepMap.hasOwnProperty(token)) return true;
-	      if (replaceMap.hasOwnProperty(token)) return false;
-	      return sanitizeWord(token, token, rules) === token;
-	    };
-	  }
-	  function pluralize (word, count, inclusive) {
-	    var pluralized = count === 1
-	      ? pluralize.singular(word) : pluralize.plural(word);
-	    return (inclusive ? count + ' ' : '') + pluralized;
-	  }
-	  pluralize.plural = replaceWord(
-	    irregularSingles, irregularPlurals, pluralRules
-	  );
-	  pluralize.isPlural = checkWord(
-	    irregularSingles, irregularPlurals, pluralRules
-	  );
-	  pluralize.singular = replaceWord(
-	    irregularPlurals, irregularSingles, singularRules
-	  );
-	  pluralize.isSingular = checkWord(
-	    irregularPlurals, irregularSingles, singularRules
-	  );
-	  pluralize.addPluralRule = function (rule, replacement) {
-	    pluralRules.push([sanitizeRule(rule), replacement]);
-	  };
-	  pluralize.addSingularRule = function (rule, replacement) {
-	    singularRules.push([sanitizeRule(rule), replacement]);
-	  };
-	  pluralize.addUncountableRule = function (word) {
-	    if (typeof word === 'string') {
-	      uncountables[word.toLowerCase()] = true;
-	      return;
-	    }
-	    pluralize.addPluralRule(word, '$0');
-	    pluralize.addSingularRule(word, '$0');
-	  };
-	  pluralize.addIrregularRule = function (single, plural) {
-	    plural = plural.toLowerCase();
-	    single = single.toLowerCase();
-	    irregularSingles[single] = plural;
-	    irregularPlurals[plural] = single;
-	  };
-	  [
-	    ['I', 'we'],
-	    ['me', 'us'],
-	    ['he', 'they'],
-	    ['she', 'they'],
-	    ['them', 'them'],
-	    ['myself', 'ourselves'],
-	    ['yourself', 'yourselves'],
-	    ['itself', 'themselves'],
-	    ['herself', 'themselves'],
-	    ['himself', 'themselves'],
-	    ['themself', 'themselves'],
-	    ['is', 'are'],
-	    ['was', 'were'],
-	    ['has', 'have'],
-	    ['this', 'these'],
-	    ['that', 'those'],
-	    ['echo', 'echoes'],
-	    ['dingo', 'dingoes'],
-	    ['volcano', 'volcanoes'],
-	    ['tornado', 'tornadoes'],
-	    ['torpedo', 'torpedoes'],
-	    ['genus', 'genera'],
-	    ['viscus', 'viscera'],
-	    ['stigma', 'stigmata'],
-	    ['stoma', 'stomata'],
-	    ['dogma', 'dogmata'],
-	    ['lemma', 'lemmata'],
-	    ['schema', 'schemata'],
-	    ['anathema', 'anathemata'],
-	    ['ox', 'oxen'],
-	    ['axe', 'axes'],
-	    ['die', 'dice'],
-	    ['yes', 'yeses'],
-	    ['foot', 'feet'],
-	    ['eave', 'eaves'],
-	    ['goose', 'geese'],
-	    ['tooth', 'teeth'],
-	    ['quiz', 'quizzes'],
-	    ['human', 'humans'],
-	    ['proof', 'proofs'],
-	    ['carve', 'carves'],
-	    ['valve', 'valves'],
-	    ['looey', 'looies'],
-	    ['thief', 'thieves'],
-	    ['groove', 'grooves'],
-	    ['pickaxe', 'pickaxes'],
-	    ['passerby', 'passersby']
-	  ].forEach(function (rule) {
-	    return pluralize.addIrregularRule(rule[0], rule[1]);
-	  });
-	  [
-	    [/s?$/i, 's'],
-	    [/[^\u0000-\u007F]$/i, '$0'],
-	    [/([^aeiou]ese)$/i, '$1'],
-	    [/(ax|test)is$/i, '$1es'],
-	    [/(alias|[^aou]us|t[lm]as|gas|ris)$/i, '$1es'],
-	    [/(e[mn]u)s?$/i, '$1s'],
-	    [/([^l]ias|[aeiou]las|[ejzr]as|[iu]am)$/i, '$1'],
-	    [/(alumn|syllab|vir|radi|nucle|fung|cact|stimul|termin|bacill|foc|uter|loc|strat)(?:us|i)$/i, '$1i'],
-	    [/(alumn|alg|vertebr)(?:a|ae)$/i, '$1ae'],
-	    [/(seraph|cherub)(?:im)?$/i, '$1im'],
-	    [/(her|at|gr)o$/i, '$1oes'],
-	    [/(agend|addend|millenni|dat|extrem|bacteri|desiderat|strat|candelabr|errat|ov|symposi|curricul|automat|quor)(?:a|um)$/i, '$1a'],
-	    [/(apheli|hyperbat|periheli|asyndet|noumen|phenomen|criteri|organ|prolegomen|hedr|automat)(?:a|on)$/i, '$1a'],
-	    [/sis$/i, 'ses'],
-	    [/(?:(kni|wi|li)fe|(ar|l|ea|eo|oa|hoo)f)$/i, '$1$2ves'],
-	    [/([^aeiouy]|qu)y$/i, '$1ies'],
-	    [/([^ch][ieo][ln])ey$/i, '$1ies'],
-	    [/(x|ch|ss|sh|zz)$/i, '$1es'],
-	    [/(matr|cod|mur|sil|vert|ind|append)(?:ix|ex)$/i, '$1ices'],
-	    [/\b((?:tit)?m|l)(?:ice|ouse)$/i, '$1ice'],
-	    [/(pe)(?:rson|ople)$/i, '$1ople'],
-	    [/(child)(?:ren)?$/i, '$1ren'],
-	    [/eaux$/i, '$0'],
-	    [/m[ae]n$/i, 'men'],
-	    ['thou', 'you']
-	  ].forEach(function (rule) {
-	    return pluralize.addPluralRule(rule[0], rule[1]);
-	  });
-	  [
-	    [/s$/i, ''],
-	    [/(ss)$/i, '$1'],
-	    [/(wi|kni|(?:after|half|high|low|mid|non|night|[^\w]|^)li)ves$/i, '$1fe'],
-	    [/(ar|(?:wo|[ae])l|[eo][ao])ves$/i, '$1f'],
-	    [/ies$/i, 'y'],
-	    [/\b([pl]|zomb|(?:neck|cross)?t|coll|faer|food|gen|goon|group|lass|talk|goal|cut)ies$/i, '$1ie'],
-	    [/\b(mon|smil)ies$/i, '$1ey'],
-	    [/\b((?:tit)?m|l)ice$/i, '$1ouse'],
-	    [/(seraph|cherub)im$/i, '$1'],
-	    [/(x|ch|ss|sh|zz|tto|go|cho|alias|[^aou]us|t[lm]as|gas|(?:her|at|gr)o|[aeiou]ris)(?:es)?$/i, '$1'],
-	    [/(analy|diagno|parenthe|progno|synop|the|empha|cri|ne)(?:sis|ses)$/i, '$1sis'],
-	    [/(movie|twelve|abuse|e[mn]u)s$/i, '$1'],
-	    [/(test)(?:is|es)$/i, '$1is'],
-	    [/(alumn|syllab|vir|radi|nucle|fung|cact|stimul|termin|bacill|foc|uter|loc|strat)(?:us|i)$/i, '$1us'],
-	    [/(agend|addend|millenni|dat|extrem|bacteri|desiderat|strat|candelabr|errat|ov|symposi|curricul|quor)a$/i, '$1um'],
-	    [/(apheli|hyperbat|periheli|asyndet|noumen|phenomen|criteri|organ|prolegomen|hedr|automat)a$/i, '$1on'],
-	    [/(alumn|alg|vertebr)ae$/i, '$1a'],
-	    [/(cod|mur|sil|vert|ind)ices$/i, '$1ex'],
-	    [/(matr|append)ices$/i, '$1ix'],
-	    [/(pe)(rson|ople)$/i, '$1rson'],
-	    [/(child)ren$/i, '$1'],
-	    [/(eau)x?$/i, '$1'],
-	    [/men$/i, 'man']
-	  ].forEach(function (rule) {
-	    return pluralize.addSingularRule(rule[0], rule[1]);
-	  });
-	  [
-	    'adulthood',
-	    'advice',
-	    'agenda',
-	    'aid',
-	    'aircraft',
-	    'alcohol',
-	    'ammo',
-	    'analytics',
-	    'anime',
-	    'athletics',
-	    'audio',
-	    'bison',
-	    'blood',
-	    'bream',
-	    'buffalo',
-	    'butter',
-	    'carp',
-	    'cash',
-	    'chassis',
-	    'chess',
-	    'clothing',
-	    'cod',
-	    'commerce',
-	    'cooperation',
-	    'corps',
-	    'debris',
-	    'diabetes',
-	    'digestion',
-	    'elk',
-	    'energy',
-	    'equipment',
-	    'excretion',
-	    'expertise',
-	    'firmware',
-	    'flounder',
-	    'fun',
-	    'gallows',
-	    'garbage',
-	    'graffiti',
-	    'hardware',
-	    'headquarters',
-	    'health',
-	    'herpes',
-	    'highjinks',
-	    'homework',
-	    'housework',
-	    'information',
-	    'jeans',
-	    'justice',
-	    'kudos',
-	    'labour',
-	    'literature',
-	    'machinery',
-	    'mackerel',
-	    'mail',
-	    'media',
-	    'mews',
-	    'moose',
-	    'music',
-	    'mud',
-	    'manga',
-	    'news',
-	    'only',
-	    'personnel',
-	    'pike',
-	    'plankton',
-	    'pliers',
-	    'police',
-	    'pollution',
-	    'premises',
-	    'rain',
-	    'research',
-	    'rice',
-	    'salmon',
-	    'scissors',
-	    'series',
-	    'sewage',
-	    'shambles',
-	    'shrimp',
-	    'software',
-	    'species',
-	    'staff',
-	    'swine',
-	    'tennis',
-	    'traffic',
-	    'transportation',
-	    'trout',
-	    'tuna',
-	    'wealth',
-	    'welfare',
-	    'whiting',
-	    'wildebeest',
-	    'wildlife',
-	    'you',
-	    /pok[eé]mon$/i,
-	    /[^aeiou]ese$/i,
-	    /deer$/i,
-	    /fish$/i,
-	    /measles$/i,
-	    /o[iu]s$/i,
-	    /pox$/i,
-	    /sheep$/i
-	  ].forEach(pluralize.addUncountableRule);
-	  return pluralize;
-	});
-} (pluralize$1));
-var pluralizeExports = pluralize$1.exports;
-var pluralize = getDefaultExportFromCjs(pluralizeExports);
+var pluralize$1 = pluralize$2.exports;
+var hasRequiredPluralize;
+function requirePluralize () {
+	if (hasRequiredPluralize) return pluralize$2.exports;
+	hasRequiredPluralize = 1;
+	(function (module, exports) {
+		(function (root, pluralize) {
+		  if (typeof commonjsRequire === 'function' && 'object' === 'object' && 'object' === 'object') {
+		    module.exports = pluralize();
+		  } else {
+		    root.pluralize = pluralize();
+		  }
+		})(pluralize$1, function () {
+		  var pluralRules = [];
+		  var singularRules = [];
+		  var uncountables = {};
+		  var irregularPlurals = {};
+		  var irregularSingles = {};
+		  function sanitizeRule (rule) {
+		    if (typeof rule === 'string') {
+		      return new RegExp('^' + rule + '$', 'i');
+		    }
+		    return rule;
+		  }
+		  function restoreCase (word, token) {
+		    if (word === token) return token;
+		    if (word === word.toLowerCase()) return token.toLowerCase();
+		    if (word === word.toUpperCase()) return token.toUpperCase();
+		    if (word[0] === word[0].toUpperCase()) {
+		      return token.charAt(0).toUpperCase() + token.substr(1).toLowerCase();
+		    }
+		    return token.toLowerCase();
+		  }
+		  function interpolate (str, args) {
+		    return str.replace(/\$(\d{1,2})/g, function (match, index) {
+		      return args[index] || '';
+		    });
+		  }
+		  function replace (word, rule) {
+		    return word.replace(rule[0], function (match, index) {
+		      var result = interpolate(rule[1], arguments);
+		      if (match === '') {
+		        return restoreCase(word[index - 1], result);
+		      }
+		      return restoreCase(match, result);
+		    });
+		  }
+		  function sanitizeWord (token, word, rules) {
+		    if (!token.length || uncountables.hasOwnProperty(token)) {
+		      return word;
+		    }
+		    var len = rules.length;
+		    while (len--) {
+		      var rule = rules[len];
+		      if (rule[0].test(word)) return replace(word, rule);
+		    }
+		    return word;
+		  }
+		  function replaceWord (replaceMap, keepMap, rules) {
+		    return function (word) {
+		      var token = word.toLowerCase();
+		      if (keepMap.hasOwnProperty(token)) {
+		        return restoreCase(word, token);
+		      }
+		      if (replaceMap.hasOwnProperty(token)) {
+		        return restoreCase(word, replaceMap[token]);
+		      }
+		      return sanitizeWord(token, word, rules);
+		    };
+		  }
+		  function checkWord (replaceMap, keepMap, rules, bool) {
+		    return function (word) {
+		      var token = word.toLowerCase();
+		      if (keepMap.hasOwnProperty(token)) return true;
+		      if (replaceMap.hasOwnProperty(token)) return false;
+		      return sanitizeWord(token, token, rules) === token;
+		    };
+		  }
+		  function pluralize (word, count, inclusive) {
+		    var pluralized = count === 1
+		      ? pluralize.singular(word) : pluralize.plural(word);
+		    return (inclusive ? count + ' ' : '') + pluralized;
+		  }
+		  pluralize.plural = replaceWord(
+		    irregularSingles, irregularPlurals, pluralRules
+		  );
+		  pluralize.isPlural = checkWord(
+		    irregularSingles, irregularPlurals, pluralRules
+		  );
+		  pluralize.singular = replaceWord(
+		    irregularPlurals, irregularSingles, singularRules
+		  );
+		  pluralize.isSingular = checkWord(
+		    irregularPlurals, irregularSingles, singularRules
+		  );
+		  pluralize.addPluralRule = function (rule, replacement) {
+		    pluralRules.push([sanitizeRule(rule), replacement]);
+		  };
+		  pluralize.addSingularRule = function (rule, replacement) {
+		    singularRules.push([sanitizeRule(rule), replacement]);
+		  };
+		  pluralize.addUncountableRule = function (word) {
+		    if (typeof word === 'string') {
+		      uncountables[word.toLowerCase()] = true;
+		      return;
+		    }
+		    pluralize.addPluralRule(word, '$0');
+		    pluralize.addSingularRule(word, '$0');
+		  };
+		  pluralize.addIrregularRule = function (single, plural) {
+		    plural = plural.toLowerCase();
+		    single = single.toLowerCase();
+		    irregularSingles[single] = plural;
+		    irregularPlurals[plural] = single;
+		  };
+		  [
+		    ['I', 'we'],
+		    ['me', 'us'],
+		    ['he', 'they'],
+		    ['she', 'they'],
+		    ['them', 'them'],
+		    ['myself', 'ourselves'],
+		    ['yourself', 'yourselves'],
+		    ['itself', 'themselves'],
+		    ['herself', 'themselves'],
+		    ['himself', 'themselves'],
+		    ['themself', 'themselves'],
+		    ['is', 'are'],
+		    ['was', 'were'],
+		    ['has', 'have'],
+		    ['this', 'these'],
+		    ['that', 'those'],
+		    ['echo', 'echoes'],
+		    ['dingo', 'dingoes'],
+		    ['volcano', 'volcanoes'],
+		    ['tornado', 'tornadoes'],
+		    ['torpedo', 'torpedoes'],
+		    ['genus', 'genera'],
+		    ['viscus', 'viscera'],
+		    ['stigma', 'stigmata'],
+		    ['stoma', 'stomata'],
+		    ['dogma', 'dogmata'],
+		    ['lemma', 'lemmata'],
+		    ['schema', 'schemata'],
+		    ['anathema', 'anathemata'],
+		    ['ox', 'oxen'],
+		    ['axe', 'axes'],
+		    ['die', 'dice'],
+		    ['yes', 'yeses'],
+		    ['foot', 'feet'],
+		    ['eave', 'eaves'],
+		    ['goose', 'geese'],
+		    ['tooth', 'teeth'],
+		    ['quiz', 'quizzes'],
+		    ['human', 'humans'],
+		    ['proof', 'proofs'],
+		    ['carve', 'carves'],
+		    ['valve', 'valves'],
+		    ['looey', 'looies'],
+		    ['thief', 'thieves'],
+		    ['groove', 'grooves'],
+		    ['pickaxe', 'pickaxes'],
+		    ['passerby', 'passersby']
+		  ].forEach(function (rule) {
+		    return pluralize.addIrregularRule(rule[0], rule[1]);
+		  });
+		  [
+		    [/s?$/i, 's'],
+		    [/[^\u0000-\u007F]$/i, '$0'],
+		    [/([^aeiou]ese)$/i, '$1'],
+		    [/(ax|test)is$/i, '$1es'],
+		    [/(alias|[^aou]us|t[lm]as|gas|ris)$/i, '$1es'],
+		    [/(e[mn]u)s?$/i, '$1s'],
+		    [/([^l]ias|[aeiou]las|[ejzr]as|[iu]am)$/i, '$1'],
+		    [/(alumn|syllab|vir|radi|nucle|fung|cact|stimul|termin|bacill|foc|uter|loc|strat)(?:us|i)$/i, '$1i'],
+		    [/(alumn|alg|vertebr)(?:a|ae)$/i, '$1ae'],
+		    [/(seraph|cherub)(?:im)?$/i, '$1im'],
+		    [/(her|at|gr)o$/i, '$1oes'],
+		    [/(agend|addend|millenni|dat|extrem|bacteri|desiderat|strat|candelabr|errat|ov|symposi|curricul|automat|quor)(?:a|um)$/i, '$1a'],
+		    [/(apheli|hyperbat|periheli|asyndet|noumen|phenomen|criteri|organ|prolegomen|hedr|automat)(?:a|on)$/i, '$1a'],
+		    [/sis$/i, 'ses'],
+		    [/(?:(kni|wi|li)fe|(ar|l|ea|eo|oa|hoo)f)$/i, '$1$2ves'],
+		    [/([^aeiouy]|qu)y$/i, '$1ies'],
+		    [/([^ch][ieo][ln])ey$/i, '$1ies'],
+		    [/(x|ch|ss|sh|zz)$/i, '$1es'],
+		    [/(matr|cod|mur|sil|vert|ind|append)(?:ix|ex)$/i, '$1ices'],
+		    [/\b((?:tit)?m|l)(?:ice|ouse)$/i, '$1ice'],
+		    [/(pe)(?:rson|ople)$/i, '$1ople'],
+		    [/(child)(?:ren)?$/i, '$1ren'],
+		    [/eaux$/i, '$0'],
+		    [/m[ae]n$/i, 'men'],
+		    ['thou', 'you']
+		  ].forEach(function (rule) {
+		    return pluralize.addPluralRule(rule[0], rule[1]);
+		  });
+		  [
+		    [/s$/i, ''],
+		    [/(ss)$/i, '$1'],
+		    [/(wi|kni|(?:after|half|high|low|mid|non|night|[^\w]|^)li)ves$/i, '$1fe'],
+		    [/(ar|(?:wo|[ae])l|[eo][ao])ves$/i, '$1f'],
+		    [/ies$/i, 'y'],
+		    [/\b([pl]|zomb|(?:neck|cross)?t|coll|faer|food|gen|goon|group|lass|talk|goal|cut)ies$/i, '$1ie'],
+		    [/\b(mon|smil)ies$/i, '$1ey'],
+		    [/\b((?:tit)?m|l)ice$/i, '$1ouse'],
+		    [/(seraph|cherub)im$/i, '$1'],
+		    [/(x|ch|ss|sh|zz|tto|go|cho|alias|[^aou]us|t[lm]as|gas|(?:her|at|gr)o|[aeiou]ris)(?:es)?$/i, '$1'],
+		    [/(analy|diagno|parenthe|progno|synop|the|empha|cri|ne)(?:sis|ses)$/i, '$1sis'],
+		    [/(movie|twelve|abuse|e[mn]u)s$/i, '$1'],
+		    [/(test)(?:is|es)$/i, '$1is'],
+		    [/(alumn|syllab|vir|radi|nucle|fung|cact|stimul|termin|bacill|foc|uter|loc|strat)(?:us|i)$/i, '$1us'],
+		    [/(agend|addend|millenni|dat|extrem|bacteri|desiderat|strat|candelabr|errat|ov|symposi|curricul|quor)a$/i, '$1um'],
+		    [/(apheli|hyperbat|periheli|asyndet|noumen|phenomen|criteri|organ|prolegomen|hedr|automat)a$/i, '$1on'],
+		    [/(alumn|alg|vertebr)ae$/i, '$1a'],
+		    [/(cod|mur|sil|vert|ind)ices$/i, '$1ex'],
+		    [/(matr|append)ices$/i, '$1ix'],
+		    [/(pe)(rson|ople)$/i, '$1rson'],
+		    [/(child)ren$/i, '$1'],
+		    [/(eau)x?$/i, '$1'],
+		    [/men$/i, 'man']
+		  ].forEach(function (rule) {
+		    return pluralize.addSingularRule(rule[0], rule[1]);
+		  });
+		  [
+		    'adulthood',
+		    'advice',
+		    'agenda',
+		    'aid',
+		    'aircraft',
+		    'alcohol',
+		    'ammo',
+		    'analytics',
+		    'anime',
+		    'athletics',
+		    'audio',
+		    'bison',
+		    'blood',
+		    'bream',
+		    'buffalo',
+		    'butter',
+		    'carp',
+		    'cash',
+		    'chassis',
+		    'chess',
+		    'clothing',
+		    'cod',
+		    'commerce',
+		    'cooperation',
+		    'corps',
+		    'debris',
+		    'diabetes',
+		    'digestion',
+		    'elk',
+		    'energy',
+		    'equipment',
+		    'excretion',
+		    'expertise',
+		    'firmware',
+		    'flounder',
+		    'fun',
+		    'gallows',
+		    'garbage',
+		    'graffiti',
+		    'hardware',
+		    'headquarters',
+		    'health',
+		    'herpes',
+		    'highjinks',
+		    'homework',
+		    'housework',
+		    'information',
+		    'jeans',
+		    'justice',
+		    'kudos',
+		    'labour',
+		    'literature',
+		    'machinery',
+		    'mackerel',
+		    'mail',
+		    'media',
+		    'mews',
+		    'moose',
+		    'music',
+		    'mud',
+		    'manga',
+		    'news',
+		    'only',
+		    'personnel',
+		    'pike',
+		    'plankton',
+		    'pliers',
+		    'police',
+		    'pollution',
+		    'premises',
+		    'rain',
+		    'research',
+		    'rice',
+		    'salmon',
+		    'scissors',
+		    'series',
+		    'sewage',
+		    'shambles',
+		    'shrimp',
+		    'software',
+		    'species',
+		    'staff',
+		    'swine',
+		    'tennis',
+		    'traffic',
+		    'transportation',
+		    'trout',
+		    'tuna',
+		    'wealth',
+		    'welfare',
+		    'whiting',
+		    'wildebeest',
+		    'wildlife',
+		    'you',
+		    /pok[eé]mon$/i,
+		    /[^aeiou]ese$/i,
+		    /deer$/i,
+		    /fish$/i,
+		    /measles$/i,
+		    /o[iu]s$/i,
+		    /pox$/i,
+		    /sheep$/i
+		  ].forEach(pluralize.addUncountableRule);
+		  return pluralize;
+		});
+	} (pluralize$2));
+	return pluralize$2.exports;
+}
+
+var pluralizeExports = requirePluralize();
+var pluralize = /*@__PURE__*/getDefaultExportFromCjs(pluralizeExports);
 
 /**
  * remark-lint rule to warn when list item markers are indented.
@@ -15012,7 +15041,7 @@ const remarkLintDefinitionSpacing = lintRule$1(
 const quotation =
   (
     function (value, open, close) {
-      const start = open ;
+      const start = open;
       const end = start;
       let index = -1;
       if (Array.isArray(value)) {
@@ -17672,340 +17701,24 @@ const remarkLintNoTabs = lintRule$1(
   }
 );
 
-var sliced$1 = function (args, slice, sliceEnd) {
-  var ret = [];
-  var len = args.length;
-  if (0 === len) return ret;
-  var start = slice < 0
-    ? Math.max(0, slice + len)
-    : slice || 0;
-  if (sliceEnd !== undefined) {
-    len = sliceEnd < 0
-      ? sliceEnd + len
-      : sliceEnd;
-  }
-  while (len-- > start) {
-    ret[len - start] = args[len];
-  }
-  return ret;
-};
-getDefaultExportFromCjs(sliced$1);
-
-var slice = Array.prototype.slice;
-var co_1 = co$1;
-function co$1(fn) {
-  var isGenFun = isGeneratorFunction(fn);
-  return function (done) {
-    var ctx = this;
-    var gen = fn;
-    if (isGenFun) {
-      var args = slice.call(arguments), len = args.length;
-      var hasCallback = len && 'function' == typeof args[len - 1];
-      done = hasCallback ? args.pop() : error;
-      gen = fn.apply(this, args);
-    } else {
-      done = done || error;
-    }
-    next();
-    function exit(err, res) {
-      setImmediate(function(){
-        done.call(ctx, err, res);
-      });
-    }
-    function next(err, res) {
-      var ret;
-      if (arguments.length > 2) res = slice.call(arguments, 1);
-      if (err) {
-        try {
-          ret = gen.throw(err);
-        } catch (e) {
-          return exit(e);
-        }
-      }
-      if (!err) {
-        try {
-          ret = gen.next(res);
-        } catch (e) {
-          return exit(e);
-        }
-      }
-      if (ret.done) return exit(null, ret.value);
-      ret.value = toThunk(ret.value, ctx);
-      if ('function' == typeof ret.value) {
-        var called = false;
-        try {
-          ret.value.call(ctx, function(){
-            if (called) return;
-            called = true;
-            next.apply(ctx, arguments);
-          });
-        } catch (e) {
-          setImmediate(function(){
-            if (called) return;
-            called = true;
-            next(e);
-          });
-        }
-        return;
-      }
-      next(new TypeError('You may only yield a function, promise, generator, array, or object, '
-        + 'but the following was passed: "' + String(ret.value) + '"'));
-    }
-  }
-}
-function toThunk(obj, ctx) {
-  if (isGeneratorFunction(obj)) {
-    return co$1(obj.call(ctx));
-  }
-  if (isGenerator(obj)) {
-    return co$1(obj);
-  }
-  if (isPromise(obj)) {
-    return promiseToThunk(obj);
-  }
-  if ('function' == typeof obj) {
-    return obj;
-  }
-  if (isObject$1(obj) || Array.isArray(obj)) {
-    return objectToThunk.call(ctx, obj);
-  }
-  return obj;
-}
-function objectToThunk(obj){
-  var ctx = this;
-  var isArray = Array.isArray(obj);
-  return function(done){
-    var keys = Object.keys(obj);
-    var pending = keys.length;
-    var results = isArray
-      ? new Array(pending)
-      : new obj.constructor();
-    var finished;
-    if (!pending) {
-      setImmediate(function(){
-        done(null, results);
-      });
-      return;
-    }
-    if (!isArray) {
-      for (var i = 0; i < pending; i++) {
-        results[keys[i]] = undefined;
-      }
-    }
-    for (var i = 0; i < keys.length; i++) {
-      run(obj[keys[i]], keys[i]);
-    }
-    function run(fn, key) {
-      if (finished) return;
-      try {
-        fn = toThunk(fn, ctx);
-        if ('function' != typeof fn) {
-          results[key] = fn;
-          return --pending || done(null, results);
-        }
-        fn.call(ctx, function(err, res){
-          if (finished) return;
-          if (err) {
-            finished = true;
-            return done(err);
-          }
-          results[key] = res;
-          --pending || done(null, results);
-        });
-      } catch (err) {
-        finished = true;
-        done(err);
-      }
-    }
-  }
-}
-function promiseToThunk(promise) {
-  return function(fn){
-    promise.then(function(res) {
-      fn(null, res);
-    }, fn);
-  }
-}
-function isPromise(obj) {
-  return obj && 'function' == typeof obj.then;
-}
-function isGenerator(obj) {
-  return obj && 'function' == typeof obj.next && 'function' == typeof obj.throw;
-}
-function isGeneratorFunction(obj) {
-  return obj && obj.constructor && 'GeneratorFunction' == obj.constructor.name;
-}
-function isObject$1(val) {
-  return val && Object == val.constructor;
-}
-function error(err) {
-  if (!err) return;
-  setImmediate(function(){
-    throw err;
-  });
-}
-getDefaultExportFromCjs(co_1);
-
-var sliced = sliced$1;
-var noop = function(){};
-var co = co_1;
-var wrapped_1 = wrapped$1;
-function wrapped$1(fn) {
-  function wrap() {
-    var args = sliced(arguments);
-    var last = args[args.length - 1];
-    var ctx = this;
-    var done = typeof last == 'function' ? args.pop() : noop;
-    if (!fn) {
-      return done.apply(ctx, [null].concat(args));
-    }
-    if (generator(fn)) {
-      return co(fn).apply(ctx, args.concat(done));
-    }
-    if (fn.length > args.length) {
-      try {
-        return fn.apply(ctx, args.concat(done));
-      } catch (e) {
-        return done(e);
-      }
-    }
-    return sync(fn, done).apply(ctx, args);
-  }
-  return wrap;
-}
-function sync(fn, done) {
-  return function () {
-    var ret;
-    try {
-      ret = fn.apply(this, arguments);
-    } catch (err) {
-      return done(err);
-    }
-    if (promise(ret)) {
-      ret.then(function (value) { done(null, value); }, done);
-    } else {
-      ret instanceof Error ? done(ret) : done(null, ret);
-    }
-  }
-}
-function generator(value) {
-  return value
-    && value.constructor
-    && 'GeneratorFunction' == value.constructor.name;
-}
-function promise(value) {
-  return value && 'function' == typeof value.then;
-}
-getDefaultExportFromCjs(wrapped_1);
-
-var wrapped = wrapped_1;
-var unifiedLintRule = factory;
-function factory(id, rule) {
-  var parts = id.split(':');
-  var source = parts[0];
-  var ruleId = parts[1];
-  var fn = wrapped(rule);
-  if (!ruleId) {
-    ruleId = source;
-    source = null;
-  }
-  attacher.displayName = id;
-  return attacher
-  function attacher(raw) {
-    var config = coerce$1(ruleId, raw);
-    var severity = config[0];
-    var options = config[1];
-    var fatal = severity === 2;
-    return severity ? transformer : undefined
-    function transformer(tree, file, next) {
-      var index = file.messages.length;
-      fn(tree, file, options, done);
-      function done(err) {
-        var messages = file.messages;
-        var message;
-        if (err && messages.indexOf(err) === -1) {
-          try {
-            file.fail(err);
-          } catch (_) {}
-        }
-        while (index < messages.length) {
-          message = messages[index];
-          message.ruleId = ruleId;
-          message.source = source;
-          message.fatal = fatal;
-          index++;
-        }
-        next();
-      }
-    }
-  }
-}
-function coerce$1(name, value) {
-  var def = 1;
-  var result;
-  var level;
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value == null) {
-    result = [def];
-  } else if (
-    typeof value === 'object' &&
-    (typeof value[0] === 'number' ||
-      typeof value[0] === 'boolean' ||
-      typeof value[0] === 'string')
-  ) {
-    result = value.concat();
-  } else {
-    result = [1, value];
-  }
-  level = result[0];
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-  if (level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-  result[0] = level;
-  return result
-}
-getDefaultExportFromCjs(unifiedLintRule);
-
-var rule = unifiedLintRule;
-var remarkLintNoTrailingSpaces = rule('remark-lint:no-trailing-spaces', noTrailingSpaces);
+const rule = lintRule$1('remark-lint:no-trailing-spaces', noTrailingSpaces);
 function noTrailingSpaces(ast, file) {
-  var lines = file.toString().split(/\r?\n/);
-  for (var i = 0; i < lines.length; i++) {
-    var currentLine = lines[i];
-    var lineIndex = i + 1;
-    if (/\s$/.test(currentLine)) {
+  const myLocation = location(file);
+  const lines = file.toString().split(/\r?\n/);
+  for (let i = 0; i < lines.length; i++) {
+    const currentLine = lines[i];
+    const lineIndex = i + 1;
+    const match = /\s+$/.exec(currentLine);
+    if (match) {
+      const startOffset = myLocation.toOffset({ line: lineIndex, column: match.index+1 });
+      const endOffset = myLocation.toOffset({ line: lineIndex, column: currentLine.length+1 });
       file.message('Remove trailing whitespace', {
-        position: {
-          start: { line: lineIndex, column: currentLine.length + 1 },
-          end: { line: lineIndex }
-        }
+        start: myLocation.toPoint(startOffset),
+        end: myLocation.toPoint(endOffset),
       });
     }
   }
 }
-var remarkLintNoTrailingSpaces$1 = getDefaultExportFromCjs(remarkLintNoTrailingSpaces);
 
 function* getLinksRecursively(node) {
   if (node.url) {
@@ -18016,7 +17729,7 @@ function* getLinksRecursively(node) {
   }
 }
 function validateLinks(tree, vfile) {
-  const currentFileURL = pathToFileURL(path$2.join(vfile.cwd, vfile.path));
+  const currentFileURL = pathToFileURL(path$1.join(vfile.cwd, vfile.path));
   let previousDefinitionLabel;
   for (const node of getLinksRecursively(tree)) {
     if (node.url[0] !== "#") {
@@ -20860,474 +20573,532 @@ var jsYaml = {
 	safeDump: safeDump
 };
 
-const debug$1 = (
-  typeof process === 'object' &&
-  process.env &&
-  process.env.NODE_DEBUG &&
-  /\bsemver\b/i.test(process.env.NODE_DEBUG)
-) ? (...args) => console.error('SEMVER', ...args)
-  : () => {};
-var debug_1 = debug$1;
-getDefaultExportFromCjs(debug_1);
+var debug_1;
+var hasRequiredDebug;
+function requireDebug () {
+	if (hasRequiredDebug) return debug_1;
+	hasRequiredDebug = 1;
+	const debug = (
+	  typeof process === 'object' &&
+	  process.env &&
+	  process.env.NODE_DEBUG &&
+	  /\bsemver\b/i.test(process.env.NODE_DEBUG)
+	) ? (...args) => console.error('SEMVER', ...args)
+	  : () => {};
+	debug_1 = debug;
+	return debug_1;
+}
 
-const SEMVER_SPEC_VERSION = '2.0.0';
-const MAX_LENGTH$1 = 256;
-const MAX_SAFE_INTEGER$1 = Number.MAX_SAFE_INTEGER ||
- 9007199254740991;
-const MAX_SAFE_COMPONENT_LENGTH = 16;
-const MAX_SAFE_BUILD_LENGTH = MAX_LENGTH$1 - 6;
-const RELEASE_TYPES = [
-  'major',
-  'premajor',
-  'minor',
-  'preminor',
-  'patch',
-  'prepatch',
-  'prerelease',
-];
-var constants = {
-  MAX_LENGTH: MAX_LENGTH$1,
-  MAX_SAFE_COMPONENT_LENGTH,
-  MAX_SAFE_BUILD_LENGTH,
-  MAX_SAFE_INTEGER: MAX_SAFE_INTEGER$1,
-  RELEASE_TYPES,
-  SEMVER_SPEC_VERSION,
-  FLAG_INCLUDE_PRERELEASE: 0b001,
-  FLAG_LOOSE: 0b010,
-};
-getDefaultExportFromCjs(constants);
-
-var re$1 = {exports: {}};
-
-(function (module, exports) {
-	const {
+var constants;
+var hasRequiredConstants;
+function requireConstants () {
+	if (hasRequiredConstants) return constants;
+	hasRequiredConstants = 1;
+	const SEMVER_SPEC_VERSION = '2.0.0';
+	const MAX_LENGTH = 256;
+	const MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER ||
+	 9007199254740991;
+	const MAX_SAFE_COMPONENT_LENGTH = 16;
+	const MAX_SAFE_BUILD_LENGTH = MAX_LENGTH - 6;
+	const RELEASE_TYPES = [
+	  'major',
+	  'premajor',
+	  'minor',
+	  'preminor',
+	  'patch',
+	  'prepatch',
+	  'prerelease',
+	];
+	constants = {
+	  MAX_LENGTH,
 	  MAX_SAFE_COMPONENT_LENGTH,
 	  MAX_SAFE_BUILD_LENGTH,
-	  MAX_LENGTH,
-	} = constants;
-	const debug = debug_1;
-	exports = module.exports = {};
-	const re = exports.re = [];
-	const safeRe = exports.safeRe = [];
-	const src = exports.src = [];
-	const t = exports.t = {};
-	let R = 0;
-	const LETTERDASHNUMBER = '[a-zA-Z0-9-]';
-	const safeRegexReplacements = [
-	  ['\\s', 1],
-	  ['\\d', MAX_LENGTH],
-	  [LETTERDASHNUMBER, MAX_SAFE_BUILD_LENGTH],
-	];
-	const makeSafeRegex = (value) => {
-	  for (const [token, max] of safeRegexReplacements) {
-	    value = value
-	      .split(`${token}*`).join(`${token}{0,${max}}`)
-	      .split(`${token}+`).join(`${token}{1,${max}}`);
+	  MAX_SAFE_INTEGER,
+	  RELEASE_TYPES,
+	  SEMVER_SPEC_VERSION,
+	  FLAG_INCLUDE_PRERELEASE: 0b001,
+	  FLAG_LOOSE: 0b010,
+	};
+	return constants;
+}
+
+var re = {exports: {}};
+
+var hasRequiredRe;
+function requireRe () {
+	if (hasRequiredRe) return re.exports;
+	hasRequiredRe = 1;
+	(function (module, exports) {
+		const {
+		  MAX_SAFE_COMPONENT_LENGTH,
+		  MAX_SAFE_BUILD_LENGTH,
+		  MAX_LENGTH,
+		} = requireConstants();
+		const debug = requireDebug();
+		exports = module.exports = {};
+		const re = exports.re = [];
+		const safeRe = exports.safeRe = [];
+		const src = exports.src = [];
+		const t = exports.t = {};
+		let R = 0;
+		const LETTERDASHNUMBER = '[a-zA-Z0-9-]';
+		const safeRegexReplacements = [
+		  ['\\s', 1],
+		  ['\\d', MAX_LENGTH],
+		  [LETTERDASHNUMBER, MAX_SAFE_BUILD_LENGTH],
+		];
+		const makeSafeRegex = (value) => {
+		  for (const [token, max] of safeRegexReplacements) {
+		    value = value
+		      .split(`${token}*`).join(`${token}{0,${max}}`)
+		      .split(`${token}+`).join(`${token}{1,${max}}`);
+		  }
+		  return value
+		};
+		const createToken = (name, value, isGlobal) => {
+		  const safe = makeSafeRegex(value);
+		  const index = R++;
+		  debug(name, index, value);
+		  t[name] = index;
+		  src[index] = value;
+		  re[index] = new RegExp(value, isGlobal ? 'g' : undefined);
+		  safeRe[index] = new RegExp(safe, isGlobal ? 'g' : undefined);
+		};
+		createToken('NUMERICIDENTIFIER', '0|[1-9]\\d*');
+		createToken('NUMERICIDENTIFIERLOOSE', '\\d+');
+		createToken('NONNUMERICIDENTIFIER', `\\d*[a-zA-Z-]${LETTERDASHNUMBER}*`);
+		createToken('MAINVERSION', `(${src[t.NUMERICIDENTIFIER]})\\.` +
+		                   `(${src[t.NUMERICIDENTIFIER]})\\.` +
+		                   `(${src[t.NUMERICIDENTIFIER]})`);
+		createToken('MAINVERSIONLOOSE', `(${src[t.NUMERICIDENTIFIERLOOSE]})\\.` +
+		                        `(${src[t.NUMERICIDENTIFIERLOOSE]})\\.` +
+		                        `(${src[t.NUMERICIDENTIFIERLOOSE]})`);
+		createToken('PRERELEASEIDENTIFIER', `(?:${src[t.NUMERICIDENTIFIER]
+		}|${src[t.NONNUMERICIDENTIFIER]})`);
+		createToken('PRERELEASEIDENTIFIERLOOSE', `(?:${src[t.NUMERICIDENTIFIERLOOSE]
+		}|${src[t.NONNUMERICIDENTIFIER]})`);
+		createToken('PRERELEASE', `(?:-(${src[t.PRERELEASEIDENTIFIER]
+		}(?:\\.${src[t.PRERELEASEIDENTIFIER]})*))`);
+		createToken('PRERELEASELOOSE', `(?:-?(${src[t.PRERELEASEIDENTIFIERLOOSE]
+		}(?:\\.${src[t.PRERELEASEIDENTIFIERLOOSE]})*))`);
+		createToken('BUILDIDENTIFIER', `${LETTERDASHNUMBER}+`);
+		createToken('BUILD', `(?:\\+(${src[t.BUILDIDENTIFIER]
+		}(?:\\.${src[t.BUILDIDENTIFIER]})*))`);
+		createToken('FULLPLAIN', `v?${src[t.MAINVERSION]
+		}${src[t.PRERELEASE]}?${
+		  src[t.BUILD]}?`);
+		createToken('FULL', `^${src[t.FULLPLAIN]}$`);
+		createToken('LOOSEPLAIN', `[v=\\s]*${src[t.MAINVERSIONLOOSE]
+		}${src[t.PRERELEASELOOSE]}?${
+		  src[t.BUILD]}?`);
+		createToken('LOOSE', `^${src[t.LOOSEPLAIN]}$`);
+		createToken('GTLT', '((?:<|>)?=?)');
+		createToken('XRANGEIDENTIFIERLOOSE', `${src[t.NUMERICIDENTIFIERLOOSE]}|x|X|\\*`);
+		createToken('XRANGEIDENTIFIER', `${src[t.NUMERICIDENTIFIER]}|x|X|\\*`);
+		createToken('XRANGEPLAIN', `[v=\\s]*(${src[t.XRANGEIDENTIFIER]})` +
+		                   `(?:\\.(${src[t.XRANGEIDENTIFIER]})` +
+		                   `(?:\\.(${src[t.XRANGEIDENTIFIER]})` +
+		                   `(?:${src[t.PRERELEASE]})?${
+		                     src[t.BUILD]}?` +
+		                   `)?)?`);
+		createToken('XRANGEPLAINLOOSE', `[v=\\s]*(${src[t.XRANGEIDENTIFIERLOOSE]})` +
+		                        `(?:\\.(${src[t.XRANGEIDENTIFIERLOOSE]})` +
+		                        `(?:\\.(${src[t.XRANGEIDENTIFIERLOOSE]})` +
+		                        `(?:${src[t.PRERELEASELOOSE]})?${
+		                          src[t.BUILD]}?` +
+		                        `)?)?`);
+		createToken('XRANGE', `^${src[t.GTLT]}\\s*${src[t.XRANGEPLAIN]}$`);
+		createToken('XRANGELOOSE', `^${src[t.GTLT]}\\s*${src[t.XRANGEPLAINLOOSE]}$`);
+		createToken('COERCEPLAIN', `${'(^|[^\\d])' +
+		              '(\\d{1,'}${MAX_SAFE_COMPONENT_LENGTH}})` +
+		              `(?:\\.(\\d{1,${MAX_SAFE_COMPONENT_LENGTH}}))?` +
+		              `(?:\\.(\\d{1,${MAX_SAFE_COMPONENT_LENGTH}}))?`);
+		createToken('COERCE', `${src[t.COERCEPLAIN]}(?:$|[^\\d])`);
+		createToken('COERCEFULL', src[t.COERCEPLAIN] +
+		              `(?:${src[t.PRERELEASE]})?` +
+		              `(?:${src[t.BUILD]})?` +
+		              `(?:$|[^\\d])`);
+		createToken('COERCERTL', src[t.COERCE], true);
+		createToken('COERCERTLFULL', src[t.COERCEFULL], true);
+		createToken('LONETILDE', '(?:~>?)');
+		createToken('TILDETRIM', `(\\s*)${src[t.LONETILDE]}\\s+`, true);
+		exports.tildeTrimReplace = '$1~';
+		createToken('TILDE', `^${src[t.LONETILDE]}${src[t.XRANGEPLAIN]}$`);
+		createToken('TILDELOOSE', `^${src[t.LONETILDE]}${src[t.XRANGEPLAINLOOSE]}$`);
+		createToken('LONECARET', '(?:\\^)');
+		createToken('CARETTRIM', `(\\s*)${src[t.LONECARET]}\\s+`, true);
+		exports.caretTrimReplace = '$1^';
+		createToken('CARET', `^${src[t.LONECARET]}${src[t.XRANGEPLAIN]}$`);
+		createToken('CARETLOOSE', `^${src[t.LONECARET]}${src[t.XRANGEPLAINLOOSE]}$`);
+		createToken('COMPARATORLOOSE', `^${src[t.GTLT]}\\s*(${src[t.LOOSEPLAIN]})$|^$`);
+		createToken('COMPARATOR', `^${src[t.GTLT]}\\s*(${src[t.FULLPLAIN]})$|^$`);
+		createToken('COMPARATORTRIM', `(\\s*)${src[t.GTLT]
+		}\\s*(${src[t.LOOSEPLAIN]}|${src[t.XRANGEPLAIN]})`, true);
+		exports.comparatorTrimReplace = '$1$2$3';
+		createToken('HYPHENRANGE', `^\\s*(${src[t.XRANGEPLAIN]})` +
+		                   `\\s+-\\s+` +
+		                   `(${src[t.XRANGEPLAIN]})` +
+		                   `\\s*$`);
+		createToken('HYPHENRANGELOOSE', `^\\s*(${src[t.XRANGEPLAINLOOSE]})` +
+		                        `\\s+-\\s+` +
+		                        `(${src[t.XRANGEPLAINLOOSE]})` +
+		                        `\\s*$`);
+		createToken('STAR', '(<|>)?=?\\s*\\*');
+		createToken('GTE0', '^\\s*>=\\s*0\\.0\\.0\\s*$');
+		createToken('GTE0PRE', '^\\s*>=\\s*0\\.0\\.0-0\\s*$');
+	} (re, re.exports));
+	return re.exports;
+}
+
+var parseOptions_1;
+var hasRequiredParseOptions;
+function requireParseOptions () {
+	if (hasRequiredParseOptions) return parseOptions_1;
+	hasRequiredParseOptions = 1;
+	const looseOption = Object.freeze({ loose: true });
+	const emptyOpts = Object.freeze({ });
+	const parseOptions = options => {
+	  if (!options) {
+	    return emptyOpts
 	  }
-	  return value
+	  if (typeof options !== 'object') {
+	    return looseOption
+	  }
+	  return options
 	};
-	const createToken = (name, value, isGlobal) => {
-	  const safe = makeSafeRegex(value);
-	  const index = R++;
-	  debug(name, index, value);
-	  t[name] = index;
-	  src[index] = value;
-	  re[index] = new RegExp(value, isGlobal ? 'g' : undefined);
-	  safeRe[index] = new RegExp(safe, isGlobal ? 'g' : undefined);
+	parseOptions_1 = parseOptions;
+	return parseOptions_1;
+}
+
+var identifiers;
+var hasRequiredIdentifiers;
+function requireIdentifiers () {
+	if (hasRequiredIdentifiers) return identifiers;
+	hasRequiredIdentifiers = 1;
+	const numeric = /^[0-9]+$/;
+	const compareIdentifiers = (a, b) => {
+	  const anum = numeric.test(a);
+	  const bnum = numeric.test(b);
+	  if (anum && bnum) {
+	    a = +a;
+	    b = +b;
+	  }
+	  return a === b ? 0
+	    : (anum && !bnum) ? -1
+	    : (bnum && !anum) ? 1
+	    : a < b ? -1
+	    : 1
 	};
-	createToken('NUMERICIDENTIFIER', '0|[1-9]\\d*');
-	createToken('NUMERICIDENTIFIERLOOSE', '\\d+');
-	createToken('NONNUMERICIDENTIFIER', `\\d*[a-zA-Z-]${LETTERDASHNUMBER}*`);
-	createToken('MAINVERSION', `(${src[t.NUMERICIDENTIFIER]})\\.` +
-	                   `(${src[t.NUMERICIDENTIFIER]})\\.` +
-	                   `(${src[t.NUMERICIDENTIFIER]})`);
-	createToken('MAINVERSIONLOOSE', `(${src[t.NUMERICIDENTIFIERLOOSE]})\\.` +
-	                        `(${src[t.NUMERICIDENTIFIERLOOSE]})\\.` +
-	                        `(${src[t.NUMERICIDENTIFIERLOOSE]})`);
-	createToken('PRERELEASEIDENTIFIER', `(?:${src[t.NUMERICIDENTIFIER]
-	}|${src[t.NONNUMERICIDENTIFIER]})`);
-	createToken('PRERELEASEIDENTIFIERLOOSE', `(?:${src[t.NUMERICIDENTIFIERLOOSE]
-	}|${src[t.NONNUMERICIDENTIFIER]})`);
-	createToken('PRERELEASE', `(?:-(${src[t.PRERELEASEIDENTIFIER]
-	}(?:\\.${src[t.PRERELEASEIDENTIFIER]})*))`);
-	createToken('PRERELEASELOOSE', `(?:-?(${src[t.PRERELEASEIDENTIFIERLOOSE]
-	}(?:\\.${src[t.PRERELEASEIDENTIFIERLOOSE]})*))`);
-	createToken('BUILDIDENTIFIER', `${LETTERDASHNUMBER}+`);
-	createToken('BUILD', `(?:\\+(${src[t.BUILDIDENTIFIER]
-	}(?:\\.${src[t.BUILDIDENTIFIER]})*))`);
-	createToken('FULLPLAIN', `v?${src[t.MAINVERSION]
-	}${src[t.PRERELEASE]}?${
-	  src[t.BUILD]}?`);
-	createToken('FULL', `^${src[t.FULLPLAIN]}$`);
-	createToken('LOOSEPLAIN', `[v=\\s]*${src[t.MAINVERSIONLOOSE]
-	}${src[t.PRERELEASELOOSE]}?${
-	  src[t.BUILD]}?`);
-	createToken('LOOSE', `^${src[t.LOOSEPLAIN]}$`);
-	createToken('GTLT', '((?:<|>)?=?)');
-	createToken('XRANGEIDENTIFIERLOOSE', `${src[t.NUMERICIDENTIFIERLOOSE]}|x|X|\\*`);
-	createToken('XRANGEIDENTIFIER', `${src[t.NUMERICIDENTIFIER]}|x|X|\\*`);
-	createToken('XRANGEPLAIN', `[v=\\s]*(${src[t.XRANGEIDENTIFIER]})` +
-	                   `(?:\\.(${src[t.XRANGEIDENTIFIER]})` +
-	                   `(?:\\.(${src[t.XRANGEIDENTIFIER]})` +
-	                   `(?:${src[t.PRERELEASE]})?${
-	                     src[t.BUILD]}?` +
-	                   `)?)?`);
-	createToken('XRANGEPLAINLOOSE', `[v=\\s]*(${src[t.XRANGEIDENTIFIERLOOSE]})` +
-	                        `(?:\\.(${src[t.XRANGEIDENTIFIERLOOSE]})` +
-	                        `(?:\\.(${src[t.XRANGEIDENTIFIERLOOSE]})` +
-	                        `(?:${src[t.PRERELEASELOOSE]})?${
-	                          src[t.BUILD]}?` +
-	                        `)?)?`);
-	createToken('XRANGE', `^${src[t.GTLT]}\\s*${src[t.XRANGEPLAIN]}$`);
-	createToken('XRANGELOOSE', `^${src[t.GTLT]}\\s*${src[t.XRANGEPLAINLOOSE]}$`);
-	createToken('COERCEPLAIN', `${'(^|[^\\d])' +
-	              '(\\d{1,'}${MAX_SAFE_COMPONENT_LENGTH}})` +
-	              `(?:\\.(\\d{1,${MAX_SAFE_COMPONENT_LENGTH}}))?` +
-	              `(?:\\.(\\d{1,${MAX_SAFE_COMPONENT_LENGTH}}))?`);
-	createToken('COERCE', `${src[t.COERCEPLAIN]}(?:$|[^\\d])`);
-	createToken('COERCEFULL', src[t.COERCEPLAIN] +
-	              `(?:${src[t.PRERELEASE]})?` +
-	              `(?:${src[t.BUILD]})?` +
-	              `(?:$|[^\\d])`);
-	createToken('COERCERTL', src[t.COERCE], true);
-	createToken('COERCERTLFULL', src[t.COERCEFULL], true);
-	createToken('LONETILDE', '(?:~>?)');
-	createToken('TILDETRIM', `(\\s*)${src[t.LONETILDE]}\\s+`, true);
-	exports.tildeTrimReplace = '$1~';
-	createToken('TILDE', `^${src[t.LONETILDE]}${src[t.XRANGEPLAIN]}$`);
-	createToken('TILDELOOSE', `^${src[t.LONETILDE]}${src[t.XRANGEPLAINLOOSE]}$`);
-	createToken('LONECARET', '(?:\\^)');
-	createToken('CARETTRIM', `(\\s*)${src[t.LONECARET]}\\s+`, true);
-	exports.caretTrimReplace = '$1^';
-	createToken('CARET', `^${src[t.LONECARET]}${src[t.XRANGEPLAIN]}$`);
-	createToken('CARETLOOSE', `^${src[t.LONECARET]}${src[t.XRANGEPLAINLOOSE]}$`);
-	createToken('COMPARATORLOOSE', `^${src[t.GTLT]}\\s*(${src[t.LOOSEPLAIN]})$|^$`);
-	createToken('COMPARATOR', `^${src[t.GTLT]}\\s*(${src[t.FULLPLAIN]})$|^$`);
-	createToken('COMPARATORTRIM', `(\\s*)${src[t.GTLT]
-	}\\s*(${src[t.LOOSEPLAIN]}|${src[t.XRANGEPLAIN]})`, true);
-	exports.comparatorTrimReplace = '$1$2$3';
-	createToken('HYPHENRANGE', `^\\s*(${src[t.XRANGEPLAIN]})` +
-	                   `\\s+-\\s+` +
-	                   `(${src[t.XRANGEPLAIN]})` +
-	                   `\\s*$`);
-	createToken('HYPHENRANGELOOSE', `^\\s*(${src[t.XRANGEPLAINLOOSE]})` +
-	                        `\\s+-\\s+` +
-	                        `(${src[t.XRANGEPLAINLOOSE]})` +
-	                        `\\s*$`);
-	createToken('STAR', '(<|>)?=?\\s*\\*');
-	createToken('GTE0', '^\\s*>=\\s*0\\.0\\.0\\s*$');
-	createToken('GTE0PRE', '^\\s*>=\\s*0\\.0\\.0-0\\s*$');
-} (re$1, re$1.exports));
-var reExports = re$1.exports;
-getDefaultExportFromCjs(reExports);
+	const rcompareIdentifiers = (a, b) => compareIdentifiers(b, a);
+	identifiers = {
+	  compareIdentifiers,
+	  rcompareIdentifiers,
+	};
+	return identifiers;
+}
 
-const looseOption = Object.freeze({ loose: true });
-const emptyOpts = Object.freeze({ });
-const parseOptions$1 = options => {
-  if (!options) {
-    return emptyOpts
-  }
-  if (typeof options !== 'object') {
-    return looseOption
-  }
-  return options
-};
-var parseOptions_1 = parseOptions$1;
-getDefaultExportFromCjs(parseOptions_1);
+var semver;
+var hasRequiredSemver;
+function requireSemver () {
+	if (hasRequiredSemver) return semver;
+	hasRequiredSemver = 1;
+	const debug = requireDebug();
+	const { MAX_LENGTH, MAX_SAFE_INTEGER } = requireConstants();
+	const { safeRe: re, t } = requireRe();
+	const parseOptions = requireParseOptions();
+	const { compareIdentifiers } = requireIdentifiers();
+	class SemVer {
+	  constructor (version, options) {
+	    options = parseOptions(options);
+	    if (version instanceof SemVer) {
+	      if (version.loose === !!options.loose &&
+	          version.includePrerelease === !!options.includePrerelease) {
+	        return version
+	      } else {
+	        version = version.version;
+	      }
+	    } else if (typeof version !== 'string') {
+	      throw new TypeError(`Invalid version. Must be a string. Got type "${typeof version}".`)
+	    }
+	    if (version.length > MAX_LENGTH) {
+	      throw new TypeError(
+	        `version is longer than ${MAX_LENGTH} characters`
+	      )
+	    }
+	    debug('SemVer', version, options);
+	    this.options = options;
+	    this.loose = !!options.loose;
+	    this.includePrerelease = !!options.includePrerelease;
+	    const m = version.trim().match(options.loose ? re[t.LOOSE] : re[t.FULL]);
+	    if (!m) {
+	      throw new TypeError(`Invalid Version: ${version}`)
+	    }
+	    this.raw = version;
+	    this.major = +m[1];
+	    this.minor = +m[2];
+	    this.patch = +m[3];
+	    if (this.major > MAX_SAFE_INTEGER || this.major < 0) {
+	      throw new TypeError('Invalid major version')
+	    }
+	    if (this.minor > MAX_SAFE_INTEGER || this.minor < 0) {
+	      throw new TypeError('Invalid minor version')
+	    }
+	    if (this.patch > MAX_SAFE_INTEGER || this.patch < 0) {
+	      throw new TypeError('Invalid patch version')
+	    }
+	    if (!m[4]) {
+	      this.prerelease = [];
+	    } else {
+	      this.prerelease = m[4].split('.').map((id) => {
+	        if (/^[0-9]+$/.test(id)) {
+	          const num = +id;
+	          if (num >= 0 && num < MAX_SAFE_INTEGER) {
+	            return num
+	          }
+	        }
+	        return id
+	      });
+	    }
+	    this.build = m[5] ? m[5].split('.') : [];
+	    this.format();
+	  }
+	  format () {
+	    this.version = `${this.major}.${this.minor}.${this.patch}`;
+	    if (this.prerelease.length) {
+	      this.version += `-${this.prerelease.join('.')}`;
+	    }
+	    return this.version
+	  }
+	  toString () {
+	    return this.version
+	  }
+	  compare (other) {
+	    debug('SemVer.compare', this.version, this.options, other);
+	    if (!(other instanceof SemVer)) {
+	      if (typeof other === 'string' && other === this.version) {
+	        return 0
+	      }
+	      other = new SemVer(other, this.options);
+	    }
+	    if (other.version === this.version) {
+	      return 0
+	    }
+	    return this.compareMain(other) || this.comparePre(other)
+	  }
+	  compareMain (other) {
+	    if (!(other instanceof SemVer)) {
+	      other = new SemVer(other, this.options);
+	    }
+	    return (
+	      compareIdentifiers(this.major, other.major) ||
+	      compareIdentifiers(this.minor, other.minor) ||
+	      compareIdentifiers(this.patch, other.patch)
+	    )
+	  }
+	  comparePre (other) {
+	    if (!(other instanceof SemVer)) {
+	      other = new SemVer(other, this.options);
+	    }
+	    if (this.prerelease.length && !other.prerelease.length) {
+	      return -1
+	    } else if (!this.prerelease.length && other.prerelease.length) {
+	      return 1
+	    } else if (!this.prerelease.length && !other.prerelease.length) {
+	      return 0
+	    }
+	    let i = 0;
+	    do {
+	      const a = this.prerelease[i];
+	      const b = other.prerelease[i];
+	      debug('prerelease compare', i, a, b);
+	      if (a === undefined && b === undefined) {
+	        return 0
+	      } else if (b === undefined) {
+	        return 1
+	      } else if (a === undefined) {
+	        return -1
+	      } else if (a === b) {
+	        continue
+	      } else {
+	        return compareIdentifiers(a, b)
+	      }
+	    } while (++i)
+	  }
+	  compareBuild (other) {
+	    if (!(other instanceof SemVer)) {
+	      other = new SemVer(other, this.options);
+	    }
+	    let i = 0;
+	    do {
+	      const a = this.build[i];
+	      const b = other.build[i];
+	      debug('build compare', i, a, b);
+	      if (a === undefined && b === undefined) {
+	        return 0
+	      } else if (b === undefined) {
+	        return 1
+	      } else if (a === undefined) {
+	        return -1
+	      } else if (a === b) {
+	        continue
+	      } else {
+	        return compareIdentifiers(a, b)
+	      }
+	    } while (++i)
+	  }
+	  inc (release, identifier, identifierBase) {
+	    switch (release) {
+	      case 'premajor':
+	        this.prerelease.length = 0;
+	        this.patch = 0;
+	        this.minor = 0;
+	        this.major++;
+	        this.inc('pre', identifier, identifierBase);
+	        break
+	      case 'preminor':
+	        this.prerelease.length = 0;
+	        this.patch = 0;
+	        this.minor++;
+	        this.inc('pre', identifier, identifierBase);
+	        break
+	      case 'prepatch':
+	        this.prerelease.length = 0;
+	        this.inc('patch', identifier, identifierBase);
+	        this.inc('pre', identifier, identifierBase);
+	        break
+	      case 'prerelease':
+	        if (this.prerelease.length === 0) {
+	          this.inc('patch', identifier, identifierBase);
+	        }
+	        this.inc('pre', identifier, identifierBase);
+	        break
+	      case 'major':
+	        if (
+	          this.minor !== 0 ||
+	          this.patch !== 0 ||
+	          this.prerelease.length === 0
+	        ) {
+	          this.major++;
+	        }
+	        this.minor = 0;
+	        this.patch = 0;
+	        this.prerelease = [];
+	        break
+	      case 'minor':
+	        if (this.patch !== 0 || this.prerelease.length === 0) {
+	          this.minor++;
+	        }
+	        this.patch = 0;
+	        this.prerelease = [];
+	        break
+	      case 'patch':
+	        if (this.prerelease.length === 0) {
+	          this.patch++;
+	        }
+	        this.prerelease = [];
+	        break
+	      case 'pre': {
+	        const base = Number(identifierBase) ? 1 : 0;
+	        if (!identifier && identifierBase === false) {
+	          throw new Error('invalid increment argument: identifier is empty')
+	        }
+	        if (this.prerelease.length === 0) {
+	          this.prerelease = [base];
+	        } else {
+	          let i = this.prerelease.length;
+	          while (--i >= 0) {
+	            if (typeof this.prerelease[i] === 'number') {
+	              this.prerelease[i]++;
+	              i = -2;
+	            }
+	          }
+	          if (i === -1) {
+	            if (identifier === this.prerelease.join('.') && identifierBase === false) {
+	              throw new Error('invalid increment argument: identifier already exists')
+	            }
+	            this.prerelease.push(base);
+	          }
+	        }
+	        if (identifier) {
+	          let prerelease = [identifier, base];
+	          if (identifierBase === false) {
+	            prerelease = [identifier];
+	          }
+	          if (compareIdentifiers(this.prerelease[0], identifier) === 0) {
+	            if (isNaN(this.prerelease[1])) {
+	              this.prerelease = prerelease;
+	            }
+	          } else {
+	            this.prerelease = prerelease;
+	          }
+	        }
+	        break
+	      }
+	      default:
+	        throw new Error(`invalid increment argument: ${release}`)
+	    }
+	    this.raw = this.format();
+	    if (this.build.length) {
+	      this.raw += `+${this.build.join('.')}`;
+	    }
+	    return this
+	  }
+	}
+	semver = SemVer;
+	return semver;
+}
 
-const numeric = /^[0-9]+$/;
-const compareIdentifiers$1 = (a, b) => {
-  const anum = numeric.test(a);
-  const bnum = numeric.test(b);
-  if (anum && bnum) {
-    a = +a;
-    b = +b;
-  }
-  return a === b ? 0
-    : (anum && !bnum) ? -1
-    : (bnum && !anum) ? 1
-    : a < b ? -1
-    : 1
-};
-const rcompareIdentifiers = (a, b) => compareIdentifiers$1(b, a);
-var identifiers = {
-  compareIdentifiers: compareIdentifiers$1,
-  rcompareIdentifiers,
-};
-getDefaultExportFromCjs(identifiers);
+var parse_1;
+var hasRequiredParse;
+function requireParse () {
+	if (hasRequiredParse) return parse_1;
+	hasRequiredParse = 1;
+	const SemVer = requireSemver();
+	const parse = (version, options, throwErrors = false) => {
+	  if (version instanceof SemVer) {
+	    return version
+	  }
+	  try {
+	    return new SemVer(version, options)
+	  } catch (er) {
+	    if (!throwErrors) {
+	      return null
+	    }
+	    throw er
+	  }
+	};
+	parse_1 = parse;
+	return parse_1;
+}
 
-const debug = debug_1;
-const { MAX_LENGTH, MAX_SAFE_INTEGER } = constants;
-const { safeRe: re, t } = reExports;
-const parseOptions = parseOptions_1;
-const { compareIdentifiers } = identifiers;
-let SemVer$2 = class SemVer {
-  constructor (version, options) {
-    options = parseOptions(options);
-    if (version instanceof SemVer) {
-      if (version.loose === !!options.loose &&
-          version.includePrerelease === !!options.includePrerelease) {
-        return version
-      } else {
-        version = version.version;
-      }
-    } else if (typeof version !== 'string') {
-      throw new TypeError(`Invalid version. Must be a string. Got type "${typeof version}".`)
-    }
-    if (version.length > MAX_LENGTH) {
-      throw new TypeError(
-        `version is longer than ${MAX_LENGTH} characters`
-      )
-    }
-    debug('SemVer', version, options);
-    this.options = options;
-    this.loose = !!options.loose;
-    this.includePrerelease = !!options.includePrerelease;
-    const m = version.trim().match(options.loose ? re[t.LOOSE] : re[t.FULL]);
-    if (!m) {
-      throw new TypeError(`Invalid Version: ${version}`)
-    }
-    this.raw = version;
-    this.major = +m[1];
-    this.minor = +m[2];
-    this.patch = +m[3];
-    if (this.major > MAX_SAFE_INTEGER || this.major < 0) {
-      throw new TypeError('Invalid major version')
-    }
-    if (this.minor > MAX_SAFE_INTEGER || this.minor < 0) {
-      throw new TypeError('Invalid minor version')
-    }
-    if (this.patch > MAX_SAFE_INTEGER || this.patch < 0) {
-      throw new TypeError('Invalid patch version')
-    }
-    if (!m[4]) {
-      this.prerelease = [];
-    } else {
-      this.prerelease = m[4].split('.').map((id) => {
-        if (/^[0-9]+$/.test(id)) {
-          const num = +id;
-          if (num >= 0 && num < MAX_SAFE_INTEGER) {
-            return num
-          }
-        }
-        return id
-      });
-    }
-    this.build = m[5] ? m[5].split('.') : [];
-    this.format();
-  }
-  format () {
-    this.version = `${this.major}.${this.minor}.${this.patch}`;
-    if (this.prerelease.length) {
-      this.version += `-${this.prerelease.join('.')}`;
-    }
-    return this.version
-  }
-  toString () {
-    return this.version
-  }
-  compare (other) {
-    debug('SemVer.compare', this.version, this.options, other);
-    if (!(other instanceof SemVer)) {
-      if (typeof other === 'string' && other === this.version) {
-        return 0
-      }
-      other = new SemVer(other, this.options);
-    }
-    if (other.version === this.version) {
-      return 0
-    }
-    return this.compareMain(other) || this.comparePre(other)
-  }
-  compareMain (other) {
-    if (!(other instanceof SemVer)) {
-      other = new SemVer(other, this.options);
-    }
-    return (
-      compareIdentifiers(this.major, other.major) ||
-      compareIdentifiers(this.minor, other.minor) ||
-      compareIdentifiers(this.patch, other.patch)
-    )
-  }
-  comparePre (other) {
-    if (!(other instanceof SemVer)) {
-      other = new SemVer(other, this.options);
-    }
-    if (this.prerelease.length && !other.prerelease.length) {
-      return -1
-    } else if (!this.prerelease.length && other.prerelease.length) {
-      return 1
-    } else if (!this.prerelease.length && !other.prerelease.length) {
-      return 0
-    }
-    let i = 0;
-    do {
-      const a = this.prerelease[i];
-      const b = other.prerelease[i];
-      debug('prerelease compare', i, a, b);
-      if (a === undefined && b === undefined) {
-        return 0
-      } else if (b === undefined) {
-        return 1
-      } else if (a === undefined) {
-        return -1
-      } else if (a === b) {
-        continue
-      } else {
-        return compareIdentifiers(a, b)
-      }
-    } while (++i)
-  }
-  compareBuild (other) {
-    if (!(other instanceof SemVer)) {
-      other = new SemVer(other, this.options);
-    }
-    let i = 0;
-    do {
-      const a = this.build[i];
-      const b = other.build[i];
-      debug('build compare', i, a, b);
-      if (a === undefined && b === undefined) {
-        return 0
-      } else if (b === undefined) {
-        return 1
-      } else if (a === undefined) {
-        return -1
-      } else if (a === b) {
-        continue
-      } else {
-        return compareIdentifiers(a, b)
-      }
-    } while (++i)
-  }
-  inc (release, identifier, identifierBase) {
-    switch (release) {
-      case 'premajor':
-        this.prerelease.length = 0;
-        this.patch = 0;
-        this.minor = 0;
-        this.major++;
-        this.inc('pre', identifier, identifierBase);
-        break
-      case 'preminor':
-        this.prerelease.length = 0;
-        this.patch = 0;
-        this.minor++;
-        this.inc('pre', identifier, identifierBase);
-        break
-      case 'prepatch':
-        this.prerelease.length = 0;
-        this.inc('patch', identifier, identifierBase);
-        this.inc('pre', identifier, identifierBase);
-        break
-      case 'prerelease':
-        if (this.prerelease.length === 0) {
-          this.inc('patch', identifier, identifierBase);
-        }
-        this.inc('pre', identifier, identifierBase);
-        break
-      case 'major':
-        if (
-          this.minor !== 0 ||
-          this.patch !== 0 ||
-          this.prerelease.length === 0
-        ) {
-          this.major++;
-        }
-        this.minor = 0;
-        this.patch = 0;
-        this.prerelease = [];
-        break
-      case 'minor':
-        if (this.patch !== 0 || this.prerelease.length === 0) {
-          this.minor++;
-        }
-        this.patch = 0;
-        this.prerelease = [];
-        break
-      case 'patch':
-        if (this.prerelease.length === 0) {
-          this.patch++;
-        }
-        this.prerelease = [];
-        break
-      case 'pre': {
-        const base = Number(identifierBase) ? 1 : 0;
-        if (!identifier && identifierBase === false) {
-          throw new Error('invalid increment argument: identifier is empty')
-        }
-        if (this.prerelease.length === 0) {
-          this.prerelease = [base];
-        } else {
-          let i = this.prerelease.length;
-          while (--i >= 0) {
-            if (typeof this.prerelease[i] === 'number') {
-              this.prerelease[i]++;
-              i = -2;
-            }
-          }
-          if (i === -1) {
-            if (identifier === this.prerelease.join('.') && identifierBase === false) {
-              throw new Error('invalid increment argument: identifier already exists')
-            }
-            this.prerelease.push(base);
-          }
-        }
-        if (identifier) {
-          let prerelease = [identifier, base];
-          if (identifierBase === false) {
-            prerelease = [identifier];
-          }
-          if (compareIdentifiers(this.prerelease[0], identifier) === 0) {
-            if (isNaN(this.prerelease[1])) {
-              this.prerelease = prerelease;
-            }
-          } else {
-            this.prerelease = prerelease;
-          }
-        }
-        break
-      }
-      default:
-        throw new Error(`invalid increment argument: ${release}`)
-    }
-    this.raw = this.format();
-    if (this.build.length) {
-      this.raw += `+${this.build.join('.')}`;
-    }
-    return this
-  }
-};
-var semver = SemVer$2;
-getDefaultExportFromCjs(semver);
+var parseExports = requireParse();
+var semverParse = /*@__PURE__*/getDefaultExportFromCjs(parseExports);
 
-const SemVer$1 = semver;
-const parse = (version, options, throwErrors = false) => {
-  if (version instanceof SemVer$1) {
-    return version
-  }
-  try {
-    return new SemVer$1(version, options)
-  } catch (er) {
-    if (!throwErrors) {
-      return null
-    }
-    throw er
-  }
-};
-var parse_1 = parse;
-var semverParse = getDefaultExportFromCjs(parse_1);
+var compare_1;
+var hasRequiredCompare;
+function requireCompare () {
+	if (hasRequiredCompare) return compare_1;
+	hasRequiredCompare = 1;
+	const SemVer = requireSemver();
+	const compare = (a, b, loose) =>
+	  new SemVer(a, loose).compare(new SemVer(b, loose));
+	compare_1 = compare;
+	return compare_1;
+}
 
-const SemVer = semver;
-const compare$1 = (a, b, loose) =>
-  new SemVer(a, loose).compare(new SemVer(b, loose));
-var compare_1 = compare$1;
-getDefaultExportFromCjs(compare_1);
+var lt_1;
+var hasRequiredLt;
+function requireLt () {
+	if (hasRequiredLt) return lt_1;
+	hasRequiredLt = 1;
+	const compare = requireCompare();
+	const lt = (a, b, loose) => compare(a, b, loose) < 0;
+	lt_1 = lt;
+	return lt_1;
+}
 
-const compare = compare_1;
-const lt = (a, b, loose) => compare(a, b, loose) < 0;
-var lt_1 = lt;
-var semverLt = getDefaultExportFromCjs(lt_1);
+var ltExports = requireLt();
+var semverLt = /*@__PURE__*/getDefaultExportFromCjs(ltExports);
 
 const allowedKeys = [
   "added",
@@ -23139,7 +22910,7 @@ const plugins = [
   remarkLintNoShellDollars,
   remarkLintNoTableIndentation,
   remarkLintNoTabs,
-  remarkLintNoTrailingSpaces$1,
+  rule,
   remarkLintNodejsLinks,
   remarkLintNodejsYamlComments,
   [
@@ -23184,7 +22955,7 @@ function read(description, options, callback) {
   function executor(resolve, reject) {
     let fp;
     try {
-      fp = path$1.resolve(file.cwd, file.path);
+      fp = minpath.resolve(file.cwd, file.path);
     } catch (error) {
       const exception =  (error);
       return reject(exception)
@@ -23226,9 +22997,10 @@ function isUint8Array(value) {
 }
 
 function ansiRegex({onlyFirst = false} = {}) {
+	const ST = '(?:\\u0007|\\u001B\\u005C|\\u009C)';
 	const pattern = [
-	    '[\\u001B\\u009B][[\\]()#;?]*(?:(?:(?:(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]+)*|[a-zA-Z\\d]+(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]*)*)?\\u0007)',
-		'(?:(?:\\d{1,4}(?:;\\d{0,4})*)?[\\dA-PR-TZcf-ntqry=><~]))'
+		`[\\u001B\\u009B][[\\]()#;?]*(?:(?:(?:(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]+)*|[a-zA-Z\\d]+(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]*)*)?${ST})`,
+		'(?:(?:\\d{1,4}(?:;\\d{0,4})*)?[\\dA-PR-TZcf-nq-uy=><~]))',
 	].join('|');
 	return new RegExp(pattern, onlyFirst ? undefined : 'g');
 }
@@ -23243,313 +23015,320 @@ function stripAnsi(string) {
 
 var eastasianwidth = {exports: {}};
 
-(function (module) {
-	var eaw = {};
-	{
-	  module.exports = eaw;
-	}
-	eaw.eastAsianWidth = function(character) {
-	  var x = character.charCodeAt(0);
-	  var y = (character.length == 2) ? character.charCodeAt(1) : 0;
-	  var codePoint = x;
-	  if ((0xD800 <= x && x <= 0xDBFF) && (0xDC00 <= y && y <= 0xDFFF)) {
-	    x &= 0x3FF;
-	    y &= 0x3FF;
-	    codePoint = (x << 10) | y;
-	    codePoint += 0x10000;
-	  }
-	  if ((0x3000 == codePoint) ||
-	      (0xFF01 <= codePoint && codePoint <= 0xFF60) ||
-	      (0xFFE0 <= codePoint && codePoint <= 0xFFE6)) {
-	    return 'F';
-	  }
-	  if ((0x20A9 == codePoint) ||
-	      (0xFF61 <= codePoint && codePoint <= 0xFFBE) ||
-	      (0xFFC2 <= codePoint && codePoint <= 0xFFC7) ||
-	      (0xFFCA <= codePoint && codePoint <= 0xFFCF) ||
-	      (0xFFD2 <= codePoint && codePoint <= 0xFFD7) ||
-	      (0xFFDA <= codePoint && codePoint <= 0xFFDC) ||
-	      (0xFFE8 <= codePoint && codePoint <= 0xFFEE)) {
-	    return 'H';
-	  }
-	  if ((0x1100 <= codePoint && codePoint <= 0x115F) ||
-	      (0x11A3 <= codePoint && codePoint <= 0x11A7) ||
-	      (0x11FA <= codePoint && codePoint <= 0x11FF) ||
-	      (0x2329 <= codePoint && codePoint <= 0x232A) ||
-	      (0x2E80 <= codePoint && codePoint <= 0x2E99) ||
-	      (0x2E9B <= codePoint && codePoint <= 0x2EF3) ||
-	      (0x2F00 <= codePoint && codePoint <= 0x2FD5) ||
-	      (0x2FF0 <= codePoint && codePoint <= 0x2FFB) ||
-	      (0x3001 <= codePoint && codePoint <= 0x303E) ||
-	      (0x3041 <= codePoint && codePoint <= 0x3096) ||
-	      (0x3099 <= codePoint && codePoint <= 0x30FF) ||
-	      (0x3105 <= codePoint && codePoint <= 0x312D) ||
-	      (0x3131 <= codePoint && codePoint <= 0x318E) ||
-	      (0x3190 <= codePoint && codePoint <= 0x31BA) ||
-	      (0x31C0 <= codePoint && codePoint <= 0x31E3) ||
-	      (0x31F0 <= codePoint && codePoint <= 0x321E) ||
-	      (0x3220 <= codePoint && codePoint <= 0x3247) ||
-	      (0x3250 <= codePoint && codePoint <= 0x32FE) ||
-	      (0x3300 <= codePoint && codePoint <= 0x4DBF) ||
-	      (0x4E00 <= codePoint && codePoint <= 0xA48C) ||
-	      (0xA490 <= codePoint && codePoint <= 0xA4C6) ||
-	      (0xA960 <= codePoint && codePoint <= 0xA97C) ||
-	      (0xAC00 <= codePoint && codePoint <= 0xD7A3) ||
-	      (0xD7B0 <= codePoint && codePoint <= 0xD7C6) ||
-	      (0xD7CB <= codePoint && codePoint <= 0xD7FB) ||
-	      (0xF900 <= codePoint && codePoint <= 0xFAFF) ||
-	      (0xFE10 <= codePoint && codePoint <= 0xFE19) ||
-	      (0xFE30 <= codePoint && codePoint <= 0xFE52) ||
-	      (0xFE54 <= codePoint && codePoint <= 0xFE66) ||
-	      (0xFE68 <= codePoint && codePoint <= 0xFE6B) ||
-	      (0x1B000 <= codePoint && codePoint <= 0x1B001) ||
-	      (0x1F200 <= codePoint && codePoint <= 0x1F202) ||
-	      (0x1F210 <= codePoint && codePoint <= 0x1F23A) ||
-	      (0x1F240 <= codePoint && codePoint <= 0x1F248) ||
-	      (0x1F250 <= codePoint && codePoint <= 0x1F251) ||
-	      (0x20000 <= codePoint && codePoint <= 0x2F73F) ||
-	      (0x2B740 <= codePoint && codePoint <= 0x2FFFD) ||
-	      (0x30000 <= codePoint && codePoint <= 0x3FFFD)) {
-	    return 'W';
-	  }
-	  if ((0x0020 <= codePoint && codePoint <= 0x007E) ||
-	      (0x00A2 <= codePoint && codePoint <= 0x00A3) ||
-	      (0x00A5 <= codePoint && codePoint <= 0x00A6) ||
-	      (0x00AC == codePoint) ||
-	      (0x00AF == codePoint) ||
-	      (0x27E6 <= codePoint && codePoint <= 0x27ED) ||
-	      (0x2985 <= codePoint && codePoint <= 0x2986)) {
-	    return 'Na';
-	  }
-	  if ((0x00A1 == codePoint) ||
-	      (0x00A4 == codePoint) ||
-	      (0x00A7 <= codePoint && codePoint <= 0x00A8) ||
-	      (0x00AA == codePoint) ||
-	      (0x00AD <= codePoint && codePoint <= 0x00AE) ||
-	      (0x00B0 <= codePoint && codePoint <= 0x00B4) ||
-	      (0x00B6 <= codePoint && codePoint <= 0x00BA) ||
-	      (0x00BC <= codePoint && codePoint <= 0x00BF) ||
-	      (0x00C6 == codePoint) ||
-	      (0x00D0 == codePoint) ||
-	      (0x00D7 <= codePoint && codePoint <= 0x00D8) ||
-	      (0x00DE <= codePoint && codePoint <= 0x00E1) ||
-	      (0x00E6 == codePoint) ||
-	      (0x00E8 <= codePoint && codePoint <= 0x00EA) ||
-	      (0x00EC <= codePoint && codePoint <= 0x00ED) ||
-	      (0x00F0 == codePoint) ||
-	      (0x00F2 <= codePoint && codePoint <= 0x00F3) ||
-	      (0x00F7 <= codePoint && codePoint <= 0x00FA) ||
-	      (0x00FC == codePoint) ||
-	      (0x00FE == codePoint) ||
-	      (0x0101 == codePoint) ||
-	      (0x0111 == codePoint) ||
-	      (0x0113 == codePoint) ||
-	      (0x011B == codePoint) ||
-	      (0x0126 <= codePoint && codePoint <= 0x0127) ||
-	      (0x012B == codePoint) ||
-	      (0x0131 <= codePoint && codePoint <= 0x0133) ||
-	      (0x0138 == codePoint) ||
-	      (0x013F <= codePoint && codePoint <= 0x0142) ||
-	      (0x0144 == codePoint) ||
-	      (0x0148 <= codePoint && codePoint <= 0x014B) ||
-	      (0x014D == codePoint) ||
-	      (0x0152 <= codePoint && codePoint <= 0x0153) ||
-	      (0x0166 <= codePoint && codePoint <= 0x0167) ||
-	      (0x016B == codePoint) ||
-	      (0x01CE == codePoint) ||
-	      (0x01D0 == codePoint) ||
-	      (0x01D2 == codePoint) ||
-	      (0x01D4 == codePoint) ||
-	      (0x01D6 == codePoint) ||
-	      (0x01D8 == codePoint) ||
-	      (0x01DA == codePoint) ||
-	      (0x01DC == codePoint) ||
-	      (0x0251 == codePoint) ||
-	      (0x0261 == codePoint) ||
-	      (0x02C4 == codePoint) ||
-	      (0x02C7 == codePoint) ||
-	      (0x02C9 <= codePoint && codePoint <= 0x02CB) ||
-	      (0x02CD == codePoint) ||
-	      (0x02D0 == codePoint) ||
-	      (0x02D8 <= codePoint && codePoint <= 0x02DB) ||
-	      (0x02DD == codePoint) ||
-	      (0x02DF == codePoint) ||
-	      (0x0300 <= codePoint && codePoint <= 0x036F) ||
-	      (0x0391 <= codePoint && codePoint <= 0x03A1) ||
-	      (0x03A3 <= codePoint && codePoint <= 0x03A9) ||
-	      (0x03B1 <= codePoint && codePoint <= 0x03C1) ||
-	      (0x03C3 <= codePoint && codePoint <= 0x03C9) ||
-	      (0x0401 == codePoint) ||
-	      (0x0410 <= codePoint && codePoint <= 0x044F) ||
-	      (0x0451 == codePoint) ||
-	      (0x2010 == codePoint) ||
-	      (0x2013 <= codePoint && codePoint <= 0x2016) ||
-	      (0x2018 <= codePoint && codePoint <= 0x2019) ||
-	      (0x201C <= codePoint && codePoint <= 0x201D) ||
-	      (0x2020 <= codePoint && codePoint <= 0x2022) ||
-	      (0x2024 <= codePoint && codePoint <= 0x2027) ||
-	      (0x2030 == codePoint) ||
-	      (0x2032 <= codePoint && codePoint <= 0x2033) ||
-	      (0x2035 == codePoint) ||
-	      (0x203B == codePoint) ||
-	      (0x203E == codePoint) ||
-	      (0x2074 == codePoint) ||
-	      (0x207F == codePoint) ||
-	      (0x2081 <= codePoint && codePoint <= 0x2084) ||
-	      (0x20AC == codePoint) ||
-	      (0x2103 == codePoint) ||
-	      (0x2105 == codePoint) ||
-	      (0x2109 == codePoint) ||
-	      (0x2113 == codePoint) ||
-	      (0x2116 == codePoint) ||
-	      (0x2121 <= codePoint && codePoint <= 0x2122) ||
-	      (0x2126 == codePoint) ||
-	      (0x212B == codePoint) ||
-	      (0x2153 <= codePoint && codePoint <= 0x2154) ||
-	      (0x215B <= codePoint && codePoint <= 0x215E) ||
-	      (0x2160 <= codePoint && codePoint <= 0x216B) ||
-	      (0x2170 <= codePoint && codePoint <= 0x2179) ||
-	      (0x2189 == codePoint) ||
-	      (0x2190 <= codePoint && codePoint <= 0x2199) ||
-	      (0x21B8 <= codePoint && codePoint <= 0x21B9) ||
-	      (0x21D2 == codePoint) ||
-	      (0x21D4 == codePoint) ||
-	      (0x21E7 == codePoint) ||
-	      (0x2200 == codePoint) ||
-	      (0x2202 <= codePoint && codePoint <= 0x2203) ||
-	      (0x2207 <= codePoint && codePoint <= 0x2208) ||
-	      (0x220B == codePoint) ||
-	      (0x220F == codePoint) ||
-	      (0x2211 == codePoint) ||
-	      (0x2215 == codePoint) ||
-	      (0x221A == codePoint) ||
-	      (0x221D <= codePoint && codePoint <= 0x2220) ||
-	      (0x2223 == codePoint) ||
-	      (0x2225 == codePoint) ||
-	      (0x2227 <= codePoint && codePoint <= 0x222C) ||
-	      (0x222E == codePoint) ||
-	      (0x2234 <= codePoint && codePoint <= 0x2237) ||
-	      (0x223C <= codePoint && codePoint <= 0x223D) ||
-	      (0x2248 == codePoint) ||
-	      (0x224C == codePoint) ||
-	      (0x2252 == codePoint) ||
-	      (0x2260 <= codePoint && codePoint <= 0x2261) ||
-	      (0x2264 <= codePoint && codePoint <= 0x2267) ||
-	      (0x226A <= codePoint && codePoint <= 0x226B) ||
-	      (0x226E <= codePoint && codePoint <= 0x226F) ||
-	      (0x2282 <= codePoint && codePoint <= 0x2283) ||
-	      (0x2286 <= codePoint && codePoint <= 0x2287) ||
-	      (0x2295 == codePoint) ||
-	      (0x2299 == codePoint) ||
-	      (0x22A5 == codePoint) ||
-	      (0x22BF == codePoint) ||
-	      (0x2312 == codePoint) ||
-	      (0x2460 <= codePoint && codePoint <= 0x24E9) ||
-	      (0x24EB <= codePoint && codePoint <= 0x254B) ||
-	      (0x2550 <= codePoint && codePoint <= 0x2573) ||
-	      (0x2580 <= codePoint && codePoint <= 0x258F) ||
-	      (0x2592 <= codePoint && codePoint <= 0x2595) ||
-	      (0x25A0 <= codePoint && codePoint <= 0x25A1) ||
-	      (0x25A3 <= codePoint && codePoint <= 0x25A9) ||
-	      (0x25B2 <= codePoint && codePoint <= 0x25B3) ||
-	      (0x25B6 <= codePoint && codePoint <= 0x25B7) ||
-	      (0x25BC <= codePoint && codePoint <= 0x25BD) ||
-	      (0x25C0 <= codePoint && codePoint <= 0x25C1) ||
-	      (0x25C6 <= codePoint && codePoint <= 0x25C8) ||
-	      (0x25CB == codePoint) ||
-	      (0x25CE <= codePoint && codePoint <= 0x25D1) ||
-	      (0x25E2 <= codePoint && codePoint <= 0x25E5) ||
-	      (0x25EF == codePoint) ||
-	      (0x2605 <= codePoint && codePoint <= 0x2606) ||
-	      (0x2609 == codePoint) ||
-	      (0x260E <= codePoint && codePoint <= 0x260F) ||
-	      (0x2614 <= codePoint && codePoint <= 0x2615) ||
-	      (0x261C == codePoint) ||
-	      (0x261E == codePoint) ||
-	      (0x2640 == codePoint) ||
-	      (0x2642 == codePoint) ||
-	      (0x2660 <= codePoint && codePoint <= 0x2661) ||
-	      (0x2663 <= codePoint && codePoint <= 0x2665) ||
-	      (0x2667 <= codePoint && codePoint <= 0x266A) ||
-	      (0x266C <= codePoint && codePoint <= 0x266D) ||
-	      (0x266F == codePoint) ||
-	      (0x269E <= codePoint && codePoint <= 0x269F) ||
-	      (0x26BE <= codePoint && codePoint <= 0x26BF) ||
-	      (0x26C4 <= codePoint && codePoint <= 0x26CD) ||
-	      (0x26CF <= codePoint && codePoint <= 0x26E1) ||
-	      (0x26E3 == codePoint) ||
-	      (0x26E8 <= codePoint && codePoint <= 0x26FF) ||
-	      (0x273D == codePoint) ||
-	      (0x2757 == codePoint) ||
-	      (0x2776 <= codePoint && codePoint <= 0x277F) ||
-	      (0x2B55 <= codePoint && codePoint <= 0x2B59) ||
-	      (0x3248 <= codePoint && codePoint <= 0x324F) ||
-	      (0xE000 <= codePoint && codePoint <= 0xF8FF) ||
-	      (0xFE00 <= codePoint && codePoint <= 0xFE0F) ||
-	      (0xFFFD == codePoint) ||
-	      (0x1F100 <= codePoint && codePoint <= 0x1F10A) ||
-	      (0x1F110 <= codePoint && codePoint <= 0x1F12D) ||
-	      (0x1F130 <= codePoint && codePoint <= 0x1F169) ||
-	      (0x1F170 <= codePoint && codePoint <= 0x1F19A) ||
-	      (0xE0100 <= codePoint && codePoint <= 0xE01EF) ||
-	      (0xF0000 <= codePoint && codePoint <= 0xFFFFD) ||
-	      (0x100000 <= codePoint && codePoint <= 0x10FFFD)) {
-	    return 'A';
-	  }
-	  return 'N';
-	};
-	eaw.characterLength = function(character) {
-	  var code = this.eastAsianWidth(character);
-	  if (code == 'F' || code == 'W' || code == 'A') {
-	    return 2;
-	  } else {
-	    return 1;
-	  }
-	};
-	function stringToArray(string) {
-	  return string.match(/[\uD800-\uDBFF][\uDC00-\uDFFF]|[^\uD800-\uDFFF]/g) || [];
-	}
-	eaw.length = function(string) {
-	  var characters = stringToArray(string);
-	  var len = 0;
-	  for (var i = 0; i < characters.length; i++) {
-	    len = len + this.characterLength(characters[i]);
-	  }
-	  return len;
-	};
-	eaw.slice = function(text, start, end) {
-	  textLen = eaw.length(text);
-	  start = start ? start : 0;
-	  end = end ? end : 1;
-	  if (start < 0) {
-	      start = textLen + start;
-	  }
-	  if (end < 0) {
-	      end = textLen + end;
-	  }
-	  var result = '';
-	  var eawLen = 0;
-	  var chars = stringToArray(text);
-	  for (var i = 0; i < chars.length; i++) {
-	    var char = chars[i];
-	    var charLen = eaw.length(char);
-	    if (eawLen >= start - (charLen == 2 ? 1 : 0)) {
-	        if (eawLen + charLen <= end) {
-	            result += char;
-	        } else {
-	            break;
-	        }
-	    }
-	    eawLen += charLen;
-	  }
-	  return result;
-	};
-} (eastasianwidth));
-var eastasianwidthExports = eastasianwidth.exports;
-var eastAsianWidth = getDefaultExportFromCjs(eastasianwidthExports);
+var hasRequiredEastasianwidth;
+function requireEastasianwidth () {
+	if (hasRequiredEastasianwidth) return eastasianwidth.exports;
+	hasRequiredEastasianwidth = 1;
+	(function (module) {
+		var eaw = {};
+		{
+		  module.exports = eaw;
+		}
+		eaw.eastAsianWidth = function(character) {
+		  var x = character.charCodeAt(0);
+		  var y = (character.length == 2) ? character.charCodeAt(1) : 0;
+		  var codePoint = x;
+		  if ((0xD800 <= x && x <= 0xDBFF) && (0xDC00 <= y && y <= 0xDFFF)) {
+		    x &= 0x3FF;
+		    y &= 0x3FF;
+		    codePoint = (x << 10) | y;
+		    codePoint += 0x10000;
+		  }
+		  if ((0x3000 == codePoint) ||
+		      (0xFF01 <= codePoint && codePoint <= 0xFF60) ||
+		      (0xFFE0 <= codePoint && codePoint <= 0xFFE6)) {
+		    return 'F';
+		  }
+		  if ((0x20A9 == codePoint) ||
+		      (0xFF61 <= codePoint && codePoint <= 0xFFBE) ||
+		      (0xFFC2 <= codePoint && codePoint <= 0xFFC7) ||
+		      (0xFFCA <= codePoint && codePoint <= 0xFFCF) ||
+		      (0xFFD2 <= codePoint && codePoint <= 0xFFD7) ||
+		      (0xFFDA <= codePoint && codePoint <= 0xFFDC) ||
+		      (0xFFE8 <= codePoint && codePoint <= 0xFFEE)) {
+		    return 'H';
+		  }
+		  if ((0x1100 <= codePoint && codePoint <= 0x115F) ||
+		      (0x11A3 <= codePoint && codePoint <= 0x11A7) ||
+		      (0x11FA <= codePoint && codePoint <= 0x11FF) ||
+		      (0x2329 <= codePoint && codePoint <= 0x232A) ||
+		      (0x2E80 <= codePoint && codePoint <= 0x2E99) ||
+		      (0x2E9B <= codePoint && codePoint <= 0x2EF3) ||
+		      (0x2F00 <= codePoint && codePoint <= 0x2FD5) ||
+		      (0x2FF0 <= codePoint && codePoint <= 0x2FFB) ||
+		      (0x3001 <= codePoint && codePoint <= 0x303E) ||
+		      (0x3041 <= codePoint && codePoint <= 0x3096) ||
+		      (0x3099 <= codePoint && codePoint <= 0x30FF) ||
+		      (0x3105 <= codePoint && codePoint <= 0x312D) ||
+		      (0x3131 <= codePoint && codePoint <= 0x318E) ||
+		      (0x3190 <= codePoint && codePoint <= 0x31BA) ||
+		      (0x31C0 <= codePoint && codePoint <= 0x31E3) ||
+		      (0x31F0 <= codePoint && codePoint <= 0x321E) ||
+		      (0x3220 <= codePoint && codePoint <= 0x3247) ||
+		      (0x3250 <= codePoint && codePoint <= 0x32FE) ||
+		      (0x3300 <= codePoint && codePoint <= 0x4DBF) ||
+		      (0x4E00 <= codePoint && codePoint <= 0xA48C) ||
+		      (0xA490 <= codePoint && codePoint <= 0xA4C6) ||
+		      (0xA960 <= codePoint && codePoint <= 0xA97C) ||
+		      (0xAC00 <= codePoint && codePoint <= 0xD7A3) ||
+		      (0xD7B0 <= codePoint && codePoint <= 0xD7C6) ||
+		      (0xD7CB <= codePoint && codePoint <= 0xD7FB) ||
+		      (0xF900 <= codePoint && codePoint <= 0xFAFF) ||
+		      (0xFE10 <= codePoint && codePoint <= 0xFE19) ||
+		      (0xFE30 <= codePoint && codePoint <= 0xFE52) ||
+		      (0xFE54 <= codePoint && codePoint <= 0xFE66) ||
+		      (0xFE68 <= codePoint && codePoint <= 0xFE6B) ||
+		      (0x1B000 <= codePoint && codePoint <= 0x1B001) ||
+		      (0x1F200 <= codePoint && codePoint <= 0x1F202) ||
+		      (0x1F210 <= codePoint && codePoint <= 0x1F23A) ||
+		      (0x1F240 <= codePoint && codePoint <= 0x1F248) ||
+		      (0x1F250 <= codePoint && codePoint <= 0x1F251) ||
+		      (0x20000 <= codePoint && codePoint <= 0x2F73F) ||
+		      (0x2B740 <= codePoint && codePoint <= 0x2FFFD) ||
+		      (0x30000 <= codePoint && codePoint <= 0x3FFFD)) {
+		    return 'W';
+		  }
+		  if ((0x0020 <= codePoint && codePoint <= 0x007E) ||
+		      (0x00A2 <= codePoint && codePoint <= 0x00A3) ||
+		      (0x00A5 <= codePoint && codePoint <= 0x00A6) ||
+		      (0x00AC == codePoint) ||
+		      (0x00AF == codePoint) ||
+		      (0x27E6 <= codePoint && codePoint <= 0x27ED) ||
+		      (0x2985 <= codePoint && codePoint <= 0x2986)) {
+		    return 'Na';
+		  }
+		  if ((0x00A1 == codePoint) ||
+		      (0x00A4 == codePoint) ||
+		      (0x00A7 <= codePoint && codePoint <= 0x00A8) ||
+		      (0x00AA == codePoint) ||
+		      (0x00AD <= codePoint && codePoint <= 0x00AE) ||
+		      (0x00B0 <= codePoint && codePoint <= 0x00B4) ||
+		      (0x00B6 <= codePoint && codePoint <= 0x00BA) ||
+		      (0x00BC <= codePoint && codePoint <= 0x00BF) ||
+		      (0x00C6 == codePoint) ||
+		      (0x00D0 == codePoint) ||
+		      (0x00D7 <= codePoint && codePoint <= 0x00D8) ||
+		      (0x00DE <= codePoint && codePoint <= 0x00E1) ||
+		      (0x00E6 == codePoint) ||
+		      (0x00E8 <= codePoint && codePoint <= 0x00EA) ||
+		      (0x00EC <= codePoint && codePoint <= 0x00ED) ||
+		      (0x00F0 == codePoint) ||
+		      (0x00F2 <= codePoint && codePoint <= 0x00F3) ||
+		      (0x00F7 <= codePoint && codePoint <= 0x00FA) ||
+		      (0x00FC == codePoint) ||
+		      (0x00FE == codePoint) ||
+		      (0x0101 == codePoint) ||
+		      (0x0111 == codePoint) ||
+		      (0x0113 == codePoint) ||
+		      (0x011B == codePoint) ||
+		      (0x0126 <= codePoint && codePoint <= 0x0127) ||
+		      (0x012B == codePoint) ||
+		      (0x0131 <= codePoint && codePoint <= 0x0133) ||
+		      (0x0138 == codePoint) ||
+		      (0x013F <= codePoint && codePoint <= 0x0142) ||
+		      (0x0144 == codePoint) ||
+		      (0x0148 <= codePoint && codePoint <= 0x014B) ||
+		      (0x014D == codePoint) ||
+		      (0x0152 <= codePoint && codePoint <= 0x0153) ||
+		      (0x0166 <= codePoint && codePoint <= 0x0167) ||
+		      (0x016B == codePoint) ||
+		      (0x01CE == codePoint) ||
+		      (0x01D0 == codePoint) ||
+		      (0x01D2 == codePoint) ||
+		      (0x01D4 == codePoint) ||
+		      (0x01D6 == codePoint) ||
+		      (0x01D8 == codePoint) ||
+		      (0x01DA == codePoint) ||
+		      (0x01DC == codePoint) ||
+		      (0x0251 == codePoint) ||
+		      (0x0261 == codePoint) ||
+		      (0x02C4 == codePoint) ||
+		      (0x02C7 == codePoint) ||
+		      (0x02C9 <= codePoint && codePoint <= 0x02CB) ||
+		      (0x02CD == codePoint) ||
+		      (0x02D0 == codePoint) ||
+		      (0x02D8 <= codePoint && codePoint <= 0x02DB) ||
+		      (0x02DD == codePoint) ||
+		      (0x02DF == codePoint) ||
+		      (0x0300 <= codePoint && codePoint <= 0x036F) ||
+		      (0x0391 <= codePoint && codePoint <= 0x03A1) ||
+		      (0x03A3 <= codePoint && codePoint <= 0x03A9) ||
+		      (0x03B1 <= codePoint && codePoint <= 0x03C1) ||
+		      (0x03C3 <= codePoint && codePoint <= 0x03C9) ||
+		      (0x0401 == codePoint) ||
+		      (0x0410 <= codePoint && codePoint <= 0x044F) ||
+		      (0x0451 == codePoint) ||
+		      (0x2010 == codePoint) ||
+		      (0x2013 <= codePoint && codePoint <= 0x2016) ||
+		      (0x2018 <= codePoint && codePoint <= 0x2019) ||
+		      (0x201C <= codePoint && codePoint <= 0x201D) ||
+		      (0x2020 <= codePoint && codePoint <= 0x2022) ||
+		      (0x2024 <= codePoint && codePoint <= 0x2027) ||
+		      (0x2030 == codePoint) ||
+		      (0x2032 <= codePoint && codePoint <= 0x2033) ||
+		      (0x2035 == codePoint) ||
+		      (0x203B == codePoint) ||
+		      (0x203E == codePoint) ||
+		      (0x2074 == codePoint) ||
+		      (0x207F == codePoint) ||
+		      (0x2081 <= codePoint && codePoint <= 0x2084) ||
+		      (0x20AC == codePoint) ||
+		      (0x2103 == codePoint) ||
+		      (0x2105 == codePoint) ||
+		      (0x2109 == codePoint) ||
+		      (0x2113 == codePoint) ||
+		      (0x2116 == codePoint) ||
+		      (0x2121 <= codePoint && codePoint <= 0x2122) ||
+		      (0x2126 == codePoint) ||
+		      (0x212B == codePoint) ||
+		      (0x2153 <= codePoint && codePoint <= 0x2154) ||
+		      (0x215B <= codePoint && codePoint <= 0x215E) ||
+		      (0x2160 <= codePoint && codePoint <= 0x216B) ||
+		      (0x2170 <= codePoint && codePoint <= 0x2179) ||
+		      (0x2189 == codePoint) ||
+		      (0x2190 <= codePoint && codePoint <= 0x2199) ||
+		      (0x21B8 <= codePoint && codePoint <= 0x21B9) ||
+		      (0x21D2 == codePoint) ||
+		      (0x21D4 == codePoint) ||
+		      (0x21E7 == codePoint) ||
+		      (0x2200 == codePoint) ||
+		      (0x2202 <= codePoint && codePoint <= 0x2203) ||
+		      (0x2207 <= codePoint && codePoint <= 0x2208) ||
+		      (0x220B == codePoint) ||
+		      (0x220F == codePoint) ||
+		      (0x2211 == codePoint) ||
+		      (0x2215 == codePoint) ||
+		      (0x221A == codePoint) ||
+		      (0x221D <= codePoint && codePoint <= 0x2220) ||
+		      (0x2223 == codePoint) ||
+		      (0x2225 == codePoint) ||
+		      (0x2227 <= codePoint && codePoint <= 0x222C) ||
+		      (0x222E == codePoint) ||
+		      (0x2234 <= codePoint && codePoint <= 0x2237) ||
+		      (0x223C <= codePoint && codePoint <= 0x223D) ||
+		      (0x2248 == codePoint) ||
+		      (0x224C == codePoint) ||
+		      (0x2252 == codePoint) ||
+		      (0x2260 <= codePoint && codePoint <= 0x2261) ||
+		      (0x2264 <= codePoint && codePoint <= 0x2267) ||
+		      (0x226A <= codePoint && codePoint <= 0x226B) ||
+		      (0x226E <= codePoint && codePoint <= 0x226F) ||
+		      (0x2282 <= codePoint && codePoint <= 0x2283) ||
+		      (0x2286 <= codePoint && codePoint <= 0x2287) ||
+		      (0x2295 == codePoint) ||
+		      (0x2299 == codePoint) ||
+		      (0x22A5 == codePoint) ||
+		      (0x22BF == codePoint) ||
+		      (0x2312 == codePoint) ||
+		      (0x2460 <= codePoint && codePoint <= 0x24E9) ||
+		      (0x24EB <= codePoint && codePoint <= 0x254B) ||
+		      (0x2550 <= codePoint && codePoint <= 0x2573) ||
+		      (0x2580 <= codePoint && codePoint <= 0x258F) ||
+		      (0x2592 <= codePoint && codePoint <= 0x2595) ||
+		      (0x25A0 <= codePoint && codePoint <= 0x25A1) ||
+		      (0x25A3 <= codePoint && codePoint <= 0x25A9) ||
+		      (0x25B2 <= codePoint && codePoint <= 0x25B3) ||
+		      (0x25B6 <= codePoint && codePoint <= 0x25B7) ||
+		      (0x25BC <= codePoint && codePoint <= 0x25BD) ||
+		      (0x25C0 <= codePoint && codePoint <= 0x25C1) ||
+		      (0x25C6 <= codePoint && codePoint <= 0x25C8) ||
+		      (0x25CB == codePoint) ||
+		      (0x25CE <= codePoint && codePoint <= 0x25D1) ||
+		      (0x25E2 <= codePoint && codePoint <= 0x25E5) ||
+		      (0x25EF == codePoint) ||
+		      (0x2605 <= codePoint && codePoint <= 0x2606) ||
+		      (0x2609 == codePoint) ||
+		      (0x260E <= codePoint && codePoint <= 0x260F) ||
+		      (0x2614 <= codePoint && codePoint <= 0x2615) ||
+		      (0x261C == codePoint) ||
+		      (0x261E == codePoint) ||
+		      (0x2640 == codePoint) ||
+		      (0x2642 == codePoint) ||
+		      (0x2660 <= codePoint && codePoint <= 0x2661) ||
+		      (0x2663 <= codePoint && codePoint <= 0x2665) ||
+		      (0x2667 <= codePoint && codePoint <= 0x266A) ||
+		      (0x266C <= codePoint && codePoint <= 0x266D) ||
+		      (0x266F == codePoint) ||
+		      (0x269E <= codePoint && codePoint <= 0x269F) ||
+		      (0x26BE <= codePoint && codePoint <= 0x26BF) ||
+		      (0x26C4 <= codePoint && codePoint <= 0x26CD) ||
+		      (0x26CF <= codePoint && codePoint <= 0x26E1) ||
+		      (0x26E3 == codePoint) ||
+		      (0x26E8 <= codePoint && codePoint <= 0x26FF) ||
+		      (0x273D == codePoint) ||
+		      (0x2757 == codePoint) ||
+		      (0x2776 <= codePoint && codePoint <= 0x277F) ||
+		      (0x2B55 <= codePoint && codePoint <= 0x2B59) ||
+		      (0x3248 <= codePoint && codePoint <= 0x324F) ||
+		      (0xE000 <= codePoint && codePoint <= 0xF8FF) ||
+		      (0xFE00 <= codePoint && codePoint <= 0xFE0F) ||
+		      (0xFFFD == codePoint) ||
+		      (0x1F100 <= codePoint && codePoint <= 0x1F10A) ||
+		      (0x1F110 <= codePoint && codePoint <= 0x1F12D) ||
+		      (0x1F130 <= codePoint && codePoint <= 0x1F169) ||
+		      (0x1F170 <= codePoint && codePoint <= 0x1F19A) ||
+		      (0xE0100 <= codePoint && codePoint <= 0xE01EF) ||
+		      (0xF0000 <= codePoint && codePoint <= 0xFFFFD) ||
+		      (0x100000 <= codePoint && codePoint <= 0x10FFFD)) {
+		    return 'A';
+		  }
+		  return 'N';
+		};
+		eaw.characterLength = function(character) {
+		  var code = this.eastAsianWidth(character);
+		  if (code == 'F' || code == 'W' || code == 'A') {
+		    return 2;
+		  } else {
+		    return 1;
+		  }
+		};
+		function stringToArray(string) {
+		  return string.match(/[\uD800-\uDBFF][\uDC00-\uDFFF]|[^\uD800-\uDFFF]/g) || [];
+		}
+		eaw.length = function(string) {
+		  var characters = stringToArray(string);
+		  var len = 0;
+		  for (var i = 0; i < characters.length; i++) {
+		    len = len + this.characterLength(characters[i]);
+		  }
+		  return len;
+		};
+		eaw.slice = function(text, start, end) {
+		  textLen = eaw.length(text);
+		  start = start ? start : 0;
+		  end = end ? end : 1;
+		  if (start < 0) {
+		      start = textLen + start;
+		  }
+		  if (end < 0) {
+		      end = textLen + end;
+		  }
+		  var result = '';
+		  var eawLen = 0;
+		  var chars = stringToArray(text);
+		  for (var i = 0; i < chars.length; i++) {
+		    var char = chars[i];
+		    var charLen = eaw.length(char);
+		    if (eawLen >= start - (charLen == 2 ? 1 : 0)) {
+		        if (eawLen + charLen <= end) {
+		            result += char;
+		        } else {
+		            break;
+		        }
+		    }
+		    eawLen += charLen;
+		  }
+		  return result;
+		};
+	} (eastasianwidth));
+	return eastasianwidth.exports;
+}
+
+var eastasianwidthExports = requireEastasianwidth();
+var eastAsianWidth = /*@__PURE__*/getDefaultExportFromCjs(eastasianwidthExports);
 
 var emojiRegex = () => {
-	return /[#*0-9]\uFE0F?\u20E3|[\xA9\xAE\u203C\u2049\u2122\u2139\u2194-\u2199\u21A9\u21AA\u231A\u231B\u2328\u23CF\u23ED-\u23EF\u23F1\u23F2\u23F8-\u23FA\u24C2\u25AA\u25AB\u25B6\u25C0\u25FB\u25FC\u25FE\u2600-\u2604\u260E\u2611\u2614\u2615\u2618\u2620\u2622\u2623\u2626\u262A\u262E\u262F\u2638-\u263A\u2640\u2642\u2648-\u2653\u265F\u2660\u2663\u2665\u2666\u2668\u267B\u267E\u267F\u2692\u2694-\u2697\u2699\u269B\u269C\u26A0\u26A7\u26AA\u26B0\u26B1\u26BD\u26BE\u26C4\u26C8\u26CF\u26D1\u26E9\u26F0-\u26F5\u26F7\u26F8\u26FA\u2702\u2708\u2709\u270F\u2712\u2714\u2716\u271D\u2721\u2733\u2734\u2744\u2747\u2757\u2763\u27A1\u2934\u2935\u2B05-\u2B07\u2B1B\u2B1C\u2B55\u3030\u303D\u3297\u3299]\uFE0F?|[\u261D\u270C\u270D](?:\uFE0F|\uD83C[\uDFFB-\uDFFF])?|[\u270A\u270B](?:\uD83C[\uDFFB-\uDFFF])?|[\u23E9-\u23EC\u23F0\u23F3\u25FD\u2693\u26A1\u26AB\u26C5\u26CE\u26D4\u26EA\u26FD\u2705\u2728\u274C\u274E\u2753-\u2755\u2795-\u2797\u27B0\u27BF\u2B50]|\u26D3\uFE0F?(?:\u200D\uD83D\uDCA5)?|\u26F9(?:\uFE0F|\uD83C[\uDFFB-\uDFFF])?(?:\u200D[\u2640\u2642]\uFE0F?)?|\u2764\uFE0F?(?:\u200D(?:\uD83D\uDD25|\uD83E\uDE79))?|\uD83C(?:[\uDC04\uDD70\uDD71\uDD7E\uDD7F\uDE02\uDE37\uDF21\uDF24-\uDF2C\uDF36\uDF7D\uDF96\uDF97\uDF99-\uDF9B\uDF9E\uDF9F\uDFCD\uDFCE\uDFD4-\uDFDF\uDFF5\uDFF7]\uFE0F?|[\uDF85\uDFC2\uDFC7](?:\uD83C[\uDFFB-\uDFFF])?|[\uDFC4\uDFCA](?:\uD83C[\uDFFB-\uDFFF])?(?:\u200D[\u2640\u2642]\uFE0F?)?|[\uDFCB\uDFCC](?:\uFE0F|\uD83C[\uDFFB-\uDFFF])?(?:\u200D[\u2640\u2642]\uFE0F?)?|[\uDCCF\uDD8E\uDD91-\uDD9A\uDE01\uDE1A\uDE2F\uDE32-\uDE36\uDE38-\uDE3A\uDE50\uDE51\uDF00-\uDF20\uDF2D-\uDF35\uDF37-\uDF43\uDF45-\uDF4A\uDF4C-\uDF7C\uDF7E-\uDF84\uDF86-\uDF93\uDFA0-\uDFC1\uDFC5\uDFC6\uDFC8\uDFC9\uDFCF-\uDFD3\uDFE0-\uDFF0\uDFF8-\uDFFF]|\uDDE6\uD83C[\uDDE8-\uDDEC\uDDEE\uDDF1\uDDF2\uDDF4\uDDF6-\uDDFA\uDDFC\uDDFD\uDDFF]|\uDDE7\uD83C[\uDDE6\uDDE7\uDDE9-\uDDEF\uDDF1-\uDDF4\uDDF6-\uDDF9\uDDFB\uDDFC\uDDFE\uDDFF]|\uDDE8\uD83C[\uDDE6\uDDE8\uDDE9\uDDEB-\uDDEE\uDDF0-\uDDF5\uDDF7\uDDFA-\uDDFF]|\uDDE9\uD83C[\uDDEA\uDDEC\uDDEF\uDDF0\uDDF2\uDDF4\uDDFF]|\uDDEA\uD83C[\uDDE6\uDDE8\uDDEA\uDDEC\uDDED\uDDF7-\uDDFA]|\uDDEB\uD83C[\uDDEE-\uDDF0\uDDF2\uDDF4\uDDF7]|\uDDEC\uD83C[\uDDE6\uDDE7\uDDE9-\uDDEE\uDDF1-\uDDF3\uDDF5-\uDDFA\uDDFC\uDDFE]|\uDDED\uD83C[\uDDF0\uDDF2\uDDF3\uDDF7\uDDF9\uDDFA]|\uDDEE\uD83C[\uDDE8-\uDDEA\uDDF1-\uDDF4\uDDF6-\uDDF9]|\uDDEF\uD83C[\uDDEA\uDDF2\uDDF4\uDDF5]|\uDDF0\uD83C[\uDDEA\uDDEC-\uDDEE\uDDF2\uDDF3\uDDF5\uDDF7\uDDFC\uDDFE\uDDFF]|\uDDF1\uD83C[\uDDE6-\uDDE8\uDDEE\uDDF0\uDDF7-\uDDFB\uDDFE]|\uDDF2\uD83C[\uDDE6\uDDE8-\uDDED\uDDF0-\uDDFF]|\uDDF3\uD83C[\uDDE6\uDDE8\uDDEA-\uDDEC\uDDEE\uDDF1\uDDF4\uDDF5\uDDF7\uDDFA\uDDFF]|\uDDF4\uD83C\uDDF2|\uDDF5\uD83C[\uDDE6\uDDEA-\uDDED\uDDF0-\uDDF3\uDDF7-\uDDF9\uDDFC\uDDFE]|\uDDF6\uD83C\uDDE6|\uDDF7\uD83C[\uDDEA\uDDF4\uDDF8\uDDFA\uDDFC]|\uDDF8\uD83C[\uDDE6-\uDDEA\uDDEC-\uDDF4\uDDF7-\uDDF9\uDDFB\uDDFD-\uDDFF]|\uDDF9\uD83C[\uDDE6\uDDE8\uDDE9\uDDEB-\uDDED\uDDEF-\uDDF4\uDDF7\uDDF9\uDDFB\uDDFC\uDDFF]|\uDDFA\uD83C[\uDDE6\uDDEC\uDDF2\uDDF3\uDDF8\uDDFE\uDDFF]|\uDDFB\uD83C[\uDDE6\uDDE8\uDDEA\uDDEC\uDDEE\uDDF3\uDDFA]|\uDDFC\uD83C[\uDDEB\uDDF8]|\uDDFD\uD83C\uDDF0|\uDDFE\uD83C[\uDDEA\uDDF9]|\uDDFF\uD83C[\uDDE6\uDDF2\uDDFC]|\uDF44(?:\u200D\uD83D\uDFEB)?|\uDF4B(?:\u200D\uD83D\uDFE9)?|\uDFC3(?:\uD83C[\uDFFB-\uDFFF])?(?:\u200D(?:[\u2640\u2642]\uFE0F?(?:\u200D\u27A1\uFE0F?)?|\u27A1\uFE0F?))?|\uDFF3\uFE0F?(?:\u200D(?:\u26A7\uFE0F?|\uD83C\uDF08))?|\uDFF4(?:\u200D\u2620\uFE0F?|\uDB40\uDC67\uDB40\uDC62\uDB40(?:\uDC65\uDB40\uDC6E\uDB40\uDC67|\uDC73\uDB40\uDC63\uDB40\uDC74|\uDC77\uDB40\uDC6C\uDB40\uDC73)\uDB40\uDC7F)?)|\uD83D(?:[\uDC3F\uDCFD\uDD49\uDD4A\uDD6F\uDD70\uDD73\uDD76-\uDD79\uDD87\uDD8A-\uDD8D\uDDA5\uDDA8\uDDB1\uDDB2\uDDBC\uDDC2-\uDDC4\uDDD1-\uDDD3\uDDDC-\uDDDE\uDDE1\uDDE3\uDDE8\uDDEF\uDDF3\uDDFA\uDECB\uDECD-\uDECF\uDEE0-\uDEE5\uDEE9\uDEF0\uDEF3]\uFE0F?|[\uDC42\uDC43\uDC46-\uDC50\uDC66\uDC67\uDC6B-\uDC6D\uDC72\uDC74-\uDC76\uDC78\uDC7C\uDC83\uDC85\uDC8F\uDC91\uDCAA\uDD7A\uDD95\uDD96\uDE4C\uDE4F\uDEC0\uDECC](?:\uD83C[\uDFFB-\uDFFF])?|[\uDC6E\uDC70\uDC71\uDC73\uDC77\uDC81\uDC82\uDC86\uDC87\uDE45-\uDE47\uDE4B\uDE4D\uDE4E\uDEA3\uDEB4\uDEB5](?:\uD83C[\uDFFB-\uDFFF])?(?:\u200D[\u2640\u2642]\uFE0F?)?|[\uDD74\uDD90](?:\uFE0F|\uD83C[\uDFFB-\uDFFF])?|[\uDC00-\uDC07\uDC09-\uDC14\uDC16-\uDC25\uDC27-\uDC3A\uDC3C-\uDC3E\uDC40\uDC44\uDC45\uDC51-\uDC65\uDC6A\uDC79-\uDC7B\uDC7D-\uDC80\uDC84\uDC88-\uDC8E\uDC90\uDC92-\uDCA9\uDCAB-\uDCFC\uDCFF-\uDD3D\uDD4B-\uDD4E\uDD50-\uDD67\uDDA4\uDDFB-\uDE2D\uDE2F-\uDE34\uDE37-\uDE41\uDE43\uDE44\uDE48-\uDE4A\uDE80-\uDEA2\uDEA4-\uDEB3\uDEB7-\uDEBF\uDEC1-\uDEC5\uDED0-\uDED2\uDED5-\uDED7\uDEDC-\uDEDF\uDEEB\uDEEC\uDEF4-\uDEFC\uDFE0-\uDFEB\uDFF0]|\uDC08(?:\u200D\u2B1B)?|\uDC15(?:\u200D\uD83E\uDDBA)?|\uDC26(?:\u200D(?:\u2B1B|\uD83D\uDD25))?|\uDC3B(?:\u200D\u2744\uFE0F?)?|\uDC41\uFE0F?(?:\u200D\uD83D\uDDE8\uFE0F?)?|\uDC68(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:\uDC8B\u200D\uD83D)?\uDC68|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D(?:[\uDC68\uDC69]\u200D\uD83D(?:\uDC66(?:\u200D\uD83D\uDC66)?|\uDC67(?:\u200D\uD83D[\uDC66\uDC67])?)|[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uDC66(?:\u200D\uD83D\uDC66)?|\uDC67(?:\u200D\uD83D[\uDC66\uDC67])?)|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]))|\uD83C(?:\uDFFB(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:\uDC8B\u200D\uD83D)?\uDC68\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83D\uDC68\uD83C[\uDFFC-\uDFFF])))?|\uDFFC(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:\uDC8B\u200D\uD83D)?\uDC68\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83D\uDC68\uD83C[\uDFFB\uDFFD-\uDFFF])))?|\uDFFD(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:\uDC8B\u200D\uD83D)?\uDC68\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83D\uDC68\uD83C[\uDFFB\uDFFC\uDFFE\uDFFF])))?|\uDFFE(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:\uDC8B\u200D\uD83D)?\uDC68\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83D\uDC68\uD83C[\uDFFB-\uDFFD\uDFFF])))?|\uDFFF(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:\uDC8B\u200D\uD83D)?\uDC68\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83D\uDC68\uD83C[\uDFFB-\uDFFE])))?))?|\uDC69(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:\uDC8B\u200D\uD83D)?[\uDC68\uDC69]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D(?:[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uDC66(?:\u200D\uD83D\uDC66)?|\uDC67(?:\u200D\uD83D[\uDC66\uDC67])?|\uDC69\u200D\uD83D(?:\uDC66(?:\u200D\uD83D\uDC66)?|\uDC67(?:\u200D\uD83D[\uDC66\uDC67])?))|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]))|\uD83C(?:\uDFFB(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:[\uDC68\uDC69]|\uDC8B\u200D\uD83D[\uDC68\uDC69])\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83D[\uDC68\uDC69]\uD83C[\uDFFC-\uDFFF])))?|\uDFFC(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:[\uDC68\uDC69]|\uDC8B\u200D\uD83D[\uDC68\uDC69])\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83D[\uDC68\uDC69]\uD83C[\uDFFB\uDFFD-\uDFFF])))?|\uDFFD(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:[\uDC68\uDC69]|\uDC8B\u200D\uD83D[\uDC68\uDC69])\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83D[\uDC68\uDC69]\uD83C[\uDFFB\uDFFC\uDFFE\uDFFF])))?|\uDFFE(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:[\uDC68\uDC69]|\uDC8B\u200D\uD83D[\uDC68\uDC69])\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83D[\uDC68\uDC69]\uD83C[\uDFFB-\uDFFD\uDFFF])))?|\uDFFF(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:[\uDC68\uDC69]|\uDC8B\u200D\uD83D[\uDC68\uDC69])\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83D[\uDC68\uDC69]\uD83C[\uDFFB-\uDFFE])))?))?|\uDC6F(?:\u200D[\u2640\u2642]\uFE0F?)?|\uDD75(?:\uFE0F|\uD83C[\uDFFB-\uDFFF])?(?:\u200D[\u2640\u2642]\uFE0F?)?|\uDE2E(?:\u200D\uD83D\uDCA8)?|\uDE35(?:\u200D\uD83D\uDCAB)?|\uDE36(?:\u200D\uD83C\uDF2B\uFE0F?)?|\uDE42(?:\u200D[\u2194\u2195]\uFE0F?)?|\uDEB6(?:\uD83C[\uDFFB-\uDFFF])?(?:\u200D(?:[\u2640\u2642]\uFE0F?(?:\u200D\u27A1\uFE0F?)?|\u27A1\uFE0F?))?)|\uD83E(?:[\uDD0C\uDD0F\uDD18-\uDD1F\uDD30-\uDD34\uDD36\uDD77\uDDB5\uDDB6\uDDBB\uDDD2\uDDD3\uDDD5\uDEC3-\uDEC5\uDEF0\uDEF2-\uDEF8](?:\uD83C[\uDFFB-\uDFFF])?|[\uDD26\uDD35\uDD37-\uDD39\uDD3D\uDD3E\uDDB8\uDDB9\uDDCD\uDDCF\uDDD4\uDDD6-\uDDDD](?:\uD83C[\uDFFB-\uDFFF])?(?:\u200D[\u2640\u2642]\uFE0F?)?|[\uDDDE\uDDDF](?:\u200D[\u2640\u2642]\uFE0F?)?|[\uDD0D\uDD0E\uDD10-\uDD17\uDD20-\uDD25\uDD27-\uDD2F\uDD3A\uDD3F-\uDD45\uDD47-\uDD76\uDD78-\uDDB4\uDDB7\uDDBA\uDDBC-\uDDCC\uDDD0\uDDE0-\uDDFF\uDE70-\uDE7C\uDE80-\uDE88\uDE90-\uDEBD\uDEBF-\uDEC2\uDECE-\uDEDB\uDEE0-\uDEE8]|\uDD3C(?:\u200D[\u2640\u2642]\uFE0F?|\uD83C[\uDFFB-\uDFFF])?|\uDDCE(?:\uD83C[\uDFFB-\uDFFF])?(?:\u200D(?:[\u2640\u2642]\uFE0F?(?:\u200D\u27A1\uFE0F?)?|\u27A1\uFE0F?))?|\uDDD1(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83E\uDDD1|\uDDD1\u200D\uD83E\uDDD2(?:\u200D\uD83E\uDDD2)?|\uDDD2(?:\u200D\uD83E\uDDD2)?))|\uD83C(?:\uDFFB(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D(?:\uD83D\uDC8B\u200D)?\uD83E\uDDD1\uD83C[\uDFFC-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83E\uDDD1\uD83C[\uDFFB-\uDFFF])))?|\uDFFC(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D(?:\uD83D\uDC8B\u200D)?\uD83E\uDDD1\uD83C[\uDFFB\uDFFD-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83E\uDDD1\uD83C[\uDFFB-\uDFFF])))?|\uDFFD(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D(?:\uD83D\uDC8B\u200D)?\uD83E\uDDD1\uD83C[\uDFFB\uDFFC\uDFFE\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83E\uDDD1\uD83C[\uDFFB-\uDFFF])))?|\uDFFE(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D(?:\uD83D\uDC8B\u200D)?\uD83E\uDDD1\uD83C[\uDFFB-\uDFFD\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83E\uDDD1\uD83C[\uDFFB-\uDFFF])))?|\uDFFF(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D(?:\uD83D\uDC8B\u200D)?\uD83E\uDDD1\uD83C[\uDFFB-\uDFFE]|\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83E\uDDD1\uD83C[\uDFFB-\uDFFF])))?))?|\uDEF1(?:\uD83C(?:\uDFFB(?:\u200D\uD83E\uDEF2\uD83C[\uDFFC-\uDFFF])?|\uDFFC(?:\u200D\uD83E\uDEF2\uD83C[\uDFFB\uDFFD-\uDFFF])?|\uDFFD(?:\u200D\uD83E\uDEF2\uD83C[\uDFFB\uDFFC\uDFFE\uDFFF])?|\uDFFE(?:\u200D\uD83E\uDEF2\uD83C[\uDFFB-\uDFFD\uDFFF])?|\uDFFF(?:\u200D\uD83E\uDEF2\uD83C[\uDFFB-\uDFFE])?))?)/g;
+	return /[#*0-9]\uFE0F?\u20E3|[\xA9\xAE\u203C\u2049\u2122\u2139\u2194-\u2199\u21A9\u21AA\u231A\u231B\u2328\u23CF\u23ED-\u23EF\u23F1\u23F2\u23F8-\u23FA\u24C2\u25AA\u25AB\u25B6\u25C0\u25FB\u25FC\u25FE\u2600-\u2604\u260E\u2611\u2614\u2615\u2618\u2620\u2622\u2623\u2626\u262A\u262E\u262F\u2638-\u263A\u2640\u2642\u2648-\u2653\u265F\u2660\u2663\u2665\u2666\u2668\u267B\u267E\u267F\u2692\u2694-\u2697\u2699\u269B\u269C\u26A0\u26A7\u26AA\u26B0\u26B1\u26BD\u26BE\u26C4\u26C8\u26CF\u26D1\u26E9\u26F0-\u26F5\u26F7\u26F8\u26FA\u2702\u2708\u2709\u270F\u2712\u2714\u2716\u271D\u2721\u2733\u2734\u2744\u2747\u2757\u2763\u27A1\u2934\u2935\u2B05-\u2B07\u2B1B\u2B1C\u2B55\u3030\u303D\u3297\u3299]\uFE0F?|[\u261D\u270C\u270D](?:\uD83C[\uDFFB-\uDFFF]|\uFE0F)?|[\u270A\u270B](?:\uD83C[\uDFFB-\uDFFF])?|[\u23E9-\u23EC\u23F0\u23F3\u25FD\u2693\u26A1\u26AB\u26C5\u26CE\u26D4\u26EA\u26FD\u2705\u2728\u274C\u274E\u2753-\u2755\u2795-\u2797\u27B0\u27BF\u2B50]|\u26D3\uFE0F?(?:\u200D\uD83D\uDCA5)?|\u26F9(?:\uD83C[\uDFFB-\uDFFF]|\uFE0F)?(?:\u200D[\u2640\u2642]\uFE0F?)?|\u2764\uFE0F?(?:\u200D(?:\uD83D\uDD25|\uD83E\uDE79))?|\uD83C(?:[\uDC04\uDD70\uDD71\uDD7E\uDD7F\uDE02\uDE37\uDF21\uDF24-\uDF2C\uDF36\uDF7D\uDF96\uDF97\uDF99-\uDF9B\uDF9E\uDF9F\uDFCD\uDFCE\uDFD4-\uDFDF\uDFF5\uDFF7]\uFE0F?|[\uDF85\uDFC2\uDFC7](?:\uD83C[\uDFFB-\uDFFF])?|[\uDFC4\uDFCA](?:\uD83C[\uDFFB-\uDFFF])?(?:\u200D[\u2640\u2642]\uFE0F?)?|[\uDFCB\uDFCC](?:\uD83C[\uDFFB-\uDFFF]|\uFE0F)?(?:\u200D[\u2640\u2642]\uFE0F?)?|[\uDCCF\uDD8E\uDD91-\uDD9A\uDE01\uDE1A\uDE2F\uDE32-\uDE36\uDE38-\uDE3A\uDE50\uDE51\uDF00-\uDF20\uDF2D-\uDF35\uDF37-\uDF43\uDF45-\uDF4A\uDF4C-\uDF7C\uDF7E-\uDF84\uDF86-\uDF93\uDFA0-\uDFC1\uDFC5\uDFC6\uDFC8\uDFC9\uDFCF-\uDFD3\uDFE0-\uDFF0\uDFF8-\uDFFF]|\uDDE6\uD83C[\uDDE8-\uDDEC\uDDEE\uDDF1\uDDF2\uDDF4\uDDF6-\uDDFA\uDDFC\uDDFD\uDDFF]|\uDDE7\uD83C[\uDDE6\uDDE7\uDDE9-\uDDEF\uDDF1-\uDDF4\uDDF6-\uDDF9\uDDFB\uDDFC\uDDFE\uDDFF]|\uDDE8\uD83C[\uDDE6\uDDE8\uDDE9\uDDEB-\uDDEE\uDDF0-\uDDF7\uDDFA-\uDDFF]|\uDDE9\uD83C[\uDDEA\uDDEC\uDDEF\uDDF0\uDDF2\uDDF4\uDDFF]|\uDDEA\uD83C[\uDDE6\uDDE8\uDDEA\uDDEC\uDDED\uDDF7-\uDDFA]|\uDDEB\uD83C[\uDDEE-\uDDF0\uDDF2\uDDF4\uDDF7]|\uDDEC\uD83C[\uDDE6\uDDE7\uDDE9-\uDDEE\uDDF1-\uDDF3\uDDF5-\uDDFA\uDDFC\uDDFE]|\uDDED\uD83C[\uDDF0\uDDF2\uDDF3\uDDF7\uDDF9\uDDFA]|\uDDEE\uD83C[\uDDE8-\uDDEA\uDDF1-\uDDF4\uDDF6-\uDDF9]|\uDDEF\uD83C[\uDDEA\uDDF2\uDDF4\uDDF5]|\uDDF0\uD83C[\uDDEA\uDDEC-\uDDEE\uDDF2\uDDF3\uDDF5\uDDF7\uDDFC\uDDFE\uDDFF]|\uDDF1\uD83C[\uDDE6-\uDDE8\uDDEE\uDDF0\uDDF7-\uDDFB\uDDFE]|\uDDF2\uD83C[\uDDE6\uDDE8-\uDDED\uDDF0-\uDDFF]|\uDDF3\uD83C[\uDDE6\uDDE8\uDDEA-\uDDEC\uDDEE\uDDF1\uDDF4\uDDF5\uDDF7\uDDFA\uDDFF]|\uDDF4\uD83C\uDDF2|\uDDF5\uD83C[\uDDE6\uDDEA-\uDDED\uDDF0-\uDDF3\uDDF7-\uDDF9\uDDFC\uDDFE]|\uDDF6\uD83C\uDDE6|\uDDF7\uD83C[\uDDEA\uDDF4\uDDF8\uDDFA\uDDFC]|\uDDF8\uD83C[\uDDE6-\uDDEA\uDDEC-\uDDF4\uDDF7-\uDDF9\uDDFB\uDDFD-\uDDFF]|\uDDF9\uD83C[\uDDE6\uDDE8\uDDE9\uDDEB-\uDDED\uDDEF-\uDDF4\uDDF7\uDDF9\uDDFB\uDDFC\uDDFF]|\uDDFA\uD83C[\uDDE6\uDDEC\uDDF2\uDDF3\uDDF8\uDDFE\uDDFF]|\uDDFB\uD83C[\uDDE6\uDDE8\uDDEA\uDDEC\uDDEE\uDDF3\uDDFA]|\uDDFC\uD83C[\uDDEB\uDDF8]|\uDDFD\uD83C\uDDF0|\uDDFE\uD83C[\uDDEA\uDDF9]|\uDDFF\uD83C[\uDDE6\uDDF2\uDDFC]|\uDF44(?:\u200D\uD83D\uDFEB)?|\uDF4B(?:\u200D\uD83D\uDFE9)?|\uDFC3(?:\uD83C[\uDFFB-\uDFFF])?(?:\u200D(?:[\u2640\u2642]\uFE0F?(?:\u200D\u27A1\uFE0F?)?|\u27A1\uFE0F?))?|\uDFF3\uFE0F?(?:\u200D(?:\u26A7\uFE0F?|\uD83C\uDF08))?|\uDFF4(?:\u200D\u2620\uFE0F?|\uDB40\uDC67\uDB40\uDC62\uDB40(?:\uDC65\uDB40\uDC6E\uDB40\uDC67|\uDC73\uDB40\uDC63\uDB40\uDC74|\uDC77\uDB40\uDC6C\uDB40\uDC73)\uDB40\uDC7F)?)|\uD83D(?:[\uDC3F\uDCFD\uDD49\uDD4A\uDD6F\uDD70\uDD73\uDD76-\uDD79\uDD87\uDD8A-\uDD8D\uDDA5\uDDA8\uDDB1\uDDB2\uDDBC\uDDC2-\uDDC4\uDDD1-\uDDD3\uDDDC-\uDDDE\uDDE1\uDDE3\uDDE8\uDDEF\uDDF3\uDDFA\uDECB\uDECD-\uDECF\uDEE0-\uDEE5\uDEE9\uDEF0\uDEF3]\uFE0F?|[\uDC42\uDC43\uDC46-\uDC50\uDC66\uDC67\uDC6B-\uDC6D\uDC72\uDC74-\uDC76\uDC78\uDC7C\uDC83\uDC85\uDC8F\uDC91\uDCAA\uDD7A\uDD95\uDD96\uDE4C\uDE4F\uDEC0\uDECC](?:\uD83C[\uDFFB-\uDFFF])?|[\uDC6E\uDC70\uDC71\uDC73\uDC77\uDC81\uDC82\uDC86\uDC87\uDE45-\uDE47\uDE4B\uDE4D\uDE4E\uDEA3\uDEB4\uDEB5](?:\uD83C[\uDFFB-\uDFFF])?(?:\u200D[\u2640\u2642]\uFE0F?)?|[\uDD74\uDD90](?:\uD83C[\uDFFB-\uDFFF]|\uFE0F)?|[\uDC00-\uDC07\uDC09-\uDC14\uDC16-\uDC25\uDC27-\uDC3A\uDC3C-\uDC3E\uDC40\uDC44\uDC45\uDC51-\uDC65\uDC6A\uDC79-\uDC7B\uDC7D-\uDC80\uDC84\uDC88-\uDC8E\uDC90\uDC92-\uDCA9\uDCAB-\uDCFC\uDCFF-\uDD3D\uDD4B-\uDD4E\uDD50-\uDD67\uDDA4\uDDFB-\uDE2D\uDE2F-\uDE34\uDE37-\uDE41\uDE43\uDE44\uDE48-\uDE4A\uDE80-\uDEA2\uDEA4-\uDEB3\uDEB7-\uDEBF\uDEC1-\uDEC5\uDED0-\uDED2\uDED5-\uDED7\uDEDC-\uDEDF\uDEEB\uDEEC\uDEF4-\uDEFC\uDFE0-\uDFEB\uDFF0]|\uDC08(?:\u200D\u2B1B)?|\uDC15(?:\u200D\uD83E\uDDBA)?|\uDC26(?:\u200D(?:\u2B1B|\uD83D\uDD25))?|\uDC3B(?:\u200D\u2744\uFE0F?)?|\uDC41\uFE0F?(?:\u200D\uD83D\uDDE8\uFE0F?)?|\uDC68(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:\uDC8B\u200D\uD83D)?\uDC68|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D(?:[\uDC68\uDC69]\u200D\uD83D(?:\uDC66(?:\u200D\uD83D\uDC66)?|\uDC67(?:\u200D\uD83D[\uDC66\uDC67])?)|[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uDC66(?:\u200D\uD83D\uDC66)?|\uDC67(?:\u200D\uD83D[\uDC66\uDC67])?)|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]))|\uD83C(?:\uDFFB(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:\uDC8B\u200D\uD83D)?\uDC68\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83D\uDC68\uD83C[\uDFFC-\uDFFF])))?|\uDFFC(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:\uDC8B\u200D\uD83D)?\uDC68\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83D\uDC68\uD83C[\uDFFB\uDFFD-\uDFFF])))?|\uDFFD(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:\uDC8B\u200D\uD83D)?\uDC68\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83D\uDC68\uD83C[\uDFFB\uDFFC\uDFFE\uDFFF])))?|\uDFFE(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:\uDC8B\u200D\uD83D)?\uDC68\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83D\uDC68\uD83C[\uDFFB-\uDFFD\uDFFF])))?|\uDFFF(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:\uDC8B\u200D\uD83D)?\uDC68\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83D\uDC68\uD83C[\uDFFB-\uDFFE])))?))?|\uDC69(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:\uDC8B\u200D\uD83D)?[\uDC68\uDC69]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D(?:[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uDC66(?:\u200D\uD83D\uDC66)?|\uDC67(?:\u200D\uD83D[\uDC66\uDC67])?|\uDC69\u200D\uD83D(?:\uDC66(?:\u200D\uD83D\uDC66)?|\uDC67(?:\u200D\uD83D[\uDC66\uDC67])?))|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]))|\uD83C(?:\uDFFB(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:[\uDC68\uDC69]|\uDC8B\u200D\uD83D[\uDC68\uDC69])\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83D[\uDC68\uDC69]\uD83C[\uDFFC-\uDFFF])))?|\uDFFC(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:[\uDC68\uDC69]|\uDC8B\u200D\uD83D[\uDC68\uDC69])\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83D[\uDC68\uDC69]\uD83C[\uDFFB\uDFFD-\uDFFF])))?|\uDFFD(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:[\uDC68\uDC69]|\uDC8B\u200D\uD83D[\uDC68\uDC69])\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83D[\uDC68\uDC69]\uD83C[\uDFFB\uDFFC\uDFFE\uDFFF])))?|\uDFFE(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:[\uDC68\uDC69]|\uDC8B\u200D\uD83D[\uDC68\uDC69])\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83D[\uDC68\uDC69]\uD83C[\uDFFB-\uDFFD\uDFFF])))?|\uDFFF(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:[\uDC68\uDC69]|\uDC8B\u200D\uD83D[\uDC68\uDC69])\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83D[\uDC68\uDC69]\uD83C[\uDFFB-\uDFFE])))?))?|\uDC6F(?:\u200D[\u2640\u2642]\uFE0F?)?|\uDD75(?:\uD83C[\uDFFB-\uDFFF]|\uFE0F)?(?:\u200D[\u2640\u2642]\uFE0F?)?|\uDE2E(?:\u200D\uD83D\uDCA8)?|\uDE35(?:\u200D\uD83D\uDCAB)?|\uDE36(?:\u200D\uD83C\uDF2B\uFE0F?)?|\uDE42(?:\u200D[\u2194\u2195]\uFE0F?)?|\uDEB6(?:\uD83C[\uDFFB-\uDFFF])?(?:\u200D(?:[\u2640\u2642]\uFE0F?(?:\u200D\u27A1\uFE0F?)?|\u27A1\uFE0F?))?)|\uD83E(?:[\uDD0C\uDD0F\uDD18-\uDD1F\uDD30-\uDD34\uDD36\uDD77\uDDB5\uDDB6\uDDBB\uDDD2\uDDD3\uDDD5\uDEC3-\uDEC5\uDEF0\uDEF2-\uDEF8](?:\uD83C[\uDFFB-\uDFFF])?|[\uDD26\uDD35\uDD37-\uDD39\uDD3D\uDD3E\uDDB8\uDDB9\uDDCD\uDDCF\uDDD4\uDDD6-\uDDDD](?:\uD83C[\uDFFB-\uDFFF])?(?:\u200D[\u2640\u2642]\uFE0F?)?|[\uDDDE\uDDDF](?:\u200D[\u2640\u2642]\uFE0F?)?|[\uDD0D\uDD0E\uDD10-\uDD17\uDD20-\uDD25\uDD27-\uDD2F\uDD3A\uDD3F-\uDD45\uDD47-\uDD76\uDD78-\uDDB4\uDDB7\uDDBA\uDDBC-\uDDCC\uDDD0\uDDE0-\uDDFF\uDE70-\uDE7C\uDE80-\uDE89\uDE8F-\uDEC2\uDEC6\uDECE-\uDEDC\uDEDF-\uDEE9]|\uDD3C(?:\u200D[\u2640\u2642]\uFE0F?|\uD83C[\uDFFB-\uDFFF])?|\uDDCE(?:\uD83C[\uDFFB-\uDFFF])?(?:\u200D(?:[\u2640\u2642]\uFE0F?(?:\u200D\u27A1\uFE0F?)?|\u27A1\uFE0F?))?|\uDDD1(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83E\uDDD1|\uDDD1\u200D\uD83E\uDDD2(?:\u200D\uD83E\uDDD2)?|\uDDD2(?:\u200D\uD83E\uDDD2)?))|\uD83C(?:\uDFFB(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D(?:\uD83D\uDC8B\u200D)?\uD83E\uDDD1\uD83C[\uDFFC-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83E\uDDD1\uD83C[\uDFFB-\uDFFF])))?|\uDFFC(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D(?:\uD83D\uDC8B\u200D)?\uD83E\uDDD1\uD83C[\uDFFB\uDFFD-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83E\uDDD1\uD83C[\uDFFB-\uDFFF])))?|\uDFFD(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D(?:\uD83D\uDC8B\u200D)?\uD83E\uDDD1\uD83C[\uDFFB\uDFFC\uDFFE\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83E\uDDD1\uD83C[\uDFFB-\uDFFF])))?|\uDFFE(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D(?:\uD83D\uDC8B\u200D)?\uD83E\uDDD1\uD83C[\uDFFB-\uDFFD\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83E\uDDD1\uD83C[\uDFFB-\uDFFF])))?|\uDFFF(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D(?:\uD83D\uDC8B\u200D)?\uD83E\uDDD1\uD83C[\uDFFB-\uDFFE]|\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83E\uDDD1\uD83C[\uDFFB-\uDFFF])))?))?|\uDEF1(?:\uD83C(?:\uDFFB(?:\u200D\uD83E\uDEF2\uD83C[\uDFFC-\uDFFF])?|\uDFFC(?:\u200D\uD83E\uDEF2\uD83C[\uDFFB\uDFFD-\uDFFF])?|\uDFFD(?:\u200D\uD83E\uDEF2\uD83C[\uDFFB\uDFFC\uDFFE\uDFFF])?|\uDFFE(?:\u200D\uD83E\uDEF2\uD83C[\uDFFB-\uDFFD\uDFFF])?|\uDFFF(?:\u200D\uD83E\uDEF2\uD83C[\uDFFB-\uDFFE])?))?)/g;
 };
 
 function stringWidth(string, options) {
