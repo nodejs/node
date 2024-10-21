@@ -82,6 +82,7 @@ NODE_EXE = node$(EXEEXT)
 NODE ?= "$(PWD)/$(NODE_EXE)"
 NODE_G_EXE = node_g$(EXEEXT)
 NPM ?= ./deps/npm/bin/npm-cli.js
+NPX ?= ./deps/npm/bin/npx-cli.js
 
 # Flags for packaging.
 BUILD_DOWNLOAD_FLAGS ?= --download=all
@@ -766,6 +767,9 @@ doc-only: tools/doc/node_modules \
 
 .PHONY: doc
 doc: $(NODE_EXE) doc-only ## Build Node.js, and then build the documentation with the new binary.
+
+doc/node.1: doc/api/cli.md
+	$(NPX) github:nodejs/api-docs-tooling -t man-page -i doc/api/cli.md -o doc/node.1
 
 out/doc:
 	mkdir -p $@
