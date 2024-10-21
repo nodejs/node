@@ -305,11 +305,10 @@ size_t StringBytes::Write(Isolate* isolate,
               input_view.length());
         }
       } else {
-        String::ValueView value(isolate, str);
         size_t written_len = buflen;
         auto result = simdutf::base64_to_binary_safe(
-            reinterpret_cast<const char16_t*>(value.data16()),
-            value.length(),
+            reinterpret_cast<const char16_t*>(input_view.data16()),
+            input_view.length(),
             buf,
             written_len,
             simdutf::base64_url);
@@ -319,8 +318,8 @@ size_t StringBytes::Write(Isolate* isolate,
           // The input does not follow the WHATWG forgiving-base64 specification
           // (adapted for base64url with + and / replaced by - and _).
           // https://infra.spec.whatwg.org/#forgiving-base64-decode
-          nbytes =
-              nbytes::Base64Decode(buf, buflen, value.data16(), value.length());
+          nbytes = nbytes::Base64Decode(
+              buf, buflen, input_view.data16(), input_view.length());
         }
       }
       break;
@@ -345,11 +344,10 @@ size_t StringBytes::Write(Isolate* isolate,
               input_view.length());
         }
       } else {
-        String::ValueView value(isolate, str);
         size_t written_len = buflen;
         auto result = simdutf::base64_to_binary_safe(
-            reinterpret_cast<const char16_t*>(value.data16()),
-            value.length(),
+            reinterpret_cast<const char16_t*>(input_view.data16()),
+            input_view.length(),
             buf,
             written_len);
         if (result.error == simdutf::error_code::SUCCESS) {
@@ -357,8 +355,8 @@ size_t StringBytes::Write(Isolate* isolate,
         } else {
           // The input does not follow the WHATWG base64 specification
           // https://infra.spec.whatwg.org/#forgiving-base64-decode
-          nbytes =
-              nbytes::Base64Decode(buf, buflen, value.data16(), value.length());
+          nbytes = nbytes::Base64Decode(
+              buf, buflen, input_view.data16(), input_view.length());
         }
       }
       break;
