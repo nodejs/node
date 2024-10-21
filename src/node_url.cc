@@ -75,6 +75,99 @@ void BindingData::Deserialize(v8::Local<v8::Context> context,
   CHECK_NOT_NULL(binding);
 }
 
+#ifndef LARGEST_ASCII_CHAR_CODE_TO_ENCORE
+#define LARGEST_ASCII_CHAR_CODE_TO_ENCORE '~' + 1
+#endif
+
+std::array<std::string, LARGEST_ASCII_CHAR_CODE_TO_ENCORE> lookup_table = []() {
+  std::array<std::string, LARGEST_ASCII_CHAR_CODE_TO_ENCORE> result{};
+
+  for (uint8_t i = 0; i < LARGEST_ASCII_CHAR_CODE_TO_ENCORE; i++) {
+    if (i == '%')
+      result[i] = "%25";
+    else if (i == '\t')
+      result[i] = "%09";
+    else if (i == '\n')
+      result[i] = "%0A";
+    else if (i == '\r')
+      result[i] = "%0D";
+    else if (i == ' ')
+      result[i] = "%20";
+    else if (i == '"')
+      result[i] = "%22";
+    else if (i == '#')
+      result[i] = "%23";
+    else if (i == '?')
+      result[i] = "%3F";
+    else if (i == '[')
+      result[i] = "%5B";
+    else if (i == '\\')
+      result[i] = "%5C";
+    else if (i == ']')
+      result[i] = "%5D";
+    else if (i == '^')
+      result[i] = "%5E";
+    else if (i == '|')
+      result[i] = "%7C";
+    else if (i == '~')
+      result[i] = "%7E";
+    else
+      result[i] = std::string(1, static_cast<char>(i));
+  }
+
+  return result;
+}();
+
+enum class OS { WINDOWS, POSIX };
+
+std::string EncodePathChars(std::string_view input_str, OS operating_system) {
+  std::string encoded = "file://";
+  encoded.reserve(input_str.size() +
+                  7);  // Reserve space for "file://" and input_str
+  for (size_t i : input_str) {
+    if (i > LARGEST_ASCII_CHAR_CODE_TO_ENCORE) [[unlikely]] {
+      encoded.push_back(i);
+      continue;
+    }
+    if (operating_system == OS::WINDOWS) {
+      if (i == '\\') {
+        encoded.push_back('/');
+        continue;
+      }
+    }
+    encoded.append(lookup_table[i]);
+  }
+
+  return encoded;
+}
+
+void BindingData::PathToFileURL(const FunctionCallbackInfo<Value>& args) {
+  CHECK_GE(args.Length(), 2);  // input
+  CHECK(args[0]->IsString());
+  CHECK(args[1]->IsBoolean());
+
+  Realm* realm = Realm::GetCurrent(args);
+  BindingData* binding_data = realm->GetBindingData<BindingData>();
+  Isolate* isolate = realm->isolate();
+  OS os = args[1]->IsTrue() ? OS::WINDOWS : OS::POSIX;
+
+  Utf8Value input(isolate, args[0]);
+  auto input_str = input.ToStringView();
+  CHECK(!input_str.empty());
+
+  auto out =
+      ada::parse<ada::url_aggregator>(EncodePathChars(input_str, os), nullptr);
+
+  if (!out) {
+    return ThrowInvalidURL(realm->env(), input.ToStringView(), nullptr);
+  }
+
+  binding_data->UpdateComponents(out->get_components(), out->type);
+
+  args.GetReturnValue().Set(
+      ToV8Value(realm->context(), out->get_href(), isolate).ToLocalChecked());
+}
+
 void BindingData::DomainToASCII(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK_GE(args.Length(), 1);  // input
@@ -371,6 +464,7 @@ void BindingData::CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethodNoSideEffect(isolate, target, "format", Format);
   SetMethodNoSideEffect(isolate, target, "getOrigin", GetOrigin);
   SetMethod(isolate, target, "parse", Parse);
+  SetMethod(isolate, target, "pathToFileURL", PathToFileURL);
   SetMethod(isolate, target, "update", Update);
   SetFastMethodNoSideEffect(
       isolate, target, "canParse", CanParse, {fast_can_parse_methods_, 2});
@@ -391,6 +485,7 @@ void BindingData::RegisterExternalReferences(
   registry->Register(Format);
   registry->Register(GetOrigin);
   registry->Register(Parse);
+  registry->Register(PathToFileURL);
   registry->Register(Update);
   registry->Register(CanParse);
   registry->Register(FastCanParse);
