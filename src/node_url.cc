@@ -75,40 +75,52 @@ void BindingData::Deserialize(v8::Local<v8::Context> context,
   CHECK_NOT_NULL(binding);
 }
 
-const std::unordered_map<char, std::string> lookup_table = {{'%', "%25"},
-                                                            {'\t', "%09"},
-                                                            {'\n', "%0A"},
-                                                            {'\r', "%0D"},
-                                                            {' ', "%20"},
-                                                            {'"', "%22"},
-                                                            {'#', "%23"},
-                                                            {'?', "%3F"},
-                                                            {'[', "%5B"},
-                                                            {'\\', "%5C"},
-                                                            {']', "%5D"},
-                                                            {'^', "%5E"},
-                                                            {'|', "%7C"},
-                                                            {'~', "%7E"}};
+#ifndef LARGEST_ASCII_CHAR_CODE_TO_ENCORE
+#define LARGEST_ASCII_CHAR_CODE_TO_ENCORE '~' + 1
+#endif
+
+std::array<std::string, LARGEST_ASCII_CHAR_CODE_TO_ENCORE> lookup_table = []() {
+  std::array<std::string, LARGEST_ASCII_CHAR_CODE_TO_ENCORE> result {};
+
+  for(uint8_t i = 0; i < LARGEST_ASCII_CHAR_CODE_TO_ENCORE; i++) {
+    if (i == '%') result[i] = "%25";
+    else if (i == '\t') result[i] = "%09";
+    else if (i == '\n') result[i] = "%0A";
+    else if (i == '\r') result[i] = "%0D";
+    else if (i == ' ') result[i] = "%20";
+    else if (i == '"') result[i] = "%22";
+    else if (i == '#') result[i] = "%23";
+    else if (i == '?') result[i] = "%3F";
+    else if (i == '[') result[i] = "%5B";
+    else if (i == '\\') result[i] = "%5C";
+    else if (i == ']') result[i] = "%5D";
+    else if (i == '^') result[i] = "%5E";
+    else if (i == '|') result[i] = "%7C";
+    else if (i == '~') result[i] = "%7E";
+    else result[i] = std::string(1, static_cast<char>(i));
+  }
+
+  return result;
+}();
 
 enum class OS { WINDOWS, POSIX };
 
-std::string EncodePathChars(const std::string_view& input_str, OS os) {
-  std::string encoded;
+std::string EncodePathChars(std::string_view input_str, OS operating_system) {
+  std::string encoded = "file://";
   encoded.reserve(input_str.size() +
                   7);  // Reserve space for "file://" and input_str
-
-  encoded.append("file://");
-  for (char i : input_str) {
-    if (i == '\\' && os == OS::WINDOWS) {
-      encoded.push_back('/');
-    } else {
-      auto it = lookup_table.find(i);
-      if (it != lookup_table.end()) {
-        encoded.append(it->second);
-      } else {
-        encoded.push_back(i);  // Append the character as is
+  for (size_t i : input_str) {
+    if (i > LARGEST_ASCII_CHAR_CODE_TO_ENCORE) [[unlikely]] {
+      encoded.push_back(i);
+      continue;
+    }
+    if (operating_system == OS::WINDOWS) {
+      if (i == '\\') {
+        encoded.push_back('/');
+        continue;
       }
     }
+    encoded.append(lookup_table[i]);
   }
 
   return encoded;
