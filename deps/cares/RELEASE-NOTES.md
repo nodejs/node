@@ -1,4 +1,10 @@
-## c-ares version 1.34.1 - Octover 9 2024
+## c-ares version 1.34.2 - October 15 2024
+
+This release contains a fix for downstream packages detecting the c-ares
+version based on the contents of the header file rather than the
+distributed pkgconf or cmake files.
+
+## c-ares version 1.34.1 - October 9 2024
 
 This release fixes a packaging issue.
 

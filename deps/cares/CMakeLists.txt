@@ -12,7 +12,7 @@ INCLUDE (CheckCSourceCompiles)
 INCLUDE (CheckStructHasMember)
 INCLUDE (CheckLibraryExists)
 
-PROJECT (c-ares LANGUAGES C VERSION "1.34.1" )
+PROJECT (c-ares LANGUAGES C VERSION "1.34.2" )
 
 # Set this version before release
 SET (CARES_VERSION "${PROJECT_VERSION}")
