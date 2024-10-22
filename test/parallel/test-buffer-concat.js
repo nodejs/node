@@ -22,6 +22,8 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
+const { test } = require('node:test');
+const { kMaxLength } = require('buffer');
 
 const zero = [];
 const one = [ Buffer.from('asdf') ];
@@ -98,3 +100,26 @@ assert.deepStrictEqual(
 assert.deepStrictEqual(Buffer.concat([new Uint8Array([0x41, 0x42]),
                                       new Uint8Array([0x43, 0x44])]),
                        Buffer.from('ABCD'));
+            
+test("concat buffer greater than 4GB in length", () => {
+  // Don't run the test on 32-bit systems since we'll run out of memory. Or even
+  // if we make it to Buffer.concat somehow, we'll ERR_OUT_OF_RANGE trying to Buffer.allocUnsafe
+  // the destination.
+  if (2 ** 32 + 1 <= kMaxLength) return;
+
+  let a = Buffer.alloc(2 ** 31);
+  let b = Buffer.alloc(2 ** 31);
+  let c = Buffer.alloc(1);
+  
+  a.fill(0);
+  b.fill(1);
+  c.fill(2);
+  
+  let destin = Buffer.concat([a, b, c]);
+  
+  assert.strictEqual(destin.subarray(0, 2 ** 31).compare(a), 0);
+  assert.strictEqual(destin.subarray(2 ** 31, 2 ** 32).compare(b), 0);
+  assert.equal(destin[2 ** 32], 2);
+});
+
+
