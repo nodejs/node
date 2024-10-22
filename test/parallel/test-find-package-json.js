@@ -72,7 +72,7 @@ describe('findPackageJSON', () => { // Throws when no arguments are provided
     assert.strictEqual(answer, 43);
   });
 
-  it('should be able to do whatever the heck Antoine created', () => {
+  it('should be able to resolve both root and closest package.json', () => {
     tmpdir.refresh();
 
     fs.writeFileSync(tmpdir.resolve('entry.mjs'), `
