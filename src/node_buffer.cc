@@ -279,7 +279,7 @@ MaybeLocal<Uint8Array> New(Environment* env,
   CHECK(!env->buffer_prototype_object().IsEmpty());
   Local<Uint8Array> ui = Uint8Array::New(ab, byte_offset, length);
   Maybe<bool> mb =
-      ui->SetPrototype(env->context(), env->buffer_prototype_object());
+      ui->SetPrototypeV2(env->context(), env->buffer_prototype_object());
   if (mb.IsNothing())
     return MaybeLocal<Uint8Array>();
   return ui;
