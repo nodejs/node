@@ -105,7 +105,7 @@ test("concat buffer greater than 4GB in length", () => {
   // Don't run the test on 32-bit systems since we'll run out of memory. Or even
   // if we make it to Buffer.concat somehow, we'll ERR_OUT_OF_RANGE trying to Buffer.allocUnsafe
   // the destination.
-  if (2 ** 32 + 1 <= kMaxLength) return;
+  if (2 ** 32 + 1 >= kMaxLength) return;
 
   let a = Buffer.alloc(2 ** 31);
   let b = Buffer.alloc(2 ** 31);
@@ -121,5 +121,3 @@ test("concat buffer greater than 4GB in length", () => {
   assert.strictEqual(destin.subarray(2 ** 31, 2 ** 32).compare(b), 0);
   assert.equal(destin[2 ** 32], 2);
 });
-
-
