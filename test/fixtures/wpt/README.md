@@ -34,7 +34,7 @@ Last update:
 - wasm/webapi: https://github.com/web-platform-tests/wpt/tree/fd1b23eeaa/wasm/webapi
 - WebCryptoAPI: https://github.com/web-platform-tests/wpt/tree/bef6fa3566/WebCryptoAPI
 - webidl/ecmascript-binding/es-exceptions: https://github.com/web-platform-tests/wpt/tree/a370aad338/webidl/ecmascript-binding/es-exceptions
-- webmessaging/broadcastchannel: https://github.com/web-platform-tests/wpt/tree/e97fac4791/webmessaging/broadcastchannel
+- webmessaging/broadcastchannel: https://github.com/web-platform-tests/wpt/tree/6495c91853/webmessaging/broadcastchannel
 - webstorage: https://github.com/web-platform-tests/wpt/tree/9dafa89214/webstorage
 
 [Web Platform Tests]: https://github.com/web-platform-tests/wpt
