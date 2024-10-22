@@ -40,7 +40,7 @@ describe('findPackageJSON', () => { // Throws when no arguments are provided
     const specifierBase = './packages/root-types-field';
     assert.strictEqual(
       findPackageJSON(
-        new URL(`{specifierBase}/index.js`, importMetaUrl),
+        new URL(`${specifierBase}/index.js`, importMetaUrl),
         importMetaUrl,
       ),
       fixtures.path(specifierBase, 'package.json'),
