@@ -7,7 +7,6 @@ const assert = require('node:assert');
 const fs = require('node:fs');
 const { findPackageJSON } = require('node:module');
 const { describe, it } = require('node:test');
-const { pathToFileURL } = require('node:url');
 
 
 describe('findPackageJSON', () => { // Throws when no arguments are provided
