@@ -111,3 +111,4 @@ if (2 ** 32 + 1 <= kMaxLength) {
   assert.deepStrictEqual(destin.subarray(2 ** 31, 2 ** 32), b);
   assert.deepStrictEqual(destin.subarray(2 ** 32), c);
 }
+
