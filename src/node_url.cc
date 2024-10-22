@@ -75,14 +75,16 @@ void BindingData::Deserialize(v8::Local<v8::Context> context,
   CHECK_NOT_NULL(binding);
 }
 
-#ifndef LARGEST_ASCII_CHAR_CODE_TO_ENCORE
-#define LARGEST_ASCII_CHAR_CODE_TO_ENCORE '~' + 1
+#ifndef LARGEST_ASCII_CHAR_CODE_TO_ENCODE
+#define LARGEST_ASCII_CHAR_CODE_TO_ENCODE '~'
 #endif
 
-std::array<std::string, LARGEST_ASCII_CHAR_CODE_TO_ENCORE> lookup_table = []() {
-  std::array<std::string, LARGEST_ASCII_CHAR_CODE_TO_ENCORE> result{};
+// RFC1738 defines the following chars as "unsafe" for URLs
+// @see https://www.ietf.org/rfc/rfc1738.txt 2.2. URL Character Encoding Issues
+std::array<std::string, LARGEST_ASCII_CHAR_CODE_TO_ENCODE + 1> lookup_table = []() {
+  std::array<std::string, LARGEST_ASCII_CHAR_CODE_TO_ENCODE + 1> result{};
 
-  for (uint8_t i = 0; i < LARGEST_ASCII_CHAR_CODE_TO_ENCORE; i++) {
+  for (uint8_t i = 0; i <= LARGEST_ASCII_CHAR_CODE_TO_ENCODE; i++) {
     if (i == '%')
       result[i] = "%25";
     else if (i == '\t')
@@ -125,7 +127,7 @@ std::string EncodePathChars(std::string_view input_str, OS operating_system) {
   encoded.reserve(input_str.size() +
                   7);  // Reserve space for "file://" and input_str
   for (size_t i : input_str) {
-    if (i > LARGEST_ASCII_CHAR_CODE_TO_ENCORE) [[unlikely]] {
+    if (i > LARGEST_ASCII_CHAR_CODE_TO_ENCODE) [[unlikely]] {
       encoded.push_back(i);
       continue;
     }
@@ -160,6 +162,12 @@ void BindingData::PathToFileURL(const FunctionCallbackInfo<Value>& args) {
 
   if (!out) {
     return ThrowInvalidURL(realm->env(), input.ToStringView(), nullptr);
+  }
+
+  if (os == OS::WINDOWS && args.Length() > 2 && !args[2]->IsUndefined()) [[unlikely]] {
+    CHECK(args[2]->IsString());
+    Utf8Value hostname(isolate, args[2]);
+    CHECK(out->set_hostname(hostname.ToStringView()));
   }
 
   binding_data->UpdateComponents(out->get_components(), out->type);
