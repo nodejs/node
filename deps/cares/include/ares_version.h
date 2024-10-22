@@ -32,20 +32,16 @@
 
 #define ARES_VERSION_MAJOR 1
 #define ARES_VERSION_MINOR 34
-#define ARES_VERSION_PATCH 1
+#define ARES_VERSION_PATCH 2
+#define ARES_VERSION_STR "1.34.2"
+
+/* NOTE: We cannot make the version string a C preprocessor stringify operation
+ *       due to assumptions made by integrators that aren't properly using
+ *       pkgconf or cmake and are doing their own detection based on parsing
+ *       this header */
 
 #define ARES_VERSION                                        \
   ((ARES_VERSION_MAJOR << 16) | (ARES_VERSION_MINOR << 8) | \
    (ARES_VERSION_PATCH))
-
-
-/* Need a level of indirection due to argument prescan to stringify a macro
- * value. */
-#define ARES_STRINGIFY_PRE(s) #s
-#define ARES_STRINGIFY(s)     ARES_STRINGIFY_PRE(s)
-
-#define ARES_VERSION_STR             \
-  ARES_STRINGIFY(ARES_VERSION_MAJOR) \
-  "." ARES_STRINGIFY(ARES_VERSION_MINOR) "." ARES_STRINGIFY(ARES_VERSION_PATCH)
 
 #endif
