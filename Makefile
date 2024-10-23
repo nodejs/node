@@ -1418,6 +1418,16 @@ lint-js-ci: tools/eslint/node_modules/eslint/bin/eslint.js
 jslint-ci: lint-js-ci
 	$(warning Please use lint-js-ci instead of jslint-ci)
 
+LINT_TS_TSC = tools/typescript/node_modules/typescript/bin/tsc
+LINT_TS_CONFIG = tools/typescript/tsconfig.json
+
+run-lint-ts = $(LINT_TS_TSC) --project $(LINT_TS_CONFIG)
+
+.PHONY: lint-ts
+lint-ts:
+	$(info Running TSC...)
+	@$(call available-node,$(run-lint-ts))
+
 LINT_CPP_ADDON_DOC_FILES_GLOB = test/addons/??_*/*.cc test/addons/??_*/*.h
 LINT_CPP_ADDON_DOC_FILES = $(wildcard $(LINT_CPP_ADDON_DOC_FILES_GLOB))
 LINT_CPP_EXCLUDE ?=
@@ -1573,6 +1583,7 @@ ifneq ("","$(wildcard tools/eslint/)")
 lint: ## Run JS, C++, MD and doc linters.
 	@EXIT_STATUS=0 ; \
 	$(MAKE) lint-js || EXIT_STATUS=$$? ; \
+	$(MAKE) lint-ts || EXIT_STATUS=$$? ; \
 	$(MAKE) lint-cpp || EXIT_STATUS=$$? ; \
 	$(MAKE) lint-addon-docs || EXIT_STATUS=$$? ; \
 	$(MAKE) lint-md || EXIT_STATUS=$$? ; \
@@ -1581,7 +1592,7 @@ lint: ## Run JS, C++, MD and doc linters.
 CONFLICT_RE=^>>>>>>> [[:xdigit:]]+|^<<<<<<< [[:alpha:]]+
 
 # Related CI job: node-test-linter
-lint-ci: lint-js-ci lint-cpp lint-py lint-md lint-addon-docs lint-yaml-build lint-yaml
+lint-ci: lint-js-ci lint-ts lint-cpp lint-py lint-md lint-addon-docs lint-yaml-build lint-yaml
 	@if ! ( grep -IEqrs "$(CONFLICT_RE)" --exclude="error-message.js" --exclude="merge-conflict.json" benchmark deps doc lib src test tools ) \
 		&& ! ( $(FIND) . -maxdepth 1 -type f | xargs grep -IEqs "$(CONFLICT_RE)" ); then \
 		exit 0 ; \
