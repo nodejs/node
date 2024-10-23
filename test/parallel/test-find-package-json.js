@@ -6,6 +6,7 @@ const tmpdir = require('../common/tmpdir');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const { findPackageJSON } = require('node:module');
+const path = require('node:path');
 const { describe, it } = require('node:test');
 
 
@@ -31,7 +32,7 @@ describe('findPackageJSON', () => { // Throws when no arguments are provided
     const specifierBase = './packages/root-types-field/';
     assert.strictEqual(
       findPackageJSON(`${specifierBase}index.js`, importMetaUrl),
-      fixtures.path(specifierBase, 'package.json'),
+      path.toNamespacedPath(fixtures.path(specifierBase, 'package.json')),
     );
   });
 
@@ -43,7 +44,7 @@ describe('findPackageJSON', () => { // Throws when no arguments are provided
         new URL(`${specifierBase}/index.js`, importMetaUrl),
         importMetaUrl,
       ),
-      fixtures.path(specifierBase, 'package.json'),
+      path.toNamespacedPath(fixtures.path(specifierBase, 'package.json')),
     );
   });
 
