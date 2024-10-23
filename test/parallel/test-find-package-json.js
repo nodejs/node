@@ -52,7 +52,7 @@ describe('findPackageJSON', () => { // Throws when no arguments are provided
     const pathToMod = fixtures.path('packages/nested/sub-pkg-cjs/index.js');
     const parentPkg = require(pathToMod);
 
-    const pathToParent = fixtures.path('packages/nested/package.json');
+    const pathToParent = path.toNamespacedPath(fixtures.path('packages/nested/package.json'));
     assert.strictEqual(parentPkg, pathToParent);
   });
 
@@ -60,7 +60,7 @@ describe('findPackageJSON', () => { // Throws when no arguments are provided
     const pathToMod = fixtures.path('packages/nested/sub-pkg-esm/index.js');
     const parentPkg = require(pathToMod).default; // This test is a CJS file
 
-    const pathToParent = fixtures.path('packages/nested/package.json');
+    const pathToParent = path.toNamespacedPath(fixtures.path('packages/nested/package.json'));
     assert.strictEqual(parentPkg, pathToParent);
   });
 
