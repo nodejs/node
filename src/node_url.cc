@@ -81,44 +81,45 @@ void BindingData::Deserialize(v8::Local<v8::Context> context,
 
 // RFC1738 defines the following chars as "unsafe" for URLs
 // @see https://www.ietf.org/rfc/rfc1738.txt 2.2. URL Character Encoding Issues
-std::array<std::string, LARGEST_ASCII_CHAR_CODE_TO_ENCODE + 1> lookup_table = []() {
-  std::array<std::string, LARGEST_ASCII_CHAR_CODE_TO_ENCODE + 1> result{};
+std::array<std::string, LARGEST_ASCII_CHAR_CODE_TO_ENCODE + 1> lookup_table =
+    []() {
+      std::array<std::string, LARGEST_ASCII_CHAR_CODE_TO_ENCODE + 1> result{};
 
-  for (uint8_t i = 0; i <= LARGEST_ASCII_CHAR_CODE_TO_ENCODE; i++) {
-    if (i == '%')
-      result[i] = "%25";
-    else if (i == '\t')
-      result[i] = "%09";
-    else if (i == '\n')
-      result[i] = "%0A";
-    else if (i == '\r')
-      result[i] = "%0D";
-    else if (i == ' ')
-      result[i] = "%20";
-    else if (i == '"')
-      result[i] = "%22";
-    else if (i == '#')
-      result[i] = "%23";
-    else if (i == '?')
-      result[i] = "%3F";
-    else if (i == '[')
-      result[i] = "%5B";
-    else if (i == '\\')
-      result[i] = "%5C";
-    else if (i == ']')
-      result[i] = "%5D";
-    else if (i == '^')
-      result[i] = "%5E";
-    else if (i == '|')
-      result[i] = "%7C";
-    else if (i == '~')
-      result[i] = "%7E";
-    else
-      result[i] = std::string(1, static_cast<char>(i));
-  }
+      for (uint8_t i = 0; i <= LARGEST_ASCII_CHAR_CODE_TO_ENCODE; i++) {
+        if (i == '%')
+          result[i] = "%25";
+        else if (i == '\t')
+          result[i] = "%09";
+        else if (i == '\n')
+          result[i] = "%0A";
+        else if (i == '\r')
+          result[i] = "%0D";
+        else if (i == ' ')
+          result[i] = "%20";
+        else if (i == '"')
+          result[i] = "%22";
+        else if (i == '#')
+          result[i] = "%23";
+        else if (i == '?')
+          result[i] = "%3F";
+        else if (i == '[')
+          result[i] = "%5B";
+        else if (i == '\\')
+          result[i] = "%5C";
+        else if (i == ']')
+          result[i] = "%5D";
+        else if (i == '^')
+          result[i] = "%5E";
+        else if (i == '|')
+          result[i] = "%7C";
+        else if (i == '~')
+          result[i] = "%7E";
+        else
+          result[i] = std::string(1, static_cast<char>(i));
+      }
 
-  return result;
-}();
+      return result;
+    }();
 
 enum class OS { WINDOWS, POSIX };
 
@@ -164,7 +165,8 @@ void BindingData::PathToFileURL(const FunctionCallbackInfo<Value>& args) {
     return ThrowInvalidURL(realm->env(), input.ToStringView(), nullptr);
   }
 
-  if (os == OS::WINDOWS && args.Length() > 2 && !args[2]->IsUndefined()) [[unlikely]] {
+  if (os == OS::WINDOWS && args.Length() > 2 && !args[2]->IsUndefined())
+      [[unlikely]] {
     CHECK(args[2]->IsString());
     Utf8Value hostname(isolate, args[2]);
     CHECK(out->set_hostname(hostname.ToStringView()));
