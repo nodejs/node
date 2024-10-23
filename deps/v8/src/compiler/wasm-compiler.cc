@@ -391,10 +391,8 @@ Node* WasmGraphBuilder::EffectPhi(unsigned count, Node** effects_and_control) {
 Node* WasmGraphBuilder::RefNull(wasm::ValueType type) {
   // We immediately lower null in wrappers, as they do not go through a lowering
   // phase.
-  // TODO(thibaudm): Can we use wasm null for exnref?
   return parameter_mode_ == kInstanceParameterMode ? gasm_->Null(type)
-         : (type == wasm::kWasmExternRef || type == wasm::kWasmNullExternRef ||
-            type == wasm::kWasmExnRef || type == wasm::kWasmNullExnRef)
+         : (type == wasm::kWasmExternRef || type == wasm::kWasmNullExternRef)
              ? LOAD_ROOT(NullValue, null_value)
              : LOAD_ROOT(WasmNull, wasm_null);
 }
@@ -2370,6 +2368,14 @@ Node* WasmGraphBuilder::Rethrow(Node* except_obj) {
   // saved when caught and restored here while being rethrown.
   return gasm_->CallBuiltinThroughJumptable(
       Builtin::kWasmRethrow, Operator::kNoProperties, except_obj);
+}
+
+Node* WasmGraphBuilder::ThrowRef(Node* except_obj) {
+  // TODO(v8:8091): Currently the message of the original exception is not being
+  // preserved when rethrown to the console. The pending message will need to be
+  // saved when caught and restored here while being rethrown.
+  return gasm_->CallBuiltinThroughJumptable(
+      Builtin::kWasmThrowRef, Operator::kNoProperties, except_obj);
 }
 
 Node* WasmGraphBuilder::IsExceptionTagUndefined(Node* tag) {

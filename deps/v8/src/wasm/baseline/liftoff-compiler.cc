@@ -931,8 +931,7 @@ class LiftoffCompiler {
           ValueType type = decoder->local_types_[local_index];
           if (type.is_reference()) {
             __ Spill(__ cache_state()->stack_state[local_index].offset(),
-                     IsSubtypeOf(type, kWasmExternRef, decoder->module_) ||
-                             IsSubtypeOf(type, kWasmExnRef, decoder->module_)
+                     IsSubtypeOf(type, kWasmExternRef, decoder->module_)
                          ? LiftoffRegister(null_ref_reg)
                          : LiftoffRegister(wasm_null_ref_reg),
                      type.kind());
@@ -1668,7 +1667,7 @@ class LiftoffCompiler {
   void ThrowRef(FullDecoder* decoder, Value*) {
     // Like Rethrow, but pops the exception from the stack.
     VarState exn = __ PopVarState();
-    CallBuiltin(Builtin::kWasmRethrow, MakeSig::Params(kRef), {exn},
+    CallBuiltin(Builtin::kWasmThrowRef, MakeSig::Params(kRef), {exn},
                 decoder->position());
     int pc_offset = __ pc_offset();
     MaybeOSR();
@@ -2622,8 +2621,7 @@ class LiftoffCompiler {
     LiftoffRegister obj = pinned.set(__ PopToRegister(pinned));
     if (null_check_strategy_ == compiler::NullCheckStrategy::kExplicit ||
         IsSubtypeOf(kWasmI31Ref.AsNonNull(), arg.type, decoder->module_) ||
-        IsSubtypeOf(arg.type, kWasmExternRef, decoder->module_) ||
-        IsSubtypeOf(arg.type, kWasmExnRef, decoder->module_)) {
+        IsSubtypeOf(arg.type, kWasmExternRef, decoder->module_)) {
       // Use an explicit null check if
       // (1) we cannot use trap handler or
       // (2) the object might be a Smi or
@@ -8253,11 +8251,9 @@ class LiftoffCompiler {
   }
 
   void LoadNullValue(Register null, ValueType type) {
-    // TODO(thibaudm): Can we use wasm null for exnref?
     __ LoadFullPointer(
         null, kRootRegister,
-        type == kWasmExternRef || type == kWasmNullExternRef ||
-                type == kWasmExnRef || type == kWasmNullExnRef
+        type == kWasmExternRef || type == kWasmNullExternRef
             ? IsolateData::root_slot_offset(RootIndex::kNullValue)
             : IsolateData::root_slot_offset(RootIndex::kWasmNull));
   }
@@ -8270,8 +8266,7 @@ class LiftoffCompiler {
                                ValueType type) {
 #if V8_STATIC_ROOTS_BOOL
     // TODO(14616): Extend this for shared types.
-    bool is_wasm_null = type != kWasmExternRef && type != kWasmNullExternRef &&
-                        type != kWasmExnRef && type != kWasmNullExnRef;
+    bool is_wasm_null = type != kWasmExternRef && type != kWasmNullExternRef;
     uint32_t value = is_wasm_null ? StaticReadOnlyRoot::kWasmNull
                                   : StaticReadOnlyRoot::kNullValue;
     __ LoadConstant(LiftoffRegister(null),

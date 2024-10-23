@@ -46,8 +46,7 @@ class WasmLoweringReducer : public Next {
 #if V8_STATIC_ROOTS_BOOL
     // TODO(14616): Extend this for shared types.
     const bool is_wasm_null =
-        !wasm::IsSubtypeOf(type, wasm::kWasmExternRef, module_) &&
-        !wasm::IsSubtypeOf(type, wasm::kWasmExnRef, module_);
+        !wasm::IsSubtypeOf(type, wasm::kWasmExternRef, module_);
     OpIndex null_value =
         __ UintPtrConstant(is_wasm_null ? StaticReadOnlyRoot::kWasmNull
                                         : StaticReadOnlyRoot::kNullValue);
@@ -68,8 +67,7 @@ class WasmLoweringReducer : public Next {
         // (3) the object might be a JS object.
         if (null_check_strategy_ == NullCheckStrategy::kExplicit ||
             wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(), type, module_) ||
-            wasm::IsSubtypeOf(type, wasm::kWasmExternRef, module_) ||
-            wasm::IsSubtypeOf(type, wasm::kWasmExnRef, module_)) {
+            wasm::IsSubtypeOf(type, wasm::kWasmExternRef, module_)) {
           __ TrapIf(__ IsNull(object, type), OpIndex::Invalid(), trap_id);
         } else {
           // Otherwise, load the word after the map word.
@@ -919,11 +917,9 @@ class WasmLoweringReducer : public Next {
 
   OpIndex Null(wasm::ValueType type) {
     OpIndex roots = __ LoadRootRegister();
-    RootIndex index =
-        wasm::IsSubtypeOf(type, wasm::kWasmExternRef, module_) ||
-                wasm::IsSubtypeOf(type, wasm::kWasmExnRef, module_)
-            ? RootIndex::kNullValue
-            : RootIndex::kWasmNull;
+    RootIndex index = wasm::IsSubtypeOf(type, wasm::kWasmExternRef, module_)
+                          ? RootIndex::kNullValue
+                          : RootIndex::kWasmNull;
     // We load WasmNull as a pointer here and not as a TaggedPointer because
     // WasmNull is stored uncompressed in the IsolateData, and a load of a
     // TaggedPointer loads compressed pointers. We do not bitcast the WasmNull
