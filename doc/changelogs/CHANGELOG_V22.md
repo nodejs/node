@@ -4,9 +4,13 @@
 
 <table>
 <tr>
+<th>LTS 'Jod'</th>
 <th>Current</th>
 </tr>
 <tr>
+<td>
+<a href="#22.11.0">22.11.0</a><br/>
+</td>
 <td>
 <a href="#22.10.0">22.10.0</a><br/>
 <a href="#22.9.0">22.9.0</a><br/>
@@ -49,6 +53,32 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="22.11.0"></a>
+
+## 2024-10-29, Version 22.11.0 'Jod' (LTS), @richardlau
+
+### Notable Changes
+
+This release marks the transition of Node.js 22.x into Long Term Support (LTS)
+with the codename 'Jod'. The 22.x release line now moves into "Active LTS"
+and will remain so until October 2025. After that time, it will move into
+"Maintenance" until end of life in April 2027.
+
+Other than updating metadata, such as the `process.release` object, to reflect
+that the release is LTS, no further changes from Node.js 22.10.0 are included.
+
+### OpenSSL 3.x
+
+Official binaries for Node.js 22.x currently include OpenSSL 3.0.x (more
+specifically, the [quictls OpenSSL fork](https://github.com/quictls/openssl)).
+OpenSSL 3.0.x is the currently designated long term support version that is
+scheduled to be supported until 7th September 2026, which is within the expected
+lifetime of Node.js 22.x. We are expecting upstream OpenSSL to announce a
+successor long term support version prior to that date and since OpenSSL now
+follows a semantic versioning-like versioning scheme we expect to be able to
+update to the next long term supported version of OpenSSL during the lifetime of
+Node.js 22.x.
 
 <a id="22.10.0"></a>
 
