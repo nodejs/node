@@ -104,11 +104,10 @@ To download `SHASUMS256.txt` using `curl`:
 curl -O https://nodejs.org/dist/vx.y.z/SHASUMS256.txt
 ```
 
-To check that a downloaded file matches the checksum, run
-it through `sha256sum` with a command such as:
+To check that downloaded files match the checksum, use `sha256sum`:
 
 ```bash
-grep node-vx.y.z.tar.gz SHASUMS256.txt | sha256sum -c -
+sha256sum -c SHASUMS256.txt --ignore-missing
 ```
 
 For Current and LTS, the GPG detached signature of `SHASUMS256.txt` is in
