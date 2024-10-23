@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 'use strict';
 process.env.NODE_TEST_KNOWN_GLOBALS = 0;
 const common = require('../common');
@@ -6,6 +7,7 @@ const assert = require('node:assert');
 const { it, mock, describe } = require('node:test');
 const nodeTimers = require('node:timers');
 const nodeTimersPromises = require('node:timers/promises');
+const { TIMEOUT_MAX } = require('internal/timers');
 
 describe('Mock Timers Test Suite', () => {
   describe('MockTimers API', () => {
@@ -252,10 +254,10 @@ describe('Mock Timers Test Suite', () => {
         }), timeout);
       });
 
-      it('should change timeout to 1ms when it is >= 2 ** 31', (t) => {
+      it('should change timeout to 1ms when it is > TIMEOUT_MAX', (t) => {
         t.mock.timers.enable({ apis: ['setTimeout'] });
         const fn = t.mock.fn();
-        global.setTimeout(fn, 2 ** 31);
+        global.setTimeout(fn, TIMEOUT_MAX + 1);
         t.mock.timers.tick(1);
         assert.strictEqual(fn.mock.callCount(), 1);
       });
