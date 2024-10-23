@@ -204,6 +204,17 @@ const tests = [
     flags: ['--test-reporter=tap'],
   },
   {
+    name: 'test-runner/output/non-tty-forced-color-output.js',
+    flags: ['--test-reporter=spec'],
+    transform: specTransform,
+  },
+  canColorize ? {
+    name: 'test-runner/output/assertion-color-tty.mjs',
+    flags: ['--test', '--stack-trace-limit=0'],
+    transform: specTransform,
+    tty: true,
+  } : false,
+  {
     name: 'test-runner/output/async-test-scheduling.mjs',
     flags: ['--test-reporter=tap'],
   },
