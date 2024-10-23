@@ -51,6 +51,7 @@ namespace v8::internal::wasm {
   V(WasmAllocateFixedArray)                                                    \
   V(WasmThrow)                                                                 \
   V(WasmRethrow)                                                               \
+  V(WasmThrowRef)                                                              \
   V(WasmRethrowExplicitContext)                                                \
   V(WasmTraceEnter)                                                            \
   V(WasmTraceExit)                                                             \

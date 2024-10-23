@@ -2799,7 +2799,7 @@ class WasmGraphBuildingInterface {
 
   void ThrowRef(FullDecoder* decoder, TFNode* exception) {
     DCHECK_NOT_NULL(exception);
-    CheckForException(decoder, builder_->Rethrow(exception), false);
+    CheckForException(decoder, builder_->ThrowRef(exception), false);
     builder_->TerminateThrow(effect(), control());
   }
 };

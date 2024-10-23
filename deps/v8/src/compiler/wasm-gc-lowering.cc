@@ -95,9 +95,7 @@ Reduction WasmGCLowering::Reduce(Node* node) {
 }
 
 Node* WasmGCLowering::Null(wasm::ValueType type) {
-  // TODO(thibaudm): Can we use wasm null for exnref?
-  RootIndex index = wasm::IsSubtypeOf(type, wasm::kWasmExternRef, module_) ||
-                            wasm::IsSubtypeOf(type, wasm::kWasmExnRef, module_)
+  RootIndex index = wasm::IsSubtypeOf(type, wasm::kWasmExternRef, module_)
                         ? RootIndex::kNullValue
                         : RootIndex::kWasmNull;
   return gasm_.LoadImmutable(MachineType::Pointer(), gasm_.LoadRootRegister(),
@@ -108,8 +106,7 @@ Node* WasmGCLowering::IsNull(Node* object, wasm::ValueType type) {
 #if V8_STATIC_ROOTS_BOOL
   // TODO(14616): Extend this for shared types.
   const bool is_wasm_null =
-      !wasm::IsSubtypeOf(type, wasm::kWasmExternRef, module_) &&
-      !wasm::IsSubtypeOf(type, wasm::kWasmExnRef, module_);
+      !wasm::IsSubtypeOf(type, wasm::kWasmExternRef, module_);
   Node* null_value =
       gasm_.UintPtrConstant(is_wasm_null ? StaticReadOnlyRoot::kWasmNull
                                          : StaticReadOnlyRoot::kNullValue);
@@ -488,8 +485,7 @@ Reduction WasmGCLowering::ReduceAssertNotNull(Node* node) {
       if (null_check_strategy_ == NullCheckStrategy::kExplicit ||
           wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(), op_parameter.type,
                             module_) ||
-          wasm::IsSubtypeOf(op_parameter.type, wasm::kWasmExternRef, module_) ||
-          wasm::IsSubtypeOf(op_parameter.type, wasm::kWasmExnRef, module_)) {
+          wasm::IsSubtypeOf(op_parameter.type, wasm::kWasmExternRef, module_)) {
         gasm_.TrapIf(IsNull(object, op_parameter.type), op_parameter.trap_id);
         UpdateSourcePosition(gasm_.effect(), node);
       } else {
