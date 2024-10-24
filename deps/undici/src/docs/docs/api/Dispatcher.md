@@ -488,11 +488,13 @@ The `RequestOptions.method` property should not be value `'CONNECT'`.
 
 `body` contains the following additional [body mixin](https://fetch.spec.whatwg.org/#body-mixin) methods and properties:
 
-- `text()`
-- `json()`
-- `arrayBuffer()`
-- `body`
-- `bodyUsed`
+* [`.arrayBuffer()`](https://fetch.spec.whatwg.org/#dom-body-arraybuffer)
+* [`.blob()`](https://fetch.spec.whatwg.org/#dom-body-blob)
+* [`.bytes()`](https://fetch.spec.whatwg.org/#dom-body-bytes)
+* [`.json()`](https://fetch.spec.whatwg.org/#dom-body-json)
+* [`.text()`](https://fetch.spec.whatwg.org/#dom-body-text)
+* `body`
+* `bodyUsed`
 
 `body` can not be consumed twice. For example, calling `text()` after `json()` throws `TypeError`.
 

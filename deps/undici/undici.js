@@ -793,9 +793,9 @@ var require_pool_base = __commonJS({
       }
       async [kClose]() {
         if (this[kQueue].isEmpty()) {
-          return Promise.all(this[kClients].map((c) => c.close()));
+          await Promise.all(this[kClients].map((c) => c.close()));
         } else {
-          return new Promise((resolve) => {
+          await new Promise((resolve) => {
             this[kClosedResolve] = resolve;
           });
         }
@@ -808,7 +808,7 @@ var require_pool_base = __commonJS({
           }
           item.handler.onError(err);
         }
-        return Promise.all(this[kClients].map((c) => c.destroy(err)));
+        await Promise.all(this[kClients].map((c) => c.destroy(err)));
       }
       [kDispatch](opts, handler) {
         const dispatcher = this[kGetDispatcher]();
@@ -2967,151 +2967,193 @@ var require_llhttp_simd_wasm = __commonJS({
 var require_constants3 = __commonJS({
   "lib/web/fetch/constants.js"(exports2, module2) {
     "use strict";
-    var corsSafeListedMethods = ["GET", "HEAD", "POST"];
+    var corsSafeListedMethods = (
+      /** @type {const} */
+      ["GET", "HEAD", "POST"]
+    );
     var corsSafeListedMethodsSet = new Set(corsSafeListedMethods);
-    var nullBodyStatus = [101, 204, 205, 304];
-    var redirectStatus = [301, 302, 303, 307, 308];
+    var nullBodyStatus = (
+      /** @type {const} */
+      [101, 204, 205, 304]
+    );
+    var redirectStatus = (
+      /** @type {const} */
+      [301, 302, 303, 307, 308]
+    );
     var redirectStatusSet = new Set(redirectStatus);
-    var badPorts = [
-      "1",
-      "7",
-      "9",
-      "11",
-      "13",
-      "15",
-      "17",
-      "19",
-      "20",
-      "21",
-      "22",
-      "23",
-      "25",
-      "37",
-      "42",
-      "43",
-      "53",
-      "69",
-      "77",
-      "79",
-      "87",
-      "95",
-      "101",
-      "102",
-      "103",
-      "104",
-      "109",
-      "110",
-      "111",
-      "113",
-      "115",
-      "117",
-      "119",
-      "123",
-      "135",
-      "137",
-      "139",
-      "143",
-      "161",
-      "179",
-      "389",
-      "427",
-      "465",
-      "512",
-      "513",
-      "514",
-      "515",
-      "526",
-      "530",
-      "531",
-      "532",
-      "540",
-      "548",
-      "554",
-      "556",
-      "563",
-      "587",
-      "601",
-      "636",
-      "989",
-      "990",
-      "993",
-      "995",
-      "1719",
-      "1720",
-      "1723",
-      "2049",
-      "3659",
-      "4045",
-      "4190",
-      "5060",
-      "5061",
-      "6000",
-      "6566",
-      "6665",
-      "6666",
-      "6667",
-      "6668",
-      "6669",
-      "6679",
-      "6697",
-      "10080"
-    ];
+    var badPorts = (
+      /** @type {const} */
+      [
+        "1",
+        "7",
+        "9",
+        "11",
+        "13",
+        "15",
+        "17",
+        "19",
+        "20",
+        "21",
+        "22",
+        "23",
+        "25",
+        "37",
+        "42",
+        "43",
+        "53",
+        "69",
+        "77",
+        "79",
+        "87",
+        "95",
+        "101",
+        "102",
+        "103",
+        "104",
+        "109",
+        "110",
+        "111",
+        "113",
+        "115",
+        "117",
+        "119",
+        "123",
+        "135",
+        "137",
+        "139",
+        "143",
+        "161",
+        "179",
+        "389",
+        "427",
+        "465",
+        "512",
+        "513",
+        "514",
+        "515",
+        "526",
+        "530",
+        "531",
+        "532",
+        "540",
+        "548",
+        "554",
+        "556",
+        "563",
+        "587",
+        "601",
+        "636",
+        "989",
+        "990",
+        "993",
+        "995",
+        "1719",
+        "1720",
+        "1723",
+        "2049",
+        "3659",
+        "4045",
+        "4190",
+        "5060",
+        "5061",
+        "6000",
+        "6566",
+        "6665",
+        "6666",
+        "6667",
+        "6668",
+        "6669",
+        "6679",
+        "6697",
+        "10080"
+      ]
+    );
     var badPortsSet = new Set(badPorts);
-    var referrerPolicy = [
-      "",
-      "no-referrer",
-      "no-referrer-when-downgrade",
-      "same-origin",
-      "origin",
-      "strict-origin",
-      "origin-when-cross-origin",
-      "strict-origin-when-cross-origin",
-      "unsafe-url"
-    ];
+    var referrerPolicy = (
+      /** @type {const} */
+      [
+        "",
+        "no-referrer",
+        "no-referrer-when-downgrade",
+        "same-origin",
+        "origin",
+        "strict-origin",
+        "origin-when-cross-origin",
+        "strict-origin-when-cross-origin",
+        "unsafe-url"
+      ]
+    );
     var referrerPolicySet = new Set(referrerPolicy);
-    var requestRedirect = ["follow", "manual", "error"];
-    var safeMethods = ["GET", "HEAD", "OPTIONS", "TRACE"];
+    var requestRedirect = (
+      /** @type {const} */
+      ["follow", "manual", "error"]
+    );
+    var safeMethods = (
+      /** @type {const} */
+      ["GET", "HEAD", "OPTIONS", "TRACE"]
+    );
     var safeMethodsSet = new Set(safeMethods);
-    var requestMode = ["navigate", "same-origin", "no-cors", "cors"];
-    var requestCredentials = ["omit", "same-origin", "include"];
-    var requestCache = [
-      "default",
-      "no-store",
-      "reload",
-      "no-cache",
-      "force-cache",
-      "only-if-cached"
-    ];
-    var requestBodyHeader = [
-      "content-encoding",
-      "content-language",
-      "content-location",
-      "content-type",
-      // See https://github.com/nodejs/undici/issues/2021
-      // 'Content-Length' is a forbidden header name, which is typically
-      // removed in the Headers implementation. However, undici doesn't
-      // filter out headers, so we add it here.
-      "content-length"
-    ];
-    var requestDuplex = [
-      "half"
-    ];
-    var forbiddenMethods = ["CONNECT", "TRACE", "TRACK"];
+    var requestMode = (
+      /** @type {const} */
+      ["navigate", "same-origin", "no-cors", "cors"]
+    );
+    var requestCredentials = (
+      /** @type {const} */
+      ["omit", "same-origin", "include"]
+    );
+    var requestCache = (
+      /** @type {const} */
+      [
+        "default",
+        "no-store",
+        "reload",
+        "no-cache",
+        "force-cache",
+        "only-if-cached"
+      ]
+    );
+    var requestBodyHeader = (
+      /** @type {const} */
+      [
+        "content-encoding",
+        "content-language",
+        "content-location",
+        "content-type",
+        // See https://github.com/nodejs/undici/issues/2021
+        // 'Content-Length' is a forbidden header name, which is typically
+        // removed in the Headers implementation. However, undici doesn't
+        // filter out headers, so we add it here.
+        "content-length"
+      ]
+    );
+    var requestDuplex = (
+      /** @type {const} */
+      [
+        "half"
+      ]
+    );
+    var forbiddenMethods = (
+      /** @type {const} */
+      ["CONNECT", "TRACE", "TRACK"]
+    );
     var forbiddenMethodsSet = new Set(forbiddenMethods);
-    var subresource = [
-      "audio",
-      "audioworklet",
-      "font",
-      "image",
-      "manifest",
-      "paintworklet",
-      "script",
-      "style",
-      "track",
-      "video",
-      "xslt",
-      ""
-    ];
+    var subresource = (
+      /** @type {const} */
+      [
+        "audio",
+        "audioworklet",
+        "font",
+        "image",
+        "manifest",
+        "paintworklet",
+        "script",
+        "style",
+        "track",
+        "video",
+        "xslt",
+        ""
+      ]
+    );
     var subresourceSet = new Set(subresource);
     module2.exports = {
       subresource,
@@ -6343,7 +6385,7 @@ var require_client_h1 = __commonJS({
     function writeH1(client, request) {
       const { method, path, host, upgrade, blocking, reset } = request;
       let { body, headers, contentLength } = request;
-      const expectsPayload = method === "PUT" || method === "POST" || method === "PATCH";
+      const expectsPayload = method === "PUT" || method === "POST" || method === "PATCH" || method === "QUERY" || method === "PROPFIND" || method === "PROPPATCH";
       if (util.isFormDataLike(body)) {
         if (!extractBody) {
           extractBody = require_body().extractBody;
@@ -6553,7 +6595,7 @@ upgrade: ${upgrade}\r
           socket.write(body);
           socket.uncork();
           request.onBodySent(body);
-          if (!expectsPayload) {
+          if (!expectsPayload && request.reset !== false) {
             socket[kReset] = true;
           }
         }
@@ -6579,7 +6621,7 @@ upgrade: ${upgrade}\r
         socket.uncork();
         request.onBodySent(buffer);
         request.onRequestSent();
-        if (!expectsPayload) {
+        if (!expectsPayload && request.reset !== false) {
           socket[kReset] = true;
         }
         client[kResume]();
@@ -6661,7 +6703,7 @@ upgrade: ${upgrade}\r
         }
         socket.cork();
         if (bytesWritten === 0) {
-          if (!expectsPayload) {
+          if (!expectsPayload && request.reset !== false) {
             socket[kReset] = true;
           }
           if (contentLength === null) {
@@ -6768,7 +6810,9 @@ var require_client_h2 = __commonJS({
       kOnError,
       kMaxConcurrentStreams,
       kHTTP2Session,
-      kResume
+      kResume,
+      kSize,
+      kHTTPContext
     } = require_symbols();
     var kOpenStreams = Symbol("open streams");
     var h2ExperimentalWarned = false;
@@ -6866,9 +6910,10 @@ var require_client_h2 = __commonJS({
         version: "h2",
         defaultPipelining: Infinity,
         write(...args) {
-          writeH2(client, ...args);
+          return writeH2(client, ...args);
         },
         resume() {
+          resumeH2(client);
         },
         destroy(err, callback) {
           if (closed) {
@@ -6886,6 +6931,19 @@ var require_client_h2 = __commonJS({
       };
     }
     __name(connectH2, "connectH2");
+    function resumeH2(client) {
+      const socket = client[kSocket];
+      if (socket?.destroyed === false) {
+        if (client[kSize] === 0 && client[kMaxConcurrentStreams] === 0) {
+          socket.unref();
+          client[kHTTP2Session].unref();
+        } else {
+          socket.ref();
+          client[kHTTP2Session].ref();
+        }
+      }
+    }
+    __name(resumeH2, "resumeH2");
     function onHttp2SessionError(err) {
       assert(err.code !== "ERR_TLS_CERT_ALTNAME_INVALID");
       this[kSocket][kError] = err;
@@ -6907,11 +6965,22 @@ var require_client_h2 = __commonJS({
     }
     __name(onHttp2SessionEnd, "onHttp2SessionEnd");
     function onHTTP2GoAway(code) {
-      const err = new RequestAbortedError(`HTTP/2: "GOAWAY" frame received with code ${code}`);
-      this[kSocket][kError] = err;
-      this[kClient][kOnError](err);
-      this.unref();
+      const err = this[kError] || new SocketError(`HTTP/2: "GOAWAY" frame received with code ${code}`, util.getSocketInfo(this));
+      const client = this[kClient];
+      client[kSocket] = null;
+      client[kHTTPContext] = null;
+      if (this[kHTTP2Session] != null) {
+        this[kHTTP2Session].destroy(err);
+        this[kHTTP2Session] = null;
+      }
       util.destroy(this[kSocket], err);
+      const request = client[kQueue][client[kRunningIdx]];
+      client[kQueue][client[kRunningIdx]++] = null;
+      util.errorRequest(client, request, err);
+      client[kPendingIdx] = client[kRunningIdx];
+      assert(client[kRunning] === 0);
+      client.emit("disconnect", client[kUrl], [client], err);
+      client[kResume]();
     }
     __name(onHTTP2GoAway, "onHTTP2GoAway");
     function shouldSendContentLength(method) {
@@ -6923,9 +6992,6 @@ var require_client_h2 = __commonJS({
       const { body, method, path, host, upgrade, expectContinue, signal, headers: reqHeaders } = request;
       if (upgrade) {
         util.errorRequest(client, request, new Error("Upgrade not supported for H2"));
-        return false;
-      }
-      if (request.aborted) {
         return false;
       }
       const headers = {};
@@ -6958,11 +7024,16 @@ var require_client_h2 = __commonJS({
           util.destroy(stream, err);
         }
         util.destroy(body, err);
+        client[kQueue][client[kRunningIdx]++] = null;
+        client[kResume]();
       }, "abort");
       try {
         request.onConnect(abort);
       } catch (err) {
         util.errorRequest(client, request, err);
+      }
+      if (request.aborted) {
+        return false;
       }
       if (method === "CONNECT") {
         session.ref();
@@ -6970,10 +7041,12 @@ var require_client_h2 = __commonJS({
         if (stream.id && !stream.pending) {
           request.onUpgrade(null, null, stream);
           ++session[kOpenStreams];
+          client[kQueue][client[kRunningIdx]++] = null;
         } else {
           stream.once("ready", () => {
             request.onUpgrade(null, null, stream);
             ++session[kOpenStreams];
+            client[kQueue][client[kRunningIdx]++] = null;
           });
         }
         stream.once("close", () => {
@@ -7042,12 +7115,14 @@ var require_client_h2 = __commonJS({
       stream.once("end", () => {
         if (stream.state?.state == null || stream.state.state < 6) {
           request.onComplete([]);
-          return;
         }
         if (session[kOpenStreams] === 0) {
           session.unref();
         }
         abort(new InformationalError("HTTP/2: stream half-closed (remote)"));
+        client[kQueue][client[kRunningIdx]++] = null;
+        client[kPendingIdx] = client[kRunningIdx];
+        client[kResume]();
       });
       stream.once("close", () => {
         session[kOpenStreams] -= 1;
@@ -7508,6 +7583,8 @@ var require_client = __commonJS({
     var connectH2 = require_client_h2();
     var deprecatedInterceptorWarned = false;
     var kClosedResolve = Symbol("kClosedResolve");
+    var noop = /* @__PURE__ */ __name(() => {
+    }, "noop");
     function getPipelining(client) {
       return client[kPipelining] ?? client[kHTTPContext]?.defaultPipelining ?? 1;
     }
@@ -7801,16 +7878,14 @@ var require_client = __commonJS({
           });
         });
         if (client.destroyed) {
-          util.destroy(socket.on("error", () => {
-          }), new ClientDestroyedError());
+          util.destroy(socket.on("error", noop), new ClientDestroyedError());
           return;
         }
         assert(socket);
         try {
           client[kHTTPContext] = socket.alpnProtocol === "h2" ? await connectH2(client, socket) : await connectH1(client, socket);
         } catch (err) {
-          socket.destroy().on("error", () => {
-          });
+          socket.destroy().on("error", noop);
           throw err;
         }
         client[kConnecting] = false;
@@ -8200,6 +8275,8 @@ var require_proxy_agent = __commonJS({
       return new Pool(origin, opts);
     }
     __name(defaultFactory, "defaultFactory");
+    var noop = /* @__PURE__ */ __name(() => {
+    }, "noop");
     var ProxyAgent = class extends DispatcherBase {
       static {
         __name(this, "ProxyAgent");
@@ -8252,8 +8329,7 @@ var require_proxy_agent = __commonJS({
                 servername: this[kProxyTls]?.servername || proxyHostname
               });
               if (statusCode !== 200) {
-                socket.on("error", () => {
-                }).destroy();
+                socket.on("error", noop).destroy();
                 callback(new RequestAbortedError(`Proxy response (${statusCode}) !== 200 when HTTP Tunneling`));
               }
               if (opts2.protocol !== "https:") {
