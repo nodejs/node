@@ -2225,7 +2225,7 @@ added:
   - v20.4.0
   - v18.19.0
 changes:
-  - version: REPLACEME
+  - version: v23.1.0
     pr-url: https://github.com/nodejs/node/pull/55398
     description: The Mock Timers is now stable.
 -->
