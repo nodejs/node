@@ -81,45 +81,42 @@ void BindingData::Deserialize(v8::Local<v8::Context> context,
 
 // RFC1738 defines the following chars as "unsafe" for URLs
 // @see https://www.ietf.org/rfc/rfc1738.txt 2.2. URL Character Encoding Issues
-std::array<std::string, LARGEST_ASCII_CHAR_CODE_TO_ENCODE + 1> lookup_table =
-    []() {
-      std::array<std::string, LARGEST_ASCII_CHAR_CODE_TO_ENCODE + 1> result{};
+constexpr auto lookup_table = []() consteval {
+  // Each entry is an array that can hold up to 3 chars + null terminator
+  std::array<std::array<char, 4>, LARGEST_ASCII_CHAR_CODE_TO_ENCODE + 1> result{
+  };
 
-      for (uint8_t i = 0; i <= LARGEST_ASCII_CHAR_CODE_TO_ENCODE; i++) {
-        if (i == '%')
-          result[i] = "%25";
-        else if (i == '\t')
-          result[i] = "%09";
-        else if (i == '\n')
-          result[i] = "%0A";
-        else if (i == '\r')
-          result[i] = "%0D";
-        else if (i == ' ')
-          result[i] = "%20";
-        else if (i == '"')
-          result[i] = "%22";
-        else if (i == '#')
-          result[i] = "%23";
-        else if (i == '?')
-          result[i] = "%3F";
-        else if (i == '[')
-          result[i] = "%5B";
-        else if (i == '\\')
-          result[i] = "%5C";
-        else if (i == ']')
-          result[i] = "%5D";
-        else if (i == '^')
-          result[i] = "%5E";
-        else if (i == '|')
-          result[i] = "%7C";
-        else if (i == '~')
-          result[i] = "%7E";
-        else
-          result[i] = std::string(1, static_cast<char>(i));
-      }
+  for (uint8_t i = 0; i <= LARGEST_ASCII_CHAR_CODE_TO_ENCODE; i++) {
+    switch (i) {
+      #define ENCODE_CHAR(CHAR, HEX_DIGIT_2, HEX_DIGIT_1) \
+      case CHAR: \
+        result[i] = {{'%', HEX_DIGIT_2, HEX_DIGIT_1, 0}}; \
+        break; \
 
-      return result;
-    }();
+      ENCODE_CHAR('\t', '0', '9')  // '\t' == 0x09
+      ENCODE_CHAR('\n', '0', 'A')  // '\n' == 0x0A
+      ENCODE_CHAR('\r', '0', 'D')  // '\r' == 0x0D
+      ENCODE_CHAR(' ', '2', '0')  // ' ' == 0x20
+      ENCODE_CHAR('"', '2', '2')  // '"' == 0x22
+      ENCODE_CHAR('#', '2', '3')  // '#' == 0x23
+      ENCODE_CHAR('%', '2', '5')  // '%' == 0x25
+      ENCODE_CHAR('?', '3', 'F')  // '?' == 0x3F
+      ENCODE_CHAR('[', '5', 'B')  // '[' == 0x5B
+      ENCODE_CHAR('\\', '5', 'C')  // '\\' == 0x5C
+      ENCODE_CHAR(']', '5', 'D')  // ']' == 0x5D
+      ENCODE_CHAR('^', '5', 'E')  // '^' == 0x5E
+      ENCODE_CHAR('|', '7', 'C')  // '|' == 0x7C
+      ENCODE_CHAR('~', '7', 'E')  // '~' == 0x7E
+      #undef ENCODE_CHAR
+
+      default:
+        result[i] = {{static_cast<char>(i), '\0', '\0', '\0'}};
+        break;
+    }
+  }
+
+  return result;
+}();
 
 enum class OS { WINDOWS, POSIX };
 
@@ -138,7 +135,7 @@ std::string EncodePathChars(std::string_view input_str, OS operating_system) {
         continue;
       }
     }
-    encoded.append(lookup_table[i]);
+    encoded.append(lookup_table[i].data());
   }
 
   return encoded;
