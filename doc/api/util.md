@@ -466,7 +466,7 @@ fs.access('file/that/does/not/exist', (err) => {
 ## `util.getSystemErrorMessage(err)`
 
 <!-- YAML
-added: REPLACEME
+added: v23.1.0
 -->
 
 * `err` {number}
