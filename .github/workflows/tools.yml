@@ -28,7 +28,6 @@ on:
           - histogram
           - icu
           # - libuv
-          - lint-md-dependencies
           - llhttp
           - minimatch
           - nbytes
@@ -187,24 +186,6 @@ jobs:
           #     cat temp-output
           #     tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
           #     rm temp-output
-          - id: lint-md-dependencies
-            subsystem: tools
-            label: tools
-            run: |
-              cd tools/lint-md
-              npm ci
-              NEW_VERSION=$(npm outdated --parseable | cut -d: -f4 | xargs)
-              if [ "$NEW_VERSION" != "" ]; then
-                echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
-                rm -rf package-lock.json node_modules
-                # Include $NEW_VERSION to explicitly update the package.json
-                # entry for the dependency and also so that semver-major updates
-                # are not skipped.
-                npm install --ignore-scripts $NEW_VERSION
-                npm install --ignore-scripts
-                cd ../..
-                make lint-md-rollup
-              fi
           - id: llhttp
             subsystem: deps
             label: dependencies
