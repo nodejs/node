@@ -1,4 +1,4 @@
-name: "Comment Commands"
+name: Comment Commands
 
 on:
   issue_comment:
@@ -9,14 +9,14 @@ permissions:
   issues: write
 
 jobs:
-  reopen_and_disable_stale:
+  reopen-stale:
     runs-on: ubuntu-latest
     if: >
       github.repository == 'nodejs/node' &&
       github.event.comment.body == '/reopen-stale' &&
       contains(github.event.issue.labels.*.name, 'stale') &&
       github.event.issue.state == 'closed'
-      
+
     steps:
       - name: Reopen issue
         env:
