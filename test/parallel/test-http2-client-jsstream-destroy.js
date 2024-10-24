@@ -50,6 +50,12 @@ server.listen(0, common.mustCall(function() {
       socket.destroy();
     });
 
+    req.once('error', common.expectsError({
+      code: 'ERR_HTTP2_STREAM_ERROR',
+      name: 'Error',
+      message: 'Stream closed with error code NGHTTP2_INTERNAL_ERROR'
+    }));
+
     req.on('close', common.mustCall(() => {
       client.close();
       server.close();
