@@ -39,3 +39,41 @@ assert.strictEqual(cat.signalCode, null);
 assert.strictEqual(cat.killed, false);
 cat.kill();
 assert.strictEqual(cat.killed, true);
+
+/* Test different types of kill signals on Windows */
+if (common.isWindows) {
+  const process1 = spawn('cmd');
+  process1.on('exit', (code, signal) => {
+    assert.strictEqual(code, null);
+    assert.strictEqual(signal, 'SIGTERM');
+  });
+  process1.kill('SIGTERM');
+
+  const process2 = spawn('cmd');
+  process2.on('exit', (code, signal) => {
+    assert.strictEqual(code, null);
+    assert.strictEqual(signal, 'SIGKILL');
+  });
+  process2.kill('SIGKILL');
+
+  const process3 = spawn('cmd');
+  process3.on('exit', (code, signal) => {
+    assert.strictEqual(code, null);
+    assert.strictEqual(signal, 'SIGQUIT');
+  });
+  process3.kill('SIGQUIT');
+
+  const process4 = spawn('cmd');
+  process4.on('exit', (code, signal) => {
+    assert.strictEqual(code, null);
+    assert.strictEqual(signal, 'SIGINT');
+  });
+  process4.kill('SIGINT');
+
+  const process5 = spawn('cmd');
+  process5.on('exit', (code, signal) => {
+    assert.strictEqual(code, null);
+    assert.strictEqual(signal, 'SIGKILL');
+  });
+  process5.kill('SIGHUP');
+}
