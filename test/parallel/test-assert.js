@@ -919,11 +919,7 @@ test('Additional asserts', () => {
     {
       code: 'ERR_ASSERTION',
       constructor: assert.AssertionError,
-      message: 'Expected values to be strictly equal:\n' +
-        '+ actual - expected\n' +
-        '\n' +
-        "+ 'string'\n" +
-        '- false\n'
+      message: 'Expected values to be strictly equal:\n\n\'string\' !== false\n'
     }
   );
 
@@ -935,11 +931,7 @@ test('Additional asserts', () => {
     {
       code: 'ERR_ASSERTION',
       constructor: assert.AssertionError,
-      message: 'Expected values to be strictly equal:\n' +
-        '+ actual - expected\n' +
-        '\n' +
-        "+ 'string'\n" +
-        '- false\n'
+      message: 'Expected values to be strictly equal:\n\n\'string\' !== false\n'
     }
   );
 
@@ -951,11 +943,7 @@ test('Additional asserts', () => {
   }, {
     code: 'ERR_ASSERTION',
     constructor: assert.AssertionError,
-    message: 'Expected values to be strictly equal:\n' +
-      '+ actual - expected\n' +
-      '\n' +
-      "+ 'string'\n" +
-      '- false\n'
+    message: 'Expected values to be strictly equal:\n\n\'string\' !== false\n'
     }
   );
   /* eslint-enable @stylistic/js/indent */
