@@ -479,6 +479,7 @@ const errorTests = [
     expect: [
       /\.break/,
       /\.clear/,
+      /\.cls/,
       /\.exit/,
       /\.help/,
       /\.load/,
