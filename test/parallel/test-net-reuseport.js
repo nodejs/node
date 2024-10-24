@@ -13,8 +13,6 @@ function test(host) {
       server2.close();
     }));
   }));
-  server1.on('error', common.mustNotCall());
-  server2.on('error', common.mustNotCall());
 }
 
 checkSupportReusePort()
