@@ -100,7 +100,8 @@ assert.deepStrictEqual(Buffer.concat([new Uint8Array([0x41, 0x42]),
                                       new Uint8Array([0x43, 0x44])]),
                        Buffer.from('ABCD'));
 
-
+// Test its possible to concat buffers where the total length of the result in bytes
+// is greater than 2^32.
 if (2 ** 32 + 1 <= kMaxLength) {
   const a = Buffer.alloc(2 ** 31, 0);
   const b = Buffer.alloc(2 ** 31, 1);
