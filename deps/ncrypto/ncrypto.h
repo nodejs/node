@@ -386,13 +386,13 @@ public:
     // SubjectPublicKeyInfo according to X.509.
     SPKI,
     // ECPrivateKey according to SEC1.
-    SEC1
+    SEC1,
   };
 
   enum class PKFormatType {
     DER,
     PEM,
-    JWK
+    JWK,
   };
 
   enum class PKParseError {
@@ -402,18 +402,36 @@ public:
   };
   using ParseKeyResult = Result<EVPKeyPointer, PKParseError>;
 
+  struct AsymmetricKeyEncodingConfig {
+    bool output_key_object = false;
+    PKFormatType format = PKFormatType::DER;
+    PKEncodingType type = PKEncodingType::PKCS8;
+    AsymmetricKeyEncodingConfig() = default;
+    AsymmetricKeyEncodingConfig(bool output_key_object, PKFormatType format, PKEncodingType type);
+    AsymmetricKeyEncodingConfig(const AsymmetricKeyEncodingConfig&) = default;
+    AsymmetricKeyEncodingConfig& operator=(const AsymmetricKeyEncodingConfig&) = default;
+  };
+  using PublicKeyEncodingConfig = AsymmetricKeyEncodingConfig;
+
+  struct PrivateKeyEncodingConfig: public AsymmetricKeyEncodingConfig {
+    const EVP_CIPHER* cipher = nullptr;
+    std::optional<DataPointer> passphrase = std::nullopt;
+    PrivateKeyEncodingConfig() = default;
+    PrivateKeyEncodingConfig(bool output_key_object, PKFormatType format, PKEncodingType type)
+        : AsymmetricKeyEncodingConfig(output_key_object, format, type) {}
+    PrivateKeyEncodingConfig(const PrivateKeyEncodingConfig&);
+    PrivateKeyEncodingConfig& operator=(const PrivateKeyEncodingConfig&);
+  };
+
   static ParseKeyResult TryParsePublicKey(
-      PKFormatType format,
-      PKEncodingType encoding,
+      const PublicKeyEncodingConfig& config,
       const Buffer<const unsigned char>& buffer);
 
   static ParseKeyResult TryParsePublicKeyPEM(
       const Buffer<const unsigned char>& buffer);
 
   static ParseKeyResult TryParsePrivateKey(
-      PKFormatType format,
-      PKEncodingType encoding,
-      std::optional<Buffer<char>> passphrase,
+      const PrivateKeyEncodingConfig& config,
       const Buffer<const unsigned char>& buffer);
 
   EVPKeyPointer() = default;
@@ -441,8 +459,10 @@ public:
   size_t rawPrivateKeySize() const;
   DataPointer rawPublicKey() const;
   DataPointer rawPrivateKey() const;
-
   BIOPointer derPublicKey() const;
+
+  Result<BIOPointer, bool> writePrivateKey(const PrivateKeyEncodingConfig& config) const;
+  Result<BIOPointer, bool> writePublicKey(const PublicKeyEncodingConfig& config) const;
 
   EVPKeyCtxPointer newCtx() const;
 
