@@ -1698,8 +1698,8 @@ may not actually terminate the process.
 See kill(2) for reference.
 
 On Windows, where POSIX signals do not exist, the `signal` argument will be
-ignored, and the process will be killed forcefully and abruptly (similar to
-`'SIGKILL'`).
+ignored except `'SIGKILL'`, `'SIGTERM'`, `'SIGINT'` and `'SIGQUIT'`, and the
+process will be killed forcefully and abruptly (similar to `'SIGKILL'`).
 See [Signal Events][] for more details.
 
 On Linux, child processes of child processes will not be terminated
