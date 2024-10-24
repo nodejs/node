@@ -1,7 +1,8 @@
 import fs from 'fs';
+import child_process from 'node:child_process';
+import minpath, { resolve, join as join$1 } from 'node:path';
 import path$1 from 'path';
 import { pathToFileURL } from 'url';
-import minpath from 'node:path';
 import process$1 from 'node:process';
 import { fileURLToPath } from 'node:url';
 import fs$1 from 'node:fs';
@@ -23906,21 +23907,44 @@ const linter = unified()
   .use(remarkParse)
   .use(remarkPresetLintNode)
   .use(remarkStringify);
+const rootDir = resolve(import.meta.dirname, '..', '..');
+const npxPath = join$1(rootDir, 'deps', 'npm', 'bin', 'npx-cli.js');
+const cliPath = resolve(join$1(rootDir, 'doc', 'api', 'cli.md'));
+const manFilePath = join$1(rootDir, 'doc', 'node.1');
+function handleDifference(filePath) {
+  process.exitCode = 1;
+  const buildCmd = process.platform === 'win32' ? 'vcbuild' : 'make';
+  console.error(`${filePath} is not formatted. Please run '${buildCmd} format-md'.`);
+}
 paths.forEach(async (path) => {
   const file = await read(path);
   const fileContents = file.toString();
   const result = await linter.process(file);
   const isDifferent = fileContents !== result.toString();
+  let manPageContent, isManPageModified = false;
+  if (resolve(path) === cliPath) {
+    child_process.execFileSync(process.execPath, [
+      npxPath,
+      '--yes',
+      'github:nodejs/api-docs-tooling',
+      '-i', path,
+      '-o', '.tmp.1',
+      '-t', 'man-page',
+    ]);
+    manPageContent = fs.readFileSync('.tmp.1', 'utf-8');
+    isManPageModified = manPageContent !== fs.readFileSync(manFilePath, 'utf-8');
+    fs.rmSync('.tmp.1');
+  }
   if (format) {
     if (isDifferent) {
       fs.writeFileSync(path, result.toString());
     }
-  } else {
-    if (isDifferent) {
-      process.exitCode = 1;
-      const cmd = process.platform === 'win32' ? 'vcbuild' : 'make';
-      console.error(`${path} is not formatted. Please run '${cmd} format-md'.`);
+    if (isManPageModified) {
+      fs.writeFileSync(manFilePath, manPageContent);
     }
+  } else {
+    if (isDifferent) handleDifference(path);
+    if (isManPageModified) handleDifference('doc/node.1');
     if (result.messages.length) {
       process.exitCode = 1;
       console.error(reporter(result));
