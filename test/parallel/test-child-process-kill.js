@@ -40,7 +40,7 @@ assert.strictEqual(cat.killed, false);
 cat.kill();
 assert.strictEqual(cat.killed, true);
 
-/* Test different types of kill signals on Windows */
+// Test different types of kill signals on Windows.
 if (common.isWindows) {
   const process1 = spawn('cmd');
   process1.on('exit', (code, signal) => {
