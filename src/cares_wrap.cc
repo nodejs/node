@@ -667,6 +667,19 @@ void ChannelWrap::New(const FunctionCallbackInfo<Value>& args) {
   new ChannelWrap(env, args.This(), timeout, tries);
 }
 
+template <typename T>
+void UVCancel(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  T* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(
+      &wrap, args.This(), args.GetReturnValue().Set(UV_EINVAL));
+
+  TRACE_EVENT_INSTANT0(
+      TRACING_CATEGORY_NODE2(dns, native), "cancel", TRACE_EVENT_SCOPE_THREAD);
+
+  wrap->Cancel();
+  args.GetReturnValue().Set(0);
+}
+
 GetAddrInfoReqWrap::GetAddrInfoReqWrap(Environment* env,
                                        Local<Object> req_wrap_obj,
                                        uint8_t order)
@@ -1969,11 +1982,13 @@ void Initialize(Local<Object> target,
 
   Local<FunctionTemplate> aiw =
       BaseObject::MakeLazilyInitializedJSTemplate(env);
+  SetProtoMethod(isolate, aiw, "cancel", UVCancel<GetAddrInfoReqWrap>);
   aiw->Inherit(AsyncWrap::GetConstructorTemplate(env));
   SetConstructorFunction(context, target, "GetAddrInfoReqWrap", aiw);
 
   Local<FunctionTemplate> niw =
       BaseObject::MakeLazilyInitializedJSTemplate(env);
+  SetProtoMethod(isolate, niw, "cancel", UVCancel<GetNameInfoReqWrap>);
   niw->Inherit(AsyncWrap::GetConstructorTemplate(env));
   SetConstructorFunction(context, target, "GetNameInfoReqWrap", niw);
 
