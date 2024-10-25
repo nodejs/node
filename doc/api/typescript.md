@@ -7,7 +7,7 @@ changes:
     description: Added `--experimental-transform-types` flag.
 -->
 
-> Stability: 1.0 - Early development
+> Stability: 1.1 - Active development
 
 ## Enabling
 
@@ -50,7 +50,7 @@ To use TypeScript with full support for all TypeScript features, including
 added: v22.6.0
 -->
 
-> Stability: 1.0 - Early development
+> Stability: 1.1 - Active development
 
 The flag [`--experimental-strip-types`][] enables Node.js to run TypeScript
 files. By default Node.js will execute only files that contain no
