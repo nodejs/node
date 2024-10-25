@@ -217,6 +217,88 @@ added: v22.8.0
 * Returns: {string|undefined} Path to the [module compile cache][] directory if it is enabled,
   or `undefined` otherwise.
 
+### `module.findPackageJSON(specifier[, base])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active Development
+
+* `specifier` {string|URL} The specifier for the module whose `package.json` to
+  retrieve. When passing a _bare specifier_, the `package.json` at the root of
+  the package is returned. When passing a _relative specifier_ or an _absolute specifier_,
+  the closest parent `package.json` is returned.
+* `base` {string|URL} The absolute location (`file:` URL string or FS path) of the
+  containing  module. For CJS, use `__filename` (not `__dirname`!); for ESM, use
+  `import.meta.url`. You do not need to pass it if `specifier` is an `absolute specifier`.
+* Returns: {string|undefined} A path if the `package.json` is found. When `startLocation`
+  is a package, the package's root `package.json`; when a relative or unresolved, the closest
+  `package.json` to the `startLocation`.
+
+> **Caveat**: Do not use this to try to determine module format. There are many things effecting
+> that determination; the `type` field of package.json is the _least_ definitive (ex file extension
+> superceeds it, and a loader hook superceeds that).
+
+```text
+/path/to/project
+  ├ packages/
+    ├ bar/
+      ├ bar.js
+      └ package.json // name = '@foo/bar'
+    └ qux/
+      ├ node_modules/
+        └ some-package/
+          └ package.json // name = 'some-package'
+      ├ qux.js
+      └ package.json // name = '@foo/qux'
+  ├ main.js
+  └ package.json // name = '@foo'
+```
+
+```mjs
+// /path/to/project/packages/bar/bar.js
+import { findPackageJSON } from 'node:module';
+
+findPackageJSON('..', import.meta.url);
+// '/path/to/project/package.json'
+// Same result when passing an absolute specifier instead:
+findPackageJSON(new URL('../', import.meta.url));
+findPackageJSON(import.meta.resolve('../'));
+
+findPackageJSON('some-package', import.meta.url);
+// '/path/to/project/packages/bar/node_modules/some-package/package.json'
+// When passing an absolute specifier, you might get a different result if the
+// resolved module is inside a subfolder that has nested `package.json`.
+findPackageJSON(import.meta.resolve('some-package'));
+// '/path/to/project/packages/bar/node_modules/some-package/some-subfolder/package.json'
+
+findPackageJSON('@foo/qux', import.meta.url);
+// '/path/to/project/packages/qux/package.json'
+```
+
+```cjs
+// /path/to/project/packages/bar/bar.js
+const { findPackageJSON } = require('node:module');
+const { pathToFileURL } = require('node:url');
+const path = require('node:path');
+
+findPackageJSON('..', __filename);
+// '/path/to/project/package.json'
+// Same result when passing an absolute specifier instead:
+findPackageJSON(pathToFileURL(path.join(__dirname, '..')));
+
+findPackageJSON('some-package', __filename);
+// '/path/to/project/packages/bar/node_modules/some-package/package.json'
+// When passing an absolute specifier, you might get a different result if the
+// resolved module is inside a subfolder that has nested `package.json`.
+findPackageJSON(pathToFileURL(require.resolve('some-package')));
+// '/path/to/project/packages/bar/node_modules/some-package/some-subfolder/package.json'
+
+findPackageJSON('@foo/qux', __filename);
+// '/path/to/project/packages/qux/package.json'
+```
+
 ### `module.isBuiltin(moduleName)`
 
 <!-- YAML
