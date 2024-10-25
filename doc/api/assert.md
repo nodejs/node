@@ -1524,6 +1524,16 @@ let err;
 //     at errorFrame
 ```
 
+### `assert.isArray`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `actual` {Object}
+* `message` {string|Error}
+
+
+
 ## `assert.match(string, regexp[, message])`
 
 <!-- YAML
