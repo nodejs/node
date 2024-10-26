@@ -14,16 +14,37 @@
 namespace node {
 namespace sqlite {
 
+class DatabaseOpenConfiguration {
+ public:
+  explicit DatabaseOpenConfiguration(std::string&& location)
+      : location_(std::move(location)) {}
+
+  inline const std::string& location() const { return location_; }
+
+  inline bool get_enable_foreign_keys() const { return enable_foreign_keys_; }
+
+  inline void set_enable_foreign_keys(bool flag) {
+    enable_foreign_keys_ = flag;
+  }
+
+  inline bool get_enable_dqs() const { return enable_dqs_; }
+
+  inline void set_enable_dqs(bool flag) { enable_dqs_ = flag; }
+
+ private:
+  std::string location_;
+  bool enable_foreign_keys_ = true;
+  bool enable_dqs_ = false;
+};
+
 class StatementSync;
 
 class DatabaseSync : public BaseObject {
  public:
   DatabaseSync(Environment* env,
                v8::Local<v8::Object> object,
-               v8::Local<v8::String> location,
-               bool open,
-               bool enable_foreign_keys_on_open,
-               bool enable_dqs_on_open);
+               DatabaseOpenConfiguration&& open_config,
+               bool open);
   void MemoryInfo(MemoryTracker* tracker) const override;
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Open(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -42,11 +63,9 @@ class DatabaseSync : public BaseObject {
   bool Open();
 
   ~DatabaseSync() override;
-  std::string location_;
+  DatabaseOpenConfiguration open_config_;
   sqlite3* connection_;
   std::unordered_set<StatementSync*> statements_;
-  bool enable_foreign_keys_on_open_;
-  bool enable_dqs_on_open_;
 };
 
 class StatementSync : public BaseObject {
