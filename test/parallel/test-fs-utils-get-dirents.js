@@ -79,6 +79,22 @@ const filename = 'foo';
     ));
 }
 {
+  // Reassigning `.path` property should not trigger a warning
+  const filenameBuffer = Buffer.from(filename);
+  getDirent(
+    tmpdir.path,
+    filenameBuffer,
+    UV_DIRENT_UNKNOWN,
+    common.mustCall((err, dirent) => {
+      assert.strictEqual(err, null);
+      assert.strictEqual(dirent.name, filenameBuffer);
+      dirent.path = 'some other value';
+      assert.strictEqual(dirent.parentPath, tmpdir.path);
+      assert.strictEqual(dirent.path, 'some other value');
+    },
+    ));
+}
+{
   // string + Buffer
   const filenameBuffer = Buffer.from(filename);
   getDirent(
