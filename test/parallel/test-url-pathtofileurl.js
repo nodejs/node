@@ -162,7 +162,7 @@ const posixTestCases = [
   { path: '/foo\r\n\t<>"#%{}|^[\\~]`?bar', expected: 'file:///foo%0D%0A%09%3C%3E%22%23%25%7B%7D%7C%5E%5B%5C%7E%5D%60%3Fbar' },
   // All of the 16-bit UTF-16 chars
   {
-    path: `/${String.fromCharCode(...Array.from({ length: 0x7FFF }, (_, i) => i))}`,
+    path: `/${Array.from({ length: 0x7FFF }, (_, i) => String.fromCharCode(i)).join('')}`,
     expected: `file:///${
       Array.from({ length: 0x21 }, (_, i) => `%${i.toString(16).toUpperCase().padStart(2, '0')}`).join('')
     }!%22%23$%25&'()*+,-./0123456789:;%3C=%3E%3F@${
