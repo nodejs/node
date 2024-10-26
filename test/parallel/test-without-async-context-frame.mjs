@@ -41,7 +41,7 @@ const tests = testSets.reduce((m, v) => {
   return m;
 }, []);
 
-describe('AsyncContextFrame', {
+describe('without AsyncContextFrame', {
   // TODO(qard): I think high concurrency causes memory problems on Windows
   // concurrency: tests.length
 }, () => {
@@ -49,7 +49,7 @@ describe('AsyncContextFrame', {
     it(test, async () => {
       const proc = spawn(python, [
         testRunner,
-        '--node-args=--experimental-async-context-frame',
+        '--node-args=--no-async-context-frame',
         test,
       ], {
         stdio: ['ignore', 'ignore', 'inherit'],
