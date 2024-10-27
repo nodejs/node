@@ -276,7 +276,7 @@ resolution and loading behavior. See [Customization hooks][].
 added: REPLACEME
 -->
 
-> Stability: 1.0 - Early development
+> Stability: 1.1 - Active development
 
 * `code` {string} The code to strip type annotations from.
 * `options` {Object}
