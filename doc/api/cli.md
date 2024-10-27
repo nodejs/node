@@ -982,7 +982,7 @@ JavaScript.
 added: v22.7.0
 -->
 
-> Stability: 1.0 - Early development
+> Stability: 1.1 - Active development
 
 Enables the transformation of TypeScript-only syntax into JavaScript code.
 Implies `--experimental-strip-types` and `--enable-source-maps`.
@@ -1120,7 +1120,7 @@ Enable the experimental [`node:sqlite`][] module.
 added: v22.6.0
 -->
 
-> Stability: 1.0 - Early development
+> Stability: 1.1 - Active development
 
 Enable experimental type-stripping for TypeScript files.
 For more information, see the [TypeScript type-stripping][] documentation.

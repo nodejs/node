@@ -1993,7 +1993,7 @@ A boolean value that is `true` if the current Node.js build includes support for
 added: v23.0.0
 -->
 
-> Stability: 1.0 - Early development
+> Stability: 1.1 - Active development
 
 * {boolean|string}
 
