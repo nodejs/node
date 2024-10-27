@@ -316,6 +316,9 @@ class QueryWrap final : public AsyncWrap {
     unsigned char* buf_copy = nullptr;
     size_t answer_len = 0;
     if (status == ARES_SUCCESS) {
+      // No need to explicitly call ares_free_string here,
+      // as it is a wrapper around free, which is already
+      // invoked when MallocedBuffer is destructed. 
       ares_dns_write(dnsrec, &buf_copy, &answer_len);
     }
 
