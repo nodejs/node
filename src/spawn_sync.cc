@@ -769,8 +769,10 @@ Maybe<int> SyncProcessRunner::ParseOptions(Local<Value> js_value) {
   // batch files directly but is potentially insecure because arguments
   // are not escaped (and sometimes cannot be unambiguously escaped),
   // hence why they are rejected here.
+#ifdef _WIN32
   if (IsWindowsBatchFile(uv_process_options_.file))
     return Just<int>(UV_EINVAL);
+#endif
 
   Local<Value> js_args =
       js_options->Get(context, env()->args_string()).ToLocalChecked();
