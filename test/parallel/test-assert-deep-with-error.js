@@ -13,14 +13,27 @@ test('Handle error causes', () => {
   }, { message: defaultStartMessage + '  [Error: a] {\n' +
     '+   [cause]: [Error: x]\n' +
     '-   [cause]: [Error: y]\n' +
-    '  }' });
+    '  }\n' });
 
   assert.throws(() => {
     assert.deepStrictEqual(new Error('a'), new Error('a', { cause: new Error('y') }));
   }, { message: defaultStartMessage + '+ [Error: a]\n' +
     '- [Error: a] {\n' +
     '-   [cause]: [Error: y]\n' +
-    '- }' });
+    '- }\n' });
+
+  assert.throws(() => {
+    assert.deepStrictEqual(new Error('a'), new Error('a', { cause: { prop: 'value' } }));
+  }, { message: defaultStartMessage + '+ [Error: a]\n' +
+    '- [Error: a] {\n' +
+    '-   [cause]: {\n' +
+    '-     prop: \'value\'\n' +
+    '-   }\n' +
+    '- }\n' });
 
   assert.notDeepStrictEqual(new Error('a', { cause: new Error('x') }), new Error('a', { cause: new Error('y') }));
+  assert.notDeepStrictEqual(
+    new Error('a', { cause: { prop: 'value' } }),
+    new Error('a', { cause: { prop: 'a different value' } })
+  );
 });
