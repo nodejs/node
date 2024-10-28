@@ -1041,7 +1041,10 @@ function event(ee, expected) {
   common.expectWarning({
     DeprecationWarning: {
       DEP0185: 'Instantiating REPLServer without the \'new\' keyword has been deprecated.',
-      DEP0169: '`url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.',
+      // For the 'url.format' test-case.
+      DEP0169:
+        '`url.parse()` behavior is not standardized and prone to errors that have security implications. ' +
+        'Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.',
     }
   });
   server.emit('line', '.exit');
