@@ -6822,6 +6822,9 @@ deprecated:
   - v20.12.0
   - v18.20.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/55547
+    description: The property is no longer read-only.
   - version: v23.0.0
     pr-url: https://github.com/nodejs/node/pull/51050
     description: Accessing this property emits a warning. It is now read-only.
@@ -6831,7 +6834,7 @@ changes:
 
 * {string}
 
-Alias for `dirent.parentPath`. Read-only.
+Alias for `dirent.parentPath`.
 
 ### Class: `fs.FSWatcher`
 
