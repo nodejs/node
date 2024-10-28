@@ -1028,8 +1028,8 @@ NODE_DEPRECATED("Use v8::Date::ValueOf() directly",
     v8::Isolate* isolate = target->GetIsolate();                              \
     v8::Local<v8::Context> context = isolate->GetCurrentContext();            \
     v8::Local<v8::String> constant_name =                                     \
-        v8::String::NewFromUtf8(isolate, #constant,                           \
-            v8::NewStringType::kInternalized).ToLocalChecked();               \
+        v8::String::NewFromUtf8Literal(isolate, #constant,                    \
+            v8::NewStringType::kInternalized);                                \
     v8::Local<v8::Number> constant_value =                                    \
         v8::Number::New(isolate, static_cast<double>(constant));              \
     v8::PropertyAttribute constant_attributes =                               \
@@ -1046,9 +1046,8 @@ NODE_DEPRECATED("Use v8::Date::ValueOf() directly",
     v8::Isolate* isolate = target->GetIsolate();                              \
     v8::Local<v8::Context> context = isolate->GetCurrentContext();            \
     v8::Local<v8::String> constant_name =                                     \
-        v8::String::NewFromUtf8(isolate, #constant,                           \
-                                v8::NewStringType::kInternalized)             \
-                                  .ToLocalChecked();                          \
+        v8::String::NewFromUtf8Literal(isolate, #constant,                    \
+                                v8::NewStringType::kInternalized);            \
     v8::Local<v8::Number> constant_value =                                    \
         v8::Number::New(isolate, static_cast<double>(constant));              \
     v8::PropertyAttribute constant_attributes =                               \
