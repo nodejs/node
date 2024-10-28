@@ -56,40 +56,56 @@ using v8::Value;
     }                                                                          \
   } while (0)
 
-inline Local<Object> CreateSQLiteError(Isolate* isolate, const char* message) {
-  Local<String> js_msg = String::NewFromUtf8(isolate, message).ToLocalChecked();
-  Local<Object> e = Exception::Error(js_msg)
-                        ->ToObject(isolate->GetCurrentContext())
-                        .ToLocalChecked();
-  e->Set(isolate->GetCurrentContext(),
-         OneByteString(isolate, "code"),
-         OneByteString(isolate, "ERR_SQLITE_ERROR"))
-      .Check();
+inline MaybeLocal<Object> CreateSQLiteError(Isolate* isolate,
+                                            const char* message) {
+  Local<String> js_msg;
+  Local<Object> e;
+  if (!String::NewFromUtf8(isolate, message).ToLocal(&js_msg) ||
+      !Exception::Error(js_msg)
+           ->ToObject(isolate->GetCurrentContext())
+           .ToLocal(&e) ||
+      e->Set(isolate->GetCurrentContext(),
+             OneByteString(isolate, "code"),
+             OneByteString(isolate, "ERR_SQLITE_ERROR"))
+          .IsNothing()) {
+    return MaybeLocal<Object>();
+  }
   return e;
 }
 
-inline Local<Object> CreateSQLiteError(Isolate* isolate, sqlite3* db) {
+inline MaybeLocal<Object> CreateSQLiteError(Isolate* isolate, sqlite3* db) {
   int errcode = sqlite3_extended_errcode(db);
   const char* errstr = sqlite3_errstr(errcode);
   const char* errmsg = sqlite3_errmsg(db);
-  Local<Object> e = CreateSQLiteError(isolate, errmsg);
-  e->Set(isolate->GetCurrentContext(),
-         OneByteString(isolate, "errcode"),
-         Integer::New(isolate, errcode))
-      .Check();
-  e->Set(isolate->GetCurrentContext(),
-         OneByteString(isolate, "errstr"),
-         String::NewFromUtf8(isolate, errstr).ToLocalChecked())
-      .Check();
+  Local<String> js_errmsg;
+  Local<Object> e;
+  if (!String::NewFromUtf8(isolate, errstr).ToLocal(&js_errmsg) ||
+      !CreateSQLiteError(isolate, errmsg).ToLocal(&e) ||
+      e->Set(isolate->GetCurrentContext(),
+             OneByteString(isolate, "errcode"),
+             Integer::New(isolate, errcode))
+          .IsNothing() ||
+      e->Set(isolate->GetCurrentContext(),
+             OneByteString(isolate, "errstr"),
+             js_errmsg)
+          .IsNothing()) {
+    return MaybeLocal<Object>();
+  }
   return e;
 }
 
 inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, sqlite3* db) {
-  isolate->ThrowException(CreateSQLiteError(isolate, db));
+  Local<Object> e;
+  if (CreateSQLiteError(isolate, db).ToLocal(&e)) {
+    isolate->ThrowException(e);
+  }
 }
 
 inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, const char* message) {
-  isolate->ThrowException(CreateSQLiteError(isolate, message));
+  Local<Object> e;
+  if (CreateSQLiteError(isolate, message).ToLocal(&e)) {
+    isolate->ThrowException(e);
+  }
 }
 
 DatabaseSync::DatabaseSync(Environment* env,
