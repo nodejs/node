@@ -271,6 +271,7 @@ std::tuple<int, char**> FixupArgsForSEA(int argc, char** argv) {
     new_argv.emplace_back(argv[0]);
     new_argv.insert(new_argv.end(), argv, argv + argc);
     new_argv.emplace_back(nullptr);
+    delete[] argv;
     argc = new_argv.size() - 1;
     argv = new_argv.data();
   }
