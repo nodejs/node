@@ -31,7 +31,6 @@ using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Int32;
 using v8::Integer;
-using v8::IntegrityLevel;
 using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
@@ -332,7 +331,6 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
 
   obj->contextify_context_ = contextify_context;
 
-  that->SetIntegrityLevel(context, IntegrityLevel::kFrozen);
   args.GetReturnValue().Set(that);
 }
 
@@ -635,13 +633,9 @@ void ModuleWrap::InstantiateSync(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  // If --experimental-print-required-tla is true, proceeds to evaluation even
-  // if it's async because we want to search for the TLA and help users locate
-  // them.
-  if (module->IsGraphAsync() && !env->options()->print_required_tla) {
-    THROW_ERR_REQUIRE_ASYNC_MODULE(env);
-    return;
-  }
+  // TODO(joyeecheung): record Module::HasTopLevelAwait() in every ModuleWrap
+  // and infer the asynchronicity from a module's children during linking.
+  args.GetReturnValue().Set(module->IsGraphAsync());
 }
 
 void ModuleWrap::EvaluateSync(const FunctionCallbackInfo<Value>& args) {
