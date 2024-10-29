@@ -2588,6 +2588,44 @@ added: v0.8.0
 
 Print stack traces for deprecations.
 
+### `--trace-env`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Print reads and writes to environment variables.
+
+The following accesses will be printed:
+
+* The environment variable reads that Node.js does internally.
+* Writes in the form of `process.env.KEY = "SOME VALUE"`.
+* Reads in the form of `process.env.KEY`.
+* Definitions in the form of `Object.defineProperty(process.env, 'KEY', {...})`.
+* Queries in the form of `Object.hasOwn(process.env, 'KEY')`,
+  `process.env.hasOwnProperty('KEY')` or `'KEY' in process.env`.
+* Deletions in the form of `delete process.env.KEY`.
+* Enumerations inf the form of `...process.env` or `Object.keys(process.env)`.
+
+To print the stack trace of the access, use `--trace-env-js-stack` and/or
+`--trace-env-native-stack`.
+
+### `--trace-env-js-stack`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+In addition to what `--trace-env` does, this prints the JavaScript stack trace of the access.
+
+### `--trace-env-native-stack`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+In addition to what `--trace-env` does, this prints the native stack trace of the access.
+
 ### `--trace-event-categories`
 
 <!-- YAML
@@ -3134,6 +3172,9 @@ one is included in the list below.
 * `--tls-min-v1.2`
 * `--tls-min-v1.3`
 * `--trace-deprecation`
+* `--trace-env-js-stack`
+* `--trace-env-native-stack`
+* `--trace-env`
 * `--trace-event-categories`
 * `--trace-event-file-pattern`
 * `--trace-events-enabled`
