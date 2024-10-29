@@ -18,7 +18,7 @@ const internalFsBinding = internalBinding('fs');
 // Run this inside a for loop to trigger the fast API
 for (let i = 0; i < 10_000; i++) {
   assert.throws(() => {
-    internalFsBinding.internalModuleStat(blockedFile);
+    internalFsBinding.internalModuleStat(internalFsBinding, blockedFile);
   }, {
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemRead',
