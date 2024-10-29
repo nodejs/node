@@ -32,4 +32,4 @@ const socket = dgram.createSocket(options);
 
 socket.bind(+process.env.port, common.mustCall(() => {
   socket.close();
-})).on('error', common.mustNotCall());
+}));
