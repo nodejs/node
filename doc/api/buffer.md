@@ -5094,6 +5094,9 @@ added:
   - v19.2.0
   - v18.13.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/47613
+    description: Makes File instances cloneable.
   - version: v20.0.0
     pr-url: https://github.com/nodejs/node/pull/47153
     description: No longer experimental.

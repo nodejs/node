@@ -190,8 +190,9 @@ void MarkGarbageCollectionEnd(
   }
   env->performance_state()->current_gc_type = 0;
   // If no one is listening to gc performance entries, do not create them.
-  if (LIKELY(!state->observers[NODE_PERFORMANCE_ENTRY_TYPE_GC]))
+  if (!state->observers[NODE_PERFORMANCE_ENTRY_TYPE_GC]) [[likely]] {
     return;
+  }
 
   double start_time =
       (state->performance_last_gc_start_mark - env->time_origin()) /
