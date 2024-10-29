@@ -1,3 +1,9 @@
+## 8.13.0 (2024-10-16)
+
+### New features
+
+Upgrade to Unicode 16.0.
+
 ## 8.12.1 (2024-07-03)
 
 ### Bug fixes
