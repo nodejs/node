@@ -1,5 +1,5 @@
 // This tests that after failing to require an ESM that contains TLA,
-// retrying with import() still works, and produces consistent results.
+// retrying with require() still throws, and produces consistent results.
 'use strict';
 require('../common');
 const assert = require('assert');
