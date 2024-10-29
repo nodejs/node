@@ -2030,12 +2030,15 @@ or `module.exports` instead.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/55019
+    description: Runtime deprecation.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18335
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
 The [`crypto.fips`][] property is deprecated. Please use `crypto.setFips()`
 and `crypto.getFips()` instead.
@@ -2287,6 +2290,9 @@ core and obsoleted by the removal of NPN (Next Protocol Negotiation) support.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/55020
+    description: End-of-Life.
   - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/23308
     description: Runtime deprecation.
@@ -2295,7 +2301,7 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 Deprecated alias for [`zlib.bytesWritten`][]. This original name was chosen
 because it also made sense to interpret the value as the number of bytes

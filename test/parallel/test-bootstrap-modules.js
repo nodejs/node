@@ -117,7 +117,6 @@ expected.atRunTime = new Set([
 
 if (common.isMainThread) {
   [
-    'NativeModule internal/idna',
     'NativeModule url',
   ].forEach(expected.beforePreExec.add.bind(expected.beforePreExec));
 } else {  // Worker.

@@ -892,8 +892,9 @@ int SoaTraits::Send(QueryWrap<SoaTraits>* wrap, const char* name) {
 int AnyTraits::Parse(
     QueryAnyWrap* wrap,
     const std::unique_ptr<ResponseData>& response) {
-  if (UNLIKELY(response->is_host))
+  if (response->is_host) [[unlikely]] {
     return ARES_EBADRESP;
+  }
 
   unsigned char* buf = response->buf.data;
   int len = response->buf.size;
@@ -1059,8 +1060,9 @@ int AnyTraits::Parse(
 int ATraits::Parse(
     QueryAWrap* wrap,
     const std::unique_ptr<ResponseData>& response) {
-  if (UNLIKELY(response->is_host))
+  if (response->is_host) [[unlikely]] {
     return ARES_EBADRESP;
+  }
 
   unsigned char* buf = response->buf.data;
   int len = response->buf.size;
@@ -1093,8 +1095,9 @@ int ATraits::Parse(
 int AaaaTraits::Parse(
     QueryAaaaWrap* wrap,
     const std::unique_ptr<ResponseData>& response) {
-  if (UNLIKELY(response->is_host))
+  if (response->is_host) [[unlikely]] {
     return ARES_EBADRESP;
+  }
 
   unsigned char* buf = response->buf.data;
   int len = response->buf.size;
@@ -1127,8 +1130,9 @@ int AaaaTraits::Parse(
 int CaaTraits::Parse(
     QueryCaaWrap* wrap,
     const std::unique_ptr<ResponseData>& response) {
-  if (UNLIKELY(response->is_host))
+  if (response->is_host) [[unlikely]] {
     return ARES_EBADRESP;
+  }
 
   unsigned char* buf = response->buf.data;
   int len = response->buf.size;
@@ -1149,8 +1153,9 @@ int CaaTraits::Parse(
 int CnameTraits::Parse(
     QueryCnameWrap* wrap,
     const std::unique_ptr<ResponseData>& response) {
-  if (UNLIKELY(response->is_host))
+  if (response->is_host) [[unlikely]] {
     return ARES_EBADRESP;
+  }
 
   unsigned char* buf = response->buf.data;
   int len = response->buf.size;
@@ -1172,8 +1177,9 @@ int CnameTraits::Parse(
 int MxTraits::Parse(
     QueryMxWrap* wrap,
     const std::unique_ptr<ResponseData>& response) {
-  if (UNLIKELY(response->is_host))
+  if (response->is_host) [[unlikely]] {
     return ARES_EBADRESP;
+  }
 
   unsigned char* buf = response->buf.data;
   int len = response->buf.size;
@@ -1195,8 +1201,9 @@ int MxTraits::Parse(
 int NsTraits::Parse(
     QueryNsWrap* wrap,
     const std::unique_ptr<ResponseData>& response) {
-  if (UNLIKELY(response->is_host))
+  if (response->is_host) [[unlikely]] {
     return ARES_EBADRESP;
+  }
 
   unsigned char* buf = response->buf.data;
   int len = response->buf.size;
@@ -1218,8 +1225,9 @@ int NsTraits::Parse(
 int TxtTraits::Parse(
     QueryTxtWrap* wrap,
     const std::unique_ptr<ResponseData>& response) {
-  if (UNLIKELY(response->is_host))
+  if (response->is_host) [[unlikely]] {
     return ARES_EBADRESP;
+  }
 
   unsigned char* buf = response->buf.data;
   int len = response->buf.size;
@@ -1240,8 +1248,9 @@ int TxtTraits::Parse(
 int SrvTraits::Parse(
     QuerySrvWrap* wrap,
     const std::unique_ptr<ResponseData>& response) {
-  if (UNLIKELY(response->is_host))
+  if (response->is_host) [[unlikely]] {
     return ARES_EBADRESP;
+  }
 
   unsigned char* buf = response->buf.data;
   int len = response->buf.size;
@@ -1262,9 +1271,9 @@ int SrvTraits::Parse(
 int PtrTraits::Parse(
     QueryPtrWrap* wrap,
     const std::unique_ptr<ResponseData>& response) {
-  if (UNLIKELY(response->is_host))
+  if (response->is_host) [[unlikely]] {
     return ARES_EBADRESP;
-
+  }
   unsigned char* buf = response->buf.data;
   int len = response->buf.size;
 
@@ -1286,9 +1295,9 @@ int PtrTraits::Parse(
 int NaptrTraits::Parse(
     QueryNaptrWrap* wrap,
     const std::unique_ptr<ResponseData>& response) {
-  if (UNLIKELY(response->is_host))
+  if (response->is_host) [[unlikely]] {
     return ARES_EBADRESP;
-
+  }
   unsigned char* buf = response->buf.data;
   int len = response->buf.size;
 
@@ -1308,9 +1317,9 @@ int NaptrTraits::Parse(
 int SoaTraits::Parse(
     QuerySoaWrap* wrap,
     const std::unique_ptr<ResponseData>& response) {
-  if (UNLIKELY(response->is_host))
+  if (response->is_host) [[unlikely]] {
     return ARES_EBADRESP;
-
+  }
   unsigned char* buf = response->buf.data;
   int len = response->buf.size;
 
@@ -1388,9 +1397,9 @@ int ReverseTraits::Send(GetHostByAddrWrap* wrap, const char* name) {
 int ReverseTraits::Parse(
     GetHostByAddrWrap* wrap,
     const std::unique_ptr<ResponseData>& response) {
-  if (UNLIKELY(!response->is_host))
+  if (!response->is_host) [[unlikely]] {
     return ARES_EBADRESP;
-
+  }
   struct hostent* host = response->host.get();
 
   Environment* env = wrap->env();
@@ -1480,13 +1489,13 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
 
     switch (order) {
       case DNS_ORDER_IPV4_FIRST:
-        if (add(true, false).IsNothing()) return;
-        if (add(false, true).IsNothing()) return;
+        if (add(true, false).IsNothing() || add(false, true).IsNothing())
+          return;
 
         break;
       case DNS_ORDER_IPV6_FIRST:
-        if (add(false, true).IsNothing()) return;
-        if (add(true, false).IsNothing()) return;
+        if (add(false, true).IsNothing() || add(true, false).IsNothing())
+          return;
 
         break;
       default:

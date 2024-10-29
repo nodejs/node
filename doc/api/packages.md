@@ -171,9 +171,8 @@ There is the CommonJS module loader:
   `process.dlopen()`.
 * It treats all files that lack `.json` or `.node` extensions as JavaScript
   text files.
-* It can only be used to [load ECMASCript modules from CommonJS modules][] if
-  the module graph is synchronous (that contains no top-level `await`) when
-  `--experimental-require-module` is enabled.
+* It can only be used to [load ECMAScript modules from CommonJS modules][] if
+  the module graph is synchronous (that contains no top-level `await`).
   When used to load a JavaScript text file that is not an ECMAScript module,
   the file will be loaded as a CommonJS module.
 
@@ -662,9 +661,12 @@ specific to least specific as conditions should be defined:
 * `"require"` - matches when the package is loaded via `require()`. The
   referenced file should be loadable with `require()` although the condition
   matches regardless of the module format of the target file. Expected
-  formats include CommonJS, JSON, native addons, and ES modules
-  if `--experimental-require-module` is enabled. _Always mutually
+  formats include CommonJS, JSON, native addons, and ES modules. _Always mutually
   exclusive with `"import"`._
+* `"module-sync"` - matches no matter the package is loaded via `import`,
+  `import()` or `require()`. The format is expected to be ES modules that does
+  not contain top-level await in its module graph - if it does,
+  `ERR_REQUIRE_ASYNC_MODULE` will be thrown when the module is `require()`-ed.
 * `"default"` - the generic fallback that always matches. Can be a CommonJS
   or ES module file. _This condition should always come last._
 
@@ -755,7 +757,7 @@ Any number of custom conditions can be set with repeat flags.
 
 ### Community Conditions Definitions
 
-Condition strings other than the `"import"`, `"require"`, `"node"`,
+Condition strings other than the `"import"`, `"require"`, `"node"`, `"module-sync"`,
 `"node-addons"` and `"default"` conditions
 [implemented in Node.js core](#conditional-exports) are ignored by default.
 
@@ -886,6 +888,17 @@ $ node other.js
 
 ## Dual CommonJS/ES module packages
 
+<!-- This section should not be in the API documentation:
+
+1. It teaches opinionated practices that some consider dangerous, see
+   https://github.com/nodejs/node/issues/52174
+2. It will soon be obsolete when we unflag --experimental-require-module.
+3. It's difficult to understand a multi-file structure via long texts and snippets in
+   a markdown document.
+
+TODO(?): Move this section to its own repository with example folders.
+-->
+
 Prior to the introduction of support for ES modules in Node.js, it was a common
 pattern for package authors to include both CommonJS and ES module JavaScript
 sources in their package, with `package.json` [`"main"`][] specifying the
@@ -898,7 +911,7 @@ ignores) the top-level `"module"` field.
 Node.js can now run ES module entry points, and a package can contain both
 CommonJS and ES module entry points (either via separate specifiers such as
 `'pkg'` and `'pkg/es-module'`, or both at the same specifier via [Conditional
-exports][]). Unlike in the scenario where `"module"` is only used by bundlers,
+exports][]). Unlike in the scenario where top-level `"module"` field is only used by bundlers,
 or ES module files are transpiled into CommonJS on the fly before evaluation by
 Node.js, the files referenced by the ES module entry point are evaluated as ES
 modules.
@@ -1410,7 +1423,7 @@ This field defines [subpath imports][] for the current package.
 [entry points]: #package-entry-points
 [folders as modules]: modules.md#folders-as-modules
 [import maps]: https://github.com/WICG/import-maps
-[load ECMASCript modules from CommonJS modules]: modules.md#loading-ecmascript-modules-using-require
+[load ECMAScript modules from CommonJS modules]: modules.md#loading-ecmascript-modules-using-require
 [loader hooks]: esm.md#loaders
 [packages folder mapping]: https://github.com/WICG/import-maps#packages-via-trailing-slashes
 [self-reference]: #self-referencing-a-package-using-its-name
