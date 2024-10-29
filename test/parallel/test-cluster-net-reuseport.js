@@ -36,6 +36,3 @@ server1.listen(options, common.mustCall(() => {
     server2.close(close);
   }));
 }));
-
-server1.on('error', common.mustNotCall());
-server2.on('error', common.mustNotCall());
