@@ -4,7 +4,6 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { spawn } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
-import util from 'internal/util';
 import tmpdir from '../common/tmpdir.js';
 
 if (common.isIBMi)
@@ -35,9 +34,7 @@ Object.entries(fixtureContent)
   .forEach(([file, content]) => writeFileSync(fixturePaths[file], content));
 
 describe('test runner watch mode with more complex setup', () => {
-  // This test is failing and needs to be fixed
-  // The expected behavior is that the test runner should re-run the appropriate tests when a shared dependency changes
-  it.todo('should re-run appropriate tests when dependencies change', async () => {
+  it('should re-run appropriate tests when dependencies change', async () => {
     // Start the test runner in watch mode
     const child = spawn(process.execPath,
                         ['--watch', '--test'],
@@ -46,10 +43,10 @@ describe('test runner watch mode with more complex setup', () => {
     let currentRunOutput = '';
     const testRuns = [];
 
-    const firstRunCompleted = util.createDeferredPromise();
-    const secondRunCompleted = util.createDeferredPromise();
-    const thirdRunCompleted = util.createDeferredPromise();
-    const fourthRunCompleted = util.createDeferredPromise();
+    const firstRunCompleted = Promise.withResolvers();
+    const secondRunCompleted = Promise.withResolvers();
+    const thirdRunCompleted = Promise.withResolvers();
+    const fourthRunCompleted = Promise.withResolvers();
 
     child.stdout.on('data', (data) => {
       const str = data.toString();
