@@ -202,7 +202,9 @@ static void WriteNodeReport(Isolate* isolate,
 
   writer.json_arraystart("libuv");
   if (env != nullptr) {
-    uv_walk(env->event_loop(), WalkHandle, static_cast<void*>(&writer));
+    uv_walk(env->event_loop(),
+            exclude_network ? WalkHandleNoNetwork : WalkHandleNetwork,
+            static_cast<void*>(&writer));
 
     writer.json_start();
     writer.json_keyvalue("type", "loop");
