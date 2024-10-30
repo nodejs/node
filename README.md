@@ -877,7 +877,7 @@ releases on a rotation basis as outlined in the
 ## License
 
 Node.js is available under the
-[MIT license](https://opensource.org/licenses/MIT). Node.js also includes
+[MIT License](https://opensource.org/licenses/MIT). Node.js also includes
 external libraries that are available under a variety of licenses.  See
 [LICENSE](https://github.com/nodejs/node/blob/HEAD/LICENSE) for the full
 license text.
