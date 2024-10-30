@@ -22,7 +22,7 @@ const fixtureContent = {
   'dependency.js': 'module.exports = {};',
   'test.js': 'require(\'./dependency.js\');',
   'test-2.js': 'require(\'./dependency.js\');',
-}
+};
 
 const fixturePaths = Object.fromEntries(Object.keys(fixtureContent)
   .map((file) => [file, tmpdir.resolve(file)]));
