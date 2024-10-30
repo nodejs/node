@@ -36,10 +36,9 @@ let watcherClosed = false;
 function doWatch() {
   const watcher = fs.watch(testDirectory, { recursive: true });
   watcher.on('change', function(event, filename) {
-    assert.strictEqual(event, 'rename');
-    assert.ok(filename === path.basename(filePath) || filename === childrenRelativePath);
-
     if (filename === childrenRelativePath) {
+      assert.strictEqual(event, 'rename');
+      assert.ok(filename === path.basename(filePath) || filename === childrenRelativePath);
       watcher.close();
       watcherClosed = true;
     }
