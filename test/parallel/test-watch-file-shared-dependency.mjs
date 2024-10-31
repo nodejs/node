@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 import * as common from '../common/index.mjs';
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
