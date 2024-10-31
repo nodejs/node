@@ -3761,6 +3761,19 @@ Instantiating classes without the `new` qualifier exported by the `node:repl` mo
 It is recommended to use the `new` qualifier instead. This applies to all REPL classes, including
 `REPLServer` and `Recoverable`.
 
+### DEP0186: `util.getCallSite`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/55626
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+The `util.getCallSite` API has been removed. Please use [`util.getCallSites()`] instead.
+
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
 [RFC 8247 Section 2.4]: https://www.rfc-editor.org/rfc/rfc8247#section-2.4
@@ -3887,6 +3900,7 @@ It is recommended to use the `new` qualifier instead. This applies to all REPL c
 [`url.resolve()`]: url.md#urlresolvefrom-to
 [`util._extend()`]: util.md#util_extendtarget-source
 [`util.getSystemErrorName()`]: util.md#utilgetsystemerrornameerr
+[`util.getCallSites()`]: util.md#utilgetcallsites-framecount
 [`util.inspect()`]: util.md#utilinspectobject-options
 [`util.inspect.custom`]: util.md#utilinspectcustom
 [`util.isArray()`]: util.md#utilisarrayobject
