@@ -270,9 +270,9 @@ void UvMetricsInfo(const FunctionCallbackInfo<Value>& args) {
   // uv_metrics_info always return 0
   CHECK_EQ(uv_metrics_info(env->event_loop(), &metrics), 0);
   Local<Value> data[] = {
-    Integer::New(isolate, metrics.loop_count),
-    Integer::New(isolate, metrics.events),
-    Integer::New(isolate, metrics.events_waiting),
+      Integer::New(isolate, metrics.loop_count),
+      Integer::New(isolate, metrics.events),
+      Integer::New(isolate, metrics.events_waiting),
   };
   Local<Array> arr = Array::New(env->isolate(), data, arraysize(data));
   args.GetReturnValue().Set(arr);
