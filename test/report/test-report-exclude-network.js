@@ -45,10 +45,11 @@ describe('report exclude network option', () => {
       res.writeHead(200, { 'Content-Type': 'text/plain' });
       res.end();
     });
+    let ipv6Available = true;
     const port = await new Promise((resolve) => server.listen(0, async () => {
       await Promise.all([
         fetch('http://127.0.0.1:' + server.address().port),
-        fetch('http://[::1]:' + server.address().port),
+        fetch('http://[::1]:' + server.address().port).catch(() => ipv6Available = false),
       ]);
       resolve(server.address().port);
       server.close();
@@ -56,20 +57,23 @@ describe('report exclude network option', () => {
     process.report.excludeNetwork = false;
     let report = process.report.getReport();
     let tcp = report.libuv.filter((uv) => uv.type === 'tcp' && uv.remoteEndpoint?.port === port);
-    assert.strictEqual(tcp.length, 2);
-    const findHandle = (host, local = true, ip4 = true) => {
-      return tcp.some(
+    assert.strictEqual(tcp.length, ipv6Available ? 2 : 1);
+    const findHandle = (local, ip4 = true) => {
+      return tcp.find(
         ({ [local ? 'localEndpoint' : 'remoteEndpoint']: ep }) =>
-          (ep[ip4 ? 'ip4' : 'ip6'] === (ip4 ? '127.0.0.1' : '::1') &&
-            (Array.isArray(host) ? host.includes(ep.host) : ep.host === host)),
-      );
+          (ep[ip4 ? 'ip4' : 'ip6'] === (ip4 ? '127.0.0.1' : '::1')),
+      )?.[local ? 'localEndpoint' : 'remoteEndpoint'];
     };
     try {
-      assert.ok(findHandle('localhost'), 'local localhost handle not found');
-      assert.ok(findHandle('localhost', false), 'remote localhost handle not found');
+      // The reverse DNS of 127.0.0.1 can be a lot of things other than localhost
+      // it could resolve to the server name for instance
+      assert.notStrictEqual(findHandle(true)?.host, '127.0.0.1');
+      assert.notStrictEqual(findHandle(false)?.host, '127.0.0.1');
 
-      assert.ok(findHandle(['localhost', 'ip6-localhost'], true, false), 'local ip6-localhost handle not found');
-      assert.ok(findHandle(['localhost', 'ip6-localhost'], false, false), 'remote ip6-localhost handle not found');
+      if (ipv6Available) {
+        assert.notStrictEqual(findHandle(true, false)?.host, '::1');
+        assert.notStrictEqual(findHandle(false, false)?.host, '::1');
+      }
     } catch (e) {
       throw new Error(e.message + ' in ' + JSON.stringify(tcp, null, 2));
     }
@@ -79,12 +83,14 @@ describe('report exclude network option', () => {
     tcp = report.libuv.filter((uv) => uv.type === 'tcp' && uv.remoteEndpoint?.port === port);
 
     try {
-      assert.strictEqual(tcp.length, 2);
-      assert.ok(findHandle('127.0.0.1'), 'local 127.0.0.1 handle not found');
-      assert.ok(findHandle('127.0.0.1', false), 'remote 127.0.0.1 handle not found');
+      assert.strictEqual(tcp.length, ipv6Available ? 2 : 1);
+      assert.strictEqual(findHandle(true)?.host, '127.0.0.1');
+      assert.strictEqual(findHandle(false)?.host, '127.0.0.1');
 
-      assert.ok(findHandle('::1', true, false), 'local ::1 handle not found');
-      assert.ok(findHandle('::1', false, false), 'remote ::1 handle not found');
+      if (ipv6Available) {
+        assert.strictEqual(findHandle(true, false)?.host, '::1');
+        assert.strictEqual(findHandle(false, false)?.host, '::1');
+      }
     } catch (e) {
       throw new Error(e.message + ' in ' + JSON.stringify(tcp, null, 2));
     }
