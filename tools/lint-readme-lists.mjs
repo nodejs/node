@@ -6,8 +6,8 @@ import assert from 'node:assert';
 import { open } from 'node:fs/promises';
 import { argv } from 'node:process';
 
-const ghHandleLine = /^\* \[(.+)\]\(https:\/\/github\.com\/\1\) -$/
-const memberInfoLine = /^ {2}\*\*[^*]+\*\* <<[^@]+@.+\.[a-z]+>>( \(\w+(\/[^)/]+)+\))?( - \[Support me\]\(.+\))?$/
+const ghHandleLine = /^\* \[(.+)\]\(https:\/\/github\.com\/\1\) -$/;
+const memberInfoLine = /^ {2}\*\*[^*]+\*\* <<[^@]+@.+\.[a-z]+>>( \(\w+(\/[^)/]+)+\))?( - \[Support me\]\(.+\))?$/;
 
 const lists = {
   '__proto__': null,
