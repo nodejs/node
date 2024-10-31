@@ -10,8 +10,9 @@ MyObject::MyObject(double value)
 
 MyObject::~MyObject() { napi_delete_reference(env_, wrapper_); }
 
-void MyObject::Destructor(
-  napi_env env, void* nativeObject, void* /*finalize_hint*/) {
+void MyObject::Destructor(node_api_basic_env env,
+                          void* nativeObject,
+                          void* /*finalize_hint*/) {
   MyObject* obj = static_cast<MyObject*>(nativeObject);
   delete obj;
 }
@@ -154,7 +155,7 @@ napi_value MyObject::Multiply(napi_env env, napi_callback_info info) {
 }
 
 // This finalizer should never be invoked.
-void ObjectWrapDanglingReferenceFinalizer(napi_env env,
+void ObjectWrapDanglingReferenceFinalizer(node_api_basic_env env,
                                           void* finalize_data,
                                           void* finalize_hint) {
   assert(0 && "unreachable");
