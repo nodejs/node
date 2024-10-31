@@ -1123,6 +1123,13 @@ independently.
 
 #### HTTP
 
+`http.client.request.created`
+
+* `request` {http.ClientRequest}
+
+Emitted when client creates a request object.
+Unlike `http.client.request.start`, this event is emitted before the request has been sent.
+
 `http.client.request.start`
 
 * `request` {http.ClientRequest}
