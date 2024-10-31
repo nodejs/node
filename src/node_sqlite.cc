@@ -126,7 +126,9 @@ bool DatabaseSync::Open() {
   }
 
   // TODO(cjihrig): Support additional flags.
-  int flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
+  int flags = open_config_.get_read_only()
+                  ? SQLITE_OPEN_READONLY
+                  : SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
   int r = sqlite3_open_v2(
       open_config_.location().c_str(), &connection_, flags, nullptr);
   CHECK_ERROR_OR_THROW(env()->isolate(), connection_, r, SQLITE_OK, false);
@@ -217,6 +219,22 @@ void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
         return;
       }
       open = open_v.As<Boolean>()->Value();
+    }
+
+    Local<String> read_only_string =
+        FIXED_ONE_BYTE_STRING(env->isolate(), "readOnly");
+    Local<Value> read_only_v;
+    if (!options->Get(env->context(), read_only_string).ToLocal(&read_only_v)) {
+      return;
+    }
+    if (!read_only_v->IsUndefined()) {
+      if (!read_only_v->IsBoolean()) {
+        node::THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            "The \"options.readOnly\" argument must be a boolean.");
+        return;
+      }
+      open_config.set_read_only(read_only_v.As<Boolean>()->Value());
     }
 
     Local<String> enable_foreign_keys_string =

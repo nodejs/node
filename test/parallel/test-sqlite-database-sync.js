@@ -51,6 +51,39 @@ suite('DatabaseSync() constructor', () => {
     });
   });
 
+  test('throws if options.readOnly is provided but is not a boolean', (t) => {
+    t.assert.throws(() => {
+      new DatabaseSync('foo', { readOnly: 5 });
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /The "options\.readOnly" argument must be a boolean/,
+    });
+  });
+
+  test('is not read-only by default', (t) => {
+    const dbPath = nextDb();
+    const db = new DatabaseSync(dbPath);
+    db.exec('CREATE TABLE foo (id INTEGER PRIMARY KEY)');
+  });
+
+  test('is read-only if readOnly is set', (t) => {
+    const dbPath = nextDb();
+    {
+      const db = new DatabaseSync(dbPath);
+      db.exec('CREATE TABLE foo (id INTEGER PRIMARY KEY)');
+      db.close();
+    }
+    {
+      const db = new DatabaseSync(dbPath, { readOnly: true });
+      t.assert.throws(() => {
+        db.exec('CREATE TABLE bar (id INTEGER PRIMARY KEY)');
+      }, {
+        code: 'ERR_SQLITE_ERROR',
+        message: /attempt to write a readonly database/,
+      });
+    }
+  });
+
   test('throws if options.enableForeignKeyConstraints is provided but is not a boolean', (t) => {
     t.assert.throws(() => {
       new DatabaseSync('foo', { enableForeignKeyConstraints: 5 });

@@ -21,6 +21,10 @@ class DatabaseOpenConfiguration {
 
   inline const std::string& location() const { return location_; }
 
+  inline bool get_read_only() const { return read_only_; }
+
+  inline void set_read_only(bool flag) { read_only_ = flag; }
+
   inline bool get_enable_foreign_keys() const { return enable_foreign_keys_; }
 
   inline void set_enable_foreign_keys(bool flag) {
@@ -33,6 +37,7 @@ class DatabaseOpenConfiguration {
 
  private:
   std::string location_;
+  bool read_only_ = false;
   bool enable_foreign_keys_ = true;
   bool enable_dqs_ = false;
 };
