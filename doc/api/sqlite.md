@@ -107,6 +107,8 @@ added: v22.5.0
   * `open` {boolean} If `true`, the database is opened by the constructor. When
     this value is `false`, the database must be opened via the `open()` method.
     **Default:** `true`.
+  * `readOnly` {boolean} If `true`, the database is opened in read-only mode.
+    If the database does not exist, opening it will fail. **Default:** `false`.
   * `enableForeignKeyConstraints` {boolean} If `true`, foreign key constraints
     are enabled. This is recommended but can be disabled for compatibility with
     legacy database schemas. The enforcement of foreign key constraints can be
