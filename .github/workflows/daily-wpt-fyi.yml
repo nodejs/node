@@ -6,11 +6,6 @@ name: Daily WPT report
 
 on:
   workflow_dispatch:
-    inputs:
-      node-versions:
-        description: Node.js versions (as supported by actions/setup-node) to test as JSON array
-        required: false
-        default: '["current", "lts/*", "lts/-1"]'
   schedule:
     # This is 20 minutes after `epochs/daily` branch is triggered to be created
     # in WPT repo.
@@ -24,11 +19,22 @@ permissions:
   contents: read
 
 jobs:
-  report:
+  collect-versions:
     if: github.repository == 'nodejs/node' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.query.outputs.matrix }}
+    steps:
+      - id: query
+        run: |
+          matrix=$(curl -s https://raw.githubusercontent.com/nodejs/Release/refs/heads/main/schedule.json | jq --arg now "$(date +%Y-%m-%d)" '[with_entries(select(.value.end > $now and .value.start < $now)) | keys[] | ltrimstr("v") | tonumber] + ["latest-nightly"]')
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+  report:
+    needs:
+      - collect-versions
     strategy:
       matrix:
-        node-version: ${{ fromJSON(github.event.inputs.node-versions || '["latest-nightly", "current", "lts/*", "lts/-1"]') }}
+        node-version: ${{ fromJSON(needs.collect-versions.outputs.matrix) }}
       fail-fast: false
     runs-on: ubuntu-latest
     steps:
