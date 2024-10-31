@@ -38,7 +38,6 @@ function doWatch() {
   watcher.on('change', function(event, filename) {
     if (filename === childrenRelativePath) {
       assert.strictEqual(event, 'rename');
-      assert.ok(filename === path.basename(filePath) || filename === childrenRelativePath);
       watcher.close();
       watcherClosed = true;
     }
