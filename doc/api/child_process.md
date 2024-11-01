@@ -1809,7 +1809,7 @@ added: v0.7.10
 
 Calling `subprocess.ref()` after making a call to `subprocess.unref()` will
 restore the removed reference count for the child process, forcing the parent
-to wait for the child process to exit before exiting itself.
+process to wait for the child process to exit before exiting itself.
 
 ```cjs
 const { spawn } = require('node:child_process');
