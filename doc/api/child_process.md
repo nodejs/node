@@ -921,9 +921,9 @@ they are detached or not. See setsid(2) for more information.
 
 By default, the parent will wait for the detached child process to exit.
 To prevent the parent process from waiting for a given `subprocess` to exit, use
-the `subprocess.unref()` method. Doing so will cause the parent's event
+the `subprocess.unref()` method. Doing so will cause the parent process' event
 loop to not include the child process in its reference count, allowing the
-parent to exit independently of the child, unless there is an established
+parent process to exit independently of the child process, unless there is an established
 IPC channel between the child and the parent processes.
 
 When using the `detached` option to start a long-running process, the process
