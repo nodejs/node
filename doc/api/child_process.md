@@ -1912,7 +1912,7 @@ process.send({ foo: 'bar', baz: NaN });
 ```
 
 Child Node.js processes will have a [`process.send()`][] method of their own
-that allows the child process to send messages back to the parent.
+that allows the child process to send messages back to the parent process.
 
 There is a special case when sending a `{cmd: 'NODE_foo'}` message. Messages
 containing a `NODE_` prefix in the `cmd` property are reserved for use within
