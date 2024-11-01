@@ -552,7 +552,7 @@ changes:
     process will be killed by timeout or abort signal. **Default:** `'SIGTERM'`.
   * `silent` {boolean} If `true`, stdin, stdout, and stderr of the child
     process will be piped to the parent process, otherwise they will be inherited
-    from the parent, see the `'pipe'` and `'inherit'` options for
+    from the parent process, see the `'pipe'` and `'inherit'` options for
     [`child_process.spawn()`][]'s [`stdio`][] for more details.
     **Default:** `false`.
   * `stdio` {Array|string} See [`child_process.spawn()`][]'s [`stdio`][].
