@@ -929,7 +929,7 @@ IPC channel between the child and the parent processes.
 When using the `detached` option to start a long-running process, the process
 will not stay running in the background after the parent exits unless it is
 provided with a `stdio` configuration that is not connected to the parent.
-If the parent's `stdio` is inherited, the child process will remain attached
+If the parent process' `stdio` is inherited, the child process will remain attached
 to the controlling terminal.
 
 Example of a long-running process, by detaching and also ignoring its parent
