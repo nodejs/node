@@ -2702,9 +2702,8 @@ JavaScript `TypedArray` objects are described in
 added:
   - v23.0.0
   - v22.12.0
+napiVersion: 10
 -->
-
-> Stability: 1 - Experimental
 
 ```c
 napi_status NAPI_CDECL node_api_create_buffer_from_arraybuffer(napi_env env,
@@ -2967,9 +2966,8 @@ The JavaScript `string` type is described in
 added:
  - v20.4.0
  - v18.18.0
+napiVersion: 10
 -->
-
-> Stability: 1 - Experimental
 
 ```c
 napi_status
@@ -3047,9 +3045,8 @@ The JavaScript `string` type is described in
 added:
  - v20.4.0
  - v18.18.0
+napiVersion: 10
 -->
-
-> Stability: 1 - Experimental
 
 ```c
 napi_status
@@ -3142,9 +3139,8 @@ creation methods.
 added:
   - v22.9.0
   - v20.18.0
+napiVersion: 10
 -->
-
-> Stability: 1 - Experimental
 
 ```c
 napi_status NAPI_CDECL node_api_create_property_key_latin1(napi_env env,
@@ -3177,9 +3173,8 @@ The JavaScript `string` type is described in
 added:
   - v21.7.0
   - v20.12.0
+napiVersion: 10
 -->
-
-> Stability: 1 - Experimental
 
 ```c
 napi_status NAPI_CDECL node_api_create_property_key_utf16(napi_env env,
@@ -3210,9 +3205,8 @@ The JavaScript `string` type is described in
 added:
   - v22.9.0
   - v20.18.0
+napiVersion: 10
 -->
-
-> Stability: 1 - Experimental
 
 ```c
 napi_status NAPI_CDECL node_api_create_property_key_utf8(napi_env env,

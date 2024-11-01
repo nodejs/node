@@ -678,11 +678,13 @@ node::addon_context_register_func get_node_api_context_register_func(
     const char* module_name,
     int32_t module_api_version) {
   static_assert(
-      NODE_API_SUPPORTED_VERSION_MAX == 9,
+      NODE_API_SUPPORTED_VERSION_MAX == 10,
       "New version of Node-API requires adding another else-if statement below "
       "for the new version and updating this assert condition.");
   if (module_api_version == 9) {
     return node_api_context_register_func<9>;
+  } else if (module_api_version == 10) {
+    return node_api_context_register_func<10>;
   } else if (module_api_version == NAPI_VERSION_EXPERIMENTAL) {
     return node_api_context_register_func<NAPI_VERSION_EXPERIMENTAL>;
   } else if (module_api_version >= NODE_API_SUPPORTED_VERSION_MIN &&
