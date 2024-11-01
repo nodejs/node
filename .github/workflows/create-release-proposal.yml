@@ -1,0 +1,81 @@
+# This action requires the following secrets to be set on the repository:
+#   GH_USER_NAME: GitHub user whose Jenkins and GitHub token are defined below
+#   GH_USER_TOKEN: GitHub user token, to be used by ncu and to push changes
+#   JENKINS_TOKEN: Jenkins token, to be used to check CI status
+
+name: Create Release Proposal
+
+on:
+  workflow_dispatch:
+    inputs:
+      release-line:
+        required: true
+        type: number
+        default: 23
+        description: 'The release line (without dots or prefix). e.g: 22'
+      release-date:
+        required: true
+        type: string
+        default: YYYY-MM-DD
+        description: The release date in YYYY-MM-DD format
+
+concurrency: ${{ github.workflow }}
+
+env:
+  NODE_VERSION: lts/*
+
+permissions:
+  contents: write
+
+jobs:
+  releasePrepare:
+    env:
+      STAGING_BRANCH: v${{ inputs.release-line }}.x-staging
+      RELEASE_BRANCH: v${{ inputs.release-line }}.x
+      RELEASE_DATE: ${{ inputs.release-date }}
+      RELEASE_LINE: ${{ inputs.release-line }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4.1.7
+        with:
+          ref: ${{ env.STAGING_BRANCH }}
+          # Needs the whole git history for ncu to work
+          # See https://github.com/nodejs/node-core-utils/pull/486
+          fetch-depth: 0
+
+      # Install dependencies
+      - name: Install Node.js
+        uses: actions/setup-node@1e60f620b9541d16bece96c5465dc8ee9832be0b  # v4.0.3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install @node-core/utils
+        run: npm install -g @node-core/utils
+
+      - name: Configure @node-core/utils
+        run: |
+          ncu-config set branch "${RELEASE_BRANCH}"
+          ncu-config set upstream origin
+          ncu-config set username "$USERNAME"
+          ncu-config set token "$GH_TOKEN"
+          ncu-config set jenkins_token "$JENKINS_TOKEN"
+          ncu-config set repo "$(echo "$GITHUB_REPOSITORY" | cut -d/ -f2)"
+          ncu-config set owner "${GITHUB_REPOSITORY_OWNER}"
+        env:
+          USERNAME: ${{ secrets.JENKINS_USER }}
+          GH_TOKEN: ${{ secrets.GH_USER_TOKEN }}
+          JENKINS_TOKEN: ${{ secrets.JENKINS_TOKEN }}
+
+      - name: Set up ghauth config (Ubuntu)
+        run: |
+          mkdir -p ~/.config/changelog-maker/
+          echo '{
+            "user": "'$(ncu-config get username)'",
+            "token": "'$(ncu-config get token)'"
+          }' > ~/.config/changelog-maker/config.json
+
+      - name: Start git node release prepare
+        run: |
+          ./tools/actions/create-release.sh "${RELEASE_DATE}" "${RELEASE_LINE}"
+        env:
+          GH_TOKEN: ${{ secrets.GH_USER_TOKEN }}
