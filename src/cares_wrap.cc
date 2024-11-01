@@ -144,14 +144,10 @@ void ares_sockstate_cb(void* data, ares_socket_t sock, int read, int write) {
                   ares_poll_cb);
 
   } else {
-    /* read == 0 and write == 0 this is c-ares's way of notifying us that */
-    /* the socket is now closed. We must free the data associated with */
-    /* socket. */
-    CHECK(task &&
-          "When an ares socket is closed we should have a handle for it");
-
-    channel->task_list()->erase(it);
-    channel->env()->CloseHandle(&task->poll_watcher, ares_poll_close_cb);
+    if (task != nullptr) {
+      channel->task_list()->erase(it);
+      channel->env()->CloseHandle(&task->poll_watcher, ares_poll_close_cb);
+    }
 
     if (channel->task_list()->empty()) {
       channel->CloseTimer();
@@ -682,7 +678,6 @@ GetNameInfoReqWrap::GetNameInfoReqWrap(
 void ChannelWrap::AresTimeout(uv_timer_t* handle) {
   ChannelWrap* channel = static_cast<ChannelWrap*>(handle->data);
   CHECK_EQ(channel->timer_handle(), handle);
-  CHECK_EQ(false, channel->task_list()->empty());
   ares_process_fd(channel->cares_channel(), ARES_SOCKET_BAD, ARES_SOCKET_BAD);
 }
 
