@@ -54,7 +54,6 @@ export default [
       'test/message/esm_display_syntax_error.mjs',
       'tools/github_reporter/**',
       'tools/icu/**',
-      'tools/lint-md/lint-md.mjs',
     ],
   },
   // #endregion
