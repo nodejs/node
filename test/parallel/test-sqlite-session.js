@@ -16,12 +16,12 @@ const { test, suite } = require('node:test');
 function deepStrictEqual(t) {
   return (actual, expected, message) => {
     if (Array.isArray(expected)) {
-      expected = expected.map(obj => ({...obj, __proto__: null }));
+      expected = expected.map((obj) => ({ ...obj, __proto__: null }));
     } else if (typeof expected === 'object') {
-      expected = {...expected, __proto__: null};
+      expected = { ...expected, __proto__: null };
     }
     t.assert.deepStrictEqual(actual, expected, message);
-  }
+  };
 }
 
 test('creating and applying a changeset', (t) => {
@@ -133,7 +133,7 @@ suite('conflict resolution', () => {
   const prepareConflict = () => {
     const database1 = new DatabaseSync(':memory:');
     const database2 = new DatabaseSync(':memory:');
-  
+
     const createDataTableSql = `CREATE TABLE data (
         key INTEGER PRIMARY KEY,
         value TEXT
@@ -141,7 +141,7 @@ suite('conflict resolution', () => {
       `;
     database1.exec(createDataTableSql);
     database2.exec(createDataTableSql);
-  
+
     const insertSql = 'INSERT INTO data (key, value) VALUES (?, ?)';
     const session = database1.createSession();
     database1.prepare(insertSql).run(1, 'hello');
@@ -152,17 +152,16 @@ suite('conflict resolution', () => {
       changeset: session.changeset()
     };
   };
-  
+
   test('database.applyChangeset() - conflict with default behavior (abort)', (t) => {
     const { database2, changeset } = prepareConflict();
     // When changeset is aborted due to a conflict, applyChangeset should return false
     t.assert.strictEqual(database2.applyChangeset(changeset), false);
-    console.log("----------------", database2.prepare('SELECT value from data').all());
     deepStrictEqual(t)(
       database2.prepare('SELECT value from data').all(),
       [{ value: 'world' }]);  // unchanged
   });
-  
+
   test('database.applyChangeset() - conflict with SQLITE_CHANGESET_ABORT', (t) => {
     const { database2, changeset } = prepareConflict();
     const result = database2.applyChangeset(changeset, {
@@ -174,7 +173,7 @@ suite('conflict resolution', () => {
       database2.prepare('SELECT value from data').all(),
       [{ value: 'world' }]);  // unchanged
   });
-  
+
   test('database.applyChangeset() - conflict with SQLITE_CHANGESET_REPLACE', (t) => {
     const { database2, changeset } = prepareConflict();
     const result = database2.applyChangeset(changeset, {
@@ -186,7 +185,7 @@ suite('conflict resolution', () => {
       database2.prepare('SELECT value from data ORDER BY key').all(),
       [{ value: 'hello' }, { value: 'foo' }]);  // replaced
   });
-  
+
   test('database.applyChangeset() - conflict with SQLITE_CHANGESET_OMIT', (t) => {
     const { database2, changeset } = prepareConflict();
     const result = database2.applyChangeset(changeset, {
