@@ -53,7 +53,7 @@ using v8::Value;
 #define THROW_AND_RETURN_ON_BAD_STATE(env, condition, msg)                     \
   do {                                                                         \
     if ((condition)) {                                                         \
-      node::THROW_ERR_INVALID_STATE((env), (msg));                             \
+      THROW_ERR_INVALID_STATE((env), (msg));                                   \
       return;                                                                  \
     }                                                                          \
   } while (0)
@@ -133,7 +133,7 @@ void DatabaseSync::MemoryInfo(MemoryTracker* tracker) const {
 
 bool DatabaseSync::Open() {
   if (IsOpen()) {
-    node::THROW_ERR_INVALID_STATE(env(), "database is already open");
+    THROW_ERR_INVALID_STATE(env(), "database is already open");
     return false;
   }
 
@@ -200,21 +200,21 @@ void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (!args[0]->IsString()) {
-    node::THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
-                                     "The \"path\" argument must be a string.");
+    THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
+                               "The \"path\" argument must be a string.");
     return;
   }
 
   std::string location =
-      node::Utf8Value(env->isolate(), args[0].As<String>()).ToString();
+      Utf8Value(env->isolate(), args[0].As<String>()).ToString();
   DatabaseOpenConfiguration open_config(std::move(location));
 
   bool open = true;
 
   if (args.Length() > 1) {
     if (!args[1]->IsObject()) {
-      node::THROW_ERR_INVALID_ARG_TYPE(
-          env->isolate(), "The \"options\" argument must be an object.");
+      THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
+                                 "The \"options\" argument must be an object.");
       return;
     }
 
@@ -226,7 +226,7 @@ void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
     }
     if (!open_v->IsUndefined()) {
       if (!open_v->IsBoolean()) {
-        node::THROW_ERR_INVALID_ARG_TYPE(
+        THROW_ERR_INVALID_ARG_TYPE(
             env->isolate(), "The \"options.open\" argument must be a boolean.");
         return;
       }
@@ -241,7 +241,7 @@ void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
     }
     if (!read_only_v->IsUndefined()) {
       if (!read_only_v->IsBoolean()) {
-        node::THROW_ERR_INVALID_ARG_TYPE(
+        THROW_ERR_INVALID_ARG_TYPE(
             env->isolate(),
             "The \"options.readOnly\" argument must be a boolean.");
         return;
@@ -258,7 +258,7 @@ void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
     }
     if (!enable_foreign_keys_v->IsUndefined()) {
       if (!enable_foreign_keys_v->IsBoolean()) {
-        node::THROW_ERR_INVALID_ARG_TYPE(
+        THROW_ERR_INVALID_ARG_TYPE(
             env->isolate(),
             "The \"options.enableForeignKeyConstraints\" argument must be a "
             "boolean.");
@@ -277,7 +277,7 @@ void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
     }
     if (!enable_dqs_v->IsUndefined()) {
       if (!enable_dqs_v->IsBoolean()) {
-        node::THROW_ERR_INVALID_ARG_TYPE(
+        THROW_ERR_INVALID_ARG_TYPE(
             env->isolate(),
             "The \"options.enableDoubleQuotedStringLiterals\" argument must be "
             "a boolean.");
@@ -315,12 +315,12 @@ void DatabaseSync::Prepare(const FunctionCallbackInfo<Value>& args) {
   THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
 
   if (!args[0]->IsString()) {
-    node::THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
-                                     "The \"sql\" argument must be a string.");
+    THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
+                               "The \"sql\" argument must be a string.");
     return;
   }
 
-  node::Utf8Value sql(env->isolate(), args[0].As<String>());
+  Utf8Value sql(env->isolate(), args[0].As<String>());
   sqlite3_stmt* s = nullptr;
   int r = sqlite3_prepare_v2(db->connection_, *sql, -1, &s, 0);
   CHECK_ERROR_OR_THROW(env->isolate(), db->connection_, r, SQLITE_OK, void());
@@ -336,12 +336,12 @@ void DatabaseSync::Exec(const FunctionCallbackInfo<Value>& args) {
   THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
 
   if (!args[0]->IsString()) {
-    node::THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
-                                     "The \"sql\" argument must be a string.");
+    THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
+                               "The \"sql\" argument must be a string.");
     return;
   }
 
-  node::Utf8Value sql(env->isolate(), args[0].As<String>());
+  Utf8Value sql(env->isolate(), args[0].As<String>());
   int r = sqlite3_exec(db->connection_, *sql, nullptr, nullptr, nullptr);
   CHECK_ERROR_OR_THROW(env->isolate(), db->connection_, r, SQLITE_OK, void());
 }
@@ -353,8 +353,8 @@ void DatabaseSync::CreateSession(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   if (args.Length() > 0) {
     if (!args[0]->IsObject()) {
-      node::THROW_ERR_INVALID_ARG_TYPE(
-          env->isolate(), "The \"options\" argument must be an object.");
+      THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
+                                 "The \"options\" argument must be an object.");
       return;
     }
 
@@ -371,7 +371,7 @@ void DatabaseSync::CreateSession(const FunctionCallbackInfo<Value>& args) {
         String::Utf8Value str(env->isolate(), table_value);
         table = std::string(*str);
       } else {
-        node::THROW_ERR_INVALID_ARG_TYPE(
+        THROW_ERR_INVALID_ARG_TYPE(
             env->isolate(), "The \"options.table\" argument must be a string.");
         return;
       }
@@ -387,7 +387,7 @@ void DatabaseSync::CreateSession(const FunctionCallbackInfo<Value>& args) {
         String::Utf8Value str(env->isolate(), db_value);
         db_name = std::string(*str);
       } else {
-        node::THROW_ERR_INVALID_ARG_TYPE(
+        THROW_ERR_INVALID_ARG_TYPE(
             env->isolate(), "The \"options.db\" argument must be a string.");
         return;
       }
@@ -436,15 +436,15 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
   THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
 
   if (!args[0]->IsUint8Array()) {
-    node::THROW_ERR_INVALID_ARG_TYPE(
+    THROW_ERR_INVALID_ARG_TYPE(
         env->isolate(), "The \"changeset\" argument must be a Uint8Array.");
     return;
   }
 
   if (args.Length() > 1 && !args[1]->IsUndefined()) {
     if (!args[1]->IsObject()) {
-      node::THROW_ERR_INVALID_ARG_TYPE(
-          env->isolate(), "The \"options\" argument must be an object.");
+      THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
+                                 "The \"options\" argument must be an object.");
       return;
     }
 
@@ -459,7 +459,7 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
           options->Get(env->context(), conflictKey).ToLocalChecked();
 
       if (!conflictValue->IsNumber()) {
-        node::THROW_ERR_INVALID_ARG_TYPE(
+        THROW_ERR_INVALID_ARG_TYPE(
             env->isolate(),
             "The \"options.onConflict\" argument must be a number.");
         return;
@@ -478,7 +478,7 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
           options->Get(env->context(), filterKey).ToLocalChecked();
 
       if (!filterValue->IsFunction()) {
-        node::THROW_ERR_INVALID_ARG_TYPE(
+        THROW_ERR_INVALID_ARG_TYPE(
             env->isolate(),
             "The \"options.filter\" argument must be a function.");
         return;
@@ -578,7 +578,7 @@ bool StatementSync::BindParams(const FunctionCallbackInfo<Value>& args) {
         if (insertion.second == false) {
           auto existing_full_name = (*insertion.first).second;
           if (full_name != existing_full_name) {
-            node::THROW_ERR_INVALID_STATE(
+            THROW_ERR_INVALID_STATE(
                 env(),
                 "Cannot create bare named parameter '%s' because of "
                 "conflicting names '%s' and '%s'.",
@@ -598,7 +598,7 @@ bool StatementSync::BindParams(const FunctionCallbackInfo<Value>& args) {
         return false;
       }
 
-      node::Utf8Value utf8_key(env()->isolate(), key);
+      Utf8Value utf8_key(env()->isolate(), key);
       int r = sqlite3_bind_parameter_index(statement_, *utf8_key);
       if (r == 0) {
         if (allow_bare_named_params_) {
@@ -610,7 +610,7 @@ bool StatementSync::BindParams(const FunctionCallbackInfo<Value>& args) {
         }
 
         if (r == 0) {
-          node::THROW_ERR_INVALID_STATE(
+          THROW_ERR_INVALID_STATE(
               env(), "Unknown named parameter '%s'", *utf8_key);
           return false;
         }
@@ -654,7 +654,7 @@ bool StatementSync::BindValue(const Local<Value>& value, const int index) {
     double val = value.As<Number>()->Value();
     r = sqlite3_bind_double(statement_, index, val);
   } else if (value->IsString()) {
-    node::Utf8Value val(env()->isolate(), value.As<String>());
+    Utf8Value val(env()->isolate(), value.As<String>());
     r = sqlite3_bind_text(
         statement_, index, *val, val.length(), SQLITE_TRANSIENT);
   } else if (value->IsNull()) {
@@ -667,13 +667,12 @@ bool StatementSync::BindValue(const Local<Value>& value, const int index) {
     bool lossless;
     int64_t as_int = value.As<BigInt>()->Int64Value(&lossless);
     if (!lossless) {
-      node::THROW_ERR_INVALID_ARG_VALUE(env(),
-                                        "BigInt value is too large to bind.");
+      THROW_ERR_INVALID_ARG_VALUE(env(), "BigInt value is too large to bind.");
       return false;
     }
     r = sqlite3_bind_int64(statement_, index, as_int);
   } else {
-    node::THROW_ERR_INVALID_ARG_TYPE(
+    THROW_ERR_INVALID_ARG_TYPE(
         env()->isolate(),
         "Provided value cannot be bound to SQLite parameter %d.",
         index);
@@ -730,8 +729,7 @@ MaybeLocal<Value> StatementSync::ColumnToValue(const int column) {
 MaybeLocal<Name> StatementSync::ColumnNameToName(const int column) {
   const char* col_name = sqlite3_column_name(statement_, column);
   if (col_name == nullptr) {
-    node::THROW_ERR_INVALID_STATE(
-        env(), "Cannot get name of column %d", column);
+    THROW_ERR_INVALID_STATE(env(), "Cannot get name of column %d", column);
     return MaybeLocal<Name>();
   }
 
@@ -924,7 +922,7 @@ void StatementSync::SetAllowBareNamedParameters(
       env, stmt->IsFinalized(), "statement has been finalized");
 
   if (!args[0]->IsBoolean()) {
-    node::THROW_ERR_INVALID_ARG_TYPE(
+    THROW_ERR_INVALID_ARG_TYPE(
         env->isolate(),
         "The \"allowBareNamedParameters\" argument must be a boolean.");
     return;
@@ -941,7 +939,7 @@ void StatementSync::SetReadBigInts(const FunctionCallbackInfo<Value>& args) {
       env, stmt->IsFinalized(), "statement has been finalized");
 
   if (!args[0]->IsBoolean()) {
-    node::THROW_ERR_INVALID_ARG_TYPE(
+    THROW_ERR_INVALID_ARG_TYPE(
         env->isolate(), "The \"readBigInts\" argument must be a boolean.");
     return;
   }
@@ -950,7 +948,7 @@ void StatementSync::SetReadBigInts(const FunctionCallbackInfo<Value>& args) {
 }
 
 void IllegalConstructor(const FunctionCallbackInfo<Value>& args) {
-  node::THROW_ERR_ILLEGAL_CONSTRUCTOR(Environment::GetCurrent(args));
+  THROW_ERR_ILLEGAL_CONSTRUCTOR(Environment::GetCurrent(args));
 }
 
 static inline void SetSideEffectFreeGetter(
