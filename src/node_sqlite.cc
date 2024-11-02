@@ -348,7 +348,7 @@ void DatabaseSync::Exec(const FunctionCallbackInfo<Value>& args) {
 
 void DatabaseSync::CreateSession(const FunctionCallbackInfo<Value>& args) {
   std::string table;
-  std::string dbName = "main";
+  std::string db_name = "main";
 
   Environment* env = Environment::GetCurrent(args);
   if (args.Length() > 0) {
@@ -385,7 +385,7 @@ void DatabaseSync::CreateSession(const FunctionCallbackInfo<Value>& args) {
           options->Get(env->context(), db_key).ToLocalChecked();
       if (db_value->IsString()) {
         String::Utf8Value str(env->isolate(), db_value);
-        dbName = std::string(*str);
+        db_name = std::string(*str);
       } else {
         node::THROW_ERR_INVALID_ARG_TYPE(
             env->isolate(), "The \"options.db\" argument must be a string.");
@@ -399,7 +399,7 @@ void DatabaseSync::CreateSession(const FunctionCallbackInfo<Value>& args) {
   THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
 
   sqlite3_session* pSession;
-  int r = sqlite3session_create(db->connection_, dbName.c_str(), &pSession);
+  int r = sqlite3session_create(db->connection_, db_name.c_str(), &pSession);
   CHECK_ERROR_OR_THROW(env->isolate(), db->connection_, r, SQLITE_OK, void());
   db->sessions_.insert(pSession);
 
