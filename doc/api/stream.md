@@ -3721,7 +3721,7 @@ class WriteStream extends Writable {
     this.fd = null;
   }
   _construct(callback) {
-    fs.open(this.filename, (err, fd) => {
+    fs.open(this.filename, 'w', (err, fd) => {
       if (err) {
         callback(err);
       } else {
