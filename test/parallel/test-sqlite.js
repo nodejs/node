@@ -5,9 +5,6 @@ const tmpdir = require('../common/tmpdir');
 const { join } = require('node:path');
 const {
   DatabaseSync,
-  SQLITE_CHANGESET_OMIT,
-  SQLITE_CHANGESET_REPLACE,
-  SQLITE_CHANGESET_ABORT
 } = require('node:sqlite');
 const { suite, test } = require('node:test');
 let cnt = 0;
