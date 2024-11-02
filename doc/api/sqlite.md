@@ -168,7 +168,7 @@ around [`sqlite3_prepare_v2()`][].
 
 * `options` {Object} The configuration options for the session.
   * `table` {string} A specific table to track changes for. By default, changes to all tables are tracked.
-  * `db` {string} Name of the database to track. **Default**: `'main'`.
+  * `db` {string} Name of the database to track. This is useful when multiple databases have been added using [`ATTACH DATABASE`][]. **Default**: `'main'`.
 * Returns: {Session} A session handle.
 
 Creates and attaches a session to the database. This method is a wrapper around [`sqlite3session_create()`][] and [`sqlite3session_attach()`][].
@@ -418,9 +418,11 @@ The following constants are meant for use with [`database.applyChangeset()`](#da
   </tr>
 </table>
 
+
 [Changesets and Patchsets]: https://www.sqlite.org/sessionintro.html#changesets_and_patchsets
 [SQL injection]: https://en.wikipedia.org/wiki/SQL_injection
 [`--experimental-sqlite`]: cli.md#--experimental-sqlite
+[`ATTACH DATABASE`]: https://www.sqlite.org/lang_attach.html
 [`PRAGMA foreign_keys`]: https://www.sqlite.org/pragma.html#pragma_foreign_keys
 [`sqlite3_changes64()`]: https://www.sqlite.org/c3ref/changes.html
 [`sqlite3_close_v2()`]: https://www.sqlite.org/c3ref/close.html
