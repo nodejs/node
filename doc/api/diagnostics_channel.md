@@ -1158,6 +1158,14 @@ Emitted when client receives a response.
 
 Emitted when server receives a request.
 
+`http.server.response.created`
+
+* `request` {http.IncomingMessage}
+* `response` {http.ServerResponse}
+
+Emitted when server creates a response.
+The event is emitted before the response is sent.
+
 `http.server.response.finish`
 
 * `request` {http.IncomingMessage}
