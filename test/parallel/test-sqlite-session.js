@@ -1,5 +1,6 @@
 // Flags: --experimental-sqlite
 'use strict';
+require('../common');
 const {
   DatabaseSync,
   SQLITE_CHANGESET_OMIT,
@@ -14,7 +15,12 @@ const { test, suite } = require('node:test');
  */
 function deepStrictEqual(t) {
   return (actual, expected, message) => {
-    expected.__proto__ = null;
+    if (Array.isArray(expected)) {
+      expected = expected.map(obj => ({...obj, __proto__: null }));
+    } else if (typeof expected === 'object') {
+      expected = {...expected, __proto__: null};
+    }
+    t.assert.deepStrictEqual(actual, expected, message);
   }
 }
 
