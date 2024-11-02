@@ -3,8 +3,6 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#define SQLITE_ENABLE_SESSION
-
 #include "base_object.h"
 #include "node_mem.h"
 #include "sqlite3.h"
