@@ -408,6 +408,8 @@ WebCryptoKeyExportStatus PKEY_SPKI_Export(const KeyObjectData& key_data,
 WebCryptoKeyExportStatus PKEY_PKCS8_Export(const KeyObjectData& key_data,
                                            ByteSource* out);
 
+int GetOKPCurveFromName(const char* name);
+
 namespace Keys {
 void Initialize(Environment* env, v8::Local<v8::Object> target);
 void RegisterExternalReferences(ExternalReferenceRegistry* registry);
