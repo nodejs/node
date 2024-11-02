@@ -9,7 +9,7 @@ export type PackageConfig = {
 export type DeserializedPackageConfig = {
   data: PackageConfig,
   exists: boolean,
-  path: URL['pathname'],
+  path: string,
 }
 export type SerializedPackageConfig = [
   PackageConfig['name'],
@@ -22,9 +22,8 @@ export type SerializedPackageConfig = [
 
 export interface ModulesBinding {
   readPackageJSON(path: string): SerializedPackageConfig | undefined;
-  getNearestParentPackageJSON(path: string): SerializedPackageConfig | undefined
-  getNearestRawParentPackageJSON(origin: URL['pathname']): [ReturnType<JSON['stringify']>, DeserializedPackageConfig['path']] | undefined
   getNearestParentPackageJSONType(path: string): PackageConfig['type']
+  getNearestParentPackageJSON(path: string): SerializedPackageConfig | undefined
   getPackageScopeConfig(path: string): SerializedPackageConfig | undefined
   getPackageType(path: string): PackageConfig['type'] | undefined
   enableCompileCache(path?: string): { status: number, message?: string, directory?: string }
