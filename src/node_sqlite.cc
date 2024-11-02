@@ -456,10 +456,9 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
         String::NewFromUtf8(
             env->isolate(), "onConflict", NewStringType::kNormal)
             .ToLocalChecked();
-    if (options->HasOwnProperty(env->context(), conflictKey).FromJust()) {
-      Local<Value> conflictValue =
-          options->Get(env->context(), conflictKey).ToLocalChecked();
+    Local<Value> conflictValue = options->Get(env->context(), conflictKey).ToLocalChecked();
 
+    if (!conflictValue->IsUndefined()) {
       if (!conflictValue->IsNumber()) {
         THROW_ERR_INVALID_ARG_TYPE(
             env->isolate(),
