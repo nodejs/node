@@ -6,7 +6,7 @@ const {
   SQLITE_CHANGESET_REPLACE,
   SQLITE_CHANGESET_ABORT
 } = require('node:sqlite');
-const { test } = require('node:test');
+const { test, suite } = require('node:test');
 
 /**
  * Convenience wrapper around assert.deepStrictEqual that sets a null
@@ -123,73 +123,75 @@ test('database.createSession() - use table option to track specific table', (t) 
   t.assert.strictEqual(database1.prepare(select2).all().length, 2);  // data1 should have values in database1
 });
 
-const prepareConflict = () => {
-  const database1 = new DatabaseSync(':memory:');
-  const database2 = new DatabaseSync(':memory:');
-
-  const createDataTableSql = `CREATE TABLE data (
-      key INTEGER PRIMARY KEY,
-      value TEXT
-    ) STRICT
-    `;
-  database1.exec(createDataTableSql);
-  database2.exec(createDataTableSql);
-
-  const insertSql = 'INSERT INTO data (key, value) VALUES (?, ?)';
-  const session = database1.createSession();
-  database1.prepare(insertSql).run(1, 'hello');
-  database1.prepare(insertSql).run(2, 'foo');
-  database2.prepare(insertSql).run(1, 'world');
-  return {
-    database2,
-    changeset: session.changeset()
+suite('conflict resolution', () => {
+  const prepareConflict = () => {
+    const database1 = new DatabaseSync(':memory:');
+    const database2 = new DatabaseSync(':memory:');
+  
+    const createDataTableSql = `CREATE TABLE data (
+        key INTEGER PRIMARY KEY,
+        value TEXT
+      ) STRICT
+      `;
+    database1.exec(createDataTableSql);
+    database2.exec(createDataTableSql);
+  
+    const insertSql = 'INSERT INTO data (key, value) VALUES (?, ?)';
+    const session = database1.createSession();
+    database1.prepare(insertSql).run(1, 'hello');
+    database1.prepare(insertSql).run(2, 'foo');
+    database2.prepare(insertSql).run(1, 'world');
+    return {
+      database2,
+      changeset: session.changeset()
+    };
   };
-};
-
-test('database.applyChangeset() - conflict with default behavior (abort)', (t) => {
-  const { database2, changeset } = prepareConflict();
-  // When changeset is aborted due to a conflict, applyChangeset should return false
-  t.assert.strictEqual(database2.applyChangeset(changeset), false);
-  console.log("----------------", database2.prepare('SELECT value from data').all());
-  deepStrictEqual(t)(
-    database2.prepare('SELECT value from data').all(),
-    [{ value: 'world' }]);  // unchanged
-});
-
-test('database.applyChangeset() - conflict with SQLITE_CHANGESET_ABORT', (t) => {
-  const { database2, changeset } = prepareConflict();
-  const result = database2.applyChangeset(changeset, {
-    onConflict: SQLITE_CHANGESET_ABORT
+  
+  test('database.applyChangeset() - conflict with default behavior (abort)', (t) => {
+    const { database2, changeset } = prepareConflict();
+    // When changeset is aborted due to a conflict, applyChangeset should return false
+    t.assert.strictEqual(database2.applyChangeset(changeset), false);
+    console.log("----------------", database2.prepare('SELECT value from data').all());
+    deepStrictEqual(t)(
+      database2.prepare('SELECT value from data').all(),
+      [{ value: 'world' }]);  // unchanged
   });
-  // When changeset is aborted due to a conflict, applyChangeset should return false
-  t.assert.strictEqual(result, false);
-  deepStrictEqual(t)(
-    database2.prepare('SELECT value from data').all(),
-    [{ value: 'world' }]);  // unchanged
-});
-
-test('database.applyChangeset() - conflict with SQLITE_CHANGESET_REPLACE', (t) => {
-  const { database2, changeset } = prepareConflict();
-  const result = database2.applyChangeset(changeset, {
-    onConflict: SQLITE_CHANGESET_REPLACE
+  
+  test('database.applyChangeset() - conflict with SQLITE_CHANGESET_ABORT', (t) => {
+    const { database2, changeset } = prepareConflict();
+    const result = database2.applyChangeset(changeset, {
+      onConflict: SQLITE_CHANGESET_ABORT
+    });
+    // When changeset is aborted due to a conflict, applyChangeset should return false
+    t.assert.strictEqual(result, false);
+    deepStrictEqual(t)(
+      database2.prepare('SELECT value from data').all(),
+      [{ value: 'world' }]);  // unchanged
   });
-  // Not aborted due to conflict, so should return true
-  t.assert.strictEqual(result, true);
-  deepStrictEqual(t)(
-    database2.prepare('SELECT value from data ORDER BY key').all(),
-    [{ value: 'hello' }, { value: 'foo' }]);  // replaced
-});
-
-test('database.applyChangeset() - conflict with SQLITE_CHANGESET_OMIT', (t) => {
-  const { database2, changeset } = prepareConflict();
-  const result = database2.applyChangeset(changeset, {
-    onConflict: SQLITE_CHANGESET_OMIT
+  
+  test('database.applyChangeset() - conflict with SQLITE_CHANGESET_REPLACE', (t) => {
+    const { database2, changeset } = prepareConflict();
+    const result = database2.applyChangeset(changeset, {
+      onConflict: SQLITE_CHANGESET_REPLACE
+    });
+    // Not aborted due to conflict, so should return true
+    t.assert.strictEqual(result, true);
+    deepStrictEqual(t)(
+      database2.prepare('SELECT value from data ORDER BY key').all(),
+      [{ value: 'hello' }, { value: 'foo' }]);  // replaced
   });
-  // Not aborted due to conflict, so should return true
-  t.assert.strictEqual(result, true);
-  deepStrictEqual(t)(
-    database2.prepare('SELECT value from data ORDER BY key ASC').all(),
-    [{ value: 'world' }, { value: 'foo' }]);  // Conflicting change omitted
+  
+  test('database.applyChangeset() - conflict with SQLITE_CHANGESET_OMIT', (t) => {
+    const { database2, changeset } = prepareConflict();
+    const result = database2.applyChangeset(changeset, {
+      onConflict: SQLITE_CHANGESET_OMIT
+    });
+    // Not aborted due to conflict, so should return true
+    t.assert.strictEqual(result, true);
+    deepStrictEqual(t)(
+      database2.prepare('SELECT value from data ORDER BY key ASC').all(),
+      [{ value: 'world' }, { value: 'foo' }]);  // Conflicting change omitted
+  });
 });
 
 test('session related constants are defined', (t) => {
