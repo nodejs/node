@@ -177,7 +177,8 @@ Creates and attaches a session to the database. This method is a wrapper around 
 
 * `changeset` {Uint8Array} A binary changeset or patchset.
 * `options` {Object} The configuration options for how the changes will be applied.
-  * `filter` {Function} Skip changes that, when targeted table name is supplied to this function, return a truthy value. By default, all changes are attempted.
+  * `filter` {Function} Skip changes that, when targeted table name is supplied to this function, return a truthy value.
+    By default, all changes are attempted.
   * `onConflict` {number} Determines how conflicts are handled. **Default**: `SQLITE_CHANGESET_ABORT`.
     * `SQLITE_CHANGESET_OMIT`: conflicting changes are omitted.
     * `SQLITE_CHANGESET_REPLACE`: conflicting changes replace existing values.
@@ -417,7 +418,6 @@ The following constants are meant for use with [`database.applyChangeset()`](#da
     <td>Abort when a change encounters a conflict and roll back databsase.</td>
   </tr>
 </table>
-
 
 [Changesets and Patchsets]: https://www.sqlite.org/sessionintro.html#changesets_and_patchsets
 [SQL injection]: https://en.wikipedia.org/wiki/SQL_injection
