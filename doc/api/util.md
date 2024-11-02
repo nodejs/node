@@ -364,7 +364,7 @@ util.formatWithOptions({ colors: true }, 'See object %O', { foo: 42 });
 // when printed to a terminal.
 ```
 
-## `util.getCallSite(frames)`
+## `util.getCallSites(frameCount)`
 
 > Stability: 1.1 - Active development
 
@@ -372,23 +372,23 @@ util.formatWithOptions({ colors: true }, 'See object %O', { foo: 42 });
 added: v22.9.0
 -->
 
-* `frames` {number} Number of frames returned in the stacktrace.
+* `frameCount` {number} Number of frames to capture as call site objects.
   **Default:** `10`. Allowable range is between 1 and 200.
-* Returns: {Object\[]} An array of stacktrace objects
-  * `functionName` {string} Returns the name of the function associated with this stack frame.
+* Returns: {Object\[]} An array of call site objects
+  * `functionName` {string} Returns the name of the function associated with this call site.
   * `scriptName` {string} Returns the name of the resource that contains the script for the
-    function for this StackFrame.
+    function for this call site.
   * `lineNumber` {number} Returns the number, 1-based, of the line for the associate function call.
   * `column` {number} Returns the 1-based column offset on the line for the associated function call.
 
-Returns an array of stacktrace objects containing the stack of
+Returns an array of call site objects containing the stack of
 the caller function.
 
 ```js
 const util = require('node:util');
 
 function exampleFunction() {
-  const callSites = util.getCallSite();
+  const callSites = util.getCallSites();
 
   console.log('Call Sites:');
   callSites.forEach((callSite, index) => {

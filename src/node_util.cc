@@ -247,7 +247,7 @@ static void ParseEnv(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(dotenv.ToObject(env));
 }
 
-static void GetCallSite(const FunctionCallbackInfo<Value>& args) {
+static void GetCallSites(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
 
@@ -345,7 +345,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetProxyDetails);
   registry->Register(GetCallerLocation);
   registry->Register(PreviewEntries);
-  registry->Register(GetCallSite);
+  registry->Register(GetCallSites);
   registry->Register(GetOwnNonIndexProperties);
   registry->Register(GetConstructorName);
   registry->Register(GetExternalValue);
@@ -451,7 +451,7 @@ void Initialize(Local<Object> target,
   SetMethodNoSideEffect(
       context, target, "getConstructorName", GetConstructorName);
   SetMethodNoSideEffect(context, target, "getExternalValue", GetExternalValue);
-  SetMethodNoSideEffect(context, target, "getCallSite", GetCallSite);
+  SetMethodNoSideEffect(context, target, "getCallSites", GetCallSites);
   SetMethod(context, target, "sleep", Sleep);
   SetMethod(context, target, "parseEnv", ParseEnv);
 
