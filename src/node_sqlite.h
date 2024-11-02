@@ -3,6 +3,8 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#define SQLITE_ENABLE_SESSION
+
 #include "base_object.h"
 #include "node_mem.h"
 #include "sqlite3.h"
@@ -56,6 +58,8 @@ class DatabaseSync : public BaseObject {
   static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Prepare(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Exec(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void CreateSession(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ApplyChangeset(const v8::FunctionCallbackInfo<v8::Value>& args);
   void FinalizeStatements();
   void UntrackStatement(StatementSync* statement);
   bool IsOpen();
@@ -66,11 +70,16 @@ class DatabaseSync : public BaseObject {
 
  private:
   bool Open();
+  void DeleteSessions();
 
   ~DatabaseSync() override;
   DatabaseOpenConfiguration open_config_;
   sqlite3* connection_;
+
+  std::set<sqlite3_session*> sessions_;
   std::unordered_set<StatementSync*> statements_;
+
+  friend class Session;
 };
 
 class StatementSync : public BaseObject {
@@ -111,6 +120,34 @@ class StatementSync : public BaseObject {
   bool BindValue(const v8::Local<v8::Value>& value, const int index);
   v8::MaybeLocal<v8::Value> ColumnToValue(const int column);
   v8::MaybeLocal<v8::Name> ColumnNameToName(const int column);
+};
+
+using Sqlite3ChangesetGenFunc = int (*)(sqlite3_session*, int*, void**);
+
+class Session : public BaseObject {
+ public:
+  Session(Environment* env,
+          v8::Local<v8::Object> object,
+          BaseObjectWeakPtr<DatabaseSync> database,
+          sqlite3_session* session);
+  ~Session() override;
+  template <Sqlite3ChangesetGenFunc sqliteChangesetFunc>
+  static void Changeset(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
+      Environment* env);
+  static BaseObjectPtr<Session> Create(Environment* env,
+                                       BaseObjectWeakPtr<DatabaseSync> database,
+                                       sqlite3_session* session);
+
+  SET_MEMORY_INFO_NAME(Session)
+  SET_SELF_SIZE(Session)
+
+ private:
+  void Delete();
+  sqlite3_session* session_;
+  BaseObjectWeakPtr<DatabaseSync> database_;  // The Parent Database
 };
 
 }  // namespace sqlite

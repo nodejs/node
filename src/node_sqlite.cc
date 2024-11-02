@@ -22,6 +22,7 @@ using v8::ConstructorBehavior;
 using v8::Context;
 using v8::DontDelete;
 using v8::Exception;
+using v8::Function;
 using v8::FunctionCallback;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -31,6 +32,7 @@ using v8::Local;
 using v8::LocalVector;
 using v8::MaybeLocal;
 using v8::Name;
+using v8::NewStringType;
 using v8::Null;
 using v8::Number;
 using v8::Object;
@@ -105,9 +107,19 @@ DatabaseSync::DatabaseSync(Environment* env,
   }
 }
 
+void DatabaseSync::DeleteSessions() {
+  // all attached sessions need to be deleted before the database is closed
+  // https://www.sqlite.org/session/sqlite3session_create.html
+  for (auto* session : sessions_) {
+    sqlite3session_delete(session);
+  }
+  sessions_.clear();
+}
+
 DatabaseSync::~DatabaseSync() {
   if (IsOpen()) {
     FinalizeStatements();
+    DeleteSessions();
     sqlite3_close_v2(connection_);
     connection_ = nullptr;
   }
@@ -290,6 +302,7 @@ void DatabaseSync::Close(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
   db->FinalizeStatements();
+  db->DeleteSessions();
   int r = sqlite3_close_v2(db->connection_);
   CHECK_ERROR_OR_THROW(env->isolate(), db->connection_, r, SQLITE_OK, void());
   db->connection_ = nullptr;
@@ -331,6 +344,175 @@ void DatabaseSync::Exec(const FunctionCallbackInfo<Value>& args) {
   node::Utf8Value sql(env->isolate(), args[0].As<String>());
   int r = sqlite3_exec(db->connection_, *sql, nullptr, nullptr, nullptr);
   CHECK_ERROR_OR_THROW(env->isolate(), db->connection_, r, SQLITE_OK, void());
+}
+
+void DatabaseSync::CreateSession(const FunctionCallbackInfo<Value>& args) {
+  std::string table;
+  std::string dbName = "main";
+
+  Environment* env = Environment::GetCurrent(args);
+  if (args.Length() > 0) {
+    if (!args[0]->IsObject()) {
+      node::THROW_ERR_INVALID_ARG_TYPE(
+          env->isolate(), "The \"options\" argument must be an object.");
+      return;
+    }
+
+    Local<Object> options = args[0].As<Object>();
+
+    Local<String> table_key =
+        String::NewFromUtf8(env->isolate(), "table", NewStringType::kNormal)
+            .ToLocalChecked();
+    if (options->HasOwnProperty(env->context(), table_key).FromJust()) {
+      Local<Value> table_value =
+          options->Get(env->context(), table_key).ToLocalChecked();
+
+      if (table_value->IsString()) {
+        String::Utf8Value str(env->isolate(), table_value);
+        table = std::string(*str);
+      } else {
+        node::THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(), "The \"options.table\" argument must be a string.");
+        return;
+      }
+    }
+
+    Local<String> db_key =
+        String::NewFromUtf8(env->isolate(), "db", NewStringType::kNormal)
+            .ToLocalChecked();
+    if (options->HasOwnProperty(env->context(), db_key).FromJust()) {
+      Local<Value> db_value =
+          options->Get(env->context(), db_key).ToLocalChecked();
+      if (db_value->IsString()) {
+        String::Utf8Value str(env->isolate(), db_value);
+        dbName = std::string(*str);
+      } else {
+        node::THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(), "The \"options.db\" argument must be a string.");
+        return;
+      }
+    }
+  }
+
+  DatabaseSync* db;
+  ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
+  THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
+
+  sqlite3_session* pSession;
+  int r = sqlite3session_create(db->connection_, dbName.c_str(), &pSession);
+  CHECK_ERROR_OR_THROW(env->isolate(), db->connection_, r, SQLITE_OK, void());
+  db->sessions_.insert(pSession);
+
+  r = sqlite3session_attach(pSession, table == "" ? nullptr : table.c_str());
+  CHECK_ERROR_OR_THROW(env->isolate(), db->connection_, r, SQLITE_OK, void());
+
+  BaseObjectPtr<Session> session =
+      Session::Create(env, BaseObjectWeakPtr<DatabaseSync>(db), pSession);
+  args.GetReturnValue().Set(session->object());
+}
+
+static std::function<int()> conflictCallback;
+
+static int xConflict(void* pCtx, int eConflict, sqlite3_changeset_iter* pIter) {
+  if (!conflictCallback) return SQLITE_CHANGESET_ABORT;
+  return conflictCallback();
+}
+
+static std::function<bool(std::string)> filterCallback;
+
+static int xFilter(void* pCtx, const char* zTab) {
+  if (!filterCallback) return 1;
+
+  return filterCallback(zTab) ? 1 : 0;
+}
+
+void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
+  conflictCallback = nullptr;
+  filterCallback = nullptr;
+
+  DatabaseSync* db;
+  ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
+
+  if (!args[0]->IsUint8Array()) {
+    node::THROW_ERR_INVALID_ARG_TYPE(
+        env->isolate(), "The \"changeset\" argument must be a Uint8Array.");
+    return;
+  }
+
+  if (args.Length() > 1 && !args[1]->IsUndefined()) {
+    if (!args[1]->IsObject()) {
+      node::THROW_ERR_INVALID_ARG_TYPE(
+          env->isolate(), "The \"options\" argument must be an object.");
+      return;
+    }
+
+    Local<Object> options = args[1].As<Object>();
+
+    Local<String> conflictKey =
+        String::NewFromUtf8(
+            env->isolate(), "onConflict", NewStringType::kNormal)
+            .ToLocalChecked();
+    if (options->HasOwnProperty(env->context(), conflictKey).FromJust()) {
+      Local<Value> conflictValue =
+          options->Get(env->context(), conflictKey).ToLocalChecked();
+
+      if (!conflictValue->IsNumber()) {
+        node::THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            "The \"options.onConflict\" argument must be a number.");
+        return;
+      }
+
+      int conflictInt = conflictValue->Int32Value(env->context()).FromJust();
+      conflictCallback = [conflictInt]() -> int { return conflictInt; };
+    }
+
+    Local<String> filterKey =
+        String::NewFromUtf8(env->isolate(), "filter", NewStringType::kNormal)
+            .ToLocalChecked();
+
+    if (options->HasOwnProperty(env->context(), filterKey).FromJust()) {
+      Local<Value> filterValue =
+          options->Get(env->context(), filterKey).ToLocalChecked();
+
+      if (!filterValue->IsFunction()) {
+        node::THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            "The \"options.filter\" argument must be a function.");
+        return;
+      }
+
+      Local<Function> filterFunc = filterValue.As<Function>();
+
+      filterCallback = [env, filterFunc](std::string item) -> bool {
+        Local<Value> argv[] = {String::NewFromUtf8(env->isolate(),
+                                                   item.c_str(),
+                                                   NewStringType::kNormal)
+                                   .ToLocalChecked()};
+        Local<Value> result =
+            filterFunc->Call(env->context(), Null(env->isolate()), 1, argv)
+                .ToLocalChecked();
+        return result->BooleanValue(env->isolate());
+      };
+    }
+  }
+
+  ArrayBufferViewContents<uint8_t> buf(args[0]);
+  int r = sqlite3changeset_apply(
+      db->connection_,
+      buf.length(),
+      const_cast<void*>(static_cast<const void*>(buf.data())),
+      xFilter,
+      xConflict,
+      nullptr);
+  if (r == SQLITE_ABORT) {
+    args.GetReturnValue().Set(false);
+    return;
+  }
+  CHECK_ERROR_OR_THROW(env->isolate(), db->connection_, r, SQLITE_OK, void());
+  args.GetReturnValue().Set(true);
 }
 
 StatementSync::StatementSync(Environment* env,
@@ -575,32 +757,23 @@ void StatementSync::All(const FunctionCallbackInfo<Value>& args) {
   auto reset = OnScopeLeave([&]() { sqlite3_reset(stmt->statement_); });
   int num_cols = sqlite3_column_count(stmt->statement_);
   LocalVector<Value> rows(isolate);
-  LocalVector<Name> row_keys(isolate);
   while ((r = sqlite3_step(stmt->statement_)) == SQLITE_ROW) {
-    if (row_keys.size() == 0) {
-      row_keys.reserve(num_cols);
-
-      for (int i = 0; i < num_cols; ++i) {
-        Local<Name> key;
-        if (!stmt->ColumnNameToName(i).ToLocal(&key)) return;
-        row_keys.emplace_back(key);
-      }
-    }
-
+    LocalVector<Name> row_keys(isolate);
+    row_keys.reserve(num_cols);
     LocalVector<Value> row_values(isolate);
     row_values.reserve(num_cols);
 
-    for (size_t i = 0; i < row_keys.size(); ++i) {
+    for (int i = 0; i < num_cols; ++i) {
+      Local<Name> key;
+      if (!stmt->ColumnNameToName(i).ToLocal(&key)) return;
       Local<Value> val;
       if (!stmt->ColumnToValue(i).ToLocal(&val)) return;
+      row_keys.emplace_back(key);
       row_values.emplace_back(val);
     }
 
-    Local<Object> row = Object::New(isolate,
-                                    Null(isolate),
-                                    row_keys.data(),
-                                    row_values.data(),
-                                    row_keys.size());
+    Local<Object> row = Object::New(
+        isolate, Null(isolate), row_keys.data(), row_values.data(), num_cols);
     rows.emplace_back(row);
   }
 
@@ -843,6 +1016,100 @@ BaseObjectPtr<StatementSync> StatementSync::Create(Environment* env,
   return MakeBaseObject<StatementSync>(env, obj, db, stmt);
 }
 
+Session::Session(Environment* env,
+                 Local<Object> object,
+                 BaseObjectWeakPtr<DatabaseSync> database,
+                 sqlite3_session* session)
+    : BaseObject(env, object),
+      session_(session),
+      database_(std::move(database)) {
+  MakeWeak();
+}
+
+Session::~Session() {
+  Delete();
+}
+
+BaseObjectPtr<Session> Session::Create(Environment* env,
+                                       BaseObjectWeakPtr<DatabaseSync> database,
+                                       sqlite3_session* session) {
+  Local<Object> obj;
+  if (!GetConstructorTemplate(env)
+           ->InstanceTemplate()
+           ->NewInstance(env->context())
+           .ToLocal(&obj)) {
+    return BaseObjectPtr<Session>();
+  }
+
+  return MakeBaseObject<Session>(env, obj, std::move(database), session);
+}
+
+Local<FunctionTemplate> Session::GetConstructorTemplate(Environment* env) {
+  Local<FunctionTemplate> tmpl = env->sqlite_session_constructor_template();
+  if (tmpl.IsEmpty()) {
+    Isolate* isolate = env->isolate();
+    tmpl = NewFunctionTemplate(isolate, IllegalConstructor);
+    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "Session"));
+    tmpl->InstanceTemplate()->SetInternalFieldCount(
+        Session::kInternalFieldCount);
+    SetProtoMethod(isolate,
+                   tmpl,
+                   "changeset",
+                   Session::Changeset<sqlite3session_changeset>);
+    SetProtoMethod(
+        isolate, tmpl, "patchset", Session::Changeset<sqlite3session_patchset>);
+    SetProtoMethod(isolate, tmpl, "close", Session::Close);
+    env->set_sqlite_session_constructor_template(tmpl);
+  }
+  return tmpl;
+}
+
+void Session::MemoryInfo(MemoryTracker* tracker) const {}
+
+template <Sqlite3ChangesetGenFunc sqliteChangesetFunc>
+void Session::Changeset(const FunctionCallbackInfo<Value>& args) {
+  Session* session;
+  ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  sqlite3* db = session->database_ ? session->database_->connection_ : nullptr;
+  THROW_AND_RETURN_ON_BAD_STATE(
+      env, !session->database_->IsOpen(), "database is not open");
+  THROW_AND_RETURN_ON_BAD_STATE(
+      env, session->session_ == nullptr, "session is not open");
+
+  int nChangeset;
+  void* pChangeset;
+  int r = sqliteChangesetFunc(session->session_, &nChangeset, &pChangeset);
+  CHECK_ERROR_OR_THROW(env->isolate(), db, r, SQLITE_OK, void());
+
+  auto freeChangeset = OnScopeLeave([&] { sqlite3_free(pChangeset); });
+
+  Local<ArrayBuffer> buffer = ArrayBuffer::New(env->isolate(), nChangeset);
+  std::memcpy(buffer->GetBackingStore()->Data(), pChangeset, nChangeset);
+  Local<Uint8Array> uint8Array = Uint8Array::New(buffer, 0, nChangeset);
+
+  args.GetReturnValue().Set(uint8Array);
+}
+
+void Session::Close(const FunctionCallbackInfo<Value>& args) {
+  Session* session;
+  ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_ON_BAD_STATE(
+      env, !session->database_->IsOpen(), "database is not open");
+  THROW_AND_RETURN_ON_BAD_STATE(
+      env, session->session_ == nullptr, "session is not open");
+
+  session->Delete();
+}
+
+void Session::Delete() {
+  if (!database_ || !database_->connection_ || session_ == nullptr) return;
+  sqlite3session_delete(session_);
+  database_->sessions_.erase(session_);
+  session_ = nullptr;
+}
+
 static void Initialize(Local<Object> target,
                        Local<Value> unused,
                        Local<Context> context,
@@ -858,11 +1125,19 @@ static void Initialize(Local<Object> target,
   SetProtoMethod(isolate, db_tmpl, "close", DatabaseSync::Close);
   SetProtoMethod(isolate, db_tmpl, "prepare", DatabaseSync::Prepare);
   SetProtoMethod(isolate, db_tmpl, "exec", DatabaseSync::Exec);
+  SetProtoMethod(
+      isolate, db_tmpl, "createSession", DatabaseSync::CreateSession);
+  SetProtoMethod(
+      isolate, db_tmpl, "applyChangeset", DatabaseSync::ApplyChangeset);
   SetConstructorFunction(context, target, "DatabaseSync", db_tmpl);
   SetConstructorFunction(context,
                          target,
                          "StatementSync",
                          StatementSync::GetConstructorTemplate(env));
+
+  NODE_DEFINE_CONSTANT(target, SQLITE_CHANGESET_OMIT);
+  NODE_DEFINE_CONSTANT(target, SQLITE_CHANGESET_REPLACE);
+  NODE_DEFINE_CONSTANT(target, SQLITE_CHANGESET_ABORT);
 }
 
 }  // namespace sqlite

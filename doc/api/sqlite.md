@@ -164,6 +164,74 @@ added: v22.5.0
 Compiles a SQL statement into a [prepared statement][]. This method is a wrapper
 around [`sqlite3_prepare_v2()`][].
 
+### `database.createSession([options])`
+
+* `options` {Object} An optional object used to configure the session.
+  * `table` {string} When provided, only changes to this table are tracked by the created session.
+    By default, changes to all tables are tracked.
+  * `db` {string} Name of the database to track. Default: `'main'`.
+* Returns: {Session} A session handle.
+
+Creates and attaches a session to the database. This method is a wrapper around [`sqlite3session_create()`][] and [`sqlite3session_attach()`][].
+
+### `database.applyChangeset(changeset[, options])`
+
+* `changeset` {Uint8Array} A binary changeset or patchset.
+* `options` {Object} An optional object to configure how changes are applied.
+  * `filter` {Function} Optional function. Skips changes when a truthy value is returned from it.
+    Takes the name of the table that a change targets as first argument. When this option is not
+    provided all changes are attempted.
+  * `onConflict` {number} Determines how conflicts are handled. When provided, must be one of the values below:
+    * `SQLITE_CHANGESET_OMIT`: conflicting changes are omitted.
+    * `SQLITE_CHANGESET_REPLACE`: conflicting changes replace existing values.
+    * `SQLITE_CHANGESET_ABORT`: abort on conflict and roll back databsase (default).
+* Returns: {boolean} Whether the changeset was applied succesfully without being aborted.
+
+An exception is thrown if the database is not
+open. This method is a wrapper around [`sqlite3changeset_apply()`][].
+
+Example usage is demonstrated below.
+
+```js
+const database1 = new DatabaseSync(':memory:');
+const database2 = new DatabaseSync(':memory:');
+
+database1.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, value TEXT)');
+database2.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, value TEXT)');
+
+const session = database1.createSession();
+
+const insert = database1.prepare('INSERT INTO data (key, value) VALUES (?, ?)');
+insert.run(1, 'hello');
+insert.run(2, 'world');
+
+const changeset = session.changeset();
+database2.applyChangeset(changeset);
+// Now database2 contains the same data as database1
+```
+
+## Class: `Session`
+
+### `session.changeset()`
+
+* Returns: {Uint8Array} Binary changeset that can be applied to other databases.
+
+Retrieves a changeset containing all changes since the changeset was created. Can be called multiple times.
+An exception is thrown if the database or the session is not open. This method is a wrapper around [`sqlite3session_changeset()`][].
+
+### `session.patchset()`
+
+* Returns: {Uint8Array} Binary patchset that can be applied to other databases.
+
+Similar to the method above, but generates a more compact patchset. See [Changesets and Patchsets][]
+in the documentation of SQLite. An exception is thrown if the database or the session is not open. This method is a
+wrapper around [`sqlite3session_patchset()`][].
+
+### `session.close()`.
+
+Closes the session. An exception is thrown if the database or the session is not open. This method is a
+wrapper around [`sqlite3session_delete()`][].
+
 ## Class: `StatementSync`
 
 <!-- YAML
@@ -326,6 +394,7 @@ exception.
 | `TEXT`    | {string}             |
 | `BLOB`    | {Uint8Array}         |
 
+[Changesets and Patchsets]: https://www.sqlite.org/sessionintro.html#changesets_and_patchsets
 [SQL injection]: https://en.wikipedia.org/wiki/SQL_injection
 [`--experimental-sqlite`]: cli.md#--experimental-sqlite
 [`PRAGMA foreign_keys`]: https://www.sqlite.org/pragma.html#pragma_foreign_keys
@@ -336,6 +405,12 @@ exception.
 [`sqlite3_last_insert_rowid()`]: https://www.sqlite.org/c3ref/last_insert_rowid.html
 [`sqlite3_prepare_v2()`]: https://www.sqlite.org/c3ref/prepare.html
 [`sqlite3_sql()`]: https://www.sqlite.org/c3ref/expanded_sql.html
+[`sqlite3changeset_apply()`]: https://www.sqlite.org/session/sqlite3changeset_apply.html
+[`sqlite3session_attach()`]: https://www.sqlite.org/session/sqlite3session_attach.html
+[`sqlite3session_changeset()`]: https://www.sqlite.org/session/sqlite3session_changeset.html
+[`sqlite3session_create()`]: https://www.sqlite.org/session/sqlite3session_create.html
+[`sqlite3session_delete()`]: https://www.sqlite.org/session/sqlite3session_delete.html
+[`sqlite3session_patchset()`]: https://www.sqlite.org/session/sqlite3session_patchset.html
 [connection]: https://www.sqlite.org/c3ref/sqlite3.html
 [data types]: https://www.sqlite.org/datatype3.html
 [double-quoted string literals]: https://www.sqlite.org/quirks.html#dblquote
