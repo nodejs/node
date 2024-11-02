@@ -171,7 +171,7 @@ suite('session extension', () => {
     });
   });
 
-  test('database1.createSession() - use table option to track specific table', (t) => {
+  test('database.createSession() - use table option to track specific table', (t) => {
     const database1 = new DatabaseSync(':memory:');
     const database2 = new DatabaseSync(':memory:');
 
