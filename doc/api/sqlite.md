@@ -177,7 +177,7 @@ Creates and attaches a session to the database. This method is a wrapper around 
 ### `database.applyChangeset(changeset[, options])`
 
 * `changeset` {Uint8Array} A binary changeset or patchset.
-* `options` {Object} An optional object to configure how changes are applied.
+* `options` {Object} The configuration options for how the changes will be applied.
   * `filter` {Function} Skip changes that, when targeted table name is supplied to this function, return a truthy value. By default, all changes are attempted.
   * `onConflict` {number} Determines how conflicts are handled. **Default**: `SQLITE_CHANGESET_ABORT`.
     * `SQLITE_CHANGESET_OMIT`: conflicting changes are omitted.
