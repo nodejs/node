@@ -908,6 +908,22 @@ void KeyObjectHandle::InitECRaw(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(true);
 }
 
+int GetOKPCurveFromName(const char* name) {
+  int nid;
+  if (strcmp(name, "Ed25519") == 0) {
+    nid = EVP_PKEY_ED25519;
+  } else if (strcmp(name, "Ed448") == 0) {
+    nid = EVP_PKEY_ED448;
+  } else if (strcmp(name, "X25519") == 0) {
+    nid = EVP_PKEY_X25519;
+  } else if (strcmp(name, "X448") == 0) {
+    nid = EVP_PKEY_X448;
+  } else {
+    nid = NID_undef;
+  }
+  return nid;
+}
+
 void KeyObjectHandle::InitEDRaw(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   KeyObjectHandle* key;
