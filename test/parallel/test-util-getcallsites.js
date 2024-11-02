@@ -3,68 +3,68 @@
 const common = require('../common');
 
 const fixtures = require('../common/fixtures');
-const file = fixtures.path('get-call-site.js');
+const file = fixtures.path('get-call-sites.js');
 
-const { getCallSite } = require('node:util');
+const { getCallSites } = require('node:util');
 const { spawnSync } = require('node:child_process');
 const assert = require('node:assert');
 
 {
-  const callsite = getCallSite();
-  assert.ok(callsite.length > 1);
+  const callSites = getCallSites();
+  assert.ok(callSites.length > 1);
   assert.match(
-    callsite[0].scriptName,
-    /test-util-getCallSite/,
+    callSites[0].scriptName,
+    /test-util-getcallsites/,
     'node:util should be ignored',
   );
 }
 
 {
-  const callsite = getCallSite(3);
-  assert.strictEqual(callsite.length, 3);
+  const callSites = getCallSites(3);
+  assert.strictEqual(callSites.length, 3);
   assert.match(
-    callsite[0].scriptName,
-    /test-util-getCallSite/,
+    callSites[0].scriptName,
+    /test-util-getcallsites/,
     'node:util should be ignored',
   );
 }
 
 // Guarantee dot-left numbers are ignored
 {
-  const callsite = getCallSite(3.6);
-  assert.strictEqual(callsite.length, 3);
+  const callSites = getCallSites(3.6);
+  assert.strictEqual(callSites.length, 3);
 }
 
 {
-  const callsite = getCallSite(3.4);
-  assert.strictEqual(callsite.length, 3);
+  const callSites = getCallSites(3.4);
+  assert.strictEqual(callSites.length, 3);
 }
 
 {
   assert.throws(() => {
     // Max than kDefaultMaxCallStackSizeToCapture
-    getCallSite(201);
+    getCallSites(201);
   }, common.expectsError({
     code: 'ERR_OUT_OF_RANGE'
   }));
   assert.throws(() => {
-    getCallSite(-1);
+    getCallSites(-1);
   }, common.expectsError({
     code: 'ERR_OUT_OF_RANGE'
   }));
   assert.throws(() => {
-    getCallSite({});
+    getCallSites({});
   }, common.expectsError({
     code: 'ERR_INVALID_ARG_TYPE'
   }));
 }
 
 {
-  const callsite = getCallSite(1);
-  assert.strictEqual(callsite.length, 1);
+  const callSites = getCallSites(1);
+  assert.strictEqual(callSites.length, 1);
   assert.match(
-    callsite[0].scriptName,
-    /test-util-getCallSite/,
+    callSites[0].scriptName,
+    /test-util-getcallsites/,
     'node:util should be ignored',
   );
 }
@@ -77,8 +77,8 @@ const assert = require('node:assert');
       '-e',
       `const util = require('util');
        const assert = require('assert');
-       assert.ok(util.getCallSite().length > 1);
-       process.stdout.write(util.getCallSite()[0].scriptName);
+       assert.ok(util.getCallSites().length > 1);
+       process.stdout.write(util.getCallSites()[0].scriptName);
       `,
     ],
   );
@@ -100,7 +100,7 @@ const assert = require('node:assert');
 {
   const originalStackTraceLimit = Error.stackTraceLimit;
   Error.stackTraceLimit = 0;
-  const callsite = getCallSite();
-  assert.notStrictEqual(callsite.length, 0);
+  const callSites = getCallSites();
+  assert.notStrictEqual(callSites.length, 0);
   Error.stackTraceLimit = originalStackTraceLimit;
 }
