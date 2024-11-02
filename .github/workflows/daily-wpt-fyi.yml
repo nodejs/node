@@ -27,7 +27,7 @@ jobs:
     steps:
       - id: query
         run: |
-          matrix=$(curl -s https://raw.githubusercontent.com/nodejs/Release/refs/heads/main/schedule.json | jq --arg now "$(date +%Y-%m-%d)" '[with_entries(select(.value.end > $now and .value.start < $now)) | keys[] | ltrimstr("v") | tonumber] + ["latest-nightly"]')
+          matrix=$(curl -s https://raw.githubusercontent.com/nodejs/Release/refs/heads/main/schedule.json | jq -c --arg now "$(date +%Y-%m-%d)" '[with_entries(select(.value.end > $now and .value.start < $now)) | keys[] | ltrimstr("v") | tonumber] + ["latest-nightly"]')
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
   report:
     needs:
