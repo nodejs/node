@@ -360,9 +360,7 @@ void DatabaseSync::CreateSession(const FunctionCallbackInfo<Value>& args) {
 
     Local<Object> options = args[0].As<Object>();
 
-    Local<String> table_key =
-        String::NewFromUtf8(env->isolate(), "table", NewStringType::kNormal)
-            .ToLocalChecked();
+    Local<String> table_key = FIXED_ONE_BYTE_STRING(env->isolate(), "table");
     if (options->HasOwnProperty(env->context(), table_key).FromJust()) {
       Local<Value> table_value =
           options->Get(env->context(), table_key).ToLocalChecked();
