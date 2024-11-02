@@ -1343,8 +1343,7 @@ void GetCLIOptionsValues(const FunctionCallbackInfo<Value>& args) {
         break;
       case kDetailedStringList: {
         const std::vector<DetailedOption>& detailed_options =
-            *_ppop_instance.Lookup<std::vector<DetailedOption>>(
-                field, opts);
+            *_ppop_instance.Lookup<std::vector<DetailedOption>>(field, opts);
         v8::Local<v8::Array> value_arr =
             v8::Array::New(isolate, detailed_options.size());
         for (size_t i = 0; i < detailed_options.size(); ++i) {

@@ -103,8 +103,7 @@ void OptionsParser<Options>::AddOption(
       name,
       OptionInfo{
           kDetailedStringList,
-          std::make_shared<
-              SimpleOptionField<std::vector<DetailedOption>>>(
+          std::make_shared<SimpleOptionField<std::vector<DetailedOption>>>(
               field),
           env_setting,
           help_text});
