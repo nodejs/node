@@ -166,7 +166,7 @@ around [`sqlite3_prepare_v2()`][].
 
 ### `database.createSession([options])`
 
-* `options` {Object} An optional object used to configure the session.
+* `options` {Object} The configuration options for the session.
   * `table` {string} When provided, only changes to this table are tracked by the created session.
     By default, changes to all tables are tracked.
   * `db` {string} Name of the database to track. **Default**: `'main'`.
