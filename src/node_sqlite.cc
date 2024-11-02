@@ -411,6 +411,8 @@ void DatabaseSync::CreateSession(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(session->object());
 }
 
+// the reason for using static functions here is that SQLite needs a
+// function pointer
 static std::function<int()> conflictCallback;
 
 static int xConflict(void* pCtx, int eConflict, sqlite3_changeset_iter* pIter) {
