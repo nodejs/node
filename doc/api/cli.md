@@ -2058,6 +2058,15 @@ Enables report to be generated upon receiving the specified (or predefined)
 signal to the running Node.js process. The signal to trigger the report is
 specified through `--report-signal`.
 
+### `--report-preserve-env`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+When `--report-preserve-env` is passed the diagnostic report generated will not
+contain the `environmentVariables` data.
+
 ### `--report-signal=signal`
 
 <!-- YAML

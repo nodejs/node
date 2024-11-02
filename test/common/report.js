@@ -59,7 +59,11 @@ function _validateContent(report, fields = []) {
 
   // Verify that all sections are present as own properties of the report.
   const sections = ['header', 'nativeStack', 'javascriptStack', 'libuv',
-                    'environmentVariables', 'sharedObjects', 'resourceUsage', 'workers'];
+                    'sharedObjects', 'resourceUsage', 'workers'];
+
+  if (!process.report.preserveEnv)
+    sections.push('environmentVariables');
+
   if (!isWindows)
     sections.push('userLimits');
 

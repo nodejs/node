@@ -78,6 +78,7 @@ static void PrintJavaScriptErrorProperties(JSONWriter* writer,
 static void PrintNativeStack(JSONWriter* writer);
 static void PrintResourceUsage(JSONWriter* writer);
 static void PrintGCStatistics(JSONWriter* writer, Isolate* isolate);
+static void PrintEnvironmentVariables(JSONWriter* writer);
 static void PrintSystemInformation(JSONWriter* writer);
 static void PrintLoadedLibraries(JSONWriter* writer);
 static void PrintComponentVersions(JSONWriter* writer);
@@ -249,6 +250,9 @@ static void WriteNodeReport(Isolate* isolate,
   writer.json_arrayend();
 
   // Report operating system information
+  if (env->ShouldPreserveEnvOnReport()) {
+    PrintEnvironmentVariables(&writer);
+  }
   PrintSystemInformation(&writer);
 
   writer.json_objectend();
@@ -694,8 +698,7 @@ static void PrintResourceUsage(JSONWriter* writer) {
 #endif  // RUSAGE_THREAD
 }
 
-// Report operating system information.
-static void PrintSystemInformation(JSONWriter* writer) {
+static void PrintEnvironmentVariables(JSONWriter* writer) {
   uv_env_item_t* envitems;
   int envcount;
   int r;
@@ -715,7 +718,10 @@ static void PrintSystemInformation(JSONWriter* writer) {
   }
 
   writer->json_objectend();
+}
 
+// Report operating system information.
+static void PrintSystemInformation(JSONWriter* writer) {
 #ifndef _WIN32
   static struct {
     const char* description;

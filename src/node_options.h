@@ -177,6 +177,7 @@ class EnvironmentOptions : public Options {
 #endif  // HAVE_INSPECTOR
   std::string redirect_warnings;
   std::string diagnostic_dir;
+  bool report_preserve_env = false;
   std::string env_file;
   std::string optional_env_file;
   bool has_env_file_string = false;

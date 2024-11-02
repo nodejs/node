@@ -904,6 +904,10 @@ inline void Environment::RemoveHeapSnapshotNearHeapLimitCallback(
                                         heap_limit);
 }
 
+inline bool Environment::ShouldPreserveEnvOnReport() const {
+  return options_->report_preserve_env;
+}
+
 inline void Environment::SetAsyncResourceContextFrame(
     std::uintptr_t async_resource_handle,
     v8::Global<v8::Value>&& context_frame) {

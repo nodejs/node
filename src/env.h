@@ -1048,6 +1048,8 @@ class Environment final : public MemoryRetainer {
 
   inline void RemoveHeapSnapshotNearHeapLimitCallback(size_t heap_limit);
 
+  inline bool ShouldPreserveEnvOnReport() const;
+
   // Field identifiers for exit_info_
   enum ExitInfoField {
     kExiting = 0,
