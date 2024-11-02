@@ -97,7 +97,11 @@ test('test coverage report', async (t) => {
 test('test tap coverage reporter', skipIfNoInspector, async (t) => {
   await t.test('coverage is reported and dumped to NODE_V8_COVERAGE if present', (t) => {
     const fixture = fixtures.path('test-runner', 'coverage.js');
-    const args = ['--experimental-test-coverage', '--test-reporter', 'tap', fixture];
+    const args = [
+      '--experimental-test-coverage',
+      '--no-warnings', '--test-coverage-include=**',
+      '--test-reporter', 'tap', fixture,
+    ];
     const options = { env: { ...process.env, NODE_V8_COVERAGE: tmpdir.path } };
     const result = spawnSync(process.execPath, args, options);
     const report = getTapCoverageFixtureReport();
@@ -109,7 +113,11 @@ test('test tap coverage reporter', skipIfNoInspector, async (t) => {
 
   await t.test('coverage is reported without NODE_V8_COVERAGE present', (t) => {
     const fixture = fixtures.path('test-runner', 'coverage.js');
-    const args = ['--experimental-test-coverage', '--test-reporter', 'tap', fixture];
+    const args = [
+      '--experimental-test-coverage',
+      '--no-warnings', '--test-coverage-include=**',
+      '--test-reporter', 'tap', fixture,
+    ];
     const result = spawnSync(process.execPath, args);
     const report = getTapCoverageFixtureReport();
 
@@ -123,7 +131,11 @@ test('test tap coverage reporter', skipIfNoInspector, async (t) => {
 test('test spec coverage reporter', skipIfNoInspector, async (t) => {
   await t.test('coverage is reported and dumped to NODE_V8_COVERAGE if present', (t) => {
     const fixture = fixtures.path('test-runner', 'coverage.js');
-    const args = ['--experimental-test-coverage', '--test-reporter', 'spec', fixture];
+    const args = [
+      '--experimental-test-coverage',
+      '--no-warnings', '--test-coverage-include=**',
+      '--test-reporter', 'spec', fixture,
+    ];
     const options = { env: { ...process.env, NODE_V8_COVERAGE: tmpdir.path } };
     const result = spawnSync(process.execPath, args, options);
     const report = getSpecCoverageFixtureReport();
@@ -136,7 +148,11 @@ test('test spec coverage reporter', skipIfNoInspector, async (t) => {
 
   await t.test('coverage is reported without NODE_V8_COVERAGE present', (t) => {
     const fixture = fixtures.path('test-runner', 'coverage.js');
-    const args = ['--experimental-test-coverage', '--test-reporter', 'spec', fixture];
+    const args = [
+      '--experimental-test-coverage',
+      '--no-warnings', '--test-coverage-include=**',
+      '--test-reporter', 'spec', fixture,
+    ];
     const result = spawnSync(process.execPath, args);
     const report = getSpecCoverageFixtureReport();
 
@@ -150,7 +166,9 @@ test('test spec coverage reporter', skipIfNoInspector, async (t) => {
 test('single process coverage is the same with --test', skipIfNoInspector, () => {
   const fixture = fixtures.path('test-runner', 'coverage.js');
   const args = [
-    '--test', '--experimental-test-coverage', '--test-reporter', 'tap', fixture,
+    '--test', '--experimental-test-coverage',
+    '--no-warnings', '--test-coverage-include=**',
+    '--test-reporter', 'tap', fixture,
   ];
   const result = spawnSync(process.execPath, args);
   const report = getTapCoverageFixtureReport();
@@ -183,7 +201,7 @@ test('coverage is combined for multiple processes', skipIfNoInspector, () => {
 
   const fixture = fixtures.path('v8-coverage', 'combined_coverage');
   const args = [
-    '--test', '--experimental-test-coverage', '--test-reporter', 'tap',
+    '--test', '--experimental-test-coverage', '--no-warnings', '--test-coverage-include=**', '--test-reporter', 'tap',
   ];
   const result = spawnSync(process.execPath, args, {
     env: { ...process.env, NODE_TEST_TMPDIR: tmpdir.path },
@@ -236,7 +254,8 @@ test.skip('coverage works with isolation=none', skipIfNoInspector, () => {
 test('coverage reports on lines, functions, and branches', skipIfNoInspector, async (t) => {
   const fixture = fixtures.path('test-runner', 'coverage.js');
   const child = spawnSync(process.execPath,
-                          ['--test', '--experimental-test-coverage', '--test-reporter',
+                          ['--test', '--experimental-test-coverage',
+                           '--no-warnings', '--test-coverage-include=**', '--test-reporter',
                            fixtures.fileURL('test-runner/custom_reporters/coverage.mjs'),
                            fixture]);
   assert.strictEqual(child.stderr.toString(), '');
@@ -297,7 +316,6 @@ test('coverage with ESM hook - source irrelevant', skipIfNoInspector, () => {
     '# ------------------------------------------------------------------',
     '# hooks.mjs         | 100.00 |   100.00 |  100.00 | ',
     '# register-hooks.js | 100.00 |   100.00 |  100.00 | ',
-    '# virtual.js        | 100.00 |   100.00 |  100.00 | ',
     '# ------------------------------------------------------------------',
     '# all files         | 100.00 |   100.00 |  100.00 | ',
     '# ------------------------------------------------------------------',
@@ -327,7 +345,6 @@ test('coverage with ESM hook - source transpiled', skipIfNoInspector, () => {
     '# ------------------------------------------------------------------',
     '# hooks.mjs         | 100.00 |   100.00 |  100.00 | ',
     '# register-hooks.js | 100.00 |   100.00 |  100.00 | ',
-    '# sum.test.ts       | 100.00 |   100.00 |  100.00 | ',
     '# sum.ts            | 100.00 |   100.00 |  100.00 | ',
     '# ------------------------------------------------------------------',
     '# all files         | 100.00 |   100.00 |  100.00 | ',
@@ -384,7 +401,38 @@ test('coverage with excluded files', skipIfNoInspector, () => {
   assert.strictEqual(result.status, 0);
   assert(!findCoverageFileForPid(result.pid));
 });
+test('coverage should not include test files by default', skipIfNoInspector, () => {
+  const fixture = fixtures.path('test-runner', 'coverage.js');
+  const args = [
+    '--experimental-test-coverage', '--test-reporter', 'tap',
+    fixture,
+  ];
+  const result = spawnSync(process.execPath, args);
+  const report = [
+    '# start of coverage report',
+    '# ---------------------------------------------------------------',
+    '# file           | line % | branch % | funcs % | uncovered lines',
+    '# ---------------------------------------------------------------',
+    '# test           |        |          |         | ',
+    '#  fixtures      |        |          |         | ',
+    '#   test-runner  |        |          |         | ',
+    '#   v8-coverage  |        |          |         | ',
+    '#    throw.js    |  71.43 |    50.00 |  100.00 | 5-6',
+    '# ---------------------------------------------------------------',
+    '# all files      |  78.13 |    40.00 |   60.00 | ',
+    '# ---------------------------------------------------------------',
+    '# end of coverage report',
+  ].join('\n');
 
+
+  if (common.isWindows) {
+    return report.replaceAll('/', '\\');
+  }
+
+  assert(result.stdout.toString().includes(report));
+  assert.strictEqual(result.status, 0);
+  assert(!findCoverageFileForPid(result.pid));
+});
 test('coverage with included files', skipIfNoInspector, () => {
   const fixture = fixtures.path('test-runner', 'coverage.js');
   const args = [
@@ -458,18 +506,17 @@ test('coverage with included and excluded files', skipIfNoInspector, () => {
 test('correctly prints the coverage report of files contained in parent directories', skipIfNoInspector, () => {
   let report = [
     '# start of coverage report',
-    '# --------------------------------------------------------------------------------------------',
+    '# ------------------------------------------------------------------',
     '# file              | line % | branch % | funcs % | uncovered lines',
-    '# --------------------------------------------------------------------------------------------',
+    '# ------------------------------------------------------------------',
     '# ..                |        |          |         | ',
-    '#  coverage.js      |  78.65 |    38.46 |   60.00 | 12-13 16-22 27 39 43-44 61-62 66-67 71-72',
     '#  invalid-tap.js   | 100.00 |   100.00 |  100.00 | ',
     '#  ..               |        |          |         | ',
     '#   v8-coverage     |        |          |         | ',
     '#    throw.js       |  71.43 |    50.00 |  100.00 | 5-6',
-    '# --------------------------------------------------------------------------------------------',
-    '# all files         |  78.35 |    43.75 |   60.00 | ',
-    '# --------------------------------------------------------------------------------------------',
+    '# ------------------------------------------------------------------',
+    '# all files         |  75.00 |    66.67 |  100.00 | ',
+    '# ------------------------------------------------------------------',
     '# end of coverage report',
   ].join('\n');
 

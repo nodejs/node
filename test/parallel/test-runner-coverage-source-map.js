@@ -20,6 +20,7 @@ function generateReport(report) {
 
 const flags = [
   '--enable-source-maps',
+  '--no-warnings', '--test-coverage-include=**',
   '--test', '--experimental-test-coverage', '--test-reporter', 'tap',
 ];
 

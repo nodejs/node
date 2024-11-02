@@ -106,7 +106,21 @@ describe('require(\'node:test\').run coverage settings', { concurrency: true }, 
       // eslint-disable-next-line no-unused-vars
       for await (const _ of stream);
     });
-
+    await it('should not include test files with complex paths', async () => {
+      const coverageFiles = [];
+      const stream = run({ files: [fixtures.path('no-folder', '..', 'test-runner', 'coverage.js')], coverage: true });
+      stream.on('test:fail', common.mustNotCall());
+      stream.on('test:pass', common.mustCall());
+      stream.on('test:coverage', msg => {
+        coverageFiles.push(...msg.summary.files.map(file => file.path));
+      });
+      // eslint-disable-next-line no-unused-vars
+      for await (const _ of stream);
+      assert.deepStrictEqual(coverageFiles.sort(), [
+        fixtures.path('test-runner', 'invalid-tap.js'),
+        fixtures.path('v8-coverage', 'throw.js')
+      ]);
+    });
     await it('should run with coverage and exclude by glob', async () => {
       const stream = run({ files, coverage: true, coverageExcludeGlobs: ['test/*/test-runner/invalid-tap.js'] });
       stream.on('test:fail', common.mustNotCall());
@@ -137,13 +151,13 @@ describe('require(\'node:test\').run coverage settings', { concurrency: true }, 
 
     await it('should run while including and excluding globs', async () => {
       const stream = run({
-        files: [...files, fixtures.path('test-runner/invalid-tap.js')],
+        files: files,
         coverage: true,
         coverageIncludeGlobs: ['test/fixtures/test-runner/*.js'],
         coverageExcludeGlobs: ['test/fixtures/test-runner/*-tap.js']
       });
       stream.on('test:fail', common.mustNotCall());
-      stream.on('test:pass', common.mustCall(2));
+      stream.on('test:pass', common.mustCall(1));
       stream.on('test:coverage', common.mustCall(({ summary: { files } }) => {
         const filesPaths = files.map(({ path }) => path);
         assert.strictEqual(filesPaths.every((path) => !path.includes(`test-runner${sep}invalid-tap.js`)), true);
@@ -153,11 +167,12 @@ describe('require(\'node:test\').run coverage settings', { concurrency: true }, 
       for await (const _ of stream);
     });
 
-    await it('should run with coverage and fail when below line threshold', async () => {
+    await it('should run with coverage and coverageIncludeGlobs and fail when below thresholds', async () => {
       const thresholdErrors = [];
       const originalExitCode = process.exitCode;
       assert.notStrictEqual(originalExitCode, 1);
-      const stream = run({ files, coverage: true, lineCoverage: 99, branchCoverage: 99, functionCoverage: 99 });
+      const stream = run({ files, coverageIncludeGlobs: '**', coverage: true,
+                           lineCoverage: 99, branchCoverage: 99, functionCoverage: 99 });
       stream.on('test:fail', common.mustNotCall());
       stream.on('test:pass', common.mustCall(1));
       stream.on('test:diagnostic', ({ message }) => {
@@ -169,6 +184,26 @@ describe('require(\'node:test\').run coverage settings', { concurrency: true }, 
       // eslint-disable-next-line no-unused-vars
       for await (const _ of stream);
       assert.deepStrictEqual(thresholdErrors.sort(), ['branch', 'function', 'line']);
+      assert.strictEqual(process.exitCode, 1);
+      process.exitCode = originalExitCode;
+    });
+    await it('should run with coverage and fail when below thresholds', async () => {
+      const thresholdErrors = [];
+      const originalExitCode = process.exitCode;
+      assert.notStrictEqual(originalExitCode, 1);
+      const stream = run({ files, coverage: true,
+                           lineCoverage: 99, branchCoverage: 99, functionCoverage: 99 });
+      stream.on('test:fail', common.mustNotCall());
+      stream.on('test:pass', common.mustCall(1));
+      stream.on('test:diagnostic', ({ message }) => {
+        const match = message.match(/Error: \d{2}\.\d{2}% (line|branch|function) coverage does not meet threshold of 99%/);
+        if (match) {
+          thresholdErrors.push(match[1]);
+        }
+      });
+      // eslint-disable-next-line no-unused-vars
+      for await (const _ of stream);
+      assert.deepStrictEqual(thresholdErrors.sort(), ['branch', 'line']);
       assert.strictEqual(process.exitCode, 1);
       process.exitCode = originalExitCode;
     });
