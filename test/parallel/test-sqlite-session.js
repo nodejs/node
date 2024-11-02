@@ -313,8 +313,17 @@ test('session.patchset()', (t) => {
   const session = database.createSession();
   database.exec("UPDATE data SET value = 'hi' WHERE key = 1");
 
+  const patchset = session.patchset();
+  const changeset = session.changeset();
+
+  t.assert.ok(patchset instanceof Uint8Array);
+  t.assert.ok(changeset instanceof Uint8Array);
+
+  t.assert.deepStrictEqual(patchset, session.patchset());
+  t.assert.deepStrictEqual(changeset, session.changeset());
+
   t.assert.ok(
-    session.patchset().length < session.changeset().length,
+    patchset.length < changeset.length,
     'expected patchset to be smaller than changeset');
 });
 
