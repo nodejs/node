@@ -26,7 +26,7 @@ const getFirefoxReleases = async (everything = false) => {
     console.error(`Failed to fetch ${releaseDataURL}: ${releaseData.status}: ${releaseData.statusText}.`);
     process.exit(-1);
   }
-  return JSON.parse(await releaseData.text()).filter((release) => {
+  return (await releaseData.json()).filter((release) => {
     // We're only interested in public releases of Firefox.
     return (release.product === 'Firefox' && release.channel === 'Release' && release.is_public === true);
   }).sort((a, b) => {
