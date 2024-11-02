@@ -190,24 +190,22 @@ Creates and attaches a session to the database. This method is a wrapper around 
 An exception is thrown if the database is not
 open. This method is a wrapper around [`sqlite3changeset_apply()`][].
 
-Example usage is demonstrated below.
-
 ```js
-const database1 = new DatabaseSync(':memory:');
-const database2 = new DatabaseSync(':memory:');
+const sourceDb = new DatabaseSync(':memory:');
+const targetDb = new DatabaseSync(':memory:');
 
-database1.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, value TEXT)');
-database2.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, value TEXT)');
+sourceDb.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, value TEXT)');
+targetDb.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, value TEXT)');
 
-const session = database1.createSession();
+const session = sourceDb.createSession();
 
-const insert = database1.prepare('INSERT INTO data (key, value) VALUES (?, ?)');
+const insert = sourceDb.prepare('INSERT INTO data (key, value) VALUES (?, ?)');
 insert.run(1, 'hello');
 insert.run(2, 'world');
 
 const changeset = session.changeset();
-database2.applyChangeset(changeset);
-// Now database2 contains the same data as database1
+targetDb.applyChangeset(changeset);
+// Now that the changeset has been applied, targetDb contains the same data as sourceDb.
 ```
 
 ## Class: `Session`
