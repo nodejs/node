@@ -389,6 +389,35 @@ exception.
 | `TEXT`    | {string}             |
 | `BLOB`    | {Uint8Array}         |
 
+## SQLite constants
+
+The following constants are exported by the `node:sqlite` module.
+
+### SQLite Session constants
+
+#### Conflict-resolution constants
+
+The following constants are meant for use with [`database.applyChangeset()`](#databaseapplychangesetchangeset-options).
+
+<table>
+  <tr>
+    <th>Constant</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <td><code>SQLITE_CHANGESET_OMIT</code></td>
+    <td>Conflicting changes are omitted.</td>
+  </tr>
+  <tr>
+    <td><code>SQLITE_CHANGESET_REPLACE</code></td>
+    <td>Conflicting changes replace existing values.</td>
+  </tr>
+  <tr>
+    <td><code>SQLITE_CHANGESET_ABORT</code></td>
+    <td>Abort when a change encounters a conflict and roll back databsase.</td>
+  </tr>
+</table>
+
 [Changesets and Patchsets]: https://www.sqlite.org/sessionintro.html#changesets_and_patchsets
 [SQL injection]: https://en.wikipedia.org/wiki/SQL_injection
 [`--experimental-sqlite`]: cli.md#--experimental-sqlite
