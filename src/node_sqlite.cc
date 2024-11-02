@@ -362,8 +362,10 @@ void DatabaseSync::CreateSession(const FunctionCallbackInfo<Value>& args) {
 
     Local<String> table_key = FIXED_ONE_BYTE_STRING(env->isolate(), "table");
     if (options->HasOwnProperty(env->context(), table_key).FromJust()) {
-      Local<Value> table_value =
-          options->Get(env->context(), table_key).ToLocalChecked();
+      Local<Value> table_value;
+      if (!options->Get(env->context(), table_key).ToLocal(&table_value)) {
+	       return;
+      }
 
       if (table_value->IsString()) {
         String::Utf8Value str(env->isolate(), table_value);
