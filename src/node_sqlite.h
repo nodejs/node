@@ -134,13 +134,13 @@ class Session : public BaseObject {
   template <Sqlite3ChangesetGenFunc sqliteChangesetFunc>
   static void Changeset(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
-  void MemoryInfo(MemoryTracker* tracker) const override;
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
   static BaseObjectPtr<Session> Create(Environment* env,
                                        BaseObjectWeakPtr<DatabaseSync> database,
                                        sqlite3_session* session);
 
+  void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(Session)
   SET_SELF_SIZE(Session)
 
