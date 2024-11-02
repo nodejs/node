@@ -169,7 +169,7 @@ around [`sqlite3_prepare_v2()`][].
 * `options` {Object} An optional object used to configure the session.
   * `table` {string} When provided, only changes to this table are tracked by the created session.
     By default, changes to all tables are tracked.
-  * `db` {string} Name of the database to track. Default: `'main'`.
+  * `db` {string} Name of the database to track. **Default**: `'main'`.
 * Returns: {Session} A session handle.
 
 Creates and attaches a session to the database. This method is a wrapper around [`sqlite3session_create()`][] and [`sqlite3session_attach()`][].
@@ -179,7 +179,7 @@ Creates and attaches a session to the database. This method is a wrapper around 
 * `changeset` {Uint8Array} A binary changeset or patchset.
 * `options` {Object} An optional object to configure how changes are applied.
   * `filter` {Function} Skip changes that, when targeted table name is supplied to this function, return a truthy value. By default, all changes are attempted.
-  * `onConflict` {number} Determines how conflicts are handled. Default: `SQLITE_CHANGESET_ABORT`.
+  * `onConflict` {number} Determines how conflicts are handled. **Default**: `SQLITE_CHANGESET_ABORT`.
     * `SQLITE_CHANGESET_OMIT`: conflicting changes are omitted.
     * `SQLITE_CHANGESET_REPLACE`: conflicting changes replace existing values.
     * `SQLITE_CHANGESET_ABORT`: abort on conflict and roll back databsase.
