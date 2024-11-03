@@ -1093,8 +1093,7 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
     if (rsa_pkcs1_implicit_rejection <= 0) {
       return THROW_ERR_INVALID_ARG_VALUE(
           env,
-          "RSA_PKCS1_PADDING is no longer supported for private decryption,"
-          " this can be reverted with --security-revert=CVE-2024-PEND");
+          "RSA_PKCS1_PADDING is no longer supported for private decryption");
     }
   }
 
