@@ -280,7 +280,7 @@ exec('cat *.js missing_file | wc -l', (error, stdout, stderr) => {
 });
 ```
 
-If `timeout` is greater than `0`, the parent will send the signal
+If `timeout` is greater than `0`, the parent process will send the signal
 identified by the `killSignal` property (the default is `'SIGTERM'`) if the
 child process runs longer than `timeout` milliseconds.
 
