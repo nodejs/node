@@ -1,4 +1,5 @@
-import fs from 'fs';
+import fs from 'node:fs';
+import { parseArgs } from 'node:util';
 
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
@@ -6,7 +7,6 @@ import remarkStringify from 'remark-stringify';
 import presetLintNode from 'remark-preset-lint-node';
 import { read } from 'to-vfile';
 import { reporter } from 'vfile-reporter';
-import { parseArgs } from 'util';
 
 const { values: { format }, positionals: paths } = parseArgs({
   options: {
