@@ -3892,7 +3892,7 @@ The `util.getCallSite` API has been removed. Please use [`util.getCallSites()`][
 [`url.parse()`]: url.md#urlparseurlstring-parsequerystring-slashesdenotehost
 [`url.resolve()`]: url.md#urlresolvefrom-to
 [`util._extend()`]: util.md#util_extendtarget-source
-[`util.getCallSites()`]: util.md#utilgetcallsitesframecount
+[`util.getCallSites()`]: util.md#utilgetcallsitesframecountoroptions-options
 [`util.getSystemErrorName()`]: util.md#utilgetsystemerrornameerr
 [`util.inspect()`]: util.md#utilinspectobject-options
 [`util.inspect.custom`]: util.md#utilinspectcustom
