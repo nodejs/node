@@ -383,10 +383,6 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             " (default: current working directory)",
             &EnvironmentOptions::diagnostic_dir,
             kAllowedInEnvvar);
-  AddOption("--report-preserve-env",
-            "Preserve environment variables when generating report",
-            &EnvironmentOptions::report_preserve_env,
-            kAllowedInEnvvar);
   AddOption("--dns-result-order",
             "set default value of verbatim in dns.lookup. Options are "
             "'ipv4first' (IPv4 addresses are placed before IPv6 addresses) "
@@ -881,6 +877,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::tls_max_v1_3,
             kAllowedInEnvvar);
 
+  AddOption("--report-exclude-env",
+            "Exclude environment variables when generating report"
+            " (default: false)",
+            &EnvironmentOptions::report_exclude_env,
+            kAllowedInEnvvar);
   AddOption("--report-exclude-network",
             "exclude network interface diagnostics."
             " (default: false)",

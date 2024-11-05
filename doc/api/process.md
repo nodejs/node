@@ -3494,7 +3494,7 @@ const { report } = require('node:process');
 console.log(`Report on exception: ${report.reportOnUncaughtException}`);
 ```
 
-### `process.report.preserveEnv`
+### `process.report.excludeEnv`
 
 <!-- YAML
 added: REPLACEME

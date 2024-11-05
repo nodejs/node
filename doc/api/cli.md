@@ -2058,13 +2058,13 @@ Enables report to be generated upon receiving the specified (or predefined)
 signal to the running Node.js process. The signal to trigger the report is
 specified through `--report-signal`.
 
-### `--report-preserve-env`
+### `--report-exclude-env`
 
 <!-- YAML
 added: REPLACEME
 -->
 
-When `--report-preserve-env` is passed the diagnostic report generated will not
+When `--report-exclude-env` is passed the diagnostic report generated will not
 contain the `environmentVariables` data.
 
 ### `--report-signal=signal`
@@ -3126,6 +3126,7 @@ one is included in the list below.
 * `--redirect-warnings`
 * `--report-compact`
 * `--report-dir`, `--report-directory`
+* `--report-exclude-env`
 * `--report-exclude-network`
 * `--report-filename`
 * `--report-on-fatalerror`

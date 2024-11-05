@@ -10,6 +10,9 @@
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/55697
+    description: Added `--report-exclude-env` option for excluding environment variables from report generation.
   - version:
     - v22.0.0
     - v20.13.0
@@ -464,6 +467,10 @@ meaning of `SIGUSR2` for the said purposes.
 * `--report-exclude-network` Exclude `header.networkInterfaces` from the
   diagnostic report. By default this is not set and the network interfaces
   are included.
+
+* `--report-exclude-env` Exclude `environmentVariables` from the
+  diagnostic report. By default this is not set and the environment
+  variables are included.
 
 A report can also be triggered via an API call from a JavaScript application:
 

@@ -177,7 +177,6 @@ class EnvironmentOptions : public Options {
 #endif  // HAVE_INSPECTOR
   std::string redirect_warnings;
   std::string diagnostic_dir;
-  bool report_preserve_env = false;
   std::string env_file;
   std::string optional_env_file;
   bool has_env_file_string = false;
@@ -250,6 +249,7 @@ class EnvironmentOptions : public Options {
 
   std::vector<std::string> user_argv;
 
+  bool report_exclude_env = false;
   bool report_exclude_network = false;
 
   inline DebugOptions* get_debug_options() { return &debug_options_; }

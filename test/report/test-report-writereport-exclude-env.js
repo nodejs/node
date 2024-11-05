@@ -1,4 +1,4 @@
-// Flags: --report-preserve-env
+// Flags: --report-exclude-env
 'use strict';
 
 // Test producing a report via API call, using the no-hooks/no-signal interface.

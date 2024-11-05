@@ -170,10 +170,10 @@ static void ShouldReportOnUncaughtException(
       env->isolate_data()->options()->report_uncaught_exception);
 }
 
-static void ShouldPreserveEnvironmentVariables(
+static void ShouldExcludeEnvironmentVariables(
     const FunctionCallbackInfo<Value>& info) {
   Environment* env = Environment::GetCurrent(info);
-  info.GetReturnValue().Set(env->ShouldPreserveEnvOnReport());
+  info.GetReturnValue().Set(env->report_exclude_env());
 }
 
 static void SetReportOnUncaughtException(
@@ -210,8 +210,8 @@ static void Initialize(Local<Object> exports,
             ShouldReportOnUncaughtException);
   SetMethod(context,
             exports,
-            "shouldPreserveEnvironmentVariables",
-            ShouldPreserveEnvironmentVariables);
+            "shouldExcludeEnvironmentVariables",
+            ShouldExcludeEnvironmentVariables);
   SetMethod(context,
             exports,
             "setReportOnUncaughtException",
@@ -236,7 +236,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(ShouldReportOnSignal);
   registry->Register(SetReportOnSignal);
   registry->Register(ShouldReportOnUncaughtException);
-  registry->Register(ShouldPreserveEnvironmentVariables);
+  registry->Register(ShouldExcludeEnvironmentVariables);
   registry->Register(SetReportOnUncaughtException);
 }
 
