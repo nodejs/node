@@ -2072,6 +2072,133 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+static void ReaddirRecursiveSync(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  CHECK_EQ(args.Length(), 3);  // basePath, encoding, withFileTypes
+
+  BufferValue path(isolate, args[0]);
+  CHECK_NOT_NULL(*path);
+  ToNamespacedPath(env, &path);
+
+  const enum encoding encoding = ParseEncoding(isolate, args[1], UTF8);
+  bool with_file_types = args[2]->IsTrue();
+
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kFileSystemRead, path.ToStringView());
+
+  std::vector<std::string> paths;
+  std::vector<std::string> names;
+  std::vector<int> types;
+  std::vector<std::string> relative_paths;
+
+  std::vector<std::string> dir_queue;
+  dir_queue.push_back(*path);
+
+  const size_t base_path_length = strlen(*path);
+  FSReqWrapSync req_wrap_sync("readdir_recursive");
+
+  while (!dir_queue.empty()) {
+    std::string current_path = std::move(dir_queue.back());
+    dir_queue.pop_back();
+    int err = uv_fs_scandir(nullptr, &req_wrap_sync.req,
+                           current_path.c_str(), 0, nullptr);
+    if (err < 0) {
+      if (err == UV_ENOENT || err == UV_ENOTDIR) {
+        continue;
+      }
+      uv_fs_req_cleanup(&req_wrap_sync.req);
+      args.GetReturnValue().SetUndefined();
+      return;
+    }
+
+    uv_dirent_t ent;
+    while (uv_fs_scandir_next(&req_wrap_sync.req, &ent) != UV_EOF) {
+      if (strcmp(ent.name, ".") == 0 || strcmp(ent.name, "..") == 0) {
+        continue;
+      }
+
+      std::string full_path = current_path;
+      if (full_path.back() != kPathSeparator) {
+        full_path += kPathSeparator;
+      }
+      full_path += ent.name;
+
+      if (with_file_types) {
+        paths.push_back(current_path);
+        names.emplace_back(ent.name);
+        types.push_back(static_cast<int>(ent.type));
+      } else {
+        size_t full_path_length = full_path.length();
+        if (full_path_length > base_path_length) {
+          size_t start_pos = base_path_length;
+          if (full_path[start_pos] == kPathSeparator) {
+            start_pos++;
+          }
+          if (start_pos < full_path_length) {
+            relative_paths.emplace_back(full_path.substr(start_pos));
+          }
+        }
+      }
+
+      if (ent.type == UV_DIRENT_DIR) {
+        dir_queue.push_back(std::move(full_path));
+      }
+    }
+    uv_fs_req_cleanup(&req_wrap_sync.req);
+  }
+
+  const size_t result_size =
+    with_file_types ? paths.size() : relative_paths.size();
+  std::vector<Local<Value>> result_entries(result_size);
+
+  if (with_file_types) {
+    for (size_t i = 0; i < result_size; i++) {
+      Local<Array> entry_info = Array::New(isolate, 3);
+      Local<Value> error;
+
+      MaybeLocal<Value> path_value = StringBytes::Encode(isolate,
+        paths[i].c_str(), encoding, &error);
+      if (!error.IsEmpty()) {
+        isolate->ThrowException(error);
+        return;
+      }
+
+      MaybeLocal<Value> name_value = StringBytes::Encode(isolate,
+        names[i].c_str(), encoding, &error);
+      if (!error.IsEmpty()) {
+        isolate->ThrowException(error);
+        return;
+      }
+
+      entry_info->Set(env->context(), 0, path_value.ToLocalChecked()).Check();
+      entry_info->Set(env->context(), 1, name_value.ToLocalChecked()).Check();
+      entry_info->Set(env->context(), 2,
+        Integer::New(isolate, types[i])).Check();
+      result_entries[i] = entry_info;
+    }
+  } else {
+    for (size_t i = 0; i < result_size; i++) {
+      Local<Value> error;
+      MaybeLocal<Value> path_value = StringBytes::Encode(isolate,
+        relative_paths[i].c_str(), encoding, &error);
+      if (!error.IsEmpty()) {
+        isolate->ThrowException(error);
+        return;
+      }
+      result_entries[i] = path_value.ToLocalChecked();
+    }
+  }
+
+  Local<Array> result_array = Array::New(isolate, result_size);
+  for (size_t i = 0; i < result_size; i++) {
+    result_array->Set(env->context(), i, result_entries[i]).Check();
+  }
+
+  args.GetReturnValue().Set(result_array);
+}
+
 static inline Maybe<void> AsyncCheckOpenPermissions(Environment* env,
                                                     FSReqBase* req_wrap,
                                                     const BufferValue& path,
@@ -3614,6 +3741,7 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "rmSync", RmSync);
   SetMethod(isolate, target, "mkdir", MKDir);
   SetMethod(isolate, target, "readdir", ReadDir);
+  SetMethod(isolate, target, "readdirRecursiveSync", ReaddirRecursiveSync);
   SetFastMethod(isolate,
                 target,
                 "internalModuleStat",
@@ -3741,6 +3869,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(RmSync);
   registry->Register(MKDir);
   registry->Register(ReadDir);
+  registry->Register(ReaddirRecursiveSync);
   registry->Register(InternalModuleStat);
   registry->Register(FastInternalModuleStat);
   registry->Register(fast_internal_module_stat_.GetTypeInfo());

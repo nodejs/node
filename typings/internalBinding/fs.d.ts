@@ -177,6 +177,8 @@ declare namespace InternalFSBinding {
   function readdir(path: StringOrBuffer, encoding: unknown, withFileTypes: true, usePromises: typeof kUsePromises): Promise<[string[], number[]]>;
   function readdir(path: StringOrBuffer, encoding: unknown, withFileTypes: false, usePromises: typeof kUsePromises): Promise<string[]>;
 
+  function readdirRecursiveSync(basePath: string, encoding: unknown, withFileTypes: boolean): string[] | string[][];
+
   function readFileUtf8(path: StringOrBuffer, flags: number): string;
 
   function readlink(path: StringOrBuffer, encoding: unknown, req: FSReqCallback<string | Buffer>): void;
