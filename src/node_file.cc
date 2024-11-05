@@ -2108,7 +2108,6 @@ static void ReaddirRecursiveSync(const FunctionCallbackInfo<Value>& args) {
       if (err == UV_ENOENT || err == UV_ENOTDIR) {
         continue;
       }
-      uv_fs_req_cleanup(&req_wrap_sync.req);
       args.GetReturnValue().SetUndefined();
       return;
     }
@@ -2146,7 +2145,6 @@ static void ReaddirRecursiveSync(const FunctionCallbackInfo<Value>& args) {
         dir_queue.push_back(std::move(full_path));
       }
     }
-    uv_fs_req_cleanup(&req_wrap_sync.req);
   }
 
   const size_t result_size =
