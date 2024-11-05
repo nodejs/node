@@ -10,10 +10,10 @@ assert.notStrictEqual(fs.constants.S_IWUSR, undefined);
 // Check for runtime deprecation warning, there should be no setter
 const { F_OK, R_OK, W_OK, X_OK } = fs.constants;
 
-assert.throws(() => { fs.F_OK = 'overwritten' }, { name: 'TypeError' });
-assert.throws(() => { fs.R_OK = 'overwritten' }, { name: 'TypeError' });
-assert.throws(() => { fs.W_OK = 'overwritten' }, { name: 'TypeError' });
-assert.throws(() => { fs.X_OK = 'overwritten' }, { name: 'TypeError' });
+assert.throws(() => { fs.F_OK = 'overwritten'; }, { name: 'TypeError' });
+assert.throws(() => { fs.R_OK = 'overwritten'; }, { name: 'TypeError' });
+assert.throws(() => { fs.W_OK = 'overwritten'; }, { name: 'TypeError' });
+assert.throws(() => { fs.X_OK = 'overwritten'; }, { name: 'TypeError' });
 
 expectWarning(
   'DeprecationWarning',
