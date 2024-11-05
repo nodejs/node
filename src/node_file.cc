@@ -2102,8 +2102,8 @@ static void ReaddirRecursiveSync(const FunctionCallbackInfo<Value>& args) {
   while (!dir_queue.empty()) {
     std::string current_path = std::move(dir_queue.back());
     dir_queue.pop_back();
-    int err = uv_fs_scandir(nullptr, &req_wrap_sync.req,
-                           current_path.c_str(), 0, nullptr);
+    int err = uv_fs_scandir(
+        nullptr, &req_wrap_sync.req, current_path.c_str(), 0, nullptr);
     if (err < 0) {
       if (err == UV_ENOENT || err == UV_ENOTDIR) {
         continue;
@@ -2119,9 +2119,16 @@ static void ReaddirRecursiveSync(const FunctionCallbackInfo<Value>& args) {
       }
 
       std::string full_path = current_path;
+#ifdef __POSIX__
       if (full_path.back() != kPathSeparator) {
         full_path += kPathSeparator;
       }
+#else
+      if (full_path.back() != kPathSeparator[0] &&
+          full_path.back() != kPathSeparator[1]) {
+        full_path += kPathSeparator[0];
+      }
+#endif
       full_path += ent.name;
 
       if (with_file_types) {
@@ -2132,9 +2139,16 @@ static void ReaddirRecursiveSync(const FunctionCallbackInfo<Value>& args) {
         size_t full_path_length = full_path.length();
         if (full_path_length > base_path_length) {
           size_t start_pos = base_path_length;
+#ifdef __POSIX__
           if (full_path[start_pos] == kPathSeparator) {
             start_pos++;
           }
+#else
+          if (full_path[start_pos] == kPathSeparator[0] ||
+              full_path[start_pos] == kPathSeparator[1]) {
+            start_pos++;
+          }
+#endif
           if (start_pos < full_path_length) {
             relative_paths.emplace_back(full_path.substr(start_pos));
           }
@@ -2148,7 +2162,7 @@ static void ReaddirRecursiveSync(const FunctionCallbackInfo<Value>& args) {
   }
 
   const size_t result_size =
-    with_file_types ? paths.size() : relative_paths.size();
+      with_file_types ? paths.size() : relative_paths.size();
   std::vector<Local<Value>> result_entries(result_size);
 
   if (with_file_types) {
@@ -2156,15 +2170,15 @@ static void ReaddirRecursiveSync(const FunctionCallbackInfo<Value>& args) {
       Local<Array> entry_info = Array::New(isolate, 3);
       Local<Value> error;
 
-      MaybeLocal<Value> path_value = StringBytes::Encode(isolate,
-        paths[i].c_str(), encoding, &error);
+      MaybeLocal<Value> path_value =
+          StringBytes::Encode(isolate, paths[i].c_str(), encoding, &error);
       if (!error.IsEmpty()) {
         isolate->ThrowException(error);
         return;
       }
 
-      MaybeLocal<Value> name_value = StringBytes::Encode(isolate,
-        names[i].c_str(), encoding, &error);
+      MaybeLocal<Value> name_value =
+          StringBytes::Encode(isolate, names[i].c_str(), encoding, &error);
       if (!error.IsEmpty()) {
         isolate->ThrowException(error);
         return;
@@ -2172,15 +2186,15 @@ static void ReaddirRecursiveSync(const FunctionCallbackInfo<Value>& args) {
 
       entry_info->Set(env->context(), 0, path_value.ToLocalChecked()).Check();
       entry_info->Set(env->context(), 1, name_value.ToLocalChecked()).Check();
-      entry_info->Set(env->context(), 2,
-        Integer::New(isolate, types[i])).Check();
+      entry_info->Set(env->context(), 2, Integer::New(isolate, types[i]))
+          .Check();
       result_entries[i] = entry_info;
     }
   } else {
     for (size_t i = 0; i < result_size; i++) {
       Local<Value> error;
-      MaybeLocal<Value> path_value = StringBytes::Encode(isolate,
-        relative_paths[i].c_str(), encoding, &error);
+      MaybeLocal<Value> path_value = StringBytes::Encode(
+          isolate, relative_paths[i].c_str(), encoding, &error);
       if (!error.IsEmpty()) {
         isolate->ThrowException(error);
         return;
