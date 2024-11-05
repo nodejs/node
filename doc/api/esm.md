@@ -384,6 +384,19 @@ import { readFileSync } from 'node:fs';
 const buffer = readFileSync(new URL('./data.proto', import.meta.url));
 ```
 
+### `import.meta.require(id)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active development
+
+* `id` {string} The module name or path.
+* Returns: {any} The module exports.
+
+Alias for [`module.createRequire(import.meta.url)(id)`][].
+
 ### `import.meta.resolve(specifier)`
 
 <!-- YAML
@@ -1118,6 +1131,7 @@ resolution for ESM specifiers is [commonjs-extension-resolution-loader][].
 [`import.meta.url`]: #importmetaurl
 [`import`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import
 [`module.createRequire()`]: module.md#modulecreaterequirefilename
+[`module.createRequire(import.meta.url)(id)`]: module.md#modulecreaterequirefilename
 [`module.syncBuiltinESMExports()`]: module.md#modulesyncbuiltinesmexports
 [`package.json`]: packages.md#nodejs-packagejson-field-definitions
 [`path.dirname()`]: path.md#pathdirnamepath

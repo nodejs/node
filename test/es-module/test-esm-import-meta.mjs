@@ -3,8 +3,18 @@ import assert from 'assert';
 
 assert.strictEqual(Object.getPrototypeOf(import.meta), null);
 
-const keys = ['dirname', 'filename', 'resolve', 'url'];
+const keys = ['dirname', 'filename', 'resolve', 'url', 'require'];
 assert.deepStrictEqual(Reflect.ownKeys(import.meta), keys);
+
+{
+  const requireDescriptor = Object.getOwnPropertyDescriptor(import.meta, 'require');
+  assert.strictEqual(requireDescriptor.value, undefined);
+  assert.strictEqual(requireDescriptor.enumerable, true);
+  assert.strictEqual(requireDescriptor.writable, undefined);
+  assert.strictEqual(requireDescriptor.configurable, true);
+}
+
+delete import.meta.require; // Verified above.
 
 const descriptors = Object.getOwnPropertyDescriptors(import.meta);
 for (const descriptor of Object.values(descriptors)) {
