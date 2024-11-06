@@ -12,6 +12,7 @@ paths. It can be accessed using:
 ```cjs
 const path = require('node:path');
 ```
+
 ```mjs
 import path from 'node:path';
 ```
