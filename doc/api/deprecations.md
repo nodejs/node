@@ -3782,9 +3782,12 @@ changes:
   - version: v23.4.0
     pr-url: https://github.com/nodejs/node/pull/55892
     description: Documentation-only.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/55753
+    description: Runtime deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
 Passing non-supported argument types is deprecated and, instead of returning `false`,
 will throw an error in a future version.
