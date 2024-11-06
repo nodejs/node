@@ -1414,6 +1414,8 @@ LINT_CPP_EXCLUDE += $(LINT_CPP_ADDON_DOC_FILES)
 # These files were copied more or less verbatim from V8.
 LINT_CPP_EXCLUDE += src/tracing/trace_event.h src/tracing/trace_event_common.h
 
+# deps/ncrypto is included in this list, as it lives in
+# this repository, and therefore is linted.
 LINT_CPP_FILES = $(filter-out $(LINT_CPP_EXCLUDE), $(wildcard \
 	benchmark/napi/*/*.cc \
 	src/*.c \
