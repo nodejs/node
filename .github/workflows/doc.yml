@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  NODE_VERSION: lts/*
+  NODE_VERSION: 20
 
 permissions:
   contents: read
