@@ -44,6 +44,9 @@ The stability indexes are as follows:
 >   still occur in response to user feedback. We encourage user testing and
 >   feedback so that we can know that this feature is ready to be marked as
 >   stable.
+>
+> Experimental features are typically either graduated to stable, or removed
+> without a deprecation cycle.
 
 <!-- separator -->
 
