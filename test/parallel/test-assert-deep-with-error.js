@@ -16,6 +16,13 @@ test('Handle error causes', () => {
     '  }\n' });
 
   assert.throws(() => {
+    assert.deepStrictEqual(new Error('a', { cause: new Error('x') }), new Error('a', { cause: new TypeError('x') }));
+  }, { message: defaultStartMessage + '  [Error: a] {\n' +
+    '+   [cause]: [Error: x]\n' +
+    '-   [cause]: [TypeError: x]\n' +
+    '  }\n' });
+
+  assert.throws(() => {
     assert.deepStrictEqual(new Error('a'), new Error('a', { cause: new Error('y') }));
   }, { message: defaultStartMessage + '+ [Error: a]\n' +
     '- [Error: a] {\n' +
@@ -36,4 +43,32 @@ test('Handle error causes', () => {
     new Error('a', { cause: { prop: 'value' } }),
     new Error('a', { cause: { prop: 'a different value' } })
   );
+});
+
+test('Handle undefined causes', () => {
+  assert.notDeepStrictEqual(new Error('a', { cause: 'undefined' }), new Error('a', { cause: undefined }));
+  assert.notDeepStrictEqual(new Error('a', { cause: undefined }), new Error('a'));
+  assert.notDeepStrictEqual(new Error('a'), new Error('a', { cause: undefined }));
+
+  assert.throws(() => {
+    assert.deepStrictEqual(new Error('a'), new Error('a', { cause: undefined }));
+  }, { message: defaultStartMessage +
+    '+ [Error: a]\n' +
+    '- [Error: a] {\n' +
+    '-   [cause]: undefined\n' +
+    '- }\n' });
+
+  assert.throws(() => {
+    assert.deepStrictEqual(new Error('a', { cause: undefined }), new Error('a'));
+  }, { message: defaultStartMessage +
+    '+ [Error: a] {\n' +
+    '+   [cause]: undefined\n' +
+    '+ }\n' +
+    '- [Error: a]\n' });
+  assert.throws(() => {
+    assert.deepStrictEqual(new Error('a', { cause: undefined }), new Error('a', { cause: 'undefined' }));
+  }, { message: defaultStartMessage + '  [Error: a] {\n' +
+    '+   [cause]: undefined\n' +
+    '-   [cause]: \'undefined\'\n' +
+    '  }\n' });
 });
