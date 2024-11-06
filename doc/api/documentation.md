@@ -45,8 +45,8 @@ The stability indexes are as follows:
 >   feedback so that we can know that this feature is ready to be marked as
 >   stable.
 >
-> Experimental features are typically either graduated to stable, or removed
-> without a deprecation cycle.
+> Experimental features leave the experimental status typically either by
+> graduating to stable, or are removed without a deprecation cycle.
 
 <!-- separator -->
 
