@@ -1414,8 +1414,11 @@ LINT_CPP_EXCLUDE += $(LINT_CPP_ADDON_DOC_FILES)
 # These files were copied more or less verbatim from V8.
 LINT_CPP_EXCLUDE += src/tracing/trace_event.h src/tracing/trace_event_common.h
 
-# deps/ncrypto is included in this list, as it lives in
-# this repository, and therefore is linted.
+# deps/ncrypto is included in this list, as it is maintained in
+# this repository, and should be linted. Eventually it should move
+# to its own repo, at which point we should remove it from this list.
+LINT_CPP_DEPS = deps/ncrypto/*.cc deps/ncrypto/*.h
+
 LINT_CPP_FILES = $(filter-out $(LINT_CPP_EXCLUDE), $(wildcard \
 	benchmark/napi/*/*.cc \
 	src/*.c \
@@ -1440,8 +1443,7 @@ LINT_CPP_FILES = $(filter-out $(LINT_CPP_EXCLUDE), $(wildcard \
 	tools/code_cache/*.h \
 	tools/snapshot/*.cc \
 	tools/snapshot/*.h \
-	deps/ncrypto/*.cc \
-	deps/ncrypto/*.h \
+	$(LINT_CPP_DEPS) \
 	))
 
 FORMAT_CPP_FILES ?=
