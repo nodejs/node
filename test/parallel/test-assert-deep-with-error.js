@@ -8,6 +8,9 @@ const defaultStartMessage = 'Expected values to be strictly deep-equal:\n' +
   '\n';
 
 test('Handle error causes', () => {
+  assert.deepStrictEqual(new Error('a', { cause: new Error('x') }), new Error('a', { cause: new Error('x') }));
+  assert.deepStrictEqual(new Error('a', { cause: new RangeError('x') }), new Error('a', { cause: new RangeError('x') }));
+
   assert.throws(() => {
     assert.deepStrictEqual(new Error('a', { cause: new Error('x') }), new Error('a', { cause: new Error('y') }));
   }, { message: defaultStartMessage + '  [Error: a] {\n' +
@@ -46,6 +49,8 @@ test('Handle error causes', () => {
 });
 
 test('Handle undefined causes', () => {
+  assert.deepStrictEqual(new Error('a', { cause: undefined }), new Error('a', { cause: undefined }));
+
   assert.notDeepStrictEqual(new Error('a', { cause: 'undefined' }), new Error('a', { cause: undefined }));
   assert.notDeepStrictEqual(new Error('a', { cause: undefined }), new Error('a'));
   assert.notDeepStrictEqual(new Error('a'), new Error('a', { cause: undefined }));
