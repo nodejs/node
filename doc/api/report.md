@@ -505,9 +505,9 @@ meaning of `SIGUSR2` for the said purposes.
 * `--report-signal` Sets or resets the signal for report generation
   (not supported on Windows). Default signal is `SIGUSR2`.
 
-* `--report-exclude-network` Exclude `header.networkInterfaces` and disable the reverse DNS queries in `libuv.*.(remote|local)Endpoint.host` from the
-  diagnostic report. By default this is not set and the network interfaces
-  are included.
+* `--report-exclude-network` Exclude `header.networkInterfaces` and disable the reverse DNS queries
+  in `libuv.*.(remote|local)Endpoint.host` from the diagnostic report.
+  By default this is not set and the network interfaces are included.
 
 A report can also be triggered via an API call from a JavaScript application:
 
