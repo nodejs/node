@@ -3,5 +3,8 @@
 
 require('../common');
 const assert = require('assert');
+const { test } = require('node:test');
 
-assert.strictEqual(typeof EventSource, 'function');
+test('EventSource is a function', () => {
+  assert.strictEqual(typeof EventSource, 'function');
+});
