@@ -83,7 +83,7 @@ assert.ok(hostname.length > 0);
 
 // IBMi process priority is different.
 if (!common.isIBMi) {
-  const LOWER_PRIORITY = Math.max(os.getPriority() + 5, 19);
+  const LOWER_PRIORITY = Math.min(os.getPriority() + 5, 19);
   os.setPriority(LOWER_PRIORITY);
   const priority = os.getPriority();
   is.number(priority);
