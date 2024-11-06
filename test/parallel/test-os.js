@@ -83,11 +83,11 @@ assert.ok(hostname.length > 0);
 
 // IBMi process priority is different.
 if (!common.isIBMi) {
-  const DUMMY_PRIORITY = 10;
-  os.setPriority(DUMMY_PRIORITY);
+  const LOWER_PRIORITY = Math.max(os.getPriority() + 5, 19);
+  os.setPriority(LOWER_PRIORITY);
   const priority = os.getPriority();
   is.number(priority);
-  assert.strictEqual(priority, DUMMY_PRIORITY);
+  assert.strictEqual(priority, LOWER_PRIORITY);
 }
 
 // On IBMi, os.uptime() returns 'undefined'
