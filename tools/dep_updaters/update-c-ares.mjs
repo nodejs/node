@@ -1,8 +1,9 @@
 // Synchronize the sources for our c-ares gyp file from c-ares' Makefiles.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const srcroot = join(import.meta.dirname, '..', '..');
+const srcroot = fileURLToPath(new URL('../../', import.meta.url));
 const options = { encoding: 'utf8' };
 
 // Extract list of sources from the gyp file.
