@@ -9,7 +9,10 @@ const defaultStartMessage = 'Expected values to be strictly deep-equal:\n' +
 
 test('Handle error causes', () => {
   assert.deepStrictEqual(new Error('a', { cause: new Error('x') }), new Error('a', { cause: new Error('x') }));
-  assert.deepStrictEqual(new Error('a', { cause: new RangeError('x') }), new Error('a', { cause: new RangeError('x') }));
+  assert.deepStrictEqual(
+    new Error('a', { cause: new RangeError('x') }),
+    new Error('a', { cause: new RangeError('x') }),
+  );
 
   assert.throws(() => {
     assert.deepStrictEqual(new Error('a', { cause: new Error('x') }), new Error('a', { cause: new Error('y') }));
