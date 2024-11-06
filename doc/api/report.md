@@ -324,32 +324,48 @@ is provided below for reference.
       "loopIdleTimeSeconds": 22644.8
     },
     {
-      type: 'tcp',
-      is_active: true,
-      is_referenced: true,
-      address: '0x000055e70fcb85d8',
-      localEndpoint: { host: 'localhost', ip4: '127.0.0.1', port: 48986 },
-      remoteEndpoint: { host: 'localhost', ip4: '127.0.0.1', port: 38573 },
-      sendBufferSize: 2626560,
-      recvBufferSize: 131072,
-      fd: 24,
-      writeQueueSize: 0,
-      readable: true,
-      writable: true
+      "type": "tcp",
+      "is_active": true,
+      "is_referenced": true,
+      "address": "0x000055e70fcb85d8",
+      "localEndpoint": {
+        "host": "localhost",
+        "ip4": "127.0.0.1",
+        "port": 48986
+      },
+      "remoteEndpoint": {
+        "host": "localhost",
+        "ip4": "127.0.0.1",
+        "port": 38573
+      },
+      "sendBufferSize": 2626560,
+      "recvBufferSize": 131072,
+      "fd": 24,
+      "writeQueueSize": 0,
+      "readable": true,
+      "writable": true
     },
     {
-      type: 'tcp',
-      is_active: true,
-      is_referenced: true,
-      address: '0x000055e70fcd68c8',
-      localEndpoint: { host: 'ip6-localhost', ip6: '::1', port: 52266 },
-      remoteEndpoint: { host: 'ip6-localhost', ip6: '::1', port: 38573 },
-      sendBufferSize: 2626560,
-      recvBufferSize: 131072,
-      fd: 25,
-      writeQueueSize: 0,
-      readable: false,
-      writable: false
+      "type": "tcp",
+      "is_active": true,
+      "is_referenced": true,
+      "address": "0x000055e70fcd68c8",
+      "localEndpoint": {
+        "host": "ip6-localhost",
+        "ip6": "::1",
+        "port": 52266
+      },
+      "remoteEndpoint": {
+        "host": "ip6-localhost",
+        "ip6": "::1",
+        "port": 38573
+      },
+      "sendBufferSize": 2626560,
+      "recvBufferSize": 131072,
+      "fd": 25,
+      "writeQueueSize": 0,
+      "readable": false,
+      "writable": false
     }
   ],
   "workers": [],
