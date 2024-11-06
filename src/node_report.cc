@@ -23,7 +23,7 @@
 #include <cwctype>
 #include <fstream>
 
-constexpr int NODE_REPORT_VERSION = 3;
+constexpr int NODE_REPORT_VERSION = 4;
 constexpr int NANOS_PER_SEC = 1000 * 1000 * 1000;
 constexpr double SEC_PER_MICROS = 1e-6;
 constexpr int MAX_FRAME_COUNT = node::kMaxFrameCountForLogging;
