@@ -28,6 +28,9 @@ try {
   const [ latestVersion ] = globSync('test/fixtures/icu/localizationData-*.json')
     .map((file) => file.match(/localizationData-v(.*)\.json/)[1])
     .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
+  console.log(`The ICU is v${process.versions.icu}, but there is no fixture for this version. ` +
+  `Trying the latest known version: v${latestVersion}. If this test fails with a few strings changed ` +
+  `after ICU update, run this: \n${process.argv[0]} tools/icu/update-test-data.mjs\n`);
   localizationData = JSON.parse(readFileSync(path(`icu/localizationData-v${latestVersion}.json`)));
 }
 
