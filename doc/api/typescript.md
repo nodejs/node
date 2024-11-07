@@ -172,14 +172,22 @@ To discourage package authors from publishing packages written in TypeScript,
 Node.js will by default refuse to handle TypeScript files inside folders under
 a `node_modules` path.
 
+### Paths aliases
+
+[Path aliases][] won't be transformed and therefore produce an error. The closest
+feature available are [subpath imports][] with the limitation that they need to start
+with `#`
+
 [CommonJS]: modules.md
 [ES Modules]: esm.md
 [Full TypeScript support]: #full-typescript-support
+[Path aliases]: https://www.typescriptlang.org/tsconfig/#paths
 [`--experimental-strip-types`]: cli.md#--experimental-strip-types
 [`--experimental-transform-types`]: cli.md#--experimental-transform-types
 [`tsx`]: https://tsx.is/
 [`verbatimModuleSyntax`]: https://www.typescriptlang.org/tsconfig/#verbatimModuleSyntax
 [file extensions are mandatory]: esm.md#mandatory-file-extensions
 [full support]: #full-typescript-support
+[subpath imports]: packages.md#subpath-imports
 [the same way as `.js` files.]: packages.md#determining-module-system
 [type stripping]: #type-stripping
