@@ -422,6 +422,7 @@
       'test/cctest/test_traced_value.cc',
       'test/cctest/test_util.cc',
       'test/cctest/test_dataqueue.cc',
+      'test/cctest/test_dotenv.cc',
     ],
     'node_cctest_openssl_sources': [
       'test/cctest/test_crypto_clienthello.cc',
