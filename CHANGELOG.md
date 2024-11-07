@@ -89,7 +89,8 @@ release.
 <a href="doc/changelogs/CHANGELOG_V20.md#20.0.0">20.0.0</a><br/>
   </td>
   <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V18.md#18.20.4">18.20.4</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V18.md#18.20.5">18.20.5</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V18.md#18.20.4">18.20.4</a><br/>
 <a href="doc/changelogs/CHANGELOG_V18.md#18.20.3">18.20.3</a><br/>
 <a href="doc/changelogs/CHANGELOG_V18.md#18.20.2">18.20.2</a><br/>
 <a href="doc/changelogs/CHANGELOG_V18.md#18.20.1">18.20.1</a><br/>

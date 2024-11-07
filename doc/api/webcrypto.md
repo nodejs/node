@@ -577,6 +577,7 @@ changes:
   - version:
     - v22.5.0
     - v20.17.0
+    - v18.20.5
     pr-url: https://github.com/nodejs/node/pull/53601
     description: The length parameter is now optional for `'ECDH'`, `'X25519'`,
                  and `'X448'`.
