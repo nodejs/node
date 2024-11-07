@@ -7,10 +7,13 @@ import sys
 import zipfile
 import tarfile
 import contextlib
+import subprocess
+import tempfile
 try:
-    from urllib.request import FancyURLopener, URLopener
+    from urllib.request import FancyURLopener, URLopener, urlopen
 except ImportError:
-    from urllib import FancyURLopener, URLopener
+    from urllib import FancyURLopener, URLopener, urlopen
+import os
 
 def formatSize(amt):
     """Format a size as a string in MB"""
@@ -67,6 +70,49 @@ def checkHash(targetfile, hashAlgo):
         digest.update(chunk)
         chunk = f.read(1024)
     return digest.hexdigest()
+
+def checkGPG(targetfile, key_url, sig_url):
+    key_data = download_file(key_url)
+    sig_data = download_file(sig_url)
+    with tempfile.NamedTemporaryFile(delete=False) as f:
+        f.write(key_data)
+        key_file = f.name
+
+    with tempfile.NamedTemporaryFile(delete=False) as f:
+        f.write(sig_data)
+        sig_file = f.name
+    try:
+        cmd = ["gpg", "--import", key_file]
+        subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    except subprocess.CalledProcessError as e:
+        os.remove(key_file)
+        os.remove(sig_file)
+        raise Exception("Failed to import key. Check key url. \n%s" % e.stderr.decode("utf-8"))
+
+    try:
+        cmd = ["gpg", "--verify", sig_file, targetfile]
+        subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        print("Signature is valid")
+        os.remove(key_file)
+        os.remove(sig_file)
+        return True
+    except subprocess.CalledProcessError as e:
+        os.remove(key_file)
+        os.remove(sig_file)
+        raise Exception("Failed to verify signature. Check target file is valid. \n%s" % e.stderr.decode("utf-8"))
+
+def is_gpg_available():
+    try:
+        cmd = ["gpg", "--version"]
+        subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        return True
+    except subprocess.CalledProcessError as e:
+        print("GPG not installed. Skipping signature verification. \n%s" % e.stderr.decode("utf-8"))
+        return False
+
+def download_file(url):
+    with urlopen(url) as response:
+        return response.read()
 
 def unpack(packedfile, parent_path):
     """Unpacks packedfile into parent_path. Assumes .zip. Returns parent_path"""

@@ -41,16 +41,49 @@ NEW_VERSION_TGZ="icu4c-${LOW_DASHED_NEW_VERSION}-src.tgz"
 NEW_VERSION_TGZ_URL="https://github.com/unicode-org/icu/releases/download/release-${DASHED_NEW_VERSION}/$NEW_VERSION_TGZ"
 
 NEW_VERSION_MD5="https://github.com/unicode-org/icu/releases/download/release-${DASHED_NEW_VERSION}/icu4c-${LOW_DASHED_NEW_VERSION}-sources.md5"
+NEW_VERSION_TGZ_ASC_URL="https://github.com/unicode-org/icu/releases/download/release-${DASHED_NEW_VERSION}/icu4c-${LOW_DASHED_NEW_VERSION}-src.tgz.asc"
+
+KEY_URL="https://raw.githubusercontent.com/unicode-org/icu/release-$(echo "$NEW_VERSION" | sed 's/\./-/')/KEYS"
+
 
 CHECKSUM=$(curl -sL "$NEW_VERSION_MD5" | grep "$NEW_VERSION_TGZ" | grep -v "\.asc$" | awk '{print $1}')
 
-GENERATED_CHECKSUM=$( curl -sL "$NEW_VERSION_TGZ_URL" | md5sum | cut -d ' ' -f1)
+MD5_CHECK_AVAILABLE=$( [ -n "$CHECKSUM" ] && echo true || echo false )
+GPG_COMMAND=$(command -v gpg)
+GPG_CHECK_AVAILABLE=$( [ -n "$GPG_COMMAND" ] && echo true || echo false )
 
-echo "Comparing checksums: deposited '$CHECKSUM' with '$GENERATED_CHECKSUM'"
-
-if [ "$CHECKSUM" != "$GENERATED_CHECKSUM" ]; then
-  echo "Skipped because checksums do not match."
+if [ "$MD5_CHECK_AVAILABLE" = false ] && [ "$GPG_CHECK_AVAILABLE" = false ]; then
+  echo "Neither md5 checksum nor gpg command found"
   exit 0
+fi 
+
+if $MD5_CHECK_AVAILABLE; then
+  GENERATED_CHECKSUM=$( curl -sL "$NEW_VERSION_TGZ_URL" | md5sum | cut -d ' ' -f1)
+  echo "Comparing checksums: deposited '$CHECKSUM' with '$GENERATED_CHECKSUM'"
+  if [ "$CHECKSUM" != "$GENERATED_CHECKSUM" ]; then
+    echo "Skipped because checksums do not match."
+    exit 0
+  fi
+else 
+  echo "Checksum not found"
+fi 
+if $GPG_CHECK_AVAILABLE; then
+  echo "check with gpg"
+  curl -sL "$KEY_URL" > KEYS
+  curl -sL "$NEW_VERSION_TGZ_URL" > data.tgz
+  curl -sL "$NEW_VERSION_TGZ_ASC_URL" > signature.asc
+  gpg --import KEYS
+  if gpg --verify signature.asc data.tgz; then
+    echo "Signature verified"
+    rm data.tgz signature.asc KEYS
+
+  else
+    echo "Skipped because signature verification failed."
+    rm data.tgz signature.asc KEYS
+    exit 0
+  fi
+else 
+  echo "GPG command not found"
 fi
 
 ./configure --with-intl=full-icu --with-icu-source="$NEW_VERSION_TGZ_URL"
@@ -59,9 +92,25 @@ fi
 
 rm -rf "$DEPS_DIR/icu"
 
-perl -i -pe "s|\"url\": .*|\"url\": \"$NEW_VERSION_TGZ_URL\",|" "$TOOLS_DIR/icu/current_ver.dep"
+printf "[
+  {
+    \"url\": \"%s\"" "$NEW_VERSION_TGZ_URL" > "$TOOLS_DIR/icu/current_ver.dep"
 
-perl -i -pe "s|\"md5\": .*|\"md5\": \"$CHECKSUM\"|" "$TOOLS_DIR/icu/current_ver.dep"
+if $MD5_CHECK_AVAILABLE; then 
+  echo ',' >> "$TOOLS_DIR/icu/current_ver.dep"
+  printf "    \"md5\": \"%s\"" "$CHECKSUM" >> "$TOOLS_DIR/icu/current_ver.dep"
+fi
+
+if $GPG_CHECK_AVAILABLE; then
+  echo ',' >> "$TOOLS_DIR/icu/current_ver.dep"
+  printf "    \"gpg\": {
+      \"key\": \"%s\",
+      \"asc\": \"%s\"
+    }" "$KEY_URL" "$NEW_VERSION_TGZ_ASC_URL" >> "$TOOLS_DIR/icu/current_ver.dep"
+fi
+echo "
+  }
+]" >> "$TOOLS_DIR/icu/current_ver.dep"
 
 rm -rf out "$DEPS_DIR/icu" "$DEPS_DIR/icu4c*"
 
