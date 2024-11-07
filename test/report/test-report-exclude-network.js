@@ -75,7 +75,7 @@ describe('report exclude network option', () => {
         assert.notStrictEqual(findHandle(false, false)?.host, '::1');
       }
     } catch (e) {
-      throw new Error(e.message + ' in ' + JSON.stringify(tcp, null, 2));
+      throw new Error(e?.message + ' in ' + JSON.stringify(tcp, null, 2), { cause: e });
     }
 
     process.report.excludeNetwork = true;
