@@ -557,7 +557,7 @@ The algorithms currently supported include:
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: REPLACEME
+  - version: v18.20.5
     pr-url: https://github.com/nodejs/node/pull/53601
     description: The length parameter is now optional for `'ECDH'`, `'X25519'`,
                  and `'X448'`.
