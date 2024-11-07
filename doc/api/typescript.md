@@ -174,16 +174,16 @@ a `node_modules` path.
 
 ### Paths aliases
 
-[Path aliases][] won't be transformed and therefore produce an error. The closest
+[`tsconfig` "paths"][] won't be transformed and therefore produce an error. The closest
 feature available are [subpath imports][] with the limitation that they need to start
 with `#`
 
 [CommonJS]: modules.md
 [ES Modules]: esm.md
 [Full TypeScript support]: #full-typescript-support
-[Path aliases]: https://www.typescriptlang.org/tsconfig/#paths
 [`--experimental-strip-types`]: cli.md#--experimental-strip-types
 [`--experimental-transform-types`]: cli.md#--experimental-transform-types
+[`tsconfig` "paths"]: https://www.typescriptlang.org/tsconfig/#paths
 [`tsx`]: https://tsx.is/
 [`verbatimModuleSyntax`]: https://www.typescriptlang.org/tsconfig/#verbatimModuleSyntax
 [file extensions are mandatory]: esm.md#mandatory-file-extensions
