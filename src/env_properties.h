@@ -90,6 +90,7 @@
   V(cached_data_string, "cachedData")                                          \
   V(cache_key_string, "cacheKey")                                              \
   V(change_string, "change")                                                   \
+  V(changes_string, "changes")                                                 \
   V(channel_string, "channel")                                                 \
   V(chunks_sent_since_last_write_string, "chunksSentSinceLastWrite")           \
   V(clone_unsupported_type_str, "Cannot clone object of unsupported type.")    \
@@ -215,6 +216,7 @@
   V(jwk_y_string, "y")                                                         \
   V(kill_signal_string, "killSignal")                                          \
   V(kind_string, "kind")                                                       \
+  V(last_insert_rowid_string, "lastInsertRowid")                               \
   V(length_string, "length")                                                   \
   V(library_string, "library")                                                 \
   V(line_number_string, "lineNumber")                                          \

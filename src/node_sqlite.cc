@@ -694,10 +694,6 @@ void StatementSync::Run(const FunctionCallbackInfo<Value>& args) {
   }
 
   Local<Object> result = Object::New(env->isolate());
-  Local<String> last_insert_rowid_string =
-      FIXED_ONE_BYTE_STRING(env->isolate(), "lastInsertRowid");
-  Local<String> changes_string =
-      FIXED_ONE_BYTE_STRING(env->isolate(), "changes");
   sqlite3_int64 last_insert_rowid =
       sqlite3_last_insert_rowid(stmt->db_->Connection());
   sqlite3_int64 changes = sqlite3_changes64(stmt->db_->Connection());
@@ -713,9 +709,12 @@ void StatementSync::Run(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (result
-          ->Set(env->context(), last_insert_rowid_string, last_insert_rowid_val)
+          ->Set(env->context(),
+                env->last_insert_rowid_string(),
+                last_insert_rowid_val)
           .IsNothing() ||
-      result->Set(env->context(), changes_string, changes_val).IsNothing()) {
+      result->Set(env->context(), env->changes_string(), changes_val)
+          .IsNothing()) {
     return;
   }
 
