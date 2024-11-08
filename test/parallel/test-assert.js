@@ -801,7 +801,7 @@ test('Test strict assert', () => {
     '\n' +
     '+ {}\n' +
     '- {\n' +
-    '-   [Symbol(nodejs.util.inspect.custom)]: [Function (anonymous)],\n' +
+    '-   Symbol(nodejs.util.inspect.custom): [Function (anonymous)],\n' +
     "-   loop: 'forever'\n" +
     '- }\n'
   });

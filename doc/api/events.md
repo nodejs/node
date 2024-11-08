@@ -73,8 +73,8 @@ myEmitter.on('event', function(a, b) {
   //     _events: [Object: null prototype] { event: [Function (anonymous)] },
   //     _eventsCount: 1,
   //     _maxListeners: undefined,
-  //     [Symbol(shapeMode)]: false,
-  //     [Symbol(kCapture)]: false
+  //     Symbol(shapeMode): false,
+  //     Symbol(kCapture): false
   //   } true
 });
 myEmitter.emit('event', 'a', 'b');
@@ -91,8 +91,8 @@ myEmitter.on('event', function(a, b) {
   //     _events: [Object: null prototype] { event: [Function (anonymous)] },
   //     _eventsCount: 1,
   //     _maxListeners: undefined,
-  //     [Symbol(shapeMode)]: false,
-  //     [Symbol(kCapture)]: false
+  //     Symbol(shapeMode): false,
+  //     Symbol(kCapture): false
   //   } true
 });
 myEmitter.emit('event', 'a', 'b');
