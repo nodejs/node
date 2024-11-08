@@ -175,8 +175,8 @@ a `node_modules` path.
 ### Paths aliases
 
 [`tsconfig` "paths"][] won't be transformed and therefore produce an error. The closest
-feature available are [subpath imports][] with the limitation that they need to start
-with `#`
+feature available is [subpath imports][] with the limitation that they need to start
+with `#`.
 
 [CommonJS]: modules.md
 [ES Modules]: esm.md
