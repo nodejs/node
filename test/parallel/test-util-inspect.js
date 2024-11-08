@@ -3258,6 +3258,13 @@ assert.strictEqual(
     util.inspect({ ['__proto__']: { a: 1 } }),
     "{ ['__proto__']: { a: 1 } }"
   );
+
+  const o = { ['__proto__']: { a: 1 } };
+  Object.defineProperty(o, '__proto__', { enumerable: false });
+  assert.strictEqual(
+    util.inspect(o, { showHidden: true }),
+    "{ ['__proto__']: { a: 1 } }"
+  );
 }
 
 {
@@ -3322,4 +3329,27 @@ assert.strictEqual(
       throw new Error();
     }
   }), '{ [Symbol(Symbol.iterator)]: [Getter] }');
+}
+
+{
+  const sym = Symbol('bar');
+  const o = {
+    'foo': 0,
+    'Symbol(foo)': 0,
+    [Symbol('foo')]: 0,
+    [Symbol('foo()')]: 0,
+    [sym]: 0,
+  };
+  Object.defineProperty(o, sym, { enumerable: false });
+
+  assert.strictEqual(
+    util.inspect(o, { showHidden: true }),
+    '{\n' +
+    '  foo: 0,\n' +
+    "  'Symbol(foo)': 0,\n" +
+    '  [Symbol(foo)]: 0,\n' +
+    '  [Symbol(foo())]: 0,\n' +
+    '  [Symbol(bar)]: 0\n' +
+    '}',
+  );
 }
