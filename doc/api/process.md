@@ -3490,6 +3490,16 @@ const { report } = require('node:process');
 console.log(`Report on exception: ${report.reportOnUncaughtException}`);
 ```
 
+### `process.report.excludeEnv`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+If `true`, a diagnostic report is generated without the environment variables.
+
 ### `process.report.signal`
 
 <!-- YAML

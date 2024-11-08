@@ -61,7 +61,8 @@ static void WriteNodeReport(Isolate* isolate,
                             std::ostream& out,
                             Local<Value> error,
                             bool compact,
-                            bool exclude_network = false);
+                            bool exclude_network = false,
+                            bool exclude_env = false);
 static void PrintVersionInformation(JSONWriter* writer,
                                     bool exclude_network = false);
 static void PrintJavaScriptErrorStack(JSONWriter* writer,
@@ -78,6 +79,7 @@ static void PrintJavaScriptErrorProperties(JSONWriter* writer,
 static void PrintNativeStack(JSONWriter* writer);
 static void PrintResourceUsage(JSONWriter* writer);
 static void PrintGCStatistics(JSONWriter* writer, Isolate* isolate);
+static void PrintEnvironmentVariables(JSONWriter* writer);
 static void PrintSystemInformation(JSONWriter* writer);
 static void PrintLoadedLibraries(JSONWriter* writer);
 static void PrintComponentVersions(JSONWriter* writer);
@@ -95,7 +97,8 @@ static void WriteNodeReport(Isolate* isolate,
                             std::ostream& out,
                             Local<Value> error,
                             bool compact,
-                            bool exclude_network) {
+                            bool exclude_network,
+                            bool exclude_env) {
   // Obtain the current time and the pid.
   TIME_TYPE tm_struct;
   DiagnosticFilename::LocalTime(&tm_struct);
@@ -249,6 +252,9 @@ static void WriteNodeReport(Isolate* isolate,
   writer.json_arrayend();
 
   // Report operating system information
+  if (exclude_env == false) {
+    PrintEnvironmentVariables(&writer);
+  }
   PrintSystemInformation(&writer);
 
   writer.json_objectend();
@@ -694,8 +700,7 @@ static void PrintResourceUsage(JSONWriter* writer) {
 #endif  // RUSAGE_THREAD
 }
 
-// Report operating system information.
-static void PrintSystemInformation(JSONWriter* writer) {
+static void PrintEnvironmentVariables(JSONWriter* writer) {
   uv_env_item_t* envitems;
   int envcount;
   int r;
@@ -715,7 +720,10 @@ static void PrintSystemInformation(JSONWriter* writer) {
   }
 
   writer->json_objectend();
+}
 
+// Report operating system information.
+static void PrintSystemInformation(JSONWriter* writer) {
 #ifndef _WIN32
   static struct {
     const char* description;
@@ -915,6 +923,10 @@ std::string TriggerNodeReport(Isolate* isolate,
   bool exclude_network = env != nullptr ? env->options()->report_exclude_network
                                         : per_process::cli_options->per_isolate
                                               ->per_env->report_exclude_network;
+  bool exclude_env =
+      env != nullptr
+          ? env->report_exclude_env()
+          : per_process::cli_options->per_isolate->per_env->report_exclude_env;
 
   report::WriteNodeReport(isolate,
                           env,
@@ -924,7 +936,8 @@ std::string TriggerNodeReport(Isolate* isolate,
                           *outstream,
                           error,
                           compact,
-                          exclude_network);
+                          exclude_network,
+                          exclude_env);
 
   // Do not close stdout/stderr, only close files we opened.
   if (outfile.is_open()) {
@@ -978,8 +991,20 @@ void GetNodeReport(Isolate* isolate,
   bool exclude_network = env != nullptr ? env->options()->report_exclude_network
                                         : per_process::cli_options->per_isolate
                                               ->per_env->report_exclude_network;
-  report::WriteNodeReport(
-      isolate, env, message, trigger, "", out, error, false, exclude_network);
+  bool exclude_env =
+      env != nullptr
+          ? env->report_exclude_env()
+          : per_process::cli_options->per_isolate->per_env->report_exclude_env;
+  report::WriteNodeReport(isolate,
+                          env,
+                          message,
+                          trigger,
+                          "",
+                          out,
+                          error,
+                          false,
+                          exclude_network,
+                          exclude_env);
 }
 
 // External function to trigger a report, writing to a supplied stream.
@@ -995,8 +1020,20 @@ void GetNodeReport(Environment* env,
   bool exclude_network = env != nullptr ? env->options()->report_exclude_network
                                         : per_process::cli_options->per_isolate
                                               ->per_env->report_exclude_network;
-  report::WriteNodeReport(
-      isolate, env, message, trigger, "", out, error, false, exclude_network);
+  bool exclude_env =
+      env != nullptr
+          ? env->report_exclude_env()
+          : per_process::cli_options->per_isolate->per_env->report_exclude_env;
+  report::WriteNodeReport(isolate,
+                          env,
+                          message,
+                          trigger,
+                          "",
+                          out,
+                          error,
+                          false,
+                          exclude_network,
+                          exclude_env);
 }
 
 }  // namespace node
