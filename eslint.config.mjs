@@ -389,6 +389,21 @@ export default [
 
       // This is handled by 'no-restricted-globals'
       '@typescript-eslint/no-require-imports': 'off',
+      // We use ignore comments throughout the codebase
+      '@typescript-eslint/ban-ts-comment': 'off',
+    },
+  },
+  {
+    files: ['typings/**'],
+    rules: {
+      // In the typings, explicit any is used, along with
+      // empty objects.
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-empty-object-type': 'off',
+
+      // TODO(RedYetiDev): In the typings, many things are
+      // out of order.
+      'no-use-before-define': 'off',
     },
   },
   // #region partials
