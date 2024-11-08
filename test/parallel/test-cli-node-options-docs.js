@@ -123,6 +123,19 @@ for (const [, envVar, config] of nodeOptionsCC.matchAll(addOptionRE)) {
   }
 }
 
+{
+
+  const start = /^## Options/m;
+  const end = /^## Environment variables/m;
+  const filteredCLIText = cliText.slice(cliText.search(start), cliText.search(end)).trim();
+  const cliOptionPattern = /^### `(--[a-zA-Z0-9-]+)`/mg;
+  const options = Array.from(filteredCLIText.matchAll(cliOptionPattern)).map(match => match[1]);
+
+  const sortedOptions = [...options].sort();
+  assert.deepStrictEqual(options, sortedOptions, 'CLI options are not in alphabetical order');
+
+}
+
 // add alias handling
 manPagesOptions.delete('-trace-events-enabled');
 
