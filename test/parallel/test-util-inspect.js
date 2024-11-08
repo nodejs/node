@@ -145,7 +145,7 @@ assert.strictEqual(
     Object.assign(new String('hello'), { [Symbol('foo')]: 123 }),
     { showHidden: true }
   ),
-  "[String: 'hello'] { [length]: 5, [Symbol(foo)]: 123 }"
+  "[String: 'hello'] { [length]: 5, Symbol(foo): 123 }"
 );
 
 assert.match(util.inspect((new JSStream())._externalStream),
@@ -823,7 +823,7 @@ assert.strictEqual(util.inspect({ __proto__: Date.prototype }), 'Date {}');
 {
   const x = { [util.inspect.custom]: util.inspect };
   assert(util.inspect(x).includes(
-    '[Symbol(nodejs.util.inspect.custom)]: [Function: inspect] {\n'));
+    'Symbol(nodejs.util.inspect.custom): [Function: inspect] {\n'));
 }
 
 // `util.inspect` should display the escaped value of a key.
@@ -1045,7 +1045,7 @@ util.inspect({ hasOwnProperty: null });
   const UIC = 'nodejs.util.inspect.custom';
   assert.strictEqual(
     util.inspect(subject),
-    `{\n  a: 123,\n  [Symbol(${UIC})]: [Function: [${UIC}]]\n}`
+    `{\n  a: 123,\n  Symbol(${UIC}): [Function: [${UIC}]]\n}`
   );
 }
 
@@ -1145,27 +1145,29 @@ if (typeof Symbol !== 'undefined') {
 
   subject[Symbol('sym\nbol')] = 42;
 
-  assert.strictEqual(util.inspect(subject), '{ [Symbol(sym\\nbol)]: 42 }');
+  assert.strictEqual(util.inspect(subject), '{ Symbol(sym\\nbol): 42 }');
   assert.strictEqual(
     util.inspect(subject, options),
-    '{ [Symbol(sym\\nbol)]: 42 }'
+    '{ Symbol(sym\\nbol): 42 }'
   );
 
   Object.defineProperty(
     subject,
     Symbol(),
     { enumerable: false, value: 'non-enum' });
-  assert.strictEqual(util.inspect(subject), '{ [Symbol(sym\\nbol)]: 42 }');
+  assert.strictEqual(util.inspect(subject), '{ Symbol(sym\\nbol): 42 }');
   assert.strictEqual(
     util.inspect(subject, options),
-    "{ [Symbol(sym\\nbol)]: 42, [Symbol()]: 'non-enum' }"
+    "{ Symbol(sym\\nbol): 42, [Symbol()]: 'non-enum' }"
   );
 
   subject = [1, 2, 3];
   subject[Symbol('symbol')] = 42;
 
-  assert.strictEqual(util.inspect(subject),
-                     '[ 1, 2, 3, [Symbol(symbol)]: 42 ]');
+  assert.strictEqual(
+    util.inspect(subject),
+    '[ 1, 2, 3, Symbol(symbol): 42 ]'
+  );
 }
 
 // Test Set.
@@ -1589,7 +1591,7 @@ util.inspect(process);
   const obj = { [util.inspect.custom]: 'fhqwhgads' };
   assert.strictEqual(
     util.inspect(obj),
-    "{ [Symbol(nodejs.util.inspect.custom)]: 'fhqwhgads' }"
+    "{ Symbol(nodejs.util.inspect.custom): 'fhqwhgads' }"
   );
 }
 
@@ -1598,7 +1600,7 @@ util.inspect(process);
   const obj = { [Symbol.toStringTag]: 'a' };
   assert.strictEqual(
     util.inspect(obj),
-    "{ [Symbol(Symbol.toStringTag)]: 'a' }"
+    "{ Symbol(Symbol.toStringTag): 'a' }"
   );
   Object.defineProperty(obj, Symbol.toStringTag, {
     value: 'a',
@@ -2268,7 +2270,7 @@ assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
   value[Symbol('foo')] = 'yeah';
   res = util.inspect(value);
   assert.notStrictEqual(res, expectedWithoutProto);
-  assert.match(res, /\[Symbol\(foo\)]: 'yeah'/);
+  assert.match(res, /Symbol\(foo\): 'yeah'/);
 });
 
 assert.strictEqual(inspect(1n), '1n');
@@ -2284,7 +2286,7 @@ assert.strictEqual(
   Object.defineProperty(obj, 'Non\nenumerable\tkey', { value: true });
   assert.strictEqual(
     util.inspect(obj, { showHidden: true }),
-    '{ [Non\\nenumerable\\tkey]: true }'
+    '{ [\'Non\\nenumerable\\tkey\']: true }'
   );
 }
 
@@ -2375,7 +2377,7 @@ assert.strictEqual(
   arr[Symbol('a')] = false;
   assert.strictEqual(
     inspect(arr, { sorted: true }),
-    '[ 3, 2, 1, [Symbol(a)]: false, [Symbol(b)]: true, a: 1, b: 2, c: 3 ]'
+    '[ 3, 2, 1, Symbol(a): false, Symbol(b): true, a: 1, b: 2, c: 3 ]'
   );
 }
 
@@ -3263,7 +3265,7 @@ assert.strictEqual(
   Object.defineProperty(o, '__proto__', { enumerable: false });
   assert.strictEqual(
     util.inspect(o, { showHidden: true }),
-    "{ ['__proto__']: { a: 1 } }"
+    "{ [['__proto__']]: { a: 1 } }"
   );
 }
 
@@ -3328,11 +3330,11 @@ assert.strictEqual(
     get [Symbol.iterator]() {
       throw new Error();
     }
-  }), '{ [Symbol(Symbol.iterator)]: [Getter] }');
+  }), '{ Symbol(Symbol.iterator): [Getter] }');
 }
 
 {
-  const sym = Symbol('bar');
+  const sym = Symbol('bar()');
   const o = {
     'foo': 0,
     'Symbol(foo)': 0,
@@ -3347,9 +3349,9 @@ assert.strictEqual(
     '{\n' +
     '  foo: 0,\n' +
     "  'Symbol(foo)': 0,\n" +
-    '  [Symbol(foo)]: 0,\n' +
-    '  [Symbol(foo())]: 0,\n' +
-    '  [Symbol(bar)]: 0\n' +
+    '  Symbol(foo): 0,\n' +
+    '  Symbol(foo()): 0,\n' +
+    '  [Symbol(bar())]: 0\n' +
     '}',
   );
 }
