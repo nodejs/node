@@ -27,44 +27,44 @@ const runEnvCommand = (envVars, code) =>
   execFileSync(
     process.execPath,
     ['-e', `process.stdout.write(String(${code}));`],
-    { env: { ...process.env, ...envVars }, encoding: 'utf8' }
+    { env: { ...process.env, ...envVars }, encoding: 'utf8' },
   );
 
-// generate the localization data for all locales
+// Generate the localization data for all locales
 const localizationData = locales.reduce((acc, locale) => {
   acc.dateStrings[locale] = runEnvCommand(
     { LANG: locale, TZ: 'Europe/Zurich' },
-    `new Date(333333333333).toString()`
+    `new Date(333333333333).toString()`,
   );
 
   acc.dateTimeFormats[locale] = runEnvCommand(
     { LANG: locale, TZ: 'Europe/Zurich' },
-    `new Date(333333333333).toLocaleString()`
+    `new Date(333333333333).toLocaleString()`,
   );
 
   acc.dateFormats[locale] = runEnvCommand(
     { LANG: locale, TZ: 'Europe/Zurich' },
-    `new Intl.DateTimeFormat().format(333333333333)`
+    `new Intl.DateTimeFormat().format(333333333333)`,
   );
 
   acc.displayNames[locale] = runEnvCommand(
     { LANG: locale },
-    `new Intl.DisplayNames(undefined, { type: "region" }).of("CH")`
+    `new Intl.DisplayNames(undefined, { type: "region" }).of("CH")`,
   );
 
   acc.numberFormats[locale] = runEnvCommand(
     { LANG: locale },
-    `new Intl.NumberFormat().format(275760.913)`
+    `new Intl.NumberFormat().format(275760.913)`,
   );
 
   acc.pluralRules[locale] = runEnvCommand(
     { LANG: locale },
-    `new Intl.PluralRules().select(0)`
+    `new Intl.PluralRules().select(0)`,
   );
 
   acc.relativeTime[locale] = runEnvCommand(
     { LANG: locale },
-    `new Intl.RelativeTimeFormat().format(-586920.617, "hour")`
+    `new Intl.RelativeTimeFormat().format(-586920.617, "hour")`,
   );
 
   return acc;
