@@ -1,9 +1,3 @@
-module.exports = function ({ // pull in primordials
-  WebAssembly,
-  globalThis,
-  AbortController,
-  URL
-}) {
 "use strict";
 var __defProp = Object.defineProperty;
 var __getOwnPropNames = Object.getOwnPropertyNames;
@@ -13468,8 +13462,7 @@ var require_eventsource = __commonJS({
 var { getGlobalDispatcher, setGlobalDispatcher } = require_global2();
 var EnvHttpProxyAgent = require_env_http_proxy_agent();
 var fetchImpl = require_fetch().fetch;
-var module_exports = {};
-module_exports.fetch = /* @__PURE__ */ __name(function fetch(resource, init = void 0) {
+module.exports.fetch = /* @__PURE__ */ __name(function fetch(resource, init = void 0) {
   return fetchImpl(resource, init).catch((err) => {
     if (err && typeof err === "object") {
       Error.captureStackTrace(err);
@@ -13477,21 +13470,19 @@ module_exports.fetch = /* @__PURE__ */ __name(function fetch(resource, init = vo
     throw err;
   });
 }, "fetch");
-module_exports.FormData = require_formdata().FormData;
-module_exports.Headers = require_headers().Headers;
-module_exports.Response = require_response().Response;
-module_exports.Request = require_request2().Request;
+module.exports.FormData = require_formdata().FormData;
+module.exports.Headers = require_headers().Headers;
+module.exports.Response = require_response().Response;
+module.exports.Request = require_request2().Request;
 var { CloseEvent, ErrorEvent, MessageEvent, createFastMessageEvent } = require_events();
-module_exports.WebSocket = require_websocket().WebSocket;
-module_exports.CloseEvent = CloseEvent;
-module_exports.ErrorEvent = ErrorEvent;
-module_exports.MessageEvent = MessageEvent;
-module_exports.createFastMessageEvent = createFastMessageEvent;
-module_exports.EventSource = require_eventsource().EventSource;
-module_exports.EnvHttpProxyAgent = EnvHttpProxyAgent;
-module_exports.getGlobalDispatcher = getGlobalDispatcher;
-module_exports.setGlobalDispatcher = setGlobalDispatcher;
+module.exports.WebSocket = require_websocket().WebSocket;
+module.exports.CloseEvent = CloseEvent;
+module.exports.ErrorEvent = ErrorEvent;
+module.exports.MessageEvent = MessageEvent;
+module.exports.createFastMessageEvent = createFastMessageEvent;
+module.exports.EventSource = require_eventsource().EventSource;
+module.exports.EnvHttpProxyAgent = EnvHttpProxyAgent;
+module.exports.getGlobalDispatcher = getGlobalDispatcher;
+module.exports.setGlobalDispatcher = setGlobalDispatcher;
 /*! formdata-polyfill. MIT License. Jimmy Wärting <https://jimmy.warting.se/opensource> */
 /*! ws. MIT License. Einar Otto Stangvik <einaros@gmail.com> */
-return module_exports;
-};
