@@ -37,6 +37,7 @@ jobs:
                   --repo ${{ github.repository }} \
                   --base ${{ github.ref_name }} \
                   --label 'commit-queue' \
+                  --no-label 'blocked' \
                   --json 'number' \
                   --search "created:<=$(date --date="2 days ago"  +"%Y-%m-%dT%H:%M:%S%z")" \
                   -t '{{ range . }}{{ .number }} {{ end }}' \
@@ -46,6 +47,7 @@ jobs:
                   --base ${{ github.ref_name }} \
                   --label 'commit-queue' \
                   --label 'fast-track' \
+                  --no-label 'blocked' \
                   --json 'number' \
                   -t '{{ range . }}{{ .number }} {{ end }}' \
                   --limit 100)
