@@ -249,6 +249,7 @@ class EnvironmentOptions : public Options {
 
   std::vector<std::string> user_argv;
 
+  bool report_exclude_env = false;
   bool report_exclude_network = false;
 
   inline DebugOptions* get_debug_options() { return &debug_options_; }
