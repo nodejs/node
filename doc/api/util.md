@@ -370,6 +370,10 @@ util.formatWithOptions({ colors: true }, 'See object %O', { foo: 42 });
 
 <!-- YAML
 added: v22.9.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/55626
+    description: The API is renamed from `util.getCallSite` to `util.getCallSites()`.
 -->
 
 * `frameCount` {number} Number of frames to capture as call site objects.
