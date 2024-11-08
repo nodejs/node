@@ -1992,6 +1992,26 @@ changes:
 
 Location at which the report will be generated.
 
+### `--report-exclude-env`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+When `--report-exclude-env` is passed the diagnostic report generated will not
+contain the `environmentVariables` data.
+
+### `--report-exclude-network`
+
+<!-- YAML
+added:
+  - v22.0.0
+  - v20.13.0
+-->
+
+Exclude `header.networkInterfaces` from the diagnostic report. By default
+this is not set and the network interfaces are included.
+
 ### `--report-filename=filename`
 
 <!-- YAML
@@ -2056,15 +2076,6 @@ Enables report to be generated upon receiving the specified (or predefined)
 signal to the running Node.js process. The signal to trigger the report is
 specified through `--report-signal`.
 
-### `--report-exclude-env`
-
-<!-- YAML
-added: REPLACEME
--->
-
-When `--report-exclude-env` is passed the diagnostic report generated will not
-contain the `environmentVariables` data.
-
 ### `--report-signal=signal`
 
 <!-- YAML
@@ -2108,17 +2119,6 @@ changes:
 Enables report to be generated when the process exits due to an uncaught
 exception. Useful when inspecting the JavaScript stack in conjunction with
 native stack and other runtime environment data.
-
-### `--report-exclude-network`
-
-<!-- YAML
-added:
-  - v22.0.0
-  - v20.13.0
--->
-
-Exclude `header.networkInterfaces` from the diagnostic report. By default
-this is not set and the network interfaces are included.
 
 ### `-r`, `--require module`
 
