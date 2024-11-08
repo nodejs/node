@@ -59,7 +59,12 @@ function _validateContent(report, fields = []) {
 
   // Verify that all sections are present as own properties of the report.
   const sections = ['header', 'nativeStack', 'javascriptStack', 'libuv',
-                    'environmentVariables', 'sharedObjects', 'resourceUsage', 'workers'];
+                    'sharedObjects', 'resourceUsage', 'workers'];
+
+  if (!process.report.excludeEnv) {
+    sections.push('environmentVariables');
+  }
+
   if (!isWindows)
     sections.push('userLimits');
 
@@ -294,10 +299,12 @@ function _validateContent(report, fields = []) {
                        resource.type === 'loop' ? 'undefined' : 'boolean');
   });
 
-  // Verify the format of the environmentVariables section.
-  for (const [key, value] of Object.entries(report.environmentVariables)) {
-    assert.strictEqual(typeof key, 'string');
-    assert.strictEqual(typeof value, 'string');
+  if (!process.report.excludeEnv) {
+    // Verify the format of the environmentVariables section.
+    for (const [key, value] of Object.entries(report.environmentVariables)) {
+      assert.strictEqual(typeof key, 'string');
+      assert.strictEqual(typeof value, 'string');
+    }
   }
 
   // Verify the format of the userLimits section on non-Windows platforms.
