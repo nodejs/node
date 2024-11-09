@@ -129,9 +129,10 @@ for (const [, envVar, config] of nodeOptionsCC.matchAll(addOptionRE)) {
   const end = /^## Environment variables/m;
   const filteredCLIText = cliText.slice(cliText.search(start), cliText.search(end)).trim();
   const cliOptionPattern = /^### `(--[a-zA-Z0-9-]+)`/mg;
-  const options = Array.from(filteredCLIText.matchAll(cliOptionPattern)).map(match => match[1]);
+  const options = Array.from(filteredCLIText.matchAll(cliOptionPattern)).map((match) => match[1]);
 
   const sortedOptions = [...options].sort();
+  /* eslint-disable no-restricted-syntax */
   assert.deepStrictEqual(options, sortedOptions, 'CLI options are not in alphabetical order');
 
 }
