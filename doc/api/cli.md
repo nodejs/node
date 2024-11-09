@@ -1204,7 +1204,6 @@ added: v22.4.0
 
 Enable experimental [`Web Storage`][] support.
 
-
 ### `--expose-gc`
 
 <!-- YAML
