@@ -18,5 +18,5 @@ const internalFsBinding = internalBinding('fs');
 for (let i = 0; i < 10_000; i++) {
   // internalModuleStat does not use permission model.
   // doesNotThrow
-  internalFsBinding.internalModuleStat(blockedFile);
+  internalFsBinding.internalModuleStat(internalFsBinding, blockedFile);
 }
