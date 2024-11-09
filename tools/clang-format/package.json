@@ -1,5 +1,5 @@
 {
   "dependencies": {
-    "node-core-clang-format": "^19.1.1"
+    "clang-format-git-python": "^1.2.0-canary.0"
   }
 }
