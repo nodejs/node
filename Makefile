@@ -171,8 +171,7 @@ with-code-cache test-code-cache:
 	$(warning '$@' target is a noop)
 
 out/Makefile: config.gypi common.gypi node.gyp \
-	deps/uv/uv.gyp deps/llhttp/llhttp.gyp deps/zlib/zlib.gyp \
-	deps/simdutf/simdutf.gyp deps/ada/ada.gyp \
+	deps/*/*.gyp \
 	tools/v8_gypfiles/toolchain.gypi tools/v8_gypfiles/features.gypi \
 	tools/v8_gypfiles/inspector.gypi tools/v8_gypfiles/v8.gyp
 	$(PYTHON) tools/gyp_node.py -f make
