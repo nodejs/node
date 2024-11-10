@@ -121,19 +121,6 @@ test('execute a .cts file importing a .mts file export', async () => {
   strictEqual(result.code, 0);
 });
 
-test('execute a .cts file with default type module', async () => {
-  const result = await spawnPromisified(process.execPath, [
-    '--experimental-strip-types',
-    '--experimental-default-type=module', // Keeps working with commonjs
-    '--no-warnings',
-    fixtures.path('typescript/cts/test-require-commonjs.cts'),
-  ]);
-
-  strictEqual(result.stderr, '');
-  match(result.stdout, /Hello, TypeScript!/);
-  strictEqual(result.code, 0);
-});
-
 test('expect failure of a .cts file in node_modules', async () => {
   const result = await spawnPromisified(process.execPath, [
     '--experimental-strip-types',
