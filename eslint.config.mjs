@@ -51,7 +51,6 @@ export default [
       'test/.tmp.*/**',
       'test/addons/??_*',
       'test/fixtures/**',
-      'test/message/esm_display_syntax_error.mjs',
       'tools/github_reporter/**',
       'tools/icu/**',
     ],
