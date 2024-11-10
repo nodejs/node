@@ -10,7 +10,7 @@ const testCases = {
     { actual: 3, expected: 3, shouldPass: false },
     { actual: 2, expected: 3, shouldPass: false },
   ],
-  atLeast: [
+  greaterThanOrEqualTo: [
     { actual: 5, expected: 3, shouldPass: true },
     { actual: 3, expected: 3, shouldPass: true },
     { actual: 2, expected: 3, shouldPass: false },
@@ -20,7 +20,7 @@ const testCases = {
     { actual: 3, expected: 3, shouldPass: false },
     { actual: 4, expected: 3, shouldPass: false },
   ],
-  atMost: [
+  lessThanOrEqualTo: [
     { actual: 2, expected: 3, shouldPass: true },
     { actual: 3, expected: 3, shouldPass: true },
     { actual: 4, expected: 3, shouldPass: false },
@@ -29,9 +29,9 @@ const testCases = {
 
 const comparison = {
   greaterThan: 'greater than',
-  atLeast: 'greater than or equal to',
+  greaterThanOrEqualTo: 'greater than or equal to',
   lessThan: 'less than',
-  atMost: 'less than or equal to'
+  lessThanOrEqualTo: 'less than or equal to'
 };
 
 const methods = Object.keys(testCases);

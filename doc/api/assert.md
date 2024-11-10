@@ -551,7 +551,7 @@ added: v0.5.9
 
 An alias of [`assert.ok()`][].
 
-## `assert.atLeast(actual, expected[, message])`
+## `assert.greaterThanOrEqualTo(actual, expected[, message])`
 
 <!-- YAML
 added: REPLACEME
@@ -563,7 +563,7 @@ added: REPLACEME
 
 Expects the `actual` input to be greater than or equal to the `expected` value.
 
-## `assert.atMost(actual, expected[, message])`
+## `assert.lessThanOrEqualTo(actual, expected[, message])`
 
 <!-- YAML
 added: REPLACEME
