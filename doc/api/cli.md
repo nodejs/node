@@ -3553,8 +3553,8 @@ improvement depends on your workload (see [#42511][]).
 
 The default value depends on the memory limit. For example, on 64-bit systems
 with a memory limit of 512 MiB, the max size of a semi-space defaults to 1 MiB.
-On 64-bit systems with a memory limit of 2 GiB, the max size of a semi-space
-defaults to 16 MiB.
+For memory limits up to and including 2GiB, the default max size of a
+semi-space will be less than 16 MiB on 64-bit systems.
 
 To get the best configuration for your application, you should try different
 max-semi-space-size values when running benchmarks for your application.
