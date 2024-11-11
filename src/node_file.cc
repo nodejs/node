@@ -1031,6 +1031,8 @@ static void ExistsSync(const FunctionCallbackInfo<Value>& args) {
 // Used to speed up module loading.  Returns 0 if the path refers to
 // a file, 1 when it's a directory or < 0 on error (usually -ENOENT.)
 // The speedup comes from not creating thousands of Stat and Error objects.
+// Do not expose this function through public API as it doesn't hold
+// Permission Model checks.
 static void InternalModuleStat(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -1039,8 +1041,6 @@ static void InternalModuleStat(const FunctionCallbackInfo<Value>& args) {
   BufferValue path(env->isolate(), args[1]);
   CHECK_NOT_NULL(*path);
   ToNamespacedPath(env, &path);
-  THROW_IF_INSUFFICIENT_PERMISSIONS(
-      env, permission::PermissionScope::kFileSystemRead, path.ToStringView());
 
   uv_fs_t req;
   int rc = uv_fs_stat(env->event_loop(), &req, *path, nullptr);
@@ -1067,15 +1067,8 @@ static int32_t FastInternalModuleStat(
   }
 
   HandleScope scope(isolate);
-  Environment* env = Environment::GetCurrent(recv->GetCreationContextChecked());
 
   auto path = std::filesystem::path(input.data, input.data + input.length);
-  if (!env->permission()->is_granted(
-          env, permission::PermissionScope::kFileSystemRead, path.string()))
-      [[unlikely]] {
-    options.fallback = true;
-    return -1;
-  }
 
   switch (std::filesystem::status(path).type()) {
     case std::filesystem::file_type::directory:
