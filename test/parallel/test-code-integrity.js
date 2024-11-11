@@ -1,6 +1,6 @@
-'use strict';
-
 // Flags: --expose-internals
+
+'use strict';
 
 require('../common');
 const assert = require('node:assert');
