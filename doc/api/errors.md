@@ -793,6 +793,8 @@ state, usually after `.close()` has been called.
 
 ### `ERR_CODE_INTEGRITY_BLOCKED`
 
+> Stability: 1.1 - Active development
+
 Feature has been disabled due to OS Code Integrity policy.
 
 <a id="ERR_CODE_INTEGRITY_VIOLATION"></a>

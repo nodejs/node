@@ -1,5 +1,9 @@
 # Code Integrity
 
+<!-- type=misc -->
+
+> Stability: 1.1 - Active development
+
 Code integrity refers to the assurance that software code has not been
 altered or tampered with in any unauthorized way. It ensures that
 the code running on a system is exactly what was intended by the developers.
@@ -99,14 +103,11 @@ On older Windows versions, use the `Settings` section of your WDAC Policy.
 </Settings>
 ```
 
-### Windows Code Integrity and End Users
-
-Depending on
-
 ## Code Integrity on Linux
 
 Code integrity on Linux is not yet implemented. Plans for implementation will
-be made once the necessary APIs on Linux have been upstreamed.
+be made once the necessary APIs on Linux have been upstreamed. More information
+can be found here: https://github.com/nodejs/security-wg/issues/1388
 
 ## Code Integrity on MacOS
 
