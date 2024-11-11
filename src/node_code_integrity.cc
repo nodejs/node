@@ -103,7 +103,7 @@ static void IsFileTrustedBySystemCodeIntegrityPolicy(
   args.GetReturnValue().Set(isFileTrusted);
 }
 
-static void IsInteractiveModeDisabled(
+static void IsInteractiveModeDisabledInternal(
   const FunctionCallbackInfo<Value>& args) {
   CHECK_EQ(args.Length(), 0);
 
@@ -254,8 +254,8 @@ void Initialize(Local<Object> target,
   SetMethod(
     context,
     target,
-    "isInteractiveModeDisabled",
-    IsInteractiveModeDisabled);
+    "isInteractiveModeDisabledInternal",
+    IsInteractiveModeDisabledInternal);
 
   SetMethod(
     context,
@@ -266,7 +266,7 @@ void Initialize(Local<Object> target,
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(IsFileTrustedBySystemCodeIntegrityPolicy);
-  registry->Register(IsInteractiveModeDisabled);
+  registry->Register(IsInteractiveModeDisabledInternal);
   registry->Register(IsSystemEnforcingCodeIntegrity);
 }
 

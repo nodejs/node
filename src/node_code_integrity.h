@@ -1,3 +1,6 @@
+// Windows API documentation for WLDP can be found at
+// https://learn.microsoft.com/en-us/windows/win32/api/wldp/
+
 #ifndef SRC_NODE_CODE_INTEGRITY_H_
 #define SRC_NODE_CODE_INTEGRITY_H_
 
@@ -5,7 +8,6 @@
 
 #include <Windows.h>
 
-// {0xb5367df1,0xcbac,0x11cf,{0x95,0xca,0x00,0x80,0x5f,0x48,0xa1,0x92}}
 #define WLDP_HOST_OTHER \
     {0x626cbec3, 0xe1fa, 0x4227, \
     {0x98, 0x0, 0xed, 0x21, 0x2, 0x74, 0xcf, 0x7c}};
