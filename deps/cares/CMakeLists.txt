@@ -12,7 +12,7 @@ INCLUDE (CheckCSourceCompiles)
 INCLUDE (CheckStructHasMember)
 INCLUDE (CheckLibraryExists)
 
-PROJECT (c-ares LANGUAGES C VERSION "1.34.2" )
+PROJECT (c-ares LANGUAGES C VERSION "1.34.3" )
 
 # Set this version before release
 SET (CARES_VERSION "${PROJECT_VERSION}")
@@ -30,7 +30,7 @@ INCLUDE (GNUInstallDirs) # include this *AFTER* PROJECT(), otherwise paths are w
 # For example, a version of 4:0:2 would generate output such as:
 #    libname.so   -> libname.so.2
 #    libname.so.2 -> libname.so.2.2.0
-SET (CARES_LIB_VERSIONINFO "21:1:19")
+SET (CARES_LIB_VERSIONINFO "21:2:19")
 
 
 OPTION (CARES_STATIC        "Build as a static library"                                             OFF)
@@ -263,7 +263,7 @@ ENDIF ()
 # Set system-specific compiler flags
 IF (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
 	LIST (APPEND SYSFLAGS -D_DARWIN_C_SOURCE)
-ELSEIF (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+ELSEIF (CMAKE_SYSTEM_NAME STREQUAL "Linux" OR CMAKE_SYSTEM_NAME STREQUAL "Android")
 	LIST (APPEND SYSFLAGS -D_GNU_SOURCE -D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=700)
 ELSEIF (CMAKE_SYSTEM_NAME STREQUAL "SunOS")
 	LIST (APPEND SYSFLAGS -D__EXTENSIONS__ -D_REENTRANT -D_XOPEN_SOURCE=600)
