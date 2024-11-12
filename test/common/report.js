@@ -110,7 +110,7 @@ function _validateContent(report, fields = []) {
                         'glibcVersionRuntime', 'glibcVersionCompiler', 'cwd',
                         'reportVersion', 'networkInterfaces', 'threadId'];
   checkForUnknownFields(header, headerFields);
-  assert.strictEqual(header.reportVersion, 3);  // Increment as needed.
+  assert.strictEqual(header.reportVersion, 4);  // Increment as needed.
   assert.strictEqual(typeof header.event, 'string');
   assert.strictEqual(typeof header.trigger, 'string');
   assert(typeof header.filename === 'string' || header.filename === null);
