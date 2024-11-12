@@ -395,8 +395,8 @@ changes:
     - v20.6.0
     - v18.19.0
     pr-url: https://github.com/nodejs/node/pull/49028
-    description: Unflag `import.meta.resolve`, with `parentURL` parameter still
-                 flagged.
+    description: No longer behind `--experimental-import-meta-resolve` CLI flag,
+                 except for the non-standard `parentURL` parameter.
   - version:
     - v20.6.0
     - v18.19.0
