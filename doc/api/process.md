@@ -4435,8 +4435,8 @@ cases:
 [`ChildProcess.send()`]: child_process.md#subprocesssendmessage-sendhandle-options-callback
 [`ChildProcess`]: child_process.md#class-childprocess
 [`Error`]: errors.md#class-error
-[`EventEmitter`]: events.md#class-eventemitter
 [`EventEmitter.emit()`]: events.md#emitteremiteventname-args
+[`EventEmitter`]: events.md#class-eventemitter
 [`NODE_OPTIONS`]: cli.md#node_optionsoptions
 [`Promise.race()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/race
 [`Worker`]: worker_threads.md#class-worker
