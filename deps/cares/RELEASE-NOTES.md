@@ -1,3 +1,34 @@
+## c-ares version 1.34.3 - November 9 2024
+
+This is a bugfix release.
+
+Changes:
+* Build the release package in an automated way so we can provide
+  provenance as per [SLSA3](https://slsa.dev/).
+  [PR #906](https://github.com/c-ares/c-ares/pull/906)
+
+Bugfixes:
+* Some upstream servers are non-compliant with EDNS options, resend queries
+  without EDNS. [Issue #911](https://github.com/c-ares/c-ares/issues/911)
+* Android: <=7 needs sys/system_properties.h
+  [a70637c](https://github.com/c-ares/c-ares/commit/a70637c)
+* Android: CMake needs `-D_GNU_SOURCE` and others.
+  [PR #915](https://github.com/c-ares/c-ares/pull/914)
+* TSAN warns on missing lock, but lock isn't actually necessary.
+  [PR #915](https://github.com/c-ares/c-ares/pull/915)
+* `ares_getaddrinfo()` for `AF_UNSPEC` should retry IPv4 if only IPv6 is
+  received. [765d558](https://github.com/c-ares/c-ares/commit/765d558)
+* `ares_send()` shouldn't return `ARES_EBADRESP`, its `ARES_EBADQUERY`.
+  [91519e7](https://github.com/c-ares/c-ares/commit/91519e7)
+* Fix typos in man pages. [PR #905](https://github.com/c-ares/c-ares/pull/905)
+
+Thanks go to these friendly people for their efforts and contributions for this
+release:
+
+* Brad House (@bradh352)
+* Jiwoo Park (@jimmy-park)
+
+
 ## c-ares version 1.34.2 - October 15 2024
 
 This release contains a fix for downstream packages detecting the c-ares
