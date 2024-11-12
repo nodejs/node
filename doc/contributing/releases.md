@@ -311,6 +311,9 @@ $ git checkout -b v1.2.3-proposal upstream/v1.x
 git cherry-pick  ...  # cherry-pick nodejs-private PR commits directly into the proposal
 ```
 
+Remember to flag the CVE fixes as `notable-change` in the nodejs-private so it
+will be automatically included in the CHANGELOG "Notable Changes" section.
+
 </details>
 
 ### 3. Update `src/node_version.h`
