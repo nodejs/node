@@ -966,8 +966,9 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
 
   if (enc == UCS2) {
     String::Value needle_value(isolate, needle);
-    if (*needle_value == nullptr)
+    if (*needle_value == nullptr) {
       return args.GetReturnValue().Set(-1);
+    }
 
     if (haystack_length < 2 || needle_value.length() < 1) {
       return args.GetReturnValue().Set(-1);
