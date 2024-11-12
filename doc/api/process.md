@@ -1406,6 +1406,18 @@ process.on('warning', (warning) => {
 
 If `warning` is passed as an `Error` object, the `options` argument is ignored.
 
+## `process.emit(eventName[, ...args)`
+
+<!-- YAML
+added: v6.0.0
+-->
+
+* `eventName` {string|symbol}
+* `...args` {any}
+* Returns: {boolean}
+
+The `emit()` method follows the [`EventEmitter.emit()`][] signature.
+
 ## `process.emitWarning(warning[, type[, code]][, ctor])`
 
 <!-- YAML
@@ -4424,6 +4436,7 @@ cases:
 [`ChildProcess`]: child_process.md#class-childprocess
 [`Error`]: errors.md#class-error
 [`EventEmitter`]: events.md#class-eventemitter
+[`EventEmitter.emit()`]: events.md#emitteremiteventname-args
 [`NODE_OPTIONS`]: cli.md#node_optionsoptions
 [`Promise.race()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/race
 [`Worker`]: worker_threads.md#class-worker
