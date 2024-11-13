@@ -284,8 +284,8 @@ You can integrate the PRs into the proposal without running full CI.
 
 ⚠️ At this point, you can either run `git node release --prepare`:
 
-```console
-$ git node release --prepare x.y.z
+```bash
+git node release -S --prepare x.y.z
 ```
 
 to automate the remaining steps until step 6 or you can perform it manually
