@@ -96,3 +96,33 @@ an ambassador. These requests can be made through the existing social channel
 in the OpenJS Slack. For that reason and for communication purposes and
 collaboration opportunities, ambassadors should be members of the
 [OpenJS Slack](https://slack-invite.openjsf.org/).
+
+## Messages and Topics to Promote
+
+### How to add messages or topics to promote
+
+Messages or topics that ambassadors are asked to promote are added to this
+document in the [Current messages for promotion](#current-messages-for-promotion)
+section through the standard PR process except that they should be open
+for 7 days before landing and and should include and at mention to the
+nodejs/TSC for awareness. They should be removed through the same process
+when no longer relevant.
+
+### Current messages for promotion
+
+#### Sample message (Leave this one at the top)
+
+##### Goal
+
+The goal is to raise awareness of XYZ in the JavaScript ecosystem.
+
+#### Related Links
+
+List of links with more information about the topic to provide brackground
+or the information to be shared.
+
+#### Project contacts
+
+Add a list of GitHub handles for those within the project that
+have volunteered to be contacated when necessary by ambassadors
+to get more info about the message to be promoted.
