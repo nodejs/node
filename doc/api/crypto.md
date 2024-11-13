@@ -2059,6 +2059,22 @@ types are:
 This property is `undefined` for unrecognized `KeyObject` types and symmetric
 keys.
 
+### `keyObject.equals(otherKeyObject)`
+
+<!-- YAML
+added:
+  - v17.7.0
+  - v16.15.0
+-->
+
+* `otherKeyObject`: {KeyObject} A `KeyObject` with which to
+  compare `keyObject`.
+* Returns: {boolean}
+
+Returns `true` or `false` depending on whether the keys have exactly the same
+type, value, and parameters. This method is not
+[constant time](https://en.wikipedia.org/wiki/Timing_attack).
+
 ### `keyObject.export([options])`
 
 <!-- YAML
@@ -2108,22 +2124,6 @@ encrypted private keys. Since PKCS#8 defines its own
 encryption mechanism, PEM-level encryption is not supported when encrypting
 a PKCS#8 key. See [RFC 5208][] for PKCS#8 encryption and [RFC 1421][] for
 PKCS#1 and SEC1 encryption.
-
-### `keyObject.equals(otherKeyObject)`
-
-<!-- YAML
-added:
-  - v17.7.0
-  - v16.15.0
--->
-
-* `otherKeyObject`: {KeyObject} A `KeyObject` with which to
-  compare `keyObject`.
-* Returns: {boolean}
-
-Returns `true` or `false` depending on whether the keys have exactly the same
-type, value, and parameters. This method is not
-[constant time](https://en.wikipedia.org/wiki/Timing_attack).
 
 ### `keyObject.symmetricKeySize`
 
@@ -2665,6 +2665,16 @@ added: v15.6.0
 Checks whether the public key for this certificate is consistent with
 the given private key.
 
+### `x509.extKeyUsage`
+
+<!-- YAML
+added: v15.6.0
+-->
+
+* Type: {string\[]}
+
+An array detailing the key extended usages for this certificate.
+
 ### `x509.fingerprint`
 
 <!-- YAML
@@ -2755,16 +2765,6 @@ added: v15.9.0
 
 The issuer certificate or `undefined` if the issuer certificate is not
 available.
-
-### `x509.extKeyUsage`
-
-<!-- YAML
-added: v15.6.0
--->
-
-* Type: {string\[]}
-
-An array detailing the key extended usages for this certificate.
 
 ### `x509.publicKey`
 
