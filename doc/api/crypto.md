@@ -2945,50 +2945,6 @@ An object containing commonly used constants for crypto and security related
 operations. The specific constants currently defined are described in
 [Crypto constants][].
 
-### `crypto.fips`
-
-<!-- YAML
-added: v6.0.0
-deprecated: v10.0.0
--->
-
-> Stability: 0 - Deprecated
-
-Property for checking and controlling whether a FIPS compliant crypto provider
-is currently in use. Setting to true requires a FIPS build of Node.js.
-
-This property is deprecated. Please use `crypto.setFips()` and
-`crypto.getFips()` instead.
-
-### `crypto.checkPrime(candidate[, options], callback)`
-
-<!-- YAML
-added: v15.8.0
-changes:
-  - version: v18.0.0
-    pr-url: https://github.com/nodejs/node/pull/41678
-    description: Passing an invalid callback to the `callback` argument
-                 now throws `ERR_INVALID_ARG_TYPE` instead of
-                 `ERR_INVALID_CALLBACK`.
--->
-
-* `candidate` {ArrayBuffer|SharedArrayBuffer|TypedArray|Buffer|DataView|bigint}
-  A possible prime encoded as a sequence of big endian octets of arbitrary
-  length.
-* `options` {Object}
-  * `checks` {number} The number of Miller-Rabin probabilistic primality
-    iterations to perform. When the value is `0` (zero), a number of checks
-    is used that yields a false positive rate of at most 2<sup>-64</sup> for
-    random input. Care must be used when selecting a number of checks. Refer
-    to the OpenSSL documentation for the [`BN_is_prime_ex`][] function `nchecks`
-    options for more details. **Default:** `0`
-* `callback` {Function}
-  * `err` {Error} Set to an {Error} object if an error occurred during check.
-  * `result` {boolean} `true` if the candidate is a prime with an error
-    probability less than `0.25 ** options.checks`.
-
-Checks the primality of the `candidate`.
-
 ### `crypto.checkPrimeSync(candidate[, options])`
 
 <!-- YAML
@@ -3565,69 +3521,49 @@ Computes the Diffie-Hellman secret based on a `privateKey` and a `publicKey`.
 Both keys must have the same `asymmetricKeyType`, which must be one of `'dh'`
 (for Diffie-Hellman), `'ec'`, `'x448'`, or `'x25519'` (for ECDH).
 
-### `crypto.hash(algorithm, data[, outputEncoding])`
+### `crypto.fips`
 
 <!-- YAML
-added:
- - v21.7.0
- - v20.12.0
+added: v6.0.0
+deprecated: v10.0.0
 -->
 
-> Stability: 1.2 - Release candidate
+> Stability: 0 - Deprecated
 
-* `algorithm` {string|undefined}
-* `data` {string|Buffer|TypedArray|DataView} When `data` is a
-  string, it will be encoded as UTF-8 before being hashed. If a different
-  input encoding is desired for a string input, user could encode the string
-  into a `TypedArray` using either `TextEncoder` or `Buffer.from()` and passing
-  the encoded `TypedArray` into this API instead.
-* `outputEncoding` {string|undefined}  [Encoding][encoding] used to encode the
-  returned digest. **Default:** `'hex'`.
-* Returns: {string|Buffer}
+Property for checking and controlling whether a FIPS compliant crypto provider
+is currently in use. Setting to true requires a FIPS build of Node.js.
 
-A utility for creating one-shot hash digests of data. It can be faster than
-the object-based `crypto.createHash()` when hashing a smaller amount of data
-(<= 5MB) that's readily available. If the data can be big or if it is streamed,
-it's still recommended to use `crypto.createHash()` instead.
+This property is deprecated. Please use `crypto.setFips()` and
+`crypto.getFips()` instead.
 
-The `algorithm` is dependent on the available algorithms supported by the
-version of OpenSSL on the platform. Examples are `'sha256'`, `'sha512'`, etc.
-On recent releases of OpenSSL, `openssl list -digest-algorithms` will
-display the available digest algorithms.
+### `crypto.checkPrime(candidate[, options], callback)`
 
-Example:
+<!-- YAML
+added: v15.8.0
+changes:
+  - version: v18.0.0
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
+-->
 
-```cjs
-const crypto = require('node:crypto');
-const { Buffer } = require('node:buffer');
+* `candidate` {ArrayBuffer|SharedArrayBuffer|TypedArray|Buffer|DataView|bigint}
+  A possible prime encoded as a sequence of big endian octets of arbitrary
+  length.
+* `options` {Object}
+  * `checks` {number} The number of Miller-Rabin probabilistic primality
+    iterations to perform. When the value is `0` (zero), a number of checks
+    is used that yields a false positive rate of at most 2<sup>-64</sup> for
+    random input. Care must be used when selecting a number of checks. Refer
+    to the OpenSSL documentation for the [`BN_is_prime_ex`][] function `nchecks`
+    options for more details. **Default:** `0`
+* `callback` {Function}
+  * `err` {Error} Set to an {Error} object if an error occurred during check.
+  * `result` {boolean} `true` if the candidate is a prime with an error
+    probability less than `0.25 ** options.checks`.
 
-// Hashing a string and return the result as a hex-encoded string.
-const string = 'Node.js';
-// 10b3493287f831e81a438811a1ffba01f8cec4b7
-console.log(crypto.hash('sha1', string));
-
-// Encode a base64-encoded string into a Buffer, hash it and return
-// the result as a buffer.
-const base64 = 'Tm9kZS5qcw==';
-// <Buffer 10 b3 49 32 87 f8 31 e8 1a 43 88 11 a1 ff ba 01 f8 ce c4 b7>
-console.log(crypto.hash('sha1', Buffer.from(base64, 'base64'), 'buffer'));
-```
-
-```mjs
-import crypto from 'node:crypto';
-import { Buffer } from 'node:buffer';
-
-// Hashing a string and return the result as a hex-encoded string.
-const string = 'Node.js';
-// 10b3493287f831e81a438811a1ffba01f8cec4b7
-console.log(crypto.hash('sha1', string));
-
-// Encode a base64-encoded string into a Buffer, hash it and return
-// the result as a buffer.
-const base64 = 'Tm9kZS5qcw==';
-// <Buffer 10 b3 49 32 87 f8 31 e8 1a 43 88 11 a1 ff ba 01 f8 ce c4 b7>
-console.log(crypto.hash('sha1', Buffer.from(base64, 'base64'), 'buffer'));
-```
+Checks the primality of the `candidate`.
 
 ### `crypto.generateKey(type, options, callback)`
 
@@ -4227,6 +4163,70 @@ added: v17.4.0
 A convenient alias for [`crypto.webcrypto.getRandomValues()`][]. This
 implementation is not compliant with the Web Crypto spec, to write
 web-compatible code use [`crypto.webcrypto.getRandomValues()`][] instead.
+
+### `crypto.hash(algorithm, data[, outputEncoding])`
+
+<!-- YAML
+added:
+ - v21.7.0
+ - v20.12.0
+-->
+
+> Stability: 1.2 - Release candidate
+
+* `algorithm` {string|undefined}
+* `data` {string|Buffer|TypedArray|DataView} When `data` is a
+  string, it will be encoded as UTF-8 before being hashed. If a different
+  input encoding is desired for a string input, user could encode the string
+  into a `TypedArray` using either `TextEncoder` or `Buffer.from()` and passing
+  the encoded `TypedArray` into this API instead.
+* `outputEncoding` {string|undefined}  [Encoding][encoding] used to encode the
+  returned digest. **Default:** `'hex'`.
+* Returns: {string|Buffer}
+
+A utility for creating one-shot hash digests of data. It can be faster than
+the object-based `crypto.createHash()` when hashing a smaller amount of data
+(<= 5MB) that's readily available. If the data can be big or if it is streamed,
+it's still recommended to use `crypto.createHash()` instead.
+
+The `algorithm` is dependent on the available algorithms supported by the
+version of OpenSSL on the platform. Examples are `'sha256'`, `'sha512'`, etc.
+On recent releases of OpenSSL, `openssl list -digest-algorithms` will
+display the available digest algorithms.
+
+Example:
+
+```cjs
+const crypto = require('node:crypto');
+const { Buffer } = require('node:buffer');
+
+// Hashing a string and return the result as a hex-encoded string.
+const string = 'Node.js';
+// 10b3493287f831e81a438811a1ffba01f8cec4b7
+console.log(crypto.hash('sha1', string));
+
+// Encode a base64-encoded string into a Buffer, hash it and return
+// the result as a buffer.
+const base64 = 'Tm9kZS5qcw==';
+// <Buffer 10 b3 49 32 87 f8 31 e8 1a 43 88 11 a1 ff ba 01 f8 ce c4 b7>
+console.log(crypto.hash('sha1', Buffer.from(base64, 'base64'), 'buffer'));
+```
+
+```mjs
+import crypto from 'node:crypto';
+import { Buffer } from 'node:buffer';
+
+// Hashing a string and return the result as a hex-encoded string.
+const string = 'Node.js';
+// 10b3493287f831e81a438811a1ffba01f8cec4b7
+console.log(crypto.hash('sha1', string));
+
+// Encode a base64-encoded string into a Buffer, hash it and return
+// the result as a buffer.
+const base64 = 'Tm9kZS5qcw==';
+// <Buffer 10 b3 49 32 87 f8 31 e8 1a 43 88 11 a1 ff ba 01 f8 ce c4 b7>
+console.log(crypto.hash('sha1', Buffer.from(base64, 'base64'), 'buffer'));
+```
 
 ### `crypto.hkdf(digest, ikm, salt, info, keylen, callback)`
 
