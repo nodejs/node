@@ -775,12 +775,6 @@ Instantiate a new empty `URLSearchParams` object.
 
 #### `new URLSearchParams(string)`
 
-<!-- YAML
-added:
-  - v7.5.0
-  - v6.13.0
--->
-
 * `string` {string} A query string
 
 Parse the `string` as a query string, and use it to instantiate a new
