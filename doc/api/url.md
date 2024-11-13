@@ -775,6 +775,12 @@ Instantiate a new empty `URLSearchParams` object.
 
 #### `new URLSearchParams(string)`
 
+<!-- YAML
+added:
+  - v7.5.0
+  - v6.13.0
+-->
+
 * `string` {string} A query string
 
 Parse the `string` as a query string, and use it to instantiate a new
@@ -907,6 +913,12 @@ If `value` is not provided, removes all name-value pairs whose name is `name`.
 
 #### `urlSearchParams.entries()`
 
+<!-- YAML
+added:
+  - v7.3.0
+  - v6.13.0
+-->
+
 * Returns: {Iterator}
 
 Returns an ES6 `Iterator` over each of the name-value pairs in the query.
@@ -918,6 +930,9 @@ Alias for [`urlSearchParams[@@iterator]()`][`urlSearchParams@@iterator()`].
 #### `urlSearchParams.forEach(fn[, thisArg])`
 
 <!-- YAML
+added:
+  - v7.3.0
+  - v6.13.0
 changes:
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
@@ -983,6 +998,12 @@ If `value` is not provided, returns `true` if there is at least one name-value
 pair whose name is `name`.
 
 #### `urlSearchParams.keys()`
+
+<!-- YAML
+added:
+  - v7.3.0
+  - v6.13.0
+-->
 
 * Returns: {Iterator}
 
@@ -1061,6 +1082,12 @@ Returns the search parameters serialized as a string, with characters
 percent-encoded where necessary.
 
 #### `urlSearchParams.values()`
+
+<!-- YAML
+added:
+  - v7.3.0
+  - v6.13.0
+-->
 
 * Returns: {Iterator}
 
