@@ -705,7 +705,7 @@ the build before moving forward. Use the following list as a baseline:
 ### 11. Tag and sign the release commit
 
 Once you have produced builds that you're happy with you can either run
-`git node release -S --promote`
+`git node release --promote`
 
 ```bash
 git node release -S --promote https://github.com/nodejs/node/pull/XXXX
