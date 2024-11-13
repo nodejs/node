@@ -409,6 +409,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "Treat the entrypoint as a URL",
             &EnvironmentOptions::entry_is_url,
             kAllowedInEnvvar);
+  AddOption("--experimental-addon-modules",
+            "experimental import support for addons",
+            &EnvironmentOptions::experimental_addon_modules,
+            kAllowedInEnvvar);
   AddOption("--experimental-abortcontroller", "", NoOp{}, kAllowedInEnvvar);
   AddOption("--experimental-eventsource",
             "experimental EventSource API",
