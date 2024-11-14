@@ -22,16 +22,7 @@ import sqlite from 'node:sqlite';
 const sqlite = require('node:sqlite');
 ```
 
-This module is only available under the `node:` scheme. The following will not
-work:
-
-```mjs
-import sqlite from 'sqlite';
-```
-
-```cjs
-const sqlite = require('sqlite');
-```
+This module is only available under the `node:` scheme.
 
 The following example shows the basic usage of the `node:sqlite` module to open
 an in-memory database, write data to the database, and then read the data back.
