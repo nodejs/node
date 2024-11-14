@@ -105,6 +105,8 @@ class EventSource extends EventTarget {
     // 1. Let ev be a new EventSource object.
     super()
 
+    webidl.util.markAsUncloneable(this)
+
     const prefix = 'EventSource constructor'
     webidl.argumentLengthCheck(arguments, 1, prefix)
 

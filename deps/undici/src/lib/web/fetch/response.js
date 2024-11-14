@@ -110,6 +110,7 @@ class Response {
 
   // https://fetch.spec.whatwg.org/#dom-response
   constructor (body = null, init = {}) {
+    webidl.util.markAsUncloneable(this)
     if (body === kConstruct) {
       return
     }
