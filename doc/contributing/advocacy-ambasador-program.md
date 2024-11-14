@@ -104,7 +104,7 @@ collaboration opportunities, ambassadors should be members of the
 Messages or topics that ambassadors are asked to promote are added to this
 document in the [Current messages for promotion](#current-messages-for-promotion)
 section through the standard PR process except that they should be open
-for 7 days before landing and and should include and at mention to the
+for 7 days before landing and should include and at mention to the
 nodejs/TSC for awareness. They should be removed through the same process
 when no longer relevant.
 
