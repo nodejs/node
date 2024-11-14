@@ -97,7 +97,7 @@ in the OpenJS Slack. For that reason and for communication purposes and
 collaboration opportunities, ambassadors should be members of the
 [OpenJS Slack](https://slack-invite.openjsf.org/).
 
-## Messages and Topics to Promote
+## Messages and topics to promote
 
 ### How to add messages or topics to promote
 
