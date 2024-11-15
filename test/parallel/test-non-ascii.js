@@ -6,8 +6,7 @@ const tmpdir = require('../common/tmpdir');
 const { describe, it } = require('node:test');
 const assert = require('node:assert');
 
-describe('None ASCII', () => {
-  it('should be able to run on a directory with non-ASCII characters', async () => {
+test('Running from a directory with non-ASCII characters', async () => {
     fs.mkdirSync(tmpdir.resolve('12月'), { recursive: true });
     fs.writeFileSync(
       tmpdir.resolve('12月/index.js'),
