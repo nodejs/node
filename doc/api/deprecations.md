@@ -3578,7 +3578,7 @@ The [`util.toUSVString()`][] API is deprecated. Please use
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/55862
     description: End-of-Life.
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/49686
