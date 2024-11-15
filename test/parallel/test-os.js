@@ -85,10 +85,16 @@ assert.ok(hostname.length > 0);
 if (!common.isIBMi) {
   const { PRIORITY_BELOW_NORMAL, PRIORITY_LOW } = os.constants.priority;
   const LOWER_PRIORITY = os.getPriority() > PRIORITY_BELOW_NORMAL ? PRIORITY_BELOW_NORMAL : PRIORITY_LOW;
-  os.setPriority(LOWER_PRIORITY);
-  const priority = os.getPriority();
-  is.number(priority);
-  assert.strictEqual(priority, LOWER_PRIORITY);
+  try {
+    os.setPriority(LOWER_PRIORITY);
+    const priority = os.getPriority();
+    is.number(priority);
+    assert.strictEqual(priority, LOWER_PRIORITY);
+  } catch (err) {
+    // The current user might not have sufficient permissions to set this
+    // specific priority level.
+    if (err?.info?.code !== 'EACCES') throw err;
+  }
 }
 
 // On IBMi, os.uptime() returns 'undefined'
