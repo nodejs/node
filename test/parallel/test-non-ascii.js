@@ -12,8 +12,7 @@ test('Running from a directory with non-ASCII characters', async () => {
       tmpdir.resolve('12月/index.js'),
       "console.log('12月');",
     );
-    await common.spawnPromisified(process.execPath, [tmpdir.resolve('12月/index.js')]).then(common.mustCall((result) => {
-       assert.strictEqual(result.stdout, '12月' + '\n');
-     }));
+    const { stdout } = await common.spawnPromisified(process.execPath, [tmpdir.resolve('12月/index.js')]);
+    assert.strictEqual(stdout, '12月\n');
   });
 });
