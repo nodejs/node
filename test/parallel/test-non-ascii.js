@@ -3,7 +3,7 @@
 const fs = require('node:fs');
 const common = require('../common');
 const tmpdir = require('../common/tmpdir');
-const { describe, it } = require('node:test');
+const { test } = require('node:test');
 const assert = require('node:assert');
 
 test('Running from a directory with non-ASCII characters', async () => {
