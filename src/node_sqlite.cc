@@ -364,7 +364,7 @@ void DatabaseSync::CreateSession(const FunctionCallbackInfo<Value>& args) {
     if (options->HasOwnProperty(env->context(), table_key).FromJust()) {
       Local<Value> table_value;
       if (!options->Get(env->context(), table_key).ToLocal(&table_value)) {
-	       return;
+        return;
       }
 
       if (table_value->IsString()) {
@@ -456,7 +456,8 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
         String::NewFromUtf8(
             env->isolate(), "onConflict", NewStringType::kNormal)
             .ToLocalChecked();
-    Local<Value> conflictValue = options->Get(env->context(), conflictKey).ToLocalChecked();
+    Local<Value> conflictValue =
+        options->Get(env->context(), conflictKey).ToLocalChecked();
 
     if (!conflictValue->IsUndefined()) {
       if (!conflictValue->IsNumber()) {
