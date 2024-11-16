@@ -56,55 +56,65 @@ using v8::Value;
     }                                                                          \
   } while (0)
 
-inline Local<Object> CreateSQLiteError(Isolate* isolate, const char* message) {
-  Local<String> js_msg = String::NewFromUtf8(isolate, message).ToLocalChecked();
-  Local<Object> e = Exception::Error(js_msg)
-                        ->ToObject(isolate->GetCurrentContext())
-                        .ToLocalChecked();
-  e->Set(isolate->GetCurrentContext(),
-         OneByteString(isolate, "code"),
-         OneByteString(isolate, "ERR_SQLITE_ERROR"))
-      .Check();
+inline MaybeLocal<Object> CreateSQLiteError(Isolate* isolate,
+                                            const char* message) {
+  Local<String> js_msg;
+  Local<Object> e;
+  if (!String::NewFromUtf8(isolate, message).ToLocal(&js_msg) ||
+      !Exception::Error(js_msg)
+           ->ToObject(isolate->GetCurrentContext())
+           .ToLocal(&e) ||
+      e->Set(isolate->GetCurrentContext(),
+             OneByteString(isolate, "code"),
+             OneByteString(isolate, "ERR_SQLITE_ERROR"))
+          .IsNothing()) {
+    return MaybeLocal<Object>();
+  }
   return e;
 }
 
-inline Local<Object> CreateSQLiteError(Isolate* isolate, sqlite3* db) {
+inline MaybeLocal<Object> CreateSQLiteError(Isolate* isolate, sqlite3* db) {
   int errcode = sqlite3_extended_errcode(db);
   const char* errstr = sqlite3_errstr(errcode);
   const char* errmsg = sqlite3_errmsg(db);
-  Local<Object> e = CreateSQLiteError(isolate, errmsg);
-  e->Set(isolate->GetCurrentContext(),
-         OneByteString(isolate, "errcode"),
-         Integer::New(isolate, errcode))
-      .Check();
-  e->Set(isolate->GetCurrentContext(),
-         OneByteString(isolate, "errstr"),
-         String::NewFromUtf8(isolate, errstr).ToLocalChecked())
-      .Check();
+  Local<String> js_errmsg;
+  Local<Object> e;
+  if (!String::NewFromUtf8(isolate, errstr).ToLocal(&js_errmsg) ||
+      !CreateSQLiteError(isolate, errmsg).ToLocal(&e) ||
+      e->Set(isolate->GetCurrentContext(),
+             OneByteString(isolate, "errcode"),
+             Integer::New(isolate, errcode))
+          .IsNothing() ||
+      e->Set(isolate->GetCurrentContext(),
+             OneByteString(isolate, "errstr"),
+             js_errmsg)
+          .IsNothing()) {
+    return MaybeLocal<Object>();
+  }
   return e;
 }
 
 inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, sqlite3* db) {
-  isolate->ThrowException(CreateSQLiteError(isolate, db));
+  Local<Object> e;
+  if (CreateSQLiteError(isolate, db).ToLocal(&e)) {
+    isolate->ThrowException(e);
+  }
 }
 
 inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, const char* message) {
-  isolate->ThrowException(CreateSQLiteError(isolate, message));
+  Local<Object> e;
+  if (CreateSQLiteError(isolate, message).ToLocal(&e)) {
+    isolate->ThrowException(e);
+  }
 }
 
 DatabaseSync::DatabaseSync(Environment* env,
                            Local<Object> object,
-                           Local<String> location,
-                           bool open,
-                           bool enable_foreign_keys_on_open,
-                           bool enable_dqs_on_open)
-    : BaseObject(env, object) {
+                           DatabaseOpenConfiguration&& open_config,
+                           bool open)
+    : BaseObject(env, object), open_config_(std::move(open_config)) {
   MakeWeak();
-  node::Utf8Value utf8_location(env->isolate(), location);
-  location_ = utf8_location.ToString();
   connection_ = nullptr;
-  enable_foreign_keys_on_open_ = enable_foreign_keys_on_open;
-  enable_dqs_on_open_ = enable_dqs_on_open;
 
   if (open) {
     Open();
@@ -120,7 +130,9 @@ DatabaseSync::~DatabaseSync() {
 }
 
 void DatabaseSync::MemoryInfo(MemoryTracker* tracker) const {
-  tracker->TrackField("location", location_);
+  // TODO(tniessen): more accurately track the size of all fields
+  tracker->TrackFieldWithSize(
+      "open_config", sizeof(open_config_), "DatabaseOpenConfiguration");
 }
 
 bool DatabaseSync::Open() {
@@ -130,28 +142,32 @@ bool DatabaseSync::Open() {
   }
 
   // TODO(cjihrig): Support additional flags.
-  int flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
-  int r = sqlite3_open_v2(location_.c_str(), &connection_, flags, nullptr);
+  int flags = open_config_.get_read_only()
+                  ? SQLITE_OPEN_READONLY
+                  : SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
+  int r = sqlite3_open_v2(
+      open_config_.location().c_str(), &connection_, flags, nullptr);
   CHECK_ERROR_OR_THROW(env()->isolate(), connection_, r, SQLITE_OK, false);
 
   r = sqlite3_db_config(connection_,
                         SQLITE_DBCONFIG_DQS_DML,
-                        static_cast<int>(enable_dqs_on_open_),
+                        static_cast<int>(open_config_.get_enable_dqs()),
                         nullptr);
   CHECK_ERROR_OR_THROW(env()->isolate(), connection_, r, SQLITE_OK, false);
   r = sqlite3_db_config(connection_,
                         SQLITE_DBCONFIG_DQS_DDL,
-                        static_cast<int>(enable_dqs_on_open_),
+                        static_cast<int>(open_config_.get_enable_dqs()),
                         nullptr);
   CHECK_ERROR_OR_THROW(env()->isolate(), connection_, r, SQLITE_OK, false);
 
   int foreign_keys_enabled;
-  r = sqlite3_db_config(connection_,
-                        SQLITE_DBCONFIG_ENABLE_FKEY,
-                        static_cast<int>(enable_foreign_keys_on_open_),
-                        &foreign_keys_enabled);
+  r = sqlite3_db_config(
+      connection_,
+      SQLITE_DBCONFIG_ENABLE_FKEY,
+      static_cast<int>(open_config_.get_enable_foreign_keys()),
+      &foreign_keys_enabled);
   CHECK_ERROR_OR_THROW(env()->isolate(), connection_, r, SQLITE_OK, false);
-  CHECK_EQ(foreign_keys_enabled, enable_foreign_keys_on_open_);
+  CHECK_EQ(foreign_keys_enabled, open_config_.get_enable_foreign_keys());
 
   return true;
 }
@@ -193,9 +209,11 @@ void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
+  std::string location =
+      node::Utf8Value(env->isolate(), args[0].As<String>()).ToString();
+  DatabaseOpenConfiguration open_config(std::move(location));
+
   bool open = true;
-  bool enable_foreign_keys = true;
-  bool enable_dqs = false;
 
   if (args.Length() > 1) {
     if (!args[1]->IsObject()) {
@@ -219,6 +237,22 @@ void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
       open = open_v.As<Boolean>()->Value();
     }
 
+    Local<String> read_only_string =
+        FIXED_ONE_BYTE_STRING(env->isolate(), "readOnly");
+    Local<Value> read_only_v;
+    if (!options->Get(env->context(), read_only_string).ToLocal(&read_only_v)) {
+      return;
+    }
+    if (!read_only_v->IsUndefined()) {
+      if (!read_only_v->IsBoolean()) {
+        node::THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            "The \"options.readOnly\" argument must be a boolean.");
+        return;
+      }
+      open_config.set_read_only(read_only_v.As<Boolean>()->Value());
+    }
+
     Local<String> enable_foreign_keys_string =
         FIXED_ONE_BYTE_STRING(env->isolate(), "enableForeignKeyConstraints");
     Local<Value> enable_foreign_keys_v;
@@ -234,7 +268,8 @@ void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
             "boolean.");
         return;
       }
-      enable_foreign_keys = enable_foreign_keys_v.As<Boolean>()->Value();
+      open_config.set_enable_foreign_keys(
+          enable_foreign_keys_v.As<Boolean>()->Value());
     }
 
     Local<String> enable_dqs_string = FIXED_ONE_BYTE_STRING(
@@ -252,16 +287,11 @@ void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
             "a boolean.");
         return;
       }
-      enable_dqs = enable_dqs_v.As<Boolean>()->Value();
+      open_config.set_enable_dqs(enable_dqs_v.As<Boolean>()->Value());
     }
   }
 
-  new DatabaseSync(env,
-                   args.This(),
-                   args[0].As<String>(),
-                   open,
-                   enable_foreign_keys,
-                   enable_dqs);
+  new DatabaseSync(env, args.This(), std::move(open_config), open);
 }
 
 void DatabaseSync::Open(const FunctionCallbackInfo<Value>& args) {
@@ -561,23 +591,32 @@ void StatementSync::All(const FunctionCallbackInfo<Value>& args) {
   auto reset = OnScopeLeave([&]() { sqlite3_reset(stmt->statement_); });
   int num_cols = sqlite3_column_count(stmt->statement_);
   LocalVector<Value> rows(isolate);
+  LocalVector<Name> row_keys(isolate);
   while ((r = sqlite3_step(stmt->statement_)) == SQLITE_ROW) {
-    LocalVector<Name> row_keys(isolate);
-    row_keys.reserve(num_cols);
+    if (row_keys.size() == 0) {
+      row_keys.reserve(num_cols);
+
+      for (int i = 0; i < num_cols; ++i) {
+        Local<Name> key;
+        if (!stmt->ColumnNameToName(i).ToLocal(&key)) return;
+        row_keys.emplace_back(key);
+      }
+    }
+
     LocalVector<Value> row_values(isolate);
     row_values.reserve(num_cols);
 
-    for (int i = 0; i < num_cols; ++i) {
-      Local<Name> key;
-      if (!stmt->ColumnNameToName(i).ToLocal(&key)) return;
+    for (size_t i = 0; i < row_keys.size(); ++i) {
       Local<Value> val;
       if (!stmt->ColumnToValue(i).ToLocal(&val)) return;
-      row_keys.emplace_back(key);
       row_values.emplace_back(val);
     }
 
-    Local<Object> row = Object::New(
-        isolate, Null(isolate), row_keys.data(), row_values.data(), num_cols);
+    Local<Object> row = Object::New(isolate,
+                                    Null(isolate),
+                                    row_keys.data(),
+                                    row_values.data(),
+                                    row_keys.size());
     rows.emplace_back(row);
   }
 

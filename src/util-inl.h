@@ -540,25 +540,21 @@ constexpr std::string_view FastStringKey::as_string_view() const {
 // Inline so the compiler can fully optimize it away on Unix platforms.
 bool IsWindowsBatchFile(const char* filename) {
 #ifdef _WIN32
-  static constexpr bool kIsWindows = true;
-#else
-  static constexpr bool kIsWindows = false;
-#endif  // _WIN32
-  if (kIsWindows) {
-    std::string file_with_extension = filename;
-    // Regex to match the last extension part after the last dot, ignoring
-    // trailing spaces and dots
-    std::regex extension_regex(R"(\.([a-zA-Z0-9]+)\s*[\.\s]*$)");
-    std::smatch match;
-    std::string extension;
+  std::string file_with_extension = filename;
+  // Regex to match the last extension part after the last dot, ignoring
+  // trailing spaces and dots
+  std::regex extension_regex(R"(\.([a-zA-Z0-9]+)\s*[\.\s]*$)");
+  std::smatch match;
+  std::string extension;
 
-    if (std::regex_search(file_with_extension, match, extension_regex)) {
-      extension = ToLower(match[1].str());
-    }
-
-    return !extension.empty() && (extension == "cmd" || extension == "bat");
+  if (std::regex_search(file_with_extension, match, extension_regex)) {
+    extension = ToLower(match[1].str());
   }
+
+  return !extension.empty() && (extension == "cmd" || extension == "bat");
+#else
   return false;
+#endif  // _WIN32
 }
 
 }  // namespace node

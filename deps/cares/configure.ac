@@ -2,10 +2,10 @@ dnl Copyright (C) The c-ares project and its contributors
 dnl SPDX-License-Identifier: MIT
 AC_PREREQ([2.69])
 
-AC_INIT([c-ares], [1.33.1],
+AC_INIT([c-ares], [1.34.3],
   [c-ares mailing list: http://lists.haxx.se/listinfo/c-ares])
 
-CARES_VERSION_INFO="20:1:18"
+CARES_VERSION_INFO="21:2:19"
 dnl This flag accepts an argument of the form current[:revision[:age]]. So,
 dnl passing -version-info 3:12:1 sets current to 3, revision to 12, and age to
 dnl 1.
@@ -373,7 +373,7 @@ AS_HELP_STRING([--enable-libgcc],[use libgcc when linking]),
 dnl check for a few basic system headers we need.  It would be nice if we could
 dnl split these on separate lines, but for some reason autotools on Windows doesn't
 dnl allow this, even tried ending lines with a backslash.
-AC_CHECK_HEADERS([malloc.h memory.h AvailabilityMacros.h sys/types.h sys/time.h sys/select.h sys/socket.h sys/filio.h sys/ioctl.h sys/param.h sys/uio.h sys/random.h sys/event.h sys/epoll.h assert.h iphlpapi.h netioapi.h netdb.h netinet/in.h netinet6/in6.h netinet/tcp.h net/if.h ifaddrs.h fcntl.h errno.h socket.h strings.h stdbool.h time.h poll.h limits.h arpa/nameser.h arpa/nameser_compat.h arpa/inet.h ],
+AC_CHECK_HEADERS([malloc.h memory.h AvailabilityMacros.h sys/types.h sys/time.h sys/select.h sys/socket.h sys/filio.h sys/ioctl.h sys/param.h sys/uio.h sys/random.h sys/event.h sys/epoll.h assert.h iphlpapi.h netioapi.h netdb.h netinet/in.h netinet6/in6.h netinet/tcp.h net/if.h ifaddrs.h fcntl.h errno.h socket.h strings.h stdbool.h time.h poll.h limits.h arpa/nameser.h arpa/nameser_compat.h arpa/inet.h sys/system_properties.h ],
 dnl to do if not found
 [],
 dnl to do if found
@@ -488,6 +488,9 @@ cares_all_includes="
 #ifdef HAVE_RESOLV_H
 #  include <resolv.h>
 #endif
+#ifdef HAVE_SYS_SYSTEM_PROPERTIES_H
+#  include <sys/system_properties.h>
+#endif
 #ifdef HAVE_IPHLPAPI_H
 #  include <iphlpapi.h>
 #endif
@@ -540,9 +543,11 @@ dnl https://mailman.videolan.org/pipermail/vlc-devel/2015-March/101802.html
 dnl which would require we check each individually and provide function arguments
 dnl for the test.
 
+AC_CHECK_DECL(memmem,          [AC_DEFINE([HAVE_MEMMEM],            1, [Define to 1 if you have `memmem`]         )], [], $cares_all_includes)
 AC_CHECK_DECL(recv,            [AC_DEFINE([HAVE_RECV],              1, [Define to 1 if you have `recv`]           )], [], $cares_all_includes)
 AC_CHECK_DECL(recvfrom,        [AC_DEFINE([HAVE_RECVFROM],          1, [Define to 1 if you have `recvfrom`]       )], [], $cares_all_includes)
 AC_CHECK_DECL(send,            [AC_DEFINE([HAVE_SEND],              1, [Define to 1 if you have `send`]           )], [], $cares_all_includes)
+AC_CHECK_DECL(sendto,          [AC_DEFINE([HAVE_SENDTO],            1, [Define to 1 if you have `sendto`]         )], [], $cares_all_includes)
 AC_CHECK_DECL(getnameinfo,     [AC_DEFINE([HAVE_GETNAMEINFO],       1, [Define to 1 if you have `getnameinfo`]    )], [], $cares_all_includes)
 AC_CHECK_DECL(gethostname,     [AC_DEFINE([HAVE_GETHOSTNAME],       1, [Define to 1 if you have `gethostname`]    )], [], $cares_all_includes)
 AC_CHECK_DECL(connect,         [AC_DEFINE([HAVE_CONNECT],           1, [Define to 1 if you have `connect`]        )], [], $cares_all_includes)

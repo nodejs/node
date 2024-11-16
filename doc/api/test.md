@@ -1256,10 +1256,12 @@ added:
   - v18.9.0
   - v16.19.0
 changes:
-  - version: REPLACEME
+  - version: v23.0.0
     pr-url: https://github.com/nodejs/node/pull/54705
     description: Added the `cwd` option.
-  - version: REPLACEME
+  - version:
+    - v23.0.0
+    - v22.10.0
     pr-url: https://github.com/nodejs/node/pull/53937
     description: Added coverage options.
   - version: v22.8.0
@@ -2222,9 +2224,13 @@ set to `true`.
 added:
   - v20.4.0
   - v18.19.0
+changes:
+  - version: v23.1.0
+    pr-url: https://github.com/nodejs/node/pull/55398
+    description: The Mock Timers is now stable.
 -->
 
-> Stability: 1 - Experimental
+> Stability: 2 - Stable
 
 Mocking timers is a technique commonly used in software testing to simulate and
 control the behavior of timers, such as `setInterval` and `setTimeout`,

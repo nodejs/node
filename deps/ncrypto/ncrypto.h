@@ -1,11 +1,5 @@
 #pragma once
 
-#include <cstddef>
-#include <list>
-#include <memory>
-#include <optional>
-#include <string>
-#include <string_view>
 #include <openssl/bio.h>
 #include <openssl/bn.h>
 #include <openssl/dh.h>
@@ -18,13 +12,19 @@
 #include <openssl/rsa.h>
 #include <openssl/ssl.h>
 #include <openssl/x509.h>
+#include <cstddef>
+#include <list>
+#include <memory>
+#include <optional>
+#include <string>
+#include <string_view>
 #ifndef OPENSSL_NO_ENGINE
-#  include <openssl/engine.h>
+#include <openssl/engine.h>
 #endif  // !OPENSSL_NO_ENGINE
 // The FIPS-related functions are only available
 // when the OpenSSL itself was compiled with FIPS support.
 #if defined(OPENSSL_FIPS) && OPENSSL_VERSION_MAJOR < 3
-#  include <openssl/fips.h>
+#include <openssl/fips.h>
 #endif  // OPENSSL_FIPS
 
 #ifdef __GNUC__
@@ -93,11 +93,8 @@ namespace ncrypto {
 }
 
 static constexpr int kX509NameFlagsMultiline =
-    ASN1_STRFLGS_ESC_2253 |
-    ASN1_STRFLGS_ESC_CTRL |
-    ASN1_STRFLGS_UTF8_CONVERT |
-    XN_FLAG_SEP_MULTILINE |
-    XN_FLAG_FN_SN;
+    ASN1_STRFLGS_ESC_2253 | ASN1_STRFLGS_ESC_CTRL | ASN1_STRFLGS_UTF8_CONVERT |
+    XN_FLAG_SEP_MULTILINE | XN_FLAG_FN_SN;
 
 // ============================================================================
 // Error handling utilities
@@ -106,11 +103,8 @@ static constexpr int kX509NameFlagsMultiline =
 // that the error currently at the top of the stack is at the end of the
 // list and the error at the bottom of the stack is at the beginning.
 class CryptoErrorList final {
-public:
-  enum class Option {
-    NONE,
-    CAPTURE_ON_CONSTRUCT
-  };
+ public:
+  enum class Option { NONE, CAPTURE_ON_CONSTRUCT };
   CryptoErrorList(Option option = Option::CAPTURE_ON_CONSTRUCT);
 
   void capture();
@@ -130,7 +124,7 @@ public:
   std::optional<std::string> pop_back();
   std::optional<std::string> pop_front();
 
-private:
+ private:
   std::list<std::string> errors_;
 };
 
@@ -142,7 +136,7 @@ private:
 // If created with a pointer to a CryptoErrorList, the current OpenSSL error
 // stack will be captured before clearing the error.
 class ClearErrorOnReturn final {
-public:
+ public:
   ClearErrorOnReturn(CryptoErrorList* errors = nullptr);
   ~ClearErrorOnReturn();
   NCRYPTO_DISALLOW_COPY_AND_MOVE(ClearErrorOnReturn)
@@ -150,7 +144,7 @@ public:
 
   int peekError();
 
-private:
+ private:
   CryptoErrorList* errors_;
 };
 
@@ -160,7 +154,7 @@ private:
 // If created with a pointer to a CryptoErrorList, the current OpenSSL error
 // stack will be captured before resetting the error to the mark.
 class MarkPopErrorOnReturn final {
-public:
+ public:
   MarkPopErrorOnReturn(CryptoErrorList* errors = nullptr);
   ~MarkPopErrorOnReturn();
   NCRYPTO_DISALLOW_COPY_AND_MOVE(MarkPopErrorOnReturn)
@@ -168,7 +162,7 @@ public:
 
   int peekError();
 
-private:
+ private:
   CryptoErrorList* errors_;
 };
 
@@ -220,7 +214,7 @@ using SSLPointer = DeleteFnPtr<SSL, SSL_free>;
 using SSLSessionPointer = DeleteFnPtr<SSL_SESSION, SSL_SESSION_free>;
 
 struct StackOfXASN1Deleter {
-  void operator()(STACK_OF(ASN1_OBJECT)* p) const {
+  void operator()(STACK_OF(ASN1_OBJECT) * p) const {
     sk_ASN1_OBJECT_pop_free(p, ASN1_OBJECT_free);
   }
 };
@@ -262,8 +256,8 @@ class DataPointer final {
   template <typename T = void>
   inline operator const Buffer<T>() const {
     return {
-      .data = static_cast<T*>(data_),
-      .len = len_,
+        .data = static_cast<T*>(data_),
+        .len = len_,
     };
   }
 
@@ -273,7 +267,7 @@ class DataPointer final {
 };
 
 class BIOPointer final {
-public:
+ public:
   static BIOPointer NewMem();
   static BIOPointer NewSecMem();
   static BIOPointer New(const BIO_METHOD* method);
@@ -314,13 +308,13 @@ public:
 
   static int Write(BIOPointer* bio, std::string_view message);
 
-  template <typename...Args>
-  static void Printf(BIOPointer* bio, const char* format, Args...args) {
+  template <typename... Args>
+  static void Printf(BIOPointer* bio, const char* format, Args... args) {
     if (bio == nullptr || !*bio) return;
     BIO_printf(bio->get(), format, std::forward<Args...>(args...));
   }
 
-private:
+ private:
   mutable DeleteFnPtr<BIO, BIO_free_all> bio_;
 };
 
@@ -345,8 +339,8 @@ class BignumPointer final {
   bool isZero() const;
   bool isOne() const;
 
-  bool setWord(unsigned long w);
-  unsigned long getWord() const;
+  bool setWord(unsigned long w);  // NOLINT(runtime/int)
+  unsigned long getWord() const;  // NOLINT(runtime/int)
 
   size_t byteLength() const;
 
@@ -360,10 +354,12 @@ class BignumPointer final {
   static BignumPointer NewSecure();
   static DataPointer Encode(const BIGNUM* bn);
   static DataPointer EncodePadded(const BIGNUM* bn, size_t size);
-  static size_t EncodePaddedInto(const BIGNUM* bn, unsigned char* out, size_t size);
+  static size_t EncodePaddedInto(const BIGNUM* bn,
+                                 unsigned char* out,
+                                 size_t size);
   static int GetBitCount(const BIGNUM* bn);
   static int GetByteCount(const BIGNUM* bn);
-  static unsigned long GetWord(const BIGNUM* bn);
+  static unsigned long GetWord(const BIGNUM* bn);  // NOLINT(runtime/int)
   static const BIGNUM* One();
 
   BignumPointer clone();
@@ -373,10 +369,12 @@ class BignumPointer final {
 };
 
 class EVPKeyPointer final {
-public:
+ public:
   static EVPKeyPointer New();
-  static EVPKeyPointer NewRawPublic(int id, const Buffer<const unsigned char>& data);
-  static EVPKeyPointer NewRawPrivate(int id, const Buffer<const unsigned char>& data);
+  static EVPKeyPointer NewRawPublic(int id,
+                                    const Buffer<const unsigned char>& data);
+  static EVPKeyPointer NewRawPrivate(int id,
+                                     const Buffer<const unsigned char>& data);
 
   enum class PKEncodingType {
     // RSAPublicKey / RSAPrivateKey according to PKCS#1.
@@ -386,34 +384,53 @@ public:
     // SubjectPublicKeyInfo according to X.509.
     SPKI,
     // ECPrivateKey according to SEC1.
-    SEC1
+    SEC1,
   };
 
   enum class PKFormatType {
     DER,
     PEM,
-    JWK
+    JWK,
   };
 
-  enum class PKParseError {
-    NOT_RECOGNIZED,
-    NEED_PASSPHRASE,
-    FAILED
-  };
+  enum class PKParseError { NOT_RECOGNIZED, NEED_PASSPHRASE, FAILED };
   using ParseKeyResult = Result<EVPKeyPointer, PKParseError>;
 
+  struct AsymmetricKeyEncodingConfig {
+    bool output_key_object = false;
+    PKFormatType format = PKFormatType::DER;
+    PKEncodingType type = PKEncodingType::PKCS8;
+    AsymmetricKeyEncodingConfig() = default;
+    AsymmetricKeyEncodingConfig(bool output_key_object,
+                                PKFormatType format,
+                                PKEncodingType type);
+    AsymmetricKeyEncodingConfig(const AsymmetricKeyEncodingConfig&) = default;
+    AsymmetricKeyEncodingConfig& operator=(const AsymmetricKeyEncodingConfig&) =
+        default;
+  };
+  using PublicKeyEncodingConfig = AsymmetricKeyEncodingConfig;
+
+  struct PrivateKeyEncodingConfig : public AsymmetricKeyEncodingConfig {
+    const EVP_CIPHER* cipher = nullptr;
+    std::optional<DataPointer> passphrase = std::nullopt;
+    PrivateKeyEncodingConfig() = default;
+    PrivateKeyEncodingConfig(bool output_key_object,
+                             PKFormatType format,
+                             PKEncodingType type)
+        : AsymmetricKeyEncodingConfig(output_key_object, format, type) {}
+    PrivateKeyEncodingConfig(const PrivateKeyEncodingConfig&);
+    PrivateKeyEncodingConfig& operator=(const PrivateKeyEncodingConfig&);
+  };
+
   static ParseKeyResult TryParsePublicKey(
-      PKFormatType format,
-      PKEncodingType encoding,
+      const PublicKeyEncodingConfig& config,
       const Buffer<const unsigned char>& buffer);
 
   static ParseKeyResult TryParsePublicKeyPEM(
       const Buffer<const unsigned char>& buffer);
 
   static ParseKeyResult TryParsePrivateKey(
-      PKFormatType format,
-      PKEncodingType encoding,
-      std::optional<Buffer<char>> passphrase,
+      const PrivateKeyEncodingConfig& config,
       const Buffer<const unsigned char>& buffer);
 
   EVPKeyPointer() = default;
@@ -423,7 +440,9 @@ public:
   NCRYPTO_DISALLOW_COPY(EVPKeyPointer)
   ~EVPKeyPointer();
 
-  inline bool operator==(std::nullptr_t) const noexcept { return pkey_ == nullptr; }
+  inline bool operator==(std::nullptr_t) const noexcept {
+    return pkey_ == nullptr;
+  }
   inline operator bool() const { return pkey_ != nullptr; }
   inline EVP_PKEY* get() const { return pkey_.get(); }
   void reset(EVP_PKEY* pkey = nullptr);
@@ -441,20 +460,23 @@ public:
   size_t rawPrivateKeySize() const;
   DataPointer rawPublicKey() const;
   DataPointer rawPrivateKey() const;
-
   BIOPointer derPublicKey() const;
+
+  Result<BIOPointer, bool> writePrivateKey(
+      const PrivateKeyEncodingConfig& config) const;
+  Result<BIOPointer, bool> writePublicKey(
+      const PublicKeyEncodingConfig& config) const;
 
   EVPKeyCtxPointer newCtx() const;
 
   static bool IsRSAPrivateKey(const Buffer<const unsigned char>& buffer);
 
-private:
+ private:
   DeleteFnPtr<EVP_PKEY, EVP_PKEY_free> pkey_;
 };
 
 class DHPointer final {
-public:
-
+ public:
   enum class FindGroupOption {
     NONE,
     // There are known and documented security issues with prime groups smaller
@@ -465,8 +487,9 @@ public:
 
   static BignumPointer GetStandardGenerator();
 
-  static BignumPointer FindGroup(const std::string_view name,
-                                 FindGroupOption option = FindGroupOption::NONE);
+  static BignumPointer FindGroup(
+      const std::string_view name,
+      FindGroupOption option = FindGroupOption::NONE);
   static DHPointer FromGroup(const std::string_view name,
                              FindGroupOption option = FindGroupOption::NONE);
 
@@ -524,7 +547,7 @@ public:
   static DataPointer stateless(const EVPKeyPointer& ourKey,
                                const EVPKeyPointer& theirKey);
 
-private:
+ private:
   DeleteFnPtr<DH, DH_free> dh_;
 };
 
@@ -574,7 +597,8 @@ class X509View final {
     INVALID_NAME,
     OPERATION_FAILED,
   };
-  CheckMatch checkHost(const std::string_view host, int flags,
+  CheckMatch checkHost(const std::string_view host,
+                       int flags,
                        DataPointer* peerName = nullptr) const;
   CheckMatch checkEmail(const std::string_view email, int flags) const;
   CheckMatch checkIp(const std::string_view ip, int flags) const;
@@ -612,7 +636,7 @@ class X509Pointer final {
 
 #ifndef OPENSSL_NO_ENGINE
 class EnginePointer final {
-public:
+ public:
   EnginePointer() = default;
 
   explicit EnginePointer(ENGINE* engine_, bool finish_on_exit = false);
@@ -643,7 +667,7 @@ public:
   // Call once when initializing OpenSSL at startup for the process.
   static void initEnginesOnce();
 
-private:
+ private:
   ENGINE* engine = nullptr;
   bool finish_on_exit = false;
 };

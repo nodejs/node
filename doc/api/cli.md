@@ -219,15 +219,8 @@ The initializer module also needs to be allowed. Consider the following example:
 
 ```console
 $ node --experimental-permission t.js
-node:internal/modules/cjs/loader:162
-  const result = internalModuleStat(receiver, filename);
-                 ^
 
 Error: Access to this API has been restricted
-    at stat (node:internal/modules/cjs/loader:162:18)
-    at Module._findPath (node:internal/modules/cjs/loader:640:16)
-    at resolveMainPath (node:internal/modules/run_main:15:25)
-    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:53:24)
     at node:internal/main/run_main_module:23:47 {
   code: 'ERR_ACCESS_DENIED',
   permission: 'FileSystemRead',
@@ -300,18 +293,8 @@ new WASI({
 
 ```console
 $ node --experimental-permission --allow-fs-read=* index.js
-node:wasi:99
-    const wrap = new _WASI(args, env, preopens, stdio);
-                 ^
 
 Error: Access to this API has been restricted
-    at new WASI (node:wasi:99:18)
-    at Object.<anonymous> (/home/index.js:3:1)
-    at Module._compile (node:internal/modules/cjs/loader:1476:14)
-    at Module._extensions..js (node:internal/modules/cjs/loader:1555:10)
-    at Module.load (node:internal/modules/cjs/loader:1288:32)
-    at Module._load (node:internal/modules/cjs/loader:1104:12)
-    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:191:14)
     at node:internal/main/run_main_module:30:49 {
   code: 'ERR_ACCESS_DENIED',
   permission: 'WASI',
@@ -341,18 +324,8 @@ new Worker(__filename);
 
 ```console
 $ node --experimental-permission --allow-fs-read=* index.js
-node:internal/worker:188
-    this[kHandle] = new WorkerImpl(url,
-                    ^
 
 Error: Access to this API has been restricted
-    at new Worker (node:internal/worker:188:21)
-    at Object.<anonymous> (/home/index.js.js:3:1)
-    at Module._compile (node:internal/modules/cjs/loader:1120:14)
-    at Module._extensions..js (node:internal/modules/cjs/loader:1174:10)
-    at Module.load (node:internal/modules/cjs/loader:998:32)
-    at Module._load (node:internal/modules/cjs/loader:839:12)
-    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:81:12)
     at node:internal/main/run_main_module:17:47 {
   code: 'ERR_ACCESS_DENIED',
   permission: 'WorkerThreads'
@@ -812,7 +785,8 @@ of `--enable-source-maps`.
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v23.0.0
+  - v22.10.0
 -->
 
 > Stability: 1 - Experimental
@@ -929,21 +903,6 @@ and `"` are usable.
 It is possible to run code containing inline types by passing
 [`--experimental-strip-types`][].
 
-### `--experimental-async-context-frame`
-
-<!-- YAML
-added: v22.7.0
--->
-
-> Stability: 1 - Experimental
-
-Enables the use of [`AsyncLocalStorage`][] backed by `AsyncContextFrame` rather
-than the default implementation which relies on async\_hooks. This new model is
-implemented very differently and so could have differences in how context data
-flows within the application. As such, it is presently recommended to be sure
-your application behaviour is unaffected by this change before using it in
-production.
-
 ### `--experimental-default-type=type`
 
 <!-- YAML
@@ -982,7 +941,7 @@ JavaScript.
 added: v22.7.0
 -->
 
-> Stability: 1.0 - Early development
+> Stability: 1.1 - Active development
 
 Enables the transformation of TypeScript-only syntax into JavaScript code.
 Implies `--experimental-strip-types` and `--enable-source-maps`.
@@ -1073,7 +1032,7 @@ added:
   - v22.0.0
   - v20.17.0
 changes:
-  - version: REPLACEME
+  - version: v23.0.0
     pr-url: https://github.com/nodejs/node/pull/55085
     description: This is now true by default.
 -->
@@ -1120,7 +1079,7 @@ Enable the experimental [`node:sqlite`][] module.
 added: v22.6.0
 -->
 
-> Stability: 1.0 - Early development
+> Stability: 1.1 - Active development
 
 Enable experimental type-stripping for TypeScript files.
 For more information, see the [TypeScript type-stripping][] documentation.
@@ -1662,6 +1621,19 @@ Disable the `node-addons` exports condition as well as disable loading
 native addons. When `--no-addons` is specified, calling `process.dlopen` or
 requiring a native C++ addon will fail and throw an exception.
 
+### `--no-async-context-frame`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 2 - Stable
+
+Disables the use of [`AsyncLocalStorage`][] backed by `AsyncContextFrame` and
+uses the prior implementation which relied on async\_hooks. The previous model
+is retained for compatibility with Electron and for cases where the context
+flow may differ. However, if a difference in flow is found please report it.
+
 ### `--no-deprecation`
 
 <!-- YAML
@@ -1710,7 +1682,7 @@ added:
   - v22.0.0
   - v20.17.0
 changes:
-  - version: REPLACEME
+  - version: v23.0.0
     pr-url: https://github.com/nodejs/node/pull/55085
     description: This is now false by default.
 -->
@@ -1993,6 +1965,26 @@ changes:
 
 Location at which the report will be generated.
 
+### `--report-exclude-env`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+When `--report-exclude-env` is passed the diagnostic report generated will not
+contain the `environmentVariables` data.
+
+### `--report-exclude-network`
+
+<!-- YAML
+added:
+  - v22.0.0
+  - v20.13.0
+-->
+
+Exclude `header.networkInterfaces` from the diagnostic report. By default
+this is not set and the network interfaces are included.
+
 ### `--report-filename=filename`
 
 <!-- YAML
@@ -2100,17 +2092,6 @@ changes:
 Enables report to be generated when the process exits due to an uncaught
 exception. Useful when inspecting the JavaScript stack in conjunction with
 native stack and other runtime environment data.
-
-### `--report-exclude-network`
-
-<!-- YAML
-added:
-  - v22.0.0
-  - v20.13.0
--->
-
-Exclude `header.networkInterfaces` from the diagnostic report. By default
-this is not set and the network interfaces are included.
 
 ### `-r`, `--require module`
 
@@ -3050,7 +3031,6 @@ one is included in the list below.
 * `--enable-source-maps`
 * `--entry-url`
 * `--experimental-abortcontroller`
-* `--experimental-async-context-frame`
 * `--experimental-default-type`
 * `--experimental-detect-module`
 * `--experimental-eventsource`
@@ -3075,6 +3055,10 @@ one is included in the list below.
 * `--force-fips`
 * `--force-node-api-uncaught-exceptions-policy`
 * `--frozen-intrinsics`
+* `--heap-prof-dir`
+* `--heap-prof-interval`
+* `--heap-prof-name`
+* `--heap-prof`
 * `--heapsnapshot-near-heap-limit`
 * `--heapsnapshot-signal`
 * `--http-parser`
@@ -3092,6 +3076,7 @@ one is included in the list below.
 * `--napi-modules`
 * `--network-family-autoselection-attempt-timeout`
 * `--no-addons`
+* `--no-async-context-frame`
 * `--no-deprecation`
 * `--no-experimental-global-navigator`
 * `--no-experimental-repl-await`
@@ -3112,6 +3097,7 @@ one is included in the list below.
 * `--redirect-warnings`
 * `--report-compact`
 * `--report-dir`, `--report-directory`
+* `--report-exclude-env`
 * `--report-exclude-network`
 * `--report-filename`
 * `--report-on-fatalerror`
@@ -3464,25 +3450,10 @@ reason any of these APIs takes a long time, other (seemingly unrelated) APIs
 that run in libuv's threadpool will experience degraded performance. In order to
 mitigate this issue, one potential solution is to increase the size of libuv's
 threadpool by setting the `'UV_THREADPOOL_SIZE'` environment variable to a value
-greater than `4` (its current default value). For more information, see the
-[libuv threadpool documentation][].
-
-### `UV_USE_IO_URING=value`
-
-Enable or disable libuv's use of `io_uring` on supported platforms.
-
-On supported platforms, `io_uring` can significantly improve the performance of
-various asynchronous I/O operations.
-
-`io_uring` is disabled by default due to security concerns. When `io_uring`
-is enabled, applications must not change the user identity of the process at
-runtime. In this case, JavaScript functions such as [`process.setuid()`][] are
-unavailable, and native addons must not invoke system functions such as
-[`setuid(2)`][].
-
-This environment variable is implemented by a dependency of Node.js and may be
-removed in future versions of Node.js. No stability guarantees are provided for
-the behavior of this environment variable.
+greater than `4` (its current default value). However, setting this from inside
+the process using `process.env.UV_THREADPOOL_SIZE=size` is not guranteed to work
+as the threadpool would have been created as part of the runtime initialisation
+much before user code is run. For more information, see the [libuv threadpool documentation][].
 
 ## Useful V8 options
 
@@ -3555,8 +3526,12 @@ an increase of 1 MiB to semi-space applies to each of the three individual
 semi-spaces and causes the heap size to increase by 3 MiB. The throughput
 improvement depends on your workload (see [#42511][]).
 
-The default value is 16 MiB for 64-bit systems and 8 MiB for 32-bit systems. To
-get the best configuration for your application, you should try different
+The default value depends on the memory limit. For example, on 64-bit systems
+with a memory limit of 512 MiB, the max size of a semi-space defaults to 1 MiB.
+For memory limits up to and including 2GiB, the default max size of a
+semi-space will be less than 16 MiB on 64-bit systems.
+
+To get the best configuration for your application, you should try different
 max-semi-space-size values when running benchmarks for your application.
 
 For example, benchmark on a 64-bit systems:
@@ -3644,8 +3619,6 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`net.getDefaultAutoSelectFamilyAttemptTimeout()`]: net.md#netgetdefaultautoselectfamilyattempttimeout
 [`node:sqlite`]: sqlite.md
 [`process.setUncaughtExceptionCaptureCallback()`]: process.md#processsetuncaughtexceptioncapturecallbackfn
-[`process.setuid()`]: process.md#processsetuidid
-[`setuid(2)`]: https://man7.org/linux/man-pages/man2/setuid.2.html
 [`tls.DEFAULT_MAX_VERSION`]: tls.md#tlsdefault_max_version
 [`tls.DEFAULT_MIN_VERSION`]: tls.md#tlsdefault_min_version
 [`unhandledRejection`]: process.md#event-unhandledrejection

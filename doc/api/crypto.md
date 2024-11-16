@@ -2139,7 +2139,9 @@ property is `undefined` for asymmetric keys.
 ### `keyObject.toCryptoKey(algorithm, extractable, keyUsages)`
 
 <!-- YAML
-added: REPLACEME
+added:
+ - v23.0.0
+ - v22.10.0
 -->
 
 <!--lint disable maximum-line-length remark-lint-->
@@ -2886,7 +2888,9 @@ The date/time from which this certificate is valid.
 ### `x509.validFromDate`
 
 <!-- YAML
-added: REPLACEME
+added:
+ - v23.0.0
+ - v22.10.0
 -->
 
 * Type: {Date}
@@ -2906,7 +2910,9 @@ The date/time until which this certificate is valid.
 ### `x509.validToDate`
 
 <!-- YAML
-added: REPLACEME
+added:
+ - v23.0.0
+ - v22.10.0
 -->
 
 * Type: {Date}
@@ -3557,7 +3563,7 @@ added:
 
 Computes the Diffie-Hellman secret based on a `privateKey` and a `publicKey`.
 Both keys must have the same `asymmetricKeyType`, which must be one of `'dh'`
-(for Diffie-Hellman), `'ec'` (for ECDH), `'x448'`, or `'x25519'` (for ECDH-ES).
+(for Diffie-Hellman), `'ec'`, `'x448'`, or `'x25519'` (for ECDH).
 
 ### `crypto.hash(algorithm, data[, outputEncoding])`
 

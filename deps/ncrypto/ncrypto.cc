@@ -1,12 +1,13 @@
 #include "ncrypto.h"
-#include <algorithm>
-#include <cstring>
-#include <openssl/dh.h>
 #include <openssl/bn.h>
+#include <openssl/dh.h>
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
 #include <openssl/pkcs12.h>
+#include <openssl/rand.h>
 #include <openssl/x509v3.h>
+#include <algorithm>
+#include <cstring>
 #if OPENSSL_VERSION_MAJOR >= 3
 #include <openssl/provider.h>
 #endif
@@ -17,14 +18,13 @@
 namespace ncrypto {
 namespace {
 static constexpr int kX509NameFlagsRFC2253WithinUtf8JSON =
-    XN_FLAG_RFC2253 &
-    ~ASN1_STRFLGS_ESC_MSB &
-    ~ASN1_STRFLGS_ESC_CTRL;
+    XN_FLAG_RFC2253 & ~ASN1_STRFLGS_ESC_MSB & ~ASN1_STRFLGS_ESC_CTRL;
 }  // namespace
 
 // ============================================================================
 
-ClearErrorOnReturn::ClearErrorOnReturn(CryptoErrorList* errors) : errors_(errors) {
+ClearErrorOnReturn::ClearErrorOnReturn(CryptoErrorList* errors)
+    : errors_(errors) {
   ERR_clear_error();
 }
 
@@ -33,9 +33,12 @@ ClearErrorOnReturn::~ClearErrorOnReturn() {
   ERR_clear_error();
 }
 
-int ClearErrorOnReturn::peekError() { return ERR_peek_error(); }
+int ClearErrorOnReturn::peekError() {
+  return ERR_peek_error();
+}
 
-MarkPopErrorOnReturn::MarkPopErrorOnReturn(CryptoErrorList* errors) : errors_(errors) {
+MarkPopErrorOnReturn::MarkPopErrorOnReturn(CryptoErrorList* errors)
+    : errors_(errors) {
   ERR_set_mark();
 }
 
@@ -44,7 +47,9 @@ MarkPopErrorOnReturn::~MarkPopErrorOnReturn() {
   ERR_pop_to_mark();
 }
 
-int MarkPopErrorOnReturn::peekError() { return ERR_peek_error(); }
+int MarkPopErrorOnReturn::peekError() {
+  return ERR_peek_error();
+}
 
 CryptoErrorList::CryptoErrorList(CryptoErrorList::Option option) {
   if (option == Option::CAPTURE_ON_CONSTRUCT) capture();
@@ -52,7 +57,7 @@ CryptoErrorList::CryptoErrorList(CryptoErrorList::Option option) {
 
 void CryptoErrorList::capture() {
   errors_.clear();
-  while(const auto err = ERR_get_error()) {
+  while (const auto err = ERR_get_error()) {
     char buf[256];
     ERR_error_string_n(err, buf, sizeof(buf));
     errors_.emplace_front(buf);
@@ -79,7 +84,7 @@ std::optional<std::string> CryptoErrorList::pop_front() {
 
 // ============================================================================
 DataPointer DataPointer::Alloc(size_t len) {
-  return DataPointer(OPENSSL_malloc(len), len);
+  return DataPointer(OPENSSL_zalloc(len), len);
 }
 
 DataPointer::DataPointer(void* data, size_t length)
@@ -100,7 +105,9 @@ DataPointer& DataPointer::operator=(DataPointer&& other) noexcept {
   return *new (this) DataPointer(std::move(other));
 }
 
-DataPointer::~DataPointer() { reset(); }
+DataPointer::~DataPointer() {
+  reset();
+}
 
 void DataPointer::reset(void* data, size_t length) {
   if (data_ != nullptr) {
@@ -115,9 +122,9 @@ void DataPointer::reset(const Buffer<void>& buffer) {
 }
 
 Buffer<void> DataPointer::release() {
-  Buffer<void> buf {
-    .data = data_,
-    .len = len_,
+  Buffer<void> buf{
+      .data = data_,
+      .len = len_,
   };
   data_ = nullptr;
   len_ = 0;
@@ -149,8 +156,9 @@ bool testFipsEnabled() {
   if (OSSL_PROVIDER_available(nullptr, "fips")) {
     fips_provider = OSSL_PROVIDER_load(nullptr, "fips");
   }
-  const auto enabled = fips_provider == nullptr ? 0 :
-      OSSL_PROVIDER_self_test(fips_provider) ? 1 : 0;
+  const auto enabled = fips_provider == nullptr                 ? 0
+                       : OSSL_PROVIDER_self_test(fips_provider) ? 1
+                                                                : 0;
 #else
 #ifdef OPENSSL_FIPS
   const auto enabled = FIPS_selftest() ? 1 : 0;
@@ -186,7 +194,9 @@ BignumPointer& BignumPointer::operator=(BignumPointer&& other) noexcept {
   return *new (this) BignumPointer(std::move(other));
 }
 
-BignumPointer::~BignumPointer() { reset(); }
+BignumPointer::~BignumPointer() {
+  reset();
+}
 
 void BignumPointer::reset(BIGNUM* bn) {
   bn_.reset(bn);
@@ -227,16 +237,16 @@ DataPointer BignumPointer::Encode(const BIGNUM* bn) {
   return EncodePadded(bn, bn != nullptr ? BN_num_bytes(bn) : 0);
 }
 
-bool BignumPointer::setWord(unsigned long w) {
+bool BignumPointer::setWord(unsigned long w) {  // NOLINT(runtime/int)
   if (!bn_) return false;
   return BN_set_word(bn_.get(), w) == 1;
 }
 
-unsigned long BignumPointer::GetWord(const BIGNUM* bn) {
+unsigned long BignumPointer::GetWord(const BIGNUM* bn) {  // NOLINT(runtime/int)
   return BN_get_word(bn);
 }
 
-unsigned long BignumPointer::getWord() const {
+unsigned long BignumPointer::getWord() const {  // NOLINT(runtime/int)
   if (!bn_) return 0;
   return GetWord(bn_.get());
 }
@@ -248,7 +258,9 @@ DataPointer BignumPointer::EncodePadded(const BIGNUM* bn, size_t s) {
   BN_bn2binpad(bn, reinterpret_cast<unsigned char*>(buf.get()), size);
   return buf;
 }
-size_t BignumPointer::EncodePaddedInto(const BIGNUM* bn, unsigned char* out, size_t size) {
+size_t BignumPointer::EncodePaddedInto(const BIGNUM* bn,
+                                       unsigned char* out,
+                                       size_t size) {
   if (bn == nullptr) return 0;
   return BN_bn2binpad(bn, out, size);
 }
@@ -278,7 +290,7 @@ int BignumPointer::GetBitCount(const BIGNUM* bn) {
   return BN_num_bits(bn);
 }
 
-int BignumPointer::GetByteCount(const BIGNUM *bn) {
+int BignumPointer::GetByteCount(const BIGNUM* bn) {
   return BN_num_bytes(bn);
 }
 
@@ -347,8 +359,7 @@ int PasswordCallback(char* buf, int size, int rwflag, void* u) {
   if (passphrase != nullptr) {
     size_t buflen = static_cast<size_t>(size);
     size_t len = passphrase->len;
-    if (buflen < len)
-      return -1;
+    if (buflen < len) return -1;
     memcpy(buf, reinterpret_cast<const char*>(passphrase->data), len);
     return len;
   }
@@ -357,13 +368,13 @@ int PasswordCallback(char* buf, int size, int rwflag, void* u) {
 }
 
 // Algorithm: http://howardhinnant.github.io/date_algorithms.html
-constexpr int days_from_epoch(int y, unsigned m, unsigned d)
-{
+constexpr int days_from_epoch(int y, unsigned m, unsigned d) {
   y -= m <= 2;
   const int era = (y >= 0 ? y : y - 399) / 400;
-  const unsigned yoe = static_cast<unsigned>(y - era * 400);            // [0, 399]
-  const unsigned doy = (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 + d - 1;  // [0, 365]
-  const unsigned doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;           // [0, 146096]
+  const unsigned yoe = static_cast<unsigned>(y - era * 400);  // [0, 399]
+  const unsigned doy =
+      (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 + d - 1;          // [0, 365]
+  const unsigned doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;  // [0, 146096]
   return era * 146097 + static_cast<int>(doe) - 719468;
 }
 
@@ -382,7 +393,10 @@ int64_t PortableTimeGM(struct tm* t) {
   }
   int days_since_epoch = days_from_epoch(year, month + 1, t->tm_mday);
 
-  return 60 * (60 * (24LL * static_cast<int64_t>(days_since_epoch) + t->tm_hour) + t->tm_min) + t->tm_sec;
+  return 60 * (60 * (24LL * static_cast<int64_t>(days_since_epoch) +
+                     t->tm_hour) +
+               t->tm_min) +
+         t->tm_sec;
 }
 
 // ============================================================================
@@ -399,10 +413,8 @@ bool VerifySpkac(const char* input, size_t length) {
   // case.
   length = std::string_view(input, length).find_last_not_of(" \n\r\t") + 1;
 #endif
-  NetscapeSPKIPointer spki(
-      NETSCAPE_SPKI_b64_decode(input, length));
-  if (!spki)
-    return false;
+  NetscapeSPKIPointer spki(NETSCAPE_SPKI_b64_decode(input, length));
+  if (!spki) return false;
 
   EVPKeyPointer pkey(X509_PUBKEY_get(spki->spkac->pubkey));
   return pkey ? NETSCAPE_SPKI_verify(spki.get(), pkey.get()) > 0 : false;
@@ -418,14 +430,13 @@ BIOPointer ExportPublicKey(const char* input, size_t length) {
   // As such, we trim those characters here for compatibility.
   length = std::string_view(input, length).find_last_not_of(" \n\r\t") + 1;
 #endif
-  NetscapeSPKIPointer spki(
-      NETSCAPE_SPKI_b64_decode(input, length));
+  NetscapeSPKIPointer spki(NETSCAPE_SPKI_b64_decode(input, length));
   if (!spki) return {};
 
   EVPKeyPointer pkey(NETSCAPE_SPKI_get_pubkey(spki.get()));
   if (!pkey) return {};
 
-  if (PEM_write_bio_PUBKEY(bio.get(), pkey.get()) <= 0) return { };
+  if (PEM_write_bio_PUBKEY(bio.get(), pkey.get()) <= 0) return {};
 
   return bio;
 }
@@ -437,16 +448,15 @@ Buffer<char> ExportChallenge(const char* input, size_t length) {
   // As such, we trim those characters here for compatibility.
   length = std::string_view(input, length).find_last_not_of(" \n\r\t") + 1;
 #endif
-  NetscapeSPKIPointer sp(
-      NETSCAPE_SPKI_b64_decode(input, length));
+  NetscapeSPKIPointer sp(NETSCAPE_SPKI_b64_decode(input, length));
   if (!sp) return {};
 
   unsigned char* buf = nullptr;
   int buf_size = ASN1_STRING_to_UTF8(&buf, sp->spkac->challenge);
   if (buf_size >= 0) {
     return {
-      .data = reinterpret_cast<char*>(buf),
-      .len = static_cast<size_t>(buf_size),
+        .data = reinterpret_cast<char*>(buf),
+        .len = static_cast<size_t>(buf_size),
     };
   }
 
@@ -464,35 +474,36 @@ bool IsSafeAltName(const char* name, size_t length, AltNameOption option) {
   for (size_t i = 0; i < length; i++) {
     char c = name[i];
     switch (c) {
-    case '"':
-    case '\\':
-      // These mess with encoding rules.
-      // Fall through.
-    case ',':
-      // Commas make it impossible to split the list of subject alternative
-      // names unambiguously, which is why we have to escape.
-      // Fall through.
-    case '\'':
-      // Single quotes are unlikely to appear in any legitimate values, but they
-      // could be used to make a value look like it was escaped (i.e., enclosed
-      // in single/double quotes).
-      return false;
-    default:
-      if (option == AltNameOption::UTF8) {
-        // In UTF8 strings, we require escaping for any ASCII control character,
-        // but NOT for non-ASCII characters. Note that all bytes of any code
-        // point that consists of more than a single byte have their MSB set.
-        if (static_cast<unsigned char>(c) < ' ' || c == '\x7f') {
-          return false;
+      case '"':
+      case '\\':
+        // These mess with encoding rules.
+        // Fall through.
+      case ',':
+        // Commas make it impossible to split the list of subject alternative
+        // names unambiguously, which is why we have to escape.
+        // Fall through.
+      case '\'':
+        // Single quotes are unlikely to appear in any legitimate values, but
+        // they could be used to make a value look like it was escaped (i.e.,
+        // enclosed in single/double quotes).
+        return false;
+      default:
+        if (option == AltNameOption::UTF8) {
+          // In UTF8 strings, we require escaping for any ASCII control
+          // character, but NOT for non-ASCII characters. Note that all bytes of
+          // any code point that consists of more than a single byte have their
+          // MSB set.
+          if (static_cast<unsigned char>(c) < ' ' || c == '\x7f') {
+            return false;
+          }
+        } else {
+          // Check if the char is a control character or non-ASCII character.
+          // Note that char may or may not be a signed type. Regardless,
+          // non-ASCII values will always be outside of this range.
+          if (c < ' ' || c > '~') {
+            return false;
+          }
         }
-      } else {
-        // Check if the char is a control character or non-ASCII character. Note
-        // that char may or may not be a signed type. Regardless, non-ASCII
-        // values will always be outside of this range.
-        if (c < ' ' || c > '~') {
-          return false;
-        }
-      }
     }
   }
   return true;
@@ -537,7 +548,7 @@ void PrintAltName(const BIOPointer& out,
         // Control character or non-ASCII character. We treat everything as
         // Latin-1, which corresponds to the first 255 Unicode code points.
         const char hex[] = "0123456789abcdef";
-        char u[] = { '\\', 'u', '0', '0', hex[(c & 0xf0) >> 4], hex[c & 0x0f] };
+        char u[] = {'\\', 'u', '0', '0', hex[(c & 0xf0) >> 4], hex[c & 0x0f]};
         BIO_write(out.get(), u, sizeof(u));
       }
     }
@@ -583,17 +594,19 @@ bool PrintGeneralName(const BIOPointer& out, const GENERAL_NAME* gen) {
     BIO_printf(out.get(), "DirName:");
     BIOPointer tmp(BIO_new(BIO_s_mem()));
     NCRYPTO_ASSERT_TRUE(tmp);
-    if (X509_NAME_print_ex(tmp.get(),
-                           gen->d.dirn,
-                           0,
-                           kX509NameFlagsRFC2253WithinUtf8JSON) < 0) {
+    if (X509_NAME_print_ex(
+            tmp.get(), gen->d.dirn, 0, kX509NameFlagsRFC2253WithinUtf8JSON) <
+        0) {
       return false;
     }
     char* oline = nullptr;
     long n_bytes = BIO_get_mem_data(tmp.get(), &oline);  // NOLINT(runtime/int)
     NCRYPTO_ASSERT_TRUE(n_bytes >= 0);
-    PrintAltName(out, oline, static_cast<size_t>(n_bytes),
-        ncrypto::AltNameOption::UTF8, nullptr);
+    PrintAltName(out,
+                 oline,
+                 static_cast<size_t>(n_bytes),
+                 ncrypto::AltNameOption::UTF8,
+                 nullptr);
   } else if (gen->type == GEN_IPADD) {
     BIO_printf(out.get(), "IP Address:");
     const ASN1_OCTET_STRING* ip = gen->d.ip;
@@ -649,8 +662,7 @@ bool PrintGeneralName(const BIOPointer& out, const GENERAL_NAME* gen) {
     }
 #endif  // OPENSSL_VERSION_MAJOR >= 3
     int val_type = gen->d.otherName->value->type;
-    if (prefix == nullptr ||
-        (unicode && val_type != V_ASN1_UTF8STRING) ||
+    if (prefix == nullptr || (unicode && val_type != V_ASN1_UTF8STRING) ||
         (!unicode && val_type != V_ASN1_IA5STRING)) {
       BIO_printf(out.get(), "othername:<unsupported>");
     } else {
@@ -658,13 +670,17 @@ bool PrintGeneralName(const BIOPointer& out, const GENERAL_NAME* gen) {
       if (unicode) {
         auto name = gen->d.otherName->value->value.utf8string;
         PrintAltName(out,
-            reinterpret_cast<const char*>(name->data), name->length,
-            AltNameOption::UTF8, prefix);
+                     reinterpret_cast<const char*>(name->data),
+                     name->length,
+                     AltNameOption::UTF8,
+                     prefix);
       } else {
         auto name = gen->d.otherName->value->value.ia5string;
         PrintAltName(out,
-            reinterpret_cast<const char*>(name->data), name->length,
-            AltNameOption::NONE, prefix);
+                     reinterpret_cast<const char*>(name->data),
+                     name->length,
+                     AltNameOption::NONE,
+                     prefix);
       }
     }
   } else if (gen->type == GEN_X400) {
@@ -683,22 +699,19 @@ bool PrintGeneralName(const BIOPointer& out, const GENERAL_NAME* gen) {
 }
 }  // namespace
 
-
 bool SafeX509SubjectAltNamePrint(const BIOPointer& out, X509_EXTENSION* ext) {
   auto ret = OBJ_obj2nid(X509_EXTENSION_get_object(ext));
   NCRYPTO_ASSERT_EQUAL(ret, NID_subject_alt_name, "unexpected extension type");
 
   GENERAL_NAMES* names = static_cast<GENERAL_NAMES*>(X509V3_EXT_d2i(ext));
-  if (names == nullptr)
-    return false;
+  if (names == nullptr) return false;
 
   bool ok = true;
 
   for (int i = 0; i < sk_GENERAL_NAME_num(names); i++) {
     GENERAL_NAME* gen = sk_GENERAL_NAME_value(names, i);
 
-    if (i != 0)
-      BIO_write(out.get(), ", ", 2);
+    if (i != 0) BIO_write(out.get(), ", ", 2);
 
     if (!(ok = ncrypto::PrintGeneralName(out, gen))) {
       break;
@@ -715,16 +728,14 @@ bool SafeX509InfoAccessPrint(const BIOPointer& out, X509_EXTENSION* ext) {
 
   AUTHORITY_INFO_ACCESS* descs =
       static_cast<AUTHORITY_INFO_ACCESS*>(X509V3_EXT_d2i(ext));
-  if (descs == nullptr)
-    return false;
+  if (descs == nullptr) return false;
 
   bool ok = true;
 
   for (int i = 0; i < sk_ACCESS_DESCRIPTION_num(descs); i++) {
     ACCESS_DESCRIPTION* desc = sk_ACCESS_DESCRIPTION_value(descs, i);
 
-    if (i != 0)
-      BIO_write(out.get(), "\n", 1);
+    if (i != 0) BIO_write(out.get(), "\n", 1);
 
     char objtmp[80];
     i2t_ASN1_OBJECT(objtmp, sizeof(objtmp), desc->method);
@@ -756,7 +767,9 @@ X509Pointer& X509Pointer::operator=(X509Pointer&& other) noexcept {
   return *new (this) X509Pointer(std::move(other));
 }
 
-X509Pointer::~X509Pointer() { reset(); }
+X509Pointer::~X509Pointer() {
+  reset();
+}
 
 void X509Pointer::reset(X509* x509) {
   cert_.reset(x509);
@@ -793,8 +806,10 @@ BIOPointer X509View::getSubject() const {
   if (cert_ == nullptr) return {};
   BIOPointer bio(BIO_new(BIO_s_mem()));
   if (!bio) return {};
-  if (X509_NAME_print_ex(bio.get(), X509_get_subject_name(cert_),
-                         0, kX509NameFlagsMultiline) <= 0) {
+  if (X509_NAME_print_ex(bio.get(),
+                         X509_get_subject_name(cert_),
+                         0,
+                         kX509NameFlagsMultiline) <= 0) {
     return {};
   }
   return bio;
@@ -806,7 +821,8 @@ BIOPointer X509View::getSubjectAltName() const {
   BIOPointer bio(BIO_new(BIO_s_mem()));
   if (!bio) return {};
   int index = X509_get_ext_by_NID(cert_, NID_subject_alt_name, -1);
-  if (index < 0 || !SafeX509SubjectAltNamePrint(bio, X509_get_ext(cert_, index))) {
+  if (index < 0 ||
+      !SafeX509SubjectAltNamePrint(bio, X509_get_ext(cert_, index))) {
     return {};
   }
   return bio;
@@ -817,8 +833,9 @@ BIOPointer X509View::getIssuer() const {
   if (cert_ == nullptr) return {};
   BIOPointer bio(BIO_new(BIO_s_mem()));
   if (!bio) return {};
-  if (X509_NAME_print_ex(bio.get(), X509_get_issuer_name(cert_), 0,
-                         kX509NameFlagsMultiline) <= 0) {
+  if (X509_NAME_print_ex(
+          bio.get(), X509_get_issuer_name(cert_), 0, kX509NameFlagsMultiline) <=
+      0) {
     return {};
   }
   return bio;
@@ -870,7 +887,8 @@ int64_t X509View::getValidFromTime() const {
 DataPointer X509View::getSerialNumber() const {
   ClearErrorOnReturn clearErrorOnReturn;
   if (cert_ == nullptr) return {};
-  if (ASN1_INTEGER* serial_number = X509_get_serialNumber(const_cast<X509*>(cert_))) {
+  if (ASN1_INTEGER* serial_number =
+          X509_get_serialNumber(const_cast<X509*>(cert_))) {
     if (auto bn = BignumPointer(ASN1_INTEGER_to_BN(serial_number, nullptr))) {
       return bn.toHex();
     }
@@ -880,7 +898,7 @@ DataPointer X509View::getSerialNumber() const {
 
 Result<EVPKeyPointer, int> X509View::getPublicKey() const {
   ClearErrorOnReturn clearErrorOnReturn;
-  if (cert_ == nullptr) return Result<EVPKeyPointer, int>(EVPKeyPointer {});
+  if (cert_ == nullptr) return Result<EVPKeyPointer, int>(EVPKeyPointer{});
   auto pkey = EVPKeyPointer(X509_get_pubkey(const_cast<X509*>(cert_)));
   if (!pkey) return Result<EVPKeyPointer, int>(ERR_get_error());
   return pkey;
@@ -918,13 +936,16 @@ bool X509View::checkPublicKey(const EVPKeyPointer& pkey) const {
   return X509_verify(const_cast<X509*>(cert_), pkey.get()) == 1;
 }
 
-X509View::CheckMatch X509View::checkHost(const std::string_view host, int flags,
+X509View::CheckMatch X509View::checkHost(const std::string_view host,
+                                         int flags,
                                          DataPointer* peerName) const {
   ClearErrorOnReturn clearErrorOnReturn;
   if (cert_ == nullptr) return CheckMatch::NO_MATCH;
   char* peername;
-  switch (X509_check_host(const_cast<X509*>(cert_), host.data(), host.size(), flags, &peername)) {
-    case 0: return CheckMatch::NO_MATCH;
+  switch (X509_check_host(
+      const_cast<X509*>(cert_), host.data(), host.size(), flags, &peername)) {
+    case 0:
+      return CheckMatch::NO_MATCH;
     case 1: {
       if (peername != nullptr) {
         DataPointer name(peername, strlen(peername));
@@ -932,30 +953,43 @@ X509View::CheckMatch X509View::checkHost(const std::string_view host, int flags,
       }
       return CheckMatch::MATCH;
     }
-    case -2: return CheckMatch::INVALID_NAME;
-    default: return CheckMatch::OPERATION_FAILED;
+    case -2:
+      return CheckMatch::INVALID_NAME;
+    default:
+      return CheckMatch::OPERATION_FAILED;
   }
 }
 
-X509View::CheckMatch X509View::checkEmail(const std::string_view email, int flags) const {
+X509View::CheckMatch X509View::checkEmail(const std::string_view email,
+                                          int flags) const {
   ClearErrorOnReturn clearErrorOnReturn;
   if (cert_ == nullptr) return CheckMatch::NO_MATCH;
-  switch (X509_check_email(const_cast<X509*>(cert_), email.data(), email.size(), flags)) {
-    case 0: return CheckMatch::NO_MATCH;
-    case 1: return CheckMatch::MATCH;
-    case -2: return CheckMatch::INVALID_NAME;
-    default: return CheckMatch::OPERATION_FAILED;
+  switch (X509_check_email(
+      const_cast<X509*>(cert_), email.data(), email.size(), flags)) {
+    case 0:
+      return CheckMatch::NO_MATCH;
+    case 1:
+      return CheckMatch::MATCH;
+    case -2:
+      return CheckMatch::INVALID_NAME;
+    default:
+      return CheckMatch::OPERATION_FAILED;
   }
 }
 
-X509View::CheckMatch X509View::checkIp(const std::string_view ip, int flags) const {
+X509View::CheckMatch X509View::checkIp(const std::string_view ip,
+                                       int flags) const {
   ClearErrorOnReturn clearErrorOnReturn;
   if (cert_ == nullptr) return CheckMatch::NO_MATCH;
   switch (X509_check_ip_asc(const_cast<X509*>(cert_), ip.data(), flags)) {
-    case 0: return CheckMatch::NO_MATCH;
-    case 1: return CheckMatch::MATCH;
-    case -2: return CheckMatch::INVALID_NAME;
-    default: return CheckMatch::OPERATION_FAILED;
+    case 0:
+      return CheckMatch::NO_MATCH;
+    case 1:
+      return CheckMatch::MATCH;
+    case -2:
+      return CheckMatch::INVALID_NAME;
+    default:
+      return CheckMatch::OPERATION_FAILED;
   }
 }
 
@@ -977,12 +1011,14 @@ X509Pointer X509View::clone() const {
   return X509Pointer(X509_dup(const_cast<X509*>(cert_)));
 }
 
-Result<X509Pointer, int> X509Pointer::Parse(Buffer<const unsigned char> buffer) {
+Result<X509Pointer, int> X509Pointer::Parse(
+    Buffer<const unsigned char> buffer) {
   ClearErrorOnReturn clearErrorOnReturn;
   BIOPointer bio(BIO_new_mem_buf(buffer.data, buffer.len));
   if (!bio) return Result<X509Pointer, int>(ERR_get_error());
 
-  X509Pointer pem(PEM_read_bio_X509_AUX(bio.get(), nullptr, NoPasswordCallback, nullptr));
+  X509Pointer pem(
+      PEM_read_bio_X509_AUX(bio.get(), nullptr, NoPasswordCallback, nullptr));
   if (pem) return Result<X509Pointer, int>(std::move(pem));
   BIO_reset(bio.get());
 
@@ -992,8 +1028,8 @@ Result<X509Pointer, int> X509Pointer::Parse(Buffer<const unsigned char> buffer) 
   return Result<X509Pointer, int>(ERR_get_error());
 }
 
-
-X509Pointer X509Pointer::IssuerFrom(const SSLPointer& ssl, const X509View& view) {
+X509Pointer X509Pointer::IssuerFrom(const SSLPointer& ssl,
+                                    const X509View& view) {
   return IssuerFrom(SSL_get_SSL_CTX(ssl.get()), view);
 }
 
@@ -1027,11 +1063,17 @@ BIOPointer& BIOPointer::operator=(BIOPointer&& other) noexcept {
   return *new (this) BIOPointer(std::move(other));
 }
 
-BIOPointer::~BIOPointer() { reset(); }
+BIOPointer::~BIOPointer() {
+  reset();
+}
 
-void BIOPointer::reset(BIO* bio) { bio_.reset(bio); }
+void BIOPointer::reset(BIO* bio) {
+  bio_.reset(bio);
+}
 
-BIO* BIOPointer::release() { return bio_.release(); }
+BIO* BIOPointer::release() {
+  return bio_.release();
+}
 
 bool BIOPointer::resetBio() const {
   if (!bio_) return 0;
@@ -1054,7 +1096,8 @@ BIOPointer BIOPointer::New(const void* data, size_t len) {
   return BIOPointer(BIO_new_mem_buf(data, len));
 }
 
-BIOPointer BIOPointer::NewFile(std::string_view filename, std::string_view mode) {
+BIOPointer BIOPointer::NewFile(std::string_view filename,
+                               std::string_view mode) {
   return BIOPointer(BIO_new_file(filename.data(), mode.data()));
 }
 
@@ -1073,8 +1116,9 @@ int BIOPointer::Write(BIOPointer* bio, std::string_view message) {
 namespace {
 bool EqualNoCase(const std::string_view a, const std::string_view b) {
   if (a.size() != b.size()) return false;
-  return std::equal(a.begin(), a.end(), b.begin(), b.end(),
-      [](char a, char b) { return std::tolower(a) == std::tolower(b); });
+  return std::equal(a.begin(), a.end(), b.begin(), b.end(), [](char a, char b) {
+    return std::tolower(a) == std::tolower(b);
+  });
 }
 }  // namespace
 
@@ -1088,15 +1132,22 @@ DHPointer& DHPointer::operator=(DHPointer&& other) noexcept {
   return *new (this) DHPointer(std::move(other));
 }
 
-DHPointer::~DHPointer() { reset(); }
+DHPointer::~DHPointer() {
+  reset();
+}
 
-void DHPointer::reset(DH* dh) { dh_.reset(dh); }
+void DHPointer::reset(DH* dh) {
+  dh_.reset(dh);
+}
 
-DH* DHPointer::release() { return dh_.release(); }
+DH* DHPointer::release() {
+  return dh_.release();
+}
 
 BignumPointer DHPointer::FindGroup(const std::string_view name,
                                    FindGroupOption option) {
-#define V(n, p) if (EqualNoCase(name, n)) return BignumPointer(p(nullptr));
+#define V(n, p)                                                                \
+  if (EqualNoCase(name, n)) return BignumPointer(p(nullptr));
   if (option != FindGroupOption::NO_SMALL_PRIMES) {
     V("modp1", BN_get_rfc2409_prime_768);
     V("modp2", BN_get_rfc2409_prime_1024);
@@ -1165,7 +1216,8 @@ DHPointer::CheckResult DHPointer::check() {
   return static_cast<CheckResult>(codes);
 }
 
-DHPointer::CheckPublicKeyResult DHPointer::checkPublicKey(const BignumPointer& pub_key) {
+DHPointer::CheckPublicKeyResult DHPointer::checkPublicKey(
+    const BignumPointer& pub_key) {
   ClearErrorOnReturn clearErrorOnReturn;
   if (!pub_key || !dh_) return DHPointer::CheckPublicKeyResult::CHECK_FAILED;
   int codes = 0;
@@ -1231,7 +1283,8 @@ DataPointer DHPointer::computeSecret(const BignumPointer& peer) const {
   auto dp = DataPointer::Alloc(size());
   if (!dp) return {};
 
-  int size = DH_compute_key(static_cast<uint8_t*>(dp.get()), peer.get(), dh_.get());
+  int size =
+      DH_compute_key(static_cast<uint8_t*>(dp.get()), peer.get(), dh_.get());
   if (size < 0) return {};
 
   // The size of the computed key can be smaller than the size of the DH key.
@@ -1270,8 +1323,7 @@ DataPointer DHPointer::stateless(const EVPKeyPointer& ourKey,
   if (!ourKey || !theirKey) return {};
 
   EVPKeyCtxPointer ctx(EVP_PKEY_CTX_new(ourKey.get(), nullptr));
-  if (!ctx ||
-      EVP_PKEY_derive_init(ctx.get()) <= 0 ||
+  if (!ctx || EVP_PKEY_derive_init(ctx.get()) <= 0 ||
       EVP_PKEY_derive_set_peer(ctx.get(), theirKey.get()) <= 0 ||
       EVP_PKEY_derive(ctx.get(), nullptr, &out_size) <= 0) {
     return {};
@@ -1280,7 +1332,8 @@ DataPointer DHPointer::stateless(const EVPKeyPointer& ourKey,
   if (out_size == 0) return {};
 
   auto out = DataPointer::Alloc(out_size);
-  if (EVP_PKEY_derive(ctx.get(), reinterpret_cast<uint8_t*>(out.get()), &out_size) <= 0) {
+  if (EVP_PKEY_derive(
+          ctx.get(), reinterpret_cast<uint8_t*>(out.get()), &out_size) <= 0) {
     return {};
   }
 
@@ -1318,16 +1371,14 @@ DataPointer hkdf(const EVP_MD* md,
                  size_t length) {
   ClearErrorOnReturn clearErrorOnReturn;
 
-  if (!checkHkdfLength(md, length) ||
-      info.len > INT_MAX ||
+  if (!checkHkdfLength(md, length) || info.len > INT_MAX ||
       salt.len > INT_MAX) {
     return {};
   }
 
   EVPKeyCtxPointer ctx =
       EVPKeyCtxPointer(EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, nullptr));
-  if (!ctx ||
-      !EVP_PKEY_derive_init(ctx.get()) ||
+  if (!ctx || !EVP_PKEY_derive_init(ctx.get()) ||
       !EVP_PKEY_CTX_set_hkdf_md(ctx.get(), md) ||
       !EVP_PKEY_CTX_add1_hkdf_info(ctx.get(), info.data, info.len)) {
     return {};
@@ -1344,9 +1395,9 @@ DataPointer hkdf(const EVP_MD* md,
   // We do not use EVP_PKEY_HKDF_MODE_EXTRACT_AND_EXPAND because and instead
   // implement the extraction step ourselves because EVP_PKEY_derive does not
   // handle zero-length keys, which are required for Web Crypto.
-  // TODO: Once OpenSSL 1.1.1 support is dropped completely, and once BoringSSL
-  // is confirmed to support it, wen can hopefully drop this and use EVP_KDF
-  // directly which does support zero length keys.
+  // TODO(jasnell): Once OpenSSL 1.1.1 support is dropped completely, and once
+  // BoringSSL is confirmed to support it, wen can hopefully drop this and use
+  // EVP_KDF directly which does support zero length keys.
   unsigned char pseudorandom_key[EVP_MAX_MD_SIZE];
   unsigned pseudorandom_key_len = sizeof(pseudorandom_key);
 
@@ -1360,14 +1411,16 @@ DataPointer hkdf(const EVP_MD* md,
     return {};
   }
   if (!EVP_PKEY_CTX_hkdf_mode(ctx.get(), EVP_PKEY_HKDEF_MODE_EXPAND_ONLY) ||
-      !EVP_PKEY_CTX_set1_hkdf_key(ctx.get(), pseudorandom_key, pseudorandom_key_len)) {
+      !EVP_PKEY_CTX_set1_hkdf_key(
+          ctx.get(), pseudorandom_key, pseudorandom_key_len)) {
     return {};
   }
 
   auto buf = DataPointer::Alloc(length);
   if (!buf) return {};
 
-  if (EVP_PKEY_derive(ctx.get(), static_cast<unsigned char*>(buf.get()), &length) <= 0) {
+  if (EVP_PKEY_derive(
+          ctx.get(), static_cast<unsigned char*>(buf.get()), &length) <= 0) {
     return {};
   }
 
@@ -1375,7 +1428,8 @@ DataPointer hkdf(const EVP_MD* md,
 }
 
 bool checkScryptParams(uint64_t N, uint64_t r, uint64_t p, uint64_t maxmem) {
-  return EVP_PBE_scrypt(nullptr, 0, nullptr, 0, N, r, p, maxmem, nullptr, 0) == 1;
+  return EVP_PBE_scrypt(nullptr, 0, nullptr, 0, N, r, p, maxmem, nullptr, 0) ==
+         1;
 }
 
 DataPointer scrypt(const Buffer<const char>& pass,
@@ -1387,15 +1441,21 @@ DataPointer scrypt(const Buffer<const char>& pass,
                    size_t length) {
   ClearErrorOnReturn clearErrorOnReturn;
 
-  if (pass.len > INT_MAX ||
-      salt.len > INT_MAX) {
+  if (pass.len > INT_MAX || salt.len > INT_MAX) {
     return {};
   }
 
   auto dp = DataPointer::Alloc(length);
-  if (dp && EVP_PBE_scrypt(
-      pass.data, pass.len, salt.data, salt.len, N, r, p, maxmem,
-      reinterpret_cast<unsigned char*>(dp.get()), length)) {
+  if (dp && EVP_PBE_scrypt(pass.data,
+                           pass.len,
+                           salt.data,
+                           salt.len,
+                           N,
+                           r,
+                           p,
+                           maxmem,
+                           reinterpret_cast<unsigned char*>(dp.get()),
+                           length)) {
     return dp;
   }
 
@@ -1409,15 +1469,18 @@ DataPointer pbkdf2(const EVP_MD* md,
                    size_t length) {
   ClearErrorOnReturn clearErrorOnReturn;
 
-  if (pass.len > INT_MAX ||
-      salt.len > INT_MAX ||
-      length > INT_MAX) {
+  if (pass.len > INT_MAX || salt.len > INT_MAX || length > INT_MAX) {
     return {};
   }
 
   auto dp = DataPointer::Alloc(length);
-  if (dp && PKCS5_PBKDF2_HMAC(pass.data, pass.len, salt.data, salt.len,
-                              iterations, md, length,
+  if (dp && PKCS5_PBKDF2_HMAC(pass.data,
+                              pass.len,
+                              salt.data,
+                              salt.len,
+                              iterations,
+                              md,
+                              length,
                               reinterpret_cast<unsigned char*>(dp.get()))) {
     return dp;
   }
@@ -1427,18 +1490,47 @@ DataPointer pbkdf2(const EVP_MD* md,
 
 // ============================================================================
 
+EVPKeyPointer::PrivateKeyEncodingConfig::PrivateKeyEncodingConfig(
+    const PrivateKeyEncodingConfig& other)
+    : PrivateKeyEncodingConfig(
+          other.output_key_object, other.format, other.type) {
+  cipher = other.cipher;
+  if (other.passphrase.has_value()) {
+    auto& otherPassphrase = other.passphrase.value();
+    auto newPassphrase = DataPointer::Alloc(otherPassphrase.size());
+    memcpy(newPassphrase.get(), otherPassphrase.get(), otherPassphrase.size());
+    passphrase = std::move(newPassphrase);
+  }
+}
+
+EVPKeyPointer::AsymmetricKeyEncodingConfig::AsymmetricKeyEncodingConfig(
+    bool output_key_object, PKFormatType format, PKEncodingType type)
+    : output_key_object(output_key_object), format(format), type(type) {}
+
+EVPKeyPointer::PrivateKeyEncodingConfig&
+EVPKeyPointer::PrivateKeyEncodingConfig::operator=(
+    const PrivateKeyEncodingConfig& other) {
+  if (this == &other) return *this;
+  this->~PrivateKeyEncodingConfig();
+  return *new (this) PrivateKeyEncodingConfig(other);
+}
+
 EVPKeyPointer EVPKeyPointer::New() {
   return EVPKeyPointer(EVP_PKEY_new());
 }
 
-EVPKeyPointer EVPKeyPointer::NewRawPublic(int id, const Buffer<const unsigned char>& data) {
+EVPKeyPointer EVPKeyPointer::NewRawPublic(
+    int id, const Buffer<const unsigned char>& data) {
   if (id == 0) return {};
-  return EVPKeyPointer(EVP_PKEY_new_raw_public_key(id, nullptr, data.data, data.len));
+  return EVPKeyPointer(
+      EVP_PKEY_new_raw_public_key(id, nullptr, data.data, data.len));
 }
 
-EVPKeyPointer EVPKeyPointer::NewRawPrivate(int id, const Buffer<const unsigned char>& data) {
+EVPKeyPointer EVPKeyPointer::NewRawPrivate(
+    int id, const Buffer<const unsigned char>& data) {
   if (id == 0) return {};
-  return EVPKeyPointer(EVP_PKEY_new_raw_private_key(id, nullptr, data.data, data.len));
+  return EVPKeyPointer(
+      EVP_PKEY_new_raw_private_key(id, nullptr, data.data, data.len));
 }
 
 EVPKeyPointer::EVPKeyPointer(EVP_PKEY* pkey) : pkey_(pkey) {}
@@ -1452,7 +1544,9 @@ EVPKeyPointer& EVPKeyPointer::operator=(EVPKeyPointer&& other) noexcept {
   return *new (this) EVPKeyPointer(std::move(other));
 }
 
-EVPKeyPointer::~EVPKeyPointer() { reset(); }
+EVPKeyPointer::~EVPKeyPointer() {
+  reset();
+}
 
 void EVPKeyPointer::reset(EVP_PKEY* pkey) {
   pkey_.reset(pkey);
@@ -1514,9 +1608,7 @@ DataPointer EVPKeyPointer::rawPublicKey() const {
   if (auto data = DataPointer::Alloc(rawPublicKeySize())) {
     const Buffer<unsigned char> buf = data;
     size_t len = data.size();
-    if (EVP_PKEY_get_raw_public_key(get(),
-            buf.data,
-            &len) != 1) return {};
+    if (EVP_PKEY_get_raw_public_key(get(), buf.data, &len) != 1) return {};
     return data;
   }
   return {};
@@ -1527,9 +1619,7 @@ DataPointer EVPKeyPointer::rawPrivateKey() const {
   if (auto data = DataPointer::Alloc(rawPrivateKeySize())) {
     const Buffer<unsigned char> buf = data;
     size_t len = data.size();
-    if (EVP_PKEY_get_raw_private_key(get(),
-            buf.data,
-            &len) != 1) return {};
+    if (EVP_PKEY_get_raw_private_key(get(), buf.data, &len) != 1) return {};
     return data;
   }
   return {};
@@ -1544,45 +1634,46 @@ BIOPointer EVPKeyPointer::derPublicKey() const {
 }
 
 namespace {
-EVPKeyPointer::ParseKeyResult TryParsePublicKeyInner(
-    const BIOPointer& bp,
-    const char* name,
-    auto&& parse) {
+EVPKeyPointer::ParseKeyResult TryParsePublicKeyInner(const BIOPointer& bp,
+                                                     const char* name,
+                                                     auto&& parse) {
   if (!bp.resetBio()) {
     return EVPKeyPointer::ParseKeyResult(EVPKeyPointer::PKParseError::FAILED);
   }
   unsigned char* der_data;
-  long der_len;
+  long der_len;  // NOLINT(runtime/int)
 
   // This skips surrounding data and decodes PEM to DER.
   {
     MarkPopErrorOnReturn mark_pop_error_on_return;
-    if (PEM_bytes_read_bio(&der_data, &der_len, nullptr, name,
-                           bp.get(), nullptr, nullptr) != 1)
-      return EVPKeyPointer::ParseKeyResult(EVPKeyPointer::PKParseError::NOT_RECOGNIZED);
+    if (PEM_bytes_read_bio(
+            &der_data, &der_len, nullptr, name, bp.get(), nullptr, nullptr) !=
+        1)
+      return EVPKeyPointer::ParseKeyResult(
+          EVPKeyPointer::PKParseError::NOT_RECOGNIZED);
   }
   DataPointer data(der_data, der_len);
 
   // OpenSSL might modify the pointer, so we need to make a copy before parsing.
   const unsigned char* p = der_data;
   EVPKeyPointer pkey(parse(&p, der_len));
-  if (!pkey) return EVPKeyPointer::ParseKeyResult(EVPKeyPointer::PKParseError::FAILED);
+  if (!pkey)
+    return EVPKeyPointer::ParseKeyResult(EVPKeyPointer::PKParseError::FAILED);
   return EVPKeyPointer::ParseKeyResult(std::move(pkey));
 }
 
-constexpr bool IsASN1Sequence(const unsigned char* data, size_t size,
-                              size_t* data_offset, size_t* data_size) {
-  if (size < 2 || data[0] != 0x30)
-    return false;
+constexpr bool IsASN1Sequence(const unsigned char* data,
+                              size_t size,
+                              size_t* data_offset,
+                              size_t* data_size) {
+  if (size < 2 || data[0] != 0x30) return false;
 
   if (data[1] & 0x80) {
     // Long form.
     size_t n_bytes = data[1] & ~0x80;
-    if (n_bytes + 2 > size || n_bytes > sizeof(size_t))
-      return false;
+    if (n_bytes + 2 > size || n_bytes > sizeof(size_t)) return false;
     size_t length = 0;
-    for (size_t i = 0; i < n_bytes; i++)
-      length = (length << 8) | data[i + 2];
+    for (size_t i = 0; i < n_bytes; i++) length = (length << 8) | data[i + 2];
     *data_offset = 2 + n_bytes;
     *data_size = std::min(size - 2 - n_bytes, length);
   } else {
@@ -1594,12 +1685,12 @@ constexpr bool IsASN1Sequence(const unsigned char* data, size_t size,
   return true;
 }
 
-constexpr bool IsEncryptedPrivateKeyInfo(const Buffer<const unsigned char>& buffer) {
+constexpr bool IsEncryptedPrivateKeyInfo(
+    const Buffer<const unsigned char>& buffer) {
   // Both PrivateKeyInfo and EncryptedPrivateKeyInfo start with a SEQUENCE.
   if (buffer.len == 0 || buffer.data == nullptr) return false;
   size_t offset, len;
-  if (!IsASN1Sequence(buffer.data, buffer.len, &offset, &len))
-    return false;
+  if (!IsASN1Sequence(buffer.data, buffer.len, &offset, &len)) return false;
 
   // A PrivateKeyInfo sequence always starts with an integer whereas an
   // EncryptedPrivateKeyInfo starts with an AlgorithmIdentifier.
@@ -1611,48 +1702,50 @@ constexpr bool IsEncryptedPrivateKeyInfo(const Buffer<const unsigned char>& buff
 bool EVPKeyPointer::IsRSAPrivateKey(const Buffer<const unsigned char>& buffer) {
   // Both RSAPrivateKey and RSAPublicKey structures start with a SEQUENCE.
   size_t offset, len;
-  if (!IsASN1Sequence(buffer.data, buffer.len, &offset, &len))
-    return false;
+  if (!IsASN1Sequence(buffer.data, buffer.len, &offset, &len)) return false;
 
   // An RSAPrivateKey sequence always starts with a single-byte integer whose
   // value is either 0 or 1, whereas an RSAPublicKey starts with the modulus
   // (which is the product of two primes and therefore at least 4), so we can
   // decide the type of the structure based on the first three bytes of the
   // sequence.
-  return len >= 3 &&
-         buffer.data[offset] == 2 &&
-         buffer.data[offset + 1] == 1 &&
+  return len >= 3 && buffer.data[offset] == 2 && buffer.data[offset + 1] == 1 &&
          !(buffer.data[offset + 2] & 0xfe);
 }
 
 EVPKeyPointer::ParseKeyResult EVPKeyPointer::TryParsePublicKeyPEM(
     const Buffer<const unsigned char>& buffer) {
   auto bp = BIOPointer::New(buffer.data, buffer.len);
-  if (!bp)
-    return ParseKeyResult(PKParseError::FAILED);
+  if (!bp) return ParseKeyResult(PKParseError::FAILED);
 
   // Try parsing as SubjectPublicKeyInfo (SPKI) first.
-  if (auto ret = TryParsePublicKeyInner(bp, "PUBLIC KEY",
-      [](const unsigned char** p, long l) {  // NOLINT(runtime/int)
-        return d2i_PUBKEY(nullptr, p, l);
-      })) {
+  if (auto ret = TryParsePublicKeyInner(
+          bp,
+          "PUBLIC KEY",
+          [](const unsigned char** p, long l) {  // NOLINT(runtime/int)
+            return d2i_PUBKEY(nullptr, p, l);
+          })) {
     return ret;
   }
 
   // Maybe it is PKCS#1.
-  if (auto ret = TryParsePublicKeyInner(bp, "RSA PUBLIC KEY",
-      [](const unsigned char** p, long l) {  // NOLINT(runtime/int)
-        return d2i_PublicKey(EVP_PKEY_RSA, nullptr, p, l);
-      })) {
+  if (auto ret = TryParsePublicKeyInner(
+          bp,
+          "RSA PUBLIC KEY",
+          [](const unsigned char** p, long l) {  // NOLINT(runtime/int)
+            return d2i_PublicKey(EVP_PKEY_RSA, nullptr, p, l);
+          })) {
     return ret;
   }
 
   // X.509 fallback.
-  if (auto ret = TryParsePublicKeyInner(bp, "CERTIFICATE",
-      [](const unsigned char** p, long l) {  // NOLINT(runtime/int)
-        X509Pointer x509(d2i_X509(nullptr, p, l));
-        return x509 ? X509_get_pubkey(x509.get()) : nullptr;
-      })) {
+  if (auto ret = TryParsePublicKeyInner(
+          bp,
+          "CERTIFICATE",
+          [](const unsigned char** p, long l) {  // NOLINT(runtime/int)
+            X509Pointer x509(d2i_X509(nullptr, p, l));
+            return x509 ? X509_get_pubkey(x509.get()) : nullptr;
+          })) {
     return ret;
   };
 
@@ -1660,14 +1753,13 @@ EVPKeyPointer::ParseKeyResult EVPKeyPointer::TryParsePublicKeyPEM(
 }
 
 EVPKeyPointer::ParseKeyResult EVPKeyPointer::TryParsePublicKey(
-    PKFormatType format,
-    PKEncodingType encoding,
+    const PublicKeyEncodingConfig& config,
     const Buffer<const unsigned char>& buffer) {
-  if (format == PKFormatType::PEM) {
+  if (config.format == PKFormatType::PEM) {
     return TryParsePublicKeyPEM(buffer);
   }
 
-  if (format != PKFormatType::DER) {
+  if (config.format != PKFormatType::DER) {
     return ParseKeyResult(PKParseError::FAILED);
   }
 
@@ -1675,12 +1767,12 @@ EVPKeyPointer::ParseKeyResult EVPKeyPointer::TryParsePublicKey(
 
   EVP_PKEY* key = nullptr;
 
-  if (encoding == PKEncodingType::PKCS1 &&
+  if (config.type == PKEncodingType::PKCS1 &&
       (key = d2i_PublicKey(EVP_PKEY_RSA, nullptr, &start, buffer.len))) {
     return EVPKeyPointer::ParseKeyResult(EVPKeyPointer(key));
   }
 
-  if (encoding == PKEncodingType::SPKI &&
+  if (config.type == PKEncodingType::SPKI &&
       (key = d2i_PUBKEY(nullptr, &start, buffer.len))) {
     return EVPKeyPointer::ParseKeyResult(EVPKeyPointer(key));
   }
@@ -1688,17 +1780,38 @@ EVPKeyPointer::ParseKeyResult EVPKeyPointer::TryParsePublicKey(
   return ParseKeyResult(PKParseError::FAILED);
 }
 
-EVPKeyPointer::ParseKeyResult EVPKeyPointer::TryParsePrivateKey(
-    PKFormatType format,
-    PKEncodingType encoding,
-    std::optional<Buffer<char>> maybe_passphrase,
-    const Buffer<const unsigned char>& buffer) {
+namespace {
+Buffer<char> GetPassphrase(
+    const EVPKeyPointer::PrivateKeyEncodingConfig& config) {
+  Buffer<char> pass{
+      // OpenSSL will not actually dereference this pointer, so it can be any
+      // non-null pointer. We cannot assert that directly, which is why we
+      // intentionally use a pointer that will likely cause a segmentation fault
+      // when dereferenced.
+      .data = reinterpret_cast<char*>(-1),
+      .len = 0,
+  };
+  if (config.passphrase.has_value()) {
+    auto& passphrase = config.passphrase.value();
+    // The pass.data can't be a nullptr, even if the len is zero or else
+    // openssl will prompt for a password and we really don't want that.
+    if (passphrase.get() != nullptr) {
+      pass.data = static_cast<char*>(passphrase.get());
+    }
+    pass.len = passphrase.size();
+  }
+  return pass;
+}
+}  // namespace
 
-  static auto keyOrError = [&](EVPKeyPointer pkey, bool had_passphrase = false) {
+EVPKeyPointer::ParseKeyResult EVPKeyPointer::TryParsePrivateKey(
+    const PrivateKeyEncodingConfig& config,
+    const Buffer<const unsigned char>& buffer) {
+  static constexpr auto keyOrError = [](EVPKeyPointer pkey,
+                                        bool had_passphrase = false) {
     if (int err = ERR_peek_error()) {
       if (ERR_GET_LIB(err) == ERR_LIB_PEM &&
-          ERR_GET_REASON(err) == PEM_R_BAD_PASSWORD_READ &&
-          !had_passphrase) {
+          ERR_GET_REASON(err) == PEM_R_BAD_PASSWORD_READ && !had_passphrase) {
         return ParseKeyResult(PKParseError::NEED_PASSPHRASE);
       }
       return ParseKeyResult(PKParseError::FAILED, err);
@@ -1707,35 +1820,37 @@ EVPKeyPointer::ParseKeyResult EVPKeyPointer::TryParsePrivateKey(
     return ParseKeyResult(std::move(pkey));
   };
 
-  Buffer<char>* passphrase = nullptr;
-  if (maybe_passphrase.has_value()) {
-    passphrase = &maybe_passphrase.value();
-  }
-
   auto bio = BIOPointer::New(buffer);
   if (!bio) return ParseKeyResult(PKParseError::FAILED);
 
-  if (format == PKFormatType::PEM) {
-    auto key = PEM_read_bio_PrivateKey(bio.get(), nullptr, PasswordCallback, passphrase);
-    return keyOrError(EVPKeyPointer(key), maybe_passphrase.has_value());
+  auto passphrase = GetPassphrase(config);
+
+  if (config.format == PKFormatType::PEM) {
+    auto key = PEM_read_bio_PrivateKey(
+        bio.get(),
+        nullptr,
+        PasswordCallback,
+        config.passphrase.has_value() ? &passphrase : nullptr);
+    return keyOrError(EVPKeyPointer(key), config.passphrase.has_value());
   }
 
-  if (format != PKFormatType::DER) {
+  if (config.format != PKFormatType::DER) {
     return ParseKeyResult(PKParseError::FAILED);
   }
 
-  switch (encoding) {
+  switch (config.type) {
     case PKEncodingType::PKCS1: {
       auto key = d2i_PrivateKey_bio(bio.get(), nullptr);
       return keyOrError(EVPKeyPointer(key));
     }
     case PKEncodingType::PKCS8: {
       if (IsEncryptedPrivateKeyInfo(buffer)) {
-        auto key = d2i_PKCS8PrivateKey_bio(bio.get(),
-                                           nullptr,
-                                           PasswordCallback,
-                                           passphrase);
-        return keyOrError(EVPKeyPointer(key), maybe_passphrase.has_value());
+        auto key = d2i_PKCS8PrivateKey_bio(
+            bio.get(),
+            nullptr,
+            PasswordCallback,
+            config.passphrase.has_value() ? &passphrase : nullptr);
+        return keyOrError(EVPKeyPointer(key), config.passphrase.has_value());
       }
 
       PKCS8Pointer p8inf(d2i_PKCS8_PRIV_KEY_INFO_bio(bio.get(), nullptr));
@@ -1752,6 +1867,181 @@ EVPKeyPointer::ParseKeyResult EVPKeyPointer::TryParsePrivateKey(
       return ParseKeyResult(PKParseError::FAILED, ERR_peek_error());
     }
   };
+}
+
+Result<BIOPointer, bool> EVPKeyPointer::writePrivateKey(
+    const PrivateKeyEncodingConfig& config) const {
+  if (config.format == PKFormatType::JWK) {
+    return Result<BIOPointer, bool>(false);
+  }
+
+  auto bio = BIOPointer::NewMem();
+  if (!bio) {
+    return Result<BIOPointer, bool>(false);
+  }
+
+  auto passphrase = GetPassphrase(config);
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+  bool err;
+
+  switch (config.type) {
+    case PKEncodingType::PKCS1: {
+      // PKCS1 is only permitted for RSA keys.
+      if (id() != EVP_PKEY_RSA) return Result<BIOPointer, bool>(false);
+
+#if OPENSSL_VERSION_MAJOR >= 3
+      const RSA* rsa = EVP_PKEY_get0_RSA(get());
+#else
+      RSA* rsa = EVP_PKEY_get0_RSA(get());
+#endif
+      switch (config.format) {
+        case PKFormatType::PEM: {
+          err = PEM_write_bio_RSAPrivateKey(
+                    bio.get(),
+                    rsa,
+                    config.cipher,
+                    reinterpret_cast<unsigned char*>(passphrase.data),
+                    passphrase.len,
+                    nullptr,
+                    nullptr) != 1;
+          break;
+        }
+        case PKFormatType::DER: {
+          // Encoding PKCS1 as DER. This variation does not permit encryption.
+          err = i2d_RSAPrivateKey_bio(bio.get(), rsa) != 1;
+          break;
+        }
+        default: {
+          // Should never get here.
+          return Result<BIOPointer, bool>(false);
+        }
+      }
+      break;
+    }
+    case PKEncodingType::PKCS8: {
+      switch (config.format) {
+        case PKFormatType::PEM: {
+          // Encode PKCS#8 as PEM.
+          err = PEM_write_bio_PKCS8PrivateKey(bio.get(),
+                                              get(),
+                                              config.cipher,
+                                              passphrase.data,
+                                              passphrase.len,
+                                              nullptr,
+                                              nullptr) != 1;
+          break;
+        }
+        case PKFormatType::DER: {
+          err = i2d_PKCS8PrivateKey_bio(bio.get(),
+                                        get(),
+                                        config.cipher,
+                                        passphrase.data,
+                                        passphrase.len,
+                                        nullptr,
+                                        nullptr) != 1;
+          break;
+        }
+        default: {
+          // Should never get here.
+          return Result<BIOPointer, bool>(false);
+        }
+      }
+      break;
+    }
+    case PKEncodingType::SEC1: {
+      // SEC1 is only permitted for EC keys
+      if (id() != EVP_PKEY_EC) return Result<BIOPointer, bool>(false);
+
+#if OPENSSL_VERSION_MAJOR >= 3
+      const EC_KEY* ec = EVP_PKEY_get0_EC_KEY(get());
+#else
+      EC_KEY* ec = EVP_PKEY_get0_EC_KEY(get());
+#endif
+      switch (config.format) {
+        case PKFormatType::PEM: {
+          err = PEM_write_bio_ECPrivateKey(
+                    bio.get(),
+                    ec,
+                    config.cipher,
+                    reinterpret_cast<unsigned char*>(passphrase.data),
+                    passphrase.len,
+                    nullptr,
+                    nullptr) != 1;
+          break;
+        }
+        case PKFormatType::DER: {
+          // Encoding SEC1 as DER. This variation does not permit encryption.
+          err = i2d_ECPrivateKey_bio(bio.get(), ec) != 1;
+          break;
+        }
+        default: {
+          // Should never get here.
+          return Result<BIOPointer, bool>(false);
+        }
+      }
+      break;
+    }
+    default: {
+      // Not a valid private key encoding
+      return Result<BIOPointer, bool>(false);
+    }
+  }
+
+  if (err) {
+    // Failed to encode the private key.
+    return Result<BIOPointer, bool>(false,
+                                    mark_pop_error_on_return.peekError());
+  }
+
+  return bio;
+}
+
+Result<BIOPointer, bool> EVPKeyPointer::writePublicKey(
+    const ncrypto::EVPKeyPointer::PublicKeyEncodingConfig& config) const {
+  auto bio = BIOPointer::NewMem();
+  if (!bio) return Result<BIOPointer, bool>(false);
+
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+
+  if (config.type == ncrypto::EVPKeyPointer::PKEncodingType::PKCS1) {
+    // PKCS#1 is only valid for RSA keys.
+#if OPENSSL_VERSION_MAJOR >= 3
+    const RSA* rsa = EVP_PKEY_get0_RSA(get());
+#else
+    RSA* rsa = EVP_PKEY_get0_RSA(get());
+#endif
+    if (config.format == ncrypto::EVPKeyPointer::PKFormatType::PEM) {
+      // Encode PKCS#1 as PEM.
+      if (PEM_write_bio_RSAPublicKey(bio.get(), rsa) != 1) {
+        return Result<BIOPointer, bool>(false,
+                                        mark_pop_error_on_return.peekError());
+      }
+      return bio;
+    }
+
+    // Encode PKCS#1 as DER.
+    if (i2d_RSAPublicKey_bio(bio.get(), rsa) != 1) {
+      return Result<BIOPointer, bool>(false,
+                                      mark_pop_error_on_return.peekError());
+    }
+    return bio;
+  }
+
+  if (config.format == ncrypto::EVPKeyPointer::PKFormatType::PEM) {
+    // Encode SPKI as PEM.
+    if (PEM_write_bio_PUBKEY(bio.get(), get()) != 1) {
+      return Result<BIOPointer, bool>(false,
+                                      mark_pop_error_on_return.peekError());
+    }
+    return bio;
+  }
+
+  // Encode SPKI as DER.
+  if (i2d_PUBKEY_bio(bio.get(), get()) != 1) {
+    return Result<BIOPointer, bool>(false,
+                                    mark_pop_error_on_return.peekError());
+  }
+  return bio;
 }
 
 }  // namespace ncrypto

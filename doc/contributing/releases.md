@@ -284,8 +284,8 @@ You can integrate the PRs into the proposal without running full CI.
 
 ⚠️ At this point, you can either run `git node release --prepare`:
 
-```console
-$ git node release --prepare x.y.z
+```bash
+git node release -S --prepare x.y.z
 ```
 
 to automate the remaining steps until step 6 or you can perform it manually
@@ -310,6 +310,9 @@ branched off of `vN.x`.
 $ git checkout -b v1.2.3-proposal upstream/v1.x
 git cherry-pick  ...  # cherry-pick nodejs-private PR commits directly into the proposal
 ```
+
+Be sure to label the CVE fixes as `notable-change` in the nodejs-private repository.
+This will ensure they are included in the "Notable Changes" section of the CHANGELOG.
 
 </details>
 
@@ -1217,8 +1220,14 @@ the releaser, these must be kept in sync with `main`.
 The `vN.x` and `vN.x-staging` branches must be kept in sync with one another
 up until the date of the release.
 
-The TSC should be informed of any `SEMVER-MAJOR` commits that land within one
-month of the release.
+If a `SEMVER-MAJOR` pull request lands on the default branch within one month
+prior to the major release date, it must not be included on the new major
+staging branch, unless there is consensus from the Node.js releasers team to
+do so. This measure aims to ensure better stability for the release candidate
+(RC) phase, which begins approximately two weeks prior to the official release.
+By restricting `SEMVER-MAJOR` commits in this period, we provide more time for
+thorough testing and reduce the potential for major breakages, especially in
+LTS lines.
 
 ### Create release labels
 

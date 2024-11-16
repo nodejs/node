@@ -270,13 +270,9 @@ changes:
     description: Switch from Import Assertions to Import Attributes.
 -->
 
-> Stability: 1.1 - Active development
+> Stability: 2 - Stable
 
-> This feature was previously named "Import assertions", and using the `assert`
-> keyword instead of `with`. Any uses in code of the prior `assert` keyword
-> should be updated to use `with` instead.
-
-The [Import Attributes proposal][] adds an inline syntax for module import
+[Import attributes][Import Attributes MDN] are an inline syntax for module import
 statements to pass on more information alongside the module specifier.
 
 ```js
@@ -286,12 +282,13 @@ const { default: barData } =
   await import('./bar.json', { with: { type: 'json' } });
 ```
 
-Node.js supports the following `type` values, for which the attribute is
-mandatory:
+Node.js only supports the `type` attribute, for which it supports the following values:
 
 | Attribute `type` | Needed for       |
 | ---------------- | ---------------- |
 | `'json'`         | [JSON modules][] |
+
+The `type: 'json'` attribute is mandatory when importing JSON modules.
 
 ## Built-in modules
 
@@ -398,8 +395,8 @@ changes:
     - v20.6.0
     - v18.19.0
     pr-url: https://github.com/nodejs/node/pull/49028
-    description: Unflag `import.meta.resolve`, with `parentURL` parameter still
-                 flagged.
+    description: No longer behind `--experimental-import-meta-resolve` CLI flag,
+                 except for the non-standard `parentURL` parameter.
   - version:
     - v20.6.0
     - v18.19.0
@@ -477,7 +474,7 @@ See [Loading ECMAScript modules using `require()`][] for details.
 <!-- YAML
 added: v14.13.0
 changes:
-  - version: REPLACEME
+  - version: v23.0.0
     pr-url: https://github.com/nodejs/node/pull/53848
     description: Added `'module.exports'` export marker to CJS namespaces.
 -->
@@ -631,7 +628,7 @@ separate cache.
 
 ## JSON modules
 
-> Stability: 1 - Experimental
+> Stability: 2 - Stable
 
 JSON files can be referenced by `import`:
 
@@ -1101,7 +1098,7 @@ resolution for ESM specifiers is [commonjs-extension-resolution-loader][].
 [Dynamic `import()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import
 [ES Module Integration Proposal for WebAssembly]: https://github.com/webassembly/esm-integration
 [Import Attributes]: #import-attributes
-[Import Attributes proposal]: https://github.com/tc39/proposal-import-attributes
+[Import Attributes MDN]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import/with
 [JSON modules]: #json-modules
 [Loading ECMAScript modules using `require()`]: modules.md#loading-ecmascript-modules-using-require
 [Module customization hooks]: module.md#customization-hooks

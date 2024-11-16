@@ -79,6 +79,18 @@ const filename = 'foo';
     ));
 }
 {
+  // Reassigning `.path` property should not trigger a warning
+  const dirent = getDirent(
+    tmpdir.path,
+    filename,
+    UV_DIRENT_UNKNOWN,
+  );
+  assert.strictEqual(dirent.name, filename);
+  dirent.path = 'some other value';
+  assert.strictEqual(dirent.parentPath, tmpdir.path);
+  assert.strictEqual(dirent.path, 'some other value');
+}
+{
   // string + Buffer
   const filenameBuffer = Buffer.from(filename);
   getDirent(
@@ -88,11 +100,7 @@ const filename = 'foo';
     common.mustCall((err, dirent) => {
       assert.strictEqual(err, null);
       assert.strictEqual(dirent.name, filenameBuffer);
-      common.expectWarning(
-        'DeprecationWarning',
-        'dirent.path is deprecated in favor of dirent.parentPath',
-        'DEP0178');
-      assert.deepStrictEqual(dirent.path, Buffer.from(tmpdir.resolve(`${filename}`)));
+      assert.deepStrictEqual(dirent.parentPath, Buffer.from(tmpdir.resolve(`${filename}/`)));
     },
     ));
 }

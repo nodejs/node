@@ -1939,7 +1939,9 @@ A boolean value that is `true` if the current Node.js build includes support for
 ## `process.features.require_module`
 
 <!-- YAML
-added: REPLACEME
+added:
+ - v23.0.0
+ - v22.10.0
 -->
 
 * {boolean}
@@ -1990,10 +1992,12 @@ A boolean value that is `true` if the current Node.js build includes support for
 ## `process.features.typescript`
 
 <!-- YAML
-added: REPLACEME
+added:
+ - v23.0.0
+ - v22.10.0
 -->
 
-> Stability: 1.0 - Early development
+> Stability: 1.1 - Active development
 
 * {boolean|string}
 
@@ -3489,6 +3493,16 @@ const { report } = require('node:process');
 
 console.log(`Report on exception: ${report.reportOnUncaughtException}`);
 ```
+
+### `process.report.excludeEnv`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+If `true`, a diagnostic report is generated without the environment variables.
 
 ### `process.report.signal`
 

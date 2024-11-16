@@ -791,14 +791,14 @@ describe('Loader hooks', { concurrency: !process.env.TEST_PARALLEL }, () => {
     const hook = `
     import { readFile } from 'node:fs/promises';
     export ${
-  async function load(url, context, nextLoad) {
-    const resolved = await nextLoad(url, context);
-    if (context.format === 'commonjs') {
-      resolved.source = await readFile(new URL(url));
-    }
-    return resolved;
-  }
-}`;
+      async function load(url, context, nextLoad) {
+        const resolved = await nextLoad(url, context);
+        if (context.format === 'commonjs') {
+          resolved.source = await readFile(new URL(url));
+        }
+        return resolved;
+      }
+    }`;
 
     const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
@@ -807,8 +807,8 @@ describe('Loader hooks', { concurrency: !process.env.TEST_PARALLEL }, () => {
       `data:text/javascript,${encodeURIComponent(`
       import{ register } from "node:module";
       register(${
-  JSON.stringify('data:text/javascript,' + encodeURIComponent(hook))
-});
+        JSON.stringify('data:text/javascript,' + encodeURIComponent(hook))
+      });
       `)}`,
       fixtures.path('source-map/throw-on-require.js'),
     ]);
