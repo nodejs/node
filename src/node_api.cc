@@ -217,8 +217,7 @@ class ThreadSafeFunction {
                        resource,
                        node::Utf8Value(env_->isolate, name).ToStringView()),
         thread_count(thread_count_),
-        is_closing(false),
-        is_closed(false),
+        state(kOpen),
         dispatch_state(kDispatchIdle),
         context(context_),
         max_queue_size(max_queue_size_),
@@ -241,14 +240,14 @@ class ThreadSafeFunction {
       node::Mutex::ScopedLock lock(this->mutex);
 
       while (queue.size() >= max_queue_size && max_queue_size > 0 &&
-             !is_closing) {
+             state == kOpen) {
         if (mode == napi_tsfn_nonblocking) {
           return napi_queue_full;
         }
         cond->Wait(lock);
       }
 
-      if (!is_closing) {
+      if (state == kOpen) {
         queue.push(data);
         Send();
         return napi_ok;
@@ -257,7 +256,7 @@ class ThreadSafeFunction {
         return napi_invalid_arg;
       }
       thread_count--;
-      if (!is_closed || thread_count > 0) {
+      if (!(state == kClosed && thread_count == 0)) {
         return napi_closing;
       }
     }
@@ -269,13 +268,13 @@ class ThreadSafeFunction {
   napi_status Acquire() {
     node::Mutex::ScopedLock lock(this->mutex);
 
-    if (is_closing) {
-      return napi_closing;
+    if (state == kOpen) {
+      thread_count++;
+
+      return napi_ok;
     }
 
-    thread_count++;
-
-    return napi_ok;
+    return napi_closing;
   }
 
   napi_status Release(napi_threadsafe_function_release_mode mode) {
@@ -289,16 +288,18 @@ class ThreadSafeFunction {
       thread_count--;
 
       if (thread_count == 0 || mode == napi_tsfn_abort) {
-        if (!is_closing) {
-          is_closing = (mode == napi_tsfn_abort);
-          if (is_closing && max_queue_size > 0) {
+        if (state == kOpen) {
+          if (mode == napi_tsfn_abort) {
+            state = kClosing;
+          }
+          if (state == kClosing && max_queue_size > 0) {
             cond->Signal(lock);
           }
           Send();
         }
       }
 
-      if (!is_closed || thread_count > 0) {
+      if (!(state == kClosed && thread_count == 0)) {
         return napi_ok;
       }
     }
@@ -376,8 +377,8 @@ class ThreadSafeFunction {
 
  protected:
   void ReleaseResources() {
-    if (!is_closed) {
-      is_closed = true;
+    if (state != kClosed) {
+      state = kClosed;
       ref.Reset();
       node::RemoveEnvironmentCleanupHook(env->isolate, Cleanup, this);
       env->Unref();
@@ -413,9 +414,7 @@ class ThreadSafeFunction {
 
     {
       node::Mutex::ScopedLock lock(this->mutex);
-      if (is_closing) {
-        CloseHandlesAndMaybeDelete();
-      } else {
+      if (state == kOpen) {
         size_t size = queue.size();
         if (size > 0) {
           data = queue.front();
@@ -429,7 +428,7 @@ class ThreadSafeFunction {
 
         if (size == 0) {
           if (thread_count == 0) {
-            is_closing = true;
+            state = kClosing;
             if (max_queue_size > 0) {
               cond->Signal(lock);
             }
@@ -438,6 +437,8 @@ class ThreadSafeFunction {
         } else {
           has_more = true;
         }
+      } else {
+        CloseHandlesAndMaybeDelete();
       }
     }
 
@@ -470,7 +471,7 @@ class ThreadSafeFunction {
     v8::HandleScope scope(env->isolate);
     if (set_closing) {
       node::Mutex::ScopedLock lock(this->mutex);
-      is_closing = true;
+      state = kClosing;
       if (max_queue_size > 0) {
         cond->Signal(lock);
       }
@@ -542,6 +543,8 @@ class ThreadSafeFunction {
     using node::AsyncResource::CallbackScope;
   };
 
+  enum State : unsigned char { kOpen, kClosing, kClosed };
+
   static const unsigned char kDispatchIdle = 0;
   static const unsigned char kDispatchRunning = 1 << 0;
   static const unsigned char kDispatchPending = 1 << 1;
@@ -556,8 +559,7 @@ class ThreadSafeFunction {
   std::queue<void*> queue;
   uv_async_t async;
   size_t thread_count;
-  bool is_closing;
-  bool is_closed;
+  State state;
   std::atomic_uchar dispatch_state;
 
   // These are variables set once, upon creation, and then never again, which
