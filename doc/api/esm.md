@@ -7,6 +7,9 @@
 <!-- YAML
 added: v8.5.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/55333
+    description: Import attributes are no longer experimental.
   - version:
     - v21.0.0
     - v20.10.0
@@ -605,6 +608,13 @@ separate cache.
 <i id="esm_experimental_json_modules"></i>
 
 ## JSON modules
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/55333
+    description: JSON modules are no longer experimental.
+-->
 
 > Stability: 2 - Stable
 
