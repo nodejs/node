@@ -220,6 +220,10 @@
         'dependencies': [ 'deps/simdjson/simdjson.gyp:simdjson' ],
     }],
 
+    [ 'node_shared_simdutf=="false"', {
+        'dependencies': [ 'deps/simdutf/simdutf.gyp:simdutf' ],
+    }],
+
     [ 'node_shared_brotli=="false"', {
       'dependencies': [ 'deps/brotli/brotli.gyp:brotli' ],
     }],
