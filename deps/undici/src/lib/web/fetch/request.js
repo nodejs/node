@@ -82,6 +82,7 @@ let patchMethodWarning = false
 class Request {
   // https://fetch.spec.whatwg.org/#dom-request
   constructor (input, init = {}) {
+    webidl.util.markAsUncloneable(this)
     if (input === kConstruct) {
       return
     }

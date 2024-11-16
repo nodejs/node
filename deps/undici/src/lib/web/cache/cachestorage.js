@@ -16,6 +16,8 @@ class CacheStorage {
     if (arguments[0] !== kConstruct) {
       webidl.illegalConstructor()
     }
+
+    webidl.util.markAsUncloneable(this)
   }
 
   async match (request, options = {}) {

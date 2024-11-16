@@ -37,6 +37,7 @@ class Cache {
       webidl.illegalConstructor()
     }
 
+    webidl.util.markAsUncloneable(this)
     this.#relevantRequestResponseList = arguments[1]
   }
 
