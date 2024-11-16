@@ -14,6 +14,8 @@ const File = globalThis.File ?? NativeFile
 // https://xhr.spec.whatwg.org/#formdata
 class FormData {
   constructor (form) {
+    webidl.util.markAsUncloneable(this)
+
     if (form !== undefined) {
       throw webidl.errors.conversionFailed({
         prefix: 'FormData constructor',
