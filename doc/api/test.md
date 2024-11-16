@@ -27,16 +27,7 @@ import test from 'node:test';
 const test = require('node:test');
 ```
 
-This module is only available under the `node:` scheme. The following will not
-work:
-
-```mjs
-import test from 'test';
-```
-
-```cjs
-const test = require('test');
-```
+This module is only available under the `node:` scheme.
 
 Tests created via the `test` module consist of a single function that is
 processed in one of three ways:
