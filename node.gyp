@@ -857,7 +857,6 @@
       'dependencies': [
         'deps/googletest/googletest.gyp:gtest_prod',
         'deps/histogram/histogram.gyp:histogram',
-        'deps/simdjson/simdjson.gyp:simdjson',
         'deps/simdutf/simdutf.gyp:simdutf',
         'deps/nbytes/nbytes.gyp:nbytes',
         'node_js2c#host',
@@ -1180,7 +1179,6 @@
         'deps/googletest/googletest.gyp:gtest',
         'deps/googletest/googletest.gyp:gtest_main',
         'deps/histogram/histogram.gyp:histogram',
-        'deps/simdjson/simdjson.gyp:simdjson',
         'deps/simdutf/simdutf.gyp:simdutf',
         'deps/nbytes/nbytes.gyp:nbytes',
       ],
@@ -1373,7 +1371,6 @@
         '<(node_lib_target_name)',
         'deps/histogram/histogram.gyp:histogram',
         'deps/nbytes/nbytes.gyp:nbytes',
-        'deps/simdjson/simdjson.gyp:simdjson',
         'deps/simdutf/simdutf.gyp:simdutf',
       ],
 
