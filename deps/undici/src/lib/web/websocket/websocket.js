@@ -51,6 +51,8 @@ class WebSocket extends EventTarget {
   constructor (url, protocols = []) {
     super()
 
+    webidl.util.markAsUncloneable(this)
+
     const prefix = 'WebSocket constructor'
     webidl.argumentLengthCheck(arguments, 1, prefix)
 

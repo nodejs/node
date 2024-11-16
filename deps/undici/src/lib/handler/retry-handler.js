@@ -229,7 +229,7 @@ class RetryHandler {
         return false
       }
 
-      const { start, size, end = size } = contentRange
+      const { start, size, end = size - 1 } = contentRange
 
       assert(this.start === start, 'content-range mismatch')
       assert(this.end == null || this.end === end, 'content-range mismatch')
@@ -252,7 +252,7 @@ class RetryHandler {
           )
         }
 
-        const { start, size, end = size } = range
+        const { start, size, end = size - 1 } = range
         assert(
           start != null && Number.isFinite(start),
           'content-range mismatch'
@@ -266,7 +266,7 @@ class RetryHandler {
       // We make our best to checkpoint the body for further range headers
       if (this.end == null) {
         const contentLength = headers['content-length']
-        this.end = contentLength != null ? Number(contentLength) : null
+        this.end = contentLength != null ? Number(contentLength) - 1 : null
       }
 
       assert(Number.isFinite(this.start))

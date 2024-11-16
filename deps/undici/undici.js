@@ -2589,6 +2589,9 @@ var require_connect = __commonJS({
       };
     };
     function onConnectTimeout(socket, opts) {
+      if (socket == null) {
+        return;
+      }
       let message = "Connect Timeout Error";
       if (Array.isArray(socket.autoSelectFamilyAttemptedAddresses)) {
         message += ` (attempted addresses: ${socket.autoSelectFamilyAttemptedAddresses.join(", ")},`;
@@ -3597,6 +3600,7 @@ var require_webidl = __commonJS({
   "lib/web/fetch/webidl.js"(exports2, module2) {
     "use strict";
     var { types, inspect } = require("node:util");
+    var { markAsUncloneable } = require("node:worker_threads");
     var { toUSVString } = require_util();
     var webidl = {};
     webidl.converters = {};
@@ -3671,6 +3675,8 @@ var require_webidl = __commonJS({
         }
       }
     };
+    webidl.util.markAsUncloneable = markAsUncloneable || (() => {
+    });
     webidl.util.ConvertToInt = function(V, bitLength, signedness, opts) {
       let upperBound;
       let lowerBound;
@@ -5031,6 +5037,7 @@ var require_formdata = __commonJS({
         __name(this, "FormData");
       }
       constructor(form) {
+        webidl.util.markAsUncloneable(this);
         if (form !== void 0) {
           throw webidl.errors.conversionFailed({
             prefix: "FormData constructor",
@@ -8808,6 +8815,7 @@ var require_headers = __commonJS({
       #guard;
       #headersList;
       constructor(init = void 0) {
+        webidl.util.markAsUncloneable(this);
         if (init === kConstruct) {
           return;
         }
@@ -9084,6 +9092,7 @@ var require_response = __commonJS({
       }
       // https://fetch.spec.whatwg.org/#dom-response
       constructor(body = null, init = {}) {
+        webidl.util.markAsUncloneable(this);
         if (body === kConstruct) {
           return;
         }
@@ -9532,6 +9541,7 @@ var require_request2 = __commonJS({
       }
       // https://fetch.spec.whatwg.org/#dom-request
       constructor(input, init = {}) {
+        webidl.util.markAsUncloneable(this);
         if (input === kConstruct) {
           return;
         }
@@ -11151,7 +11161,7 @@ var require_fetch = __commonJS({
               const decoders = [];
               const willFollow = location && request.redirect === "follow" && redirectStatusSet.has(status);
               if (codings.length !== 0 && request.method !== "HEAD" && request.method !== "CONNECT" && !nullBodyStatus.includes(status) && !willFollow) {
-                for (let i = 0; i < codings.length; ++i) {
+                for (let i = codings.length - 1; i >= 0; --i) {
                   const coding = codings[i];
                   if (coding === "x-gzip" || coding === "gzip") {
                     decoders.push(zlib.createGunzip({
@@ -11264,6 +11274,7 @@ var require_events = __commonJS({
       constructor(type, eventInitDict = {}) {
         if (type === kConstruct) {
           super(arguments[1], arguments[2]);
+          webidl.util.markAsUncloneable(this);
           return;
         }
         const prefix = "MessageEvent constructor";
@@ -11272,6 +11283,7 @@ var require_events = __commonJS({
         eventInitDict = webidl.converters.MessageEventInit(eventInitDict, prefix, "eventInitDict");
         super(type, eventInitDict);
         this.#eventInit = eventInitDict;
+        webidl.util.markAsUncloneable(this);
       }
       get data() {
         webidl.brandCheck(this, _MessageEvent);
@@ -11334,6 +11346,7 @@ var require_events = __commonJS({
         eventInitDict = webidl.converters.CloseEventInit(eventInitDict);
         super(type, eventInitDict);
         this.#eventInit = eventInitDict;
+        webidl.util.markAsUncloneable(this);
       }
       get wasClean() {
         webidl.brandCheck(this, _CloseEvent);
@@ -11357,6 +11370,7 @@ var require_events = __commonJS({
         const prefix = "ErrorEvent constructor";
         webidl.argumentLengthCheck(arguments, 1, prefix);
         super(type, eventInitDict);
+        webidl.util.markAsUncloneable(this);
         type = webidl.converters.DOMString(type, prefix, "type");
         eventInitDict = webidl.converters.ErrorEventInit(eventInitDict ?? {});
         this.#eventInit = eventInitDict;
@@ -12554,6 +12568,7 @@ var require_websocket = __commonJS({
        */
       constructor(url, protocols = []) {
         super();
+        webidl.util.markAsUncloneable(this);
         const prefix = "WebSocket constructor";
         webidl.argumentLengthCheck(arguments, 1, prefix);
         const options = webidl.converters["DOMString or sequence<DOMString> or WebSocketInit"](protocols, prefix, "options");
@@ -13204,6 +13219,7 @@ var require_eventsource = __commonJS({
        */
       constructor(url, eventSourceInitDict = {}) {
         super();
+        webidl.util.markAsUncloneable(this);
         const prefix = "EventSource constructor";
         webidl.argumentLengthCheck(arguments, 1, prefix);
         if (!experimentalWarned) {
