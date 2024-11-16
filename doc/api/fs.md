@@ -1340,7 +1340,9 @@ changes:
     internally when reading from the directory. Higher values lead to better
     performance but higher memory usage. **Default:** `32`
   * `recursive` {boolean} Resolved `Dir` will be an {AsyncIterable}
-    containing all sub files and directories. **Default:** `false`
+    containing all sub files and directories. Warning: a bug ([#55764][])
+    about to be fixed but still affecting all current versions
+    prevents recursive mode from working as expected. **Default:** `false`
 * Returns: {Promise}  Fulfills with an {fs.Dir}.
 
 Asynchronously open a directory for iterative scanning. See the POSIX
@@ -8426,3 +8428,4 @@ the file contents.
 [chcp]: https://ss64.com/nt/chcp.html
 [inode]: https://en.wikipedia.org/wiki/Inode
 [support of file system `flags`]: #file-system-flags
+[#55764]: https://github.com/nodejs/node/issues/55764
