@@ -184,7 +184,7 @@ a string representing the location in the code at which
 ```js
 const myObject = {};
 Error.captureStackTrace(myObject);
-myObject.stack;  // Similar to `new Error().stack`
+myObject.stack; // Similar to `new Error().stack`
 ```
 
 The first line of the trace will be prefixed with
@@ -595,7 +595,7 @@ Indicates that a provided argument is not an allowable type. For example,
 passing a function to a parameter which expects a string would be a `TypeError`.
 
 ```js
-require('node:url').parse(() => { });
+require('node:url').parse(() => {});
 // Throws TypeError, since it expected a string.
 ```
 
@@ -1358,7 +1358,7 @@ Path is a directory.
 ### `ERR_FS_FILE_TOO_LARGE`
 
 An attempt has been made to read a file whose size is larger than the maximum
-allowed size for a `Buffer`.
+limit for an I/O operation.
 
 <a id="ERR_HTTP2_ALTSVC_INVALID_ORIGIN"></a>
 
@@ -2852,7 +2852,7 @@ The context must be a `SecureContext`.
 
 ### `ERR_TLS_INVALID_PROTOCOL_METHOD`
 
-The specified  `secureProtocol` method is invalid. It is  either unknown, or
+The specified `secureProtocol` method is invalid. It is either unknown, or
 disabled because it is insecure.
 
 <a id="ERR_TLS_INVALID_PROTOCOL_VERSION"></a>
