@@ -24,10 +24,7 @@ stream:
 ```js
 const { createGzip } = require('node:zlib');
 const { pipeline } = require('node:stream');
-const {
-  createReadStream,
-  createWriteStream,
-} = require('node:fs');
+const { createReadStream, createWriteStream } = require('node:fs');
 
 const gzip = createGzip();
 const source = createReadStream('input.txt');
@@ -52,11 +49,10 @@ async function do_gzip(input, output) {
   await pipe(source, gzip, destination);
 }
 
-do_gzip('input.txt', 'input.txt.gz')
-  .catch((err) => {
-    console.error('An error occurred:', err);
-    process.exitCode = 1;
-  });
+do_gzip('input.txt', 'input.txt.gz').catch((err) => {
+  console.error('An error occurred:', err);
+  process.exitCode = 1;
+});
 ```
 
 It is also possible to compress or decompress data in a single step:
@@ -145,10 +141,12 @@ const http = require('node:http');
 const fs = require('node:fs');
 const { pipeline } = require('node:stream');
 
-const request = http.get({ host: 'example.com',
-                           path: '/',
-                           port: 80,
-                           headers: { 'Accept-Encoding': 'br,gzip,deflate' } });
+const request = http.get({
+  host: 'example.com',
+  path: '/',
+  port: 80,
+  headers: { 'Accept-Encoding': 'br,gzip,deflate' },
+});
 request.on('response', (response) => {
   const output = fs.createWriteStream('example.com_index.html');
 
@@ -186,43 +184,45 @@ const http = require('node:http');
 const fs = require('node:fs');
 const { pipeline } = require('node:stream');
 
-http.createServer((request, response) => {
-  const raw = fs.createReadStream('index.html');
-  // Store both a compressed and an uncompressed version of the resource.
-  response.setHeader('Vary', 'Accept-Encoding');
-  let acceptEncoding = request.headers['accept-encoding'];
-  if (!acceptEncoding) {
-    acceptEncoding = '';
-  }
-
-  const onError = (err) => {
-    if (err) {
-      // If an error occurs, there's not much we can do because
-      // the server has already sent the 200 response code and
-      // some amount of data has already been sent to the client.
-      // The best we can do is terminate the response immediately
-      // and log the error.
-      response.end();
-      console.error('An error occurred:', err);
+http
+  .createServer((request, response) => {
+    const raw = fs.createReadStream('index.html');
+    // Store both a compressed and an uncompressed version of the resource.
+    response.setHeader('Vary', 'Accept-Encoding');
+    let acceptEncoding = request.headers['accept-encoding'];
+    if (!acceptEncoding) {
+      acceptEncoding = '';
     }
-  };
 
-  // Note: This is not a conformant accept-encoding parser.
-  // See https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.3
-  if (/\bdeflate\b/.test(acceptEncoding)) {
-    response.writeHead(200, { 'Content-Encoding': 'deflate' });
-    pipeline(raw, zlib.createDeflate(), response, onError);
-  } else if (/\bgzip\b/.test(acceptEncoding)) {
-    response.writeHead(200, { 'Content-Encoding': 'gzip' });
-    pipeline(raw, zlib.createGzip(), response, onError);
-  } else if (/\bbr\b/.test(acceptEncoding)) {
-    response.writeHead(200, { 'Content-Encoding': 'br' });
-    pipeline(raw, zlib.createBrotliCompress(), response, onError);
-  } else {
-    response.writeHead(200, {});
-    pipeline(raw, response, onError);
-  }
-}).listen(1337);
+    const onError = (err) => {
+      if (err) {
+        // If an error occurs, there's not much we can do because
+        // the server has already sent the 200 response code and
+        // some amount of data has already been sent to the client.
+        // The best we can do is terminate the response immediately
+        // and log the error.
+        response.end();
+        console.error('An error occurred:', err);
+      }
+    };
+
+    // Note: This is not a conformant accept-encoding parser.
+    // See https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.3
+    if (/\bdeflate\b/.test(acceptEncoding)) {
+      response.writeHead(200, { 'Content-Encoding': 'deflate' });
+      pipeline(raw, zlib.createDeflate(), response, onError);
+    } else if (/\bgzip\b/.test(acceptEncoding)) {
+      response.writeHead(200, { 'Content-Encoding': 'gzip' });
+      pipeline(raw, zlib.createGzip(), response, onError);
+    } else if (/\bbr\b/.test(acceptEncoding)) {
+      response.writeHead(200, { 'Content-Encoding': 'br' });
+      pipeline(raw, zlib.createBrotliCompress(), response, onError);
+    } else {
+      response.writeHead(200, {});
+      pipeline(raw, response, onError);
+    }
+  })
+  .listen(1337);
 ```
 
 By default, the `zlib` methods will throw an error when decompressing
@@ -245,7 +245,8 @@ zlib.unzip(
       process.exitCode = 1;
     }
     console.log(buffer.toString());
-  });
+  }
+);
 ```
 
 This will not change the behavior in other error-throwing situations, e.g.
@@ -267,7 +268,7 @@ The memory requirements for deflate are (in bytes):
 <!-- eslint-disable @stylistic/js/semi -->
 
 ```js
-(1 << (windowBits + 2)) + (1 << (memLevel + 9))
+(1 << (windowBits + 2)) + (1 << (memLevel + 9));
 ```
 
 That is: 128K for `windowBits` = 15 + 128K for `memLevel` = 8
@@ -304,8 +305,8 @@ speed, at the cost of memory usage.
 There are equivalents to the zlib options for Brotli-based streams, although
 these options have different ranges than the zlib ones:
 
-* zlib's `level` option matches Brotli's `BROTLI_PARAM_QUALITY` option.
-* zlib's `windowBits` option matches Brotli's `BROTLI_PARAM_LGWIN` option.
+- zlib's `level` option matches Brotli's `BROTLI_PARAM_QUALITY` option.
+- zlib's `windowBits` option matches Brotli's `BROTLI_PARAM_LGWIN` option.
 
 See [below][Brotli parameters] for more details on Brotli-specific options.
 
@@ -323,35 +324,37 @@ const zlib = require('node:zlib');
 const http = require('node:http');
 const { pipeline } = require('node:stream');
 
-http.createServer((request, response) => {
-  // For the sake of simplicity, the Accept-Encoding checks are omitted.
-  response.writeHead(200, { 'content-encoding': 'gzip' });
-  const output = zlib.createGzip();
-  let i;
+http
+  .createServer((request, response) => {
+    // For the sake of simplicity, the Accept-Encoding checks are omitted.
+    response.writeHead(200, { 'content-encoding': 'gzip' });
+    const output = zlib.createGzip();
+    let i;
 
-  pipeline(output, response, (err) => {
-    if (err) {
-      // If an error occurs, there's not much we can do because
-      // the server has already sent the 200 response code and
-      // some amount of data has already been sent to the client.
-      // The best we can do is terminate the response immediately
-      // and log the error.
-      clearInterval(i);
-      response.end();
-      console.error('An error occurred:', err);
-    }
-  });
-
-  i = setInterval(() => {
-    output.write(`The current time is ${Date()}\n`, () => {
-      // The data has been passed to zlib, but the compression algorithm may
-      // have decided to buffer the data for more efficient compression.
-      // Calling .flush() will make the data available as soon as the client
-      // is ready to receive it.
-      output.flush();
+    pipeline(output, response, (err) => {
+      if (err) {
+        // If an error occurs, there's not much we can do because
+        // the server has already sent the 200 response code and
+        // some amount of data has already been sent to the client.
+        // The best we can do is terminate the response immediately
+        // and log the error.
+        clearInterval(i);
+        response.end();
+        console.error('An error occurred:', err);
+      }
     });
-  }, 1000);
-}).listen(1337);
+
+    i = setInterval(() => {
+      output.write(`The current time is ${Date()}\n`, () => {
+        // The data has been passed to zlib, but the compression algorithm may
+        // have decided to buffer the data for more efficient compression.
+        // Calling .flush() will make the data available as soon as the client
+        // is ready to receive it.
+        output.flush();
+      });
+    }, 1000);
+  })
+  .listen(1337);
 ```
 
 ## Constants
@@ -376,42 +379,42 @@ is currently still possible but is deprecated.
 
 Allowed flush values.
 
-* `zlib.constants.Z_NO_FLUSH`
-* `zlib.constants.Z_PARTIAL_FLUSH`
-* `zlib.constants.Z_SYNC_FLUSH`
-* `zlib.constants.Z_FULL_FLUSH`
-* `zlib.constants.Z_FINISH`
-* `zlib.constants.Z_BLOCK`
-* `zlib.constants.Z_TREES`
+- `zlib.constants.Z_NO_FLUSH`
+- `zlib.constants.Z_PARTIAL_FLUSH`
+- `zlib.constants.Z_SYNC_FLUSH`
+- `zlib.constants.Z_FULL_FLUSH`
+- `zlib.constants.Z_FINISH`
+- `zlib.constants.Z_BLOCK`
+- `zlib.constants.Z_TREES`
 
 Return codes for the compression/decompression functions. Negative
 values are errors, positive values are used for special but normal
 events.
 
-* `zlib.constants.Z_OK`
-* `zlib.constants.Z_STREAM_END`
-* `zlib.constants.Z_NEED_DICT`
-* `zlib.constants.Z_ERRNO`
-* `zlib.constants.Z_STREAM_ERROR`
-* `zlib.constants.Z_DATA_ERROR`
-* `zlib.constants.Z_MEM_ERROR`
-* `zlib.constants.Z_BUF_ERROR`
-* `zlib.constants.Z_VERSION_ERROR`
+- `zlib.constants.Z_OK`
+- `zlib.constants.Z_STREAM_END`
+- `zlib.constants.Z_NEED_DICT`
+- `zlib.constants.Z_ERRNO`
+- `zlib.constants.Z_STREAM_ERROR`
+- `zlib.constants.Z_DATA_ERROR`
+- `zlib.constants.Z_MEM_ERROR`
+- `zlib.constants.Z_BUF_ERROR`
+- `zlib.constants.Z_VERSION_ERROR`
 
 Compression levels.
 
-* `zlib.constants.Z_NO_COMPRESSION`
-* `zlib.constants.Z_BEST_SPEED`
-* `zlib.constants.Z_BEST_COMPRESSION`
-* `zlib.constants.Z_DEFAULT_COMPRESSION`
+- `zlib.constants.Z_NO_COMPRESSION`
+- `zlib.constants.Z_BEST_SPEED`
+- `zlib.constants.Z_BEST_COMPRESSION`
+- `zlib.constants.Z_DEFAULT_COMPRESSION`
 
 Compression strategy.
 
-* `zlib.constants.Z_FILTERED`
-* `zlib.constants.Z_HUFFMAN_ONLY`
-* `zlib.constants.Z_RLE`
-* `zlib.constants.Z_FIXED`
-* `zlib.constants.Z_DEFAULT_STRATEGY`
+- `zlib.constants.Z_FILTERED`
+- `zlib.constants.Z_HUFFMAN_ONLY`
+- `zlib.constants.Z_RLE`
+- `zlib.constants.Z_FIXED`
+- `zlib.constants.Z_DEFAULT_STRATEGY`
 
 ### Brotli constants
 
@@ -428,11 +431,11 @@ streams:
 
 The following values are valid flush operations for Brotli-based streams:
 
-* `zlib.constants.BROTLI_OPERATION_PROCESS` (default for all operations)
-* `zlib.constants.BROTLI_OPERATION_FLUSH` (default when calling `.flush()`)
-* `zlib.constants.BROTLI_OPERATION_FINISH` (default for the last chunk)
-* `zlib.constants.BROTLI_OPERATION_EMIT_METADATA`
-  * This particular operation may be hard to use in a Node.js context,
+- `zlib.constants.BROTLI_OPERATION_PROCESS` (default for all operations)
+- `zlib.constants.BROTLI_OPERATION_FLUSH` (default when calling `.flush()`)
+- `zlib.constants.BROTLI_OPERATION_FINISH` (default for the last chunk)
+- `zlib.constants.BROTLI_OPERATION_EMIT_METADATA`
+  - This particular operation may be hard to use in a Node.js context,
     as the streaming layer makes it hard to know which data will end up
     in this frame. Also, there is currently no way to consume this data through
     the Node.js API.
@@ -445,46 +448,46 @@ as properties of the `zlib.constants` object.
 
 The most important options are:
 
-* `BROTLI_PARAM_MODE`
-  * `BROTLI_MODE_GENERIC` (default)
-  * `BROTLI_MODE_TEXT`, adjusted for UTF-8 text
-  * `BROTLI_MODE_FONT`, adjusted for WOFF 2.0 fonts
-* `BROTLI_PARAM_QUALITY`
-  * Ranges from `BROTLI_MIN_QUALITY` to `BROTLI_MAX_QUALITY`,
+- `BROTLI_PARAM_MODE`
+  - `BROTLI_MODE_GENERIC` (default)
+  - `BROTLI_MODE_TEXT`, adjusted for UTF-8 text
+  - `BROTLI_MODE_FONT`, adjusted for WOFF 2.0 fonts
+- `BROTLI_PARAM_QUALITY`
+  - Ranges from `BROTLI_MIN_QUALITY` to `BROTLI_MAX_QUALITY`,
     with a default of `BROTLI_DEFAULT_QUALITY`.
-* `BROTLI_PARAM_SIZE_HINT`
-  * Integer value representing the expected input size;
+- `BROTLI_PARAM_SIZE_HINT`
+  - Integer value representing the expected input size;
     defaults to `0` for an unknown input size.
 
 The following flags can be set for advanced control over the compression
 algorithm and memory usage tuning:
 
-* `BROTLI_PARAM_LGWIN`
-  * Ranges from `BROTLI_MIN_WINDOW_BITS` to `BROTLI_MAX_WINDOW_BITS`,
+- `BROTLI_PARAM_LGWIN`
+  - Ranges from `BROTLI_MIN_WINDOW_BITS` to `BROTLI_MAX_WINDOW_BITS`,
     with a default of `BROTLI_DEFAULT_WINDOW`, or up to
     `BROTLI_LARGE_MAX_WINDOW_BITS` if the `BROTLI_PARAM_LARGE_WINDOW` flag
     is set.
-* `BROTLI_PARAM_LGBLOCK`
-  * Ranges from `BROTLI_MIN_INPUT_BLOCK_BITS` to `BROTLI_MAX_INPUT_BLOCK_BITS`.
-* `BROTLI_PARAM_DISABLE_LITERAL_CONTEXT_MODELING`
-  * Boolean flag that decreases compression ratio in favour of
+- `BROTLI_PARAM_LGBLOCK`
+  - Ranges from `BROTLI_MIN_INPUT_BLOCK_BITS` to `BROTLI_MAX_INPUT_BLOCK_BITS`.
+- `BROTLI_PARAM_DISABLE_LITERAL_CONTEXT_MODELING`
+  - Boolean flag that decreases compression ratio in favour of
     decompression speed.
-* `BROTLI_PARAM_LARGE_WINDOW`
-  * Boolean flag enabling “Large Window Brotli” mode (not compatible with the
+- `BROTLI_PARAM_LARGE_WINDOW`
+  - Boolean flag enabling “Large Window Brotli” mode (not compatible with the
     Brotli format as standardized in [RFC 7932][]).
-* `BROTLI_PARAM_NPOSTFIX`
-  * Ranges from `0` to `BROTLI_MAX_NPOSTFIX`.
-* `BROTLI_PARAM_NDIRECT`
-  * Ranges from `0` to `15 << NPOSTFIX` in steps of `1 << NPOSTFIX`.
+- `BROTLI_PARAM_NPOSTFIX`
+  - Ranges from `0` to `BROTLI_MAX_NPOSTFIX`.
+- `BROTLI_PARAM_NDIRECT`
+  - Ranges from `0` to `15 << NPOSTFIX` in steps of `1 << NPOSTFIX`.
 
 #### Decompressor options
 
 These advanced options are available for controlling decompression:
 
-* `BROTLI_DECODER_PARAM_DISABLE_RING_BUFFER_REALLOCATION`
-  * Boolean flag that affects internal memory allocation patterns.
-* `BROTLI_DECODER_PARAM_LARGE_WINDOW`
-  * Boolean flag enabling “Large Window Brotli” mode (not compatible with the
+- `BROTLI_DECODER_PARAM_DISABLE_RING_BUFFER_REALLOCATION`
+  - Boolean flag that affects internal memory allocation patterns.
+- `BROTLI_DECODER_PARAM_LARGE_WINDOW`
+  - Boolean flag enabling “Large Window Brotli” mode (not compatible with the
     Brotli format as standardized in [RFC 7932][]).
 
 ## Class: `Options`
@@ -515,17 +518,17 @@ Each zlib-based class takes an `options` object. No options are required.
 Some options are only relevant when compressing and are
 ignored by the decompression classes.
 
-* `flush` {integer} **Default:** `zlib.constants.Z_NO_FLUSH`
-* `finishFlush` {integer} **Default:** `zlib.constants.Z_FINISH`
-* `chunkSize` {integer} **Default:** `16 * 1024`
-* `windowBits` {integer}
-* `level` {integer} (compression only)
-* `memLevel` {integer} (compression only)
-* `strategy` {integer} (compression only)
-* `dictionary` {Buffer|TypedArray|DataView|ArrayBuffer} (deflate/inflate only,
+- `flush` {integer} **Default:** `zlib.constants.Z_NO_FLUSH`
+- `finishFlush` {integer} **Default:** `zlib.constants.Z_FINISH`
+- `chunkSize` {integer} **Default:** `16 * 1024`
+- `windowBits` {integer}
+- `level` {integer} (compression only)
+- `memLevel` {integer} (compression only)
+- `strategy` {integer} (compression only)
+- `dictionary` {Buffer|TypedArray|DataView|ArrayBuffer} (deflate/inflate only,
   empty dictionary by default)
-* `info` {boolean} (If `true`, returns an object with `buffer` and `engine`.)
-* `maxOutputLength` {integer} Limits output size when using
+- `info` {boolean} (If `true`, returns an object with `buffer` and `engine`.)
+- `maxOutputLength` {integer} Limits output size when using
   [convenience methods][]. **Default:** [`buffer.kMaxLength`][]
 
 See the [`deflateInit2` and `inflateInit2`][] documentation for more
@@ -547,11 +550,11 @@ changes:
 
 Each Brotli-based class takes an `options` object. All options are optional.
 
-* `flush` {integer} **Default:** `zlib.constants.BROTLI_OPERATION_PROCESS`
-* `finishFlush` {integer} **Default:** `zlib.constants.BROTLI_OPERATION_FINISH`
-* `chunkSize` {integer} **Default:** `16 * 1024`
-* `params` {Object} Key-value object containing indexed [Brotli parameters][].
-* `maxOutputLength` {integer} Limits output size when using
+- `flush` {integer} **Default:** `zlib.constants.BROTLI_OPERATION_PROCESS`
+- `finishFlush` {integer} **Default:** `zlib.constants.BROTLI_OPERATION_FINISH`
+- `chunkSize` {integer} **Default:** `16 * 1024`
+- `params` {Object} Key-value object containing indexed [Brotli parameters][].
+- `maxOutputLength` {integer} Limits output size when using
   [convenience methods][]. **Default:** [`buffer.kMaxLength`][]
 
 For example:
@@ -690,13 +693,65 @@ be used in pipes and similar stream operations.
 added: v10.0.0
 -->
 
-* {number}
+- {number}
 
 The `zlib.bytesWritten` property specifies the number of bytes written to
 the engine, before the bytes are processed (compressed or decompressed,
 as appropriate for the derived class).
 
-### `zlib.crc32(data[, value])`
+### `zlib.close([callback])`
+
+<!-- YAML
+added: v0.9.4
+-->
+
+- `callback` {Function}
+
+Close the underlying handle.
+
+### `zlib.flush([kind, ]callback)`
+
+<!-- YAML
+added: v0.5.8
+-->
+
+- `kind` **Default:** `zlib.constants.Z_FULL_FLUSH` for zlib-based streams,
+  `zlib.constants.BROTLI_OPERATION_FLUSH` for Brotli-based streams.
+- `callback` {Function}
+
+Flush pending data. Don't call this frivolously, premature flushes negatively
+impact the effectiveness of the compression algorithm.
+
+Calling this only flushes data from the internal `zlib` state, and does not
+perform flushing of any kind on the streams level. Rather, it behaves like a
+normal call to `.write()`, i.e. it will be queued up behind other pending
+writes and will only produce output when data is being read from the stream.
+
+### `zlib.params(level, strategy, callback)`
+
+<!-- YAML
+added: v0.11.4
+-->
+
+- `level` {integer}
+- `strategy` {integer}
+- `callback` {Function}
+
+This function is only available for zlib-based streams, i.e. not Brotli.
+
+Dynamically update the compression level and compression strategy.
+Only applicable to deflate algorithm.
+
+### `zlib.reset()`
+
+<!-- YAML
+added: v0.7.0
+-->
+
+Reset the compressor/decompressor to factory defaults. Only applicable to
+the inflate and deflate algorithms.
+
+## `zlib.crc32(data[, value])`
 
 <!-- YAML
 added:
@@ -704,11 +759,11 @@ added:
   - v20.15.0
 -->
 
-* `data` {string|Buffer|TypedArray|DataView} When `data` is a string,
+- `data` {string|Buffer|TypedArray|DataView} When `data` is a string,
   it will be encoded as UTF-8 before being used for computation.
-* `value` {integer} An optional starting value. It must be a 32-bit unsigned
+- `value` {integer} An optional starting value. It must be a 32-bit unsigned
   integer. **Default:** `0`
-* Returns: {integer} A 32-bit unsigned integer containing the checksum.
+- Returns: {integer} A 32-bit unsigned integer containing the checksum.
 
 Computes a 32-bit [Cyclic Redundancy Check][] checksum of `data`. If
 `value` is specified, it is used as the starting value of the checksum,
@@ -741,75 +796,23 @@ match the checksum produced by such a third-party library:
 import zlib from 'node:zlib';
 import { Buffer } from 'node:buffer';
 
-let crc = zlib.crc32('hello');  // 907060870
-crc = zlib.crc32('world', crc);  // 4192936109
+let crc = zlib.crc32('hello'); // 907060870
+crc = zlib.crc32('world', crc); // 4192936109
 
-crc = zlib.crc32(Buffer.from('hello', 'utf16le'));  // 1427272415
-crc = zlib.crc32(Buffer.from('world', 'utf16le'), crc);  // 4150509955
+crc = zlib.crc32(Buffer.from('hello', 'utf16le')); // 1427272415
+crc = zlib.crc32(Buffer.from('world', 'utf16le'), crc); // 4150509955
 ```
 
 ```cjs
 const zlib = require('node:zlib');
 const { Buffer } = require('node:buffer');
 
-let crc = zlib.crc32('hello');  // 907060870
-crc = zlib.crc32('world', crc);  // 4192936109
+let crc = zlib.crc32('hello'); // 907060870
+crc = zlib.crc32('world', crc); // 4192936109
 
-crc = zlib.crc32(Buffer.from('hello', 'utf16le'));  // 1427272415
-crc = zlib.crc32(Buffer.from('world', 'utf16le'), crc);  // 4150509955
+crc = zlib.crc32(Buffer.from('hello', 'utf16le')); // 1427272415
+crc = zlib.crc32(Buffer.from('world', 'utf16le'), crc); // 4150509955
 ```
-
-### `zlib.close([callback])`
-
-<!-- YAML
-added: v0.9.4
--->
-
-* `callback` {Function}
-
-Close the underlying handle.
-
-### `zlib.flush([kind, ]callback)`
-
-<!-- YAML
-added: v0.5.8
--->
-
-* `kind` **Default:** `zlib.constants.Z_FULL_FLUSH` for zlib-based streams,
-  `zlib.constants.BROTLI_OPERATION_FLUSH` for Brotli-based streams.
-* `callback` {Function}
-
-Flush pending data. Don't call this frivolously, premature flushes negatively
-impact the effectiveness of the compression algorithm.
-
-Calling this only flushes data from the internal `zlib` state, and does not
-perform flushing of any kind on the streams level. Rather, it behaves like a
-normal call to `.write()`, i.e. it will be queued up behind other pending
-writes and will only produce output when data is being read from the stream.
-
-### `zlib.params(level, strategy, callback)`
-
-<!-- YAML
-added: v0.11.4
--->
-
-* `level` {integer}
-* `strategy` {integer}
-* `callback` {Function}
-
-This function is only available for zlib-based streams, i.e. not Brotli.
-
-Dynamically update the compression level and compression strategy.
-Only applicable to deflate algorithm.
-
-### `zlib.reset()`
-
-<!-- YAML
-added: v0.7.0
--->
-
-Reset the compressor/decompressor to factory defaults. Only applicable to
-the inflate and deflate algorithms.
 
 ## `zlib.constants`
 
@@ -827,7 +830,7 @@ added:
  - v10.16.0
 -->
 
-* `options` {brotli options}
+- `options` {brotli options}
 
 Creates and returns a new [`BrotliCompress`][] object.
 
@@ -839,7 +842,7 @@ added:
  - v10.16.0
 -->
 
-* `options` {brotli options}
+- `options` {brotli options}
 
 Creates and returns a new [`BrotliDecompress`][] object.
 
@@ -849,7 +852,7 @@ Creates and returns a new [`BrotliDecompress`][] object.
 added: v0.5.8
 -->
 
-* `options` {zlib options}
+- `options` {zlib options}
 
 Creates and returns a new [`Deflate`][] object.
 
@@ -859,7 +862,7 @@ Creates and returns a new [`Deflate`][] object.
 added: v0.5.8
 -->
 
-* `options` {zlib options}
+- `options` {zlib options}
 
 Creates and returns a new [`DeflateRaw`][] object.
 
@@ -876,7 +879,7 @@ that effectively uses an 8-bit window only.
 added: v0.5.8
 -->
 
-* `options` {zlib options}
+- `options` {zlib options}
 
 Creates and returns a new [`Gunzip`][] object.
 
@@ -886,7 +889,7 @@ Creates and returns a new [`Gunzip`][] object.
 added: v0.5.8
 -->
 
-* `options` {zlib options}
+- `options` {zlib options}
 
 Creates and returns a new [`Gzip`][] object.
 See [example][zlib.createGzip example].
@@ -897,7 +900,7 @@ See [example][zlib.createGzip example].
 added: v0.5.8
 -->
 
-* `options` {zlib options}
+- `options` {zlib options}
 
 Creates and returns a new [`Inflate`][] object.
 
@@ -907,7 +910,7 @@ Creates and returns a new [`Inflate`][] object.
 added: v0.5.8
 -->
 
-* `options` {zlib options}
+- `options` {zlib options}
 
 Creates and returns a new [`InflateRaw`][] object.
 
@@ -917,7 +920,7 @@ Creates and returns a new [`InflateRaw`][] object.
 added: v0.5.8
 -->
 
-* `options` {zlib options}
+- `options` {zlib options}
 
 Creates and returns a new [`Unzip`][] object.
 
@@ -941,9 +944,9 @@ added:
  - v10.16.0
 -->
 
-* `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-* `options` {brotli options}
-* `callback` {Function}
+- `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+- `options` {brotli options}
+- `callback` {Function}
 
 ### `zlib.brotliCompressSync(buffer[, options])`
 
@@ -953,8 +956,8 @@ added:
  - v10.16.0
 -->
 
-* `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-* `options` {brotli options}
+- `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+- `options` {brotli options}
 
 Compress a chunk of data with [`BrotliCompress`][].
 
@@ -966,9 +969,9 @@ added:
  - v10.16.0
 -->
 
-* `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-* `options` {brotli options}
-* `callback` {Function}
+- `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+- `options` {brotli options}
+- `callback` {Function}
 
 ### `zlib.brotliDecompressSync(buffer[, options])`
 
@@ -978,8 +981,8 @@ added:
  - v10.16.0
 -->
 
-* `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-* `options` {brotli options}
+- `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+- `options` {brotli options}
 
 Decompress a chunk of data with [`BrotliDecompress`][].
 
@@ -999,9 +1002,9 @@ changes:
     description: The `buffer` parameter can be an `Uint8Array` now.
 -->
 
-* `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-* `options` {zlib options}
-* `callback` {Function}
+- `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+- `options` {zlib options}
+- `callback` {Function}
 
 ### `zlib.deflateSync(buffer[, options])`
 
@@ -1019,8 +1022,8 @@ changes:
     description: The `buffer` parameter can be an `Uint8Array` now.
 -->
 
-* `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-* `options` {zlib options}
+- `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+- `options` {zlib options}
 
 Compress a chunk of data with [`Deflate`][].
 
@@ -1037,9 +1040,9 @@ changes:
     description: The `buffer` parameter can be an `Uint8Array` now.
 -->
 
-* `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-* `options` {zlib options}
-* `callback` {Function}
+- `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+- `options` {zlib options}
+- `callback` {Function}
 
 ### `zlib.deflateRawSync(buffer[, options])`
 
@@ -1057,8 +1060,8 @@ changes:
     description: The `buffer` parameter can be an `Uint8Array` now.
 -->
 
-* `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-* `options` {zlib options}
+- `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+- `options` {zlib options}
 
 Compress a chunk of data with [`DeflateRaw`][].
 
@@ -1078,9 +1081,9 @@ changes:
     description: The `buffer` parameter can be an `Uint8Array` now.
 -->
 
-* `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-* `options` {zlib options}
-* `callback` {Function}
+- `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+- `options` {zlib options}
+- `callback` {Function}
 
 ### `zlib.gunzipSync(buffer[, options])`
 
@@ -1098,8 +1101,8 @@ changes:
     description: The `buffer` parameter can be an `Uint8Array` now.
 -->
 
-* `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-* `options` {zlib options}
+- `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+- `options` {zlib options}
 
 Decompress a chunk of data with [`Gunzip`][].
 
@@ -1119,9 +1122,9 @@ changes:
     description: The `buffer` parameter can be an `Uint8Array` now.
 -->
 
-* `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-* `options` {zlib options}
-* `callback` {Function}
+- `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+- `options` {zlib options}
+- `callback` {Function}
 
 ### `zlib.gzipSync(buffer[, options])`
 
@@ -1139,8 +1142,8 @@ changes:
     description: The `buffer` parameter can be an `Uint8Array` now.
 -->
 
-* `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-* `options` {zlib options}
+- `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+- `options` {zlib options}
 
 Compress a chunk of data with [`Gzip`][].
 
@@ -1160,9 +1163,9 @@ changes:
     description: The `buffer` parameter can be an `Uint8Array` now.
 -->
 
-* `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-* `options` {zlib options}
-* `callback` {Function}
+- `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+- `options` {zlib options}
+- `callback` {Function}
 
 ### `zlib.inflateSync(buffer[, options])`
 
@@ -1180,8 +1183,8 @@ changes:
     description: The `buffer` parameter can be an `Uint8Array` now.
 -->
 
-* `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-* `options` {zlib options}
+- `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+- `options` {zlib options}
 
 Decompress a chunk of data with [`Inflate`][].
 
@@ -1201,9 +1204,9 @@ changes:
     description: The `buffer` parameter can be an `Uint8Array` now.
 -->
 
-* `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-* `options` {zlib options}
-* `callback` {Function}
+- `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+- `options` {zlib options}
+- `callback` {Function}
 
 ### `zlib.inflateRawSync(buffer[, options])`
 
@@ -1221,8 +1224,8 @@ changes:
     description: The `buffer` parameter can be an `Uint8Array` now.
 -->
 
-* `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-* `options` {zlib options}
+- `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+- `options` {zlib options}
 
 Decompress a chunk of data with [`InflateRaw`][].
 
@@ -1242,9 +1245,9 @@ changes:
     description: The `buffer` parameter can be an `Uint8Array` now.
 -->
 
-* `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-* `options` {zlib options}
-* `callback` {Function}
+- `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+- `options` {zlib options}
+- `callback` {Function}
 
 ### `zlib.unzipSync(buffer[, options])`
 
@@ -1262,8 +1265,8 @@ changes:
     description: The `buffer` parameter can be an `Uint8Array` now.
 -->
 
-* `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-* `options` {zlib options}
+- `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+- `options` {zlib options}
 
 Decompress a chunk of data with [`Unzip`][].
 
