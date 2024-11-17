@@ -1129,16 +1129,6 @@ added:
 
 Enable module mocking in the test runner.
 
-### `--experimental-test-snapshots`
-
-<!-- YAML
-added: v22.3.0
--->
-
-> Stability: 1.0 - Early development
-
-Enable [snapshot testing][] in the test runner.
-
 ### `--experimental-vm-modules`
 
 <!-- YAML
@@ -2468,13 +2458,13 @@ subtests inherit this value from their parent. The default value is `Infinity`.
 
 <!-- YAML
 added: v22.3.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/55897
+    description: Snapsnot testing is no longer experimental.
 -->
 
-> Stability: 1.0 - Early development
-
 Regenerates the snapshot files used by the test runner for [snapshot testing][].
-Node.js must be started with the `--experimental-test-snapshots` flag in order
-to use this functionality.
 
 ### `--throw-deprecation`
 
