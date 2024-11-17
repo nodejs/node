@@ -466,7 +466,8 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
       conflictCallback = [conflictInt]() -> int { return conflictInt; };
     }
 
-    if (options->HasOwnProperty(env->context(), env->filter_string()).FromJust()) {
+    if (options->HasOwnProperty(env->context(), env->filter_string())
+            .FromJust()) {
       Local<Value> filterValue =
           options->Get(env->context(), env->filter_string()).ToLocalChecked();
 
