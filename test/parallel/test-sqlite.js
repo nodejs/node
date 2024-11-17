@@ -1,4 +1,3 @@
-// Flags: --experimental-sqlite
 'use strict';
 const { spawnPromisified } = require('../common');
 const tmpdir = require('../common/tmpdir');
@@ -23,13 +22,14 @@ suite('accessing the node:sqlite module', () => {
     });
   });
 
-  test('cannot be accessed without --experimental-sqlite flag', async (t) => {
+  test('can be disabled with --no-experimental-sqlite flag', async (t) => {
     const {
       stdout,
       stderr,
       code,
       signal,
     } = await spawnPromisified(process.execPath, [
+      '--no-experimental-sqlite',
       '-e',
       'require("node:sqlite")',
     ]);
