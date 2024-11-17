@@ -369,7 +369,7 @@ void DatabaseSync::CreateSession(const FunctionCallbackInfo<Value>& args) {
 
       if (table_value->IsString()) {
         String::Utf8Value str(env->isolate(), table_value);
-        table = std::string(*str);
+        table = *str;
       } else {
         THROW_ERR_INVALID_ARG_TYPE(
             env->isolate(), "The \"options.table\" argument must be a string.");
