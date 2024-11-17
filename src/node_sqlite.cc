@@ -451,13 +451,8 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
     }
 
     Local<Object> options = args[1].As<Object>();
-
-    Local<String> conflictKey =
-        String::NewFromUtf8(
-            env->isolate(), "onConflict", NewStringType::kNormal)
-            .ToLocalChecked();
     Local<Value> conflictValue =
-        options->Get(env->context(), conflictKey).ToLocalChecked();
+        options->Get(env->context(), env->onconflict_string()).ToLocalChecked();
 
     if (!conflictValue->IsUndefined()) {
       if (!conflictValue->IsNumber()) {
@@ -471,13 +466,9 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
       conflictCallback = [conflictInt]() -> int { return conflictInt; };
     }
 
-    Local<String> filterKey =
-        String::NewFromUtf8(env->isolate(), "filter", NewStringType::kNormal)
-            .ToLocalChecked();
-
-    if (options->HasOwnProperty(env->context(), filterKey).FromJust()) {
+    if (options->HasOwnProperty(env->context(), env->filter_string()).FromJust()) {
       Local<Value> filterValue =
-          options->Get(env->context(), filterKey).ToLocalChecked();
+          options->Get(env->context(), env->filter_string()).ToLocalChecked();
 
       if (!filterValue->IsFunction()) {
         THROW_ERR_INVALID_ARG_TYPE(
