@@ -160,6 +160,7 @@
   V(fields_string, "fields")                                                   \
   V(file_string, "file")                                                       \
   V(filename_string, "filename")                                               \
+  V(filter_string, "filter")                                                   \
   V(fingerprint256_string, "fingerprint256")                                   \
   V(fingerprint512_string, "fingerprint512")                                   \
   V(fingerprint_string, "fingerprint")                                         \
@@ -246,6 +247,7 @@
   V(onchange_string, "onchange")                                               \
   V(onclienthello_string, "onclienthello")                                     \
   V(oncomplete_string, "oncomplete")                                           \
+  V(onconflict_string, "onConflict")                                           \
   V(onconnection_string, "onconnection")                                       \
   V(ondone_string, "ondone")                                                   \
   V(onerror_string, "onerror")                                                 \
@@ -413,6 +415,7 @@
   V(shutdown_wrap_template, v8::ObjectTemplate)                                \
   V(socketaddress_constructor_template, v8::FunctionTemplate)                  \
   V(sqlite_statement_sync_constructor_template, v8::FunctionTemplate)          \
+  V(sqlite_session_constructor_template, v8::FunctionTemplate)                 \
   V(streambaseentry_ctor_template, v8::FunctionTemplate)                       \
   V(streambaseoutputstream_constructor_template, v8::ObjectTemplate)           \
   V(streamentry_ctor_template, v8::FunctionTemplate)                           \
