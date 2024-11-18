@@ -1168,6 +1168,23 @@
           'sources': [
             '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_enable_wasm_gdb_remote_debugging.*?v8_current_cpu == \\"riscv64\\".*?sources \\+= ")',
           ],
+          'conditions': [
+            ['v8_enable_webassembly==1', {
+              'conditions': [
+                ['((_toolset=="host" and host_arch=="riscv64" or _toolset=="target" and target_arch=="riscv64") and (OS=="linux")) or ((_toolset=="host" and host_arch=="x64" or _toolset=="target" and target_arch=="x64") and (OS=="linux"))', {
+                  'sources': [
+                    '<(V8_ROOT)/src/trap-handler/handler-inside-posix.cc',
+                    '<(V8_ROOT)/src/trap-handler/handler-outside-posix.cc',
+                  ],
+                }],
+                ['(_toolset=="host" and host_arch=="x64" or _toolset=="target" and target_arch=="x64") and (OS=="linux")', {
+                  'sources': [
+                    '<(V8_ROOT)/src/trap-handler/handler-outside-simulator.cc',
+                  ],
+                }],
+              ],
+            }],
+          ],
         }],
         ['v8_target_arch=="loong64"', {
           'sources': [
