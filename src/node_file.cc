@@ -3137,7 +3137,7 @@ static void CpSyncCheckPaths(const FunctionCallbackInfo<Value>& args) {
   THROW_IF_INSUFFICIENT_PERMISSIONS(
       env, permission::PermissionScope::kFileSystemRead, src.ToStringView());
 
-  auto src_path = BufferValueToPath(src);
+  auto src_path = StringViewToPath(src.ToStringView());
 
   BufferValue dest(isolate, args[1]);
   CHECK_NOT_NULL(*dest);
@@ -3145,7 +3145,7 @@ static void CpSyncCheckPaths(const FunctionCallbackInfo<Value>& args) {
   THROW_IF_INSUFFICIENT_PERMISSIONS(
       env, permission::PermissionScope::kFileSystemWrite, dest.ToStringView());
 
-  auto dest_path = BufferValueToPath(dest);
+  auto dest_path = StringViewToPath(dest.ToStringView());
   bool dereference = args[2]->IsTrue();
   bool recursive = args[3]->IsTrue();
 

@@ -886,14 +886,14 @@ v8::Maybe<int> GetValidFileMode(Environment* env,
 }
 
 #ifdef _WIN32
-std::wstring ConvertToWideString(const std::string& str) {
+std::wstring ConvertToWideString(std::string_view strView) {
   int size_needed = MultiByteToWideChar(
-      CP_UTF8, 0, &str[0], static_cast<int>(str.size()), nullptr, 0);
+      CP_UTF8, 0, strView.data(), static_cast<int>(strView.size()), nullptr, 0);
   std::wstring wstrTo(size_needed, 0);
   MultiByteToWideChar(CP_UTF8,
                       0,
-                      &str[0],
-                      static_cast<int>(str.size()),
+                      strView.data(),
+                      static_cast<int>(strView.size()),
                       &wstrTo[0],
                       size_needed);
   return wstrTo;
@@ -921,7 +921,6 @@ std::string ConvertWideToUTF8(const std::wstring& wstr) {
                       nullptr);
   return strTo;
 }
-
 #endif  // _WIN32
 
 }  // namespace node
