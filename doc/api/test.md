@@ -3284,7 +3284,7 @@ test('snapshot test with default serialization', (t) => {
 
 test('snapshot test with custom serialization', (t) => {
   t.assert.snapshot({ value3: 3, value4: 4 }, {
-    serializers: [(value) => JSON.stringify(value)]
+    serializers: [(value) => JSON.stringify(value)],
   });
 });
 ```
