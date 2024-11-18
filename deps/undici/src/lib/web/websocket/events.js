@@ -14,6 +14,7 @@ class MessageEvent extends Event {
   constructor (type, eventInitDict = {}) {
     if (type === kConstruct) {
       super(arguments[1], arguments[2])
+      webidl.util.markAsUncloneable(this)
       return
     }
 
@@ -26,6 +27,7 @@ class MessageEvent extends Event {
     super(type, eventInitDict)
 
     this.#eventInit = eventInitDict
+    webidl.util.markAsUncloneable(this)
   }
 
   get data () {
@@ -112,6 +114,7 @@ class CloseEvent extends Event {
     super(type, eventInitDict)
 
     this.#eventInit = eventInitDict
+    webidl.util.markAsUncloneable(this)
   }
 
   get wasClean () {
@@ -142,6 +145,7 @@ class ErrorEvent extends Event {
     webidl.argumentLengthCheck(arguments, 1, prefix)
 
     super(type, eventInitDict)
+    webidl.util.markAsUncloneable(this)
 
     type = webidl.converters.DOMString(type, prefix, 'type')
     eventInitDict = webidl.converters.ErrorEventInit(eventInitDict ?? {})

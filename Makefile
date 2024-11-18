@@ -375,11 +375,11 @@ ifeq ($(OSTYPE),os400)
 DOCBUILDSTAMP_PREREQS := $(DOCBUILDSTAMP_PREREQS) out/$(BUILDTYPE)/node.exp
 endif
 
-node_use_openssl = $(call available-node,"-p" \
-			 "process.versions.openssl != undefined")
+node_use_openssl_and_icu = $(call available-node,"-p" \
+			 "process.versions.openssl != undefined && process.versions.icu != undefined")
 test/addons/.docbuildstamp: $(DOCBUILDSTAMP_PREREQS) tools/doc/node_modules
-	@if [ "$(shell $(node_use_openssl))" != "true" ]; then \
-		echo "Skipping .docbuildstamp (no crypto)"; \
+	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
+		echo "Skipping .docbuildstamp (no crypto and/or no ICU)"; \
 	else \
 		$(RM) -r test/addons/??_*/; \
 		[ -x $(NODE) ] && $(NODE) $< || node $< ; \
@@ -535,7 +535,7 @@ NATIVE_SUITES ?= addons js-native-api node-api
 # CI_* variables should be kept synchronized with the ones in vcbuild.bat
 CI_NATIVE_SUITES ?= $(NATIVE_SUITES) benchmark
 CI_JS_SUITES ?= $(JS_SUITES) pummel
-ifeq ($(node_use_openssl), false)
+ifeq ($(node_use_openssl_and_icu), false)
 	CI_DOC := doctool
 else
 	CI_DOC =
@@ -632,8 +632,8 @@ test-hash-seed: all ## Verifu that the hash seed used by V8 for hashing is rando
 
 .PHONY: test-doc
 test-doc: doc-only lint-md ## Build, lint, and verify the docs.
-	@if [ "$(shell $(node_use_openssl))" != "true" ]; then \
-		echo "Skipping test-doc (no crypto)"; \
+	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
+		echo "Skipping test-doc (no crypto and/or no ICU)"; \
 	else \
 		$(PYTHON) tools/test.py $(PARALLEL_ARGS) doctool; \
 	fi
@@ -749,8 +749,8 @@ apidocs_json = $(addprefix out/,$(apidoc_sources:.md=.json))
 apiassets = $(subst api_assets,api/assets,$(addprefix out/,$(wildcard doc/api_assets/*)))
 
 tools/doc/node_modules: tools/doc/package.json
-	@if [ "$(shell $(node_use_openssl))" != "true" ]; then \
-		echo "Skipping tools/doc/node_modules (no crypto)"; \
+	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
+		echo "Skipping tools/doc/node_modules (no crypto and/or no ICU)"; \
 	else \
 		cd tools/doc && $(call available-node,$(run-npm-ci)) \
 	fi
@@ -758,8 +758,8 @@ tools/doc/node_modules: tools/doc/package.json
 .PHONY: doc-only
 doc-only: tools/doc/node_modules \
 	$(apidoc_dirs) $(apiassets) ## Build the docs with the local or the global Node.js binary.
-	@if [ "$(shell $(node_use_openssl))" != "true" ]; then \
-		echo "Skipping doc-only (no crypto)"; \
+	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
+		echo "Skipping doc-only (no crypto and/or no ICU)"; \
 	else \
 		$(MAKE) out/doc/api/all.html out/doc/api/all.json out/doc/api/stability; \
 	fi
@@ -1382,8 +1382,8 @@ lint-js-fix: tools/eslint/node_modules/eslint/bin/eslint.js ## Lint and fix the 
 # Note that on the CI `lint-js-ci` is run instead.
 lint-js-doc: LINT_JS_TARGETS=doc
 lint-js lint-js-doc: tools/eslint/node_modules/eslint/bin/eslint.js ## Lint the JavaScript code with eslint./eslint/bin/eslint.js
-	@if [ "$(shell $(node_use_openssl))" != "true" ]; then \
-		echo "Skipping $@ (no crypto)"; \
+	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
+		echo "Skipping $@ (no crypto and/or no ICU)"; \
 	else \
 		echo "Running JS linter..."; \
 		$(call available-node,$(run-lint-js)) \

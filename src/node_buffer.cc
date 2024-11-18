@@ -965,9 +965,12 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
   size_t result = haystack_length;
 
   if (enc == UCS2) {
-    TwoByteValue needle_buffer(isolate, needle);
+    String::Value needle_value(isolate, needle);
+    if (*needle_value == nullptr) {
+      return args.GetReturnValue().Set(-1);
+    }
 
-    if (haystack_length < 2 || needle_buffer.length() < 1) {
+    if (haystack_length < 2 || needle_value.length() < 1) {
       return args.GetReturnValue().Set(-1);
     }
 
@@ -987,12 +990,13 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
                                     offset / 2,
                                     is_forward);
     } else {
-      result = nbytes::SearchString(reinterpret_cast<const uint16_t*>(haystack),
-                                    haystack_length / 2,
-                                    needle_buffer.out(),
-                                    needle_buffer.length(),
-                                    offset / 2,
-                                    is_forward);
+      result =
+          nbytes::SearchString(reinterpret_cast<const uint16_t*>(haystack),
+                               haystack_length / 2,
+                               reinterpret_cast<const uint16_t*>(*needle_value),
+                               needle_value.length(),
+                               offset / 2,
+                               is_forward);
     }
     result *= 2;
   } else if (enc == UTF8) {
@@ -1292,10 +1296,10 @@ static void Btoa(const FunctionCallbackInfo<Value>& args) {
                                   input->Length(),
                                   buffer.out());
   } else {
-    String::ValueView value(env->isolate(), input);
+    String::Value value(env->isolate(), input);
     MaybeStackBuffer<char> stack_buf(value.length());
     size_t out_len = simdutf::convert_utf16_to_latin1(
-        reinterpret_cast<const char16_t*>(value.data16()),
+        reinterpret_cast<const char16_t*>(*value),
         value.length(),
         stack_buf.out());
     if (out_len == 0) {  // error
@@ -1352,8 +1356,8 @@ static void Atob(const FunctionCallbackInfo<Value>& args) {
     buffer.SetLength(expected_length);
     result = simdutf::base64_to_binary(data, input->Length(), buffer.out());
   } else {  // 16-bit case
-    String::ValueView value(env->isolate(), input);
-    auto data = reinterpret_cast<const char16_t*>(value.data16());
+    String::Value value(env->isolate(), input);
+    auto data = reinterpret_cast<const char16_t*>(*value);
     size_t expected_length =
         simdutf::maximal_binary_length_from_base64(data, value.length());
     buffer.AllocateSufficientStorage(expected_length);

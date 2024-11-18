@@ -359,6 +359,8 @@ class Headers {
   #headersList
 
   constructor (init = undefined) {
+    webidl.util.markAsUncloneable(this)
+
     if (init === kConstruct) {
       return
     }
