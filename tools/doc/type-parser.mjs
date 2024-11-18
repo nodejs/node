@@ -199,6 +199,7 @@ const customTypesMap = {
 
   'repl.REPLServer': 'repl.html#class-replserver',
 
+  'Session': 'sqlite.html#class-session',
   'StatementSync': 'sqlite.html#class-statementsync',
 
   'Stream': 'stream.html#stream',
