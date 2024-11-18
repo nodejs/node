@@ -10,6 +10,9 @@ changes:
   - version: v23.1.0
     pr-url: https://github.com/nodejs/node/pull/55333
     description: Import attributes are no longer experimental.
+  - version: v22.0.0
+    pr-url: https://github.com/nodejs/node/pull/52104
+    description: Drop support for import assertions.
   - version:
     - v21.0.0
     - v20.10.0
