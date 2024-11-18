@@ -298,6 +298,7 @@ import { setImmediate as setImmediatePromise } from 'node:timers/promises';
 const ac = new AbortController();
 const signal = ac.signal;
 
+// We do not `await` the promise so `ac.abort()` is called concurrently.
 setImmediatePromise('foobar', { signal })
   .then(console.log)
   .catch((err) => {
