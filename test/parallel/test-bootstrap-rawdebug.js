@@ -3,4 +3,5 @@
 const common = require('../common');
 const assert = require('assert');
 
-assert.equal(typeof rawDebug === 'function', true);
+common.allowGlobals('rawDebug');
+assert.strictEqual(typeof global.rawDebug === 'function', true);
