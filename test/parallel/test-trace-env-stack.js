@@ -17,8 +17,7 @@ const fixtures = require('../common/fixtures');
 spawnSyncAndAssert(process.execPath, ['--trace-env-native-stack', fixtures.path('empty.js')], {
   stderr(output) {
     if (output.includes('PrintTraceEnvStack')) {  // Some platforms do not support back traces.
-      assert.match(output, /node::credentials::SafeGetenv/);
-      assert.match(output, /node::EnvGetter/);
+      assert.match(output, /node::credentials::SafeGetenv/);  // This is usually not optimized away.
     }
   }
 });

@@ -1,7 +1,7 @@
 'use strict';
 
 // This tests that --trace-env works.
-require('../common');
+const common = require('../common');
 const { spawnSyncAndAssert } = require('../common/child_process');
 const assert = require('assert');
 const fixtures = require('../common/fixtures');
@@ -13,9 +13,15 @@ spawnSyncAndAssert(process.execPath, ['--trace-env', fixtures.path('empty.js')],
     // during startup of an empty script at the time this test was written.
     // If the internals remove any one of them, the checks here can be updated
     // accordingly.
-    assert.match(output, /get environment variable "NODE_ICU_DATA":/);
-    assert.match(output, /get environment variable "OPENSSL_CONF":/);
-    assert.match(output, /get environment variable "NODE_EXTRA_CA_CERTS":/);
+    if (common.hasIntl) {
+      assert.match(output, /get environment variable "NODE_ICU_DATA":/);
+    }
+    if (common.hasOpenSSL) {
+      assert.match(output, /get environment variable "NODE_EXTRA_CA_CERTS":/);
+    }
+    if (common.hasOpenSSL3) {
+      assert.match(output, /get environment variable "OPENSSL_CONF":/);
+    }
     assert.match(output, /get environment variable "NODE_DEBUG_NATIVE":/);
     assert.match(output, /get environment variable "NODE_COMPILE_CACHE":/);
     assert.match(output, /get environment variable "NODE_NO_WARNINGS":/);
@@ -23,7 +29,11 @@ spawnSyncAndAssert(process.execPath, ['--trace-env', fixtures.path('empty.js')],
     assert.match(output, /get environment variable "NODE_DEBUG":/);
     assert.match(output, /get environment variable "NODE_CHANNEL_FD":/);
     assert.match(output, /get environment variable "NODE_UNIQUE_ID":/);
-    assert.match(output, /get environment variable "HOME":/);
+    if (common.isWindows) {
+      assert.match(output, /get environment variable "USERPROFILE":/);
+    } else {
+      assert.match(output, /get environment variable "HOME":/);
+    }
     assert.match(output, /get environment variable "NODE_PATH":/);
     assert.match(output, /get environment variable "WATCH_REPORT_DEPENDENCIES":/);
   }
