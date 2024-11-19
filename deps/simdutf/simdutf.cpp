@@ -1,4 +1,4 @@
-/* auto-generated on 2024-11-12 20:00:19 -0500. Do not edit! */
+/* auto-generated on 2024-11-14 14:52:31 -0500. Do not edit! */
 /* begin file src/simdutf.cpp */
 #include "simdutf.h"
 // We include base64_tables once.
@@ -7229,6 +7229,11 @@ template <class char_type> bool is_ascii_white_space(char_type c) {
   return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f';
 }
 
+template <class char_type> bool is_ascii_white_space_or_padding(char_type c) {
+  return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' ||
+         c == '=';
+}
+
 template <class char_type> bool is_eight_byte(char_type c) {
   if (sizeof(char_type) == 1) {
     return true;
@@ -9491,6 +9496,21 @@ simdutf_warn_unused result base64_to_binary_safe_impl(
     if (r.error != error_code::INVALID_BASE64_CHARACTER &&
         r.error != error_code::BASE64_EXTRA_BITS) {
       outlen = r.output_count;
+      if (last_chunk_handling_options == stop_before_partial) {
+        if ((r.output_count % 3) != 0) {
+          bool empty_trail = true;
+          for (size_t i = r.input_count; i < length; i++) {
+            if (!scalar::base64::is_ascii_white_space_or_padding(input[i])) {
+              empty_trail = false;
+              break;
+            }
+          }
+          if (empty_trail) {
+            r.input_count = length;
+          }
+        }
+        return {r.error, r.input_count};
+      }
       return {r.error, length};
     }
     return r;
@@ -9557,7 +9577,11 @@ simdutf_warn_unused result base64_to_binary_safe_impl(
   }
   if (rr.error == error_code::SUCCESS &&
       last_chunk_handling_options == stop_before_partial) {
-    rr.count = tail_input - input;
+    if (tail_input > input + input_index) {
+      rr.count = tail_input - input;
+    } else if (r.input_count > 0) {
+      rr.count = r.input_count + rr.count;
+    }
     return rr;
   }
   rr.count += input_index;
@@ -15891,9 +15915,9 @@ compress_decode_base64(char *dst, const char_type *src, size_t srclen,
   if (src < srcend + equalsigns) {
     full_result r = scalar::base64::base64_tail_decode(
         dst, src, srcend - src, equalsigns, options, last_chunk_options);
+    r.input_count += size_t(src - srcinit);
     if (r.error == error_code::INVALID_BASE64_CHARACTER ||
         r.error == error_code::BASE64_EXTRA_BITS) {
-      r.input_count += size_t(src - srcinit);
       return r;
     } else {
       r.output_count += size_t(dst - dstinit);
@@ -23716,9 +23740,9 @@ compress_decode_base64(char *dst, const chartype *src, size_t srclen,
   if (src < srcend + equalsigns) {
     full_result r = scalar::base64::base64_tail_decode(
         dst, src, srcend - src, equalsigns, options, last_chunk_options);
+    r.input_count += size_t(src - srcinit);
     if (r.error == error_code::INVALID_BASE64_CHARACTER ||
         r.error == error_code::BASE64_EXTRA_BITS) {
-      r.input_count += size_t(src - srcinit);
       return r;
     } else {
       r.output_count += size_t(dst - dstinit);
@@ -28552,9 +28576,9 @@ compress_decode_base64(char *dst, const chartype *src, size_t srclen,
   if (src < srcend + equalsigns) {
     full_result r = scalar::base64::base64_tail_decode(
         dst, src, srcend - src, equalsigns, options, last_chunk_options);
+    r.input_count += size_t(src - srcinit);
     if (r.error == error_code::INVALID_BASE64_CHARACTER ||
         r.error == error_code::BASE64_EXTRA_BITS) {
-      r.input_count += size_t(src - srcinit);
       return r;
     } else {
       r.output_count += size_t(dst - dstinit);
@@ -38307,9 +38331,9 @@ compress_decode_base64(char *dst, const chartype *src, size_t srclen,
   if (src < srcend + equalsigns) {
     full_result r = scalar::base64::base64_tail_decode(
         dst, src, srcend - src, equalsigns, options, last_chunk_options);
+    r.input_count += size_t(src - srcinit);
     if (r.error == error_code::INVALID_BASE64_CHARACTER ||
         r.error == error_code::BASE64_EXTRA_BITS) {
-      r.input_count += size_t(src - srcinit);
       return r;
     } else {
       r.output_count += size_t(dst - dstinit);
