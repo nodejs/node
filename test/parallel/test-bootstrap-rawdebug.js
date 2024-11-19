@@ -5,3 +5,7 @@ const assert = require('assert');
 
 common.allowGlobals('rawDebug');
 assert.strictEqual(typeof global.rawDebug === 'function', true);
+assert.strictEqual(global.rawDebug === process._rawDebug, true);
+
+global.rawDebug = 42;
+assert.strictEqual(global.rawDebug === 42, true);
