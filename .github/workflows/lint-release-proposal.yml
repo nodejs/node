@@ -1,0 +1,41 @@
+name: Linters
+
+on:
+  push:
+    branches:
+      - v[0-9]+.[0-9]+.[0-9]+-proposal
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: '3.12'
+  NODE_VERSION: lts/*
+
+permissions:
+  contents: read
+
+jobs:
+  lint-release-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Lint release commit
+        run: |
+          git log -1 HEAD --format=%s | grep -q -E '^\d{4}-\d{2}-\d{2}, Version \d+\.\d+\.\d+ (\(Current|'.+' \(LTS)\)$'
+          git log -1 HEAD --format=%b | git interpret-trailers --parse --no-divider | grep -E -q "^PR-URL: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/pull/[0-9]+$"
+      - name: Extract releaser info
+        id: releaser-info
+        run: |
+          COMMIT_SUBJECT="$(git log -1 HEAD --format=%s)"
+          CHANGELOG_TITLE_INTRO="## $COMMIT_SUBJECT, @"
+          CHANGELOG_TITLE="$(grep "$CHANGELOG_TITLE_INTRO" "doc/changelogs/CHANGELOG_V${COMMIT_SUBJECT:20:2}.md")"
+          [[ "${CHANGELOG_TITLE%@*}@" == "$CHANGELOG_TITLE_INTRO" ]]
+          RELEASER_INFO="${CHANGELOG_TITLE#*@}"
+          {
+            echo "RELEASER=${RELEASER_INFO% prepared by*}"
+            echo "PREPARATOR=${RELEASER_INFO#*@}"
+          } >> "$GITHUB_OUTPUT"
