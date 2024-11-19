@@ -189,7 +189,6 @@ class EnvironmentOptions : public Options {
   uint64_t test_coverage_functions = 0;
   uint64_t test_coverage_lines = 0;
   bool test_runner_module_mocks = false;
-  bool test_runner_snapshots = false;
   bool test_runner_update_snapshots = false;
   std::vector<std::string> test_name_pattern;
   std::vector<std::string> test_reporter;
