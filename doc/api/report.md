@@ -10,7 +10,7 @@
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v23.3.0
     pr-url: https://github.com/nodejs/node/pull/55697
     description: Added `--report-exclude-env` option for excluding environment variables from report generation.
   - version:
