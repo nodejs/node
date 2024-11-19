@@ -123,7 +123,7 @@ class EnvironmentOptions : public Options {
   bool experimental_eventsource = false;
   bool experimental_fetch = true;
   bool experimental_websocket = true;
-  bool experimental_sqlite = false;
+  bool experimental_sqlite = true;
   bool experimental_webstorage = false;
   std::string localstorage_file;
   bool experimental_global_navigator = true;

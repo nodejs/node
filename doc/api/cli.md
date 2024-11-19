@@ -1079,14 +1079,6 @@ added:
 
 Use this flag to enable [ShadowRealm][] support.
 
-### `--experimental-sqlite`
-
-<!-- YAML
-added: v22.5.0
--->
-
-Enable the experimental [`node:sqlite`][] module.
-
 ### `--experimental-strip-types`
 
 <!-- YAML
@@ -1693,6 +1685,18 @@ changes:
 Disable support for loading a synchronous ES module graph in `require()`.
 
 See [Loading ECMAScript modules using `require()`][].
+
+### `--no-experimental-sqlite`
+
+<!-- YAML
+added: v22.5.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/55890
+    description: SQLite is unflagged but still experimental.
+-->
+
+Disable the experimental [`node:sqlite`][] module.
 
 ### `--no-experimental-websocket`
 
@@ -3045,7 +3049,6 @@ one is included in the list below.
 * `--experimental-require-module`
 * `--experimental-shadow-realm`
 * `--experimental-specifier-resolution`
-* `--experimental-sqlite`
 * `--experimental-strip-types`
 * `--experimental-top-level-await`
 * `--experimental-transform-types`
@@ -3081,6 +3084,7 @@ one is included in the list below.
 * `--no-deprecation`
 * `--no-experimental-global-navigator`
 * `--no-experimental-repl-await`
+* `--no-experimental-sqlite`
 * `--no-experimental-websocket`
 * `--no-extra-info-on-fatal-exception`
 * `--no-force-async-hooks-checks`
