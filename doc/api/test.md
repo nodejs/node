@@ -3343,9 +3343,11 @@ The name of the test.
 added:
   - v22.2.0
   - v20.15.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/55895
+    description: This function is no longer experimental.
 -->
-
-> Stability: 1 - Experimental
 
 * `count` {number} The number of assertions and subtests that are expected to run.
 
