@@ -6,8 +6,7 @@
 added: v22.5.0
 -->
 
-> Stability: 1.1 - Active development. Enable this API with the
-> [`--experimental-sqlite`][] CLI flag.
+> Stability: 1.1 - Active development.
 
 <!-- source_link=lib/sqlite.js -->
 
@@ -432,7 +431,6 @@ The following constants are meant for use with [`database.applyChangeset()`](#da
 
 [Changesets and Patchsets]: https://www.sqlite.org/sessionintro.html#changesets_and_patchsets
 [SQL injection]: https://en.wikipedia.org/wiki/SQL_injection
-[`--experimental-sqlite`]: cli.md#--experimental-sqlite
 [`ATTACH DATABASE`]: https://www.sqlite.org/lang_attach.html
 [`PRAGMA foreign_keys`]: https://www.sqlite.org/pragma.html#pragma_foreign_keys
 [`sqlite3_changes64()`]: https://www.sqlite.org/c3ref/changes.html
