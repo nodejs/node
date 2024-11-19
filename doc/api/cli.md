@@ -206,23 +206,18 @@ The valid arguments for the `--allow-fs-read` flag are:
 * Multiple paths can be allowed using multiple `--allow-fs-read` flags.
   Example `--allow-fs-read=/folder1/ --allow-fs-read=/folder1/`
 
-Paths delimited by comma (`,`) are no longer allowed.
-When passing a single flag with a comma a warning will be displayed.
-
 Examples can be found in the [File System Permissions][] documentation.
-
-Relative paths are NOT yet supported by the CLI flag.
 
 The initializer module also needs to be allowed. Consider the following example:
 
 ```console
-$ node --experimental-permission t.js
+$ node --experimental-permission index.js
 
 Error: Access to this API has been restricted
     at node:internal/main/run_main_module:23:47 {
   code: 'ERR_ACCESS_DENIED',
   permission: 'FileSystemRead',
-  resource: '/Users/rafaelgss/repos/os/node/t.js'
+  resource: '/Users/rafaelgss/repos/os/node/index.js'
 }
 ```
 
@@ -257,8 +252,6 @@ Paths delimited by comma (`,`) are no longer allowed.
 When passing a single flag with a comma a warning will be displayed.
 
 Examples can be found in the [File System Permissions][] documentation.
-
-Relative paths are NOT supported through the CLI flag.
 
 ### `--allow-wasi`
 
