@@ -208,23 +208,18 @@ The valid arguments for the `--allow-fs-read` flag are:
 * Multiple paths can be allowed using multiple `--allow-fs-read` flags.
   Example `--allow-fs-read=/folder1/ --allow-fs-read=/folder1/`
 
-Paths delimited by comma (`,`) are no longer allowed.
-When passing a single flag with a comma a warning will be displayed.
-
 Examples can be found in the [File System Permissions][] documentation.
-
-Relative paths are NOT yet supported by the CLI flag.
 
 The initializer module also needs to be allowed. Consider the following example:
 
 ```console
-$ node --experimental-permission t.js
+$ node --experimental-permission index.js
 
 Error: Access to this API has been restricted
     at node:internal/main/run_main_module:23:47 {
   code: 'ERR_ACCESS_DENIED',
   permission: 'FileSystemRead',
-  resource: '/Users/rafaelgss/repos/os/node/t.js'
+  resource: '/Users/rafaelgss/repos/os/node/index.js'
 }
 ```
 
@@ -259,8 +254,6 @@ Paths delimited by comma (`,`) are no longer allowed.
 When passing a single flag with a comma a warning will be displayed.
 
 Examples can be found in the [File System Permissions][] documentation.
-
-Relative paths are NOT supported through the CLI flag.
 
 ### `--allow-wasi`
 
@@ -1065,14 +1058,6 @@ added:
 
 Use this flag to enable [ShadowRealm][] support.
 
-### `--experimental-sqlite`
-
-<!-- YAML
-added: v22.5.0
--->
-
-Enable the experimental [`node:sqlite`][] module.
-
 ### `--experimental-strip-types`
 
 <!-- YAML
@@ -1128,16 +1113,6 @@ added:
 > Stability: 1.0 - Early development
 
 Enable module mocking in the test runner.
-
-### `--experimental-test-snapshots`
-
-<!-- YAML
-added: v22.3.0
--->
-
-> Stability: 1.0 - Early development
-
-Enable [snapshot testing][] in the test runner.
 
 ### `--experimental-vm-modules`
 
@@ -1692,6 +1667,18 @@ changes:
 Disable support for loading a synchronous ES module graph in `require()`.
 
 See [Loading ECMAScript modules using `require()`][].
+
+### `--no-experimental-sqlite`
+
+<!-- YAML
+added: v22.5.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/55890
+    description: SQLite is unflagged but still experimental.
+-->
+
+Disable the experimental [`node:sqlite`][] module.
 
 ### `--no-experimental-websocket`
 
@@ -2468,13 +2455,13 @@ subtests inherit this value from their parent. The default value is `Infinity`.
 
 <!-- YAML
 added: v22.3.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/55897
+    description: Snapsnot testing is no longer experimental.
 -->
 
-> Stability: 1.0 - Early development
-
 Regenerates the snapshot files used by the test runner for [snapshot testing][].
-Node.js must be started with the `--experimental-test-snapshots` flag in order
-to use this functionality.
 
 ### `--throw-deprecation`
 
@@ -3043,7 +3030,6 @@ one is included in the list below.
 * `--experimental-require-module`
 * `--experimental-shadow-realm`
 * `--experimental-specifier-resolution`
-* `--experimental-sqlite`
 * `--experimental-strip-types`
 * `--experimental-top-level-await`
 * `--experimental-transform-types`
@@ -3080,6 +3066,7 @@ one is included in the list below.
 * `--no-deprecation`
 * `--no-experimental-global-navigator`
 * `--no-experimental-repl-await`
+* `--no-experimental-sqlite`
 * `--no-experimental-websocket`
 * `--no-extra-info-on-fatal-exception`
 * `--no-force-async-hooks-checks`
