@@ -45,7 +45,6 @@ export default [
       'benchmark/tmp/**',
       'doc/changelogs/CHANGELOG_V1*.md',
       '!doc/changelogs/CHANGELOG_V18.md',
-      'doc/changelogs/CHANGELOG_V23.md',
       'lib/punycode.js',
       'test/.tmp.*/**',
       'test/addons/??_*',
