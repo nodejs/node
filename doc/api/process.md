@@ -3493,7 +3493,7 @@ console.log(`Report on exception: ${report.reportOnUncaughtException}`);
 ### `process.report.excludeEnv`
 
 <!-- YAML
-added: REPLACEME
+added: v23.3.0
 -->
 
 * {boolean}

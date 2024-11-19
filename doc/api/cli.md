@@ -1969,7 +1969,7 @@ Location at which the report will be generated.
 ### `--report-exclude-env`
 
 <!-- YAML
-added: REPLACEME
+added: v23.3.0
 -->
 
 When `--report-exclude-env` is passed the diagnostic report generated will not
