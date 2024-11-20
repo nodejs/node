@@ -2933,6 +2933,35 @@ Does not perform any other validation checks on the certificate.
 
 ## `node:crypto` module methods and properties
 
+### `crypto.checkPrime(candidate[, options], callback)`
+
+<!-- YAML
+added: v15.8.0
+changes:
+  - version: v18.0.0
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
+-->
+
+* `candidate` {ArrayBuffer|SharedArrayBuffer|TypedArray|Buffer|DataView|bigint}
+  A possible prime encoded as a sequence of big endian octets of arbitrary
+  length.
+* `options` {Object}
+  * `checks` {number} The number of Miller-Rabin probabilistic primality
+    iterations to perform. When the value is `0` (zero), a number of checks
+    is used that yields a false positive rate of at most 2<sup>-64</sup> for
+    random input. Care must be used when selecting a number of checks. Refer
+    to the OpenSSL documentation for the [`BN_is_prime_ex`][] function `nchecks`
+    options for more details. **Default:** `0`
+* `callback` {Function}
+  * `err` {Error} Set to an {Error} object if an error occurred during check.
+  * `result` {boolean} `true` if the candidate is a prime with an error
+    probability less than `0.25 ** options.checks`.
+
+Checks the primality of the `candidate`.
+
 ### `crypto.checkPrimeSync(candidate[, options])`
 
 <!-- YAML
@@ -3535,35 +3564,6 @@ is currently in use. Setting to true requires a FIPS build of Node.js.
 
 This property is deprecated. Please use `crypto.setFips()` and
 `crypto.getFips()` instead.
-
-### `crypto.checkPrime(candidate[, options], callback)`
-
-<!-- YAML
-added: v15.8.0
-changes:
-  - version: v18.0.0
-    pr-url: https://github.com/nodejs/node/pull/41678
-    description: Passing an invalid callback to the `callback` argument
-                 now throws `ERR_INVALID_ARG_TYPE` instead of
-                 `ERR_INVALID_CALLBACK`.
--->
-
-* `candidate` {ArrayBuffer|SharedArrayBuffer|TypedArray|Buffer|DataView|bigint}
-  A possible prime encoded as a sequence of big endian octets of arbitrary
-  length.
-* `options` {Object}
-  * `checks` {number} The number of Miller-Rabin probabilistic primality
-    iterations to perform. When the value is `0` (zero), a number of checks
-    is used that yields a false positive rate of at most 2<sup>-64</sup> for
-    random input. Care must be used when selecting a number of checks. Refer
-    to the OpenSSL documentation for the [`BN_is_prime_ex`][] function `nchecks`
-    options for more details. **Default:** `0`
-* `callback` {Function}
-  * `err` {Error} Set to an {Error} object if an error occurred during check.
-  * `result` {boolean} `true` if the candidate is a prime with an error
-    probability less than `0.25 ** options.checks`.
-
-Checks the primality of the `candidate`.
 
 ### `crypto.generateKey(type, options, callback)`
 
