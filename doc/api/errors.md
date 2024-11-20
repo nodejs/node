@@ -61,7 +61,7 @@ Errors that occur within _Asynchronous APIs_ may be reported in multiple ways:
   <!-- eslint-disable no-useless-return -->
 
   ```js
-  const fs = require('fs/promises');
+  const fs = require('node:fs/promises');
 
   (async () => {
     let data;

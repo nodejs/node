@@ -889,7 +889,7 @@ built-in modules and if a name matching a built-in module is added to the cache,
 only `node:`-prefixed require calls are going to receive the built-in module.
 Use with care!
 
-<!-- eslint-disable node-core/no-duplicate-requires -->
+<!-- eslint-disable node-core/no-duplicate-requires, no-restricted-syntax -->
 
 ```js
 const assert = require('node:assert');
