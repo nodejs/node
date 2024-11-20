@@ -18,6 +18,10 @@ The ambassador program does that by:
   messages and topics defined.
 * Advocating for ambassadors to be part of the OpenJS speakers bureau, even if the
   ambassador is not otherwise an active member of the project itself.
+* Each ambassador could add a maximum of three links to resources to learn Node.js
+  on a dedicated page on the main Node.js website. At least one of those must be a
+  free resource. The Node.js TSC members could ask for coupon codes to verify the
+  material if they so decide.
 
 ## Ambassadors nominations
 
