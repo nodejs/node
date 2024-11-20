@@ -315,7 +315,7 @@ events (due to incorrect stream implementations) do not cause unexpected
 crashes. If this is unwanted behavior then `options.cleanup` should be set to
 `true`:
 
-```js
+```mjs
 await finished(rs, { cleanup: true });
 ```
 
@@ -3916,7 +3916,7 @@ const { StringDecoder } = require('node:string_decoder');
 class StringWritable extends Writable {
   constructor(options) {
     super(options);
-    this._decoder = new StringDecoder(options && options.defaultEncoding);
+    this._decoder = new StringDecoder(options?.defaultEncoding);
     this.data = '';
   }
   _write(chunk, encoding, callback) {

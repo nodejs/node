@@ -218,7 +218,7 @@ markAsUncloneable(anyObject);
 const { port1 } = new MessageChannel();
 try {
   // This will throw an error, because anyObject is not cloneable.
-  port1.postMessage(anyObject)
+  port1.postMessage(anyObject);
 } catch (error) {
   // error.name === 'DataCloneError'
 }
@@ -907,6 +907,8 @@ non-enumerable properties, property accessors, and object prototypes are
 not preserved. In particular, [`Buffer`][] objects will be read as
 plain [`Uint8Array`][]s on the receiving side, and instances of JavaScript
 classes will be cloned as plain JavaScript objects.
+
+<!-- eslint-disable no-unused-private-class-members -->
 
 ```js
 const b = Symbol('b');

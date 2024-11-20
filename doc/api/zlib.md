@@ -190,10 +190,7 @@ http.createServer((request, response) => {
   const raw = fs.createReadStream('index.html');
   // Store both a compressed and an uncompressed version of the resource.
   response.setHeader('Vary', 'Accept-Encoding');
-  let acceptEncoding = request.headers['accept-encoding'];
-  if (!acceptEncoding) {
-    acceptEncoding = '';
-  }
+  const acceptEncoding = request.headers['accept-encoding'] || '';
 
   const onError = (err) => {
     if (err) {
