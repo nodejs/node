@@ -113,7 +113,7 @@ const der = Buffer.from(
     '5A:42:63:E0:21:2F:D6:70:63:07:96:6F:27:A7:78:12:08:02:7A:8B'
   );
   assert.strictEqual(x509.keyUsage, undefined);
-  assert.match(x509.serialNumber, /147D36C1C2F74206DE9FAB5F2226D78ADB00A426/i);
+  assert.strictEqual(x509.serialNumber.toUpperCase(), '147D36C1C2F74206DE9FAB5F2226D78ADB00A426');
 
   assert.deepStrictEqual(x509.raw, der);
 
