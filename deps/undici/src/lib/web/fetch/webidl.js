@@ -1,6 +1,7 @@
 'use strict'
 
 const { types, inspect } = require('node:util')
+const { markAsUncloneable } = require('node:worker_threads')
 const { toUSVString } = require('../../core/util')
 
 /** @type {import('../../../types/webidl').Webidl} */
@@ -86,6 +87,7 @@ webidl.util.Type = function (V) {
   }
 }
 
+webidl.util.markAsUncloneable = markAsUncloneable || (() => {})
 // https://webidl.spec.whatwg.org/#abstract-opdef-converttoint
 webidl.util.ConvertToInt = function (V, bitLength, signedness, opts) {
   let upperBound

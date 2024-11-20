@@ -123,7 +123,7 @@ class EnvironmentOptions : public Options {
   bool experimental_eventsource = false;
   bool experimental_fetch = true;
   bool experimental_websocket = true;
-  bool experimental_sqlite = false;
+  bool experimental_sqlite = true;
   bool experimental_webstorage = false;
   std::string localstorage_file;
   bool experimental_global_navigator = true;
@@ -189,7 +189,6 @@ class EnvironmentOptions : public Options {
   uint64_t test_coverage_functions = 0;
   uint64_t test_coverage_lines = 0;
   bool test_runner_module_mocks = false;
-  bool test_runner_snapshots = false;
   bool test_runner_update_snapshots = false;
   std::vector<std::string> test_name_pattern;
   std::vector<std::string> test_reporter;

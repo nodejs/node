@@ -454,7 +454,7 @@ not ok 50 - custom inspect symbol that throws fail
   error: |-
     {
       foo: 1,
-      [Symbol(nodejs.util.inspect.custom)]: [Function: [nodejs.util.inspect.custom]]
+      Symbol(nodejs.util.inspect.custom): [Function: [nodejs.util.inspect.custom]]
     }
   code: 'ERR_TEST_FAILURE'
   ...

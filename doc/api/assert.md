@@ -878,7 +878,7 @@ assert.deepStrictEqual({ [symbol1]: 1 }, { [symbol2]: 1 });
 // AssertionError [ERR_ASSERTION]: Inputs identical but not reference equal:
 //
 // {
-//   [Symbol()]: 1
+//   Symbol(): 1
 // }
 
 const weakMap1 = new WeakMap();
@@ -970,7 +970,7 @@ assert.deepStrictEqual({ [symbol1]: 1 }, { [symbol2]: 1 });
 // AssertionError [ERR_ASSERTION]: Inputs identical but not reference equal:
 //
 // {
-//   [Symbol()]: 1
+//   Symbol(): 1
 // }
 
 const weakMap1 = new WeakMap();

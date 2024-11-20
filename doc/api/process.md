@@ -2111,10 +2111,10 @@ class Test {
   constructor() {
     finalization.register(this, (ref) => ref.dispose());
 
-    // even something like this is highly discouraged
+    // Even something like this is highly discouraged
     // finalization.register(this, () => this.dispose());
-   }
-   dispose() {}
+  }
+  dispose() {}
 }
 ```
 

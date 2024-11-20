@@ -1,4 +1,4 @@
-/* auto-generated on 2024-10-11 12:35:29 -0400. Do not edit! */
+/* auto-generated on 2024-11-14 14:52:31 -0500. Do not edit! */
 /* begin file src/simdutf.cpp */
 #include "simdutf.h"
 // We include base64_tables once.
@@ -937,6 +937,10 @@ public:
       const char *input, size_t length, char *output, base64_options options,
       last_chunk_handling_options last_chunk_options =
           last_chunk_handling_options::loose) const noexcept;
+  simdutf_warn_unused full_result base64_to_binary_details(
+      const char *input, size_t length, char *output, base64_options options,
+      last_chunk_handling_options last_chunk_options =
+          last_chunk_handling_options::loose) const noexcept;
   simdutf_warn_unused size_t maximal_binary_length_from_base64(
       const char16_t *input, size_t length) const noexcept;
   simdutf_warn_unused result
@@ -944,6 +948,11 @@ public:
                    base64_options options,
                    last_chunk_handling_options last_chunk_options =
                        last_chunk_handling_options::loose) const noexcept;
+  simdutf_warn_unused full_result base64_to_binary_details(
+      const char16_t *input, size_t length, char *output,
+      base64_options options,
+      last_chunk_handling_options last_chunk_options =
+          last_chunk_handling_options::loose) const noexcept;
   simdutf_warn_unused size_t base64_length_from_binary(
       size_t length, base64_options options) const noexcept;
   size_t binary_to_base64(const char *input, size_t length, char *output,
@@ -2547,6 +2556,10 @@ public:
       const char *input, size_t length, char *output, base64_options options,
       last_chunk_handling_options last_chunk_options =
           last_chunk_handling_options::loose) const noexcept;
+  simdutf_warn_unused full_result base64_to_binary_details(
+      const char *input, size_t length, char *output, base64_options options,
+      last_chunk_handling_options last_chunk_options =
+          last_chunk_handling_options::loose) const noexcept;
   simdutf_warn_unused size_t maximal_binary_length_from_base64(
       const char16_t *input, size_t length) const noexcept;
   simdutf_warn_unused result
@@ -2554,6 +2567,11 @@ public:
                    base64_options options,
                    last_chunk_handling_options last_chunk_options =
                        last_chunk_handling_options::loose) const noexcept;
+  simdutf_warn_unused full_result base64_to_binary_details(
+      const char16_t *input, size_t length, char *output,
+      base64_options options,
+      last_chunk_handling_options last_chunk_options =
+          last_chunk_handling_options::loose) const noexcept;
   simdutf_warn_unused size_t base64_length_from_binary(
       size_t length, base64_options options) const noexcept;
   size_t binary_to_base64(const char *input, size_t length, char *output,
@@ -2885,6 +2903,10 @@ public:
                    base64_options options,
                    last_chunk_handling_options last_chunk_options =
                        last_chunk_handling_options::loose) const noexcept;
+  simdutf_warn_unused virtual full_result base64_to_binary_details(
+      const char *input, size_t length, char *output, base64_options options,
+      last_chunk_handling_options last_chunk_options =
+          last_chunk_handling_options::loose) const noexcept;
   simdutf_warn_unused virtual size_t
   maximal_binary_length_from_base64(const char16_t *input,
                                     size_t length) const noexcept;
@@ -2893,6 +2915,11 @@ public:
                    base64_options options,
                    last_chunk_handling_options last_chunk_options =
                        last_chunk_handling_options::loose) const noexcept;
+  simdutf_warn_unused virtual full_result base64_to_binary_details(
+      const char16_t *input, size_t length, char *output,
+      base64_options options,
+      last_chunk_handling_options last_chunk_options =
+          last_chunk_handling_options::loose) const noexcept;
   simdutf_warn_unused virtual size_t
   base64_length_from_binary(size_t length,
                             base64_options options) const noexcept;
@@ -4142,6 +4169,10 @@ public:
       const char *input, size_t length, char *output, base64_options options,
       last_chunk_handling_options last_chunk_options =
           last_chunk_handling_options::loose) const noexcept;
+  simdutf_warn_unused full_result base64_to_binary_details(
+      const char *input, size_t length, char *output, base64_options options,
+      last_chunk_handling_options last_chunk_options =
+          last_chunk_handling_options::loose) const noexcept;
   simdutf_warn_unused size_t maximal_binary_length_from_base64(
       const char16_t *input, size_t length) const noexcept;
   simdutf_warn_unused result
@@ -4149,6 +4180,11 @@ public:
                    base64_options options,
                    last_chunk_handling_options last_chunk_options =
                        last_chunk_handling_options::loose) const noexcept;
+  simdutf_warn_unused full_result base64_to_binary_details(
+      const char16_t *input, size_t length, char *output,
+      base64_options options,
+      last_chunk_handling_options last_chunk_options =
+          last_chunk_handling_options::loose) const noexcept;
   simdutf_warn_unused size_t base64_length_from_binary(
       size_t length, base64_options options) const noexcept;
   size_t binary_to_base64(const char *input, size_t length, char *output,
@@ -5386,6 +5422,10 @@ public:
       const char *input, size_t length, char *output, base64_options options,
       last_chunk_handling_options last_chunk_options =
           last_chunk_handling_options::loose) const noexcept;
+  simdutf_warn_unused full_result base64_to_binary_details(
+      const char *input, size_t length, char *output, base64_options options,
+      last_chunk_handling_options last_chunk_options =
+          last_chunk_handling_options::loose) const noexcept;
   simdutf_warn_unused size_t maximal_binary_length_from_base64(
       const char16_t *input, size_t length) const noexcept;
   simdutf_warn_unused result
@@ -5393,6 +5433,11 @@ public:
                    base64_options options,
                    last_chunk_handling_options last_chunk_options =
                        last_chunk_handling_options::loose) const noexcept;
+  simdutf_warn_unused full_result base64_to_binary_details(
+      const char16_t *input, size_t length, char *output,
+      base64_options options,
+      last_chunk_handling_options last_chunk_options =
+          last_chunk_handling_options::loose) const noexcept;
   simdutf_warn_unused size_t base64_length_from_binary(
       size_t length, base64_options options) const noexcept;
   size_t binary_to_base64(const char *input, size_t length, char *output,
@@ -6172,6 +6217,10 @@ public:
       const char *input, size_t length, char *output, base64_options options,
       last_chunk_handling_options last_chunk_options =
           last_chunk_handling_options::loose) const noexcept;
+  simdutf_warn_unused full_result base64_to_binary_details(
+      const char *input, size_t length, char *output, base64_options options,
+      last_chunk_handling_options last_chunk_options =
+          last_chunk_handling_options::loose) const noexcept;
   simdutf_warn_unused size_t maximal_binary_length_from_base64(
       const char16_t *input, size_t length) const noexcept;
   simdutf_warn_unused result
@@ -6179,6 +6228,11 @@ public:
                    base64_options options,
                    last_chunk_handling_options last_chunk_options =
                        last_chunk_handling_options::loose) const noexcept;
+  simdutf_warn_unused full_result base64_to_binary_details(
+      const char16_t *input, size_t length, char *output,
+      base64_options options,
+      last_chunk_handling_options last_chunk_options =
+          last_chunk_handling_options::loose) const noexcept;
   simdutf_warn_unused size_t base64_length_from_binary(
       size_t length, base64_options options) const noexcept;
   size_t binary_to_base64(const char *input, size_t length, char *output,
@@ -6579,6 +6633,10 @@ public:
   simdutf_warn_unused result base64_to_binary(
       const char *input, size_t length, char *output, base64_options options,
       last_chunk_handling_options last_chunk_options) const noexcept;
+  simdutf_warn_unused full_result base64_to_binary_details(
+      const char *input, size_t length, char *output, base64_options options,
+      last_chunk_handling_options last_chunk_options =
+          last_chunk_handling_options::loose) const noexcept;
   simdutf_warn_unused size_t maximal_binary_length_from_base64(
       const char16_t *input, size_t length) const noexcept;
   simdutf_warn_unused result base64_to_binary(
@@ -6587,6 +6645,11 @@ public:
       last_chunk_handling_options last_chunk_options) const noexcept;
   simdutf_warn_unused size_t base64_length_from_binary(
       size_t length, base64_options options) const noexcept;
+  simdutf_warn_unused full_result base64_to_binary_details(
+      const char16_t *input, size_t length, char *output,
+      base64_options options,
+      last_chunk_handling_options last_chunk_options =
+          last_chunk_handling_options::loose) const noexcept;
   size_t binary_to_base64(const char *input, size_t length, char *output,
                           base64_options options) const noexcept;
 };
@@ -7166,6 +7229,11 @@ template <class char_type> bool is_ascii_white_space(char_type c) {
   return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f';
 }
 
+template <class char_type> bool is_ascii_white_space_or_padding(char_type c) {
+  return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' ||
+         c == '=';
+}
+
 template <class char_type> bool is_eight_byte(char_type c) {
   if (sizeof(char_type) == 1) {
     return true;
@@ -7176,7 +7244,7 @@ template <class char_type> bool is_eight_byte(char_type c) {
 // Returns true upon success. The destination buffer must be large enough.
 // This functions assumes that the padding (=) has been removed.
 template <class char_type>
-result
+full_result
 base64_tail_decode(char *dst, const char_type *src, size_t length,
                    size_t padded_characters, // number of padding characters
                                              // '=', typically 0, 1, 2.
@@ -7229,7 +7297,8 @@ base64_tail_decode(char *dst, const char_type *src, size_t length,
       if (is_eight_byte(c) && code <= 63) {
         idx++;
       } else if (code > 64 || !scalar::base64::is_eight_byte(c)) {
-        return {INVALID_BASE64_CHARACTER, size_t(src - srcinit)};
+        return {INVALID_BASE64_CHARACTER, size_t(src - srcinit),
+                size_t(dst - dstinit)};
       } else {
         // We have a space or a newline. We ignore it.
       }
@@ -7239,17 +7308,23 @@ base64_tail_decode(char *dst, const char_type *src, size_t length,
       if (last_chunk_options == last_chunk_handling_options::strict &&
           (idx != 1) && ((idx + padded_characters) & 3) != 0) {
         // The partial chunk was at src - idx
-        return {BASE64_INPUT_REMAINDER, size_t(dst - dstinit)};
+        return {BASE64_INPUT_REMAINDER, size_t(src - srcinit),
+                size_t(dst - dstinit)};
       } else if (last_chunk_options ==
                      last_chunk_handling_options::stop_before_partial &&
                  (idx != 1) && ((idx + padded_characters) & 3) != 0) {
         // Rewind src to before partial chunk
         src -= idx;
-        return {SUCCESS, size_t(dst - dstinit)};
+        return {SUCCESS, size_t(src - srcinit), size_t(dst - dstinit)};
       } else {
         if (idx == 2) {
           uint32_t triple =
               (uint32_t(buffer[0]) << 3 * 6) + (uint32_t(buffer[1]) << 2 * 6);
+          if ((last_chunk_options == last_chunk_handling_options::strict) &&
+              (triple & 0xffff)) {
+            return {BASE64_EXTRA_BITS, size_t(src - srcinit),
+                    size_t(dst - dstinit)};
+          }
           if (match_system(endianness::BIG)) {
             triple <<= 8;
             std::memcpy(dst, &triple, 1);
@@ -7263,6 +7338,11 @@ base64_tail_decode(char *dst, const char_type *src, size_t length,
           uint32_t triple = (uint32_t(buffer[0]) << 3 * 6) +
                             (uint32_t(buffer[1]) << 2 * 6) +
                             (uint32_t(buffer[2]) << 1 * 6);
+          if ((last_chunk_options == last_chunk_handling_options::strict) &&
+              (triple & 0xff)) {
+            return {BASE64_EXTRA_BITS, size_t(src - srcinit),
+                    size_t(dst - dstinit)};
+          }
           if (match_system(endianness::BIG)) {
             triple <<= 8;
             std::memcpy(dst, &triple, 2);
@@ -7273,9 +7353,10 @@ base64_tail_decode(char *dst, const char_type *src, size_t length,
           }
           dst += 2;
         } else if (idx == 1) {
-          return {BASE64_INPUT_REMAINDER, size_t(dst - dstinit)};
+          return {BASE64_INPUT_REMAINDER, size_t(src - srcinit),
+                  size_t(dst - dstinit)};
         }
-        return {SUCCESS, size_t(dst - dstinit)};
+        return {SUCCESS, size_t(src - srcinit), size_t(dst - dstinit)};
       }
     }
 
@@ -7295,17 +7376,15 @@ base64_tail_decode(char *dst, const char_type *src, size_t length,
 }
 
 // like base64_tail_decode, but it will not write past the end of the output
-// buffer. outlen is modified to reflect the number of bytes written. This
-// functions assumes that the padding (=) has been removed.
-// like base64_tail_decode, but it will not write past the end of the output
-// buffer. outlen is modified to reflect the number of bytes written. This
-// functions assumes that the padding (=) has been removed.
+// buffer. The outlen paramter is modified to reflect the number of bytes
+// written. This functions assumes that the padding (=) has been removed.
 template <class char_type>
 result base64_tail_decode_safe(
-    char *dst, size_t &outlen, const char_type *src, size_t length,
+    char *dst, size_t &outlen, const char_type *&srcr, size_t length,
     size_t padded_characters, // number of padding characters '=', typically 0,
                               // 1, 2.
     base64_options options, last_chunk_handling_options last_chunk_options) {
+  const char_type *src = srcr;
   if (length == 0) {
     outlen = 0;
     return {SUCCESS, 0};
@@ -7344,6 +7423,7 @@ result base64_tail_decode_safe(
                 d2[uint8_t(src[2])] | d3[uint8_t(src[3])]) < 0x01FFFFFF) {
       if (dstend - dst < 3) {
         outlen = size_t(dst - dstinit);
+        srcr = src;
         return {OUTPUT_BUFFER_TOO_SMALL, size_t(src - srcinit)};
       }
       if (match_system(endianness::BIG)) {
@@ -7365,6 +7445,7 @@ result base64_tail_decode_safe(
         idx++;
       } else if (code > 64 || !scalar::base64::is_eight_byte(c)) {
         outlen = size_t(dst - dstinit);
+        srcr = src;
         return {INVALID_BASE64_CHARACTER, size_t(src - srcinit)};
       } else {
         // We have a space or a newline. We ignore it.
@@ -7375,33 +7456,42 @@ result base64_tail_decode_safe(
       if (last_chunk_options == last_chunk_handling_options::strict &&
           ((idx + padded_characters) & 3) != 0) {
         outlen = size_t(dst - dstinit);
+        srcr = src;
         return {BASE64_INPUT_REMAINDER, size_t(src - srcinit)};
       } else if (last_chunk_options ==
                      last_chunk_handling_options::stop_before_partial &&
                  ((idx + padded_characters) & 3) != 0) {
         // Rewind src to before partial chunk
-        src = srccur;
+        srcr = srccur;
         outlen = size_t(dst - dstinit);
         return {SUCCESS, size_t(dst - dstinit)};
       } else { // loose mode
         if (idx == 0) {
           // No data left; return success
           outlen = size_t(dst - dstinit);
+          srcr = src;
           return {SUCCESS, size_t(dst - dstinit)};
         } else if (idx == 1) {
           // Error: Incomplete chunk of length 1 is invalid in loose mode
           outlen = size_t(dst - dstinit);
+          srcr = src;
           return {BASE64_INPUT_REMAINDER, size_t(src - srcinit)};
         } else if (idx == 2 || idx == 3) {
           // Check if there's enough space in the destination buffer
           size_t required_space = (idx == 2) ? 1 : 2;
           if (size_t(dstend - dst) < required_space) {
             outlen = size_t(dst - dstinit);
+            srcr = src;
             return {OUTPUT_BUFFER_TOO_SMALL, size_t(srccur - srcinit)};
           }
           uint32_t triple = 0;
           if (idx == 2) {
             triple = (uint32_t(buffer[0]) << 18) + (uint32_t(buffer[1]) << 12);
+            if ((last_chunk_options == last_chunk_handling_options::strict) &&
+                (triple & 0xffff)) {
+              srcr = src;
+              return {BASE64_EXTRA_BITS, size_t(src - srcinit)};
+            }
             // Extract the first byte
             triple >>= 16;
             dst[0] = static_cast<char>(triple & 0xFF);
@@ -7409,6 +7499,11 @@ result base64_tail_decode_safe(
           } else if (idx == 3) {
             triple = (uint32_t(buffer[0]) << 18) + (uint32_t(buffer[1]) << 12) +
                      (uint32_t(buffer[2]) << 6);
+            if ((last_chunk_options == last_chunk_handling_options::strict) &&
+                (triple & 0xff)) {
+              srcr = src;
+              return {BASE64_EXTRA_BITS, size_t(src - srcinit)};
+            }
             // Extract the first two bytes
             triple >>= 8;
             dst[0] = static_cast<char>((triple >> 8) & 0xFF);
@@ -7416,6 +7511,7 @@ result base64_tail_decode_safe(
             dst += 2;
           }
           outlen = size_t(dst - dstinit);
+          srcr = src;
           return {SUCCESS, size_t(dst - dstinit)};
         }
       }
@@ -7423,6 +7519,7 @@ result base64_tail_decode_safe(
 
     if (dstend - dst < 3) {
       outlen = size_t(dst - dstinit);
+      srcr = src;
       return {OUTPUT_BUFFER_TOO_SMALL, size_t(srccur - srcinit)};
     }
     uint32_t triple = (uint32_t(buffer[0]) << 18) +
@@ -8243,6 +8340,14 @@ public:
                                         last_chunk_handling_options);
   }
 
+  simdutf_warn_unused full_result base64_to_binary_details(
+      const char *input, size_t length, char *output, base64_options options,
+      last_chunk_handling_options last_chunk_handling_options =
+          last_chunk_handling_options::loose) const noexcept override {
+    return set_best()->base64_to_binary_details(input, length, output, options,
+                                                last_chunk_handling_options);
+  }
+
   simdutf_warn_unused size_t maximal_binary_length_from_base64(
       const char16_t *input, size_t length) const noexcept override {
     return set_best()->maximal_binary_length_from_base64(input, length);
@@ -8255,6 +8360,15 @@ public:
           last_chunk_handling_options::loose) const noexcept override {
     return set_best()->base64_to_binary(input, length, output, options,
                                         last_chunk_handling_options);
+  }
+
+  simdutf_warn_unused full_result base64_to_binary_details(
+      const char16_t *input, size_t length, char *output,
+      base64_options options,
+      last_chunk_handling_options last_chunk_handling_options =
+          last_chunk_handling_options::loose) const noexcept override {
+    return set_best()->base64_to_binary_details(input, length, output, options,
+                                                last_chunk_handling_options);
   }
 
   simdutf_warn_unused size_t base64_length_from_binary(
@@ -8706,6 +8820,12 @@ public:
     return result(error_code::OTHER, 0);
   }
 
+  simdutf_warn_unused full_result base64_to_binary_details(
+      const char *, size_t, char *, base64_options,
+      last_chunk_handling_options) const noexcept override {
+    return full_result(error_code::OTHER, 0, 0);
+  }
+
   simdutf_warn_unused size_t maximal_binary_length_from_base64(
       const char16_t *, size_t) const noexcept override {
     return 0;
@@ -8715,6 +8835,12 @@ public:
   base64_to_binary(const char16_t *, size_t, char *, base64_options,
                    last_chunk_handling_options) const noexcept override {
     return result(error_code::OTHER, 0);
+  }
+
+  simdutf_warn_unused full_result base64_to_binary_details(
+      const char16_t *, size_t, char *, base64_options,
+      last_chunk_handling_options) const noexcept override {
+    return full_result(error_code::OTHER, 0, 0);
   }
 
   simdutf_warn_unused size_t
@@ -9365,11 +9491,27 @@ simdutf_warn_unused result base64_to_binary_safe_impl(
   size_t max_length = maximal_binary_length_from_base64(input, length);
   if (outlen >= max_length) {
     // fast path
-    result r = base64_to_binary(input, length, output, options,
-                                last_chunk_handling_options);
-    if (r.error != error_code::INVALID_BASE64_CHARACTER) {
-      outlen = r.count;
-      r.count = length;
+    full_result r = get_default_implementation()->base64_to_binary_details(
+        input, length, output, options, last_chunk_handling_options);
+    if (r.error != error_code::INVALID_BASE64_CHARACTER &&
+        r.error != error_code::BASE64_EXTRA_BITS) {
+      outlen = r.output_count;
+      if (last_chunk_handling_options == stop_before_partial) {
+        if ((r.output_count % 3) != 0) {
+          bool empty_trail = true;
+          for (size_t i = r.input_count; i < length; i++) {
+            if (!scalar::base64::is_ascii_white_space_or_padding(input[i])) {
+              empty_trail = false;
+              break;
+            }
+          }
+          if (empty_trail) {
+            r.input_count = length;
+          }
+        }
+        return {r.error, r.input_count};
+      }
+      return {r.error, length};
     }
     return r;
   }
@@ -9377,14 +9519,16 @@ simdutf_warn_unused result base64_to_binary_safe_impl(
   // the input.
   size_t outlen3 = outlen / 3 * 3; // round down to multiple of 3
   size_t safe_input = base64_length_from_binary(outlen3, options);
-  result r = base64_to_binary(input, safe_input, output, options, loose);
+  full_result r = get_default_implementation()->base64_to_binary_details(
+      input, safe_input, output, options, loose);
   if (r.error == error_code::INVALID_BASE64_CHARACTER) {
     return r;
   }
-  size_t offset = (r.error == error_code::BASE64_INPUT_REMAINDER)
-                      ? 1
-                      : ((r.count % 3) == 0 ? 0 : (r.count % 3) + 1);
-  size_t output_index = r.count - (r.count % 3);
+  size_t offset =
+      (r.error == error_code::BASE64_INPUT_REMAINDER)
+          ? 1
+          : ((r.output_count % 3) == 0 ? 0 : (r.output_count % 3) + 1);
+  size_t output_index = r.output_count - (r.output_count % 3);
   size_t input_index = safe_input;
   // offset is a value that is no larger than 3. We backtrack
   // by up to offset characters + an undetermined number of
@@ -9419,19 +9563,29 @@ simdutf_warn_unused result base64_to_binary_safe_impl(
       padding_characts++;
     }
   }
-  r = scalar::base64::base64_tail_decode_safe(
+  // this will advance tail_input and tail_length
+  result rr = scalar::base64::base64_tail_decode_safe(
       output + output_index, remaining_out, tail_input, tail_length,
       padding_characts, options, last_chunk_handling_options);
   outlen = output_index + remaining_out;
   if (last_chunk_handling_options != stop_before_partial &&
-      r.error == error_code::SUCCESS && padding_characts > 0) {
+      rr.error == error_code::SUCCESS && padding_characts > 0) {
     // additional checks
     if ((outlen % 3 == 0) || ((outlen % 3) + 1 + padding_characts != 4)) {
-      r.error = error_code::INVALID_BASE64_CHARACTER;
+      rr.error = error_code::INVALID_BASE64_CHARACTER;
     }
   }
-  r.count += input_index;
-  return r;
+  if (rr.error == error_code::SUCCESS &&
+      last_chunk_handling_options == stop_before_partial) {
+    if (tail_input > input + input_index) {
+      rr.count = tail_input - input;
+    } else if (r.input_count > 0) {
+      rr.count = r.input_count + rr.count;
+    }
+    return rr;
+  }
+  rr.count += input_index;
+  return rr;
 }
 
 simdutf_warn_unused size_t convert_latin1_to_utf8_safe(
@@ -15614,9 +15768,10 @@ void base64_decode_block(char *out, const char *src) {
 }
 
 template <bool base64_url, typename char_type>
-result compress_decode_base64(char *dst, const char_type *src, size_t srclen,
-                              base64_options options,
-                              last_chunk_handling_options last_chunk_options) {
+full_result
+compress_decode_base64(char *dst, const char_type *src, size_t srclen,
+                       base64_options options,
+                       last_chunk_handling_options last_chunk_options) {
   const uint8_t *to_base64 = base64_url ? tables::base64::to_base64_url_value
                                         : tables::base64::to_base64_value;
   size_t equallocation =
@@ -15644,9 +15799,9 @@ result compress_decode_base64(char *dst, const char_type *src, size_t srclen,
   }
   if (srclen == 0) {
     if (equalsigns > 0) {
-      return {INVALID_BASE64_CHARACTER, equallocation};
+      return {INVALID_BASE64_CHARACTER, equallocation, 0};
     }
-    return {SUCCESS, 0};
+    return {SUCCESS, 0, 0};
   }
   const char_type *const srcinit = src;
   const char *const dstinit = dst;
@@ -15673,7 +15828,8 @@ result compress_decode_base64(char *dst, const char_type *src, size_t srclen,
           if (src < srcend) {
             // should never happen
           }
-          return {error_code::INVALID_BASE64_CHARACTER, size_t(src - srcinit)};
+          return {error_code::INVALID_BASE64_CHARACTER, size_t(src - srcinit),
+                  size_t(dst - dstinit)};
         }
       }
 
@@ -15708,7 +15864,8 @@ result compress_decode_base64(char *dst, const char_type *src, size_t srclen,
       uint8_t val = to_base64[uint8_t(*src)];
       *bufferptr = char(val);
       if (!scalar::base64::is_eight_byte(*src) || val > 64) {
-        return {error_code::INVALID_BASE64_CHARACTER, size_t(src - srcinit)};
+        return {error_code::INVALID_BASE64_CHARACTER, size_t(src - srcinit),
+                size_t(dst - dstinit)};
       }
       bufferptr += (val <= 63);
       src++;
@@ -15756,20 +15913,22 @@ result compress_decode_base64(char *dst, const char_type *src, size_t srclen,
     }
   }
   if (src < srcend + equalsigns) {
-    result r = scalar::base64::base64_tail_decode(
+    full_result r = scalar::base64::base64_tail_decode(
         dst, src, srcend - src, equalsigns, options, last_chunk_options);
-    if (r.error == error_code::INVALID_BASE64_CHARACTER) {
-      r.count += size_t(src - srcinit);
+    r.input_count += size_t(src - srcinit);
+    if (r.error == error_code::INVALID_BASE64_CHARACTER ||
+        r.error == error_code::BASE64_EXTRA_BITS) {
       return r;
     } else {
-      r.count += size_t(dst - dstinit);
+      r.output_count += size_t(dst - dstinit);
     }
     if (last_chunk_options != stop_before_partial &&
         r.error == error_code::SUCCESS && equalsigns > 0) {
       // additional checks
-      if ((r.count % 3 == 0) || ((r.count % 3) + 1 + equalsigns != 4)) {
+      if ((r.output_count % 3 == 0) ||
+          ((r.output_count % 3) + 1 + equalsigns != 4)) {
         r.error = error_code::INVALID_BASE64_CHARACTER;
-        r.count = equallocation;
+        r.input_count = equallocation;
       }
     }
     return r;
@@ -15777,10 +15936,10 @@ result compress_decode_base64(char *dst, const char_type *src, size_t srclen,
   if (equalsigns > 0) {
     if ((size_t(dst - dstinit) % 3 == 0) ||
         ((size_t(dst - dstinit) % 3) + 1 + equalsigns != 4)) {
-      return {INVALID_BASE64_CHARACTER, equallocation};
+      return {INVALID_BASE64_CHARACTER, equallocation, size_t(dst - dstinit)};
     }
   }
-  return {SUCCESS, size_t(dst - dstinit)};
+  return {SUCCESS, srclen, size_t(dst - dstinit)};
 }
 /* end file src/arm64/arm_base64.cpp */
 /* begin file src/arm64/arm_convert_utf32_to_latin1.cpp */
@@ -19261,12 +19420,32 @@ simdutf_warn_unused result implementation::base64_to_binary(
                                              last_chunk_options);
 }
 
+simdutf_warn_unused full_result implementation::base64_to_binary_details(
+    const char *input, size_t length, char *output, base64_options options,
+    last_chunk_handling_options last_chunk_options) const noexcept {
+  return (options & base64_url)
+             ? compress_decode_base64<true>(output, input, length, options,
+                                            last_chunk_options)
+             : compress_decode_base64<false>(output, input, length, options,
+                                             last_chunk_options);
+}
+
 simdutf_warn_unused size_t implementation::maximal_binary_length_from_base64(
     const char16_t *input, size_t length) const noexcept {
   return scalar::base64::maximal_binary_length_from_base64(input, length);
 }
 
 simdutf_warn_unused result implementation::base64_to_binary(
+    const char16_t *input, size_t length, char *output, base64_options options,
+    last_chunk_handling_options last_chunk_options) const noexcept {
+  return (options & base64_url)
+             ? compress_decode_base64<true>(output, input, length, options,
+                                            last_chunk_options)
+             : compress_decode_base64<false>(output, input, length, options,
+                                             last_chunk_options);
+}
+
+simdutf_warn_unused full_result implementation::base64_to_binary_details(
     const char16_t *input, size_t length, char *output, base64_options options,
     last_chunk_handling_options last_chunk_options) const noexcept {
   return (options & base64_url)
@@ -19822,6 +20001,49 @@ simdutf_warn_unused result implementation::base64_to_binary(
   return r;
 }
 
+simdutf_warn_unused full_result implementation::base64_to_binary_details(
+    const char *input, size_t length, char *output, base64_options options,
+    last_chunk_handling_options last_chunk_options) const noexcept {
+  while (length > 0 &&
+         scalar::base64::is_ascii_white_space(input[length - 1])) {
+    length--;
+  }
+  size_t equallocation =
+      length; // location of the first padding character if any
+  size_t equalsigns = 0;
+  if (length > 0 && input[length - 1] == '=') {
+    equallocation = length - 1;
+    length -= 1;
+    equalsigns++;
+    while (length > 0 &&
+           scalar::base64::is_ascii_white_space(input[length - 1])) {
+      length--;
+    }
+    if (length > 0 && input[length - 1] == '=') {
+      equallocation = length - 1;
+      equalsigns++;
+      length -= 1;
+    }
+  }
+  if (length == 0) {
+    if (equalsigns > 0) {
+      return {INVALID_BASE64_CHARACTER, equallocation, 0};
+    }
+    return {SUCCESS, 0, 0};
+  }
+  full_result r = scalar::base64::base64_tail_decode(
+      output, input, length, equalsigns, options, last_chunk_options);
+  if (last_chunk_options != stop_before_partial &&
+      r.error == error_code::SUCCESS && equalsigns > 0) {
+    // additional checks
+    if ((r.output_count % 3 == 0) ||
+        ((r.output_count % 3) + 1 + equalsigns != 4)) {
+      return {INVALID_BASE64_CHARACTER, equallocation, r.output_count};
+    }
+  }
+  return r;
+}
+
 simdutf_warn_unused size_t implementation::maximal_binary_length_from_base64(
     const char16_t *input, size_t length) const noexcept {
   return scalar::base64::maximal_binary_length_from_base64(input, length);
@@ -19864,6 +20086,49 @@ simdutf_warn_unused result implementation::base64_to_binary(
     // additional checks
     if ((r.count % 3 == 0) || ((r.count % 3) + 1 + equalsigns != 4)) {
       return {INVALID_BASE64_CHARACTER, equallocation};
+    }
+  }
+  return r;
+}
+
+simdutf_warn_unused full_result implementation::base64_to_binary_details(
+    const char16_t *input, size_t length, char *output, base64_options options,
+    last_chunk_handling_options last_chunk_options) const noexcept {
+  while (length > 0 &&
+         scalar::base64::is_ascii_white_space(input[length - 1])) {
+    length--;
+  }
+  size_t equallocation =
+      length; // location of the first padding character if any
+  size_t equalsigns = 0;
+  if (length > 0 && input[length - 1] == '=') {
+    equallocation = length - 1;
+    length -= 1;
+    equalsigns++;
+    while (length > 0 &&
+           scalar::base64::is_ascii_white_space(input[length - 1])) {
+      length--;
+    }
+    if (length > 0 && input[length - 1] == '=') {
+      equallocation = length - 1;
+      equalsigns++;
+      length -= 1;
+    }
+  }
+  if (length == 0) {
+    if (equalsigns > 0) {
+      return {INVALID_BASE64_CHARACTER, equallocation, 0};
+    }
+    return {SUCCESS, 0, 0};
+  }
+  full_result r = scalar::base64::base64_tail_decode(
+      output, input, length, equalsigns, options, last_chunk_options);
+  if (last_chunk_options != stop_before_partial &&
+      r.error == error_code::SUCCESS && equalsigns > 0) {
+    // additional checks
+    if ((r.output_count % 3 == 0) ||
+        ((r.output_count % 3) + 1 + equalsigns != 4)) {
+      return {INVALID_BASE64_CHARACTER, equallocation, r.output_count};
     }
   }
   return r;
@@ -23192,18 +23457,41 @@ size_t encode_base64(char *dst, const char *src, size_t srclen,
   const __m512i lookup =
       _mm512_loadu_si512(reinterpret_cast<const __m512i *>(lookup_tbl));
   const __m512i multi_shifts = _mm512_set1_epi64(UINT64_C(0x3036242a1016040a));
-  size_t i = 0;
-  for (; i + 64 <= srclen; i += 48) {
-    const __m512i v =
-        _mm512_loadu_si512(reinterpret_cast<const __m512i *>(input + i));
+  size_t size = srclen;
+  __mmask64 input_mask = 0xffffffffffff; // (1 << 48) - 1
+  while (size >= 48) {
+    const __m512i v = _mm512_maskz_loadu_epi8(
+        input_mask, reinterpret_cast<const __m512i *>(input));
     const __m512i in = _mm512_permutexvar_epi8(shuffle_input, v);
     const __m512i indices = _mm512_multishift_epi64_epi8(multi_shifts, in);
     const __m512i result = _mm512_permutexvar_epi8(indices, lookup);
     _mm512_storeu_si512(reinterpret_cast<__m512i *>(out), result);
     out += 64;
+    input += 48;
+    size -= 48;
   }
-  return i / 3 * 4 + scalar::base64::tail_encode_base64((char *)out, src + i,
-                                                        srclen - i, options);
+  input_mask = ((__mmask64)1 << size) - 1;
+  const __m512i v = _mm512_maskz_loadu_epi8(
+      input_mask, reinterpret_cast<const __m512i *>(input));
+  const __m512i in = _mm512_permutexvar_epi8(shuffle_input, v);
+  const __m512i indices = _mm512_multishift_epi64_epi8(multi_shifts, in);
+  bool padding_needed =
+      (((options & base64_url) == 0) ^
+       ((options & base64_reverse_padding) == base64_reverse_padding));
+  size_t padding_amount = ((size % 3) > 0) ? (3 - (size % 3)) : 0;
+  size_t output_len = ((size + 2) / 3) * 4;
+  size_t non_padded_output_len = output_len - padding_amount;
+  if (!padding_needed) {
+    output_len = non_padded_output_len;
+  }
+  __mmask64 output_mask = output_len == 64 ? (__mmask64)UINT64_MAX
+                                           : ((__mmask64)1 << output_len) - 1;
+  __m512i result = _mm512_mask_permutexvar_epi8(
+      _mm512_set1_epi8('='), ((__mmask64)1 << non_padded_output_len) - 1,
+      indices, lookup);
+  _mm512_mask_storeu_epi8(reinterpret_cast<__m512i *>(out), output_mask,
+                          result);
+  return (size_t)(out - (uint8_t *)dst) + output_len;
 }
 
 template <bool base64_url>
@@ -23309,9 +23597,10 @@ static inline void base64_decode_block(char *out, block64 *b) {
 }
 
 template <bool base64_url, typename chartype>
-result compress_decode_base64(char *dst, const chartype *src, size_t srclen,
-                              base64_options options,
-                              last_chunk_handling_options last_chunk_options) {
+full_result
+compress_decode_base64(char *dst, const chartype *src, size_t srclen,
+                       base64_options options,
+                       last_chunk_handling_options last_chunk_options) {
   const uint8_t *to_base64 = base64_url ? tables::base64::to_base64_url_value
                                         : tables::base64::to_base64_value;
   size_t equallocation =
@@ -23339,9 +23628,9 @@ result compress_decode_base64(char *dst, const chartype *src, size_t srclen,
   }
   if (srclen == 0) {
     if (equalsigns > 0) {
-      return {INVALID_BASE64_CHARACTER, equallocation};
+      return {INVALID_BASE64_CHARACTER, equallocation, 0};
     }
-    return {SUCCESS, 0};
+    return {SUCCESS, 0, 0};
   }
   const chartype *const srcinit = src;
   const char *const dstinit = dst;
@@ -23365,7 +23654,8 @@ result compress_decode_base64(char *dst, const chartype *src, size_t srclen,
                to_base64[uint8_t(*src)] <= 64) {
           src++;
         }
-        return {error_code::INVALID_BASE64_CHARACTER, size_t(src - srcinit)};
+        return {error_code::INVALID_BASE64_CHARACTER, size_t(src - srcinit),
+                size_t(dst - dstinit)};
       }
       if (badcharmask != 0) {
         // optimization opportunity: check for simple masks like those made of
@@ -23401,7 +23691,8 @@ result compress_decode_base64(char *dst, const chartype *src, size_t srclen,
       uint8_t val = to_base64[uint8_t(*src)];
       *bufferptr = char(val);
       if (!scalar::base64::is_eight_byte(*src) || val > 64) {
-        return {error_code::INVALID_BASE64_CHARACTER, size_t(src - srcinit)};
+        return {error_code::INVALID_BASE64_CHARACTER, size_t(src - srcinit),
+                size_t(dst - dstinit)};
       }
       bufferptr += (val <= 63);
       src++;
@@ -23447,20 +23738,22 @@ result compress_decode_base64(char *dst, const chartype *src, size_t srclen,
     }
   }
   if (src < srcend + equalsigns) {
-    result r = scalar::base64::base64_tail_decode(
+    full_result r = scalar::base64::base64_tail_decode(
         dst, src, srcend - src, equalsigns, options, last_chunk_options);
-    if (r.error == error_code::INVALID_BASE64_CHARACTER) {
-      r.count += size_t(src - srcinit);
+    r.input_count += size_t(src - srcinit);
+    if (r.error == error_code::INVALID_BASE64_CHARACTER ||
+        r.error == error_code::BASE64_EXTRA_BITS) {
       return r;
     } else {
-      r.count += size_t(dst - dstinit);
+      r.output_count += size_t(dst - dstinit);
     }
     if (last_chunk_options != stop_before_partial &&
         r.error == error_code::SUCCESS && equalsigns > 0) {
       // additional checks
-      if ((r.count % 3 == 0) || ((r.count % 3) + 1 + equalsigns != 4)) {
+      if ((r.output_count % 3 == 0) ||
+          ((r.output_count % 3) + 1 + equalsigns != 4)) {
         r.error = error_code::INVALID_BASE64_CHARACTER;
-        r.count = equallocation;
+        r.input_count = equallocation;
       }
     }
     return r;
@@ -23468,10 +23761,10 @@ result compress_decode_base64(char *dst, const chartype *src, size_t srclen,
   if (equalsigns > 0) {
     if ((size_t(dst - dstinit) % 3 == 0) ||
         ((size_t(dst - dstinit) % 3) + 1 + equalsigns != 4)) {
-      return {INVALID_BASE64_CHARACTER, equallocation};
+      return {INVALID_BASE64_CHARACTER, equallocation, size_t(dst - dstinit)};
     }
   }
-  return {SUCCESS, size_t(dst - dstinit)};
+  return {SUCCESS, srclen, size_t(dst - dstinit)};
 }
 /* end file src/icelake/icelake_base64.inl.cpp */
 
@@ -25032,12 +25325,32 @@ simdutf_warn_unused result implementation::base64_to_binary(
                                              last_chunk_options);
 }
 
+simdutf_warn_unused full_result implementation::base64_to_binary_details(
+    const char *input, size_t length, char *output, base64_options options,
+    last_chunk_handling_options last_chunk_options) const noexcept {
+  return (options & base64_url)
+             ? compress_decode_base64<true>(output, input, length, options,
+                                            last_chunk_options)
+             : compress_decode_base64<false>(output, input, length, options,
+                                             last_chunk_options);
+}
+
 simdutf_warn_unused size_t implementation::maximal_binary_length_from_base64(
     const char16_t *input, size_t length) const noexcept {
   return scalar::base64::maximal_binary_length_from_base64(input, length);
 }
 
 simdutf_warn_unused result implementation::base64_to_binary(
+    const char16_t *input, size_t length, char *output, base64_options options,
+    last_chunk_handling_options last_chunk_options) const noexcept {
+  return (options & base64_url)
+             ? compress_decode_base64<true>(output, input, length, options,
+                                            last_chunk_options)
+             : compress_decode_base64<false>(output, input, length, options,
+                                             last_chunk_options);
+}
+
+simdutf_warn_unused full_result implementation::base64_to_binary_details(
     const char16_t *input, size_t length, char *output, base64_options options,
     last_chunk_handling_options last_chunk_options) const noexcept {
   return (options & base64_url)
@@ -28101,9 +28414,10 @@ static inline void base64_decode_block_safe(char *out, block64 *b) {
 }
 
 template <bool base64_url, typename chartype>
-result compress_decode_base64(char *dst, const chartype *src, size_t srclen,
-                              base64_options options,
-                              last_chunk_handling_options last_chunk_options) {
+full_result
+compress_decode_base64(char *dst, const chartype *src, size_t srclen,
+                       base64_options options,
+                       last_chunk_handling_options last_chunk_options) {
   const uint8_t *to_base64 = base64_url ? tables::base64::to_base64_url_value
                                         : tables::base64::to_base64_value;
   size_t equallocation =
@@ -28131,9 +28445,9 @@ result compress_decode_base64(char *dst, const chartype *src, size_t srclen,
   }
   if (srclen == 0) {
     if (equalsigns > 0) {
-      return {INVALID_BASE64_CHARACTER, equallocation};
+      return {INVALID_BASE64_CHARACTER, equallocation, 0};
     }
-    return {SUCCESS, 0};
+    return {SUCCESS, 0, 0};
   }
   char *end_of_safe_64byte_zone =
       (srclen + 3) / 4 * 3 >= 63 ? dst + (srclen + 3) / 4 * 3 - 63 : dst;
@@ -28160,7 +28474,8 @@ result compress_decode_base64(char *dst, const chartype *src, size_t srclen,
                to_base64[uint8_t(*src)] <= 64) {
           src++;
         }
-        return {error_code::INVALID_BASE64_CHARACTER, size_t(src - srcinit)};
+        return {error_code::INVALID_BASE64_CHARACTER, size_t(src - srcinit),
+                size_t(dst - dstinit)};
       }
       if (badcharmask != 0) {
         // optimization opportunity: check for simple masks like those made of
@@ -28206,7 +28521,8 @@ result compress_decode_base64(char *dst, const chartype *src, size_t srclen,
       uint8_t val = to_base64[uint8_t(*src)];
       *bufferptr = char(val);
       if (!scalar::base64::is_eight_byte(*src) || val > 64) {
-        return {error_code::INVALID_BASE64_CHARACTER, size_t(src - srcinit)};
+        return {error_code::INVALID_BASE64_CHARACTER, size_t(src - srcinit),
+                size_t(dst - dstinit)};
       }
       bufferptr += (val <= 63);
       src++;
@@ -28258,20 +28574,22 @@ result compress_decode_base64(char *dst, const chartype *src, size_t srclen,
     }
   }
   if (src < srcend + equalsigns) {
-    result r = scalar::base64::base64_tail_decode(
+    full_result r = scalar::base64::base64_tail_decode(
         dst, src, srcend - src, equalsigns, options, last_chunk_options);
-    if (r.error == error_code::INVALID_BASE64_CHARACTER) {
-      r.count += size_t(src - srcinit);
+    r.input_count += size_t(src - srcinit);
+    if (r.error == error_code::INVALID_BASE64_CHARACTER ||
+        r.error == error_code::BASE64_EXTRA_BITS) {
       return r;
     } else {
-      r.count += size_t(dst - dstinit);
+      r.output_count += size_t(dst - dstinit);
     }
     if (last_chunk_options != stop_before_partial &&
         r.error == error_code::SUCCESS && equalsigns > 0) {
       // additional checks
-      if ((r.count % 3 == 0) || ((r.count % 3) + 1 + equalsigns != 4)) {
+      if ((r.output_count % 3 == 0) ||
+          ((r.output_count % 3) + 1 + equalsigns != 4)) {
         r.error = error_code::INVALID_BASE64_CHARACTER;
-        r.count = equallocation;
+        r.input_count = equallocation;
       }
     }
     return r;
@@ -28279,10 +28597,10 @@ result compress_decode_base64(char *dst, const chartype *src, size_t srclen,
   if (equalsigns > 0) {
     if ((size_t(dst - dstinit) % 3 == 0) ||
         ((size_t(dst - dstinit) % 3) + 1 + equalsigns != 4)) {
-      return {INVALID_BASE64_CHARACTER, equallocation};
+      return {INVALID_BASE64_CHARACTER, equallocation, size_t(dst - dstinit)};
     }
   }
-  return {SUCCESS, size_t(dst - dstinit)};
+  return {SUCCESS, srclen, size_t(dst - dstinit)};
 }
 /* end file src/haswell/avx2_base64.cpp */
 
@@ -31062,12 +31380,32 @@ simdutf_warn_unused result implementation::base64_to_binary(
                                              last_chunk_options);
 }
 
+simdutf_warn_unused full_result implementation::base64_to_binary_details(
+    const char *input, size_t length, char *output, base64_options options,
+    last_chunk_handling_options last_chunk_options) const noexcept {
+  return (options & base64_url)
+             ? compress_decode_base64<true>(output, input, length, options,
+                                            last_chunk_options)
+             : compress_decode_base64<false>(output, input, length, options,
+                                             last_chunk_options);
+}
+
 simdutf_warn_unused size_t implementation::maximal_binary_length_from_base64(
     const char16_t *input, size_t length) const noexcept {
   return scalar::base64::maximal_binary_length_from_base64(input, length);
 }
 
 simdutf_warn_unused result implementation::base64_to_binary(
+    const char16_t *input, size_t length, char *output, base64_options options,
+    last_chunk_handling_options last_chunk_options) const noexcept {
+  return (options & base64_url)
+             ? compress_decode_base64<true>(output, input, length, options,
+                                            last_chunk_options)
+             : compress_decode_base64<false>(output, input, length, options,
+                                             last_chunk_options);
+}
+
+simdutf_warn_unused full_result implementation::base64_to_binary_details(
     const char16_t *input, size_t length, char *output, base64_options options,
     last_chunk_handling_options last_chunk_options) const noexcept {
   return (options & base64_url)
@@ -34707,6 +35045,49 @@ simdutf_warn_unused result implementation::base64_to_binary(
   return r;
 }
 
+simdutf_warn_unused full_result implementation::base64_to_binary_details(
+    const char *input, size_t length, char *output, base64_options options,
+    last_chunk_handling_options last_chunk_options) const noexcept {
+  while (length > 0 &&
+         scalar::base64::is_ascii_white_space(input[length - 1])) {
+    length--;
+  }
+  size_t equallocation =
+      length; // location of the first padding character if any
+  size_t equalsigns = 0;
+  if (length > 0 && input[length - 1] == '=') {
+    equallocation = length - 1;
+    length -= 1;
+    equalsigns++;
+    while (length > 0 &&
+           scalar::base64::is_ascii_white_space(input[length - 1])) {
+      length--;
+    }
+    if (length > 0 && input[length - 1] == '=') {
+      equallocation = length - 1;
+      equalsigns++;
+      length -= 1;
+    }
+  }
+  if (length == 0) {
+    if (equalsigns > 0) {
+      return {INVALID_BASE64_CHARACTER, equallocation, 0};
+    }
+    return {SUCCESS, 0, 0};
+  }
+  full_result r = scalar::base64::base64_tail_decode(
+      output, input, length, equalsigns, options, last_chunk_options);
+  if (last_chunk_options != stop_before_partial &&
+      r.error == error_code::SUCCESS && equalsigns > 0) {
+    // additional checks
+    if ((r.output_count % 3 == 0) ||
+        ((r.output_count % 3) + 1 + equalsigns != 4)) {
+      return {INVALID_BASE64_CHARACTER, equallocation, r.output_count};
+    }
+  }
+  return r;
+}
+
 simdutf_warn_unused size_t implementation::maximal_binary_length_from_base64(
     const char16_t *input, size_t length) const noexcept {
   return scalar::base64::maximal_binary_length_from_base64(input, length);
@@ -34749,6 +35130,49 @@ simdutf_warn_unused result implementation::base64_to_binary(
     // additional checks
     if ((r.count % 3 == 0) || ((r.count % 3) + 1 + equalsigns != 4)) {
       return {INVALID_BASE64_CHARACTER, equallocation};
+    }
+  }
+  return r;
+}
+
+simdutf_warn_unused full_result implementation::base64_to_binary_details(
+    const char16_t *input, size_t length, char *output, base64_options options,
+    last_chunk_handling_options last_chunk_options) const noexcept {
+  while (length > 0 &&
+         scalar::base64::is_ascii_white_space(input[length - 1])) {
+    length--;
+  }
+  size_t equallocation =
+      length; // location of the first padding character if any
+  size_t equalsigns = 0;
+  if (length > 0 && input[length - 1] == '=') {
+    equallocation = length - 1;
+    length -= 1;
+    equalsigns++;
+    while (length > 0 &&
+           scalar::base64::is_ascii_white_space(input[length - 1])) {
+      length--;
+    }
+    if (length > 0 && input[length - 1] == '=') {
+      equallocation = length - 1;
+      equalsigns++;
+      length -= 1;
+    }
+  }
+  if (length == 0) {
+    if (equalsigns > 0) {
+      return {INVALID_BASE64_CHARACTER, equallocation, 0};
+    }
+    return {SUCCESS, 0, 0};
+  }
+  full_result r = scalar::base64::base64_tail_decode(
+      output, input, length, equalsigns, options, last_chunk_options);
+  if (last_chunk_options != stop_before_partial &&
+      r.error == error_code::SUCCESS && equalsigns > 0) {
+    // additional checks
+    if ((r.output_count % 3 == 0) ||
+        ((r.output_count % 3) + 1 + equalsigns != 4)) {
+      return {INVALID_BASE64_CHARACTER, equallocation, r.output_count};
     }
   }
   return r;
@@ -37746,9 +38170,10 @@ static inline void base64_decode_block_safe(char *out, block64 *b) {
 }
 
 template <bool base64_url, typename chartype>
-result compress_decode_base64(char *dst, const chartype *src, size_t srclen,
-                              base64_options options,
-                              last_chunk_handling_options last_chunk_options) {
+full_result
+compress_decode_base64(char *dst, const chartype *src, size_t srclen,
+                       base64_options options,
+                       last_chunk_handling_options last_chunk_options) {
   const uint8_t *to_base64 = base64_url ? tables::base64::to_base64_url_value
                                         : tables::base64::to_base64_value;
   size_t equallocation =
@@ -37776,9 +38201,9 @@ result compress_decode_base64(char *dst, const chartype *src, size_t srclen,
   }
   if (srclen == 0) {
     if (equalsigns > 0) {
-      return {INVALID_BASE64_CHARACTER, equallocation};
+      return {INVALID_BASE64_CHARACTER, equallocation, 0};
     }
-    return {SUCCESS, 0};
+    return {SUCCESS, 0, 0};
   }
   char *end_of_safe_64byte_zone =
       (srclen + 3) / 4 * 3 >= 63 ? dst + (srclen + 3) / 4 * 3 - 63 : dst;
@@ -37805,7 +38230,8 @@ result compress_decode_base64(char *dst, const chartype *src, size_t srclen,
                to_base64[uint8_t(*src)] <= 64) {
           src++;
         }
-        return {error_code::INVALID_BASE64_CHARACTER, size_t(src - srcinit)};
+        return {error_code::INVALID_BASE64_CHARACTER, size_t(src - srcinit),
+                size_t(dst - dstinit)};
       }
       if (badcharmask != 0) {
         // optimization opportunity: check for simple masks like those made of
@@ -37850,7 +38276,8 @@ result compress_decode_base64(char *dst, const chartype *src, size_t srclen,
       uint8_t val = to_base64[uint8_t(*src)];
       *bufferptr = char(val);
       if (!scalar::base64::is_eight_byte(*src) || val > 64) {
-        return {error_code::INVALID_BASE64_CHARACTER, size_t(src - srcinit)};
+        return {error_code::INVALID_BASE64_CHARACTER, size_t(src - srcinit),
+                size_t(dst - dstinit)};
       }
       bufferptr += (val <= 63);
       src++;
@@ -37902,20 +38329,22 @@ result compress_decode_base64(char *dst, const chartype *src, size_t srclen,
     }
   }
   if (src < srcend + equalsigns) {
-    result r = scalar::base64::base64_tail_decode(
+    full_result r = scalar::base64::base64_tail_decode(
         dst, src, srcend - src, equalsigns, options, last_chunk_options);
-    if (r.error == error_code::INVALID_BASE64_CHARACTER) {
-      r.count += size_t(src - srcinit);
+    r.input_count += size_t(src - srcinit);
+    if (r.error == error_code::INVALID_BASE64_CHARACTER ||
+        r.error == error_code::BASE64_EXTRA_BITS) {
       return r;
     } else {
-      r.count += size_t(dst - dstinit);
+      r.output_count += size_t(dst - dstinit);
     }
     if (last_chunk_options != stop_before_partial &&
         r.error == error_code::SUCCESS && equalsigns > 0) {
       // additional checks
-      if ((r.count % 3 == 0) || ((r.count % 3) + 1 + equalsigns != 4)) {
+      if ((r.output_count % 3 == 0) ||
+          ((r.output_count % 3) + 1 + equalsigns != 4)) {
         r.error = error_code::INVALID_BASE64_CHARACTER;
-        r.count = equallocation;
+        r.input_count = equallocation;
       }
     }
     return r;
@@ -37923,10 +38352,10 @@ result compress_decode_base64(char *dst, const chartype *src, size_t srclen,
   if (equalsigns > 0) {
     if ((size_t(dst - dstinit) % 3 == 0) ||
         ((size_t(dst - dstinit) % 3) + 1 + equalsigns != 4)) {
-      return {INVALID_BASE64_CHARACTER, equallocation};
+      return {INVALID_BASE64_CHARACTER, equallocation, size_t(dst - dstinit)};
     }
   }
-  return {SUCCESS, size_t(dst - dstinit)};
+  return {SUCCESS, srclen, size_t(dst - dstinit)};
 }
 /* end file src/westmere/sse_base64.cpp */
 
@@ -40715,12 +41144,32 @@ simdutf_warn_unused result implementation::base64_to_binary(
                                              last_chunk_options);
 }
 
+simdutf_warn_unused full_result implementation::base64_to_binary_details(
+    const char *input, size_t length, char *output, base64_options options,
+    last_chunk_handling_options last_chunk_options) const noexcept {
+  return (options & base64_url)
+             ? compress_decode_base64<true>(output, input, length, options,
+                                            last_chunk_options)
+             : compress_decode_base64<false>(output, input, length, options,
+                                             last_chunk_options);
+}
+
 simdutf_warn_unused size_t implementation::maximal_binary_length_from_base64(
     const char16_t *input, size_t length) const noexcept {
   return scalar::base64::maximal_binary_length_from_base64(input, length);
 }
 
 simdutf_warn_unused result implementation::base64_to_binary(
+    const char16_t *input, size_t length, char *output, base64_options options,
+    last_chunk_handling_options last_chunk_options) const noexcept {
+  return (options & base64_url)
+             ? compress_decode_base64<true>(output, input, length, options,
+                                            last_chunk_options)
+             : compress_decode_base64<false>(output, input, length, options,
+                                             last_chunk_options);
+}
+
+simdutf_warn_unused full_result implementation::base64_to_binary_details(
     const char16_t *input, size_t length, char *output, base64_options options,
     last_chunk_handling_options last_chunk_options) const noexcept {
   return (options & base64_url)

@@ -519,6 +519,7 @@ modules from having a conflict with user land packages that already have
 taken the name. Currently the built-in modules that requires the `node:` prefix are:
 
 * [`node:sea`][]
+* [`node:sqlite`][]
 * [`node:test`][]
 * [`node:test/reporters`][]
 
@@ -889,7 +890,7 @@ built-in modules and if a name matching a built-in module is added to the cache,
 only `node:`-prefixed require calls are going to receive the built-in module.
 Use with care!
 
-<!-- eslint-disable node-core/no-duplicate-requires -->
+<!-- eslint-disable node-core/no-duplicate-requires, no-restricted-syntax -->
 
 ```js
 const assert = require('node:assert');
@@ -1278,6 +1279,7 @@ This section was moved to
 [`module` core module]: module.md
 [`module` object]: #the-module-object
 [`node:sea`]: single-executable-applications.md#single-executable-application-api
+[`node:sqlite`]: sqlite.md
 [`node:test/reporters`]: test.md#test-reporters
 [`node:test`]: test.md
 [`package.json`]: packages.md#nodejs-packagejson-field-definitions
