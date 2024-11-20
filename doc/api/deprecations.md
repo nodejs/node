@@ -3772,7 +3772,7 @@ It is recommended to use the `new` qualifier instead. This applies to all REPL c
 
 <!-- md-lint skip-deprecation DEP0186 -->
 
-### DEP0187: `fs.existsSync` never throw on invalid arguments
+### DEP0187: Passing invalid arguments to `fs.existsSync`
 
 <!-- YAML
 changes:
