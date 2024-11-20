@@ -513,7 +513,7 @@ The mapping between error codes and string messages is platform-dependent.
 ```js
 fs.access('file/that/does/not/exist', (err) => {
   const name = util.getSystemErrorMessage(err.errno);
-  console.error(name);  // no such file or directory
+  console.error(name);  // No such file or directory
 });
 ```
 
