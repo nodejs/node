@@ -2933,18 +2933,6 @@ Does not perform any other validation checks on the certificate.
 
 ## `node:crypto` module methods and properties
 
-### `crypto.constants`
-
-<!-- YAML
-added: v6.3.0
--->
-
-* {Object}
-
-An object containing commonly used constants for crypto and security related
-operations. The specific constants currently defined are described in
-[Crypto constants][].
-
 ### `crypto.checkPrimeSync(candidate[, options])`
 
 <!-- YAML
@@ -3503,6 +3491,18 @@ algorithm, such as `'RSA-SHA256'`, instead of a digest algorithm. This will use
 the corresponding digest algorithm. This does not work for all signature
 algorithms, such as `'ecdsa-with-SHA256'`, so it is best to always use digest
 algorithm names.
+
+### `crypto.constants`
+
+<!-- YAML
+added: v6.3.0
+-->
+
+* {Object}
+
+An object containing commonly used constants for crypto and security related
+operations. The specific constants currently defined are described in
+[Crypto constants][].
 
 ### `crypto.diffieHellman(options)`
 
