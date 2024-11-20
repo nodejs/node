@@ -465,13 +465,13 @@ to set the security level to 0 while using the default OpenSSL cipher list, you 
 const tls = require('node:tls');
 const port = 443;
 
-tls.createServer({ciphers: 'DEFAULT@SECLEVEL=0', minVersion: 'TLSv1'}, function (socket) {
+tls.createServer({ ciphers: 'DEFAULT@SECLEVEL=0', minVersion: 'TLSv1' }, function(socket) {
   console.log('Client connected with protocol:', socket.getProtocol());
   socket.end();
   this.close();
-}).
-listen(port, () => {
-  tls.connect(port, {ciphers: 'DEFAULT@SECLEVEL=0', maxVersion: 'TLSv1'});
+})
+.listen(port, () => {
+  tls.connect(port, { ciphers: 'DEFAULT@SECLEVEL=0', maxVersion: 'TLSv1' });
 });
 ```
 

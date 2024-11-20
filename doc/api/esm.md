@@ -511,7 +511,7 @@ module default import or its corresponding sugar syntax:
 
 ```js
 import { default as cjs } from 'cjs';
-// identical to the above
+// Identical to the above
 import cjsSugar from 'cjs';
 
 console.log(cjs);

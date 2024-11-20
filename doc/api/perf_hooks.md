@@ -28,7 +28,7 @@ performance.measure('Start to Now');
 
 performance.mark('A');
 (async function doSomeLongRunningProcess() {
-  await new Promise(r => setTimeout(r, 5000));
+  await new Promise((r) => setTimeout(r, 5000));
   performance.measure('A to Now', 'A');
 
   performance.mark('B');
