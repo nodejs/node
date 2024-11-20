@@ -2983,6 +2983,18 @@ added: v15.8.0
 
 Checks the primality of the `candidate`.
 
+### `crypto.constants`
+
+<!-- YAML
+added: v6.3.0
+-->
+
+* {Object}
+
+An object containing commonly used constants for crypto and security related
+operations. The specific constants currently defined are described in
+[Crypto constants][].
+
 ### `crypto.createCipheriv(algorithm, key, iv[, options])`
 
 <!-- YAML
@@ -3520,18 +3532,6 @@ algorithm, such as `'RSA-SHA256'`, instead of a digest algorithm. This will use
 the corresponding digest algorithm. This does not work for all signature
 algorithms, such as `'ecdsa-with-SHA256'`, so it is best to always use digest
 algorithm names.
-
-### `crypto.constants`
-
-<!-- YAML
-added: v6.3.0
--->
-
-* {Object}
-
-An object containing commonly used constants for crypto and security related
-operations. The specific constants currently defined are described in
-[Crypto constants][].
 
 ### `crypto.diffieHellman(options)`
 
