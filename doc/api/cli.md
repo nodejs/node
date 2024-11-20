@@ -889,8 +889,8 @@ changes:
 Evaluate the following argument as JavaScript. The modules which are
 predefined in the REPL can also be used in `script`.
 
-On Windows, using `cmd.exe` a single quote will not work correctly because it
-only recognizes double `"` for quoting. In Powershell or Git bash, both `'`
+On Windows, using `cmd.exe` within single `'` will not work correctly because
+it only recognizes double `"` for quoting. In Powershell or Git bash, both `'`
 and `"` are usable.
 
 It is possible to run code containing inline types by passing
