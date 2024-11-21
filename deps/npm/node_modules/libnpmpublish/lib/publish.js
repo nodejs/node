@@ -137,7 +137,7 @@ const buildMetadata = async (registry, manifest, tarballData, spec, opts) => {
 
     if (provenance === true) {
       await ensureProvenanceGeneration(registry, spec, opts)
-      provenanceBundle = await generateProvenance([subject], opts)
+      provenanceBundle = await generateProvenance([subject], { legacyCompatibility: true, ...opts })
 
       /* eslint-disable-next-line max-len */
       log.notice('publish', `Signed provenance statement with source and build information from ${ciInfo.name}`)
