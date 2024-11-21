@@ -104,11 +104,19 @@ suite('StatementSync.prototype.iterate()', () => {
       stmt.run('key2', 'val2'),
       { changes: 1, lastInsertRowid: 2 },
     );
-    stmt = db.prepare('SELECT * FROM storage ORDER BY key');
-    t.assert.deepStrictEqual(stmt.iterate().toArray(), [
+
+    const items = [
       { __proto__: null, key: 'key1', val: 'val1' },
       { __proto__: null, key: 'key2', val: 'val2' },
-    ]);
+    ];
+
+    stmt = db.prepare('SELECT * FROM storage ORDER BY key');
+    t.assert.deepStrictEqual(stmt.iterate().toArray(), items);
+
+    const itemsLoop = items.slice();
+    for (const item of stmt.iterate()) {
+      t.assert.deepStrictEqual(item, itemsLoop.shift());
+    }
   });
 });
 
