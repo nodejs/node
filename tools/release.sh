@@ -58,7 +58,7 @@ echo "# Selecting GPG key ..."
 if [ -z "$allPGPKeys" ]; then
   gpgkey="$(awk '{
     if ($1 == "gpg" && $2 == "--keyserver" && $4 == "--recv-keys" && (1 == 2'"$(
-      gpg --list-secret-keys | grep 'Key fingerprint =' | awk -F' = ' '{ print " || $5 == \"" $2 "\"" }' | tr -d ' '
+      gpg --list-secret-keys | awk -F' = ' '/^ +Key fingerprint/{ print " || $5 == \"" $2 "\"" }' | tr -d ' ' || true
     )"')) { print substr($5, 33) }
   }' "$readmePath")"
 else
