@@ -16,7 +16,7 @@ spawnSyncAndAssert(process.execPath, ['--trace-env', fixtures.path('empty.js')],
     if (common.hasIntl) {
       assert.match(output, /get environment variable "NODE_ICU_DATA":/);
     }
-    if (common.hasOpenSSL) {
+    if (common.hasCrypto) {
       assert.match(output, /get environment variable "NODE_EXTRA_CA_CERTS":/);
     }
     if (common.hasOpenSSL3) {
