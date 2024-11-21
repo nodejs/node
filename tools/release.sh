@@ -58,7 +58,7 @@ echo "# Selecting GPG key ..."
 if [ -z "$allPGPKeys" ]; then
   gpgkey="$(awk '{
     if ($1 == "gpg" && $2 == "--keyserver" && $4 == "--recv-keys" && (1 == 2'"$(
-      gpg --list-secret-keys | awk -F' = ' '/^ +Key fingerprint/{ print " || $5 == \"" $2 "\"" }' | tr -d ' ' || true
+      gpg --list-secret-keys | awk -F' = ' '/^ +Key fingerprint/{ gsub(/ /,"",$2); print " || $5 == \"" $2 "\"" }' || true
     )"')) { print substr($5, 33) }
   }' "$readmePath")"
 else
@@ -87,7 +87,7 @@ elif [ "$keycount" -ne 1 ]; then
   gpgkey=$(echo "$gpgkey" | sed -n "${keynum}p")
 fi
 
-gpgfing=$(gpg --keyid-format 0xLONG --fingerprint "$gpgkey" | grep 'Key fingerprint =' | awk -F' = ' '{print $2}' | tr -d ' ')
+gpgfing=$(gpg --keyid-format 0xLONG --fingerprint "$gpgkey" | awk -F' = ' '/^ +Key fingerprint/{gsub(/ /,"",$2);print $2}')
 
 grep -q "$gpgfing" "$readmePath" || {
   echo "Error: this GPG key fingerprint is not listed in $readmePath"
