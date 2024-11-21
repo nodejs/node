@@ -93,6 +93,7 @@ class StatementSync : public BaseObject {
                                              DatabaseSync* db,
                                              sqlite3_stmt* stmt);
   static void All(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Iterate(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Get(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Run(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SourceSQLGetter(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -118,6 +119,11 @@ class StatementSync : public BaseObject {
   bool BindValue(const v8::Local<v8::Value>& value, const int index);
   v8::MaybeLocal<v8::Value> ColumnToValue(const int column);
   v8::MaybeLocal<v8::Name> ColumnNameToName(const int column);
+
+  static void IterateNextCallback(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void IterateReturnCallback(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
 };
 
 using Sqlite3ChangesetGenFunc = int (*)(sqlite3_session*, int*, void**);

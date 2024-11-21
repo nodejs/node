@@ -22,6 +22,7 @@ using v8::ConstructorBehavior;
 using v8::Context;
 using v8::DontDelete;
 using v8::Exception;
+using v8::External;
 using v8::Function;
 using v8::FunctionCallback;
 using v8::FunctionCallbackInfo;
@@ -790,6 +791,180 @@ void StatementSync::All(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(Array::New(isolate, rows.data(), rows.size()));
 }
 
+void StatementSync::IterateReturnCallback(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  auto isolate = env->isolate();
+  auto context = isolate->GetCurrentContext();
+
+  auto self = args.This();
+  // iterator has fetch all result or break, prevent next func to return result
+  self->Set(context, env->isfinished_string(), Boolean::New(isolate, true))
+      .ToChecked();
+
+  auto external_stmt = Local<External>::Cast(
+      self->Get(context, env->statement_string()).ToLocalChecked());
+  auto stmt = static_cast<StatementSync*>(external_stmt->Value());
+  if (!stmt->IsFinalized()) {
+    sqlite3_reset(stmt->statement_);
+  }
+
+  LocalVector<Name> keys(isolate, {env->done_string(), env->value_string()});
+  LocalVector<Value> values(isolate,
+                            {Boolean::New(isolate, true), Null(isolate)});
+
+  DCHECK_EQ(keys.size(), values.size());
+  Local<Object> result = Object::New(
+      isolate, Null(isolate), keys.data(), values.data(), keys.size());
+  args.GetReturnValue().Set(result);
+}
+
+void StatementSync::IterateNextCallback(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  auto isolate = env->isolate();
+  auto context = isolate->GetCurrentContext();
+
+  auto self = args.This();
+
+  // skip iteration if is_finished
+  auto is_finished = Local<Boolean>::Cast(
+      self->Get(context, env->isfinished_string()).ToLocalChecked());
+  if (is_finished->Value()) {
+    LocalVector<Name> keys(isolate, {env->done_string(), env->value_string()});
+    LocalVector<Value> values(isolate,
+                              {Boolean::New(isolate, true), Null(isolate)});
+
+    DCHECK_EQ(keys.size(), values.size());
+    Local<Object> result = Object::New(
+        isolate, Null(isolate), keys.data(), values.data(), keys.size());
+    args.GetReturnValue().Set(result);
+    return;
+  }
+
+  auto external_stmt = Local<External>::Cast(
+      self->Get(context, env->statement_string()).ToLocalChecked());
+  auto stmt = static_cast<StatementSync*>(external_stmt->Value());
+  auto num_cols =
+      Local<Integer>::Cast(
+          self->Get(context, env->num_cols_string()).ToLocalChecked())
+          ->Value();
+
+  THROW_AND_RETURN_ON_BAD_STATE(
+      env, stmt->IsFinalized(), "statement has been finalized");
+
+  int r = sqlite3_step(stmt->statement_);
+  if (r != SQLITE_ROW) {
+    CHECK_ERROR_OR_THROW(
+        env->isolate(), stmt->db_->Connection(), r, SQLITE_DONE, void());
+
+    // cleanup when no more rows to fetch
+    sqlite3_reset(stmt->statement_);
+    self->Set(context, env->isfinished_string(), Boolean::New(isolate, true))
+        .ToChecked();
+
+    LocalVector<Name> keys(isolate, {env->done_string(), env->value_string()});
+    LocalVector<Value> values(isolate,
+                              {Boolean::New(isolate, true), Null(isolate)});
+
+    DCHECK_EQ(keys.size(), values.size());
+    Local<Object> result = Object::New(
+        isolate, Null(isolate), keys.data(), values.data(), keys.size());
+    args.GetReturnValue().Set(result);
+    return;
+  }
+
+  LocalVector<Name> row_keys(isolate);
+  row_keys.reserve(num_cols);
+  LocalVector<Value> row_values(isolate);
+  row_values.reserve(num_cols);
+  for (int i = 0; i < num_cols; ++i) {
+    Local<Name> key;
+    if (!stmt->ColumnNameToName(i).ToLocal(&key)) return;
+    Local<Value> val;
+    if (!stmt->ColumnToValue(i).ToLocal(&val)) return;
+    row_keys.emplace_back(key);
+    row_values.emplace_back(val);
+  }
+
+  Local<Object> row = Object::New(
+      isolate, Null(isolate), row_keys.data(), row_values.data(), num_cols);
+
+  LocalVector<Name> keys(isolate, {env->done_string(), env->value_string()});
+  LocalVector<Value> values(isolate, {Boolean::New(isolate, false), row});
+
+  DCHECK_EQ(keys.size(), values.size());
+  Local<Object> result = Object::New(
+      isolate, Null(isolate), keys.data(), values.data(), keys.size());
+  args.GetReturnValue().Set(result);
+}
+
+void StatementSync::Iterate(const FunctionCallbackInfo<Value>& args) {
+  StatementSync* stmt;
+  ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_ON_BAD_STATE(
+      env, stmt->IsFinalized(), "statement has been finalized");
+  auto isolate = env->isolate();
+  auto context = env->context();
+  int r = sqlite3_reset(stmt->statement_);
+  CHECK_ERROR_OR_THROW(
+      env->isolate(), stmt->db_->Connection(), r, SQLITE_OK, void());
+
+  if (!stmt->BindParams(args)) {
+    return;
+  }
+
+  Local<Function> next_func =
+      Function::New(context, StatementSync::IterateNextCallback)
+          .ToLocalChecked();
+  Local<Function> return_func =
+      Function::New(context, StatementSync::IterateReturnCallback)
+          .ToLocalChecked();
+
+  LocalVector<Name> keys(isolate, {env->next_string(), env->return_string()});
+  LocalVector<Value> values(isolate, {next_func, return_func});
+
+  Local<Object> global = context->Global();
+  Local<Value> js_iterator;
+  Local<Value> js_iterator_prototype;
+  if (!global->Get(context, env->iterator_string()).ToLocal(&js_iterator))
+    return;
+  if (!js_iterator.As<Object>()
+           ->Get(context, env->prototype_string())
+           .ToLocal(&js_iterator_prototype))
+    return;
+
+  DCHECK_EQ(keys.size(), values.size());
+  Local<Object> iterable_iterator = Object::New(
+      isolate, js_iterator_prototype, keys.data(), values.data(), keys.size());
+
+  auto num_cols_pd = v8::PropertyDescriptor(
+      v8::Integer::New(isolate, sqlite3_column_count(stmt->statement_)), false);
+  num_cols_pd.set_enumerable(false);
+  num_cols_pd.set_configurable(false);
+  iterable_iterator
+      ->DefineProperty(context, env->num_cols_string(), num_cols_pd)
+      .ToChecked();
+
+  auto stmt_pd =
+      v8::PropertyDescriptor(v8::External::New(isolate, stmt), false);
+  stmt_pd.set_enumerable(false);
+  stmt_pd.set_configurable(false);
+  iterable_iterator->DefineProperty(context, env->statement_string(), stmt_pd)
+      .ToChecked();
+
+  auto is_finished_pd =
+      v8::PropertyDescriptor(v8::Boolean::New(isolate, false), true);
+  stmt_pd.set_enumerable(false);
+  stmt_pd.set_configurable(false);
+  iterable_iterator
+      ->DefineProperty(context, env->isfinished_string(), is_finished_pd)
+      .ToChecked();
+
+  args.GetReturnValue().Set(iterable_iterator);
+}
+
 void StatementSync::Get(const FunctionCallbackInfo<Value>& args) {
   StatementSync* stmt;
   ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
@@ -987,6 +1162,7 @@ Local<FunctionTemplate> StatementSync::GetConstructorTemplate(
     tmpl->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "StatementSync"));
     tmpl->InstanceTemplate()->SetInternalFieldCount(
         StatementSync::kInternalFieldCount);
+    SetProtoMethod(isolate, tmpl, "iterate", StatementSync::Iterate);
     SetProtoMethod(isolate, tmpl, "all", StatementSync::All);
     SetProtoMethod(isolate, tmpl, "get", StatementSync::Get);
     SetProtoMethod(isolate, tmpl, "run", StatementSync::Run);
