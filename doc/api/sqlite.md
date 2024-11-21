@@ -307,6 +307,25 @@ object. If the prepared statement does not return any results, this method
 returns `undefined`. The prepared statement [parameters are bound][] using the
 values in `namedParameters` and `anonymousParameters`.
 
+### `statement.iterate([namedParameters][, ...anonymousParameters])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `namedParameters` {Object} An optional object used to bind named parameters.
+  The keys of this object are used to configure the mapping.
+* `...anonymousParameters` {null|number|bigint|string|Buffer|Uint8Array} Zero or
+  more values to bind to anonymous parameters.
+* Returns: {Iterator} An iterable iterator of objects. Each object corresponds to a row
+  returned by executing the prepared statement. The keys and values of each
+  object correspond to the column names and values of the row.
+
+This method executes a prepared statement and returns an iterator of
+objects. If the prepared statement does not return any results, this method
+returns an empty iterator. The prepared statement [parameters are bound][] using
+the values in `namedParameters` and `anonymousParameters`.
+
 ### `statement.run([namedParameters][, ...anonymousParameters])`
 
 <!-- YAML
