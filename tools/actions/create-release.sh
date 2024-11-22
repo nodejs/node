@@ -34,8 +34,11 @@ BRANCH=$(git branch --show-current)
 # Get the PR URL for the current branch in the repository
 PR_URL=$(gh pr list --repo "$REPO" --head "$BRANCH" --json url -q ".[0].url")
 
+# Get the last commit message
+LAST_COMMIT_MSG=$(git log -1 --pretty=%B)
+
 # Replace "TODO" with the PR URL in the last commit
-git commit --amend --no-edit -m "$(git log -1 --pretty=%B | sed "s|PR-URL: TODO|PR-URL: $PR_URL|")"
+git commit --amend --no-edit -m "$(echo "$LAST_COMMIT_MSG" | sed "s|PR-URL: TODO|PR-URL: $PR_URL|")" || true
 
 # Force-push the amended commit
 git push --force
