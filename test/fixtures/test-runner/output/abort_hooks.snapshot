@@ -101,7 +101,7 @@ not ok 2 - 2 after describe
         *
         *
         *
-        async Promise.all (index 0)
+        *
       ...
     # Subtest: test 2
     not ok 2 - test 2
@@ -122,7 +122,7 @@ not ok 2 - 2 after describe
         *
         *
         *
-        async Promise.all (index 0)
+        *
       ...
     1..2
 not ok 3 - 3 beforeEach describe
