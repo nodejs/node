@@ -126,7 +126,7 @@ async function circular2() {
 
 async function asserts() {
   const m = new SourceTextModule(`
-  import "foo" assert { n1: 'v1', n2: 'v2' };
+  import "foo" with { n1: 'v1', n2: 'v2' };
   `, { identifier: 'm' });
   await m.link((s, r, p) => {
     assert.strictEqual(s, 'foo');
