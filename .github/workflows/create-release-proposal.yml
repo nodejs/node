@@ -74,6 +74,11 @@ jobs:
             "token": "'$(ncu-config get token)'"
           }' > ~/.config/changelog-maker/config.json
 
+      - name: Setup GitHub user
+        run: |
+          git config --local user.email "github-bot@iojs.org"
+          git config --local user.name "Node.js GitHub Bot"
+
       - name: Start git node release prepare
         run: |
           ./tools/actions/create-release.sh "${RELEASE_DATE}" "${RELEASE_LINE}"

@@ -10,9 +10,6 @@ if [ -z "$RELEASE_DATE" ] || [ -z "$RELEASE_LINE" ]; then
   exit 1
 fi
 
-git config --local user.email "github-bot@iojs.org"
-git config --local user.name "Node.js GitHub Bot"
-
 git node release --prepare --skipBranchDiff --yes --releaseDate "$RELEASE_DATE"
 # We use it to not specify the branch name as it changes based on
 # the commit list (semver-minor/semver-patch)
@@ -26,11 +23,11 @@ TEMP_BODY="$(awk "/## ${RELEASE_DATE}/,/^<a id=/{ if (!/^<a id=/) print }" "doc/
 
 PR_URL="$(gh pr create --title "$TITLE" --body "$TEMP_BODY" --base "v$RELEASE_LINE.x")"
 
-# Get the last commit message
-LAST_COMMIT_MSG=$(git log -1 --pretty=%B)
+# Amend commit message so it contains the correct PR-URL trailer.
+AMENDED_COMMIT_MSG="$(git log -1 --pretty=%B | sed "s|PR-URL: TODO|PR-URL: $PR_URL|")"
 
 # Replace "TODO" with the PR URL in the last commit
-git commit --amend --no-edit -m "$(echo "$LAST_COMMIT_MSG" | sed "s|PR-URL: TODO|PR-URL: $PR_URL|")" || true
+git commit --amend --no-edit -m "$AMENDED_COMMIT_MSG" || true
 
 # Force-push the amended commit
 git push --force
