@@ -11,7 +11,6 @@
 #include "node.h"
 #include "simdjson.h"
 #include "simdutf.h"
-#include "sqlite3.h"
 #include "undici_version.h"
 #include "util.h"
 #include "uv.h"
@@ -23,6 +22,12 @@
 #else
 #include <zlib.h>
 #endif  // NODE_BUNDLED_ZLIB
+
+#if defined(USE_SYSTEM_SQLITE)
+#include <sqlite3.h>
+#else
+#include "sqlite3.h"
+#endif // USE_SYSTEM_SQLITE
 
 #if HAVE_OPENSSL
 #include <openssl/crypto.h>

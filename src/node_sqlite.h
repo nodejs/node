@@ -5,8 +5,14 @@
 
 #include "base_object.h"
 #include "node_mem.h"
-#include "sqlite3.h"
 #include "util.h"
+
+#if defined(USE_SYSTEM_SQLITE)
+#include <sqlite3.h>
+/* AOSP build requires relative paths. */
+#else
+#include "sqlite3.h"
+#endif // USE_SYSTEM_SQLITE
 
 #include <map>
 #include <unordered_set>

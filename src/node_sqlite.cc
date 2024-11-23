@@ -6,8 +6,13 @@
 #include "node.h"
 #include "node_errors.h"
 #include "node_mem-inl.h"
-#include "sqlite3.h"
 #include "util-inl.h"
+
+#if defined(USE_SYSTEM_SQLITE)
+#include <sqlite3.h>
+#else
+#include "sqlite3.h"
+#endif // USE_SYSTEM_SQLITE
 
 #include <cinttypes>
 
