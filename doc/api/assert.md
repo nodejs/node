@@ -2543,6 +2543,96 @@ assert.throws(throwingFirst, /Second$/);
 Due to the confusing error-prone notation, avoid a string as the second
 argument.
 
+## `assert.partialDeepStrictEqual(actual, expected[, message])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+* `actual` {any}
+* `expected` {any}
+* `message` {string|Error}
+
+[`assert.partialDeepStrictEqual()`][] Asserts the equivalence between the `actual` and `expected` parameters through a
+deep comparison, ensuring that all properties in the `expected` parameter are
+present in the `actual` parameter with equivalent values, not allowing type coercion.
+The main difference with [`assert.deepStrictEqual()`][] is that [`assert.partialDeepStrictEqual()`][] does not require
+all properties in the `actual` parameter to be present in the `expected` parameter.
+This method should always pass the same test cases as [`assert.deepStrictEqual()`][], behaving as a super set of it.
+
+```mjs
+import assert from 'node:assert';
+
+assert.partialDeepStrictEqual({ a: 1, b: 2 }, { a: 1, b: 2 });
+// OK
+
+assert.partialDeepStrictEqual({ a: { b: { c: 1 } } }, { a: { b: { c: 1 } } });
+// OK
+
+assert.partialDeepStrictEqual({ a: 1, b: 2, c: 3 }, { a: 1, b: 2 });
+// OK
+
+assert.partialDeepStrictEqual(new Set(['value1', 'value2']), new Set(['value1', 'value2']));
+// OK
+
+assert.partialDeepStrictEqual(new Map([['key1', 'value1']]), new Map([['key1', 'value1']]));
+// OK
+
+assert.partialDeepStrictEqual(new Uint8Array([1, 2, 3]), new Uint8Array([1, 2, 3]));
+// OK
+
+assert.partialDeepStrictEqual(/abc/, /abc/);
+// OK
+
+assert.partialDeepStrictEqual([{ a: 5 }, { b: 5 }], [{ a: 5 }]);
+// OK
+
+assert.partialDeepStrictEqual(new Set([{ a: 1 }, { b: 1 }]), new Set([{ a: 1 }]));
+// OK
+
+assert.partialDeepStrictEqual(new Date(0), new Date(0));
+// OK
+
+assert.partialDeepStrictEqual({ a: 1 }, { a: 1, b: 2 });
+// AssertionError
+
+assert.partialDeepStrictEqual({ a: 1, b: '2' }, { a: 1, b: 2 });
+// AssertionError
+
+assert.partialDeepStrictEqual({ a: { b: 2 } }, { a: { b: '2' } });
+// AssertionError
+```
+
+```cjs
+const assert = require('node:assert');
+
+assert.partialDeepStrictEqual({ a: 1, b: 2 }, { a: 1, b: 2 });
+// OK
+
+assert.partialDeepStrictEqual({ a: { b: { c: 1 } } }, { a: { b: { c: 1 } } });
+// OK
+
+assert.partialDeepStrictEqual({ a: 1, b: 2, c: 3 }, { a: 1, b: 2 });
+// OK
+
+assert.partialDeepStrictEqual([{ a: 5 }, { b: 5 }], [{ a: 5 }]);
+// OK
+
+assert.partialDeepStrictEqual(new Set([{ a: 1 }, { b: 1 }]), new Set([{ a: 1 }]));
+// OK
+
+assert.partialDeepStrictEqual({ a: 1 }, { a: 1, b: 2 });
+// AssertionError
+
+assert.partialDeepStrictEqual({ a: 1, b: '2' }, { a: 1, b: 2 });
+// AssertionError
+
+assert.partialDeepStrictEqual({ a: { b: 2 } }, { a: { b: '2' } });
+// AssertionError
+```
+
 [Object wrappers]: https://developer.mozilla.org/en-US/docs/Glossary/Primitive#Primitive_wrapper_objects_in_JavaScript
 [Object.prototype.toString()]: https://tc39.github.io/ecma262/#sec-object.prototype.tostring
 [`!=` operator]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Inequality
@@ -2571,6 +2661,7 @@ argument.
 [`assert.notEqual()`]: #assertnotequalactual-expected-message
 [`assert.notStrictEqual()`]: #assertnotstrictequalactual-expected-message
 [`assert.ok()`]: #assertokvalue-message
+[`assert.partialDeepStrictEqual()`]: #assertpartialdeepstrictequalactual-expected-message
 [`assert.strictEqual()`]: #assertstrictequalactual-expected-message
 [`assert.throws()`]: #assertthrowsfn-error-message
 [`getColorDepth()`]: tty.md#writestreamgetcolordepthenv
