@@ -15,7 +15,7 @@ describe('quic internal endpoint options', { skip: !hasQuic }, async () => {
   } = require('node:assert');
 
   const {
-    Endpoint,
+    QuicEndpoint,
   } = require('internal/quic/quic');
 
   const {
@@ -30,7 +30,7 @@ describe('quic internal endpoint options', { skip: !hasQuic }, async () => {
 
   it('invalid options', async () => {
     ['a', null, false, NaN].forEach((i) => {
-      throws(() => new Endpoint(callbackConfig, i), {
+      throws(() => new QuicEndpoint(callbackConfig, i), {
         code: 'ERR_INVALID_ARG_TYPE',
       });
     });
@@ -38,9 +38,9 @@ describe('quic internal endpoint options', { skip: !hasQuic }, async () => {
 
   it('valid options', async () => {
     // Just Works... using all defaults
-    new Endpoint(callbackConfig, {});
-    new Endpoint(callbackConfig);
-    new Endpoint(callbackConfig, undefined);
+    new QuicEndpoint(callbackConfig, {});
+    new QuicEndpoint(callbackConfig);
+    new QuicEndpoint(callbackConfig, undefined);
   });
 
   it('various cases', async () => {
@@ -126,12 +126,12 @@ describe('quic internal endpoint options', { skip: !hasQuic }, async () => {
       {
         key: 'cc',
         valid: [
-          Endpoint.CC_ALGO_RENO,
-          Endpoint.CC_ALGO_CUBIC,
-          Endpoint.CC_ALGO_BBR,
-          Endpoint.CC_ALGO_RENO_STR,
-          Endpoint.CC_ALGO_CUBIC_STR,
-          Endpoint.CC_ALGO_BBR_STR,
+          QuicEndpoint.CC_ALGO_RENO,
+          QuicEndpoint.CC_ALGO_CUBIC,
+          QuicEndpoint.CC_ALGO_BBR,
+          QuicEndpoint.CC_ALGO_RENO_STR,
+          QuicEndpoint.CC_ALGO_CUBIC_STR,
+          QuicEndpoint.CC_ALGO_BBR_STR,
         ],
         invalid: [-1, 4, 1n, 'a', null, false, true, {}, [], () => {}],
       },
@@ -190,13 +190,13 @@ describe('quic internal endpoint options', { skip: !hasQuic }, async () => {
       for (const value of valid) {
         const options = {};
         options[key] = value;
-        new Endpoint(callbackConfig, options);
+        new QuicEndpoint(callbackConfig, options);
       }
 
       for (const value of invalid) {
         const options = {};
         options[key] = value;
-        throws(() => new Endpoint(callbackConfig, options), {
+        throws(() => new QuicEndpoint(callbackConfig, options), {
           code: 'ERR_INVALID_ARG_VALUE',
         });
       }
@@ -204,7 +204,7 @@ describe('quic internal endpoint options', { skip: !hasQuic }, async () => {
   });
 
   it('endpoint can be ref/unrefed without error', async () => {
-    const endpoint = new Endpoint(callbackConfig, {});
+    const endpoint = new QuicEndpoint(callbackConfig, {});
     endpoint.unref();
     endpoint.ref();
     endpoint.close();
@@ -212,17 +212,17 @@ describe('quic internal endpoint options', { skip: !hasQuic }, async () => {
   });
 
   it('endpoint can be inspected', async () => {
-    const endpoint = new Endpoint(callbackConfig, {});
+    const endpoint = new QuicEndpoint(callbackConfig, {});
     strictEqual(typeof inspect(endpoint), 'string');
     endpoint.close();
     await endpoint.closed;
   });
 
   it('endpoint with object address', () => {
-    new Endpoint(callbackConfig, {
+    new QuicEndpoint(callbackConfig, {
       address: { host: '127.0.0.1:0' },
     });
-    throws(() => new Endpoint(callbackConfig, { address: '127.0.0.1:0' }), {
+    throws(() => new QuicEndpoint(callbackConfig, { address: '127.0.0.1:0' }), {
       code: 'ERR_INVALID_ARG_TYPE',
     });
   });
