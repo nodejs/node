@@ -133,7 +133,8 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
         "internal/streams/lazy_transform",
 #endif           // !HAVE_OPENSSL
 #if !NODE_OPENSSL_HAS_QUIC
-        "internal/quic/quic",
+        "internal/quic/quic", "internal/quic/symbols", "internal/quic/stats",
+        "internal/quic/state",
 #endif             // !NODE_OPENSSL_HAS_QUIC
         "sqlite",  // Experimental.
         "sys",     // Deprecated.
