@@ -803,8 +803,8 @@ void Http2Session::Close(uint32_t code, bool socket_closed) {
     CHECK_EQ(nghttp2_session_terminate_session(session_.get(), code), 0);
     SendPendingData();
   } else if (stream_ != nullptr) {
-    // so that the previous listener of the socket, typically, JS code of a (tls) socket
-    // will be notified of any activity later
+    // so that the previous listener of the socket, typically, JS code of a
+    // (tls) socket will be notified of any activity later
     stream_->RemoveStreamListener(this);
   }
 
