@@ -10,7 +10,7 @@ const {
 
 describe('quic internal endpoint stats and state', { skip: !hasQuic }, () => {
   const {
-    Endpoint,
+    QuicEndpoint,
     QuicStreamState,
     QuicStreamStats,
     QuicSessionState,
@@ -33,7 +33,7 @@ describe('quic internal endpoint stats and state', { skip: !hasQuic }, () => {
   } = require('node:assert');
 
   it('endpoint state', () => {
-    const endpoint = new Endpoint({
+    const endpoint = new QuicEndpoint({
       onsession() {},
       session: {},
       stream: {},
@@ -66,7 +66,7 @@ describe('quic internal endpoint stats and state', { skip: !hasQuic }, () => {
   });
 
   it('state is not readable after close', () => {
-    const endpoint = new Endpoint({
+    const endpoint = new QuicEndpoint({
       onsession() {},
       session: {},
       stream: {},
@@ -78,7 +78,7 @@ describe('quic internal endpoint stats and state', { skip: !hasQuic }, () => {
   });
 
   it('state constructor argument is ArrayBuffer', () => {
-    const endpoint = new Endpoint({
+    const endpoint = new QuicEndpoint({
       onsession() {},
       session: {},
       stream: {},
@@ -90,7 +90,7 @@ describe('quic internal endpoint stats and state', { skip: !hasQuic }, () => {
   });
 
   it('endpoint stats', () => {
-    const endpoint = new Endpoint({
+    const endpoint = new QuicEndpoint({
       onsession() {},
       session: {},
       stream: {},
@@ -134,7 +134,7 @@ describe('quic internal endpoint stats and state', { skip: !hasQuic }, () => {
   });
 
   it('stats are still readble after close', () => {
-    const endpoint = new Endpoint({
+    const endpoint = new QuicEndpoint({
       onsession() {},
       session: {},
       stream: {},
@@ -147,7 +147,7 @@ describe('quic internal endpoint stats and state', { skip: !hasQuic }, () => {
   });
 
   it('stats constructor argument is ArrayBuffer', () => {
-    const endpoint = new Endpoint({
+    const endpoint = new QuicEndpoint({
       onsession() {},
       session: {},
       stream: {},
