@@ -26,7 +26,7 @@ describe('quic internal endpoint listen defaults', { skip: !hasQuic }, async () 
   it('are reasonable and work as expected', async () => {
     const endpoint = new QuicEndpoint({
       onsession() {},
-    }, {});
+    });
 
     ok(!endpoint.state.isBound);
     ok(!endpoint.state.isReceiving);
