@@ -33,11 +33,7 @@ describe('quic internal endpoint stats and state', { skip: !hasQuic }, () => {
   } = require('node:assert');
 
   it('endpoint state', () => {
-    const endpoint = new QuicEndpoint({
-      onsession() {},
-      session: {},
-      stream: {},
-    });
+    const endpoint = new QuicEndpoint();
 
     strictEqual(endpoint.state.isBound, false);
     strictEqual(endpoint.state.isReceiving, false);
@@ -66,11 +62,7 @@ describe('quic internal endpoint stats and state', { skip: !hasQuic }, () => {
   });
 
   it('state is not readable after close', () => {
-    const endpoint = new QuicEndpoint({
-      onsession() {},
-      session: {},
-      stream: {},
-    }, {});
+    const endpoint = new QuicEndpoint();
     endpoint.state[kFinishClose]();
     throws(() => endpoint.state.isBound, {
       name: 'Error',
@@ -78,11 +70,7 @@ describe('quic internal endpoint stats and state', { skip: !hasQuic }, () => {
   });
 
   it('state constructor argument is ArrayBuffer', () => {
-    const endpoint = new QuicEndpoint({
-      onsession() {},
-      session: {},
-      stream: {},
-    }, {});
+    const endpoint = new QuicEndpoint();
     const Cons = endpoint.state.constructor;
     throws(() => new Cons(kPrivateConstructor, 1), {
       code: 'ERR_INVALID_ARG_TYPE'
@@ -90,11 +78,7 @@ describe('quic internal endpoint stats and state', { skip: !hasQuic }, () => {
   });
 
   it('endpoint stats', () => {
-    const endpoint = new QuicEndpoint({
-      onsession() {},
-      session: {},
-      stream: {},
-    });
+    const endpoint = new QuicEndpoint();
 
     strictEqual(typeof endpoint.stats.isConnected, 'boolean');
     strictEqual(typeof endpoint.stats.createdAt, 'bigint');
@@ -134,11 +118,7 @@ describe('quic internal endpoint stats and state', { skip: !hasQuic }, () => {
   });
 
   it('stats are still readble after close', () => {
-    const endpoint = new QuicEndpoint({
-      onsession() {},
-      session: {},
-      stream: {},
-    }, {});
+    const endpoint = new QuicEndpoint();
     strictEqual(typeof endpoint.stats.toJSON(), 'object');
     endpoint.stats[kFinishClose]();
     strictEqual(endpoint.stats.isConnected, false);
@@ -147,11 +127,7 @@ describe('quic internal endpoint stats and state', { skip: !hasQuic }, () => {
   });
 
   it('stats constructor argument is ArrayBuffer', () => {
-    const endpoint = new QuicEndpoint({
-      onsession() {},
-      session: {},
-      stream: {},
-    }, {});
+    const endpoint = new QuicEndpoint();
     const Cons = endpoint.stats.constructor;
     throws(() => new Cons(kPrivateConstructor, 1), {
       code: 'ERR_INVALID_ARG_TYPE',
