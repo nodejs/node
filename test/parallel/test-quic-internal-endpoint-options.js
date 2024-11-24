@@ -24,8 +24,6 @@ describe('quic internal endpoint options', { skip: !hasQuic }, async () => {
 
   const callbackConfig = {
     onsession() {},
-    session: {},
-    stream: {},
   };
 
   it('invalid options', async () => {

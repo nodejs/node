@@ -35,8 +35,6 @@ describe('quic internal endpoint stats and state', { skip: !hasQuic }, () => {
   it('endpoint state', () => {
     const endpoint = new QuicEndpoint({
       onsession() {},
-      session: {},
-      stream: {},
     });
 
     strictEqual(endpoint.state.isBound, false);
@@ -68,8 +66,6 @@ describe('quic internal endpoint stats and state', { skip: !hasQuic }, () => {
   it('state is not readable after close', () => {
     const endpoint = new QuicEndpoint({
       onsession() {},
-      session: {},
-      stream: {},
     }, {});
     endpoint.state[kFinishClose]();
     throws(() => endpoint.state.isBound, {
@@ -80,8 +76,6 @@ describe('quic internal endpoint stats and state', { skip: !hasQuic }, () => {
   it('state constructor argument is ArrayBuffer', () => {
     const endpoint = new QuicEndpoint({
       onsession() {},
-      session: {},
-      stream: {},
     }, {});
     const Cons = endpoint.state.constructor;
     throws(() => new Cons(kPrivateConstructor, 1), {
@@ -92,8 +86,6 @@ describe('quic internal endpoint stats and state', { skip: !hasQuic }, () => {
   it('endpoint stats', () => {
     const endpoint = new QuicEndpoint({
       onsession() {},
-      session: {},
-      stream: {},
     });
 
     strictEqual(typeof endpoint.stats.isConnected, 'boolean');
@@ -136,8 +128,6 @@ describe('quic internal endpoint stats and state', { skip: !hasQuic }, () => {
   it('stats are still readble after close', () => {
     const endpoint = new QuicEndpoint({
       onsession() {},
-      session: {},
-      stream: {},
     }, {});
     strictEqual(typeof endpoint.stats.toJSON(), 'object');
     endpoint.stats[kFinishClose]();
@@ -149,8 +139,6 @@ describe('quic internal endpoint stats and state', { skip: !hasQuic }, () => {
   it('stats constructor argument is ArrayBuffer', () => {
     const endpoint = new QuicEndpoint({
       onsession() {},
-      session: {},
-      stream: {},
     }, {});
     const Cons = endpoint.stats.constructor;
     throws(() => new Cons(kPrivateConstructor, 1), {
