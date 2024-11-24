@@ -1,4 +1,4 @@
-// Flags: --expose-internals
+// Flags: --experimental-quic --no-warnings
 'use strict';
 
 const { hasQuic } = require('../common');
@@ -16,7 +16,7 @@ describe('quic internal endpoint options', { skip: !hasQuic }, async () => {
 
   const {
     QuicEndpoint,
-  } = require('internal/quic/quic');
+  } = require('node:quic');
 
   const {
     inspect,
@@ -87,20 +87,6 @@ describe('quic internal endpoint options', { skip: !hasQuic }, async () => {
         invalid: [-1, -1n, 'a', null, false, true, {}, [], () => {}]
       },
       {
-        key: 'maxPayloadSize',
-        valid: [
-          1, 10, 100, 1000, 10000, 10000n,
-        ],
-        invalid: [-1, -1n, 'a', null, false, true, {}, [], () => {}]
-      },
-      {
-        key: 'unacknowledgedPacketThreshold',
-        valid: [
-          1, 10, 100, 1000, 10000, 10000n,
-        ],
-        invalid: [-1, -1n, 'a', null, false, true, {}, [], () => {}]
-      },
-      {
         key: 'validateAddress',
         valid: [true, false, 0, 1, 'a'],
         invalid: [],
@@ -114,18 +100,6 @@ describe('quic internal endpoint options', { skip: !hasQuic }, async () => {
         key: 'ipv6Only',
         valid: [true, false, 0, 1, 'a'],
         invalid: [],
-      },
-      {
-        key: 'cc',
-        valid: [
-          QuicEndpoint.CC_ALGO_RENO,
-          QuicEndpoint.CC_ALGO_CUBIC,
-          QuicEndpoint.CC_ALGO_BBR,
-          QuicEndpoint.CC_ALGO_RENO_STR,
-          QuicEndpoint.CC_ALGO_CUBIC_STR,
-          QuicEndpoint.CC_ALGO_BBR_STR,
-        ],
-        invalid: [-1, 4, 1n, 'a', null, false, true, {}, [], () => {}],
       },
       {
         key: 'udpReceiveBufferSize',
@@ -189,18 +163,10 @@ describe('quic internal endpoint options', { skip: !hasQuic }, async () => {
         const options = {};
         options[key] = value;
         throws(() => new QuicEndpoint(options), {
-          code: 'ERR_INVALID_ARG_VALUE',
-        });
+          message: new RegExp(`${key}`),
+        }, value);
       }
     }
-  });
-
-  it('endpoint can be ref/unrefed without error', async () => {
-    const endpoint = new QuicEndpoint();
-    endpoint.unref();
-    endpoint.ref();
-    endpoint.close();
-    await endpoint.closed;
   });
 
   it('endpoint can be inspected', async () => {
@@ -214,7 +180,10 @@ describe('quic internal endpoint options', { skip: !hasQuic }, async () => {
     new QuicEndpoint({
       address: { host: '127.0.0.1:0' },
     });
-    throws(() => new QuicEndpoint({ address: '127.0.0.1:0' }), {
+    new QuicEndpoint({
+      address: '127.0.0.1:0',
+    });
+    throws(() => new QuicEndpoint({ address: 123 }), {
       code: 'ERR_INVALID_ARG_TYPE',
     });
   });

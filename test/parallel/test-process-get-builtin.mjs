@@ -35,6 +35,8 @@ if (!hasIntl) {
   publicBuiltins.delete('inspector');
   publicBuiltins.delete('trace_events');
 }
+// TODO(@jasnell): Remove this once node:quic graduates from unflagged.
+publicBuiltins.delete('node:quic');
 
 for (const id of publicBuiltins) {
   assert.strictEqual(process.getBuiltinModule(id), require(id));
