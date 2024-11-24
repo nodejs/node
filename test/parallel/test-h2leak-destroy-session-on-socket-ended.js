@@ -9,24 +9,16 @@ const tls = require('tls');
 const fixtures = require('../common/fixtures');
 const assert = require('assert');
 
+const registry = new FinalizationRegistry(common.mustCall((name) => {
+  assert(name, 'session');
+}));
+
 const server = http2.createSecureServer({
   key: fixtures.readKey('agent1-key.pem'),
   cert: fixtures.readKey('agent1-cert.pem'),
 });
 
-let connected;
 let firstServerStream;
-
-const i = setInterval(function check() {
-  if (!connected || firstServerStream) return;
-
-  global.gc();
-  const rss = process.memoryUsage().rss;
-  assert((rss / 1024 / 1024 / 1024) < 1, 'h2 session leaked, rss:' + rss);
-
-  clearInterval(i);
-  server.close();
-}, 1000);
 
 
 server.on('secureConnection', (s) => {
@@ -37,15 +29,24 @@ server.on('secureConnection', (s) => {
     firstServerStream.session.destroy();
 
     firstServerStream = null;
+
+    setImmediate(() => {
+      global.gc();
+      global.gc();
+
+      server.close();
+    });
   });
+});
+
+server.on('session', (s) => {
+  registry.register(s, 'session');
 });
 
 server.on('stream', (stream) => {
   console.log('stream...');
-  stream.session.memoryHolder = Buffer.alloc(1024 * 1024 * 1024, 1);
   stream.write('a'.repeat(1024));
   firstServerStream = stream;
-  connected = true;
   setImmediate(() => console.log('Draining setImmediate after writing'));
 });
 
