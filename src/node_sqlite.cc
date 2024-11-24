@@ -28,6 +28,8 @@ using v8::Function;
 using v8::FunctionCallback;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
+using v8::Global;
+using v8::Int32;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
@@ -111,6 +113,123 @@ inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, const char* message) {
     isolate->ThrowException(e);
   }
 }
+
+class UserDefinedFunction {
+ public:
+  explicit UserDefinedFunction(Environment* env,
+                               Local<Function> fn,
+                               bool use_bigint_args)
+      : env_(env), fn_(env->isolate(), fn), use_bigint_args_(use_bigint_args) {}
+  virtual ~UserDefinedFunction() {}
+
+  static void xFunc(sqlite3_context* ctx, int argc, sqlite3_value** argv) {
+    UserDefinedFunction* self =
+        static_cast<UserDefinedFunction*>(sqlite3_user_data(ctx));
+    Environment* env = self->env_;
+    Isolate* isolate = env->isolate();
+    auto recv = Undefined(isolate);
+    auto fn = self->fn_.Get(isolate);
+    LocalVector<Value> js_argv(isolate);
+
+    for (int i = 0; i < argc; ++i) {
+      sqlite3_value* value = argv[i];
+      MaybeLocal<Value> js_val;
+
+      switch (sqlite3_value_type(value)) {
+        case SQLITE_INTEGER: {
+          sqlite3_int64 val = sqlite3_value_int64(value);
+          if (self->use_bigint_args_) {
+            js_val = BigInt::New(isolate, val);
+          } else if (std::abs(val) <= kMaxSafeJsInteger) {
+            js_val = Number::New(isolate, val);
+          } else {
+            THROW_ERR_OUT_OF_RANGE(isolate,
+                                   "Value is too large to be represented as a "
+                                   "JavaScript number: %" PRId64,
+                                   val);
+            return;
+          }
+          break;
+        }
+        case SQLITE_FLOAT:
+          js_val = Number::New(isolate, sqlite3_value_double(value));
+          break;
+        case SQLITE_TEXT: {
+          const char* v =
+              reinterpret_cast<const char*>(sqlite3_value_text(value));
+          js_val = String::NewFromUtf8(isolate, v).As<Value>();
+          break;
+        }
+        case SQLITE_NULL:
+          js_val = Null(isolate);
+          break;
+        case SQLITE_BLOB: {
+          size_t size = static_cast<size_t>(sqlite3_value_bytes(value));
+          auto data =
+              reinterpret_cast<const uint8_t*>(sqlite3_value_blob(value));
+          auto store = ArrayBuffer::NewBackingStore(isolate, size);
+          memcpy(store->Data(), data, size);
+          auto ab = ArrayBuffer::New(isolate, std::move(store));
+          js_val = Uint8Array::New(ab, 0, size);
+          break;
+        }
+        default:
+          UNREACHABLE("Bad SQLite value");
+      }
+
+      Local<Value> local;
+      if (!js_val.ToLocal(&local)) {
+        return;
+      }
+
+      js_argv.emplace_back(local);
+    }
+
+    MaybeLocal<Value> retval =
+        fn->Call(env->context(), recv, argc, js_argv.data());
+    Local<Value> result;
+    if (!retval.ToLocal(&result)) {
+      return;
+    }
+
+    if (result->IsUndefined() || result->IsNull()) {
+      sqlite3_result_null(ctx);
+    } else if (result->IsNumber()) {
+      sqlite3_result_double(ctx, result.As<Number>()->Value());
+    } else if (result->IsString()) {
+      Utf8Value val(isolate, result.As<String>());
+      sqlite3_result_text(ctx, *val, val.length(), SQLITE_TRANSIENT);
+    } else if (result->IsUint8Array()) {
+      ArrayBufferViewContents<uint8_t> buf(result);
+      sqlite3_result_blob(ctx, buf.data(), buf.length(), SQLITE_TRANSIENT);
+    } else if (result->IsBigInt()) {
+      bool lossless;
+      int64_t as_int = result.As<BigInt>()->Int64Value(&lossless);
+      if (!lossless) {
+        sqlite3_result_error(ctx, "BigInt value is too large for SQLite", -1);
+        return;
+      }
+      sqlite3_result_int64(ctx, as_int);
+    } else if (result->IsPromise()) {
+      sqlite3_result_error(
+          ctx, "Asynchronous user-defined functions are not supported", -1);
+    } else {
+      sqlite3_result_error(
+          ctx,
+          "Returned JavaScript value cannot be converted to a SQLite value",
+          -1);
+    }
+  }
+
+  static void xDestroy(void* self) {
+    delete static_cast<UserDefinedFunction*>(self);
+  }
+
+ private:
+  Environment* env_;
+  Global<Function> fn_;
+  bool use_bigint_args_;
+};
 
 DatabaseSync::DatabaseSync(Environment* env,
                            Local<Object> object,
@@ -397,6 +516,151 @@ void DatabaseSync::Exec(const FunctionCallbackInfo<Value>& args) {
 
   Utf8Value sql(env->isolate(), args[0].As<String>());
   int r = sqlite3_exec(db->connection_, *sql, nullptr, nullptr, nullptr);
+  CHECK_ERROR_OR_THROW(env->isolate(), db->connection_, r, SQLITE_OK, void());
+}
+
+void DatabaseSync::CustomFunction(const FunctionCallbackInfo<Value>& args) {
+  DatabaseSync* db;
+  ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
+
+  if (!args[0]->IsString()) {
+    THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
+                               "The \"name\" argument must be a string.");
+    return;
+  }
+
+  int fn_index = args.Length() < 3 ? 1 : 2;
+  bool use_bigint_args = false;
+  bool varargs = false;
+  bool deterministic = false;
+  bool direct_only = false;
+
+  if (fn_index > 1) {
+    if (!args[1]->IsObject()) {
+      THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
+                                 "The \"options\" argument must be an object.");
+      return;
+    }
+
+    Local<Object> options = args[1].As<Object>();
+    Local<Value> use_bigint_args_v;
+    if (!options
+             ->Get(env->context(),
+                   FIXED_ONE_BYTE_STRING(env->isolate(), "useBigIntArguments"))
+             .ToLocal(&use_bigint_args_v)) {
+      return;
+    }
+
+    if (!use_bigint_args_v->IsUndefined()) {
+      if (!use_bigint_args_v->IsBoolean()) {
+        THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            "The \"options.useBigIntArguments\" argument must be a boolean.");
+        return;
+      }
+      use_bigint_args = use_bigint_args_v.As<Boolean>()->Value();
+    }
+
+    Local<Value> varargs_v;
+    if (!options
+             ->Get(env->context(),
+                   FIXED_ONE_BYTE_STRING(env->isolate(), "varargs"))
+             .ToLocal(&varargs_v)) {
+      return;
+    }
+
+    if (!varargs_v->IsUndefined()) {
+      if (!varargs_v->IsBoolean()) {
+        THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            "The \"options.varargs\" argument must be a boolean.");
+        return;
+      }
+      varargs = varargs_v.As<Boolean>()->Value();
+    }
+
+    Local<Value> deterministic_v;
+    if (!options
+             ->Get(env->context(),
+                   FIXED_ONE_BYTE_STRING(env->isolate(), "deterministic"))
+             .ToLocal(&deterministic_v)) {
+      return;
+    }
+
+    if (!deterministic_v->IsUndefined()) {
+      if (!deterministic_v->IsBoolean()) {
+        THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            "The \"options.deterministic\" argument must be a boolean.");
+        return;
+      }
+      deterministic = deterministic_v.As<Boolean>()->Value();
+    }
+
+    Local<Value> direct_only_v;
+    if (!options
+             ->Get(env->context(),
+                   FIXED_ONE_BYTE_STRING(env->isolate(), "directOnly"))
+             .ToLocal(&direct_only_v)) {
+      return;
+    }
+
+    if (!direct_only_v->IsUndefined()) {
+      if (!direct_only_v->IsBoolean()) {
+        THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            "The \"options.directOnly\" argument must be a boolean.");
+        return;
+      }
+      direct_only = direct_only_v.As<Boolean>()->Value();
+    }
+  }
+
+  if (!args[fn_index]->IsFunction()) {
+    THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
+                               "The \"function\" argument must be a function.");
+    return;
+  }
+
+  Utf8Value name(env->isolate(), args[0].As<String>());
+  Local<Function> fn = args[fn_index].As<Function>();
+
+  int argc = 0;
+  if (varargs) {
+    argc = -1;
+  } else {
+    Local<Value> js_len;
+    if (!fn->Get(env->context(),
+                 FIXED_ONE_BYTE_STRING(env->isolate(), "length"))
+             .ToLocal(&js_len)) {
+      return;
+    }
+    argc = js_len.As<Int32>()->Value();
+  }
+
+  UserDefinedFunction* user_data =
+      new UserDefinedFunction(env, fn, use_bigint_args);
+  int text_rep = SQLITE_UTF8;
+
+  if (deterministic) {
+    text_rep |= SQLITE_DETERMINISTIC;
+  }
+
+  if (direct_only) {
+    text_rep |= SQLITE_DIRECTONLY;
+  }
+
+  int r = sqlite3_create_function_v2(db->connection_,
+                                     *name,
+                                     argc,
+                                     text_rep,
+                                     user_data,
+                                     UserDefinedFunction::xFunc,
+                                     nullptr,
+                                     nullptr,
+                                     UserDefinedFunction::xDestroy);
   CHECK_ERROR_OR_THROW(env->isolate(), db->connection_, r, SQLITE_OK, void());
 }
 
@@ -1409,6 +1673,7 @@ static void Initialize(Local<Object> target,
   SetProtoMethod(isolate, db_tmpl, "close", DatabaseSync::Close);
   SetProtoMethod(isolate, db_tmpl, "prepare", DatabaseSync::Prepare);
   SetProtoMethod(isolate, db_tmpl, "exec", DatabaseSync::Exec);
+  SetProtoMethod(isolate, db_tmpl, "function", DatabaseSync::CustomFunction);
   SetProtoMethod(
       isolate, db_tmpl, "createSession", DatabaseSync::CreateSession);
   SetProtoMethod(
