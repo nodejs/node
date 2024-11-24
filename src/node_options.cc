@@ -441,6 +441,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::experimental_sqlite,
             kAllowedInEnvvar,
             true);
+  AddOption("--experimental-quic",
+            "experimental QUIC API",
+            &EnvironmentOptions::experimental_quic,
+            kAllowedInEnvvar);
   AddOption("--experimental-webstorage",
             "experimental Web Storage API",
             &EnvironmentOptions::experimental_webstorage,
