@@ -18,7 +18,6 @@
 #include "sessionticket.h"
 
 namespace node::quic {
-namespace {
 
 struct Http3HeadersTraits {
   typedef nghttp3_nv nv_t;
@@ -116,13 +115,15 @@ class Http3Application final : public Session::Application {
     return CreateAndBindControlStreams();
   }
 
-  bool ReceiveStreamData(Stream* stream,
+  bool ReceiveStreamData(int64_t stream_id,
                          const uint8_t* data,
                          size_t datalen,
-                         Stream::ReceiveDataFlags flags) override {
+                         const Stream::ReceiveDataFlags& flags,
+                         void* unused) override {
     Debug(&session(), "HTTP/3 application received %zu bytes of data", datalen);
+
     ssize_t nread = nghttp3_conn_read_stream(
-        *this, stream->id(), data, datalen, flags.fin ? 1 : 0);
+        *this, stream_id, data, datalen, flags.fin ? 1 : 0);
 
     if (nread < 0) {
       Debug(&session(),
@@ -134,7 +135,7 @@ class Http3Application final : public Session::Application {
     Debug(&session(),
           "Extending stream and connection offset by %zd bytes",
           nread);
-    session().ExtendStreamOffset(stream->id(), nread);
+    session().ExtendStreamOffset(stream_id, nread);
     session().ExtendOffset(nread);
 
     return true;
@@ -614,11 +615,13 @@ class Http3Application final : public Session::Application {
   }
 
 #define NGHTTP3_CALLBACK_SCOPE(name)                                           \
-  auto name = From(conn, conn_user_data);                                      \
-  if (name->is_destroyed()) [[unlikely]] {                                     \
+  auto ptr = From(conn, conn_user_data);                                       \
+  CHECK_NOT_NULL(ptr);                                                         \
+  auto& name = *ptr;                                                           \
+  if (name.is_destroyed()) [[unlikely]] {                                      \
     return NGHTTP3_ERR_CALLBACK_FAILURE;                                       \
   }                                                                            \
-  NgHttp3CallbackScope scope(name->env());
+  NgHttp3CallbackScope scope(name.env());
 
   static nghttp3_ssize on_read_data_callback(nghttp3_conn* conn,
                                              int64_t stream_id,
@@ -638,7 +641,7 @@ class Http3Application final : public Session::Application {
     NGHTTP3_CALLBACK_SCOPE(app);
     auto stream = From(stream_id, stream_user_data);
     if (stream == nullptr) return NGHTTP3_ERR_CALLBACK_FAILURE;
-    app->AcknowledgeStreamData(stream, static_cast<size_t>(datalen));
+    app.AcknowledgeStreamData(stream, static_cast<size_t>(datalen));
     return NGTCP2_SUCCESS;
   }
 
@@ -650,7 +653,7 @@ class Http3Application final : public Session::Application {
     NGHTTP3_CALLBACK_SCOPE(app);
     auto stream = From(stream_id, stream_user_data);
     if (stream == nullptr) return NGHTTP3_ERR_CALLBACK_FAILURE;
-    app->OnStreamClose(stream, app_error_code);
+    app.OnStreamClose(stream, app_error_code);
     return NGTCP2_SUCCESS;
   }
 
@@ -661,10 +664,31 @@ class Http3Application final : public Session::Application {
                              void* conn_user_data,
                              void* stream_user_data) {
     NGHTTP3_CALLBACK_SCOPE(app);
-    auto stream = From(stream_id, stream_user_data);
-    if (stream == nullptr) return NGHTTP3_ERR_CALLBACK_FAILURE;
-    app->OnReceiveData(stream,
-                       nghttp3_vec{const_cast<uint8_t*>(data), datalen});
+    auto& session = app.session();
+    BaseObjectPtr<Stream> stream;
+    if (stream_user_data == nullptr) {
+      // The stream does not exist yet! Create it
+      stream = session.CreateStream(stream_id);
+      if (!stream) {
+        Debug(&session, "HTTP3 application failed to create new stream");
+        return NGHTTP3_ERR_CALLBACK_FAILURE;
+      }
+      // Memoize the stream instance so we can look it up next time.
+      nghttp3_conn_set_stream_user_data(conn, stream_id, stream.get());
+      session.EmitStream(stream);
+    } else {
+      stream = BaseObjectPtr<Stream>(From(stream_id, stream_user_data));
+      if (!stream) {
+        Debug(&session,
+              "HTTP3 application failed to get existing stream "
+              "from user data");
+        return NGHTTP3_ERR_CALLBACK_FAILURE;
+      }
+    }
+
+    DCHECK(stream);
+    app.OnReceiveData(stream.get(),
+                      nghttp3_vec{const_cast<uint8_t*>(data), datalen});
     return NGTCP2_SUCCESS;
   }
 
@@ -676,7 +700,7 @@ class Http3Application final : public Session::Application {
     NGHTTP3_CALLBACK_SCOPE(app);
     auto stream = From(stream_id, stream_user_data);
     if (stream == nullptr) return NGHTTP3_ERR_CALLBACK_FAILURE;
-    app->OnDeferredConsume(stream, consumed);
+    app.OnDeferredConsume(stream, consumed);
     return NGTCP2_SUCCESS;
   }
 
@@ -687,7 +711,7 @@ class Http3Application final : public Session::Application {
     NGHTTP3_CALLBACK_SCOPE(app);
     auto stream = From(stream_id, stream_user_data);
     if (stream == nullptr) return NGHTTP3_ERR_CALLBACK_FAILURE;
-    app->OnBeginHeaders(stream);
+    app.OnBeginHeaders(stream);
     return NGTCP2_SUCCESS;
   }
 
@@ -703,8 +727,8 @@ class Http3Application final : public Session::Application {
     auto stream = From(stream_id, stream_user_data);
     if (stream == nullptr) return NGHTTP3_ERR_CALLBACK_FAILURE;
     if (Http3Header::IsZeroLength(token, name, value)) return NGTCP2_SUCCESS;
-    app->OnReceiveHeader(stream,
-                         Http3Header(app->env(), token, name, value, flags));
+    app.OnReceiveHeader(stream,
+                        Http3Header(app.env(), token, name, value, flags));
     return NGTCP2_SUCCESS;
   }
 
@@ -716,7 +740,7 @@ class Http3Application final : public Session::Application {
     NGHTTP3_CALLBACK_SCOPE(app);
     auto stream = From(stream_id, stream_user_data);
     if (stream == nullptr) return NGHTTP3_ERR_CALLBACK_FAILURE;
-    app->OnEndHeaders(stream, fin);
+    app.OnEndHeaders(stream, fin);
     return NGTCP2_SUCCESS;
   }
 
@@ -727,7 +751,7 @@ class Http3Application final : public Session::Application {
     NGHTTP3_CALLBACK_SCOPE(app);
     auto stream = From(stream_id, stream_user_data);
     if (stream == nullptr) return NGHTTP3_ERR_CALLBACK_FAILURE;
-    app->OnBeginTrailers(stream);
+    app.OnBeginTrailers(stream);
     return NGTCP2_SUCCESS;
   }
 
@@ -743,8 +767,8 @@ class Http3Application final : public Session::Application {
     auto stream = From(stream_id, stream_user_data);
     if (stream == nullptr) return NGHTTP3_ERR_CALLBACK_FAILURE;
     if (Http3Header::IsZeroLength(token, name, value)) return NGTCP2_SUCCESS;
-    app->OnReceiveTrailer(stream,
-                          Http3Header(app->env(), token, name, value, flags));
+    app.OnReceiveTrailer(stream,
+                         Http3Header(app.env(), token, name, value, flags));
     return NGTCP2_SUCCESS;
   }
 
@@ -756,7 +780,7 @@ class Http3Application final : public Session::Application {
     NGHTTP3_CALLBACK_SCOPE(app);
     auto stream = From(stream_id, stream_user_data);
     if (stream == nullptr) return NGHTTP3_ERR_CALLBACK_FAILURE;
-    app->OnEndTrailers(stream, fin);
+    app.OnEndTrailers(stream, fin);
     return NGTCP2_SUCCESS;
   }
 
@@ -767,7 +791,7 @@ class Http3Application final : public Session::Application {
     NGHTTP3_CALLBACK_SCOPE(app);
     auto stream = From(stream_id, stream_user_data);
     if (stream == nullptr) return NGHTTP3_ERR_CALLBACK_FAILURE;
-    app->OnEndStream(stream);
+    app.OnEndStream(stream);
     return NGTCP2_SUCCESS;
   }
 
@@ -779,7 +803,7 @@ class Http3Application final : public Session::Application {
     NGHTTP3_CALLBACK_SCOPE(app);
     auto stream = From(stream_id, stream_user_data);
     if (stream == nullptr) return NGHTTP3_ERR_CALLBACK_FAILURE;
-    app->OnStopSending(stream, app_error_code);
+    app.OnStopSending(stream, app_error_code);
     return NGTCP2_SUCCESS;
   }
 
@@ -791,13 +815,13 @@ class Http3Application final : public Session::Application {
     NGHTTP3_CALLBACK_SCOPE(app);
     auto stream = From(stream_id, stream_user_data);
     if (stream == nullptr) return NGHTTP3_ERR_CALLBACK_FAILURE;
-    app->OnResetStream(stream, app_error_code);
+    app.OnResetStream(stream, app_error_code);
     return NGTCP2_SUCCESS;
   }
 
   static int on_shutdown(nghttp3_conn* conn, int64_t id, void* conn_user_data) {
     NGHTTP3_CALLBACK_SCOPE(app);
-    app->OnShutdown();
+    app.OnShutdown();
     return NGTCP2_SUCCESS;
   }
 
@@ -805,7 +829,7 @@ class Http3Application final : public Session::Application {
                                  const nghttp3_settings* settings,
                                  void* conn_user_data) {
     NGHTTP3_CALLBACK_SCOPE(app);
-    app->OnReceiveSettings(settings);
+    app.OnReceiveSettings(settings);
     return NGTCP2_SUCCESS;
   }
 
@@ -825,7 +849,6 @@ class Http3Application final : public Session::Application {
                                                    on_shutdown,
                                                    on_receive_settings};
 };
-}  // namespace
 
 std::unique_ptr<Session::Application> createHttp3Application(
     Session* session, const Session::Application_Options& options) {

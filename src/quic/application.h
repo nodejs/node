@@ -27,10 +27,11 @@ class Session::Application : public MemoryRetainer {
   // Application. The only additional processing the Session does is to
   // automatically adjust the session-level flow control window. It is up to
   // the Application to do the same for the Stream-level flow control.
-  virtual bool ReceiveStreamData(Stream* stream,
+  virtual bool ReceiveStreamData(int64_t stream_id,
                                  const uint8_t* data,
                                  size_t datalen,
-                                 Stream::ReceiveDataFlags flags) = 0;
+                                 const Stream::ReceiveDataFlags& flags,
+                                 void* stream_user_data) = 0;
 
   // Session will forward all data acknowledgements for a stream to the
   // Application.

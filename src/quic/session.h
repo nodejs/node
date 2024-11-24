@@ -427,6 +427,7 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
 
   friend class Application;
   friend class DefaultApplication;
+  friend class Http3Application;
   friend class Endpoint;
   friend struct Impl;
   friend struct MaybeCloseConnectionScope;

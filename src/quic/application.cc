@@ -429,13 +429,47 @@ class DefaultApplication final : public Session::Application {
   // of the namespace.
   using Application::Application;  // NOLINT
 
-  bool ReceiveStreamData(Stream* stream,
+  bool ReceiveStreamData(int64_t stream_id,
                          const uint8_t* data,
                          size_t datalen,
-                         Stream::ReceiveDataFlags flags) override {
+                         const Stream::ReceiveDataFlags& flags,
+                         void* stream_user_data) override {
     Debug(&session(), "Default application receiving stream data");
-    DCHECK_NOT_NULL(stream);
-    if (!stream->is_destroyed()) stream->ReceiveData(data, datalen, flags);
+
+    BaseObjectPtr<Stream> stream;
+    if (stream_user_data == nullptr) {
+      // This is the first time we're seeing this stream. Implicitly create it.
+      stream = session().CreateStream(stream_id);
+      if (!stream) {
+        // We couldn't actually create the stream for whatever reason.
+        Debug(&session(), "Default application failed to create new stream");
+        return false;
+      }
+      // Let the JavaScript side know about the stream before we emit any data.
+      session().EmitStream(stream);
+    } else {
+      stream = BaseObjectPtr<Stream>(Stream::From(stream_user_data));
+      if (!stream) {
+        Debug(&session(),
+              "Default application failed to get existing stream "
+              "from user data");
+        return false;
+      }
+    }
+
+    DCHECK(stream);
+
+    // If the stream is destroyed, we are going to silently ignore the
+    // data here.
+    if (stream->is_destroyed()) {
+      Debug(&session(),
+            "Data received for a stream that is already "
+            "destroyed. Ignoring.");
+      return true;
+    }
+
+    // Now we can actually receive the data! Woo!
+    stream->ReceiveData(data, datalen, flags);
     return true;
   }
 

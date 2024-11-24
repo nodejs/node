@@ -2061,27 +2061,33 @@ struct Session::Impl {
                                     void* user_data,
                                     void* stream_user_data) {
     NGTCP2_CALLBACK_SCOPE(session)
-    Stream::ReceiveDataFlags f;
-    f.early = flags & NGTCP2_STREAM_DATA_FLAG_0RTT;
-    f.fin = flags & NGTCP2_STREAM_DATA_FLAG_FIN;
+    Stream::ReceiveDataFlags data_flags{
+        // The fin flag indicates that this is the last chunk of data we will
+        // receive on this stream.
+        .fin = (flags & NGTCP2_STREAM_DATA_FLAG_FIN) ==
+               NGTCP2_STREAM_DATA_FLAG_FIN,
+        // Stream data is early if it is received before the TLS handshake is
+        // complete.
+        .early = (flags & NGTCP2_STREAM_DATA_FLAG_0RTT) ==
+                 NGTCP2_STREAM_DATA_FLAG_0RTT,
+    };
 
-    if (stream_user_data == nullptr) {
-      // We have an implicitly created stream.
-      auto stream = session->CreateStream(stream_id);
-      if (stream) {
-        session->EmitStream(stream);
-        session->application().ReceiveStreamData(
-            stream.get(), data, datalen, f);
-      } else {
-        return ngtcp2_conn_shutdown_stream(
-                   *session, 0, stream_id, NGTCP2_APP_NOERROR) == 0
-                   ? NGTCP2_SUCCESS
-                   : NGTCP2_ERR_CALLBACK_FAILURE;
-      }
-    } else {
-      session->application().ReceiveStreamData(
-          Stream::From(stream_user_data), data, datalen, f);
+    // We received data for a stream! What we don't know yet at this point
+    // is whether the application wants us to treat this as a control stream
+    // data (something the application will handle on its own) or a user stream
+    // data (something that we should create a Stream handle for that is passed
+    // out to JavaScript). HTTP3, for instance, will generally create three
+    // control stream in either direction and we want to make sure those are
+    // never exposed to users and that we don't waste time creating Stream
+    // handles for them. So, what we do here is pass the stream data on to the
+    // application for processing. If it ends up being a user stream, the
+    // application will handle creating the Stream handle and passing that off
+    // to the JavaScript side.
+    if (!session->application().ReceiveStreamData(
+            stream_id, data, datalen, data_flags, stream_user_data)) {
+      return NGTCP2_ERR_CALLBACK_FAILURE;
     }
+
     return NGTCP2_SUCCESS;
   }
 
