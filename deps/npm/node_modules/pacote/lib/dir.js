@@ -39,6 +39,8 @@ class DirFetcher extends Fetcher {
       const stdio = this.opts.foregroundScripts ? 'inherit' : 'pipe'
 
       return runScript({
+        // this || undefined is because runScript will be unhappy with the default null value
+        scriptShell: this.opts.scriptShell || undefined,
         pkg: mani,
         event: 'prepare',
         path: this.resolved,
