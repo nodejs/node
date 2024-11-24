@@ -1,3 +1,8 @@
+unreleased
+==================
+
+  * Added an option preferred encodings array #59
+
 0.6.3 / 2022-01-22
 ==================
 
