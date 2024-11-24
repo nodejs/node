@@ -34,6 +34,7 @@ class TLSSession final : public MemoryRetainer {
              std::shared_ptr<TLSContext> context,
              const std::optional<SessionTicket>& maybeSessionTicket);
   DISALLOW_COPY_AND_MOVE(TLSSession)
+  ~TLSSession();
 
   inline operator bool() const { return ssl_ != nullptr; }
   inline Session& session() const { return *session_; }
@@ -54,7 +55,7 @@ class TLSSession final : public MemoryRetainer {
   const std::string_view servername() const;
 
   // The ALPN (protocol name) negotiated for the session
-  const std::string_view alpn() const;
+  const std::string_view protocol() const;
 
   // Triggers key update to begin. This will fail and return false if either a
   // previous key update is in progress or if the initial handshake has not yet
@@ -113,11 +114,11 @@ class TLSContext final : public MemoryRetainer,
   struct Options final : public MemoryRetainer {
     // The SNI servername to use for this session. This option is only used by
     // the client.
-    std::string sni = "localhost";
+    std::string servername = "localhost";
 
     // The ALPN (protocol name) to use for this session. This option is only
     // used by the client.
-    std::string alpn = NGHTTP3_ALPN_H3;
+    std::string protocol = NGHTTP3_ALPN_H3;
 
     // The list of TLS ciphers to use for this session.
     std::string ciphers = DEFAULT_CIPHERS;

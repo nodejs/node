@@ -980,6 +980,14 @@ If the ES module being `require()`'d contains top-level `await`, this flag
 allows Node.js to evaluate the module, try to locate the
 top-level awaits, and print their location to help users find them.
 
+### `--experimental-quic`
+
+<!--
+added: REPLACEME
+-->
+
+Enables the experimental `node:quic` built-in module.
+
 ### `--experimental-require-module`
 
 <!-- YAML
@@ -3090,6 +3098,7 @@ one is included in the list below.
 * `--experimental-modules`
 * `--experimental-permission`
 * `--experimental-print-required-tla`
+* `--experimental-quic`
 * `--experimental-require-module`
 * `--experimental-shadow-realm`
 * `--experimental-specifier-resolution`
