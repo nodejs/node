@@ -2436,6 +2436,18 @@ Accessing `Object.prototype.__proto__` has been forbidden using
 [`Object.setPrototypeOf`][] should be used to get and set the prototype of an
 object.
 
+<a id="ERR_QUIC_APPLICATION_ERROR"></a>
+
+### `ERR_QUIC_APPLICATION_ERROR`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+A QUIC application error occurred.
+
 <a id="ERR_QUIC_CONNECTION_FAILED"></a>
 
 ### `ERR_QUIC_CONNECTION_FAILED`
@@ -2477,6 +2489,30 @@ added:
 > Stability: 1 - Experimental
 
 Opening a QUIC stream failed.
+
+<a id="ERR_QUIC_TRANSPORT_ERROR"></a>
+
+### `ERR_QUIC_TRANSPORT_ERROR`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+A QUIC transport error occurred.
+
+<a id="ERR_QUIC_VERSION_NEGOTIATION_ERROR"></a>
+
+### `ERR_QUIC_VERSION_NEGOTIATION_ERROR`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+A QUIC session failed because version negotiation is required.
 
 <a id="ERR_REQUIRE_ASYNC_MODULE"></a>
 

@@ -22,15 +22,9 @@ describe('quic internal endpoint options', { skip: !hasQuic }, async () => {
     inspect,
   } = require('util');
 
-  const callbackConfig = {
-    onsession() {},
-    session: {},
-    stream: {},
-  };
-
   it('invalid options', async () => {
     ['a', null, false, NaN].forEach((i) => {
-      throws(() => new QuicEndpoint(callbackConfig, i), {
+      throws(() => new QuicEndpoint(i), {
         code: 'ERR_INVALID_ARG_TYPE',
       });
     });
@@ -38,9 +32,7 @@ describe('quic internal endpoint options', { skip: !hasQuic }, async () => {
 
   it('valid options', async () => {
     // Just Works... using all defaults
-    new QuicEndpoint(callbackConfig, {});
-    new QuicEndpoint(callbackConfig);
-    new QuicEndpoint(callbackConfig, undefined);
+    new QuicEndpoint();
   });
 
   it('various cases', async () => {
@@ -190,13 +182,13 @@ describe('quic internal endpoint options', { skip: !hasQuic }, async () => {
       for (const value of valid) {
         const options = {};
         options[key] = value;
-        new QuicEndpoint(callbackConfig, options);
+        new QuicEndpoint(options);
       }
 
       for (const value of invalid) {
         const options = {};
         options[key] = value;
-        throws(() => new QuicEndpoint(callbackConfig, options), {
+        throws(() => new QuicEndpoint(options), {
           code: 'ERR_INVALID_ARG_VALUE',
         });
       }
@@ -204,7 +196,7 @@ describe('quic internal endpoint options', { skip: !hasQuic }, async () => {
   });
 
   it('endpoint can be ref/unrefed without error', async () => {
-    const endpoint = new QuicEndpoint(callbackConfig, {});
+    const endpoint = new QuicEndpoint();
     endpoint.unref();
     endpoint.ref();
     endpoint.close();
@@ -212,17 +204,17 @@ describe('quic internal endpoint options', { skip: !hasQuic }, async () => {
   });
 
   it('endpoint can be inspected', async () => {
-    const endpoint = new QuicEndpoint(callbackConfig, {});
+    const endpoint = new QuicEndpoint({});
     strictEqual(typeof inspect(endpoint), 'string');
     endpoint.close();
     await endpoint.closed;
   });
 
   it('endpoint with object address', () => {
-    new QuicEndpoint(callbackConfig, {
+    new QuicEndpoint({
       address: { host: '127.0.0.1:0' },
     });
-    throws(() => new QuicEndpoint(callbackConfig, { address: '127.0.0.1:0' }), {
+    throws(() => new QuicEndpoint({ address: '127.0.0.1:0' }), {
       code: 'ERR_INVALID_ARG_TYPE',
     });
   });
