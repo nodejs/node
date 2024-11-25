@@ -1330,6 +1330,14 @@ for (let n = 0; n < 3; n++)
   performance.mark(`test${n}`);
 ```
 
+### `performanceObserver.takeRecords()`
+
+<!-- YAML
+added: v16.0.0
+-->
+
+* Returns: {PerformanceEntry\[]} Current list of entries stored in the performance observer, emptying it out.
+
 ## Class: `PerformanceObserverEntryList`
 
 <!-- YAML
