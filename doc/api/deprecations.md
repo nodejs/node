@@ -3573,6 +3573,22 @@ Instantiating classes without the `new` qualifier exported by the `node:repl` mo
 It is recommended to use the `new` qualifier instead. This applies to all REPL classes, including
 `REPLServer` and `Recoverable`.
 
+<!-- md-lint skip-deprecation DEP0186 -->
+
+### DEP0187: Passing invalid argument types to `fs.existsSync`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/55892
+    description: Documentation-only.
+-->
+
+Type: Documentation-only
+
+Passing non-supported argument types is deprecated and, instead of returning `false`,
+will throw an error in a future version.
+
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
 [RFC 8247 Section 2.4]: https://www.rfc-editor.org/rfc/rfc8247#section-2.4
