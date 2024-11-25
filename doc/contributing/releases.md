@@ -282,7 +282,13 @@ You can integrate the PRs into the proposal without running full CI.
 
 ### 2. Create a new branch for the release
 
-⚠️ At this point, you can either run `git node release --prepare`:
+> \[!TIP] Once the staging branch is up-to-date you can use the
+> [`create-release-proposal`][] action to generate the proposal.
+
+![screenshot running action via github ui](https://github.com/user-attachments/assets/244795d0-3753-45ea-a259-169d15c40239)
+
+If you prefer to run it locally you can either run
+`git node release --prepare`:
 
 ```bash
 git node release -S --prepare x.y.z
@@ -1388,6 +1394,7 @@ take place once a new LTS line has been released.
 [Node.js Snap management repository]: https://github.com/nodejs/snap
 [Partner Communities]: https://github.com/nodejs/community-committee/blob/HEAD/governance/PARTNER_COMMUNITIES.md
 [Snap]: https://snapcraft.io/node
+[`create-release-proposal`]: https://github.com/nodejs/node/actions/workflows/create-release-proposal.yml
 [build-infra team]: https://github.com/orgs/nodejs/teams/build-infra
 [expected assets]: https://github.com/nodejs/build/tree/HEAD/ansible/www-standalone/tools/promote/expected_assets
 [nodejs.org release-post.js script]: https://github.com/nodejs/nodejs.org/blob/HEAD/scripts/release-post/index.mjs
