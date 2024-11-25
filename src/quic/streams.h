@@ -89,7 +89,9 @@ class Stream : public AsyncWrap,
   static bool HasInstance(Environment* env, v8::Local<v8::Value> value);
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
-  static void Initialize(Environment* env, v8::Local<v8::Object> target);
+  static void InitPerIsolate(IsolateData* data,
+                             v8::Local<v8::ObjectTemplate> target);
+  static void InitPerContext(Realm* realm, v8::Local<v8::Object> target);
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
   static BaseObjectPtr<Stream> Create(
@@ -133,7 +135,8 @@ class Stream : public AsyncWrap,
              size_t count,
              size_t max_count_hint) override;
 
-  // Forcefully close the stream immediately. All queued data and pending
+  // Forcefully close the stream immediately. Data already queued in the
+  // inbound is preserved but new data will not be accepted. All pending
   // writes are abandoned, and the stream is immediately closed at the ngtcp2
   // level without waiting for any outstanding acknowledgements.
   void Destroy(QuicError error = QuicError());

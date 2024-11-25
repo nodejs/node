@@ -35,7 +35,7 @@ class Session::Application : public MemoryRetainer {
 
   // Session will forward all data acknowledgements for a stream to the
   // Application.
-  virtual void AcknowledgeStreamData(Stream* stream, size_t datalen);
+  virtual bool AcknowledgeStreamData(int64_t stream_id, size_t datalen);
 
   // Called to determine if a Header can be added to this application.
   // Applications that do not support headers will always return false.
@@ -146,10 +146,14 @@ struct Session::Application::StreamData final {
   int64_t id = -1;
   int fin = 0;
   ngtcp2_vec data[kMaxVectorCount]{};
-  ngtcp2_vec* buf = data;
   BaseObjectPtr<Stream> stream;
 
-  inline operator nghttp3_vec() const { return {data[0].base, data[0].len}; }
+  inline operator nghttp3_vec*() {
+    return reinterpret_cast<nghttp3_vec*>(data);
+  }
+
+  inline operator const ngtcp2_vec*() const { return data; }
+  inline operator ngtcp2_vec*() { return data; }
 
   std::string ToString() const;
 };

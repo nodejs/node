@@ -27,6 +27,7 @@ using v8::Local;
 using v8::Maybe;
 using v8::Nothing;
 using v8::Object;
+using v8::ObjectTemplate;
 using v8::PropertyAttribute;
 using v8::SharedArrayBuffer;
 using v8::Uint32;
@@ -40,6 +41,7 @@ namespace quic {
   V(FIN_RECEIVED, fin_received, uint8_t)                                       \
   V(READ_ENDED, read_ended, uint8_t)                                           \
   V(WRITE_ENDED, write_ended, uint8_t)                                         \
+  V(DESTROYING, destroying, uint8_t)                                           \
   V(DESTROYED, destroyed, uint8_t)                                             \
   V(PAUSED, paused, uint8_t)                                                   \
   V(RESET, reset, uint8_t)                                                     \
@@ -157,7 +159,6 @@ struct Stream::Impl {
     Local<Array> headers = args[1].As<Array>();
     HeadersFlags flags =
         static_cast<HeadersFlags>(args[2].As<Uint32>()->Value());
-
     if (stream->is_destroyed()) return args.GetReturnValue().Set(false);
 
     args.GetReturnValue().Set(stream->session().application().SendHeaders(
@@ -638,8 +639,12 @@ void Stream::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 #undef V
 }
 
-void Stream::Initialize(Environment* env, Local<Object> target) {
-  USE(GetConstructorTemplate(env));
+void Stream::InitPerIsolate(IsolateData* data, Local<ObjectTemplate> target) {
+  // TODO(@jasnell): Implement the per-isolate state
+}
+
+void Stream::InitPerContext(Realm* realm, Local<Object> target) {
+  USE(GetConstructorTemplate(realm->env()));
 
 #define V(name, _) IDX_STATS_STREAM_##name,
   enum StreamStatsIdx { STREAM_STATS(V) IDX_STATS_STREAM_COUNT };
@@ -915,7 +920,8 @@ void Stream::EndReadable(std::optional<uint64_t> maybe_final_size) {
 }
 
 void Stream::Destroy(QuicError error) {
-  if (is_destroyed()) return;
+  if (is_destroyed() || state_->destroying) return;
+  state_->destroying = 1;
   DCHECK_NOT_NULL(session_.get());
   Debug(this, "Stream %" PRIi64 " being destroyed with error %s", id(), error);
 
@@ -925,10 +931,6 @@ void Stream::Destroy(QuicError error) {
   // Also end the readable side if it isn't already.
   EndReadable();
 
-  state_->destroyed = 1;
-
-  EmitClose(error);
-
   // We are going to release our reference to the outbound_ queue here.
   outbound_.reset();
 
@@ -936,14 +938,27 @@ void Stream::Destroy(QuicError error) {
   // the JavaScript side could still have a reader on the inbound DataQueue,
   // which may keep that data alive a bit longer.
   inbound_->removeBackpressureListener(this);
-
   inbound_.reset();
 
-  CHECK_NOT_NULL(session_.get());
+  // Notify the JavaScript side that our handle is being destroyed. The
+  // JavaScript side should clean up any state that it needs to and should
+  // detach itself from the handle. After this is called, it should no
+  // longer be considered safe for the JavaScript side to access the
+  // handle.
+  EmitClose(error);
 
-  // Finally, remove the stream from the session and clear our reference
-  // to the session.
-  session_->RemoveStream(id());
+  // The state_->destroyed state is checked by the EmitClose so it is
+  // important to set this after calling EmitClose.
+  state_->destroying = 0;
+  state_->destroyed = 1;
+
+  if (session_) {
+    // Finally, remove the stream from the session and clear our reference
+    // to the session.
+    BaseObjectPtr<Stream> self(this);
+    session_->RemoveStream(id());
+    session_.reset();
+  }
 }
 
 void Stream::ReceiveData(const uint8_t* data,
@@ -963,6 +978,7 @@ void Stream::ReceiveData(const uint8_t* data,
   memcpy(backing->Data(), data, len);
   inbound_->append(DataQueue::CreateInMemoryEntryFromBackingStore(
       std::move(backing), 0, len));
+
   if (flags.fin) EndReadable();
 }
 
@@ -1002,7 +1018,6 @@ void Stream::EmitClose(const QuicError& error) {
   CallbackScope<Stream> cb_scope(this);
   Local<Value> err;
   if (!error.ToV8Value(env()).ToLocal(&err)) return;
-
   MakeCallback(BindingData::Get(env()).stream_close_callback(), 1, &err);
 }
 

@@ -27,22 +27,25 @@ namespace quic {
 
 // ============================================================================
 // Session::Application_Options
-const Session::Application_Options Session::Application_Options::kDefault = {};
+const Session::Application::Options Session::Application::Options::kDefault =
+    {};
 
-Session::Application_Options::operator const nghttp3_settings() const {
-  // In theory, Application_Options might contain options for more than just
+Session::Application::Options::operator const nghttp3_settings() const {
+  // In theory, Application::Options might contain options for more than just
   // HTTP/3. Here we extract only the properties that are relevant to HTTP/3.
   return nghttp3_settings{
-      max_field_section_size,
-      static_cast<size_t>(qpack_max_dtable_capacity),
-      static_cast<size_t>(qpack_encoder_max_dtable_capacity),
-      static_cast<size_t>(qpack_blocked_streams),
-      enable_connect_protocol,
-      enable_datagrams,
+      .max_field_section_size = max_field_section_size,
+      .qpack_max_dtable_capacity =
+          static_cast<size_t>(qpack_max_dtable_capacity),
+      .qpack_encoder_max_dtable_capacity =
+          static_cast<size_t>(qpack_encoder_max_dtable_capacity),
+      .qpack_blocked_streams = static_cast<size_t>(qpack_blocked_streams),
+      .enable_connect_protocol = enable_connect_protocol,
+      .h3_datagram = enable_datagrams,
   };
 }
 
-std::string Session::Application_Options::ToString() const {
+std::string Session::Application::Options::ToString() const {
   DebugIndentScope indent;
   auto prefix = indent.Prefix();
   std::string res("{");
@@ -64,48 +67,58 @@ std::string Session::Application_Options::ToString() const {
   return res;
 }
 
-Maybe<Session::Application_Options> Session::Application_Options::From(
+Maybe<Session::Application::Options> Session::Application::Options::From(
     Environment* env, Local<Value> value) {
-  if (value.IsEmpty() || (!value->IsUndefined() && !value->IsObject())) {
+  if (value.IsEmpty()) [[unlikely]] {
     THROW_ERR_INVALID_ARG_TYPE(env, "options must be an object");
-    return Nothing<Application_Options>();
+    return Nothing<Application::Options>();
   }
 
-  Application_Options options;
+  Application::Options options;
   auto& state = BindingData::Get(env);
-  if (value->IsUndefined()) {
-    return Just<Application_Options>(options);
-  }
-
-  auto params = value.As<Object>();
 
 #define SET(name)                                                              \
-  SetOption<Session::Application_Options,                                      \
-            &Session::Application_Options::name>(                              \
+  SetOption<Session::Application::Options,                                     \
+            &Session::Application::Options::name>(                             \
       env, &options, params, state.name##_string())
 
-  if (!SET(max_header_pairs) || !SET(max_header_length) ||
-      !SET(max_field_section_size) || !SET(qpack_max_dtable_capacity) ||
-      !SET(qpack_encoder_max_dtable_capacity) || !SET(qpack_blocked_streams) ||
-      !SET(enable_connect_protocol) || !SET(enable_datagrams)) {
-    return Nothing<Application_Options>();
+  if (!value->IsUndefined()) {
+    if (!value->IsObject()) {
+      THROW_ERR_INVALID_ARG_TYPE(env, "options must be an object");
+      return Nothing<Application::Options>();
+    }
+    auto params = value.As<Object>();
+    if (!SET(max_header_pairs) || !SET(max_header_length) ||
+        !SET(max_field_section_size) || !SET(qpack_max_dtable_capacity) ||
+        !SET(qpack_encoder_max_dtable_capacity) ||
+        !SET(qpack_blocked_streams) || !SET(enable_connect_protocol) ||
+        !SET(enable_datagrams)) {
+      // The call to SetOption should have scheduled an exception to be thrown.
+      return Nothing<Application::Options>();
+    }
   }
 
 #undef SET
 
-  return Just<Application_Options>(options);
+  return Just<Application::Options>(options);
 }
 
 // ============================================================================
 
 std::string Session::Application::StreamData::ToString() const {
   DebugIndentScope indent;
+
+  size_t total_bytes = 0;
+  for (size_t n = 0; n < count; n++) {
+    total_bytes += data[n].len;
+  }
+
   auto prefix = indent.Prefix();
   std::string res("{");
   res += prefix + "count: " + std::to_string(count);
-  res += prefix + "remaining: " + std::to_string(remaining);
   res += prefix + "id: " + std::to_string(id);
   res += prefix + "fin: " + std::to_string(fin);
+  res += prefix + "total: " + std::to_string(total_bytes);
   res += indent.Close();
   return res;
 }
@@ -120,14 +133,16 @@ bool Session::Application::Start() {
   return true;
 }
 
-void Session::Application::AcknowledgeStreamData(Stream* stream,
+bool Session::Application::AcknowledgeStreamData(int64_t stream_id,
                                                  size_t datalen) {
   Debug(session_,
         "Application acknowledging stream %" PRIi64 " data: %zu",
-        stream->id(),
+        stream_id,
         datalen);
-  DCHECK_NOT_NULL(stream);
+  auto stream = session().FindStream(stream_id);
+  if (!stream) return false;
   stream->Acknowledge(datalen);
+  return true;
 }
 
 void Session::Application::BlockStream(int64_t id) {
@@ -241,6 +256,14 @@ void Session::Application::SendPendingData() {
   PathStorage path;
   StreamData stream_data;
 
+  auto update_stats = OnScopeLeave([&] {
+    auto& s = session();
+    s.UpdateDataStats();
+    if (!s.is_destroyed()) {
+      s.UpdateTimer();
+    }
+  });
+
   // The maximum size of packet to create.
   const size_t max_packet_size = session_->max_packet_size();
 
@@ -296,7 +319,15 @@ void Session::Application::SendPendingData() {
     // Awesome, let's write our packet!
     ssize_t nwrite =
         WriteVStream(&path, pos, &ndatalen, max_packet_size, stream_data);
-    Debug(session_, "Application accepted %zu bytes into packet", ndatalen);
+
+    if (ndatalen > 0) {
+      Debug(session_,
+            "Application accepted %zu bytes from stream into packet",
+            ndatalen);
+    } else {
+      Debug(session_,
+            "Application did not accept any bytes from stream into packet");
+    }
 
     // A negative nwrite value indicates either an error or that there is more
     // data to write into the packet.
@@ -309,7 +340,6 @@ void Session::Application::SendPendingData() {
           // ndatalen = -1 means that no stream data was accepted into the
           // packet, which is what we want here.
           DCHECK_EQ(ndatalen, -1);
-          DCHECK(stream_data.stream);
           session_->StreamDataBlocked(stream_data.id);
           continue;
         }
@@ -323,8 +353,7 @@ void Session::Application::SendPendingData() {
           // ndatalen = -1 means that no stream data was accepted into the
           // packet, which is what we want here.
           DCHECK_EQ(ndatalen, -1);
-          DCHECK(stream_data.stream);
-          stream_data.stream->EndWritable();
+          if (stream_data.stream) stream_data.stream->EndWritable();
           continue;
         }
         case NGTCP2_ERR_WRITE_MORE: {
@@ -406,16 +435,16 @@ ssize_t Session::Application::WriteVStream(PathStorage* path,
   DCHECK_LE(stream_data.count, kMaxVectorCount);
   uint32_t flags = NGTCP2_WRITE_STREAM_FLAG_MORE;
   if (stream_data.fin) flags |= NGTCP2_WRITE_STREAM_FLAG_FIN;
-  ngtcp2_pkt_info pi;
+
   return ngtcp2_conn_writev_stream(*session_,
                                    &path->path,
-                                   &pi,
+                                   nullptr,
                                    dest,
                                    max_packet_size,
                                    ndatalen,
                                    flags,
                                    stream_data.id,
-                                   stream_data.buf,
+                                   stream_data,
                                    stream_data.count,
                                    uv_hrtime());
 }
@@ -536,39 +565,20 @@ class DefaultApplication final : public Session::Application {
   }
 
   bool ShouldSetFin(const StreamData& stream_data) override {
-    auto const is_empty = [](auto vec, size_t cnt) {
-      size_t i;
-      for (i = 0; i < cnt && vec[i].len == 0; ++i) {
-      }
-      return i == cnt;
+    auto const is_empty = [](const ngtcp2_vec* vec, size_t cnt) {
+      size_t i = 0;
+      for (size_t n = 0; n < cnt; n++) i += vec[n].len;
+      return i > 0;
     };
 
-    return stream_data.stream && is_empty(stream_data.buf, stream_data.count);
+    return stream_data.stream && is_empty(stream_data, stream_data.count);
   }
 
   bool StreamCommit(StreamData* stream_data, size_t datalen) override {
     Debug(&session(), "Default application committing stream data");
     DCHECK_NOT_NULL(stream_data);
-    const auto consume = [](ngtcp2_vec** pvec, size_t* pcnt, size_t len) {
-      ngtcp2_vec* v = *pvec;
-      size_t cnt = *pcnt;
-
-      for (; cnt > 0; --cnt, ++v) {
-        if (v->len > len) {
-          v->len -= len;
-          v->base += len;
-          break;
-        }
-        len -= v->len;
-      }
-
-      *pvec = v;
-      *pcnt = cnt;
-    };
 
     CHECK(stream_data->stream);
-    stream_data->remaining -= datalen;
-    consume(&stream_data->buf, &stream_data->count, datalen);
     stream_data->stream->Commit(datalen);
     return true;
   }

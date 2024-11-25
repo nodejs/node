@@ -181,7 +181,7 @@ Session::SendPendingDataScope::~SendPendingDataScope() {
 
 namespace {
 
-inline std::string to_string(ngtcp2_encryption_level level) {
+constexpr std::string to_string(ngtcp2_encryption_level level) {
   switch (level) {
     case NGTCP2_ENCRYPTION_LEVEL_1RTT:
       return "1rtt";
@@ -827,14 +827,20 @@ bool Session::Receive(Store&& store,
     return false;
   };
 
-  auto update_stats = OnScopeLeave([&] { UpdateDataStats(); });
   remote_address_ = remote_address;
   Path path(local_address, remote_address_);
-  Debug(this, "Session is receiving packet received along path %s", path);
-  STAT_INCREMENT_N(Stats, bytes_received, store.length());
+  size_t len = store.length();
+  Debug(this,
+        "Session is receiving %" PRIu64 "-byte packet received along path %s",
+        len,
+        path);
+  STAT_INCREMENT_N(Stats, bytes_received, len);
+
+  // After every packet we receive and successfully process, we
+  // want to process and send any pending data.
   if (receivePacket(&path, store)) application().SendPendingData();
 
-  if (!is_destroyed()) UpdateTimer();
+  Debug(this, "Session successfully received %" PRIu64 "-byte packet", len);
 
   return true;
 }
@@ -1009,10 +1015,11 @@ BaseObjectPtr<Stream> Session::FindStream(int64_t id) const {
   return it == std::end(streams_) ? BaseObjectPtr<Stream>() : it->second;
 }
 
-BaseObjectPtr<Stream> Session::CreateStream(int64_t id) {
+BaseObjectPtr<Stream> Session::CreateStream(int64_t id,
+    CreateStreamOption option) {
   if (!can_create_streams()) return BaseObjectPtr<Stream>();
   auto stream = Stream::Create(this, id);
-  if (stream) AddStream(stream);
+  if (stream) AddStream(stream, option);
   return stream;
 }
 
@@ -1023,23 +1030,32 @@ BaseObjectPtr<Stream> Session::OpenStream(Direction direction) {
     case Direction::BIDIRECTIONAL: {
       Debug(this, "Opening bidirectional stream");
       if (ngtcp2_conn_open_bidi_stream(*this, &id, nullptr) == 0)
-        return CreateStream(id);
+        return CreateStream(id, CreateStreamOption::DOT_NOT_NOTIFY);
       break;
     }
     case Direction::UNIDIRECTIONAL: {
       Debug(this, "Opening uni-directional stream");
       if (ngtcp2_conn_open_uni_stream(*this, &id, nullptr) == 0)
-        return CreateStream(id);
+        return CreateStream(id, CreateStreamOption::DOT_NOT_NOTIFY);
       break;
     }
   }
   return BaseObjectPtr<Stream>();
 }
 
-void Session::AddStream(const BaseObjectPtr<Stream>& stream) {
+void Session::AddStream(const BaseObjectPtr<Stream>& stream,
+                        CreateStreamOption option) {
   Debug(this, "Adding stream %" PRIi64 " to session", stream->id());
   ngtcp2_conn_set_stream_user_data(*this, stream->id(), stream.get());
+  // Let's double check that a stream with the given id does not already
+  // exist. If it does, that means we've got a bug somewhere.
+  CHECK_EQ(streams_.find(stream->id()), streams_.end());
+
   streams_[stream->id()] = stream;
+
+  if (option == CreateStreamOption::NOTIFY) {
+    EmitStream(stream);
+  }
 
   // Update tracking statistics for the number of streams associated with this
   // session.
@@ -1426,11 +1442,13 @@ bool Session::HandshakeCompleted() {
 
   if (state_->handshake_completed) return false;
   state_->handshake_completed = 1;
+  SetStreamOpenAllowed();
 
   STAT_RECORD_TIMESTAMP(Stats, handshake_completed_at);
 
-  if (!tls_session().early_data_was_accepted())
-    ngtcp2_conn_tls_early_data_rejected(*this);
+  // TODO(@jasnel): Not yet supporting early data...
+  // if (!tls_session().early_data_was_accepted())
+  //   ngtcp2_conn_tls_early_data_rejected(*this);
 
   // When in a server session, handshake completed == handshake confirmed.
   if (is_server()) {
@@ -1857,9 +1875,9 @@ struct Session::Impl {
                                                void* user_data,
                                                void* stream_user_data) {
     NGTCP2_CALLBACK_SCOPE(session)
-    session->application().AcknowledgeStreamData(Stream::From(stream_user_data),
-                                                 datalen);
-    return NGTCP2_SUCCESS;
+    return session->application().AcknowledgeStreamData(stream_id, datalen)
+               ? NGTCP2_SUCCESS
+               : NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
   static int on_acknowledge_datagram(ngtcp2_conn* conn,
@@ -1904,8 +1922,7 @@ struct Session::Impl {
                                                uint64_t max_streams,
                                                void* user_data) {
     NGTCP2_CALLBACK_SCOPE(session)
-    session->application().ExtendMaxStreams(
-        EndpointLabel::REMOTE, Direction::BIDIRECTIONAL, max_streams);
+    // TODO(@jasnell): Do anything here?
     return NGTCP2_SUCCESS;
   }
 
@@ -1913,8 +1930,7 @@ struct Session::Impl {
                                               uint64_t max_streams,
                                               void* user_data) {
     NGTCP2_CALLBACK_SCOPE(session)
-    session->application().ExtendMaxStreams(
-        EndpointLabel::REMOTE, Direction::UNIDIRECTIONAL, max_streams);
+    // TODO(@jasnell): Do anything here?
     return NGTCP2_SUCCESS;
   }
 

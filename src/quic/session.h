@@ -258,7 +258,14 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   operator ngtcp2_conn*() const;
 
   BaseObjectPtr<Stream> FindStream(int64_t id) const;
-  BaseObjectPtr<Stream> CreateStream(int64_t id);
+
+  enum class CreateStreamOption {
+    NOTIFY,
+    DOT_NOT_NOTIFY,
+  };
+
+  BaseObjectPtr<Stream> CreateStream(int64_t id,
+      CreateStreamOption option = CreateStreamOption::NOTIFY);
   BaseObjectPtr<Stream> OpenStream(Direction direction);
   void ExtendStreamOffset(int64_t id, size_t amount);
   void ExtendOffset(size_t amount);
@@ -318,7 +325,8 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   void Send(Packet* packet, const PathStorage& path);
   uint64_t SendDatagram(Store&& data);
 
-  void AddStream(const BaseObjectPtr<Stream>& stream);
+  void AddStream(const BaseObjectPtr<Stream>& stream,
+                 CreateStreamOption option);
   void RemoveStream(int64_t id);
   void ResumeStream(int64_t id);
   void ShutdownStream(int64_t id, QuicError error);
