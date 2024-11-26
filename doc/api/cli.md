@@ -2594,9 +2594,8 @@ Print stack traces for deprecations.
 added: REPLACEME
 -->
 
-Print reads and writes to environment variables.
-
-The following accesses will be printed:
+Print information about any access to environment variables done in the current Node.js
+instance to stderr, including:
 
 * The environment variable reads that Node.js does internally.
 * Writes in the form of `process.env.KEY = "SOME VALUE"`.
@@ -2606,6 +2605,8 @@ The following accesses will be printed:
   `process.env.hasOwnProperty('KEY')` or `'KEY' in process.env`.
 * Deletions in the form of `delete process.env.KEY`.
 * Enumerations inf the form of `...process.env` or `Object.keys(process.env)`.
+
+Only the names of the environment variables being accessed are printed. The values are not printed.
 
 To print the stack trace of the access, use `--trace-env-js-stack` and/or
 `--trace-env-native-stack`.
