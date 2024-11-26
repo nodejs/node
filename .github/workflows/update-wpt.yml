@@ -1,0 +1,75 @@
+name: WPT update
+
+on:
+  schedule:
+    # Run once a week at 12:00 AM UTC on Sunday.
+    - cron: 0 0 * * *
+  workflow_dispatch:
+    inputs:
+      subsystems:
+        description: Subsystem to run the update for
+        required: false
+        default: '["url", "WebCryptoAPI"]'
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: lts/*
+
+jobs:
+  wpt-subsystem-update:
+    if: github.repository == 'nodejs/node' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        subsystem: ${{ fromJSON(github.event.inputs.subsystems || '["url", "WebCryptoAPI"]') }}
+
+    steps:
+      - uses: actions/checkout@6d193bf28034eafb982f37bd894289fe649468fc  # v4.1.7
+        with:
+          persist-credentials: false
+
+      - name: Install Node.js
+        uses: actions/setup-node@1e60f620b9541d16bece96c5465dc8ee9832be0b  # v4.0.3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install @node-core/utils
+        run: npm install -g @node-core/utils
+
+      - name: Setup @node-core/utils
+        run: |
+          ncu-config set username "$USERNAME"
+          ncu-config set token "$GH_TOKEN"
+          ncu-config set jenkins_token "$JENKINS_TOKEN"
+          ncu-config set owner "${{ github.repository_owner }}"
+          ncu-config set repo "$(echo ${{ github.repository }} | cut -d/ -f2)"
+        env:
+          USERNAME: ${{ secrets.JENKINS_USER }}
+          GH_TOKEN: ${{ secrets.GH_USER_TOKEN }}
+          JENKINS_TOKEN: ${{ secrets.JENKINS_TOKEN }}
+
+      - name: Update WPT for subsystem ${{ matrix.subsystem }}
+        run: |
+          git node wpt ${{ matrix.subsystem }}
+
+      - name: Calculate new version for WPT using jq
+        run: |
+          new_version=$(jq -r '.${{ matrix.subsystem }}.commit' test/fixtures/wpt/versions.json)
+          echo "new_version=$new_version" >> $GITHUB_ENV
+
+      - name: Open or update PR for the subsystem update
+        uses: gr2m/create-or-update-pull-request-action@86ec1766034c8173518f61d2075cc2a173fb8c97
+        with:
+          branch: actions/update-wpt-${{ matrix.subsystem }}
+          author: Node.js GitHub Bot <github-bot@iojs.org>
+          title: 'test: update WPT for ${{ matrix.subsystem }} to ${{ env.new_version }}'
+          commit-message: 'test: update WPT for ${{ matrix.subsystem }} to ${{ env.new_version }}'
+          labels: test
+          update-pull-request-title-and-body: true
+          body: |
+            This is an automated update of the WPT for ${{ matrix.subsystem }} to ${{ env.new_version }}.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
