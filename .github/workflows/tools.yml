@@ -51,7 +51,7 @@ permissions:
 
 jobs:
   tools-deps-update:
-    if: github.repository == 'nodejs/node'
+    if: github.repository == 'nodejs/node' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false  # Prevent other jobs from aborting if one fails
