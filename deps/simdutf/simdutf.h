@@ -1,4 +1,4 @@
-/* auto-generated on 2024-11-14 14:52:31 -0500. Do not edit! */
+/* auto-generated on 2024-11-21 10:33:28 -0500. Do not edit! */
 /* begin file include/simdutf.h */
 #ifndef SIMDUTF_H
 #define SIMDUTF_H
@@ -155,11 +155,11 @@
   // RISC-V 64-bit
   #define SIMDUTF_IS_RISCV64 1
 
-  #if __clang_major__ >= 19
-    // Does the compiler support target regions for RISC-V
-    #define SIMDUTF_HAS_RVV_TARGET_REGION 1
-  #endif
-
+  // #if __riscv_v_intrinsic >= 1000000
+  //   #define SIMDUTF_HAS_RVV_INTRINSICS 1
+  //   #define SIMDUTF_HAS_RVV_TARGET_REGION 1
+  // #elif ...
+  //  Check for special compiler versions that implement pre v1.0 intrinsics
   #if __riscv_v_intrinsic >= 11000
     #define SIMDUTF_HAS_RVV_INTRINSICS 1
   #endif
@@ -670,7 +670,7 @@ SIMDUTF_DISABLE_UNDESIRED_WARNINGS
 #define SIMDUTF_SIMDUTF_VERSION_H
 
 /** The version of simdutf being used (major.minor.revision) */
-#define SIMDUTF_VERSION "5.6.2"
+#define SIMDUTF_VERSION "5.6.3"
 
 namespace simdutf {
 enum {
@@ -685,7 +685,7 @@ enum {
   /**
    * The revision (major.minor.REVISION) of simdutf being used.
    */
-  SIMDUTF_VERSION_REVISION = 2
+  SIMDUTF_VERSION_REVISION = 3
 };
 } // namespace simdutf
 
