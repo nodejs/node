@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.30.0](https://github.com/nodejs/corepack/compare/v0.29.4...v0.30.0) (2024-11-23)
+
+
+### Features
+
+* update package manager versions ([#578](https://github.com/nodejs/corepack/issues/578)) ([a286c8f](https://github.com/nodejs/corepack/commit/a286c8f5537ea9ecf9b6ff53c7bc3e8da4e3c8bb))
+
+
+### Performance Improvements
+
+* prefer `module.enableCompileCache` over `v8-compile-cache` ([#574](https://github.com/nodejs/corepack/issues/574)) ([cba6905](https://github.com/nodejs/corepack/commit/cba690575bd606faeee54bd512ccb8797d49055f))
+
 ## [0.29.4](https://github.com/nodejs/corepack/compare/v0.29.3...v0.29.4) (2024-09-07)
 
 
