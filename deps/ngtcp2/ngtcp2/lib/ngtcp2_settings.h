@@ -1,7 +1,7 @@
 /*
  * ngtcp2
  *
- * Copyright (c) 2023 ngtcp2 contributors
+ * Copyright (c) 2024 ngtcp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,50 +22,52 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef NGTCP2_CONVERSION_H
-#define NGTCP2_CONVERSION_H
+#ifndef NGTCP2_SETTINGS_H
+#define NGTCP2_SETTINGS_H
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <ngtcp2/ngtcp2.h>
 
 /*
- * ngtcp2_transport_params_convert_to_latest converts |src| of version
- * |transport_params_version| to the latest version
- * NGTCP2_TRANSPORT_PARAMS_VERSION.
+ * ngtcp2_settings_convert_to_latest converts |src| of version
+ * |settings_version| to the latest version NGTCP2_SETTINGS_VERSION.
  *
  * |dest| must point to the latest version.  |src| may be the older
  * version, and if so, it may have fewer fields.  Accessing those
  * fields causes undefined behavior.
  *
- * If |transport_params_version| == NGTCP2_TRANSPORT_PARAMS_VERSION,
- * no conversion is made, and |src| is returned.  Otherwise, first
- * |dest| is initialized via ngtcp2_transport_params_default, and then
- * all valid fields in |src| are copied into |dest|.  Finally, |dest|
- * is returned.
+ * If |settings_version| == NGTCP2_SETTINGS_VERSION, no conversion is
+ * made, and |src| is returned.  Otherwise, first |dest| is
+ * initialized via ngtcp2_settings_default, and then all valid fields
+ * in |src| are copied into |dest|.  Finally, |dest| is returned.
  */
-const ngtcp2_transport_params *
-ngtcp2_transport_params_convert_to_latest(ngtcp2_transport_params *dest,
-                                          int transport_params_version,
-                                          const ngtcp2_transport_params *src);
+const ngtcp2_settings *
+ngtcp2_settings_convert_to_latest(ngtcp2_settings *dest, int settings_version,
+                                  const ngtcp2_settings *src);
 
 /*
- * ngtcp2_transport_params_convert_to_old converts |src| of the latest
- * version to |dest| of version |transport_params_version|.
+ * ngtcp2_settings_convert_to_old converts |src| of the latest version
+ * to |dest| of version |settings_version|.
  *
- * |transport_params_version| must not be the latest version
- *  NGTCP2_TRANSPORT_PARAMS_VERSION.
+ * |settings_version| must not be the latest version
+ *  NGTCP2_SETTINGS_VERSION.
  *
  * |dest| points to the older version, and it may have fewer fields.
  * Accessing those fields causes undefined behavior.
  *
- * This function copies all valid fields in version
- * |transport_params_version| from |src| to |dest|.
+ * This function copies all valid fields in version |settings_version|
+ * from |src| to |dest|.
  */
-void ngtcp2_transport_params_convert_to_old(int transport_params_version,
-                                            ngtcp2_transport_params *dest,
-                                            const ngtcp2_transport_params *src);
+void ngtcp2_settings_convert_to_old(int settings_version, ngtcp2_settings *dest,
+                                    const ngtcp2_settings *src);
 
-#endif /* NGTCP2_CONVERSION_H */
+/*
+ * ngtcp2_settingslen_version returns the effective length of
+ * ngtcp2_settings at the version |settings_version|.
+ */
+size_t ngtcp2_settingslen_version(int settings_version);
+
+#endif /* !defined(NGTCP2_SETTINGS_H) */
