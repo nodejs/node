@@ -1385,7 +1385,7 @@ take place once a new LTS line has been released.
 
 ## FAQ
 
-Due to how releases work (tools/release.sh) isn't uncommon to face some errors
+Due to how `tools/release.sh` work, it isn't uncommon to face some errors
 during the promotion process as it depends on network communication and machine
 availability. This section aims to guide the releaser through potential
 failures.
@@ -1413,7 +1413,7 @@ Emitted 'error' event on DestroyableTransform instance at:
 }
 ```
 
-Typical approach: Sign the release again
+Typical resolution: sign the release again.
 
 ```bash
 ./tools/release.sh -s vX.Y.Z
