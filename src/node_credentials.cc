@@ -104,12 +104,7 @@ bool SafeGetenv(const char* key, std::string* text, Environment* env) {
                       : per_process::cli_options->per_isolate->per_env);
 
   if (options->trace_env) {
-    fprintf(stderr, "[--trace-env] get environment variable \"%s\": ", key);
-    if (has_env) {
-      fprintf(stderr, "\"%s\"\n", text->c_str());
-    } else {
-      fprintf(stderr, "undefined\n");
-    }
+    fprintf(stderr, "[--trace-env] get environment variable \"%s\"\n", key);
 
     PrintTraceEnvStack(options);
   }

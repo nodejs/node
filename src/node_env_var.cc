@@ -366,18 +366,9 @@ static Intercepted EnvGetter(Local<Name> property,
   if (env->options()->trace_env) {
     Utf8Value key(env->isolate(), property.As<String>());
     fprintf(stderr,
-            "[--trace-env] get environment variable \"%.*s\": ",
+            "[--trace-env] get environment variable \"%.*s\"\n",
             static_cast<int>(key.length()),
             key.out());
-    if (has_env) {
-      Utf8Value value_utf8(env->isolate(), value_string.ToLocalChecked());
-      fprintf(stderr,
-              "\"%.*s\"\n",
-              static_cast<int>(value_utf8.length()),
-              value_utf8.out());
-    } else {
-      fprintf(stderr, "undefined\n");
-    }
     PrintTraceEnvStack(env);
   }
 
@@ -421,13 +412,10 @@ static Intercepted EnvSetter(Local<Name> property,
   env->env_vars()->Set(env->isolate(), key, value_string);
   if (env->options()->trace_env) {
     Utf8Value key_utf8(env->isolate(), key);
-    Utf8Value value_utf8(env->isolate(), value_string);
     fprintf(stderr,
-            "[--trace-env] set environment variable \"%.*s\" = \"%.*s\"\n",
+            "[--trace-env] set environment variable \"%.*s\"\n",
             static_cast<int>(key_utf8.length()),
-            key_utf8.out(),
-            static_cast<int>(value_utf8.length()),
-            value_utf8.out());
+            key_utf8.out());
     PrintTraceEnvStack(env);
   }
 
