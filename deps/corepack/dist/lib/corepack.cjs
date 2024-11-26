@@ -21260,7 +21260,7 @@ function String2(descriptor, ...args) {
 }
 
 // package.json
-var version = "0.29.4";
+var version = "0.30.0";
 
 // sources/Engine.ts
 var import_fs9 = __toESM(require("fs"));
@@ -21274,7 +21274,7 @@ var import_valid3 = __toESM(require_valid2());
 var config_default = {
   definitions: {
     npm: {
-      default: "10.8.3+sha1.e6085b2864fcfd9b1aad7b602601b5a2fc116699",
+      default: "10.9.1+sha1.ab141c1229765c11c8c59060fc9cf450a2207bd6",
       fetchLatestFrom: {
         type: "npm",
         package: "npm"
@@ -21311,7 +21311,7 @@ var config_default = {
       }
     },
     pnpm: {
-      default: "9.9.0+sha1.3edbe440f4e570aa8f049adbd06b9483d55cc2d2",
+      default: "9.14.2+sha1.5202b50ab92394b3c922d2e293f196e2df6d441b",
       fetchLatestFrom: {
         type: "npm",
         package: "pnpm"
@@ -21375,7 +21375,7 @@ var config_default = {
         package: "yarn"
       },
       transparent: {
-        default: "4.4.1+sha224.fd21d9eb5fba020083811af1d4953acc21eeb9f6ff97efd1b3f9d4de",
+        default: "4.5.2+sha224.c2e2e9ed3cdadd6ec250589b3393f71ae56d5ec297af11cec1eba3b4",
         commands: [
           [
             "yarn",
@@ -21965,8 +21965,11 @@ async function runVersion(locator, installSpec, binName, args) {
   }
   if (!binPath)
     throw new Error(`Assertion failed: Unable to locate path for bin '${binName}'`);
-  if (locator.name !== `npm` || (0, import_lt.default)(locator.reference, `9.7.0`))
-    await Promise.resolve().then(() => __toESM(require_v8_compile_cache()));
+  if (!import_module.default.enableCompileCache) {
+    if (locator.name !== `npm` || (0, import_lt.default)(locator.reference, `9.7.0`)) {
+      await Promise.resolve().then(() => __toESM(require_v8_compile_cache()));
+    }
+  }
   process.env.COREPACK_ROOT = import_path7.default.dirname(require.resolve("corepack/package.json"));
   process.argv = [
     process.execPath,
@@ -21976,6 +21979,9 @@ async function runVersion(locator, installSpec, binName, args) {
   process.execArgv = [];
   process.mainModule = void 0;
   process.nextTick(import_module.default.runMain, binPath);
+  if (import_module.default.flushCompileCache) {
+    setImmediate(import_module.default.flushCompileCache);
+  }
 }
 function shouldSkipIntegrityCheck() {
   return process.env.COREPACK_INTEGRITY_KEYS === `` || process.env.COREPACK_INTEGRITY_KEYS === `0`;
@@ -22553,7 +22559,7 @@ var EnableCommand = class extends Command {
     [`enable`]
   ];
   static usage = Command.Usage({
-    description: `Add the Corepack shims to the install directories`,
+    description: `Add the Corepack shims to the install directory`,
     details: `
       When run, this command will check whether the shims for the specified package managers can be found with the correct values inside the install directory. If not, or if they don't exist, they will be created.
 
