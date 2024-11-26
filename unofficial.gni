@@ -91,7 +91,7 @@ template("node_gn_build") {
     if (current_cpu == "x86") {
       node_arch = "ia32"
     } else {
-      node_arch = current_cpu
+      node_arch = target_cpu
     }
     if (target_os == "win") {
       node_platform = "win32"
