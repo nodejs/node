@@ -26,7 +26,8 @@ const objects = [
   Buffer.from([1, 2, 3, 4]),
   new BigInt64Array([42n]),
   new BigUint64Array([42n]),
-  // TODO(bartlomieju): once `Float16Array` is available in stable V8, remove the lint below and `--js-float16array` flag up top
+  // TODO(bartlomieju): once `Float16Array` is available in stable V8,
+  // remove the lint below and `--js-float16array` flag up top
   // eslint-disable-line no-undef
   new Float16Array([1, 2, 3, 4]),
   undefined,
