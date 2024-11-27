@@ -285,7 +285,9 @@ You can integrate the PRs into the proposal without running full CI.
 > \[!TIP] Once the staging branch is up-to-date you can use the
 > [`create-release-proposal`][] action to generate the proposal.
 
-![screenshot running action via github ui](https://github.com/user-attachments/assets/244795d0-3753-45ea-a259-169d15c40239)
+```bash
+gh workflow run "Create Release Proposal" -f release-line=N -f release-date=YYYY-MM-DD
+```
 
 If you prefer to run it locally you can either run
 `git node release --prepare`:
