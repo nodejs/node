@@ -875,9 +875,6 @@ Environment::Environment(IsolateData* isolate_data,
         EnvironmentFlags::kOwnsInspector;
   }
 
-  set_env_vars(per_process::system_environment);
-  enabled_debug_list_.Parse(env_vars());
-
   // We create new copies of the per-Environment option sets, so that it is
   // easier to modify them after Environment creation. The defaults are
   // part of the per-Isolate option set, for which in turn the defaults are
@@ -886,6 +883,13 @@ Environment::Environment(IsolateData* isolate_data,
       *isolate_data->options()->per_env);
   inspector_host_port_ = std::make_shared<ExclusiveAccess<HostPort>>(
       options_->debug_options().host_port);
+
+  set_env_vars(per_process::system_environment);
+  // This should be done after options is created, so that --trace-env can be
+  // checked when parsing NODE_DEBUG_NATIVE. It should also be done after
+  // env_vars() is set so that the parser uses values from env->env_vars()
+  // which may or may not be the system environment variable store.
+  enabled_debug_list_.Parse(this);
 
   heap_snapshot_near_heap_limit_ =
       static_cast<uint32_t>(options_->heap_snapshot_near_heap_limit);
@@ -1115,8 +1119,7 @@ void Environment::InitializeLibuv() {
 
 void Environment::InitializeCompileCache() {
   std::string dir_from_env;
-  if (!credentials::SafeGetenv(
-          "NODE_COMPILE_CACHE", &dir_from_env, env_vars()) ||
+  if (!credentials::SafeGetenv("NODE_COMPILE_CACHE", &dir_from_env, this) ||
       dir_from_env.empty()) {
     return;
   }
@@ -1128,7 +1131,7 @@ CompileCacheEnableResult Environment::EnableCompileCache(
   CompileCacheEnableResult result;
   std::string disable_env;
   if (credentials::SafeGetenv(
-          "NODE_DISABLE_COMPILE_CACHE", &disable_env, env_vars())) {
+          "NODE_DISABLE_COMPILE_CACHE", &disable_env, this)) {
     result.status = CompileCacheEnableStatus::DISABLED;
     result.message = "Disabled by NODE_DISABLE_COMPILE_CACHE";
     Debug(this,
