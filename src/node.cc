@@ -1045,7 +1045,7 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
   if (!(flags & ProcessInitializationFlags::kNoParseGlobalDebugVariables)) {
     // Initialized the enabled list for Debug() calls with system
     // environment variables.
-    per_process::enabled_debug_list.Parse(per_process::system_environment);
+    per_process::enabled_debug_list.Parse(nullptr);
   }
 
   PlatformInit(flags);
