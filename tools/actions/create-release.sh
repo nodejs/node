@@ -18,45 +18,10 @@ if [ -z "$GITHUB_REPOSITORY" ] || [ -z "$BOT_TOKEN" ]; then
   exit 1
 fi
 
-createCommitAPICall() {
-  commit="${1:-HEAD}"
-  cat - <<'EOF'
-mutation ($repo: String! $branch: String!, $parent: GitObjectID!, $commit_title: String!, $commit_body: String) {
-  createCommitOnBranch(input: {
-    branch: {
-      repositoryNameWithOwner: $repo,
-      branchName: $branch
-    },
-    message: {
-      headline: $commit_title,
-      body: $commit_body
-    },
-    expectedHeadOid: $parent,
-    fileChanges: {
-      additions: [
-EOF
-  git show "$commit" --diff-filter=d --name-only --format= | while read -r FILE; do
-    printf "          { path: "
-    node -p 'JSON.stringify(process.argv[1])' "$FILE"
-    printf "          , contents: \""
-    base64 -w 0 -i "$FILE"
-    echo "\"},"
-  done
-  echo '      ], deletions: ['
-  git show "$commit" --diff-filter=D --name-only --format= | while read -r FILE; do
-    node -p '"        " + JSON.stringify(process.argv[1]) + ","' "$FILE"
-  done
-  cat - <<'EOF'
-      ]
-    }
-  }) {
-    commit {
-      url
-    }
-  }
-}
-EOF
-}
+if ! command -v node || ! command -v gh || ! command -v git || ! command -v awk; then
+  echo "Missing required dependencies"
+  exit 1
+fi
 
 git node release --prepare --skipBranchDiff --yes --releaseDate "$RELEASE_DATE"
 
@@ -85,20 +50,77 @@ PR_URL="$(gh api \
   "/repos/${GITHUB_REPOSITORY}/pulls" \
    -f "title=$TITLE" -f "body=$TEMP_BODY" -f "head=$HEAD_BRANCH" -f "base=v$RELEASE_LINE.x")"
 
-# Push the release commit to the proposal branch
-createCommitAPICall HEAD | node --input-type=module -e 'console.log(JSON.stringify({
-  query: Buffer.concat(await process.stdin.toArray()).toString(),
-  variables: {
-    repo: process.argv[1],
-    branch: process.argv[2],
-    parent: process.argv[3],
-    commit_title: process.argv[4],
-    commit_body: process.argv[5]
-  }
-}))' \
+# Push the release commit to the proposal branch using `BOT_TOKEN` from the env
+node --input-type=module - \
     "$GITHUB_REPOSITORY" \
     "$HEAD_BRANCH" \
     "$HEAD_SHA" \
     "$(git log -1 HEAD --format=%s || true)" \
-    "$(git log -1 HEAD --format=%b | sed "s|PR-URL: TODO|PR-URL: $PR_URL|" || true)" \
-| curl -fS -H "Authorization: bearer ${BOT_TOKEN}" -X POST --data @- https://api.github.com/graphql
+    "$(git log -1 HEAD --format=%b | awk -v PR_URL="$PR_URL" '{sub(/^PR-URL: TODO$/, "PR-URL: " PR_URL)} 1' || true)" \
+    "$(git show HEAD --diff-filter=d --name-only --format= || true)" \
+    "$(git show HEAD --diff-filter=D --name-only --format= || true)" \
+<<'EOF'
+const [,,
+  repo,
+  branch,
+  parentCommitSha,
+  commit_title,
+  commit_body,
+  modifiedOrAddedFiles,
+  deletedFiles,
+] = process.argv;
+
+import { readFileSync } from 'node:fs';
+import util from 'node:util';
+
+const query = `
+mutation ($repo: String! $branch: String!, $parentCommitSha: GitObjectID!, $changes: FileChanges!, $commit_title: String!, $commit_body: String) {
+  createCommitOnBranch(input: {
+    branch: {
+      repositoryNameWithOwner: $repo,
+      branchName: $branch
+    },
+    message: {
+      headline: $commit_title,
+      body: $commit_body
+    },
+    expectedHeadOid: $parentCommitSha,
+    fileChanges: $changes
+  }) {
+    commit {
+      url
+    }
+  }
+}
+`;
+const response = await fetch('https://api.github.com/graphql', {
+  method: 'POST',
+  headers: {
+    'Authorization': `bearer ${process.env.BOT_TOKEN}`,
+  },
+  body: JSON.stringify({
+    query,
+    variables: {
+      repo,
+      branch,
+      parentCommitSha,
+      commit_title,
+      commit_body,
+      changes: {
+        additions: modifiedOrAddedFiles.split('\n').filter(Boolean)
+          .map(path => ({ path, contents: readFileSync(path).toString('base64') })),
+        deletions: deletedFiles.split('\n').filter(Boolean),
+      }
+    },
+  })
+});
+if (!response.ok) {
+  console.log({statusCode: response.statusCode, status: response.status});
+  process.exitCode ||= 1;
+}
+const data = await response.json();
+if (data.errors?.length) {
+  throw new Error('Endpoint returned an error', { cause: data });
+}
+console.log(util.inspect(data, { depth: Infinity }));
+EOF
