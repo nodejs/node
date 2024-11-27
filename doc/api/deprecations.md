@@ -3770,7 +3770,7 @@ Type: Documentation-only
 Passing non-supported argument types is deprecated and, instead of returning `false`,
 will throw an error in a future version.
 
-### DEP0187: `process.features.ipv6` and `process.features.uv`
+### DEP0188: `process.features.ipv6` and `process.features.uv`
 
 <!-- YAML
 changes:
@@ -3783,7 +3783,7 @@ Type: Documentation-only
 
 These properties are unconditionally `true`. Any checks based on these properties are redundant.
 
-### DEP0188: `process.features.tls_*`
+### DEP0189: `process.features.tls_*`
 
 <!-- YAML
 changes:
