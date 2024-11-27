@@ -553,6 +553,18 @@ Affects the default output directory of:
 * [`--heap-prof-dir`][]
 * [`--redirect-warnings`][]
 
+### `--disable-proto=mode`
+
+<!-- YAML
+added:
+ - v13.12.0
+ - v12.17.0
+-->
+
+Disable the `Object.prototype.__proto__` property. If `mode` is `delete`, the
+property is removed entirely. If `mode` is `throw`, accesses to the
+property throw an exception with the code `ERR_PROTO_ACCESS`.
+
 ### `--disable-warning=code-or-type`
 
 > Stability: 1.1 - Active development
@@ -647,18 +659,6 @@ users can at least run WebAssembly (with less optimal performance)
 when the virtual memory address space available to their Node.js
 process is lower than what the V8 WebAssembly memory cage needs.
 
-### `--disable-proto=mode`
-
-<!-- YAML
-added:
- - v13.12.0
- - v12.17.0
--->
-
-Disable the `Object.prototype.__proto__` property. If `mode` is `delete`, the
-property is removed entirely. If `mode` is `throw`, accesses to the
-property throw an exception with the code `ERR_PROTO_ACCESS`.
-
 ### `--disallow-code-generation-from-strings`
 
 <!-- YAML
@@ -668,25 +668,6 @@ added: v9.8.0
 Make built-in language features like `eval` and `new Function` that generate
 code from strings throw an exception instead. This does not affect the Node.js
 `node:vm` module.
-
-### `--expose-gc`
-
-<!-- YAML
-added:
-  - v22.3.0
-  - v20.18.0
--->
-
-> Stability: 1 - Experimental. This flag is inherited from V8 and is subject to
-> change upstream.
-
-This flag will expose the gc extension from V8.
-
-```js
-if (globalThis.gc) {
-  globalThis.gc();
-}
-```
 
 ### `--dns-result-order=order`
 
@@ -793,6 +774,15 @@ node --entry-url --experimental-strip-types 'file.ts?query#hash'
 node --entry-url 'data:text/javascript,console.log("Hello")'
 ```
 
+### `--env-file-if-exists=config`
+
+<!-- YAML
+added: v22.9.0
+-->
+
+Behavior is the same as [`--env-file`][], but an error is not thrown if the file
+does not exist.
+
 ### `--env-file=config`
 
 > Stability: 1.1 - Active development
@@ -860,15 +850,6 @@ export USERNAME="nodejs" # will result in `nodejs` as the value.
 If you want to load environment variables from a file that may not exist, you
 can use the [`--env-file-if-exists`][] flag instead.
 
-### `--env-file-if-exists=config`
-
-<!-- YAML
-added: v22.9.0
--->
-
-Behavior is the same as [`--env-file`][], but an error is not thrown if the file
-does not exist.
-
 ### `-e`, `--eval "script"`
 
 <!-- YAML
@@ -906,17 +887,6 @@ implemented very differently and so could have differences in how context data
 flows within the application. As such, it is presently recommended to be sure
 your application behaviour is unaffected by this change before using it in
 production.
-
-### `--experimental-transform-types`
-
-<!-- YAML
-added: v22.7.0
--->
-
-> Stability: 1.1 - Active development
-
-Enables the transformation of TypeScript-only syntax into JavaScript code.
-Implies `--experimental-strip-types` and `--enable-source-maps`.
 
 ### `--experimental-eventsource`
 
@@ -996,6 +966,18 @@ following permissions are restricted:
 * Worker Threads - manageable through [`--allow-worker`][] flag
 * WASI - manageable through [`--allow-wasi`][] flag
 * Addons - manageable through [`--allow-addons`][] flag
+
+### `--experimental-print-required-tla`
+
+<!-- YAML
+added:
+  - v22.0.0
+  - v20.17.0
+-->
+
+If the ES module being `require()`'d contains top-level `await`, this flag
+allows Node.js to evaluate the module, try to locate the
+top-level awaits, and print their location to help users find them.
 
 ### `--experimental-require-module`
 
@@ -1093,6 +1075,17 @@ added:
 
 Enable module mocking in the test runner.
 
+### `--experimental-transform-types`
+
+<!-- YAML
+added: v22.7.0
+-->
+
+> Stability: 1.1 - Active development
+
+Enables the transformation of TypeScript-only syntax into JavaScript code.
+Implies `--experimental-strip-types` and `--enable-source-maps`.
+
 ### `--experimental-vm-modules`
 
 <!-- YAML
@@ -1137,6 +1130,25 @@ added: v22.4.0
 -->
 
 Enable experimental [`Web Storage`][] support.
+
+### `--expose-gc`
+
+<!-- YAML
+added:
+  - v22.3.0
+  - v20.18.0
+-->
+
+> Stability: 1 - Experimental. This flag is inherited from V8 and is subject to
+> change upstream.
+
+This flag will expose the gc extension from V8.
+
+```js
+if (globalThis.gc) {
+  globalThis.gc();
+}
+```
 
 ### `--force-context-aware`
 
@@ -1416,20 +1428,6 @@ When enabled, the parser will accept the following:
 All the above will expose your application to request smuggling
 or poisoning attack. Avoid using this option.
 
-### `--inspect[=[host:]port]`
-
-<!-- YAML
-added: v6.3.0
--->
-
-Activate inspector on `host:port`. Default is `127.0.0.1:9229`. If port `0` is
-specified, a random available port will be used.
-
-V8 inspector integration allows tools such as Chrome DevTools and IDEs to debug
-and profile Node.js instances. The tools attach to Node.js instances via a
-tcp port and communicate using the [Chrome DevTools Protocol][].
-See [V8 Inspector integration for Node.js][] for further explanation on Node.js debugger.
-
 <!-- Anchor to make sure old links find a target -->
 
 <a id="inspector_security"></a>
@@ -1496,6 +1494,20 @@ Activate inspector on `host:port` and wait for debugger to be attached.
 Default `host:port` is `127.0.0.1:9229`. If port `0` is specified,
 a random available port will be used.
 
+See [V8 Inspector integration for Node.js][] for further explanation on Node.js debugger.
+
+### `--inspect[=[host:]port]`
+
+<!-- YAML
+added: v6.3.0
+-->
+
+Activate inspector on `host:port`. Default is `127.0.0.1:9229`. If port `0` is
+specified, a random available port will be used.
+
+V8 inspector integration allows tools such as Chrome DevTools and IDEs to debug
+and profile Node.js instances. The tools attach to Node.js instances via a
+tcp port and communicate using the [Chrome DevTools Protocol][].
 See [V8 Inspector integration for Node.js][] for further explanation on Node.js debugger.
 
 ### `-i`, `--interactive`
@@ -1845,18 +1857,6 @@ changes:
 
 Identical to `-e` but prints the result.
 
-### `--experimental-print-required-tla`
-
-<!-- YAML
-added:
-  - v22.0.0
-  - v20.17.0
--->
-
-If the ES module being `require()`'d contains top-level `await`, this flag
-allows Node.js to evaluate the module, try to locate the
-top-level awaits, and print their location to help users find them.
-
 ### `--prof`
 
 <!-- YAML
@@ -2132,6 +2132,17 @@ The following environment variables are set when running a script with `--run`:
 * `NODE_RUN_PACKAGE_JSON_PATH`: The path to the `package.json` that is being
   processed.
 
+### `--secure-heap-min=n`
+
+<!-- YAML
+added: v15.6.0
+-->
+
+When using `--secure-heap`, the `--secure-heap-min` flag specifies the
+minimum allocation from the secure heap. The minimum value is `2`.
+The maximum value is the lesser of `--secure-heap` or `2147483647`.
+The value given must be a power of two.
+
 ### `--secure-heap=n`
 
 <!-- YAML
@@ -2156,17 +2167,6 @@ The secure heap is disabled by default.
 The secure heap is not available on Windows.
 
 See [`CRYPTO_secure_malloc_init`][] for more details.
-
-### `--secure-heap-min=n`
-
-<!-- YAML
-added: v15.6.0
--->
-
-When using `--secure-heap`, the `--secure-heap-min` flag specifies the
-minimum allocation from the secure heap. The minimum value is `2`.
-The maximum value is the lesser of `--secure-heap` or `2147483647`.
-The value given must be a power of two.
 
 ### `--snapshot-blob=path`
 
@@ -2878,11 +2878,6 @@ and `NODE_DISABLE_COLORS` environment variables are ignored.
 
 Any other value will result in colorized output being disabled.
 
-### `NO_COLOR=<any>`
-
-[`NO_COLOR`][]  is an alias for `NODE_DISABLE_COLORS`. The value of the
-environment variable is arbitrary.
-
 ### `NODE_COMPILE_CACHE=dir`
 
 <!-- YAML
@@ -3288,6 +3283,11 @@ easier to instrument applications that call the `child_process.spawn()` family
 of functions. `NODE_V8_COVERAGE` can be set to an empty string, to prevent
 propagation.
 
+### `NO_COLOR=<any>`
+
+[`NO_COLOR`][]  is an alias for `NODE_DISABLE_COLORS`. The value of the
+environment variable is arbitrary.
+
 #### Coverage output
 
 Coverage is output as an array of [ScriptCoverage][] objects on the top-level
@@ -3472,19 +3472,9 @@ documented here:
 
 ### `--harmony-shadow-realm`
 
-### `--jitless`
-
 ### `--interpreted-frames-native-stack`
 
-### `--prof`
-
-### `--perf-basic-prof`
-
-### `--perf-basic-prof-only-functions`
-
-### `--perf-prof`
-
-### `--perf-prof-unwinding-info`
+### `--jitless`
 
 <!-- Anchor to make sure old links find a target -->
 
@@ -3535,6 +3525,16 @@ for MiB in 16 32 64 128; do
     node --max-semi-space-size=$MiB index.js
 done
 ```
+
+### `--perf-basic-prof`
+
+### `--perf-basic-prof-only-functions`
+
+### `--perf-prof`
+
+### `--perf-prof-unwinding-info`
+
+### `--prof`
 
 ### `--security-revert`
 
