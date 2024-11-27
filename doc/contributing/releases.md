@@ -1383,6 +1383,42 @@ Infrastructure team is able to perform the switch of the default. An issue
 should be opened on the [Node.js Snap management repository][] requesting this
 take place once a new LTS line has been released.
 
+## FAQ
+
+Due to how `tools/release.sh` work, it isn't uncommon to face some errors
+during the promotion process as it depends on network communication and machine
+availability. This section aims to guide the releaser through potential
+failures.
+
+### Error on dist-indexer while promoting
+
+```bash
+node:events:491
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: read ECONNRESET
+    at TLSWrap.onStreamRead (node:internal/stream_base_commons:217:20)
+Emitted 'error' event on DestroyableTransform instance at:
+    at ClientRequest.<anonymous> (/usr/lib/node_modules/nodejs-dist-indexer/node_modules/hyperquest/index.js:14:19)
+    at ClientRequest.emit (node:events:513:28)
+    at TLSSocket.socketErrorListener (node:_http_client:494:9)
+    at TLSSocket.emit (node:events:513:28)
+    at emitErrorNT (node:internal/streams/destroy:157:8)
+    at emitErrorCloseNT (node:internal/streams/destroy:122:3)
+    at processTicksAndRejections (node:internal/process/task_queues:83:21) {
+  errno: -104,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+```
+
+Typical resolution: sign the release again.
+
+```bash
+./tools/release.sh -s vX.Y.Z
+```
+
 [Build issue tracker]: https://github.com/nodejs/build/issues/new
 [CI lockdown procedure]: https://github.com/nodejs/build/blob/HEAD/doc/jenkins-guide.md#restricting-access-for-security-releases
 [Node.js Snap management repository]: https://github.com/nodejs/snap
