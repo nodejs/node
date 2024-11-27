@@ -100,6 +100,7 @@ for (const coverage of coverages) {
     });
 
     const stdout = result.stdout.toString();
+    // eslint-disable-next-line no-control-regex
     const redColorRegex = /\u001b\[31mℹ Error: \d{2}\.\d{2}% \w+ coverage does not meet threshold of 99%/;
     assert.match(stdout, redColorRegex, 'Expected red color code not found in diagnostic message');
     assert.strictEqual(result.status, 1);
