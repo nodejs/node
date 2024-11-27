@@ -143,8 +143,8 @@ request. Interesting things to notice:
 
 ### Usage of `node:test`
 
-It is recommended to use `node:test` in tests outside of testing the `node:test`
-module, if particular functionality that's tested is not a dependency of
+It is optional to use `node:test` in tests outside of testing the `node:test`
+module, as long as the functionality being tested is not a dependency of the
 `node:test` module. This ensures that a bug in the test runner doesn't impact
 the outcome of the underlying dependencies' test results.
 
