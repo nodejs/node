@@ -1,49 +1,48 @@
 'use strict';
-const common = require('../common');
-const assert = require('assert');
-const { Worker } = require('worker_threads');
-const { once } = require('events');
+
+require('../common');
+
 const helper = require('../common/report');
+const assert = require('node:assert');
+const { test } = require('node:test');
+const { Worker } = require('node:worker_threads');
+const { once } = require('node:events');
 
-async function basic() {
-  // Test that the report includes basic information about Worker threads.
+test('Worker threads report basic information', async (t) => {
+  await t.test('should include basic information about Worker threads', async () => {
+    const w = new Worker(`
+      const { parentPort } = require('worker_threads');
+      parentPort.once('message', () => {
+        /* Wait for message to stop the Worker */
+      });
+    `, { eval: true });
 
-  const w = new Worker(`
-    const { parentPort } = require('worker_threads');
-    parentPort.once('message', () => {
-      /* Wait for message to stop the Worker */
-    });
-  `, { eval: true });
+    await once(w, 'online');
 
-  await once(w, 'online');
+    const report = process.report.getReport();
+    helper.validateContent(report);
+    const workerLengthMessage = 'Report should include one Worker';
+    const threadIdMessage = 'Thread ID should match the Worker thread ID';
+    assert.strictEqual(report.workers.length, 1, workerLengthMessage);
+    helper.validateContent(report.workers[0]);
+    assert.strictEqual(report.workers[0].header.threadId, w.threadId, threadIdMessage);
 
-  const report = process.report.getReport();
-  helper.validateContent(report);
-  assert.strictEqual(report.workers.length, 1);
-  helper.validateContent(report.workers[0]);
-  assert.strictEqual(report.workers[0].header.threadId, w.threadId);
+    w.postMessage({});
 
-  w.postMessage({});
+    await once(w, 'exit');
+  });
 
-  await once(w, 'exit');
-}
+  await t.test('should generate report when Workers are busy in JS land', async () => {
+    const w = new Worker('while (true);', { eval: true });
 
-async function interruptingJS() {
-  // Test that the report also works when Worker threads are busy in JS land.
+    await once(w, 'online');
 
-  const w = new Worker('while (true);', { eval: true });
+    const report = process.report.getReport();
+    helper.validateContent(report);
+    const workerLengthMessage = 'Report should include one Worker';
+    assert.strictEqual(report.workers.length, 1, workerLengthMessage);
+    helper.validateContent(report.workers[0]);
 
-  await once(w, 'online');
-
-  const report = process.report.getReport();
-  helper.validateContent(report);
-  assert.strictEqual(report.workers.length, 1);
-  helper.validateContent(report.workers[0]);
-
-  await w.terminate();
-}
-
-(async function() {
-  await basic();
-  await interruptingJS();
-})().then(common.mustCall());
+    await w.terminate();
+  });
+});
