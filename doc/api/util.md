@@ -2047,6 +2047,10 @@ encoded bytes.
 
 ### `textEncoder.encodeInto(src, dest)`
 
+<!-- YAML
+added: v12.11.0
+-->
+
 * `src` {string} The text to encode.
 * `dest` {Uint8Array} The array to hold the encode result.
 * Returns: {Object}
