@@ -28,7 +28,7 @@ const objects = [
   new BigUint64Array([42n]),
   // TODO(bartlomieju): once `Float16Array` is available in stable V8,
   // remove the lint below and `--js-float16array` flag up top
-  // eslint-disable-line no-undef
+  // eslint-disable-next-line no-undef
   new Float16Array([1, 2, 3, 4]),
   undefined,
   null,
