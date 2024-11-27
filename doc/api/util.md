@@ -371,7 +371,9 @@ util.formatWithOptions({ colors: true }, 'See object %O', { foo: 42 });
 <!-- YAML
 added: v22.9.0
 changes:
-  - version: v23.3.0
+  - version:
+    - v23.3.0
+    - v22.12.0
     pr-url: https://github.com/nodejs/node/pull/55626
     description: The API is renamed from `util.getCallSite` to `util.getCallSites()`.
 -->
@@ -500,7 +502,9 @@ fs.access('file/that/does/not/exist', (err) => {
 ## `util.getSystemErrorMessage(err)`
 
 <!-- YAML
-added: v23.1.0
+added:
+  - v23.1.0
+  - v22.12.0
 -->
 
 * `err` {number}

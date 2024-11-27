@@ -918,7 +918,9 @@ chained.
 <!-- YAML
 added: v0.11.13
 changes:
-  - version: v23.1.0
+  - version:
+    - v23.1.0
+    - v22.12.0
     pr-url: https://github.com/nodejs/node/pull/55403
     description: The `reusePort` option is supported.
   - version: v15.8.0

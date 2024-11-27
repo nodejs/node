@@ -175,10 +175,14 @@ added:
   - v22.0.0
   - v20.17.0
 changes:
-  - version: v23.0.0
+  - version:
+    - v23.0.0
+    - v22.12.0
     pr-url: https://github.com/nodejs/node/pull/55085
     description: This feature is no longer behind the `--experimental-require-module` CLI flag.
-  - version: v23.0.0
+  - version:
+    - v23.0.0
+    - v22.12.0
     pr-url: https://github.com/nodejs/node/pull/54563
     description: Support `'module.exports'` interop export in `require(esm)`.
 -->

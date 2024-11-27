@@ -471,7 +471,9 @@ Listening on a file descriptor is not supported on Windows.
 <!-- YAML
 added: v0.11.14
 changes:
-  - version: v23.1.0
+  - version:
+    - v23.1.0
+    - v22.12.0
     pr-url: https://github.com/nodejs/node/pull/55408
     description: The `reusePort` option is supported.
   - version: v15.6.0
@@ -623,7 +625,9 @@ with [`child_process.fork()`][].
 ### `server.dropMaxConnection`
 
 <!-- YAML
-added: v23.1.0
+added:
+  - v23.1.0
+  - v22.12.0
 -->
 
 * {boolean}

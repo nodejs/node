@@ -9,6 +9,7 @@ added: v8.5.0
 changes:
   - version:
     - v23.1.0
+    - v22.12.0
     - v18.20.5
     pr-url: https://github.com/nodejs/node/pull/55333
     description: Import attributes are no longer experimental.
@@ -639,6 +640,7 @@ separate cache.
 changes:
   - version:
     - v23.1.0
+    - v22.12.0
     - v18.20.5
     pr-url: https://github.com/nodejs/node/pull/55333
     description: JSON modules are no longer experimental.
