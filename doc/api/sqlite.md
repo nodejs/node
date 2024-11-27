@@ -156,6 +156,10 @@ around [`sqlite3_prepare_v2()`][].
 
 ### `database.createSession([options])`
 
+<!-- YAML
+added: v23.3.0
+-->
+
 * `options` {Object} The configuration options for the session.
   * `table` {string} A specific table to track changes for. By default, changes to all tables are tracked.
   * `db` {string} Name of the database to track. This is useful when multiple databases have been added using [`ATTACH DATABASE`][]. **Default**: `'main'`.
@@ -165,6 +169,10 @@ Creates and attaches a session to the database. This method is a wrapper around 
 
 ### `database.applyChangeset(changeset[, options])`
 
+<!-- YAML
+added: v23.3.0
+-->
+
 * `changeset` {Uint8Array} A binary changeset or patchset.
 * `options` {Object} The configuration options for how the changes will be applied.
   * `filter` {Function} Skip changes that, when targeted table name is supplied to this function, return a truthy value.
@@ -172,7 +180,7 @@ Creates and attaches a session to the database. This method is a wrapper around 
   * `onConflict` {number} Determines how conflicts are handled. **Default**: `SQLITE_CHANGESET_ABORT`.
     * `SQLITE_CHANGESET_OMIT`: conflicting changes are omitted.
     * `SQLITE_CHANGESET_REPLACE`: conflicting changes replace existing values.
-    * `SQLITE_CHANGESET_ABORT`: abort on conflict and roll back databsase.
+    * `SQLITE_CHANGESET_ABORT`: abort on conflict and roll back database.
 * Returns: {boolean} Whether the changeset was applied succesfully without being aborted.
 
 An exception is thrown if the database is not
@@ -198,7 +206,15 @@ targetDb.applyChangeset(changeset);
 
 ## Class: `Session`
 
+<!-- YAML
+added: v23.3.0
+-->
+
 ### `session.changeset()`
+
+<!-- YAML
+added: v23.3.0
+-->
 
 * Returns: {Uint8Array} Binary changeset that can be applied to other databases.
 
@@ -206,6 +222,10 @@ Retrieves a changeset containing all changes since the changeset was created. Ca
 An exception is thrown if the database or the session is not open. This method is a wrapper around [`sqlite3session_changeset()`][].
 
 ### `session.patchset()`
+
+<!-- YAML
+added: v23.3.0
+-->
 
 * Returns: {Uint8Array} Binary patchset that can be applied to other databases.
 
