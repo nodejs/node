@@ -3785,6 +3785,9 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/55753
     description: Runtime deprecation.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/55892
+    description: Documentation-only.
 -->
 
 Type: Runtime
