@@ -2348,7 +2348,7 @@ compiled with ICU support.
 ### `ERR_NO_TYPESCRIPT`
 
 <!-- YAML
-added: REPLACEME
+added: v22.12.0
 -->
 
 An attempt was made to use features that require [Native TypeScript support][], but Node.js was not
@@ -2517,7 +2517,7 @@ module, and should be done lazily in an inner function.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v22.12.0
     pr-url: https://github.com/nodejs/node/pull/55085
     description: require() now supports loading synchronous ES modules by default.
 -->

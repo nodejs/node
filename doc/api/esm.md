@@ -7,7 +7,7 @@
 <!-- YAML
 added: v8.5.0
 changes:
-  - version: REPLACEME
+  - version: v22.12.0
     pr-url: https://github.com/nodejs/node/pull/55333
     description: Import attributes are no longer experimental.
   - version:
@@ -611,7 +611,7 @@ separate cache.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v22.12.0
     pr-url: https://github.com/nodejs/node/pull/55333
     description: JSON modules are no longer experimental.
 -->

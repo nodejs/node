@@ -1055,7 +1055,7 @@ following permissions are restricted:
 <!-- YAML
 added: v22.0.0
 changes:
-  - version: REPLACEME
+  - version: v22.12.0
     pr-url: https://github.com/nodejs/node/pull/55085
     description: This is now true by default.
 -->
@@ -1704,7 +1704,7 @@ Use this flag to disable top-level await in REPL.
 <!-- YAML
 added: v22.0.0
 changes:
-  - version: REPLACEME
+  - version: v22.12.0
     pr-url: https://github.com/nodejs/node/pull/55085
     description: This is now false by default.
 -->

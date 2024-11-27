@@ -158,7 +158,7 @@ around [`sqlite3_prepare_v2()`][].
 ### `database.createSession([options])`
 
 <!-- YAML
-added: REPLACEME
+added: v22.12.0
 -->
 
 * `options` {Object} The configuration options for the session.
@@ -171,7 +171,7 @@ Creates and attaches a session to the database. This method is a wrapper around 
 ### `database.applyChangeset(changeset[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v22.12.0
 -->
 
 * `changeset` {Uint8Array} A binary changeset or patchset.
@@ -208,13 +208,13 @@ targetDb.applyChangeset(changeset);
 ## Class: `Session`
 
 <!-- YAML
-added: REPLACEME
+added: v22.12.0
 -->
 
 ### `session.changeset()`
 
 <!-- YAML
-added: REPLACEME
+added: v22.12.0
 -->
 
 * Returns: {Uint8Array} Binary changeset that can be applied to other databases.
@@ -225,7 +225,7 @@ An exception is thrown if the database or the session is not open. This method i
 ### `session.patchset()`
 
 <!-- YAML
-added: REPLACEME
+added: v22.12.0
 -->
 
 * Returns: {Uint8Array} Binary patchset that can be applied to other databases.

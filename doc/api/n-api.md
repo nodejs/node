@@ -2699,7 +2699,7 @@ JavaScript `TypedArray` objects are described in
 #### `node_api_create_buffer_from_arraybuffer`
 
 <!-- YAML
-added: REPLACEME
+added: v22.12.0
 -->
 
 > Stability: 1 - Experimental
