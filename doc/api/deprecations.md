@@ -3786,6 +3786,33 @@ Type: Documentation-only
 Passing non-supported argument types is deprecated and, instead of returning `false`,
 will throw an error in a future version.
 
+### DEP0187: `process.features.ipv6` and `process.features.uv`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/55545
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+These properties are unconditionally `true`. Any checks based on these properties are redundant.
+
+### DEP0188: `process.features.tls_*`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/55545
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+`process.features.tls_alpn`, `process.features.tls_ocsp`, and `process.features.tls_sni` are
+deprecated, as their values are guaranteed to be identical to that of `process.features.tls`.
+
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
 [RFC 8247 Section 2.4]: https://www.rfc-editor.org/rfc/rfc8247#section-2.4
