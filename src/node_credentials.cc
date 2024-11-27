@@ -72,9 +72,7 @@ static bool HasOnly(int capability) {
 // process only has the capability CAP_NET_BIND_SERVICE set. If the current
 // process does not have any capabilities set and the process is running as
 // setuid root then lookup will not be allowed.
-bool SafeGetenv(const char* key,
-                std::string* text,
-                std::shared_ptr<KVStore> env_vars) {
+bool SafeGetenv(const char* key, std::string* text, Environment* env) {
 #if !defined(__CloudABI__) && !defined(_WIN32)
 #if defined(__linux__)
   if ((!HasOnly(CAP_NET_BIND_SERVICE) && linux_at_secure()) ||
@@ -87,14 +85,31 @@ bool SafeGetenv(const char* key,
 
   // Fallback to system environment which reads the real environment variable
   // through uv_os_getenv.
-  if (env_vars == nullptr) {
+  std::shared_ptr<KVStore> env_vars;
+  if (env == nullptr) {
     env_vars = per_process::system_environment;
+  } else {
+    env_vars = env->env_vars();
   }
 
   std::optional<std::string> value = env_vars->Get(key);
-  if (!value.has_value()) return false;
-  *text = value.value();
-  return true;
+
+  bool has_env = value.has_value();
+  if (has_env) {
+    *text = value.value();
+  }
+
+  auto options =
+      (env != nullptr ? env->options()
+                      : per_process::cli_options->per_isolate->per_env);
+
+  if (options->trace_env) {
+    fprintf(stderr, "[--trace-env] get environment variable \"%s\"\n", key);
+
+    PrintTraceEnvStack(options);
+  }
+
+  return has_env;
 }
 
 static void SafeGetenv(const FunctionCallbackInfo<Value>& args) {
@@ -103,7 +118,7 @@ static void SafeGetenv(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = env->isolate();
   Utf8Value strenvtag(isolate, args[0]);
   std::string text;
-  if (!SafeGetenv(*strenvtag, &text, env->env_vars())) return;
+  if (!SafeGetenv(*strenvtag, &text, env)) return;
   Local<Value> result =
       ToV8Value(isolate->GetCurrentContext(), text).ToLocalChecked();
   args.GetReturnValue().Set(result);
@@ -117,7 +132,7 @@ static void GetTempDir(const FunctionCallbackInfo<Value>& args) {
 
   // Let's wrap SafeGetEnv since it returns true for empty string.
   auto get_env = [&dir, &env](std::string_view key) {
-    USE(SafeGetenv(key.data(), &dir, env->env_vars()));
+    USE(SafeGetenv(key.data(), &dir, env));
     return !dir.empty();
   };
 

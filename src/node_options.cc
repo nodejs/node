@@ -760,6 +760,24 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "show stack traces on promise initialization and resolution",
             &EnvironmentOptions::trace_promises,
             kAllowedInEnvvar);
+
+  AddOption("--trace-env",
+            "Print accesses to the environment variables",
+            &EnvironmentOptions::trace_env,
+            kAllowedInEnvvar);
+  Implies("--trace-env-js-stack", "--trace-env");
+  Implies("--trace-env-native-stack", "--trace-env");
+  AddOption("--trace-env-js-stack",
+            "Print accesses to the environment variables and the JavaScript "
+            "stack trace",
+            &EnvironmentOptions::trace_env_js_stack,
+            kAllowedInEnvvar);
+  AddOption(
+      "--trace-env-native-stack",
+      "Print accesses to the environment variables and the native stack trace",
+      &EnvironmentOptions::trace_env_native_stack,
+      kAllowedInEnvvar);
+
   AddOption("--experimental-default-type",
             "set module system to use by default",
             &EnvironmentOptions::type,
