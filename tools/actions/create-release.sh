@@ -2,11 +2,19 @@
 
 set -xe
 
+GITHUB_REPOSITORY=${GITHUB_REPOSITORY:-nodejs/node}
+BOT_TOKEN=${BOT_TOKEN:-}
+
 RELEASE_DATE=$1
 RELEASE_LINE=$2
 
 if [ -z "$RELEASE_DATE" ] || [ -z "$RELEASE_LINE" ]; then
   echo "Usage: $0 <RELEASE_DATE> <RELEASE_LINE>"
+  exit 1
+fi
+
+if [ -z "$GITHUB_REPOSITORY" ] || [ -z "$BOT_TOKEN" ]; then
+  echo "Invalid value in env for GITHUB_REPOSITORY and BOT_TOKEN"
   exit 1
 fi
 
@@ -36,7 +44,7 @@ EOF
   done
   echo '      ], deletions: ['
   git show "$commit" --diff-filter=D --name-only --format= | while read -r FILE; do
-    echo "        $(node -p 'JSON.stringify(process.argv[1])' "$FILE"),"
+    node -p '"        " + JSON.stringify(process.argv[1]) + ","' "$FILE"
   done
   cat - <<'EOF'
       ]
@@ -78,7 +86,7 @@ PR_URL="$(gh api \
    -f "title=$TITLE" -f "body=$TEMP_BODY" -f "head=$HEAD_BRANCH" -f "base=v$RELEASE_LINE.x")"
 
 # Push the release commit to the proposal branch
-createCommitAPICall | node --input-type=module -e 'console.log(JSON.stringify({
+createCommitAPICall HEAD | node --input-type=module -e 'console.log(JSON.stringify({
   query: Buffer.concat(await process.stdin.toArray()).toString(),
   variables: {
     repo: process.argv[1],
@@ -91,6 +99,6 @@ createCommitAPICall | node --input-type=module -e 'console.log(JSON.stringify({
     "$GITHUB_REPOSITORY" \
     "$HEAD_BRANCH" \
     "$HEAD_SHA" \
-    "$(git log -1 HEAD --format=%s)" \
-    "$(git log -1 HEAD --format=%b | sed "s|PR-URL: TODO|PR-URL: $PR_URL|")" \
+    "$(git log -1 HEAD --format=%s || true)" \
+    "$(git log -1 HEAD --format=%b | sed "s|PR-URL: TODO|PR-URL: $PR_URL|" || true)" \
 | curl -fS -H "Authorization: bearer ${BOT_TOKEN}" -X POST --data @- https://api.github.com/graphql
