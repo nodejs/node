@@ -2944,7 +2944,7 @@ defined. The corresponding declaration ordered event is `'test:start'`.
     `undefined` if the test was run through the REPL.
   * `message` {string} The diagnostic message.
   * `nesting` {number} The nesting level of the test.
-  * `level` {string} The severity level of the diagnostic message, which determines its output color in the reporter.
+  * `level` {string} The severity level of the diagnostic message.
     Possible values are:
     * `'info'`: Informational messages.
     * `'warn'`: Warnings.
