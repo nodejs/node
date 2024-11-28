@@ -86,7 +86,10 @@ function runWithOrphanListeners(limit, done) {
     composedSignalRef = new WeakRef(AbortSignal.any([ac.signal]));
     composedSignalRef.deref().addEventListener('abort', handler);
 
-    composedSignalRefs.push(composedSignalRef);
+    const otherComposedSignalRef = new WeakRef(AbortSignal.any([composedSignalRef.deref()]));
+    otherComposedSignalRef.deref().addEventListener('abort', handler);
+
+    composedSignalRefs.push(composedSignalRef, otherComposedSignalRef);
 
     setImmediate(() => {
       run(iteration + 1);
@@ -157,12 +160,18 @@ it('drops settled signals even when there are listeners', (t, done) => {
   runWithOrphanListeners(limit, (signalRefs) => {
     setImmediate(() => {
       global.gc();
+      setImmediate(() => {
+        global.gc(); // One more call needed to clean up the deeper composed signals
+        setImmediate(() => {
+          global.gc(); // One more call needed to clean up the deeper composed signals
 
-      const unGCedSignals = [...signalRefs].filter((ref) => ref.deref());
+          const unGCedSignals = [...signalRefs].filter((ref) => ref.deref());
 
-      t.assert.strictEqual(unGCedSignals.length, 0);
+          t.assert.strictEqual(unGCedSignals.length, 0);
 
-      done();
+          done();
+        });
+      });
     });
   });
 });
