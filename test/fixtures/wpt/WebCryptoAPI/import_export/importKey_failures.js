@@ -192,4 +192,19 @@ function run_test(algorithmNames) {
             });
         });
     });
+
+    // Missing mandatory "name" field on algorithm
+    testVectors.forEach(function(vector) {
+        var name = vector.name;
+        // We just need *some* valid keydata, so pick the first available algorithm.
+        var algorithm = allAlgorithmSpecifiersFor(name)[0];
+        getValidKeyData(algorithm).forEach(function(test) {
+            validUsages(vector, test.format, test.data).forEach(function(usages) {
+                [true, false].forEach(function(extractable) {
+                    testError(test.format, {}, test.data, name, usages, extractable, "TypeError", "Missing algorithm name");
+                });
+            });
+        });
+    });
+
 }
