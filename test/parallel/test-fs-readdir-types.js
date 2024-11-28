@@ -78,6 +78,14 @@ fs.readdir(readdirDir, {
   assertDirents(dirents);
 })().then(common.mustCall());
 
+// Check that mutating options doesn't affect results
+(async () => {
+  const options = { withFileTypes: true };
+  const direntsPromise = fs.promises.readdir(readdirDir, options);
+  options.withFileTypes = false;
+  assertDirents(await direntsPromise);
+})().then(common.mustCall());
+
 // Check for correct types when the binding returns unknowns
 const UNKNOWN = constants.UV_DIRENT_UNKNOWN;
 const oldReaddir = binding.readdir;
