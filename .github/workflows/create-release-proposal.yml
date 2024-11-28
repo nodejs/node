@@ -82,7 +82,7 @@ jobs:
         # The curl command is to make sure we run the version of the script corresponding to the current workflow.
         run: |
           git update-index --assume-unchanged tools/actions/create-release.sh
-          curl -L https://github.com/${GITHUB_REPOSITORY}/raw/${GITHUB_SHA}/tools/actions/create-release.sh > tools/actions/create-release.sh
+          curl -fsSLo tools/actions/create-release.sh https://github.com/${GITHUB_REPOSITORY}/raw/${GITHUB_SHA}/tools/actions/create-release.sh
           ./tools/actions/create-release.sh "${RELEASE_DATE}" "${RELEASE_LINE}"
         env:
           GH_TOKEN: ${{ github.token }}
