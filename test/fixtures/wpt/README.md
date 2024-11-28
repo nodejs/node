@@ -27,7 +27,7 @@ Last update:
 - performance-timeline: https://github.com/web-platform-tests/wpt/tree/94caab7038/performance-timeline
 - resource-timing: https://github.com/web-platform-tests/wpt/tree/22d38586d0/resource-timing
 - resources: https://github.com/web-platform-tests/wpt/tree/1e140d63ec/resources
-- streams: https://github.com/web-platform-tests/wpt/tree/2bd26e124c/streams
+- streams: https://github.com/web-platform-tests/wpt/tree/bc9dcbbf1a/streams
 - url: https://github.com/web-platform-tests/wpt/tree/67880a4eb8/url
 - user-timing: https://github.com/web-platform-tests/wpt/tree/5ae85bf826/user-timing
 - wasm/jsapi: https://github.com/web-platform-tests/wpt/tree/cde25e7e3c/wasm/jsapi
