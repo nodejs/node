@@ -170,6 +170,15 @@ added:
 
 The list of rules added to the blocklist.
 
+### `BlockList.isBlockList(value)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `value` {any} Any JS value
+* Returns `true` if the `value` is a `net.BlockList`.
+
 ## Class: `net.SocketAddress`
 
 <!-- YAML
