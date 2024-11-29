@@ -235,6 +235,17 @@ added:
 
 * Type {number}
 
+### `SocketAddress.parse(input)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `input` {string} An input string containing an IP address and optional port,
+  e.g. `123.1.2.3:1234` or `[1::1]:1234`.
+* Returns: {net.SocketAddress} Returns a `SocketAddress` if parsing was successful.
+  Otherwise returns `undefined`.
+
 ## Class: `net.Server`
 
 <!-- YAML
