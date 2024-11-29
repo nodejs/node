@@ -130,3 +130,38 @@ or the information to be shared.
 Add a list of GitHub handles for those within the project that
 have volunteered to be contacated when necessary by ambassadors
 to get more info about the message to be promoted.
+
+#### Node.js is a great choice for a JavaScript runtime
+
+##### Goal
+
+Highlight the benefits of chosing Node.js as your backend JavaScript runtime. Focus on what is great
+about Node.js without drawing comparisons to alternatives. We don't want to say negative things about
+other options, only highlight what is great about Node.js as a choice.
+
+Some of the things to highlight include:
+
+* How widely it is used (you never get fired for chosing Node.js).
+* The openess of the project. It is part of the OpenJS Foundation and it's governance is set up to avoid
+  any one company from dominating the project. Decisions are made by the collaborators (of which there are quite
+  a few) versus a small number of people.
+* It has predictable and stable releases and has delivered on the release schedule since 2015.
+* It was a well defined security release process and manages security releases well.
+* As the defacto standard, it has the highest likelihood of being supported for a given package on npm.
+* It is not dependent on any one company for its continued existence reducing risk of using it.
+* The large number of platforms supported.
+* Asynchronous non-blocking i/o architecture drives high transactional throughput, making it ideal for web workloads.
+* Single threaded programming model enables very low resource consumption, making it ideal for containerised workloads.
+* Highly vibrant ecosystem with enterprise support from many vendors.
+
+#### Related Links
+
+* <https://github.com/nodejs/release>
+* <https://github.com/nodejs/node/blob/main/doc/contributing/security-release-process.md>
+* <https://github.com/nodejs/TSC/blob/main/TSC-Charter.md>
+* <https://github.com/mhdawson/presentations/blob/main/2024/NodeConfEU_2024-Node.js_whats_next.pdf>
+  for slide  usage and topping recent surveys.
+
+#### Project contacts
+
+* @mhdawson
