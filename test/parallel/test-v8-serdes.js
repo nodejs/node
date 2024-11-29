@@ -7,6 +7,8 @@ const { internalBinding } = require('internal/test/binding');
 const assert = require('assert');
 const v8 = require('v8');
 const os = require('os');
+// TODO(bartlomieju): once `Float16Array` is available in stable V8,
+// remove this line and `--js-float16array` flag up top
 const { Float16Array } = globalThis;
 
 const circular = {};
@@ -27,9 +29,6 @@ const objects = [
   Buffer.from([1, 2, 3, 4]),
   new BigInt64Array([42n]),
   new BigUint64Array([42n]),
-  // TODO(bartlomieju): once `Float16Array` is available in stable V8,
-  // remove the lint below and `--js-float16array` flag up top
-  // eslint-disable-next-line no-undef
   new Float16Array([1, 2, 3, 4]),
   undefined,
   null,
