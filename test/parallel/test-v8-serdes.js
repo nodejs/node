@@ -7,6 +7,7 @@ const { internalBinding } = require('internal/test/binding');
 const assert = require('assert');
 const v8 = require('v8');
 const os = require('os');
+const { Float16Array } = globalThis;
 
 const circular = {};
 circular.circular = circular;
