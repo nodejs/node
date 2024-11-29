@@ -143,6 +143,7 @@
 # Actions
 
 /.github/workflows/* @nodejs/actions
+/.github/workflows/create-release-proposal.yml @nodejs/releasers
 /tools/actions/* @nodejs/actions
 
 # Test runner
