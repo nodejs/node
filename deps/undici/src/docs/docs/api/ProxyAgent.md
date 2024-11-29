@@ -14,7 +14,7 @@ Returns: `ProxyAgent`
 
 ### Parameter: `ProxyAgentOptions`
 
-Extends: [`AgentOptions`](Agent.md#parameter-agentoptions)
+Extends: [`AgentOptions`](/docs/docs/api/Agent.md#parameter-agentoptions)
 
 * **uri** `string | URL` (required) - The URI of the proxy server.  This can be provided as a string, as an instance of the URL class, or as an object with a `uri` property of type string.
 If the `uri` is provided as a string or `uri` is an object with an `uri` property of type string, then it will be parsed into a `URL` object according to the [WHATWG URL Specification](https://url.spec.whatwg.org).
@@ -123,8 +123,8 @@ await proxyAgent.close()
 
 ### `ProxyAgent.dispatch(options, handlers)`
 
-Implements [`Agent.dispatch(options, handlers)`](Agent.md#parameter-agentdispatchoptions).
+Implements [`Agent.dispatch(options, handlers)`](/docs/docs/api/Agent.md#parameter-agentdispatchoptions).
 
 ### `ProxyAgent.request(options[, callback])`
 
-See [`Dispatcher.request(options [, callback])`](Dispatcher.md#dispatcherrequestoptions-callback).
+See [`Dispatcher.request(options [, callback])`](/docs/docs/api/Dispatcher.md#dispatcherrequestoptions-callback).

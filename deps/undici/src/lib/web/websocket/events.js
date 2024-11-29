@@ -3,7 +3,6 @@
 const { webidl } = require('../fetch/webidl')
 const { kEnumerableProperty } = require('../../core/util')
 const { kConstruct } = require('../../core/symbols')
-const { MessagePort } = require('node:worker_threads')
 
 /**
  * @see https://html.spec.whatwg.org/multipage/comms.html#messageevent
@@ -219,7 +218,10 @@ Object.defineProperties(ErrorEvent.prototype, {
   error: kEnumerableProperty
 })
 
-webidl.converters.MessagePort = webidl.interfaceConverter(MessagePort)
+webidl.converters.MessagePort = webidl.interfaceConverter(
+  webidl.is.MessagePort,
+  'MessagePort'
+)
 
 webidl.converters['sequence<MessagePort>'] = webidl.sequenceConverter(
   webidl.converters.MessagePort

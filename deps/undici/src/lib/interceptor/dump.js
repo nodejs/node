@@ -14,11 +14,11 @@ class DumpHandler extends DecoratorHandler {
   #handler = null
 
   constructor ({ maxSize }, handler) {
-    super(handler)
-
     if (maxSize != null && (!Number.isFinite(maxSize) || maxSize < 1)) {
       throw new InvalidArgumentError('maxSize must be a number greater than 0')
     }
+
+    super(handler)
 
     this.#maxSize = maxSize ?? this.#maxSize
     this.#handler = handler
