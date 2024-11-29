@@ -936,8 +936,8 @@ std::optional<SnapshotConfig> ReadSnapshotConfig(const char* config_path) {
 
 ExitCode BuildSnapshotWithoutCodeCache(
     SnapshotData* out,
-    const std::vector<std::string>& args,
-    const std::vector<std::string>& exec_args,
+    const std::vector<std::string_view>& args,
+    const std::vector<std::string_view>& exec_args,
     std::optional<std::string_view> builder_script_content,
     const SnapshotConfig& config) {
   DCHECK(builder_script_content.has_value() ==
@@ -957,7 +957,7 @@ ExitCode BuildSnapshotWithoutCodeCache(
       per_process::v8_platform.Platform(), &errors, args, exec_args, config);
   if (!setup) {
     for (const std::string& err : errors)
-      fprintf(stderr, "%s: %s\n", args[0].c_str(), err.c_str());
+      fprintf(stderr, "%s: %s\n", args[0].data(), err.c_str());
     return ExitCode::kBootstrapFailure;
   }
 
@@ -999,8 +999,8 @@ ExitCode BuildSnapshotWithoutCodeCache(
 }
 
 ExitCode BuildCodeCacheFromSnapshot(SnapshotData* out,
-                                    const std::vector<std::string>& args,
-                                    const std::vector<std::string>& exec_args) {
+                                    const std::vector<std::string_view>& args,
+                                    const std::vector<std::string_view>& exec_args) {
   RAIIIsolate raii_isolate(out);
   Isolate* isolate = raii_isolate.get();
   v8::Locker locker(isolate);
@@ -1039,8 +1039,8 @@ ExitCode BuildCodeCacheFromSnapshot(SnapshotData* out,
 
 ExitCode SnapshotBuilder::Generate(
     SnapshotData* out,
-    const std::vector<std::string>& args,
-    const std::vector<std::string>& exec_args,
+    const std::vector<std::string_view>& args,
+    const std::vector<std::string_view>& exec_args,
     std::optional<std::string_view> builder_script_content,
     const SnapshotConfig& snapshot_config) {
   ExitCode code = BuildSnapshotWithoutCodeCache(
@@ -1177,8 +1177,8 @@ ExitCode SnapshotBuilder::CreateSnapshot(SnapshotData* out,
 
 ExitCode SnapshotBuilder::GenerateAsSource(
     const char* out_path,
-    const std::vector<std::string>& args,
-    const std::vector<std::string>& exec_args,
+    const std::vector<std::string_view>& args,
+    const std::vector<std::string_view>& exec_args,
     const SnapshotConfig& config,
     bool use_array_literals) {
   std::string builder_script_content;

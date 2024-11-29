@@ -247,13 +247,13 @@ struct ArgsInfo {
   // Generally, the idea here is that the first entry in `*underlying` stores
   // the "0th" argument (the program name), then `synthetic_args` are inserted,
   // followed by the remainder of `*underlying`.
-  std::vector<std::string>* underlying;
+  std::vector<std::string_view>* underlying;
   std::vector<std::string> synthetic_args;
 
-  std::vector<std::string>* exec_args;
+  std::vector<std::string_view>* exec_args;
 
-  ArgsInfo(std::vector<std::string>* args,
-           std::vector<std::string>* exec_args)
+  ArgsInfo(std::vector<std::string_view>* args,
+           std::vector<std::string_view>* exec_args)
     : underlying(args), exec_args(exec_args) {}
 
   size_t remaining() const {
@@ -262,14 +262,14 @@ struct ArgsInfo {
   }
 
   bool empty() const { return remaining() == 0; }
-  const std::string& program_name() const { return underlying->at(0); }
+  std::string_view program_name() const { return underlying->front(); }
 
-  std::string& first() {
+  std::string_view first() const {
     return synthetic_args.empty() ? underlying->at(1) : synthetic_args.front();
   }
 
   std::string pop_first() {
-    std::string ret = std::move(first());
+    std::string ret = std::string(first());
     if (synthetic_args.empty()) {
       // Only push arguments to `exec_args` that were also originally passed
       // on the command line (i.e. not generated through alias expansion).
@@ -287,9 +287,9 @@ struct ArgsInfo {
 
 template <typename Options>
 void OptionsParser<Options>::Parse(
-    std::vector<std::string>* const orig_args,
-    std::vector<std::string>* const exec_args,
-    std::vector<std::string>* const v8_args,
+    std::vector<std::string_view>* const orig_args,
+    std::vector<std::string_view>* const exec_args,
+    std::vector<std::string_view>* const v8_args,
     Options* const options,
     OptionEnvvarSettings required_env_settings,
     std::vector<std::string>* const errors) const {

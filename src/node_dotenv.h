@@ -14,7 +14,7 @@ class Dotenv {
  public:
   enum ParseResult { Valid, FileError, InvalidContent };
   struct env_file_data {
-    std::string path;
+    std::string_view path;
     bool is_optional;
   };
 
@@ -32,7 +32,7 @@ class Dotenv {
   v8::Local<v8::Object> ToObject(Environment* env) const;
 
   static std::vector<env_file_data> GetDataFromArgs(
-      const std::vector<std::string>& args);
+      const std::vector<std::string_view>& args);
 
  private:
   std::map<std::string, std::string> store_;

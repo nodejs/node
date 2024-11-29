@@ -48,8 +48,8 @@ SeaResource FindSingleExecutableResource();
 std::tuple<int, char**> FixupArgsForSEA(int argc, char** argv);
 node::ExitCode BuildSingleExecutableBlob(
     const std::string& config_path,
-    const std::vector<std::string>& args,
-    const std::vector<std::string>& exec_args);
+    const std::vector<std::string_view>& args,
+    const std::vector<std::string_view>& exec_args);
 
 // Try loading the Environment as a single-executable application.
 // Returns true if it is loaded as a single-executable application.

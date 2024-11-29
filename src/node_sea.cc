@@ -380,15 +380,15 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
 }
 
 ExitCode GenerateSnapshotForSEA(const SeaConfig& config,
-                                const std::vector<std::string>& args,
-                                const std::vector<std::string>& exec_args,
+                                const std::vector<std::string_view>& args,
+                                const std::vector<std::string_view>& exec_args,
                                 const std::string& builder_script_content,
                                 const SnapshotConfig& snapshot_config,
                                 std::vector<char>* snapshot_blob) {
   SnapshotData snapshot;
   // TODO(joyeecheung): make the arguments configurable through the JSON
   // config or a programmatic API.
-  std::vector<std::string> patched_args = {args[0], config.main_path};
+  std::vector patched_args = {args[0], config.main_path};
   ExitCode exit_code = SnapshotBuilder::Generate(&snapshot,
                                                  patched_args,
                                                  exec_args,
@@ -490,8 +490,8 @@ int BuildAssets(const std::unordered_map<std::string, std::string>& config,
 
 ExitCode GenerateSingleExecutableBlob(
     const SeaConfig& config,
-    const std::vector<std::string>& args,
-    const std::vector<std::string>& exec_args) {
+    const std::vector<std::string_view>& args,
+    const std::vector<std::string_view>& exec_args) {
   std::string main_script;
   // TODO(joyeecheung): unify the file utils.
   int r = ReadFileSync(&main_script, config.main_path.c_str());
@@ -565,8 +565,8 @@ ExitCode GenerateSingleExecutableBlob(
 }  // anonymous namespace
 
 ExitCode BuildSingleExecutableBlob(const std::string& config_path,
-                                   const std::vector<std::string>& args,
-                                   const std::vector<std::string>& exec_args) {
+                                   const std::vector<std::string_view>& args,
+                                   const std::vector<std::string_view>& exec_args) {
   std::optional<SeaConfig> config_opt =
       ParseSingleExecutableConfig(config_path);
   if (config_opt.has_value()) {

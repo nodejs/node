@@ -358,7 +358,7 @@ class PerProcessOptions : public Options {
   // TODO(addaleax): Some of these could probably be per-Environment.
   std::string use_largepages = "off";
   bool trace_sigint = false;
-  std::vector<std::string> cmdline;
+  std::vector<std::string_view> cmdline;
 
   inline PerIsolateOptions* get_per_isolate_options();
   void CheckOptions(std::vector<std::string>* errors,
@@ -473,9 +473,9 @@ class OptionsParser {
   //
   // If `*error` is set, the result of the parsing should be discarded and the
   // contents of any of the argument vectors should be considered undefined.
-  void Parse(std::vector<std::string>* const args,
-             std::vector<std::string>* const exec_args,
-             std::vector<std::string>* const v8_args,
+  void Parse(std::vector<std::string_view>* const args,
+             std::vector<std::string_view>* const exec_args,
+             std::vector<std::string_view>* const v8_args,
              Options* const options,
              OptionEnvvarSettings required_env_settings,
              std::vector<std::string>* const errors) const;
@@ -567,10 +567,11 @@ class OptionsParser {
 };
 
 using StringVector = std::vector<std::string>;
+using StringViewVector = std::vector<std::string_view>;
 template <class OptionsType, class = Options>
 void Parse(
-  StringVector* const args, StringVector* const exec_args,
-  StringVector* const v8_args, OptionsType* const options,
+  StringViewVector* const args, StringViewVector* const exec_args,
+  StringViewVector* const v8_args, OptionsType* const options,
   OptionEnvvarSettings required_env_settings, StringVector* const errors);
 
 }  // namespace options_parser

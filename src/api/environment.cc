@@ -396,8 +396,8 @@ struct InspectorParentHandleImpl : public InspectorParentHandle {
 Environment* CreateEnvironment(
     IsolateData* isolate_data,
     Local<Context> context,
-    const std::vector<std::string>& args,
-    const std::vector<std::string>& exec_args,
+    const std::vector<std::string_view>& args,
+    const std::vector<std::string_view>& exec_args,
     EnvironmentFlags::Flags flags,
     ThreadId thread_id,
     std::unique_ptr<InspectorParentHandle> inspector_parent_handle) {

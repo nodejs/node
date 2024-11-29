@@ -620,7 +620,7 @@ class Environment final : public MemoryRetainer {
 
   SET_MEMORY_INFO_NAME(Environment)
 
-  static std::string GetExecPath(const std::vector<std::string>& argv);
+  static std::string GetExecPath(const std::vector<std::string_view>& argv);
   static std::string GetCwd(const std::string& exec_path);
 
   inline size_t SelfSize() const override;
@@ -664,8 +664,8 @@ class Environment final : public MemoryRetainer {
   // InitializeMainContext() to initialize a main context for it.
   Environment(IsolateData* isolate_data,
               v8::Isolate* isolate,
-              const std::vector<std::string>& args,
-              const std::vector<std::string>& exec_args,
+              const std::vector<std::string_view>& args,
+              const std::vector<std::string_view>& exec_args,
               const EnvSerializeInfo* env_info,
               EnvironmentFlags::Flags flags,
               ThreadId thread_id);
@@ -674,8 +674,8 @@ class Environment final : public MemoryRetainer {
   ~Environment() override;
 
   void InitializeLibuv();
-  inline const std::vector<std::string>& exec_argv();
-  inline const std::vector<std::string>& argv();
+  inline const std::vector<std::string_view>& exec_argv();
+  inline const std::vector<std::string_view>& argv();
   const std::string& exec_path() const;
 
   void CleanupHandles();
@@ -1143,8 +1143,8 @@ class Environment final : public MemoryRetainer {
   // the inspector_host_port_->port() will be the actual port being
   // used.
   std::shared_ptr<ExclusiveAccess<HostPort>> inspector_host_port_;
-  std::vector<std::string> exec_argv_;
-  std::vector<std::string> argv_;
+  std::vector<std::string_view> exec_argv_;
+  std::vector<std::string_view> argv_;
   std::string exec_path_;
 
   bool is_in_heapsnapshot_heap_limit_callback_ = false;

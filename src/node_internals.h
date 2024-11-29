@@ -346,14 +346,14 @@ class InitializationResultImpl final : public InitializationResult {
   int exit_code() const { return static_cast<int>(exit_code_enum()); }
   ExitCode exit_code_enum() const { return exit_code_; }
   bool early_return() const { return early_return_; }
-  const std::vector<std::string>& args() const { return args_; }
-  const std::vector<std::string>& exec_args() const { return exec_args_; }
+  const std::vector<std::string_view>& args() const { return args_; }
+  const std::vector<std::string_view>& exec_args() const { return exec_args_; }
   const std::vector<std::string>& errors() const { return errors_; }
   MultiIsolatePlatform* platform() const { return platform_; }
 
   ExitCode exit_code_ = ExitCode::kNoFailure;
-  std::vector<std::string> args_;
-  std::vector<std::string> exec_args_;
+  std::vector<std::string_view> args_;
+  std::vector<std::string_view> exec_args_;
   std::vector<std::string> errors_;
   bool early_return_ = false;
   MultiIsolatePlatform* platform_ = nullptr;

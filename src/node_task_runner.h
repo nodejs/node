@@ -82,7 +82,7 @@ FindPackageJson(const std::filesystem::path& cwd);
 void RunTask(const std::shared_ptr<InitializationResultImpl>& result,
              std::string_view command_id,
              const PositionalArgs& positional_args);
-PositionalArgs GetPositionalArgs(const std::vector<std::string>& args);
+PositionalArgs GetPositionalArgs(const std::vector<std::string_view>& args);
 std::string EscapeShell(std::string_view command);
 
 }  // namespace node::task_runner

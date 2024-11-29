@@ -348,7 +348,7 @@ void RunTask(const std::shared_ptr<InitializationResultImpl>& result,
 // If the "--" flag is not found, it returns an empty optional.
 // Otherwise, it returns the positional arguments as a single string.
 // Example: "node -- script.js arg1 arg2" returns "arg1 arg2".
-PositionalArgs GetPositionalArgs(const std::vector<std::string>& args) {
+PositionalArgs GetPositionalArgs(const std::vector<std::string_view>& args) {
   // If the "--" flag is not found, return an empty optional
   // Otherwise, return the positional arguments as a single string
   if (auto dash_dash = std::find(args.begin(), args.end(), "--");
@@ -358,7 +358,7 @@ PositionalArgs GetPositionalArgs(const std::vector<std::string>& args) {
     for (auto it = dash_dash + 1; it != args.end(); ++it) {
       // SAFETY: The following code is safe because the lifetime of the
       // arguments is guaranteed to be valid until the end of the task runner.
-      positional_args.emplace_back(it->c_str(), it->size());
+      positional_args.push_back(*it);
     }
     return positional_args;
   }

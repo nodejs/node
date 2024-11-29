@@ -12,10 +12,10 @@ using v8::Object;
 using v8::String;
 
 std::vector<Dotenv::env_file_data> Dotenv::GetDataFromArgs(
-    const std::vector<std::string>& args) {
-  const std::string_view optional_env_file_flag = "--env-file-if-exists";
+    const std::vector<std::string_view>& args) {
+  constexpr std::string_view optional_env_file_flag = "--env-file-if-exists";
 
-  const auto find_match = [](const std::string& arg) {
+  const auto find_match = [](const std::string_view arg) {
     return arg == "--" || arg == "--env-file" ||
            arg.starts_with("--env-file=") || arg == "--env-file-if-exists" ||
            arg.starts_with("--env-file-if-exists=");
@@ -37,7 +37,7 @@ std::vector<Dotenv::env_file_data> Dotenv::GetDataFromArgs(
       auto flag = matched_arg->substr(0, equal_char_index);
       auto file_path = matched_arg->substr(equal_char_index + 1);
 
-      struct env_file_data env_file_data = {
+      env_file_data env_file_data = {
           file_path, flag.starts_with(optional_env_file_flag)};
       env_files.push_back(env_file_data);
     } else {

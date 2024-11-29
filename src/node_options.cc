@@ -269,8 +269,8 @@ const EnvironmentOptionsParser _eop_instance{_dop_instance};
 // This Parse is not dead code. It is used by embedders (e.g., Electron).
 template <>
 void Parse(
-  StringVector* const args, StringVector* const exec_args,
-  StringVector* const v8_args,
+  StringViewVector* const args, StringViewVector* const exec_args,
+  StringViewVector* const v8_args,
   DebugOptions* const options,
   OptionEnvvarSettings required_env_settings, StringVector* const errors) {
   _dop_instance.Parse(
@@ -284,8 +284,8 @@ const PerProcessOptionsParser _ppop_instance{_piop_instance};
 
 template <>
 void Parse(
-  StringVector* const args, StringVector* const exec_args,
-  StringVector* const v8_args,
+  StringViewVector* const args, StringViewVector* const exec_args,
+  StringViewVector* const v8_args,
   PerIsolateOptions* const options,
   OptionEnvvarSettings required_env_settings, StringVector* const errors) {
   _piop_instance.Parse(
@@ -294,8 +294,8 @@ void Parse(
 
 template <>
 void Parse(
-  StringVector* const args, StringVector* const exec_args,
-  StringVector* const v8_args,
+  StringViewVector* const args, StringViewVector* const exec_args,
+  StringViewVector* const v8_args,
   PerProcessOptions* const options,
   OptionEnvvarSettings required_env_settings, StringVector* const errors) {
   _ppop_instance.Parse(
@@ -1566,7 +1566,7 @@ void HandleEnvOptions(std::shared_ptr<EnvironmentOptions> env_options,
 
 std::vector<std::string> ParseNodeOptionsEnvVar(
     const std::string& node_options, std::vector<std::string>* errors) {
-  std::vector<std::string> env_argv;
+  std::vector<std::string_view> env_argv;
 
   bool is_in_string = false;
   bool will_start_new_arg = true;

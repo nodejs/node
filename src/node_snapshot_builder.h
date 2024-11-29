@@ -21,8 +21,8 @@ std::optional<SnapshotConfig> ReadSnapshotConfig(const char* path);
 class NODE_EXTERN_PRIVATE SnapshotBuilder {
  public:
   static ExitCode GenerateAsSource(const char* out_path,
-                                   const std::vector<std::string>& args,
-                                   const std::vector<std::string>& exec_args,
+                                   const std::vector<std::string_view>& args,
+                                   const std::vector<std::string_view>& exec_args,
                                    const SnapshotConfig& config,
                                    bool use_array_literals = false);
 
@@ -31,8 +31,8 @@ class NODE_EXTERN_PRIVATE SnapshotBuilder {
   // in case the script is already read for other purposes.
   static ExitCode Generate(
       SnapshotData* out,
-      const std::vector<std::string>& args,
-      const std::vector<std::string>& exec_args,
+      const std::vector<std::string_view>& args,
+      const std::vector<std::string_view>& exec_args,
       std::optional<std::string_view> builder_script_content,
       const SnapshotConfig& config);
 

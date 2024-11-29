@@ -763,7 +763,7 @@ std::unique_ptr<v8::BackingStore> Environment::release_managed_buffer(
   return bs;
 }
 
-std::string Environment::GetExecPath(const std::vector<std::string>& argv) {
+std::string Environment::GetExecPath(const std::vector<std::string_view>& argv) {
   char exec_path_buf[2 * PATH_MAX];
   size_t exec_path_len = sizeof(exec_path_buf);
   std::string exec_path;
@@ -791,8 +791,8 @@ std::string Environment::GetExecPath(const std::vector<std::string>& argv) {
 
 Environment::Environment(IsolateData* isolate_data,
                          Isolate* isolate,
-                         const std::vector<std::string>& args,
-                         const std::vector<std::string>& exec_args,
+                         const std::vector<std::string_view>& args,
+                         const std::vector<std::string_view>& exec_args,
                          const EnvSerializeInfo* env_info,
                          EnvironmentFlags::Flags flags,
                          ThreadId thread_id)
@@ -910,10 +910,10 @@ Environment::Environment(IsolateData* isolate_data,
           TRACING_CATEGORY_NODE1(environment)) != 0) {
     auto traced_value = tracing::TracedValue::Create();
     traced_value->BeginArray("args");
-    for (const std::string& arg : args) traced_value->AppendString(arg);
+    for (const auto& arg : args) traced_value->AppendString(arg.data());
     traced_value->EndArray();
     traced_value->BeginArray("exec_args");
-    for (const std::string& arg : exec_args) traced_value->AppendString(arg);
+    for (const auto& arg : exec_args) traced_value->AppendString(arg.data());
     traced_value->EndArray();
     TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(TRACING_CATEGORY_NODE1(environment),
                                       "Environment",

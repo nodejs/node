@@ -26,8 +26,8 @@ class NodeMainInstance {
   NodeMainInstance(const SnapshotData* snapshot_data,
                    uv_loop_t* event_loop,
                    MultiIsolatePlatform* platform,
-                   const std::vector<std::string>& args,
-                   const std::vector<std::string>& exec_args);
+                   const std::vector<std::string_view>& args,
+                   const std::vector<std::string_view>& exec_args);
   ~NodeMainInstance();
 
   // Start running the Node.js instances, return the exit code when finished.
@@ -48,11 +48,11 @@ class NodeMainInstance {
   NodeMainInstance(v8::Isolate* isolate,
                    uv_loop_t* event_loop,
                    MultiIsolatePlatform* platform,
-                   const std::vector<std::string>& args,
-                   const std::vector<std::string>& exec_args);
+                   const std::vector<std::string_view>& args,
+                   const std::vector<std::string_view>& exec_args);
 
-  std::vector<std::string> args_;
-  std::vector<std::string> exec_args_;
+  std::vector<std::string_view> args_;
+  std::vector<std::string_view> exec_args_;
   std::unique_ptr<ArrayBufferAllocator> array_buffer_allocator_;
   v8::Isolate* isolate_;
   MultiIsolatePlatform* platform_;

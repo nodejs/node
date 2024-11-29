@@ -188,8 +188,8 @@ std::unique_ptr<CommonEnvironmentSetup>
 CommonEnvironmentSetup::CreateForSnapshotting(
     MultiIsolatePlatform* platform,
     std::vector<std::string>* errors,
-    const std::vector<std::string>& args,
-    const std::vector<std::string>& exec_args,
+    const std::vector<std::string_view>& args,
+    const std::vector<std::string_view>& exec_args,
     const SnapshotConfig& snapshot_config) {
   // It's not guaranteed that a context that goes through
   // v8_inspector::V8Inspector::contextCreated() is runtime-independent,

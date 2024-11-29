@@ -33,8 +33,8 @@ using v8::Locker;
 NodeMainInstance::NodeMainInstance(const SnapshotData* snapshot_data,
                                    uv_loop_t* event_loop,
                                    MultiIsolatePlatform* platform,
-                                   const std::vector<std::string>& args,
-                                   const std::vector<std::string>& exec_args)
+                                   const std::vector<std::string_view>& args,
+                                   const std::vector<std::string_view>& exec_args)
     : args_(args),
       exec_args_(exec_args),
       array_buffer_allocator_(ArrayBufferAllocator::Create()),

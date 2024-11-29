@@ -301,10 +301,10 @@ class NODE_EXTERN InitializationResult {
   virtual bool early_return() const = 0;
 
   // Returns the parsed list of non-Node.js arguments.
-  virtual const std::vector<std::string>& args() const = 0;
+  virtual const std::vector<std::string_view>& args() const = 0;
 
   // Returns the parsed list of Node.js arguments.
-  virtual const std::vector<std::string>& exec_args() const = 0;
+  virtual const std::vector<std::string_view>& exec_args() const = 0;
 
   // Returns an array of errors. Note that these may be warnings
   // whose existence does not imply a non-zero exit code.
@@ -350,7 +350,7 @@ NODE_DEPRECATED("Use InitializeOncePerProcess() instead",
 // errors encountered during initialization, and a potential suggested
 // exit code.
 NODE_EXTERN std::shared_ptr<InitializationResult> InitializeOncePerProcess(
-    const std::vector<std::string>& args,
+    const std::vector<std::string_view>& args,
     ProcessInitializationFlags::Flags flags =
         ProcessInitializationFlags::kNoFlags);
 // Undoes the initialization performed by InitializeOncePerProcess(),
@@ -359,7 +359,7 @@ NODE_EXTERN void TearDownOncePerProcess();
 // Convenience overload for specifying multiple flags without having
 // to worry about casts.
 inline std::shared_ptr<InitializationResult> InitializeOncePerProcess(
-    const std::vector<std::string>& args,
+    const std::vector<std::string_view>& args,
     std::initializer_list<ProcessInitializationFlags::Flags> list) {
   uint64_t flags_accum = ProcessInitializationFlags::kNoFlags;
   for (const auto flag : list) flags_accum |= static_cast<uint64_t>(flag);
@@ -704,8 +704,8 @@ struct InspectorParentHandle {
 NODE_EXTERN Environment* CreateEnvironment(
     IsolateData* isolate_data,
     v8::Local<v8::Context> context,
-    const std::vector<std::string>& args,
-    const std::vector<std::string>& exec_args,
+    const std::vector<std::string_view>& args,
+    const std::vector<std::string_view>& exec_args,
     EnvironmentFlags::Flags flags = EnvironmentFlags::kDefaultFlags,
     ThreadId thread_id = {} /* allocates a thread id automatically */,
     std::unique_ptr<InspectorParentHandle> inspector_parent_handle = {});
@@ -923,8 +923,8 @@ class NODE_EXTERN CommonEnvironmentSetup {
   static std::unique_ptr<CommonEnvironmentSetup> CreateForSnapshotting(
       MultiIsolatePlatform* platform,
       std::vector<std::string>* errors,
-      const std::vector<std::string>& args = {},
-      const std::vector<std::string>& exec_args = {},
+      const std::vector<std::string_view>& args = {},
+      const std::vector<std::string_view>& exec_args = {},
       const SnapshotConfig& snapshot_config = {});
   EmbedderSnapshotData::Pointer CreateSnapshot();
 

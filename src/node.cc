@@ -190,7 +190,7 @@ void Environment::InitializeInspector(
     inspector_path = parent_handle->url();
     inspector_agent_->SetParentHandle(std::move(parent_handle));
   } else {
-    inspector_path = argv_.size() > 1 ? argv_[1].c_str() : "";
+    inspector_path = argv_.size() > 1 ? argv_[1].data() : "";
   }
 
   CHECK(!inspector_agent_->IsListening());
@@ -710,12 +710,12 @@ void ResetStdio() {
 #endif  // __POSIX__
 }
 
-static ExitCode ProcessGlobalArgsInternal(std::vector<std::string>* args,
-                                          std::vector<std::string>* exec_args,
+static ExitCode ProcessGlobalArgsInternal(std::vector<std::string_view>* args,
+                                          std::vector<std::string_view>* exec_args,
                                           std::vector<std::string>* errors,
                                           OptionEnvvarSettings settings) {
   // Parse a few arguments which are specific to Node.
-  std::vector<std::string> v8_args;
+  std::vector<std::string_view> v8_args;
 
   Mutex::ScopedLock lock(per_process::cli_options_mutex);
   options_parser::Parse(
@@ -771,12 +771,13 @@ static ExitCode ProcessGlobalArgsInternal(std::vector<std::string>* args,
   }
 #endif
 
-  std::vector<char*> v8_args_as_char_ptr(v8_args.size());
+  std::vector<const char*> v8_args_as_char_ptr(v8_args.size());
   if (v8_args.size() > 0) {
     for (size_t i = 0; i < v8_args.size(); ++i)
       v8_args_as_char_ptr[i] = v8_args[i].data();
     int argc = v8_args.size();
-    V8::SetFlagsFromCommandLine(&argc, v8_args_as_char_ptr.data(), true);
+    // TODO(anonrig): enable this before landing
+    // V8::SetFlagsFromCommandLine(&argc, &*v8_args_as_char_ptr.data(), true);
     v8_args_as_char_ptr.resize(argc);
   }
 
@@ -790,8 +791,8 @@ static ExitCode ProcessGlobalArgsInternal(std::vector<std::string>* args,
   return ExitCode::kNoFailure;
 }
 
-int ProcessGlobalArgs(std::vector<std::string>* args,
-                      std::vector<std::string>* exec_args,
+int ProcessGlobalArgs(std::vector<std::string_view>* args,
+                      std::vector<std::string_view>* exec_args,
                       std::vector<std::string>* errors,
                       OptionEnvvarSettings settings) {
   return static_cast<int>(
@@ -803,8 +804,8 @@ static std::atomic_bool init_called{false};
 // TODO(addaleax): Turn this into a wrapper around InitializeOncePerProcess()
 // (with the corresponding additional flags set), then eventually remove this.
 static ExitCode InitializeNodeWithArgsInternal(
-    std::vector<std::string>* argv,
-    std::vector<std::string>* exec_argv,
+    std::vector<std::string_view>* argv,
+    std::vector<std::string_view>* exec_argv,
     std::vector<std::string>* errors,
     ProcessInitializationFlags::Flags flags) {
   // Make sure InitializeNodeWithArgs() is called only once.
@@ -861,16 +862,16 @@ static ExitCode InitializeNodeWithArgsInternal(
         case Dotenv::ParseResult::Valid:
           break;
         case Dotenv::ParseResult::InvalidContent:
-          errors->push_back(file_data.path + ": invalid format");
+          errors->push_back(std::string(file_data.path) + ": invalid format");
           break;
         case Dotenv::ParseResult::FileError:
           if (file_data.is_optional) {
             fprintf(stderr,
                     "%s not found. Continuing without it.\n",
-                    file_data.path.c_str());
+                    file_data.path.data());
             continue;
           }
-          errors->push_back(file_data.path + ": not found");
+          errors->push_back(std::string(file_data.path) + ": not found");
           break;
         default:
           UNREACHABLE();
@@ -975,8 +976,8 @@ static ExitCode InitializeNodeWithArgsInternal(
   return ExitCode::kNoFailure;
 }
 
-int InitializeNodeWithArgs(std::vector<std::string>* argv,
-                           std::vector<std::string>* exec_argv,
+int InitializeNodeWithArgs(std::vector<std::string_view>* argv,
+                           std::vector<std::string_view>* exec_argv,
                            std::vector<std::string>* errors,
                            ProcessInitializationFlags::Flags flags) {
   return static_cast<int>(
@@ -984,11 +985,11 @@ int InitializeNodeWithArgs(std::vector<std::string>* argv,
 }
 
 static std::shared_ptr<InitializationResultImpl>
-InitializeOncePerProcessInternal(const std::vector<std::string>& args,
+InitializeOncePerProcessInternal(const std::vector<std::string_view>& args,
                                  ProcessInitializationFlags::Flags flags =
                                      ProcessInitializationFlags::kNoFlags) {
   auto result = std::make_shared<InitializationResultImpl>();
-  result->args_ = args;
+  result->args_ = std::move(args);
 
   if (!(flags & ProcessInitializationFlags::kNoParseGlobalDebugVariables)) {
     // Initialized the enabled list for Debug() calls with system
@@ -1216,7 +1217,7 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
 }
 
 std::shared_ptr<InitializationResult> InitializeOncePerProcess(
-    const std::vector<std::string>& args,
+    const std::vector<std::string_view>& args,
     ProcessInitializationFlags::Flags flags) {
   return InitializeOncePerProcessInternal(args, flags);
 }
@@ -1286,7 +1287,11 @@ ExitCode GenerateAndWriteSnapshotData(const SnapshotData** snapshot_data_ptr,
     }
   } else {
     snapshot_config.builder_script_path = result->args()[1];
-    args_maybe_patched = result->args();
+    args_maybe_patched.reserve(result->args().size());
+    // TODO(anonrig): Avoid copying in here.
+    for (const auto& arg : result->args()) {
+      args_maybe_patched.push_back(std::string(arg));
+    };
   }
   DCHECK(snapshot_config.builder_script_path.has_value());
   const std::string& builder_script =
@@ -1429,7 +1434,7 @@ static ExitCode StartInternal(int argc, char** argv) {
 
   std::shared_ptr<InitializationResultImpl> result =
       InitializeOncePerProcessInternal(
-          std::vector<std::string>(argv, argv + argc));
+          std::vector<std::string_view>(argv, argv + argc));
   for (const std::string& error : result->errors()) {
     FPrintF(stderr, "%s: %s\n", result->args().at(0), error);
   }
