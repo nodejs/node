@@ -3306,6 +3306,12 @@ If `value` equals `'child'`, test reporter options will be overridden and test
 output will be sent to stdout in the TAP format. If any other value is provided,
 Node.js makes no guarantees about the reporter format used or its stability.
 
+### `NODE_TEST_WORKER_ID`
+
+This environment variable is set by the test runner. When using process-level test
+isolation, each worker process is assigned a unique ID, starting at `1`. This is
+set to 1 for all tests when test isolation is disabled.
+
 ### `NODE_TLS_REJECT_UNAUTHORIZED=value`
 
 If `value` equals `'0'`, certificate validation is disabled for TLS connections.
