@@ -1,0 +1,1 @@
+import nothing from 'somewhere';
