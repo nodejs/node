@@ -115,7 +115,7 @@ const response = await fetch('https://api.github.com/graphql', {
   })
 });
 if (!response.ok) {
-  console.log({statusCode: response.statusCode, status: response.status});
+  console.log({statusCode: response.status, statusText: response.statusText});
   process.exitCode ||= 1;
 }
 const data = await response.json();
