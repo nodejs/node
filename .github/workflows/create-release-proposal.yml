@@ -11,12 +11,10 @@ on:
       release-line:
         required: true
         type: number
-        default: 23
         description: 'The release line (without dots or prefix). e.g: 22'
       release-date:
         required: true
         type: string
-        default: YYYY-MM-DD
         description: The release date in YYYY-MM-DD format
 
 concurrency: ${{ github.workflow }}
