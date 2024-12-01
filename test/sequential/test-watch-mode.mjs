@@ -246,8 +246,8 @@ describe('watch mode', { concurrency: !process.env.TEST_PARALLEL, timeout: 60_00
     const envKey = `TEST_ENV_${Date.now()}`;
     const dir = tmpdir.resolve('subdir0');
     const jsFile = createTmpFile(`console.log('ENV: ' + process.env.${envKey});`);
-    const envFile = createTmpFile(`${envKey}=value1`, '.env');
-    const tmpFile = createTmpFile('', '.tmp');
+    const envFile = createTmpFile(`${envKey}=value1`, '.env', dir);
+    const tmpFile = createTmpFile('', '.tmp', dir);
     const { done, restart } = runInBackground({ args: ['--watch-path', dir, `--env-file=${envFile}`, jsFile] });
 
     try {
