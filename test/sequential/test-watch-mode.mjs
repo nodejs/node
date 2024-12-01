@@ -242,6 +242,25 @@ describe('watch mode', { concurrency: !process.env.TEST_PARALLEL, timeout: 60_00
     }
   });
 
+  it('should not reload env variables when another file in the --env-file directory changes', async () => {
+    const envKey = `TEST_ENV_${Date.now()}`;
+    const dir = tmpdir.resolve('subdir0');
+    const jsFile = createTmpFile(`console.log('ENV: ' + process.env.${envKey});`);
+    const envFile = createTmpFile(`${envKey}=value1`, '.env');
+    const tmpFile = createTmpFile('', '.tmp');
+    const { done, restart } = runInBackground({ args: ['--watch-path', dir, `--env-file=${envFile}`, jsFile] });
+
+    try {
+      await restart();
+      writeFileSync(tmpFile, `${Date.now()}`);
+
+      // Should not restart
+      await assert.rejects(restart(), {name: 'Error', message: 'Timed out waiting for restart'});      
+    } finally {
+      await done();
+    }
+  });
+
   it('should watch changes to a failing file', async () => {
     const file = createTmpFile('throw new Error("fails");');
     const { stderr, stdout } = await runWriteSucceed({
