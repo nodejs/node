@@ -1986,7 +1986,25 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
 
   BufferValue path(isolate, args[0]);
   CHECK_NOT_NULL(*path);
+#ifdef _WIN32
+  bool slashCheck = false;
+  if (path.ToStringView().ends_with("/") ||
+      path.ToStringView().ends_with("\\")) {
+    slashCheck = true;
+  }
+#endif
+
   ToNamespacedPath(env, &path);
+
+#ifdef _WIN32
+  if (slashCheck) {
+    std::string result = path.ToString() + "\\";
+    size_t new_length = result.size();
+    path.AllocateSufficientStorage(new_length + 1);
+    path.SetLength(new_length);
+    memcpy(path.out(), result.c_str(), result.size() + 1);
+  }
+#endif
 
   const enum encoding encoding = ParseEncoding(isolate, args[1], UTF8);
 
