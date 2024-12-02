@@ -1713,6 +1713,11 @@ changes:
     **Default:** `false`.
   * `pauseOnConnect` {boolean} Indicates whether the socket should be
     paused on incoming connections. **Default:** `false`.
+  * `blockList` {net.BlockList} `blockList` can be used for disabling inbound
+    access to specific IP addresses, IP ranges, or IP subnets. This does not
+    work if the server is behind a reverse proxy, NAT, etc. because the address
+    checked against the block list is the address of the proxy, or the one
+    specified by the NAT.
 
 * `connectionListener` {Function} Automatically set as a listener for the
   [`'connection'`][] event.
