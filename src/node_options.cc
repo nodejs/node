@@ -672,7 +672,8 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::test_runner_update_snapshots);
   AddOption("--experimental-test-coverage",
             "enable code coverage in the test runner",
-            &EnvironmentOptions::test_runner_coverage);
+            &EnvironmentOptions::test_runner_coverage,
+            kAllowedInEnvvar);
   AddOption("--test-coverage-branches",
             "the branch coverage minimum threshold",
             &EnvironmentOptions::test_coverage_branches,
@@ -691,8 +692,9 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::test_isolation);
   AddOption("--experimental-test-module-mocks",
             "enable module mocking in the test runner",
-            &EnvironmentOptions::test_runner_module_mocks);
-  AddOption("--experimental-test-snapshots", "", NoOp{});
+            &EnvironmentOptions::test_runner_module_mocks,
+            kAllowedInEnvvar);
+  AddOption("--experimental-test-snapshots", "", NoOp{}, kAllowedInEnvvar);
   AddOption("--test-name-pattern",
             "run tests whose name matches this regular expression",
             &EnvironmentOptions::test_name_pattern,
