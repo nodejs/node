@@ -637,12 +637,11 @@ test('defaultExports work with ESM mocks in both module systems', async (t) => {
   assert.strictEqual(require(fixturePath), defaultExport);
 });
 
-test('wrong import syntax should throw error after module mocking.', async () => {
+test('wrong import syntax should throw error after module mocking', async () => {
   const { stdout, stderr, code } = await common.spawnPromisified(
     process.execPath,
     [
       '--experimental-test-module-mocks',
-      '--experimental-default-type=module',
       fixtures.path('module-mocking/wrong-import-after-module-mocking.js'),
     ]
   );
