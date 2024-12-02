@@ -1,8 +1,5 @@
-// Flags: --expose-internals
-
 'use strict';
 
-require('../common');
 const assert = require('node:assert');
 const { describe, it } = require('node:test');
 const ci = require('code_integrity');

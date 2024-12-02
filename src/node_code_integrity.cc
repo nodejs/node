@@ -15,7 +15,6 @@ using v8::Value;
 
 namespace codeintegrity {
 
-#ifdef _WIN32
 static bool isWldpInitialized = false;
 static pfnWldpCanExecuteFile WldpCanExecuteFile;
 static pfnWldpGetApplicationSettingBoolean WldpGetApplicationSettingBoolean;
@@ -222,24 +221,6 @@ static void IsSystemEnforcingCodeIntegrity(
         Boolean::New(env->isolate(), static_cast<bool>(ret)));
   }
 }
-#endif  // _WIN32
-
-#ifndef _WIN32
-static void IsFileTrustedBySystemCodeIntegrityPolicy(
-  const FunctionCallbackInfo<Value>& args) {
-    args.GetReturnValue().Set(true);
-}
-
-static void IsInterpretiveModeDisabled(
-  const FunctionCallbackInfo<Value>& args) {
-    args.GetReturnValue().Set(false);
-}
-
-static void IsSystemEnforcingCodeIntegrity(
-  const FunctionCallbackInfo<Value>& args) {
-    args.GetReturnValue().Set(false);
-}
-#endif  // ifndef _WIN32
 
 void Initialize(Local<Object> target,
                 Local<Value> unused,

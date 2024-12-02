@@ -104,7 +104,6 @@
       'src/node_blob.cc',
       'src/node_buffer.cc',
       'src/node_builtins.cc',
-      'src/node_code_integrity.cc',
       'src/node_config.cc',
       'src/node_constants.cc',
       'src/node_contextify.cc',
@@ -231,7 +230,6 @@
       'src/node_blob.h',
       'src/node_buffer.h',
       'src/node_builtins.h',
-      'src/node_code_integrity.h',
       'src/node_constants.h',
       'src/node_context_data.h',
       'src/node_contextify.h',
@@ -448,6 +446,14 @@
         'use_openssl_def%': 1,
       }, {
         'use_openssl_def%': 0,
+      }],
+      # Only compile node_code_integrity on Windows
+      [ 'OS=="win"', {
+        'node_sources': [
+          '<(node_sources)',
+          'src/node_code_integrity.cc',
+          'src/node_code_integrity.h',
+        ],
       }],
     ],
   },

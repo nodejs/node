@@ -4,8 +4,6 @@
 #ifndef SRC_NODE_CODE_INTEGRITY_H_
 #define SRC_NODE_CODE_INTEGRITY_H_
 
-#ifdef _WIN32
-
 #include <Windows.h>
 
 #define WLDP_HOST_OTHER \
@@ -85,5 +83,4 @@ const UNICODE_STRING _var = \
 #define E_NOTFOUND 0x80070490
 #endif
 
-#endif  // _WIN32
 #endif  // SRC_NODE_CODE_INTEGRITY_H_
