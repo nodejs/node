@@ -3070,6 +3070,9 @@ one is included in the list below.
 * `--experimental-shadow-realm`
 * `--experimental-specifier-resolution`
 * `--experimental-strip-types`
+* `--experimental-test-coverage`
+* `--experimental-test-module-mocks`
+* `--experimental-test-snapshots`
 * `--experimental-top-level-await`
 * `--experimental-transform-types`
 * `--experimental-vm-modules`
