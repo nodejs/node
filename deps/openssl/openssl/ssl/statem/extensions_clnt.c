@@ -1657,6 +1657,8 @@ int tls_parse_stoc_alpn(SSL *s, PACKET *pkt, unsigned int context, X509 *x,
     }
     if (!PACKET_copy_bytes(pkt, s->s3.alpn_selected, len)) {
         SSLfatal(s, SSL_AD_DECODE_ERROR, SSL_R_BAD_EXTENSION);
+        OPENSSL_free(s->s3.alpn_selected);
+        s->s3.alpn_selected = NULL;
         return 0;
     }
     s->s3.alpn_selected_len = len;
