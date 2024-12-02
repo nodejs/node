@@ -122,14 +122,13 @@ Node.js has two module systems: [CommonJS][] modules and ECMAScript modules.
 
 Authors can tell Node.js to interpret JavaScript as an ES module via the `.mjs`
 file extension, the `package.json` [`"type"`][] field with a value `"module"`,
-the [`--input-type`][] flag with a value of `"module"`, or the
-[`--experimental-default-type`][] flag with a value of `"module"`. These are
-explicit markers of code being intended to run as an ES module.
+or the [`--input-type`][] flag with a value of `"module"`. These are explicit
+markers of code being intended to run as an ES module.
 
-Inversely, authors can tell Node.js to interpret JavaScript as CommonJS via the
-`.cjs` file extension, the `package.json` [`"type"`][] field with a value
-`"commonjs"`, the [`--input-type`][] flag with a value of `"commonjs"`, or the
-[`--experimental-default-type`][] flag with a value of `"commonjs"`.
+Inversely, authors can explicitly tell Node.js to interpret JavaScript as
+CommonJS via the `.cjs` file extension, the `package.json` [`"type"`][] field
+with a value `"commonjs"`, or the [`--input-type`][] flag with a value of
+`"commonjs"`.
 
 When code lacks explicit markers for either module system, Node.js will inspect
 the source code of a module to look for ES module syntax. If such syntax is
@@ -1120,7 +1119,6 @@ resolution for ESM specifiers is [commonjs-extension-resolution-loader][].
 [URL]: https://url.spec.whatwg.org/
 [`"exports"`]: packages.md#exports
 [`"type"`]: packages.md#type
-[`--experimental-default-type`]: cli.md#--experimental-default-typetype
 [`--input-type`]: cli.md#--input-typetype
 [`data:` URLs]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
 [`export`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/export

@@ -163,11 +163,6 @@ Enable Source Map V3 support for stack traces.
 .It Fl -entry-url
 Interpret the entry point as a URL.
 .
-.It Fl -experimental-default-type Ns = Ns Ar type
-Interpret as either ES modules or CommonJS modules input via --eval or STDIN, when --input-type is unspecified;
-.js or extensionless files with no sibling or parent package.json;
-.js or extensionless files whose nearest parent package.json lacks a "type" field, unless under node_modules.
-.
 .It Fl -experimental-import-meta-resolve
 Enable experimental ES modules support for import.meta.resolve().
 .

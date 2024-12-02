@@ -65,35 +65,9 @@ test('execute a TypeScript file with imports', async () => {
   strictEqual(result.code, 0);
 });
 
-test('execute a TypeScript file with imports with default-type module', async () => {
-  const result = await spawnPromisified(process.execPath, [
-    '--experimental-strip-types',
-    '--experimental-default-type=module',
-    '--no-warnings',
-    fixtures.path('typescript/ts/test-import-foo.ts'),
-  ]);
-
-  strictEqual(result.stderr, '');
-  match(result.stdout, /Hello, TypeScript!/);
-  strictEqual(result.code, 0);
-});
-
 test('execute a TypeScript file with node_modules', async () => {
   const result = await spawnPromisified(process.execPath, [
     '--experimental-strip-types',
-    '--no-warnings',
-    fixtures.path('typescript/ts/test-typescript-node-modules.ts'),
-  ]);
-
-  strictEqual(result.stderr, '');
-  match(result.stdout, /Hello, TypeScript!/);
-  strictEqual(result.code, 0);
-});
-
-test('execute a TypeScript file with node_modules with default-type module', async () => {
-  const result = await spawnPromisified(process.execPath, [
-    '--experimental-strip-types',
-    '--experimental-default-type=module',
     '--no-warnings',
     fixtures.path('typescript/ts/test-typescript-node-modules.ts'),
   ]);
@@ -113,19 +87,6 @@ test('expect error when executing a TypeScript file with imports with no extensi
   strictEqual(result.stdout, '');
   strictEqual(result.code, 1);
 });
-
-test('expect error when executing a TypeScript file with imports with no extensions with default-type module',
-     async () => {
-       const result = await spawnPromisified(process.execPath, [
-         '--experimental-strip-types',
-         '--experimental-default-type=module',
-         fixtures.path('typescript/ts/test-import-no-extension.ts'),
-       ]);
-
-       match(result.stderr, /Error \[ERR_MODULE_NOT_FOUND\]:/);
-       strictEqual(result.stdout, '');
-       strictEqual(result.code, 1);
-     });
 
 test('expect error when executing a TypeScript file with enum', async () => {
   const result = await spawnPromisified(process.execPath, [
@@ -184,18 +145,6 @@ test('execute a TypeScript file with type definition but no type keyword', async
   strictEqual(result.code, 1);
 });
 
-test('execute a TypeScript file with type definition but no type keyword with default-type modue', async () => {
-  const result = await spawnPromisified(process.execPath, [
-    '--experimental-strip-types',
-    '--experimental-default-type=module',
-    fixtures.path('typescript/ts/test-import-no-type-keyword.ts'),
-  ]);
-
-  match(result.stderr, /does not provide an export named 'MyType'/);
-  strictEqual(result.stdout, '');
-  strictEqual(result.code, 1);
-});
-
 test('execute a TypeScript file with CommonJS syntax', async () => {
   const result = await spawnPromisified(process.execPath, [
     '--experimental-strip-types',
@@ -210,19 +159,6 @@ test('execute a TypeScript file with CommonJS syntax', async () => {
 test('execute a TypeScript file with ES module syntax', async () => {
   const result = await spawnPromisified(process.execPath, [
     '--experimental-strip-types',
-    '--no-warnings',
-    fixtures.path('typescript/ts/test-module-typescript.ts'),
-  ]);
-
-  strictEqual(result.stderr, '');
-  match(result.stdout, /Hello, TypeScript!/);
-  strictEqual(result.code, 0);
-});
-
-test('execute a TypeScript file with ES module syntax with default-type module', async () => {
-  const result = await spawnPromisified(process.execPath, [
-    '--experimental-strip-types',
-    '--experimental-default-type=module',
     '--no-warnings',
     fixtures.path('typescript/ts/test-module-typescript.ts'),
   ]);
@@ -263,30 +199,6 @@ test('execute CommonJS TypeScript file from node_modules with require-module', a
 
   match(result.stderr, /ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING/);
   strictEqual(result.stdout, '');
-  strictEqual(result.code, 1);
-});
-
-test('execute CommonJS TypeScript file from node_modules with require-module and default-type module',
-     async () => {
-       const result = await spawnPromisified(process.execPath, [
-         '--experimental-strip-types',
-         '--experimental-default-type=module',
-         fixtures.path('typescript/ts/test-import-ts-node-modules.ts'),
-       ]);
-
-       match(result.stderr, /ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING/);
-       strictEqual(result.stdout, '');
-       strictEqual(result.code, 1);
-     });
-
-test('execute a TypeScript file with CommonJS syntax but default type module', async () => {
-  const result = await spawnPromisified(process.execPath, [
-    '--experimental-strip-types',
-    '--experimental-default-type=module',
-    fixtures.path('typescript/ts/test-commonjs-parsing.ts'),
-  ]);
-  strictEqual(result.stdout, '');
-  match(result.stderr, /require is not defined in ES module scope, you can use import instead/);
   strictEqual(result.code, 1);
 });
 
@@ -336,11 +248,10 @@ test('execute a TypeScript file with CommonJS syntax requiring .cts using common
   strictEqual(result.code, 0);
 });
 
-test('execute a TypeScript file with CommonJS syntax requiring .mts with require-module with default-type commonjs',
+test('execute a TypeScript file with CommonJS syntax requiring .mts with require-module',
      async () => {
        const result = await spawnPromisified(process.execPath, [
          '--experimental-strip-types',
-         '--experimental-default-type=commonjs',
          '--no-warnings',
          fixtures.path('typescript/ts/test-require-cts.ts'),
        ]);
