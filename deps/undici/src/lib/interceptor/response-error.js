@@ -4,7 +4,7 @@ const { parseHeaders } = require('../core/util')
 const DecoratorHandler = require('../handler/decorator-handler')
 const { ResponseError } = require('../core/errors')
 
-class Handler extends DecoratorHandler {
+class ResponseErrorHandler extends DecoratorHandler {
   #handler
   #statusCode
   #contentType
@@ -27,6 +27,10 @@ class Handler extends DecoratorHandler {
     return this.#handler.onConnect(abort)
   }
 
+  #checkContentType (contentType) {
+    return this.#contentType.indexOf(contentType) === 0
+  }
+
   onHeaders (statusCode, rawHeaders, resume, statusMessage, headers = parseHeaders(rawHeaders)) {
     this.#statusCode = statusCode
     this.#headers = headers
@@ -36,7 +40,7 @@ class Handler extends DecoratorHandler {
       return this.#handler.onHeaders(statusCode, rawHeaders, resume, statusMessage, headers)
     }
 
-    if (this.#contentType === 'application/json' || this.#contentType === 'text/plain') {
+    if (this.#checkContentType('application/json') || this.#checkContentType('text/plain')) {
       this.#decoder = new TextDecoder('utf-8')
     }
   }
@@ -53,7 +57,7 @@ class Handler extends DecoratorHandler {
     if (this.#statusCode >= 400) {
       this.#body += this.#decoder?.decode(undefined, { stream: false }) ?? ''
 
-      if (this.#contentType === 'application/json') {
+      if (this.#checkContentType('application/json')) {
         try {
           this.#body = JSON.parse(this.#body)
         } catch {
@@ -65,7 +69,10 @@ class Handler extends DecoratorHandler {
       const stackTraceLimit = Error.stackTraceLimit
       Error.stackTraceLimit = 0
       try {
-        err = new ResponseError('Response Error', this.#statusCode, this.#headers, this.#body)
+        err = new ResponseError('Response Error', this.#statusCode, {
+          body: this.#body,
+          headers: this.#headers
+        })
       } finally {
         Error.stackTraceLimit = stackTraceLimit
       }
@@ -81,6 +88,10 @@ class Handler extends DecoratorHandler {
   }
 }
 
-module.exports = (dispatch) => (opts, handler) => opts.throwOnError
-  ? dispatch(opts, new Handler(opts, { handler }))
-  : dispatch(opts, handler)
+module.exports = () => {
+  return (dispatch) => {
+    return function Intercept (opts, handler) {
+      return dispatch(opts, new ResponseErrorHandler(opts, { handler }))
+    }
+  }
+}
