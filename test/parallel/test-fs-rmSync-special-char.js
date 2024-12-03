@@ -1,33 +1,23 @@
 'use strict';
+require('../common');
+const tmpdir = require('../common/tmpdir');
+const assert = require('node:assert');
+const fs = require('node:fs');
+const path = require('node:path');
 
-const fs = require('fs');
-const path = require('path');
-const assert = require('assert');
+// This test ensures that fs.rmSync can handle UTF-8 characters
+// in file paths without errors.
 
-// Specify the path for the test file
-const filePath = path.join(__dirname, '速.txt');
+tmpdir.refresh(); // Prepare a clean temporary directory
 
-// Create a file with the specified name
-fs.writeFileSync(filePath, 'This is a test file containing special characters in the name.');
+const filePath = path.join(tmpdir.path, '速.txt'); // Use tmpdir.path for the file location
 
-// Function to try removing the file and verify the outcome
-function testRemoveFile() {
-  try {
-    // Attempt to remove the file
-    fs.rmSync(filePath);
-    
-    // Check if the file still exists to confirm it was removed
-    assert.ok(!fs.existsSync(filePath), 'The file should be removed.');
+// Create a file with a name containing non-ASCII characters
+fs.writeFileSync(filePath, 'This is a test file with special characters.');
 
-    console.log('File removed successfully.');
-  } catch (error) {
-    // Output an error if the removal fails
-    console.error('Failed to remove file:', error);
-    
-    // Explicitly fail the test if an error is thrown
-    assert.fail('File removal should not throw an error.');
-  }
-}
+// fs.rmSync should not throw an error for non-ASCII file names
+fs.rmSync(filePath);
 
-// Run the test function
-testRemoveFile();
+// Ensure the file has been removed
+assert.strictEqual(fs.existsSync(filePath), false,
+  'The file should be removed successfully');
