@@ -108,6 +108,10 @@ added: v22.5.0
     [double-quoted string literals][]. This is not recommended but can be
     enabled for compatibility with legacy database schemas.
     **Default:** `false`.
+  * `allowExtension` {boolean} If `true`, the `loadExtension` SQL function
+    and the `loadExtension()` method are enabled.
+    You can call `enableLoadExtension(false)` later to disable this feature.
+    **Default:** `false`.
 
 Constructs a new `DatabaseSync` instance.
 
@@ -119,6 +123,30 @@ added: v22.5.0
 
 Closes the database connection. An exception is thrown if the database is not
 open. This method is a wrapper around [`sqlite3_close_v2()`][].
+
+### `database.loadExtension(path)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `path` {string} The path to the shared library to load.
+
+Loads a shared library into the database connection. This method is a wrapper
+around [`sqlite3_load_extension()`][]. It is required to enable the
+`allowExtension` option when constructing the `DatabaseSync` instance.
+
+### `database.enableLoadExtension(allow)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `allow` {boolean} Whether to allow loading extensions.
+
+Enables or disables the `loadExtension` SQL function, and the `loadExtension()`
+method. When `allowExtension` is `false` when constructing, you cannot enable
+loading extensions for security reasons.
 
 ### `database.exec(sql)`
 
@@ -457,6 +485,7 @@ The following constants are meant for use with [`database.applyChangeset()`](#da
 [`sqlite3_exec()`]: https://www.sqlite.org/c3ref/exec.html
 [`sqlite3_expanded_sql()`]: https://www.sqlite.org/c3ref/expanded_sql.html
 [`sqlite3_last_insert_rowid()`]: https://www.sqlite.org/c3ref/last_insert_rowid.html
+[`sqlite3_load_extension()`]: https://www.sqlite.org/c3ref/load_extension.html
 [`sqlite3_prepare_v2()`]: https://www.sqlite.org/c3ref/prepare.html
 [`sqlite3_sql()`]: https://www.sqlite.org/c3ref/expanded_sql.html
 [`sqlite3changeset_apply()`]: https://www.sqlite.org/session/sqlite3changeset_apply.html

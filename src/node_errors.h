@@ -91,6 +91,7 @@ void OOMErrorHandler(const char* location, const v8::OOMDetails& details);
   V(ERR_INVALID_THIS, TypeError)                                               \
   V(ERR_INVALID_URL, TypeError)                                                \
   V(ERR_INVALID_URL_SCHEME, TypeError)                                         \
+  V(ERR_LOAD_SQLITE_EXTENSION, Error)                                          \
   V(ERR_MEMORY_ALLOCATION_FAILED, Error)                                       \
   V(ERR_MESSAGE_TARGET_CONTEXT_UNAVAILABLE, Error)                             \
   V(ERR_MISSING_ARGS, TypeError)                                               \
@@ -191,6 +192,7 @@ ERRORS_WITH_CODE(V)
   V(ERR_INVALID_STATE, "Invalid state")                                        \
   V(ERR_INVALID_THIS, "Value of \"this\" is the wrong type")                   \
   V(ERR_INVALID_URL_SCHEME, "The URL must be of scheme file:")                 \
+  V(ERR_LOAD_SQLITE_EXTENSION, "Failed to load SQLite extension")              \
   V(ERR_MEMORY_ALLOCATION_FAILED, "Failed to allocate memory")                 \
   V(ERR_OSSL_EVP_INVALID_DIGEST, "Invalid digest used")                        \
   V(ERR_MESSAGE_TARGET_CONTEXT_UNAVAILABLE,                                    \

@@ -1584,6 +1584,7 @@ IGNORED_SUITES = [
   'js-native-api',
   'node-api',
   'pummel',
+  'sqlite',
   'tick-processor',
   'v8-updates'
 ]

@@ -147,6 +147,8 @@ There are constraints you need to know before using this system:
   flags that can be set via runtime through `v8.setFlagsFromString`.
 * OpenSSL engines cannot be requested at runtime when the Permission
   Model is enabled, affecting the built-in crypto, https, and tls modules.
+* Run-Time Loadable Extensions cannot be loaded when the Permission Model is
+  enabled, affecting the sqlite module.
 * Using existing file descriptors via the `node:fs` module bypasses the
   Permission Model.
 
