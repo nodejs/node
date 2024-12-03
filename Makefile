@@ -294,6 +294,7 @@ coverage-report-js: ## Report JavaScript coverage results.
 cctest: all ## Run the C++ tests using the built `cctest` executable.
 	@out/$(BUILDTYPE)/$@ --gtest_filter=$(GTEST_FILTER)
 	$(NODE) ./test/embedding/test-embedding.js
+	$(NODE) ./test/sqlite/test-sqlite-extensions.mjs
 
 .PHONY: list-gtests
 list-gtests: ## List all available C++ gtests.
@@ -574,6 +575,7 @@ test-ci: | clear-stalled bench-addons-build build-addons build-js-native-api-tes
 		--mode=$(BUILDTYPE_LOWER) --flaky-tests=$(FLAKY_TESTS) \
 		$(TEST_CI_ARGS) $(CI_JS_SUITES) $(CI_NATIVE_SUITES) $(CI_DOC)
 	$(NODE) ./test/embedding/test-embedding.js
+	$(NODE) ./test/sqlite/test-sqlite-extensions.mjs
 	$(info Clean up any leftover processes, error if found.)
 	ps awwx | grep Release/node | grep -v grep | cat
 	@PS_OUT=`ps awwx | grep Release/node | grep -v grep | awk '{print $$1}'`; \
@@ -1432,6 +1434,7 @@ LINT_CPP_FILES = $(filter-out $(LINT_CPP_EXCLUDE), $(wildcard \
 	test/cctest/*.h \
 	test/embedding/*.cc \
 	test/embedding/*.h \
+	test/sqlite/*.c \
 	test/fixtures/*.c \
 	test/js-native-api/*/*.cc \
 	test/node-api/*/*.cc \
