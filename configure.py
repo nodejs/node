@@ -128,6 +128,12 @@ parser.add_argument('--use-prefix-to-find-headers',
     default=None,
     help='use the prefix to look for pre-installed headers')
 
+parser.add_argument('--use_clang',
+    action='store_true',
+    dest='use_clang',
+    default=None,
+    help='use clang instead of gcc')
+
 parser.add_argument('--dest-os',
     action='store',
     dest='dest_os',
@@ -1357,6 +1363,10 @@ def configure_node(o):
   o['variables']['host_arch'] = host_arch
   o['variables']['target_arch'] = target_arch
   o['variables']['node_byteorder'] = sys.byteorder
+
+  # Allow overriding the compiler - needed by embedders.
+  if options.use_clang:
+    o['variables']['clang'] = 1
 
   cross_compiling = (options.cross_compiling
                      if options.cross_compiling is not None
