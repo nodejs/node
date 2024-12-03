@@ -73,11 +73,6 @@ jobs:
           git config --local user.email "github-bot@iojs.org"
           git config --local user.name "Node.js GitHub Bot"
 
-        # Workaround, can be removed after https://github.com/nodejs/node-core-utils/pull/876 is released.
-      - name: Deepen the shallow clone
-        run: |
-          git fetch "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git" --shallow-exclude "v${RELEASE_LINE}.0.0" "$STAGING_BRANCH"
-
       - name: Start git node release prepare
         # The curl command is to make sure we run the version of the script corresponding to the current workflow.
         run: |
@@ -86,5 +81,5 @@ jobs:
           ./tools/actions/create-release.sh "${RELEASE_DATE}" "${RELEASE_LINE}"
         env:
           GH_TOKEN: ${{ github.token }}
-          # We want the bot to push the push the release commit so Ci runs on it.
+          # We want the bot to push the push the release commit so CI runs on it.
           BOT_TOKEN: ${{ secrets.GH_USER_TOKEN }}
