@@ -1625,7 +1625,7 @@ static void RmSync(const FunctionCallbackInfo<Value>& args) {
   ToNamespacedPath(env, &path);
   THROW_IF_INSUFFICIENT_PERMISSIONS(
       env, permission::PermissionScope::kFileSystemWrite, path.ToStringView());
-  auto file_path = std::filesystem::path(path.ToStringView());
+  auto file_path = std::filesystem::path(path.ToU8StringView());
   std::error_code error;
   auto file_status = std::filesystem::status(file_path, error);
 
