@@ -1442,5 +1442,5 @@ Typical resolution: sign the release again.
 [`create-release-proposal`]: https://github.com/nodejs/node/actions/workflows/create-release-proposal.yml
 [build-infra team]: https://github.com/orgs/nodejs/teams/build-infra
 [expected assets]: https://github.com/nodejs/build/tree/HEAD/ansible/www-standalone/tools/promote/expected_assets
-[nodejs.org release-post.js script]: https://github.com/nodejs/nodejs.org/blob/HEAD/scripts/release-post/index.mjs
+[nodejs.org release-post.js script]: https://github.com/nodejs/nodejs.org/blob/HEAD/apps/site/scripts/release-post/index.mjs
 [nodejs.org repository]: https://github.com/nodejs/nodejs.org
