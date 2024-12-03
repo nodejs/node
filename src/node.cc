@@ -320,7 +320,8 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
   CHECK(!env->isolate_data()->is_building_snapshot());
 
 #ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
-  if (sea::IsSingleExecutable()) {
+  // Snapshot in SEA is only loaded for the main thread.
+  if (sea::IsSingleExecutable() && env->is_main_thread()) {
     sea::SeaResource sea = sea::FindSingleExecutableResource();
     // The SEA preparation blob building process should already enforce this,
     // this check is just here to guard against the unlikely case where
