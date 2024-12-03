@@ -2168,6 +2168,16 @@ added:
 An ESM loader hook returned without calling `next()` and without explicitly
 signaling a short circuit.
 
+<a id="ERR_LOAD_SQLITE_EXTENSION"></a>
+
+### `ERR_LOAD_SQLITE_EXTENSION`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+An error occurred while loading a SQLite extension.
+
 <a id="ERR_MEMORY_ALLOCATION_FAILED"></a>
 
 ### `ERR_MEMORY_ALLOCATION_FAILED`

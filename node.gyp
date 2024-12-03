@@ -1296,6 +1296,26 @@
     }, # embedtest
 
     {
+      'target_name': 'sqlite_extension',
+      'type': 'shared_library',
+      'sources': [
+        'test/sqlite/extension.c'
+      ],
+
+      'include_dirs': [
+        'test/sqlite',
+        'deps/sqlite',
+      ],
+
+      'cflags': [
+        '-fPIC',
+        '-Wall',
+        '-Wextra',
+        '-O3',
+      ],
+    }, # sqlitetest
+
+    {
       'target_name': 'overlapped-checker',
       'type': 'executable',
 
