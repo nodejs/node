@@ -343,6 +343,9 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
   // move the pre-execution part into a different file that can be
   // reused when dealing with user-defined main functions.
   if (!env->snapshot_deserialize_main().IsEmpty()) {
+    // Custom worker snapshot is not supported yet,
+    // so workers can't have deserialize main functions.
+    CHECK(env->is_main_thread());
     return env->RunSnapshotDeserializeMain();
   }
 
