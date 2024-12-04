@@ -32,6 +32,7 @@ jobs:
       RELEASE_BRANCH: v${{ inputs.release-line }}.x
       RELEASE_DATE: ${{ inputs.release-date }}
       RELEASE_LINE: ${{ inputs.release-line }}
+      RELEASER: ${{ github.actor }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
@@ -79,6 +80,6 @@ jobs:
 
       - name: Start git node release prepare
         run: |
-          ./tools/actions/create-release.sh "${RELEASE_DATE}" "${RELEASE_LINE}"
+          ./tools/actions/create-release.sh "${RELEASE_DATE}" "${RELEASE_LINE}" "${RELEASER}"
         env:
           GH_TOKEN: ${{ secrets.GH_USER_TOKEN }}
