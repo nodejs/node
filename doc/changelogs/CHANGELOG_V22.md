@@ -79,11 +79,11 @@ When a `Buffer` is created using a resizable `ArrayBuffer`, the `Buffer` length 
 ```js
 const ab = new ArrayBuffer(10, { maxByteLength: 20 });
 const buffer = Buffer.from(ab);
-console.log(buffer.byteLength); 10
+console.log(buffer.byteLength); // 10
 ab.resize(15);
-console.log(buffer.byteLength); 15
+console.log(buffer.byteLength); // 15
 ab.resize(5);
-console.log(buffer.byteLength); 5
+console.log(buffer.byteLength); // 5
 ```
 
 Contributed by James Snell in [#55377](https://github.com/nodejs/node/pull/55377)
