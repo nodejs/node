@@ -379,6 +379,8 @@ For information about the governance of the Node.js project, see
   **Nitzan Uziely** <<linkgoron@gmail.com>>
 * [LiviaMedeiros](https://github.com/LiviaMedeiros) -
   **LiviaMedeiros** <<livia@cirno.name>>
+* [ljharb](https://github.com/ljharb) -
+  **Jordan Harband** <<ljharb@gmail.com>>
 * [lpinca](https://github.com/lpinca) -
   **Luigi Pinca** <<luigipinca@gmail.com>> (he/him)
 * [lukekarrys](https://github.com/lukekarrys) -
