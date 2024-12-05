@@ -188,7 +188,7 @@
             ['clang==1', {
               'lto': ' -flto ', # Clang
             }, {
-              'lto': ' -flto=4 -fuse-linker-plugin -fno-fat-lto-objects -flto-partition=one -ffunction-sections -fdata-sections ', # GCC
+              'lto': ' -flto=auto -fuse-linker-plugin -fno-fat-lto-objects -flto-partition=one -ffunction-sections -fdata-sections ', # GCC
             }],
           ],
         },
