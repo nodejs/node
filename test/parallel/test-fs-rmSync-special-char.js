@@ -19,5 +19,4 @@ fs.writeFileSync(filePath, 'This is a test file with special characters.');
 fs.rmSync(filePath);
 
 // Ensure the file has been removed
-assert.strictEqual(fs.existsSync(filePath), false,
-  'The file should be removed successfully');
+assert.strictEqual(fs.existsSync(filePath), false);
