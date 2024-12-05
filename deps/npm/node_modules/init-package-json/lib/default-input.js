@@ -199,16 +199,17 @@ if (!package.scripts) {
 
 if (!package.repository) {
   exports.repository = async () => {
-    const gconf = await fs.readFile('.git/config', 'utf8').catch(() => '')
+    const gitConfigPath = path.resolve(dirname, '.git', 'config')
+    const gconf = await fs.readFile(gitConfigPath, 'utf8').catch(() => '')
     const lines = gconf.split(/\r?\n/)
 
     let url
     const i = lines.indexOf('[remote "origin"]')
 
     if (i !== -1) {
-      url = gconf[i + 1]
+      url = lines[i + 1]
       if (!url.match(/^\s*url =/)) {
-        url = gconf[i + 2]
+        url = lines[i + 2]
       }
       if (!url.match(/^\s*url =/)) {
         url = null
