@@ -966,6 +966,13 @@ a `NODEJS_RELEASE_HOST` environment variable:
 NODEJS_RELEASE_HOST=proxy.xyz ./tools/release.sh
 ```
 
+In case `gpg` is unable to autoselect a key, you can retry using the
+`-a` option to enable an interactive interface:
+
+```bash
+./tools/release.sh -a
+```
+
 > \[!TIP]
 > Sometimes, due to machines being overloaded or other external factors,
 > the files at <https://nodejs.org/dist/index.json>, <https://nodejs.org/dist/index.tab>
