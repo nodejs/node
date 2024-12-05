@@ -144,7 +144,7 @@ jobs:
           BACKPORT_BRANCH: ${{ matrix.branch.release-line }}-staging-auto-backport
 
       - name: Report errors
-        if: ${{ 
+        if: ${{
             steps.fetch.outputs.WORKING_BRANCH_TIP != steps.head.outputs.HEAD &&
             toJson(steps.queue.outputs) != '{}'
             }}
@@ -167,4 +167,3 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_USER_TOKEN }}
           FAILED_BACKPORTS: ${{ toJson(steps.queue.outputs) }}
           CURRENT_RELEASE_LINE: ${{ matrix.branch.release-line }}
-
