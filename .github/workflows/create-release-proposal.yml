@@ -1,7 +1,6 @@
 # This action requires the following secrets to be set on the repository:
 #   GH_USER_NAME: GitHub user whose Jenkins and GitHub token are defined below
 #   GH_USER_TOKEN: GitHub user token, to be used by ncu and to push changes
-#   JENKINS_TOKEN: Jenkins token, to be used to check CI status
 
 name: Create Release Proposal
 
@@ -24,6 +23,7 @@ env:
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   releasePrepare:
@@ -37,9 +37,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           ref: ${{ env.STAGING_BRANCH }}
-          # Needs the whole git history for ncu to work
-          # See https://github.com/nodejs/node-core-utils/pull/486
-          fetch-depth: 0
+          persist-credentials: false
 
       # Install dependencies
       - name: Install Node.js
@@ -56,21 +54,19 @@ jobs:
           ncu-config set upstream origin
           ncu-config set username "$USERNAME"
           ncu-config set token "$GH_TOKEN"
-          ncu-config set jenkins_token "$JENKINS_TOKEN"
           ncu-config set repo "$(echo "$GITHUB_REPOSITORY" | cut -d/ -f2)"
           ncu-config set owner "${GITHUB_REPOSITORY_OWNER}"
         env:
           USERNAME: ${{ secrets.JENKINS_USER }}
-          GH_TOKEN: ${{ secrets.GH_USER_TOKEN }}
-          JENKINS_TOKEN: ${{ secrets.JENKINS_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
 
       - name: Set up ghauth config (Ubuntu)
         run: |
-          mkdir -p ~/.config/changelog-maker/
-          echo '{
-            "user": "'$(ncu-config get username)'",
-            "token": "'$(ncu-config get token)'"
-          }' > ~/.config/changelog-maker/config.json
+          mkdir -p "${XDG_CONFIG_HOME:-~/.config}/changelog-maker"
+          echo '{}' | jq '{user: env.USERNAME, token: env.TOKEN}' > "${XDG_CONFIG_HOME:-~/.config}/changelog-maker/config.json"
+        env:
+          USERNAME: ${{ secrets.JENKINS_USER }}
+          TOKEN: ${{ github.token }}
 
       - name: Setup git author
         run: |
@@ -78,7 +74,12 @@ jobs:
           git config --local user.name "Node.js GitHub Bot"
 
       - name: Start git node release prepare
+        # The curl command is to make sure we run the version of the script corresponding to the current workflow.
         run: |
+          git update-index --assume-unchanged tools/actions/create-release.sh
+          curl -fsSLo tools/actions/create-release.sh https://github.com/${GITHUB_REPOSITORY}/raw/${GITHUB_SHA}/tools/actions/create-release.sh
           ./tools/actions/create-release.sh "${RELEASE_DATE}" "${RELEASE_LINE}"
         env:
-          GH_TOKEN: ${{ secrets.GH_USER_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+          # We want the bot to push the push the release commit so CI runs on it.
+          BOT_TOKEN: ${{ secrets.GH_USER_TOKEN }}
