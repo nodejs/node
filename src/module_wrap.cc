@@ -663,6 +663,22 @@ void ModuleWrap::EvaluateSync(const FunctionCallbackInfo<Value>& args) {
   CHECK(result->IsPromise());
   Local<Promise> promise = result.As<Promise>();
   if (promise->State() == Promise::PromiseState::kRejected) {
+    // The rejected promise is created by V8, so we don't get a chance to mark
+    // it as resolved before the rejection happens from evaluation. But we can
+    // tell the promise rejection callback to treat it as a promise rejected
+    // before handler was added which would remove it from the unhandled
+    // rejection handling, since we are converting it into an error and throw
+    // from here directly.
+    Local<Value> type = v8::Integer::New(
+        isolate,
+        static_cast<int32_t>(
+            v8::PromiseRejectEvent::kPromiseHandlerAddedAfterReject));
+    Local<Value> args[] = {type, promise, Undefined(isolate)};
+    if (env->promise_reject_callback()
+            ->Call(context, Undefined(isolate), arraysize(args), args)
+            .IsEmpty()) {
+      return;
+    }
     Local<Value> exception = promise->Result();
     Local<v8::Message> message =
         v8::Exception::CreateMessage(isolate, exception);
