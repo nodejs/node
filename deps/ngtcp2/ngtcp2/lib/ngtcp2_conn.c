@@ -5322,15 +5322,14 @@ int ngtcp2_conn_detect_lost_pkt(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
  * conn_recv_ack processes received ACK frame |fr|.  |pkt_ts| is the
  * timestamp when packet is received.  |ts| should be the current
  * time.  Usually they are the same, but for buffered packets,
- * |pkt_ts| would be earlier than |ts|.
+ * |pkt_ts| would be earlier than |ts|.  This function needs to be
+ * called after |fr| is validated by ngtcp2_pkt_validate_ack.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
  * NGTCP2_ERR_NOMEM
  *     Out of memory
- * NGTCP2_ERR_ACK_FRAME
- *     ACK frame is malformed.
  * NGTCP2_ERR_PROTO
  *     |fr| acknowledges a packet this endpoint has not sent.
  * NGTCP2_ERR_CALLBACK_FAILURE
@@ -5338,17 +5337,11 @@ int ngtcp2_conn_detect_lost_pkt(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
  */
 static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_pktns *pktns, ngtcp2_ack *fr,
                          ngtcp2_tstamp pkt_ts, ngtcp2_tstamp ts) {
-  int rv;
   ngtcp2_ssize num_acked;
   ngtcp2_conn_stat *cstat = &conn->cstat;
 
   if (pktns->tx.last_pkt_num < fr->largest_ack) {
     return NGTCP2_ERR_PROTO;
-  }
-
-  rv = ngtcp2_pkt_validate_ack(fr, conn->local.settings.initial_pkt_num);
-  if (rv != 0) {
-    return rv;
   }
 
   ngtcp2_acktr_recv_ack(&pktns->acktr, fr);
@@ -6561,6 +6554,13 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
     case NGTCP2_FRAME_ACK_ECN:
       fr->ack.ack_delay = 0;
       fr->ack.ack_delay_unscaled = 0;
+
+      rv =
+        ngtcp2_pkt_validate_ack(&fr->ack, conn->local.settings.initial_pkt_num);
+      if (rv != 0) {
+        return rv;
+      }
+
       break;
     }
 
@@ -8715,6 +8715,13 @@ conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_pkt_info *pi,
     case NGTCP2_FRAME_ACK_ECN:
       fr->ack.ack_delay = 0;
       fr->ack.ack_delay_unscaled = 0;
+
+      rv =
+        ngtcp2_pkt_validate_ack(&fr->ack, conn->local.settings.initial_pkt_num);
+      if (rv != 0) {
+        return rv;
+      }
+
       break;
     }
 
@@ -9200,6 +9207,13 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       assert(conn->remote.transport_params);
       assign_recved_ack_delay_unscaled(
         &fr->ack, conn->remote.transport_params->ack_delay_exponent);
+
+      rv =
+        ngtcp2_pkt_validate_ack(&fr->ack, conn->local.settings.initial_pkt_num);
+      if (rv != 0) {
+        return rv;
+      }
+
       break;
     }
 
