@@ -172,7 +172,30 @@ const vm = require('vm');
       'Received null'
   });
 
-  // vm.compileFunction('', undefined, null);
+  // Test for invalid options type
+  assert.throws(() => {
+    vm.compileFunction('', [], null);
+  }, {
+    name: 'TypeError',
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: 'The "options" argument must be of type object. Received null'
+  });
+
+  assert.throws(() => {
+    vm.compileFunction('', [], 'string');
+  }, {
+    name: 'TypeError',
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: 'The "options" argument must be of type object. Received type string (\'string\')'
+  });
+
+  assert.throws(() => {
+    vm.compileFunction('', [], 123);
+  }, {
+    name: 'TypeError',
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: 'The "options" argument must be of type object. Received type number (123)'
+  });
 
   const optionTypes = {
     'filename': 'string',
