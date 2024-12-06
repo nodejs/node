@@ -1089,6 +1089,8 @@ For TCP connections, available `options` are:
 * `noDelay` {boolean} If set to `true`, it disables the use of Nagle's algorithm
   immediately after the socket is established. **Default:** `false`.
 * `port` {number} Required. Port the socket should connect to.
+* `blockList` {net.BlockList} `blockList` can be used for disabling outbound
+  access to specific IP addresses, IP ranges, or IP subnets.
 
 For [IPC][] connections, available `options` are:
 
