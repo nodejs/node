@@ -43,7 +43,7 @@ describe('Worker threads', () => {
     const report = process.report.getReport();
     helper.validateContent(report);
     const workerLengthMessage = 'Report should include one Worker';
-    
+
     assert.strictEqual(report.workers.length, 1, workerLengthMessage);
     helper.validateContent(report.workers[0]);
 
