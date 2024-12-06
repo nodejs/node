@@ -481,6 +481,7 @@
         '-Wno-unused-parameter',
         '-Werror=undefined-inline',
         '-Werror=extra-semi',
+        '-Werror=ctad-maybe-unsupported',
       ],
     },
 
