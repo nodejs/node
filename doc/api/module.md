@@ -64,159 +64,6 @@ const require = createRequire(import.meta.url);
 const siblingModule = require('./sibling-module');
 ```
 
-### `module.constants.compileCacheStatus`
-
-<!-- YAML
-added: v22.8.0
--->
-
-> Stability: 1.1 - Active Development
-
-The following constants are returned as the `status` field in the object returned by
-[`module.enableCompileCache()`][] to indicate the result of the attempt to enable the
-[module compile cache][].
-
-<table>
-  <tr>
-    <th>Constant</th>
-    <th>Description</th>
-  </tr>
-  <tr>
-    <td><code>ENABLED</code></td>
-    <td>
-      Node.js has enabled the compile cache successfully. The directory used to store the
-      compile cache will be returned in the <code>directory</code> field in the
-      returned object.
-    </td>
-  </tr>
-  <tr>
-    <td><code>ALREADY_ENABLED</code></td>
-    <td>
-      The compile cache has already been enabled before, either by a previous call to
-      <code>module.enableCompileCache()</code>, or by the <code>NODE_COMPILE_CACHE=dir</code>
-      environment variable. The directory used to store the
-      compile cache will be returned in the <code>directory</code> field in the
-      returned object.
-    </td>
-  </tr>
-  <tr>
-    <td><code>FAILED</code></td>
-    <td>
-      Node.js fails to enable the compile cache. This can be caused by the lack of
-      permission to use the specified directory, or various kinds of file system errors.
-      The detail of the failure will be returned in the <code>message</code> field in the
-      returned object.
-    </td>
-  </tr>
-  <tr>
-    <td><code>DISABLED</code></td>
-    <td>
-      Node.js cannot enable the compile cache because the environment variable
-      <code>NODE_DISABLE_COMPILE_CACHE=1</code> has been set.
-    </td>
-  </tr>
-</table>
-
-### `module.enableCompileCache([cacheDir])`
-
-<!-- YAML
-added: v22.8.0
--->
-
-> Stability: 1.1 - Active Development
-
-* `cacheDir` {string|undefined} Optional path to specify the directory where the compile cache
-  will be stored/retrieved.
-* Returns: {Object}
-  * `status` {integer} One of the [`module.constants.compileCacheStatus`][]
-  * `message` {string|undefined} If Node.js cannot enable the compile cache, this contains
-    the error message. Only set if `status` is `module.constants.compileCacheStatus.FAILED`.
-  * `directory` {string|undefined} If the compile cache is enabled, this contains the directory
-    where the compile cache is stored. Only set if  `status` is
-    `module.constants.compileCacheStatus.ENABLED` or
-    `module.constants.compileCacheStatus.ALREADY_ENABLED`.
-
-Enable [module compile cache][] in the current Node.js instance.
-
-If `cacheDir` is not specified, Node.js will either use the directory specified by the
-[`NODE_COMPILE_CACHE=dir`][] environment variable if it's set, or use
-`path.join(os.tmpdir(), 'node-compile-cache')` otherwise. For general use cases, it's
-recommended to call `module.enableCompileCache()` without specifying the `cacheDir`,
-so that the directory can be overridden by the `NODE_COMPILE_CACHE` environment
-variable when necessary.
-
-Since compile cache is supposed to be a quiet optimization that is not required for the
-application to be functional, this method is designed to not throw any exception when the
-compile cache cannot be enabled. Instead, it will return an object containing an error
-message in the `message` field to aid debugging.
-If compile cache is enabled successfully, the `directory` field in the returned object
-contains the path to the directory where the compile cache is stored. The `status`
-field in the returned object would be one of the `module.constants.compileCacheStatus`
-values to indicate the result of the attempt to enable the [module compile cache][].
-
-This method only affects the current Node.js instance. To enable it in child worker threads,
-either call this method in child worker threads too, or set the
-`process.env.NODE_COMPILE_CACHE` value to compile cache directory so the behavior can
-be inherited into the child workers. The directory can be obtained either from the
-`directory` field returned by this method, or with [`module.getCompileCacheDir()`][].
-
-#### Module compile cache
-
-<!-- YAML
-added: v22.1.0
-changes:
-  - version: v22.8.0
-    pr-url: https://github.com/nodejs/node/pull/54501
-    description: add initial JavaScript APIs for runtime access.
--->
-
-The module compile cache can be enabled either using the [`module.enableCompileCache()`][]
-method or the [`NODE_COMPILE_CACHE=dir`][] environment variable. After it is enabled,
-whenever Node.js compiles a CommonJS or a ECMAScript Module, it will use on-disk
-[V8 code cache][] persisted in the specified directory to speed up the compilation.
-This may slow down the first load of a module graph, but subsequent loads of the same module
-graph may get a significant speedup if the contents of the modules do not change.
-
-To clean up the generated compile cache on disk, simply remove the cache directory. The cache
-directory will be recreated the next time the same directory is used for for compile cache
-storage. To avoid filling up the disk with stale cache, it is recommended to use a directory
-under the [`os.tmpdir()`][]. If the compile cache is enabled by a call to
-[`module.enableCompileCache()`][] without specifying the directory, Node.js will use
-the [`NODE_COMPILE_CACHE=dir`][] environment variable if it's set, or defaults
-to `path.join(os.tmpdir(), 'node-compile-cache')` otherwise. To locate the compile cache
-directory used by a running Node.js instance, use [`module.getCompileCacheDir()`][].
-
-Currently when using the compile cache with [V8 JavaScript code coverage][], the
-coverage being collected by V8 may be less precise in functions that are
-deserialized from the code cache. It's recommended to turn this off when
-running tests to generate precise coverage.
-
-The enabled module compile cache can be disabled by the [`NODE_DISABLE_COMPILE_CACHE=1`][]
-environment variable. This can be useful when the compile cache leads to unexpected or
-undesired behaviors (e.g. less precise test coverage).
-
-Compilation cache generated by one version of Node.js can not be reused by a different
-version of Node.js. Cache generated by different versions of Node.js will be stored
-separately if the same base directory is used to persist the cache, so they can co-exist.
-
-At the moment, when the compile cache is enabled and a module is loaded afresh, the
-code cache is generated from the compiled code immediately, but will only be written
-to disk when the Node.js instance is about to exit. This is subject to change. The
-[`module.flushCompileCache()`][] method can be used to ensure the accumulated code cache
-is flushed to disk in case the application wants to spawn other Node.js instances
-and let them share the cache long before the parent exits.
-
-### `module.getCompileCacheDir()`
-
-<!-- YAML
-added: v22.8.0
--->
-
-> Stability: 1.1 - Active Development
-
-* Returns: {string|undefined} Path to the [module compile cache][] directory if it is enabled,
-  or `undefined` otherwise.
-
 ### `module.findPackageJSON(specifier[, base])`
 
 <!-- YAML
@@ -352,7 +199,7 @@ changes:
 Register a module that exports [hooks][] that customize Node.js module
 resolution and loading behavior. See [Customization hooks][].
 
-## `module.stripTypeScriptTypes(code[, options])`
+### `module.stripTypeScriptTypes(code[, options])`
 
 <!-- YAML
 added: v23.2.0
@@ -489,6 +336,174 @@ import('node:fs').then((esmFS) => {
   assert.strictEqual(esmFS.newAPI, undefined);
 });
 ```
+
+## Module compile cache
+
+<!-- YAML
+added: v22.1.0
+changes:
+  - version: v22.8.0
+    pr-url: https://github.com/nodejs/node/pull/54501
+    description: add initial JavaScript APIs for runtime access.
+-->
+
+The module compile cache can be enabled either using the [`module.enableCompileCache()`][]
+method or the [`NODE_COMPILE_CACHE=dir`][] environment variable. After it is enabled,
+whenever Node.js compiles a CommonJS or a ECMAScript Module, it will use on-disk
+[V8 code cache][] persisted in the specified directory to speed up the compilation.
+This may slow down the first load of a module graph, but subsequent loads of the same module
+graph may get a significant speedup if the contents of the modules do not change.
+
+To clean up the generated compile cache on disk, simply remove the cache directory. The cache
+directory will be recreated the next time the same directory is used for for compile cache
+storage. To avoid filling up the disk with stale cache, it is recommended to use a directory
+under the [`os.tmpdir()`][]. If the compile cache is enabled by a call to
+[`module.enableCompileCache()`][] without specifying the directory, Node.js will use
+the [`NODE_COMPILE_CACHE=dir`][] environment variable if it's set, or defaults
+to `path.join(os.tmpdir(), 'node-compile-cache')` otherwise. To locate the compile cache
+directory used by a running Node.js instance, use [`module.getCompileCacheDir()`][].
+
+Currently when using the compile cache with [V8 JavaScript code coverage][], the
+coverage being collected by V8 may be less precise in functions that are
+deserialized from the code cache. It's recommended to turn this off when
+running tests to generate precise coverage.
+
+The enabled module compile cache can be disabled by the [`NODE_DISABLE_COMPILE_CACHE=1`][]
+environment variable. This can be useful when the compile cache leads to unexpected or
+undesired behaviors (e.g. less precise test coverage).
+
+Compilation cache generated by one version of Node.js can not be reused by a different
+version of Node.js. Cache generated by different versions of Node.js will be stored
+separately if the same base directory is used to persist the cache, so they can co-exist.
+
+At the moment, when the compile cache is enabled and a module is loaded afresh, the
+code cache is generated from the compiled code immediately, but will only be written
+to disk when the Node.js instance is about to exit. This is subject to change. The
+[`module.flushCompileCache()`][] method can be used to ensure the accumulated code cache
+is flushed to disk in case the application wants to spawn other Node.js instances
+and let them share the cache long before the parent exits.
+
+### `module.constants.compileCacheStatus`
+
+<!-- YAML
+added: v22.8.0
+-->
+
+> Stability: 1.1 - Active Development
+
+The following constants are returned as the `status` field in the object returned by
+[`module.enableCompileCache()`][] to indicate the result of the attempt to enable the
+[module compile cache][].
+
+<table>
+  <tr>
+    <th>Constant</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <td><code>ENABLED</code></td>
+    <td>
+      Node.js has enabled the compile cache successfully. The directory used to store the
+      compile cache will be returned in the <code>directory</code> field in the
+      returned object.
+    </td>
+  </tr>
+  <tr>
+    <td><code>ALREADY_ENABLED</code></td>
+    <td>
+      The compile cache has already been enabled before, either by a previous call to
+      <code>module.enableCompileCache()</code>, or by the <code>NODE_COMPILE_CACHE=dir</code>
+      environment variable. The directory used to store the
+      compile cache will be returned in the <code>directory</code> field in the
+      returned object.
+    </td>
+  </tr>
+  <tr>
+    <td><code>FAILED</code></td>
+    <td>
+      Node.js fails to enable the compile cache. This can be caused by the lack of
+      permission to use the specified directory, or various kinds of file system errors.
+      The detail of the failure will be returned in the <code>message</code> field in the
+      returned object.
+    </td>
+  </tr>
+  <tr>
+    <td><code>DISABLED</code></td>
+    <td>
+      Node.js cannot enable the compile cache because the environment variable
+      <code>NODE_DISABLE_COMPILE_CACHE=1</code> has been set.
+    </td>
+  </tr>
+</table>
+
+### `module.enableCompileCache([cacheDir])`
+
+<!-- YAML
+added: v22.8.0
+-->
+
+> Stability: 1.1 - Active Development
+
+* `cacheDir` {string|undefined} Optional path to specify the directory where the compile cache
+  will be stored/retrieved.
+* Returns: {Object}
+  * `status` {integer} One of the [`module.constants.compileCacheStatus`][]
+  * `message` {string|undefined} If Node.js cannot enable the compile cache, this contains
+    the error message. Only set if `status` is `module.constants.compileCacheStatus.FAILED`.
+  * `directory` {string|undefined} If the compile cache is enabled, this contains the directory
+    where the compile cache is stored. Only set if  `status` is
+    `module.constants.compileCacheStatus.ENABLED` or
+    `module.constants.compileCacheStatus.ALREADY_ENABLED`.
+
+Enable [module compile cache][] in the current Node.js instance.
+
+If `cacheDir` is not specified, Node.js will either use the directory specified by the
+[`NODE_COMPILE_CACHE=dir`][] environment variable if it's set, or use
+`path.join(os.tmpdir(), 'node-compile-cache')` otherwise. For general use cases, it's
+recommended to call `module.enableCompileCache()` without specifying the `cacheDir`,
+so that the directory can be overridden by the `NODE_COMPILE_CACHE` environment
+variable when necessary.
+
+Since compile cache is supposed to be a quiet optimization that is not required for the
+application to be functional, this method is designed to not throw any exception when the
+compile cache cannot be enabled. Instead, it will return an object containing an error
+message in the `message` field to aid debugging.
+If compile cache is enabled successfully, the `directory` field in the returned object
+contains the path to the directory where the compile cache is stored. The `status`
+field in the returned object would be one of the `module.constants.compileCacheStatus`
+values to indicate the result of the attempt to enable the [module compile cache][].
+
+This method only affects the current Node.js instance. To enable it in child worker threads,
+either call this method in child worker threads too, or set the
+`process.env.NODE_COMPILE_CACHE` value to compile cache directory so the behavior can
+be inherited into the child workers. The directory can be obtained either from the
+`directory` field returned by this method, or with [`module.getCompileCacheDir()`][].
+
+### `module.flushCompileCache()`
+
+<!-- YAML
+added:
+ - v23.0.0
+-->
+
+> Stability: 1.1 - Active Development
+
+Flush the [module compile cache][] accumulated from modules already loaded
+in the current Node.js instance to disk. This returns after all the flushing
+file system operations come to an end, no matter they succeed or not. If there
+are any errors, this will fail silently, since compile cache misses should not
+interfere with the actual operation of the application.
+
+### `module.getCompileCacheDir()`
+
+<!-- YAML
+added: v22.8.0
+-->
+
+> Stability: 1.1 - Active Development
+
+* Returns: {string|undefined} Path to the [module compile cache][] directory if it is enabled,
+  or `undefined` otherwise.
 
 <i id="module_customization_hooks"></i>
 
@@ -1284,21 +1299,6 @@ added:
 
 `path` is the resolved path for the file for which a corresponding source map
 should be fetched.
-
-### `module.flushCompileCache()`
-
-<!-- YAML
-added:
- - v23.0.0
--->
-
-> Stability: 1.1 - Active Development
-
-Flush the [module compile cache][] accumulated from modules already loaded
-in the current Node.js instance to disk. This returns after all the flushing
-file system operations come to an end, no matter they succeed or not. If there
-are any errors, this will fail silently, since compile cache misses should not
-interfere with the actual operation of the application.
 
 ### Class: `module.SourceMap`
 
