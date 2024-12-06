@@ -347,28 +347,6 @@ is provided below for reference.
       "writeQueueSize": 0,
       "readable": true,
       "writable": true
-    },
-    {
-      "type": "tcp",
-      "is_active": true,
-      "is_referenced": true,
-      "address": "0x000055e70fcd68c8",
-      "localEndpoint": {
-        "host": "ip6-localhost",
-        "ip6": "::1",
-        "port": 52266
-      },
-      "remoteEndpoint": {
-        "host": "ip6-localhost",
-        "ip6": "::1",
-        "port": 38573
-      },
-      "sendBufferSize": 2626560,
-      "recvBufferSize": 131072,
-      "fd": 25,
-      "writeQueueSize": 0,
-      "readable": false,
-      "writable": false
     }
   ],
   "workers": [],
@@ -601,10 +579,118 @@ includes the date, time, PID, and a sequence number. The sequence number helps
 in associating the report dump with the runtime state if generated multiple
 times for the same Node.js process.
 
+## Report Version
+
 Diagnostic report has an associated single-digit version number (`report.header.reportVersion`),
 uniquely representing the report format. The version number is bumped
 when new key is added or removed, or the data type of a value is changed.
 Report version definitions are consistent across LTS releases.
+
+### Version history
+
+#### Version 4
+
+<!-- YAML
+changes:
+  - version: v23.3.0
+    pr-url: https://github.com/nodejs/node/pull/55697
+    description: Added `--report-exclude-env` option for excluding environment variables from report generation.
+-->
+
+New fields `ipv4` and `ipv6` are added to `tcp` and `udp` libuv handles endpoints. Examples:
+
+```json
+{
+  "libuv": [
+    {
+      "type": "tcp",
+      "is_active": true,
+      "is_referenced": true,
+      "address": "0x000055e70fcb85d8",
+      "localEndpoint": {
+        "host": "localhost",
+        "ip4": "127.0.0.1", // new key
+        "port": 48986
+      },
+      "remoteEndpoint": {
+        "host": "localhost",
+        "ip4": "127.0.0.1", // new key
+        "port": 38573
+      },
+      "sendBufferSize": 2626560,
+      "recvBufferSize": 131072,
+      "fd": 24,
+      "writeQueueSize": 0,
+      "readable": true,
+      "writable": true
+    },
+    {
+      "type": "tcp",
+      "is_active": true,
+      "is_referenced": true,
+      "address": "0x000055e70fcd68c8",
+      "localEndpoint": {
+        "host": "ip6-localhost",
+        "ip6": "::1", // new key
+        "port": 52266
+      },
+      "remoteEndpoint": {
+        "host": "ip6-localhost",
+        "ip6": "::1", // new key
+        "port": 38573
+      },
+      "sendBufferSize": 2626560,
+      "recvBufferSize": 131072,
+      "fd": 25,
+      "writeQueueSize": 0,
+      "readable": false,
+      "writable": false
+    }
+  ]
+}
+```
+
+#### Version 3
+
+<!-- YAML
+changes:
+  - version:
+    - v19.1.0
+    - v18.13.0
+    pr-url: https://github.com/nodejs/node/pull/45254
+    description: Add more memory info.
+-->
+
+The following memory usage keys are added to the `resourceUsage` section.
+
+```json
+{
+  "resourceUsage": {
+    "rss": "35766272",
+    "free_memory": "1598337024",
+    "total_memory": "17179869184",
+    "available_memory": "1598337024",
+    "constrained_memory": "36624662528"
+  }
+}
+```
+
+#### Version 2
+
+<!-- YAML
+changes:
+  - version:
+      - v13.9.0
+      - v12.16.2
+    pr-url: https://github.com/nodejs/node/pull/31386
+    description: Workers are now included in the report.
+-->
+
+Added [`Worker`][] support. Refer to [Interaction with workers](#interaction-with-workers) section for more details.
+
+#### Version 1
+
+This is the first version of the diagnostic report.
 
 ## Configuration
 
