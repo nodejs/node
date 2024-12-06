@@ -47,8 +47,6 @@ test-esm-loader-hooks-inspect-wait: PASS, FLAKY
 test-sqlite-statement-sync: PASS, FLAKY
 # https://github.com/nodejs/node/issues/54534
 test-runner-run-watch: PASS, FLAKY
-# https://github.com/nodejs/node/issues/37692
-test-fs-utimes: PASS, FLAKY
 
 [$system==linux || $system==win32]
 # https://github.com/nodejs/node/issues/49605
