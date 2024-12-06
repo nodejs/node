@@ -1531,7 +1531,7 @@ void Session::EmitDatagram(Store&& datagram, DatagramReceivedFlags flag) {
   DCHECK(!is_destroyed());
   if (!env()->can_call_into_js()) return;
 
-  CallbackScope cbv_scope(this);
+  CallbackScope<Session> cbv_scope(this);
 
   Local<Value> argv[] = {datagram.ToUint8Array(env()),
                          v8::Boolean::New(env()->isolate(), flag.early)};
