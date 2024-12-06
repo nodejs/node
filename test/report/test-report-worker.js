@@ -4,12 +4,12 @@ require('../common');
 
 const helper = require('../common/report');
 const assert = require('node:assert');
-const { test } = require('node:test');
+const { describe, it } = require('node:test');
 const { Worker } = require('node:worker_threads');
 const { once } = require('node:events');
 
-test('Worker threads report basic information', async (t) => {
-  await t.test('should include basic information about Worker threads', async () => {
+describe('Worker threads', () => {
+  it('should include basic information about Worker threads', async () => {
     const w = new Worker(`
       const { parentPort } = require('worker_threads');
       parentPort.once('message', () => {
@@ -23,16 +23,19 @@ test('Worker threads report basic information', async (t) => {
     helper.validateContent(report);
     const workerLengthMessage = 'Report should include one Worker';
     const threadIdMessage = 'Thread ID should match the Worker thread ID';
+
     assert.strictEqual(report.workers.length, 1, workerLengthMessage);
     helper.validateContent(report.workers[0]);
     assert.strictEqual(report.workers[0].header.threadId, w.threadId, threadIdMessage);
 
+
     w.postMessage({});
+
 
     await once(w, 'exit');
   });
 
-  await t.test('should generate report when Workers are busy in JS land', async () => {
+  it('should generate report when Workers are busy in JS land', async () => {
     const w = new Worker('while (true);', { eval: true });
 
     await once(w, 'online');
@@ -40,6 +43,7 @@ test('Worker threads report basic information', async (t) => {
     const report = process.report.getReport();
     helper.validateContent(report);
     const workerLengthMessage = 'Report should include one Worker';
+    
     assert.strictEqual(report.workers.length, 1, workerLengthMessage);
     helper.validateContent(report.workers[0]);
 
