@@ -32,7 +32,6 @@ jobs:
       RELEASE_BRANCH: v${{ inputs.release-line }}.x
       RELEASE_DATE: ${{ inputs.release-date }}
       RELEASE_LINE: ${{ inputs.release-line }}
-      RELEASER: ${{ github.actor }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
@@ -79,7 +78,7 @@ jobs:
         run: |
           git update-index --assume-unchanged tools/actions/create-release.sh
           curl -fsSLo tools/actions/create-release.sh https://github.com/${GITHUB_REPOSITORY}/raw/${GITHUB_SHA}/tools/actions/create-release.sh
-          ./tools/actions/create-release.sh "${RELEASE_DATE}" "${RELEASE_LINE}" "${RELEASER}"
+          ./tools/actions/create-release.sh "${RELEASE_DATE}" "${RELEASE_LINE}" "${GITHUB_ACTOR}"
         env:
           GH_TOKEN: ${{ github.token }}
           # We want the bot to push the push the release commit so CI runs on it.
