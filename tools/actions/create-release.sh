@@ -28,7 +28,7 @@ git node release --prepare --skipBranchDiff --yes --releaseDate "$RELEASE_DATE"
 HEAD_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
 HEAD_SHA="$(git rev-parse HEAD^)"
 
-TITLE=$(awk "/^## ${RELEASE_DATE}/ { print substr(\$0, 4) }" "doc/changelogs/CHANGELOG_V${RELEASE_LINE}.md")
+TITLE="$(git log -1 --format=%s)"
 
 # Use a temporary file for the PR body
 TEMP_BODY="$(awk "/## ${RELEASE_DATE}/,/^<a id=/{ if (!/^<a id=/) print }" "doc/changelogs/CHANGELOG_V${RELEASE_LINE}.md")"
@@ -55,7 +55,7 @@ node --input-type=module - \
     "$GITHUB_REPOSITORY" \
     "$HEAD_BRANCH" \
     "$HEAD_SHA" \
-    "$(git log -1 HEAD --format=%s || true)" \
+    "$TITLE" \
     "$(git log -1 HEAD --format=%b | awk -v PR_URL="$PR_URL" '{sub(/^PR-URL: TODO$/, "PR-URL: " PR_URL)} 1' || true)" \
     "$(git show HEAD --diff-filter=d --name-only --format= || true)" \
     "$(git show HEAD --diff-filter=D --name-only --format= || true)" \
