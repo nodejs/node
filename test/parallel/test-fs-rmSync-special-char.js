@@ -5,14 +5,17 @@ const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
 
-// This test ensures that fs.rmSync can handle UTF-8 characters
-// in file paths without errors.
+// This test ensures that fs.rmSync handles UTF-8 characters in file paths,
+// and that errors contain correctly encoded paths and err.path values.
 
 tmpdir.refresh(); // Prepare a clean temporary directory
 
-const filePath = path.join(tmpdir.path, '速.txt'); // Use tmpdir.path for the file location
+// Define paths with non-ASCII characters
+const dirPath = path.join(tmpdir.path, '速_dir');
+const filePath = path.join(tmpdir.path, '速.txt');
 
-// Create a file with a name containing non-ASCII characters
+// Create a directory and a file with non-ASCII characters
+fs.mkdirSync(dirPath);
 fs.writeFileSync(filePath, 'This is a test file with special characters.');
 
 // fs.rmSync should not throw an error for non-ASCII file names
@@ -20,3 +23,14 @@ fs.rmSync(filePath);
 
 // Ensure the file has been removed
 assert.strictEqual(fs.existsSync(filePath), false);
+
+// // Ensure rmSync throws an error when trying to remove a directory without recursive
+assert.throws(() => {
+  fs.rmSync(dirPath, { recursive: false });
+}, (err) => {
+  // Assert the error message includes the correct non-ASCII path
+  assert.strictEqual(err.code, 'ERR_FS_EISDIR');
+  assert(err.message.includes(dirPath), 'Error message should include the directory path');
+  assert.strictEqual(err.path, dirPath, 'err.path should match the non-ASCII directory path');
+  return true; // Indicate the validation function passed
+});
