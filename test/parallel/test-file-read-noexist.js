@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const fixtures = require('../common/fixtures');
 const fs = require('fs');
@@ -29,10 +29,10 @@ const { describe, it } = require('node:test');
 describe('fs.readfile', () => {
   it('should return ENOENT error code for non existing file', (_, done) => {
     const filename = fixtures.path('does_not_exist.txt');
-    fs.readFile(filename, 'latin1', function(err, _) {
+    fs.readFile(filename, 'latin1', common.mustCall(function (err, _) {
       assert.ok(err);
       assert.strictEqual(err.code, 'ENOENT');
       done();
-    });
+    }));
   });
 });
