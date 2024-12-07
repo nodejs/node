@@ -292,18 +292,9 @@ goto exit
 @rem Visual Studio v17.10 has a bug that causes the build to fail.
 @rem Check if the version is v17.10 and exit if it is.
 echo %VSCMD_VER% | findstr /b /c:"17.10" >nul
-if %errorlevel% neq 1 (
+if %errorlevel% neq 1  (
   echo Node.js doesn't compile with Visual Studio 17.10 Please use a different version.
   goto exit
-)
-@rem Same applies to v17.12 for MSVC.
-echo %VSCMD_VER% | findstr /b /c:"17.12" >nul
-if %errorlevel% neq 1 (
-  @rem Clang 18.1.8 Provided with VS 17.12 works fine.
-  if not defined clang_cl (
-    echo Node.js doesn't compile with Visual Studio 17.12 Please use a different version.
-    goto exit
-  )
 )
 
 @rem check if the clang-cl build is requested
