@@ -1171,6 +1171,10 @@ that a "possible EventEmitter memory leak" has been detected. For any single
 `EventEmitter`, the `emitter.getMaxListeners()` and `emitter.setMaxListeners()`
 methods can be used to temporarily avoid this warning:
 
+`defaultMaxListeners` has no effect on `AbortSignal` instances. While it is
+still possible to use [`emitter.setMaxListeners(n)`][] to set a warning limit
+for individual `AbortSignal` instances, per default `AbortSignal` instances will not warn.
+
 ```mjs
 import { EventEmitter } from 'node:events';
 const emitter = new EventEmitter();
