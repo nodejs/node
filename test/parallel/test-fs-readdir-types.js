@@ -86,6 +86,14 @@ fs.readdir(readdirDir, {
   assertDirents(await direntsPromise);
 })().then(common.mustCall());
 
+{
+  const options = { recursive: true, withFileTypes: true };
+  fs.readdir(readdirDir, options, common.mustSucceed((dirents) => {
+    assertDirents(dirents);
+  }));
+  options.withFileTypes = false;
+}
+
 // Check for correct types when the binding returns unknowns
 const UNKNOWN = constants.UV_DIRENT_UNKNOWN;
 const oldReaddir = binding.readdir;
