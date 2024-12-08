@@ -122,7 +122,7 @@ If you are modifying code, please be sure to run `make lint` (or
 code style guide.
 
 Any documentation you write (including code comments and API documentation)
-should follow the [Style Guide](../../README.md). Code samples
+should follow the [Style Guide](../../doc/README.md). Code samples
 included in the API docs will also be checked when running `make lint` (or
 `vcbuild.bat lint` on Windows). If you are adding to or deprecating an API,
 add or change the appropriate YAML documentation. Use `REPLACEME` for the
