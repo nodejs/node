@@ -64,6 +64,41 @@ function runShortLivedSourceSignal(limit, done) {
   run(1);
 };
 
+function runWithOrphanListeners(limit, done) {
+  let composedSignalRef;
+  const composedSignalRefs = [];
+  const handler = () => { };
+
+  function run(iteration) {
+    const ac = new AbortController();
+    if (iteration > limit) {
+      setImmediate(() => {
+        global.gc();
+        setImmediate(() => {
+          global.gc();
+
+          done(composedSignalRefs);
+        });
+      });
+      return;
+    }
+
+    composedSignalRef = new WeakRef(AbortSignal.any([ac.signal]));
+    composedSignalRef.deref().addEventListener('abort', handler);
+
+    const otherComposedSignalRef = new WeakRef(AbortSignal.any([composedSignalRef.deref()]));
+    otherComposedSignalRef.deref().addEventListener('abort', handler);
+
+    composedSignalRefs.push(composedSignalRef, otherComposedSignalRef);
+
+    setImmediate(() => {
+      run(iteration + 1);
+    });
+  }
+
+  run(1);
+}
+
 const limit = 10_000;
 
 describe('when there is a long-lived signal', () => {
@@ -117,6 +152,26 @@ it('drops settled dependant signals when signal is composite', (t, done) => {
       t.assert.strictEqual(controllers[1].signal[kDependantSignals].size, 0);
 
       done();
+    });
+  });
+});
+
+it('drops settled signals even when there are listeners', (t, done) => {
+  runWithOrphanListeners(limit, (signalRefs) => {
+    setImmediate(() => {
+      global.gc();
+      setImmediate(() => {
+        global.gc(); // One more call needed to clean up the deeper composed signals
+        setImmediate(() => {
+          global.gc(); // One more call needed to clean up the deeper composed signals
+
+          const unGCedSignals = [...signalRefs].filter((ref) => ref.deref());
+
+          t.assert.strictEqual(unGCedSignals.length, 0);
+
+          done();
+        });
+      });
     });
   });
 });
