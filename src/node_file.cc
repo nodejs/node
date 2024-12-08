@@ -1685,7 +1685,7 @@ static void RmSync(const FunctionCallbackInfo<Value>& args) {
   int maxRetries = args[1].As<Int32>()->Value();
   int recursive = args[2]->IsTrue();
   int retryDelay = args[3].As<Int32>()->Value();
-  
+
   auto file_path_as_str = PathToString(file_path);
 
   // File is a directory and recursive is false
@@ -1693,7 +1693,7 @@ static void RmSync(const FunctionCallbackInfo<Value>& args) {
       !recursive) {
     return THROW_ERR_FS_EISDIR(
         isolate, "Path is a directory: %s", file_path_as_str);
-   }
+  }
 
   // Allowed errors are:
   // - EBUSY: std::errc::device_or_resource_busy
