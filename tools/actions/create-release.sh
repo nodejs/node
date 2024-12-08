@@ -7,6 +7,7 @@ BOT_TOKEN=${BOT_TOKEN:-}
 
 RELEASE_DATE=$1
 RELEASE_LINE=$2
+RELEASER=$3
 
 if [ -z "$RELEASE_DATE" ] || [ -z "$RELEASE_LINE" ]; then
   echo "Usage: $0 <RELEASE_DATE> <RELEASE_LINE>"
@@ -48,7 +49,7 @@ PR_URL="$(gh api \
   -H "Accept: application/vnd.github+json" \
   -H "X-GitHub-Api-Version: 2022-11-28" \
   "/repos/${GITHUB_REPOSITORY}/pulls" \
-   -f "title=$TITLE" -f "body=$TEMP_BODY" -f "head=$HEAD_BRANCH" -f "base=v$RELEASE_LINE.x")"
+   -f "title=$TITLE" -f "body=$TEMP_BODY" -f "head=$HEAD_BRANCH" -f "base=v$RELEASE_LINE.x" -f draft=true)"
 
 # Push the release commit to the proposal branch using `BOT_TOKEN` from the env
 node --input-type=module - \
@@ -124,3 +125,5 @@ if (data.errors?.length) {
 }
 console.log(util.inspect(data, { depth: Infinity }));
 EOF
+
+gh pr edit "$PR_URL" --add-label release --add-assignee "$RELEASER"
