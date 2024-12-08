@@ -86,6 +86,8 @@ suite('notEqualArrayPairs', () => {
       new Uint8Array(new ArrayBuffer(3)).fill(1).buffer,
       new Uint8Array(new SharedArrayBuffer(3)).fill(2).buffer,
     ],
+    [new ArrayBuffer(3), new SharedArrayBuffer(3)],
+    [new SharedArrayBuffer(2), new ArrayBuffer(2)],
   ];
 
   for (const arrayPair of notEqualArrayPairs) {
@@ -97,6 +99,10 @@ suite('notEqualArrayPairs', () => {
       );
       assert.throws(
         makeBlock(assert.deepStrictEqual, arrayPair[0], arrayPair[1]),
+        assert.AssertionError
+      );
+      assert.throws(
+        makeBlock(assert.partialDeepStrictEqual, arrayPair[0], arrayPair[1]),
         assert.AssertionError
       );
     });
