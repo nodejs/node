@@ -1,6 +1,7 @@
 'use strict'
 
 const assert = require('node:assert')
+const WrapHandler = require('./wrap-handler')
 
 /**
  * @deprecated
@@ -9,63 +10,58 @@ module.exports = class DecoratorHandler {
   #handler
   #onCompleteCalled = false
   #onErrorCalled = false
+  #onResponseStartCalled = false
 
   constructor (handler) {
     if (typeof handler !== 'object' || handler === null) {
       throw new TypeError('handler must be an object')
     }
-    this.#handler = handler
+    this.#handler = WrapHandler.wrap(handler)
   }
 
-  onConnect (...args) {
-    return this.#handler.onConnect?.(...args)
+  onRequestStart (...args) {
+    this.#handler.onRequestStart?.(...args)
   }
 
-  onError (...args) {
-    this.#onErrorCalled = true
-    return this.#handler.onError?.(...args)
-  }
-
-  onUpgrade (...args) {
+  onRequestUpgrade (...args) {
     assert(!this.#onCompleteCalled)
     assert(!this.#onErrorCalled)
 
-    return this.#handler.onUpgrade?.(...args)
+    return this.#handler.onRequestUpgrade?.(...args)
   }
 
-  onResponseStarted (...args) {
+  onResponseStart (...args) {
+    assert(!this.#onCompleteCalled)
+    assert(!this.#onErrorCalled)
+    assert(!this.#onResponseStartCalled)
+
+    this.#onResponseStartCalled = true
+
+    return this.#handler.onResponseStart?.(...args)
+  }
+
+  onResponseData (...args) {
     assert(!this.#onCompleteCalled)
     assert(!this.#onErrorCalled)
 
-    return this.#handler.onResponseStarted?.(...args)
+    return this.#handler.onResponseData?.(...args)
   }
 
-  onHeaders (...args) {
-    assert(!this.#onCompleteCalled)
-    assert(!this.#onErrorCalled)
-
-    return this.#handler.onHeaders?.(...args)
-  }
-
-  onData (...args) {
-    assert(!this.#onCompleteCalled)
-    assert(!this.#onErrorCalled)
-
-    return this.#handler.onData?.(...args)
-  }
-
-  onComplete (...args) {
+  onResponseEnd (...args) {
     assert(!this.#onCompleteCalled)
     assert(!this.#onErrorCalled)
 
     this.#onCompleteCalled = true
-    return this.#handler.onComplete?.(...args)
+    return this.#handler.onResponseEnd?.(...args)
   }
 
-  onBodySent (...args) {
-    assert(!this.#onCompleteCalled)
-    assert(!this.#onErrorCalled)
-
-    return this.#handler.onBodySent?.(...args)
+  onResponseError (...args) {
+    this.#onErrorCalled = true
+    return this.#handler.onResponseError?.(...args)
   }
+
+  /**
+   * @deprecated
+   */
+  onBodySent () {}
 }

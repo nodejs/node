@@ -222,19 +222,18 @@ class DNSDispatchHandler extends DecoratorHandler {
   #state = null
   #opts = null
   #dispatch = null
-  #handler = null
   #origin = null
+  #controller = null
 
   constructor (state, { origin, handler, dispatch }, opts) {
     super(handler)
     this.#origin = origin
-    this.#handler = handler
     this.#opts = { ...opts }
     this.#state = state
     this.#dispatch = dispatch
   }
 
-  onError (err) {
+  onResponseError (controller, err) {
     switch (err.code) {
       case 'ETIMEDOUT':
       case 'ECONNREFUSED': {
@@ -242,7 +241,8 @@ class DNSDispatchHandler extends DecoratorHandler {
           // We delete the record and retry
           this.#state.runLookup(this.#origin, this.#opts, (err, newOrigin) => {
             if (err) {
-              return this.#handler.onError(err)
+              super.onResponseError(controller, err)
+              return
             }
 
             const dispatchOpts = {
@@ -253,18 +253,18 @@ class DNSDispatchHandler extends DecoratorHandler {
             this.#dispatch(dispatchOpts, this)
           })
 
-          // if dual-stack disabled, we error out
           return
         }
 
-        this.#handler.onError(err)
-        return
+        // if dual-stack disabled, we error out
+        super.onResponseError(controller, err)
+        break
       }
       case 'ENOTFOUND':
         this.#state.deleteRecord(this.#origin)
       // eslint-disable-next-line no-fallthrough
       default:
-        this.#handler.onError(err)
+        super.onResponseError(controller, err)
         break
     }
   }

@@ -17,8 +17,6 @@ Returns: `Client`
 
 ### Parameter: `ClientOptions`
 
-> ⚠️ Warning: The `H2` support is experimental.
-
 * **bodyTimeout** `number | null` (optional) - Default: `300e3` - The timeout after which a request will time out, in milliseconds. Monitors time between receiving body data. Use `0` to disable it entirely. Defaults to 300 seconds. Please note the `timeout` will be reset if you keep writing data to the socket everytime.
 * **headersTimeout** `number | null` (optional) - Default: `300e3` - The amount of time, in milliseconds, the parser will wait to receive the complete HTTP headers while not sending the request. Defaults to 300 seconds.
 * **keepAliveMaxTimeout** `number | null` (optional) - Default: `600e3` - The maximum allowed `keepAliveTimeout`, in milliseconds, when overridden by *keep-alive* hints from the server. Defaults to 10 minutes.
@@ -33,6 +31,17 @@ Returns: `Client`
 * **autoSelectFamilyAttemptTimeout**: `number` - Default: depends on local Node version, on Node 18.13.0 and above is `250`. The amount of time in milliseconds to wait for a connection attempt to finish before trying the next address when using the `autoSelectFamily` option. See [here](https://nodejs.org/api/net.html#socketconnectoptions-connectlistener) for more details.
 * **allowH2**: `boolean` - Default: `false`. Enables support for H2 if the server has assigned bigger priority to it through ALPN negotiation.
 * **maxConcurrentStreams**: `number` - Default: `100`. Dictates the maximum number of concurrent streams for a single H2 session. It can be overridden by a SETTINGS remote frame.
+
+> **Notes about HTTP/2**
+> - It only works under TLS connections. h2c is not supported.
+> - The server must support HTTP/2 and choose it as the protocol during the ALPN negotiation.
+>   - The server must not have a bigger priority for HTTP/1.1 than HTTP/2.
+> - Pseudo headers are automatically attached to the request. If you try to set them, they will be overwritten.
+>   - The `:path` header is automatically set to the request path.
+>   - The `:method` header is automatically set to the request method.
+>   - The `:scheme` header is automatically set to the request scheme.
+>   - The `:authority` header is automatically set to the request `host[:port]`.
+> - `PUSH` frames are yet not supported.
 
 #### Parameter: `ConnectOptions`
 

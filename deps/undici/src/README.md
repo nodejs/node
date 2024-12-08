@@ -434,6 +434,8 @@ and `undici.Agent`) which will enable the family autoselection algorithm when es
 * [__Matthew Aitken__](https://github.com/KhafraDev), <https://www.npmjs.com/~khaf>
 * [__Robert Nagy__](https://github.com/ronag), <https://www.npmjs.com/~ronag>
 * [__Szymon Marczak__](https://github.com/szmarczak), <https://www.npmjs.com/~szmarczak>
+
+## Past Collaborators
 * [__Tomas Della Vedova__](https://github.com/delvedor), <https://www.npmjs.com/~delvedor>
 
 ### Releasers
