@@ -39,9 +39,14 @@ describe('Object Comparison Tests', () => {
     describe('throws an error', () => {
       const tests = [
         {
-          description: 'throws when only one argument is provided',
+          description: 'throws when only actual is provided',
           actual: { a: 1 },
           expected: undefined,
+        },
+        {
+          description: 'throws when only expected is provided',
+          actual: undefined,
+          expected: { a: 1 },
         },
         {
           description: 'throws when expected has more properties than actual',
@@ -197,6 +202,74 @@ describe('Object Comparison Tests', () => {
           actual: [1, 2, 3],
           expected: ['2'],
         },
+        {
+          description: 'throws when comparing an ArrayBuffer with a Uint8Array',
+          actual: new ArrayBuffer(3),
+          expected: new Uint8Array(3),
+        },
+        {
+          description: 'throws when comparing a ArrayBuffer with a SharedArrayBuffer',
+          actual: new ArrayBuffer(3),
+          expected: new SharedArrayBuffer(3),
+        },
+        {
+          description: 'throws when comparing a SharedArrayBuffer with an ArrayBuffer',
+          actual: new SharedArrayBuffer(3),
+          expected: new ArrayBuffer(3),
+        },
+        {
+          description: 'throws when comparing an Int16Array with a Uint16Array',
+          actual: new Int16Array(3),
+          expected: new Uint16Array(3),
+        },
+        {
+          description: 'throws when comparing two dataviews with different buffers',
+          actual: { dataView: new DataView(new ArrayBuffer(3)) },
+          expected: { dataView: new DataView(new ArrayBuffer(4)) },
+        },
+        {
+          description: 'throws because expected Uint8Array(SharedArrayBuffer) is not a subset of actual',
+          actual: { typedArray: new Uint8Array(new SharedArrayBuffer(3)) },
+          expected: { typedArray: new Uint8Array(new SharedArrayBuffer(5)) },
+        },
+        {
+          description: 'throws because expected SharedArrayBuffer is not a subset of actual',
+          actual: { typedArray: new SharedArrayBuffer(3) },
+          expected: { typedArray: new SharedArrayBuffer(5) },
+        },
+        {
+          description: 'throws when comparing a DataView with a TypedArray',
+          actual: { dataView: new DataView(new ArrayBuffer(3)) },
+          expected: { dataView: new Uint8Array(3) },
+        },
+        {
+          description: 'throws when comparing a TypedArray with a DataView',
+          actual: { dataView: new Uint8Array(3) },
+          expected: { dataView: new DataView(new ArrayBuffer(3)) },
+        },
+        {
+          description: 'throws when comparing SharedArrayBuffers when expected has different elements actual',
+          actual: (() => {
+            const sharedBuffer = new SharedArrayBuffer(4 * Int32Array.BYTES_PER_ELEMENT);
+            const sharedArray = new Int32Array(sharedBuffer);
+
+            sharedArray[0] = 1;
+            sharedArray[1] = 2;
+            sharedArray[2] = 3;
+
+            return sharedBuffer;
+          })(),
+          expected: (() => {
+            const sharedBuffer = new SharedArrayBuffer(4 * Int32Array.BYTES_PER_ELEMENT);
+            const sharedArray = new Int32Array(sharedBuffer);
+
+            sharedArray[0] = 1;
+            sharedArray[1] = 2;
+            sharedArray[2] = 6;
+
+            return sharedBuffer;
+          })(),
+        },
       ];
 
       if (common.hasCrypto) {
@@ -333,9 +406,88 @@ describe('Object Comparison Tests', () => {
         expected: { error: new Error('Test error') },
       },
       {
-        description: 'compares two objects with TypedArray instances with the same content',
-        actual: { typedArray: new Uint8Array([1, 2, 3]) },
+        description: 'compares two Uint8Array objects',
+        actual: { typedArray: new Uint8Array([1, 2, 3, 4, 5]) },
         expected: { typedArray: new Uint8Array([1, 2, 3]) },
+      },
+      {
+        description: 'compares two Int16Array objects',
+        actual: { typedArray: new Int16Array([1, 2, 3, 4, 5]) },
+        expected: { typedArray: new Int16Array([1, 2, 3]) },
+      },
+      {
+        description: 'compares two DataView objects with the same buffer and different views',
+        actual: { dataView: new DataView(new ArrayBuffer(8), 0, 4) },
+        expected: { dataView: new DataView(new ArrayBuffer(8), 4, 4) },
+      },
+      {
+        description: 'compares two DataView objects with different buffers',
+        actual: { dataView: new DataView(new ArrayBuffer(8)) },
+        expected: { dataView: new DataView(new ArrayBuffer(8)) },
+      },
+      {
+        description: 'compares two DataView objects with the same buffer and same views',
+        actual: { dataView: new DataView(new ArrayBuffer(8), 0, 8) },
+        expected: { dataView: new DataView(new ArrayBuffer(8), 0, 8) },
+      },
+      {
+        description: 'compares two SharedArrayBuffers with the same length',
+        actual: new SharedArrayBuffer(3),
+        expected: new SharedArrayBuffer(3),
+      },
+      {
+        description: 'compares two Uint8Array objects from SharedArrayBuffer',
+        actual: { typedArray: new Uint8Array(new SharedArrayBuffer(5)) },
+        expected: { typedArray: new Uint8Array(new SharedArrayBuffer(3)) },
+      },
+      {
+        description: 'compares two Int16Array objects from SharedArrayBuffer',
+        actual: { typedArray: new Int16Array(new SharedArrayBuffer(10)) },
+        expected: { typedArray: new Int16Array(new SharedArrayBuffer(6)) },
+      },
+      {
+        description: 'compares two DataView objects with the same SharedArrayBuffer and different views',
+        actual: { dataView: new DataView(new SharedArrayBuffer(8), 0, 4) },
+        expected: { dataView: new DataView(new SharedArrayBuffer(8), 4, 4) },
+      },
+      {
+        description: 'compares two DataView objects with different SharedArrayBuffers',
+        actual: { dataView: new DataView(new SharedArrayBuffer(8)) },
+        expected: { dataView: new DataView(new SharedArrayBuffer(8)) },
+      },
+      {
+        description: 'compares two DataView objects with the same SharedArrayBuffer and same views',
+        actual: { dataView: new DataView(new SharedArrayBuffer(8), 0, 8) },
+        expected: { dataView: new DataView(new SharedArrayBuffer(8), 0, 8) },
+      },
+      {
+        description: 'compares two SharedArrayBuffers',
+        actual: { typedArray: new SharedArrayBuffer(5) },
+        expected: { typedArray: new SharedArrayBuffer(3) },
+      },
+      {
+        description: 'compares two SharedArrayBuffers with data inside',
+        actual: (() => {
+          const sharedBuffer = new SharedArrayBuffer(4 * Int32Array.BYTES_PER_ELEMENT);
+          const sharedArray = new Int32Array(sharedBuffer);
+
+          sharedArray[0] = 1;
+          sharedArray[1] = 2;
+          sharedArray[2] = 3;
+          sharedArray[3] = 4;
+
+          return sharedBuffer;
+        })(),
+        expected: (() => {
+          const sharedBuffer = new SharedArrayBuffer(3 * Int32Array.BYTES_PER_ELEMENT);
+          const sharedArray = new Int32Array(sharedBuffer);
+
+          sharedArray[0] = 1;
+          sharedArray[1] = 2;
+          sharedArray[2] = 3;
+
+          return sharedBuffer;
+        })(),
       },
       {
         description: 'compares two Map objects with identical entries',
@@ -347,6 +499,19 @@ describe('Object Comparison Tests', () => {
           ['key1', 'value1'],
           ['key2', 'value2'],
         ]),
+      },
+      {
+        description: 'compares two Map where one is a subset of the other',
+        actual: new Map([
+          ['key1', { nested: { property: true } }],
+          ['key2', new Set([1, 2, 3])],
+          ['key3', new Uint8Array([1, 2, 3])],
+        ]),
+        expected: new Map([
+          ['key1', { nested: { property: true } }],
+          ['key2', new Set([1, 2, 3])],
+          ['key3', new Uint8Array([1, 2, 3])],
+        ])
       },
       {
         describe: 'compares two array of objects',
