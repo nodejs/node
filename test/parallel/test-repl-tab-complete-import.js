@@ -5,7 +5,7 @@ const ArrayStream = require('../common/arraystream');
 const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const { builtinModules } = require('module');
-const publicModules = builtinModules.filter((lib) => !lib.startsWith('_'));
+const publicUnprefixedModules = builtinModules.filter((lib) => !lib.startsWith('_') && !lib.startsWith('node:'));
 
 if (!common.isMainThread)
   common.skip('process.chdir is not available in Workers');
@@ -31,7 +31,7 @@ testMe._domain.on('error', assert.ifError);
 // Tab complete provides built in libs for import()
 testMe.complete('import(\'', common.mustCall((error, data) => {
   assert.strictEqual(error, null);
-  publicModules.forEach((lib) => {
+  publicUnprefixedModules.forEach((lib) => {
     assert(
       data[0].includes(lib) && data[0].includes(`node:${lib}`),
       `${lib} not found`,
@@ -55,7 +55,7 @@ testMe.complete("import\t( 'n", common.mustCall((error, data) => {
   // import(...) completions include `node:` URL modules:
   let lastIndex = -1;
 
-  publicModules.forEach((lib, index) => {
+  publicUnprefixedModules.forEach((lib, index) => {
     lastIndex = completions.indexOf(`node:${lib}`);
     assert.notStrictEqual(lastIndex, -1);
   });

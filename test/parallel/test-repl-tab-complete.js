@@ -275,7 +275,7 @@ testMe.complete('require(\'', common.mustCall(function(error, data) {
   assert.strictEqual(error, null);
   publicModules.forEach((lib) => {
     assert(
-      data[0].includes(lib) && data[0].includes(`node:${lib}`),
+      data[0].includes(lib) && (lib.startsWith('node:') || data[0].includes(`node:${lib}`)),
       `${lib} not found`
     );
   });
@@ -295,7 +295,7 @@ testMe.complete("require\t( 'n", common.mustCall(function(error, data) {
   // require(...) completions include `node:`-prefixed modules:
   let lastIndex = -1;
 
-  publicModules.forEach((lib, index) => {
+  publicModules.filter((lib) => !lib.startsWith('node:')).forEach((lib, index) => {
     lastIndex = data[0].indexOf(`node:${lib}`);
     assert.notStrictEqual(lastIndex, -1);
   });
