@@ -78,7 +78,7 @@ jobs:
         run: |
           git update-index --assume-unchanged tools/actions/create-release.sh
           curl -fsSLo tools/actions/create-release.sh https://github.com/${GITHUB_REPOSITORY}/raw/${GITHUB_SHA}/tools/actions/create-release.sh
-          ./tools/actions/create-release.sh "${RELEASE_DATE}" "${RELEASE_LINE}"
+          ./tools/actions/create-release.sh "${RELEASE_DATE}" "${RELEASE_LINE}" "${GITHUB_ACTOR}"
         env:
           GH_TOKEN: ${{ github.token }}
           # We want the bot to push the push the release commit so CI runs on it.
