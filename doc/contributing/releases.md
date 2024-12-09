@@ -1081,7 +1081,7 @@ on offical slack channel.
 Node.js is also available on Bluesky and a release announcement can be
 reposted using [nodejs/bluesky](https://github.com/nodejs/bluesky) repository.
 
-The post content should be similar to:
+The post content can be as simple as:
 
 > v5.8.0 of @nodejs is out: <https://nodejs.org/en/blog/release/v5.8.0/>
 > …
