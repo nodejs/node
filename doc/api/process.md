@@ -3107,7 +3107,7 @@ added: v20.0.0
 
 * {Object}
 
-This API is available through the [`--experimental-permission`][] flag.
+This API is available through the [`--permission`][] flag.
 
 `process.permission` is an object whose methods are used to manage permissions
 for the current process. Additional documentation is available in the
@@ -4444,8 +4444,8 @@ cases:
 [`'exit'`]: #event-exit
 [`'message'`]: child_process.md#event-message
 [`'uncaughtException'`]: #event-uncaughtexception
-[`--experimental-permission`]: cli.md#--experimental-permission
 [`--no-deprecation`]: cli.md#--no-deprecation
+[`--permission`]: cli.md#--permission
 [`--unhandled-rejections`]: cli.md#--unhandled-rejectionsmode
 [`Buffer`]: buffer.md
 [`ChildProcess.disconnect()`]: child_process.md#subprocessdisconnect

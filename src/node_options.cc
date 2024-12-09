@@ -451,9 +451,9 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "experimental ES Module import.meta.resolve() parentURL support",
             &EnvironmentOptions::experimental_import_meta_resolve,
             kAllowedInEnvvar);
-  AddOption("--experimental-permission",
+  AddOption("--permission",
             "enable the permission system",
-            &EnvironmentOptions::experimental_permission,
+            &EnvironmentOptions::permission,
             kAllowedInEnvvar,
             false);
   AddOption("--allow-fs-read",

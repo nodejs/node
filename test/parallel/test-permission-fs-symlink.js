@@ -1,4 +1,4 @@
-// Flags: --experimental-permission --allow-fs-read=* --allow-fs-write=* --allow-child-process
+// Flags: --permission --allow-fs-read=* --allow-fs-write=* --allow-child-process
 'use strict';
 
 const common = require('../common');
@@ -36,7 +36,7 @@ const symlinkFromBlockedFile = tmpdir.resolve('example-symlink.md');
   const { status, stderr } = spawnSync(
     process.execPath,
     [
-      '--experimental-permission',
+      '--permission',
       `--allow-fs-read=${file}`, `--allow-fs-read=${commonPathWildcard}`, `--allow-fs-read=${symlinkFromBlockedFile}`,
       `--allow-fs-write=${symlinkFromBlockedFile}`,
       file,

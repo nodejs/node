@@ -1,4 +1,4 @@
-// Flags: --experimental-permission --allow-fs-read=* --allow-child-process
+// Flags: --permission --allow-fs-read=* --allow-child-process
 'use strict';
 
 const common = require('../common');
@@ -14,7 +14,7 @@ const { spawnSync } = require('node:child_process');
   const { status, stdout, stderr } = spawnSync(
     process.execPath,
     [
-      '--experimental-permission',
+      '--permission',
       '--allow-fs-read', mainModule,
       '--allow-fs-read', requiredModule,
       mainModule,
@@ -31,7 +31,7 @@ const { spawnSync } = require('node:child_process');
   const { status, stderr } = spawnSync(
     process.execPath,
     [
-      '--experimental-permission',
+      '--permission',
       '--allow-fs-read', mainModule,
       mainModule,
     ]
@@ -48,7 +48,7 @@ const { spawnSync } = require('node:child_process');
   const { status, stdout, stderr } = spawnSync(
     process.execPath,
     [
-      '--experimental-permission',
+      '--permission',
       '--allow-fs-read', mainModule,
       '--allow-fs-read', requiredModule,
       mainModule,
@@ -65,7 +65,7 @@ const { spawnSync } = require('node:child_process');
   const { status, stderr } = spawnSync(
     process.execPath,
     [
-      '--experimental-permission',
+      '--permission',
       '--allow-fs-read', mainModule,
       mainModule,
     ]

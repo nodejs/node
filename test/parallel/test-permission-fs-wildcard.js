@@ -1,4 +1,4 @@
-// Flags: --experimental-permission --allow-fs-read=* --allow-child-process
+// Flags: --permission --allow-fs-read=* --allow-child-process
 'use strict';
 
 const common = require('../common');
@@ -31,7 +31,7 @@ if (common.isWindows) {
   const { status, stderr } = spawnSync(
     process.execPath,
     [
-      '--experimental-permission',
+      '--permission',
       ...allowList.flatMap((path) => ['--allow-fs-read', path]),
       '-e',
       `
@@ -66,7 +66,7 @@ if (common.isWindows) {
   const { status, stderr } = spawnSync(
     process.execPath,
     [
-      '--experimental-permission',
+      '--permission',
       ...allowList.flatMap((path) => ['--allow-fs-read', path]),
       '-e',
       `
@@ -91,7 +91,7 @@ if (common.isWindows) {
   const { status, stderr } = spawnSync(
     process.execPath,
     [
-      '--experimental-permission',
+      '--permission',
       `--allow-fs-read=${file}`, `--allow-fs-read=${commonPathWildcard}`, ...allowList.flatMap((path) => ['--allow-fs-read', path]),
       file,
     ],
@@ -104,7 +104,7 @@ if (common.isWindows) {
     const { status, stderr } = spawnSync(
       process.execPath,
       [
-        '--experimental-permission',
+        '--permission',
         '--allow-fs-read=/a/b/*',
         '--allow-fs-read=/a/b/d',
         '--allow-fs-read=/etc/passwd.*',

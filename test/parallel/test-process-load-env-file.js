@@ -78,7 +78,7 @@ describe('process.loadEnvFile()', () => {
     `.trim();
     const child = await common.spawnPromisified(
       process.execPath,
-      [ '--eval', code, '--experimental-permission' ],
+      [ '--eval', code, '--permission' ],
       { cwd: __dirname },
     );
     assert.match(child.stderr, /Error: Access to this API has been restricted/);

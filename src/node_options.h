@@ -132,7 +132,7 @@ class EnvironmentOptions : public Options {
   bool experimental_import_meta_resolve = false;
   std::string input_type;  // Value of --input-type
   bool entry_is_url = false;
-  bool experimental_permission = false;
+  bool permission = false;
   std::vector<std::string> allow_fs_read;
   std::vector<std::string> allow_fs_write;
   bool allow_addons = false;
