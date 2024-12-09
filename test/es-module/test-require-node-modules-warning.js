@@ -16,7 +16,7 @@ spawnSyncAndAssert(
   process.execPath,
   [
     '--trace-require-module=no-node-modules',
-    fixtures.path('es-modules', 'test_node_modules', 'require-esm.js')
+    fixtures.path('es-modules', 'test_node_modules', 'require-esm.js'),
   ],
   {
     trim: true,
@@ -31,7 +31,7 @@ spawnSyncAndAssert(
   process.execPath,
   [
     '--trace-require-module=no-node-modules',
-    fixtures.path('es-modules', 'test_node_modules', 'require-require-esm.js')
+    fixtures.path('es-modules', 'test_node_modules', 'require-require-esm.js'),
   ],
   {
     trim: true,
@@ -46,7 +46,7 @@ spawnSyncAndAssert(
   process.execPath,
   [
     '--trace-require-module=no-node-modules',
-    fixtures.path('es-modules', 'test_node_modules', 'import-require-esm.mjs')
+    fixtures.path('es-modules', 'test_node_modules', 'import-require-esm.mjs'),
   ],
   {
     trim: true,
@@ -61,7 +61,7 @@ spawnSyncAndAssert(
   process.execPath,
   [
     '--trace-require-module=no-node-modules',
-    fixtures.path('es-modules', 'test_node_modules', 'import-import-require-esm.mjs')
+    fixtures.path('es-modules', 'test_node_modules', 'import-import-require-esm.mjs'),
   ],
   {
     trim: true,

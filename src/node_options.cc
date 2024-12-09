@@ -135,8 +135,7 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors,
     errors->push_back("--heapsnapshot-near-heap-limit must not be negative");
   }
 
-  if (!trace_require_module.empty() &&
-      trace_require_module != "all" &&
+  if (!trace_require_module.empty() && trace_require_module != "all" &&
       trace_require_module != "no-node-modules") {
     errors->push_back("invalid value for --trace-require-module");
   }
