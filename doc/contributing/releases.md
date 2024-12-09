@@ -1075,19 +1075,17 @@ This script will use the promoted builds and changelog to generate the post. Run
 ### 19. Announce
 
 The nodejs.org website will automatically rebuild and include the new version.
-To announce the build on Twitter through the official @nodejs account, email
-<pr@nodejs.org> with a message such as:
+To announce the build on social media, please refer to ping @nodejs-social-team
+on offical slack channel.
+
+Node.js is also available on Bluesky and a release announcement can be
+reposted using [nodejs/bluesky](https://github.com/nodejs/bluesky) repository.
+
+The post content should be similar to:
 
 > v5.8.0 of @nodejs is out: <https://nodejs.org/en/blog/release/v5.8.0/>
 > …
 > something here about notable changes
-
-To ensure communication goes out with the timing of the blog post, please allow
-24 hour prior notice. If known, please include the date and time the release
-will be shared with the community in the email to coordinate these
-announcements.
-
-Ping the IRC ops and the other [Partner Communities][] liaisons.
 
 <details>
 <summary>Security release</summary>
