@@ -11,6 +11,7 @@ assert.ok(binding);
 assert.ok(binding.os);
 assert.ok(binding.os.signals);
 assert.ok(binding.os.errno);
+assert.ok(binding.os.sysexits);
 assert.ok(binding.fs);
 assert.ok(binding.crypto);
 
