@@ -239,7 +239,6 @@ test('expect failure of a TypeScript file requiring ES module syntax', async () 
     fixtures.path('typescript/ts/test-require-module.ts'),
   ]);
 
-  match(result.stderr, /Support for loading ES Module in require\(\) is an experimental feature and might change at any time/);
   match(result.stdout, /Hello, TypeScript!/);
   strictEqual(result.code, 0);
 });
@@ -319,7 +318,6 @@ test('execute a TypeScript file with CommonJS syntax requiring .mts using requir
     fixtures.path('typescript/ts/test-require-mts.ts'),
   ]);
 
-  match(result.stderr, /Support for loading ES Module in require\(\) is an experimental feature and might change at any time/);
   match(result.stdout, /Hello, TypeScript!/);
   strictEqual(result.code, 0);
 });

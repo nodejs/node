@@ -2669,6 +2669,18 @@ added:
 Prints a stack trace whenever an environment is exited proactively,
 i.e. invoking `process.exit()`.
 
+### `--trace-require-module=mode`
+
+<!-- YAML
+added:
+ - REPLACEME
+-->
+
+Prints information about usage of [Loading ECMAScript modules using `require()`][].
+
+When `mode` is `all`, all usage is printed. When `mode` is `no-node-modules`, usage
+from the `node_modules` folder is excluded.
+
 ### `--trace-sigint`
 
 <!-- YAML
@@ -3180,6 +3192,7 @@ one is included in the list below.
 * `--trace-event-file-pattern`
 * `--trace-events-enabled`
 * `--trace-exit`
+* `--trace-require-module`
 * `--trace-sigint`
 * `--trace-sync-io`
 * `--trace-tls`
