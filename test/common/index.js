@@ -1014,14 +1014,6 @@ const common = {
     return hasOpenSSL(3);
   },
 
-  get hasOpenSSL31() {
-    return hasOpenSSL(3, 1);
-  },
-
-  get hasOpenSSL32() {
-    return hasOpenSSL(3, 2);
-  },
-
   get inFreeBSDJail() {
     if (inFreeBSDJail !== null) return inFreeBSDJail;
 

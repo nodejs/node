@@ -22,7 +22,7 @@ function test(cmin, cmax, cprot, smin, smax, sprot, proto, cerr, serr) {
     if (serr !== 'ERR_SSL_UNSUPPORTED_PROTOCOL')
       ciphers = 'ALL@SECLEVEL=0';
   }
-  if (common.hasOpenSSL31 && cerr === 'ERR_SSL_TLSV1_ALERT_PROTOCOL_VERSION') {
+  if (common.hasOpenSSL(3, 1) && cerr === 'ERR_SSL_TLSV1_ALERT_PROTOCOL_VERSION') {
     ciphers = 'DEFAULT@SECLEVEL=0';
   }
   // Report where test was called from. Strip leading garbage from
