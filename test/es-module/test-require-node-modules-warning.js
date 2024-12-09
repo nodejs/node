@@ -1,7 +1,7 @@
 'use strict';
 
-// This checks the experimental warning for require(esm) is disabled when the
-// require() comes from node_modules.
+// This checks the warning and the stack trace emitted by
+// --trace-require-module=no-node-modules.
 require('../common');
 const { spawnSyncAndAssert } = require('../common/child_process');
 const fixtures = require('../common/fixtures');
@@ -14,7 +14,10 @@ const warningRE = /Support for loading ES Module in require\(\)/;
 // require() in non-node_modules -> esm in node_modules should warn.
 spawnSyncAndAssert(
   process.execPath,
-  [fixtures.path('es-modules', 'test_node_modules', 'require-esm.js')],
+  [
+    '--trace-require-module=no-node-modules',
+    fixtures.path('es-modules', 'test_node_modules', 'require-esm.js')
+  ],
   {
     trim: true,
     stderr: warningRE,
@@ -26,7 +29,10 @@ spawnSyncAndAssert(
 // should not warn.
 spawnSyncAndAssert(
   process.execPath,
-  [fixtures.path('es-modules', 'test_node_modules', 'require-require-esm.js')],
+  [
+    '--trace-require-module=no-node-modules',
+    fixtures.path('es-modules', 'test_node_modules', 'require-require-esm.js')
+  ],
   {
     trim: true,
     stderr: '',
@@ -38,7 +44,10 @@ spawnSyncAndAssert(
 // should not warn.
 spawnSyncAndAssert(
   process.execPath,
-  [fixtures.path('es-modules', 'test_node_modules', 'import-require-esm.mjs')],
+  [
+    '--trace-require-module=no-node-modules',
+    fixtures.path('es-modules', 'test_node_modules', 'import-require-esm.mjs')
+  ],
   {
     trim: true,
     stderr: '',
@@ -50,7 +59,10 @@ spawnSyncAndAssert(
 // require() in node_modules -> esm in node_modules should not warn.
 spawnSyncAndAssert(
   process.execPath,
-  [fixtures.path('es-modules', 'test_node_modules', 'import-import-require-esm.mjs')],
+  [
+    '--trace-require-module=no-node-modules',
+    fixtures.path('es-modules', 'test_node_modules', 'import-import-require-esm.mjs')
+  ],
   {
     trim: true,
     stderr: '',

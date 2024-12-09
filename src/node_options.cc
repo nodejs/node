@@ -135,6 +135,12 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors,
     errors->push_back("--heapsnapshot-near-heap-limit must not be negative");
   }
 
+  if (!trace_require_module.empty() &&
+      trace_require_module != "all" &&
+      trace_require_module != "no-node-modules") {
+    errors->push_back("invalid value for --trace-require-module");
+  }
+
   if (test_runner) {
     if (test_isolation == "none") {
       debug_options_.allow_attaching_debugger = true;
@@ -769,6 +775,13 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
       "--trace-env-native-stack",
       "Print accesses to the environment variables and the native stack trace",
       &EnvironmentOptions::trace_env_native_stack,
+      kAllowedInEnvvar);
+
+  AddOption(
+      "--trace-require-module",
+      "Print access to require(esm). Options are 'all' (print all usage) and "
+      "'no-node-modules' (excluding usage from the node_modules folder)",
+      &EnvironmentOptions::trace_require_module,
       kAllowedInEnvvar);
 
   AddOption("--extra-info-on-fatal-exception",

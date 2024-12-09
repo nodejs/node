@@ -116,7 +116,6 @@ test('execute a .cts file importing a .mts file export', async () => {
     fixtures.path('typescript/cts/test-require-mts-module.cts'),
   ]);
 
-  match(result.stderr, /Support for loading ES Module in require\(\) is an experimental feature and might change at any time/);
   match(result.stdout, /Hello, TypeScript!/);
   strictEqual(result.code, 0);
 });
