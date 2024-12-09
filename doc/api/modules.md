@@ -176,6 +176,11 @@ added:
   - v20.17.0
 changes:
   - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/56194
+    description: This feature no longer emits an experimental warning by default,
+                 though the warning can still be emitted by --trace-require-module.
+  - version:
     - v23.0.0
     - v22.12.0
     pr-url: https://github.com/nodejs/node/pull/55085
@@ -319,9 +324,8 @@ help users fix them.
 
 Support for loading ES modules using `require()` is currently
 experimental and can be disabled using `--no-experimental-require-module`.
-When `require()` actually encounters an ES module for the
-first time in the process, it will emit an experimental warning. The
-warning is expected to be removed when this feature stablizes.
+To print where this feature is used, use [`--trace-require-module`][].
+
 This feature can be detected by checking if
 [`process.features.require_module`][] is `true`.
 
@@ -1271,6 +1275,7 @@ This section was moved to
 [GLOBAL_FOLDERS]: #loading-from-the-global-folders
 [`"main"`]: packages.md#main
 [`"type"`]: packages.md#type
+[`--trace-require-module`]: cli.md#--trace-require-modulemode
 [`ERR_REQUIRE_ASYNC_MODULE`]: errors.md#err_require_async_module
 [`ERR_UNSUPPORTED_DIR_IMPORT`]: errors.md#err_unsupported_dir_import
 [`MODULE_NOT_FOUND`]: errors.md#module_not_found

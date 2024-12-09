@@ -210,6 +210,7 @@ class EnvironmentOptions : public Options {
   bool trace_env = false;
   bool trace_env_js_stack = false;
   bool trace_env_native_stack = false;
+  std::string trace_require_module;
   bool extra_info_on_fatal_exception = true;
   std::string unhandled_rejections;
   std::vector<std::string> userland_loaders;
