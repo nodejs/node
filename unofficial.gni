@@ -263,7 +263,7 @@ template("node_gn_build") {
           ldflags = [ "/OPT:NOICF" ]  # link.exe, but also lld-link.exe.
         } else if (is_apple && !use_lld) {
           ldflags = [ "-Wl,-no_deduplicate" ]  # ld64.
-        } else if (use_gold || use_lld) {
+        } else if ((!is_apple && use_gold) || use_lld) {
           ldflags = [ "-Wl,--icf=none" ]
         }
       }
