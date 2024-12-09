@@ -50,7 +50,6 @@ export default [
       'test/addons/??_*',
       'test/fixtures/**',
       'tools/github_reporter/**',
-      'tools/icu/**',
     ],
   },
   // #endregion
