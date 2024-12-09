@@ -1,0 +1,51 @@
+name: Major Release
+
+permissions:
+  issues: write
+  contents: write
+
+on:
+  schedule:
+    - cron: '0 0 15 * *'
+
+jobs:
+  create-issue:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check for release schedule
+        id: check-date
+        run: |
+          # Get the current month and day
+          MONTH=$(date +'%m')
+          DAY=$(date +'%d')
+          # We'll create the reminder issue two months prior the release
+          if [[ "$MONTH" == "02" || "$MONTH" == "08" ]] && [[ "$DAY" == "15" ]]; then
+            echo "create_issue=true" >> $GITHUB_ENV
+            release_date=$(date -d "$(date +%Y-%m-%d) +2 month" +"%d %B %Y")
+            echo "RELEASE_DATE=$release_date" >> $GITHUB_ENV
+            pr_max_date=$(date -d "$(date +%Y-%m-%d) +1 month" +"%d %B %Y")
+            echo "PR_MAX_DATE=$pr_max_date" >> $GITHUB_ENV
+          else
+            echo "create_issue=false" >> $GITHUB_ENV
+          fi
+      - name: Create release announcement issue
+        if: env.create_issue == 'true'
+        run: |
+         cat <<EOF > body.json
+         {
+              "title": "Upcoming Node.js Major Release",
+              "body": "A reminder that the next Node.js **semver major release** is scheduled for **${RELEASE_DATE}**.\n
+              Therefore, all commits that were landed until **${PR_MAX_DATE}** (one month prior to the release) will be included in the next semver major release.\n
+
+              Please ensure that any necessary preparations are made in advance.\n
+              For more details on the release process, visit the [Node.js Release Working Group](https://github.com/nodejs/release).\n
+
+              cc: @nodejs/collaborators"
+         }
+         EOF
+         curl --request POST \
+           --url https://api.github.com/repos/${GITHUB_REPOSITORY}/issues \
+           --header 'authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' \
+           --header 'content-type: application/json' \
+           --data @body.json
