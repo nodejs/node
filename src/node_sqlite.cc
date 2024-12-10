@@ -1293,6 +1293,12 @@ void Session::Delete() {
   session_ = nullptr;
 }
 
+void DefineConstants(Local<Object> target) {
+  NODE_DEFINE_CONSTANT(target, SQLITE_CHANGESET_OMIT);
+  NODE_DEFINE_CONSTANT(target, SQLITE_CHANGESET_REPLACE);
+  NODE_DEFINE_CONSTANT(target, SQLITE_CHANGESET_ABORT);
+}
+
 static void Initialize(Local<Object> target,
                        Local<Value> unused,
                        Local<Context> context,
@@ -1303,6 +1309,9 @@ static void Initialize(Local<Object> target,
       NewFunctionTemplate(isolate, DatabaseSync::New);
   db_tmpl->InstanceTemplate()->SetInternalFieldCount(
       DatabaseSync::kInternalFieldCount);
+  Local<Object> constants = Object::New(isolate);
+
+  DefineConstants(constants);
 
   SetProtoMethod(isolate, db_tmpl, "open", DatabaseSync::Open);
   SetProtoMethod(isolate, db_tmpl, "close", DatabaseSync::Close);
@@ -1318,9 +1327,9 @@ static void Initialize(Local<Object> target,
                          "StatementSync",
                          StatementSync::GetConstructorTemplate(env));
 
-  NODE_DEFINE_CONSTANT(target, SQLITE_CHANGESET_OMIT);
-  NODE_DEFINE_CONSTANT(target, SQLITE_CHANGESET_REPLACE);
-  NODE_DEFINE_CONSTANT(target, SQLITE_CHANGESET_ABORT);
+  target->Set(context,
+              OneByteString(isolate, "constants"),
+              constants).Check();
 }
 
 }  // namespace sqlite
