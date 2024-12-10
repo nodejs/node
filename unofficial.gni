@@ -150,9 +150,6 @@ template("node_gn_build") {
     ]
     deps = [
       ":run_node_js2c",
-      "deps/brotli",
-      "deps/cares",
-      "deps/histogram",
       "deps/nbytes",
       "deps/nghttp2",
       "deps/ngtcp2",
