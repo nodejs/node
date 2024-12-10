@@ -10,8 +10,8 @@ const { test, assert_equals, assert_throws } = require('../common/wpt').harness;
 
 const request = {
   response: require(
-    fixtures.path('wpt', 'url', 'resources', 'toascii.json')
-  )
+    fixtures.path('wpt', 'url', 'resources', 'toascii.json'),
+  ),
 };
 
 // The following tests are copied from WPT. Modifications to them should be

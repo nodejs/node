@@ -13,7 +13,7 @@ const { domainToASCII, domainToUnicode } = require('url');
 const tests = require('../fixtures/url-idna');
 const fixtures = require('../common/fixtures');
 const wptToASCIITests = require(
-  fixtures.path('wpt', 'url', 'resources', 'toascii.json')
+  fixtures.path('wpt', 'url', 'resources', 'toascii.json'),
 );
 
 {
