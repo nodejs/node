@@ -801,6 +801,8 @@ Feature has been disabled due to OS Code Integrity policy.
 
 ### `ERR_CODE_INTEGRITY_VIOLATION`
 
+> Stability: 1.1 - Active development
+
 JavaScript code intended to be executed was rejected by system code integrity policy.
 
 <a id="ERR_CONSOLE_WRITABLE_STREAM"></a>
