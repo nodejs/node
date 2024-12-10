@@ -48,7 +48,3 @@ test-tls-securepair-client: PASS, FLAKY
 [$arch==arm]
 # https://github.com/nodejs/node/issues/49933
 test-watch-mode-inspect: SKIP
-
-[$arch==s390x]
-# https://github.com/nodejs/node/issues/41286
-test-performance-eventloopdelay: PASS, FLAKY
