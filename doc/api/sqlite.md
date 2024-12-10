@@ -429,6 +429,18 @@ exception.
 | `TEXT`    | {string}             |
 | `BLOB`    | {Uint8Array}         |
 
+## `node:sqlite` module methods and properties
+
+### `sqlite.constants`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {Object}
+
+An object containing commonly used constants for SQLite operations.
+
 ## SQLite constants
 
 The following constants are exported by the `node:sqlite` module.
