@@ -228,9 +228,9 @@ describe('Module syntax detection', { concurrency: !process.env.TEST_PARALLEL },
   // https://github.com/nodejs/node/issues/50917
   describe('syntax that errors in CommonJS but works in ESM', { concurrency: !process.env.TEST_PARALLEL }, () => {
     it('permits top-level `await`', async () => {
-      const { stdout, stderr, code } = await spawnPromisified(process.execPath, [
+      const { stdout, stderr, code, signal } = await spawnPromisified(process.execPath, [
         '--eval',
-        'await Promise.resolve();',
+        'await Promise.resolve(); console.log("executed");',
       ]);
 
       match(
@@ -239,6 +239,7 @@ describe('Module syntax detection', { concurrency: !process.env.TEST_PARALLEL },
       );
       strictEqual(stdout, '');
       strictEqual(code, 1);
+      strictEqual(signal, null);
     });
 
     it('reports unfinished top-level `await`', async () => {
@@ -271,7 +272,7 @@ describe('Module syntax detection', { concurrency: !process.env.TEST_PARALLEL },
     });
 
     it('still throws on `await` in an ordinary sync function', async () => {
-      const { stdout, stderr, code } = await spawnPromisified(process.execPath, [
+      const { stdout, stderr, code, signal } = await spawnPromisified(process.execPath, [
         '--eval',
         'function fn() { await Promise.resolve(); } fn();',
       ]);
@@ -282,6 +283,7 @@ describe('Module syntax detection', { concurrency: !process.env.TEST_PARALLEL },
       );
       strictEqual(stdout, '');
       strictEqual(code, 1);
+      strictEqual(signal, null);
     });
 
     it('throws on undefined `require` when top-level `await` triggers ESM parsing', async () => {
@@ -299,7 +301,6 @@ describe('Module syntax detection', { concurrency: !process.env.TEST_PARALLEL },
       strictEqual(code, 1);
       strictEqual(signal, null);
     });
-
 
     it('permits declaration of CommonJS module variables', async () => {
       const { stdout, stderr, code, signal } = await spawnPromisified(process.execPath, [
