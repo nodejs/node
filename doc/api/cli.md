@@ -935,28 +935,6 @@ added:
 
 Enable experimental support for the network inspection with Chrome DevTools.
 
-### `--permission`
-
-<!-- YAML
-added: v20.0.0
-changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/56201
-    description: Permission Model is now stable.
--->
-
-> Stability: 2.0 - Stable
-
-Enable the Permission Model for current process. When enabled, the
-following permissions are restricted:
-
-* File System - manageable through
-  [`--allow-fs-read`][], [`--allow-fs-write`][] flags
-* Child Process - manageable through [`--allow-child-process`][] flag
-* Worker Threads - manageable through [`--allow-worker`][] flag
-* WASI - manageable through [`--allow-wasi`][] flag
-* Addons - manageable through [`--allow-addons`][] flag
-
 ### `--experimental-print-required-tla`
 
 <!-- YAML
@@ -1786,6 +1764,28 @@ unless either the `--pending-deprecation` command-line flag, or the
 `NODE_PENDING_DEPRECATION=1` environment variable, is set. Pending deprecations
 are used to provide a kind of selective "early warning" mechanism that
 developers may leverage to detect deprecated API usage.
+
+### `--permission`
+
+<!-- YAML
+added: v20.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/56201
+    description: Permission Model is now stable.
+-->
+
+> Stability: 2.0 - Stable
+
+Enable the Permission Model for current process. When enabled, the
+following permissions are restricted:
+
+* File System - manageable through
+  [`--allow-fs-read`][], [`--allow-fs-write`][] flags
+* Child Process - manageable through [`--allow-child-process`][] flag
+* Worker Threads - manageable through [`--allow-worker`][] flag
+* WASI - manageable through [`--allow-wasi`][] flag
+* Addons - manageable through [`--allow-addons`][] flag
 
 ### `--preserve-symlinks`
 
@@ -3031,6 +3031,7 @@ one is included in the list below.
 * `--experimental-json-modules`
 * `--experimental-loader`
 * `--experimental-modules`
+* `--experimental-permission`
 * `--experimental-print-required-tla`
 * `--experimental-require-module`
 * `--experimental-shadow-realm`
