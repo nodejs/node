@@ -29,7 +29,7 @@ def EscapeForCString(string: bytes | str) -> str:
         string = string.encode(encoding='utf8')
 
     backslash_or_double_quote = {ord('\\'), ord('"')}
-    result = []
+    result = ''
     for char in string:
         if char in backslash_or_double_quote or not 32 <= char < 127:
             result += '\\%03o' % char
