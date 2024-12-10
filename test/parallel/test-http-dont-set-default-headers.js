@@ -6,7 +6,7 @@ const http = require('http');
 
 const server = http.createServer(common.mustCall(function(req, res) {
   assert.deepStrictEqual(req.rawHeaders, [
-    'host', `127.0.0.1:${server.address().port}`,
+    'host', `${common.localhostIPv4}:${server.address().port}`,
     'foo', 'bar',
     'test', 'value',
     'foo', 'baz',
@@ -15,14 +15,14 @@ const server = http.createServer(common.mustCall(function(req, res) {
   res.end('ok');
   server.close();
 }));
-server.listen(0, '127.0.0.1', function() {
+server.listen(0, common.localhostIPv4, function() {
   http.request({
     method: 'POST',
-    host: '127.0.0.1',
+    host: common.localhostIPv4,
     port: this.address().port,
     setDefaultHeaders: false,
     headers: [
-      'host', `127.0.0.1:${server.address().port}`,
+      'host', `${common.localhostIPv4}:${server.address().port}`,
       'foo', 'bar',
       'test', 'value',
       'foo', 'baz',
