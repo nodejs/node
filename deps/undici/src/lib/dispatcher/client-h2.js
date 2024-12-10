@@ -35,9 +35,6 @@ const kOpenStreams = Symbol('open streams')
 
 let extractBody
 
-// Experimental
-let h2ExperimentalWarned = false
-
 /** @type {import('http2')} */
 let http2
 try {
@@ -81,13 +78,6 @@ function parseH2Headers (headers) {
 
 async function connectH2 (client, socket) {
   client[kSocket] = socket
-
-  if (!h2ExperimentalWarned) {
-    h2ExperimentalWarned = true
-    process.emitWarning('H2 support is experimental, expect them to change at any time.', {
-      code: 'UNDICI-H2'
-    })
-  }
 
   const session = http2.connect(client[kUrl], {
     createConnection: () => socket,

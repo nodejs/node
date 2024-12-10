@@ -53,9 +53,10 @@ try {
   const SqliteCacheStore = require('./lib/cache/sqlite-cache-store')
   module.exports.cacheStores.SqliteCacheStore = SqliteCacheStore
 } catch (err) {
-  if (err.code !== 'ERR_UNKNOWN_BUILTIN_MODULE') {
-    throw err
-  }
+  // Most likely node:sqlite was not present, since SqliteCacheStore is
+  // optional, don't throw. Don't check specific error codes here because while
+  // ERR_UNKNOWN_BUILTIN_MODULE is expected, users have seen other codes like
+  // MODULE_NOT_FOUND
 }
 
 module.exports.buildConnector = buildConnector

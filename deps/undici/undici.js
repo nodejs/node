@@ -7474,7 +7474,6 @@ var require_client_h2 = __commonJS({
     } = require_symbols();
     var kOpenStreams = Symbol("open streams");
     var extractBody;
-    var h2ExperimentalWarned = false;
     var http2;
     try {
       http2 = require("node:http2");
@@ -7508,12 +7507,6 @@ var require_client_h2 = __commonJS({
     __name(parseH2Headers, "parseH2Headers");
     async function connectH2(client, socket) {
       client[kSocket] = socket;
-      if (!h2ExperimentalWarned) {
-        h2ExperimentalWarned = true;
-        process.emitWarning("H2 support is experimental, expect them to change at any time.", {
-          code: "UNDICI-H2"
-        });
-      }
       const session = http2.connect(client[kUrl], {
         createConnection: /* @__PURE__ */ __name(() => socket, "createConnection"),
         peerMaxConcurrentStreams: client[kMaxConcurrentStreams],
