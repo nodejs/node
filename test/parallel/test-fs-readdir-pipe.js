@@ -13,7 +13,8 @@ if (!common.isWindows) {
 
 const pipe = '\\\\.\\pipe\\';
 
-assert.ok(readdirSync(pipe).length >= 0);
+const { length } = readdirSync(pipe);
+assert.ok(length >= 0, `${length} is not greater or equal to 0`);
 
 readdir(pipe, common.mustSucceed((files) => {
   assert.ok(files.length >= 0, `${files.length} is not greater or equal to 0`);
