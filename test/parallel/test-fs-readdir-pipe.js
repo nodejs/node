@@ -15,7 +15,6 @@ const pipe = '\\\\.\\pipe\\';
 
 assert.ok(readdirSync(pipe).length >= 0);
 
-readdir(pipe, common.mustCall((err, files) => {
-  assert.ok(err == null);
-  assert.ok(files.length >= 0);
+readdir(pipe, common.mustSucceed((files) => {
+  assert.ok(files.length >= 0, `${files.length} is not greater or equal to 0`);
 }));
