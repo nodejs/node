@@ -429,9 +429,7 @@ exception.
 | `TEXT`    | {string}             |
 | `BLOB`    | {Uint8Array}         |
 
-## `node:sqlite` module methods and properties
-
-### `sqlite.constants`
+## `sqlite.constants`
 
 <!-- YAML
 added: REPLACEME
@@ -441,13 +439,13 @@ added: REPLACEME
 
 An object containing commonly used constants for SQLite operations.
 
-## SQLite constants
+### SQLite constants
 
-The following constants are exported by the `node:sqlite` module.
+The following constants are exported by the `sqlite.constants` object.
 
-### SQLite Session constants
+#### SQLite Session constants
 
-#### Conflict-resolution constants
+##### Conflict-resolution constants
 
 The following constants are meant for use with [`database.applyChangeset()`](#databaseapplychangesetchangeset-options).
 
