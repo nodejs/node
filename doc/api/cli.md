@@ -1651,7 +1651,7 @@ See [Loading ECMAScript modules using `require()`][].
 <!-- YAML
 added: v22.5.0
 changes:
-  - version: REPLACEME
+  - version: v23.4.0
     pr-url: https://github.com/nodejs/node/pull/55890
     description: SQLite is unflagged but still experimental.
 -->
@@ -2422,7 +2422,7 @@ subtests inherit this value from their parent. The default value is `Infinity`.
 <!-- YAML
 added: v22.3.0
 changes:
-  - version: REPLACEME
+  - version: v23.4.0
     pr-url: https://github.com/nodejs/node/pull/55897
     description: Snapsnot testing is no longer experimental.
 -->
@@ -2540,7 +2540,7 @@ Print stack traces for deprecations.
 ### `--trace-env`
 
 <!-- YAML
-added: REPLACEME
+added: v23.4.0
 -->
 
 Print information about any access to environment variables done in the current Node.js
@@ -2563,7 +2563,7 @@ To print the stack trace of the access, use `--trace-env-js-stack` and/or
 ### `--trace-env-js-stack`
 
 <!-- YAML
-added: REPLACEME
+added: v23.4.0
 -->
 
 In addition to what `--trace-env` does, this prints the JavaScript stack trace of the access.
@@ -2571,7 +2571,7 @@ In addition to what `--trace-env` does, this prints the JavaScript stack trace o
 ### `--trace-env-native-stack`
 
 <!-- YAML
-added: REPLACEME
+added: v23.4.0
 -->
 
 In addition to what `--trace-env` does, this prints the native stack trace of the access.

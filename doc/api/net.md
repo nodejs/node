@@ -173,7 +173,7 @@ The list of rules added to the blocklist.
 ### `BlockList.isBlockList(value)`
 
 <!-- YAML
-added: REPLACEME
+added: v23.4.0
 -->
 
 * `value` {any} Any JS value
@@ -247,7 +247,7 @@ added:
 ### `SocketAddress.parse(input)`
 
 <!-- YAML
-added: REPLACEME
+added: v23.4.0
 -->
 
 * `input` {string} An input string containing an IP address and optional port,
