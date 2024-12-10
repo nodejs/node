@@ -320,7 +320,7 @@ values in `namedParameters` and `anonymousParameters`.
 ### `statement.iterate([namedParameters][, ...anonymousParameters])`
 
 <!-- YAML
-added: REPLACEME
+added: v23.4.0
 -->
 
 * `namedParameters` {Object} An optional object used to bind named parameters.
