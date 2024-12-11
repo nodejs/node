@@ -28,7 +28,7 @@ If you find a potential security vulnerability, please refer to our
 
 <!-- type=misc -->
 
-> Stability: 2.0 - Stable
+> Stability: 2 - Stable.
 
 <!-- name=permission-model -->
 
