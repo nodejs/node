@@ -165,3 +165,46 @@ Some of the things to highlight include:
 #### Project contacts
 
 * @mhdawson
+
+### How things get done in the Node.js project
+
+#### Goal
+
+Help people understand that no people are paid to answer their issues or
+implement their pull requests. Things get done based on what volunteers work on
+and the best way to get something fixed/changed is to submit a Pull request.
+
+Some of the things to highlight include:
+
+* Nobody is paid specifically to answer issues or implement features.
+* No company owns/supports Node.js. Most contributions are from individuals
+  as opposed to organizations.
+* The governance of the project is specifically designed to prevent one or
+  a small number of companies from dominating the project.
+* Decisions are made by the active collaborators, there is no single person
+  who makes a decision for the project on their own. This can slow down
+  decision making but most often results in better outcomes.
+* The project is open and receptive to contributions. If you need something PR
+  in a fix or feature.
+* Maintainers are people just like you, with many priorities and and goals. We
+  all have the same goal of moving the Node.js project forward but at the same
+  time we all have other responsibilities that affect how much time we have
+  available to do so.
+* People are volunteering their time to review your PRs and answer questions in
+  the issues you open. Be mindfull of your asks for their time and acknowledge
+  the gift of their time.
+* While volunteers work to do the right thing for the community, the project
+  does not owe anybody anything and does not tolerate abusive or
+  demanding language in issues, discussionis or PRs. A respectful diaglog will
+  maximize the chances of the outcome you desire.
+* If you depend on timely support or an SLA, contract with a company that provides
+  paid support and will prioritize your issues.
+
+#### Related Links
+
+* <https://github.com/nodejs/TSC/blob/main/TSC-Charter.md#section-3-establishment-of-the-tsc>
+
+#### Project contacts
+
+* @mcollina
+* @mhdawson
