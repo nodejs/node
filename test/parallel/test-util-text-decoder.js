@@ -1,11 +1,15 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 
 const test = require('node:test');
 const assert = require('node:assert');
 
 test('TextDecoder correctly decodes windows-1252 encoded data', (t) => {
+  if (!common.hasIntl) {
+    common.skip('missing Intl');
+  }
+
   const latin1Bytes = new Uint8Array([0xc1, 0xe9, 0xf3]);
 
   const expectedString = 'Áéó';
