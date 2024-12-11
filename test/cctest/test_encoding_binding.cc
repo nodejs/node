@@ -26,7 +26,7 @@ bool RunDecodeLatin1(Environment* env,
     return false;
   }
 
-  *result = try_catch.Exception();
+  *result = args[0];
   return true;
 }
 
