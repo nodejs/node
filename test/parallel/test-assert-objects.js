@@ -169,12 +169,26 @@ describe('Object Comparison Tests', () => {
         },
         {
           description:
-            'throws when comparing two Map objects with different length',
+            'throws when the expected Map has more entries than the actual Map',
           actual: new Map([
             ['key1', 'value1'],
             ['key2', 'value2'],
           ]),
-          expected: new Map([['key1', 'value1']]),
+          expected: new Map([
+            ['key1', 'value1'],
+            ['key2', 'value2'],
+            ['key3', 'value3'],
+          ]),
+        },
+        {
+          description: 'throws when the nested array in the Map is not a subset of the other nested array',
+          actual: new Map([
+            ['key1', ['value1', 'value2']],
+            ['key2', 'value2'],
+          ]),
+          expected: new Map([
+            ['key1', ['value3']],
+          ]),
         },
         {
           description:
@@ -562,6 +576,63 @@ describe('Object Comparison Tests', () => {
         expected: new Map([
           ['key1', 'value1'],
           ['key2', 'value2'],
+        ]),
+      },
+      {
+        description:
+          'compares two Map objects where expected is a subset of actual',
+        actual: new Map([
+          ['key1', 'value1'],
+          ['key2', 'value2'],
+        ]),
+        expected: new Map([['key1', 'value1']]),
+      },
+      {
+        description:
+          'compares two deeply nested Maps',
+        actual: {
+          a: {
+            b: {
+              c: new Map([
+                ['key1', 'value1'],
+                ['key2', 'value2'],
+              ])
+            },
+            z: [1, 2, 3]
+          }
+        },
+        expected: {
+          a: {
+            z: [1, 2, 3],
+            b: {
+              c: new Map([['key1', 'value1']])
+            }
+          }
+        },
+      },
+      {
+        description: 'compares Maps nested into Maps',
+        actual: new Map([
+          ['key1', new Map([
+            ['nestedKey1', 'nestedValue1'],
+            ['nestedKey2', 'nestedValue2'],
+          ])],
+          ['key2', 'value2'],
+        ]),
+        expected: new Map([
+          ['key1', new Map([
+            ['nestedKey1', 'nestedValue1'],
+          ])],
+        ])
+      },
+      {
+        description: 'compares Maps with nested arrays inside',
+        actual: new Map([
+          ['key1', ['value1', 'value2']],
+          ['key2', 'value2'],
+        ]),
+        expected: new Map([
+          ['key1', ['value1', 'value2']],
         ]),
       },
       {
