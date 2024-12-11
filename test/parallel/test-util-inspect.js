@@ -3413,7 +3413,7 @@ assert.strictEqual(
   assert.strictEqual(
     util.inspect(o),
     '{\n' +
-    '  arrayBuffer: { [Uint8Contents]: <>, byteLength: 0 },\n' +
+    '  arrayBuffer: ArrayBuffer { [Uint8Contents]: <>, byteLength: 0 },\n' +
     '  buffer: <Buffer 48 65 6c 6c 6f>,\n' +
     '  typedArray: TypedArray(5) [Uint8Array] [ 72, 101, 108, 108, 111 ],\n' +
     '  array: [],\n' +
