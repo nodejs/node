@@ -1,9 +1,5 @@
 name: Major Release
 
-permissions:
-  issues: write
-  contents: write
-
 on:
   schedule:
     - cron: 0 0 15 2,8 *  # runs at midnight UTC every 15 February and 15 August
@@ -11,7 +7,9 @@ on:
 jobs:
   create-issue:
     runs-on: ubuntu-latest
-
+    permissions:
+      issues: write
+      contents: read
     steps:
       - name: Check for release schedule
         id: check-date
@@ -21,14 +19,14 @@ jobs:
           DAY=$(date +'%d')
           # We'll create the reminder issue two months prior the release
           if [[ "$MONTH" == "02" || "$MONTH" == "08" ]] && [[ "$DAY" == "15" ]]; then
-            echo "create_issue=true" >> $GITHUB_ENV
+            echo "create_issue=true" >> "$GITHUB_ENV"
           fi
-      - name: Calculate release date and version
+      - name: Retrieve next major release info from nodejs/Release
         if: env.create_issue == 'true'
         run: |
           curl -L https://github.com/nodejs/Release/raw/HEAD/schedule.json | \
           jq -r 'to_entries | map(select(.value.start | strptime("%Y-%m-%d") | mktime > now)) | first | "VERSION=" + .key + "\nRELEASE_DATE=" + .value.start' >> "$GITHUB_ENV"
-      - name: Calculate max date for PR
+      - name: Compute max date for landing semver-major PRs
         if: env.create_issue == 'true'
         run: |
           echo "PR_MAX_DATE=$(date -d "$RELEASE_DATE -1 month" +%Y-%m-%d)" >> "$GITHUB_ENV"
