@@ -6,7 +6,7 @@ permissions:
 
 on:
   schedule:
-    - cron: 0 0 15 * *
+    - cron: 0 0 15 2,8 *  # runs at midnight UTC every 15 February and 15 August
 
 jobs:
   create-issue:
@@ -22,30 +22,28 @@ jobs:
           # We'll create the reminder issue two months prior the release
           if [[ "$MONTH" == "02" || "$MONTH" == "08" ]] && [[ "$DAY" == "15" ]]; then
             echo "create_issue=true" >> $GITHUB_ENV
-            release_date=$(date -d "$(date +%Y-%m-%d) +2 month" +"%d %B %Y")
-            echo "RELEASE_DATE=$release_date" >> $GITHUB_ENV
-            pr_max_date=$(date -d "$(date +%Y-%m-%d) +1 month" +"%d %B %Y")
-            echo "PR_MAX_DATE=$pr_max_date" >> $GITHUB_ENV
-          else
-            echo "create_issue=false" >> $GITHUB_ENV
           fi
+      - name: Calculate release date and version
+        if: env.create_issue == 'true'
+        run: |
+          curl -L https://github.com/nodejs/Release/raw/HEAD/schedule.json | \
+          jq -r 'to_entries | map(select(.value.start | strptime("%Y-%m-%d") | mktime > now)) | first | "VERSION=" + .key + "\nRELEASE_DATE=" + .value.start' >> "$GITHUB_ENV"
+      - name: Calculate max date for PR
+        if: env.create_issue == 'true'
+        run: |
+          echo "PR_MAX_DATE=$(date -d "$RELEASE_DATE -1 month" +%Y-%m-%d)" >> "$GITHUB_ENV"
       - name: Create release announcement issue
         if: env.create_issue == 'true'
         run: |
-         cat <<EOF > body.json
-         {
-              "title": "Upcoming Node.js Major Release",
-              "body": "A reminder that the next Node.js **semver major release** is scheduled for **${RELEASE_DATE}**.\n
-              Therefore, all commits that were landed until **${PR_MAX_DATE}** (one month prior to the release) will be included in the next semver major release.\n
+         gh issue create --repo "${GITHUB_REPOSITORY}" \
+           --title "Upcoming Node.js Major Release ($VERSION)" \
+           --body-file -<<EOF
+            A reminder that the next Node.js **semver major release** is scheduled for **${RELEASE_DATE}**.
+            Therefore, all commits that were landed until **${PR_MAX_DATE}** (one month prior to the release) will be included in the next semver major release.
+            Please ensure that any necessary preparations are made in advance.
+            For more details on the release process, visit the [Node.js Release Working Group](https://github.com/nodejs/release).
 
-              Please ensure that any necessary preparations are made in advance.\n
-              For more details on the release process, visit the [Node.js Release Working Group](https://github.com/nodejs/release).\n
-
-              cc: @nodejs/collaborators"
-         }
+            cc: @nodejs/collaborators
          EOF
-         curl --request POST \
-           --url https://api.github.com/repos/${GITHUB_REPOSITORY}/issues \
-           --header 'authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' \
-           --header 'content-type: application/json' \
-           --data @body.json
+        env:
+          GH_TOKEN: ${{ github.token }}
