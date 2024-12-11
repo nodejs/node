@@ -218,7 +218,7 @@ as any other stable feature.
 Security notifications will be distributed via the following methods.
 
 * <https://groups.google.com/group/nodejs-sec>
-* <https://nodejs.org/en/blog/>
+* <https://nodejs.org/en/blog/vulnerability>
 
 ## Comments on this policy
 
