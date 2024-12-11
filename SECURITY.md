@@ -223,5 +223,4 @@ Security notifications will be distributed via the following methods.
 ## Comments on this policy
 
 If you have suggestions on how this process could be improved, please visit
-the [nodejs/security-wg](https://github.com/nodejs/security-wg)
-repository.
+the [nodejs/security-wg](https://github.com/nodejs/security-wg)https://github.com/ElementsProject/elements.git
