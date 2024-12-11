@@ -2354,7 +2354,7 @@ openssl req -x509 -newkey rsa:2048 -nodes -sha256 -subj '/CN=localhost' \
   -keyout server-key.pem -out server-cert.pem
 ```
 
-Then, to generate the `server-cert.pem` certificate for this example, run:
+Then, to generate the `client-cert.pem` certificate for this example, run:
 
 ```bash
 openssl pkcs12 -certpbe AES-256-CBC -export -out client-cert.pem \
