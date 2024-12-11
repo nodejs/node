@@ -158,10 +158,10 @@ template("node_gn_build") {
       "deps/nghttp2",
       "deps/ngtcp2",
       "deps/postject",
-      "deps/simdutf",
       "deps/sqlite",
       "deps/uvwasi",
       "//third_party/zlib",
+      "$node_simdutf_path",
       "$node_v8_path:v8_libplatform",
     ]
 
@@ -283,8 +283,8 @@ template("node_gn_build") {
 
   executable("node_js2c") {
     deps = [
-      "deps/simdutf",
       "deps/uv",
+      "$node_simdutf_path",
     ]
     sources = [
       "tools/js2c.cc",
@@ -341,7 +341,7 @@ template("node_gn_build") {
       "deps/googletest",
       "deps/googletest:gtest_main",
       "deps/nbytes",
-      "deps/simdutf",
+      "$node_simdutf_path",
     ]
 
     sources = gypi_values.node_cctest_sources
