@@ -3323,3 +3323,33 @@ assert.strictEqual(
     }
   }), '{ [Symbol(Symbol.iterator)]: [Getter] }');
 }
+
+{
+  const o = {};
+  const { prototype: BuiltinPrototype } = Object;
+  const desc = Reflect.getOwnPropertyDescriptor(BuiltinPrototype, 'constructor');
+  Object.defineProperty(BuiltinPrototype, 'constructor', {
+    get: () => BuiltinPrototype,
+    configurable: true,
+  });
+  assert.strictEqual(
+    util.inspect(o),
+    '{}',
+  );
+  Object.defineProperty(BuiltinPrototype, 'constructor', desc);
+}
+
+{
+  const o = { f() {} };
+  const { prototype: BuiltinPrototype } = Function;
+  const desc = Reflect.getOwnPropertyDescriptor(BuiltinPrototype, 'constructor');
+  Object.defineProperty(BuiltinPrototype, 'constructor', {
+    get: () => BuiltinPrototype,
+    configurable: true,
+  });
+  assert.strictEqual(
+    util.inspect(o),
+    '{ f: [Function: f] }',
+  );
+  Object.defineProperty(BuiltinPrototype, 'constructor', desc);
+}
