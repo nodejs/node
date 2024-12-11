@@ -449,6 +449,9 @@ void Worker::JoinThread() {
 
   env()->remove_sub_worker_context(this);
 
+  // Join may happen after the worker exits and disposes the isolate
+  if (!env()->can_call_into_js()) return;
+
   {
     HandleScope handle_scope(env()->isolate());
     Context::Scope context_scope(env()->context());
