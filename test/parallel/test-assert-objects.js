@@ -98,6 +98,41 @@ describe('Object Comparison Tests', () => {
           expected: [1, 'two', false],
         },
         {
+          description: 'throws when comparing [0] with [-0]',
+          actual: [0],
+          expected: [-0],
+        },
+        {
+          description: 'throws when comparing [0, 0, 0] with [0, -0]',
+          actual: [0, 0, 0],
+          expected: [0, -0],
+        },
+        {
+          description: 'throws when comparing ["-0"] with [-0]',
+          actual: ['-0'],
+          expected: [-0],
+        },
+        {
+          description: 'throws when comparing [-0] with [0]',
+          actual: [-0],
+          expected: [0],
+        },
+        {
+          description: 'throws when comparing [-0] with ["-0"]',
+          actual: [-0],
+          expected: ['-0'],
+        },
+        {
+          description: 'throws when comparing ["0"] with [0]',
+          actual: ['0'],
+          expected: [0],
+        },
+        {
+          description: 'throws when comparing [0] with ["0"]',
+          actual: [0],
+          expected: ['0'],
+        },
+        {
           description:
             'throws when comparing two Date objects with different times',
           actual: new Date(0),
@@ -384,6 +419,21 @@ describe('Object Comparison Tests', () => {
         description: 'compares two arrays with identical elements',
         actual: [1, 'two', true],
         expected: [1, 'two', true],
+      },
+      {
+        description: 'compares [0] with [0]',
+        actual: [0],
+        expected: [0],
+      },
+      {
+        description: 'compares [-0] with [-0]',
+        actual: [-0],
+        expected: [-0],
+      },
+      {
+        description: 'compares [0, -0, 0] with [0, 0]',
+        actual: [0, -0, 0],
+        expected: [0, 0],
       },
       {
         description: 'compares two Date objects with the same time',
