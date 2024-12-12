@@ -1,4 +1,4 @@
-// Flags: --experimental-permission --allow-fs-read=* --allow-child-process
+// Flags: --permission --allow-fs-read=* --allow-child-process
 'use strict';
 
 const common = require('../common');
@@ -13,7 +13,7 @@ if (!common.isWindows) {
 
 {
   const { stdout, status } = spawnSync(process.execPath, [
-    '--experimental-permission', '--allow-fs-write', 'C:\\\\', '-e',
+    '--permission', '--allow-fs-write', 'C:\\\\', '-e',
     'console.log(process.permission.has("fs.write", "C:\\\\"))',
   ]);
   assert.strictEqual(stdout.toString(), 'true\n');
@@ -22,7 +22,7 @@ if (!common.isWindows) {
 
 {
   const { stdout, status, stderr } = spawnSync(process.execPath, [
-    '--experimental-permission', '--allow-fs-write="\\\\?\\C:\\"', '-e',
+    '--permission', '--allow-fs-write="\\\\?\\C:\\"', '-e',
     'console.log(process.permission.has("fs.write", "C:\\\\"))',
   ]);
   assert.strictEqual(stdout.toString(), 'false\n', stderr.toString());
@@ -31,7 +31,7 @@ if (!common.isWindows) {
 
 {
   const { stdout, status, stderr } = spawnSync(process.execPath, [
-    '--experimental-permission', '--allow-fs-write', 'C:\\', '-e',
+    '--permission', '--allow-fs-write', 'C:\\', '-e',
     `const path = require('path');
      console.log(process.permission.has('fs.write', path.toNamespacedPath('C:\\\\')))`,
   ]);
@@ -41,7 +41,7 @@ if (!common.isWindows) {
 
 {
   const { stdout, status, stderr } = spawnSync(process.execPath, [
-    '--experimental-permission', '--allow-fs-write', 'C:\\*', '-e',
+    '--permission', '--allow-fs-write', 'C:\\*', '-e',
     "console.log(process.permission.has('fs.write', '\\\\\\\\A\\\\C:\\Users'))",
   ]);
   assert.strictEqual(stdout.toString(), 'false\n', stderr.toString());

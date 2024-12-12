@@ -14,7 +14,7 @@ common.skipIfInspectorDisabled();
   const { status, stderr } = spawnSync(
     process.execPath,
     [
-      '--experimental-permission',
+      '--permission',
       '--allow-fs-read=*',
       '--inspect-brk',
       file,
@@ -29,7 +29,7 @@ common.skipIfInspectorDisabled();
   const { status, stderr } = spawnSync(
     process.execPath,
     [
-      '--experimental-permission',
+      '--permission',
       '--inspect-brk',
       '--eval',
       'console.log("Hi!")',
