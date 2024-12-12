@@ -1316,11 +1316,7 @@ int Http2Session::OnDataChunkReceived(nghttp2_session* handle,
     } else {
       memcpy(buf.base, data, avail);
     }
-    if (buf.base == nullptr) [[likely]] {
-      buf.base = reinterpret_cast<char*>(const_cast<uint8_t*>(data));
-    } else {
-      memcpy(buf.base, data, avail);
-    }
+
     data += avail;
     len -= avail;
     stream->EmitRead(avail, buf);
