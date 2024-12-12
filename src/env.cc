@@ -920,7 +920,7 @@ Environment::Environment(IsolateData* isolate_data,
                                       std::move(traced_value));
   }
 
-  if (options_->experimental_permission) {
+  if (options_->permission) {
     permission()->EnablePermissions();
     // The process shouldn't be able to neither
     // spawn/worker nor use addons or enable inspector
