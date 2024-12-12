@@ -38,11 +38,11 @@ jobs:
          gh issue create --repo "${GITHUB_REPOSITORY}" \
            --title "Upcoming Node.js Major Release ($VERSION)" \
            --body-file -<<EOF
-            A reminder that the next Node.js **semver major release** is scheduled for **${RELEASE_DATE}**.
-            Therefore, all commits that were landed until **${PR_MAX_DATE}** (one month prior to the release) will be included in the next semver major release.
-            Please ensure that any necessary preparations are made in advance.
+            A reminder that the next Node.js **SemVer Major release** is scheduled for **${RELEASE_DATE}**.
+            
+            All commits that were landed until **${PR_MAX_DATE}** (one month prior to the release) will be included in the next semver major release. Please ensure that any necessary preparations are made in advance.
+            
             For more details on the release process, visit the [Node.js Release Working Group](https://github.com/nodejs/release).
-
             cc: @nodejs/collaborators
          EOF
         env:
