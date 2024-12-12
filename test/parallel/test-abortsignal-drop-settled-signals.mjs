@@ -1,6 +1,7 @@
 // Flags: --expose_gc
 //
 import '../common/index.mjs';
+import { gcUntil } from '../common/gc.js';
 import { describe, it } from 'node:test';
 
 function makeSubsequentCalls(limit, done, holdReferences = false) {
@@ -141,37 +142,29 @@ it('drops settled dependant signals when signal is composite', (t, done) => {
   );
 
   setImmediate(() => {
-    global.gc();
+    global.gc({ execution: 'async' }).then(() => {
+      t.assert.strictEqual(composedSignalRef.deref(), undefined);
+      t.assert.strictEqual(controllers[0].signal[kDependantSignals].size, 2);
+      t.assert.strictEqual(controllers[1].signal[kDependantSignals].size, 1);
 
-    t.assert.strictEqual(composedSignalRef.deref(), undefined);
-    t.assert.strictEqual(controllers[0].signal[kDependantSignals].size, 2);
-    t.assert.strictEqual(controllers[1].signal[kDependantSignals].size, 1);
+      setImmediate(() => {
+        t.assert.strictEqual(controllers[0].signal[kDependantSignals].size, 0);
+        t.assert.strictEqual(controllers[1].signal[kDependantSignals].size, 0);
 
-    setImmediate(() => {
-      t.assert.strictEqual(controllers[0].signal[kDependantSignals].size, 0);
-      t.assert.strictEqual(controllers[1].signal[kDependantSignals].size, 0);
-
-      done();
+        done();
+      });
     });
   });
 });
 
 it('drops settled signals even when there are listeners', (t, done) => {
-  runWithOrphanListeners(limit, (signalRefs) => {
-    setImmediate(() => {
-      global.gc();
-      setImmediate(() => {
-        global.gc(); // One more call needed to clean up the deeper composed signals
-        setImmediate(() => {
-          global.gc(); // One more call needed to clean up the deeper composed signals
+  runWithOrphanListeners(limit, async (signalRefs) => {
+    await gcUntil('all signals are GCed', () => {
+      const unGCedSignals = [...signalRefs].filter((ref) => ref.deref());
 
-          const unGCedSignals = [...signalRefs].filter((ref) => ref.deref());
-
-          t.assert.strictEqual(unGCedSignals.length, 0);
-
-          done();
-        });
-      });
+      return unGCedSignals.length === 0;
     });
+
+    done();
   });
 });
