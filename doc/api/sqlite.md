@@ -160,6 +160,31 @@ This method allows one or more SQL statements to be executed without returning
 any results. This method is useful when executing SQL statements read from a
 file. This method is a wrapper around [`sqlite3_exec()`][].
 
+### `database.function(name[, options], function)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `name` {string} The name of the SQLite function to create.
+* `options` {Object} Optional configuration settings for the function. The
+  following properties are supported:
+  * `deterministic` {boolean} If `true`, the [`SQLITE_DETERMINISTIC`][] flag is
+    set on the created function. **Default:** `false`.
+  * `directOnly` {boolean} If `true`, the [`SQLITE_DIRECTONLY`][] flag is set on
+    the created function. **Default:** `false`.
+  * `useBigIntArguments` {boolean} If `true`, integer arguments to `function`
+    are converted to `BigInt`s. If `false`, integer arguments are passed as
+    JavaScript numbers. **Default:** `false`.
+  * `varargs` {boolean} If `true`, `function` can accept a variable number of
+    arguments. If `false`, `function` must be invoked with exactly
+    `function.length` arguments. **Default:** `false`.
+* `function` {Function} The JavaScript function to call when the SQLite
+  function is invoked.
+
+This method is used to create SQLite user-defined functions. This method is a
+wrapper around [`sqlite3_create_function_v2()`][].
+
 ### `database.open()`
 
 <!-- YAML
@@ -480,8 +505,11 @@ The following constants are meant for use with [`database.applyChangeset()`](#da
 [SQL injection]: https://en.wikipedia.org/wiki/SQL_injection
 [`ATTACH DATABASE`]: https://www.sqlite.org/lang_attach.html
 [`PRAGMA foreign_keys`]: https://www.sqlite.org/pragma.html#pragma_foreign_keys
+[`SQLITE_DETERMINISTIC`]: https://www.sqlite.org/c3ref/c_deterministic.html
+[`SQLITE_DIRECTONLY`]: https://www.sqlite.org/c3ref/c_deterministic.html
 [`sqlite3_changes64()`]: https://www.sqlite.org/c3ref/changes.html
 [`sqlite3_close_v2()`]: https://www.sqlite.org/c3ref/close.html
+[`sqlite3_create_function_v2()`]: https://www.sqlite.org/c3ref/create_function.html
 [`sqlite3_exec()`]: https://www.sqlite.org/c3ref/exec.html
 [`sqlite3_expanded_sql()`]: https://www.sqlite.org/c3ref/expanded_sql.html
 [`sqlite3_last_insert_rowid()`]: https://www.sqlite.org/c3ref/last_insert_rowid.html
