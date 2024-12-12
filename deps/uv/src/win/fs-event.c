@@ -252,9 +252,9 @@ short_path_done:
       goto error;
     }
 
+    dir_to_watch = dir;
     uv__free(short_path);
     short_path = NULL;
-    dir_to_watch = dir;
     uv__free(pathw);
     pathw = NULL;
   }
