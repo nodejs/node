@@ -43,7 +43,7 @@ jobs:
           PR_HEAD="$(gh pr view "$PR_URL" --json headRefOid -q .headRefOid)"
           echo "Head of $PR_URL: $PR_HEAD"
           echo "Current commit: $GITHUB_SHA"
-          [[ "$PR_HEAD" == "$GITHUB_SHA" ]]
+          [ "$PR_HEAD" = "$GITHUB_SHA" ]
         env:
           GH_TOKEN: ${{ github.token }}
       - name: Validate CHANGELOG
@@ -53,7 +53,7 @@ jobs:
           echo "Expected CHANGELOG section title: $EXPECTED_CHANGELOG_TITLE_INTRO"
           CHANGELOG_TITLE="$(grep "$EXPECTED_CHANGELOG_TITLE_INTRO" "doc/changelogs/CHANGELOG_V${COMMIT_SUBJECT:20:2}.md")"
           echo "Actual: $CHANGELOG_TITLE"
-          [[ "${CHANGELOG_TITLE%@*}@" == "$EXPECTED_CHANGELOG_TITLE_INTRO" ]]
+          [ "${CHANGELOG_TITLE%%@*}@" = "$EXPECTED_CHANGELOG_TITLE_INTRO" ]
       - name: Verify NODE_VERSION_IS_RELEASE bit is correctly set
         run: |
           grep -q '^#define NODE_VERSION_IS_RELEASE 1$' src/node_version.h
