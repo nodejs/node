@@ -5,6 +5,9 @@ import { spawnSync } from 'node:child_process';
 import { cp } from 'node:fs/promises';
 import tmpdir from '../common/tmpdir.js';
 import fixtures from '../common/fixtures.js';
+const skipIfNoInspector = {
+  skip: !process.features.inspector ? 'inspector disabled' : false
+};
 
 tmpdir.refresh();
 
@@ -13,7 +16,7 @@ async function setupFixtures() {
   await cp(fixtureDir, tmpdir.path, { recursive: true });
 }
 
-describe('test runner coverage default exclusion', () => {
+describe('test runner coverage default exclusion', skipIfNoInspector, () => {
   before(async () => {
     await setupFixtures();
   });
