@@ -257,9 +257,12 @@ std::optional<int> QuicError::crypto_error() const {
 }
 
 MaybeLocal<Value> QuicError::ToV8Value(Environment* env) const {
-  if ((type() == QuicError::Type::TRANSPORT && code() == NGTCP2_NO_ERROR) ||
-      (type() == QuicError::Type::APPLICATION && code() == NGTCP2_APP_NOERROR) ||
-      (type() == QuicError::Type::APPLICATION && code() == NGHTTP3_H3_NO_ERROR)) {
+  if ((type() == QuicError::Type::TRANSPORT &&
+       code() == NGTCP2_NO_ERROR) ||
+      (type() == QuicError::Type::APPLICATION &&
+       code() == NGTCP2_APP_NOERROR) ||
+      (type() == QuicError::Type::APPLICATION &&
+       code() == NGHTTP3_H3_NO_ERROR)) {
     return Undefined(env->isolate());
   }
 
