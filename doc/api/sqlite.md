@@ -443,9 +443,7 @@ An object containing commonly used constants for SQLite operations.
 
 The following constants are exported by the `sqlite.constants` object.
 
-#### SQLite Session constants
-
-##### Conflict-resolution constants
+#### Conflict-resolution constants
 
 The following constants are meant for use with [`database.applyChangeset()`](#databaseapplychangesetchangeset-options).
 
@@ -464,7 +462,7 @@ The following constants are meant for use with [`database.applyChangeset()`](#da
   </tr>
   <tr>
     <td><code>SQLITE_CHANGESET_ABORT</code></td>
-    <td>Abort when a change encounters a conflict and roll back databsase.</td>
+    <td>Abort when a change encounters a conflict and roll back database.</td>
   </tr>
 </table>
 
