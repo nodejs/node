@@ -2776,10 +2776,12 @@ napi_status NAPI_CDECL napi_create_reference(napi_env env,
 
 // Deletes a reference. The referenced value is released, and may be GC'd unless
 // there are other references to it.
+// For a napi_reference returned from `napi_wrap`, this must be called in the
+// finalizer.
 napi_status NAPI_CDECL napi_delete_reference(napi_env env, napi_ref ref) {
   // Omit NAPI_PREAMBLE and GET_RETURN_STATUS because V8 calls here cannot throw
   // JS exceptions.
-  CHECK_ENV_NOT_IN_GC(env);
+  CHECK_ENV(env);
   CHECK_ARG(env, ref);
 
   delete reinterpret_cast<v8impl::Reference*>(ref);
