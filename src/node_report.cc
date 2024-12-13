@@ -23,7 +23,7 @@
 #include <cwctype>
 #include <fstream>
 
-constexpr int NODE_REPORT_VERSION = 4;
+constexpr int NODE_REPORT_VERSION = 5;
 constexpr int NANOS_PER_SEC = 1000 * 1000 * 1000;
 constexpr double SEC_PER_MICROS = 1e-6;
 constexpr int MAX_FRAME_COUNT = node::kMaxFrameCountForLogging;
@@ -732,13 +732,13 @@ static void PrintSystemInformation(JSONWriter* writer) {
     int id;
   } rlimit_strings[] = {
     {"core_file_size_blocks", RLIMIT_CORE},
-    {"data_seg_size_kbytes", RLIMIT_DATA},
+    {"data_seg_size_bytes", RLIMIT_DATA},
     {"file_size_blocks", RLIMIT_FSIZE},
 #if !(defined(_AIX) || defined(__sun))
     {"max_locked_memory_bytes", RLIMIT_MEMLOCK},
 #endif
 #ifndef __sun
-    {"max_memory_size_kbytes", RLIMIT_RSS},
+    {"max_memory_size_bytes", RLIMIT_RSS},
 #endif
     {"open_files", RLIMIT_NOFILE},
     {"stack_size_bytes", RLIMIT_STACK},
@@ -747,7 +747,7 @@ static void PrintSystemInformation(JSONWriter* writer) {
     {"max_user_processes", RLIMIT_NPROC},
 #endif
 #ifndef __OpenBSD__
-    {"virtual_memory_kbytes", RLIMIT_AS}
+    {"virtual_memory_bytes", RLIMIT_AS}
 #endif
   };
 
