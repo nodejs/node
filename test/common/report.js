@@ -110,7 +110,7 @@ function _validateContent(report, fields = []) {
                         'glibcVersionRuntime', 'glibcVersionCompiler', 'cwd',
                         'reportVersion', 'networkInterfaces', 'threadId'];
   checkForUnknownFields(header, headerFields);
-  assert.strictEqual(header.reportVersion, 4);  // Increment as needed.
+  assert.strictEqual(header.reportVersion, 5);  // Increment as needed.
   assert.strictEqual(typeof header.event, 'string');
   assert.strictEqual(typeof header.trigger, 'string');
   assert(typeof header.filename === 'string' || header.filename === null);
@@ -309,11 +309,11 @@ function _validateContent(report, fields = []) {
 
   // Verify the format of the userLimits section on non-Windows platforms.
   if (!isWindows) {
-    const userLimitsFields = ['core_file_size_blocks', 'data_seg_size_kbytes',
+    const userLimitsFields = ['core_file_size_blocks', 'data_seg_size_bytes',
                               'file_size_blocks', 'max_locked_memory_bytes',
-                              'max_memory_size_kbytes', 'open_files',
+                              'max_memory_size_bytes', 'open_files',
                               'stack_size_bytes', 'cpu_time_seconds',
-                              'max_user_processes', 'virtual_memory_kbytes'];
+                              'max_user_processes', 'virtual_memory_bytes'];
     checkForUnknownFields(report.userLimits, userLimitsFields);
     for (const [type, limits] of Object.entries(report.userLimits)) {
       assert.strictEqual(typeof type, 'string');
