@@ -12,11 +12,9 @@ if (process.argv[2] === 'child') {
     if (cnt--) {
       process.send(msg, send);
     } else {
-      process.nextTick(() => {
-        process.exit(0);
-      });  
+      process.disconnect();
     }
-  })()  
+  })()
 } else {
   const child = child_process.spawn(process.execPath, [__filename, 'child'], {
     stdio: ['inherit', 'inherit', 'inherit', 'ipc'],
