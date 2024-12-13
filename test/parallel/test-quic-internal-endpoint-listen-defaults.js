@@ -24,9 +24,7 @@ describe('quic internal endpoint listen defaults', { skip: !hasQuic }, async () 
   } = require('internal/quic/quic');
 
   it('are reasonable and work as expected', async () => {
-    const endpoint = new QuicEndpoint({
-      onsession() {},
-    });
+    const endpoint = new QuicEndpoint();
 
     ok(!endpoint.state.isBound);
     ok(!endpoint.state.isReceiving);
@@ -35,11 +33,15 @@ describe('quic internal endpoint listen defaults', { skip: !hasQuic }, async () 
     strictEqual(endpoint.address, undefined);
 
     throws(() => endpoint.listen(123), {
+      code: 'ERR_INVALID_STATE',
+    });
+
+    throws(() => endpoint.listen(() => {}, 123), {
       code: 'ERR_INVALID_ARG_TYPE',
     });
 
-    endpoint.listen();
-    throws(() => endpoint.listen(), {
+    endpoint.listen(() => {});
+    throws(() => endpoint.listen(() => {}), {
       code: 'ERR_INVALID_STATE',
     });
 
@@ -61,7 +63,7 @@ describe('quic internal endpoint listen defaults', { skip: !hasQuic }, async () 
     await endpoint.closed;
     ok(endpoint.destroyed);
 
-    throws(() => endpoint.listen(), {
+    throws(() => endpoint.listen(() => {}), {
       code: 'ERR_INVALID_STATE',
     });
     throws(() => { endpoint.busy = true; }, {

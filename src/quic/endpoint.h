@@ -232,7 +232,7 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
                                     Session* session);
   void DisassociateStatelessResetToken(const StatelessResetToken& token);
 
-  void Send(Packet* packet);
+  void Send(BaseObjectPtr<Packet>&& packet);
 
   // Generates and sends a retry packet. This is terminal for the connection.
   // Retry packets are used to force explicit path validation by issuing a token
@@ -298,7 +298,7 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
     int Start();
     void Stop();
     void Close();
-    int Send(Packet* packet);
+    int Send(BaseObjectPtr<Packet> packet);
 
     // Returns the local UDP socket address to which we are bound,
     // or fail with an assert if we are not bound.

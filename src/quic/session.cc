@@ -505,8 +505,7 @@ Session::Session(Endpoint* endpoint,
       connection_(InitConnection()),
       tls_session_(tls_context->NewSession(this, session_ticket)),
       application_(select_application()),
-      timer_(env(),
-             [this, self = BaseObjectPtr<Session>(this)] { OnTimeout(); }) {
+      timer_(env(), [this] { OnTimeout(); }) {
   MakeWeak();
 
   Debug(this, "Session created.");
@@ -553,6 +552,8 @@ Session::Session(Endpoint* endpoint,
 
 Session::~Session() {
   Debug(this, "Session destroyed.");
+  // Double check that our timer has stopped.
+  CHECK(!timer_);
   if (conn_closebuf_) {
     conn_closebuf_->Done(0);
   }
@@ -723,7 +724,7 @@ void Session::Destroy() {
   state_->closing = 0;
   state_->graceful_close = 0;
 
-  timer_.Stop();
+  timer_.Close();
 
   // The Session instances are kept alive using a in the Endpoint. Removing the
   // Session from the Endpoint will free that pointer, allowing the Session to
@@ -845,7 +846,7 @@ bool Session::Receive(Store&& store,
   return true;
 }
 
-void Session::Send(Packet* packet) {
+void Session::Send(BaseObjectPtr<Packet>&& packet) {
   // Sending a Packet is generally best effort. If we're not in a state
   // where we can send a packet, it's ok to drop it on the floor. The
   // packet loss mechanisms will cause the packet data to be resent later
@@ -856,7 +857,8 @@ void Session::Send(Packet* packet) {
   if (can_send_packets() && packet->length() > 0) {
     Debug(this, "Session is sending %s", packet->ToString());
     STAT_INCREMENT_N(Stats, bytes_sent, packet->length());
-    endpoint_->Send(packet);
+    endpoint_->Send(std::move(packet));
+    packet.reset();
     return;
   }
 
@@ -864,9 +866,10 @@ void Session::Send(Packet* packet) {
   packet->Done(packet->length() > 0 ? UV_ECANCELED : 0);
 }
 
-void Session::Send(Packet* packet, const PathStorage& path) {
+void Session::Send(BaseObjectPtr<Packet>&& packet, const PathStorage& path) {
   UpdatePath(path);
-  Send(packet);
+  Send(std::move(packet));
+  packet.reset();
 }
 
 void Session::UpdatePacketTxTime() {
@@ -883,7 +886,7 @@ uint64_t Session::SendDatagram(Store&& data) {
   }
 
   Debug(this, "Session is sending datagram");
-  Packet* packet = nullptr;
+  BaseObjectPtr<Packet> packet;
   uint8_t* pos = nullptr;
   int accepted = 0;
   ngtcp2_vec vec = data;
@@ -900,7 +903,7 @@ uint64_t Session::SendDatagram(Store&& data) {
     // datagram packet. On each iteration here we'll try to encode the
     // datagram. It's entirely up to ngtcp2 whether to include the datagram
     // in the packet on each call to ngtcp2_conn_writev_datagram.
-    if (packet == nullptr) {
+    if (!packet) {
       packet = Packet::Create(env(),
                               endpoint_.get(),
                               remote_address_,
@@ -908,7 +911,7 @@ uint64_t Session::SendDatagram(Store&& data) {
                               "datagram");
       // Typically sending datagrams is best effort, but if we cannot create
       // the packet, then we handle it as a fatal error.
-      if (packet == nullptr) {
+      if (!packet) {
         last_error_ = QuicError::ForNgtcp2Error(NGTCP2_ERR_INTERNAL);
         Close(CloseMethod::SILENT);
         return 0;
@@ -978,6 +981,7 @@ uint64_t Session::SendDatagram(Store&& data) {
     // datagram! We'll check that next by checking the accepted value.
     packet->Truncate(nwrite);
     Send(std::move(packet));
+    packet.reset();
 
     if (accepted != 0) {
       // Yay! The datagram was accepted into the packet we just sent and we can
@@ -1331,6 +1335,7 @@ void Session::SendConnectionClose() {
       } else {
         packet->Truncate(nwrite);
         Send(std::move(packet));
+        packet.reset();
       }
       return;
     }

@@ -169,7 +169,7 @@ class BindingData final
   // bridge out to the JS API.
   static void SetCallbacks(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  std::vector<Packet*> packet_freelist;
+  std::vector<BaseObjectPtr<BaseObject>> packet_freelist;
 
   std::unordered_map<Endpoint*, BaseObjectPtr<BaseObject>> listening_endpoints;
 

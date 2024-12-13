@@ -215,7 +215,7 @@ StreamPriority Session::Application::GetStreamPriority(const Stream& stream) {
   return StreamPriority::DEFAULT;
 }
 
-Packet* Session::Application::CreateStreamDataPacket() {
+BaseObjectPtr<Packet> Session::Application::CreateStreamDataPacket() {
   return Packet::Create(env(),
                         session_->endpoint_.get(),
                         session_->remote_address_,
@@ -274,17 +274,17 @@ void Session::Application::SendPendingData() {
   // The number of packets that have been sent in this call to SendPendingData.
   size_t packet_send_count = 0;
 
-  Packet* packet = nullptr;
+  BaseObjectPtr<Packet> packet;
   uint8_t* pos = nullptr;
   uint8_t* begin = nullptr;
 
   auto ensure_packet = [&] {
-    if (packet == nullptr) {
+    if (!packet) {
       packet = CreateStreamDataPacket();
-      if (packet == nullptr) return false;
+      if (!packet) return false;
       pos = begin = ngtcp2_vec(*packet).base;
     }
-    DCHECK_NOT_NULL(packet);
+    DCHECK(packet);
     DCHECK_NOT_NULL(pos);
     DCHECK_NOT_NULL(begin);
     return true;
@@ -397,10 +397,11 @@ void Session::Application::SendPendingData() {
         // At least some data had been written into the packet. We should send
         // it.
         packet->Truncate(datalen);
-        session_->Send(packet, path);
+        session_->Send(std::move(packet), path);
       } else {
         packet->Done(UV_ECANCELED);
       }
+      packet.reset();
 
       // If there was stream data selected, we should reschedule it to try
       // sending again.
@@ -414,7 +415,10 @@ void Session::Application::SendPendingData() {
     size_t datalen = pos - begin;
     Debug(session_, "Sending packet with %zu bytes", datalen);
     packet->Truncate(datalen);
-    session_->Send(packet, path);
+    session_->Send(std::move(packet), path);
+    // TODO(@jasnell): Moving a BaseObjectPtr apparently does not fully
+    // invalidate it.
+    packet.reset();
 
     // If we have sent the maximum number of packets, we're done.
     if (++packet_send_count == max_packet_count) {
@@ -422,7 +426,6 @@ void Session::Application::SendPendingData() {
     }
 
     // Prepare to loop back around to prepare a new packet.
-    packet = nullptr;
     pos = begin = nullptr;
   }
 }

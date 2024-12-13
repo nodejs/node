@@ -321,8 +321,8 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
                const SocketAddress& local_address,
                const SocketAddress& remote_address);
 
-  void Send(Packet* packet);
-  void Send(Packet* packet, const PathStorage& path);
+  void Send(BaseObjectPtr<Packet>&& packet);
+  void Send(BaseObjectPtr<Packet>&& packet, const PathStorage& path);
   uint64_t SendDatagram(Store&& data);
 
   void AddStream(const BaseObjectPtr<Stream>& stream,
@@ -429,7 +429,7 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   size_t send_scope_depth_ = 0;
   size_t connection_close_depth_ = 0;
   QuicError last_error_;
-  Packet* conn_closebuf_;
+  BaseObjectPtr<Packet> conn_closebuf_;
   BaseObjectPtr<LogStream> qlog_stream_;
   BaseObjectPtr<LogStream> keylog_stream_;
 

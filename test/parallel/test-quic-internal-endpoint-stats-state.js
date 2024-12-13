@@ -180,17 +180,17 @@ describe('quic internal endpoint stats and state', { skip: !hasQuic }, () => {
   it('stream and session stats', () => {
     const streamStats = new QuicStreamStats(kPrivateConstructor, new ArrayBuffer(1024));
     const sessionStats = new QuicSessionStats(kPrivateConstructor, new ArrayBuffer(1024));
-    strictEqual(streamStats.createdAt, undefined);
-    strictEqual(streamStats.receivedAt, undefined);
-    strictEqual(streamStats.ackedAt, undefined);
-    strictEqual(streamStats.closingAt, undefined);
-    strictEqual(streamStats.destroyedAt, undefined);
-    strictEqual(streamStats.bytesReceived, undefined);
-    strictEqual(streamStats.bytesSent, undefined);
-    strictEqual(streamStats.maxOffset, undefined);
-    strictEqual(streamStats.maxOffsetAcknowledged, undefined);
-    strictEqual(streamStats.maxOffsetReceived, undefined);
-    strictEqual(streamStats.finalSize, undefined);
+    strictEqual(streamStats.createdAt, 0n);
+    strictEqual(streamStats.receivedAt, 0n);
+    strictEqual(streamStats.ackedAt, 0n);
+    strictEqual(streamStats.closingAt, 0n);
+    strictEqual(streamStats.destroyedAt, 0n);
+    strictEqual(streamStats.bytesReceived, 0n);
+    strictEqual(streamStats.bytesSent, 0n);
+    strictEqual(streamStats.maxOffset, 0n);
+    strictEqual(streamStats.maxOffsetAcknowledged, 0n);
+    strictEqual(streamStats.maxOffsetReceived, 0n);
+    strictEqual(streamStats.finalSize, 0n);
     strictEqual(typeof streamStats.toJSON(), 'object');
     strictEqual(typeof inspect(streamStats), 'string');
     streamStats[kFinishClose]();

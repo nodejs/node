@@ -195,14 +195,6 @@ describe('quic internal endpoint options', { skip: !hasQuic }, async () => {
     }
   });
 
-  it('endpoint can be ref/unrefed without error', async () => {
-    const endpoint = new QuicEndpoint();
-    endpoint.unref();
-    endpoint.ref();
-    endpoint.close();
-    await endpoint.closed;
-  });
-
   it('endpoint can be inspected', async () => {
     const endpoint = new QuicEndpoint({});
     strictEqual(typeof inspect(endpoint), 'string');
@@ -214,7 +206,10 @@ describe('quic internal endpoint options', { skip: !hasQuic }, async () => {
     new QuicEndpoint({
       address: { host: '127.0.0.1:0' },
     });
-    throws(() => new QuicEndpoint({ address: '127.0.0.1:0' }), {
+    new QuicEndpoint({
+      address: '127.0.0.1:0',
+    });
+    throws(() => new QuicEndpoint({ address: 123 }), {
       code: 'ERR_INVALID_ARG_TYPE',
     });
   });

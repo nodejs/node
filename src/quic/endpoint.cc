@@ -453,6 +453,10 @@ class Endpoint::UDP::Impl final : public HandleWrap {
 
 Endpoint::UDP::UDP(Endpoint* endpoint) : impl_(Impl::Create(endpoint)) {
   DCHECK(impl_);
+  // The endpoint starts in an inactive, unref'd state. It will be ref'd when
+  // the endpoint is either configured to listen as a server or when then are
+  // active client sessions.
+  Unref();
 }
 
 Endpoint::UDP::~UDP() {
@@ -553,15 +557,14 @@ SocketAddress Endpoint::UDP::local_address() const {
   return SocketAddress::FromSockName(impl_->handle_);
 }
 
-int Endpoint::UDP::Send(Packet* packet) {
+int Endpoint::UDP::Send(BaseObjectPtr<Packet> packet) {
   if (is_closed_or_closing()) return UV_EBADF;
-  DCHECK_NOT_NULL(packet);
   uv_buf_t buf = *packet;
 
   // We don't use the default implementation of Dispatch because the packet
   // itself is going to be reset and added to a freelist to be reused. The
   // default implementation of Dispatch will cause the packet to be deleted,
-  // which we don't want. We call ClearWeak here just to be doubly sure.
+  // which we don't want.
   packet->ClearWeak();
   packet->Dispatched();
   int err = uv_udp_send(
@@ -571,13 +574,15 @@ int Endpoint::UDP::Send(Packet* packet) {
       1,
       packet->destination().data(),
       uv_udp_send_cb{[](uv_udp_send_t* req, int status) {
-        auto ptr = static_cast<Packet*>(ReqWrap<uv_udp_send_t>::from_req(req));
+        auto ptr = BaseObjectPtr<Packet>(
+            static_cast<Packet*>(ReqWrap<uv_udp_send_t>::from_req(req)));
         ptr->env()->DecreaseWaitingRequestCounter();
         ptr->Done(status);
       }});
   if (err < 0) {
     // The packet failed.
     packet->Done(err);
+    packet->MakeWeak();
   } else {
     packet->env()->IncreaseWaitingRequestCounter();
   }
@@ -823,8 +828,8 @@ void Endpoint::DisassociateStatelessResetToken(
   }
 }
 
-void Endpoint::Send(Packet* packet) {
-  CHECK_NOT_NULL(packet);
+void Endpoint::Send(BaseObjectPtr<Packet>&& packet) {
+  CHECK(packet && !packet->IsDispatched());
 #ifdef DEBUG
   // When diagnostic packet loss is enabled, the packet will be randomly
   // dropped. This can happen to any type of packet. We use this only in
@@ -868,6 +873,7 @@ void Endpoint::SendRetry(const PathDescriptor& options) {
     if (packet) {
       STAT_INCREMENT(Stats, retry_count);
       Send(std::move(packet));
+      packet.reset();
     }
 
     // If creating the retry is unsuccessful, we just drop things on the floor.
@@ -889,6 +895,7 @@ void Endpoint::SendVersionNegotiation(const PathDescriptor& options) {
   if (packet) {
     STAT_INCREMENT(Stats, version_negotiation_count);
     Send(std::move(packet));
+    packet.reset();
   }
 
   // If creating the packet is unsuccessful, we just drop things on the floor.
@@ -924,6 +931,7 @@ bool Endpoint::SendStatelessReset(const PathDescriptor& options,
     addrLRU_.Upsert(options.remote_address)->reset_count++;
     STAT_INCREMENT(Stats, stateless_reset_count);
     Send(std::move(packet));
+    packet.reset();
     return true;
   }
   return false;
@@ -942,6 +950,7 @@ void Endpoint::SendImmediateConnectionClose(const PathDescriptor& options,
   if (packet) {
     STAT_INCREMENT(Stats, immediate_close_count);
     Send(std::move(packet));
+    packet.reset();
   }
 }
 
@@ -965,6 +974,7 @@ bool Endpoint::Start() {
   }
 
   err = udp_.Start();
+  udp_.Ref();
   if (err != 0) {
     // If we failed to start listening, destroy the endpoint. There's nothing we
     // can do.

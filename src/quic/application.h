@@ -125,7 +125,7 @@ class Session::Application : public MemoryRetainer {
   inline const Session& session() const { return *session_; }
 
  private:
-  Packet* CreateStreamDataPacket();
+  BaseObjectPtr<Packet> CreateStreamDataPacket();
 
   // Write the given stream_data into the buffer.
   ssize_t WriteVStream(PathStorage* path,

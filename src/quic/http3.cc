@@ -409,7 +409,7 @@ class Http3Application final : public Session::Application {
         data->stream = session().FindStream(data->id);
       }
     }
-    DCHECK_NOT_NULL(data->buf);
+
     return 0;
   }
 

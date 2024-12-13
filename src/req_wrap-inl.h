@@ -50,6 +50,9 @@ void ReqWrap<T>::Cancel() {
 }
 
 template <typename T>
+bool ReqWrap<T>::IsDispatched() { return req_.data != nullptr; }
+
+template <typename T>
 AsyncWrap* ReqWrap<T>::GetAsyncWrap() {
   return this;
 }
