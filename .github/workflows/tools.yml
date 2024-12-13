@@ -27,7 +27,7 @@ on:
           - gyp-next
           - histogram
           - icu
-          # - libuv
+          - libuv
           - llhttp
           - minimatch
           - nbytes
@@ -175,17 +175,14 @@ jobs:
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
-          # libuv update was disabled because of Feb 14, 2024 security release
-          # modified the bundled version of libuv, we cannot automatically update
-          # libuv without potentially undoing those changes.
-          # - id: libuv
-          #   subsystem: deps
-          #   label: dependencies
-          #   run: |
-          #     ./tools/dep_updaters/update-libuv.sh > temp-output
-          #     cat temp-output
-          #     tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
-          #     rm temp-output
+          - id: libuv
+            subsystem: deps
+            label: dependencies
+            run: |
+              ./tools/dep_updaters/update-libuv.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
           - id: llhttp
             subsystem: deps
             label: dependencies
