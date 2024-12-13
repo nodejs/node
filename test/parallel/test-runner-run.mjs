@@ -44,7 +44,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     stream.on('test:diagnostic', (event) => {
       diagnosticEvents.push(event);
     });
-
+    // eslint-disable-next-line no-unused-vars
     for await (const _ of stream);
     assert(diagnosticEvents.length > 0, 'No diagnostic events were emitted');
     const infoEvent = diagnosticEvents.find((e) => e.level === 'info');
