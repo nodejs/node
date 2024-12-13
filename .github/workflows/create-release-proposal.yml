@@ -1,5 +1,4 @@
 # This action requires the following secrets to be set on the repository:
-#   GH_USER_NAME: GitHub user whose Jenkins and GitHub token are defined below
 #   GH_USER_TOKEN: GitHub user token, to be used by ncu and to push changes
 
 name: Create Release Proposal
@@ -52,20 +51,18 @@ jobs:
         run: |
           ncu-config set branch "${RELEASE_BRANCH}"
           ncu-config set upstream origin
-          ncu-config set username "$USERNAME"
+          ncu-config set username "$GITHUB_ACTOR"
           ncu-config set token "$GH_TOKEN"
           ncu-config set repo "$(echo "$GITHUB_REPOSITORY" | cut -d/ -f2)"
           ncu-config set owner "${GITHUB_REPOSITORY_OWNER}"
         env:
-          USERNAME: ${{ secrets.JENKINS_USER }}
           GH_TOKEN: ${{ github.token }}
 
       - name: Set up ghauth config (Ubuntu)
         run: |
           mkdir -p "${XDG_CONFIG_HOME:-~/.config}/changelog-maker"
-          echo '{}' | jq '{user: env.USERNAME, token: env.TOKEN}' > "${XDG_CONFIG_HOME:-~/.config}/changelog-maker/config.json"
+          echo '{}' | jq '{user: env.GITHUB_ACTOR, token: env.TOKEN}' > "${XDG_CONFIG_HOME:-~/.config}/changelog-maker/config.json"
         env:
-          USERNAME: ${{ secrets.JENKINS_USER }}
           TOKEN: ${{ github.token }}
 
       - name: Setup git author
