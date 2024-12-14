@@ -93,7 +93,7 @@ test('should throw error if permission is enabled', async () => {
 const db = new sqlite.DatabaseSync(':memory:', { allowExtension: true });`;
   return new Promise((resolve) => {
     childProcess.exec(
-      `${cmd} --experimental-permission -e "${code}"`,
+      `${cmd} --permission -e "${code}"`,
       {
         ...opts,
       },
