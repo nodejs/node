@@ -8,7 +8,7 @@ const db = new sqlite.DatabaseSync(':memory:', { allowExtension: true });
 db.loadExtension('nonexistent');`.replace(/\n/g, ' ');
 
 childProcess.exec(
-  `${process.execPath} --experimental-permission -e "${code}"`,
+  `${process.execPath} --permission -e "${code}"`,
   {},
   common.mustCall((err, _, stderr) => {
     assert.strictEqual(err.code, 1);
