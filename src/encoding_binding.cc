@@ -286,9 +286,11 @@ void BindingData::DecodeLatin1(const FunctionCallbackInfo<Value>& args) {
         env->isolate(), "The encoded data was not valid for encoding latin1");
   }
 
-  Local<Object> buffer_result =
-      node::Buffer::Copy(env, result.c_str(), written).ToLocalChecked();
-  args.GetReturnValue().Set(buffer_result);
+  Local<String> output =
+      String::NewFromUtf8(
+          env->isolate(), result.c_str(), v8::NewStringType::kNormal, written)
+          .ToLocalChecked();
+  args.GetReturnValue().Set(output);
 }
 
 }  // namespace encoding_binding
