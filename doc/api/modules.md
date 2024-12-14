@@ -513,7 +513,7 @@ Some built-in modules are always preferentially loaded if their identifier is
 passed to `require()`. For instance, `require('http')` will always
 return the built-in HTTP module, even if there is a file by that name. The list
 of built-in modules that can be loaded without using the `node:` prefix is exposed
-as [`module.builtinModules`][].
+in [`module.builtinModules`][], listed without the prefix.
 
 ### Built-in modules with mandatory `node:` prefix
 
@@ -526,6 +526,8 @@ taken the name. Currently the built-in modules that requires the `node:` prefix 
 * [`node:sqlite`][]
 * [`node:test`][]
 * [`node:test/reporters`][]
+
+The list of these modules is exposed in [`module.builtinModules`][], including the prefix.
 
 ## Cycles
 
