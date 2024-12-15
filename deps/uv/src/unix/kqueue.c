@@ -367,17 +367,6 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
         continue;
       }
 
-#if UV__KQUEUE_EVFILT_USER
-      if (ev->filter == EVFILT_USER) {
-        w = &loop->async_io_watcher;
-        assert(fd == w->fd);
-        uv__metrics_update_idle_time(loop);
-        w->cb(loop, w, w->events);
-        nevents++;
-        continue;
-      }
-#endif
-
       if (ev->filter == EVFILT_VNODE) {
         assert(w->events == POLLIN);
         assert(w->pevents == POLLIN);

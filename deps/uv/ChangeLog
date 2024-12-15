@@ -1,4 +1,22 @@
-2024.10.11, Version 1.49.1 (Stable)
+2024.10.18, Version 1.49.2 (Stable)
+
+Changes since version 1.49.1:
+
+* win,fs: remove trailing slash in junctions (Hüseyin Açacak)
+
+* Revert "linux: eliminate a read on eventfd per wakeup" (Ben Noordhuis)
+
+* win: Fix linked list logic in getaddrinfo (Thad House)
+
+* win: fix compilation against Windows 24H2 SDK (Thad House)
+
+* win: remap ERROR_NOACCESS and ERROR_BUFFER_OVERFLOW (Jameson Nash)
+
+* win,fs: match trailing slash presence in junctions to user input (Jameson
+  Nash)
+
+
+2024.10.11, Version 1.49.1 (Stable), 8be336f4ee296d20e1c071a44d6adf279e202236
 
 Changes since version 1.49.0:
 

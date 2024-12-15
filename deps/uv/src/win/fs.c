@@ -2566,15 +2566,16 @@ static void fs__create_junction(uv_fs_t* req, const WCHAR* path,
 
     path_buf[path_buf_len++] = path[i];
   }
-  path_buf[path_buf_len++] = L'\\';
+  if (add_slash)
+    path_buf[path_buf_len++] = L'\\';
   len = path_buf_len - start;
+
+  /* Insert null terminator */
+  path_buf[path_buf_len++] = L'\0';
 
   /* Set the info about the substitute name */
   buffer->MountPointReparseBuffer.SubstituteNameOffset = start * sizeof(WCHAR);
   buffer->MountPointReparseBuffer.SubstituteNameLength = len * sizeof(WCHAR);
-
-  /* Insert null terminator */
-  path_buf[path_buf_len++] = L'\0';
 
   /* Copy the print name of the target path */
   start = path_buf_len;
@@ -2593,17 +2594,17 @@ static void fs__create_junction(uv_fs_t* req, const WCHAR* path,
     path_buf[path_buf_len++] = path[i];
   }
   len = path_buf_len - start;
-  if (len == 2) {
+  if (len == 2 || add_slash) {
     path_buf[path_buf_len++] = L'\\';
     len++;
   }
 
+  /* Insert another null terminator */
+  path_buf[path_buf_len++] = L'\0';
+
   /* Set the info about the print name */
   buffer->MountPointReparseBuffer.PrintNameOffset = start * sizeof(WCHAR);
   buffer->MountPointReparseBuffer.PrintNameLength = len * sizeof(WCHAR);
-
-  /* Insert another null terminator */
-  path_buf[path_buf_len++] = L'\0';
 
   /* Calculate how much buffer space was actually used */
   used_buf_size = FIELD_OFFSET(REPARSE_DATA_BUFFER, MountPointReparseBuffer.PathBuffer) +
