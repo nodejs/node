@@ -14,7 +14,7 @@ if (process.argv[2] === 'child') {
     } else {
       process.disconnect();
     }
-  })()
+  })();
 } else {
   const child = child_process.spawn(process.execPath, [__filename, 'child'], {
     stdio: ['inherit', 'inherit', 'inherit', 'ipc'],
