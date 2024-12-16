@@ -88,7 +88,7 @@ function listener4() {
 
 {
   const ee = new events.EventEmitter();
-  assert.deepStrictEqual(ee.listeners(), [])
+  assert.deepStrictEqual(ee.listeners(), []);
 }
 
 {
