@@ -180,8 +180,6 @@ For information about the governance of the Node.js project, see
   **Matteo Collina** <<matteo.collina@gmail.com>> (he/him)
 * [mhdawson](https://github.com/mhdawson) -
   **Michael Dawson** <<midawson@redhat.com>> (he/him)
-* [MoLow](https://github.com/MoLow) -
-  **Moshe Atlow** <<moshe@atlow.co.il>> (he/him)
 * [RafaelGSS](https://github.com/RafaelGSS) -
   **Rafael Gonzaga** <<rafael.nunu@hotmail.com>> (he/him)
 * [richardlau](https://github.com/richardlau) -
@@ -211,6 +209,8 @@ For information about the governance of the Node.js project, see
   **Shelley Vohr** <<shelley.vohr@gmail.com>> (she/her)
 * [GeoffreyBooth](https://github.com/GeoffreyBooth) -
   **Geoffrey Booth** <<webadmin@geoffreybooth.com>> (he/him)
+* [MoLow](https://github.com/MoLow) -
+  **Moshe Atlow** <<moshe@atlow.co.il>> (he/him)
 * [Trott](https://github.com/Trott) -
   **Rich Trott** <<rtrott@gmail.com>> (he/him)
 
