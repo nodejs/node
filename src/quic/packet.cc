@@ -110,12 +110,11 @@ Local<FunctionTemplate> Packet::GetConstructorTemplate(Environment* env) {
   return tmpl;
 }
 
-BaseObjectPtr<Packet> Packet::Create(
-    Environment* env,
-    Listener* listener,
-    const SocketAddress& destination,
-    size_t length,
-    const char* diagnostic_label) {
+BaseObjectPtr<Packet> Packet::Create(Environment* env,
+                                     Listener* listener,
+                                     const SocketAddress& destination,
+                                     size_t length,
+                                     const char* diagnostic_label) {
   if (BindingData::Get(env).packet_freelist.empty()) {
     Local<Object> obj;
     if (!GetConstructorTemplate(env)
@@ -146,18 +145,16 @@ BaseObjectPtr<Packet> Packet::Clone() const {
       return {};
     }
 
-    return MakeBaseObject<Packet>(
-        env(), listener_, obj, destination_, data_);
+    return MakeBaseObject<Packet>(env(), listener_, obj, destination_, data_);
   }
 
   return FromFreeList(env(), data_, listener_, destination_);
 }
 
-BaseObjectPtr<Packet> Packet::FromFreeList(
-    Environment* env,
-    std::shared_ptr<Data> data,
-    Listener* listener,
-    const SocketAddress& destination) {
+BaseObjectPtr<Packet> Packet::FromFreeList(Environment* env,
+                                           std::shared_ptr<Data> data,
+                                           Listener* listener,
+                                           const SocketAddress& destination) {
   auto& binding = BindingData::Get(env);
   if (binding.packet_freelist.empty()) return {};
   auto obj = binding.packet_freelist.back();

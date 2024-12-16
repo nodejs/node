@@ -46,6 +46,7 @@ using v8::Integer;
 using v8::Just;
 using v8::Local;
 using v8::Maybe;
+using v8::MaybeLocal;
 using v8::Nothing;
 using v8::Object;
 using v8::PropertyAttribute;
@@ -115,7 +116,7 @@ namespace quic {
   V(GracefulClose, gracefulClose, false)                                       \
   V(SilentClose, silentClose, false)                                           \
   V(UpdateKey, updateKey, false)                                               \
-  V(DoOpenStream, openStream, false)                                           \
+  V(OpenStream, openStream, false)                                             \
   V(DoSendDatagram, sendDatagram, false)
 
 struct Session::State {
@@ -482,7 +483,7 @@ BaseObjectPtr<Session> Session::Create(
            ->InstanceTemplate()
            ->NewInstance(endpoint->env()->context())
            .ToLocal(&obj)) {
-    return BaseObjectPtr<Session>();
+    return {};
   }
 
   return MakeDetachedBaseObject<Session>(
@@ -662,12 +663,12 @@ void Session::HandleQlog(uint32_t flags, const void* data, size_t len) {
   }
 }
 
-TransportParams Session::GetLocalTransportParams() const {
+const TransportParams Session::GetLocalTransportParams() const {
   DCHECK(!is_destroyed());
   return TransportParams(ngtcp2_conn_get_local_transport_params(*this));
 }
 
-TransportParams Session::GetRemoteTransportParams() const {
+const TransportParams Session::GetRemoteTransportParams() const {
   DCHECK(!is_destroyed());
   return TransportParams(ngtcp2_conn_get_remote_transport_params(*this));
 }
@@ -718,6 +719,14 @@ void Session::Destroy() {
   // invalidated.
   auto streams = streams_;
   for (auto& stream : streams) stream.second->Destroy(last_error_);
+
+  while (!pending_bidi_stream_queue_.IsEmpty()) {
+    pending_bidi_stream_queue_.PopFront()->reject();
+  }
+  while (!pending_uni_stream_queue_.IsEmpty()) {
+    pending_uni_stream_queue_.PopFront()->reject();
+  }
+
   DCHECK(streams_.empty());
 
   STAT_RECORD_TIMESTAMP(Stats, destroyed_at);
@@ -1014,99 +1023,129 @@ void Session::UpdatePath(const PathStorage& storage) {
         remote_address_);
 }
 
-BaseObjectPtr<Stream> Session::FindStream(int64_t id) const {
+BaseObjectWeakPtr<Stream> Session::FindStream(int64_t id) const {
   auto it = streams_.find(id);
-  return it == std::end(streams_) ? BaseObjectPtr<Stream>() : it->second;
+  if (it == std::end(streams_)) return {};
+  return it->second;
 }
 
-BaseObjectPtr<Stream> Session::CreateStream(int64_t id,
-    CreateStreamOption option) {
-  if (!can_create_streams()) return BaseObjectPtr<Stream>();
-  auto stream = Stream::Create(this, id);
-  if (stream) AddStream(stream, option);
-  return stream;
+BaseObjectWeakPtr<Stream> Session::CreateStream(int64_t id,
+                                                CreateStreamOption option) {
+  if (!can_create_streams()) return {};
+  if (auto stream = Stream::Create(this, id)) {
+    AddStream(stream, option);
+    return stream;
+  }
+  return {};
 }
 
-BaseObjectPtr<Stream> Session::OpenStream(Direction direction) {
-  if (!can_create_streams()) return BaseObjectPtr<Stream>();
-  int64_t id;
-  switch (direction) {
-    case Direction::BIDIRECTIONAL: {
-      Debug(this, "Opening bidirectional stream");
-      if (ngtcp2_conn_open_bidi_stream(*this, &id, nullptr) == 0)
-        return CreateStream(id, CreateStreamOption::DOT_NOT_NOTIFY);
-      break;
+MaybeLocal<Object> Session::OpenStream(Direction direction) {
+  // If can_create_streams() returns false, we are not able to open a stream
+  // at all now, even in a pending state. The implication is that that session
+  // is destroyed or closing.
+  if (!can_create_streams()) return MaybeLocal<Object>();
+
+  // If can_open_streams() returns false, we are able to create streams but
+  // they will remain in a pending state. The implication is that the session
+  // TLS handshake is still progressing. Note that when a pending stream is
+  // created, it will not be listed in the streams list.
+  if (!can_open_streams()) {
+    if (auto stream = Stream::Create(this, direction)) [[likely]] {
+      return stream->object();
     }
-    case Direction::UNIDIRECTIONAL: {
-      Debug(this, "Opening uni-directional stream");
-      if (ngtcp2_conn_open_uni_stream(*this, &id, nullptr) == 0)
-        return CreateStream(id, CreateStreamOption::DOT_NOT_NOTIFY);
-      break;
+    return MaybeLocal<Object>();
+  }
+
+  int64_t id = -1;
+  auto open = [&] {
+    switch (direction) {
+      case Direction::BIDIRECTIONAL: {
+        Debug(this, "Opening bidirectional stream");
+        return ngtcp2_conn_open_bidi_stream(*this, &id, nullptr);
+      }
+      case Direction::UNIDIRECTIONAL: {
+        Debug(this, "Opening uni-directional stream");
+        return ngtcp2_conn_open_uni_stream(*this, &id, nullptr);
+      }
+    }
+  };
+
+  switch (open()) {
+    case 0: {
+      // Woo! Our stream was created.
+      CHECK_GE(id, 0);
+      if (auto stream = CreateStream(id, CreateStreamOption::DO_NOT_NOTIFY)) {
+        return stream->object();
+      }
+      return MaybeLocal<Object>();
+    }
+    case NGTCP2_ERR_STREAM_ID_BLOCKED: {
+      // The stream cannot yet be opened.
+      // This is typically caused by the application exceeding the allowed max
+      // number of concurrent streams. We will allow the stream to be created
+      // in a pending state.
+      if (auto stream = Stream::Create(this, direction)) {
+        return stream->object();
+      }
+      return MaybeLocal<Object>();
+    }
+    default: {
+      // The stream could not be opened. Return nothing to signal error.
+      return MaybeLocal<Object>();
     }
   }
-  return BaseObjectPtr<Stream>();
+  UNREACHABLE();
 }
 
 void Session::AddStream(const BaseObjectPtr<Stream>& stream,
                         CreateStreamOption option) {
-  Debug(this, "Adding stream %" PRIi64 " to session", stream->id());
-  ngtcp2_conn_set_stream_user_data(*this, stream->id(), stream.get());
+  CHECK(stream);
+
+  auto id = stream->id();
+  auto direction = stream->direction();
+
   // Let's double check that a stream with the given id does not already
   // exist. If it does, that means we've got a bug somewhere.
-  CHECK_EQ(streams_.find(stream->id()), streams_.end());
+  CHECK_EQ(streams_.find(id), streams_.end());
 
-  streams_[stream->id()] = stream;
+  Debug(this, "Adding stream %" PRIi64 " to session", id);
+
+  // The streams_ map becomes the sole owner of the Stream instance.
+  // We mark the stream detached so that when it is removed from
+  // the session, or is the session is destroyed, the stream will
+  // also be destroyed.
+  auto& inserted = streams_[id] = std::move(stream);
+  inserted->Detach();
+
+  ngtcp2_conn_set_stream_user_data(*this, id, inserted.get());
 
   if (option == CreateStreamOption::NOTIFY) {
-    EmitStream(stream);
+    EmitStream(inserted);
   }
 
   // Update tracking statistics for the number of streams associated with this
   // session.
-  switch (stream->origin()) {
-    case Side::CLIENT: {
-      if (is_server()) {
-        switch (stream->direction()) {
-          case Direction::BIDIRECTIONAL:
-            STAT_INCREMENT(Stats, bidi_in_stream_count);
-            break;
-          case Direction::UNIDIRECTIONAL:
-            STAT_INCREMENT(Stats, uni_in_stream_count);
-            break;
-        }
-      } else {
-        switch (stream->direction()) {
-          case Direction::BIDIRECTIONAL:
-            STAT_INCREMENT(Stats, bidi_out_stream_count);
-            break;
-          case Direction::UNIDIRECTIONAL:
-            STAT_INCREMENT(Stats, uni_out_stream_count);
-            break;
-        }
+  if (ngtcp2_conn_is_local_stream(*this, id)) {
+    switch (direction) {
+      case Direction::BIDIRECTIONAL: {
+        STAT_INCREMENT(Stats, bidi_out_stream_count);
+        break;
       }
-      break;
+      case Direction::UNIDIRECTIONAL: {
+        STAT_INCREMENT(Stats, uni_out_stream_count);
+        break;
+      }
     }
-    case Side::SERVER: {
-      if (is_server()) {
-        switch (stream->direction()) {
-          case Direction::BIDIRECTIONAL:
-            STAT_INCREMENT(Stats, bidi_out_stream_count);
-            break;
-          case Direction::UNIDIRECTIONAL:
-            STAT_INCREMENT(Stats, uni_out_stream_count);
-            break;
-        }
-      } else {
-        switch (stream->direction()) {
-          case Direction::BIDIRECTIONAL:
-            STAT_INCREMENT(Stats, bidi_in_stream_count);
-            break;
-          case Direction::UNIDIRECTIONAL:
-            STAT_INCREMENT(Stats, uni_in_stream_count);
-            break;
-        }
+  } else {
+    switch (direction) {
+      case Direction::BIDIRECTIONAL: {
+        STAT_INCREMENT(Stats, bidi_in_stream_count);
+        break;
       }
-      break;
+      case Direction::UNIDIRECTIONAL: {
+        STAT_INCREMENT(Stats, uni_in_stream_count);
+        break;
+      }
     }
   }
 }
@@ -1217,6 +1256,10 @@ bool Session::can_send_packets() const {
 bool Session::can_create_streams() const {
   return !state_->destroyed && !state_->graceful_close && !state_->closing &&
          !is_in_closing_period() && !is_in_draining_period();
+}
+
+bool Session::can_open_streams() const {
+  return state_->stream_open_allowed;
 }
 
 uint64_t Session::max_data_left() const {
@@ -1529,6 +1572,72 @@ CID Session::new_cid(size_t len) const {
   return config_.options.cid_factory->Generate(len);
 }
 
+void Session::ProcessPendingBidiStreams() {
+  // It shouldn't be possible to get here if can_create_streams() is false.
+  CHECK(can_create_streams());
+
+  int64_t id;
+
+  while (!pending_bidi_stream_queue_.IsEmpty()) {
+    if (ngtcp2_conn_get_streams_bidi_left(*this) == 0) {
+      return;
+    }
+
+    switch (ngtcp2_conn_open_bidi_stream(*this, &id, nullptr)) {
+      case 0: {
+        pending_bidi_stream_queue_.PopFront()->fulfill(id);
+        continue;
+      }
+      case NGTCP2_ERR_STREAM_ID_BLOCKED: {
+        // This case really should not happen since we've checked the number
+        // of bidi streams left above. However, if it does happen we'll treat
+        // it the same as if the get_streams_bidi_left call returned zero.
+        return;
+      }
+      default: {
+        // We failed to open the stream for some reason other than being
+        // blocked. Report the failure.
+        pending_bidi_stream_queue_.PopFront()->reject(
+            QuicError::ForTransport(NGTCP2_STREAM_LIMIT_ERROR));
+        continue;
+      }
+    }
+  }
+}
+
+void Session::ProcessPendingUniStreams() {
+  // It shouldn't be possible to get here if can_create_streams() is false.
+  CHECK(can_create_streams());
+
+  int64_t id;
+
+  while (!pending_uni_stream_queue_.IsEmpty()) {
+    if (ngtcp2_conn_get_streams_uni_left(*this) == 0) {
+      return;
+    }
+
+    switch (ngtcp2_conn_open_uni_stream(*this, &id, nullptr)) {
+      case 0: {
+        pending_uni_stream_queue_.PopFront()->fulfill(id);
+        continue;
+      }
+      case NGTCP2_ERR_STREAM_ID_BLOCKED: {
+        // This case really should not happen since we've checked the number
+        // of bidi streams left above. However, if it does happen we'll treat
+        // it the same as if the get_streams_bidi_left call returned zero.
+        return;
+      }
+      default: {
+        // We failed to open the stream for some reason other than being
+        // blocked. Report the failure.
+        pending_uni_stream_queue_.PopFront()->reject(
+            QuicError::ForTransport(NGTCP2_STREAM_LIMIT_ERROR));
+        continue;
+      }
+    }
+  }
+}
+
 // JavaScript callouts
 
 void Session::EmitClose(const QuicError& error) {
@@ -1703,7 +1812,7 @@ void Session::EmitSessionTicket(Store&& ticket) {
   }
 }
 
-void Session::EmitStream(BaseObjectPtr<Stream> stream) {
+void Session::EmitStream(const BaseObjectPtr<Stream>& stream) {
   if (is_destroyed()) return;
   if (!env()->can_call_into_js()) return;
   CallbackScope<Session> cb_scope(this);
@@ -1853,14 +1962,15 @@ struct Session::Impl {
     args.GetReturnValue().Set(session->tls_session().InitiateKeyUpdate());
   }
 
-  static void DoOpenStream(const FunctionCallbackInfo<Value>& args) {
+  static void OpenStream(const FunctionCallbackInfo<Value>& args) {
     Session* session;
     ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
     DCHECK(args[0]->IsUint32());
     auto direction = static_cast<Direction>(args[0].As<Uint32>()->Value());
-    BaseObjectPtr<Stream> stream = session->OpenStream(direction);
-
-    if (stream) args.GetReturnValue().Set(stream->object());
+    Local<Object> stream;
+    if (session->OpenStream(direction).ToLocal(&stream)) [[likely]] {
+      args.GetReturnValue().Set(stream);
+    }
   }
 
   static void DoSendDatagram(const FunctionCallbackInfo<Value>& args) {
@@ -1943,8 +2053,7 @@ struct Session::Impl {
                                         uint64_t max_streams,
                                         void* user_data) {
     NGTCP2_CALLBACK_SCOPE(session)
-    session->application().ExtendMaxStreams(
-        EndpointLabel::LOCAL, Direction::BIDIRECTIONAL, max_streams);
+    session->ProcessPendingBidiStreams();
     return NGTCP2_SUCCESS;
   }
 
@@ -1952,8 +2061,7 @@ struct Session::Impl {
                                        uint64_t max_streams,
                                        void* user_data) {
     NGTCP2_CALLBACK_SCOPE(session)
-    session->application().ExtendMaxStreams(
-        EndpointLabel::LOCAL, Direction::UNIDIRECTIONAL, max_streams);
+    session->ProcessPendingUniStreams();
     return NGTCP2_SUCCESS;
   }
 

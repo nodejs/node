@@ -139,11 +139,10 @@ class Packet final : public ReqWrap<uv_udp_send_t> {
   void Done(int status);
 
  private:
-  static BaseObjectPtr<Packet> FromFreeList(
-      Environment* env,
-      std::shared_ptr<Data> data,
-      Listener* listener,
-      const SocketAddress& destination);
+  static BaseObjectPtr<Packet> FromFreeList(Environment* env,
+                                            std::shared_ptr<Data> data,
+                                            Listener* listener,
+                                            const SocketAddress& destination);
 
   Listener* listener_;
   SocketAddress destination_;

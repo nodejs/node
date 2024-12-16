@@ -567,18 +567,17 @@ int Endpoint::UDP::Send(BaseObjectPtr<Packet> packet) {
   // which we don't want.
   packet->ClearWeak();
   packet->Dispatched();
-  int err = uv_udp_send(
-      packet->req(),
-      &impl_->handle_,
-      &buf,
-      1,
-      packet->destination().data(),
-      uv_udp_send_cb{[](uv_udp_send_t* req, int status) {
-        auto ptr = BaseObjectPtr<Packet>(
-            static_cast<Packet*>(ReqWrap<uv_udp_send_t>::from_req(req)));
-        ptr->env()->DecreaseWaitingRequestCounter();
-        ptr->Done(status);
-      }});
+  int err = uv_udp_send(packet->req(),
+                        &impl_->handle_,
+                        &buf,
+                        1,
+                        packet->destination().data(),
+                        uv_udp_send_cb{[](uv_udp_send_t* req, int status) {
+                          auto ptr = BaseObjectPtr<Packet>(static_cast<Packet*>(
+                              ReqWrap<uv_udp_send_t>::from_req(req)));
+                          ptr->env()->DecreaseWaitingRequestCounter();
+                          ptr->Done(status);
+                        }});
   if (err < 0) {
     // The packet failed.
     packet->Done(err);
@@ -1025,7 +1024,7 @@ BaseObjectPtr<Session> Endpoint::Connect(
     const Session::Options& options,
     std::optional<SessionTicket> session_ticket) {
   // If starting fails, the endpoint will be destroyed.
-  if (!Start()) return BaseObjectPtr<Session>();
+  if (!Start()) return {};
 
   Session::Config config(*this, options, local_address(), remote_address);
 
@@ -1044,7 +1043,7 @@ BaseObjectPtr<Session> Endpoint::Connect(
     THROW_ERR_INVALID_STATE(env(),
                             "Failed to create TLS context: %s",
                             tls_context->validation_error());
-    return BaseObjectPtr<Session>();
+    return {};
   }
   auto session =
       Session::Create(this, config, tls_context.get(), session_ticket);
@@ -1052,9 +1051,9 @@ BaseObjectPtr<Session> Endpoint::Connect(
     THROW_ERR_INVALID_STATE(env(),
                             "Failed to create TLS session: %s",
                             session->tls_session().validation_error());
-    return BaseObjectPtr<Session>();
+    return {};
   }
-  if (!session) return BaseObjectPtr<Session>();
+  if (!session) return {};
   session->set_wrapped();
 
   // Calling SendPendingData here triggers the session to send the initial

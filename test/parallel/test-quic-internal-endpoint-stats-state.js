@@ -64,9 +64,7 @@ describe('quic internal endpoint stats and state', { skip: !hasQuic }, () => {
   it('state is not readable after close', () => {
     const endpoint = new QuicEndpoint();
     endpoint.state[kFinishClose]();
-    throws(() => endpoint.state.isBound, {
-      name: 'Error',
-    });
+    strictEqual(endpoint.state.isBound, undefined);
   });
 
   it('state constructor argument is ArrayBuffer', () => {
@@ -142,11 +140,11 @@ describe('quic internal endpoint stats and state', { skip: !hasQuic }, () => {
     const streamState = new QuicStreamState(kPrivateConstructor, new ArrayBuffer(1024));
     const sessionState = new QuicSessionState(kPrivateConstructor, new ArrayBuffer(1024));
 
+    strictEqual(streamState.pending, false);
     strictEqual(streamState.finSent, false);
     strictEqual(streamState.finReceived, false);
     strictEqual(streamState.readEnded, false);
     strictEqual(streamState.writeEnded, false);
-    strictEqual(streamState.destroyed, false);
     strictEqual(streamState.paused, false);
     strictEqual(streamState.reset, false);
     strictEqual(streamState.hasReader, false);
@@ -181,9 +179,9 @@ describe('quic internal endpoint stats and state', { skip: !hasQuic }, () => {
     const streamStats = new QuicStreamStats(kPrivateConstructor, new ArrayBuffer(1024));
     const sessionStats = new QuicSessionStats(kPrivateConstructor, new ArrayBuffer(1024));
     strictEqual(streamStats.createdAt, 0n);
+    strictEqual(streamStats.openedAt, 0n);
     strictEqual(streamStats.receivedAt, 0n);
     strictEqual(streamStats.ackedAt, 0n);
-    strictEqual(streamStats.closingAt, 0n);
     strictEqual(streamStats.destroyedAt, 0n);
     strictEqual(streamStats.bytesReceived, 0n);
     strictEqual(streamStats.bytesSent, 0n);

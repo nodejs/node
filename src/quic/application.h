@@ -146,7 +146,7 @@ struct Session::Application::StreamData final {
   int64_t id = -1;
   int fin = 0;
   ngtcp2_vec data[kMaxVectorCount]{};
-  BaseObjectPtr<Stream> stream;
+  BaseObjectWeakPtr<Stream> stream;
 
   inline operator nghttp3_vec*() {
     return reinterpret_cast<nghttp3_vec*>(data);

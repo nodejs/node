@@ -468,19 +468,17 @@ class DefaultApplication final : public Session::Application {
                          void* stream_user_data) override {
     Debug(&session(), "Default application receiving stream data");
 
-    BaseObjectPtr<Stream> stream;
+    BaseObjectWeakPtr<Stream> stream;
     if (stream_user_data == nullptr) {
       // This is the first time we're seeing this stream. Implicitly create it.
       stream = session().CreateStream(stream_id);
-      if (!stream) {
+      if (!stream) [[unlikely]] {
         // We couldn't actually create the stream for whatever reason.
         Debug(&session(), "Default application failed to create new stream");
         return false;
       }
-      // Let the JavaScript side know about the stream before we emit any data.
-      session().EmitStream(stream);
     } else {
-      stream = BaseObjectPtr<Stream>(Stream::From(stream_user_data));
+      stream = BaseObjectWeakPtr<Stream>(Stream::From(stream_user_data));
       if (!stream) {
         Debug(&session(),
               "Default application failed to get existing stream "
@@ -489,16 +487,7 @@ class DefaultApplication final : public Session::Application {
       }
     }
 
-    DCHECK(stream);
-
-    // If the stream is destroyed, we are going to silently ignore the
-    // data here.
-    if (stream->is_destroyed()) {
-      Debug(&session(),
-            "Data received for a stream that is already "
-            "destroyed. Ignoring.");
-      return true;
-    }
+    CHECK(stream);
 
     // Now we can actually receive the data! Woo!
     stream->ReceiveData(data, datalen, flags);
@@ -592,17 +581,17 @@ class DefaultApplication final : public Session::Application {
 
  private:
   void ScheduleStream(int64_t id) {
-    Debug(&session(), "Default application scheduling stream %" PRIi64, id);
-    auto stream = session().FindStream(id);
-    if (stream && !stream->is_destroyed()) {
+    if (auto stream = session().FindStream(id)) [[likely]] {
+      Debug(&session(), "Default application scheduling stream %" PRIi64, id);
       stream->Schedule(&stream_queue_);
     }
   }
 
   void UnscheduleStream(int64_t id) {
-    Debug(&session(), "Default application unscheduling stream %" PRIi64, id);
-    auto stream = session().FindStream(id);
-    if (stream && !stream->is_destroyed()) stream->Unschedule();
+    if (auto stream = session().FindStream(id)) [[likely]] {
+      Debug(&session(), "Default application unscheduling stream %" PRIi64, id);
+      stream->Unschedule();
+    }
   }
 
   Stream::Queue stream_queue_;

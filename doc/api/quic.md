@@ -480,20 +480,24 @@ added: REPLACEME
 
 * {quic.OnHandshakeCallback}
 
-### `session.openBidirectionalStream()`
+### `session.openBidirectionalStream([options])`
 
 <!-- YAML
 added: REPLACEME
 -->
 
+* `options` {Object}
+  * `headers` {Object}
 * Returns: {quic.QuicStream}
 
-### `session.openUnidirectionalStream()`
+### `session.openUnidirectionalStream([options])`
 
 <!-- YAML
 added: REPLACEME
 -->
 
+* `options` {Object}
+  * `headers` {Object
 * Returns: {quic.QuicStream}
 
 ### `session.path`
@@ -1008,15 +1012,7 @@ added: REPLACEME
 added: REPLACEME
 -->
 
-### `streamState.id`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {bigint}
-
-### `streamState.finSent`
+### `streamState.destroyed`
 
 <!-- YAML
 added: REPLACEME
@@ -1032,7 +1028,7 @@ added: REPLACEME
 
 * {boolean}
 
-### `streamState.readEnded`
+### `streamState.finSent`
 
 <!-- YAML
 added: REPLACEME
@@ -1040,7 +1036,7 @@ added: REPLACEME
 
 * {boolean}
 
-### `streamState.writeEnded`
+### `streamState.hasReader`
 
 <!-- YAML
 added: REPLACEME
@@ -1048,13 +1044,13 @@ added: REPLACEME
 
 * {boolean}
 
-### `streamState.destroyed`
+### `streamState.id`
 
 <!-- YAML
 added: REPLACEME
 -->
 
-* {boolean}
+* {bigint}
 
 ### `streamState.paused`
 
@@ -1064,7 +1060,7 @@ added: REPLACEME
 
 * {boolean}
 
-### `streamState.reset`
+### `streamState.pending`
 
 <!-- YAML
 added: REPLACEME
@@ -1072,7 +1068,15 @@ added: REPLACEME
 
 * {boolean}
 
-### `streamState.hasReader`
+### `streamState.readEnded`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+### `streamState.reset`
 
 <!-- YAML
 added: REPLACEME
@@ -1112,53 +1116,21 @@ added: REPLACEME
 
 * {boolean}
 
+### `streamState.writeEnded`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
 ## Class: `QuicStreamStats`
 
 <!-- YAML
 added: REPLACEME
 -->
 
-### `streamStats.isConnected`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {bigint}
-
-### `streamStats.createdAt`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {bigint}
-
-### `streamStats.receivedAt`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {bigint}
-
 ### `streamStats.ackedAt`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {bigint}
-
-### `streamStats.closingAt`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {bigint}
-
-### `streamStats.destroyedAt`
 
 <!-- YAML
 added: REPLACEME
@@ -1175,6 +1147,38 @@ added: REPLACEME
 * {bigint}
 
 ### `streamStats.bytesSent`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {bigint}
+
+### `streamStats.createdAt`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {bigint}
+
+### `streamStats.destroyedAt`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {bigint}
+
+### `streamStats.finalSize`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {bigint}
+
+### `streamStats.isConnected`
 
 <!-- YAML
 added: REPLACEME
@@ -1206,7 +1210,15 @@ added: REPLACEME
 
 * {bigint}
 
-### `streamStats.finalSize`
+### `streamStats.openedAt`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {bigint}
+
+### `streamStats.receivedAt`
 
 <!-- YAML
 added: REPLACEME

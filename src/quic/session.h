@@ -117,7 +117,7 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     const CID::Factory* cid_factory = &CID::Factory::random();
     // If the CID::Factory is a base object, we keep a reference to it
     // so that it cannot be garbage collected.
-    BaseObjectPtr<BaseObject> cid_factory_ref = BaseObjectPtr<BaseObject>();
+    BaseObjectPtr<BaseObject> cid_factory_ref = {};
 
     // When true, QLog output will be enabled for the session.
     bool qlog = false;
@@ -216,6 +216,7 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
           const Config& config,
           TLSContext* tls_context,
           const std::optional<SessionTicket>& ticket);
+  DISALLOW_COPY_AND_MOVE(Session)
   ~Session() override;
 
   uint32_t version() const;
@@ -244,8 +245,8 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
 
   void HandleQlog(uint32_t flags, const void* data, size_t len);
 
-  TransportParams GetLocalTransportParams() const;
-  TransportParams GetRemoteTransportParams() const;
+  const TransportParams GetLocalTransportParams() const;
+  const TransportParams GetRemoteTransportParams() const;
   void UpdatePacketTxTime();
 
   void MemoryInfo(MemoryTracker* tracker) const override;
@@ -257,16 +258,31 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
 
   operator ngtcp2_conn*() const;
 
-  BaseObjectPtr<Stream> FindStream(int64_t id) const;
+  // Note that we are returning a BaseObjectWeakPtr here. The Stream instance
+  // itself is owned strongly by the Session in a detached state. This means
+  // that the only reference to the Stream keeping it alive is held by the
+  // Session itself. That strong reference will be destroyed either when the
+  // stream is removed from session or the session is destroyed. All other
+  // references to the stream should be held weakly.
+  BaseObjectWeakPtr<Stream> FindStream(int64_t id) const;
 
   enum class CreateStreamOption {
     NOTIFY,
-    DOT_NOT_NOTIFY,
+    DO_NOT_NOTIFY,
   };
 
-  BaseObjectPtr<Stream> CreateStream(int64_t id,
-      CreateStreamOption option = CreateStreamOption::NOTIFY);
-  BaseObjectPtr<Stream> OpenStream(Direction direction);
+  // Creates the stream, adding it to the sessions stream map if successful.
+  // A weak reference to the stream is returned.
+  BaseObjectWeakPtr<Stream> CreateStream(
+      int64_t id, CreateStreamOption option = CreateStreamOption::NOTIFY);
+
+  // Open a new locally-initialized stream with the specified directionality.
+  // If the session is not yet in a state where the stream can be openen --
+  // such as when the handshake is not yet sufficiently far along and ORTT
+  // session resumption is not being used -- then the stream will be created
+  // in a pending state where actually opening the stream will be deferred.
+  v8::MaybeLocal<v8::Object> OpenStream(Direction direction);
+
   void ExtendStreamOffset(int64_t id, size_t amount);
   void ExtendOffset(size_t amount);
   void SetLastError(QuicError&& error);
@@ -299,6 +315,14 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     DISALLOW_COPY_AND_MOVE(SendPendingDataScope)
     ~SendPendingDataScope();
   };
+
+  inline PendingStream::PendingStreamQueue& pending_bidi_stream_queue() {
+    return pending_bidi_stream_queue_;
+  }
+
+  inline PendingStream::PendingStreamQueue& pending_uni_stream_queue() {
+    return pending_uni_stream_queue_;
+  }
 
  private:
   struct Impl;
@@ -357,8 +381,17 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   bool can_send_packets() const;
 
   // Returns false if the Session is currently in a state where it cannot create
-  // new streams.
+  // new streams. Specifically, a stream is not in a state to create streams if
+  // it has been destroyed or is closing.
   bool can_create_streams() const;
+
+  // Returns false if the Session is currently in a state where it cannot open
+  // a new locally-initiated stream. When using 0RTT session resumption, this
+  // will become true immediately after the session ticket and transport params
+  // have been configured. Otherwise, it becomes true after the remote transport
+  // params and tx keys have been installed.
+  bool can_open_streams() const;
+
   uint64_t max_local_streams_uni() const;
   uint64_t max_local_streams_bidi() const;
 
@@ -376,6 +409,9 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   void OnTimeout();
   void UpdateTimer();
   bool StartClosingPeriod();
+
+  void ProcessPendingBidiStreams();
+  void ProcessPendingUniStreams();
 
   // JavaScript callouts
 
@@ -395,7 +431,7 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
                           const ValidatedPath& newPath,
                           const std::optional<ValidatedPath>& oldPath);
   void EmitSessionTicket(Store&& ticket);
-  void EmitStream(BaseObjectPtr<Stream> stream);
+  void EmitStream(const BaseObjectPtr<Stream>& stream);
   void EmitVersionNegotiation(const ngtcp2_pkt_hd& hd,
                               const uint32_t* sv,
                               size_t nsv);
@@ -432,6 +468,8 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   BaseObjectPtr<Packet> conn_closebuf_;
   BaseObjectPtr<LogStream> qlog_stream_;
   BaseObjectPtr<LogStream> keylog_stream_;
+  PendingStream::PendingStreamQueue pending_bidi_stream_queue_;
+  PendingStream::PendingStreamQueue pending_uni_stream_queue_;
 
   friend class Application;
   friend class DefaultApplication;

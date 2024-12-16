@@ -152,9 +152,12 @@ class Http3Application final : public Session::Application {
                          size_t datalen,
                          const Stream::ReceiveDataFlags& flags,
                          void* unused) override {
-    Debug(&session(), "HTTP/3 application received %zu bytes of data "
+    Debug(&session(),
+          "HTTP/3 application received %zu bytes of data "
           "on stream %" PRIi64 ". Is final? %d",
-          datalen, stream_id, flags.fin);
+          datalen,
+          stream_id,
+          flags.fin);
 
     ssize_t nread = nghttp3_conn_read_stream(
         *this, stream_id, data, datalen, flags.fin ? 1 : 0);
@@ -402,7 +405,6 @@ class Http3Application final : public Session::Application {
       }
 
       data->count = static_cast<size_t>(ret);
-
       if (data->id > 0 && data->id != control_stream_id_ &&
           data->id != qpack_dec_stream_id_ &&
           data->id != qpack_enc_stream_id_) {
@@ -464,11 +466,12 @@ class Http3Application final : public Session::Application {
   }
 
   void OnStreamClose(Stream* stream, uint64_t app_error_code) {
-    if (stream->is_destroyed()) return;
     if (app_error_code != NGHTTP3_H3_NO_ERROR) {
       Debug(&session(),
             "HTTP/3 application received stream close for stream %" PRIi64
-            " with code %" PRIu64, stream->id(), app_error_code);
+            " with code %" PRIu64,
+            stream->id(),
+            app_error_code);
     }
     auto direction = stream->direction();
     stream->Destroy(QuicError::ForApplication(app_error_code));
@@ -478,9 +481,8 @@ class Http3Application final : public Session::Application {
   void OnBeginHeaders(int64_t stream_id) {
     auto stream = session().FindStream(stream_id);
     // If the stream does not exist or is destroyed, ignore!
-    if (!stream || stream->is_destroyed()) [[unlikely]] {
+    if (!stream) [[unlikely]]
       return;
-    }
     Debug(&session(),
           "HTTP/3 application beginning initial block of headers for stream "
           "%" PRIi64,
@@ -491,9 +493,8 @@ class Http3Application final : public Session::Application {
   void OnReceiveHeader(int64_t stream_id, Http3Header&& header) {
     auto stream = session().FindStream(stream_id);
 
-    if (!stream || stream->is_destroyed()) [[unlikely]] {
+    if (!stream) [[unlikely]]
       return;
-    }
     if (header.name() == ":status" && header.value()[0] == '1') {
       Debug(&session(),
             "HTTP/3 application switching to hints headers for stream %" PRIi64,
@@ -511,9 +512,8 @@ class Http3Application final : public Session::Application {
 
   void OnEndHeaders(int64_t stream_id, int fin) {
     auto stream = session().FindStream(stream_id);
-    if (!stream || stream->is_destroyed()) [[unlikely]] {
+    if (!stream) [[unlikely]]
       return;
-    }
     Debug(&session(),
           "HTTP/3 application received end of headers for stream %" PRIi64,
           stream_id);
@@ -531,9 +531,8 @@ class Http3Application final : public Session::Application {
 
   void OnBeginTrailers(int64_t stream_id) {
     auto stream = session().FindStream(stream_id);
-    if (!stream || stream->is_destroyed()) [[unlikely]] {
+    if (!stream) [[unlikely]]
       return;
-    }
     Debug(&session(),
           "HTTP/3 application beginning block of trailers for stream %" PRIi64,
           stream_id);
@@ -542,9 +541,8 @@ class Http3Application final : public Session::Application {
 
   void OnReceiveTrailer(int64_t stream_id, Http3Header&& header) {
     auto stream = session().FindStream(stream_id);
-    if (!stream || stream->is_destroyed()) [[unlikely]] {
+    if (!stream) [[unlikely]]
       return;
-    }
     IF_QUIC_DEBUG(env()) {
       Debug(&session(),
             "Received header \"%s: %s\"",
@@ -556,9 +554,8 @@ class Http3Application final : public Session::Application {
 
   void OnEndTrailers(int64_t stream_id, int fin) {
     auto stream = session().FindStream(stream_id);
-    if (!stream || stream->is_destroyed()) [[unlikely]] {
+    if (!stream) [[unlikely]]
       return;
-    }
     Debug(&session(),
           "HTTP/3 application received end of trailers for stream %" PRIi64,
           stream_id);
@@ -575,9 +572,8 @@ class Http3Application final : public Session::Application {
 
   void OnEndStream(int64_t stream_id) {
     auto stream = session().FindStream(stream_id);
-    if (!stream || stream->is_destroyed()) [[unlikely]] {
+    if (!stream) [[unlikely]]
       return;
-    }
     Debug(&session(),
           "HTTP/3 application received end of stream for stream %" PRIi64,
           stream_id);
@@ -590,9 +586,8 @@ class Http3Application final : public Session::Application {
 
   void OnStopSending(int64_t stream_id, uint64_t app_error_code) {
     auto stream = session().FindStream(stream_id);
-    if (!stream || stream->is_destroyed()) [[unlikely]] {
+    if (!stream) [[unlikely]]
       return;
-    }
     Debug(&session(),
           "HTTP/3 application received stop sending for stream %" PRIi64,
           stream_id);
@@ -601,9 +596,8 @@ class Http3Application final : public Session::Application {
 
   void OnResetStream(int64_t stream_id, uint64_t app_error_code) {
     auto stream = session().FindStream(stream_id);
-    if (!stream || stream->is_destroyed()) [[unlikely]] {
+    if (!stream) [[unlikely]]
       return;
-    }
     Debug(&session(),
           "HTTP/3 application received reset stream for stream %" PRIi64,
           stream_id);
@@ -659,20 +653,16 @@ class Http3Application final : public Session::Application {
     return app;
   }
 
-  static BaseObjectPtr<Stream> FindOrCreateStream(nghttp3_conn* conn,
-                                                  Session* session,
-                                                  int64_t stream_id) {
-    BaseObjectPtr<Stream> stream = session->FindStream(stream_id);
-    if (stream) {
+  static BaseObjectWeakPtr<Stream> FindOrCreateStream(nghttp3_conn* conn,
+                                                      Session* session,
+                                                      int64_t stream_id) {
+    if (auto stream = session->FindStream(stream_id)) {
       return stream;
     }
-
-    stream = session->CreateStream(stream_id);
-    if (stream) {
+    if (auto stream = session->CreateStream(stream_id)) {
       return stream;
     }
-
-    return BaseObjectPtr<Stream>();
+    return {};
   }
 
 #define NGHTTP3_CALLBACK_SCOPE(name)                                           \
@@ -731,15 +721,12 @@ class Http3Application final : public Session::Application {
       return NGHTTP3_ERR_CALLBACK_FAILURE;
     }
     auto& session = app.session();
-    auto stream = FindOrCreateStream(conn, &session, stream_id);
-    if (!stream) [[unlikely]] {
-      return NGHTTP3_ERR_CALLBACK_FAILURE;
-    }
-    if (stream->is_destroyed()) [[unlikely]] {
+    if (auto stream = FindOrCreateStream(conn, &session, stream_id))
+        [[likely]] {
+      stream->ReceiveData(data, datalen, Stream::ReceiveDataFlags{});
       return NGTCP2_SUCCESS;
     }
-    stream->ReceiveData(data, datalen, Stream::ReceiveDataFlags{});
-    return NGTCP2_SUCCESS;
+    return NGHTTP3_ERR_CALLBACK_FAILURE;
   }
 
   static int on_deferred_consume(nghttp3_conn* conn,
