@@ -6,7 +6,7 @@ if (!process.config.variables.node_use_amaro) skip('Requires Amaro');
 
 test('eval TypeScript ESM syntax', async () => {
   const result = await spawnPromisified(process.execPath, [
-    '--experimental-strip-types',
+    '--experimental-strip-input-types',
     '--eval',
     `import util from 'node:util'
     const text: string = 'Hello, TypeScript!'
@@ -19,7 +19,7 @@ test('eval TypeScript ESM syntax', async () => {
 
 test('eval TypeScript ESM syntax with input-type module', async () => {
   const result = await spawnPromisified(process.execPath, [
-    '--experimental-strip-types',
+    '--experimental-strip-input-types',
     '--input-type=module',
     '--eval',
     `import util from 'node:util'
@@ -33,7 +33,7 @@ test('eval TypeScript ESM syntax with input-type module', async () => {
 
 test('eval TypeScript CommonJS syntax', async () => {
   const result = await spawnPromisified(process.execPath, [
-    '--experimental-strip-types',
+    '--experimental-strip-input-types',
     '--eval',
     `const util = require('node:util');
     const text: string = 'Hello, TypeScript!'
@@ -46,7 +46,7 @@ test('eval TypeScript CommonJS syntax', async () => {
 
 test('eval TypeScript CommonJS syntax with input-type commonjs', async () => {
   const result = await spawnPromisified(process.execPath, [
-    '--experimental-strip-types',
+    '--experimental-strip-input-types',
     '--input-type=commonjs',
     '--eval',
     `const util = require('node:util');
@@ -60,7 +60,7 @@ test('eval TypeScript CommonJS syntax with input-type commonjs', async () => {
 
 test('eval TypeScript CommonJS syntax by default', async () => {
   const result = await spawnPromisified(process.execPath, [
-    '--experimental-strip-types',
+    '--experimental-strip-input-types',
     '--eval',
     `const util = require('node:util');
     const text: string = 'Hello, TypeScript!'
@@ -74,7 +74,7 @@ test('eval TypeScript CommonJS syntax by default', async () => {
 
 test('TypeScript ESM syntax not specified', async () => {
   const result = await spawnPromisified(process.execPath, [
-    '--experimental-strip-types',
+    '--experimental-strip-input-types',
     '--eval',
     `import util from 'node:util'
     const text: string = 'Hello, TypeScript!'
@@ -86,7 +86,7 @@ test('TypeScript ESM syntax not specified', async () => {
 
 test('expect fail eval TypeScript CommonJS syntax with input-type module', async () => {
   const result = await spawnPromisified(process.execPath, [
-    '--experimental-strip-types',
+    '--experimental-strip-input-types',
     '--input-type=module',
     '--eval',
     `const util = require('node:util');
@@ -100,7 +100,7 @@ test('expect fail eval TypeScript CommonJS syntax with input-type module', async
 
 test('expect fail eval TypeScript ESM syntax with input-type commonjs', async () => {
   const result = await spawnPromisified(process.execPath, [
-    '--experimental-strip-types',
+    '--experimental-strip-input-types',
     '--input-type=commonjs',
     '--eval',
     `import util from 'node:util'
@@ -113,10 +113,24 @@ test('expect fail eval TypeScript ESM syntax with input-type commonjs', async ()
 
 test('check syntax error is thrown when passing invalid syntax', async () => {
   const result = await spawnPromisified(process.execPath, [
-    '--experimental-strip-types',
+    '--experimental-strip-input-types',
     '--eval',
     'enum Foo { A, B, C }']);
   strictEqual(result.stdout, '');
   match(result.stderr, /ERR_INVALID_TYPESCRIPT_SYNTAX/);
+  strictEqual(result.code, 1);
+});
+
+test('eval TypeScript without --experimental-strip-input-types but --experimental-strip-types', async () => {
+  const result = await spawnPromisified(process.execPath, [
+    '--experimental-strip-types',
+    '--input-type=module',
+    '--eval',
+    `import util from 'node:util'
+    const text: string = 'Hello, TypeScript!'
+    console.log(util.styleText('red', text));`]);
+
+  match(result.stderr, /SyntaxError: Missing initializer in const declaration/);
+  strictEqual(result.stdout, '');
   strictEqual(result.code, 1);
 });

@@ -844,6 +844,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "ES module to preload (option can be repeated)",
             &EnvironmentOptions::preload_esm_modules,
             kAllowedInEnvvar);
+  AddOption("--experimental-strip-input-types",
+            "Experimental type-stripping for eval",
+            &EnvironmentOptions::experimental_strip_input_types,
+            kAllowedInEnvvar);
   AddOption("--experimental-strip-types",
             "Experimental type-stripping for TypeScript files.",
             &EnvironmentOptions::experimental_strip_types,
@@ -855,6 +859,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar);
   Implies("--experimental-transform-types", "--experimental-strip-types");
   Implies("--experimental-transform-types", "--enable-source-maps");
+  Implies("--experimental-strip-input-types", "--experimental-strip-types");
   AddOption("--interactive",
             "always enter the REPL even if stdin does not appear "
             "to be a terminal",

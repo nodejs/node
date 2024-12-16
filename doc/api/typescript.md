@@ -153,7 +153,7 @@ import { fn, FnParams } from './fn.ts';
 
 ### Non-file forms of input
 
-Type stripping can be enabled for `--eval`. The module system
+Type stripping can be enabled for `--eval` by using the flag [`--experimental-strip-input-types`][]. The module system
 will be determined by `--input-type`, as it is for JavaScript.
 
 TypeScript syntax is unsupported in the REPL, STDIN input, `--print`, `--check`, and
@@ -181,6 +181,7 @@ with `#`.
 [CommonJS]: modules.md
 [ES Modules]: esm.md
 [Full TypeScript support]: #full-typescript-support
+[`--experimental-strip-input-types`]: cli.md#--experimental-strip-input-types
 [`--experimental-strip-types`]: cli.md#--experimental-strip-types
 [`--experimental-transform-types`]: cli.md#--experimental-transform-types
 [`tsconfig` "paths"]: https://www.typescriptlang.org/tsconfig/#paths

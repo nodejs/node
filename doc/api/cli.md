@@ -995,6 +995,18 @@ added:
 
 Use this flag to enable [ShadowRealm][] support.
 
+### `--experimental-strip-input-types`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active development
+
+Enable experimental type-stripping for `--eval`.
+Implies [`--experimental-strip-types`][].
+For more information, see the [TypeScript type-stripping][] documentation.
+
 ### `--experimental-strip-types`
 
 <!-- YAML
@@ -3054,6 +3066,7 @@ one is included in the list below.
 * `--experimental-require-module`
 * `--experimental-shadow-realm`
 * `--experimental-specifier-resolution`
+* `--experimental-strip-input-types`
 * `--experimental-strip-types`
 * `--experimental-top-level-await`
 * `--experimental-transform-types`
