@@ -63,7 +63,7 @@ jobs:
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             --jq '.commits | map({ smallSha: .sha[0:10], splitTitle: .commit.message|split("\n\n")|first|split(":") })' \
-            "176b16a61c7ef3e8c36f9c64c14246d5331c2c53...v23.4.0" --paginate |\
+            "/repos/${GITHUB_REPOSITORY}/compare/v${MAJOR}.x...$GITHUB_SHA" --paginate |\
           jq -r '.[] | "* [[`" + .smallSha + "`](https://github.com/nodejs/node/commit/" + .smallSha + ")] - **" + (.splitTitle|first) + "**:" + (.splitTitle[1:]|join(":"))' |\
           node --input-type=module -e '
           import assert from "node:assert";
