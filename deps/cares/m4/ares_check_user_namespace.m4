@@ -2,7 +2,7 @@
 
 # SYNOPSIS
 #
-#   AX_CHECK_USER_NAMESPACE
+#   ARES_CHECK_USER_NAMESPACE
 #
 # DESCRIPTION
 #
@@ -12,9 +12,9 @@
 # Copyright (C) The c-ares team
 # SPDX-License-Identifier: MIT
 
-AC_DEFUN([AX_CHECK_USER_NAMESPACE],[dnl
+AC_DEFUN([ARES_CHECK_USER_NAMESPACE],[dnl
  AC_CACHE_CHECK([whether user namespaces are supported],
-  ax_cv_user_namespace,[
+  ares_cv_user_namespace,[
   AC_LANG_PUSH([C])
   AC_RUN_IFELSE([AC_LANG_SOURCE([[
 #define _GNU_SOURCE
@@ -48,10 +48,10 @@ int main() {
   if (!WIFEXITED(status)) return 1;
   return WEXITSTATUS(status);
 }
-  ]])],[ax_cv_user_namespace=yes],[ax_cv_user_namespace=no],[ax_cv_user_namespace=no])
+  ]])],[ares_cv_user_namespace=yes],[ares_cv_user_namespace=no],[ares_cv_user_namespace=no])
  AC_LANG_POP([C])
  ])
- if test "$ax_cv_user_namespace" = yes; then
+ if test "$ares_cv_user_namespace" = yes; then
    AC_DEFINE([HAVE_USER_NAMESPACE],[1],[Whether user namespaces are available])
  fi
-]) # AX_CHECK_USER_NAMESPACE
+]) # ARES_CHECK_USER_NAMESPACE
