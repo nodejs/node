@@ -309,6 +309,9 @@
 /* Define to 1 if you have `strnicmp` */
 #undef HAVE_STRNICMP
 
+/* Define to 1 if you have `strnlen` */
+#undef HAVE_STRNLEN
+
 /* Define to 1 if the system has the type `struct addrinfo'. */
 #undef HAVE_STRUCT_ADDRINFO
 

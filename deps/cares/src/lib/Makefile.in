@@ -15,7 +15,7 @@
 @SET_MAKE@
 
 # aminclude_static.am generated automatically by Autoconf
-# from AX_AM_MACROS_STATIC on Sat Nov  9 17:40:37 UTC 2024
+# from AX_AM_MACROS_STATIC on Sat Dec 14 15:15:44 UTC 2024
 
 # Copyright (C) The c-ares project and its contributors
 # SPDX-License-Identifier: MIT
@@ -100,7 +100,9 @@ host_triplet = @host@
 subdir = src/lib
 SUBDIRS =
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/m4/ax_ac_append_to_file.m4 \
+am__aclocal_m4_deps = $(top_srcdir)/m4/ares_check_user_namespace.m4 \
+	$(top_srcdir)/m4/ares_check_uts_namespace.m4 \
+	$(top_srcdir)/m4/ax_ac_append_to_file.m4 \
 	$(top_srcdir)/m4/ax_ac_print_to_file.m4 \
 	$(top_srcdir)/m4/ax_add_am_macro_static.m4 \
 	$(top_srcdir)/m4/ax_am_macros_static.m4 \
@@ -110,8 +112,6 @@ am__aclocal_m4_deps = $(top_srcdir)/m4/ax_ac_append_to_file.m4 \
 	$(top_srcdir)/m4/ax_check_compile_flag.m4 \
 	$(top_srcdir)/m4/ax_check_gnu_make.m4 \
 	$(top_srcdir)/m4/ax_check_link_flag.m4 \
-	$(top_srcdir)/m4/ax_check_user_namespace.m4 \
-	$(top_srcdir)/m4/ax_check_uts_namespace.m4 \
 	$(top_srcdir)/m4/ax_code_coverage.m4 \
 	$(top_srcdir)/m4/ax_compiler_vendor.m4 \
 	$(top_srcdir)/m4/ax_cxx_compile_stdcxx.m4 \
@@ -629,7 +629,7 @@ libcares_la_CPPFLAGS_EXTRA = -DCARES_BUILDING_LIBRARY $(am__append_3) \
 @CODE_COVERAGE_ENABLED_TRUE@code_coverage_v_lcov_cap_0 = @echo "  LCOV   --capture" $(CODE_COVERAGE_OUTPUT_FILE);
 @CODE_COVERAGE_ENABLED_TRUE@code_coverage_v_lcov_ign = $(code_coverage_v_lcov_ign_$(V))
 @CODE_COVERAGE_ENABLED_TRUE@code_coverage_v_lcov_ign_ = $(code_coverage_v_lcov_ign_$(AM_DEFAULT_VERBOSITY))
-@CODE_COVERAGE_ENABLED_TRUE@code_coverage_v_lcov_ign_0 = @echo "  LCOV   --remove /tmp/*" $(CODE_COVERAGE_IGNORE_PATTERN);
+@CODE_COVERAGE_ENABLED_TRUE@code_coverage_v_lcov_ign_0 = @echo "  LCOV   --remove" "$(CODE_COVERAGE_OUTPUT_FILE).tmp" $(CODE_COVERAGE_IGNORE_PATTERN);
 @CODE_COVERAGE_ENABLED_TRUE@code_coverage_v_genhtml = $(code_coverage_v_genhtml_$(V))
 @CODE_COVERAGE_ENABLED_TRUE@code_coverage_v_genhtml_ = $(code_coverage_v_genhtml_$(AM_DEFAULT_VERBOSITY))
 @CODE_COVERAGE_ENABLED_TRUE@code_coverage_v_genhtml_0 = @echo "  GEN   " "$(CODE_COVERAGE_OUTPUT_DIRECTORY)";
@@ -2328,7 +2328,7 @@ uninstall-am: uninstall-libLTLIBRARIES
 # Capture code coverage data
 @CODE_COVERAGE_ENABLED_TRUE@code-coverage-capture: code-coverage-capture-hook
 @CODE_COVERAGE_ENABLED_TRUE@	$(code_coverage_v_lcov_cap)$(LCOV) $(code_coverage_quiet) $(addprefix --directory ,$(CODE_COVERAGE_DIRECTORY)) --capture --output-file "$(CODE_COVERAGE_OUTPUT_FILE).tmp" --test-name "$(call code_coverage_sanitize,$(PACKAGE_NAME)-$(PACKAGE_VERSION))" --no-checksum --compat-libtool $(CODE_COVERAGE_LCOV_SHOPTS) $(CODE_COVERAGE_LCOV_OPTIONS)
-@CODE_COVERAGE_ENABLED_TRUE@	$(code_coverage_v_lcov_ign)$(LCOV) $(code_coverage_quiet) $(addprefix --directory ,$(CODE_COVERAGE_DIRECTORY)) --remove "$(CODE_COVERAGE_OUTPUT_FILE).tmp" "/tmp/*" $(CODE_COVERAGE_IGNORE_PATTERN) --output-file "$(CODE_COVERAGE_OUTPUT_FILE)" $(CODE_COVERAGE_LCOV_SHOPTS) $(CODE_COVERAGE_LCOV_RMOPTS)
+@CODE_COVERAGE_ENABLED_TRUE@	$(code_coverage_v_lcov_ign)$(LCOV) $(code_coverage_quiet) $(addprefix --directory ,$(CODE_COVERAGE_DIRECTORY)) --remove "$(CODE_COVERAGE_OUTPUT_FILE).tmp" $(CODE_COVERAGE_IGNORE_PATTERN) --output-file "$(CODE_COVERAGE_OUTPUT_FILE)" $(CODE_COVERAGE_LCOV_SHOPTS) $(CODE_COVERAGE_LCOV_RMOPTS)
 @CODE_COVERAGE_ENABLED_TRUE@	-@rm -f "$(CODE_COVERAGE_OUTPUT_FILE).tmp"
 @CODE_COVERAGE_ENABLED_TRUE@	$(code_coverage_v_genhtml)LANG=C $(GENHTML) $(code_coverage_quiet) $(addprefix --prefix ,$(CODE_COVERAGE_DIRECTORY)) --output-directory "$(CODE_COVERAGE_OUTPUT_DIRECTORY)" --title "$(PACKAGE_NAME)-$(PACKAGE_VERSION) Code Coverage" --legend --show-details "$(CODE_COVERAGE_OUTPUT_FILE)" $(CODE_COVERAGE_GENHTML_OPTIONS)
 @CODE_COVERAGE_ENABLED_TRUE@	@echo "file://$(abs_builddir)/$(CODE_COVERAGE_OUTPUT_DIRECTORY)/index.html"
