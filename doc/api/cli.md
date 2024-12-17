@@ -1025,20 +1025,6 @@ generated as part of the test runner output. If no tests are run, a coverage
 report is not generated. See the documentation on
 [collecting code coverage from tests][] for more details.
 
-### `--experimental-test-isolation=mode`
-
-<!-- YAML
-added: v22.8.0
--->
-
-> Stability: 1.0 - Early development
-
-Configures the type of test isolation used in the test runner. When `mode` is
-`'process'`, each test file is run in a separate child process. When `mode` is
-`'none'`, all test files run in the same process as the test runner. The default
-isolation mode is `'process'`. This flag is ignored if the `--test` flag is not
-present. See the [test runner execution model][] section for more information.
-
 ### `--experimental-test-module-mocks`
 
 <!-- YAML
@@ -2238,8 +2224,8 @@ added:
 -->
 
 The maximum number of test files that the test runner CLI will execute
-concurrently. If `--experimental-test-isolation` is set to `'none'`, this flag
-is ignored and concurrency is one. Otherwise, concurrency defaults to
+concurrently. If `--test-isolation` is set to `'none'`, this flag is ignored and
+concurrency is one. Otherwise, concurrency defaults to
 `os.availableParallelism() - 1`.
 
 ### `--test-coverage-branches=threshold`
@@ -2322,6 +2308,22 @@ added:
 
 Configures the test runner to exit the process once all known tests have
 finished executing even if the event loop would otherwise remain active.
+
+### `--test-isolation=mode`
+
+<!-- YAML
+added: v22.8.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/56298
+    description: Test isolation configuration is now stable.
+-->
+
+Configures the type of test isolation used in the test runner. When `mode` is
+`'process'`, each test file is run in a separate child process. When `mode` is
+`'none'`, all test files run in the same process as the test runner. The default
+isolation mode is `'process'`. This flag is ignored if the `--test` flag is not
+present. See the [test runner execution model][] section for more information.
 
 ### `--test-name-pattern`
 
@@ -3058,6 +3060,7 @@ one is included in the list below.
 * `--experimental-shadow-realm`
 * `--experimental-specifier-resolution`
 * `--experimental-strip-types`
+* `--experimental-test-isolation`
 * `--experimental-top-level-await`
 * `--experimental-transform-types`
 * `--experimental-vm-modules`
@@ -3128,6 +3131,7 @@ one is included in the list below.
 * `--test-coverage-functions`
 * `--test-coverage-include`
 * `--test-coverage-lines`
+* `--test-isolation`
 * `--test-name-pattern`
 * `--test-only`
 * `--test-reporter-destination`

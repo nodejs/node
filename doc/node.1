@@ -180,9 +180,6 @@ Use this flag to enable ShadowRealm support.
 .It Fl -experimental-test-coverage
 Enable code coverage in the test runner.
 .
-.It Fl -experimental-test-isolation Ns = Ns Ar mode
-Configures the type of test isolation used in the test runner.
-.
 .It Fl -experimental-test-module-mocks
 Enable module mocking in the test runner.
 .
@@ -454,6 +451,9 @@ Require a minimum threshold for line coverage (0 - 100).
 .It Fl -test-force-exit
 Configures the test runner to exit the process once all known tests have
 finished executing even if the event loop would otherwise remain active.
+.
+.It Fl -test-isolation Ns = Ns Ar mode
+Configures the type of test isolation used in the test runner.
 .
 .It Fl -test-name-pattern
 A regular expression that configures the test runner to only execute tests

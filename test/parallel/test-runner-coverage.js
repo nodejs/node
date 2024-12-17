@@ -260,7 +260,7 @@ test.skip('coverage works with isolation=none', skipIfNoInspector, () => {
     '--experimental-test-coverage',
     '--test-reporter',
     'tap',
-    '--experimental-test-isolation=none',
+    '--test-isolation=none',
   ];
   const result = spawnSync(process.execPath, args, {
     env: { ...process.env, NODE_TEST_TMPDIR: tmpdir.path },
