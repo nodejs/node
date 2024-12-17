@@ -337,16 +337,66 @@ Maybe<void> KVStore::AssignToObject(v8::Isolate* isolate,
   return JustVoid();
 }
 
-void PrintTraceEnvStack(Environment* env) {
-  PrintTraceEnvStack(env->options());
-}
+struct TraceEnvOptions {
+  bool print_message : 1 = 0;
+  bool print_js_stack : 1 = 0;
+  bool print_native_stack : 1 = 0;
+};
 
-void PrintTraceEnvStack(std::shared_ptr<EnvironmentOptions> options) {
-  if (options->trace_env_native_stack) {
+template <typename... Args>
+inline void TraceEnvImpl(Environment* env,
+                         TraceEnvOptions options,
+                         const char* format,
+                         Args&&... args) {
+  if (options.print_message) {
+    fprintf(stderr, format, std::forward<Args>(args)...);
+  }
+  if (options.print_native_stack) {
     DumpNativeBacktrace(stderr);
   }
-  if (options->trace_env_js_stack) {
+  if (options.print_js_stack) {
     DumpJavaScriptBacktrace(stderr);
+  }
+}
+
+TraceEnvOptions GetTraceEnvOptions(Environment* env) {
+  TraceEnvOptions options;
+  auto cli_options = env != nullptr
+                         ? env->options()
+                         : per_process::cli_options->per_isolate->per_env;
+  if (cli_options->trace_env) {
+    options.print_message = 1;
+  };
+  if (cli_options->trace_env_js_stack) {
+    options.print_js_stack = 1;
+  };
+  if (cli_options->trace_env_native_stack) {
+    options.print_native_stack = 1;
+  };
+  return options;
+}
+
+void TraceEnv(Environment* env, const char* message) {
+  TraceEnvImpl(env, GetTraceEnvOptions(env), "[--trace-env] %s\n", message);
+}
+
+void TraceEnv(Environment* env, const char* message, const char* key) {
+  TraceEnvImpl(
+      env, GetTraceEnvOptions(env), "[--trace-env] %s \"%s\"\n", message, key);
+}
+
+void TraceEnv(Environment* env,
+              const char* message,
+              v8::Local<v8::String> key) {
+  TraceEnvOptions options = GetTraceEnvOptions(env);
+  if (options.print_message) {
+    Utf8Value key_utf8(env->isolate(), key);
+    TraceEnvImpl(env,
+                 options,
+                 "[--trace-env] %s \"%.*s\"\n",
+                 message,
+                 static_cast<int>(key_utf8.length()),
+                 key_utf8.out());
   }
 }
 
@@ -363,14 +413,7 @@ static Intercepted EnvGetter(Local<Name> property,
       env->env_vars()->Get(env->isolate(), property.As<String>());
 
   bool has_env = !value_string.IsEmpty();
-  if (env->options()->trace_env) {
-    Utf8Value key(env->isolate(), property.As<String>());
-    fprintf(stderr,
-            "[--trace-env] get environment variable \"%.*s\"\n",
-            static_cast<int>(key.length()),
-            key.out());
-    PrintTraceEnvStack(env);
-  }
+  TraceEnv(env, "get", property.As<String>());
 
   if (has_env) {
     info.GetReturnValue().Set(value_string.ToLocalChecked());
@@ -410,14 +453,7 @@ static Intercepted EnvSetter(Local<Name> property,
   }
 
   env->env_vars()->Set(env->isolate(), key, value_string);
-  if (env->options()->trace_env) {
-    Utf8Value key_utf8(env->isolate(), key);
-    fprintf(stderr,
-            "[--trace-env] set environment variable \"%.*s\"\n",
-            static_cast<int>(key_utf8.length()),
-            key_utf8.out());
-    PrintTraceEnvStack(env);
-  }
+  TraceEnv(env, "set", key);
 
   return Intercepted::kYes;
 }
@@ -429,16 +465,7 @@ static Intercepted EnvQuery(Local<Name> property,
   if (property->IsString()) {
     int32_t rc = env->env_vars()->Query(env->isolate(), property.As<String>());
     bool has_env = (rc != -1);
-
-    if (env->options()->trace_env) {
-      Utf8Value key_utf8(env->isolate(), property.As<String>());
-      fprintf(stderr,
-              "[--trace-env] query environment variable \"%.*s\": %s\n",
-              static_cast<int>(key_utf8.length()),
-              key_utf8.out(),
-              has_env ? "is set" : "is not set");
-      PrintTraceEnvStack(env);
-    }
+    TraceEnv(env, "query", property.As<String>());
     if (has_env) {
       // Return attributes for the property.
       info.GetReturnValue().Set(v8::None);
@@ -455,14 +482,7 @@ static Intercepted EnvDeleter(Local<Name> property,
   if (property->IsString()) {
     env->env_vars()->Delete(env->isolate(), property.As<String>());
 
-    if (env->options()->trace_env) {
-      Utf8Value key_utf8(env->isolate(), property.As<String>());
-      fprintf(stderr,
-              "[--trace-env] delete environment variable \"%.*s\"\n",
-              static_cast<int>(key_utf8.length()),
-              key_utf8.out());
-      PrintTraceEnvStack(env);
-    }
+    TraceEnv(env, "delete", property.As<String>());
   }
 
   // process.env never has non-configurable properties, so always
@@ -475,11 +495,7 @@ static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
   Environment* env = Environment::GetCurrent(info);
   CHECK(env->has_run_bootstrapping_code());
 
-  if (env->options()->trace_env) {
-    fprintf(stderr, "[--trace-env] enumerate environment variables\n");
-
-    PrintTraceEnvStack(env);
-  }
+  TraceEnv(env, "enumerate environment variables");
 
   info.GetReturnValue().Set(
       env->env_vars()->Enumerate(env->isolate()));
