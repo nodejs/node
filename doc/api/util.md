@@ -1801,12 +1801,16 @@ console.log(util.stripVTControlCharacters('\u001B[4mvalue\u001B[0m'));
 
 ## `util.styleText(format, text[, options])`
 
-> Stability: 1.1 - Active development
+> Stability: 2 - Stable.
 
 <!-- YAML
 added: v20.12.0
 changes:
-  - version: v20.18.0
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/56265
+    description: styleText is now stable.
+  - version:
+    - v20.18.0
     pr-url: https://github.com/nodejs/node/pull/54389
     description: Respect isTTY and environment variables
       such as NO_COLOR, NODE_DISABLE_COLORS, and FORCE_COLOR.
