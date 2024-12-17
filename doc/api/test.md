@@ -476,8 +476,10 @@ all tests have completed. If the [`NODE_V8_COVERAGE`][] environment variable is
 used to specify a code coverage directory, the generated V8 coverage files are
 written to that directory. Node.js core modules and files within
 `node_modules/` directories are, by default, not included in the coverage report.
-However, they can be explicitly included via the [`--test-coverage-include`][] flag. If
-coverage is enabled, the coverage report is sent to any [test reporters][] via
+However, they can be explicitly included via the [`--test-coverage-include`][] flag.
+By default all the matching test files are excluded from the coverage report.
+Exclusions can be overridden by using the [`--test-coverage-exclude`][] flag.
+If coverage is enabled, the coverage report is sent to any [test reporters][] via
 the `'test:coverage'` event.
 
 Coverage can be disabled on a series of lines using the following
@@ -3594,6 +3596,7 @@ Can be used to abort test subtasks when the test has been aborted.
 [`--experimental-test-module-mocks`]: cli.md#--experimental-test-module-mocks
 [`--import`]: cli.md#--importmodule
 [`--test-concurrency`]: cli.md#--test-concurrency
+[`--test-coverage-exclude`]: cli.md#--test-coverage-exclude
 [`--test-coverage-include`]: cli.md#--test-coverage-include
 [`--test-name-pattern`]: cli.md#--test-name-pattern
 [`--test-only`]: cli.md#--test-only
