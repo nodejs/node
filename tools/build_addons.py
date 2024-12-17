@@ -12,7 +12,7 @@ ROOT_DIR = os.path.abspath(os.path.join(__file__, '..', '..'))
 
 # Run install.py to install headers.
 def generate_headers(headers_dir, install_args):
-  print('Generating headers')
+  print(f'Generating headers')
   subprocess.check_call([
       sys.executable,
       os.path.join(ROOT_DIR, 'tools/install.py'),
@@ -44,7 +44,7 @@ def rebuild_addons(args):
                  os.path.join(node_lib_dir, 'node.lib'))
 
   def node_gyp_rebuild(test_dir):
-    print('Building addon in', test_dir)
+    print(f'Building an addon in {test_dir}')
     try:
       process = subprocess.Popen([
           node_bin,
@@ -69,7 +69,7 @@ def rebuild_addons(args):
       return return_code
 
     except Exception as e:
-      print(f'Unexpected error when building addon in {test_dir}. Error: {e}')
+      print(f"An unexpected error occurred while building an addon in {test_dir}. Error: {e}")
 
   test_dirs = []
   skip_tests = args.skip_tests.split(',')
@@ -143,6 +143,8 @@ def main():
       args.headers_dir = tempfile.mkdtemp()
       generate_headers(args.headers_dir, unknown_args)
       exit_code = rebuild_addons(args)
+    except Exception as e:
+      print(f'An unexpected error occurred while generating headers and rebuilding addons. Error: {e}')
     finally:
       shutil.rmtree(args.headers_dir)
   return exit_code
