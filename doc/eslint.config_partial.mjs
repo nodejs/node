@@ -6,6 +6,7 @@ import {
 import { builtinModules as builtin } from 'node:module';
 
 const globals = requireEslintTool('globals');
+const noSchemeBuiltins = builtin.filter((id) => !id.startsWith('node:'));
 
 export default [
   {
@@ -18,7 +19,7 @@ export default [
         ...noRestrictedSyntaxCommonAll,
         ...noRestrictedSyntaxCommonLib,
         {
-          selector: `CallExpression[callee.name="require"][arguments.0.type="Literal"]:matches(${builtin.map((name) => `[arguments.0.value="${name}"]`).join(',')}),ImportDeclaration:matches(${builtin.map((name) => `[source.value="${name}"]`).join(',')})`,
+          selector: `CallExpression[callee.name="require"][arguments.0.type="Literal"]:matches(${noSchemeBuiltins.map((name) => `[arguments.0.value="${name}"]`).join(',')}),ImportDeclaration:matches(${noSchemeBuiltins.map((name) => `[source.value="${name}"]`).join(',')})`,
           message: 'Use `node:` prefix.',
         },
       ],
