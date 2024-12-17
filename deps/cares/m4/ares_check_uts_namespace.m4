@@ -2,7 +2,7 @@
 
 # SYNOPSIS
 #
-#   AX_CHECK_UTS_NAMESPACE
+#   ARES_CHECK_UTS_NAMESPACE
 #
 # DESCRIPTION
 #
@@ -14,9 +14,9 @@
 # Copyright (C) The c-ares team
 # SPDX-License-Identifier: MIT
 
-AC_DEFUN([AX_CHECK_UTS_NAMESPACE],[dnl
+AC_DEFUN([ARES_CHECK_UTS_NAMESPACE],[dnl
  AC_CACHE_CHECK([whether UTS namespaces are supported],
-  ax_cv_uts_namespace,[
+  ares_cv_uts_namespace,[
   AC_LANG_PUSH([C])
   AC_RUN_IFELSE([AC_LANG_SOURCE([[
 #define _GNU_SOURCE
@@ -70,10 +70,10 @@ int main() {
   return WEXITSTATUS(status);
 }
 ]])
-  ],[ax_cv_uts_namespace=yes],[ax_cv_uts_namespace=no],[ax_cv_uts_namespace=no])
+  ],[ares_cv_uts_namespace=yes],[ares_cv_uts_namespace=no],[ares_cv_uts_namespace=no])
  AC_LANG_POP([C])
  ])
- if test "$ax_cv_uts_namespace" = yes; then
+ if test "$ares_cv_uts_namespace" = yes; then
    AC_DEFINE([HAVE_UTS_NAMESPACE],[1],[Whether UTS namespaces are available])
  fi
-]) # AX_CHECK_UTS_NAMESPACE
+]) # ARES_CHECK_UTS_NAMESPACE
