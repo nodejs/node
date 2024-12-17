@@ -3,9 +3,7 @@
 require('../common');
 const {
   DatabaseSync,
-  SQLITE_CHANGESET_OMIT,
-  SQLITE_CHANGESET_REPLACE,
-  SQLITE_CHANGESET_ABORT
+  constants,
 } = require('node:sqlite');
 const { test, suite } = require('node:test');
 
@@ -165,7 +163,7 @@ suite('conflict resolution', () => {
   test('database.applyChangeset() - conflict with SQLITE_CHANGESET_ABORT', (t) => {
     const { database2, changeset } = prepareConflict();
     const result = database2.applyChangeset(changeset, {
-      onConflict: SQLITE_CHANGESET_ABORT
+      onConflict: constants.SQLITE_CHANGESET_ABORT
     });
     // When changeset is aborted due to a conflict, applyChangeset should return false
     t.assert.strictEqual(result, false);
@@ -177,7 +175,7 @@ suite('conflict resolution', () => {
   test('database.applyChangeset() - conflict with SQLITE_CHANGESET_REPLACE', (t) => {
     const { database2, changeset } = prepareConflict();
     const result = database2.applyChangeset(changeset, {
-      onConflict: SQLITE_CHANGESET_REPLACE
+      onConflict: constants.SQLITE_CHANGESET_REPLACE
     });
     // Not aborted due to conflict, so should return true
     t.assert.strictEqual(result, true);
@@ -189,7 +187,7 @@ suite('conflict resolution', () => {
   test('database.applyChangeset() - conflict with SQLITE_CHANGESET_OMIT', (t) => {
     const { database2, changeset } = prepareConflict();
     const result = database2.applyChangeset(changeset, {
-      onConflict: SQLITE_CHANGESET_OMIT
+      onConflict: constants.SQLITE_CHANGESET_OMIT
     });
     // Not aborted due to conflict, so should return true
     t.assert.strictEqual(result, true);
@@ -197,12 +195,6 @@ suite('conflict resolution', () => {
       database2.prepare('SELECT value from data ORDER BY key ASC').all(),
       [{ value: 'world' }, { value: 'foo' }]);  // Conflicting change omitted
   });
-});
-
-test('session related constants are defined', (t) => {
-  t.assert.strictEqual(SQLITE_CHANGESET_OMIT, 0);
-  t.assert.strictEqual(SQLITE_CHANGESET_REPLACE, 1);
-  t.assert.strictEqual(SQLITE_CHANGESET_ABORT, 2);
 });
 
 test('database.createSession() - filter changes', (t) => {
