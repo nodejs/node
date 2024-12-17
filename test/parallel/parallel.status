@@ -39,8 +39,6 @@ test-runner-run-watch: PASS, FLAKY
 test-performance-function: PASS, FLAKY
 # https://github.com/nodejs/node/issues/54346
 test-esm-loader-hooks-inspect-wait: PASS, FLAKY
-# https://github.com/nodejs/node/issues/54810
-test-sqlite-statement-sync: PASS, FLAKY
 # https://github.com/nodejs/node/issues/54534
 test-runner-run-watch: PASS, FLAKY
 
