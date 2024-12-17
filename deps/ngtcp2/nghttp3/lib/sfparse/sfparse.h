@@ -85,7 +85,11 @@ typedef enum sf_type {
   /**
    * :enum:`SF_TYPE_DATE` indicates date type.
    */
-  SF_TYPE_DATE
+  SF_TYPE_DATE,
+  /**
+   * :enum:`SF_TYPE_DISPSTRING` indicates display string type.
+   */
+  SF_TYPE_DISPSTRING
 } sf_type;
 
 /**
@@ -197,8 +201,8 @@ typedef struct sf_value {
     /**
      * :member:`vec` contains sequence of bytes if :member:`type` is
      * either :enum:`sf_type.SF_TYPE_STRING`,
-     * :enum:`sf_type.SF_TYPE_TOKEN`, or
-     * :enum:`sf_type.SF_TYPE_BYTESEQ`.
+     * :enum:`sf_type.SF_TYPE_TOKEN`, :enum:`sf_type.SF_TYPE_BYTESEQ`,
+     * or :enum:`sf_type.SF_TYPE_DISPSTRING`.
      *
      * For :enum:`sf_type.SF_TYPE_STRING`, this field contains one or
      * more escaped characters if :member:`flags` has
@@ -208,6 +212,10 @@ typedef struct sf_value {
      * For :enum:`sf_type.SF_TYPE_BYTESEQ`, this field contains base64
      * encoded string.  To decode this byte string, use
      * `sf_base64decode`.
+     *
+     * For :enum:`sf_type.SF_TYPE_DISPSTRING`, this field may contain
+     * percent-encoded UTF-8 byte sequences.  To decode it, use
+     * `sf_pctdecode`.
      *
      * If :member:`vec.len <sf_vec.len>` == 0, :member:`vec.base
      * <sf_vec.base>` is guaranteed to be NULL.
@@ -372,10 +380,6 @@ int sf_parser_inner_list(sf_parser *sfp, sf_value *dest);
  * :member:`dest->base <sf_vec.base>` must point to the buffer that
  * has sufficient space to store the unescaped string.
  *
- * If there is no escape character in |src|, |*src| is assigned to
- * |*dest|.  This includes the case that :member:`src->len
- * <sf_vec.len>` == 0.
- *
  * This function sets the length of unescaped string to
  * :member:`dest->len <sf_vec.len>`.
  */
@@ -394,13 +398,28 @@ void sf_unescape(sf_vec *dest, const sf_vec *src);
  * :member:`dest->base <sf_vec.base>` must point to the buffer that
  * has sufficient space to store the decoded byte string.
  *
- * If :member:`src->len <sf_vec.len>` == 0, |*src| is assigned to
- * |*dest|.
- *
  * This function sets the length of decoded byte string to
  * :member:`dest->len <sf_vec.len>`.
  */
 void sf_base64decode(sf_vec *dest, const sf_vec *src);
+
+/**
+ * @function
+ *
+ * `sf_pctdecode` decodes percent-encoded string |src| and writes the
+ * result into |dest|.  |src| should be the pointer to
+ * :member:`sf_value.vec` of type :enum:`sf_type.SF_TYPE_DISPSTRING`
+ * produced by either `sf_parser_dict`, `sf_parser_list`,
+ * `sf_parser_inner_list`, `sf_parser_item`, or `sf_parser_param`,
+ * otherwise the behavior is undefined.
+ *
+ * :member:`dest->base <sf_vec.base>` must point to the buffer that
+ * has sufficient space to store the decoded byte string.
+ *
+ * This function sets the length of decoded byte string to
+ * :member:`dest->len <sf_vec.len>`.
+ */
+void sf_pctdecode(sf_vec *dest, const sf_vec *src);
 
 #ifdef __cplusplus
 }

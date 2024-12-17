@@ -135,6 +135,70 @@
   UCALPHA_CASES:                                                               \
   LCALPHA_CASES
 
+#define TOKEN_CASES                                                            \
+  case '!':                                                                    \
+  case '#':                                                                    \
+  case '$':                                                                    \
+  case '%':                                                                    \
+  case '&':                                                                    \
+  case '\'':                                                                   \
+  case '*':                                                                    \
+  case '+':                                                                    \
+  case '-':                                                                    \
+  case '.':                                                                    \
+  case '/':                                                                    \
+  DIGIT_CASES:                                                                 \
+  case ':':                                                                    \
+  UCALPHA_CASES:                                                               \
+  case '^':                                                                    \
+  case '_':                                                                    \
+  case '`':                                                                    \
+  LCALPHA_CASES:                                                               \
+  case '|':                                                                    \
+  case '~'
+
+#define LCHEXALPHA_CASES                                                       \
+  case 'a':                                                                    \
+  case 'b':                                                                    \
+  case 'c':                                                                    \
+  case 'd':                                                                    \
+  case 'e':                                                                    \
+  case 'f'
+
+#define X00_1F_CASES                                                           \
+  case 0x00:                                                                   \
+  case 0x01:                                                                   \
+  case 0x02:                                                                   \
+  case 0x03:                                                                   \
+  case 0x04:                                                                   \
+  case 0x05:                                                                   \
+  case 0x06:                                                                   \
+  case 0x07:                                                                   \
+  case 0x08:                                                                   \
+  case 0x09:                                                                   \
+  case 0x0a:                                                                   \
+  case 0x0b:                                                                   \
+  case 0x0c:                                                                   \
+  case 0x0d:                                                                   \
+  case 0x0e:                                                                   \
+  case 0x0f:                                                                   \
+  case 0x10:                                                                   \
+  case 0x11:                                                                   \
+  case 0x12:                                                                   \
+  case 0x13:                                                                   \
+  case 0x14:                                                                   \
+  case 0x15:                                                                   \
+  case 0x16:                                                                   \
+  case 0x17:                                                                   \
+  case 0x18:                                                                   \
+  case 0x19:                                                                   \
+  case 0x1a:                                                                   \
+  case 0x1b:                                                                   \
+  case 0x1c:                                                                   \
+  case 0x1d:                                                                   \
+  case 0x1e:                                                                   \
+  case 0x1f
+
 #define X20_21_CASES                                                           \
   case ' ':                                                                    \
   case '!'
@@ -174,6 +238,137 @@
   case '|':                                                                    \
   case '}':                                                                    \
   case '~'
+
+#define X7F_FF_CASES                                                           \
+  case 0x7f:                                                                   \
+  case 0x80:                                                                   \
+  case 0x81:                                                                   \
+  case 0x82:                                                                   \
+  case 0x83:                                                                   \
+  case 0x84:                                                                   \
+  case 0x85:                                                                   \
+  case 0x86:                                                                   \
+  case 0x87:                                                                   \
+  case 0x88:                                                                   \
+  case 0x89:                                                                   \
+  case 0x8a:                                                                   \
+  case 0x8b:                                                                   \
+  case 0x8c:                                                                   \
+  case 0x8d:                                                                   \
+  case 0x8e:                                                                   \
+  case 0x8f:                                                                   \
+  case 0x90:                                                                   \
+  case 0x91:                                                                   \
+  case 0x92:                                                                   \
+  case 0x93:                                                                   \
+  case 0x94:                                                                   \
+  case 0x95:                                                                   \
+  case 0x96:                                                                   \
+  case 0x97:                                                                   \
+  case 0x98:                                                                   \
+  case 0x99:                                                                   \
+  case 0x9a:                                                                   \
+  case 0x9b:                                                                   \
+  case 0x9c:                                                                   \
+  case 0x9d:                                                                   \
+  case 0x9e:                                                                   \
+  case 0x9f:                                                                   \
+  case 0xa0:                                                                   \
+  case 0xa1:                                                                   \
+  case 0xa2:                                                                   \
+  case 0xa3:                                                                   \
+  case 0xa4:                                                                   \
+  case 0xa5:                                                                   \
+  case 0xa6:                                                                   \
+  case 0xa7:                                                                   \
+  case 0xa8:                                                                   \
+  case 0xa9:                                                                   \
+  case 0xaa:                                                                   \
+  case 0xab:                                                                   \
+  case 0xac:                                                                   \
+  case 0xad:                                                                   \
+  case 0xae:                                                                   \
+  case 0xaf:                                                                   \
+  case 0xb0:                                                                   \
+  case 0xb1:                                                                   \
+  case 0xb2:                                                                   \
+  case 0xb3:                                                                   \
+  case 0xb4:                                                                   \
+  case 0xb5:                                                                   \
+  case 0xb6:                                                                   \
+  case 0xb7:                                                                   \
+  case 0xb8:                                                                   \
+  case 0xb9:                                                                   \
+  case 0xba:                                                                   \
+  case 0xbb:                                                                   \
+  case 0xbc:                                                                   \
+  case 0xbd:                                                                   \
+  case 0xbe:                                                                   \
+  case 0xbf:                                                                   \
+  case 0xc0:                                                                   \
+  case 0xc1:                                                                   \
+  case 0xc2:                                                                   \
+  case 0xc3:                                                                   \
+  case 0xc4:                                                                   \
+  case 0xc5:                                                                   \
+  case 0xc6:                                                                   \
+  case 0xc7:                                                                   \
+  case 0xc8:                                                                   \
+  case 0xc9:                                                                   \
+  case 0xca:                                                                   \
+  case 0xcb:                                                                   \
+  case 0xcc:                                                                   \
+  case 0xcd:                                                                   \
+  case 0xce:                                                                   \
+  case 0xcf:                                                                   \
+  case 0xd0:                                                                   \
+  case 0xd1:                                                                   \
+  case 0xd2:                                                                   \
+  case 0xd3:                                                                   \
+  case 0xd4:                                                                   \
+  case 0xd5:                                                                   \
+  case 0xd6:                                                                   \
+  case 0xd7:                                                                   \
+  case 0xd8:                                                                   \
+  case 0xd9:                                                                   \
+  case 0xda:                                                                   \
+  case 0xdb:                                                                   \
+  case 0xdc:                                                                   \
+  case 0xdd:                                                                   \
+  case 0xde:                                                                   \
+  case 0xdf:                                                                   \
+  case 0xe0:                                                                   \
+  case 0xe1:                                                                   \
+  case 0xe2:                                                                   \
+  case 0xe3:                                                                   \
+  case 0xe4:                                                                   \
+  case 0xe5:                                                                   \
+  case 0xe6:                                                                   \
+  case 0xe7:                                                                   \
+  case 0xe8:                                                                   \
+  case 0xe9:                                                                   \
+  case 0xea:                                                                   \
+  case 0xeb:                                                                   \
+  case 0xec:                                                                   \
+  case 0xed:                                                                   \
+  case 0xee:                                                                   \
+  case 0xef:                                                                   \
+  case 0xf0:                                                                   \
+  case 0xf1:                                                                   \
+  case 0xf2:                                                                   \
+  case 0xf3:                                                                   \
+  case 0xf4:                                                                   \
+  case 0xf5:                                                                   \
+  case 0xf6:                                                                   \
+  case 0xf7:                                                                   \
+  case 0xf8:                                                                   \
+  case 0xf9:                                                                   \
+  case 0xfa:                                                                   \
+  case 0xfb:                                                                   \
+  case 0xfc:                                                                   \
+  case 0xfd:                                                                   \
+  case 0xfe:                                                                   \
+  case 0xff
 
 static int is_ws(uint8_t c) {
   switch (c) {
@@ -431,25 +626,7 @@ static int parser_token(sf_parser *sfp, sf_value *dest) {
 
   for (; !parser_eof(sfp); ++sfp->pos) {
     switch (*sfp->pos) {
-    case '!':
-    case '#':
-    case '$':
-    case '%':
-    case '&':
-    case '\'':
-    case '*':
-    case '+':
-    case '-':
-    case '.':
-    case '^':
-    case '_':
-    case '`':
-    case '|':
-    case '~':
-    case ':':
-    case '/':
-    DIGIT_CASES:
-    ALPHA_CASES:
+    TOKEN_CASES:
       continue;
     }
 
@@ -487,50 +664,22 @@ static int parser_byteseq(sf_parser *sfp, sf_value *dest) {
       case 1:
         return SF_ERR_PARSE_ERROR;
       case 2:
-        switch (*(sfp->pos - 1)) {
-        case 'A':
-        case 'Q':
-        case 'g':
-        case 'w':
-          break;
-        default:
+        ++sfp->pos;
+
+        if (parser_eof(sfp)) {
           return SF_ERR_PARSE_ERROR;
         }
 
-        ++sfp->pos;
-
-        if (parser_eof(sfp) || *sfp->pos != '=') {
-          return SF_ERR_PARSE_ERROR;
+        if (*sfp->pos == '=') {
+          ++sfp->pos;
         }
 
         break;
       case 3:
-        switch (*(sfp->pos - 1)) {
-        case 'A':
-        case 'E':
-        case 'I':
-        case 'M':
-        case 'Q':
-        case 'U':
-        case 'Y':
-        case 'c':
-        case 'g':
-        case 'k':
-        case 'o':
-        case 's':
-        case 'w':
-        case '0':
-        case '4':
-        case '8':
-          break;
-        default:
-          return SF_ERR_PARSE_ERROR;
-        }
+        ++sfp->pos;
 
         break;
       }
-
-      ++sfp->pos;
 
       if (parser_eof(sfp) || *sfp->pos != ':') {
         return SF_ERR_PARSE_ERROR;
@@ -538,7 +687,7 @@ static int parser_byteseq(sf_parser *sfp, sf_value *dest) {
 
       goto fin;
     case ':':
-      if ((sfp->pos - base) & 0x3) {
+      if (((sfp->pos - base) & 0x3) == 1) {
         return SF_ERR_PARSE_ERROR;
       }
 
@@ -599,6 +748,169 @@ static int parser_boolean(sf_parser *sfp, sf_value *dest) {
   return 0;
 }
 
+static int pctdecode(uint8_t *pc, const uint8_t **ppos) {
+  uint8_t c, b = **ppos;
+
+  switch (b) {
+  DIGIT_CASES:
+    c = (uint8_t)((b - '0') << 4);
+
+    break;
+  LCHEXALPHA_CASES:
+    c = (uint8_t)((b - 'a' + 10) << 4);
+
+    break;
+  default:
+    return -1;
+  }
+
+  b = *++*ppos;
+
+  switch (b) {
+  DIGIT_CASES:
+    c |= (uint8_t)(b - '0');
+
+    break;
+  LCHEXALPHA_CASES:
+    c |= (uint8_t)(b - 'a' + 10);
+
+    break;
+  default:
+    return -1;
+  }
+
+  *pc = c;
+  ++*ppos;
+
+  return 0;
+}
+
+/* Start of utf8 dfa */
+/* Copyright (c) 2008-2010 Bjoern Hoehrmann <bjoern@hoehrmann.de>
+ * See http://bjoern.hoehrmann.de/utf-8/decoder/dfa/ for details.
+ *
+ * Copyright (c) 2008-2009 Bjoern Hoehrmann <bjoern@hoehrmann.de>
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use, copy,
+ * modify, merge, publish, distribute, sublicense, and/or sell copies
+ * of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+#define UTF8_ACCEPT 0
+#define UTF8_REJECT 12
+
+/* clang-format off */
+static const uint8_t utf8d[] = {
+  /*
+   * The first part of the table maps bytes to character classes that
+   * to reduce the size of the transition table and create bitmasks.
+   */
+   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+   1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,  9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,
+   7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,  7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
+   8,8,2,2,2,2,2,2,2,2,2,2,2,2,2,2,  2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
+  10,3,3,3,3,3,3,3,3,3,3,3,3,4,3,3, 11,6,6,6,5,8,8,8,8,8,8,8,8,8,8,8,
+
+   /*
+    * The second part is a transition table that maps a combination
+    * of a state of the automaton and a character class to a state.
+    */
+   0,12,24,36,60,96,84,12,12,12,48,72, 12,12,12,12,12,12,12,12,12,12,12,12,
+  12, 0,12,12,12,12,12, 0,12, 0,12,12, 12,24,12,12,12,12,12,24,12,24,12,12,
+  12,12,12,12,12,12,12,24,12,12,12,12, 12,24,12,12,12,12,12,12,12,24,12,12,
+  12,12,12,12,12,12,12,36,12,36,12,12, 12,36,12,12,12,12,12,36,12,36,12,12,
+  12,36,12,12,12,12,12,12,12,12,12,12,
+};
+/* clang-format on */
+
+static void utf8_decode(uint32_t *state, uint8_t byte) {
+  *state = utf8d[256 + *state + utf8d[byte]];
+}
+
+/* End of utf8 dfa */
+
+static int parser_dispstring(sf_parser *sfp, sf_value *dest) {
+  const uint8_t *base;
+  uint8_t c;
+  uint32_t utf8state = UTF8_ACCEPT;
+
+  assert('%' == *sfp->pos);
+
+  ++sfp->pos;
+
+  if (parser_eof(sfp) || *sfp->pos != '"') {
+    return SF_ERR_PARSE_ERROR;
+  }
+
+  base = ++sfp->pos;
+
+  for (; !parser_eof(sfp);) {
+    switch (*sfp->pos) {
+    X00_1F_CASES:
+    X7F_FF_CASES:
+      return SF_ERR_PARSE_ERROR;
+    case '%':
+      ++sfp->pos;
+
+      if (sfp->pos + 2 > sfp->end) {
+        return SF_ERR_PARSE_ERROR;
+      }
+
+      if (pctdecode(&c, &sfp->pos) != 0) {
+        return SF_ERR_PARSE_ERROR;
+      }
+
+      utf8_decode(&utf8state, c);
+      if (utf8state == UTF8_REJECT) {
+        return SF_ERR_PARSE_ERROR;
+      }
+
+      break;
+    case '"':
+      if (utf8state != UTF8_ACCEPT) {
+        return SF_ERR_PARSE_ERROR;
+      }
+
+      if (dest) {
+        dest->type = SF_TYPE_DISPSTRING;
+        dest->flags = SF_VALUE_FLAG_NONE;
+        dest->vec.len = (size_t)(sfp->pos - base);
+        dest->vec.base = dest->vec.len == 0 ? NULL : (uint8_t *)base;
+      }
+
+      ++sfp->pos;
+
+      return 0;
+    default:
+      if (utf8state != UTF8_ACCEPT) {
+        return SF_ERR_PARSE_ERROR;
+      }
+
+      ++sfp->pos;
+    }
+  }
+
+  return SF_ERR_PARSE_ERROR;
+}
+
 static int parser_bare_item(sf_parser *sfp, sf_value *dest) {
   switch (*sfp->pos) {
   case '"':
@@ -615,6 +927,8 @@ static int parser_bare_item(sf_parser *sfp, sf_value *dest) {
   case '*':
   ALPHA_CASES:
     return parser_token(sfp, dest);
+  case '%':
+    return parser_dispstring(sfp, dest);
   default:
     return SF_ERR_PARSE_ERROR;
   }
@@ -1037,7 +1351,7 @@ void sf_unescape(sf_vec *dest, const sf_vec *src) {
   size_t len, slen;
 
   if (src->len == 0) {
-    *dest = *src;
+    dest->len = 0;
 
     return;
   }
@@ -1049,16 +1363,12 @@ void sf_unescape(sf_vec *dest, const sf_vec *src) {
   for (;;) {
     q = memchr(p, '\\', len);
     if (q == NULL) {
-      if (len == src->len) {
-        *dest = *src;
-
-        return;
-      }
-
       memcpy(o, p, len);
       o += len;
 
-      break;
+      dest->len = (size_t)(o - dest->base);
+
+      return;
     }
 
     slen = (size_t)(q - p);
@@ -1069,8 +1379,6 @@ void sf_unescape(sf_vec *dest, const sf_vec *src) {
     *o++ = *p++;
     len -= slen + 2;
   }
-
-  dest->len = (size_t)(o - dest->base);
 }
 
 void sf_base64decode(sf_vec *dest, const sf_vec *src) {
@@ -1093,20 +1401,22 @@ void sf_base64decode(sf_vec *dest, const sf_vec *src) {
   uint8_t *o;
   const uint8_t *p, *end;
   uint32_t n;
-  size_t i;
+  size_t i, left;
   int idx;
 
-  assert((src->len & 0x3) == 0);
-
   if (src->len == 0) {
-    *dest = *src;
+    dest->len = 0;
 
     return;
   }
 
   o = dest->base;
   p = src->base;
-  end = src->base + src->len;
+  left = src->len & 0x3;
+  if (left == 0 && src->base[src->len - 1] == '=') {
+    left = 4;
+  }
+  end = src->base + src->len - left;
 
   for (; p != end;) {
     n = 0;
@@ -1114,24 +1424,7 @@ void sf_base64decode(sf_vec *dest, const sf_vec *src) {
     for (i = 1; i <= 4; ++i, ++p) {
       idx = index_tbl[*p];
 
-      if (idx == -1) {
-        assert(i > 2);
-
-        if (i == 3) {
-          assert(*p == '=' && *(p + 1) == '=' && p + 2 == end);
-
-          *o++ = (uint8_t)(n >> 16);
-
-          goto fin;
-        }
-
-        assert(*p == '=' && p + 1 == end);
-
-        *o++ = (uint8_t)(n >> 16);
-        *o++ = (n >> 8) & 0xffu;
-
-        goto fin;
-      }
+      assert(idx != -1);
 
       n += (uint32_t)(idx << (24 - i * 6));
     }
@@ -1141,6 +1434,84 @@ void sf_base64decode(sf_vec *dest, const sf_vec *src) {
     *o++ = n & 0xffu;
   }
 
+  switch (left) {
+  case 0:
+    goto fin;
+  case 1:
+    assert(0);
+    abort();
+  case 3:
+    if (src->base[src->len - 1] == '=') {
+      left = 2;
+    }
+
+    break;
+  case 4:
+    assert('=' == src->base[src->len - 1]);
+
+    if (src->base[src->len - 2] == '=') {
+      left = 2;
+    } else {
+      left = 3;
+    }
+
+    break;
+  }
+
+  switch (left) {
+  case 2:
+    *o = (uint8_t)(index_tbl[*p++] << 2);
+    *o++ |= (uint8_t)(index_tbl[*p++] >> 4);
+
+    break;
+  case 3:
+    n = (uint32_t)(index_tbl[*p++] << 10);
+    n += (uint32_t)(index_tbl[*p++] << 4);
+    n += (uint32_t)(index_tbl[*p++] >> 2);
+    *o++ = (n >> 8) & 0xffu;
+    *o++ = n & 0xffu;
+
+    break;
+  }
+
 fin:
   dest->len = (size_t)(o - dest->base);
+}
+
+void sf_pctdecode(sf_vec *dest, const sf_vec *src) {
+  const uint8_t *p, *q;
+  uint8_t *o;
+  size_t len, slen;
+
+  if (src->len == 0) {
+    dest->len = 0;
+
+    return;
+  }
+
+  o = dest->base;
+  p = src->base;
+  len = src->len;
+
+  for (;;) {
+    q = memchr(p, '%', len);
+    if (q == NULL) {
+      memcpy(o, p, len);
+      o += len;
+
+      dest->len = (size_t)(o - dest->base);
+
+      return;
+    }
+
+    slen = (size_t)(q - p);
+    memcpy(o, p, slen);
+    o += slen;
+
+    p = q + 1;
+
+    pctdecode(o++, &p);
+
+    len -= slen + 3;
+  }
 }
