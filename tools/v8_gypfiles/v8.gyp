@@ -41,14 +41,18 @@
         'AdditionalOptions': ['/utf-8']
       }
     },
-    # Hide symbols that are not explicitly exported with V8_EXPORT.
-    # TODO(joyeecheung): enable it on other platforms. Currently gcc times out
-    # or run out of memory with -fvisibility=hidden on some machines in the CI.
-    'xcode_settings': {
-      'GCC_SYMBOLS_PRIVATE_EXTERN': 'YES',  # -fvisibility=hidden
-    },
-    'defines': [
-      'BUILDING_V8_SHARED',  # Make V8_EXPORT visible.
+    'conditions': [
+      ['OS=="mac"', {
+        # Hide symbols that are not explicitly exported with V8_EXPORT.
+        # TODO(joyeecheung): enable it on other platforms. Currently gcc times out
+        # or run out of memory with -fvisibility=hidden on some machines in the CI.
+        'xcode_settings': {
+          'GCC_SYMBOLS_PRIVATE_EXTERN': 'YES',  # -fvisibility=hidden
+        },
+        'defines': [
+          'BUILDING_V8_SHARED',  # Make V8_EXPORT visible.
+        ],
+      }],
     ],
   },
   'targets': [
