@@ -2,7 +2,7 @@
 const { spawnPromisified } = require('../common');
 const tmpdir = require('../common/tmpdir');
 const { join } = require('node:path');
-const { DatabaseSync } = require('node:sqlite');
+const { DatabaseSync, constants } = require('node:sqlite');
 const { suite, test } = require('node:test');
 let cnt = 0;
 
@@ -83,6 +83,12 @@ test('in-memory databases are supported', (t) => {
     db2.prepare('SELECT * FROM data').all(),
     [{ __proto__: null, key: 1 }]
   );
+});
+
+test('sqlite constants are defined', (t) => {
+  t.assert.strictEqual(constants.SQLITE_CHANGESET_OMIT, 0);
+  t.assert.strictEqual(constants.SQLITE_CHANGESET_REPLACE, 1);
+  t.assert.strictEqual(constants.SQLITE_CHANGESET_ABORT, 2);
 });
 
 test('PRAGMAs are supported', (t) => {
