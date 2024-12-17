@@ -87,7 +87,7 @@ jobs:
               );
               continue;
             }
-  
+
             assert(commitList.includes("\n"+line), `Missing "${line}" in commit list`);
             expectedNumberOfCommitsLeft--;
           }
@@ -95,4 +95,3 @@ jobs:
           ' "$CHANGELOG_PATH" "$GITHUB_SHA"
         env:
           GH_TOKEN: ${{ github.token }}
-          
