@@ -57,3 +57,6 @@ jobs:
       - name: Verify NODE_VERSION_IS_RELEASE bit is correctly set
         run: |
           grep -q '^#define NODE_VERSION_IS_RELEASE 1$' src/node_version.h
+      - name: Check for placeholders in documentation
+        run: |
+          ! grep "REPLACEME" doc/api/*.md
