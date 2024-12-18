@@ -35,7 +35,7 @@ jobs:
         run: |
           EXPECTED_TRAILER="^$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/pull/[[:digit:]]+\$"
           echo "Expected trailer format: $EXPECTED_TRAILER"
-          PR_URL=$(git --no-pager log -1 --format='%(trailers:key=PR-URL,valueonly)')
+          PR_URL="$(git --no-pager log -1 --format='%(trailers:key=PR-URL,valueonly)')"
           echo "Actual: $ACTUAL"
           echo "$PR_URL" | grep -E -q "$EXPECTED_TRAILER"
 
@@ -53,7 +53,7 @@ jobs:
         run: |
           EXPECTED_CHANGELOG_TITLE_INTRO="## $COMMIT_SUBJECT, @"
           echo "Expected CHANGELOG section title: $EXPECTED_CHANGELOG_TITLE_INTRO"
-          MAJOR=$(awk '/^#define NODE_MAJOR_VERSION / { print $3 }' src/node_version.h)
+          MAJOR="$(awk '/^#define NODE_MAJOR_VERSION / { print $3 }' src/node_version.h)"
           CHANGELOG_PATH="doc/changelogs/CHANGELOG_V${MAJOR}.md"
           CHANGELOG_TITLE="$(grep "$EXPECTED_CHANGELOG_TITLE_INTRO" "$CHANGELOG_PATH")"
           echo "Actual: $CHANGELOG_TITLE"
@@ -64,34 +64,6 @@ jobs:
             --jq '.commits | map({ smallSha: .sha[0:10], splitTitle: .commit.message|split("\n\n")|first|split(":") })' \
             "/repos/${GITHUB_REPOSITORY}/compare/v${MAJOR}.x...$GITHUB_SHA" --paginate |\
           jq -r '.[] | "* [[`" + .smallSha + "`](" + env.GITHUB_SERVER_URL + "/" + env.GITHUB_REPOSITORY + "/commit/" + .smallSha + ")] - **" + (.splitTitle|first) + "**:" + (.splitTitle[1:]|join(":"))' |\
-          node --input-type=module -e '
-          import assert from "node:assert";
-          import {readFile} from "node:fs/promises";
-          import {createInterface} from "node:readline";
-          const stdinLineByLine = createInterface(process.stdin)[Symbol.asyncIterator]();
-          const [,CHANGELOG_PATH, GITHUB_SHA] = process.argv;
-          const changelog = await readFile(CHANGELOG_PATH, "utf-8");
-          const startCommitListing = changelog.indexOf("\n### Commits\n");
-          const commitList = changelog.slice(startCommitListing, changelog.indexOf("\n\n<a", startCommitListing))
-            // Checking for semverness is too expansive, it is left as a exercice for human reviewers.
-            .replaceAll("**(SEMVER-MINOR)** ", "")
-            // Correct Markdown escaping is validated by the linter, getting rid of it here helps.
-            .replaceAll("\\", "");
-
-          let expectedNumberOfCommitsLeft = commitList.match(/\n\* \[/g).length;
-          for await (const line of stdinLineByLine) {
-            if (line.includes(GITHUB_SHA.slice(0, 10))) {
-              assert.strictEqual(
-                expectedNumberOfCommitsLeft, 0,
-                "Some commits are listed without being included in the proposal, or are listed more than once",
-              );
-              continue;
-            }
-
-            assert(commitList.includes("\n"+line), `Missing "${line}" in commit list`);
-            expectedNumberOfCommitsLeft--;
-          }
-          assert.strictEqual(expectedNumberOfCommitsLeft, 0, "Release commit is not the last commit in the proposal");
-          ' "$CHANGELOG_PATH" "$GITHUB_SHA"
+          node tools/actions/lint-release-proposal-commit-list.mjs "$CHANGELOG_PATH" "$GITHUB_SHA"
         env:
           GH_TOKEN: ${{ github.token }}
