@@ -1922,7 +1922,7 @@ added:
   - v21.7.0
   - v20.12.0
 changes:
-  - version: REPLACEME
+  - version: v23.5.0
     pr-url: https://github.com/nodejs/node/pull/56265
     description: styleText is now stable.
   - version:

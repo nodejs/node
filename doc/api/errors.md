@@ -2177,7 +2177,7 @@ signaling a short circuit.
 ### `ERR_LOAD_SQLITE_EXTENSION`
 
 <!-- YAML
-added: REPLACEME
+added: v23.5.0
 -->
 
 An error occurred while loading a SQLite extension.

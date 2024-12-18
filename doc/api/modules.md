@@ -176,7 +176,7 @@ added:
   - v20.17.0
 changes:
   - version:
-    - REPLACEME
+    - v23.5.0
     pr-url: https://github.com/nodejs/node/pull/56194
     description: This feature no longer emits an experimental warning by default,
                  though the warning can still be emitted by --trace-require-module.

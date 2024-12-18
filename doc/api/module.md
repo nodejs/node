@@ -22,7 +22,7 @@ added:
   - v8.10.0
   - v6.13.0
 changes:
-  - version: REPLACEME
+  - version: v23.5.0
     pr-url: https://github.com/nodejs/node/pull/56185
     description: The list now also contains prefix-only modules.
 -->
@@ -204,7 +204,7 @@ resolution and loading behavior. See [Customization hooks][].
 ### `module.registerHooks(options)`
 
 <!-- YAML
-added: REPLACEME
+added: v23.5.0
 -->
 
 > Stability: 1.1 - Active development
@@ -529,7 +529,7 @@ added: v22.8.0
 <!-- YAML
 added: v8.8.0
 changes:
-  - version: REPLACEME
+  - version: v23.5.0
     pr-url: https://github.com/nodejs/node/pull/55698
     description: Add support for synchronous and in-thread hooks.
   - version:
@@ -862,7 +862,7 @@ child workers by default.
 #### Synchronous hooks accepted by `module.registerHooks()`
 
 <!-- YAML
-added: REPLACEME
+added: v23.5.0
 -->
 
 > Stability: 1.1 - Active development
@@ -991,7 +991,7 @@ register('./path-to-my-hooks.js', {
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v23.5.0
     pr-url: https://github.com/nodejs/node/pull/55698
     description: Add support for synchronous and in-thread hooks.
   - version:
@@ -1116,7 +1116,7 @@ function resolve(specifier, context, nextResolve) {
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v23.5.0
     pr-url: https://github.com/nodejs/node/pull/55698
     description: Add support for synchronous and in-thread version.
   - version: v20.6.0
