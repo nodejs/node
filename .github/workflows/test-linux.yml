@@ -53,4 +53,4 @@ jobs:
       - name: Build
         run: make build-ci -j4 V=1 CONFIG_FLAGS="--error-on-warn"
       - name: Test
-        run: make run-ci -j4 V=1 TEST_CI_ARGS="-p actions --node-args='--test-reporter=spec' --node-args='--test-reporter-destination=stdout' --measure-flakiness 9"
+        run: make run-ci -j4 V=1 TEST_CI_ARGS="-p actions --node-args='--test-reporter=./test/common/test-error-reporter.js' --node-args='--test-reporter-destination=stdout' --measure-flakiness 9"
