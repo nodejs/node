@@ -153,7 +153,7 @@ These dependencies are:
 - `node:async_hooks`
 - `node:child_process`
 - `node:fs`
-- ReadableStream in `node:streams`
+- `node:streams` with the exception of WebStreams
 - `node:vm`
 
 #### Caveats
