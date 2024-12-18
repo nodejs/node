@@ -2316,7 +2316,8 @@ added: v22.8.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/56298
-    description: Test isolation configuration is now stable.
+    description: This flag was renamed from `--experimental-test-isolation` to
+                 `--test-isolation`.
 -->
 
 Configures the type of test isolation used in the test runner. When `mode` is
