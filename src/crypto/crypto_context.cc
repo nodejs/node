@@ -60,6 +60,48 @@ X509_STORE* GetOrCreateRootCertStore() {
   return store;
 }
 
+// copies an X509_STORE object, including the certificates and crls it contains.
+X509_STORE* CopyX509Store(X509_STORE* src) {
+  // create a new X509_STORE
+  X509_STORE* dest = X509_STORE_new();
+
+  if (*system_cert_path != '\0') {
+    ERR_set_mark();
+    X509_STORE_load_locations(dest, system_cert_path, nullptr);
+    ERR_pop_to_mark();
+  }
+
+  {
+    Mutex::ScopedLock cli_lock(node::per_process::cli_options_mutex);
+    if (per_process::cli_options->ssl_openssl_cert_store) {
+      CHECK_EQ(1, X509_STORE_set_default_paths(dest));
+    }
+  }
+
+  // copy flags
+  X509_STORE_set1_param(dest, X509_STORE_get0_param(src));
+
+  // get the certificates and crls from the source store
+  STACK_OF(X509_OBJECT)* objs = X509_STORE_get0_objects(src);
+  for (int i = 0; i < sk_X509_OBJECT_num(objs); i++) {
+    X509_OBJECT* obj = sk_X509_OBJECT_value(objs, i);
+    int type = X509_OBJECT_get_type(obj);
+    if (type == X509_LU_X509) {
+      // copy certs
+      X509* x509 = X509_OBJECT_get0_X509(obj);
+      X509_up_ref(x509);
+      X509_STORE_add_cert(dest, x509);
+    } else if (type == X509_LU_CRL) {
+      // copy crls
+      X509_CRL* crl = X509_OBJECT_get0_X509_CRL(obj);
+      X509_CRL_up_ref(crl);
+      X509_STORE_add_crl(dest, crl);
+    }
+  }
+
+  return dest;
+}
+
 // Takes a string or buffer and loads it into a BIO.
 // Caller responsible for BIO_free_all-ing the returned object.
 BIOPointer LoadBIO(Environment* env, Local<Value> v) {
@@ -785,9 +827,26 @@ void SecureContext::SetCACert(const BIOPointer& bio) {
   if (!bio) return;
   while (X509Pointer x509 = X509Pointer(PEM_read_bio_X509_AUX(
              bio.get(), nullptr, NoPasswordCallback, nullptr))) {
-    CHECK_EQ(1,
-             X509_STORE_add_cert(GetCertStoreOwnedByThisSecureContext(),
-                                 x509.get()));
+    // Avoid calling GetCertStoreOwnedByThisSecureContext() in SetCACert method
+    // because it will create X509_STORE based on root_certs (more than 150) and
+    // is very slow
+
+    if (!own_cert_store_cache_) {
+      // Is cert_store here a globally shared root cert store? There are two
+      // possibilities
+      // 1. AddRootCerts has been called, and cert_store is a globally shared
+      // root cert store
+      // 2. AddRootCerts has not been called, and cert_store is the default cert
+      // store of OpenSSL Directly creating a new store is not a correct
+      // implementation of copy on write
+      SSL_CTX_set_cert_store(ctx_.get(),
+                             own_cert_store_cache_ = CopyX509Store(
+                                 SSL_CTX_get_cert_store(ctx_.get())));
+      // No need to call X509_STORE_free manually, SSL_CTX_set_cert_store will
+      // take over the ownership of X509_STORE
+    }
+
+    CHECK_EQ(1, X509_STORE_add_cert(own_cert_store_cache_, x509.get()));
     CHECK_EQ(1, SSL_CTX_add_client_CA(ctx_.get(), x509.get()));
   }
 }
