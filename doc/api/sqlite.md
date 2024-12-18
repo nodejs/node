@@ -127,7 +127,7 @@ open. This method is a wrapper around [`sqlite3_close_v2()`][].
 ### `database.loadExtension(path)`
 
 <!-- YAML
-added: REPLACEME
+added: v23.5.0
 -->
 
 * `path` {string} The path to the shared library to load.
@@ -139,7 +139,7 @@ around [`sqlite3_load_extension()`][]. It is required to enable the
 ### `database.enableLoadExtension(allow)`
 
 <!-- YAML
-added: REPLACEME
+added: v23.5.0
 -->
 
 * `allow` {boolean} Whether to allow loading extensions.
@@ -163,7 +163,7 @@ file. This method is a wrapper around [`sqlite3_exec()`][].
 ### `database.function(name[, options], function)`
 
 <!-- YAML
-added: REPLACEME
+added: v23.5.0
 -->
 
 * `name` {string} The name of the SQLite function to create.
@@ -485,7 +485,7 @@ exception.
 ## `sqlite.constants`
 
 <!-- YAML
-added: REPLACEME
+added: v23.5.0
 -->
 
 * {Object}

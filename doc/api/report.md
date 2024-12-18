@@ -592,7 +592,7 @@ Report version definitions are consistent across LTS releases.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v23.5.0
     pr-url: https://github.com/nodejs/node/pull/56068
     description: Fix typos in the memory limit units.
 -->
