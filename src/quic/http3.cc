@@ -17,7 +17,99 @@
 #include "session.h"
 #include "sessionticket.h"
 
-namespace node::quic {
+namespace node {
+
+using v8::FunctionCallbackInfo;
+using v8::FunctionTemplate;
+using v8::Local;
+using v8::Object;
+using v8::ObjectTemplate;
+using v8::Value;
+
+namespace quic {
+
+// ============================================================================
+
+bool Http3Application::HasInstance(Environment* env, Local<Value> value) {
+  return GetConstructorTemplate(env)->HasInstance(value);
+}
+
+Local<FunctionTemplate> Http3Application::GetConstructorTemplate(
+    Environment* env) {
+  auto& state = BindingData::Get(env);
+  auto tmpl = state.http3application_constructor_template();
+  if (tmpl.IsEmpty()) {
+    auto isolate = env->isolate();
+    tmpl = NewFunctionTemplate(isolate, New);
+    tmpl->SetClassName(state.http3application_string());
+    tmpl->InstanceTemplate()->SetInternalFieldCount(
+        Http3Application::kInternalFieldCount);
+    state.set_http3application_constructor_template(tmpl);
+  }
+  return tmpl;
+}
+
+void Http3Application::InitPerIsolate(IsolateData* isolate_data,
+                                      Local<ObjectTemplate> target) {
+  // TODO(@jasnell): Implement the per-isolate state
+}
+
+void Http3Application::InitPerContext(Realm* realm, Local<Object> target) {
+  SetConstructorFunction(realm->context(),
+                         target,
+                         "Http3Application",
+                         GetConstructorTemplate(realm->env()));
+}
+
+void Http3Application::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(New);
+}
+
+Http3Application::Http3Application(Environment* env,
+                                   Local<Object> object,
+                                   const Session::Application::Options& options)
+    : ApplicationProvider(env, object), options_(options) {
+  MakeWeak();
+}
+
+void Http3Application::New(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args.IsConstructCall());
+
+  Local<Object> obj;
+  if (!GetConstructorTemplate(env)
+           ->InstanceTemplate()
+           ->NewInstance(env->context())
+           .ToLocal(&obj)) {
+    return;
+  }
+
+  Session::Application::Options options;
+  if (!args[0]->IsUndefined() &&
+      !Session::Application::Options::From(env, args[0]).To(&options)) {
+    return;
+  }
+
+  if (auto app = MakeBaseObject<Http3Application>(env, obj, options)) {
+    args.GetReturnValue().Set(app->object());
+  }
+}
+
+void Http3Application::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("options", options_);
+}
+
+std::string Http3Application::ToString() const {
+  DebugIndentScope indent;
+  auto prefix = indent.Prefix();
+  std::string res("{");
+  res += prefix + "options: " + options_.ToString();
+  res += indent.Close();
+  return res;
+}
+
+// ============================================================================
 
 struct Http3HeadersTraits {
   using nv_t = nghttp3_nv;
@@ -75,10 +167,10 @@ struct Http3HeaderTraits {
 using Http3Header = NgHeader<Http3HeaderTraits>;
 
 // Implements the low-level HTTP/3 Application semantics.
-class Http3Application final : public Session::Application {
+class Http3ApplicationImpl final : public Session::Application {
  public:
-  Http3Application(Session* session,
-                   const Session::Application::Options& options)
+  Http3ApplicationImpl(Session* session,
+                       const Session::Application::Options& options)
       : Application(session, options),
         allocator_(BindingData::Get(env())),
         options_(options),
@@ -261,7 +353,7 @@ class Http3Application final : public Session::Application {
                : SessionTicket::AppData::Status::TICKET_USE;
   }
 
-  void StreamClose(Stream* stream, QuicError error = QuicError()) override {
+  void StreamClose(Stream* stream, QuicError&& error = QuicError()) override {
     Debug(
         &session(), "HTTP/3 application closing stream %" PRIi64, stream->id());
     uint64_t code = NGHTTP3_H3_NO_ERROR;
@@ -288,14 +380,14 @@ class Http3Application final : public Session::Application {
 
   void StreamReset(Stream* stream,
                    uint64_t final_size,
-                   QuicError error) override {
+                   QuicError&& error = QuicError()) override {
     // We are shutting down the readable side of the local stream here.
     Debug(&session(),
           "HTTP/3 application resetting stream %" PRIi64,
           stream->id());
     int rv = nghttp3_conn_shutdown_stream_read(*this, stream->id());
     if (rv == 0) {
-      stream->ReceiveStreamReset(final_size, error);
+      stream->ReceiveStreamReset(final_size, std::move(error));
       return;
     }
 
@@ -304,8 +396,9 @@ class Http3Application final : public Session::Application {
     session().Close();
   }
 
-  void StreamStopSending(Stream* stream, QuicError error) override {
-    Application::StreamStopSending(stream, error);
+  void StreamStopSending(Stream* stream,
+                         QuicError&& error = QuicError()) override {
+    Application::StreamStopSending(stream, std::move(error));
   }
 
   bool SendHeaders(const Stream& stream,
@@ -434,8 +527,8 @@ class Http3Application final : public Session::Application {
   }
 
   SET_NO_MEMORY_INFO()
-  SET_MEMORY_INFO_NAME(Http3Application)
-  SET_SELF_SIZE(Http3Application)
+  SET_MEMORY_INFO_NAME(Http3ApplicationImpl)
+  SET_SELF_SIZE(Http3ApplicationImpl)
 
  private:
   inline operator nghttp3_conn*() const {
@@ -447,8 +540,6 @@ class Http3Application final : public Session::Application {
     return id == control_stream_id_ || id == qpack_dec_stream_id_ ||
            id == qpack_enc_stream_id_;
   }
-
-  bool is_destroyed() const { return session().is_destroyed(); }
 
   Http3ConnectionPointer InitializeConnection() {
     nghttp3_conn* conn = nullptr;
@@ -646,9 +737,9 @@ class Http3Application final : public Session::Application {
   // ==========================================================================
   // Static callbacks
 
-  static Http3Application* From(nghttp3_conn* conn, void* user_data) {
+  static Http3ApplicationImpl* From(nghttp3_conn* conn, void* user_data) {
     DCHECK_NOT_NULL(user_data);
-    auto app = static_cast<Http3Application*>(user_data);
+    auto app = static_cast<Http3ApplicationImpl*>(user_data);
     DCHECK_EQ(conn, app->conn_.get());
     return app;
   }
@@ -669,9 +760,6 @@ class Http3Application final : public Session::Application {
   auto ptr = From(conn, conn_user_data);                                       \
   CHECK_NOT_NULL(ptr);                                                         \
   auto& name = *ptr;                                                           \
-  if (name.is_destroyed()) [[unlikely]] {                                      \
-    return NGHTTP3_ERR_CALLBACK_FAILURE;                                       \
-  }                                                                            \
   NgHttp3CallbackScope scope(name.env());
 
   static nghttp3_ssize on_read_data_callback(nghttp3_conn* conn,
@@ -897,11 +985,13 @@ class Http3Application final : public Session::Application {
                                                    on_receive_settings};
 };
 
-std::unique_ptr<Session::Application> createHttp3Application(
-    Session* session, const Session::Application_Options& options) {
-  return std::make_unique<Http3Application>(session, options);
+std::unique_ptr<Session::Application> Http3Application::Create(
+    Session* session) {
+  Debug(session, "Selecting HTTP/3 application");
+  return std::make_unique<Http3ApplicationImpl>(session, options_);
 }
 
-}  // namespace node::quic
+}  // namespace quic
+}  // namespace node
 
 #endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC

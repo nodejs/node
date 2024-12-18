@@ -1,9 +1,9 @@
 #pragma once
 
-#include "quic/defs.h"
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 #if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 
+#include "base_object.h"
 #include "bindingdata.h"
 #include "defs.h"
 #include "session.h"
@@ -79,15 +79,16 @@ class Session::Application : public MemoryRetainer {
       SessionTicket::AppData::Source::Flag flag);
 
   // Notifies the Application that the identified stream has been closed.
-  virtual void StreamClose(Stream* stream, QuicError error = QuicError());
+  virtual void StreamClose(Stream* stream, QuicError&& error = QuicError());
 
   // Notifies the Application that the identified stream has been reset.
   virtual void StreamReset(Stream* stream,
                            uint64_t final_size,
-                           QuicError error);
+                           QuicError&& error = QuicError());
 
   // Notifies the Application that the identified stream should stop sending.
-  virtual void StreamStopSending(Stream* stream, QuicError error);
+  virtual void StreamStopSending(Stream* stream,
+                                 QuicError&& error = QuicError());
 
   // Submits an outbound block of headers for the given stream. Not all
   // Application types will support headers, in which case this function
@@ -146,7 +147,7 @@ struct Session::Application::StreamData final {
   int64_t id = -1;
   int fin = 0;
   ngtcp2_vec data[kMaxVectorCount]{};
-  BaseObjectWeakPtr<Stream> stream;
+  BaseObjectPtr<Stream> stream;
 
   inline operator nghttp3_vec*() {
     return reinterpret_cast<nghttp3_vec*>(data);

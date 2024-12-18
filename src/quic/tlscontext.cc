@@ -170,7 +170,7 @@ int TLSContext::OnSelectAlpn(SSL* ssl,
   static constexpr size_t kMaxAlpnLen = 255;
   auto& session = TLSSession::From(ssl);
 
-  const auto& requested = session.context().options().alpn;
+  const auto& requested = session.context().options().protocol;
   if (requested.length() > kMaxAlpnLen) return SSL_TLSEXT_ERR_NOACK;
 
   // The Session supports exactly one ALPN identifier. If that does not match
@@ -266,11 +266,13 @@ crypto::SSLCtxPointer TLSContext::Initialize() {
                            OnVerifyClientCertificate);
       }
 
-      CHECK_EQ(SSL_CTX_set_session_ticket_cb(ctx.get(),
-                                             SessionTicket::GenerateCallback,
-                                             SessionTicket::DecryptedCallback,
-                                             nullptr),
-               1);
+      // TODO(@jasnell): There's a bug int the GenerateCallback flow somewhere.
+      // Need to update in order to support session tickets.
+      // CHECK_EQ(SSL_CTX_set_session_ticket_cb(ctx.get(),
+      //                                        SessionTicket::GenerateCallback,
+      //                                        SessionTicket::DecryptedCallback,
+      //                                        nullptr),
+      //          1);
       break;
     }
     case Side::CLIENT: {
@@ -434,11 +436,11 @@ Maybe<TLSContext::Options> TLSContext::Options::From(Environment* env,
   SetOption<TLSContext::Options, &TLSContext::Options::name>(                  \
       env, &options, params, state.name##_string())
 
-  if (!SET(verify_client) || !SET(enable_tls_trace) || !SET(alpn) ||
-      !SET(sni) || !SET(ciphers) || !SET(groups) || !SET(verify_private_key) ||
-      !SET(keylog) || !SET_VECTOR(crypto::KeyObjectData, keys) ||
-      !SET_VECTOR(Store, certs) || !SET_VECTOR(Store, ca) ||
-      !SET_VECTOR(Store, crl)) {
+  if (!SET(verify_client) || !SET(enable_tls_trace) || !SET(protocol) ||
+      !SET(servername) || !SET(ciphers) || !SET(groups) ||
+      !SET(verify_private_key) || !SET(keylog) ||
+      !SET_VECTOR(crypto::KeyObjectData, keys) || !SET_VECTOR(Store, certs) ||
+      !SET_VECTOR(Store, ca) || !SET_VECTOR(Store, crl)) {
     return Nothing<Options>();
   }
 
@@ -449,8 +451,8 @@ std::string TLSContext::Options::ToString() const {
   DebugIndentScope indent;
   auto prefix = indent.Prefix();
   std::string res("{");
-  res += prefix + "alpn: " + alpn;
-  res += prefix + "sni: " + sni;
+  res += prefix + "protocol: " + protocol;
+  res += prefix + "servername: " + servername;
   res +=
       prefix + "keylog: " + (keylog ? std::string("yes") : std::string("no"));
   res += prefix + "verify client: " +
@@ -496,6 +498,12 @@ TLSSession::TLSSession(Session* session,
   Debug(session_, "Created new TLS session for %s", session->config().dcid);
 }
 
+TLSSession::~TLSSession() {
+  if (ssl_) {
+    SSL_set_app_data(ssl_.get(), nullptr);
+  }
+}
+
 TLSSession::operator SSL*() const {
   CHECK(ssl_);
   return ssl_.get();
@@ -530,14 +538,14 @@ crypto::SSLPointer TLSSession::Initialize(
       SSL_set_connect_state(ssl.get());
       if (SSL_set_alpn_protos(
               ssl.get(),
-              reinterpret_cast<const unsigned char*>(options.alpn.data()),
-              options.alpn.size()) != 0) {
+              reinterpret_cast<const unsigned char*>(options.protocol.data()),
+              options.protocol.size()) != 0) {
         validation_error_ = "Invalid ALPN";
         return crypto::SSLPointer();
       }
 
-      if (!options.sni.empty()) {
-        SSL_set_tlsext_host_name(ssl.get(), options.sni.data());
+      if (!options.servername.empty()) {
+        SSL_set_tlsext_host_name(ssl.get(), options.servername.data());
       } else {
         SSL_set_tlsext_host_name(ssl.get(), "localhost");
       }
@@ -619,7 +627,7 @@ const std::string_view TLSSession::servername() const {
                                : std::string_view();
 }
 
-const std::string_view TLSSession::alpn() const {
+const std::string_view TLSSession::protocol() const {
   const unsigned char* alpn_buf = nullptr;
   unsigned int alpnlen;
   SSL_get0_alpn_selected(ssl_.get(), &alpn_buf, &alpnlen);
@@ -629,7 +637,7 @@ const std::string_view TLSSession::alpn() const {
 }
 
 bool TLSSession::InitiateKeyUpdate() {
-  if (session_->is_destroyed() || in_key_update_) return false;
+  if (in_key_update_) return false;
   auto leave = OnScopeLeave([this] { in_key_update_ = false; });
   in_key_update_ = true;
 

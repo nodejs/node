@@ -87,8 +87,6 @@ expected.beforePreExec = new Set([
   'NativeModule internal/process/signal',
   'Internal Binding fs',
   'NativeModule internal/encoding',
-  'NativeModule internal/webstreams/util',
-  'NativeModule internal/webstreams/queuingstrategies',
   'NativeModule internal/blob',
   'NativeModule internal/fs/utils',
   'NativeModule fs',

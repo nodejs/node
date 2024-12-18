@@ -129,11 +129,22 @@ class PendingStream final {
 // object is created, it has not yet been opened in ngtcp2 and therefore has
 // no official status yet. Certain operations can still be performed on the
 // stream object such as providing data and headers, and destroying the stream.
+//
+// When a stream is created the data source for the stream must be given.
+// If no data source is given, then the stream is assumed to not have any
+// outbound data. The data source can be fixed length or may support
+// streaming. What this means practically is, when a stream is opened,
+// you must already have a sense of whether that will provide data or
+// not. When in doubt, specify a streaming data source, which can produce
+// zero-length output.
 class Stream final : public AsyncWrap,
                      public Ngtcp2Source,
                      public DataQueue::BackpressureListener {
  public:
   using Header = NgHeaderBase<BindingData>;
+
+  static v8::Maybe<std::shared_ptr<DataQueue>> GetDataQueueFromSource(
+      Environment* env, v8::Local<v8::Value> value);
 
   static Stream* From(void* stream_user_data);
 
@@ -189,6 +200,9 @@ class Stream final : public AsyncWrap,
   bool is_pending() const;
 
   // True if we've completely sent all outbound data for this stream.
+  // Importantly, this does not necessarily mean that we are completely
+  // done with the outbound data. We may still be waiting on outbound
+  // data to be acknowledged by the remote peer.
   bool is_eos() const;
 
   // True if this stream is still in a readable state.
@@ -201,6 +215,7 @@ class Stream final : public AsyncWrap,
   // of bytes have been acknowledged by the peer.
   void Acknowledge(size_t datalen);
   void Commit(size_t datalen);
+
   void EndWritable();
   void EndReadable(std::optional<uint64_t> maybe_final_size = std::nullopt);
   void EntryRead(size_t amount) override;
@@ -232,12 +247,15 @@ class Stream final : public AsyncWrap,
   void ReceiveStopSending(QuicError error);
   void ReceiveStreamReset(uint64_t final_size, QuicError error);
 
+  // Currently, only HTTP/3 streams support headers. These methods are here
+  // to support that. They are not used when using any other QUIC application.
+
   void BeginHeaders(HeadersKind kind);
+  void set_headers_kind(HeadersKind kind);
   // Returns false if the header cannot be added. This will typically happen
   // if the application does not support headers, a maximum number of headers
   // have already been added, or the maximum total header length is reached.
   bool AddHeader(const Header& header);
-  void set_headers_kind(HeadersKind kind);
 
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(Stream)
@@ -245,13 +263,6 @@ class Stream final : public AsyncWrap,
 
   struct State;
   struct Stats;
-
-  // Notifies the JavaScript side that sending data on the stream has been
-  // blocked because of flow control restriction.
-  void EmitBlocked();
-
-  // Delivers the set of inbound headers that have been collected.
-  void EmitHeaders();
 
  private:
   struct Impl;
@@ -279,6 +290,13 @@ class Stream final : public AsyncWrap,
   // Notifies the JavaScript side that the application is ready to receive
   // trailing headers.
   void EmitWantTrailers();
+
+  // Notifies the JavaScript side that sending data on the stream has been
+  // blocked because of flow control restriction.
+  void EmitBlocked();
+
+  // Delivers the set of inbound headers that have been collected.
+  void EmitHeaders();
 
   void NotifyReadableEnded(uint64_t code);
   void NotifyWritableEnded(uint64_t code);
@@ -326,6 +344,8 @@ class Stream final : public AsyncWrap,
 
   friend struct Impl;
   friend class PendingStream;
+  friend class Http3ApplicationImpl;
+  friend class DefaultApplication;
 
  public:
   // The Queue/Schedule/Unschedule here are part of the mechanism used to

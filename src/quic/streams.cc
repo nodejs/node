@@ -45,6 +45,7 @@ namespace quic {
   V(WRITE_ENDED, write_ended, uint8_t)                                         \
   V(PAUSED, paused, uint8_t)                                                   \
   V(RESET, reset, uint8_t)                                                     \
+  V(HAS_OUTBOUND, has_outbound, uint8_t)                                       \
   V(HAS_READER, has_reader, uint8_t)                                           \
   /* Set when the stream has a block event handler */                          \
   V(WANTS_BLOCK, wants_block, uint8_t)                                         \
@@ -103,7 +104,7 @@ PendingStream::PendingStream(Direction direction,
 
 PendingStream::~PendingStream() {
   pending_stream_queue_.Remove();
-  if (!waiting_) {
+  if (waiting_) {
     Debug(stream_, "A pending stream was canceled");
   }
 }
@@ -143,11 +144,10 @@ STAT_STRUCT(Stream, STREAM)
 
 // ============================================================================
 
-namespace {
-Maybe<std::shared_ptr<DataQueue>> GetDataQueueFromSource(Environment* env,
-                                                         Local<Value> value) {
+Maybe<std::shared_ptr<DataQueue>> Stream::GetDataQueueFromSource(
+    Environment* env, Local<Value> value) {
   DCHECK_IMPLIES(!value->IsUndefined(), value->IsObject());
-  std::vector<std::unique_ptr<DataQueue::Entry>> entries(1);
+  std::vector<std::unique_ptr<DataQueue::Entry>> entries;
   if (value->IsUndefined()) {
     return Just(std::shared_ptr<DataQueue>());
   } else if (value->IsArrayBuffer()) {
@@ -161,8 +161,13 @@ Maybe<std::shared_ptr<DataQueue>> GetDataQueueFromSource(Environment* env,
         buffer->GetBackingStore(), 0, buffer->ByteLength()));
     return Just(DataQueue::CreateIdempotent(std::move(entries)));
   } else if (value->IsArrayBufferView()) {
-    entries.push_back(
-        DataQueue::CreateInMemoryEntryFromView(value.As<ArrayBufferView>()));
+    auto entry =
+        DataQueue::CreateInMemoryEntryFromView(value.As<ArrayBufferView>());
+    if (!entry) {
+      THROW_ERR_INVALID_ARG_TYPE(env, "Data source not detachable");
+      return Nothing<std::shared_ptr<DataQueue>>();
+    }
+    entries.push_back(std::move(entry));
     return Just(DataQueue::CreateIdempotent(std::move(entries)));
   } else if (Blob::HasInstance(env, value)) {
     Blob* blob;
@@ -174,7 +179,6 @@ Maybe<std::shared_ptr<DataQueue>> GetDataQueueFromSource(Environment* env,
   THROW_ERR_INVALID_ARG_TYPE(env, "Invalid data source type");
   return Nothing<std::shared_ptr<DataQueue>>();
 }
-}  // namespace
 
 // Provides the implementation of the various JavaScript APIs for the
 // Stream object.
@@ -405,7 +409,7 @@ class Stream::Outbound final : public MemoryRetainer {
     // Calling cap without a value halts the ability to add any
     // new data to the queue if it is not idempotent. If it is
     // idempotent, it's a non-op.
-    queue_->cap();
+    if (queue_) queue_->cap();
   }
 
   int Pull(bob::Next<ngtcp2_vec> next,
@@ -1022,8 +1026,10 @@ void Stream::set_final_size(uint64_t final_size) {
 
 void Stream::set_outbound(std::shared_ptr<DataQueue> source) {
   if (!source || !is_writable()) return;
+  Debug(this, "Setting the outbound data source");
   DCHECK_NULL(outbound_);
   outbound_ = std::make_unique<Outbound>(this, std::move(source));
+  state_->has_outbound = 1;
   if (!is_pending()) session_->ResumeStream(id());
 }
 
@@ -1094,16 +1100,19 @@ bool Stream::AddHeader(const Header& header) {
 void Stream::Acknowledge(size_t datalen) {
   if (outbound_ == nullptr) return;
 
+  Debug(this, "Acknowledging %zu bytes", datalen);
+
   // ngtcp2 guarantees that offset must always be greater than the previously
   // received offset.
   DCHECK_GE(datalen, STAT_GET(Stats, max_offset_ack));
   STAT_SET(Stats, max_offset_ack, datalen);
 
-  // // Consumes the given number of bytes in the buffer.
+  // Consumes the given number of bytes in the buffer.
   outbound_->Acknowledge(datalen);
 }
 
 void Stream::Commit(size_t datalen) {
+  Debug(this, "Commiting %zu bytes", datalen);
   STAT_RECORD_TIMESTAMP(Stats, acked_at);
   if (outbound_) outbound_->Commit(datalen);
 }
@@ -1114,7 +1123,7 @@ void Stream::EndWritable() {
   // If the outbound_ is wrapping an idempotent DataQueue, then capping
   // will be a non-op since we're not going to be writing any more data
   // into it anyway.
-  if (outbound_ != nullptr) outbound_->Cap();
+  if (outbound_) outbound_->Cap();
   state_->write_ended = 1;
 }
 
@@ -1182,6 +1191,9 @@ void Stream::ReceiveData(const uint8_t* data,
                          ReceiveDataFlags flags) {
   // If reading has ended, or there is no data, there's nothing to do but maybe
   // end the readable side if this is the last bit of data we've received.
+
+  Debug(this, "Receiving %zu bytes of data", len);
+
   if (state_->read_ended == 1 || len == 0) {
     if (flags.fin) EndReadable();
     return;
@@ -1201,6 +1213,7 @@ void Stream::ReceiveStopSending(QuicError error) {
   // Note that this comes from *this* endpoint, not the other side. We handle it
   // if we haven't already shutdown our *receiving* side of the stream.
   if (state_->read_ended) return;
+  Debug(this, "Received stop sending with error %s", error);
   ngtcp2_conn_shutdown_stream_read(session(), 0, id(), error.code());
   EndReadable();
 }
@@ -1211,6 +1224,10 @@ void Stream::ReceiveStreamReset(uint64_t final_size, QuicError error) {
   // has abruptly terminated the writable end of their stream with an error.
   // Any data we have received up to this point remains in the queue waiting to
   // be read.
+  Debug(this,
+        "Received stream reset with final size %" PRIu64 " and error %s",
+        final_size,
+        error);
   EndReadable(final_size);
   EmitReset(error);
 }
@@ -1220,6 +1237,7 @@ void Stream::ReceiveStreamReset(uint64_t final_size, QuicError error) {
 void Stream::EmitBlocked() {
   // state_->wants_block will be set from the javascript side if the
   // stream object has a handler for the blocked event.
+  Debug(this, "Blocked");
   if (!env()->can_call_into_js() || !state_->wants_block) {
     return;
   }
@@ -1281,10 +1299,12 @@ void Stream::EmitWantTrailers() {
 
 void Stream::Schedule(Stream::Queue* queue) {
   // If this stream is not already in the queue to send data, add it.
+  Debug(this, "Scheduled");
   if (outbound_ && stream_queue_.IsEmpty()) queue->PushBack(this);
 }
 
 void Stream::Unschedule() {
+  Debug(this, "Unscheduled");
   stream_queue_.Remove();
 }
 

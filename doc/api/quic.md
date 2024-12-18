@@ -23,27 +23,88 @@ const quic = require('node:quic');
 
 The module is only available under the `node:` scheme.
 
+## `quic.connect(address[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `address` {string|net.SocketAddress}
+* `options` {quic.SessionOptions}
+* Returns: {Promise} a promise for a {quic.QuicSession}
+
+Initiate a new client-side session.
+
+```mjs
+import { connect } from 'node:quic';
+import { Buffer } from 'node:buffer';
+
+const enc = new TextEncoder();
+const alpn = 'foo';
+const client = await connect('123.123.123.123:8888', { alpn });
+await client.createUnidirectionalStream({
+  body: enc.encode('hello world'),
+});
+```
+
+By default, every call to `connect(...)` will create a new local
+`QuicEndpoint` instance bound to a new random local IP port. To
+specify the exact local address to use, or to multiplex multiple
+QUIC sessions over a single local port, pass the `endpoint` option
+with either a `QuicEndpoint` or `EndpointOptions` as the argument.
+
+```mjs
+import { QuicEndpoint, connect } from 'node:quic';
+
+const endpoint = new QuicEndpoint({
+  address: '127.0.0.1:1234',
+});
+
+const client = await connect('123.123.123.123:8888', { endpoint });
+```
+
+## `quic.listen(onsession,[options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `onsession` {quic.OnSessionCallback}
+* `options` {quic.SessionOptions}
+* Returns: {Promise} a promise for a {quic.QuicEndpoint}
+
+Configures the endpoint to listen as a server. When a new session is initiated by
+a remote peer, the given `onsession` callback will be invoked with the created
+session.
+
+```mjs
+import { listen } from 'node:quic';
+
+const endpoint = await listen((session) => {
+  // ... handle the session
+});
+
+// Closing the endpoint allows any sessions open when close is called
+// to complete naturally while preventing new sessions from being
+// initiated. Once all existing sessions have finished, the endpoint
+// will be destroyed. The call returns a promise that is resolved once
+// the endpoint is destroyed.
+await endpoint.close();
+```
+
+By default, every call to `listen(...)` will create a new local
+`QuicEndpoint` instance bound to a new random local IP port. To
+specify the exact local address to use, or to multiplex multiple
+QUIC sessions over a single local port, pass the `endpoint` option
+with either a `QuicEndpoint` or `EndpointOptions` as the argument.
+
+At most, any single `QuicEndpoint` can only be configured to listen as
+a server once.
+
 ## Class: `QuicEndpoint`
 
 A `QuicEndpoint` encapsulates the local UDP-port binding for QUIC. It can be
 used as both a client and a server.
-
-```mjs
-import { QuicEndpoint } from 'node:quic';
-
-const endpoint = new QuicEndpoint();
-
-// Server...
-endpoint.listen((session) => {
-  session.onstream = (stream) => {
-    // Handle the stream....
-  };
-});
-
-// Client...
-const client = endpoint.connect('123.123.123.123:8888');
-const stream = client.openBidirectionalStream();
-```
 
 ### `new QuicEndpoint([options])`
 
@@ -111,17 +172,16 @@ added: REPLACEME
 A promise that is fulfilled when the endpoint is destroyed. This will be the same promise that is
 returned by the `endpoint.close()` function. Read only.
 
-### `endpoint.connect(address[, options])`
+### `endpoint.closing`
 
 <!-- YAML
 added: REPLACEME
 -->
 
-* `address` {string|net.SocketAddress}
-* `options` {quic.SessionOptions}
-* Returns: {quic.QuicSession}
+* {boolean}
 
-Initiate a new client-side session using this endpoint.
+True if `endpoint.close()` has been called and closing the endpoint has not yet completed.
+Read only.
 
 ### `endpoint.destroy([error])`
 
@@ -130,10 +190,9 @@ added: REPLACEME
 -->
 
 * `error` {any}
-* Returns: {Promise}
 
 Forcefully closes the endpoint by forcing all open sessions to be immediately
-closed. Returns `endpoint.closed`.
+closed.
 
 ### `endpoint.destroyed`
 
@@ -145,56 +204,13 @@ added: REPLACEME
 
 True if `endpoint.destroy()` has been called. Read only.
 
-### `endpoint.listen([onsession,][options])`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `onsession` {quic.OnSessionCallback}
-* `options` {quic.SessionOptions}
-
-Configures the endpoint to listen as a server. When a new session is initiated by
-a remote peer, the given `onsession` callback will be invoked with the created
-session.
-
-The `onsession` callback must be specified either here or by setting the `onsession`
-property or an error will be thrown.
-
-### `endpoint.onsession`
-
-* {quic.OnSessionCallback}
-
-The callback function that is invoked when a new session is initiated by a remote peer.
-Read/write.
-
-### `endpoint.sessions`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {Iterator} of {quic.QuicSession}.
-
-An iterator over all sessions associated with this endpoint. Read only.
-
-### `endpoint.state`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {quic.QuicEndpointState}
-
-The state associated with an active session. Read only.
-
 ### `endpoint.stats`
 
 <!-- YAML
 added: REPLACEME
 -->
 
-* {quic.QuicEndpointStats}
+* {quic.QuicEndpoint.Stats}
 
 The statistics collected for an active session. Read only.
 
@@ -207,64 +223,7 @@ added: REPLACEME
 Calls `endpoint.close()` and returns a promise that fulfills when the
 endpoint has closed.
 
-## Class: `QuicEndpointState`
-
-<!-- YAML
-added: REPLACEME
--->
-
-A view of the internal state of an endpoint.
-
-### `endpointState.isBound`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {boolean} True if the endpoint is bound to a local UDP port.
-
-### `endpointState.isReceiving`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {boolean} True if the endpoint is bound to a local UDP port and actively listening
-  for packets.
-
-### `endpointState.isListening`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {boolean} True if the endpoint is listening as a server.
-
-### `endpointState.isClosing`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {boolean} True if the endpoint is in the process of closing down.
-
-### `endpointState.isBusy`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {boolean} True if the endpoint has been marked busy.
-
-### `endpointState.pendingCallbacks`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {bigint} The total number of pending callbacks the endpoint is waiting on currently.
-
-## Class: `QuicEndpointStats`
+## Class: `QuicEndpoint.Stats`
 
 <!-- YAML
 added: REPLACEME
@@ -383,6 +342,8 @@ added: REPLACEME
 added: REPLACEME
 -->
 
+A `QuicSession` represents the local side of a QUIC connection.
+
 ### `session.close()`
 
 <!-- YAML
@@ -390,6 +351,11 @@ added: REPLACEME
 -->
 
 * Returns: {Promise}
+
+Initiate a graceful close of the session. Existing streams will be allowed
+to complete but no new streams will be opened. Once all streams have closed,
+the session will be destroyed. The returned promise will be fulfilled once
+the session has been destroyed.
 
 ### `session.closed`
 
@@ -399,6 +365,8 @@ added: REPLACEME
 
 * {Promise}
 
+A promise that is fulfilled once the session is destroyed.
+
 ### `session.destroy([error])`
 
 <!-- YAML
@@ -406,7 +374,9 @@ added: REPLACEME
 -->
 
 * `error` {any}
-* Returns: {Promise}
+
+Immediately destroy the session. All streams will be destroys and the
+session will be closed.
 
 ### `session.destroyed`
 
@@ -416,6 +386,8 @@ added: REPLACEME
 
 * {boolean}
 
+True if `session.destroy()` has been called. Read only.
+
 ### `session.endpoint`
 
 <!-- YAML
@@ -423,6 +395,8 @@ added: REPLACEME
 -->
 
 * {quic.QuicEndpoint}
+
+The endpoint that created this session. Read only.
 
 ### `session.onstream`
 
@@ -432,6 +406,8 @@ added: REPLACEME
 
 * {quic.OnStreamCallback}
 
+The callback to invoke when a new stream is initiated by a remote peer. Read/write.
+
 ### `session.ondatagram`
 
 <!-- YAML
@@ -439,6 +415,8 @@ added: REPLACEME
 -->
 
 * {quic.OnDatagramCallback}
+
+The callback to invoke when a new datagram is received from a remote peer. Read/write.
 
 ### `session.ondatagramstatus`
 
@@ -448,6 +426,8 @@ added: REPLACEME
 
 * {quic.OnDatagramStatusCallback}
 
+The callback to invoke when the status of a datagram is updated. Read/write.
+
 ### `session.onpathvalidation`
 
 <!-- YAML
@@ -455,6 +435,8 @@ added: REPLACEME
 -->
 
 * {quic.OnPathValidationCallback}
+
+The callback to invoke when the path validation is updated. Read/write.
 
 ### `seesion.onsessionticket`
 
@@ -464,6 +446,8 @@ added: REPLACEME
 
 * {quic.OnSessionTicketCallback}
 
+The callback to invoke when a new session ticket is received. Read/write.
+
 ### `session.onversionnegotiation`
 
 <!-- YAML
@@ -471,6 +455,8 @@ added: REPLACEME
 -->
 
 * {quic.OnVersionNegotiationCallback}
+
+The callback to invoke when a version negotiation is initiated. Read/write.
 
 ### `session.onhandshake`
 
@@ -480,25 +466,35 @@ added: REPLACEME
 
 * {quic.OnHandshakeCallback}
 
-### `session.openBidirectionalStream([options])`
+The callback to invoke when the TLS handshake is completed. Read/write.
+
+### `session.createBidirectionalStream([options])`
 
 <!-- YAML
 added: REPLACEME
 -->
 
 * `options` {Object}
-  * `headers` {Object}
-* Returns: {quic.QuicStream}
+  * `body` {ArrayBuffer | ArrayBufferView | Blob}
+  * `sendOrder` {number}
+* Returns: {Promise} for a {quic.QuicStream}
 
-### `session.openUnidirectionalStream([options])`
+Open a new bidirectional stream. If the `body` option is not specified,
+the outgoing stream will be half-closed.
+
+### `session.createUnidirectionalStream([options])`
 
 <!-- YAML
 added: REPLACEME
 -->
 
 * `options` {Object}
-  * `headers` {Object
-* Returns: {quic.QuicStream}
+  * `body` {ArrayBuffer | ArrayBufferView | Blob}
+  * `sendOrder` {number}
+* Returns: {Promise} for a {quic.QuicStream}
+
+Open a new unidirectional stream. If the `body` option is not specified,
+the outgoing stream will be closed.
 
 ### `session.path`
 
@@ -510,22 +506,20 @@ added: REPLACEME
   * `local` {net.SocketAddress}
   * `remote` {net.SocketAddress}
 
+The local and remote socket addresses associated with the session. Read only.
+
 ### `session.sendDatagram(datagram)`
 
 <!-- YAML
 added: REPLACEME
 -->
 
-* `datagram` {Uint8Array}
+* `datagram` {string|ArrayBufferView}
 * Returns: {bigint}
 
-### `session.state`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {quic.QuicSessionState}
+Sends an unreliable datagram to the remote peer, returning the datagram ID.
+If the datagram payload is specified as an `ArrayBufferView`, then ownership of
+that view will be transfered to the underlying stream.
 
 ### `session.stats`
 
@@ -533,7 +527,9 @@ added: REPLACEME
 added: REPLACEME
 -->
 
-* {quic.QuicSessionStats}
+* {quic.QuicSession.Stats}
+
+Return the current statistics for the session. Read only.
 
 ### `session.updateKey()`
 
@@ -541,139 +537,18 @@ added: REPLACEME
 added: REPLACEME
 -->
 
+Initiate a key update for the session.
+
 ### `session[Symbol.asyncDispose]()`
 
 <!-- YAML
 added: REPLACEME
 -->
 
-## Class: `QuicSessionState`
+Calls `session.close()` and returns a promise that fulfills when the
+session has closed.
 
-<!-- YAML
-added: REPLACEME
--->
-
-### `sessionState.hasPathValidationListener`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {boolean}
-
-### `sessionState.hasVersionNegotiationListener`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {boolean}
-
-### `sessionState.hasDatagramListener`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {boolean}
-
-### `sessionState.hasSessionTicketListener`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {boolean}
-
-### `sessionState.isClosing`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {boolean}
-
-### `sessionState.isGracefulClose`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {boolean}
-
-### `sessionState.isSilentClose`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {boolean}
-
-### `sessionState.isStatelessReset`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {boolean}
-
-### `sessionState.isDestroyed`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {boolean}
-
-### `sessionState.isHandshakeCompleted`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {boolean}
-
-### `sessionState.isHandshakeConfirmed`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {boolean}
-
-### `sessionState.isStreamOpenAllowed`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {boolean}
-
-### `sessionState.isPrioritySupported`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {boolean}
-
-### `sessionState.isWrapped`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {boolean}
-
-### `sessionState.lastDatagramId`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {bigint}
-
-## Class: `QuicSessionStats`
+## Class: `QuicSession.Stats`
 
 <!-- YAML
 added: REPLACEME
@@ -695,14 +570,6 @@ added: REPLACEME
 
 * {bigint}
 
-### `sessionStats.destroyedAt`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {bigint}
-
 ### `sessionStats.handshakeCompletedAt`
 
 <!-- YAML
@@ -712,14 +579,6 @@ added: REPLACEME
 * {bigint}
 
 ### `sessionStats.handshakeConfirmedAt`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {bigint}
-
-### `sessionStats.gracefulClosingAt`
 
 <!-- YAML
 added: REPLACEME
@@ -768,14 +627,6 @@ added: REPLACEME
 * {bigint}
 
 ### `sessionStats.uniOutStreamCount`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {bigint}
-
-### `sessionStats.lossRetransmitCount`
 
 <!-- YAML
 added: REPLACEME
@@ -901,6 +752,8 @@ added: REPLACEME
 
 * {Promise}
 
+A promise that is fulfilled when the stream is fully closed.
+
 ### `stream.destroy([error])`
 
 <!-- YAML
@@ -908,7 +761,8 @@ added: REPLACEME
 -->
 
 * `error` {any}
-* Returns: {Promise}
+
+Immediately and abruptly destroys the stream.
 
 ### `stream.destroyed`
 
@@ -918,6 +772,8 @@ added: REPLACEME
 
 * {boolean}
 
+True if `stream.destroy()` has been called.
+
 ### `stream.direction`
 
 <!-- YAML
@@ -925,6 +781,8 @@ added: REPLACEME
 -->
 
 * {string} One of either `'bidi'` or `'uni'`.
+
+The directionality of the stream. Read only.
 
 ### `stream.id`
 
@@ -934,6 +792,8 @@ added: REPLACEME
 
 * {bigint}
 
+The stream ID. Read only.
+
 ### `stream.onblocked`
 
 <!-- YAML
@@ -942,13 +802,7 @@ added: REPLACEME
 
 * {quic.OnBlockedCallback}
 
-### `stream.onheaders`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {quic.OnHeadersCallback}
+The callback to invoke when the stream is blocked. Read/write.
 
 ### `stream.onreset`
 
@@ -958,29 +812,15 @@ added: REPLACEME
 
 * {quic.OnStreamErrorCallback}
 
-### `stream.ontrailers`
+The callback to invoke when the stream is reset. Read/write.
+
+### `stream.readable`
 
 <!-- YAML
 added: REPLACEME
 -->
 
-* {quic.OnTrailersCallback}
-
-### `stream.pull(callback)`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `callback` {quic.OnPullCallback}
-
-### `stream.sendHeaders(headers)`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `headers` {Object}
+* {ReadableStream}
 
 ### `stream.session`
 
@@ -990,13 +830,7 @@ added: REPLACEME
 
 * {quic.QuicSession}
 
-### `stream.state`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {quic.QuicStreamState}
+The session that created this stream. Read only.
 
 ### `stream.stats`
 
@@ -1004,127 +838,11 @@ added: REPLACEME
 added: REPLACEME
 -->
 
-* {quic.QuicStreamStats}
+* {quic.QuicStream.Stats}
 
-## Class: `QuicStreamState`
+The current statistics for the stream. Read only.
 
-<!-- YAML
-added: REPLACEME
--->
-
-### `streamState.destroyed`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {boolean}
-
-### `streamState.finReceived`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {boolean}
-
-### `streamState.finSent`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {boolean}
-
-### `streamState.hasReader`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {boolean}
-
-### `streamState.id`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {bigint}
-
-### `streamState.paused`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {boolean}
-
-### `streamState.pending`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {boolean}
-
-### `streamState.readEnded`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {boolean}
-
-### `streamState.reset`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {boolean}
-
-### `streamState.wantsBlock`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {boolean}
-
-### `streamState.wantsHeaders`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {boolean}
-
-### `streamState.wantsReset`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {boolean}
-
-### `streamState.wantsTrailers`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {boolean}
-
-### `streamState.writeEnded`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {boolean}
-
-## Class: `QuicStreamStats`
+## Class: `QuicStream.Stats`
 
 <!-- YAML
 added: REPLACEME
@@ -1228,80 +946,6 @@ added: REPLACEME
 
 ## Types
 
-### Type: `ApplicationOptions`
-
-<!-- YAML
-added: REPLACEME
--->
-
-#### `applicationOptions.maxHeaderPairs`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {bigint|number} The maximum number of header pairs that can be received.
-
-#### `applicationOptions.maxHeaderLength`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {bigint|number} The maximum number of header bytes that can be received.
-
-#### `applicationOptions.maxFieldSectionSize`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {bigint|number} The maximum header field section size.
-
-#### `applicationOptions.qpackMaxDTableCapacity`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {bigint|number} The QPack maximum dynamic table capacity.
-
-#### `applicationOptions.qpackEncoderMaxDTableCapacity`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {bigint|number} The QPack encoder maximum dynamic table capacity.
-
-#### `applicationOptions.qpackBlockedStreams`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {bigint|number} The maximum number of QPack blocked streams.
-
-#### `applicationOptions.enableConnectProtocol`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {boolean}
-
-True to allow use of the `CONNECT` method when using HTTP/3.
-
-#### `applicationOptions.enableDatagrams`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {boolean}
-
-True to allow use of unreliable datagrams.
-
 ### Type: `EndpointOptions`
 
 <!-- YAML
@@ -1309,6 +953,8 @@ added: REPLACEME
 -->
 
 * {Object}
+
+The endpoint configuration options passed when constructing a new `QuicEndpoint` instance.
 
 #### `endpointOptions.address`
 
@@ -1332,51 +978,6 @@ The endpoint maintains an internal cache of validated socket addresses as a
 performance optimization. This option sets the maximum number of addresses
 that are cache. This is an advanced option that users typically won't have
 need to specify.
-
-#### `endpointOptions.cc`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {string|number}
-
-Specifies the congestion control algorithm that will be used by all sessions
-using this endpoint. Must be set to one of:
-
-* `QuicEndpoint.CC_ALGO_RENO`
-* `QuicEndpoint.CC_ALGP_RENO_STR`
-* `QuicEndpoint.CC_ALGO_CUBIC`
-* `QuicEndpoint.CC_ALGO_CUBIC_STR`
-* `QuicEndpoint.CC_ALGO_BBR`
-* `QuicEndpoint.CC_ALGO_BBR_STR`
-
-This is an advanced option that users typically won't have need to specify
-unless.
-
-#### `endpointOptions.disableActiveMigration`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {boolean}
-
-When `true`, this option disables the ability for a session to migrate to a different
-socket address.
-
-\*\* THIS OPTION IS AT RISK OF BEING DROPPED \*\*
-
-#### `endpointOptions.handshakeTimeout`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {bigint|number}
-
-Specifies the maximum number of milliseconds a TLS handshake is permitted to take
-to complete before timing out.
 
 #### `endpointOptions.ipv6Only`
 
@@ -1408,16 +1009,6 @@ added: REPLACEME
 
 Specifies the maximum total number of concurrent sessions.
 
-#### `endpointOptions.maxPayloadSize`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {bigint|number}
-
-Specifies the maximum UDP packet payload size.
-
 #### `endpointOptions.maxRetries`
 
 <!-- YAML
@@ -1437,34 +1028,6 @@ added: REPLACEME
 * {bigint|number}
 
 Specifies the maximum number of stateless resets that are allowed per remote peer address.
-
-#### `endpointOptions.maxStreamWindow`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {bigint|number}
-
-Specifies the maximum stream flow-control window size.
-
-#### `endpointOptions.maxWindow`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {bigint|number}
-
-Specifies the maxumum session flow-control window size.
-
-#### `endpointOptions.noUdpPayloadSizeShaping`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {boolean}
 
 #### `endpointOptions.retryTokenExpiration`
 
@@ -1530,16 +1093,6 @@ added: REPLACEME
 
 * {number}
 
-#### `endpointOptions.unacknowledgedPacketThreshold`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {bigint|number}
-
-Specifies the maximum number of unacknowledged packets a session should allow.
-
 #### `endpointOptions.validateAddress`
 
 <!-- YAML
@@ -1548,8 +1101,8 @@ added: REPLACEME
 
 * {boolean}
 
-When `true`, requires that the endpoint validate peer addresses while establishing
-a connection.
+When `true`, requires that the endpoint validate peer addresses using retry packets
+while establishing a new connection.
 
 ### Type: `SessionOptions`
 
@@ -1557,15 +1110,128 @@ a connection.
 added: REPLACEME
 -->
 
-#### `sessionOptions.application`
+#### `sessionOptions.alpn`
 
 <!-- YAML
 added: REPLACEME
 -->
 
-* {quic.ApplicationOptions}
+* {string}
 
-The application-level options to use for the session.
+The ALPN protocol identifier.
+
+#### `sessionOptions.ca`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {ArrayBuffer|ArrayBufferView|ArrayBuffer\[]|ArrayBufferView\[]}
+
+The CA certificates to use for sessions.
+
+#### `sessionOptions.cc`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string}
+
+Specifies the congestion control algorithm that will be used
+. Must be set to one of either `'reno'`, `'cubic'`, or `'bbr'`.
+
+This is an advanced option that users typically won't have need to specify.
+
+#### `sessionOptions.certs`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {ArrayBuffer|ArrayBufferView|ArrayBuffer\[]|ArrayBufferView\[]}
+
+The TLS certificates to use for sessions.
+
+#### `sessionOptions.ciphers`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string}
+
+The list of supported TLS 1.3 cipher algorithms.
+
+#### `sessionOptions.crl`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {ArrayBuffer|ArrayBufferView|ArrayBuffer\[]|ArrayBufferView\[]}
+
+The CRL to use for sessions.
+
+#### `sessionOptions.groups`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string}
+
+The list of support TLS 1.3 cipher groups.
+
+#### `sessionOptions.keylog`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+True to enable TLS keylogging output.
+
+#### `sessionOptions.keys`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {KeyObject|CryptoKey|KeyObject\[]|CryptoKey\[]}
+
+The TLS crypto keys to use for sessions.
+
+#### `sessionOptions.maxPayloadSize`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {bigint|number}
+
+Specifies the maximum UDP packet payload size.
+
+#### `sessionOptions.maxStreamWindow`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {bigint|number}
+
+Specifies the maximum stream flow-control window size.
+
+#### `sessionOptions.maxWindow`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {bigint|number}
+
+Specifies the maxumum session flow-control window size.
 
 #### `sessionOptions.minVersion`
 
@@ -1607,15 +1273,36 @@ added: REPLACEME
 
 * {ArrayBufferView} A session ticket to use for 0RTT session resumption.
 
-#### `sessionOptions.tls`
+#### `sessionOptions.handshakeTimeout`
 
 <!-- YAML
 added: REPLACEME
 -->
 
-* {quic.TlsOptions}
+* {bigint|number}
 
-The TLS options to use for the session.
+Specifies the maximum number of milliseconds a TLS handshake is permitted to take
+to complete before timing out.
+
+#### `sessionOptions.sni`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string}
+
+The peer server name to target.
+
+#### `sessionOptions.tlsTrace`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+True to enable TLS tracing output.
 
 #### `sessionOptions.transportParams`
 
@@ -1627,6 +1314,36 @@ added: REPLACEME
 
 The QUIC transport parameters to use for the session.
 
+#### `sessionOptions.unacknowledgedPacketThreshold`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {bigint|number}
+
+Specifies the maximum number of unacknowledged packets a session should allow.
+
+#### `sessionOptions.verifyClient`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+True to require verification of TLS client certificate.
+
+#### `sessionOptions.verifyPrivateKey`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+True to require private key verification.
+
 #### `sessionOptions.version`
 
 <!-- YAML
@@ -1637,132 +1354,6 @@ added: REPLACEME
 
 The QUIC version number to use. This is an advanced option that users typically
 won't have need to specify.
-
-### Type: `TlsOptions`
-
-<!-- YAML
-added: REPLACEME
--->
-
-#### `tlsOptions.sni`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {string}
-
-The peer server name to target.
-
-#### `tlsOptions.alpn`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {string}
-
-The ALPN protocol identifier.
-
-#### `tlsOptions.ciphers`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {string}
-
-The list of supported TLS 1.3 cipher algorithms.
-
-#### `tlsOptions.groups`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {string}
-
-The list of support TLS 1.3 cipher groups.
-
-#### `tlsOptions.keylog`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {boolean}
-
-True to enable TLS keylogging output.
-
-#### `tlsOptions.verifyClient`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {boolean}
-
-True to require verification of TLS client certificate.
-
-#### `tlsOptions.tlsTrace`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {boolean}
-
-True to enable TLS tracing output.
-
-#### `tlsOptions.verifyPrivateKey`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {boolean}
-
-True to require private key verification.
-
-#### `tlsOptions.keys`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {KeyObject|CryptoKey|KeyObject\[]|CryptoKey\[]}
-
-The TLS crypto keys to use for sessions.
-
-#### `tlsOptions.certs`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {ArrayBuffer|ArrayBufferView|ArrayBuffer\[]|ArrayBufferView\[]}
-
-The TLS certificates to use for sessions.
-
-#### `tlsOptions.ca`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {ArrayBuffer|ArrayBufferView|ArrayBuffer\[]|ArrayBufferView\[]}
-
-The CA certificates to use for sessions.
-
-#### `tlsOptions.crl`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {ArrayBuffer|ArrayBufferView|ArrayBuffer\[]|ArrayBufferView\[]}
-
-The CRL to use for sessions.
 
 ### Type: `TransportParams`
 
@@ -1874,14 +1465,6 @@ added: REPLACEME
 
 * {bigint|number}
 
-#### `transportParams.disableActiveMigration`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {boolean}
-
 ## Callbacks
 
 ### Callback: `OnSessionCallback`
@@ -1989,32 +1572,6 @@ added: REPLACEME
 
 * `this` {quic.QuicStream}
 * `error` {any}
-
-### Callback: `OnHeadersCallback`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `this` {quic.QuicStream}
-* `headers` {Object}
-* `kind` {string}
-
-### Callback: `OnTrailersCallback`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `this` {quic.QuicStream}
-
-### Callback: `OnPullCallback`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `chunks` {Uint8Array\[]}
 
 ## Diagnostic Channels
 
