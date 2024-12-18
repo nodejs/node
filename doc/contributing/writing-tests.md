@@ -150,6 +150,7 @@ the outcome of the underlying dependencies' test results.
 
 These dependencies are:
 
+- `node:events`
 - `node:async_hooks`
 - `node:child_process`
 - `node:fs`
