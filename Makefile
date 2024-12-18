@@ -933,7 +933,11 @@ else
 ifeq ($(findstring riscv64,$(UNAME_M)),riscv64)
 DESTCPU ?= riscv64
 else
+ifeq ($(findstring loongarch64,$(UNAME_M)),loongarch64)
+DESTCPU ?= loong64
+else
 DESTCPU ?= x86
+endif
 endif
 endif
 endif
@@ -970,7 +974,11 @@ else
 ifeq ($(DESTCPU),riscv64)
 ARCH=riscv64
 else
+ifeq ($(DESTCPU),loong64)
+ARCH=loong64
+else
 ARCH=x86
+endif
 endif
 endif
 endif
