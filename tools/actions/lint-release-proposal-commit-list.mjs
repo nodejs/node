@@ -27,7 +27,10 @@ for await (const line of stdinLineByLine) {
     continue;
   }
 
-  assert(commitList.includes('\n' + line), `Missing "${line}" in commit list`);
+  // Revert commit have a special treatment.
+  const fixedLine = line.replace(' - **Revert \"', ' - _**Revert**_ "**');
+
+  assert(commitList.includes('\n' + fixedLine), `Missing "${fixedLine}" in commit list`);
   expectedNumberOfCommitsLeft--;
 }
 assert.strictEqual(expectedNumberOfCommitsLeft, 0, 'Release commit is not the last commit in the proposal');
