@@ -217,3 +217,17 @@ test('typescript code is throwing an error', async () => {
   strictEqual(result.stdout, '');
   strictEqual(result.code, 1);
 });
+
+test('typescript ESM code is throwing a syntax error at runtime', async () => {
+  const result = await spawnPromisified(process.execPath, [
+    '--experimental-strip-types',
+    '--eval',
+    'import util from "node:util"; function foo(){}; throw new SyntaxError(foo<Number>(1));']);
+  // Trick by passing ambiguous syntax to trigger to see if evaluated in TypeScript or JavaScript
+  // If evaluated in JavaScript `foo<Number>(1)` is evaluated as `foo < Number > (1)`
+  // result in false
+  // If evaluated in TypeScript `foo<Number>(1)` is evaluated as `foo(1)`
+  match(result.stderr, /SyntaxError: false/);
+  strictEqual(result.stdout, '');
+  strictEqual(result.code, 1);
+});
