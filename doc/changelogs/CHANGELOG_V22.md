@@ -61,7 +61,7 @@
 
 ### Notable Changes
 
-### require(esm) is now enabled by default
+#### require(esm) is now enabled by default
 
 Support for loading native ES modules using require() had been available on v20.x and v22.x under the command line flag --experimental-require-module, and available by default on v23.x. In this release, it is now no longer behind a flag on v22.x.
 
@@ -103,7 +103,36 @@ Certificates added:
 
 Contributed by Richard Lau in [#55681](https://github.com/nodejs/node/pull/55681)
 
-### Other Notable Changes
+#### SQLite Session Extension
+
+Basic support for the [SQLite Session Extension](https://www.sqlite.org/sessionintro.html)
+got added to the experimental `node:sqlite` module.
+
+```js
+const sourceDb = new DatabaseSync(':memory:');
+const targetDb = new DatabaseSync(':memory:');
+
+sourceDb.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, value TEXT)');
+targetDb.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, value TEXT)');
+
+const session = sourceDb.createSession();
+
+const insert = sourceDb.prepare('INSERT INTO data (key, value) VALUES (?, ?)');
+insert.run(1, 'hello');
+insert.run(2, 'world');
+
+const changeset = session.changeset();
+targetDb.applyChangeset(changeset);
+// Now that the changeset has been applied, targetDb contains the same data as sourceDb.
+```
+
+Of note to distributors when dynamically linking with SQLite (using the `--shared-sqlite`
+flag): compiling SQLite with `SQLITE_ENABLE_SESSION` and `SQLITE_ENABLE_PREUPDATE_HOOK`
+defines is now required.
+
+Contributed by Bart Louwers in [#54181](https://github.com/nodejs/node/pull/54181).
+
+#### Other Notable Changes
 
 * \[[`4920869935`](https://github.com/nodejs/node/commit/4920869935)] - **(SEMVER-MINOR)** **assert**: make assertion\_error use Myers diff algorithm (Giovanni Bucci) [#54862](https://github.com/nodejs/node/pull/54862)
 * \[[`ccffd3b819`](https://github.com/nodejs/node/commit/ccffd3b819)] - **doc**: enforce strict policy to semver-major releases (Rafael Gonzaga) [#55732](https://github.com/nodejs/node/pull/55732)

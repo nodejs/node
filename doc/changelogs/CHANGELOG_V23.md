@@ -229,6 +229,37 @@ Contributed by Giovanni Bucci in [#54630](https://github.com/nodejs/node/pull/54
 
 ### Notable Changes
 
+#### SQLite Session Extension
+
+Basic support for the [SQLite Session Extension](https://www.sqlite.org/sessionintro.html)
+got added to the experimental `node:sqlite` module.
+
+```js
+const sourceDb = new DatabaseSync(':memory:');
+const targetDb = new DatabaseSync(':memory:');
+
+sourceDb.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, value TEXT)');
+targetDb.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, value TEXT)');
+
+const session = sourceDb.createSession();
+
+const insert = sourceDb.prepare('INSERT INTO data (key, value) VALUES (?, ?)');
+insert.run(1, 'hello');
+insert.run(2, 'world');
+
+const changeset = session.changeset();
+targetDb.applyChangeset(changeset);
+// Now that the changeset has been applied, targetDb contains the same data as sourceDb.
+```
+
+Of note to distributors when dynamically linking with SQLite (using the `--shared-sqlite`
+flag): compiling SQLite with `SQLITE_ENABLE_SESSION` and `SQLITE_ENABLE_PREUPDATE_HOOK`
+defines is now required.
+
+Contributed by Bart Louwers in [#54181](https://github.com/nodejs/node/pull/54181).
+
+#### Other Notable Changes
+
 * \[[`5767b76c30`](https://github.com/nodejs/node/commit/5767b76c30)] - **doc**: enforce strict policy to semver-major releases (Rafael Gonzaga) [#55732](https://github.com/nodejs/node/pull/55732)
 * \[[`ccb69bb8d5`](https://github.com/nodejs/node/commit/ccb69bb8d5)] - **(SEMVER-MINOR)** **src**: add cli option to preserve env vars on dr (Rafael Gonzaga) [#55697](https://github.com/nodejs/node/pull/55697)
 * \[[`d4e792643d`](https://github.com/nodejs/node/commit/d4e792643d)] - **(SEMVER-MINOR)** **util**: add sourcemap support to getCallSites (Marco Ippolito) [#55589](https://github.com/nodejs/node/pull/55589)
