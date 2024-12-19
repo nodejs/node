@@ -451,6 +451,15 @@
                 'mksnapshot_flags': ['--code-comments'],
               },
             }],
+            ['v8_enable_concurrent_mksnapshot == 1', {
+              'variables': {
+                'mksnapshot_flags': [
+                  '--concurrent-builtin-generation',
+                  # Use all the cores for concurrent builtin generation.
+                  '--concurrent-turbofan-max-threads=0',
+                ],
+              },
+            }],
             ['v8_enable_snapshot_native_code_counters', {
               'variables': {
                 'mksnapshot_flags': ['--native-code-counters'],
@@ -481,6 +490,7 @@
             'v8_compiler_for_mksnapshot',
             'v8_initializers',
             'v8_libplatform',
+            'abseil.gyp:abseil',
           ]
         }, {
           'dependencies': [
@@ -493,6 +503,7 @@
             'v8_compiler_for_mksnapshot',
             'v8_initializers',
             'v8_libplatform',
+            'abseil.gyp:abseil',
           ]
         }],
         ['OS=="win" and clang==1', {
@@ -1317,6 +1328,7 @@
       'dependencies': [
         'v8_shared_internal_headers',
         'v8_libbase',
+        'abseil.gyp:abseil',
       ],
       'defines!': [
         '_HAS_EXCEPTIONS=0',
@@ -1370,6 +1382,7 @@
 
       'dependencies': [
         'v8_headers',
+        'abseil.gyp:abseil',
       ],
 
       'conditions': [
@@ -1618,6 +1631,7 @@
       'toolsets': ['host', 'target'],
       'dependencies': [
         'v8_libbase',
+        'abseil.gyp:abseil',
       ],
       'sources': [
         '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_libplatform.*?sources = ")',
@@ -1688,7 +1702,8 @@
         'BUILDING_V8_SHARED=1',
       ],
       'dependencies': [
-        "v8_libbase",
+        'v8_libbase',
+        'abseil.gyp:abseil',
         # "build/win:default_exe_manifest",
       ],
       'sources': [
@@ -1751,6 +1766,7 @@
       'type': 'executable',
       'dependencies': [
         'torque_base',
+        'abseil.gyp:abseil',
         # "build/win:default_exe_manifest",
       ],
       'conditions': [
@@ -1826,6 +1842,7 @@
         'v8_libbase',
         # "build/win:default_exe_manifest",
         'v8_maybe_icu',
+        'abseil.gyp:abseil',
       ],
       'conditions': [
         ['want_separate_host_toolset', {
@@ -2074,6 +2091,8 @@
           '<(V8_ROOT)/src/objects/abstract-code-inl.h',
           '<(V8_ROOT)/src/objects/instruction-stream.h',
           '<(V8_ROOT)/src/objects/instruction-stream-inl.h',
+          '<(V8_ROOT)/src/objects/casting.h',
+          '<(V8_ROOT)/src/objects/casting-inl.h',
           '<(V8_ROOT)/src/objects/code.h',
           '<(V8_ROOT)/src/objects/code-inl.h',
           '<(V8_ROOT)/src/objects/data-handler.h',
