@@ -181,16 +181,12 @@ test('check warning is emitted when eval TypeScript CommonJS syntax', async () =
   strictEqual(result.code, 0);
 });
 
-test('code is throwing a non Error', async () => {
+test('code is throwing a non Error is rethrown', async () => {
   const result = await spawnPromisified(process.execPath, [
     '--experimental-strip-types',
     '--eval',
     `throw null;`]);
-  // TODO(marco-ippolito) fix the stack trace of non errors
-  // being re-thrown
-  // the stack trace is wrong because it is rethrown
-  // but it's not an Error object
-  match(result.stderr, /node:internal\/process\/execution/);
+  doesNotMatch(result.stderr, /node:internal\/process\/execution/);
   strictEqual(result.stdout, '');
   strictEqual(result.code, 1);
 });
@@ -223,7 +219,21 @@ test('typescript ESM code is throwing a syntax error at runtime', async () => {
     '--experimental-strip-types',
     '--eval',
     'import util from "node:util"; function foo(){}; throw new SyntaxError(foo<Number>(1));']);
-  // Trick by passing ambiguous syntax to trigger to see if evaluated in TypeScript or JavaScript
+  // Trick by passing ambiguous syntax to see if evaluated in TypeScript or JavaScript
+  // If evaluated in JavaScript `foo<Number>(1)` is evaluated as `foo < Number > (1)`
+  // result in false
+  // If evaluated in TypeScript `foo<Number>(1)` is evaluated as `foo(1)`
+  match(result.stderr, /SyntaxError: false/);
+  strictEqual(result.stdout, '');
+  strictEqual(result.code, 1);
+});
+
+test('typescript CJS code is throwing a syntax error at runtime', async () => {
+  const result = await spawnPromisified(process.execPath, [
+    '--experimental-strip-types',
+    '--eval',
+    'const util = require("node:util"); function foo(){}; throw new SyntaxError(foo<Number>(1));']);
+  // Trick by passing ambiguous syntax to see if evaluated in TypeScript or JavaScript
   // If evaluated in JavaScript `foo<Number>(1)` is evaluated as `foo < Number > (1)`
   // result in false
   // If evaluated in TypeScript `foo<Number>(1)` is evaluated as `foo(1)`
