@@ -61,9 +61,15 @@ jobs:
           gh api \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            --jq '.commits | map({ smallSha: .sha[0:10], splitTitle: .commit.message|split("\n\n")|first|split(":") })' \
-            "/repos/${GITHUB_REPOSITORY}/compare/v${MAJOR}.x...$GITHUB_SHA" --paginate |\
-          jq -r '.[] | "* [[`" + .smallSha + "`](" + env.GITHUB_SERVER_URL + "/" + env.GITHUB_REPOSITORY + "/commit/" + .smallSha + ")] - **" + (.splitTitle|first) + "**:" + (.splitTitle[1:]|join(":"))' |\
-          node tools/actions/lint-release-proposal-commit-list.mjs "$CHANGELOG_PATH" "$GITHUB_SHA"
+            --jq '.commits.[] | { smallSha: .sha[0:10], splitTitle: .commit.message|split("\n\n")|first|split(":") } + (.commit.message|capture("\nPR-URL: (?<prURL>.+)\n"))' \
+            "/repos/${GITHUB_REPOSITORY}/compare/v${MAJOR}.x...$GITHUB_SHA" --paginate \
+          | node tools/actions/lint-release-proposal-commit-list.mjs "$CHANGELOG_PATH" "$GITHUB_SHA" \
+          | while IFS= read -r PR_URL; do
+            LABEL="dont-land-on-v${MAJOR}.x" gh pr view \
+              --json labels,url \
+              --jq 'if (.labels|map(.name==env.LABEL)|any) then error("\(.url) has the \(env.LABEL) label, forbidding it to be in this release proposal") end' \
+              "$PR_URL" > /dev/null
+          done
+        shell: bash # See https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference, we want the pipefail option
         env:
           GH_TOKEN: ${{ github.token }}
