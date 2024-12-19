@@ -70,6 +70,6 @@ jobs:
               --jq 'if (.labels|map(.name==env.LABEL)|any) then error("\(.url) has the \(env.LABEL) label, forbidding it to be in this release proposal") end' \
               "$PR_URL" > /dev/null
           done
-        shell: bash # See https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference, we want the pipefail option
+        shell: bash  # See https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference, we want the pipefail option.
         env:
           GH_TOKEN: ${{ github.token }}

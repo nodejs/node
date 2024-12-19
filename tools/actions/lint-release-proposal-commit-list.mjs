@@ -38,11 +38,11 @@ for await (const line of stdinLineByLine) {
     continue;
   }
 
-  const lineStart = commitList.indexOf(`\n* \[[\`${smallSha}\`]`);
+  const lineStart = commitList.indexOf(`\n* [[\`${smallSha}\`]`);
   assert.notStrictEqual(lineStart, -1, `Cannot find ${smallSha} on the list`);
   const lineEnd = commitList.indexOf('\n', lineStart + 1);
 
-  const expectedCommitTitle = `${`**${splitTitle.shift()}`.replace('**Revert \"', '_**Revert**_ "**')}**:${splitTitle.join(':')}`;
+  const expectedCommitTitle = `${`**${splitTitle.shift()}`.replace('**Revert "', '_**Revert**_ "**')}**:${splitTitle.join(':')}`;
   try {
     assert(commitList.lastIndexOf(`/${smallSha})] - ${expectedCommitTitle} (`, lineEnd) > lineStart, `Commit title doesn't match`);
   } catch (e) {
