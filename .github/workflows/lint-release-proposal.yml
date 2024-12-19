@@ -61,7 +61,7 @@ jobs:
           gh api \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            --jq '.commits.[] | { smallSha: .sha[0:10], splitTitle: .commit.message|split("\n\n")|first|split(":") } + (.commit.message|capture("\nPR-URL: (?<prURL>.+)\n"))' \
+            --jq '.commits.[] | { smallSha: .sha[0:10] } + (.commit.message|capture("^(?<title>.+)\n\n(.*\n)*PR-URL: (?<prURL>.+)\n"))' \
             "/repos/${GITHUB_REPOSITORY}/compare/v${MAJOR}.x...$GITHUB_SHA" --paginate \
           | node tools/actions/lint-release-proposal-commit-list.mjs "$CHANGELOG_PATH" "$GITHUB_SHA" \
           | while IFS= read -r PR_URL; do

@@ -3,10 +3,10 @@
 // Takes a stream of JSON objects as inputs, validates the CHANGELOG contains a
 // line corresponding, then outputs the prURL value.
 //
-// $ ./lint-release-proposal-commit-list.mjs "path/to/CHANGELOG.md" "deadbeef00" <<'EOF'
-// {"prURL":"https://github.com/nodejs/node/pull/56131","smallSha":"d48b5224c0","splitTitle":["doc"," fix module.md headings"]}
-// {"prURL":"https://github.com/nodejs/node/pull/56123","smallSha":"f1c2d2f65e","splitTitle":["doc"," update blog release-post link"]}
-// EOF
+// Example:
+// $ git log upstream/vXX.x...upstream/vX.X.X-proposal \
+//     --format='{"prURL":"%(trailers:key=PR-URL,valueonly,separator=)","title":"%s","smallSha":"%h"}' \
+//   | ./lint-release-proposal-commit-list.mjs "path/to/CHANGELOG.md" "$(git rev-parse upstream/vX.X.X-proposal)"
 
 const [,, CHANGELOG_PATH, RELEASE_COMMIT_SHA] = process.argv;
 
@@ -28,7 +28,7 @@ const commitList = changelog.slice(commitListingStart, commitListingEnd === -1 ?
 
 let expectedNumberOfCommitsLeft = commitList.match(/\n\* \[/g).length;
 for await (const line of stdinLineByLine) {
-  const { smallSha, splitTitle, prURL } = JSON.parse(line);
+  const { smallSha, title, prURL } = JSON.parse(line);
 
   if (smallSha === RELEASE_COMMIT_SHA.slice(0, 10)) {
     assert.strictEqual(
@@ -42,7 +42,8 @@ for await (const line of stdinLineByLine) {
   assert.notStrictEqual(lineStart, -1, `Cannot find ${smallSha} on the list`);
   const lineEnd = commitList.indexOf('\n', lineStart + 1);
 
-  const expectedCommitTitle = `${`**${splitTitle.shift()}`.replace('**Revert "', '_**Revert**_ "**')}**:${splitTitle.join(':')}`;
+  const colonIndex = title.indexOf(':');
+  const expectedCommitTitle = `${`**${title.slice(0, colonIndex)}`.replace('**Revert "', '_**Revert**_ "**')}**${title.slice(colonIndex)}`;
   try {
     assert(commitList.lastIndexOf(`/${smallSha})] - ${expectedCommitTitle} (`, lineEnd) > lineStart, `Commit title doesn't match`);
   } catch (e) {
