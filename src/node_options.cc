@@ -688,6 +688,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "configures the type of test isolation used in the test runner",
             &EnvironmentOptions::test_isolation,
             kAllowedInEnvvar);
+  // TODO(cjihrig): Remove this alias in a semver major.
   AddAlias("--experimental-test-isolation", "--test-isolation");
   AddOption("--experimental-test-module-mocks",
             "enable module mocking in the test runner",
