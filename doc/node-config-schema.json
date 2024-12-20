@@ -121,6 +121,9 @@
         "entry-url": {
           "type": "boolean"
         },
+        "experimental-addon-modules": {
+          "type": "boolean"
+        },
         "experimental-async-context-frame": {
           "type": "boolean"
         },
