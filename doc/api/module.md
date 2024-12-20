@@ -1161,6 +1161,7 @@ The final value of `format` must be one of the following:
 
 | `format`     | Description                    | Acceptable types for `source` returned by `load`   |
 | ------------ | ------------------------------ | -------------------------------------------------- |
+| `'addon'`    | Load a Node.js addon           | {null}                                             |
 | `'builtin'`  | Load a Node.js builtin module  | {null}                                             |
 | `'commonjs'` | Load a Node.js CommonJS module | {string\|ArrayBuffer\|TypedArray\|null\|undefined} |
 | `'json'`     | Load a JSON file               | {string\|ArrayBuffer\|TypedArray}                  |
