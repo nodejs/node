@@ -549,6 +549,8 @@ Node.js's `fetch()` implementation is inspired by the Fetch API standard, but it
 
 For more details, refer to the [WHATWG Fetch Standard](https://fetch.spec.whatwg.org/) and the Node.js implementation notes.
 
+The `fetch()` function in Node.js is based on the Fetch API standard but has several differences. For a detailed comparison of how Node.js’s `fetch` differs from the standard Fetch API, see the [Undici documentation](https://github.com/nodejs/undici/blob/main/docs/fetch-differences.md).
+
 ## Class: `File`
 
 <!-- YAML
