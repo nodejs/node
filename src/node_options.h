@@ -120,6 +120,7 @@ class EnvironmentOptions : public Options {
   bool require_module = true;
   std::string dns_result_order;
   bool enable_source_maps = false;
+  bool experimental_addon_modules = false;
   bool experimental_eventsource = false;
   bool experimental_fetch = true;
   bool experimental_websocket = true;
