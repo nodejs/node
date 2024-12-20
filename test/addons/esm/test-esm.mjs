@@ -4,7 +4,6 @@
  * the ESM loader or the CJS loader.
  */
 
-// eslint-disable-next-line node-core/require-common-first
 import { buildType } from '../../common/index.mjs';
 import assert from 'node:assert';
 import { createRequire } from 'node:module';
