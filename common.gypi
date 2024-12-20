@@ -483,6 +483,9 @@
           'NOMINMAX',
         ],
       }],
+      ['ccache_used == 1', {
+        'defines': ['CCACHE_USED',],
+      }],
       [ 'OS in "linux freebsd openbsd solaris aix os400"', {
         'cflags': [ '-pthread' ],
         'ldflags': [ '-pthread' ],
