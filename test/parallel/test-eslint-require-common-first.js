@@ -25,7 +25,7 @@ new RuleTester({
       languageOptions: {
         sourceType: 'module',
       },
-    }
+    },
   ],
   invalid: [
     {
