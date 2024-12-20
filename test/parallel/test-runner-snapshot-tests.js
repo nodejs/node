@@ -349,7 +349,7 @@ test('snapshots from multiple files (isolation=none)', async (t) => {
   await t.test('fails prior to snapshot generation', async (t) => {
     const args = [
       '--test',
-      '--experimental-test-isolation=none',
+      '--test-isolation=none',
       fixture,
       fixture2,
     ];
@@ -370,7 +370,7 @@ test('snapshots from multiple files (isolation=none)', async (t) => {
   await t.test('passes when regenerating snapshots', async (t) => {
     const args = [
       '--test',
-      '--experimental-test-isolation=none',
+      '--test-isolation=none',
       '--test-update-snapshots',
       fixture,
       fixture2,
@@ -391,7 +391,7 @@ test('snapshots from multiple files (isolation=none)', async (t) => {
   await t.test('passes when snapshots exist', async (t) => {
     const args = [
       '--test',
-      '--experimental-test-isolation=none',
+      '--test-isolation=none',
       fixture,
       fixture2,
     ];
