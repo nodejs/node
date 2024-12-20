@@ -38,7 +38,11 @@ permissions:
 jobs:
   test-macOS:
     if: github.event.pull_request.draft == false
-    runs-on: macos-14
+    strategy:
+      fail-fast: false
+      matrix:
+        macos-version: [macos-13, macos-14]
+    runs-on: ${{ matrix.macos-version }}
     env:
       CC: sccache gcc
       CXX: sccache g++
