@@ -54,7 +54,7 @@ for await (const line of stdinLineByLine) {
     }
     throw e;
   }
-  assert.strictEqual(commitList.slice(lineEnd - prURL.length - 2, lineEnd), `(${prURL})`);
+  assert.strictEqual(commitList.slice(lineEnd - prURL.length - 2, lineEnd), `(${prURL})`, `when checking ${smallSha} ${title}`);
 
   expectedNumberOfCommitsLeft--;
   console.log(prURL);
