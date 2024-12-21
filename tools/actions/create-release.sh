@@ -126,4 +126,4 @@ if (data.errors?.length) {
 console.log(util.inspect(data, { depth: Infinity }));
 EOF
 
-gh pr edit "$PR_URL" --add-label release --add-assignee "$RELEASER"
+gh pr edit "$PR_URL" --add-label release --add-label "v$RELEASE_LINE.x" --add-assignee "$RELEASER"
