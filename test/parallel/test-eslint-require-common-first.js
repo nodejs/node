@@ -16,6 +16,12 @@ new RuleTester().run('require-common-first', rule, {
       code: 'require("common")\n' +
             'require("assert")'
     },
+    {
+      code: 'import "../../../../common/index.mjs";',
+      languageOptions: {
+        sourceType: 'module',
+      },
+    },
   ],
   invalid: [
     {
