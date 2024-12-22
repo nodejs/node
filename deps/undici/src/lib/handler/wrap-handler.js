@@ -53,8 +53,7 @@ module.exports = class WrapHandler {
   onRequestUpgrade (controller, statusCode, headers, socket) {
     const rawHeaders = []
     for (const [key, val] of Object.entries(headers)) {
-      // TODO (fix): What if val is Array
-      rawHeaders.push(Buffer.from(key), Buffer.from(val))
+      rawHeaders.push(Buffer.from(key), Array.isArray(val) ? val.map(v => Buffer.from(v)) : Buffer.from(val))
     }
 
     this.#handler.onUpgrade?.(statusCode, rawHeaders, socket)
@@ -63,8 +62,7 @@ module.exports = class WrapHandler {
   onResponseStart (controller, statusCode, headers, statusMessage) {
     const rawHeaders = []
     for (const [key, val] of Object.entries(headers)) {
-      // TODO (fix): What if val is Array
-      rawHeaders.push(Buffer.from(key), Buffer.from(val))
+      rawHeaders.push(Buffer.from(key), Array.isArray(val) ? val.map(v => Buffer.from(v)) : Buffer.from(val))
     }
 
     if (this.#handler.onHeaders?.(statusCode, rawHeaders, () => controller.resume(), statusMessage) === false) {
@@ -81,8 +79,7 @@ module.exports = class WrapHandler {
   onResponseEnd (controller, trailers) {
     const rawTrailers = []
     for (const [key, val] of Object.entries(trailers)) {
-      // TODO (fix): What if val is Array
-      rawTrailers.push(Buffer.from(key), Buffer.from(val))
+      rawTrailers.push(Buffer.from(key), Array.isArray(val) ? val.map(v => Buffer.from(v)) : Buffer.from(val))
     }
 
     this.#handler.onComplete?.(rawTrailers)

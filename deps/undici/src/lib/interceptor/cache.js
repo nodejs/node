@@ -103,10 +103,14 @@ function handleUncachedResponse (
 }
 
 /**
+ * @param {import('../../types/dispatcher.d.ts').default.DispatchHandler} handler
+ * @param {import('../../types/dispatcher.d.ts').default.RequestOptions} opts
  * @param {import('../../types/cache-interceptor.d.ts').default.GetResult} result
  * @param {number} age
+ * @param {any} context
+ * @param {boolean} isStale
  */
-function sendCachedValue (handler, opts, result, age, context) {
+function sendCachedValue (handler, opts, result, age, context, isStale) {
   // TODO (perf): Readable.from path can be optimized...
   const stream = util.isStream(result.body)
     ? result.body
@@ -160,8 +164,13 @@ function sendCachedValue (handler, opts, result, age, context) {
 
   // Add the age header
   // https://www.rfc-editor.org/rfc/rfc9111.html#name-age
-  // TODO (fix): What if headers.age already exists?
-  const headers = age != null ? { ...result.headers, age: String(age) } : result.headers
+  const headers = { ...result.headers, age: String(age) }
+
+  if (isStale) {
+    // Add warning header
+    //  https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Warning
+    headers.warning = '110 - "response is stale"'
+  }
 
   handler.onResponseStart?.(controller, result.statusCode, headers, result.statusMessage)
 
@@ -225,8 +234,11 @@ function handleResult (
 
     let headers = {
       ...opts.headers,
-      'if-modified-since': new Date(result.cachedAt).toUTCString(),
-      'if-none-match': result.etag
+      'if-modified-since': new Date(result.cachedAt).toUTCString()
+    }
+
+    if (result.etag) {
+      headers['if-none-match'] = result.etag
     }
 
     if (result.vary) {
@@ -245,7 +257,7 @@ function handleResult (
       new CacheRevalidationHandler(
         (success, context) => {
           if (success) {
-            sendCachedValue(handler, opts, result, age, context)
+            sendCachedValue(handler, opts, result, age, context, true)
           } else if (util.isStream(result.body)) {
             result.body.on('error', () => {}).destroy()
           }
@@ -261,7 +273,7 @@ function handleResult (
     opts.body.on('error', () => {}).destroy()
   }
 
-  sendCachedValue(handler, opts, result, age, null)
+  sendCachedValue(handler, opts, result, age, null, false)
 }
 
 /**

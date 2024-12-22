@@ -419,14 +419,14 @@ var require_wrap_handler = __commonJS({
       onRequestUpgrade(controller, statusCode, headers, socket) {
         const rawHeaders = [];
         for (const [key, val] of Object.entries(headers)) {
-          rawHeaders.push(Buffer.from(key), Buffer.from(val));
+          rawHeaders.push(Buffer.from(key), Array.isArray(val) ? val.map((v) => Buffer.from(v)) : Buffer.from(val));
         }
         this.#handler.onUpgrade?.(statusCode, rawHeaders, socket);
       }
       onResponseStart(controller, statusCode, headers, statusMessage) {
         const rawHeaders = [];
         for (const [key, val] of Object.entries(headers)) {
-          rawHeaders.push(Buffer.from(key), Buffer.from(val));
+          rawHeaders.push(Buffer.from(key), Array.isArray(val) ? val.map((v) => Buffer.from(v)) : Buffer.from(val));
         }
         if (this.#handler.onHeaders?.(statusCode, rawHeaders, () => controller.resume(), statusMessage) === false) {
           controller.pause();
@@ -440,7 +440,7 @@ var require_wrap_handler = __commonJS({
       onResponseEnd(controller, trailers) {
         const rawTrailers = [];
         for (const [key, val] of Object.entries(trailers)) {
-          rawTrailers.push(Buffer.from(key), Buffer.from(val));
+          rawTrailers.push(Buffer.from(key), Array.isArray(val) ? val.map((v) => Buffer.from(v)) : Buffer.from(val));
         }
         this.#handler.onComplete?.(rawTrailers);
       }
@@ -3820,7 +3820,7 @@ var require_data_url = __commonJS({
       if (type.length === 0 || !HTTP_TOKEN_CODEPOINTS.test(type)) {
         return "failure";
       }
-      if (position.position > input.length) {
+      if (position.position >= input.length) {
         return "failure";
       }
       position.position++;
@@ -3863,7 +3863,7 @@ var require_data_url = __commonJS({
           }
           position.position++;
         }
-        if (position.position > input.length) {
+        if (position.position >= input.length) {
           break;
         }
         let parameterValue = null;
@@ -7472,6 +7472,7 @@ var require_client_h2 = __commonJS({
       kClosed,
       kBodyTimeout
     } = require_symbols();
+    var { channels } = require_diagnostics();
     var kOpenStreams = Symbol("open streams");
     var extractBody;
     var http2;
@@ -7761,6 +7762,14 @@ var require_client_h2 = __commonJS({
         headers[HTTP2_HEADER_CONTENT_LENGTH] = `${contentLength}`;
       }
       session.ref();
+      if (channels.sendHeaders.hasSubscribers) {
+        let header = "";
+        for (const key in headers) {
+          header += `${key}: ${headers[key]}\r
+`;
+        }
+        channels.sendHeaders.publish({ request, headers: header, socket: session[kSocket] });
+      }
       const shouldEndStream = method === "GET" || method === "HEAD" || body === null;
       if (expectContinue) {
         headers[HTTP2_HEADER_EXPECT] = "100-continue";

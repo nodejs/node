@@ -1,8 +1,9 @@
 'use strict'
 
-const { DatabaseSync } = require('node:sqlite')
 const { Writable } = require('stream')
 const { assertCacheKey, assertCacheValue } = require('../util/cache.js')
+
+let DatabaseSync
 
 const VERSION = 3
 
@@ -101,6 +102,9 @@ module.exports = class SqliteCacheStore {
       }
     }
 
+    if (!DatabaseSync) {
+      DatabaseSync = require('node:sqlite').DatabaseSync
+    }
     this.#db = new DatabaseSync(opts?.location ?? ':memory:')
 
     this.#db.exec(`

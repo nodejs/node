@@ -30,6 +30,7 @@ const {
   kClosed,
   kBodyTimeout
 } = require('../core/symbols.js')
+const { channels } = require('../core/diagnostics.js')
 
 const kOpenStreams = Symbol('open streams')
 
@@ -447,6 +448,14 @@ function writeH2 (client, request) {
   }
 
   session.ref()
+
+  if (channels.sendHeaders.hasSubscribers) {
+    let header = ''
+    for (const key in headers) {
+      header += `${key}: ${headers[key]}\r\n`
+    }
+    channels.sendHeaders.publish({ request, headers: header, socket: session[kSocket] })
+  }
 
   // TODO(metcoder95): add support for sending trailers
   const shouldEndStream = method === 'GET' || method === 'HEAD' || body === null

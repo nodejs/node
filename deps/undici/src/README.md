@@ -281,17 +281,23 @@ stalls or deadlocks when running out of connections.
 
 ```js
 // Do
-const headers = await fetch(url)
-  .then(async res => {
-    for await (const chunk of res.body) {
-      // force consumption of body
-    }
-    return res.headers
-  })
+const { body, headers } = await fetch(url);
+for await (const chunk of body) {
+  // force consumption of body
+}
 
 // Do not
-const headers = await fetch(url)
-  .then(res => res.headers)
+const { headers } = await fetch(url);
+```
+
+The same applies for `request` too:
+```js
+// Do
+const { body, headers } = await request(url);
+await res.body.dump(); // force consumption of body
+
+// Do not
+const { headers } = await request(url);
 ```
 
 However, if you want to get only headers, it might be better to use `HEAD` request method. Usage of this method will obviate the need for consumption or cancelling of the response body. See [MDN - HTTP - HTTP request methods - HEAD](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/HEAD) for more details.
@@ -444,6 +450,16 @@ and `undici.Agent`) which will enable the family autoselection algorithm when es
 * [__Matteo Collina__](https://github.com/mcollina), <https://www.npmjs.com/~matteo.collina>
 * [__Robert Nagy__](https://github.com/ronag), <https://www.npmjs.com/~ronag>
 * [__Matthew Aitken__](https://github.com/KhafraDev), <https://www.npmjs.com/~khaf>
+
+## Long Term Support
+
+Undici aligns with the Node.js LTS schedule. The following table shows the supported versions:
+
+| Version | Node.js     | End of Life |
+|---------|-------------|-------------|
+| 5.x     | v18.x       | 2024-04-30  |
+| 6.x     | v20.x v22.x | 2026-04-30  |
+| 7.x     | v24.x       | 2027-04-30  |
 
 ## License
 
