@@ -451,8 +451,6 @@ For information about the governance of the Node.js project, see
   **Vladimir Morozov** <<vmorozov@microsoft.com>> (he/him)
 * [VoltrexKeyva](https://github.com/VoltrexKeyva) -
   **Mohammed Keyvanzadeh** <<mohammadkeyvanzade94@gmail.com>> (he/him)
-* [watilde](https://github.com/watilde) -
-  **Daijiro Wachi** <<daijiro.wachi@gmail.com>> (he/him)
 * [zcbenz](https://github.com/zcbenz) -
   **Cheng Zhao** <<zcbenz@gmail.com>> (he/him)
 * [ZYSzys](https://github.com/ZYSzys) -
@@ -707,6 +705,8 @@ For information about the governance of the Node.js project, see
   **Vladimir Kurchatkin** <<vladimir.kurchatkin@gmail.com>>
 * [vsemozhetbyt](https://github.com/vsemozhetbyt) -
   **Vse Mozhet Byt** <<vsemozhetbyt@gmail.com>> (he/him)
+* [watilde](https://github.com/watilde) -
+  **Daijiro Wachi** <<daijiro.wachi@gmail.com>> (he/him)
 * [watson](https://github.com/watson) -
   **Thomas Watson** <<w@tson.dk>>
 * [whitlockjc](https://github.com/whitlockjc) -
