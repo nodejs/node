@@ -178,7 +178,9 @@ Some of the things to highlight include:
 
 * Nobody is paid specifically to answer issues, fix bugs or implement new features.
 * No company owns/supports Node.js. Most contributions are from individuals
-  as opposed to organizations.
+  as opposed to organizations. When an individual becomes a collaborator
+  the access and priviledges are granted to the indidual, their employer does
+  not gain any additional rights in the project.
 * The governance of the project is specifically designed to prevent one or
   a small number of companies from dominating the project.
 * Decisions are made by the active collaborators, there is no single person
@@ -192,7 +194,12 @@ Some of the things to highlight include:
   available to do so.
 * People are volunteering their time to review your PRs and answer questions in
   the issues you open. Be mindfull of your asks for their time and acknowledge
-  the gift of their time.
+  the gift of their time. Too many issues/PRs in a short period of time may
+  overwelm maintainers leading to less progress versus more, try to pace your
+  issues and PRs so that you don't have too many open at the same time. The
+  same goes for comments in discussions, try to avoid overwelming a discussion
+  with too many responses, even too much useful data can overwelm a discussion
+  leading to lower engagement.
 * While volunteers work to do the right thing for the community, the project
   does not owe anybody anything and does not tolerate abusive or
   demanding language in issues, discussions or PRs. A respectful dialog will
