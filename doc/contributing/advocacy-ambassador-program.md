@@ -195,7 +195,7 @@ Some of the things to highlight include:
   the gift of their time.
 * While volunteers work to do the right thing for the community, the project
   does not owe anybody anything and does not tolerate abusive or
-  demanding language in issues, discussionis or PRs. A respectful diaglog will
+  demanding language in issues, discussions or PRs. A respectful dialog will
   maximize the chances of the outcome you desire.
 * If you depend on timely support or an SLA, contract with a company that provides
   paid support and will prioritize your issues.
