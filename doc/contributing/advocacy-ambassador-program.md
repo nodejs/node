@@ -218,4 +218,3 @@ Some of the things to highlight include:
 * @marco-ippolito
 
 You can find their contact email in the [`README.md`](../../README.md#tsc-technical-steering-committee)
-
