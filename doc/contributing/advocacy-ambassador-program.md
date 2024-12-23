@@ -176,7 +176,7 @@ and the best way to get something fixed/changed is to submit a Pull request.
 
 Some of the things to highlight include:
 
-* Nobody is paid specifically to answer issues or implement features.
+* Nobody is paid specifically to answer issues, fix bugs or implement new features.
 * No company owns/supports Node.js. Most contributions are from individuals
   as opposed to organizations.
 * The governance of the project is specifically designed to prevent one or
