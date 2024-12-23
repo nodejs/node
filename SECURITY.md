@@ -111,8 +111,8 @@ lead to a loss of confidentiality, integrity, or availability.
 1. The developers and infrastructure that runs it.
 2. The operating system that Node.js is running under and its configuration,
    along with anything under control of the operating system.
-3. The code it is asked to run, including JavaScript and native code, even if
-   said code is dynamically loaded, e.g., all dependencies installed from the
+3. The code it is asked to run, including JavaScript, WASM and native code, even
+   if said code is dynamically loaded, e.g., all dependencies installed from the
    npm registry.
    The code run inherits all the privileges of the execution user.
 4. Inputs provided to it by the code it is asked to run, as it is the
@@ -123,7 +123,7 @@ lead to a loss of confidentiality, integrity, or availability.
    end being on the local machine or remote.
 6. The file system when requiring a module.
    See <https://nodejs.org/api/modules.html#all-together>.
-7. The `node:wasi` module does not currently provide the comprehensive file
+8. The `node:wasi` module does not currently provide the comprehensive file
    system security properties provided by some WASI runtimes.
 
 Any unexpected behavior from the data manipulation from Node.js Internal
