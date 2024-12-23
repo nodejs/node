@@ -217,4 +217,5 @@ Some of the things to highlight include:
 * @mhdawson
 
 You can find their contact email in the [`README.md`](../../README.md#tsc-technical-steering-committee).
-* @marco-ippolito 
+
+* @marco-ippolito
