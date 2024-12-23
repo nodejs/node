@@ -186,7 +186,7 @@ Some of the things to highlight include:
   decision making but most often results in better outcomes.
 * The project is open and receptive to contributions. If you need something PR
   in a fix or feature.
-* Maintainers are people just like you, with many priorities and and goals. We
+* Maintainers are people just like you, with many priorities and end goals. We
   all have the same goal of moving the Node.js project forward but at the same
   time we all have other responsibilities that affect how much time we have
   available to do so.
