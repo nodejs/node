@@ -7,6 +7,10 @@ import test from 'node:test';
 import fs from 'node:fs';
 import childProcess from 'child_process';
 
+if (process.config.variables.node_shared_sqlite) {
+  common.skip('Missing libsqlite_extension binary');
+}
+
 // Lib extension binary is named differently on different platforms
 function resolveBuiltBinary(binary) {
   const targetFile = fs.readdirSync(path.dirname(process.execPath)).find((file) => file.startsWith(binary));
