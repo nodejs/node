@@ -12,7 +12,7 @@ const scriptPath = fixtures.path('typescript/ts/test-typescript.ts');
 
 async function runTest() {
   const child = new NodeInstance(
-    ['--inspect-brk=0', '--experimental-strip-types'],
+    ['--inspect-brk=0'],
     undefined,
     scriptPath);
 
