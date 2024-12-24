@@ -5,16 +5,6 @@ with(this){__filename}
 
 SyntaxError: Strict mode code may not include a with statement
 
-
-
-
-
-
-
-
-
-
-
 Node.js *
 42
 42
@@ -24,32 +14,12 @@ throw new Error("hello")
 
 Error: hello
 
-
-
-
-
-
-
-
-
-
-
 Node.js *
 [stdin]:1
 throw new Error("hello")
 ^
 
 Error: hello
-
-
-
-
-
-
-
-
-
-
 
 Node.js *
 100
@@ -58,16 +28,6 @@ let x = 100; y = x;
                ^
 
 ReferenceError: y is not defined
-
-
-
-
-
-
-
-
-
-
 
 Node.js *
 
