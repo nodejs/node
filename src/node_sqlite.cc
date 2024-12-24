@@ -9,6 +9,7 @@
 #include "node_mem-inl.h"
 #include "sqlite3.h"
 #include "util-inl.h"
+#include "v8-exception.h"
 
 #include <cinttypes>
 
@@ -42,6 +43,7 @@ using v8::Number;
 using v8::Object;
 using v8::SideEffectType;
 using v8::String;
+using v8::TryCatch;
 using v8::Uint8Array;
 using v8::Value;
 
@@ -795,9 +797,14 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
       Local<Function> conflictFunc = conflictValue.As<Function>();
       conflictCallback = [env, conflictFunc](int conflictType) -> int {
         Local<Value> argv[] = {Integer::New(env->isolate(), conflictType)};
+        TryCatch try_catch(env->isolate());
         Local<Value> result =
             conflictFunc->Call(env->context(), Null(env->isolate()), 1, argv)
-                .ToLocalChecked();
+                .FromMaybe(Local<Value>());
+        if (try_catch.HasCaught()) {
+          try_catch.ReThrow();
+          return SQLITE_CHANGESET_ABORT;
+        }
         return result->Int32Value(env->context()).FromJust();
       };
     }

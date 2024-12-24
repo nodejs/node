@@ -323,7 +323,7 @@ suite('conflict resolution', () => {
     deepStrictEqual(t)(database2.prepare('SELECT key, value from data').all(), [{ key: 2, value: 'hello' }]);
   });
 
-  test("conflict resolution handler returns invalid value", (t) => {
+  test('conflict resolution handler returns invalid value', (t) => {
     const { database2, changeset } = prepareConflict();
     t.assert.throws(() => {
       database2.applyChangeset(changeset, {
@@ -334,6 +334,20 @@ suite('conflict resolution', () => {
     }, {
       name: 'Error',
       message: 'bad parameter or other API misuse'
+    });
+  });
+
+  test('conflict resolution handler throws', (t) => {
+    const { database2, changeset } = prepareConflict();
+    t.assert.throws(() => {
+      database2.applyChangeset(changeset, {
+        onConflict: () => {
+          throw new Error('some error');
+        }
+      });
+    }, {
+      name: 'Error',
+      message: 'some error'
     });
   });
 });
