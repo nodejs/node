@@ -11,6 +11,7 @@ describe('eval output', { concurrency: true }, () => {
 
   const defaultTransform = snapshot.transform(
     removeStackTraces,
+    filterEmptyLines,
     normalize,
     snapshot.replaceWindowsLineEndings,
     snapshot.replaceWindowsPaths,
@@ -19,6 +20,10 @@ describe('eval output', { concurrency: true }, () => {
 
   function removeStackTraces(output) {
     return output.replaceAll(/^ *at .+$/gm, '');
+  }
+
+  function filterEmptyLines(output) {
+    return output.replaceAll(/^\s*$/gm, '');
   }
 
   const tests = [

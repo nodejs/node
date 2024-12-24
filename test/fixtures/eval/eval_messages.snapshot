@@ -27,26 +27,12 @@ throw new Error("hello")
 
 Error: hello
 
-
-
-
-
-
-
-
 Node.js *
 [eval]:1
 throw new Error("hello")
 ^
 
 Error: hello
-
-
-
-
-
-
-
 
 Node.js *
 100
@@ -55,13 +41,6 @@ var x = 100; y = x;
                ^
 
 ReferenceError: y is not defined
-
-
-
-
-
-
-
 
 Node.js *
 
