@@ -322,6 +322,20 @@ suite('conflict resolution', () => {
     t.assert.strictEqual(conflictType, constants.SQLITE_CHANGESET_CONSTRAINT);
     deepStrictEqual(t)(database2.prepare('SELECT key, value from data').all(), [{ key: 2, value: 'hello' }]);
   });
+
+  test("conflict resolution handler returns invalid value", (t) => {
+    const { database2, changeset } = prepareConflict();
+    t.assert.throws(() => {
+      database2.applyChangeset(changeset, {
+        onConflict: () => {
+          return -1;
+        }
+      });
+    }, {
+      name: 'Error',
+      message: 'bad parameter or other API misuse'
+    });
+  });
 });
 
 test('database.createSession() - filter changes', (t) => {

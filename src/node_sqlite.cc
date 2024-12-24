@@ -114,6 +114,19 @@ inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, const char* message) {
   }
 }
 
+inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, int errcode) {
+  const char* errstr = sqlite3_errstr(errcode);
+  Local<Object> e;
+
+  if (CreateSQLiteError(isolate, errstr).ToLocal(&e)) {
+    e->Set(isolate->GetCurrentContext(),
+           OneByteString(isolate, "errcode"),
+           Integer::New(isolate, errcode))
+        .IsNothing();
+    isolate->ThrowException(e);
+  }
+}
+
 class UserDefinedFunction {
  public:
   explicit UserDefinedFunction(Environment* env,
@@ -824,12 +837,16 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
       xFilter,
       xConflict,
       nullptr);
+  if (r == SQLITE_OK) {
+    args.GetReturnValue().Set(true);
+    return;
+  }
   if (r == SQLITE_ABORT) {
+    // this is not an error, return false
     args.GetReturnValue().Set(false);
     return;
   }
-  CHECK_ERROR_OR_THROW(env->isolate(), db->connection_, r, SQLITE_OK, void());
-  args.GetReturnValue().Set(true);
+  THROW_ERR_SQLITE_ERROR(env->isolate(), r);
 }
 
 void DatabaseSync::EnableLoadExtension(
