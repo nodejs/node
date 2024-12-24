@@ -249,9 +249,12 @@ static ngtcp2_ssize rtb_reclaim_frame(ngtcp2_rtb *rtb, uint8_t flags,
         if (!fr->stream.fin) {
           /* 0 length STREAM frame with offset == 0 must be
              retransmitted if no non-empty data are sent to this
-             stream, and no data in this stream are acknowledged. */
+             stream, fin flag is not set, and no data in this stream
+             are acknowledged. */
           if (fr->stream.offset != 0 || fr->stream.datacnt != 0 ||
-              strm->tx.offset || (strm->flags & NGTCP2_STRM_FLAG_ANY_ACKED)) {
+              strm->tx.offset ||
+              (strm->flags &
+               (NGTCP2_STRM_FLAG_SHUT_WR | NGTCP2_STRM_FLAG_ANY_ACKED))) {
             continue;
           }
         } else if (strm->flags & NGTCP2_STRM_FLAG_FIN_ACKED) {
@@ -1280,14 +1283,6 @@ static int rtb_on_pkt_lost_resched_move(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
     ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_LDC,
                     "pkn=%" PRId64
                     " is a probe packet, no retransmission is necessary",
-                    ent->hd.pkt_num);
-    return 0;
-  }
-
-  if (ent->flags & NGTCP2_RTB_ENTRY_FLAG_PMTUD_PROBE) {
-    ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_LDC,
-                    "pkn=%" PRId64
-                    " is a PMTUD probe packet, no retransmission is necessary",
                     ent->hd.pkt_num);
     return 0;
   }

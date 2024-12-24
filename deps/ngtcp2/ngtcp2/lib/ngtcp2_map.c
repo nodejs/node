@@ -31,7 +31,7 @@
 
 #include "ngtcp2_conv.h"
 
-#define NGTCP2_INITIAL_TABLE_LENBITS 4
+#define NGTCP2_INITIAL_HASHBITS 4
 
 void ngtcp2_map_init(ngtcp2_map *map, const ngtcp2_mem *mem) {
   map->mem = mem;
@@ -196,7 +196,7 @@ int ngtcp2_map_insert(ngtcp2_map *map, ngtcp2_map_key_type key, void *data) {
         return rv;
       }
     } else {
-      rv = map_resize(map, NGTCP2_INITIAL_TABLE_LENBITS);
+      rv = map_resize(map, NGTCP2_INITIAL_HASHBITS);
       if (rv != 0) {
         return rv;
       }
