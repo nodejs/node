@@ -123,7 +123,7 @@ lead to a loss of confidentiality, integrity, or availability.
    end being on the local machine or remote.
 6. The file system when requiring a module.
    See <https://nodejs.org/api/modules.html#all-together>.
-8. The `node:wasi` module does not currently provide the comprehensive file
+7. The `node:wasi` module does not currently provide the comprehensive file
    system security properties provided by some WASI runtimes.
 
 Any unexpected behavior from the data manipulation from Node.js Internal
