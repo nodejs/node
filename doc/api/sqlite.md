@@ -234,10 +234,24 @@ added:
 * `options` {Object} The configuration options for how the changes will be applied.
   * `filter` {Function} Skip changes that, when targeted table name is supplied to this function, return a truthy value.
     By default, all changes are attempted.
-  * `onConflict` {number} Determines how conflicts are handled. **Default**: `SQLITE_CHANGESET_ABORT`.
-    * `SQLITE_CHANGESET_OMIT`: conflicting changes are omitted.
-    * `SQLITE_CHANGESET_REPLACE`: conflicting changes replace existing values.
-    * `SQLITE_CHANGESET_ABORT`: abort on conflict and roll back database.
+  * `onConflict` {Function} A function that determines how to handle conflicts. The function receives one argument,
+    which can be one of the following values:
+
+    * `SQLITE_CHANGESET_DATA`: A `DELETE` or `UPDATE` change does not contain the expected "before" values.
+    * `SQLITE_CHANGESET_NOTFOUND`: A row matching the primary key of the `DELETE` or `UPDATE` change does not exist.
+    * `SQLITE_CHANGESET_CONFLICT`: An `INSERT` change results in a duplicate primary key.
+    * `SQLITE_CHANGESET_FOREIGN_KEY`: Applying a change would result in a foreign key violation.
+    * `SQLITE_CHANGESET_CONSTRAINT`: Applying a change results in a `UNIQUE`, `CHECK`, or `NOT NULL` constraint
+      violation.
+
+    The function should return one of the following values:
+
+    * `SQLITE_CHANGESET_OMIT`: Omit conflicting changes.
+    * `SQLITE_CHANGESET_REPLACE`: Replace existing values with conflicting changes (only valid with
+      `SQLITE_CHANGESET_DATA` or `SQLITE_CHANGESET_CONFLICT` conflicts).
+    * `SQLITE_CHANGESET_ABORT`: Abort on conflict and roll back the database.
+
+    **Default**: A function that returns `SQLITE_CHANGESET_ABORT`.
 * Returns: {boolean} Whether the changeset was applied succesfully without being aborted.
 
 An exception is thrown if the database is not
@@ -496,9 +510,38 @@ An object containing commonly used constants for SQLite operations.
 
 The following constants are exported by the `sqlite.constants` object.
 
-#### Conflict-resolution constants
+#### Conflict resolution constants
 
-The following constants are meant for use with [`database.applyChangeset()`](#databaseapplychangesetchangeset-options).
+One of the following constants is available as an argument to the `onConflict` conflict resolution handler passed to [`database.applyChangeset()`](#databaseapplychangesetchangeset-options)). See also [Constants Passed To The Conflict Handler](https://www.sqlite.org/session/c_changeset_conflict.html) in the SQLite documentation.
+
+<table>
+  <tr>
+    <th>Constant</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <td><code>SQLITE_CHANGESET_DATA</code></td>
+    <td>The conflict handler is invoked with this constant when processing a DELETE or UPDATE change if a row with the required PRIMARY KEY fields is present in the database, but one or more other (non primary-key) fields modified by the update do not contain the expected "before" values.</td>
+  </tr>
+  <tr>
+    <td><code>SQLITE_CHANGESET_NOTFOUND</code></td>
+    <td>The conflict handler is invoked with this constant when processing a DELETE or UPDATE change if a row with the required PRIMARY KEY fields is not present in the database.</td>
+  </tr>
+  <tr>
+    <td><code>SQLITE_CHANGESET_CONFLICT</code></td>
+    <td>This constant is passed to the conflict handler while processing an INSERT change if the operation would result in duplicate primary key values.</td>
+  </tr>
+  <tr>
+    <td><code>SQLITE_CHANGESET_CONSTRAINT</code></td>
+    <td>If foreign key handling is enabled, and applying a changeset leaves the database in a state containing foreign key violations, the conflict handler is invoked with this constant exactly once before the changeset is committed. If the conflict handler returns SQLITE_CHANGESET_OMIT, the changes, including those that caused the foreign key constraint violation, are committed. Or, if it returns SQLITE_CHANGESET_ABORT, the changeset is rolled back.</td>
+  </tr>
+  <tr>
+    <td><code>SQLITE_CHANGESET_FOREIGN_KEY</code></td>
+    <td>If any other constraint violation occurs while applying a change (i.e. a UNIQUE, CHECK or NOT NULL constraint), the conflict handler is invoked with this constant.</td>
+  </tr>
+</table>
+
+One of the following constants must be returned from the `onConflict` conflict resolution handler passed to [`database.applyChangeset()`](#databaseapplychangesetchangeset-options). See also [Constants Returned From The Conflict Handler](https://www.sqlite.org/session/c_changeset_abort.html) in the SQLite documentation.
 
 <table>
   <tr>
@@ -511,7 +554,7 @@ The following constants are meant for use with [`database.applyChangeset()`](#da
   </tr>
   <tr>
     <td><code>SQLITE_CHANGESET_REPLACE</code></td>
-    <td>Conflicting changes replace existing values.</td>
+    <td>Conflicting changes replace existing values. Note that this value can only be returned when the type of conflict is either `SQLITE_CHANGESET_DATA` or `SQLITE_CHANGESET_CONFLICT`.</td>
   </tr>
   <tr>
     <td><code>SQLITE_CHANGESET_ABORT</code></td>

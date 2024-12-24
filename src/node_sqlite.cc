@@ -731,11 +731,11 @@ void DatabaseSync::CreateSession(const FunctionCallbackInfo<Value>& args) {
 
 // the reason for using static functions here is that SQLite needs a
 // function pointer
-static std::function<int()> conflictCallback;
+static std::function<int(int)> conflictCallback;
 
 static int xConflict(void* pCtx, int eConflict, sqlite3_changeset_iter* pIter) {
   if (!conflictCallback) return SQLITE_CHANGESET_ABORT;
-  return conflictCallback();
+  return conflictCallback(eConflict);
 }
 
 static std::function<bool(std::string)> filterCallback;
@@ -773,15 +773,20 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
         options->Get(env->context(), env->onconflict_string()).ToLocalChecked();
 
     if (!conflictValue->IsUndefined()) {
-      if (!conflictValue->IsNumber()) {
+      if (!conflictValue->IsFunction()) {
         THROW_ERR_INVALID_ARG_TYPE(
             env->isolate(),
-            "The \"options.onConflict\" argument must be a number.");
+            "The \"options.onConflict\" argument must be a function.");
         return;
       }
-
-      int conflictInt = conflictValue->Int32Value(env->context()).FromJust();
-      conflictCallback = [conflictInt]() -> int { return conflictInt; };
+      Local<Function> conflictFunc = conflictValue.As<Function>();
+      conflictCallback = [env, conflictFunc](int conflictType) -> int {
+        Local<Value> argv[] = {Integer::New(env->isolate(), conflictType)};
+        Local<Value> result =
+            conflictFunc->Call(env->context(), Null(env->isolate()), 1, argv)
+                .ToLocalChecked();
+        return result->Int32Value(env->context()).FromJust();
+      };
     }
 
     if (options->HasOwnProperty(env->context(), env->filter_string())
@@ -1662,6 +1667,12 @@ void DefineConstants(Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, SQLITE_CHANGESET_OMIT);
   NODE_DEFINE_CONSTANT(target, SQLITE_CHANGESET_REPLACE);
   NODE_DEFINE_CONSTANT(target, SQLITE_CHANGESET_ABORT);
+
+  NODE_DEFINE_CONSTANT(target, SQLITE_CHANGESET_DATA);
+  NODE_DEFINE_CONSTANT(target, SQLITE_CHANGESET_NOTFOUND);
+  NODE_DEFINE_CONSTANT(target, SQLITE_CHANGESET_CONFLICT);
+  NODE_DEFINE_CONSTANT(target, SQLITE_CHANGESET_CONSTRAINT);
+  NODE_DEFINE_CONSTANT(target, SQLITE_CHANGESET_FOREIGN_KEY);
 }
 
 static void Initialize(Local<Object> target,
