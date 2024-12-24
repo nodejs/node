@@ -1369,8 +1369,23 @@ added: v12.0.0
 -->
 
 This configures Node.js to interpret `--eval` or `STDIN` input as CommonJS or
-as an ES module. Valid values are `"commonjs"` or `"module"`. The default is
-`"commonjs"`.
+as an ES module. Valid values are `"commonjs"`, `"module"`, `"module-typescript"` and `"commonjs-typescript"`.
+The `"-typescript"` values are available only in combination with the flag `--experimental-strip-types`.
+The default is `"commonjs"`.
+
+If `--experimental-strip-types` is enabled and `--input-type` is not provided,
+Node.js will try to detect the syntax with the following steps:
+
+1. Run the input as CommonJS.
+2. If step 1 fails, run the input as an ES module.
+3. If step 2 fails with a SyntaxError, strip the types.
+4. If step 3 fails with an error code [`ERR_INVALID_TYPESCRIPT_SYNTAX`][],
+   throw the error from step 2, including the TypeScript error in the message,
+   else run as CommonJS.
+5. If step 4 fails, run the input as an ES module.
+
+To avoid the delay of multiple syntax detection passes, the `--input-type=type` flag can be used to specify
+how the `--eval` input should be interpreted.
 
 The REPL does not support this option. Usage of `--input-type=module` with
 [`--print`][] will throw an error, as `--print` does not support ES module
@@ -3648,6 +3663,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`AsyncLocalStorage`]: async_context.md#class-asynclocalstorage
 [`Buffer`]: buffer.md#class-buffer
 [`CRYPTO_secure_malloc_init`]: https://www.openssl.org/docs/man3.0/man3/CRYPTO_secure_malloc_init.html
+[`ERR_INVALID_TYPESCRIPT_SYNTAX`]: errors.md#err_invalid_typescript_syntax
 [`NODE_OPTIONS`]: #node_optionsoptions
 [`NO_COLOR`]: https://no-color.org
 [`SlowBuffer`]: buffer.md#class-slowbuffer
