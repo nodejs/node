@@ -910,7 +910,67 @@ The `zlib.bytesWritten` property specifies the number of bytes written to
 the engine, before the bytes are processed (compressed or decompressed,
 as appropriate for the derived class).
 
-### `zlib.crc32(data[, value])`
+### `zlib.close([callback])`
+
+<!-- YAML
+added: v0.9.4
+-->
+
+* `callback` {Function}
+
+Close the underlying handle.
+
+### `zlib.flush([kind, ]callback)`
+
+<!-- YAML
+added: v0.5.8
+-->
+
+* `kind` **Default:** `zlib.constants.Z_FULL_FLUSH` for zlib-based streams,
+  `zlib.constants.BROTLI_OPERATION_FLUSH` for Brotli-based streams.
+* `callback` {Function}
+
+Flush pending data. Don't call this frivolously, premature flushes negatively
+impact the effectiveness of the compression algorithm.
+
+Calling this only flushes data from the internal `zlib` state, and does not
+perform flushing of any kind on the streams level. Rather, it behaves like a
+normal call to `.write()`, i.e. it will be queued up behind other pending
+writes and will only produce output when data is being read from the stream.
+
+### `zlib.params(level, strategy, callback)`
+
+<!-- YAML
+added: v0.11.4
+-->
+
+* `level` {integer}
+* `strategy` {integer}
+* `callback` {Function}
+
+This function is only available for zlib-based streams, i.e. not Brotli.
+
+Dynamically update the compression level and compression strategy.
+Only applicable to deflate algorithm.
+
+### `zlib.reset()`
+
+<!-- YAML
+added: v0.7.0
+-->
+
+Reset the compressor/decompressor to factory defaults. Only applicable to
+the inflate and deflate algorithms.
+
+## `zlib.constants`
+
+<!-- YAML
+added: v7.0.0
+-->
+
+Provides an object enumerating Zlib-related constants.
+
+## `zlib.crc32(data[, value])`
 
 <!-- YAML
 added:
@@ -972,66 +1032,6 @@ crc = zlib.crc32('world', crc);  // 4192936109
 crc = zlib.crc32(Buffer.from('hello', 'utf16le'));  // 1427272415
 crc = zlib.crc32(Buffer.from('world', 'utf16le'), crc);  // 4150509955
 ```
-
-### `zlib.close([callback])`
-
-<!-- YAML
-added: v0.9.4
--->
-
-* `callback` {Function}
-
-Close the underlying handle.
-
-### `zlib.flush([kind, ]callback)`
-
-<!-- YAML
-added: v0.5.8
--->
-
-* `kind` **Default:** `zlib.constants.Z_FULL_FLUSH` for zlib-based streams,
-  `zlib.constants.BROTLI_OPERATION_FLUSH` for Brotli-based streams.
-* `callback` {Function}
-
-Flush pending data. Don't call this frivolously, premature flushes negatively
-impact the effectiveness of the compression algorithm.
-
-Calling this only flushes data from the internal `zlib` state, and does not
-perform flushing of any kind on the streams level. Rather, it behaves like a
-normal call to `.write()`, i.e. it will be queued up behind other pending
-writes and will only produce output when data is being read from the stream.
-
-### `zlib.params(level, strategy, callback)`
-
-<!-- YAML
-added: v0.11.4
--->
-
-* `level` {integer}
-* `strategy` {integer}
-* `callback` {Function}
-
-This function is only available for zlib-based streams, i.e. not Brotli.
-
-Dynamically update the compression level and compression strategy.
-Only applicable to deflate algorithm.
-
-### `zlib.reset()`
-
-<!-- YAML
-added: v0.7.0
--->
-
-Reset the compressor/decompressor to factory defaults. Only applicable to
-the inflate and deflate algorithms.
-
-## `zlib.constants`
-
-<!-- YAML
-added: v7.0.0
--->
-
-Provides an object enumerating Zlib-related constants.
 
 ## `zlib.createBrotliCompress([options])`
 
