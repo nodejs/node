@@ -1,4 +1,4 @@
-/* auto-generated on 2024-12-10 14:54:53 -0500. Do not edit! */
+/* auto-generated on 2024-12-17 14:54:59 -0500. Do not edit! */
 /* begin file include/simdutf.h */
 #ifndef SIMDUTF_H
 #define SIMDUTF_H
@@ -675,7 +675,7 @@ SIMDUTF_DISABLE_UNDESIRED_WARNINGS
 #define SIMDUTF_SIMDUTF_VERSION_H
 
 /** The version of simdutf being used (major.minor.revision) */
-#define SIMDUTF_VERSION "5.6.4"
+#define SIMDUTF_VERSION "5.7.0"
 
 namespace simdutf {
 enum {
@@ -686,11 +686,11 @@ enum {
   /**
    * The minor version (major.MINOR.revision) of simdutf being used.
    */
-  SIMDUTF_VERSION_MINOR = 6,
+  SIMDUTF_VERSION_MINOR = 7,
   /**
    * The revision (major.minor.REVISION) of simdutf being used.
    */
-  SIMDUTF_VERSION_REVISION = 4
+  SIMDUTF_VERSION_REVISION = 0
 };
 } // namespace simdutf
 
@@ -2702,6 +2702,9 @@ simdutf_warn_unused size_t trim_partial_utf16(const char16_t *input,
                                               size_t length);
 
 // base64_options are used to specify the base64 encoding options.
+// ASCII spaces are ' ', '\t', '\n', '\r', '\f'
+// garbage characters are characters that are not part of the base64 alphabet
+// nor ASCII spaces.
 enum base64_options : uint64_t {
   base64_default = 0,         /* standard base64 format (with padding) */
   base64_url = 1,             /* base64url format (no padding) */
@@ -2711,6 +2714,10 @@ enum base64_options : uint64_t {
       base64_reverse_padding, /* standard base64 format without padding */
   base64_url_with_padding =
       base64_url | base64_reverse_padding, /* base64url with padding */
+  base64_default_accept_garbage =
+      4, /* standard base64 format accepting garbage characters */
+  base64_url_accept_garbage =
+      5, /* base64url format accepting garbage characters */
 };
 
 // last_chunk_handling_options are used to specify the handling of the last
