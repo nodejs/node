@@ -94,8 +94,8 @@ V ?= 0
 
 # Use -e to double check in case it's a broken link
 available-node = \
-	if [ -x "$(NODE)" ] && [ -e "$(NODE)" ]; then \
-		"$(NODE)" $(1); \
+	if [ -x $(NODE) ] && [ -e $(NODE) ]; then \
+		$(NODE) $(1); \
 	elif [ -x `command -v node` ] && [ -e `command -v node` ] && [ `command -v node` ]; then \
 		`command -v node` $(1); \
 	else \
