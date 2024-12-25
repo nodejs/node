@@ -8,7 +8,6 @@ with(this){__filename}
    : ^^^^
    `----
 
-
 SyntaxError: Strict mode code may not include a with statement
 
 Node.js *
