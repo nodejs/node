@@ -93,11 +93,11 @@ void node_napi_env__::CallbackIntoModule(T&& call) {
       return;
     }
     node::Environment* node_env = env->node_env();
-    // If the module api version is less than NAPI_VERSION_EXPERIMENTAL,
-    // and the option --force-node-api-uncaught-exceptions-policy is not
-    // specified, emit a warning about the uncaught exception instead of
-    // triggering uncaught exception event.
-    if (env->module_api_version < NAPI_VERSION_EXPERIMENTAL &&
+    // If the module api version is less than 10, and the option
+    // --force-node-api-uncaught-exceptions-policy is not specified, emit a
+    // warning about the uncaught exception instead of triggering the uncaught
+    // exception event.
+    if (env->module_api_version < 10 &&
         !node_env->options()->force_node_api_uncaught_exceptions_policy &&
         !enforceUncaughtExceptionPolicy) {
       ProcessEmitDeprecationWarning(

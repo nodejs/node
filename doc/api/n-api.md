@@ -1748,7 +1748,7 @@ will not be freed. This can be avoided by calling
 
 **Change History:**
 
-* Experimental (`NAPI_EXPERIMENTAL` is defined):
+* Version 10 (`NAPI_VERSION` is defined as `10` or higher):
 
   References can be created for all value types. The new supported value
   types do not support weak reference semantic and the values of these types
@@ -6527,7 +6527,7 @@ napi_create_threadsafe_function(napi_env env,
 
 **Change History:**
 
-* Experimental (`NAPI_EXPERIMENTAL` is defined):
+* Version 10 (`NAPI_VERSION` is defined as `10` or higher):
 
   Uncaught exceptions thrown in `call_js_cb` are handled with the
   [`'uncaughtException'`][] event, instead of being ignored.
