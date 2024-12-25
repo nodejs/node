@@ -7,16 +7,7 @@ enum Foo{};
    : ^^^^^^^^^^
    `----
 
-
 SyntaxError: Unexpected reserved word
-
-
-
-
-
-
-
-
 
 Node.js *
 [stdin]:1
@@ -28,16 +19,14 @@ enum Foo{};
    : ^^^^^^^^^^
    `----
 
-
 SyntaxError: Unexpected reserved word
 
+Node.js *
+[stdin]:1
+throw new SyntaxError("hello")
+^
 
-
-
-
-
-
-
+SyntaxError: hello
 
 Node.js *
 [stdin]:1
@@ -46,33 +35,6 @@ throw new SyntaxError("hello")
 
 SyntaxError: hello
 
-
-
-
-
-
-
-
-
-
-
-Node.js *
-[stdin]:1
-throw new SyntaxError("hello")
-^
-
-SyntaxError: hello
-
-
-
-
-
-
-
-
-
-
-
 Node.js *
 [stdin]:1
 const foo;
@@ -80,28 +42,12 @@ const foo;
 
 SyntaxError: Missing initializer in const declaration
 
-
-
-
-
-
-
-
-
 Node.js *
 [stdin]:1
 const foo;
       ^^^
 
 SyntaxError: Missing initializer in const declaration
-
-
-
-
-
-
-
-
 
 Node.js *
 100
@@ -116,14 +62,6 @@ false
 
 SyntaxError: Missing initializer in const declaration
 
-
-
-
-
-
-
-
-
 Node.js *
 [stdin]:1
                ;const foo;
@@ -131,13 +69,20 @@ Node.js *
 
 SyntaxError: Missing initializer in const declaration
 
+Node.js *
+[stdin]:1
+function foo(){ await Promise.resolve(1)};
+                ^^^^^
+  x await isn't allowed in non-async function
+   ,----
+ 1 | function foo(){ await Promise.resolve(1)};
+   :                       ^^^^^^^
+   `----
 
+Caused by:
+    failed to parse
 
-
-
-
-
-
+SyntaxError: await is only valid in async functions and the top level bodies of modules
 
 Node.js *
 [stdin]:1
@@ -149,43 +94,10 @@ function foo(){ await Promise.resolve(1)};
    :                       ^^^^^^^
    `----
 
-
 Caused by:
     failed to parse
 
 SyntaxError: await is only valid in async functions and the top level bodies of modules
-
-
-
-
-
-
-
-
-
-Node.js *
-[stdin]:1
-function foo(){ await Promise.resolve(1)};
-                ^^^^^
-  x await isn't allowed in non-async function
-   ,----
- 1 | function foo(){ await Promise.resolve(1)};
-   :                       ^^^^^^^
-   `----
-
-
-Caused by:
-    failed to parse
-
-SyntaxError: await is only valid in async functions and the top level bodies of modules
-
-
-
-
-
-
-
-
 
 Node.js *
 done
