@@ -238,3 +238,15 @@ testKeys.forEach(common.mustCall((file) => {
   const gzip = zlib.Gzip();
   assert.ok(gzip instanceof zlib.Gzip);
 }
+
+{
+  // Misuse of stream internals
+  // Issue: https://github.com/nodejs/node/issues/37884
+  assert.throws(() => zlib.createGunzip()._transform('Hello'), {
+    code: 'ERR_INTERNAL_ASSERTION',
+  });
+
+  assert.throws(() => zlib.createGunzip()._write('Hello'), {
+    code: 'ERR_INTERNAL_ASSERTION',
+  });
+}
