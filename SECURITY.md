@@ -111,8 +111,8 @@ lead to a loss of confidentiality, integrity, or availability.
 1. The developers and infrastructure that runs it.
 2. The operating system that Node.js is running under and its configuration,
    along with anything under control of the operating system.
-3. The code it is asked to run, including JavaScript and native code, even if
-   said code is dynamically loaded, e.g., all dependencies installed from the
+3. The code it is asked to run, including JavaScript, WASM and native code, even
+   if said code is dynamically loaded, e.g., all dependencies installed from the
    npm registry.
    The code run inherits all the privileges of the execution user.
 4. Inputs provided to it by the code it is asked to run, as it is the
