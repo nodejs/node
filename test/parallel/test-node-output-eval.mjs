@@ -10,12 +10,12 @@ describe('eval output', { concurrency: true }, () => {
   }
 
   const defaultTransform = snapshot.transform(
-    removeStackTraces,
-    filterEmptyLines,
     normalize,
     snapshot.replaceWindowsLineEndings,
     snapshot.replaceWindowsPaths,
-    snapshot.replaceNodeVersion
+    snapshot.replaceNodeVersion,
+    removeStackTraces,
+    filterEmptyLines,
   );
 
   function removeStackTraces(output) {
@@ -30,6 +30,7 @@ describe('eval output', { concurrency: true }, () => {
     { name: 'eval/eval_messages.js' },
     { name: 'eval/stdin_messages.js' },
     { name: 'eval/stdin_typescript.js' },
+    { name: 'eval/eval_typescript.js' },
   ];
 
   for (const { name } of tests) {
