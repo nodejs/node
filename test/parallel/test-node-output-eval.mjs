@@ -24,6 +24,7 @@ describe('eval output', { concurrency: true }, () => {
   const tests = [
     { name: 'eval/eval_messages.js' },
     { name: 'eval/stdin_messages.js' },
+    { name: 'eval/stdin_typescript.js' },
   ];
 
   for (const { name } of tests) {
