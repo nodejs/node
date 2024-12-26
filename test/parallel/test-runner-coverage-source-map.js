@@ -25,6 +25,7 @@ const flags = [
   '--test-coverage-exclude=!test/**',
   '--test-reporter',
   'tap',
+  '--no-experimental-strip-types',
 ];
 
 describe('Coverage with source maps', async () => {

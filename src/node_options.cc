@@ -856,7 +856,8 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--experimental-strip-types",
             "Experimental type-stripping for TypeScript files.",
             &EnvironmentOptions::experimental_strip_types,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            true);
   AddOption("--experimental-transform-types",
             "enable transformation of TypeScript-only"
             "syntax into JavaScript code",

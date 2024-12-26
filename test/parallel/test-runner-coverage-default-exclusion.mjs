@@ -45,6 +45,7 @@ describe('test runner coverage default exclusion', skipIfNoInspector, () => {
       '--experimental-test-coverage',
       '--test-coverage-exclude=!test/**',
       '--test-reporter=tap',
+      '--no-experimental-strip-types',
     ];
     const result = spawnSync(process.execPath, args, {
       env: { ...process.env, NODE_TEST_TMPDIR: tmpdir.path },
@@ -70,6 +71,7 @@ describe('test runner coverage default exclusion', skipIfNoInspector, () => {
     ].join('\n');
 
     const args = [
+      '--no-experimental-strip-types',
       '--test',
       '--experimental-test-coverage',
       '--test-reporter=tap',
@@ -84,7 +86,7 @@ describe('test runner coverage default exclusion', skipIfNoInspector, () => {
     assert.strictEqual(result.status, 0);
   });
 
-  it('should exclude ts test files when using --experimental-strip-types', async () => {
+  it('should exclude ts test files', async () => {
     const report = [
       '# start of coverage report',
       '# --------------------------------------------------------------',
@@ -100,7 +102,6 @@ describe('test runner coverage default exclusion', skipIfNoInspector, () => {
     const args = [
       '--test',
       '--experimental-test-coverage',
-      '--experimental-strip-types',
       '--disable-warning=ExperimentalWarning',
       '--test-reporter=tap',
     ];

@@ -1,4 +1,4 @@
-// Flags: --experimental-strip-types --no-experimental-transform-types
+// Flags: --no-experimental-transform-types
 // This tests that a mini TypeScript loader works with resolve and
 // load hooks when overriding --experimental-strip-types in ESM.
 import '../common/index.mjs';

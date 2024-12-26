@@ -2021,8 +2021,9 @@ added: v23.0.0
 
 * {boolean|string}
 
-A value that is `"strip"` if Node.js is run with `--experimental-strip-types`,
-`"transform"` if Node.js is run with `--experimental-transform-types`, and `false` otherwise.
+A value that is `"strip"` by default,
+`"transform"` if Node.js is run with `--experimental-transform-types`, and `false` if
+Node.js is run with `--no-experimental-strip-types`.
 
 ## `process.features.uv`
 
