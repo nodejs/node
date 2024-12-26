@@ -50,8 +50,6 @@ test-runner-watch-mode: PASS,FLAKY
 # https://github.com/nodejs/node/issues/42741
 test-http-server-headers-timeout-keepalive: PASS,FLAKY
 test-http-server-request-timeout-keepalive: PASS,FLAKY
-# https://github.com/nodejs/node/issues/50243
-test-inspector-async-stack-traces-set-interval: PASS, FLAKY
 # https://github.com/nodejs/node/issues/54811
 test-macos-app-sandbox: PASS, FLAKY
 
