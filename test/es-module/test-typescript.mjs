@@ -1,4 +1,4 @@
-import { skip, spawnPromisified, isWindows } from '../common/index.mjs';
+import { skip, spawnPromisified } from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import { match, strictEqual } from 'node:assert';
 import { test } from 'node:test';
@@ -270,10 +270,7 @@ test('execute a JavaScript file importing a cjs TypeScript file', async () => {
   strictEqual(result.code, 0);
 });
 
-// TODO(marco-ippolito) Due to a bug in SWC, the TypeScript loader
-// does not work on Windows arm64. This test should be re-enabled
-// when https://github.com/nodejs/node/issues/54645 is fixed
-test('execute a TypeScript test mocking module', { skip: isWindows && process.arch === 'arm64' }, async () => {
+test('execute a TypeScript test mocking module', async () => {
   const result = await spawnPromisified(process.execPath, [
     '--test',
     '--experimental-test-module-mocks',
