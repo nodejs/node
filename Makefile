@@ -788,7 +788,7 @@ out/doc/api/assets/%: doc/api_assets/% | out/doc/api/assets
 	@cp $< $@ ; $(RM) out/doc/api/assets/README.md
 
 
-run-npm-ci = $(PWD)/$(NPM) ci
+run-npm-ci = "$(PWD)/$(NPM)" ci
 
 LINK_DATA = out/doc/apilinks.json
 VERSIONS_DATA = out/previous-doc-versions.json
