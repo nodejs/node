@@ -6,8 +6,6 @@ prefix parallel
 
 [true] # This section applies to all platforms
 # https://github.com/nodejs/node/issues/52273
-test-net-write-fully-async-hex-string: PASS, FLAKY
-# https://github.com/nodejs/node/issues/52273
 test-shadow-realm-gc: SKIP
 test-shadow-realm-gc-module: SKIP
 # https://github.com/nodejs/node/issues/52274
