@@ -322,11 +322,15 @@ over hand-crafted SQL strings when handling user input.
 
 <!-- YAML
 added: v22.5.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/56385
+    description: Add support for `DataView` and typed array objects for `anonymousParameters`.
 -->
 
 * `namedParameters` {Object} An optional object used to bind named parameters.
   The keys of this object are used to configure the mapping.
-* `...anonymousParameters` {null|number|bigint|string|Buffer|Uint8Array} Zero or
+* `...anonymousParameters` {null|number|bigint|string|Buffer|TypedArray|DataView} Zero or
   more values to bind to anonymous parameters.
 * Returns: {Array} An array of objects. Each object corresponds to a row
   returned by executing the prepared statement. The keys and values of each
@@ -354,11 +358,15 @@ execution of this prepared statement. This property is a wrapper around
 
 <!-- YAML
 added: v22.5.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/56385
+    description: Add support for `DataView` and typed array objects for `anonymousParameters`.
 -->
 
 * `namedParameters` {Object} An optional object used to bind named parameters.
   The keys of this object are used to configure the mapping.
-* `...anonymousParameters` {null|number|bigint|string|Buffer|Uint8Array} Zero or
+* `...anonymousParameters` {null|number|bigint|string|Buffer|TypedArray|DataView} Zero or
   more values to bind to anonymous parameters.
 * Returns: {Object|undefined} An object corresponding to the first row returned
   by executing the prepared statement. The keys and values of the object
@@ -374,11 +382,15 @@ values in `namedParameters` and `anonymousParameters`.
 
 <!-- YAML
 added: v23.4.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/56385
+    description: Add support for `DataView` and typed array objects for `anonymousParameters`.
 -->
 
 * `namedParameters` {Object} An optional object used to bind named parameters.
   The keys of this object are used to configure the mapping.
-* `...anonymousParameters` {null|number|bigint|string|Buffer|Uint8Array} Zero or
+* `...anonymousParameters` {null|number|bigint|string|Buffer|TypedArray|DataView} Zero or
   more values to bind to anonymous parameters.
 * Returns: {Iterator} An iterable iterator of objects. Each object corresponds to a row
   returned by executing the prepared statement. The keys and values of each
@@ -393,11 +405,15 @@ the values in `namedParameters` and `anonymousParameters`.
 
 <!-- YAML
 added: v22.5.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/56385
+    description: Add support for `DataView` and typed array objects for `anonymousParameters`.
 -->
 
 * `namedParameters` {Object} An optional object used to bind named parameters.
   The keys of this object are used to configure the mapping.
-* `...anonymousParameters` {null|number|bigint|string|Buffer|Uint8Array} Zero or
+* `...anonymousParameters` {null|number|bigint|string|Buffer|TypedArray|DataView} Zero or
   more values to bind to anonymous parameters.
 * Returns: {Object}
   * `changes`: {number|bigint} The number of rows modified, inserted, or deleted
