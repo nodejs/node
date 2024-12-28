@@ -15,6 +15,7 @@ Returns: `ProxyAgent`
 ### Parameter: `ProxyAgentOptions`
 
 Extends: [`AgentOptions`](/docs/docs/api/Agent.md#parameter-agentoptions)
+> It ommits `AgentOptions#connect`.
 
 * **uri** `string | URL` (required) - The URI of the proxy server.  This can be provided as a string, as an instance of the URL class, or as an object with a `uri` property of type string.
 If the `uri` is provided as a string or `uri` is an object with an `uri` property of type string, then it will be parsed into a `URL` object according to the [WHATWG URL Specification](https://url.spec.whatwg.org).
@@ -22,8 +23,8 @@ For detailed information on the parsing process and potential validation errors,
 * **token** `string` (optional) - It can be passed by a string of token for authentication.
 * **auth** `string` (**deprecated**) - Use token.
 * **clientFactory** `(origin: URL, opts: Object) => Dispatcher` (optional) - Default: `(origin, opts) => new Pool(origin, opts)`
-* **requestTls** `BuildOptions` (optional) - Options object passed when creating the underlying socket via the connector builder for the request. See [TLS](https://nodejs.org/api/tls.html#tlsconnectoptions-callback).
-* **proxyTls** `BuildOptions` (optional) - Options object passed when creating the underlying socket via the connector builder for the proxy server. See [TLS](https://nodejs.org/api/tls.html#tlsconnectoptions-callback).
+* **requestTls** `BuildOptions` (optional) - Options object passed when creating the underlying socket via the connector builder for the request. It extends from [`Client#ConnectOptions`](/docs/docs/api/Client.md#parameter-connectoptions).
+* **proxyTls** `BuildOptions` (optional) - Options object passed when creating the underlying socket via the connector builder for the proxy server. It extends from [`Client#ConnectOptions`](/docs/docs/api/Client.md#parameter-connectoptions).
 
 Examples:
 
@@ -35,6 +36,13 @@ const proxyAgent = new ProxyAgent('my.proxy.server')
 const proxyAgent = new ProxyAgent(new URL('my.proxy.server'))
 // or
 const proxyAgent = new ProxyAgent({ uri: 'my.proxy.server' })
+// or
+const proxyAgent = new ProxyAgent({
+  uri: new URL('my.proxy.server'),
+  proxyTls: {
+    signal: AbortSignal.timeout(1000)
+  }
+})
 ```
 
 #### Example - Basic ProxyAgent instantiation

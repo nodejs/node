@@ -16,7 +16,7 @@ class ResponseErrorHandler extends DecoratorHandler {
   }
 
   #checkContentType (contentType) {
-    return this.#contentType.indexOf(contentType) === 0
+    return (this.#contentType ?? '').indexOf(contentType) === 0
   }
 
   onRequestStart (controller, context) {
@@ -81,8 +81,8 @@ class ResponseErrorHandler extends DecoratorHandler {
     }
   }
 
-  onResponseError (err) {
-    super.onResponseError(err)
+  onResponseError (controller, err) {
+    super.onResponseError(controller, err)
   }
 }
 

@@ -5,7 +5,6 @@ const {
 } = require('../core/util')
 
 /**
- *
  * @param {import('../../types/dispatcher.d.ts').default.DispatchOptions} opts
  */
 function makeCacheKey (opts) {
