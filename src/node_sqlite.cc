@@ -9,7 +9,6 @@
 #include "node_mem-inl.h"
 #include "sqlite3.h"
 #include "util-inl.h"
-#include "v8-exception.h"
 
 #include <cinttypes>
 
