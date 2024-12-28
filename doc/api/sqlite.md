@@ -514,7 +514,9 @@ The following constants are exported by the `sqlite.constants` object.
 
 #### Conflict resolution constants
 
-One of the following constants is available as an argument to the `onConflict` conflict resolution handler passed to [`database.applyChangeset()`](#databaseapplychangesetchangeset-options)). See also [Constants Passed To The Conflict Handler](https://www.sqlite.org/session/c_changeset_conflict.html) in the SQLite documentation.
+One of the following constants is available as an argument to the `onConflict`
+conflict resolution handler passed to [`database.applyChangeset()`][]. See also
+[Constants Passed To The Conflict Handler]() in the SQLite documentation.
 
 <table>
   <tr>
@@ -535,7 +537,7 @@ One of the following constants is available as an argument to the `onConflict` c
   </tr>
   <tr>
     <td><code>SQLITE_CHANGESET_CONSTRAINT</code></td>
-    <td>If foreign key handling is enabled, and applying a changeset leaves the database in a state containing foreign key violations, the conflict handler is invoked with this constant exactly once before the changeset is committed. If the conflict handler returns SQLITE_CHANGESET_OMIT, the changes, including those that caused the foreign key constraint violation, are committed. Or, if it returns SQLITE_CHANGESET_ABORT, the changeset is rolled back.</td>
+    <td>If foreign key handling is enabled, and applying a changeset leaves the database in a state containing foreign key violations, the conflict handler is invoked with this constant exactly once before the changeset is committed. If the conflict handler returns <code>SQLITE_CHANGESET_OMIT</code>, the changes, including those that caused the foreign key constraint violation, are committed. Or, if it returns <code>SQLITE_CHANGESET_ABORT</code>, the changeset is rolled back.</td>
   </tr>
   <tr>
     <td><code>SQLITE_CHANGESET_FOREIGN_KEY</code></td>
@@ -543,7 +545,9 @@ One of the following constants is available as an argument to the `onConflict` c
   </tr>
 </table>
 
-One of the following constants must be returned from the `onConflict` conflict resolution handler passed to [`database.applyChangeset()`](#databaseapplychangesetchangeset-options). See also [Constants Returned From The Conflict Handler](https://www.sqlite.org/session/c_changeset_abort.html) in the SQLite documentation.
+One of the following constants must be returned from the `onConflict` conflict
+resolution handler passed to [`database.applyChangeset()`][]. See also
+[Constants Returned From The Conflict Handler][] in the SQLite documentation.
 
 <table>
   <tr>
@@ -556,7 +560,7 @@ One of the following constants must be returned from the `onConflict` conflict r
   </tr>
   <tr>
     <td><code>SQLITE_CHANGESET_REPLACE</code></td>
-    <td>Conflicting changes replace existing values. Note that this value can only be returned when the type of conflict is either `SQLITE_CHANGESET_DATA` or `SQLITE_CHANGESET_CONFLICT`.</td>
+    <td>Conflicting changes replace existing values. Note that this value can only be returned when the type of conflict is either <code>SQLITE_CHANGESET_DATA</code> or <code>SQLITE_CHANGESET_CONFLICT</code>.</td>
   </tr>
   <tr>
     <td><code>SQLITE_CHANGESET_ABORT</code></td>
@@ -565,6 +569,9 @@ One of the following constants must be returned from the `onConflict` conflict r
 </table>
 
 [Changesets and Patchsets]: https://www.sqlite.org/sessionintro.html#changesets_and_patchsets
+[`database.applyChangeset()`]: #databaseapplychangesetchangeset-options
+[Constants Passed To The Conflict Handler]: https://www.sqlite.org/session/c_changeset_conflict.html
+[Constants Returned From The Conflict Handler]: https://www.sqlite.org/session/c_changeset_abort.html
 [SQL injection]: https://en.wikipedia.org/wiki/SQL_injection
 [`ATTACH DATABASE`]: https://www.sqlite.org/lang_attach.html
 [`PRAGMA foreign_keys`]: https://www.sqlite.org/pragma.html#pragma_foreign_keys
