@@ -1,4 +1,7 @@
-name: NodeJS with Grunt
+git clone git@github.com:username/node.git
+cd node
+git remote add upstream https://github.com/nodejs/node.git
+git fetch upstreamname: NodeJS with Grunt
 
 on:
   push:
