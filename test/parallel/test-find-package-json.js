@@ -151,48 +151,43 @@ describe('findPackageJSON', () => { // Throws when no arguments are provided
     }));
   });
 
-  it('should work within a loader', () => {
-    const importMetaUrl = `${fixtures.fileURL('whatever.ext')}`;
+  it('should work within a loader', async () => {
     const specifierBase = './packages/root-types-field';
+    const target = fixtures.fileURL(specifierBase, 'index.js');
     const foundPjsonPath = path.toNamespacedPath(fixtures.path(specifierBase, 'package.json'));
-    const { status: code, stderr, stdout } = spawnSync(process.execPath, [
+    const { code, stderr, stdout } = await common.spawnPromisified(process.execPath, [
       '--no-warnings',
       '--loader',
       [
         'data:text/javascript,',
+        'import fs from "node:fs";',
         'import module from "node:module";',
-        `module.findPackageJSON('${specifierBase}','${importMetaUrl}');`,
+        encodeURIComponent(`fs.writeSync(1, module.findPackageJSON(${JSON.stringify(target)}));`),
         'export const resolve = async (s, c, n) => n(s);',
       ].join(''),
       '--eval',
-      'import module from "node:module";', // can be anything that triggers the resolve hook chain
-    ], { encoding: 'utf-8' });
+      'import "node:os";', // can be anything that triggers the resolve hook chain
+    ]);
 
-    // Error you're trying to fix:
-    // TypeError [ERR_INVALID_ARG_TYPE]: The "path" argument must be of type string or an instance
-    // of URL. Received undefined
     assert.strictEqual(stderr, '');
-    assert.match(stdout, new RegExp(foundPjsonPath));
+    assert.ok(stdout.includes(foundPjsonPath), stdout);
     assert.strictEqual(code, 0);
   });
 
-  it('should work with an async resolve hook registered', () => {
-    const importMetaUrl = `${fixtures.fileURL('whatever.ext')}`;
+  it('should work with an async resolve hook registered', async () => {
     const specifierBase = './packages/root-types-field';
+    const target = fixtures.fileURL(specifierBase, 'index.js');
     const foundPjsonPath = path.toNamespacedPath(fixtures.path(specifierBase, 'package.json'));
-    const { status: code, stderr, stdout } = spawnSync(process.execPath, [
+    const { code, stderr, stdout } = await common.spawnPromisified(process.execPath, [
       '--no-warnings',
       '--loader',
       'data:text/javascript,export const resolve = async (s, c, n) => n(s);',
-      '--eval',
-      `console.log(require("node:module").findPackageJSON('${specifierBase}','${importMetaUrl}'));`
-    ], { encoding: 'utf-8' });
+      '--print',
+      `require("node:module").findPackageJSON(${JSON.stringify(target)})`
+    ]);
 
-    // Error you're trying to fix:
-    // TypeError [ERR_INVALID_ARG_TYPE]: The "path" argument must be of type string or an instance
-    // of URL. Received undefined
     assert.strictEqual(stderr, '');
-    assert.match(stdout, new RegExp(foundPjsonPath));
+    assert.ok(stdout.includes(foundPjsonPath), stdout);
     assert.strictEqual(code, 0);
   });
 });
