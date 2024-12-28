@@ -94,9 +94,7 @@ inline MaybeLocal<Object> CreateSQLiteError(Isolate* isolate, sqlite3* db) {
              env->errcode_string(),
              Integer::New(isolate, errcode))
           .IsNothing() ||
-      e->Set(isolate->GetCurrentContext(),
-             env->errstr_string(),
-             js_errmsg)
+      e->Set(isolate->GetCurrentContext(), env->errstr_string(), js_errmsg)
           .IsNothing()) {
     return MaybeLocal<Object>();
   }
@@ -122,9 +120,10 @@ inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, int errcode) {
 
   Environment* env = Environment::GetCurrent(isolate);
   auto error = CreateSQLiteError(isolate, errstr).ToLocalChecked();
-  error->Set(isolate->GetCurrentContext(),
-          env->errcode_string(),
-          Integer::New(isolate, errcode))
+  error
+      ->Set(isolate->GetCurrentContext(),
+            env->errcode_string(),
+            Integer::New(isolate, errcode))
       .ToChecked();
   isolate->ThrowException(error);
 }
