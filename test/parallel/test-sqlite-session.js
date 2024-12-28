@@ -328,7 +328,7 @@ suite('conflict resolution', () => {
       () => -1,
       () => ({}),
       () => null,
-      async () => constants.SQLITE_CHANGESET_ABORT
+      async () => constants.SQLITE_CHANGESET_ABORT,
     ];
 
     for (const invalidHandler of invalidHandlers) {
@@ -340,7 +340,8 @@ suite('conflict resolution', () => {
       }, {
         name: 'Error',
         message: 'bad parameter or other API misuse',
-        errcode: 21
+        errcode: 21,
+        code: 'ERR_SQLITE_ERROR'
       }, `Did not throw expected exception when returning '${invalidHandler}' from conflict handler`);
     }
   });

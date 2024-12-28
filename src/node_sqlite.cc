@@ -73,7 +73,7 @@ inline MaybeLocal<Object> CreateSQLiteError(Isolate* isolate,
            ->ToObject(isolate->GetCurrentContext())
            .ToLocal(&e) ||
       e->Set(isolate->GetCurrentContext(),
-             env->error_string(),
+             env->code_string(),
              env->err_sqlite_error_string())
           .IsNothing()) {
     return MaybeLocal<Object>();
