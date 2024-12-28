@@ -342,7 +342,7 @@ suite('conflict resolution', () => {
         message: 'bad parameter or other API misuse',
         errcode: 21,
         code: 'ERR_SQLITE_ERROR'
-      }, `Did not throw expected exception when returning '${invalidHandler}' from conflict handler`);
+      }, `Did not throw expected exception when using invalid onConflict handler: ${invalidHandler}`);
     }
   });
 
