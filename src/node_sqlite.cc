@@ -67,13 +67,14 @@ inline MaybeLocal<Object> CreateSQLiteError(Isolate* isolate,
                                             const char* message) {
   Local<String> js_msg;
   Local<Object> e;
+  Environment* env = Environment::GetCurrent(isolate);
   if (!String::NewFromUtf8(isolate, message).ToLocal(&js_msg) ||
       !Exception::Error(js_msg)
            ->ToObject(isolate->GetCurrentContext())
            .ToLocal(&e) ||
       e->Set(isolate->GetCurrentContext(),
-             OneByteString(isolate, "code"),
-             OneByteString(isolate, "ERR_SQLITE_ERROR"))
+             env->error_string(),
+             env->err_sqlite_error_string())
           .IsNothing()) {
     return MaybeLocal<Object>();
   }
@@ -86,14 +87,15 @@ inline MaybeLocal<Object> CreateSQLiteError(Isolate* isolate, sqlite3* db) {
   const char* errmsg = sqlite3_errmsg(db);
   Local<String> js_errmsg;
   Local<Object> e;
+  Environment* env = Environment::GetCurrent(isolate);
   if (!String::NewFromUtf8(isolate, errstr).ToLocal(&js_errmsg) ||
       !CreateSQLiteError(isolate, errmsg).ToLocal(&e) ||
       e->Set(isolate->GetCurrentContext(),
-             OneByteString(isolate, "errcode"),
+             env->errcode_string(),
              Integer::New(isolate, errcode))
           .IsNothing() ||
       e->Set(isolate->GetCurrentContext(),
-             OneByteString(isolate, "errstr"),
+             env->errstr_string(),
              js_errmsg)
           .IsNothing()) {
     return MaybeLocal<Object>();
@@ -117,15 +119,14 @@ inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, const char* message) {
 
 inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, int errcode) {
   const char* errstr = sqlite3_errstr(errcode);
-  Local<Object> e;
 
-  if (CreateSQLiteError(isolate, errstr).ToLocal(&e)) {
-    e->Set(isolate->GetCurrentContext(),
-           OneByteString(isolate, "errcode"),
-           Integer::New(isolate, errcode))
-        .IsNothing();
-    isolate->ThrowException(e);
-  }
+  Environment* env = Environment::GetCurrent(isolate);
+  auto error = CreateSQLiteError(isolate, errstr).ToLocalChecked();
+  error->Set(isolate->GetCurrentContext(),
+          env->errcode_string(),
+          Integer::New(isolate, errcode))
+      .ToChecked();
+  isolate->ThrowException(error);
 }
 
 class UserDefinedFunction {

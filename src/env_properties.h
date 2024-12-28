@@ -144,10 +144,13 @@
   V(entry_type_string, "entryType")                                            \
   V(env_pairs_string, "envPairs")                                              \
   V(env_var_settings_string, "envVarSettings")                                 \
+  V(err_sqlite_error_string, "ERR_SQLITE_ERROR")                               \
+  V(errcode_string, "errcode")                                                 \
   V(errno_string, "errno")                                                     \
   V(error_string, "error")                                                     \
-  V(events, "events")                                                          \
+  V(errstr_string, "errstr")                                                   \
   V(events_waiting, "eventsWaiting")                                           \
+  V(events, "events")                                                          \
   V(exchange_string, "exchange")                                               \
   V(expire_string, "expire")                                                   \
   V(exponent_string, "exponent")                                               \
