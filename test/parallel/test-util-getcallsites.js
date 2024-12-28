@@ -53,7 +53,17 @@ const assert = require('node:assert');
     code: 'ERR_OUT_OF_RANGE'
   }));
   assert.throws(() => {
-    getCallSites({});
+    getCallSites([]);
+  }, common.expectsError({
+    code: 'ERR_INVALID_ARG_TYPE'
+  }));
+  assert.throws(() => {
+    getCallSites({}, {});
+  }, common.expectsError({
+    code: 'ERR_INVALID_ARG_TYPE'
+  }));
+  assert.throws(() => {
+    getCallSites(10, 10);
   }, common.expectsError({
     code: 'ERR_INVALID_ARG_TYPE'
   }));
@@ -103,4 +113,52 @@ const assert = require('node:assert');
   const callSites = getCallSites();
   assert.notStrictEqual(callSites.length, 0);
   Error.stackTraceLimit = originalStackTraceLimit;
+}
+
+{
+  const { status, stderr, stdout } = spawnSync(process.execPath, [
+    '--no-warnings',
+    '--experimental-transform-types',
+    fixtures.path('typescript/ts/test-get-callsite.ts'),
+  ]);
+
+  const output = stdout.toString();
+  assert.strictEqual(stderr.toString(), '');
+  assert.match(output, /lineNumber: 8/);
+  assert.match(output, /column: 18/);
+  assert.match(output, /test-get-callsite\.ts/);
+  assert.strictEqual(status, 0);
+}
+
+{
+  const { status, stderr, stdout } = spawnSync(process.execPath, [
+    '--no-warnings',
+    '--experimental-transform-types',
+    '--no-enable-source-maps',
+    fixtures.path('typescript/ts/test-get-callsite.ts'),
+  ]);
+
+  const output = stdout.toString();
+  assert.strictEqual(stderr.toString(), '');
+  // Line should be wrong when sourcemaps are disable
+  assert.match(output, /lineNumber: 2/);
+  assert.match(output, /column: 18/);
+  assert.match(output, /test-get-callsite\.ts/);
+  assert.strictEqual(status, 0);
+}
+
+{
+  // Source maps should be disabled when options.sourceMap is false
+  const { status, stderr, stdout } = spawnSync(process.execPath, [
+    '--no-warnings',
+    '--experimental-transform-types',
+    fixtures.path('typescript/ts/test-get-callsite-explicit.ts'),
+  ]);
+
+  const output = stdout.toString();
+  assert.strictEqual(stderr.toString(), '');
+  assert.match(output, /lineNumber: 2/);
+  assert.match(output, /column: 18/);
+  assert.match(output, /test-get-callsite-explicit\.ts/);
+  assert.strictEqual(status, 0);
 }

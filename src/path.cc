@@ -114,7 +114,7 @@ std::string PathResolve(Environment* env,
       // a UNC path at this points, because UNC paths are always absolute.
       std::string resolvedDevicePath;
       const std::string envvar = "=" + resolvedDevice;
-      credentials::SafeGetenv(envvar.c_str(), &resolvedDevicePath);
+      credentials::SafeGetenv(envvar.c_str(), &resolvedDevicePath, env);
       path = resolvedDevicePath.empty() ? cwd : resolvedDevicePath;
 
       // Verify that a cwd was found and that it actually points
@@ -170,9 +170,16 @@ std::string PathResolve(Environment* env,
               j++;
             }
             if (j == len || j != last) {
-              // We matched a UNC root
-              device = "\\\\" + firstPart + "\\" + path.substr(last, j - last);
-              rootEnd = j;
+              if (firstPart != "." && firstPart != "?") {
+                // We matched a UNC root
+                device =
+                    "\\\\" + firstPart + "\\" + path.substr(last, j - last);
+                rootEnd = j;
+              } else {
+                // We matched a device root (e.g. \\\\.\\PHYSICALDRIVE0)
+                device = "\\\\" + firstPart;
+                rootEnd = 4;
+              }
             }
           }
         }

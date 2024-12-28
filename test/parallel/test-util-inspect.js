@@ -145,7 +145,7 @@ assert.strictEqual(
     Object.assign(new String('hello'), { [Symbol('foo')]: 123 }),
     { showHidden: true }
   ),
-  "[String: 'hello'] { [length]: 5, [Symbol(foo)]: 123 }"
+  "[String: 'hello'] { [length]: 5, Symbol(foo): 123 }"
 );
 
 assert.match(util.inspect((new JSStream())._externalStream),
@@ -823,7 +823,7 @@ assert.strictEqual(util.inspect({ __proto__: Date.prototype }), 'Date {}');
 {
   const x = { [util.inspect.custom]: util.inspect };
   assert(util.inspect(x).includes(
-    '[Symbol(nodejs.util.inspect.custom)]: [Function: inspect] {\n'));
+    'Symbol(nodejs.util.inspect.custom): [Function: inspect] {\n'));
 }
 
 // `util.inspect` should display the escaped value of a key.
@@ -1045,7 +1045,7 @@ util.inspect({ hasOwnProperty: null });
   const UIC = 'nodejs.util.inspect.custom';
   assert.strictEqual(
     util.inspect(subject),
-    `{\n  a: 123,\n  [Symbol(${UIC})]: [Function: [${UIC}]]\n}`
+    `{\n  a: 123,\n  Symbol(${UIC}): [Function: [${UIC}]]\n}`
   );
 }
 
@@ -1145,27 +1145,29 @@ if (typeof Symbol !== 'undefined') {
 
   subject[Symbol('sym\nbol')] = 42;
 
-  assert.strictEqual(util.inspect(subject), '{ [Symbol(sym\\nbol)]: 42 }');
+  assert.strictEqual(util.inspect(subject), '{ Symbol(sym\\nbol): 42 }');
   assert.strictEqual(
     util.inspect(subject, options),
-    '{ [Symbol(sym\\nbol)]: 42 }'
+    '{ Symbol(sym\\nbol): 42 }'
   );
 
   Object.defineProperty(
     subject,
     Symbol(),
     { enumerable: false, value: 'non-enum' });
-  assert.strictEqual(util.inspect(subject), '{ [Symbol(sym\\nbol)]: 42 }');
+  assert.strictEqual(util.inspect(subject), '{ Symbol(sym\\nbol): 42 }');
   assert.strictEqual(
     util.inspect(subject, options),
-    "{ [Symbol(sym\\nbol)]: 42, [Symbol()]: 'non-enum' }"
+    "{ Symbol(sym\\nbol): 42, [Symbol()]: 'non-enum' }"
   );
 
   subject = [1, 2, 3];
   subject[Symbol('symbol')] = 42;
 
-  assert.strictEqual(util.inspect(subject),
-                     '[ 1, 2, 3, [Symbol(symbol)]: 42 ]');
+  assert.strictEqual(
+    util.inspect(subject),
+    '[ 1, 2, 3, Symbol(symbol): 42 ]'
+  );
 }
 
 // Test Set.
@@ -1589,7 +1591,7 @@ util.inspect(process);
   const obj = { [util.inspect.custom]: 'fhqwhgads' };
   assert.strictEqual(
     util.inspect(obj),
-    "{ [Symbol(nodejs.util.inspect.custom)]: 'fhqwhgads' }"
+    "{ Symbol(nodejs.util.inspect.custom): 'fhqwhgads' }"
   );
 }
 
@@ -1598,7 +1600,7 @@ util.inspect(process);
   const obj = { [Symbol.toStringTag]: 'a' };
   assert.strictEqual(
     util.inspect(obj),
-    "{ [Symbol(Symbol.toStringTag)]: 'a' }"
+    "{ Symbol(Symbol.toStringTag): 'a' }"
   );
   Object.defineProperty(obj, Symbol.toStringTag, {
     value: 'a',
@@ -1643,6 +1645,15 @@ util.inspect(process);
   }
 
   assert.throws(() => util.inspect(new ThrowingClass()), /toStringTag error/);
+
+  const y = {
+    get [Symbol.toStringTag]() {
+      return JSON.stringify(this);
+    }
+  };
+  const x = { y };
+  y.x = x;
+  assert.throws(() => util.inspect(x), /TypeError: Converting circular structure to JSON/);
 
   class NotStringClass {
     get [Symbol.toStringTag]() {
@@ -2259,7 +2270,7 @@ assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
   value[Symbol('foo')] = 'yeah';
   res = util.inspect(value);
   assert.notStrictEqual(res, expectedWithoutProto);
-  assert.match(res, /\[Symbol\(foo\)]: 'yeah'/);
+  assert.match(res, /Symbol\(foo\): 'yeah'/);
 });
 
 assert.strictEqual(inspect(1n), '1n');
@@ -2275,7 +2286,7 @@ assert.strictEqual(
   Object.defineProperty(obj, 'Non\nenumerable\tkey', { value: true });
   assert.strictEqual(
     util.inspect(obj, { showHidden: true }),
-    '{ [Non\\nenumerable\\tkey]: true }'
+    '{ [\'Non\\nenumerable\\tkey\']: true }'
   );
 }
 
@@ -2366,7 +2377,7 @@ assert.strictEqual(
   arr[Symbol('a')] = false;
   assert.strictEqual(
     inspect(arr, { sorted: true }),
-    '[ 3, 2, 1, [Symbol(a)]: false, [Symbol(b)]: true, a: 1, b: 2, c: 3 ]'
+    '[ 3, 2, 1, Symbol(a): false, Symbol(b): true, a: 1, b: 2, c: 3 ]'
   );
 }
 
@@ -3249,6 +3260,13 @@ assert.strictEqual(
     util.inspect({ ['__proto__']: { a: 1 } }),
     "{ ['__proto__']: { a: 1 } }"
   );
+
+  const o = { ['__proto__']: { a: 1 } };
+  Object.defineProperty(o, '__proto__', { enumerable: false });
+  assert.strictEqual(
+    util.inspect(o, { showHidden: true }),
+    "{ [['__proto__']]: { a: 1 } }"
+  );
 }
 
 {
@@ -3312,5 +3330,99 @@ assert.strictEqual(
     get [Symbol.iterator]() {
       throw new Error();
     }
-  }), '{ [Symbol(Symbol.iterator)]: [Getter] }');
+  }), '{ Symbol(Symbol.iterator): [Getter] }');
+}
+
+{
+  const sym = Symbol('bar()');
+  const o = {
+    'foo': 0,
+    'Symbol(foo)': 0,
+    [Symbol('foo')]: 0,
+    [Symbol('foo()')]: 0,
+    [sym]: 0,
+  };
+  Object.defineProperty(o, sym, { enumerable: false });
+
+  assert.strictEqual(
+    util.inspect(o, { showHidden: true }),
+    '{\n' +
+    '  foo: 0,\n' +
+    "  'Symbol(foo)': 0,\n" +
+    '  Symbol(foo): 0,\n' +
+    '  Symbol(foo()): 0,\n' +
+    '  [Symbol(bar())]: 0\n' +
+    '}',
+  );
+}
+
+{
+  const o = {};
+  const { prototype: BuiltinPrototype } = Object;
+  const desc = Reflect.getOwnPropertyDescriptor(BuiltinPrototype, 'constructor');
+  Object.defineProperty(BuiltinPrototype, 'constructor', {
+    get: () => BuiltinPrototype,
+    configurable: true,
+  });
+  assert.strictEqual(
+    util.inspect(o),
+    '{}',
+  );
+  Object.defineProperty(BuiltinPrototype, 'constructor', desc);
+}
+
+{
+  const o = { f() {} };
+  const { prototype: BuiltinPrototype } = Function;
+  const desc = Reflect.getOwnPropertyDescriptor(BuiltinPrototype, 'constructor');
+  Object.defineProperty(BuiltinPrototype, 'constructor', {
+    get: () => BuiltinPrototype,
+    configurable: true,
+  });
+  assert.strictEqual(
+    util.inspect(o),
+    '{ f: [Function: f] }',
+  );
+  Object.defineProperty(BuiltinPrototype, 'constructor', desc);
+}
+{
+  const prototypes = [
+    Array.prototype,
+    ArrayBuffer.prototype,
+    Buffer.prototype,
+    Function.prototype,
+    Map.prototype,
+    Object.prototype,
+    Reflect.getPrototypeOf(Uint8Array.prototype),
+    Set.prototype,
+    Uint8Array.prototype,
+  ];
+  const descriptors = new Map();
+  const buffer = Buffer.from('Hello');
+  const o = {
+    arrayBuffer: new ArrayBuffer(), buffer, typedArray: Uint8Array.from(buffer),
+    array: [], func() {}, set: new Set([1]), map: new Map(),
+  };
+  for (const BuiltinPrototype of prototypes) {
+    descriptors.set(BuiltinPrototype, Reflect.getOwnPropertyDescriptor(BuiltinPrototype, 'constructor'));
+    Object.defineProperty(BuiltinPrototype, 'constructor', {
+      get: () => BuiltinPrototype,
+      configurable: true,
+    });
+  }
+  assert.strictEqual(
+    util.inspect(o),
+    '{\n' +
+    '  arrayBuffer: ArrayBuffer { [Uint8Contents]: <>, byteLength: 0 },\n' +
+    '  buffer: <Buffer 48 65 6c 6c 6f>,\n' +
+    '  typedArray: TypedArray(5) [Uint8Array] [ 72, 101, 108, 108, 111 ],\n' +
+    '  array: [],\n' +
+    '  func: [Function: func],\n' +
+    '  set: Set(1) { 1 },\n' +
+    '  map: Map(0) {}\n' +
+    '}',
+  );
+  for (const [BuiltinPrototype, desc] of descriptors) {
+    Object.defineProperty(BuiltinPrototype, 'constructor', desc);
+  }
 }

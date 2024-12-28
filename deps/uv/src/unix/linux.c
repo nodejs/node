@@ -1414,12 +1414,6 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
 
     w->events = w->pevents;
     e.events = w->pevents;
-    if (w == &loop->async_io_watcher)
-      /* Enable edge-triggered mode on async_io_watcher(eventfd),
-       * so that we're able to eliminate the overhead of reading
-       * the eventfd via system call on each event loop wakeup.
-       */
-      e.events |= EPOLLET;
     e.data.fd = w->fd;
     fd = w->fd;
 

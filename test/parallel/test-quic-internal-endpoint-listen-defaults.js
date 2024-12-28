@@ -20,15 +20,13 @@ describe('quic internal endpoint listen defaults', { skip: !hasQuic }, async () 
   } = require('net');
 
   const {
-    Endpoint,
+    QuicEndpoint,
   } = require('internal/quic/quic');
 
   it('are reasonable and work as expected', async () => {
-    const endpoint = new Endpoint({
+    const endpoint = new QuicEndpoint({
       onsession() {},
-      session: {},
-      stream: {},
-    }, {});
+    });
 
     ok(!endpoint.state.isBound);
     ok(!endpoint.state.isReceiving);

@@ -131,6 +131,12 @@ parser.add_argument('--use-prefix-to-find-headers',
     default=None,
     help='use the prefix to look for pre-installed headers')
 
+parser.add_argument('--use_clang',
+    action='store_true',
+    dest='use_clang',
+    default=None,
+    help='use clang instead of gcc')
+
 parser.add_argument('--dest-os',
     action='store',
     dest='dest_os',
@@ -1407,6 +1413,10 @@ def configure_node(o):
   o['variables']['target_arch'] = target_arch
   o['variables']['node_byteorder'] = sys.byteorder
 
+  # Allow overriding the compiler - needed by embedders.
+  if options.use_clang:
+    o['variables']['clang'] = 1
+
   cross_compiling = (options.cross_compiling
                      if options.cross_compiling is not None
                      else target_arch != host_arch)
@@ -1675,6 +1685,9 @@ def configure_v8(o, configs):
     raise Exception(
         'Only one of the --v8-enable-object-print or --v8-disable-object-print options '
         'can be specified at a time.')
+  if sys.platform != 'darwin':
+    if o['variables']['v8_enable_webassembly'] and o['variables']['target_arch'] == 'x64':
+      o['variables']['v8_enable_wasm_simd256_revec'] = 1
 
 def configure_openssl(o):
   variables = o['variables']

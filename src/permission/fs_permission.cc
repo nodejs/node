@@ -58,16 +58,16 @@ bool is_tree_granted(
   std::string resolved_param = node::PathResolve(env, {param});
 #ifdef _WIN32
   // Remove leading "\\?\" from UNC path
-  if (resolved_param.substr(0, 4) == "\\\\?\\") {
+  if (resolved_param.starts_with("\\\\?\\")) {
     resolved_param.erase(0, 4);
   }
 
   // Remove leading "UNC\" from UNC path
-  if (resolved_param.substr(0, 4) == "UNC\\") {
+  if (resolved_param.starts_with("UNC\\")) {
     resolved_param.erase(0, 4);
   }
   // Remove leading "//" from UNC path
-  if (resolved_param.substr(0, 2) == "//") {
+  if (resolved_param.starts_with("//")) {
     resolved_param.erase(0, 2);
   }
 #endif

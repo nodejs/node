@@ -2,6 +2,9 @@
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/56350
+    description: Type stripping is enabled by default.
   - version: v22.7.0
     pr-url: https://github.com/nodejs/node/pull/54283
     description: Added `--experimental-transform-types` flag.
@@ -52,7 +55,7 @@ added: v22.6.0
 
 > Stability: 1.1 - Active development
 
-The flag [`--experimental-strip-types`][] enables Node.js to run TypeScript
+The flag [`--no-experimental-strip-types`][] prevents Node.js from running TypeScript
 files. By default Node.js will execute only files that contain no
 TypeScript features that require transformation, such as enums or namespaces.
 Node.js will replace inline type annotations with whitespace,
@@ -172,14 +175,22 @@ To discourage package authors from publishing packages written in TypeScript,
 Node.js will by default refuse to handle TypeScript files inside folders under
 a `node_modules` path.
 
+### Paths aliases
+
+[`tsconfig` "paths"][] won't be transformed and therefore produce an error. The closest
+feature available is [subpath imports][] with the limitation that they need to start
+with `#`.
+
 [CommonJS]: modules.md
 [ES Modules]: esm.md
 [Full TypeScript support]: #full-typescript-support
-[`--experimental-strip-types`]: cli.md#--experimental-strip-types
 [`--experimental-transform-types`]: cli.md#--experimental-transform-types
+[`--no-experimental-strip-types`]: cli.md#--no-experimental-strip-types
+[`tsconfig` "paths"]: https://www.typescriptlang.org/tsconfig/#paths
 [`tsx`]: https://tsx.is/
 [`verbatimModuleSyntax`]: https://www.typescriptlang.org/tsconfig/#verbatimModuleSyntax
 [file extensions are mandatory]: esm.md#mandatory-file-extensions
 [full support]: #full-typescript-support
+[subpath imports]: packages.md#subpath-imports
 [the same way as `.js` files.]: packages.md#determining-module-system
 [type stripping]: #type-stripping

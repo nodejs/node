@@ -329,7 +329,7 @@ class AsyncHooks : public MemoryRetainer {
                          v8::Local<v8::Function> resolve);
   // Used for testing since V8 doesn't provide API for retrieving configured
   // JS promise hooks.
-  v8::Local<v8::Array> GetPromiseHooks(v8::Isolate* isolate);
+  v8::Local<v8::Array> GetPromiseHooks(v8::Isolate* isolate) const;
   inline v8::Local<v8::String> provider_string(int idx);
 
   inline void no_force_checks();
@@ -848,7 +848,7 @@ class Environment final : public MemoryRetainer {
   void AtExit(void (*cb)(void* arg), void* arg);
   void RunAtExitCallbacks();
 
-  v8::Maybe<bool> CheckUnsettledTopLevelAwait();
+  v8::Maybe<bool> CheckUnsettledTopLevelAwait() const;
   void RunWeakRefCleanup();
 
   v8::MaybeLocal<v8::Value> RunSnapshotSerializeCallback() const;
@@ -1044,6 +1044,8 @@ class Environment final : public MemoryRetainer {
   inline void set_heap_snapshot_near_heap_limit(uint32_t limit);
   inline bool is_in_heapsnapshot_heap_limit_callback() const;
 
+  inline bool report_exclude_env() const;
+
   inline void AddHeapSnapshotNearHeapLimitCallback();
 
   inline void RemoveHeapSnapshotNearHeapLimitCallback(size_t heap_limit);
@@ -1067,14 +1069,6 @@ class Environment final : public MemoryRetainer {
 #endif  // HAVE_OPENSSL
 
   v8::Global<v8::Module> temporary_required_module_facade_original;
-
-  void SetAsyncResourceContextFrame(std::uintptr_t async_resource_handle,
-                                    v8::Global<v8::Value>&&);
-
-  const v8::Global<v8::Value>& GetAsyncResourceContextFrame(
-      std::uintptr_t async_resource_handle);
-
-  void RemoveAsyncResourceContextFrame(std::uintptr_t async_resource_handle);
 
  private:
   inline void ThrowError(v8::Local<v8::Value> (*fun)(v8::Local<v8::String>,
@@ -1250,9 +1244,6 @@ class Environment final : public MemoryRetainer {
   // track of the BackingStore for a given pointer.
   std::unordered_map<char*, std::unique_ptr<v8::BackingStore>>
       released_allocated_buffers_;
-
-  std::unordered_map<std::uintptr_t, v8::Global<v8::Value>>
-      async_resource_context_frames_;
 };
 
 }  // namespace node

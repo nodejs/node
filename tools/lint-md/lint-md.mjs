@@ -1,4 +1,5 @@
-import fs from 'fs';
+import fs from 'node:fs';
+import { parseArgs } from 'node:util';
 
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
@@ -7,18 +8,16 @@ import presetLintNode from 'remark-preset-lint-node';
 import { read } from 'to-vfile';
 import { reporter } from 'vfile-reporter';
 
-const paths = process.argv.slice(2);
+const { values: { format }, positionals: paths } = parseArgs({
+  options: {
+    format: { type: 'boolean', default: false },
+  },
+  allowPositionals: true,
+});
 
 if (!paths.length) {
-  console.error('Usage: lint-md.mjs <path> [<path> ...]');
+  console.error('Usage: lint-md.mjs [--format] <path> [<path> ...]');
   process.exit(1);
-}
-
-let format = false;
-
-if (paths[0] === '--format') {
-  paths.shift();
-  format = true;
 }
 
 const linter = unified()

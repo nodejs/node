@@ -2379,8 +2379,8 @@ int test_symlink_dir_impl(int type) {
   strcpy(test_dir_abs_buf, "\\\\?\\");
   uv_cwd(test_dir_abs_buf + 4, &test_dir_abs_size);
   test_dir_abs_size += 4;
-  strcat(test_dir_abs_buf, "\\test_dir\\");
-  test_dir_abs_size += strlen("\\test_dir\\");
+  strcat(test_dir_abs_buf, "\\test_dir");
+  test_dir_abs_size += strlen("\\test_dir");
   test_dir = test_dir_abs_buf;
 #else
   uv_cwd(test_dir_abs_buf, &test_dir_abs_size);
@@ -2435,8 +2435,8 @@ int test_symlink_dir_impl(int type) {
   r = uv_fs_realpath(NULL, &req, "test_dir_symlink", NULL);
   ASSERT_OK(r);
 #ifdef _WIN32
-  ASSERT_EQ(strlen(req.ptr), test_dir_abs_size - 5);
-  ASSERT_OK(_strnicmp(req.ptr, test_dir + 4, test_dir_abs_size - 5));
+  ASSERT_EQ(strlen(req.ptr), test_dir_abs_size - 4);
+  ASSERT_OK(_strnicmp(req.ptr, test_dir + 4, test_dir_abs_size - 4));
 #else
   ASSERT_OK(strcmp(req.ptr, test_dir_abs_buf));
 #endif

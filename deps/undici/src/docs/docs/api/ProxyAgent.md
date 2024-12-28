@@ -14,7 +14,7 @@ Returns: `ProxyAgent`
 
 ### Parameter: `ProxyAgentOptions`
 
-Extends: [`AgentOptions`](Agent.md#parameter-agentoptions)
+Extends: [`AgentOptions`](/docs/docs/api/Agent.md#parameter-agentoptions)
 
 * **uri** `string | URL` (required) - The URI of the proxy server.  This can be provided as a string, as an instance of the URL class, or as an object with a `uri` property of type string.
 If the `uri` is provided as a string or `uri` is an object with an `uri` property of type string, then it will be parsed into a `URL` object according to the [WHATWG URL Specification](https://url.spec.whatwg.org).
@@ -123,8 +123,96 @@ await proxyAgent.close()
 
 ### `ProxyAgent.dispatch(options, handlers)`
 
-Implements [`Agent.dispatch(options, handlers)`](Agent.md#parameter-agentdispatchoptions).
+Implements [`Agent.dispatch(options, handlers)`](/docs/docs/api/Agent.md#parameter-agentdispatchoptions).
 
 ### `ProxyAgent.request(options[, callback])`
 
-See [`Dispatcher.request(options [, callback])`](Dispatcher.md#dispatcherrequestoptions-callback).
+See [`Dispatcher.request(options [, callback])`](/docs/docs/api/Dispatcher.md#dispatcherrequestoptions-callback).
+
+
+#### Example - ProxyAgent with Fetch
+
+This example demonstrates how to use `fetch` with a proxy via `ProxyAgent`. It is particularly useful for scenarios requiring proxy tunneling.
+
+```javascript
+import { ProxyAgent, fetch } from 'undici';
+
+// Define the ProxyAgent
+const proxyAgent = new ProxyAgent('http://localhost:8000');
+
+// Make a GET request through the proxy
+const response = await fetch('http://localhost:3000/foo', {
+  dispatcher: proxyAgent,
+  method: 'GET',
+});
+
+console.log('Response status:', response.status);
+console.log('Response data:', await response.text());
+```
+
+---
+
+#### Example - ProxyAgent with a Custom Proxy Server
+
+This example shows how to create a custom proxy server and use it with `ProxyAgent`.
+
+```javascript
+import * as http from 'node:http';
+import { createProxy } from 'proxy';
+import { ProxyAgent, fetch } from 'undici';
+
+// Create a proxy server
+const proxyServer = createProxy(http.createServer());
+proxyServer.listen(8000, () => {
+  console.log('Proxy server running on port 8000');
+});
+
+// Define and use the ProxyAgent
+const proxyAgent = new ProxyAgent('http://localhost:8000');
+
+const response = await fetch('http://example.com', {
+  dispatcher: proxyAgent,
+  method: 'GET',
+});
+
+console.log('Response status:', response.status);
+console.log('Response data:', await response.text());
+```
+
+---
+
+#### Example - ProxyAgent with HTTPS Tunneling
+
+This example demonstrates how to perform HTTPS tunneling using a proxy.
+
+```javascript
+import { ProxyAgent, fetch } from 'undici';
+
+// Define a ProxyAgent for HTTPS proxy
+const proxyAgent = new ProxyAgent('https://secure.proxy.server');
+
+// Make a request to an HTTPS endpoint via the proxy
+const response = await fetch('https://secure.endpoint.com/api/data', {
+  dispatcher: proxyAgent,
+  method: 'GET',
+});
+
+console.log('Response status:', response.status);
+console.log('Response data:', await response.json());
+```
+
+#### Example - ProxyAgent as a Global Dispatcher
+
+`ProxyAgent` can be configured as a global dispatcher, making it available for all requests without explicitly passing it. This simplifies code and is useful when a single proxy configuration applies to all requests.
+
+```javascript
+import { ProxyAgent, setGlobalDispatcher, fetch } from 'undici';
+
+// Define and configure the ProxyAgent
+const proxyAgent = new ProxyAgent('http://localhost:8000');
+setGlobalDispatcher(proxyAgent);
+
+// Make requests without specifying the dispatcher
+const response = await fetch('http://example.com');
+console.log('Response status:', response.status);
+console.log('Response data:', await response.text());

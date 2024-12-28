@@ -10,13 +10,17 @@ const {
 
 describe('quic internal endpoint stats and state', { skip: !hasQuic }, () => {
   const {
-    Endpoint,
+    QuicEndpoint,
     QuicStreamState,
     QuicStreamStats,
-    SessionState,
-    SessionStats,
-    kFinishClose,
+    QuicSessionState,
+    QuicSessionStats,
   } = require('internal/quic/quic');
+
+  const {
+    kFinishClose,
+    kPrivateConstructor,
+  } = require('internal/quic/symbols');
 
   const {
     inspect,
@@ -29,11 +33,7 @@ describe('quic internal endpoint stats and state', { skip: !hasQuic }, () => {
   } = require('node:assert');
 
   it('endpoint state', () => {
-    const endpoint = new Endpoint({
-      onsession() {},
-      session: {},
-      stream: {},
-    });
+    const endpoint = new QuicEndpoint();
 
     strictEqual(endpoint.state.isBound, false);
     strictEqual(endpoint.state.isReceiving, false);
@@ -62,11 +62,7 @@ describe('quic internal endpoint stats and state', { skip: !hasQuic }, () => {
   });
 
   it('state is not readable after close', () => {
-    const endpoint = new Endpoint({
-      onsession() {},
-      session: {},
-      stream: {},
-    }, {});
+    const endpoint = new QuicEndpoint();
     endpoint.state[kFinishClose]();
     throws(() => endpoint.state.isBound, {
       name: 'Error',
@@ -74,24 +70,17 @@ describe('quic internal endpoint stats and state', { skip: !hasQuic }, () => {
   });
 
   it('state constructor argument is ArrayBuffer', () => {
-    const endpoint = new Endpoint({
-      onsession() {},
-      session: {},
-      stream: {},
-    }, {});
+    const endpoint = new QuicEndpoint();
     const Cons = endpoint.state.constructor;
-    throws(() => new Cons(1), {
+    throws(() => new Cons(kPrivateConstructor, 1), {
       code: 'ERR_INVALID_ARG_TYPE'
     });
   });
 
   it('endpoint stats', () => {
-    const endpoint = new Endpoint({
-      onsession() {},
-      session: {},
-      stream: {},
-    });
+    const endpoint = new QuicEndpoint();
 
+    strictEqual(typeof endpoint.stats.isConnected, 'boolean');
     strictEqual(typeof endpoint.stats.createdAt, 'bigint');
     strictEqual(typeof endpoint.stats.destroyedAt, 'bigint');
     strictEqual(typeof endpoint.stats.bytesReceived, 'bigint');
@@ -107,6 +96,7 @@ describe('quic internal endpoint stats and state', { skip: !hasQuic }, () => {
     strictEqual(typeof endpoint.stats.immediateCloseCount, 'bigint');
 
     deepStrictEqual(Object.keys(endpoint.stats.toJSON()), [
+      'connected',
       'createdAt',
       'destroyedAt',
       'bytesReceived',
@@ -128,25 +118,18 @@ describe('quic internal endpoint stats and state', { skip: !hasQuic }, () => {
   });
 
   it('stats are still readble after close', () => {
-    const endpoint = new Endpoint({
-      onsession() {},
-      session: {},
-      stream: {},
-    }, {});
+    const endpoint = new QuicEndpoint();
     strictEqual(typeof endpoint.stats.toJSON(), 'object');
     endpoint.stats[kFinishClose]();
+    strictEqual(endpoint.stats.isConnected, false);
     strictEqual(typeof endpoint.stats.destroyedAt, 'bigint');
     strictEqual(typeof endpoint.stats.toJSON(), 'object');
   });
 
   it('stats constructor argument is ArrayBuffer', () => {
-    const endpoint = new Endpoint({
-      onsession() {},
-      session: {},
-      stream: {},
-    }, {});
+    const endpoint = new QuicEndpoint();
     const Cons = endpoint.stats.constructor;
-    throws(() => new Cons(1), {
+    throws(() => new Cons(kPrivateConstructor, 1), {
       code: 'ERR_INVALID_ARG_TYPE',
     });
   });
@@ -156,8 +139,8 @@ describe('quic internal endpoint stats and state', { skip: !hasQuic }, () => {
   // temporarily while the rest of the functionality is being
   // implemented.
   it('stream and session states', () => {
-    const streamState = new QuicStreamState(new ArrayBuffer(1024));
-    const sessionState = new SessionState(new ArrayBuffer(1024));
+    const streamState = new QuicStreamState(kPrivateConstructor, new ArrayBuffer(1024));
+    const sessionState = new QuicSessionState(kPrivateConstructor, new ArrayBuffer(1024));
 
     strictEqual(streamState.finSent, false);
     strictEqual(streamState.finReceived, false);
@@ -195,8 +178,8 @@ describe('quic internal endpoint stats and state', { skip: !hasQuic }, () => {
   });
 
   it('stream and session stats', () => {
-    const streamStats = new QuicStreamStats(new ArrayBuffer(1024));
-    const sessionStats = new SessionStats(new ArrayBuffer(1024));
+    const streamStats = new QuicStreamStats(kPrivateConstructor, new ArrayBuffer(1024));
+    const sessionStats = new QuicSessionStats(kPrivateConstructor, new ArrayBuffer(1024));
     strictEqual(streamStats.createdAt, undefined);
     strictEqual(streamStats.receivedAt, undefined);
     strictEqual(streamStats.ackedAt, undefined);

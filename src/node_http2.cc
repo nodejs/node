@@ -803,13 +803,15 @@ void Http2Session::Close(uint32_t code, bool socket_closed) {
     CHECK_EQ(nghttp2_session_terminate_session(session_.get(), code), 0);
     SendPendingData();
   } else if (stream_ != nullptr) {
+    // so that the previous listener of the socket, typically, JS code of a
+    // (tls) socket will be notified of any activity later
     stream_->RemoveStreamListener(this);
   }
 
   set_destroyed();
 
   // If we are writing we will get to make the callback in OnStreamAfterWrite.
-  if (!is_write_in_progress()) {
+  if (!is_write_in_progress() || !stream_) {
     Debug(this, "make done session callback");
     HandleScope scope(env()->isolate());
     MakeCallback(env()->ondone_string(), 0, nullptr);
@@ -1314,11 +1316,7 @@ int Http2Session::OnDataChunkReceived(nghttp2_session* handle,
     } else {
       memcpy(buf.base, data, avail);
     }
-    if (buf.base == nullptr) [[likely]] {
-      buf.base = reinterpret_cast<char*>(const_cast<uint8_t*>(data));
-    } else {
-      memcpy(buf.base, data, avail);
-    }
+
     data += avail;
     len -= avail;
     stream->EmitRead(avail, buf);

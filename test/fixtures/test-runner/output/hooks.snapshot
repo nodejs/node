@@ -77,7 +77,6 @@ not ok 3 - before throws
     *
     *
     *
-    *
   ...
 # Subtest: before throws - no subtests
 not ok 4 - before throws - no subtests
@@ -89,7 +88,6 @@ not ok 4 - before throws - no subtests
   error: 'before'
   code: 'ERR_TEST_FAILURE'
   stack: |-
-    *
     *
     *
     *
@@ -129,6 +127,7 @@ not ok 5 - after throws
     *
     *
     *
+    *
   ...
 # Subtest: after throws - no subtests
 not ok 6 - after throws - no subtests
@@ -140,6 +139,7 @@ not ok 6 - after throws - no subtests
   error: 'after'
   code: 'ERR_TEST_FAILURE'
   stack: |-
+    *
     *
     *
     *
@@ -167,9 +167,9 @@ not ok 6 - after throws - no subtests
         *
         *
         *
-        async Promise.all (index 0)
         *
         *
+        new Promise (<anonymous>)
       ...
     # Subtest: 2
     not ok 2 - 2
@@ -188,6 +188,8 @@ not ok 6 - after throws - no subtests
         *
         *
         *
+        *
+        async Promise.all (index 0)
       ...
     1..2
 not ok 7 - beforeEach throws
@@ -482,7 +484,6 @@ not ok 15 - t.after throws
     *
     *
     *
-    *
   ...
 # Subtest: t.after throws - no subtests
 not ok 16 - t.after throws - no subtests
@@ -493,7 +494,6 @@ not ok 16 - t.after throws - no subtests
   error: 'after'
   code: 'ERR_TEST_FAILURE'
   stack: |-
-    *
     *
     *
     *
@@ -757,7 +757,6 @@ not ok 24 - run after when before throws
   error: 'before'
   code: 'ERR_TEST_FAILURE'
   stack: |-
-    *
     *
     *
     *

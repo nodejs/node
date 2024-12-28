@@ -38,34 +38,6 @@
 #include <sys/eventfd.h>
 #endif
 
-#if UV__KQUEUE_EVFILT_USER
-static uv_once_t kqueue_runtime_detection_guard = UV_ONCE_INIT;
-static int kqueue_evfilt_user_support = 1;
-
-
-static void uv__kqueue_runtime_detection(void) {
-  int kq;
-  struct kevent ev[2];
-  struct timespec timeout = {0, 0};
-
-  /* Perform the runtime detection to ensure that kqueue with
-   * EVFILT_USER actually works. */
-  kq = kqueue();
-  EV_SET(ev, UV__KQUEUE_EVFILT_USER_IDENT, EVFILT_USER,
-         EV_ADD | EV_CLEAR, 0, 0, 0);
-  EV_SET(ev + 1, UV__KQUEUE_EVFILT_USER_IDENT, EVFILT_USER,
-         0, NOTE_TRIGGER, 0, 0);
-  if (kevent(kq, ev, 2, ev, 1, &timeout) < 1 || 
-      ev[0].filter != EVFILT_USER ||
-      ev[0].ident != UV__KQUEUE_EVFILT_USER_IDENT ||
-      ev[0].flags & EV_ERROR)
-    /* If we wind up here, we can assume that EVFILT_USER is defined but
-     * broken on the current system. */
-    kqueue_evfilt_user_support = 0;
-  uv__close(kq);
-}
-#endif
-
 static void uv__async_send(uv_loop_t* loop);
 static int uv__async_start(uv_loop_t* loop);
 static void uv__cpu_relax(void);
@@ -158,10 +130,8 @@ void uv__async_close(uv_async_t* handle) {
 
 
 static void uv__async_io(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
-#ifndef __linux__
   char buf[1024];
   ssize_t r;
-#endif
   struct uv__queue queue;
   struct uv__queue* q;
   uv_async_t* h;
@@ -169,12 +139,7 @@ static void uv__async_io(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
 
   assert(w == &loop->async_io_watcher);
 
-#ifndef __linux__
-#if UV__KQUEUE_EVFILT_USER
-  for (;!kqueue_evfilt_user_support;) {
-#else
   for (;;) {
-#endif
     r = read(w->fd, buf, sizeof(buf));
 
     if (r == sizeof(buf))
@@ -191,7 +156,6 @@ static void uv__async_io(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
 
     abort();
   }
-#endif /* !__linux__ */
 
   uv__queue_move(&loop->async_handles, &queue);
   while (!uv__queue_empty(&queue)) {
@@ -215,58 +179,34 @@ static void uv__async_io(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
 
 
 static void uv__async_send(uv_loop_t* loop) {
+  const void* buf;
+  ssize_t len;
   int fd;
-  ssize_t r;
-#ifdef __linux__
-  uint64_t val;
+  int r;
 
-  fd = loop->async_io_watcher.fd;  /* eventfd */
-  for (val = 1; /* empty */; val = 1) {
-    r = write(fd, &val, sizeof(uint64_t));
-    if (r < 0) {
-      /* When EAGAIN occurs, the eventfd counter hits the maximum value of the unsigned 64-bit.
-       * We need to first drain the eventfd and then write again.
-       *
-       * Check out https://man7.org/linux/man-pages/man2/eventfd.2.html for details.
-       */
-      if (errno == EAGAIN) {
-        /* It's ready to retry. */
-        if (read(fd, &val, sizeof(uint64_t)) > 0 || errno == EAGAIN) {
-          continue;
-        }
-      }
-      /* Unknown error occurs. */
-      break;
-    }
-    return;
-  }
-#else
-#if UV__KQUEUE_EVFILT_USER
-  struct kevent ev;
+  buf = "";
+  len = 1;
+  fd = loop->async_wfd;
 
-  if (kqueue_evfilt_user_support) {
-    fd = loop->async_io_watcher.fd; /* magic number for EVFILT_USER */
-    EV_SET(&ev, fd, EVFILT_USER, 0, NOTE_TRIGGER, 0, 0);
-    r = kevent(loop->backend_fd, &ev, 1, NULL, 0, NULL);
-    if (r == 0)
-      return;
-    else
-      abort();
+#if defined(__linux__)
+  if (fd == -1) {
+    static const uint64_t val = 1;
+    buf = &val;
+    len = sizeof(val);
+    fd = loop->async_io_watcher.fd;  /* eventfd */
   }
 #endif
 
-  fd = loop->async_wfd; /* write end of the pipe */
   do
-    r = write(fd, "x", 1);
+    r = write(fd, buf, len);
   while (r == -1 && errno == EINTR);
 
-  if (r == 1)
+  if (r == len)
     return;
 
   if (r == -1)
     if (errno == EAGAIN || errno == EWOULDBLOCK)
       return;
-#endif
 
   abort();
 }
@@ -275,9 +215,6 @@ static void uv__async_send(uv_loop_t* loop) {
 static int uv__async_start(uv_loop_t* loop) {
   int pipefd[2];
   int err;
-#if UV__KQUEUE_EVFILT_USER
-  struct kevent ev;
-#endif
 
   if (loop->async_io_watcher.fd != -1)
     return 0;
@@ -289,36 +226,6 @@ static int uv__async_start(uv_loop_t* loop) {
 
   pipefd[0] = err;
   pipefd[1] = -1;
-#elif UV__KQUEUE_EVFILT_USER
-  uv_once(&kqueue_runtime_detection_guard, uv__kqueue_runtime_detection);
-  if (kqueue_evfilt_user_support) {
-    /* In order not to break the generic pattern of I/O polling, a valid
-     * file descriptor is required to take up a room in loop->watchers,
-     * thus we create one for that, but this fd will not be actually used,
-     * it's just a placeholder and magic number which is going to be closed
-     * during the cleanup, as other FDs. */
-    err = uv__open_cloexec("/dev/null", O_RDONLY);
-    if (err < 0)
-      return err;
-
-    pipefd[0] = err;
-    pipefd[1] = -1;
-
-    /* When using EVFILT_USER event to wake up the kqueue, this event must be
-     * registered beforehand. Otherwise, calling kevent() to issue an
-     * unregistered EVFILT_USER event will get an ENOENT.
-     * Since uv__async_send() may happen before uv__io_poll() with multi-threads,
-     * we can't defer this registration of EVFILT_USER event as we did for other
-     * events, but must perform it right away. */
-    EV_SET(&ev, err, EVFILT_USER, EV_ADD | EV_CLEAR, 0, 0, 0);
-    err = kevent(loop->backend_fd, &ev, 1, NULL, 0, NULL);
-    if (err < 0)
-      return UV__ERR(errno);
-  } else {
-    err = uv__make_pipe(pipefd, UV_NONBLOCK_PIPE);
-    if (err < 0)
-      return err;
-  }
 #else
   err = uv__make_pipe(pipefd, UV_NONBLOCK_PIPE);
   if (err < 0)
@@ -328,13 +235,6 @@ static int uv__async_start(uv_loop_t* loop) {
   uv__io_init(&loop->async_io_watcher, uv__async_io, pipefd[0]);
   uv__io_start(loop, &loop->async_io_watcher, POLLIN);
   loop->async_wfd = pipefd[1];
-
-#if UV__KQUEUE_EVFILT_USER
-  /* Prevent the EVFILT_USER event from being added to kqueue redundantly
-   * and mistakenly later in uv__io_poll(). */
-  if (kqueue_evfilt_user_support)
-    loop->async_io_watcher.events = loop->async_io_watcher.pevents; 
-#endif
 
   return 0;
 }
