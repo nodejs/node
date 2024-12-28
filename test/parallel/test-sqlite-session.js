@@ -324,17 +324,22 @@ suite('conflict resolution', () => {
   });
 
   test('conflict resolution handler returns invalid value', (t) => {
-    const { database2, changeset } = prepareConflict();
-    t.assert.throws(() => {
-      database2.applyChangeset(changeset, {
-        onConflict: () => {
-          return -1;
-        }
-      });
-    }, {
-      name: 'Error',
-      message: 'bad parameter or other API misuse'
-    });
+    const invalidValues = [-1, {}, null];
+
+    for (const invalidValue of invalidValues) {
+      const { database2, changeset } = prepareConflict();
+      t.assert.throws(() => {
+        database2.applyChangeset(changeset, {
+          onConflict: () => {
+            return invalidValue;
+          }
+        });
+      }, {
+        name: 'Error',
+        message: 'bad parameter or other API misuse',
+        errcode: 21
+      }, `Did not throw expected exception when returning '${invalidValue}' from conflict handler`);
+    }
   });
 
   test('conflict resolution handler throws', (t) => {

@@ -805,6 +805,8 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
           try_catch.ReThrow();
           return SQLITE_CHANGESET_ABORT;
         }
+        constexpr auto invalid_value = -1;
+        if (!result->IsInt32()) return invalid_value;
         return result->Int32Value(env->context()).FromJust();
       };
     }
