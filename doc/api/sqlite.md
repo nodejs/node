@@ -517,7 +517,7 @@ The following constants are exported by the `sqlite.constants` object.
 
 One of the following constants is available as an argument to the `onConflict`
 conflict resolution handler passed to [`database.applyChangeset()`][]. See also
-[Constants Passed To The Conflict Handler]() in the SQLite documentation.
+[Constants Passed To The Conflict Handler][] in the SQLite documentation.
 
 <table>
   <tr>
@@ -570,7 +570,6 @@ resolution handler passed to [`database.applyChangeset()`][]. See also
 </table>
 
 [Changesets and Patchsets]: https://www.sqlite.org/sessionintro.html#changesets_and_patchsets
-[`database.applyChangeset()`]: #databaseapplychangesetchangeset-options
 [Constants Passed To The Conflict Handler]: https://www.sqlite.org/session/c_changeset_conflict.html
 [Constants Returned From The Conflict Handler]: https://www.sqlite.org/session/c_changeset_abort.html
 [SQL injection]: https://en.wikipedia.org/wiki/SQL_injection
@@ -578,6 +577,7 @@ resolution handler passed to [`database.applyChangeset()`][]. See also
 [`PRAGMA foreign_keys`]: https://www.sqlite.org/pragma.html#pragma_foreign_keys
 [`SQLITE_DETERMINISTIC`]: https://www.sqlite.org/c3ref/c_deterministic.html
 [`SQLITE_DIRECTONLY`]: https://www.sqlite.org/c3ref/c_deterministic.html
+[`database.applyChangeset()`]: #databaseapplychangesetchangeset-options
 [`sqlite3_changes64()`]: https://www.sqlite.org/c3ref/changes.html
 [`sqlite3_close_v2()`]: https://www.sqlite.org/c3ref/close.html
 [`sqlite3_create_function_v2()`]: https://www.sqlite.org/c3ref/create_function.html
