@@ -251,7 +251,8 @@ added:
       `SQLITE_CHANGESET_DATA` or `SQLITE_CHANGESET_CONFLICT` conflicts).
     * `SQLITE_CHANGESET_ABORT`: Abort on conflict and roll back the database.
 
-    When an error is thrown in the conflict handler, applying the changeset is aborted and the database is rolled back.
+    When an error is thrown in the conflict handler or when any other value is returned from the handler,
+    applying the changeset is aborted and the database is rolled back.
 
     **Default**: A function that returns `SQLITE_CHANGESET_ABORT`.
 * Returns: {boolean} Whether the changeset was applied succesfully without being aborted.

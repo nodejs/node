@@ -324,21 +324,24 @@ suite('conflict resolution', () => {
   });
 
   test('conflict resolution handler returns invalid value', (t) => {
-    const invalidValues = [-1, {}, null];
+    const invalidHandlers = [
+      () => -1,
+      () => ({}),
+      () => null,
+      async () => constants.SQLITE_CHANGESET_ABORT
+    ];
 
-    for (const invalidValue of invalidValues) {
+    for (const invalidHandler of invalidHandlers) {
       const { database2, changeset } = prepareConflict();
       t.assert.throws(() => {
         database2.applyChangeset(changeset, {
-          onConflict: () => {
-            return invalidValue;
-          }
+          onConflict: invalidHandler
         });
       }, {
         name: 'Error',
         message: 'bad parameter or other API misuse',
         errcode: 21
-      }, `Did not throw expected exception when returning '${invalidValue}' from conflict handler`);
+      }, `Did not throw expected exception when returning '${invalidHandler}' from conflict handler`);
     }
   });
 
