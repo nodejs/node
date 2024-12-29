@@ -128,15 +128,15 @@ test('database.createSession() - use table option to track specific table', (t) 
 });
 
 suite('conflict resolution', () => {
+  const createDataTableSql = `CREATE TABLE data (
+      key INTEGER PRIMARY KEY,
+      value TEXT UNIQUE
+    ) STRICT`;
+
   const prepareConflict = () => {
     const database1 = new DatabaseSync(':memory:');
     const database2 = new DatabaseSync(':memory:');
 
-    const createDataTableSql = `CREATE TABLE data (
-        key INTEGER PRIMARY KEY,
-        value TEXT
-      ) STRICT
-      `;
     database1.exec(createDataTableSql);
     database2.exec(createDataTableSql);
 
@@ -151,7 +151,91 @@ suite('conflict resolution', () => {
     };
   };
 
-  test('database.applyChangeset() - conflict with default behavior (abort)', (t) => {
+  const prepareDataConflict = () => {
+    const database1 = new DatabaseSync(':memory:');
+    const database2 = new DatabaseSync(':memory:');
+
+    database1.exec(createDataTableSql);
+    database2.exec(createDataTableSql);
+
+    const insertSql = 'INSERT INTO data (key, value) VALUES (?, ?)';
+    database1.prepare(insertSql).run(1, 'hello');
+    database2.prepare(insertSql).run(1, 'othervalue');
+    const session = database1.createSession();
+    database1.prepare('UPDATE data SET value = ? WHERE key = ?').run('foo', 1);
+    return {
+      database2,
+      changeset: session.changeset()
+    };
+  };
+
+  const prepareNotFoundConflict = () => {
+    const database1 = new DatabaseSync(':memory:');
+    const database2 = new DatabaseSync(':memory:');
+
+    database1.exec(createDataTableSql);
+    database2.exec(createDataTableSql);
+
+    const insertSql = 'INSERT INTO data (key, value) VALUES (?, ?)';
+    database1.prepare(insertSql).run(1, 'hello');
+    const session = database1.createSession();
+    database1.prepare('DELETE FROM data WHERE key = 1').run();
+    return {
+      database2,
+      changeset: session.changeset()
+    };
+  };
+
+  const prepareFkConflict = () => {
+    const database1 = new DatabaseSync(':memory:');
+    const database2 = new DatabaseSync(':memory:');
+
+    database1.exec(createDataTableSql);
+    database2.exec(createDataTableSql);
+    const fkTableSql = `CREATE TABLE other (
+      key INTEGER PRIMARY KEY,
+      ref REFERENCES data(key)
+    )`;
+    database1.exec(fkTableSql);
+    database2.exec(fkTableSql);
+
+    const insertDataSql = 'INSERT INTO data (key, value) VALUES (?, ?)';
+    const insertOtherSql = 'INSERT INTO other (key, ref) VALUES (?, ?)';
+    database1.prepare(insertDataSql).run(1, 'hello');
+    database2.prepare(insertDataSql).run(1, 'hello');
+    database1.prepare(insertOtherSql).run(1, 1);
+    database2.prepare(insertOtherSql).run(1, 1);
+
+    database1.exec('DELETE FROM other WHERE key = 1');  // So we don't get a fk violation in database1
+    const session = database1.createSession();
+    database1.prepare('DELETE FROM data WHERE key = 1').run(); // Changeset with fk violation
+    database2.exec('PRAGMA foreign_keys = ON');  // Needs to be supported, otherwise will fail here
+
+    return {
+      database2,
+      changeset: session.changeset()
+    };
+  };
+
+  const prepareConstraintConflict = () => {
+    const database1 = new DatabaseSync(':memory:');
+    const database2 = new DatabaseSync(':memory:');
+
+    database1.exec(createDataTableSql);
+    database2.exec(createDataTableSql);
+
+    const insertSql = 'INSERT INTO data (key, value) VALUES (?, ?)';
+    const session = database1.createSession();
+    database1.prepare(insertSql).run(1, 'hello');
+    database2.prepare(insertSql).run(2, 'hello');  // database2 already constains hello
+
+    return {
+      database2,
+      changeset: session.changeset()
+    };
+  };
+
+  test('database.applyChangeset() - SQLITE_CHANGESET_CONFLICT conflict with default behavior (abort)', (t) => {
     const { database2, changeset } = prepareConflict();
     // When changeset is aborted due to a conflict, applyChangeset should return false
     t.assert.strictEqual(database2.applyChangeset(changeset), false);
@@ -160,40 +244,120 @@ suite('conflict resolution', () => {
       [{ value: 'world' }]);  // unchanged
   });
 
-  test('database.applyChangeset() - conflict with SQLITE_CHANGESET_ABORT', (t) => {
+  test('database.applyChangeset() - SQLITE_CHANGESET_CONFLICT conflict handled with SQLITE_CHANGESET_ABORT', (t) => {
     const { database2, changeset } = prepareConflict();
+    let conflictType = null;
     const result = database2.applyChangeset(changeset, {
-      onConflict: constants.SQLITE_CHANGESET_ABORT
+      onConflict: (conflictType_) => {
+        conflictType = conflictType_;
+        return constants.SQLITE_CHANGESET_ABORT;
+      }
     });
     // When changeset is aborted due to a conflict, applyChangeset should return false
     t.assert.strictEqual(result, false);
+    t.assert.strictEqual(conflictType, constants.SQLITE_CHANGESET_CONFLICT);
     deepStrictEqual(t)(
       database2.prepare('SELECT value from data').all(),
       [{ value: 'world' }]);  // unchanged
   });
 
-  test('database.applyChangeset() - conflict with SQLITE_CHANGESET_REPLACE', (t) => {
-    const { database2, changeset } = prepareConflict();
+  test('database.applyChangeset() - SQLITE_CHANGESET_DATA conflict handled with SQLITE_CHANGESET_REPLACE', (t) => {
+    const { database2, changeset } = prepareDataConflict();
+    let conflictType = null;
     const result = database2.applyChangeset(changeset, {
-      onConflict: constants.SQLITE_CHANGESET_REPLACE
+      onConflict: (conflictType_) => {
+        conflictType = conflictType_;
+        return constants.SQLITE_CHANGESET_REPLACE;
+      }
     });
     // Not aborted due to conflict, so should return true
     t.assert.strictEqual(result, true);
+    t.assert.strictEqual(conflictType, constants.SQLITE_CHANGESET_DATA);
     deepStrictEqual(t)(
       database2.prepare('SELECT value from data ORDER BY key').all(),
-      [{ value: 'hello' }, { value: 'foo' }]);  // replaced
+      [{ value: 'foo' }]);  // replaced
   });
 
-  test('database.applyChangeset() - conflict with SQLITE_CHANGESET_OMIT', (t) => {
-    const { database2, changeset } = prepareConflict();
+  test('database.applyChangeset() - SQLITE_CHANGESET_NOTFOUND conflict with SQLITE_CHANGESET_OMIT', (t) => {
+    const { database2, changeset } = prepareNotFoundConflict();
+    let conflictType = null;
     const result = database2.applyChangeset(changeset, {
-      onConflict: constants.SQLITE_CHANGESET_OMIT
+      onConflict: (conflictType_) => {
+        conflictType = conflictType_;
+        return constants.SQLITE_CHANGESET_OMIT;
+      }
     });
     // Not aborted due to conflict, so should return true
     t.assert.strictEqual(result, true);
-    deepStrictEqual(t)(
-      database2.prepare('SELECT value from data ORDER BY key ASC').all(),
-      [{ value: 'world' }, { value: 'foo' }]);  // Conflicting change omitted
+    t.assert.strictEqual(conflictType, constants.SQLITE_CHANGESET_NOTFOUND);
+    deepStrictEqual(t)(database2.prepare('SELECT value from data').all(), []);
+  });
+
+  test('database.applyChangeset() - SQLITE_CHANGESET_FOREIGN_KEY conflict', (t) => {
+    const { database2, changeset } = prepareFkConflict();
+    let conflictType = null;
+    const result = database2.applyChangeset(changeset, {
+      onConflict: (conflictType_) => {
+        conflictType = conflictType_;
+        return constants.SQLITE_CHANGESET_OMIT;
+      }
+    });
+    // Not aborted due to conflict, so should return true
+    t.assert.strictEqual(result, true);
+    t.assert.strictEqual(conflictType, constants.SQLITE_CHANGESET_FOREIGN_KEY);
+    deepStrictEqual(t)(database2.prepare('SELECT value from data').all(), []);
+  });
+
+  test('database.applyChangeset() - SQLITE_CHANGESET_CONSTRAINT conflict', (t) => {
+    const { database2, changeset } = prepareConstraintConflict();
+    let conflictType = null;
+    const result = database2.applyChangeset(changeset, {
+      onConflict: (conflictType_) => {
+        conflictType = conflictType_;
+        return constants.SQLITE_CHANGESET_OMIT;
+      }
+    });
+    // Not aborted due to conflict, so should return true
+    t.assert.strictEqual(result, true);
+    t.assert.strictEqual(conflictType, constants.SQLITE_CHANGESET_CONSTRAINT);
+    deepStrictEqual(t)(database2.prepare('SELECT key, value from data').all(), [{ key: 2, value: 'hello' }]);
+  });
+
+  test('conflict resolution handler returns invalid value', (t) => {
+    const invalidHandlers = [
+      () => -1,
+      () => ({}),
+      () => null,
+      async () => constants.SQLITE_CHANGESET_ABORT,
+    ];
+
+    for (const invalidHandler of invalidHandlers) {
+      const { database2, changeset } = prepareConflict();
+      t.assert.throws(() => {
+        database2.applyChangeset(changeset, {
+          onConflict: invalidHandler
+        });
+      }, {
+        name: 'Error',
+        message: 'bad parameter or other API misuse',
+        errcode: 21,
+        code: 'ERR_SQLITE_ERROR'
+      }, `Did not throw expected exception when using invalid onConflict handler: ${invalidHandler}`);
+    }
+  });
+
+  test('conflict resolution handler throws', (t) => {
+    const { database2, changeset } = prepareConflict();
+    t.assert.throws(() => {
+      database2.applyChangeset(changeset, {
+        onConflict: () => {
+          throw new Error('some error');
+        }
+      });
+    }, {
+      name: 'Error',
+      message: 'some error'
+    });
   });
 });
 
@@ -299,7 +463,7 @@ test('database.applyChangeset() - wrong arguments', (t) => {
     }, null);
   }, {
     name: 'TypeError',
-    message: 'The "options.onConflict" argument must be a number.'
+    message: 'The "options.onConflict" argument must be a function.'
   });
 });
 

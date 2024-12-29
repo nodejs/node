@@ -42,6 +42,7 @@ using v8::Number;
 using v8::Object;
 using v8::SideEffectType;
 using v8::String;
+using v8::TryCatch;
 using v8::Uint8Array;
 using v8::Value;
 
@@ -66,13 +67,14 @@ inline MaybeLocal<Object> CreateSQLiteError(Isolate* isolate,
                                             const char* message) {
   Local<String> js_msg;
   Local<Object> e;
+  Environment* env = Environment::GetCurrent(isolate);
   if (!String::NewFromUtf8(isolate, message).ToLocal(&js_msg) ||
       !Exception::Error(js_msg)
            ->ToObject(isolate->GetCurrentContext())
            .ToLocal(&e) ||
       e->Set(isolate->GetCurrentContext(),
-             OneByteString(isolate, "code"),
-             OneByteString(isolate, "ERR_SQLITE_ERROR"))
+             env->code_string(),
+             env->err_sqlite_error_string())
           .IsNothing()) {
     return MaybeLocal<Object>();
   }
@@ -85,15 +87,14 @@ inline MaybeLocal<Object> CreateSQLiteError(Isolate* isolate, sqlite3* db) {
   const char* errmsg = sqlite3_errmsg(db);
   Local<String> js_errmsg;
   Local<Object> e;
+  Environment* env = Environment::GetCurrent(isolate);
   if (!String::NewFromUtf8(isolate, errstr).ToLocal(&js_errmsg) ||
       !CreateSQLiteError(isolate, errmsg).ToLocal(&e) ||
       e->Set(isolate->GetCurrentContext(),
-             OneByteString(isolate, "errcode"),
+             env->errcode_string(),
              Integer::New(isolate, errcode))
           .IsNothing() ||
-      e->Set(isolate->GetCurrentContext(),
-             OneByteString(isolate, "errstr"),
-             js_errmsg)
+      e->Set(isolate->GetCurrentContext(), env->errstr_string(), js_errmsg)
           .IsNothing()) {
     return MaybeLocal<Object>();
   }
@@ -112,6 +113,19 @@ inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, const char* message) {
   if (CreateSQLiteError(isolate, message).ToLocal(&e)) {
     isolate->ThrowException(e);
   }
+}
+
+inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, int errcode) {
+  const char* errstr = sqlite3_errstr(errcode);
+
+  Environment* env = Environment::GetCurrent(isolate);
+  auto error = CreateSQLiteError(isolate, errstr).ToLocalChecked();
+  error
+      ->Set(isolate->GetCurrentContext(),
+            env->errcode_string(),
+            Integer::New(isolate, errcode))
+      .ToChecked();
+  isolate->ThrowException(error);
 }
 
 class UserDefinedFunction {
@@ -731,11 +745,11 @@ void DatabaseSync::CreateSession(const FunctionCallbackInfo<Value>& args) {
 
 // the reason for using static functions here is that SQLite needs a
 // function pointer
-static std::function<int()> conflictCallback;
+static std::function<int(int)> conflictCallback;
 
 static int xConflict(void* pCtx, int eConflict, sqlite3_changeset_iter* pIter) {
   if (!conflictCallback) return SQLITE_CHANGESET_ABORT;
-  return conflictCallback();
+  return conflictCallback(eConflict);
 }
 
 static std::function<bool(std::string)> filterCallback;
@@ -773,15 +787,27 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
         options->Get(env->context(), env->onconflict_string()).ToLocalChecked();
 
     if (!conflictValue->IsUndefined()) {
-      if (!conflictValue->IsNumber()) {
+      if (!conflictValue->IsFunction()) {
         THROW_ERR_INVALID_ARG_TYPE(
             env->isolate(),
-            "The \"options.onConflict\" argument must be a number.");
+            "The \"options.onConflict\" argument must be a function.");
         return;
       }
-
-      int conflictInt = conflictValue->Int32Value(env->context()).FromJust();
-      conflictCallback = [conflictInt]() -> int { return conflictInt; };
+      Local<Function> conflictFunc = conflictValue.As<Function>();
+      conflictCallback = [env, conflictFunc](int conflictType) -> int {
+        Local<Value> argv[] = {Integer::New(env->isolate(), conflictType)};
+        TryCatch try_catch(env->isolate());
+        Local<Value> result =
+            conflictFunc->Call(env->context(), Null(env->isolate()), 1, argv)
+                .FromMaybe(Local<Value>());
+        if (try_catch.HasCaught()) {
+          try_catch.ReThrow();
+          return SQLITE_CHANGESET_ABORT;
+        }
+        constexpr auto invalid_value = -1;
+        if (!result->IsInt32()) return invalid_value;
+        return result->Int32Value(env->context()).FromJust();
+      };
     }
 
     if (options->HasOwnProperty(env->context(), env->filter_string())
@@ -819,12 +845,16 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
       xFilter,
       xConflict,
       nullptr);
+  if (r == SQLITE_OK) {
+    args.GetReturnValue().Set(true);
+    return;
+  }
   if (r == SQLITE_ABORT) {
+    // this is not an error, return false
     args.GetReturnValue().Set(false);
     return;
   }
-  CHECK_ERROR_OR_THROW(env->isolate(), db->connection_, r, SQLITE_OK, void());
-  args.GetReturnValue().Set(true);
+  THROW_ERR_SQLITE_ERROR(env->isolate(), r);
 }
 
 void DatabaseSync::EnableLoadExtension(
@@ -1662,6 +1692,12 @@ void DefineConstants(Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, SQLITE_CHANGESET_OMIT);
   NODE_DEFINE_CONSTANT(target, SQLITE_CHANGESET_REPLACE);
   NODE_DEFINE_CONSTANT(target, SQLITE_CHANGESET_ABORT);
+
+  NODE_DEFINE_CONSTANT(target, SQLITE_CHANGESET_DATA);
+  NODE_DEFINE_CONSTANT(target, SQLITE_CHANGESET_NOTFOUND);
+  NODE_DEFINE_CONSTANT(target, SQLITE_CHANGESET_CONFLICT);
+  NODE_DEFINE_CONSTANT(target, SQLITE_CHANGESET_CONSTRAINT);
+  NODE_DEFINE_CONSTANT(target, SQLITE_CHANGESET_FOREIGN_KEY);
 }
 
 static void Initialize(Local<Object> target,
