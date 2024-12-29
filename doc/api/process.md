@@ -3228,6 +3228,23 @@ const { ppid } = require('node:process');
 console.log(`The parent process is pid ${ppid}`);
 ```
 
+## `process.ref(maybeRefable)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `maybeRefable` {any} An object that may be "refable".
+
+An object is "refable" if it implements the Node.js "Refable protocol".
+Specifically, this means that the object implements the `Symbol.for('node:ref')`
+and `Symbol.for('node:unref')` methods. "Ref'd" objects will keep the Node.js
+event loop alive, while "unref'd" objects will not. Historically, this was
+implemented by using `ref()` and `unref()` methods directly on the objects.
+This pattern, however, is being deprecated in favor of the "Refable protocol"
+in order to better support Web Platform API types whose APIs cannot be modified
+to add `ref()` and `unref()` methods but still need to support that behavior.
+
 ## `process.release`
 
 <!-- YAML
@@ -4267,6 +4284,23 @@ console.log(
 ```
 
 In [`Worker`][] threads, `process.umask(mask)` will throw an exception.
+
+## `process.unref(maybeRefable)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `maybeUnfefable` {any} An object that may be "unref'd".
+
+An object is "unrefable" if it implements the Node.js "Refable protocol".
+Specifically, this means that the object implements the `Symbol.for('node:ref')`
+and `Symbol.for('node:unref')` methods. "Ref'd" objects will keep the Node.js
+event loop alive, while "unref'd" objects will not. Historically, this was
+implemented by using `ref()` and `unref()` methods directly on the objects.
+This pattern, however, is being deprecated in favor of the "Refable protocol"
+in order to better support Web Platform API types whose APIs cannot be modified
+to add `ref()` and `unref()` methods but still need to support that behavior.
 
 ## `process.uptime()`
 
