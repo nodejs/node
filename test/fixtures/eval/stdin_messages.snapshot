@@ -2,10 +2,14 @@
 [stdin]:1
 with(this){__filename}
 ^^^^
+  x The 'with' statement is not supported. All symbols in a 'with' block will have type 'any'.
+   ,----
+ 1 | with(this){__filename}
+   : ^^^^
+   `----
+
 
 SyntaxError: Strict mode code may not include a with statement
-
-
 
 
 
