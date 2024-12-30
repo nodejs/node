@@ -232,3 +232,5 @@ For topics not addressed here, please consult the [Microsoft Writing Style Guide
 [`remark-preset-lint-node`]: https://github.com/nodejs/remark-preset-lint-node
 [plugin]: https://editorconfig.org/#download
 [serial commas]: https://learn.microsoft.com/en-us/style-guide/punctuation/commas
+
+Minor: doc hint by @ex1234
