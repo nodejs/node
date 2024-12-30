@@ -8,7 +8,7 @@ codecov:
   notify:
     # Wait for all coverage builds:
     # - coverage-linux.yml
-    # - coverage-windows.yml [manually disabled see #50489]
+    # - coverage-windows.yml [manually disabled, see #50489]
     # - coverage-linux-without-intl.yml
     after_n_builds: 2
 
@@ -17,3 +17,15 @@ coverage:
   status:
     project: off
     patch: off
+
+gcovr:
+  # Configure gcovr for detailed code coverage reporting
+  enabled: true
+  reports:
+    html: true
+    xml: true
+    summary: true
+  thresholds:
+    # Set minimum coverage thresholds
+    line: 80
+    branch: 75
