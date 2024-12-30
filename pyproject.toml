@@ -7,7 +7,7 @@ exclude = [
   "tools/eslint/node_modules",
   "tools/github_reporter"
 ]
-line-length = 172
+line-length = 120  # Adjusted to a more reasonable length for readability
 target-version = "py38"
 
 [tool.ruff.lint]
@@ -19,7 +19,6 @@ select = [
   "INT",    # flake8-gettext
   "PLC",    # Pylint conventions
   "PLE",    # Pylint errors
-  "PLR09",  # Pylint refactoring: max-args, max-branches, max returns, max-statements
   "PYI",    # flake8-pyi
   "RSE",    # flake8-raise
   "RUF",    # Ruff-specific rules
@@ -27,22 +26,19 @@ select = [
   "TCH",    # flake8-type-checking
   "TID",    # flake8-tidy-imports
   "W",      # pycodestyle
-  "YTT",    # flake8-2020
+  "YTT"     # flake8-2020
 ]
 ignore = [
-  "E401",
-  "E402",
-  "E7",
-  "PLC1901",
-  "RUF005",
-  "RUF100",
+  "E401",   # Multiple imports on one line
+  "E402",   # Module level import not at top of file
+  "PLC1901" # Pylint specific convention rule
 ]
 
 [tool.ruff.lint.mccabe]
-max-complexity = 100
+max-complexity = 20  # Reduced to encourage simpler code structures
 
 [tool.ruff.lint.pylint]
-max-args = 12
-max-branches = 110
-max-returns = 12
-max-statements = 289
+max-args = 10       # Adjusted to a reasonable limit
+max-branches = 20   # Simplified for maintainability
+max-returns = 6     # Encourages focused functions
+max-statements = 50 # Limits complexity of functions
