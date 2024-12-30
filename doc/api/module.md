@@ -85,12 +85,12 @@ added: v23.2.0
   is a package, the package's root `package.json`; when a relative or unresolved, the closest
   `package.json` to the `specifier`.
 
-> **Caveat**: Do not use this to try to determine module format. There are many things effecting
+> **Caveat**: Do not use this to try to determine module format. There are many things affecting
 > that determination; the `type` field of package.json is the _least_ definitive (ex file extension
-> superceeds it, and a loader hook superceeds that).
+> supercedes it, and a loader hook supercedes that).
 
 > **Caveat**: This currently leverages only the built-in default resolver; if
-> [`resolve` customization hooks][resolve hook] are registered, they will not effect the resolution.
+> [`resolve` customization hooks][resolve hook] are registered, they will not affect the resolution.
 > This may change in the future.
 
 ```text
