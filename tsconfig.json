@@ -79,6 +79,9 @@
       "wasi": ["./lib/wasi.js"],
       "worker_threads": ["./lib/worker_threads.js"],
       "zlib": ["./lib/zlib.js"]
-    }
+    },
+    "typeRoots": ["./typings", "./node_modules/@types"], // Added to ensure all custom and external types are included
+    "resolveJsonModule": true, // Added for JSON imports compatibility
+    "esModuleInterop": true // Enabled for better module interop between CommonJS and ES Modules
   }
 }
