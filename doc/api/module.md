@@ -91,7 +91,7 @@ added: v23.2.0
 
 > **Caveat**: This currently leverages only the built-in default resolver; if
 > [`resolve` customization hooks][resolve hook] are registered, they will not effect the resolution.
-> This may change in future.
+> This may change in the future.
 
 ```text
 /path/to/project
