@@ -1135,6 +1135,15 @@ const common = {
   get checkoutEOL() {
     return fs.readFileSync(__filename).includes('\r\n') ? '\r\n' : '\n';
   },
+
+  get isInsideDirWithUnusualChars() {
+    return __dirname.includes('%') ||
+           (!isWindows && __dirname.includes('\\')) ||
+           __dirname.includes('$') ||
+           __dirname.includes('\n') ||
+           __dirname.includes('\r') ||
+           __dirname.includes('\t');
+  },
 };
 
 const validProperties = new Set(Object.keys(common));
