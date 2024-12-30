@@ -436,6 +436,37 @@ async function* asyncIterableGenerator() {
 })();
 ```
 
+To pipe the resulting {ReadableStream} into a {WritableStream} the {Iterable}
+should yield a sequence of {Buffer}, {TypedArray}, or {DataView} objects.
+
+```mjs
+import { ReadableStream } from 'node:stream/web';
+
+async function* asyncIterableGenerator() {
+  yield Buffer.from('a');
+  yield Buffer.from('b');
+  yield Buffer.from('c');
+}
+
+const stream = ReadableStream.from(asyncIterableGenerator());
+
+stream.pipeTo(createWritableStreamSomehow())
+```
+
+```cjs
+const { ReadableStream } = require('node:stream/web');
+
+async function* asyncIterableGenerator() {
+  yield Buffer.from('a');
+  yield Buffer.from('b');
+  yield Buffer.from('c');
+}
+
+const stream = ReadableStream.from(asyncIterableGenerator());
+
+stream.pipeTo(createWritableStreamSomehow())
+```
+
 ### Class: `ReadableStreamDefaultReader`
 
 <!-- YAML
