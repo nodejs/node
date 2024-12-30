@@ -29,14 +29,21 @@ rules:
   indentation:
     spaces: 2
 
-  line-length: disable
+  line-length:
+    max: 120  # Enabled line-length with a maximum of 120 characters
 
   quoted-strings:
     quote-type: single
-    required: only-when-needed
+    required: always  # Changed to always for consistency
 
   truthy:
     allowed-values: ['true', 'false', 'on', 'off']
+
+  trailing-spaces:
+    level: error  # Added rule to handle trailing spaces
+
+  new-line-at-end-of-file:
+    level: error  # Added rule to ensure new line at the end of files
 
 ignore: |
   /deps/
