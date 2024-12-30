@@ -87,7 +87,7 @@ added: v23.2.0
 
 > **Caveat**: Do not use this to try to determine module format. There are many things affecting
 > that determination; the `type` field of package.json is the _least_ definitive (ex file extension
-> supercedes it, and a loader hook supercedes that).
+> supersedes it, and a loader hook supersedes that).
 
 > **Caveat**: This currently leverages only the built-in default resolver; if
 > [`resolve` customization hooks][resolve hook] are registered, they will not affect the resolution.
