@@ -1,27 +1,21 @@
-# This file is used by GN for building, which is NOT the build system used for
+ # This file is used by GN for building, which is NOT the build system used for
 # building official binaries.
-# Please take a look at node.gyp if you are making changes to build system.
+# Please refer to `node.gyp` if you are making changes to the build system.
 
 # Embedder options.
 declare_args() {
-  # The location of Node.js in source code tree.
+  # Paths for Node.js and dependencies in the source code tree.
   node_path = "//node"
-
-  # The location of V8 - use the one from node's deps by default.
-  node_v8_path = "$node_path/deps/v8"
-
-  # The location of OpenSSL - use the one from node's deps by default.
-  node_openssl_path = "$node_path/deps/openssl"
-
-  # The location of simdutf - use the one from node's deps by default.
-  node_simdutf_path = "$node_path/deps/simdutf"
+  node_v8_path = "$node_path/deps/v8"                # Path to V8
+  node_openssl_path = "$node_path/deps/openssl"      # Path to OpenSSL
+  node_simdutf_path = "$node_path/deps/simdutf"      # Path to SIMDUTF
 
   # The NODE_MODULE_VERSION defined in node_version.h.
   node_module_version = exec_script("$node_path/tools/getmoduleversion.py", [], "value")
 
-  # Support for external shareable builtins.
-  # TODO(zcbenz): This is currently copied from configure.py, we should share
-  # the list between configure.py and GN configurations.
+  # External shareable built-ins.
+  # These are currently duplicated from `configure.py`. Sharing configurations between
+  # GN and GYP would enhance consistency and reduce maintenance overhead.
   node_builtin_shareable_builtins = [
     "deps/cjs-module-lexer/lexer.js",
     "deps/cjs-module-lexer/dist/lexer.js",
@@ -30,20 +24,19 @@ declare_args() {
   ]
 }
 
-# Equivalent of gyp file's configurations.
+# Configuration options similar to those in GYP files.
 declare_args() {
-  # Enable the V8 inspector protocol for use with node.
+  # Enable V8 inspector protocol.
   node_enable_inspector = true
 
-  # Build node with SSL support.
-  # The variable is called "openssl" for parity with node's GYP build.
+  # Build Node.js with SSL support.
+  # Named "openssl" for parity with the GYP build system.
   node_use_openssl = true
 
-  # Use the specified path to system CA (PEM format) in addition to
-  # the BoringSSL supplied CA store or compiled-in Mozilla CA copy.
+  # Custom system CA (PEM format) path, in addition to BoringSSL or Mozilla CA.
   node_openssl_system_ca_path = ""
 
-  # Initialize v8 platform during node.js startup.
+  # Initialize the V8 platform during Node.js startup.
   node_use_v8_platform = true
 
   # Custom build tag.
@@ -52,23 +45,26 @@ declare_args() {
   # V8 options to pass, see `node --v8-options` for examples.
   node_v8_options = ""
 
-  # Provide a custom URL prefix for the `process.release` properties
-  # `sourceUrl` and `headersUrl`. When compiling a release build, this will
-  # default to https://nodejs.org/download/release/').
+  # Custom URL prefix for `process.release` properties (`sourceUrl`, `headersUrl`).
+  # Defaults to `https://nodejs.org/download/release/` in release builds.
   node_release_urlbase = ""
 
-  # Use code cache to speed up startup. Disabled for cross compilation.
-  node_use_node_code_cache = host_os == target_os && host_cpu == target_cpu
+  # Use code cache to speed up startup, disabled for cross-compilation.
+  node_use_node_code_cache = (host_os == target_os) && (host_cpu == target_cpu)
 
   # Use snapshot to speed up startup.
-  # TODO(zcbenz): There are few broken things for now:
-  #   1. cross-os compilation is not supported.
-  #   2. node_mksnapshot crashes when cross-compiling for x64 from arm64.
+  # Known limitations:
+  # 1. Cross-OS compilation is not supported.
+  # 2. Crashes occur when cross-compiling for x64 from arm64.
   node_use_node_snapshot = (host_os == target_os) && !(host_cpu == "arm64" && target_cpu == "x64")
 
-  # Build with Amaro (TypeScript utils).
+  # Build with Amaro (TypeScript utilities).
   node_use_amaro = true
 }
 
-assert(!node_enable_inspector || node_use_openssl,
-       "node_enable_inspector requires node_use_openssl")
+# Ensure V8 inspector is only enabled when SSL support is available.
+assert(
+  !node_enable_inspector || node_use_openssl,
+  "node_enable_inspector requires node_use_openssl"
+)
+
