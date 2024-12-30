@@ -4,7 +4,6 @@ const common = require('../common');
 const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
 const assert = require('node:assert');
-const { spawnSync } = require('node:child_process');
 const fs = require('node:fs');
 const { findPackageJSON } = require('node:module');
 const path = require('node:path');
@@ -166,7 +165,7 @@ describe('findPackageJSON', () => { // Throws when no arguments are provided
         'export const resolve = async (s, c, n) => n(s);',
       ].join(''),
       '--eval',
-      'import "node:os";', // can be anything that triggers the resolve hook chain
+      'import "node:os";', // Can be anything that triggers the resolve hook chain
     ]);
 
     assert.strictEqual(stderr, '');
@@ -183,7 +182,7 @@ describe('findPackageJSON', () => { // Throws when no arguments are provided
       '--loader',
       'data:text/javascript,export const resolve = async (s, c, n) => n(s);',
       '--print',
-      `require("node:module").findPackageJSON(${JSON.stringify(target)})`
+      `require("node:module").findPackageJSON(${JSON.stringify(target)})`,
     ]);
 
     assert.strictEqual(stderr, '');
