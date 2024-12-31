@@ -386,6 +386,7 @@ std::string GetBIOError() {
       static_cast<void*>(&ret));
   return ret;
 }
+
 }  // namespace
 
 TLSWrap::TLSWrap(Environment* env,
@@ -1844,15 +1845,19 @@ void TLSWrap::VerifyError(const FunctionCallbackInfo<Value>& args) {
   if (x509_verify_error == X509_V_OK)
     return args.GetReturnValue().SetNull();
 
-  const char* reason = X509_verify_cert_error_string(x509_verify_error);
-  const char* code = X509ErrorCode(x509_verify_error);
+  Local<Value> reason;
+  if (!GetValidationErrorReason(env, x509_verify_error).ToLocal(&reason)) {
+    return;
+  }
+  if (reason->IsUndefined()) [[unlikely]]
+    return;
 
-  Local<Object> error =
-      Exception::Error(OneByteString(env->isolate(), reason))
-          ->ToObject(env->isolate()->GetCurrentContext())
-              .FromMaybe(Local<Object>());
+  Local<Object> error = Exception::Error(reason.As<v8::String>())
+                            ->ToObject(env->isolate()->GetCurrentContext())
+                            .FromMaybe(Local<Object>());
 
-  if (Set(env, error, env->code_string(), code))
+  auto code = X509Pointer::ErrorCode(x509_verify_error);
+  if (Set(env, error, env->code_string(), code.data()))
     args.GetReturnValue().Set(error);
 }
 
