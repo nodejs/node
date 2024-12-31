@@ -637,6 +637,9 @@ class X509Pointer final {
   X509View view() const;
   operator X509View() const { return view(); }
 
+  static std::string_view ErrorCode(int32_t err);
+  static std::string_view ErrorReason(int32_t err);
+
  private:
   DeleteFnPtr<X509, X509_free> cert_;
 };

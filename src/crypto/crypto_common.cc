@@ -144,58 +144,17 @@ bool SetGroups(SecureContext* sc, const char* groups) {
   return SSL_CTX_set1_groups_list(sc->ctx().get(), groups) == 1;
 }
 
-// When adding or removing errors below, please also update the list in the API
-// documentation. See the "OpenSSL Error Codes" section of doc/api/errors.md
-const char* X509ErrorCode(long err) {  // NOLINT(runtime/int)
-  const char* code = "UNSPECIFIED";
-#define CASE_X509_ERR(CODE) case X509_V_ERR_##CODE: code = #CODE; break;
-  switch (err) {
-    // if you modify anything in here, *please* update the respective section in
-    // doc/api/tls.md as well
-    CASE_X509_ERR(UNABLE_TO_GET_ISSUER_CERT)
-    CASE_X509_ERR(UNABLE_TO_GET_CRL)
-    CASE_X509_ERR(UNABLE_TO_DECRYPT_CERT_SIGNATURE)
-    CASE_X509_ERR(UNABLE_TO_DECRYPT_CRL_SIGNATURE)
-    CASE_X509_ERR(UNABLE_TO_DECODE_ISSUER_PUBLIC_KEY)
-    CASE_X509_ERR(CERT_SIGNATURE_FAILURE)
-    CASE_X509_ERR(CRL_SIGNATURE_FAILURE)
-    CASE_X509_ERR(CERT_NOT_YET_VALID)
-    CASE_X509_ERR(CERT_HAS_EXPIRED)
-    CASE_X509_ERR(CRL_NOT_YET_VALID)
-    CASE_X509_ERR(CRL_HAS_EXPIRED)
-    CASE_X509_ERR(ERROR_IN_CERT_NOT_BEFORE_FIELD)
-    CASE_X509_ERR(ERROR_IN_CERT_NOT_AFTER_FIELD)
-    CASE_X509_ERR(ERROR_IN_CRL_LAST_UPDATE_FIELD)
-    CASE_X509_ERR(ERROR_IN_CRL_NEXT_UPDATE_FIELD)
-    CASE_X509_ERR(OUT_OF_MEM)
-    CASE_X509_ERR(DEPTH_ZERO_SELF_SIGNED_CERT)
-    CASE_X509_ERR(SELF_SIGNED_CERT_IN_CHAIN)
-    CASE_X509_ERR(UNABLE_TO_GET_ISSUER_CERT_LOCALLY)
-    CASE_X509_ERR(UNABLE_TO_VERIFY_LEAF_SIGNATURE)
-    CASE_X509_ERR(CERT_CHAIN_TOO_LONG)
-    CASE_X509_ERR(CERT_REVOKED)
-    CASE_X509_ERR(INVALID_CA)
-    CASE_X509_ERR(PATH_LENGTH_EXCEEDED)
-    CASE_X509_ERR(INVALID_PURPOSE)
-    CASE_X509_ERR(CERT_UNTRUSTED)
-    CASE_X509_ERR(CERT_REJECTED)
-    CASE_X509_ERR(HOSTNAME_MISMATCH)
-  }
-#undef CASE_X509_ERR
-  return code;
-}
-
 MaybeLocal<Value> GetValidationErrorReason(Environment* env, int err) {
-  if (err == 0)
-    return Undefined(env->isolate());
-  const char* reason = X509_verify_cert_error_string(err);
-  return OneByteString(env->isolate(), reason);
+  auto reason = X509Pointer::ErrorReason(err);
+  if (reason == "") return Undefined(env->isolate());
+  return OneByteString(env->isolate(), reason.data(), reason.length());
 }
 
 MaybeLocal<Value> GetValidationErrorCode(Environment* env, int err) {
   if (err == 0)
     return Undefined(env->isolate());
-  return OneByteString(env->isolate(), X509ErrorCode(err));
+  auto error = X509Pointer::ErrorCode(err);
+  return OneByteString(env->isolate(), error.data(), error.length());
 }
 
 MaybeLocal<Value> GetCert(Environment* env, const SSLPointer& ssl) {

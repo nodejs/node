@@ -46,8 +46,6 @@ v8::MaybeLocal<v8::Array> GetClientHelloCiphers(
 
 bool SetGroups(SecureContext* sc, const char* groups);
 
-const char* X509ErrorCode(long err);  // NOLINT(runtime/int)
-
 v8::MaybeLocal<v8::Value> GetValidationErrorReason(Environment* env, int err);
 
 v8::MaybeLocal<v8::Value> GetValidationErrorCode(Environment* env, int err);
