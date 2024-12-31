@@ -303,6 +303,20 @@ int SelectALPNCallback(
                                           : SSL_TLSEXT_ERR_ALERT_FATAL;
 }
 
+MaybeLocal<Value> GetSSLOCSPResponse(Environment* env, SSL* ssl) {
+  const unsigned char* resp;
+  int len = SSL_get_tlsext_status_ocsp_resp(ssl, &resp);
+  if (resp == nullptr) return Null(env->isolate());
+
+  Local<Value> ret;
+  MaybeLocal<Object> maybe_buffer =
+      Buffer::Copy(env, reinterpret_cast<const char*>(resp), len);
+
+  if (!maybe_buffer.ToLocal(&ret)) return MaybeLocal<Value>();
+
+  return ret;
+}
+
 int TLSExtStatusCallback(SSL* s, void* arg) {
   TLSWrap* w = static_cast<TLSWrap*>(SSL_get_app_data(s));
   Environment* env = w->env();
@@ -311,7 +325,7 @@ int TLSExtStatusCallback(SSL* s, void* arg) {
   if (w->is_client()) {
     // Incoming response
     Local<Value> arg;
-    if (GetSSLOCSPResponse(env, s, Null(env->isolate())).ToLocal(&arg))
+    if (GetSSLOCSPResponse(env, s).ToLocal(&arg))
       w->MakeCallback(env->onocspresponse_string(), 1, &arg);
 
     // No async acceptance is possible, so always return 1 to accept the
