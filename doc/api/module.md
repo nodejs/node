@@ -232,13 +232,17 @@ added: REPLACEME
 * `base` {string|URL} The absolute location (`file:` URL string or FS path) of the
   containing  module. For CJS, use `__filename` (not `__dirname`!); for ESM, use
   `import.meta.url`. You do not need to pass it if `specifier` is an `absolute specifier`.
-* Returns: {string|undefined} A path if the `package.json` is found. When `startLocation`
+* Returns: {string|undefined} A path if the `package.json` is found. When `specifier`
   is a package, the package's root `package.json`; when a relative or unresolved, the closest
-  `package.json` to the `startLocation`.
+  `package.json` to the `specifier`.
 
-> **Caveat**: Do not use this to try to determine module format. There are many things effecting
+> **Caveat**: Do not use this to try to determine module format. There are many things affecting
 > that determination; the `type` field of package.json is the _least_ definitive (ex file extension
-> superceeds it, and a loader hook superceeds that).
+> supersedes it, and a loader hook supersedes that).
+
+> **Caveat**: This currently leverages only the built-in default resolver; if
+> [`resolve` customization hooks][resolve hook] are registered, they will not affect the resolution.
+> This may change in the future.
 
 ```text
 /path/to/project
@@ -1579,6 +1583,7 @@ returned object contains the following keys:
 [module wrapper]: modules.md#the-module-wrapper
 [prefix-only modules]: modules.md#built-in-modules-with-mandatory-node-prefix
 [realm]: https://tc39.es/ecma262/#realm
+[resolve hook]: #resolvespecifier-context-nextresolve
 [source map include directives]: https://sourcemaps.info/spec.html#h.lmz475t4mvbx
 [transferable objects]: worker_threads.md#portpostmessagevalue-transferlist
 [transform TypeScript features]: typescript.md#typescript-features
