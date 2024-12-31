@@ -27,12 +27,6 @@ struct StackOfX509Deleter {
 };
 using StackOfX509 = std::unique_ptr<STACK_OF(X509), StackOfX509Deleter>;
 
-void LogSecret(
-    const SSLPointer& ssl,
-    const char* name,
-    const unsigned char* secret,
-    size_t secretlen);
-
 v8::MaybeLocal<v8::Value> GetSSLOCSPResponse(
     Environment* env,
     SSL* ssl,
