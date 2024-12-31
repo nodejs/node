@@ -66,9 +66,11 @@ MaybeLocal<Value> GetFingerprintDigest(Environment* env,
   auto fingerprint = cert.getFingerprint(method);
   // Returning an empty string indicates that the digest failed for
   // some reason.
-  if (fingerprint == "") return Undefined(env->isolate());
-  return OneByteString(
-      env->isolate(), fingerprint.data(), fingerprint.length());
+  if (!fingerprint.has_value()) [[unlikely]] {
+    return Undefined(env->isolate());
+  }
+  auto& fp = fingerprint.value();
+  return OneByteString(env->isolate(), fp.data(), fp.length());
 }
 
 template <const EVP_MD* (*algo)()>

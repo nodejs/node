@@ -570,6 +570,8 @@ class X509View final {
   NCRYPTO_DISALLOW_MOVE(X509View)
 
   inline X509* get() const { return const_cast<X509*>(cert_); }
+  inline operator X509*() const { return const_cast<X509*>(cert_); }
+  inline operator const X509*() const { return cert_; }
 
   inline bool operator==(std::nullptr_t) noexcept { return cert_ == nullptr; }
   inline operator bool() const { return cert_ != nullptr; }
@@ -594,7 +596,7 @@ class X509View final {
   bool checkPrivateKey(const EVPKeyPointer& pkey) const;
   bool checkPublicKey(const EVPKeyPointer& pkey) const;
 
-  std::string getFingerprint(const EVP_MD* method) const;
+  std::optional<std::string> getFingerprint(const EVP_MD* method) const;
 
   X509Pointer clone() const;
 
@@ -631,6 +633,8 @@ class X509Pointer final {
   inline bool operator==(std::nullptr_t) noexcept { return cert_ == nullptr; }
   inline operator bool() const { return cert_ != nullptr; }
   inline X509* get() const { return cert_.get(); }
+  inline operator X509*() const { return cert_.get(); }
+  inline operator const X509*() const { return cert_.get(); }
   void reset(X509* cert = nullptr);
   X509* release();
 
