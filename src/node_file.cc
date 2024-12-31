@@ -73,6 +73,7 @@ using v8::Integer;
 using v8::Isolate;
 using v8::JustVoid;
 using v8::Local;
+using v8::LocalVector;
 using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Nothing;
@@ -902,8 +903,8 @@ void AfterScanDir(uv_fs_t* req) {
   Local<Value> error;
   int r;
 
-  std::vector<Local<Value>> name_v;
-  std::vector<Local<Value>> type_v;
+  LocalVector<Value> name_v(isolate);
+  LocalVector<Value> type_v(isolate);
 
   const bool with_file_types = req_wrap->with_file_types();
 
@@ -2045,8 +2046,8 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
     }
 
     int r;
-    std::vector<Local<Value>> name_v;
-    std::vector<Local<Value>> type_v;
+    LocalVector<Value> name_v(isolate);
+    LocalVector<Value> type_v(isolate);
 
     for (;;) {
       uv_dirent_t ent;

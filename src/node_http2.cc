@@ -37,6 +37,7 @@ using v8::HandleScope;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
+using v8::LocalVector;
 using v8::MaybeLocal;
 using v8::NewStringType;
 using v8::Number;
@@ -1606,7 +1607,7 @@ void Http2Session::HandleOriginFrame(const nghttp2_frame* frame) {
   nghttp2_ext_origin* origin = static_cast<nghttp2_ext_origin*>(ext.payload);
 
   size_t nov = origin->nov;
-  std::vector<Local<Value>> origin_v(nov);
+  LocalVector<Value> origin_v(isolate, nov);
 
   for (size_t i = 0; i < nov; ++i) {
     const nghttp2_origin_entry& entry = origin->ov[i];

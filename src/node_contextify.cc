@@ -59,6 +59,7 @@ using v8::Isolate;
 using v8::JustVoid;
 using v8::KeyCollectionMode;
 using v8::Local;
+using v8::LocalVector;
 using v8::Maybe;
 using v8::MaybeLocal;
 using v8::MeasureMemoryExecution;
@@ -831,7 +832,7 @@ void ContextifyContext::IndexedPropertyEnumeratorCallback(
   }
 
   // Filter out non-number property names.
-  std::vector<Local<Value>> indices;
+  LocalVector<Value> indices(isolate);
   for (uint32_t i = 0; i < properties->Length(); i++) {
     Local<Value> prop = properties_vec[i].Get(isolate);
     if (!prop->IsNumber()) {
@@ -1790,20 +1791,20 @@ static void CompileFunctionForCJSLoader(
   }
 
   Local<Value> undefined = v8::Undefined(isolate);
-  std::vector<Local<Name>> names = {
+  Local<Name> names[] = {
       env->cached_data_rejected_string(),
       env->source_map_url_string(),
       env->function_string(),
       FIXED_ONE_BYTE_STRING(isolate, "canParseAsESM"),
   };
-  std::vector<Local<Value>> values = {
+  Local<Value> values[] = {
       Boolean::New(isolate, cache_rejected),
       fn.IsEmpty() ? undefined : fn->GetScriptOrigin().SourceMapUrl(),
       fn.IsEmpty() ? undefined : fn.As<Value>(),
       Boolean::New(isolate, can_parse_as_esm),
   };
   Local<Object> result = Object::New(
-      isolate, v8::Null(isolate), names.data(), values.data(), names.size());
+      isolate, v8::Null(isolate), &names[0], &values[0], arraysize(names));
   args.GetReturnValue().Set(result);
 }
 
