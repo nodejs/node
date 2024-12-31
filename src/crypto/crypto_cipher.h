@@ -44,7 +44,7 @@ class CipherBase : public BaseObject {
   static const unsigned kNoAuthTagLength = static_cast<unsigned>(-1);
 
   void CommonInit(const char* cipher_type,
-                  const EVP_CIPHER* cipher,
+                  const ncrypto::Cipher& cipher,
                   const unsigned char* key,
                   int key_len,
                   const unsigned char* iv,
@@ -85,7 +85,7 @@ class CipherBase : public BaseObject {
   CipherBase(Environment* env, v8::Local<v8::Object> wrap, CipherKind kind);
 
  private:
-  DeleteFnPtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free> ctx_;
+  CipherCtxPointer ctx_;
   const CipherKind kind_;
   AuthTagState auth_tag_state_;
   unsigned int auth_tag_len_;

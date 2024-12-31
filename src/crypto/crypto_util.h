@@ -66,7 +66,6 @@ using EVPMDCtxPointer = ncrypto::EVPMDCtxPointer;
 using RSAPointer = ncrypto::RSAPointer;
 using ECPointer = ncrypto::ECPointer;
 using BignumPointer = ncrypto::BignumPointer;
-using BignumCtxPointer = ncrypto::BignumCtxPointer;
 using NetscapeSPKIPointer = ncrypto::NetscapeSPKIPointer;
 using ECGroupPointer = ncrypto::ECGroupPointer;
 using ECPointPointer = ncrypto::ECPointPointer;
