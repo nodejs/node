@@ -1235,7 +1235,9 @@ changes:
     * Maximum sizes:
       * Windows: 32,767 characters
       * macOS: 64 characters
-      * Other systems: 16 characters
+      * Linux: 16 characters
+      * NetBSD: limited to `PTHREAD_MAX_NAMELEN_NP`
+      * FreeBSD and OpenBSD: limited to `MAXCOMLEN`
         **Default:** `'WorkerThread'`.
 
 ### Event: `'error'`
