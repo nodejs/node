@@ -441,9 +441,6 @@ MaybeLocal<Value> BuiltinLoader::CompileAndCall(Local<Context> context,
                                                 const char* id,
                                                 Realm* realm) {
   Isolate* isolate = context->GetIsolate();
-  // Arguments must match the parameters specified in
-  // BuiltinLoader::LookupAndCompile().
-  std::vector<Local<Value>> arguments;
   // Detects parameters of the scripts based on module ids.
   // internal/bootstrap/realm: process, getLinkedBinding,
   //                           getInternalBinding, primordials
@@ -458,30 +455,33 @@ MaybeLocal<Value> BuiltinLoader::CompileAndCall(Local<Context> context,
              .ToLocal(&get_internal_binding)) {
       return MaybeLocal<Value>();
     }
-    arguments = {realm->process_object(),
-                 get_linked_binding,
-                 get_internal_binding,
-                 realm->primordials()};
+    Local<Value> arguments[] = {realm->process_object(),
+                                get_linked_binding,
+                                get_internal_binding,
+                                realm->primordials()};
+    return CompileAndCall(
+        context, id, arraysize(arguments), &arguments[0], realm);
   } else if (strncmp(id, "internal/main/", strlen("internal/main/")) == 0 ||
              strncmp(id,
                      "internal/bootstrap/",
                      strlen("internal/bootstrap/")) == 0) {
     // internal/main/*, internal/bootstrap/*: process, require,
     //                                        internalBinding, primordials
-    arguments = {realm->process_object(),
-                 realm->builtin_module_require(),
-                 realm->internal_binding_loader(),
-                 realm->primordials()};
-  } else {
-    // This should be invoked with the other CompileAndCall() methods, as
-    // we are unable to generate the arguments.
-    // Currently there are two cases:
-    // internal/per_context/*: the arguments are generated in
-    //                         InitializePrimordials()
-    // all the other cases: the arguments are generated in the JS-land loader.
-    UNREACHABLE();
+    Local<Value> arguments[] = {realm->process_object(),
+                                realm->builtin_module_require(),
+                                realm->internal_binding_loader(),
+                                realm->primordials()};
+    return CompileAndCall(
+        context, id, arraysize(arguments), &arguments[0], realm);
   }
-  return CompileAndCall(context, id, arguments.size(), arguments.data(), realm);
+
+  // This should be invoked with the other CompileAndCall() methods, as
+  // we are unable to generate the arguments.
+  // Currently there are two cases:
+  // internal/per_context/*: the arguments are generated in
+  //                         InitializePrimordials()
+  // all the other cases: the arguments are generated in the JS-land loader.
+  UNREACHABLE();
 }
 
 MaybeLocal<Value> BuiltinLoader::CompileAndCall(Local<Context> context,

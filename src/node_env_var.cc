@@ -21,6 +21,7 @@ using v8::Intercepted;
 using v8::Isolate;
 using v8::JustVoid;
 using v8::Local;
+using v8::LocalVector;
 using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Name;
@@ -273,7 +274,7 @@ void MapKVStore::Delete(Isolate* isolate, Local<String> key) {
 
 Local<Array> MapKVStore::Enumerate(Isolate* isolate) const {
   Mutex::ScopedLock lock(mutex_);
-  std::vector<Local<Value>> values;
+  LocalVector<Value> values(isolate);
   values.reserve(map_.size());
   for (const auto& pair : map_) {
     values.emplace_back(

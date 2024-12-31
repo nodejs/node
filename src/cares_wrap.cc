@@ -59,6 +59,7 @@ namespace cares_wrap {
 using v8::Array;
 using v8::Context;
 using v8::EscapableHandleScope;
+using v8::Exception;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
@@ -68,6 +69,7 @@ using v8::Isolate;
 using v8::Just;
 using v8::JustVoid;
 using v8::Local;
+using v8::LocalVector;
 using v8::Maybe;
 using v8::Nothing;
 using v8::Null;
@@ -159,7 +161,7 @@ void ares_sockstate_cb(void* data, ares_socket_t sock, int read, int write) {
 Local<Array> HostentToNames(Environment* env, struct hostent* host) {
   EscapableHandleScope scope(env->isolate());
 
-  std::vector<Local<Value>> names;
+  LocalVector<Value> names(env->isolate());
 
   for (uint32_t i = 0; host->h_aliases[i] != nullptr; ++i)
     names.emplace_back(OneByteString(env->isolate(), host->h_aliases[i]));
@@ -1577,7 +1579,7 @@ void ConvertIpv6StringToBuffer(const FunctionCallbackInfo<Value>& args) {
   unsigned char dst[16];  // IPv6 addresses are 128 bits (16 bytes)
 
   if (uv_inet_pton(AF_INET6, *ip, dst) != 0) {
-    isolate->ThrowException(v8::Exception::Error(
+    isolate->ThrowException(Exception::Error(
         String::NewFromUtf8(isolate, "Invalid IPv6 address").ToLocalChecked()));
     return;
   }
