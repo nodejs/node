@@ -83,7 +83,7 @@ bool UseSNIContext(
   STACK_OF(X509)* chain;
 
   int err = SSL_CTX_get0_chain_certs(ctx, &chain);
-  if (err == 1) err = SSL_use_certificate(ssl.get(), x509.get());
+  if (err == 1) err = SSL_use_certificate(ssl.get(), x509);
   if (err == 1) err = SSL_use_PrivateKey(ssl.get(), pkey);
   if (err == 1 && chain != nullptr) err = SSL_set1_chain(ssl.get(), chain);
   return err == 1;

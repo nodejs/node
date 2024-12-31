@@ -787,9 +787,8 @@ void SecureContext::SetCACert(const BIOPointer& bio) {
   while (X509Pointer x509 = X509Pointer(PEM_read_bio_X509_AUX(
              bio.get(), nullptr, NoPasswordCallback, nullptr))) {
     CHECK_EQ(1,
-             X509_STORE_add_cert(GetCertStoreOwnedByThisSecureContext(),
-                                 x509.get()));
-    CHECK_EQ(1, SSL_CTX_add_client_CA(ctx_.get(), x509.get()));
+             X509_STORE_add_cert(GetCertStoreOwnedByThisSecureContext(), x509));
+    CHECK_EQ(1, SSL_CTX_add_client_CA(ctx_.get(), x509));
   }
 }
 
