@@ -311,6 +311,87 @@ BignumPointer BignumPointer::clone() {
   return BignumPointer(BN_dup(bn_.get()));
 }
 
+int BignumPointer::isPrime(int nchecks,
+                           BignumPointer::PrimeCheckCallback innerCb) const {
+  BignumCtxPointer ctx(BN_CTX_new());
+  BignumGenCallbackPointer cb(nullptr);
+  if (innerCb != nullptr) {
+    cb = BignumGenCallbackPointer(BN_GENCB_new());
+    if (!cb) [[unlikely]]
+      return -1;
+    BN_GENCB_set(
+        cb.get(),
+        // TODO(@jasnell): This could be refactored to allow inlining.
+        // Not too important right now tho.
+        [](int a, int b, BN_GENCB* ctx) mutable -> int {
+          PrimeCheckCallback& ptr =
+              *static_cast<PrimeCheckCallback*>(BN_GENCB_get_arg(ctx));
+          return ptr(a, b) ? 1 : 0;
+        },
+        &innerCb);
+  }
+  return BN_is_prime_ex(get(), nchecks, ctx.get(), cb.get());
+}
+
+BignumPointer BignumPointer::NewPrime(const PrimeConfig& params,
+                                      PrimeCheckCallback cb) {
+  BignumPointer prime(BN_new());
+  if (!prime || !prime.generate(params, std::move(cb))) {
+    return {};
+  }
+  return prime;
+}
+
+bool BignumPointer::generate(const PrimeConfig& params,
+                             PrimeCheckCallback innerCb) const {
+  // BN_generate_prime_ex() calls RAND_bytes_ex() internally.
+  // Make sure the CSPRNG is properly seeded.
+  CSPRNG(nullptr, 0);
+  BignumGenCallbackPointer cb(nullptr);
+  if (innerCb != nullptr) {
+    cb = BignumGenCallbackPointer(BN_GENCB_new());
+    if (!cb) [[unlikely]]
+      return -1;
+    BN_GENCB_set(
+        cb.get(),
+        [](int a, int b, BN_GENCB* ctx) mutable -> int {
+          PrimeCheckCallback& ptr =
+              *static_cast<PrimeCheckCallback*>(BN_GENCB_get_arg(ctx));
+          return ptr(a, b) ? 1 : 0;
+        },
+        &innerCb);
+  }
+  if (BN_generate_prime_ex(get(),
+                           params.bits,
+                           params.safe ? 1 : 0,
+                           params.add.get(),
+                           params.rem.get(),
+                           cb.get()) == 0) {
+    return false;
+  }
+
+  return true;
+}
+
+BignumPointer BignumPointer::NewSub(const BignumPointer& a,
+                                    const BignumPointer& b) {
+  BignumPointer res = New();
+  if (!res) return {};
+  if (!BN_sub(res.get(), a.get(), b.get())) {
+    return {};
+  }
+  return res;
+}
+
+BignumPointer BignumPointer::NewLShift(size_t length) {
+  BignumPointer res = New();
+  if (!res) return {};
+  if (!BN_lshift(res.get(), One(), length)) {
+    return {};
+  }
+  return res;
+}
+
 // ============================================================================
 // Utility methods
 
@@ -1005,6 +1086,29 @@ X509View X509View::From(const SSLCtxPointer& ctx) {
   return X509View(SSL_CTX_get0_certificate(ctx.get()));
 }
 
+std::optional<std::string> X509View::getFingerprint(
+    const EVP_MD* method) const {
+  unsigned int md_size;
+  unsigned char md[EVP_MAX_MD_SIZE];
+  static constexpr char hex[] = "0123456789ABCDEF";
+
+  if (X509_digest(get(), method, md, &md_size)) {
+    if (md_size == 0) return std::nullopt;
+    std::string fingerprint((md_size * 3) - 1, 0);
+    for (unsigned int i = 0; i < md_size; i++) {
+      auto idx = 3 * i;
+      fingerprint[idx] = hex[(md[i] & 0xf0) >> 4];
+      fingerprint[idx + 1] = hex[(md[i] & 0x0f)];
+      if (i == md_size - 1) break;
+      fingerprint[idx + 2] = ':';
+    }
+
+    return fingerprint;
+  }
+
+  return std::nullopt;
+}
+
 X509Pointer X509View::clone() const {
   ClearErrorOnReturn clear_error_on_return;
   if (!cert_) return {};
@@ -1050,6 +1154,53 @@ X509Pointer X509Pointer::IssuerFrom(const SSL_CTX* ctx, const X509View& cert) {
 X509Pointer X509Pointer::PeerFrom(const SSLPointer& ssl) {
   return X509Pointer(SSL_get_peer_certificate(ssl.get()));
 }
+
+// When adding or removing errors below, please also update the list in the API
+// documentation. See the "OpenSSL Error Codes" section of doc/api/errors.md
+// Also *please* update the respective section in doc/api/tls.md as well
+std::string_view X509Pointer::ErrorCode(int32_t err) {  // NOLINT(runtime/int)
+#define CASE(CODE)                                                             \
+  case X509_V_ERR_##CODE:                                                      \
+    return #CODE;
+  switch (err) {
+    CASE(UNABLE_TO_GET_ISSUER_CERT)
+    CASE(UNABLE_TO_GET_CRL)
+    CASE(UNABLE_TO_DECRYPT_CERT_SIGNATURE)
+    CASE(UNABLE_TO_DECRYPT_CRL_SIGNATURE)
+    CASE(UNABLE_TO_DECODE_ISSUER_PUBLIC_KEY)
+    CASE(CERT_SIGNATURE_FAILURE)
+    CASE(CRL_SIGNATURE_FAILURE)
+    CASE(CERT_NOT_YET_VALID)
+    CASE(CERT_HAS_EXPIRED)
+    CASE(CRL_NOT_YET_VALID)
+    CASE(CRL_HAS_EXPIRED)
+    CASE(ERROR_IN_CERT_NOT_BEFORE_FIELD)
+    CASE(ERROR_IN_CERT_NOT_AFTER_FIELD)
+    CASE(ERROR_IN_CRL_LAST_UPDATE_FIELD)
+    CASE(ERROR_IN_CRL_NEXT_UPDATE_FIELD)
+    CASE(OUT_OF_MEM)
+    CASE(DEPTH_ZERO_SELF_SIGNED_CERT)
+    CASE(SELF_SIGNED_CERT_IN_CHAIN)
+    CASE(UNABLE_TO_GET_ISSUER_CERT_LOCALLY)
+    CASE(UNABLE_TO_VERIFY_LEAF_SIGNATURE)
+    CASE(CERT_CHAIN_TOO_LONG)
+    CASE(CERT_REVOKED)
+    CASE(INVALID_CA)
+    CASE(PATH_LENGTH_EXCEEDED)
+    CASE(INVALID_PURPOSE)
+    CASE(CERT_UNTRUSTED)
+    CASE(CERT_REJECTED)
+    CASE(HOSTNAME_MISMATCH)
+  }
+#undef CASE
+  return "UNSPECIFIED";
+}
+
+std::optional<std::string_view> X509Pointer::ErrorReason(int32_t err) {
+  if (err == X509_V_OK) return std::nullopt;
+  return X509_verify_cert_error_string(err);
+}
+
 // ============================================================================
 // BIOPointer
 
@@ -1103,6 +1254,12 @@ BIOPointer BIOPointer::NewFile(std::string_view filename,
 
 BIOPointer BIOPointer::NewFp(FILE* fd, int close_flag) {
   return BIOPointer(BIO_new_fp(fd, close_flag));
+}
+
+BIOPointer BIOPointer::New(const BIGNUM* bn) {
+  auto res = NewMem();
+  if (!res || !BN_print(res.get(), bn)) return {};
+  return res;
 }
 
 int BIOPointer::Write(BIOPointer* bio, std::string_view message) {
@@ -2042,6 +2199,418 @@ Result<BIOPointer, bool> EVPKeyPointer::writePublicKey(
                                     mark_pop_error_on_return.peekError());
   }
   return bio;
+}
+
+// ============================================================================
+
+SSLPointer::SSLPointer(SSL* ssl) : ssl_(ssl) {}
+
+SSLPointer::SSLPointer(SSLPointer&& other) noexcept : ssl_(other.release()) {}
+
+SSLPointer& SSLPointer::operator=(SSLPointer&& other) noexcept {
+  if (this == &other) return *this;
+  this->~SSLPointer();
+  return *new (this) SSLPointer(std::move(other));
+}
+
+SSLPointer::~SSLPointer() {
+  reset();
+}
+
+void SSLPointer::reset(SSL* ssl) {
+  ssl_.reset(ssl);
+}
+
+SSL* SSLPointer::release() {
+  return ssl_.release();
+}
+
+SSLPointer SSLPointer::New(const SSLCtxPointer& ctx) {
+  if (!ctx) return {};
+  return SSLPointer(SSL_new(ctx.get()));
+}
+
+void SSLPointer::getCiphers(
+    std::function<void(const std::string_view)> cb) const {
+  if (!ssl_) return;
+  STACK_OF(SSL_CIPHER)* ciphers = SSL_get_ciphers(get());
+
+  // TLSv1.3 ciphers aren't listed by EVP. There are only 5, we could just
+  // document them, but since there are only 5, easier to just add them manually
+  // and not have to explain their absence in the API docs. They are lower-cased
+  // because the docs say they will be.
+  static constexpr const char* TLS13_CIPHERS[] = {
+      "tls_aes_256_gcm_sha384",
+      "tls_chacha20_poly1305_sha256",
+      "tls_aes_128_gcm_sha256",
+      "tls_aes_128_ccm_8_sha256",
+      "tls_aes_128_ccm_sha256"};
+
+  const int n = sk_SSL_CIPHER_num(ciphers);
+
+  for (int i = 0; i < n; ++i) {
+    const SSL_CIPHER* cipher = sk_SSL_CIPHER_value(ciphers, i);
+    cb(SSL_CIPHER_get_name(cipher));
+  }
+
+  for (unsigned i = 0; i < 5; ++i) {
+    cb(TLS13_CIPHERS[i]);
+  }
+}
+
+bool SSLPointer::setSession(const SSLSessionPointer& session) {
+  if (!session || !ssl_) return false;
+  return SSL_set_session(get(), session.get()) == 1;
+}
+
+bool SSLPointer::setSniContext(const SSLCtxPointer& ctx) const {
+  if (!ctx) return false;
+  auto x509 = ncrypto::X509View::From(ctx);
+  if (!x509) return false;
+  EVP_PKEY* pkey = SSL_CTX_get0_privatekey(ctx.get());
+  STACK_OF(X509) * chain;
+  int err = SSL_CTX_get0_chain_certs(ctx.get(), &chain);
+  if (err == 1) err = SSL_use_certificate(get(), x509);
+  if (err == 1) err = SSL_use_PrivateKey(get(), pkey);
+  if (err == 1 && chain != nullptr) err = SSL_set1_chain(get(), chain);
+  return err == 1;
+}
+
+std::optional<uint32_t> SSLPointer::verifyPeerCertificate() const {
+  if (!ssl_) return std::nullopt;
+  if (X509Pointer::PeerFrom(*this)) {
+    return SSL_get_verify_result(get());
+  }
+
+  const SSL_CIPHER* curr_cipher = SSL_get_current_cipher(get());
+  const SSL_SESSION* sess = SSL_get_session(get());
+  // Allow no-cert for PSK authentication in TLS1.2 and lower.
+  // In TLS1.3 check that session was reused because TLS1.3 PSK
+  // looks like session resumption.
+  if (SSL_CIPHER_get_auth_nid(curr_cipher) == NID_auth_psk ||
+      (SSL_SESSION_get_protocol_version(sess) == TLS1_3_VERSION &&
+       SSL_session_reused(get()))) {
+    return X509_V_OK;
+  }
+
+  return std::nullopt;
+}
+
+const std::string_view SSLPointer::getClientHelloAlpn() const {
+  if (ssl_ == nullptr) return {};
+  const unsigned char* buf;
+  size_t len;
+  size_t rem;
+
+  if (!SSL_client_hello_get0_ext(
+          get(),
+          TLSEXT_TYPE_application_layer_protocol_negotiation,
+          &buf,
+          &rem) ||
+      rem < 2) {
+    return {};
+  }
+
+  len = (buf[0] << 8) | buf[1];
+  if (len + 2 != rem) return {};
+  return reinterpret_cast<const char*>(buf + 3);
+}
+
+const std::string_view SSLPointer::getClientHelloServerName() const {
+  if (ssl_ == nullptr) return {};
+  const unsigned char* buf;
+  size_t len;
+  size_t rem;
+
+  if (!SSL_client_hello_get0_ext(get(), TLSEXT_TYPE_server_name, &buf, &rem) ||
+      rem <= 2) {
+    return {};
+  }
+
+  len = (*buf << 8) | *(buf + 1);
+  if (len + 2 != rem) return {};
+  rem = len;
+
+  if (rem == 0 || *(buf + 2) != TLSEXT_NAMETYPE_host_name) return {};
+  rem--;
+  if (rem <= 2) return {};
+  len = (*(buf + 3) << 8) | *(buf + 4);
+  if (len + 2 > rem) return {};
+  return reinterpret_cast<const char*>(buf + 5);
+}
+
+std::optional<const std::string_view> SSLPointer::GetServerName(
+    const SSL* ssl) {
+  if (ssl == nullptr) return std::nullopt;
+  auto res = SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name);
+  if (res == nullptr) return std::nullopt;
+  return res;
+}
+
+std::optional<const std::string_view> SSLPointer::getServerName() const {
+  if (!ssl_) return std::nullopt;
+  return GetServerName(get());
+}
+
+X509View SSLPointer::getCertificate() const {
+  if (!ssl_) return {};
+  ClearErrorOnReturn clear_error_on_return;
+  return ncrypto::X509View(SSL_get_certificate(get()));
+}
+
+const SSL_CIPHER* SSLPointer::getCipher() const {
+  if (!ssl_) return nullptr;
+  return SSL_get_current_cipher(get());
+}
+
+bool SSLPointer::isServer() const {
+  return SSL_is_server(get()) != 0;
+}
+
+EVPKeyPointer SSLPointer::getPeerTempKey() const {
+  if (!ssl_) return {};
+  EVP_PKEY* raw_key = nullptr;
+  if (!SSL_get_peer_tmp_key(get(), &raw_key)) return {};
+  return EVPKeyPointer(raw_key);
+}
+
+SSLCtxPointer::SSLCtxPointer(SSL_CTX* ctx) : ctx_(ctx) {}
+
+SSLCtxPointer::SSLCtxPointer(SSLCtxPointer&& other) noexcept
+    : ctx_(other.release()) {}
+
+SSLCtxPointer& SSLCtxPointer::operator=(SSLCtxPointer&& other) noexcept {
+  if (this == &other) return *this;
+  this->~SSLCtxPointer();
+  return *new (this) SSLCtxPointer(std::move(other));
+}
+
+SSLCtxPointer::~SSLCtxPointer() {
+  reset();
+}
+
+void SSLCtxPointer::reset(SSL_CTX* ctx) {
+  ctx_.reset(ctx);
+}
+
+void SSLCtxPointer::reset(const SSL_METHOD* method) {
+  ctx_.reset(SSL_CTX_new(method));
+}
+
+SSL_CTX* SSLCtxPointer::release() {
+  return ctx_.release();
+}
+
+SSLCtxPointer SSLCtxPointer::NewServer() {
+  return SSLCtxPointer(SSL_CTX_new(TLS_server_method()));
+}
+
+SSLCtxPointer SSLCtxPointer::NewClient() {
+  return SSLCtxPointer(SSL_CTX_new(TLS_client_method()));
+}
+
+SSLCtxPointer SSLCtxPointer::New(const SSL_METHOD* method) {
+  return SSLCtxPointer(SSL_CTX_new(method));
+}
+
+bool SSLCtxPointer::setGroups(const char* groups) {
+  return SSL_CTX_set1_groups_list(get(), groups) == 1;
+}
+
+// ============================================================================
+
+const Cipher Cipher::FromName(const char* name) {
+  return Cipher(EVP_get_cipherbyname(name));
+}
+
+const Cipher Cipher::FromNid(int nid) {
+  return Cipher(EVP_get_cipherbynid(nid));
+}
+
+const Cipher Cipher::FromCtx(const CipherCtxPointer& ctx) {
+  return Cipher(EVP_CIPHER_CTX_cipher(ctx.get()));
+}
+
+int Cipher::getMode() const {
+  if (!cipher_) return 0;
+  return EVP_CIPHER_mode(cipher_);
+}
+
+int Cipher::getIvLength() const {
+  if (!cipher_) return 0;
+  return EVP_CIPHER_iv_length(cipher_);
+}
+
+int Cipher::getKeyLength() const {
+  if (!cipher_) return 0;
+  return EVP_CIPHER_key_length(cipher_);
+}
+
+int Cipher::getBlockSize() const {
+  if (!cipher_) return 0;
+  return EVP_CIPHER_block_size(cipher_);
+}
+
+int Cipher::getNid() const {
+  if (!cipher_) return 0;
+  return EVP_CIPHER_nid(cipher_);
+}
+
+std::string_view Cipher::getModeLabel() const {
+  if (!cipher_) return {};
+  switch (getMode()) {
+    case EVP_CIPH_CCM_MODE:
+      return "ccm";
+    case EVP_CIPH_CFB_MODE:
+      return "cfb";
+    case EVP_CIPH_CBC_MODE:
+      return "cbc";
+    case EVP_CIPH_CTR_MODE:
+      return "ctr";
+    case EVP_CIPH_ECB_MODE:
+      return "ecb";
+    case EVP_CIPH_GCM_MODE:
+      return "gcm";
+    case EVP_CIPH_OCB_MODE:
+      return "ocb";
+    case EVP_CIPH_OFB_MODE:
+      return "ofb";
+    case EVP_CIPH_WRAP_MODE:
+      return "wrap";
+    case EVP_CIPH_XTS_MODE:
+      return "xts";
+    case EVP_CIPH_STREAM_CIPHER:
+      return "stream";
+  }
+  return "{unknown}";
+}
+
+std::string_view Cipher::getName() const {
+  if (!cipher_) return {};
+  // OBJ_nid2sn(EVP_CIPHER_nid(cipher)) is used here instead of
+  // EVP_CIPHER_name(cipher) for compatibility with BoringSSL.
+  return OBJ_nid2sn(getNid());
+}
+
+bool Cipher::isSupportedAuthenticatedMode() const {
+  switch (getMode()) {
+    case EVP_CIPH_CCM_MODE:
+    case EVP_CIPH_GCM_MODE:
+#ifndef OPENSSL_NO_OCB
+    case EVP_CIPH_OCB_MODE:
+#endif
+      return true;
+    case EVP_CIPH_STREAM_CIPHER:
+      return getNid() == NID_chacha20_poly1305;
+    default:
+      return false;
+  }
+}
+
+// ============================================================================
+
+CipherCtxPointer CipherCtxPointer::New() {
+  auto ret = CipherCtxPointer(EVP_CIPHER_CTX_new());
+  if (!ret) return {};
+  EVP_CIPHER_CTX_init(ret.get());
+  return ret;
+}
+
+CipherCtxPointer::CipherCtxPointer(EVP_CIPHER_CTX* ctx) : ctx_(ctx) {}
+
+CipherCtxPointer::CipherCtxPointer(CipherCtxPointer&& other) noexcept
+    : ctx_(other.release()) {}
+
+CipherCtxPointer& CipherCtxPointer::operator=(
+    CipherCtxPointer&& other) noexcept {
+  if (this == &other) return *this;
+  this->~CipherCtxPointer();
+  return *new (this) CipherCtxPointer(std::move(other));
+}
+
+CipherCtxPointer::~CipherCtxPointer() {
+  reset();
+}
+
+void CipherCtxPointer::reset(EVP_CIPHER_CTX* ctx) {
+  ctx_.reset(ctx);
+}
+
+EVP_CIPHER_CTX* CipherCtxPointer::release() {
+  return ctx_.release();
+}
+
+void CipherCtxPointer::setFlags(int flags) {
+  if (!ctx_) return;
+  EVP_CIPHER_CTX_set_flags(ctx_.get(), flags);
+}
+
+bool CipherCtxPointer::setKeyLength(size_t length) {
+  if (!ctx_) return false;
+  return EVP_CIPHER_CTX_set_key_length(ctx_.get(), length);
+}
+
+bool CipherCtxPointer::setIvLength(size_t length) {
+  if (!ctx_) return false;
+  return EVP_CIPHER_CTX_ctrl(
+      ctx_.get(), EVP_CTRL_AEAD_SET_IVLEN, length, nullptr);
+}
+
+bool CipherCtxPointer::setAeadTag(const Buffer<const char>& tag) {
+  if (!ctx_) return false;
+  return EVP_CIPHER_CTX_ctrl(
+      ctx_.get(), EVP_CTRL_AEAD_SET_TAG, tag.len, const_cast<char*>(tag.data));
+}
+
+bool CipherCtxPointer::setAeadTagLength(size_t length) {
+  if (!ctx_) return false;
+  return EVP_CIPHER_CTX_ctrl(
+      ctx_.get(), EVP_CTRL_AEAD_SET_TAG, length, nullptr);
+}
+
+bool CipherCtxPointer::setPadding(bool padding) {
+  if (!ctx_) return false;
+  return EVP_CIPHER_CTX_set_padding(ctx_.get(), padding);
+}
+
+int CipherCtxPointer::getBlockSize() const {
+  if (!ctx_) return 0;
+  return EVP_CIPHER_CTX_block_size(ctx_.get());
+}
+
+int CipherCtxPointer::getMode() const {
+  if (!ctx_) return 0;
+  return EVP_CIPHER_CTX_mode(ctx_.get());
+}
+
+int CipherCtxPointer::getNid() const {
+  if (!ctx_) return 0;
+  return EVP_CIPHER_CTX_nid(ctx_.get());
+}
+
+bool CipherCtxPointer::init(const Cipher& cipher,
+                            bool encrypt,
+                            const unsigned char* key,
+                            const unsigned char* iv) {
+  if (!ctx_) return false;
+  return EVP_CipherInit_ex(
+             ctx_.get(), cipher, nullptr, key, iv, encrypt ? 1 : 0) == 1;
+}
+
+bool CipherCtxPointer::update(const Buffer<const unsigned char>& in,
+                              unsigned char* out,
+                              int* out_len,
+                              bool finalize) {
+  if (!ctx_) return false;
+  if (!finalize) {
+    return EVP_CipherUpdate(ctx_.get(), out, out_len, in.data, in.len) == 1;
+  }
+  return EVP_CipherFinal_ex(ctx_.get(), out, out_len) == 1;
+}
+
+bool CipherCtxPointer::getAeadTag(size_t len, unsigned char* out) {
+  if (!ctx_) return false;
+  return EVP_CIPHER_CTX_ctrl(ctx_.get(), EVP_CTRL_AEAD_GET_TAG, len, out);
 }
 
 }  // namespace ncrypto
