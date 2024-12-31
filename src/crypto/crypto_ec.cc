@@ -28,6 +28,7 @@ using v8::Int32;
 using v8::Isolate;
 using v8::JustVoid;
 using v8::Local;
+using v8::LocalVector;
 using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Nothing;
@@ -95,7 +96,7 @@ void ECDH::GetCurves(const FunctionCallbackInfo<Value>& args) {
   std::vector<EC_builtin_curve> curves(num_curves);
   CHECK_EQ(EC_get_builtin_curves(curves.data(), num_curves), num_curves);
 
-  std::vector<Local<Value>> arr(num_curves);
+  LocalVector<Value> arr(env->isolate(), num_curves);
   std::transform(curves.begin(), curves.end(), arr.begin(), [env](auto& curve) {
     return OneByteString(env->isolate(), OBJ_nid2sn(curve.nid));
   });

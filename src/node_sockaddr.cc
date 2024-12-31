@@ -20,6 +20,7 @@ using v8::FunctionTemplate;
 using v8::Int32;
 using v8::Isolate;
 using v8::Local;
+using v8::LocalVector;
 using v8::MaybeLocal;
 using v8::Object;
 using v8::Uint32;
@@ -498,15 +499,14 @@ std::string SocketAddressBlockList::SocketAddressMaskRule::ToString() {
 
 MaybeLocal<Array> SocketAddressBlockList::ListRules(Environment* env) {
   Mutex::ScopedLock lock(mutex_);
-  std::vector<Local<Value>> rules;
+  LocalVector<Value> rules(env->isolate());
   if (!ListRules(env, &rules))
     return MaybeLocal<Array>();
   return Array::New(env->isolate(), rules.data(), rules.size());
 }
 
-bool SocketAddressBlockList::ListRules(
-    Environment* env,
-    std::vector<v8::Local<v8::Value>>* rules) {
+bool SocketAddressBlockList::ListRules(Environment* env,
+                                       LocalVector<Value>* rules) {
   if (parent_ && !parent_->ListRules(env, rules))
     return false;
   for (const auto& rule : rules_) {
