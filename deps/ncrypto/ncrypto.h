@@ -551,6 +551,11 @@ class DHPointer final {
   DeleteFnPtr<DH, DH_free> dh_;
 };
 
+struct StackOfX509Deleter {
+  void operator()(STACK_OF(X509) * p) const { sk_X509_pop_free(p, X509_free); }
+};
+using StackOfX509 = std::unique_ptr<STACK_OF(X509), StackOfX509Deleter>;
+
 class X509Pointer;
 
 class X509View final {
