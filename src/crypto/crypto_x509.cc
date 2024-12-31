@@ -60,34 +60,17 @@ void ManagedX509::MemoryInfo(MemoryTracker* tracker) const {
 }
 
 namespace {
-void AddFingerprintDigest(const unsigned char* md,
-                          unsigned int md_size,
-                          char fingerprint[3 * EVP_MAX_MD_SIZE]) {
-  unsigned int i;
-  static constexpr char hex[] = "0123456789ABCDEF";
-
-  for (i = 0; i < md_size; i++) {
-    fingerprint[3 * i] = hex[(md[i] & 0xf0) >> 4];
-    fingerprint[(3 * i) + 1] = hex[(md[i] & 0x0f)];
-    fingerprint[(3 * i) + 2] = ':';
-  }
-
-  DCHECK_GT(md_size, 0);
-  fingerprint[(3 * (md_size - 1)) + 2] = '\0';
-}
-
 MaybeLocal<Value> GetFingerprintDigest(Environment* env,
                                        const EVP_MD* method,
                                        const ncrypto::X509View& cert) {
-  unsigned char md[EVP_MAX_MD_SIZE];
-  unsigned int md_size;
-  char fingerprint[EVP_MAX_MD_SIZE * 3];
-
-  if (X509_digest(cert.get(), method, md, &md_size)) {
-    AddFingerprintDigest(md, md_size, fingerprint);
-    return OneByteString(env->isolate(), fingerprint);
+  auto fingerprint = cert.getFingerprint(method);
+  // Returning an empty string indicates that the digest failed for
+  // some reason.
+  if (!fingerprint.has_value()) [[unlikely]] {
+    return Undefined(env->isolate());
   }
-  return Undefined(env->isolate());
+  auto& fp = fingerprint.value();
+  return OneByteString(env->isolate(), fp.data(), fp.length());
 }
 
 template <const EVP_MD* (*algo)()>
@@ -695,9 +678,8 @@ MaybeLocal<Object> GetPubKey(Environment* env, OSSL3_CONST RSA* rsa) {
 }
 
 MaybeLocal<Value> GetModulusString(Environment* env, const BIGNUM* n) {
-  auto bio = BIOPointer::NewMem();
+  auto bio = BIOPointer::New(n);
   if (!bio) return {};
-  BN_print(bio.get(), n);
   return ToV8Value(env->context(), bio);
 }
 
