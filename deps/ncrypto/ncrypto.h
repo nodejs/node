@@ -589,6 +589,8 @@ class X509View final {
   bool checkPrivateKey(const EVPKeyPointer& pkey) const;
   bool checkPublicKey(const EVPKeyPointer& pkey) const;
 
+  std::string getFingerprint(const EVP_MD* method) const;
+
   X509Pointer clone() const;
 
   enum class CheckMatch {

@@ -1005,6 +1005,27 @@ X509View X509View::From(const SSLCtxPointer& ctx) {
   return X509View(SSL_CTX_get0_certificate(ctx.get()));
 }
 
+std::string X509View::getFingerprint(const EVP_MD* method) const {
+  unsigned int md_size;
+  unsigned char md[EVP_MAX_MD_SIZE];
+  static constexpr char hex[] = "0123456789ABCDEF";
+
+  if (X509_digest(get(), method, md, &md_size)) {
+    std::string fingerprint((md_size * 3) - 1, 0);
+    for (unsigned int i = 0; i < md_size; i++) {
+      auto idx = 3 * i;
+      fingerprint[idx] = hex[(md[i] & 0xf0) >> 4];
+      fingerprint[idx + 1] = hex[(md[i] & 0x0f)];
+      if (i == md_size - 1) break;
+      fingerprint[idx + 2] = ':';
+    }
+
+    return fingerprint;
+  }
+
+  return std::string();
+}
+
 X509Pointer X509View::clone() const {
   ClearErrorOnReturn clear_error_on_return;
   if (!cert_) return {};
