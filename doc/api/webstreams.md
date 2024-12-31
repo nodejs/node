@@ -451,7 +451,7 @@ async function* asyncIterableGenerator() {
 
 const stream = ReadableStream.from(asyncIterableGenerator());
 
-stream.pipeTo(createWritableStreamSomehow());
+await stream.pipeTo(createWritableStreamSomehow());
 ```
 
 ```cjs
@@ -466,7 +466,9 @@ async function* asyncIterableGenerator() {
 
 const stream = ReadableStream.from(asyncIterableGenerator());
 
-stream.pipeTo(createWritableStreamSomehow());
+(async () => {
+  await stream.pipeTo(createWritableStreamSomehow());
+})();
 ```
 
 ### Class: `ReadableStreamDefaultReader`
