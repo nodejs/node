@@ -21,6 +21,7 @@
 
 namespace node {
 
+using ncrypto::StackOfX509;
 using v8::Array;
 using v8::ArrayBufferView;
 using v8::Boolean;
