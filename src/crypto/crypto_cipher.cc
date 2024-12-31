@@ -20,6 +20,7 @@ using v8::HandleScope;
 using v8::Int32;
 using v8::Isolate;
 using v8::Local;
+using v8::LocalVector;
 using v8::Object;
 using v8::Uint32;
 using v8::Value;
@@ -222,7 +223,7 @@ void CipherBase::GetSSLCiphers(const FunctionCallbackInfo<Value>& args) {
   };
 
   const int n = sk_SSL_CIPHER_num(ciphers);
-  std::vector<Local<Value>> arr(n + arraysize(TLS13_CIPHERS));
+  LocalVector<Value> arr(env->isolate(), n + arraysize(TLS13_CIPHERS));
 
   for (int i = 0; i < n; ++i) {
     const SSL_CIPHER* cipher = sk_SSL_CIPHER_value(ciphers, i);

@@ -36,6 +36,7 @@ using v8::HandleScope;
 using v8::Isolate;
 using v8::JustVoid;
 using v8::Local;
+using v8::LocalVector;
 using v8::Maybe;
 using v8::MaybeLocal;
 using v8::NewStringType;
@@ -236,7 +237,7 @@ MaybeLocal<Value> cryptoErrorListToException(
   if (errors.size() > 1) {
     CHECK(exception->IsObject());
     Local<Object> exception_obj = exception.As<Object>();
-    std::vector<Local<Value>> stack(errors.size() - 1);
+    LocalVector<Value> stack(env->isolate(), errors.size() - 1);
 
     // Iterate over all but the last error in the list.
     auto current = errors.begin();
@@ -252,7 +253,7 @@ MaybeLocal<Value> cryptoErrorListToException(
     }
 
     Local<v8::Array> stackArray =
-        v8::Array::New(env->isolate(), &stack[0], stack.size());
+        v8::Array::New(env->isolate(), stack.data(), stack.size());
 
     if (!exception_obj
              ->Set(env->context(), env->openssl_error_stack(), stackArray)
