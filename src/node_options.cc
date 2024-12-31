@@ -23,6 +23,7 @@ using v8::FunctionCallbackInfo;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
+using v8::LocalVector;
 using v8::Map;
 using v8::Name;
 using v8::Null;
@@ -1312,8 +1313,8 @@ void GetCLIOptionsValues(const FunctionCallbackInfo<Value>& args) {
   Mutex::ScopedLock lock(per_process::cli_options_mutex);
   IterateCLIOptionsScope s(env);
 
-  std::vector<Local<Name>> option_names;
-  std::vector<Local<Value>> option_values;
+  LocalVector<Name> option_names(isolate);
+  LocalVector<Value> option_values(isolate);
   option_names.reserve(_ppop_instance.options_.size() * 2);
   option_values.reserve(_ppop_instance.options_.size() * 2);
 
