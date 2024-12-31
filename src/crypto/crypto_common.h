@@ -22,11 +22,6 @@
 namespace node {
 namespace crypto {
 
-v8::MaybeLocal<v8::Value> GetSSLOCSPResponse(
-    Environment* env,
-    SSL* ssl,
-    v8::Local<v8::Value> default_value);
-
 bool SetTLSSession(
     const SSLPointer& ssl,
     const SSLSessionPointer& session);

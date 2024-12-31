@@ -43,25 +43,6 @@ using v8::Value;
 
 namespace crypto {
 
-MaybeLocal<Value> GetSSLOCSPResponse(
-    Environment* env,
-    SSL* ssl,
-    Local<Value> default_value) {
-  const unsigned char* resp;
-  int len = SSL_get_tlsext_status_ocsp_resp(ssl, &resp);
-  if (resp == nullptr)
-    return default_value;
-
-  Local<Value> ret;
-  MaybeLocal<Object> maybe_buffer =
-      Buffer::Copy(env, reinterpret_cast<const char*>(resp), len);
-
-  if (!maybe_buffer.ToLocal(&ret))
-    return MaybeLocal<Value>();
-
-  return ret;
-}
-
 bool SetTLSSession(
     const SSLPointer& ssl,
     const SSLSessionPointer& session) {
