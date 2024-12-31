@@ -2753,7 +2753,7 @@ napi_status NAPI_CDECL napi_create_reference(napi_env env,
   CHECK_ARG(env, result);
 
   v8::Local<v8::Value> v8_value = v8impl::V8LocalValueFromJsValue(value);
-  if (env->module_api_version != NAPI_VERSION_EXPERIMENTAL) {
+  if (env->module_api_version < 10) {
     if (!(v8_value->IsObject() || v8_value->IsFunction() ||
           v8_value->IsSymbol())) {
       return napi_set_last_error(env, napi_invalid_arg);
