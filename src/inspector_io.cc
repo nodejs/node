@@ -286,7 +286,7 @@ void InspectorIo::ThreadMain() {
   int thread_name_error = uv_thread_setname("InspectorIo");
   if (!thread_name_error) [[unlikely]] {
     per_process::Debug(node::DebugCategory::INSPECTOR_SERVER,
-        "Failed to set thread name for Inspector\n");
+                       "Failed to set thread name for Inspector\n");
   }
   uv_loop_t loop;
   loop.data = nullptr;
