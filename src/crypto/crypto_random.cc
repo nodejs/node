@@ -146,21 +146,12 @@ Maybe<void> RandomPrimeTraits::AdditionalConfig(
 bool RandomPrimeTraits::DeriveBits(Environment* env,
                                    const RandomPrimeConfig& params,
                                    ByteSource* unused) {
-  // BN_generate_prime_ex() calls RAND_bytes_ex() internally.
-  // Make sure the CSPRNG is properly seeded.
-  CHECK(ncrypto::CSPRNG(nullptr, 0));
-
-  if (BN_generate_prime_ex(
-          params.prime.get(),
-          params.bits,
-          params.safe ? 1 : 0,
-          params.add.get(),
-          params.rem.get(),
-          nullptr) == 0) {
-    return false;
-  }
-
-  return true;
+  return params.prime.generate(BignumPointer::PrimeConfig {
+    .bits = params.bits,
+    .safe = params.safe,
+    .add = params.add,
+    .rem = params.rem,
+  });
 }
 
 void CheckPrimeConfig::MemoryInfo(MemoryTracker* tracker) const {
@@ -187,14 +178,7 @@ bool CheckPrimeTraits::DeriveBits(
     Environment* env,
     const CheckPrimeConfig& params,
     ByteSource* out) {
-
-  BignumCtxPointer ctx(BN_CTX_new());
-
-  int ret = BN_is_prime_ex(
-            params.candidate.get(),
-            params.checks,
-            ctx.get(),
-            nullptr);
+  int ret = params.candidate.isPrime(params.checks);
   if (ret < 0) return false;
   ByteSource::Builder buf(1);
   buf.data<char>()[0] = ret;

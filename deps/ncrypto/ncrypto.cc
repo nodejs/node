@@ -311,6 +311,59 @@ BignumPointer BignumPointer::clone() {
   return BignumPointer(BN_dup(bn_.get()));
 }
 
+int BignumPointer::isPrime(int nchecks,
+    BignumPointer::PrimeCheckCallback innerCb) const {
+  BignumCtxPointer ctx(BN_CTX_new());
+  BignumGenCallbackPointer cb(nullptr);
+  if (innerCb != nullptr) {
+    cb = BignumGenCallbackPointer(BN_GENCB_new());
+    if (!cb) [[unlikely]] return -1;
+    BN_GENCB_set(cb.get(), [](int a, int b, BN_GENCB* ctx) mutable -> int {
+      PrimeCheckCallback& ptr =
+          *static_cast<PrimeCheckCallback*>(BN_GENCB_get_arg(ctx));
+      return ptr(a, b) ? 1 : 0;
+    }, &innerCb);
+  }
+  return BN_is_prime_ex(get(), nchecks, ctx.get(), cb.get());
+}
+
+BignumPointer BignumPointer::NewPrime(const PrimeConfig& params,
+    PrimeCheckCallback cb) {
+  BignumPointer prime(BN_new());
+  if (!prime || !prime.generate(params, std::move(cb))) {
+    return {};
+  }
+  return prime;
+}
+
+bool BignumPointer::generate(const PrimeConfig& params,
+    PrimeCheckCallback innerCb) const {
+  // BN_generate_prime_ex() calls RAND_bytes_ex() internally.
+  // Make sure the CSPRNG is properly seeded.
+  CSPRNG(nullptr, 0);
+  BignumGenCallbackPointer cb(nullptr);
+  if (innerCb != nullptr) {
+    cb = BignumGenCallbackPointer(BN_GENCB_new());
+    if (!cb) [[unlikely]] return -1;
+    BN_GENCB_set(cb.get(), [](int a, int b, BN_GENCB* ctx) mutable -> int {
+      PrimeCheckCallback& ptr =
+          *static_cast<PrimeCheckCallback*>(BN_GENCB_get_arg(ctx));
+      return ptr(a, b) ? 1 : 0;
+    }, &innerCb);
+  }
+  if (BN_generate_prime_ex(
+          get(),
+          params.bits,
+          params.safe ? 1 : 0,
+          params.add.get(),
+          params.rem.get(),
+          cb.get()) == 0) {
+    return false;
+  }
+
+  return true;
+}
+
 // ============================================================================
 // Utility methods
 
