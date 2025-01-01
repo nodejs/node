@@ -1750,6 +1750,26 @@ describe('tests', async () => {
 });
 ```
 
+## `assert`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+An object whose methods are used to configure available assertions on the
+`TestContext` objects in the current process. It is possible to apply the same
+configuration to all files by placing common configuration code in a module
+preloaded with `--require` or `--import`.
+
+### `assert.register(name, fn)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Defines a new assertion function with the provided name and function. If an
+assertion already exists with the same name, it is overwritten.
+
 ## `snapshot`
 
 <!-- YAML
