@@ -513,7 +513,7 @@ not ok 47 - callback async throw
     *
     *
   ...
-# Subtest: callback async throw after dones
+# Subtest: callback async throw after done
 ok 48 - callback async throw after done
   ---
   duration_ms: *
@@ -526,13 +526,6 @@ ok 48 - callback async throw after done
       duration_ms: *
       type: 'test'
       ...
-    # Subtest: running subtest 2
-    ok 2 - running subtest 2
-      ---
-      duration_ms: *
-      type: 'test'
-      ...
-    # 'only' and 'runOnly' require the --test-only command-line option.
     # Subtest: running subtest 3
     ok 2 - running subtest 3
       ---

@@ -181,37 +181,44 @@ ok 8 - describe only = true, with nested subtests
     ok 1 - running subtest - 1
       ---
       duration_ms: *
+      type: 'test'
       ...
     # Subtest: this subtest is run  - 3
         # Subtest: this subtest is run - 4
         ok 1 - this subtest is run - 4
           ---
           duration_ms: *
+          type: 'test'
           ...
         # Subtest: this subtest is run - 5
         ok 2 - this subtest is run - 5
           ---
           duration_ms: *
+          type: 'test'
           ...
         1..2
     ok 2 - this subtest is run  - 3
       ---
       duration_ms: *
+      type: 'test'
       ...
     # Subtest: this subtest is now run - 6
     ok 3 - this subtest is now run - 6
       ---
       duration_ms: *
+      type: 'test'
       ...
     # Subtest: skipped subtest - 8
     ok 4 - skipped subtest - 8 # SKIP
       ---
       duration_ms: *
+      type: 'test'
       ...
     1..4
 ok 9 - nested tests with run only
   ---
   duration_ms: *
+  type: 'test'
   ...
 1..9
 # tests 28
