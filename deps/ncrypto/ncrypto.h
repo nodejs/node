@@ -13,6 +13,7 @@
 #include <openssl/ssl.h>
 #include <openssl/x509.h>
 #include <cstddef>
+#include <functional>
 #include <list>
 #include <memory>
 #include <optional>
@@ -195,6 +196,7 @@ template <typename T, void (*function)(T*)>
 using DeleteFnPtr = typename FunctionDeleter<T, function>::Pointer;
 
 using BignumCtxPointer = DeleteFnPtr<BN_CTX, BN_CTX_free>;
+using BignumGenCallbackPointer = DeleteFnPtr<BN_GENCB, BN_GENCB_free>;
 using CipherCtxPointer = DeleteFnPtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free>;
 using DSAPointer = DeleteFnPtr<DSA, DSA_free>;
 using DSASigPointer = DeleteFnPtr<DSA_SIG, DSA_SIG_free>;
@@ -350,6 +352,22 @@ class BignumPointer final {
   size_t encodeInto(unsigned char* out) const;
   size_t encodePaddedInto(unsigned char* out, size_t size) const;
 
+  using PrimeCheckCallback = std::function<bool(int, int)>;
+  int isPrime(int checks,
+      PrimeCheckCallback cb = defaultPrimeCheckCallback) const;
+  struct PrimeConfig {
+    int bits;
+    bool safe = false;
+    const BignumPointer& add;
+    const BignumPointer& rem;
+  };
+
+  static BignumPointer NewPrime(const PrimeConfig& params,
+      PrimeCheckCallback cb = defaultPrimeCheckCallback);
+
+  bool generate(const PrimeConfig& params,
+      PrimeCheckCallback cb = defaultPrimeCheckCallback) const;
+
   static BignumPointer New();
   static BignumPointer NewSecure();
   static DataPointer Encode(const BIGNUM* bn);
@@ -366,6 +384,8 @@ class BignumPointer final {
 
  private:
   DeleteFnPtr<BIGNUM, BN_clear_free> bn_;
+
+  static bool defaultPrimeCheckCallback(int, int) { return 1; }
 };
 
 class EVPKeyPointer final {
