@@ -262,9 +262,8 @@ WebCryptoCipherStatus AES_CTR_Cipher(Environment* env,
                                      const AESCipherConfig& params,
                                      const ByteSource& in,
                                      ByteSource* out) {
-  auto num_counters = BignumPointer::New();
-  if (!BN_lshift(num_counters.get(), BignumPointer::One(), params.length))
-    return WebCryptoCipherStatus::FAILED;
+  auto num_counters = BignumPointer::NewLShift(params.length);
+  if (!num_counters) return WebCryptoCipherStatus::FAILED;
 
   BignumPointer current_counter = GetCounter(params);
 
@@ -277,10 +276,9 @@ WebCryptoCipherStatus AES_CTR_Cipher(Environment* env,
   // be incremented more than there are counter values, we fail.
   if (num_output > num_counters) return WebCryptoCipherStatus::FAILED;
 
-  auto remaining_until_reset = BignumPointer::New();
-  if (!BN_sub(remaining_until_reset.get(),
-              num_counters.get(),
-              current_counter.get())) {
+  auto remaining_until_reset =
+      BignumPointer::NewSub(num_counters, current_counter);
+  if (!remaining_until_reset) {
     return WebCryptoCipherStatus::FAILED;
   }
 

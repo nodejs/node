@@ -7,8 +7,6 @@
 #include "threadpoolwork-inl.h"
 #include "v8.h"
 
-#include <openssl/bn.h>
-#include <openssl/rand.h>
 #include <compare>
 
 namespace node {

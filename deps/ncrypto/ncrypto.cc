@@ -364,6 +364,23 @@ bool BignumPointer::generate(const PrimeConfig& params,
   return true;
 }
 
+BignumPointer BignumPointer::NewSub(const BignumPointer& a,
+                                    const BignumPointer& b) {
+  BignumPointer res = New();
+  if (!BN_sub(res.get(), a.get(), b.get())) {
+    return {};
+  }
+  return res;
+}
+
+BignumPointer BignumPointer::NewLShift(size_t length) {
+  BignumPointer res = New();
+  if (!BN_lshift(res.get(), One(), length)) {
+    return {};
+  }
+  return res;
+}
+
 // ============================================================================
 // Utility methods
 
@@ -1226,6 +1243,12 @@ BIOPointer BIOPointer::NewFile(std::string_view filename,
 
 BIOPointer BIOPointer::NewFp(FILE* fd, int close_flag) {
   return BIOPointer(BIO_new_fp(fd, close_flag));
+}
+
+BIOPointer BIOPointer::New(const BIGNUM* bn) {
+  auto res = NewMem();
+  if (!res || !BN_print(res.get(), bn)) return {};
+  return res;
 }
 
 int BIOPointer::Write(BIOPointer* bio, std::string_view message) {
