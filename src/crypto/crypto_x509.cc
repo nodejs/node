@@ -678,9 +678,8 @@ MaybeLocal<Object> GetPubKey(Environment* env, OSSL3_CONST RSA* rsa) {
 }
 
 MaybeLocal<Value> GetModulusString(Environment* env, const BIGNUM* n) {
-  auto bio = BIOPointer::NewMem();
+  auto bio = BIOPointer::New(n);
   if (!bio) return {};
-  BN_print(bio.get(), n);
   return ToV8Value(env->context(), bio);
 }
 

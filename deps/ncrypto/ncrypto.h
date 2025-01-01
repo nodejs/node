@@ -274,6 +274,7 @@ class BIOPointer final {
   static BIOPointer NewSecMem();
   static BIOPointer New(const BIO_METHOD* method);
   static BIOPointer New(const void* data, size_t len);
+  static BIOPointer New(const BIGNUM* bn);
   static BIOPointer NewFile(std::string_view filename, std::string_view mode);
   static BIOPointer NewFp(FILE* fd, int flags);
 
@@ -370,6 +371,9 @@ class BignumPointer final {
 
   static BignumPointer New();
   static BignumPointer NewSecure();
+  static BignumPointer NewSub(const BignumPointer& a, const BignumPointer& b);
+  static BignumPointer NewLShift(size_t length);
+
   static DataPointer Encode(const BIGNUM* bn);
   static DataPointer EncodePadded(const BIGNUM* bn, size_t size);
   static size_t EncodePaddedInto(const BIGNUM* bn,
