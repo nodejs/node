@@ -20,9 +20,9 @@ if (isMainThread) {
     assert.strictEqual(data, expected)
   }));
 } else {
-  process.stdout.write('hello')
   process.on('exit', () => {
     process.stdout.write(' ')
     process.stdout.write('world')
   })
+  process.stdout.write('hello')
 }
