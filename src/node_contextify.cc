@@ -1568,8 +1568,8 @@ Local<Object> ContextifyContext::CompileFunctionAndCacheResult(
     TryCatchScope try_cache(env);
     Local<Value> resource_name = fn->GetScriptOrigin().ResourceName();
     if (!resource_name.IsEmpty() &&
-        resource_name->ToString(parsing_context)
-        .ToLocalChecked()->Length() > 0) {
+        resource_name->ToString(parsing_context).ToLocalChecked()->Length() >
+        0) {
       new_cached_data.reset(ScriptCompiler::CreateCodeCacheForFunction(fn));
     }
   }
