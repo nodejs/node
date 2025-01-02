@@ -1566,10 +1566,7 @@ Local<Object> ContextifyContext::CompileFunctionAndCacheResult(
   std::unique_ptr<ScriptCompiler::CachedData> new_cached_data;
   if (produce_cached_data && !fn.IsEmpty()) {
     TryCatchScope try_cache(env);
-    Local<Value> resource_name = fn->GetScriptOrigin().ResourceName();
-    if (!resource_name.IsEmpty() &&
-        resource_name->ToString(parsing_context).ToLocalChecked()->Length() >
-            0) {
+    if (options != ScriptCompiler::kConsumeCodeCache) {
       new_cached_data.reset(ScriptCompiler::CreateCodeCacheForFunction(fn));
     }
   }
