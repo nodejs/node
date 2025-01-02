@@ -28,7 +28,6 @@
 namespace node {
 
 using ncrypto::StackOfX509;
-using v8::Array;
 using v8::ArrayBuffer;
 using v8::BackingStore;
 using v8::Context;
@@ -43,12 +42,6 @@ using v8::Value;
 
 namespace crypto {
 
-bool SetTLSSession(
-    const SSLPointer& ssl,
-    const SSLSessionPointer& session) {
-  return session != nullptr && SSL_set_session(ssl.get(), session.get()) == 1;
-}
-
 SSLSessionPointer GetTLSSession(const unsigned char* buf, size_t length) {
   return SSLSessionPointer(d2i_SSL_SESSION(nullptr, &buf, length));
 }
@@ -56,88 +49,12 @@ SSLSessionPointer GetTLSSession(const unsigned char* buf, size_t length) {
 long VerifyPeerCertificate(  // NOLINT(runtime/int)
     const SSLPointer& ssl,
     long def) {  // NOLINT(runtime/int)
-  long err = def;  // NOLINT(runtime/int)
-  if (X509Pointer::PeerFrom(ssl)) {
-    err = SSL_get_verify_result(ssl.get());
-  } else {
-    const SSL_CIPHER* curr_cipher = SSL_get_current_cipher(ssl.get());
-    const SSL_SESSION* sess = SSL_get_session(ssl.get());
-    // Allow no-cert for PSK authentication in TLS1.2 and lower.
-    // In TLS1.3 check that session was reused because TLS1.3 PSK
-    // looks like session resumption.
-    if (SSL_CIPHER_get_auth_nid(curr_cipher) == NID_auth_psk ||
-        (SSL_SESSION_get_protocol_version(sess) == TLS1_3_VERSION &&
-         SSL_session_reused(ssl.get()))) {
-      return X509_V_OK;
-    }
-  }
-  return err;
+  return ssl.verifyPeerCertificate().value_or(def);
 }
 
 bool UseSNIContext(
     const SSLPointer& ssl, BaseObjectPtr<SecureContext> context) {
-  auto x509 = ncrypto::X509View::From(context->ctx());
-  if (!x509) return false;
-  SSL_CTX* ctx = context->ctx().get();
-  EVP_PKEY* pkey = SSL_CTX_get0_privatekey(ctx);
-  STACK_OF(X509)* chain;
-
-  int err = SSL_CTX_get0_chain_certs(ctx, &chain);
-  if (err == 1) err = SSL_use_certificate(ssl.get(), x509);
-  if (err == 1) err = SSL_use_PrivateKey(ssl.get(), pkey);
-  if (err == 1 && chain != nullptr) err = SSL_set1_chain(ssl.get(), chain);
-  return err == 1;
-}
-
-const char* GetClientHelloALPN(const SSLPointer& ssl) {
-  const unsigned char* buf;
-  size_t len;
-  size_t rem;
-
-  if (!SSL_client_hello_get0_ext(
-          ssl.get(),
-          TLSEXT_TYPE_application_layer_protocol_negotiation,
-          &buf,
-          &rem) ||
-      rem < 2) {
-    return nullptr;
-  }
-
-  len = (buf[0] << 8) | buf[1];
-  if (len + 2 != rem) return nullptr;
-  return reinterpret_cast<const char*>(buf + 3);
-}
-
-const char* GetClientHelloServerName(const SSLPointer& ssl) {
-  const unsigned char* buf;
-  size_t len;
-  size_t rem;
-
-  if (!SSL_client_hello_get0_ext(
-          ssl.get(),
-          TLSEXT_TYPE_server_name,
-          &buf,
-          &rem) || rem <= 2) {
-    return nullptr;
-  }
-
-  len = (*buf << 8) | *(buf + 1);
-  if (len + 2 != rem)
-    return nullptr;
-  rem = len;
-
-  if (rem == 0 || *(buf + 2) != TLSEXT_NAMETYPE_host_name) return nullptr;
-  rem--;
-  if (rem <= 2)
-    return nullptr;
-  len = (*(buf + 3) << 8) | *(buf + 4);
-  if (len + 2 > rem)
-    return nullptr;
-  return reinterpret_cast<const char*>(buf + 5);
-}
-
-const char* GetServerName(SSL* ssl) {
-  return SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name);
+  return ssl.setSniContext(context->ctx());
 }
 
 bool SetGroups(SecureContext* sc, const char* groups) {
@@ -158,10 +75,10 @@ MaybeLocal<Value> GetValidationErrorCode(Environment* env, int err) {
 }
 
 MaybeLocal<Value> GetCert(Environment* env, const SSLPointer& ssl) {
-  ClearErrorOnReturn clear_error_on_return;
-  ncrypto::X509View cert(SSL_get_certificate(ssl.get()));
-  if (!cert) return Undefined(env->isolate());
-  return X509Certificate::toObject(env, cert);
+  if (auto cert = ssl.getCertificate()) {
+    return X509Certificate::toObject(env, cert);
+  }
+  return Undefined(env->isolate());
 }
 
 namespace {
@@ -284,56 +201,22 @@ MaybeLocal<Object> GetLastIssuedCert(
 
 MaybeLocal<Value> GetCurrentCipherName(Environment* env,
                                        const SSLPointer& ssl) {
-  return GetCipherName(env, SSL_get_current_cipher(ssl.get()));
+  return GetCipherName(env, ssl.getCipher());
 }
 
 MaybeLocal<Value> GetCurrentCipherVersion(Environment* env,
                                           const SSLPointer& ssl) {
-  return GetCipherVersion(env, SSL_get_current_cipher(ssl.get()));
+  return GetCipherVersion(env, ssl.getCipher());
 }
 
 template <MaybeLocal<Value> (*Get)(Environment* env, const SSL_CIPHER* cipher)>
 MaybeLocal<Value> GetCurrentCipherValue(Environment* env,
                                         const SSLPointer& ssl) {
-  return Get(env, SSL_get_current_cipher(ssl.get()));
+  return Get(env, ssl.getCipher());
 }
-
-MaybeLocal<Array> GetClientHelloCiphers(
-    Environment* env,
-    const SSLPointer& ssl) {
-  EscapableHandleScope scope(env->isolate());
-  const unsigned char* buf;
-  size_t len = SSL_client_hello_get0_ciphers(ssl.get(), &buf);
-  size_t count = len / 2;
-  MaybeStackBuffer<Local<Value>, 16> ciphers(count);
-  int j = 0;
-  for (size_t n = 0; n < len; n += 2) {
-    const SSL_CIPHER* cipher = SSL_CIPHER_find(ssl.get(), buf);
-    buf += 2;
-    Local<Object> obj = Object::New(env->isolate());
-    if (!Set(env->context(),
-             obj,
-             env->name_string(),
-             GetCipherName(env, cipher)) ||
-        !Set(env->context(),
-             obj,
-             env->standard_name_string(),
-             GetCipherStandardName(env, cipher)) ||
-        !Set(env->context(),
-             obj,
-             env->version_string(),
-             GetCipherVersion(env, cipher))) {
-      return MaybeLocal<Array>();
-    }
-    ciphers[j++] = obj;
-  }
-  Local<Array> ret = Array::New(env->isolate(), ciphers.out(), count);
-  return scope.Escape(ret);
-}
-
 
 MaybeLocal<Object> GetCipherInfo(Environment* env, const SSLPointer& ssl) {
-  if (SSL_get_current_cipher(ssl.get()) == nullptr)
+  if (ssl.getCipher() == nullptr)
     return MaybeLocal<Object>();
   EscapableHandleScope scope(env->isolate());
   Local<Object> info = Object::New(env->isolate());
@@ -357,15 +240,14 @@ MaybeLocal<Object> GetCipherInfo(Environment* env, const SSLPointer& ssl) {
 }
 
 MaybeLocal<Object> GetEphemeralKey(Environment* env, const SSLPointer& ssl) {
-  CHECK_EQ(SSL_is_server(ssl.get()), 0);
-  EVP_PKEY* raw_key;
+  CHECK(!ssl.isServer());
 
   EscapableHandleScope scope(env->isolate());
   Local<Object> info = Object::New(env->isolate());
-  if (!SSL_get_peer_tmp_key(ssl.get(), &raw_key)) return scope.Escape(info);
+  crypto::EVPKeyPointer key = ssl.getPeerTempKey();
+  if (!key) return scope.Escape(info);
 
   Local<Context> context = env->context();
-  crypto::EVPKeyPointer key(raw_key);
 
   int kid = key.id();
   switch (kid) {

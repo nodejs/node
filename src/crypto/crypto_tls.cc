@@ -217,10 +217,11 @@ int SSLCertCallback(SSL* s, void* arg) {
 
   Local<Object> info = Object::New(env->isolate());
 
-  const char* servername = GetServerName(s);
-  Local<String> servername_str = (servername == nullptr)
+  auto servername = SSLPointer::GetServerName(s);
+  Local<String> servername_str = !servername.has_value()
       ? String::Empty(env->isolate())
-      : OneByteString(env->isolate(), servername, strlen(servername));
+      : OneByteString(env->isolate(), servername.value().data(),
+            servername.value().length());
 
   Local<Value> ocsp = Boolean::New(
       env->isolate(), SSL_get_tlsext_status_type(s) == TLSEXT_STATUSTYPE_ocsp);
@@ -373,6 +374,21 @@ inline bool Set(
       env->context(),
       name,
       OneByteString(env->isolate(), value))
+          .IsNothing();
+}
+
+inline bool Set(
+    Environment* env,
+    Local<Object> target,
+    Local<String> name,
+    const std::string_view& value,
+    bool ignore_null = true) {
+  if (value.empty())
+    return ignore_null;
+  return !target->Set(
+      env->context(),
+      name,
+      OneByteString(env->isolate(), value.data(), value.length()))
           .IsNothing();
 }
 
@@ -1345,9 +1361,11 @@ void TLSWrap::GetServername(const FunctionCallbackInfo<Value>& args) {
 
   CHECK_NOT_NULL(wrap->ssl_);
 
-  const char* servername = GetServerName(wrap->ssl_.get());
-  if (servername != nullptr) {
-    args.GetReturnValue().Set(OneByteString(env->isolate(), servername));
+  auto servername = wrap->ssl_.getServerName();
+  if (servername.has_value()) {
+    auto& sn = servername.value();
+    args.GetReturnValue().Set(
+        OneByteString(env->isolate(), sn.data(), sn.length()));
   } else {
     args.GetReturnValue().Set(false);
   }
@@ -1376,8 +1394,9 @@ int TLSWrap::SelectSNIContextCallback(SSL* s, int* ad, void* arg) {
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
 
-  const char* servername = GetServerName(s);
-  if (!Set(env, p->GetOwner(), env->servername_string(), servername))
+  auto servername = SSLPointer::GetServerName(s);
+  if (!servername.has_value() ||
+      !Set(env, p->GetOwner(), env->servername_string(), servername.value()))
     return SSL_TLSEXT_ERR_NOACK;
 
   Local<Value> ctx = p->object()->Get(env->context(), env->sni_context_string())
@@ -1818,7 +1837,7 @@ void TLSWrap::SetSession(const FunctionCallbackInfo<Value>& args) {
   if (sess == nullptr)
     return;  // TODO(tniessen): figure out error handling
 
-  if (!SetTLSSession(w->ssl_, sess))
+  if (!w->ssl_.setSession(sess))
     return env->ThrowError("SSL_set_session error");
 }
 
