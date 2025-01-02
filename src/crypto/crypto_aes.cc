@@ -42,41 +42,28 @@ WebCryptoCipherStatus AES_Cipher(Environment* env,
 
   const int mode = params.cipher.getMode();
 
-  CipherCtxPointer ctx(EVP_CIPHER_CTX_new());
-  EVP_CIPHER_CTX_init(ctx.get());
-  if (mode == EVP_CIPH_WRAP_MODE)
-    EVP_CIPHER_CTX_set_flags(ctx.get(), EVP_CIPHER_CTX_FLAG_WRAP_ALLOW);
+  auto ctx = CipherCtxPointer::New();
+  if (mode == EVP_CIPH_WRAP_MODE) {
+    ctx.setFlags(EVP_CIPHER_CTX_FLAG_WRAP_ALLOW);
+  }
 
   const bool encrypt = cipher_mode == kWebCryptoCipherEncrypt;
 
-  if (!EVP_CipherInit_ex(
-          ctx.get(),
-          params.cipher,
-          nullptr,
-          nullptr,
-          nullptr,
-          encrypt)) {
+  if (!ctx.init(params.cipher, encrypt)) {
     // Cipher init failed
     return WebCryptoCipherStatus::FAILED;
   }
 
-  if (mode == EVP_CIPH_GCM_MODE && !EVP_CIPHER_CTX_ctrl(
-        ctx.get(),
-        EVP_CTRL_AEAD_SET_IVLEN,
-        params.iv.size(),
-        nullptr)) {
+  if (mode == EVP_CIPH_GCM_MODE && !ctx.setIvLength(params.iv.size())) {
     return WebCryptoCipherStatus::FAILED;
   }
 
-  if (!EVP_CIPHER_CTX_set_key_length(ctx.get(),
-                                     key_data.GetSymmetricKeySize()) ||
-      !EVP_CipherInit_ex(
-          ctx.get(),
-          nullptr,
-          nullptr,
+  if (!ctx.setKeyLength(key_data.GetSymmetricKeySize()) ||
+      !ctx.init(
+          ncrypto::Cipher(),
+          encrypt,
           reinterpret_cast<const unsigned char*>(key_data.GetSymmetricKey()),
-          params.iv.data<unsigned char>(),
-          encrypt)) {
+          params.iv.data<unsigned char>())) {
     return WebCryptoCipherStatus::FAILED;
   }
 
@@ -84,17 +71,19 @@ WebCryptoCipherStatus AES_Cipher(Environment* env,
 
   if (mode == EVP_CIPH_GCM_MODE) {
     switch (cipher_mode) {
-      case kWebCryptoCipherDecrypt:
+      case kWebCryptoCipherDecrypt: {
         // If in decrypt mode, the auth tag must be set in the params.tag.
         CHECK(params.tag);
-        if (!EVP_CIPHER_CTX_ctrl(ctx.get(),
-                                 EVP_CTRL_AEAD_SET_TAG,
-                                 params.tag.size(),
-                                 const_cast<char*>(params.tag.data<char>()))) {
+        ncrypto::Buffer<const char> buffer = {
+            .data = params.tag.data<char>(),
+            .len = params.tag.size(),
+        };
+        if (!ctx.setAeadTag(buffer)) {
           return WebCryptoCipherStatus::FAILED;
         }
         break;
-      case kWebCryptoCipherEncrypt:
+      }
+      case kWebCryptoCipherEncrypt: {
         // In decrypt mode, we grab the tag length here. We'll use it to
         // ensure that that allocated buffer has enough room for both the
         // final block and the auth tag. Unlike our other AES-GCM implementation
@@ -102,23 +91,22 @@ WebCryptoCipherStatus AES_Cipher(Environment* env,
         // of the generated ciphertext and returned in the same ArrayBuffer.
         tag_len = params.length;
         break;
+      }
       default:
         UNREACHABLE();
     }
   }
 
   size_t total = 0;
-  int buf_len = in.size() + EVP_CIPHER_CTX_block_size(ctx.get()) + tag_len;
+  int buf_len = in.size() + ctx.getBlockSize() + tag_len;
   int out_len;
 
-  if (mode == EVP_CIPH_GCM_MODE &&
-      params.additional_data.size() &&
-      !EVP_CipherUpdate(
-            ctx.get(),
-            nullptr,
-            &out_len,
-            params.additional_data.data<unsigned char>(),
-            params.additional_data.size())) {
+  ncrypto::Buffer<const unsigned char> buffer = {
+      .data = params.additional_data.data<unsigned char>(),
+      .len = params.additional_data.size(),
+  };
+  if (mode == EVP_CIPH_GCM_MODE && params.additional_data.size() &&
+      !ctx.update(buffer, nullptr, &out_len)) {
     return WebCryptoCipherStatus::FAILED;
   }
 
@@ -132,21 +120,20 @@ WebCryptoCipherStatus AES_Cipher(Environment* env,
   //
   // Refs: https://github.com/openssl/openssl/commit/420cb707b880e4fb649094241371701013eeb15f
   // Refs: https://github.com/nodejs/node/pull/38913#issuecomment-866505244
+  buffer = {
+      .data = in.data<unsigned char>(),
+      .len = in.size(),
+  };
   if (in.empty()) {
     out_len = 0;
-  } else if (!EVP_CipherUpdate(ctx.get(),
-                               buf.data<unsigned char>(),
-                               &out_len,
-                               in.data<unsigned char>(),
-                               in.size())) {
+  } else if (!ctx.update(buffer, buf.data<unsigned char>(), &out_len)) {
     return WebCryptoCipherStatus::FAILED;
   }
 
   total += out_len;
   CHECK_LE(out_len, buf_len);
-  out_len = EVP_CIPHER_CTX_block_size(ctx.get());
-  if (!EVP_CipherFinal_ex(
-          ctx.get(), buf.data<unsigned char>() + total, &out_len)) {
+  out_len = ctx.getBlockSize();
+  if (!ctx.update({}, buf.data<unsigned char>() + total, &out_len, true)) {
     return WebCryptoCipherStatus::FAILED;
   }
   total += out_len;
@@ -154,11 +141,9 @@ WebCryptoCipherStatus AES_Cipher(Environment* env,
   // If using AES_GCM, grab the generated auth tag and append
   // it to the end of the ciphertext.
   if (cipher_mode == kWebCryptoCipherEncrypt && mode == EVP_CIPH_GCM_MODE) {
-    if (!EVP_CIPHER_CTX_ctrl(ctx.get(),
-                             EVP_CTRL_AEAD_GET_TAG,
-                             tag_len,
-                             buf.data<unsigned char>() + total))
+    if (!ctx.getAeadTag(tag_len, buf.data<unsigned char>() + total)) {
       return WebCryptoCipherStatus::FAILED;
+    }
     total += tag_len;
   }
 
@@ -221,33 +206,34 @@ WebCryptoCipherStatus AES_CTR_Cipher2(const KeyObjectData& key_data,
                                       const ByteSource& in,
                                       unsigned const char* counter,
                                       unsigned char* out) {
-  CipherCtxPointer ctx(EVP_CIPHER_CTX_new());
+  auto ctx = CipherCtxPointer::New();
+  if (!ctx) {
+    return WebCryptoCipherStatus::FAILED;
+  }
   const bool encrypt = cipher_mode == kWebCryptoCipherEncrypt;
 
-  if (!EVP_CipherInit_ex(
-          ctx.get(),
+  if (!ctx.init(
           params.cipher,
-          nullptr,
+          encrypt,
           reinterpret_cast<const unsigned char*>(key_data.GetSymmetricKey()),
-          counter,
-          encrypt)) {
+          counter)) {
     // Cipher init failed
     return WebCryptoCipherStatus::FAILED;
   }
 
   int out_len = 0;
   int final_len = 0;
-  if (!EVP_CipherUpdate(
-          ctx.get(),
-          out,
-          &out_len,
-          in.data<unsigned char>(),
-          in.size())) {
+  ncrypto::Buffer<const unsigned char> buffer = {
+      .data = in.data<unsigned char>(),
+      .len = in.size(),
+  };
+  if (!ctx.update(buffer, out, &out_len)) {
     return WebCryptoCipherStatus::FAILED;
   }
 
-  if (!EVP_CipherFinal_ex(ctx.get(), out + out_len, &final_len))
+  if (!ctx.update({}, out + out_len, &final_len, true)) {
     return WebCryptoCipherStatus::FAILED;
+  }
 
   out_len += final_len;
   if (static_cast<unsigned>(out_len) != in.size())

@@ -27,13 +27,12 @@ using v8::Value;
 
 namespace crypto {
 namespace {
-ncrypto::BignumPointer::PrimeCheckCallback getPrimeCheckCallback(Environment* env) {
+ncrypto::BignumPointer::PrimeCheckCallback getPrimeCheckCallback(
+    Environment* env) {
   // The callback is used to check if the operation should be stopped.
   // Currently, the only check we perform is if env->is_stopping()
   // is true.
-  return [env](int a, int b) -> bool {
-    return !env->is_stopping();
-  };
+  return [env](int a, int b) -> bool { return !env->is_stopping(); };
 }
 
 }  // namespace
@@ -155,13 +154,14 @@ Maybe<void> RandomPrimeTraits::AdditionalConfig(
 bool RandomPrimeTraits::DeriveBits(Environment* env,
                                    const RandomPrimeConfig& params,
                                    ByteSource* unused) {
-  auto cb = getPrimeCheckCallback(env);
-  return params.prime.generate(BignumPointer::PrimeConfig {
-    .bits = params.bits,
-    .safe = params.safe,
-    .add = params.add,
-    .rem = params.rem,
-  }, std::move(cb));
+  return params.prime.generate(
+      BignumPointer::PrimeConfig{
+          .bits = params.bits,
+          .safe = params.safe,
+          .add = params.add,
+          .rem = params.rem,
+      },
+      getPrimeCheckCallback(env));
 }
 
 void CheckPrimeConfig::MemoryInfo(MemoryTracker* tracker) const {
@@ -188,8 +188,7 @@ bool CheckPrimeTraits::DeriveBits(
     Environment* env,
     const CheckPrimeConfig& params,
     ByteSource* out) {
-  auto cb = getPrimeCheckCallback(env);
-  int ret = params.candidate.isPrime(params.checks, std::move(cb));
+  int ret = params.candidate.isPrime(params.checks, getPrimeCheckCallback(env));
   if (ret < 0) return false;
   ByteSource::Builder buf(1);
   buf.data<char>()[0] = ret;

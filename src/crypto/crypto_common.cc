@@ -62,7 +62,7 @@ bool SetGroups(SecureContext* sc, const char* groups) {
 }
 
 MaybeLocal<Value> GetValidationErrorReason(Environment* env, int err) {
-  auto reason = X509Pointer::ErrorReason(err);
+  auto reason = X509Pointer::ErrorReason(err).value_or("");
   if (reason == "") return Undefined(env->isolate());
   return OneByteString(env->isolate(), reason.data(), reason.length());
 }

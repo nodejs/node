@@ -197,7 +197,6 @@ using DeleteFnPtr = typename FunctionDeleter<T, function>::Pointer;
 
 using BignumCtxPointer = DeleteFnPtr<BN_CTX, BN_CTX_free>;
 using BignumGenCallbackPointer = DeleteFnPtr<BN_GENCB, BN_GENCB_free>;
-using CipherCtxPointer = DeleteFnPtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free>;
 using DSAPointer = DeleteFnPtr<DSA, DSA_free>;
 using DSASigPointer = DeleteFnPtr<DSA_SIG, DSA_SIG_free>;
 using ECDSASigPointer = DeleteFnPtr<ECDSA_SIG, ECDSA_SIG_free>;
@@ -212,6 +211,8 @@ using NetscapeSPKIPointer = DeleteFnPtr<NETSCAPE_SPKI, NETSCAPE_SPKI_free>;
 using PKCS8Pointer = DeleteFnPtr<PKCS8_PRIV_KEY_INFO, PKCS8_PRIV_KEY_INFO_free>;
 using RSAPointer = DeleteFnPtr<RSA, RSA_free>;
 using SSLSessionPointer = DeleteFnPtr<SSL_SESSION, SSL_SESSION_free>;
+
+class CipherCtxPointer;
 
 struct StackOfXASN1Deleter {
   void operator()(STACK_OF(ASN1_OBJECT) * p) const {
@@ -248,8 +249,8 @@ class Cipher final {
   int getIvLength() const;
   int getKeyLength() const;
   int getBlockSize() const;
-  const std::string_view getModeLabel() const;
-  const std::string_view getName() const;
+  std::string_view getModeLabel() const;
+  std::string_view getName() const;
 
   bool isSupportedAuthenticatedMode() const;
 
@@ -423,6 +424,51 @@ class BignumPointer final {
   DeleteFnPtr<BIGNUM, BN_clear_free> bn_;
 
   static bool defaultPrimeCheckCallback(int, int) { return 1; }
+};
+
+class CipherCtxPointer final {
+ public:
+  static CipherCtxPointer New();
+
+  CipherCtxPointer() = default;
+  explicit CipherCtxPointer(EVP_CIPHER_CTX* ctx);
+  CipherCtxPointer(CipherCtxPointer&& other) noexcept;
+  CipherCtxPointer& operator=(CipherCtxPointer&& other) noexcept;
+  NCRYPTO_DISALLOW_COPY(CipherCtxPointer)
+  ~CipherCtxPointer();
+
+  inline bool operator==(std::nullptr_t) const noexcept {
+    return ctx_ == nullptr;
+  }
+  inline operator bool() const { return ctx_ != nullptr; }
+  inline EVP_CIPHER_CTX* get() const { return ctx_.get(); }
+  inline operator EVP_CIPHER_CTX*() const { return ctx_.get(); }
+  void reset(EVP_CIPHER_CTX* ctx = nullptr);
+  EVP_CIPHER_CTX* release();
+
+  void setFlags(int flags);
+  bool setKeyLength(size_t length);
+  bool setIvLength(size_t length);
+  bool setAeadTag(const Buffer<const char>& tag);
+  bool setAeadTagLength(size_t length);
+  bool setPadding(bool padding);
+  bool init(const Cipher& cipher,
+            bool encrypt,
+            const unsigned char* key = nullptr,
+            const unsigned char* iv = nullptr);
+
+  int getBlockSize() const;
+  int getMode() const;
+  int getNid() const;
+
+  bool update(const Buffer<const unsigned char>& in,
+              unsigned char* out,
+              int* out_len,
+              bool finalize = false);
+  bool getAeadTag(size_t len, unsigned char* out);
+
+ private:
+  DeleteFnPtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free> ctx_;
 };
 
 class EVPKeyPointer final {
@@ -772,7 +818,7 @@ class X509Pointer final {
   operator X509View() const { return view(); }
 
   static std::string_view ErrorCode(int32_t err);
-  static std::string_view ErrorReason(int32_t err);
+  static std::optional<std::string_view> ErrorReason(int32_t err);
 
  private:
   DeleteFnPtr<X509, X509_free> cert_;
