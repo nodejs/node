@@ -1,4 +1,4 @@
-/* auto-generated on 2024-12-17 14:54:59 -0500. Do not edit! */
+/* auto-generated on 2024-12-26 12:42:33 -0500. Do not edit! */
 /* begin file src/simdutf.cpp */
 #include "simdutf.h"
 // We include base64_tables once.
@@ -696,6 +696,15 @@ static_assert(to_base64_url_value[uint8_t('_')] == 63,
 #include <initializer_list>
 #include <climits>
 #include <type_traits>
+
+static_assert(sizeof(uint8_t) == sizeof(char),
+              "simdutf requires that uint8_t be a char");
+static_assert(sizeof(uint16_t) == sizeof(char16_t),
+              "simdutf requires that char16_t be 16 bits");
+static_assert(sizeof(uint32_t) == sizeof(char32_t),
+              "simdutf requires that char32_t be 32 bits");
+// next line is redundant, but it is kept to catch defective systems.
+static_assert(CHAR_BIT == 8, "simdutf requires 8-bit bytes");
 
 // Useful for debugging purposes
 namespace simdutf {
@@ -9746,24 +9755,23 @@ inline simdutf_warn_unused uint16_t swap_bytes(const uint16_t word) {
 }
 
 template <endianness big_endian>
-inline simdutf_warn_unused bool validate(const char16_t *buf,
+inline simdutf_warn_unused bool validate(const char16_t *data,
                                          size_t len) noexcept {
-  const uint16_t *data = reinterpret_cast<const uint16_t *>(buf);
   uint64_t pos = 0;
   while (pos < len) {
-    uint16_t word =
+    char16_t word =
         !match_system(big_endian) ? swap_bytes(data[pos]) : data[pos];
     if ((word & 0xF800) == 0xD800) {
       if (pos + 1 >= len) {
         return false;
       }
-      uint16_t diff = uint16_t(word - 0xD800);
+      char16_t diff = char16_t(word - 0xD800);
       if (diff > 0x3FF) {
         return false;
       }
-      uint16_t next_word =
+      char16_t next_word =
           !match_system(big_endian) ? swap_bytes(data[pos + 1]) : data[pos + 1];
-      uint16_t diff2 = uint16_t(next_word - 0xDC00);
+      char16_t diff2 = char16_t(next_word - 0xDC00);
       if (diff2 > 0x3FF) {
         return false;
       }
@@ -9776,24 +9784,23 @@ inline simdutf_warn_unused bool validate(const char16_t *buf,
 }
 
 template <endianness big_endian>
-inline simdutf_warn_unused result validate_with_errors(const char16_t *buf,
+inline simdutf_warn_unused result validate_with_errors(const char16_t *data,
                                                        size_t len) noexcept {
-  const uint16_t *data = reinterpret_cast<const uint16_t *>(buf);
   size_t pos = 0;
   while (pos < len) {
-    uint16_t word =
+    char16_t word =
         !match_system(big_endian) ? swap_bytes(data[pos]) : data[pos];
     if ((word & 0xF800) == 0xD800) {
       if (pos + 1 >= len) {
         return result(error_code::SURROGATE, pos);
       }
-      uint16_t diff = uint16_t(word - 0xD800);
+      char16_t diff = char16_t(word - 0xD800);
       if (diff > 0x3FF) {
         return result(error_code::SURROGATE, pos);
       }
-      uint16_t next_word =
+      char16_t next_word =
           !match_system(big_endian) ? swap_bytes(data[pos + 1]) : data[pos + 1];
-      uint16_t diff2 = uint16_t(next_word - 0xDC00);
+      char16_t diff2 = uint16_t(next_word - 0xDC00);
       if (diff2 > 0x3FF) {
         return result(error_code::SURROGATE, pos);
       }
@@ -9806,24 +9813,22 @@ inline simdutf_warn_unused result validate_with_errors(const char16_t *buf,
 }
 
 template <endianness big_endian>
-inline size_t count_code_points(const char16_t *buf, size_t len) {
+inline size_t count_code_points(const char16_t *p, size_t len) {
   // We are not BOM aware.
-  const uint16_t *p = reinterpret_cast<const uint16_t *>(buf);
   size_t counter{0};
   for (size_t i = 0; i < len; i++) {
-    uint16_t word = !match_system(big_endian) ? swap_bytes(p[i]) : p[i];
+    char16_t word = !match_system(big_endian) ? swap_bytes(p[i]) : p[i];
     counter += ((word & 0xFC00) != 0xDC00);
   }
   return counter;
 }
 
 template <endianness big_endian>
-inline size_t utf8_length_from_utf16(const char16_t *buf, size_t len) {
+inline size_t utf8_length_from_utf16(const char16_t *p, size_t len) {
   // We are not BOM aware.
-  const uint16_t *p = reinterpret_cast<const uint16_t *>(buf);
   size_t counter{0};
   for (size_t i = 0; i < len; i++) {
-    uint16_t word = !match_system(big_endian) ? swap_bytes(p[i]) : p[i];
+    char16_t word = !match_system(big_endian) ? swap_bytes(p[i]) : p[i];
     counter++; // ASCII
     counter += static_cast<size_t>(
         word >
@@ -9835,12 +9840,11 @@ inline size_t utf8_length_from_utf16(const char16_t *buf, size_t len) {
 }
 
 template <endianness big_endian>
-inline size_t utf32_length_from_utf16(const char16_t *buf, size_t len) {
+inline size_t utf32_length_from_utf16(const char16_t *p, size_t len) {
   // We are not BOM aware.
-  const uint16_t *p = reinterpret_cast<const uint16_t *>(buf);
   size_t counter{0};
   for (size_t i = 0; i < len; i++) {
-    uint16_t word = !match_system(big_endian) ? swap_bytes(p[i]) : p[i];
+    char16_t word = !match_system(big_endian) ? swap_bytes(p[i]) : p[i];
     counter += ((word & 0xFC00) != 0xDC00);
   }
   return counter;
@@ -9848,12 +9852,10 @@ inline size_t utf32_length_from_utf16(const char16_t *buf, size_t len) {
 
 inline size_t latin1_length_from_utf16(size_t len) { return len; }
 
-simdutf_really_inline void change_endianness_utf16(const char16_t *in,
-                                                   size_t size, char16_t *out) {
-  const uint16_t *input = reinterpret_cast<const uint16_t *>(in);
-  uint16_t *output = reinterpret_cast<uint16_t *>(out);
+simdutf_really_inline void
+change_endianness_utf16(const char16_t *input, size_t size, char16_t *output) {
   for (size_t i = 0; i < size; i++) {
-    *output++ = uint16_t(input[i] >> 8 | input[i] << 8);
+    *output++ = char16_t(input[i] >> 8 | input[i] << 8);
   }
 }
 
@@ -21042,6 +21044,9 @@ struct validating_transcoder {
         uint64_t utf8_continuation_mask =
             input.lt(-65 + 1); // -64 is 1100 0000 in twos complement. Note: in
                                // this case, we also have ASCII to account for.
+        if (utf8_continuation_mask & 1) {
+          return 0; // error
+        }
         uint64_t utf8_leading_mask = ~utf8_continuation_mask;
         uint64_t utf8_end_of_code_point_mask = utf8_leading_mask >> 1;
         // We process in blocks of up to 12 bytes except possibly
@@ -26717,6 +26722,14 @@ compress_decode_base64(char *dst, const chartype *src, size_t srclen,
   }
 
   if (!ignore_garbage && equalsigns > 0) {
+    if (last_chunk_options == last_chunk_handling_options::strict) {
+      return {BASE64_INPUT_REMAINDER, size_t(src - srcinit),
+              size_t(dst - dstinit)};
+    }
+    if (last_chunk_options ==
+        last_chunk_handling_options::stop_before_partial) {
+      return {SUCCESS, size_t(src - srcinit), size_t(dst - dstinit)};
+    }
     if ((size_t(dst - dstinit) % 3 == 0) ||
         ((size_t(dst - dstinit) % 3) + 1 + equalsigns != 4)) {
       return {INVALID_BASE64_CHARACTER, equallocation, size_t(dst - dstinit)};
@@ -33161,6 +33174,9 @@ struct validating_transcoder {
         uint64_t utf8_continuation_mask =
             input.lt(-65 + 1); // -64 is 1100 0000 in twos complement. Note: in
                                // this case, we also have ASCII to account for.
+        if (utf8_continuation_mask & 1) {
+          return 0; // error
+        }
         uint64_t utf8_leading_mask = ~utf8_continuation_mask;
         uint64_t utf8_end_of_code_point_mask = utf8_leading_mask >> 1;
         // We process in blocks of up to 12 bytes except possibly
@@ -43013,6 +43029,9 @@ struct validating_transcoder {
         uint64_t utf8_continuation_mask =
             input.lt(-65 + 1); // -64 is 1100 0000 in twos complement. Note: in
                                // this case, we also have ASCII to account for.
+        if (utf8_continuation_mask & 1) {
+          return 0; // error
+        }
         uint64_t utf8_leading_mask = ~utf8_continuation_mask;
         uint64_t utf8_end_of_code_point_mask = utf8_leading_mask >> 1;
         // We process in blocks of up to 12 bytes except possibly
@@ -48110,6 +48129,9 @@ struct validating_transcoder {
         uint64_t utf8_continuation_mask =
             input.lt(-65 + 1); // -64 is 1100 0000 in twos complement. Note: in
                                // this case, we also have ASCII to account for.
+        if (utf8_continuation_mask & 1) {
+          return 0; // error
+        }
         uint64_t utf8_leading_mask = ~utf8_continuation_mask;
         uint64_t utf8_end_of_code_point_mask = utf8_leading_mask >> 1;
         // We process in blocks of up to 12 bytes except possibly
@@ -54454,6 +54476,9 @@ struct validating_transcoder {
         uint64_t utf8_continuation_mask =
             input.lt(-65 + 1); // -64 is 1100 0000 in twos complement. Note: in
                                // this case, we also have ASCII to account for.
+        if (utf8_continuation_mask & 1) {
+          return 0; // error
+        }
         uint64_t utf8_leading_mask = ~utf8_continuation_mask;
         uint64_t utf8_end_of_code_point_mask = utf8_leading_mask >> 1;
         // We process in blocks of up to 12 bytes except possibly
