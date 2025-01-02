@@ -212,7 +212,6 @@ using NetscapeSPKIPointer = DeleteFnPtr<NETSCAPE_SPKI, NETSCAPE_SPKI_free>;
 using PKCS8Pointer = DeleteFnPtr<PKCS8_PRIV_KEY_INFO, PKCS8_PRIV_KEY_INFO_free>;
 using RSAPointer = DeleteFnPtr<RSA, RSA_free>;
 using SSLCtxPointer = DeleteFnPtr<SSL_CTX, SSL_CTX_free>;
-using SSLPointer = DeleteFnPtr<SSL, SSL_free>;
 using SSLSessionPointer = DeleteFnPtr<SSL_SESSION, SSL_SESSION_free>;
 
 struct StackOfXASN1Deleter {
@@ -581,6 +580,46 @@ struct StackOfX509Deleter {
 using StackOfX509 = std::unique_ptr<STACK_OF(X509), StackOfX509Deleter>;
 
 class X509Pointer;
+class X509View;
+
+class SSLPointer final {
+ public:
+  SSLPointer() = default;
+  explicit SSLPointer(SSL* ssl);
+  SSLPointer(SSLPointer&& other) noexcept;
+  SSLPointer& operator=(SSLPointer&& other) noexcept;
+  NCRYPTO_DISALLOW_COPY(SSLPointer)
+  ~SSLPointer();
+
+  inline bool operator==(std::nullptr_t) noexcept { return ssl_ == nullptr; }
+  inline operator bool() const { return ssl_ != nullptr; }
+  inline SSL* get() const { return ssl_.get(); }
+  inline operator SSL*() const { return ssl_.get(); }
+  void reset(SSL* ssl = nullptr);
+  SSL* release();
+
+  bool setSession(const SSLSessionPointer& session);
+  bool setSniContext(const SSLCtxPointer& ctx) const;
+
+  const std::string_view getClientHelloAlpn() const;
+  const std::string_view getClientHelloServerName() const;
+
+  std::optional<const std::string_view> getServerName() const;
+  X509View getCertificate() const;
+  EVPKeyPointer getPeerTempKey() const;
+  const SSL_CIPHER* getCipher() const;
+  bool isServer() const;
+
+  std::optional<uint32_t> verifyPeerCertificate() const;
+
+  void getCiphers(std::function<void(const std::string_view)> cb) const;
+
+  static SSLPointer New(const SSLCtxPointer& ctx);
+  static std::optional<const std::string_view> GetServerName(const SSL* ssl);
+
+ private:
+  DeleteFnPtr<SSL, SSL_free> ssl_;
+};
 
 class X509View final {
  public:

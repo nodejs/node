@@ -22,10 +22,6 @@
 namespace node {
 namespace crypto {
 
-bool SetTLSSession(
-    const SSLPointer& ssl,
-    const SSLSessionPointer& session);
-
 SSLSessionPointer GetTLSSession(const unsigned char* buf, size_t length);
 
 long VerifyPeerCertificate(  // NOLINT(runtime/int)
@@ -33,16 +29,6 @@ long VerifyPeerCertificate(  // NOLINT(runtime/int)
     long def = X509_V_ERR_UNSPECIFIED);  // NOLINT(runtime/int)
 
 bool UseSNIContext(const SSLPointer& ssl, BaseObjectPtr<SecureContext> context);
-
-const char* GetClientHelloALPN(const SSLPointer& ssl);
-
-const char* GetClientHelloServerName(const SSLPointer& ssl);
-
-const char* GetServerName(SSL* ssl);
-
-v8::MaybeLocal<v8::Array> GetClientHelloCiphers(
-    Environment* env,
-    const SSLPointer& ssl);
 
 bool SetGroups(SecureContext* sc, const char* groups);
 

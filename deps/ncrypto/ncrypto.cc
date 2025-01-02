@@ -2190,4 +2190,185 @@ Result<BIOPointer, bool> EVPKeyPointer::writePublicKey(
   return bio;
 }
 
+// ============================================================================
+
+SSLPointer::SSLPointer(SSL* ssl) : ssl_(ssl) {}
+
+SSLPointer::SSLPointer(SSLPointer&& other) noexcept : ssl_(other.release()) {}
+
+SSLPointer& SSLPointer::operator=(SSLPointer&& other) noexcept {
+  if (this == &other) return *this;
+  this->~SSLPointer();
+  return *new (this) SSLPointer(std::move(other));
+}
+
+SSLPointer::~SSLPointer() {
+  reset();
+}
+
+void SSLPointer::reset(SSL* ssl) {
+  ssl_.reset(ssl);
+}
+
+SSL* SSLPointer::release() {
+  return ssl_.release();
+}
+
+SSLPointer SSLPointer::New(const SSLCtxPointer& ctx) {
+  if (!ctx) return {};
+  return SSLPointer(SSL_new(ctx.get()));
+}
+
+void SSLPointer::getCiphers(
+    std::function<void(const std::string_view)> cb) const {
+  if (!ssl_) return;
+  STACK_OF(SSL_CIPHER)* ciphers = SSL_get_ciphers(get());
+
+  // TLSv1.3 ciphers aren't listed by EVP. There are only 5, we could just
+  // document them, but since there are only 5, easier to just add them manually
+  // and not have to explain their absence in the API docs. They are lower-cased
+  // because the docs say they will be.
+  static const char* TLS13_CIPHERS[] = {
+    "tls_aes_256_gcm_sha384",
+    "tls_chacha20_poly1305_sha256",
+    "tls_aes_128_gcm_sha256",
+    "tls_aes_128_ccm_8_sha256",
+    "tls_aes_128_ccm_sha256"
+  };
+
+  const int n = sk_SSL_CIPHER_num(ciphers);
+
+  for (int i = 0; i < n; ++i) {
+    const SSL_CIPHER* cipher = sk_SSL_CIPHER_value(ciphers, i);
+    cb(SSL_CIPHER_get_name(cipher));
+  }
+
+  for (unsigned i = 0; i < 5; ++i) {
+    const char* name = TLS13_CIPHERS[i];
+    cb(name);
+  }
+}
+
+bool SSLPointer::setSession(const SSLSessionPointer& session) {
+  if (!session || !ssl_) return false;
+  return SSL_set_session(get(), session.get()) == 1;
+}
+
+bool SSLPointer::setSniContext(const SSLCtxPointer& ctx) const {
+  if (!ctx) return false;
+  auto x509 = ncrypto::X509View::From(ctx);
+  if (!x509) return false;
+  EVP_PKEY* pkey = SSL_CTX_get0_privatekey(ctx.get());
+  STACK_OF(X509)* chain;
+
+  int err = SSL_CTX_get0_chain_certs(ctx.get(), &chain);
+  if (err == 1) err = SSL_use_certificate(get(), x509);
+  if (err == 1) err = SSL_use_PrivateKey(get(), pkey);
+  if (err == 1 && chain != nullptr) err = SSL_set1_chain(get(), chain);
+  return err == 1;
+}
+
+std::optional<uint32_t> SSLPointer::verifyPeerCertificate() const {
+  if (!ssl_) return std::nullopt;
+  if (X509Pointer::PeerFrom(*this)) {
+    return SSL_get_verify_result(get());
+  }
+
+  const SSL_CIPHER* curr_cipher = SSL_get_current_cipher(get());
+  const SSL_SESSION* sess = SSL_get_session(get());
+  // Allow no-cert for PSK authentication in TLS1.2 and lower.
+  // In TLS1.3 check that session was reused because TLS1.3 PSK
+  // looks like session resumption.
+  if (SSL_CIPHER_get_auth_nid(curr_cipher) == NID_auth_psk ||
+      (SSL_SESSION_get_protocol_version(sess) == TLS1_3_VERSION &&
+        SSL_session_reused(get()))) {
+    return X509_V_OK;
+  }
+
+  return std::nullopt;
+}
+
+const std::string_view SSLPointer::getClientHelloAlpn() const {
+  if (ssl_ == nullptr) return std::string_view();
+  const unsigned char* buf;
+  size_t len;
+  size_t rem;
+
+  if (!SSL_client_hello_get0_ext(
+          get(),
+          TLSEXT_TYPE_application_layer_protocol_negotiation,
+          &buf,
+          &rem) ||
+      rem < 2) {
+    return nullptr;
+  }
+
+  len = (buf[0] << 8) | buf[1];
+  if (len + 2 != rem) return nullptr;
+  return reinterpret_cast<const char*>(buf + 3);
+}
+
+const std::string_view SSLPointer::getClientHelloServerName() const {
+  if (ssl_ == nullptr) return std::string_view();
+  const unsigned char* buf;
+  size_t len;
+  size_t rem;
+
+  if (!SSL_client_hello_get0_ext(
+          get(),
+          TLSEXT_TYPE_server_name,
+          &buf,
+          &rem) || rem <= 2) {
+    return nullptr;
+  }
+
+  len = (*buf << 8) | *(buf + 1);
+  if (len + 2 != rem)
+    return nullptr;
+  rem = len;
+
+  if (rem == 0 || *(buf + 2) != TLSEXT_NAMETYPE_host_name) return nullptr;
+  rem--;
+  if (rem <= 2)
+    return nullptr;
+  len = (*(buf + 3) << 8) | *(buf + 4);
+  if (len + 2 > rem)
+    return nullptr;
+  return reinterpret_cast<const char*>(buf + 5);
+}
+
+std::optional<const std::string_view> SSLPointer::GetServerName(
+    const SSL* ssl) {
+  if (ssl == nullptr) return std::nullopt;
+  auto res = SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name);
+  if (res == nullptr) return std::nullopt;
+  return res;
+}
+
+std::optional<const std::string_view> SSLPointer::getServerName() const {
+  if (!ssl_) return std::nullopt;
+  return GetServerName(get());
+}
+
+X509View SSLPointer::getCertificate() const {
+  if (!ssl_) return {};
+  ClearErrorOnReturn clear_error_on_return;
+  return ncrypto::X509View(SSL_get_certificate(get()));
+}
+
+const SSL_CIPHER* SSLPointer::getCipher() const {
+  if (!ssl_) return nullptr;
+  return SSL_get_current_cipher(get());
+}
+
+bool SSLPointer::isServer() const {
+  return SSL_is_server(get()) != 0;
+}
+
+EVPKeyPointer SSLPointer::getPeerTempKey() const {
+  if (!ssl_) return {};
+  EVP_PKEY* raw_key = nullptr;
+  if (!SSL_get_peer_tmp_key(get(), &raw_key)) return {};
+  return EVPKeyPointer(raw_key);
+}
 }  // namespace ncrypto

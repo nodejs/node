@@ -203,37 +203,15 @@ void CipherBase::GetSSLCiphers(const FunctionCallbackInfo<Value>& args) {
     return ThrowCryptoError(env, ERR_get_error(), "SSL_CTX_new");
   }
 
-  SSLPointer ssl(SSL_new(ctx.get()));
+  auto ssl = SSLPointer::New(ctx);
   if (!ssl) {
     return ThrowCryptoError(env, ERR_get_error(), "SSL_new");
   }
 
-  STACK_OF(SSL_CIPHER)* ciphers = SSL_get_ciphers(ssl.get());
-
-  // TLSv1.3 ciphers aren't listed by EVP. There are only 5, we could just
-  // document them, but since there are only 5, easier to just add them manually
-  // and not have to explain their absence in the API docs. They are lower-cased
-  // because the docs say they will be.
-  static const char* TLS13_CIPHERS[] = {
-    "tls_aes_256_gcm_sha384",
-    "tls_chacha20_poly1305_sha256",
-    "tls_aes_128_gcm_sha256",
-    "tls_aes_128_ccm_8_sha256",
-    "tls_aes_128_ccm_sha256"
-  };
-
-  const int n = sk_SSL_CIPHER_num(ciphers);
-  LocalVector<Value> arr(env->isolate(), n + arraysize(TLS13_CIPHERS));
-
-  for (int i = 0; i < n; ++i) {
-    const SSL_CIPHER* cipher = sk_SSL_CIPHER_value(ciphers, i);
-    arr[i] = OneByteString(env->isolate(), SSL_CIPHER_get_name(cipher));
-  }
-
-  for (unsigned i = 0; i < arraysize(TLS13_CIPHERS); ++i) {
-    const char* name = TLS13_CIPHERS[i];
-    arr[n + i] = OneByteString(env->isolate(), name);
-  }
+  LocalVector<Value> arr(env->isolate());
+  ssl.getCiphers([&](const std::string_view name) {
+    arr.push_back(OneByteString(env->isolate(), name.data(), name.length()));
+  });
 
   args.GetReturnValue().Set(Array::New(env->isolate(), arr.data(), arr.size()));
 }

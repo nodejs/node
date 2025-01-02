@@ -557,7 +557,7 @@ crypto::SSLPointer TLSSession::Initialize(
             reinterpret_cast<unsigned char*>(buf.base), buf.len);
 
         // The early data will just be ignored if it's invalid.
-        if (crypto::SetTLSSession(ssl, ticket) &&
+        if (ssl.setSession(ticket) &&
             SSL_SESSION_get_max_early_data(ticket.get()) != 0) {
           ngtcp2_vec rtp = sessionTicket.transport_params();
           if (ngtcp2_conn_decode_and_set_0rtt_transport_params(
@@ -622,9 +622,7 @@ MaybeLocal<Value> TLSSession::cipher_version(Environment* env) const {
 }
 
 const std::string_view TLSSession::servername() const {
-  const char* servername = crypto::GetServerName(ssl_.get());
-  return servername != nullptr ? std::string_view(servername)
-                               : std::string_view();
+  return ssl_.getServerName().value_or(std::string_view());
 }
 
 const std::string_view TLSSession::protocol() const {
