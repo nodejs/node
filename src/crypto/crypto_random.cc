@@ -144,11 +144,11 @@ Maybe<void> RandomPrimeTraits::AdditionalConfig(
 bool RandomPrimeTraits::DeriveBits(Environment* env,
                                    const RandomPrimeConfig& params,
                                    ByteSource* unused) {
-  return params.prime.generate(BignumPointer::PrimeConfig {
-    .bits = params.bits,
-    .safe = params.safe,
-    .add = params.add,
-    .rem = params.rem,
+  return params.prime.generate(BignumPointer::PrimeConfig{
+      .bits = params.bits,
+      .safe = params.safe,
+      .add = params.add,
+      .rem = params.rem,
   });
 }
 

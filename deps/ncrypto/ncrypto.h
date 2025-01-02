@@ -227,6 +227,40 @@ struct Buffer {
   size_t len = 0;
 };
 
+class Cipher final {
+ public:
+  Cipher() = default;
+  Cipher(const EVP_CIPHER* cipher) : cipher_(cipher) {}
+  Cipher(const Cipher&) = default;
+  Cipher& operator=(const Cipher&) = default;
+  inline Cipher& operator=(const EVP_CIPHER* cipher) {
+    cipher_ = cipher;
+    return *this;
+  }
+  NCRYPTO_DISALLOW_MOVE(Cipher)
+
+  inline const EVP_CIPHER* get() const { return cipher_; }
+  inline operator const EVP_CIPHER*() const { return cipher_; }
+  inline operator bool() const { return cipher_ != nullptr; }
+
+  int getNid() const;
+  int getMode() const;
+  int getIvLength() const;
+  int getKeyLength() const;
+  int getBlockSize() const;
+  const std::string_view getModeLabel() const;
+  const std::string_view getName() const;
+
+  bool isSupportedAuthenticatedMode() const;
+
+  static const Cipher FromName(const char* name);
+  static const Cipher FromNid(int nid);
+  static const Cipher FromCtx(const CipherCtxPointer& ctx);
+
+ private:
+  const EVP_CIPHER* cipher_ = nullptr;
+};
+
 // A managed pointer to a buffer of data. When destroyed the underlying
 // buffer will be freed.
 class DataPointer final {
@@ -353,7 +387,7 @@ class BignumPointer final {
 
   using PrimeCheckCallback = std::function<bool(int, int)>;
   int isPrime(int checks,
-      PrimeCheckCallback cb = defaultPrimeCheckCallback) const;
+              PrimeCheckCallback cb = defaultPrimeCheckCallback) const;
   struct PrimeConfig {
     int bits;
     bool safe = false;
@@ -361,11 +395,12 @@ class BignumPointer final {
     const BignumPointer& rem;
   };
 
-  static BignumPointer NewPrime(const PrimeConfig& params,
+  static BignumPointer NewPrime(
+      const PrimeConfig& params,
       PrimeCheckCallback cb = defaultPrimeCheckCallback);
 
   bool generate(const PrimeConfig& params,
-      PrimeCheckCallback cb = defaultPrimeCheckCallback) const;
+                PrimeCheckCallback cb = defaultPrimeCheckCallback) const;
 
   static BignumPointer New();
   static BignumPointer NewSecure();
