@@ -211,7 +211,6 @@ using HMACCtxPointer = DeleteFnPtr<HMAC_CTX, HMAC_CTX_free>;
 using NetscapeSPKIPointer = DeleteFnPtr<NETSCAPE_SPKI, NETSCAPE_SPKI_free>;
 using PKCS8Pointer = DeleteFnPtr<PKCS8_PRIV_KEY_INFO, PKCS8_PRIV_KEY_INFO_free>;
 using RSAPointer = DeleteFnPtr<RSA, RSA_free>;
-using SSLCtxPointer = DeleteFnPtr<SSL_CTX, SSL_CTX_free>;
 using SSLSessionPointer = DeleteFnPtr<SSL_SESSION, SSL_SESSION_free>;
 
 struct StackOfXASN1Deleter {
@@ -581,6 +580,39 @@ using StackOfX509 = std::unique_ptr<STACK_OF(X509), StackOfX509Deleter>;
 
 class X509Pointer;
 class X509View;
+
+class SSLCtxPointer final {
+ public:
+  SSLCtxPointer() = default;
+  explicit SSLCtxPointer(SSL_CTX* ctx);
+  SSLCtxPointer(SSLCtxPointer&& other) noexcept;
+  SSLCtxPointer& operator=(SSLCtxPointer&& other) noexcept;
+  NCRYPTO_DISALLOW_COPY(SSLCtxPointer)
+  ~SSLCtxPointer();
+
+  inline bool operator==(std::nullptr_t) const noexcept {
+    return ctx_ == nullptr;
+  }
+  inline operator bool() const { return ctx_ != nullptr; }
+  inline SSL_CTX* get() const { return ctx_.get(); }
+  void reset(SSL_CTX* ctx = nullptr);
+  void reset(const SSL_METHOD* method);
+  SSL_CTX* release();
+
+  bool setGroups(const char* groups);
+  void setStatusCallback(auto callback) {
+    if (!ctx_) return;
+    SSL_CTX_set_tlsext_status_cb(get(), callback);
+    SSL_CTX_set_tlsext_status_arg(get(), nullptr);
+  }
+
+  static SSLCtxPointer NewServer();
+  static SSLCtxPointer NewClient();
+  static SSLCtxPointer New(const SSL_METHOD* method = TLS_method());
+
+ private:
+  DeleteFnPtr<SSL_CTX, SSL_CTX_free> ctx_;
+};
 
 class SSLPointer final {
  public:

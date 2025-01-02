@@ -2371,4 +2371,46 @@ EVPKeyPointer SSLPointer::getPeerTempKey() const {
   if (!SSL_get_peer_tmp_key(get(), &raw_key)) return {};
   return EVPKeyPointer(raw_key);
 }
+
+SSLCtxPointer::SSLCtxPointer(SSL_CTX* ctx) : ctx_(ctx) {}
+
+SSLCtxPointer::SSLCtxPointer(SSLCtxPointer&& other) noexcept
+    : ctx_(other.release()) {}
+
+SSLCtxPointer& SSLCtxPointer::operator=(SSLCtxPointer&& other) noexcept {
+  if (this == &other) return *this;
+  this->~SSLCtxPointer();
+  return *new (this) SSLCtxPointer(std::move(other));
+}
+
+SSLCtxPointer::~SSLCtxPointer() { reset(); }
+
+void SSLCtxPointer::reset(SSL_CTX* ctx) {
+  ctx_.reset(ctx);
+}
+
+void SSLCtxPointer::reset(const SSL_METHOD* method) {
+  ctx_.reset(SSL_CTX_new(method));
+}
+
+SSL_CTX* SSLCtxPointer::release() {
+  return ctx_.release();
+}
+
+SSLCtxPointer SSLCtxPointer::NewServer() {
+  return SSLCtxPointer(SSL_CTX_new(TLS_server_method()));
+}
+
+SSLCtxPointer SSLCtxPointer::NewClient() {
+  return SSLCtxPointer(SSL_CTX_new(TLS_client_method()));
+}
+
+SSLCtxPointer SSLCtxPointer::New(const SSL_METHOD* method) {
+  return SSLCtxPointer(SSL_CTX_new(method));
+}
+
+bool SSLCtxPointer::setGroups(const char* groups) {
+  return SSL_CTX_set1_groups_list(get(), groups) == 1;
+}
+
 }  // namespace ncrypto

@@ -198,7 +198,7 @@ void GetCipherInfo(const FunctionCallbackInfo<Value>& args) {
 void CipherBase::GetSSLCiphers(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  SSLCtxPointer ctx(SSL_CTX_new(TLS_method()));
+  auto ctx = SSLCtxPointer::New();
   if (!ctx) {
     return ThrowCryptoError(env, ERR_get_error(), "SSL_CTX_new");
   }
