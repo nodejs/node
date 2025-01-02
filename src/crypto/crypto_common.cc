@@ -58,7 +58,7 @@ bool UseSNIContext(
 }
 
 bool SetGroups(SecureContext* sc, const char* groups) {
-  return SSL_CTX_set1_groups_list(sc->ctx().get(), groups) == 1;
+  return sc->ctx().setGroups(groups);
 }
 
 MaybeLocal<Value> GetValidationErrorReason(Environment* env, int err) {

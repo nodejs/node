@@ -245,7 +245,7 @@ crypto::SSLCtxPointer TLSContext::Initialize() {
   switch (side_) {
     case Side::SERVER: {
       static constexpr unsigned char kSidCtx[] = "Node.js QUIC Server";
-      ctx.reset(SSL_CTX_new(TLS_server_method()));
+      ctx = crypto::SSLCtxPointer::NewServer();
       CHECK_EQ(ngtcp2_crypto_quictls_configure_server_context(ctx.get()), 0);
       CHECK_EQ(SSL_CTX_set_max_early_data(ctx.get(), UINT32_MAX), 1);
       SSL_CTX_set_options(ctx.get(),
@@ -276,7 +276,7 @@ crypto::SSLCtxPointer TLSContext::Initialize() {
       break;
     }
     case Side::CLIENT: {
-      ctx.reset(SSL_CTX_new(TLS_client_method()));
+      ctx = crypto::SSLCtxPointer::NewClient();
       CHECK_EQ(ngtcp2_crypto_quictls_configure_client_context(ctx.get()), 0);
 
       SSL_CTX_set_session_cache_mode(

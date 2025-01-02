@@ -551,7 +551,7 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  sc->ctx_.reset(SSL_CTX_new(method));
+  sc->ctx_.reset(method);
   if (!sc->ctx_) {
     return ThrowCryptoError(env, ERR_get_error(), "SSL_CTX_new");
   }
