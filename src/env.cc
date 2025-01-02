@@ -176,9 +176,7 @@ bool AsyncHooks::pop_async_context(double async_id) {
     }
 #endif
     native_execution_async_resources_.resize(offset);
-    if (native_execution_async_resources_.size() <
-            native_execution_async_resources_.capacity() / 2 &&
-        native_execution_async_resources_.size() > 16) {
+    if (native_execution_async_resources_.size() > 16) {
       native_execution_async_resources_.shrink_to_fit();
     }
   }
@@ -1694,6 +1692,7 @@ AsyncHooks::AsyncHooks(Isolate* isolate, const SerializeInfo* info)
       fields_(isolate, kFieldsCount, MAYBE_FIELD_PTR(info, fields)),
       async_id_fields_(
           isolate, kUidFieldsCount, MAYBE_FIELD_PTR(info, async_id_fields)),
+      native_execution_async_resources_(isolate),
       info_(info) {
   HandleScope handle_scope(isolate);
   if (info == nullptr) {
