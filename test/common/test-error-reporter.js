@@ -30,6 +30,12 @@ module.exports = async function* errorReporter(source) {
       output.push(inspect(error));
       output.push('\n');
       yield output.join('\n');
+
+      if (process.env.FAIL_FAST) {
+        yield `\n\u001b[31m✖ Bailing on failed test: ${event.data.name}\u001b[0m\n`;
+        process.exitCode = 1;
+        process.emit('SIGINT');
+      }
     }
   }
 };
