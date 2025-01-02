@@ -2294,7 +2294,7 @@ std::optional<uint32_t> SSLPointer::verifyPeerCertificate() const {
 }
 
 const std::string_view SSLPointer::getClientHelloAlpn() const {
-  if (ssl_ == nullptr) return std::string_view();
+  if (ssl_ == nullptr) return {};
   const unsigned char* buf;
   size_t len;
   size_t rem;
@@ -2305,34 +2305,34 @@ const std::string_view SSLPointer::getClientHelloAlpn() const {
           &buf,
           &rem) ||
       rem < 2) {
-    return nullptr;
+    return {};
   }
 
   len = (buf[0] << 8) | buf[1];
-  if (len + 2 != rem) return nullptr;
+  if (len + 2 != rem) return {};
   return reinterpret_cast<const char*>(buf + 3);
 }
 
 const std::string_view SSLPointer::getClientHelloServerName() const {
-  if (ssl_ == nullptr) return std::string_view();
+  if (ssl_ == nullptr) return {};
   const unsigned char* buf;
   size_t len;
   size_t rem;
 
   if (!SSL_client_hello_get0_ext(get(), TLSEXT_TYPE_server_name, &buf, &rem) ||
       rem <= 2) {
-    return nullptr;
+    return {};
   }
 
   len = (*buf << 8) | *(buf + 1);
-  if (len + 2 != rem) return nullptr;
+  if (len + 2 != rem) return {};
   rem = len;
 
-  if (rem == 0 || *(buf + 2) != TLSEXT_NAMETYPE_host_name) return nullptr;
+  if (rem == 0 || *(buf + 2) != TLSEXT_NAMETYPE_host_name) return {};
   rem--;
-  if (rem <= 2) return nullptr;
+  if (rem <= 2) return {};
   len = (*(buf + 3) << 8) | *(buf + 4);
-  if (len + 2 > rem) return nullptr;
+  if (len + 2 > rem) return {};
   return reinterpret_cast<const char*>(buf + 5);
 }
 
@@ -2502,6 +2502,112 @@ bool Cipher::isSupportedAuthenticatedMode() const {
     default:
       return false;
   }
+}
+
+// ============================================================================
+
+CipherCtxPointer CipherCtxPointer::New() {
+  auto ret = CipherCtxPointer(EVP_CIPHER_CTX_new());
+  if (!ret) return {};
+  EVP_CIPHER_CTX_init(ret.get());
+  return ret;
+}
+
+CipherCtxPointer::CipherCtxPointer(EVP_CIPHER_CTX* ctx) : ctx_(ctx) {}
+
+CipherCtxPointer::CipherCtxPointer(CipherCtxPointer&& other) noexcept
+    : ctx_(other.release()) {}
+
+CipherCtxPointer& CipherCtxPointer::operator=(
+    CipherCtxPointer&& other) noexcept {
+  if (this == &other) return *this;
+  this->~CipherCtxPointer();
+  return *new (this) CipherCtxPointer(std::move(other));
+}
+
+CipherCtxPointer::~CipherCtxPointer() {
+  reset();
+}
+
+void CipherCtxPointer::reset(EVP_CIPHER_CTX* ctx) {
+  ctx_.reset(ctx);
+}
+
+EVP_CIPHER_CTX* CipherCtxPointer::release() {
+  return ctx_.release();
+}
+
+void CipherCtxPointer::setFlags(int flags) {
+  if (!ctx_) return;
+  EVP_CIPHER_CTX_set_flags(ctx_.get(), flags);
+}
+
+bool CipherCtxPointer::setKeyLength(size_t length) {
+  if (!ctx_) return false;
+  return EVP_CIPHER_CTX_set_key_length(ctx_.get(), length);
+}
+
+bool CipherCtxPointer::setIvLength(size_t length) {
+  if (!ctx_) return false;
+  return EVP_CIPHER_CTX_ctrl(
+      ctx_.get(), EVP_CTRL_AEAD_SET_IVLEN, length, nullptr);
+}
+
+bool CipherCtxPointer::setAeadTag(const Buffer<const char>& tag) {
+  if (!ctx_) return false;
+  return EVP_CIPHER_CTX_ctrl(
+      ctx_.get(), EVP_CTRL_AEAD_SET_TAG, tag.len, const_cast<char*>(tag.data));
+}
+
+bool CipherCtxPointer::setAeadTagLength(size_t length) {
+  if (!ctx_) return false;
+  return EVP_CIPHER_CTX_ctrl(
+      ctx_.get(), EVP_CTRL_AEAD_SET_TAG, length, nullptr);
+}
+
+bool CipherCtxPointer::setPadding(bool padding) {
+  if (!ctx_) return false;
+  return EVP_CIPHER_CTX_set_padding(ctx_.get(), padding);
+}
+
+int CipherCtxPointer::getBlockSize() const {
+  if (!ctx_) return 0;
+  return EVP_CIPHER_CTX_block_size(ctx_.get());
+}
+
+int CipherCtxPointer::getMode() const {
+  if (!ctx_) return 0;
+  return EVP_CIPHER_CTX_mode(ctx_.get());
+}
+
+int CipherCtxPointer::getNid() const {
+  if (!ctx_) return 0;
+  return EVP_CIPHER_CTX_nid(ctx_.get());
+}
+
+bool CipherCtxPointer::init(const Cipher& cipher,
+                            bool encrypt,
+                            const unsigned char* key,
+                            const unsigned char* iv) {
+  if (!ctx_) return false;
+  return EVP_CipherInit_ex(
+             ctx_.get(), cipher, nullptr, key, iv, encrypt ? 1 : 0) == 1;
+}
+
+bool CipherCtxPointer::update(const Buffer<const unsigned char>& in,
+                              unsigned char* out,
+                              int* out_len,
+                              bool finalize) {
+  if (!ctx_) return false;
+  if (!finalize) {
+    return EVP_CipherUpdate(ctx_.get(), out, out_len, in.data, in.len) == 1;
+  }
+  return EVP_CipherFinal_ex(ctx_.get(), out, out_len) == 1;
+}
+
+bool CipherCtxPointer::getAeadTag(size_t len, unsigned char* out) {
+  if (!ctx_) return false;
+  return EVP_CIPHER_CTX_ctrl(ctx_.get(), EVP_CTRL_AEAD_GET_TAG, len, out);
 }
 
 }  // namespace ncrypto

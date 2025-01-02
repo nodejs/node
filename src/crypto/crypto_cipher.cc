@@ -66,14 +66,16 @@ void GetCipherInfo(const FunctionCallbackInfo<Value>& args) {
     // Test and input IV or key length to determine if it's acceptable.
     // If it is, then the getCipherInfo will succeed with the given
     // values.
-    CipherCtxPointer ctx(EVP_CIPHER_CTX_new());
-    if (!EVP_CipherInit_ex(ctx.get(), cipher, nullptr, nullptr, nullptr, 1))
+    auto ctx = CipherCtxPointer::New();
+    if (!ctx.init(cipher, true)) {
       return;
+    }
 
     if (args[2]->IsInt32()) {
       int check_len = args[2].As<Int32>()->Value();
-      if (!EVP_CIPHER_CTX_set_key_length(ctx.get(), check_len))
+      if (!ctx.setKeyLength(check_len)) {
         return;
+      }
       key_length = check_len;
     }
 
@@ -91,11 +93,7 @@ void GetCipherInfo(const FunctionCallbackInfo<Value>& args) {
         case EVP_CIPH_GCM_MODE:
           // Fall through
         case EVP_CIPH_OCB_MODE:
-          if (!EVP_CIPHER_CTX_ctrl(
-                  ctx.get(),
-                  EVP_CTRL_AEAD_SET_IVLEN,
-                  check_len,
-                  nullptr)) {
+          if (!ctx.setIvLength(check_len)) {
             return;
           }
           break;
@@ -312,15 +310,15 @@ void CipherBase::CommonInit(const char* cipher_type,
                             int iv_len,
                             unsigned int auth_tag_len) {
   CHECK(!ctx_);
-  ctx_.reset(EVP_CIPHER_CTX_new());
+  ctx_ = CipherCtxPointer::New();
+  CHECK(ctx_);
 
   if (cipher.getMode() == EVP_CIPH_WRAP_MODE) {
-    EVP_CIPHER_CTX_set_flags(ctx_.get(), EVP_CIPHER_CTX_FLAG_WRAP_ALLOW);
+    ctx_.setFlags(EVP_CIPHER_CTX_FLAG_WRAP_ALLOW);
   }
 
   const bool encrypt = (kind_ == kCipher);
-  if (1 != EVP_CipherInit_ex(ctx_.get(), cipher, nullptr,
-                             nullptr, nullptr, encrypt)) {
+  if (!ctx_.init(cipher, encrypt)) {
     return ThrowCryptoError(env(), ERR_get_error(),
                             "Failed to initialize cipher");
   }
@@ -331,12 +329,12 @@ void CipherBase::CommonInit(const char* cipher_type,
       return;
   }
 
-  if (!EVP_CIPHER_CTX_set_key_length(ctx_.get(), key_len)) {
+  if (!ctx_.setKeyLength(key_len)) {
     ctx_.reset();
     return THROW_ERR_CRYPTO_INVALID_KEYLEN(env());
   }
 
-  if (1 != EVP_CipherInit_ex(ctx_.get(), nullptr, nullptr, key, iv, encrypt)) {
+  if (!ctx_.init(ncrypto::Cipher(), encrypt, key, iv)) {
     return ThrowCryptoError(env(), ERR_get_error(),
                             "Failed to initialize cipher");
   }
@@ -498,15 +496,12 @@ bool CipherBase::InitAuthenticated(
   CHECK(IsAuthenticatedMode());
   MarkPopErrorOnReturn mark_pop_error_on_return;
 
-  if (!EVP_CIPHER_CTX_ctrl(ctx_.get(),
-                           EVP_CTRL_AEAD_SET_IVLEN,
-                           iv_len,
-                           nullptr)) {
+  if (!ctx_.setIvLength(iv_len)) {
     THROW_ERR_CRYPTO_INVALID_IV(env());
     return false;
   }
 
-  const int mode = EVP_CIPHER_CTX_mode(ctx_.get());
+  const int mode = ctx_.getMode();
   if (mode == EVP_CIPH_GCM_MODE) {
     if (auth_tag_len != kNoAuthTagLength) {
       if (!IsValidGCMTagLength(auth_tag_len)) {
@@ -526,7 +521,7 @@ bool CipherBase::InitAuthenticated(
       // length defaults to 16 bytes when encrypting. Unlike GCM, the
       // authentication tag length also defaults to 16 bytes when decrypting,
       // whereas GCM would accept any valid authentication tag length.
-      if (EVP_CIPHER_CTX_nid(ctx_.get()) == NID_chacha20_poly1305) {
+      if (ctx_.getNid() == NID_chacha20_poly1305) {
         auth_tag_len = 16;
       } else {
         THROW_ERR_CRYPTO_INVALID_AUTH_TAG(
@@ -549,8 +544,7 @@ bool CipherBase::InitAuthenticated(
     }
 
     // Tell OpenSSL about the desired length.
-    if (!EVP_CIPHER_CTX_ctrl(ctx_.get(), EVP_CTRL_AEAD_SET_TAG, auth_tag_len,
-                             nullptr)) {
+    if (!ctx_.setAeadTagLength(auth_tag_len)) {
       THROW_ERR_CRYPTO_INVALID_AUTH_TAG(
           env(), "Invalid authentication tag length: %u", auth_tag_len);
       return false;
@@ -573,7 +567,7 @@ bool CipherBase::InitAuthenticated(
 
 bool CipherBase::CheckCCMMessageLength(int message_len) {
   CHECK(ctx_);
-  CHECK(EVP_CIPHER_CTX_mode(ctx_.get()) == EVP_CIPH_CCM_MODE);
+  CHECK(ctx_.getMode() == EVP_CIPH_CCM_MODE);
 
   if (message_len > max_message_size_) {
     THROW_ERR_CRYPTO_INVALID_MESSAGELEN(env());
@@ -624,7 +618,7 @@ void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
   }
   unsigned int tag_len = auth_tag.size();
 
-  const int mode = EVP_CIPHER_CTX_mode(cipher->ctx_.get());
+  const int mode = cipher->ctx_.getMode();
   bool is_valid;
   if (mode == EVP_CIPH_GCM_MODE) {
     // Restrict GCM tag lengths according to NIST 800-38d, page 9.
@@ -669,10 +663,11 @@ void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
 
 bool CipherBase::MaybePassAuthTagToOpenSSL() {
   if (auth_tag_state_ == kAuthTagKnown) {
-    if (!EVP_CIPHER_CTX_ctrl(ctx_.get(),
-                             EVP_CTRL_AEAD_SET_TAG,
-                             auth_tag_len_,
-                             reinterpret_cast<unsigned char*>(auth_tag_))) {
+    ncrypto::Buffer<const char> buffer{
+        .data = auth_tag_,
+        .len = auth_tag_len_,
+    };
+    if (!ctx_.setAeadTag(buffer)) {
       return false;
     }
     auth_tag_state_ = kAuthTagPassedToOpenSSL;
@@ -688,7 +683,7 @@ bool CipherBase::SetAAD(
   MarkPopErrorOnReturn mark_pop_error_on_return;
 
   int outlen;
-  const int mode = EVP_CIPHER_CTX_mode(ctx_.get());
+  const int mode = ctx_.getMode();
 
   // When in CCM mode, we need to set the authentication tag and the plaintext
   // length in advance.
@@ -707,16 +702,21 @@ bool CipherBase::SetAAD(
         return false;
     }
 
+    ncrypto::Buffer<const unsigned char> buffer{
+        .data = nullptr,
+        .len = static_cast<size_t>(plaintext_len),
+    };
     // Specify the plaintext length.
-    if (!EVP_CipherUpdate(ctx_.get(), nullptr, &outlen, nullptr, plaintext_len))
+    if (!ctx_.update(buffer, nullptr, &outlen)) {
       return false;
+    }
   }
 
-  return 1 == EVP_CipherUpdate(ctx_.get(),
-                               nullptr,
-                               &outlen,
-                               data.data(),
-                               data.size());
+  ncrypto::Buffer<const unsigned char> buffer{
+      .data = data.data(),
+      .len = data.size(),
+  };
+  return ctx_.update(buffer, nullptr, &outlen);
 }
 
 void CipherBase::SetAAD(const FunctionCallbackInfo<Value>& args) {
@@ -743,7 +743,7 @@ CipherBase::UpdateResult CipherBase::Update(
     return kErrorState;
   MarkPopErrorOnReturn mark_pop_error_on_return;
 
-  const int mode = EVP_CIPHER_CTX_mode(ctx_.get());
+  const int mode = ctx_.getMode();
 
   if (mode == EVP_CIPH_CCM_MODE && !CheckCCMMessageLength(len))
     return kErrorMessageSize;
@@ -753,19 +753,17 @@ CipherBase::UpdateResult CipherBase::Update(
   if (kind_ == kDecipher && IsAuthenticatedMode())
     CHECK(MaybePassAuthTagToOpenSSL());
 
-  const int block_size = EVP_CIPHER_CTX_block_size(ctx_.get());
+  const int block_size = ctx_.getBlockSize();
   CHECK_GT(block_size, 0);
   if (len + block_size > INT_MAX) return kErrorState;
   int buf_len = len + block_size;
 
-  // For key wrapping algorithms, get output size by calling
-  // EVP_CipherUpdate() with null output.
+  ncrypto::Buffer<const unsigned char> buffer = {
+      .data = reinterpret_cast<const unsigned char*>(data),
+      .len = len,
+  };
   if (kind_ == kCipher && mode == EVP_CIPH_WRAP_MODE &&
-      EVP_CipherUpdate(ctx_.get(),
-                       nullptr,
-                       &buf_len,
-                       reinterpret_cast<const unsigned char*>(data),
-                       len) != 1) {
+      !ctx_.update(buffer, nullptr, &buf_len)) {
     return kErrorState;
   }
 
@@ -774,11 +772,13 @@ CipherBase::UpdateResult CipherBase::Update(
     *out = ArrayBuffer::NewBackingStore(env()->isolate(), buf_len);
   }
 
-  int r = EVP_CipherUpdate(ctx_.get(),
-                           static_cast<unsigned char*>((*out)->Data()),
-                           &buf_len,
-                           reinterpret_cast<const unsigned char*>(data),
-                           len);
+  buffer = {
+      .data = reinterpret_cast<const unsigned char*>(data),
+      .len = len,
+  };
+
+  bool r = ctx_.update(
+      buffer, static_cast<unsigned char*>((*out)->Data()), &buf_len);
 
   CHECK_LE(static_cast<size_t>(buf_len), (*out)->ByteLength());
   if (buf_len == 0) {
@@ -830,7 +830,7 @@ bool CipherBase::SetAutoPadding(bool auto_padding) {
   if (!ctx_)
     return false;
   MarkPopErrorOnReturn mark_pop_error_on_return;
-  return EVP_CIPHER_CTX_set_padding(ctx_.get(), auto_padding);
+  return ctx_.setPadding(auto_padding);
 }
 
 void CipherBase::SetAutoPadding(const FunctionCallbackInfo<Value>& args) {
@@ -845,12 +845,12 @@ bool CipherBase::Final(std::unique_ptr<BackingStore>* out) {
   if (!ctx_)
     return false;
 
-  const int mode = EVP_CIPHER_CTX_mode(ctx_.get());
+  const int mode = ctx_.getMode();
 
   {
     NoArrayBufferZeroFillScope no_zero_fill_scope(env()->isolate_data());
-    *out = ArrayBuffer::NewBackingStore(env()->isolate(),
-        static_cast<size_t>(EVP_CIPHER_CTX_block_size(ctx_.get())));
+    *out = ArrayBuffer::NewBackingStore(
+        env()->isolate(), static_cast<size_t>(ctx_.getBlockSize()));
   }
 
   if (kind_ == kDecipher &&
@@ -861,7 +861,7 @@ bool CipherBase::Final(std::unique_ptr<BackingStore>* out) {
   // OpenSSL v1.x doesn't verify the presence of the auth tag so do
   // it ourselves, see https://github.com/nodejs/node/issues/45874.
   if (OPENSSL_VERSION_NUMBER < 0x30000000L && kind_ == kDecipher &&
-      NID_chacha20_poly1305 == EVP_CIPHER_CTX_nid(ctx_.get()) &&
+      NID_chacha20_poly1305 == ctx_.getNid() &&
       auth_tag_state_ != kAuthTagPassedToOpenSSL) {
     return false;
   }
@@ -874,9 +874,8 @@ bool CipherBase::Final(std::unique_ptr<BackingStore>* out) {
     *out = ArrayBuffer::NewBackingStore(env()->isolate(), 0);
   } else {
     int out_len = (*out)->ByteLength();
-    ok = EVP_CipherFinal_ex(ctx_.get(),
-                            static_cast<unsigned char*>((*out)->Data()),
-                            &out_len) == 1;
+    ok = ctx_.update(
+        {}, static_cast<unsigned char*>((*out)->Data()), &out_len, true);
 
     CHECK_LE(static_cast<size_t>(out_len), (*out)->ByteLength());
     if (out_len == 0) {
@@ -897,9 +896,8 @@ bool CipherBase::Final(std::unique_ptr<BackingStore>* out) {
         CHECK(mode == EVP_CIPH_GCM_MODE);
         auth_tag_len_ = sizeof(auth_tag_);
       }
-      ok = (1 == EVP_CIPHER_CTX_ctrl(ctx_.get(), EVP_CTRL_AEAD_GET_TAG,
-                     auth_tag_len_,
-                     reinterpret_cast<unsigned char*>(auth_tag_)));
+      ok = ctx_.getAeadTag(auth_tag_len_,
+                           reinterpret_cast<unsigned char*>(auth_tag_));
     }
   }
 
