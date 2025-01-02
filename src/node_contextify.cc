@@ -1564,9 +1564,16 @@ Local<Object> ContextifyContext::CompileFunctionAndCacheResult(
     return Object::New(env->isolate());
 
   std::unique_ptr<ScriptCompiler::CachedData> new_cached_data;
-  if (produce_cached_data) {
-    new_cached_data.reset(ScriptCompiler::CreateCodeCacheForFunction(fn));
+  if (produce_cached_data && !fn.IsEmpty()) {
+    TryCatchScope try_cache(env);
+    Local<Value> resource_name = fn->GetScriptOrigin().ResourceName();
+    if (!resource_name.IsEmpty() &&
+        resource_name->ToString(parsing_context)
+        .ToLocalChecked()->Length() > 0) {
+      new_cached_data.reset(ScriptCompiler::CreateCodeCacheForFunction(fn));
+    }
   }
+
   if (StoreCodeCacheResult(env,
                            result,
                            options,
