@@ -1,5 +1,6 @@
 #include "node_messaging.h"
 
+#include <span>
 #include "async_wrap-inl.h"
 #include "debug_utils-inl.h"
 #include "memory_tracker-inl.h"
@@ -27,6 +28,7 @@ using v8::Isolate;
 using v8::Just;
 using v8::JustVoid;
 using v8::Local;
+using v8::LocalVector;
 using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Nothing;
@@ -74,7 +76,7 @@ class DeserializerDelegate : public ValueDeserializer::Delegate {
       Message* m,
       Environment* env,
       const std::vector<BaseObjectPtr<BaseObject>>& host_objects,
-      const std::vector<Local<SharedArrayBuffer>>& shared_array_buffers,
+      const std::span<Local<SharedArrayBuffer>>& shared_array_buffers,
       const std::vector<CompiledWasmModule>& wasm_modules,
       const std::optional<SharedValueConveyor>& shared_value_conveyor)
       : env_(env),
@@ -129,7 +131,7 @@ class DeserializerDelegate : public ValueDeserializer::Delegate {
  private:
   Environment* env_;
   const std::vector<BaseObjectPtr<BaseObject>>& host_objects_;
-  const std::vector<Local<SharedArrayBuffer>>& shared_array_buffers_;
+  const std::span<Local<SharedArrayBuffer>>& shared_array_buffers_;
   const std::vector<CompiledWasmModule>& wasm_modules_;
   const std::optional<SharedValueConveyor>& shared_value_conveyor_;
 };
@@ -188,18 +190,20 @@ MaybeLocal<Value> Message::Deserialize(Environment* env,
   }
   transferables_.clear();
 
-  std::vector<Local<SharedArrayBuffer>> shared_array_buffers;
+  LocalVector<SharedArrayBuffer> shared_array_buffers(env->isolate());
   // Attach all transferred SharedArrayBuffers to their new Isolate.
   for (uint32_t i = 0; i < shared_array_buffers_.size(); ++i) {
     Local<SharedArrayBuffer> sab =
         SharedArrayBuffer::New(env->isolate(), shared_array_buffers_[i]);
     shared_array_buffers.push_back(sab);
   }
+  std::span<Local<SharedArrayBuffer>> shared_bufs(shared_array_buffers.data(),
+                                                  shared_array_buffers.size());
 
   DeserializerDelegate delegate(this,
                                 env,
                                 host_objects,
-                                shared_array_buffers,
+                                shared_bufs,
                                 wasm_modules_,
                                 shared_value_conveyor_);
   ValueDeserializer deserializer(
@@ -477,7 +481,7 @@ Maybe<bool> Message::Serialize(Environment* env,
   ValueSerializer serializer(env->isolate(), &delegate);
   delegate.serializer = &serializer;
 
-  std::vector<Local<ArrayBuffer>> array_buffers;
+  LocalVector<ArrayBuffer> array_buffers(env->isolate());
   for (uint32_t i = 0; i < transfer_list_v.length(); ++i) {
     Local<Value> entry_val = transfer_list_v[i];
     if (!entry_val->IsObject()) {
@@ -999,7 +1003,7 @@ static Maybe<bool> ReadIterable(Environment* env,
     return Nothing<bool>();
   if (!next->IsFunction()) return Just(false);
 
-  std::vector<Local<Value>> entries;
+  LocalVector<Value> entries(isolate);
   while (env->can_call_into_js()) {
     Local<Value> result;
     if (!next.As<Function>()->Call(context, iterator, 0, nullptr)

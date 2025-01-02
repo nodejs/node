@@ -450,7 +450,7 @@ std::optional<std::string> GenerateCodeCache(std::string_view main_path,
     return std::nullopt;
   }
 
-  std::vector<Local<String>> parameters = {
+  Local<String> parameters[] = {
       FIXED_ONE_BYTE_STRING(isolate, "exports"),
       FIXED_ONE_BYTE_STRING(isolate, "require"),
       FIXED_ONE_BYTE_STRING(isolate, "module"),
@@ -462,7 +462,8 @@ std::optional<std::string> GenerateCodeCache(std::string_view main_path,
   // in the SEA code. Support it.
   // Refs: https://github.com/nodejs/node/pull/48191#discussion_r1213271430
   Local<Function> fn;
-  if (!contextify::CompileFunction(context, filename, content, &parameters)
+  std::span<Local<String>> params(&parameters[0], arraysize(parameters));
+  if (!contextify::CompileFunction(context, filename, content, params)
            .ToLocal(&fn)) {
     return std::nullopt;
   }

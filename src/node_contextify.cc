@@ -1154,17 +1154,18 @@ Maybe<void> StoreCodeCacheResult(
 }
 
 // TODO(RaisinTen): Reuse in ContextifyContext::CompileFunction().
-MaybeLocal<Function> CompileFunction(Local<Context> context,
-                                     Local<String> filename,
-                                     Local<String> content,
-                                     std::vector<Local<String>>* parameters) {
+MaybeLocal<Function> CompileFunction(
+    Local<Context> context,
+    Local<String> filename,
+    Local<String> content,
+    const std::span<Local<String>>& parameters) {
   ScriptOrigin script_origin(filename, 0, 0, true);
   ScriptCompiler::Source script_source(content, script_origin);
 
   return ScriptCompiler::CompileFunction(context,
                                          &script_source,
-                                         parameters->size(),
-                                         parameters->data(),
+                                         parameters.size(),
+                                         parameters.data(),
                                          0,
                                          nullptr);
 }
@@ -1466,7 +1467,7 @@ void ContextifyContext::CompileFunction(
   Context::Scope scope(parsing_context);
 
   // Read context extensions from buffer
-  std::vector<Local<Object>> context_extensions;
+  LocalVector<Object> context_extensions(isolate);
   if (!context_extensions_buf.IsEmpty()) {
     for (uint32_t n = 0; n < context_extensions_buf->Length(); n++) {
       Local<Value> val;
@@ -1477,7 +1478,7 @@ void ContextifyContext::CompileFunction(
   }
 
   // Read params from params buffer
-  std::vector<Local<String>> params;
+  LocalVector<String> params(isolate);
   if (!params_buf.IsEmpty()) {
     for (uint32_t n = 0; n < params_buf->Length(); n++) {
       Local<Value> val;
@@ -1488,11 +1489,14 @@ void ContextifyContext::CompileFunction(
   }
 
   TryCatchScope try_catch(env);
+  std::span<Local<String>> parms(params.data(), params.size());
+  std::span<Local<Object>> exts(context_extensions.data(),
+                                context_extensions.size());
   Local<Object> result = CompileFunctionAndCacheResult(env,
                                                        parsing_context,
                                                        &source,
-                                                       params,
-                                                       context_extensions,
+                                                       parms,
+                                                       exts,
                                                        options,
                                                        produce_cached_data,
                                                        id_symbol,
@@ -1509,22 +1513,21 @@ void ContextifyContext::CompileFunction(
   args.GetReturnValue().Set(result);
 }
 
-static std::vector<Local<String>> GetCJSParameters(IsolateData* data) {
-  return {
-      data->exports_string(),
-      data->require_string(),
-      data->module_string(),
-      data->__filename_string(),
-      data->__dirname_string(),
-  };
+static void GetCJSParameters(LocalVector<String>* vec, IsolateData* data) {
+  vec->reserve(5);
+  vec->push_back(data->exports_string());
+  vec->push_back(data->require_string());
+  vec->push_back(data->module_string());
+  vec->push_back(data->__filename_string());
+  vec->push_back(data->__dirname_string());
 }
 
 Local<Object> ContextifyContext::CompileFunctionAndCacheResult(
     Environment* env,
     Local<Context> parsing_context,
     ScriptCompiler::Source* source,
-    std::vector<Local<String>> params,
-    std::vector<Local<Object>> context_extensions,
+    const std::span<Local<String>>& params,
+    const std::span<Local<Object>>& context_extensions,
     ScriptCompiler::CompileOptions options,
     bool produce_cached_data,
     Local<Symbol> id_symbol,
@@ -1660,9 +1663,9 @@ static MaybeLocal<Function> CompileFunctionForCJSLoader(
     options = ScriptCompiler::kConsumeCodeCache;
   }
 
-  std::vector<Local<String>> params;
+  LocalVector<String> params(env->isolate());
   if (is_cjs_scope) {
-    params = GetCJSParameters(env->isolate_data());
+    GetCJSParameters(&params, env->isolate_data());
   }
   MaybeLocal<Function> maybe_fn = ScriptCompiler::CompileFunction(
       context,

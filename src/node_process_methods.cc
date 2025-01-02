@@ -48,6 +48,7 @@ using v8::HeapStatistics;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
+using v8::LocalVector;
 using v8::Maybe;
 using v8::NewStringType;
 using v8::Number;
@@ -263,7 +264,7 @@ static void Uptime(const FunctionCallbackInfo<Value>& args) {
 static void GetActiveRequests(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  std::vector<Local<Value>> request_v;
+  LocalVector<Value> request_v(env->isolate());
   for (ReqWrapBase* req_wrap : *env->req_wrap_queue()) {
     AsyncWrap* w = req_wrap->GetAsyncWrap();
     if (w->persistent().IsEmpty())
@@ -280,19 +281,20 @@ static void GetActiveRequests(const FunctionCallbackInfo<Value>& args) {
 void GetActiveHandles(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  std::vector<Local<Value>> handle_v;
+  LocalVector<Value> handle_v(env->isolate());
   for (auto w : *env->handle_wrap_queue()) {
     if (!HandleWrap::HasRef(w))
       continue;
     handle_v.emplace_back(w->GetOwner());
   }
+
   args.GetReturnValue().Set(
       Array::New(env->isolate(), handle_v.data(), handle_v.size()));
 }
 
 static void GetActiveResourcesInfo(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  std::vector<Local<Value>> resources_info;
+  LocalVector<Value> resources_info(env->isolate());
 
   // Active requests
   for (ReqWrapBase* req_wrap : *env->req_wrap_queue()) {
@@ -309,15 +311,18 @@ static void GetActiveResourcesInfo(const FunctionCallbackInfo<Value>& args) {
         OneByteString(env->isolate(), w->MemoryInfoName()));
   }
 
+  auto timeoutString = FIXED_ONE_BYTE_STRING(env->isolate(), "Timeout");
+  auto immediateString = FIXED_ONE_BYTE_STRING(env->isolate(), "Immediate");
+
   // Active timeouts
-  resources_info.insert(resources_info.end(),
-                        env->timeout_info()[0],
-                        OneByteString(env->isolate(), "Timeout"));
+  for (int32_t n = 0; n < env->timeout_info()[0]; n++) {
+    resources_info.insert(resources_info.end(), timeoutString);
+  }
 
   // Active immediates
-  resources_info.insert(resources_info.end(),
-                        env->immediate_info()->ref_count(),
-                        OneByteString(env->isolate(), "Immediate"));
+  for (uint32_t n = 0; n < env->immediate_info()->ref_count(); n++) {
+    resources_info.insert(resources_info.end(), immediateString);
+  }
 
   args.GetReturnValue().Set(
       Array::New(env->isolate(), resources_info.data(), resources_info.size()));

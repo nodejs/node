@@ -263,7 +263,7 @@ void BuiltinLoader::AddExternalizedBuiltin(const char* id,
 MaybeLocal<Function> BuiltinLoader::LookupAndCompileInternal(
     Local<Context> context,
     const char* id,
-    std::vector<Local<String>>* parameters,
+    const std::span<Local<String>>& parameters,
     Realm* optional_realm) {
   Isolate* isolate = context->GetIsolate();
   EscapableHandleScope scope(isolate);
@@ -318,8 +318,8 @@ MaybeLocal<Function> BuiltinLoader::LookupAndCompileInternal(
   MaybeLocal<Function> maybe_fun =
       ScriptCompiler::CompileFunction(context,
                                       &script_source,
-                                      parameters->size(),
-                                      parameters->data(),
+                                      parameters.size(),
+                                      parameters.data(),
                                       0,
                                       nullptr,
                                       options);
@@ -388,53 +388,57 @@ void BuiltinLoader::SaveCodeCache(const char* id, Local<Function> fun) {
 MaybeLocal<Function> BuiltinLoader::LookupAndCompile(Local<Context> context,
                                                      const char* id,
                                                      Realm* optional_realm) {
-  std::vector<Local<String>> parameters;
   Isolate* isolate = context->GetIsolate();
   // Detects parameters of the scripts based on module ids.
   // internal/bootstrap/realm: process, getLinkedBinding,
   //                           getInternalBinding, primordials
   if (strcmp(id, "internal/bootstrap/realm") == 0) {
-    parameters = {
+    Local<String> parameters[] = {
         FIXED_ONE_BYTE_STRING(isolate, "process"),
         FIXED_ONE_BYTE_STRING(isolate, "getLinkedBinding"),
         FIXED_ONE_BYTE_STRING(isolate, "getInternalBinding"),
         FIXED_ONE_BYTE_STRING(isolate, "primordials"),
     };
-  } else if (strncmp(id,
-                     "internal/per_context/",
-                     strlen("internal/per_context/")) == 0) {
-    // internal/per_context/*: global, exports, primordials
-    parameters = {
-        FIXED_ONE_BYTE_STRING(isolate, "exports"),
-        FIXED_ONE_BYTE_STRING(isolate, "primordials"),
-    };
-  } else if (strncmp(id, "internal/main/", strlen("internal/main/")) == 0 ||
-             strncmp(id,
-                     "internal/bootstrap/",
-                     strlen("internal/bootstrap/")) == 0) {
-    // internal/main/*, internal/bootstrap/*: process, require,
-    //                                        internalBinding, primordials
-    parameters = {
-        FIXED_ONE_BYTE_STRING(isolate, "process"),
-        FIXED_ONE_BYTE_STRING(isolate, "require"),
-        FIXED_ONE_BYTE_STRING(isolate, "internalBinding"),
-        FIXED_ONE_BYTE_STRING(isolate, "primordials"),
-    };
-  } else {
-    // others: exports, require, module, process, internalBinding, primordials
-    parameters = {
-        FIXED_ONE_BYTE_STRING(isolate, "exports"),
-        FIXED_ONE_BYTE_STRING(isolate, "require"),
-        FIXED_ONE_BYTE_STRING(isolate, "module"),
-        FIXED_ONE_BYTE_STRING(isolate, "process"),
-        FIXED_ONE_BYTE_STRING(isolate, "internalBinding"),
-        FIXED_ONE_BYTE_STRING(isolate, "primordials"),
-    };
+    std::span<Local<String>> span(&parameters[0], arraysize(parameters));
+    return LookupAndCompileInternal(context, id, span, optional_realm);
   }
 
-  MaybeLocal<Function> maybe =
-      LookupAndCompileInternal(context, id, &parameters, optional_realm);
-  return maybe;
+  if (strncmp(id, "internal/per_context/", strlen("internal/per_context/")) ==
+      0) {
+    // internal/per_context/*: global, exports, primordials
+    Local<String> parameters[] = {
+        FIXED_ONE_BYTE_STRING(isolate, "exports"),
+        FIXED_ONE_BYTE_STRING(isolate, "primordials"),
+    };
+    std::span<Local<String>> span(&parameters[0], arraysize(parameters));
+    return LookupAndCompileInternal(context, id, span, optional_realm);
+  }
+
+  if (strncmp(id, "internal/main/", strlen("internal/main/")) == 0 ||
+      strncmp(id, "internal/bootstrap/", strlen("internal/bootstrap/")) == 0) {
+    // internal/main/*, internal/bootstrap/*: process, require,
+    //                                        internalBinding, primordials
+    Local<String> parameters[] = {
+        FIXED_ONE_BYTE_STRING(isolate, "process"),
+        FIXED_ONE_BYTE_STRING(isolate, "require"),
+        FIXED_ONE_BYTE_STRING(isolate, "internalBinding"),
+        FIXED_ONE_BYTE_STRING(isolate, "primordials"),
+    };
+    std::span<Local<String>> span(&parameters[0], arraysize(parameters));
+    return LookupAndCompileInternal(context, id, span, optional_realm);
+  }
+
+  // others: exports, require, module, process, internalBinding, primordials
+  Local<String> parameters[] = {
+      FIXED_ONE_BYTE_STRING(isolate, "exports"),
+      FIXED_ONE_BYTE_STRING(isolate, "require"),
+      FIXED_ONE_BYTE_STRING(isolate, "module"),
+      FIXED_ONE_BYTE_STRING(isolate, "process"),
+      FIXED_ONE_BYTE_STRING(isolate, "internalBinding"),
+      FIXED_ONE_BYTE_STRING(isolate, "primordials"),
+  };
+  std::span<Local<String>> span(&parameters[0], arraysize(parameters));
+  return LookupAndCompileInternal(context, id, span, optional_realm);
 }
 
 MaybeLocal<Value> BuiltinLoader::CompileAndCall(Local<Context> context,
@@ -503,7 +507,7 @@ MaybeLocal<Value> BuiltinLoader::CompileAndCall(Local<Context> context,
 MaybeLocal<Function> BuiltinLoader::LookupAndCompile(
     Local<Context> context,
     const char* id,
-    std::vector<Local<String>>* parameters,
+    const std::span<Local<String>>& parameters,
     Realm* optional_realm) {
   return LookupAndCompileInternal(context, id, parameters, optional_realm);
 }

@@ -93,8 +93,8 @@ class ContextifyContext : public BaseObject {
       Environment* env,
       v8::Local<v8::Context> parsing_context,
       v8::ScriptCompiler::Source* source,
-      std::vector<v8::Local<v8::String>> params,
-      std::vector<v8::Local<v8::Object>> context_extensions,
+      const std::span<v8::Local<v8::String>>& params,
+      const std::span<v8::Local<v8::Object>>& context_extensions,
       v8::ScriptCompiler::CompileOptions options,
       bool produce_cached_data,
       v8::Local<v8::Symbol> id_symbol,
@@ -188,7 +188,7 @@ v8::MaybeLocal<v8::Function> CompileFunction(
     v8::Local<v8::Context> context,
     v8::Local<v8::String> filename,
     v8::Local<v8::String> content,
-    std::vector<v8::Local<v8::String>>* parameters);
+    const std::span<v8::Local<v8::String>>& parameters);
 
 }  // namespace contextify
 }  // namespace node

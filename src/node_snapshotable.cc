@@ -1473,13 +1473,14 @@ void CompileSerializeMain(const FunctionCallbackInfo<Value>& args) {
   Local<Context> context = isolate->GetCurrentContext();
   // TODO(joyeecheung): do we need all of these? Maybe we would want a less
   // internal version of them.
-  std::vector<Local<String>> parameters = {
+  Local<String> parameters[] = {
       FIXED_ONE_BYTE_STRING(isolate, "require"),
       FIXED_ONE_BYTE_STRING(isolate, "__filename"),
       FIXED_ONE_BYTE_STRING(isolate, "__dirname"),
   };
   Local<Function> fn;
-  if (contextify::CompileFunction(context, filename, source, &parameters)
+  std::span<Local<String>> params(&parameters[0], arraysize(parameters));
+  if (contextify::CompileFunction(context, filename, source, params)
           .ToLocal(&fn)) {
     args.GetReturnValue().Set(fn);
   }
