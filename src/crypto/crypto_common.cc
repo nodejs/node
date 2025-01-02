@@ -216,8 +216,7 @@ MaybeLocal<Value> GetCurrentCipherValue(Environment* env,
 }
 
 MaybeLocal<Object> GetCipherInfo(Environment* env, const SSLPointer& ssl) {
-  if (ssl.getCipher() == nullptr)
-    return MaybeLocal<Object>();
+  if (ssl.getCipher() == nullptr) return MaybeLocal<Object>();
   EscapableHandleScope scope(env->isolate());
   Local<Object> info = Object::New(env->isolate());
 

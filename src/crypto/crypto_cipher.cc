@@ -27,26 +27,6 @@ using v8::Value;
 
 namespace crypto {
 namespace {
-bool IsSupportedAuthenticatedMode(const EVP_CIPHER* cipher) {
-  switch (EVP_CIPHER_mode(cipher)) {
-  case EVP_CIPH_CCM_MODE:
-  case EVP_CIPH_GCM_MODE:
-#ifndef OPENSSL_NO_OCB
-  case EVP_CIPH_OCB_MODE:
-#endif
-    return true;
-  case EVP_CIPH_STREAM_CIPHER:
-    return EVP_CIPHER_nid(cipher) == NID_chacha20_poly1305;
-  default:
-    return false;
-  }
-}
-
-bool IsSupportedAuthenticatedMode(const EVP_CIPHER_CTX* ctx) {
-  const EVP_CIPHER* cipher = EVP_CIPHER_CTX_cipher(ctx);
-  return IsSupportedAuthenticatedMode(cipher);
-}
-
 bool IsValidGCMTagLength(unsigned int tag_len) {
   return tag_len == 4 || tag_len == 8 || (tag_len >= 12 && tag_len <= 16);
 }
@@ -59,36 +39,23 @@ void GetCipherInfo(const FunctionCallbackInfo<Value>& args) {
 
   CHECK(args[1]->IsString() || args[1]->IsInt32());
 
-  const EVP_CIPHER* cipher;
-  if (args[1]->IsString()) {
-    Utf8Value name(env->isolate(), args[1]);
-    cipher = EVP_get_cipherbyname(*name);
-  } else {
-    int nid = args[1].As<Int32>()->Value();
-    cipher = EVP_get_cipherbynid(nid);
-  }
+  const auto cipher = ([&] {
+    if (args[1]->IsString()) {
+      Utf8Value name(env->isolate(), args[1]);
+      return ncrypto::Cipher::FromName(*name);
+    } else {
+      int nid = args[1].As<Int32>()->Value();
+      return ncrypto::Cipher::FromNid(nid);
+    }
+  })();
 
-  if (cipher == nullptr)
-    return;
+  if (!cipher) return;
 
-  int mode = EVP_CIPHER_mode(cipher);
-  int iv_length = EVP_CIPHER_iv_length(cipher);
-  int key_length = EVP_CIPHER_key_length(cipher);
-  int block_length = EVP_CIPHER_block_size(cipher);
-  const char* mode_label = nullptr;
-  switch (mode) {
-    case EVP_CIPH_CBC_MODE: mode_label = "cbc"; break;
-    case EVP_CIPH_CCM_MODE: mode_label = "ccm"; break;
-    case EVP_CIPH_CFB_MODE: mode_label = "cfb"; break;
-    case EVP_CIPH_CTR_MODE: mode_label = "ctr"; break;
-    case EVP_CIPH_ECB_MODE: mode_label = "ecb"; break;
-    case EVP_CIPH_GCM_MODE: mode_label = "gcm"; break;
-    case EVP_CIPH_OCB_MODE: mode_label = "ocb"; break;
-    case EVP_CIPH_OFB_MODE: mode_label = "ofb"; break;
-    case EVP_CIPH_WRAP_MODE: mode_label = "wrap"; break;
-    case EVP_CIPH_XTS_MODE: mode_label = "xts"; break;
-    case EVP_CIPH_STREAM_CIPHER: mode_label = "stream"; break;
-  }
+  int iv_length = cipher.getIvLength();
+  int key_length = cipher.getKeyLength();
+  int block_length = cipher.getBlockSize();
+  auto mode_label = cipher.getModeLabel();
+  auto name = cipher.getName();
 
   // If the testKeyLen and testIvLen arguments are specified,
   // then we will make an attempt to see if they are usable for
@@ -116,7 +83,7 @@ void GetCipherInfo(const FunctionCallbackInfo<Value>& args) {
       // For GCM and OCB modes, we'll check by attempting to
       // set the value. For everything else, just check that
       // check_len == iv_length.
-      switch (mode) {
+      switch (cipher.getMode()) {
         case EVP_CIPH_CCM_MODE:
           if (check_len < 7 || check_len > 13)
             return;
@@ -140,38 +107,35 @@ void GetCipherInfo(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  if (mode_label != nullptr &&
-      info->Set(
-          env->context(),
-          FIXED_ONE_BYTE_STRING(env->isolate(), "mode"),
-          OneByteString(env->isolate(), mode_label)).IsNothing()) {
+  if (mode_label.length() &&
+      info->Set(env->context(),
+                FIXED_ONE_BYTE_STRING(env->isolate(), "mode"),
+                OneByteString(
+                    env->isolate(), mode_label.data(), mode_label.length()))
+          .IsNothing()) {
     return;
   }
 
-  // OBJ_nid2sn(EVP_CIPHER_nid(cipher)) is used here instead of
-  // EVP_CIPHER_name(cipher) for compatibility with BoringSSL.
-  if (info->Set(
-          env->context(),
-          env->name_string(),
-          OneByteString(
-            env->isolate(),
-            OBJ_nid2sn(EVP_CIPHER_nid(cipher)))).IsNothing()) {
+  if (info->Set(env->context(),
+                env->name_string(),
+                OneByteString(env->isolate(), name.data(), name.length()))
+          .IsNothing()) {
     return;
   }
 
-  if (info->Set(
-          env->context(),
-          FIXED_ONE_BYTE_STRING(env->isolate(), "nid"),
-          Int32::New(env->isolate(), EVP_CIPHER_nid(cipher))).IsNothing()) {
+  if (info->Set(env->context(),
+                FIXED_ONE_BYTE_STRING(env->isolate(), "nid"),
+                Int32::New(env->isolate(), cipher.getNid()))
+          .IsNothing()) {
     return;
   }
 
   // Stream ciphers do not have a meaningful block size
-  if (mode != EVP_CIPH_STREAM_CIPHER &&
-      info->Set(
-          env->context(),
-          FIXED_ONE_BYTE_STRING(env->isolate(), "blockSize"),
-          Int32::New(env->isolate(), block_length)).IsNothing()) {
+  if (cipher.getMode() != EVP_CIPH_STREAM_CIPHER &&
+      info->Set(env->context(),
+                FIXED_ONE_BYTE_STRING(env->isolate(), "blockSize"),
+                Int32::New(env->isolate(), block_length))
+          .IsNothing()) {
     return;
   }
 
@@ -341,7 +305,7 @@ void CipherBase::New(const FunctionCallbackInfo<Value>& args) {
 }
 
 void CipherBase::CommonInit(const char* cipher_type,
-                            const EVP_CIPHER* cipher,
+                            const ncrypto::Cipher& cipher,
                             const unsigned char* key,
                             int key_len,
                             const unsigned char* iv,
@@ -350,9 +314,9 @@ void CipherBase::CommonInit(const char* cipher_type,
   CHECK(!ctx_);
   ctx_.reset(EVP_CIPHER_CTX_new());
 
-  const int mode = EVP_CIPHER_mode(cipher);
-  if (mode == EVP_CIPH_WRAP_MODE)
+  if (cipher.getMode() == EVP_CIPH_WRAP_MODE) {
     EVP_CIPHER_CTX_set_flags(ctx_.get(), EVP_CIPHER_CTX_FLAG_WRAP_ALLOW);
+  }
 
   const bool encrypt = (kind_ == kCipher);
   if (1 != EVP_CipherInit_ex(ctx_.get(), cipher, nullptr,
@@ -361,7 +325,7 @@ void CipherBase::CommonInit(const char* cipher_type,
                             "Failed to initialize cipher");
   }
 
-  if (IsSupportedAuthenticatedMode(cipher)) {
+  if (cipher.isSupportedAuthenticatedMode()) {
     CHECK_GE(iv_len, 0);
     if (!InitAuthenticated(cipher_type, iv_len, auth_tag_len))
       return;
@@ -383,9 +347,10 @@ void CipherBase::Init(const char* cipher_type,
                       unsigned int auth_tag_len) {
   HandleScope scope(env()->isolate());
   MarkPopErrorOnReturn mark_pop_error_on_return;
-  const EVP_CIPHER* const cipher = EVP_get_cipherbyname(cipher_type);
-  if (cipher == nullptr)
+  auto cipher = ncrypto::Cipher::FromName(cipher_type);
+  if (!cipher) {
     return THROW_ERR_CRYPTO_UNKNOWN_CIPHER(env());
+  }
 
   unsigned char key[EVP_MAX_KEY_LENGTH];
   unsigned char iv[EVP_MAX_IV_LENGTH];
@@ -400,7 +365,7 @@ void CipherBase::Init(const char* cipher_type,
                                iv);
   CHECK_NE(key_len, 0);
 
-  const int mode = EVP_CIPHER_mode(cipher);
+  const int mode = cipher.getMode();
   if (kind_ == kCipher && (mode == EVP_CIPH_CTR_MODE ||
                            mode == EVP_CIPH_GCM_MODE ||
                            mode == EVP_CIPH_CCM_MODE)) {
@@ -411,8 +376,13 @@ void CipherBase::Init(const char* cipher_type,
                        cipher_type);
   }
 
-  CommonInit(cipher_type, cipher, key, key_len, iv,
-             EVP_CIPHER_iv_length(cipher), auth_tag_len);
+  CommonInit(cipher_type,
+             cipher,
+             key,
+             key_len,
+             iv,
+             cipher.getIvLength(),
+             auth_tag_len);
 }
 
 void CipherBase::Init(const FunctionCallbackInfo<Value>& args) {
@@ -447,12 +417,10 @@ void CipherBase::InitIv(const char* cipher_type,
   HandleScope scope(env()->isolate());
   MarkPopErrorOnReturn mark_pop_error_on_return;
 
-  const EVP_CIPHER* const cipher = EVP_get_cipherbyname(cipher_type);
-  if (cipher == nullptr)
-    return THROW_ERR_CRYPTO_UNKNOWN_CIPHER(env());
+  auto cipher = ncrypto::Cipher::FromName(cipher_type);
+  if (!cipher) return THROW_ERR_CRYPTO_UNKNOWN_CIPHER(env());
 
-  const int expected_iv_len = EVP_CIPHER_iv_length(cipher);
-  const bool is_authenticated_mode = IsSupportedAuthenticatedMode(cipher);
+  const int expected_iv_len = cipher.getIvLength();
   const bool has_iv = iv_buf.size() > 0;
 
   // Throw if no IV was passed and the cipher requires an IV
@@ -462,13 +430,12 @@ void CipherBase::InitIv(const char* cipher_type,
   // Throw if an IV was passed which does not match the cipher's fixed IV length
   // static_cast<int> for the iv_buf.size() is safe because we've verified
   // prior that the value is not larger than INT_MAX.
-  if (!is_authenticated_mode &&
-      has_iv &&
+  if (!cipher.isSupportedAuthenticatedMode() && has_iv &&
       static_cast<int>(iv_buf.size()) != expected_iv_len) {
     return THROW_ERR_CRYPTO_INVALID_IV(env());
   }
 
-  if (EVP_CIPHER_nid(cipher) == NID_chacha20_poly1305) {
+  if (cipher.getNid() == NID_chacha20_poly1305) {
     CHECK(has_iv);
     // Check for invalid IV lengths, since OpenSSL does not under some
     // conditions:
@@ -619,7 +586,7 @@ bool CipherBase::CheckCCMMessageLength(int message_len) {
 bool CipherBase::IsAuthenticatedMode() const {
   // Check if this cipher operates in an AEAD mode that we support.
   CHECK(ctx_);
-  return IsSupportedAuthenticatedMode(ctx_.get());
+  return ncrypto::Cipher::FromCtx(ctx_).isSupportedAuthenticatedMode();
 }
 
 void CipherBase::GetAuthTag(const FunctionCallbackInfo<Value>& args) {
@@ -667,7 +634,8 @@ void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
   } else {
     // At this point, the tag length is already known and must match the
     // length of the given authentication tag.
-    CHECK(IsSupportedAuthenticatedMode(cipher->ctx_.get()));
+    CHECK(
+        ncrypto::Cipher::FromCtx(cipher->ctx_).isSupportedAuthenticatedMode());
     CHECK_NE(cipher->auth_tag_len_, kNoAuthTagLength);
     is_valid = cipher->auth_tag_len_ == tag_len;
   }
@@ -885,8 +853,10 @@ bool CipherBase::Final(std::unique_ptr<BackingStore>* out) {
         static_cast<size_t>(EVP_CIPHER_CTX_block_size(ctx_.get())));
   }
 
-  if (kind_ == kDecipher && IsSupportedAuthenticatedMode(ctx_.get()))
+  if (kind_ == kDecipher &&
+      ncrypto::Cipher::FromCtx(ctx_).isSupportedAuthenticatedMode()) {
     MaybePassAuthTagToOpenSSL();
+  }
 
   // OpenSSL v1.x doesn't verify the presence of the auth tag so do
   // it ourselves, see https://github.com/nodejs/node/issues/45874.

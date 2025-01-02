@@ -218,10 +218,11 @@ int SSLCertCallback(SSL* s, void* arg) {
   Local<Object> info = Object::New(env->isolate());
 
   auto servername = SSLPointer::GetServerName(s);
-  Local<String> servername_str = !servername.has_value()
-      ? String::Empty(env->isolate())
-      : OneByteString(env->isolate(), servername.value().data(),
-            servername.value().length());
+  Local<String> servername_str =
+      !servername.has_value() ? String::Empty(env->isolate())
+                              : OneByteString(env->isolate(),
+                                              servername.value().data(),
+                                              servername.value().length());
 
   Local<Value> ocsp = Boolean::New(
       env->isolate(), SSL_get_tlsext_status_type(s) == TLSEXT_STATUSTYPE_ocsp);
@@ -376,19 +377,17 @@ inline bool Set(
           .IsNothing();
 }
 
-inline bool Set(
-    Environment* env,
-    Local<Object> target,
-    Local<String> name,
-    const std::string_view& value,
-    bool ignore_null = true) {
-  if (value.empty())
-    return ignore_null;
-  return !target->Set(
-      env->context(),
-      name,
-      OneByteString(env->isolate(), value.data(), value.length()))
-          .IsNothing();
+inline bool Set(Environment* env,
+                Local<Object> target,
+                Local<String> name,
+                const std::string_view& value,
+                bool ignore_null = true) {
+  if (value.empty()) return ignore_null;
+  return !target
+              ->Set(env->context(),
+                    name,
+                    OneByteString(env->isolate(), value.data(), value.length()))
+              .IsNothing();
 }
 
 std::string GetBIOError() {

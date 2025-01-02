@@ -40,7 +40,7 @@ WebCryptoCipherStatus AES_Cipher(Environment* env,
                                  ByteSource* out) {
   CHECK_EQ(key_data.GetKeyType(), kKeyTypeSecret);
 
-  const int mode = EVP_CIPHER_mode(params.cipher);
+  const int mode = params.cipher.getMode();
 
   CipherCtxPointer ctx(EVP_CIPHER_CTX_new());
   EVP_CIPHER_CTX_init(ctx.get());
@@ -478,13 +478,13 @@ Maybe<void> AESCipherTraits::AdditionalConfig(
   }
 #undef V
 
-  params->cipher = EVP_get_cipherbynid(cipher_nid);
-  if (params->cipher == nullptr) {
+  params->cipher = ncrypto::Cipher::FromNid(cipher_nid);
+  if (!params->cipher) {
     THROW_ERR_CRYPTO_UNKNOWN_CIPHER(env);
     return Nothing<void>();
   }
 
-  int cipher_op_mode = EVP_CIPHER_mode(params->cipher);
+  int cipher_op_mode = params->cipher.getMode();
   if (cipher_op_mode != EVP_CIPH_WRAP_MODE) {
     if (!ValidateIV(env, mode, args[offset + 1], params)) {
       return Nothing<void>();
@@ -503,8 +503,7 @@ Maybe<void> AESCipherTraits::AdditionalConfig(
     UseDefaultIV(params);
   }
 
-  if (params->iv.size() <
-      static_cast<size_t>(EVP_CIPHER_iv_length(params->cipher))) {
+  if (params->iv.size() < static_cast<size_t>(params->cipher.getIvLength())) {
     THROW_ERR_CRYPTO_INVALID_IV(env);
     return Nothing<void>();
   }
