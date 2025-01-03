@@ -33,9 +33,7 @@ ignore = [
   "E401",
   "E402",
   "E7",
-  "PLC1901",
   "RUF005",
-  "RUF100",
 ]
 
 [tool.ruff.lint.mccabe]
