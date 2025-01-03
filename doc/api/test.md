@@ -932,7 +932,13 @@ test('runs timers as setTime passes ticks', (context) => {
 
 ## Snapshot testing
 
-> Stability: 1.0 - Early development
+<!-- YAML
+added: v22.3.0
+changes:
+  - version: v23.4.0
+    pr-url: https://github.com/nodejs/node/pull/55897
+    description: Snapsnot testing is no longer experimental.
+-->
 
 Snapshot tests allow arbitrary values to be serialized into string values and
 compared against a set of known good values. The known good values are known as
@@ -1748,8 +1754,6 @@ describe('tests', async () => {
 added: v22.3.0
 -->
 
-> Stability: 1.0 - Early development
-
 An object whose methods are used to configure default snapshot settings in the
 current process. It is possible to apply the same configuration to all files by
 placing common configuration code in a module preloaded with `--require` or
@@ -1760,8 +1764,6 @@ placing common configuration code in a module preloaded with `--require` or
 <!-- YAML
 added: v22.3.0
 -->
-
-> Stability: 1.0 - Early development
 
 * `serializers` {Array} An array of synchronous functions used as the default
   serializers for snapshot tests.
@@ -1777,8 +1779,6 @@ more robust serialization mechanism is required, this function should be used.
 <!-- YAML
 added: v22.3.0
 -->
-
-> Stability: 1.0 - Early development
 
 * `fn` {Function} A function used to compute the location of the snapshot file.
   The function receives the path of the test file as its only argument. If the
@@ -3258,8 +3258,6 @@ test('test', (t) => {
 <!-- YAML
 added: v22.3.0
 -->
-
-> Stability: 1.0 - Early development
 
 * `value` {any} A value to serialize to a string. If Node.js was started with
   the [`--test-update-snapshots`][] flag, the serialized value is written to
