@@ -10,7 +10,7 @@ import path from 'node:path';
 const specJson = fixtures.readSync('test426/source-map-spec-tests.json', 'utf8');
 const spec = JSON.parse(specJson);
 
-const kStatus = JSON.parse(readFileSync(path.join(import.meta.dirname, 'status/source-map-spec-tests.json'), 'utf8'));
+const kStatus = JSON.parse(readFileSync(new URL('./status/source-map-spec-tests.json', import.meta.url), 'utf8'));
 
 const kActionRunner = {
   checkMapping,
