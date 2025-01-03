@@ -1757,8 +1757,11 @@ added: REPLACEME
 -->
 
 An object whose methods are used to configure available assertions on the
-`TestContext` objects in the current process. It is possible to apply the same
-configuration to all files by placing common configuration code in a module
+`TestContext` objects in the current process. The methods from `node:assert`
+and snapshot testing functions are available by default.
+
+It is possible to apply the same configuration to all files by placing common
+configuration code in a module
 preloaded with `--require` or `--import`.
 
 ### `assert.register(name, fn)`
