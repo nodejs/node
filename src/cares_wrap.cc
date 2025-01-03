@@ -1744,7 +1744,7 @@ void SetServers(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().Set(rv);
   }
 
-  std::string servers;
+  std::string servers{};
 
   for (uint32_t i = 0; i < len; i++) {
     CHECK(arr->Get(env->context(), i).ToLocalChecked()->IsArray());
