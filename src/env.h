@@ -26,7 +26,7 @@
 
 #include "aliased_buffer.h"
 #if HAVE_INSPECTOR
-#include "inspector_agent.h"
+#include "inspector_agent.h"f
 #include "inspector_profiler.h"
 #endif
 #include "callback_queue.h"
@@ -401,7 +401,13 @@ class AsyncHooks : public MemoryRetainer {
   void grow_async_ids_stack();
 
   v8::Global<v8::Array> js_execution_async_resources_;
-  std::vector<v8::Local<v8::Object>> native_execution_async_resources_;
+
+  // TODO(@jasnell): Note that this is technically illegal use of
+  // v8::Locals, which aren't supposed to live beyond the handle
+  // scope in which they were created. This should likely be a
+  // std::vector<v8::Global<v8::Object>> but that's possibly a
+  // larger change that should be made separately.
+  v8::LocalVector<v8::Object> native_execution_async_resources_;
 
   // Non-empty during deserialization
   const SerializeInfo* info_ = nullptr;
