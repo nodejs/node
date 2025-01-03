@@ -3231,7 +3231,7 @@ console.log(`The parent process is pid ${ppid}`);
 ## `process.ref(maybeRefable)`
 
 <!-- YAML
-added: REPLACEME
+added: v23.6.0
 -->
 
 * `maybeRefable` {any} An object that may be "refable".
@@ -4288,7 +4288,7 @@ In [`Worker`][] threads, `process.umask(mask)` will throw an exception.
 ## `process.unref(maybeRefable)`
 
 <!-- YAML
-added: REPLACEME
+added: v23.6.0
 -->
 
 * `maybeUnfefable` {any} An object that may be "unref'd".
