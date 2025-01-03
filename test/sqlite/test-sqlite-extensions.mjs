@@ -11,13 +11,19 @@ if (process.config.variables.node_shared_sqlite) {
   common.skip('Missing libsqlite_extension binary');
 }
 
-// Lib extension binary is named differently on different platforms
-function resolveBuiltBinary(binary) {
-  const targetFile = fs.readdirSync(path.dirname(process.execPath)).find((file) => file.startsWith(binary));
-  return path.join(path.dirname(process.execPath), targetFile);
+const binDir = path.dirname(process.execPath);
+let binary;
+for await (const { name } of await fs.promises.opendir(binDir)) {
+  // Lib extension binary is named differently on different platforms
+  if (name.startsWith('libsqlite_extension')) {
+    binary = path.join(binDir, name);
+    break;
+  }
 }
 
-const binary = resolveBuiltBinary('libsqlite_extension');
+if (binary == null) {
+  common.skip('Missing libsqlite_extension binary');
+}
 
 test('should load extension successfully', () => {
   const db = new sqlite.DatabaseSync(':memory:', {
