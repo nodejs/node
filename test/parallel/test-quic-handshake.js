@@ -9,6 +9,11 @@ const {
   it,
 } = require('node:test');
 
+// TODO(@jasnell): Temporarily skip the test on mac until we can figure
+// out while it is failing on macs in CI but running locally on macs ok.
+const isMac = process.platform === 'darwin';
+const skip = isMac || !hasQuic;
+
 async function readAll(readable, resolve) {
   const chunks = [];
   for await (const chunk of readable) {
@@ -17,7 +22,7 @@ async function readAll(readable, resolve) {
   resolve(Buffer.concat(chunks));
 }
 
-describe('quic basic server/client handshake works', { skip: !hasQuic }, async () => {
+describe('quic basic server/client handshake works', { skip }, async () => {
   const { createPrivateKey } = require('node:crypto');
   const fixtures = require('../common/fixtures');
   const keys = createPrivateKey(fixtures.readKey('agent1-key.pem'));
