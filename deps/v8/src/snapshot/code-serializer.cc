@@ -71,9 +71,16 @@ ScriptCompiler::CachedData* CodeSerializer::Serialize(
 
   // Serialize code object.
   Handle<String> source(String::cast(script->source()), isolate);
+  Handle<FixedArray> wrapped_arguments;
+  if (script->is_wrapped()) {
+    wrapped_arguments =
+        Handle<FixedArray>(script->wrapped_arguments(), isolate);
+  }
+
   HandleScope scope(isolate);
-  CodeSerializer cs(isolate, SerializedCodeData::SourceHash(
-                                 source, script->origin_options()));
+  CodeSerializer cs(isolate,
+                    SerializedCodeData::SourceHash(source, wrapped_arguments,
+                                                   script->origin_options()));
   DisallowGarbageCollection no_gc;
   cs.reference_map()->AddAttachedReference(*source);
   AlignedCachedData* cached_data = cs.SerializeSharedFunctionInfo(info);
@@ -429,11 +436,17 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
 
   HandleScope scope(isolate);
 
+  Handle<FixedArray> wrapped_arguments;
+  if (!script_details.wrapped_arguments.is_null()) {
+    wrapped_arguments = script_details.wrapped_arguments.ToHandleChecked();
+  }
+
   SerializedCodeSanityCheckResult sanity_check_result =
       SerializedCodeSanityCheckResult::kSuccess;
   const SerializedCodeData scd = SerializedCodeData::FromCachedData(
       cached_data,
-      SerializedCodeData::SourceHash(source, script_details.origin_options),
+      SerializedCodeData::SourceHash(source, wrapped_arguments,
+                                     script_details.origin_options),
       &sanity_check_result);
   if (sanity_check_result != SerializedCodeSanityCheckResult::kSuccess) {
     if (v8_flags.profile_deserialization)
@@ -542,6 +555,11 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::FinishOffThreadDeserialize(
 
   HandleScope scope(isolate);
 
+  Handle<FixedArray> wrapped_arguments;
+  if (!script_details.wrapped_arguments.is_null()) {
+    wrapped_arguments = script_details.wrapped_arguments.ToHandleChecked();
+  }
+
   // Do a source sanity check now that we have the source. It's important for
   // FromPartiallySanityCheckedCachedData call that the sanity_check_result
   // holds the result of the off-thread sanity check.
@@ -550,7 +568,8 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::FinishOffThreadDeserialize(
   const SerializedCodeData scd =
       SerializedCodeData::FromPartiallySanityCheckedCachedData(
           cached_data,
-          SerializedCodeData::SourceHash(source, script_details.origin_options),
+          SerializedCodeData::SourceHash(source, wrapped_arguments,
+                                         script_details.origin_options),
           &sanity_check_result);
   if (sanity_check_result != SerializedCodeSanityCheckResult::kSuccess) {
     // The only case where the deserialization result could exist despite a
@@ -708,15 +727,17 @@ SerializedCodeSanityCheckResult SerializedCodeData::SanityCheckWithoutSource()
   return SerializedCodeSanityCheckResult::kSuccess;
 }
 
-uint32_t SerializedCodeData::SourceHash(Handle<String> source,
-                                        ScriptOriginOptions origin_options) {
+uint32_t SerializedCodeData::SourceHash(
+    Handle<String> source, Handle<FixedArray> wrapped_arguments,
+    ScriptOriginOptions origin_options) {
   const uint32_t source_length = source->length();
+  const uint32_t has_wrapped_arguments = !wrapped_arguments.is_null();
 
   static constexpr uint32_t kModuleFlagMask = (1 << 31);
   const uint32_t is_module = origin_options.IsModule() ? kModuleFlagMask : 0;
   DCHECK_EQ(0, source_length & kModuleFlagMask);
 
-  return source_length | is_module;
+  return source_length | is_module | has_wrapped_arguments << 1;
 }
 
 // Return ScriptData object and relinquish ownership over it to the caller.
