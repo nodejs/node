@@ -1,23 +1,25 @@
-import * as common from '../common/index.mjs';
-
-import assert from 'node:assert';
-import path from 'node:path';
-import sqlite from 'node:sqlite';
-import test from 'node:test';
-import fs from 'node:fs';
-import childProcess from 'child_process';
+'use strict';
+const common = require('../../common');
+const assert = require('node:assert');
+const path = require('node:path');
+const sqlite = require('node:sqlite');
+const test = require('node:test');
+const fs = require('node:fs');
+const childProcess = require('node:child_process');
 
 if (process.config.variables.node_shared_sqlite) {
   common.skip('Missing libsqlite_extension binary');
 }
 
 // Lib extension binary is named differently on different platforms
-function resolveBuiltBinary(binary) {
-  const targetFile = fs.readdirSync(path.dirname(process.execPath)).find((file) => file.startsWith(binary));
-  return path.join(path.dirname(process.execPath), targetFile);
+function resolveBuiltBinary() {
+  const buildDir = `${__dirname}/build/${common.buildType}`;
+  const lib = 'sqlite_extension';
+  const targetFile = fs.readdirSync(buildDir).find((file) => file.startsWith(lib));
+  return path.join(buildDir, targetFile);
 }
 
-const binary = resolveBuiltBinary('libsqlite_extension');
+const binary = resolveBuiltBinary();
 
 test('should load extension successfully', () => {
   const db = new sqlite.DatabaseSync(':memory:', {
