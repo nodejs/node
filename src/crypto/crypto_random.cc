@@ -28,6 +28,25 @@ using v8::Uint32;
 using v8::Value;
 
 namespace crypto {
+namespace {
+using BNGENCBPointer = DeleteFnPtr<BN_GENCB, BN_GENCB_free>;
+
+BNGENCBPointer getBN_GENCB(Environment* env) {
+  // The callback is used to check if the operation should be stopped.
+  // Currently, the only check we perform is if env->is_stopping()
+  // is true.
+  BNGENCBPointer cb(BN_GENCB_new());
+  BN_GENCB_set(
+      cb.get(),
+      [](int a, int b, BN_GENCB* cb) -> int {
+        Environment* env = static_cast<Environment*>(BN_GENCB_get_arg(cb));
+        return env->is_stopping() ? 0 : 1;
+      },
+      env);
+  return cb;
+}
+
+}  // namespace
 MaybeLocal<Value> RandomBytesTraits::EncodeOutput(
     Environment* env, const RandomBytesConfig& params, ByteSource* unused) {
   return v8::Undefined(env->isolate());
@@ -150,13 +169,14 @@ bool RandomPrimeTraits::DeriveBits(Environment* env,
   // Make sure the CSPRNG is properly seeded.
   CHECK(ncrypto::CSPRNG(nullptr, 0));
 
-  if (BN_generate_prime_ex(
-          params.prime.get(),
-          params.bits,
-          params.safe ? 1 : 0,
-          params.add.get(),
-          params.rem.get(),
-          nullptr) == 0) {
+  BNGENCBPointer cb = getBN_GENCB(env);
+
+  if (BN_generate_prime_ex(params.prime.get(),
+                           params.bits,
+                           params.safe ? 1 : 0,
+                           params.add.get(),
+                           params.rem.get(),
+                           cb.get()) == 0) {
     return false;
   }
 
@@ -189,12 +209,10 @@ bool CheckPrimeTraits::DeriveBits(
     ByteSource* out) {
 
   BignumCtxPointer ctx(BN_CTX_new());
+  BNGENCBPointer cb = getBN_GENCB(env);
 
   int ret = BN_is_prime_ex(
-            params.candidate.get(),
-            params.checks,
-            ctx.get(),
-            nullptr);
+      params.candidate.get(), params.checks, ctx.get(), cb.get());
   if (ret < 0) return false;
   ByteSource::Builder buf(1);
   buf.data<char>()[0] = ret;

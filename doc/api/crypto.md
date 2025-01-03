@@ -3940,6 +3940,13 @@ By default, the prime is encoded as a big-endian sequence of octets
 in an {ArrayBuffer}. If the `bigint` option is `true`, then a {bigint}
 is provided.
 
+The `size` of the prime will have a direct impact on how long it takes to
+generate the prime. The larger the size, the longer it will take. Because
+we use OpenSSL's `BN_generate_prime_ex` function, which provides only
+minimal control over our ability to interrupt the generation process,
+it is not recommended to generate overly large primes, as doing so may make
+the process unresponsive.
+
 ### `crypto.generatePrimeSync(size[, options])`
 
 <!-- YAML
@@ -3980,6 +3987,13 @@ if given as an `ArrayBuffer`, `SharedArrayBuffer`, `TypedArray`, `Buffer`, or
 By default, the prime is encoded as a big-endian sequence of octets
 in an {ArrayBuffer}. If the `bigint` option is `true`, then a {bigint}
 is provided.
+
+The `size` of the prime will have a direct impact on how long it takes to
+generate the prime. The larger the size, the longer it will take. Because
+we use OpenSSL's `BN_generate_prime_ex` function, which provides only
+minimal control over our ability to interrupt the generation process,
+it is not recommended to generate overly large primes, as doing so may make
+the process unresponsive.
 
 ### `crypto.getCipherInfo(nameOrNid[, options])`
 
