@@ -3088,7 +3088,6 @@ one is included in the list below.
 * `--experimental-json-modules`
 * `--experimental-loader`
 * `--experimental-modules`
-* `--experimental-permission`
 * `--experimental-print-required-tla`
 * `--experimental-require-module`
 * `--experimental-shadow-realm`
