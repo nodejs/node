@@ -886,7 +886,7 @@ It is possible to run code containing inline types unless the
 ### `--experimental-addon-modules`
 
 <!-- YAML
-added: REPLACEME
+added: v23.6.0
 -->
 
 > Stability: 1.0 - Early development
@@ -1665,7 +1665,7 @@ Disable the experimental [`node:sqlite`][] module.
 <!-- YAML
 added: v22.6.0
 changes:
-  - version: REPLACEME
+  - version: v23.6.0
     pr-url: https://github.com/nodejs/node/pull/56350
     description: Type stripping is enabled by default.
 -->
@@ -2354,7 +2354,7 @@ finished executing even if the event loop would otherwise remain active.
 <!-- YAML
 added: v22.8.0
 changes:
-  - version: REPLACEME
+  - version: v23.6.0
     pr-url: https://github.com/nodejs/node/pull/56298
     description: This flag was renamed from `--experimental-test-isolation` to
                  `--test-isolation`.
