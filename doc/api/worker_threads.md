@@ -100,6 +100,27 @@ if (isMainThread) {
 }
 ```
 
+## `worker.isInternalWorker`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+Is `true` if this code is running inside of an internal [`Worker`][] thread (e.g a loader thread).
+
+```js
+// loader.js
+const { isInternalWorker } = require('node:worker_threads');
+
+console.log(isInternalWorker);  // Prints 'true'.
+```
+
+```bash
+node --no-warnings --experimental-loader ./loader.js --eval ""
+```
+
 ## `worker.isMainThread`
 
 <!-- YAML
