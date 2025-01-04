@@ -1,0 +1,100 @@
+import random
+
+class CarBuyingGame:
+    def __init__(self):
+        self.money = 1000  # Initial money
+        self.cars = [
+            {"name": f"Car {i+1}", "price": random.randint(300, 800)} for i in range(50)
+        ]  # List of 50 cars with random prices
+        self.roads = [
+            "City Road", "Highway", "Country Road", "Mountain Road", "Desert Road",
+            "Forest Road", "Coastal Road", "River Road", "Farm Road", "Speedway"
+        ]  # List of 10 different roads
+        self.cars_bought = []  # List to store bought cars
+
+    def show_balance(self):
+        print(f"Your balance: ₹{self.money}")
+
+    def show_roads(self):
+        print("Available Roads:")
+        for road in self.roads:
+            print(f"- {road}")
+
+    def buy_car(self):
+        print("Available Cars:")
+        for idx, car in enumerate(self.cars, 1):
+            print(f"{idx}. {car['name']} - ₹{car['price']}")
+
+        car_choice = int(input("Enter the number of the car you want to buy: "))
+        
+        if car_choice < 1 or car_choice > len(self.cars):
+            print("Invalid car choice. Please try again.")
+            return
+        
+        car = self.cars[car_choice - 1]
+        
+        if self.money >= car["price"]:
+            self.money -= car["price"]  # Deduct money
+            self.cars_bought.append(car["name"])  # Add car to the list of bought cars
+            print(f"You bought {car['name']}! Remaining balance: ₹{self.money}")
+        else:
+            print("Not enough money to buy this car!")
+
+    def earn_money(self):
+        earning = 200  # Earn 200 money
+        self.money += earning
+        print(f"You earned ₹{earning}. New balance: ₹{self.money}")
+
+    def show_cars(self):
+        if self.cars_bought:
+            print("Your Cars:")
+            for car in self.cars_bought:
+                print(car)
+        else:
+            print("You haven't bought any cars yet!")
+
+    def drive_on_road(self):
+        print("Select a road to drive on:")
+        self.show_roads()
+        
+        road_choice = int(input("Enter the number of the road you want to drive on: "))
+        
+        if road_choice < 1 or road_choice > len(self.roads):
+            print("Invalid road choice. Please try again.")
+            return
+        
+        selected_road = self.roads[road_choice - 1]
+        print(f"You are now driving on the {selected_road}!")
+
+def main():
+    game = CarBuyingGame()
+
+    while True:
+        print("\nWelcome to the Car Buying Game!")
+        print("1. Show Balance")
+        print("2. Buy Car")
+        print("3. Earn Money")
+        print("4. Show Cars")
+        print("5. Drive on Road")
+        print("6. Exit")
+
+        choice = input("Enter your choice: ")
+
+        if choice == '1':
+            game.show_balance()
+        elif choice == '2':
+            game.buy_car()
+        elif choice == '3':
+            game.earn_money()
+        elif choice == '4':
+            game.show_cars()
+        elif choice == '5':
+            game.drive_on_road()
+        elif choice == '6':
+            print("Thank you for playing!")
+            break
+        else:
+            print("Invalid choice, please try again.")
+
+if __name__ == "__main__":
+    main()
