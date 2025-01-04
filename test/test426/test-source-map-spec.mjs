@@ -5,7 +5,6 @@ import assert from 'node:assert';
 import test from 'node:test';
 import { SourceMap } from 'node:module';
 import { readFileSync } from 'node:fs';
-import path from 'node:path';
 
 const specJson = fixtures.readSync('test426/source-map-spec-tests.json', 'utf8');
 const spec = JSON.parse(specJson);
