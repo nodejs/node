@@ -609,6 +609,10 @@ test-debug: BUILDTYPE_LOWER=debug ## Run tests on a debug build.
 test-release test-debug: test-build ## Run tests on a release or debug build.
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER)
 
+.PHONY: test-test426
+test-test426: all ## Run the Web Platform Tests.
+	$(PYTHON) tools/test.py $(PARALLEL_ARGS) test426
+
 .PHONY: test-wpt
 test-wpt: all ## Run the Web Platform Tests.
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) wpt
