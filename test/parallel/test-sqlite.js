@@ -103,3 +103,11 @@ test('PRAGMAs are supported', (t) => {
     { __proto__: null, journal_mode: 'wal' },
   );
 });
+
+test('math functions are enabled', (t) => {
+  const db = new DatabaseSync(':memory:');
+  t.assert.deepStrictEqual(
+    db.prepare('SELECT PI() AS pi').get(),
+    { __proto__: null, pi: 3.141592653589793 },
+  );
+});
