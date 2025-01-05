@@ -859,8 +859,7 @@ void TLSWrap::ClearOut() {
           if (context.IsEmpty()) [[unlikely]]
             return;
           const std::string error_str = GetBIOError();
-          Local<String> message = OneByteString(
-              env()->isolate(), error_str.c_str(), error_str.size());
+          Local<String> message = OneByteString(env()->isolate(), error_str);
           if (message.IsEmpty()) [[unlikely]]
             return;
           error = Exception::Error(message);
@@ -1974,7 +1973,7 @@ void TLSWrap::GetSharedSigalgs(const FunctionCallbackInfo<Value>& args) {
     } else {
       sig_with_md += "UNDEF";
     }
-    ret_arr[i] = OneByteString(env->isolate(), sig_with_md.c_str());
+    ret_arr[i] = OneByteString(env->isolate(), sig_with_md);
   }
 
   args.GetReturnValue().Set(

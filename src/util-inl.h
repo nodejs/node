@@ -180,6 +180,11 @@ inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
       .ToLocalChecked();
 }
 
+inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
+                                           std::string_view str) {
+  return OneByteString(isolate, str.data(), str.size());
+}
+
 char ToLower(char c) {
   return std::tolower(c, std::locale::classic());
 }
