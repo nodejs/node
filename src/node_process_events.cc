@@ -21,8 +21,7 @@ using v8::Value;
 Maybe<bool> ProcessEmitWarningSync(Environment* env, std::string_view message) {
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
-  Local<String> message_string =
-      OneByteString(isolate, message.data(), message.size());
+  Local<String> message_string = OneByteString(isolate, message);
 
   Local<Value> argv[] = {message_string};
   Local<Function> emit_function = env->process_emit_warning_sync();
