@@ -100,7 +100,7 @@ if (isMainThread) {
 }
 ```
 
-## `worker.isInternalWorker`
+## `worker.isInternalThread`
 
 <!-- YAML
 added: REPLACEME
@@ -112,9 +112,9 @@ Is `true` if this code is running inside of an internal [`Worker`][] thread (e.g
 
 ```js
 // loader.js
-const { isInternalWorker } = require('node:worker_threads');
+const { isInternalThread } = require('node:worker_threads');
 
-console.log(isInternalWorker);  // Prints 'true'.
+console.log(isInternalThread);  // Prints 'true'.
 ```
 
 ```bash

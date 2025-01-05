@@ -1039,7 +1039,7 @@ void CreateWorkerPerContextProperties(Local<Object> target,
   // Set the is_internal property
   target
       ->Set(env->context(),
-            FIXED_ONE_BYTE_STRING(isolate, "isInternalWorker"),
+            FIXED_ONE_BYTE_STRING(isolate, "isInternalThread"),
             Boolean::New(isolate, is_internal))
       .Check();
 
