@@ -108,7 +108,7 @@ added: REPLACEME
 
 * {boolean}
 
-Is `true` if this code is running inside of an internal [`Worker`][] thread (e.g a loader thread).
+Is `true` if this code is running inside of an internal [`Worker`][] thread (e.g the loader thread).
 
 ```js
 // loader.js
