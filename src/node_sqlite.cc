@@ -960,7 +960,7 @@ bool StatementSync::BindParams(const FunctionCallbackInfo<Value>& args) {
   int anon_idx = 1;
   int anon_start = 0;
 
-  if (args[0]->IsObject() && !args[0]->IsUint8Array()) {
+  if (args[0]->IsObject() && !args[0]->IsArrayBufferView()) {
     Local<Object> obj = args[0].As<Object>();
     Local<Context> context = obj->GetIsolate()->GetCurrentContext();
     Local<Array> keys;
@@ -1065,7 +1065,7 @@ bool StatementSync::BindValue(const Local<Value>& value, const int index) {
         statement_, index, *val, val.length(), SQLITE_TRANSIENT);
   } else if (value->IsNull()) {
     r = sqlite3_bind_null(statement_, index);
-  } else if (value->IsUint8Array()) {
+  } else if (value->IsArrayBufferView()) {
     ArrayBufferViewContents<uint8_t> buf(value);
     r = sqlite3_bind_blob(
         statement_, index, buf.data(), buf.length(), SQLITE_TRANSIENT);
