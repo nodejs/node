@@ -78,7 +78,7 @@ void BuiltinLoader::GetNatives(Local<Name> property,
   Local<Object> out = Object::New(isolate);
   auto source = env->builtin_loader()->source_.read();
   for (auto const& x : *source) {
-    Local<String> key = OneByteString(isolate, x.first.c_str(), x.first.size());
+    Local<String> key = OneByteString(isolate, x.first);
     out->Set(context, key, x.second.ToStringChecked(isolate)).FromJust();
   }
   info.GetReturnValue().Set(out);
@@ -207,7 +207,7 @@ MaybeLocal<String> BuiltinLoader::LoadBuiltinSource(Isolate* isolate,
                                     uv_err_name(r),
                                     uv_strerror(r),
                                     filename);
-    Local<String> message = OneByteString(isolate, buf.c_str());
+    Local<String> message = OneByteString(isolate, buf);
     isolate->ThrowException(v8::Exception::Error(message));
     return MaybeLocal<String>();
   }
@@ -277,8 +277,7 @@ MaybeLocal<Function> BuiltinLoader::LookupAndCompileInternal(
   }
 
   std::string filename_s = std::string("node:") + id;
-  Local<String> filename =
-      OneByteString(isolate, filename_s.c_str(), filename_s.size());
+  Local<String> filename = OneByteString(isolate, filename_s);
   ScriptOrigin origin(filename, 0, 0, true);
 
   BuiltinCodeCacheData cached_data{};
@@ -595,7 +594,7 @@ void BuiltinLoader::GetBuiltinCategories(
     return;
   if (result
           ->Set(context,
-                OneByteString(isolate, "cannotBeRequired"),
+                FIXED_ONE_BYTE_STRING(isolate, "cannotBeRequired"),
                 cannot_be_required_js)
           .IsNothing())
     return;
@@ -604,7 +603,7 @@ void BuiltinLoader::GetBuiltinCategories(
     return;
   if (result
           ->Set(context,
-                OneByteString(isolate, "canBeRequired"),
+                FIXED_ONE_BYTE_STRING(isolate, "canBeRequired"),
                 can_be_required_js)
           .IsNothing()) {
     return;
@@ -627,7 +626,7 @@ void BuiltinLoader::GetCacheUsage(const FunctionCallbackInfo<Value>& args) {
   }
   if (result
           ->Set(context,
-                OneByteString(isolate, "compiledWithCache"),
+                FIXED_ONE_BYTE_STRING(isolate, "compiledWithCache"),
                 builtins_with_cache_js)
           .IsNothing()) {
     return;
@@ -639,7 +638,7 @@ void BuiltinLoader::GetCacheUsage(const FunctionCallbackInfo<Value>& args) {
   }
   if (result
           ->Set(context,
-                OneByteString(isolate, "compiledWithoutCache"),
+                FIXED_ONE_BYTE_STRING(isolate, "compiledWithoutCache"),
                 builtins_without_cache_js)
           .IsNothing()) {
     return;
@@ -651,7 +650,7 @@ void BuiltinLoader::GetCacheUsage(const FunctionCallbackInfo<Value>& args) {
   }
   if (result
           ->Set(context,
-                OneByteString(isolate, "compiledInSnapshot"),
+                FIXED_ONE_BYTE_STRING(isolate, "compiledInSnapshot"),
                 builtins_in_snapshot_js)
           .IsNothing()) {
     return;
