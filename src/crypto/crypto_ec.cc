@@ -767,16 +767,16 @@ Maybe<void> ExportJWKEcKey(Environment* env,
   const int nid = EC_GROUP_get_curve_name(group);
   switch (nid) {
     case NID_X9_62_prime256v1:
-      crv_name = OneByteString(env->isolate(), "P-256");
+      crv_name = FIXED_ONE_BYTE_STRING(env->isolate(), "P-256");
       break;
     case NID_secp256k1:
-      crv_name = OneByteString(env->isolate(), "secp256k1");
+      crv_name = FIXED_ONE_BYTE_STRING(env->isolate(), "secp256k1");
       break;
     case NID_secp384r1:
-      crv_name = OneByteString(env->isolate(), "P-384");
+      crv_name = FIXED_ONE_BYTE_STRING(env->isolate(), "P-384");
       break;
     case NID_secp521r1:
-      crv_name = OneByteString(env->isolate(), "P-521");
+      crv_name = FIXED_ONE_BYTE_STRING(env->isolate(), "P-521");
       break;
     default: {
       THROW_ERR_CRYPTO_JWK_UNSUPPORTED_CURVE(
