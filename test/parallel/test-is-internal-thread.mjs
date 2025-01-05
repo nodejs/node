@@ -6,7 +6,7 @@ import { describe, it } from 'node:test';
 import { isInternalThread, Worker } from 'node:worker_threads';
 import * as common from '../common/index.mjs';
 
-describe('isInternalThread is only true on InternalWorker', { concurrency: !process.env.TEST_PARALLEL }, () => {
+describe('worker_threads.isInternalThread', { concurrency: !process.env.TEST_PARALLEL }, () => {
   it('should be true inside the loader thread', async () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
@@ -17,20 +17,20 @@ describe('isInternalThread is only true on InternalWorker', { concurrency: !proc
     ]);
 
     assert.strictEqual(stderr, '');
-    assert.match(stdout, /^true\r?\n$/);
+    assert.match(stdout, /isInternalThread: true/);
     assert.strictEqual(code, 0);
     assert.strictEqual(signal, null);
   });
 
   it('should be false inside the main thread', async () => {
-    assert.ok(!isInternalThread);
+    assert.strictEqual(isInternalThread, false);
   });
 
   it('should be false inside a regular worker thread', async () => {
     const worker = new Worker(fixtures.path('worker-is-internal-thread.js'));
 
     worker.on('message', common.mustCall((isInternalThread) => {
-      assert.ok(!isInternalThread);
+      assert.strictEqual(isInternalThread, false);
     }));
   });
 });
