@@ -1,3 +1,3 @@
 const { isInternalThread } = require('node:worker_threads');
 
-console.log(isInternalThread);
+console.log(`isInternalThread: ${isInternalThread}`);

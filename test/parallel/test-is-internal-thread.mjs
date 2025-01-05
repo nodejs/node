@@ -29,8 +29,8 @@ describe('worker_threads.isInternalThread', { concurrency: !process.env.TEST_PAR
   it('should be false inside a regular worker thread', async () => {
     const worker = new Worker(fixtures.path('worker-is-internal-thread.js'));
 
-    worker.on('message', common.mustCall((isInternalThread) => {
-      assert.strictEqual(isInternalThread, false);
+    worker.on('message', common.mustCall((message) => {
+      assert.strictEqual(message, 'isInternalThread: false');
     }));
   });
 });
