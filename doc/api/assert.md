@@ -2546,7 +2546,7 @@ argument.
 ## `assert.partialDeepStrictEqual(actual, expected[, message])`
 
 <!-- YAML
-added: REPLACEME
+added: v22.13.0
 -->
 
 > Stability: 1.0 - Early development

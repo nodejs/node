@@ -179,7 +179,7 @@ changes:
     - v22.12.0
     pr-url: https://github.com/nodejs/node/pull/55085
     description: This feature is no longer behind the `--experimental-require-module` CLI flag.
-  - version: REPLACEME
+  - version: v22.13.0
     pr-url: https://github.com/nodejs/node/pull/56194
     description: This feature no longer emits an experimental warning by default,
                  though the warning can still be emitted by --trace-require-module.

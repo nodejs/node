@@ -1922,7 +1922,7 @@ A boolean value that is `true` if the current Node.js build includes the inspect
 
 <!-- YAML
 added: v0.5.3
-deprecated: REPLACEME
+deprecated: v22.13.0
 -->
 
 > Stability: 0 - Deprecated. This property is always true, and any checks based on it are
@@ -1959,7 +1959,7 @@ A boolean value that is `true` if the current Node.js build includes support for
 
 <!-- YAML
 added: v4.8.0
-deprecated: REPLACEME
+deprecated: v22.13.0
 -->
 
 > Stability: 0 - Deprecated. Use `process.features.tls` instead.
@@ -1975,7 +1975,7 @@ This value is therefore identical to that of `process.features.tls`.
 
 <!-- YAML
 added: v0.11.13
-deprecated: REPLACEME
+deprecated: v22.13.0
 -->
 
 > Stability: 0 - Deprecated. Use `process.features.tls` instead.
@@ -1991,7 +1991,7 @@ This value is therefore identical to that of `process.features.tls`.
 
 <!-- YAML
 added: v0.5.3
-deprecated: REPLACEME
+deprecated: v22.13.0
 -->
 
 > Stability: 0 - Deprecated. Use `process.features.tls` instead.
@@ -2020,7 +2020,7 @@ A value that is `"strip"` if Node.js is run with `--experimental-strip-types`,
 
 <!-- YAML
 added: v0.5.3
-deprecated: REPLACEME
+deprecated: v22.13.0
 -->
 
 > Stability: 0 - Deprecated. This property is always true, and any checks based on it are
@@ -3510,7 +3510,7 @@ console.log(`Report on exception: ${report.reportOnUncaughtException}`);
 ### `process.report.excludeEnv`
 
 <!-- YAML
-added: REPLACEME
+added: v22.13.0
 -->
 
 * {boolean}

@@ -273,7 +273,7 @@ resolution and loading behavior. See [Customization hooks][].
 ### `module.stripTypeScriptTypes(code[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v22.13.0
 -->
 
 > Stability: 1.1 - Active development

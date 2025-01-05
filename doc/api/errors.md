@@ -2190,7 +2190,7 @@ signaling a short circuit.
 ### `ERR_LOAD_SQLITE_EXTENSION`
 
 <!-- YAML
-added: REPLACEME
+added: v22.13.0
 -->
 
 An error occurred while loading a SQLite extension.
@@ -2468,7 +2468,7 @@ object.
 ### `ERR_QUIC_APPLICATION_ERROR`
 
 <!-- YAML
-added: REPLACEME
+added: v22.13.0
 -->
 
 > Stability: 1 - Experimental
@@ -2516,7 +2516,7 @@ Opening a QUIC stream failed.
 ### `ERR_QUIC_TRANSPORT_ERROR`
 
 <!-- YAML
-added: REPLACEME
+added: v22.13.0
 -->
 
 > Stability: 1 - Experimental
@@ -2528,7 +2528,7 @@ A QUIC transport error occurred.
 ### `ERR_QUIC_VERSION_NEGOTIATION_ERROR`
 
 <!-- YAML
-added: REPLACEME
+added: v22.13.0
 -->
 
 > Stability: 1 - Experimental
