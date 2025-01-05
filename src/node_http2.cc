@@ -725,13 +725,14 @@ MaybeLocal<Object> Http2SessionPerformanceEntryTraits::GetDetails(
   SET(stream_average_duration_string, stream_average_duration)
   SET(stream_count_string, stream_count)
 
-  if (!obj->Set(
-          env->context(),
-          env->type_string(),
-          OneByteString(
-              env->isolate(),
-              (entry.details.session_type == NGHTTP2_SESSION_SERVER)
-                  ? "server" : "client")).IsJust()) {
+  if (!obj->Set(env->context(),
+                env->type_string(),
+                FIXED_ONE_BYTE_STRING(
+                    env->isolate(),
+                    (entry.details.session_type == NGHTTP2_SESSION_SERVER)
+                        ? "server"
+                        : "client"))
+           .IsJust()) {
     return MaybeLocal<Object>();
   }
 
