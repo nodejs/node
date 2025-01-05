@@ -223,7 +223,9 @@ See [Customization hooks][].
 ### `module.stripTypeScriptTypes(code[, options])`
 
 <!-- YAML
-added: v23.2.0
+added:
+  - v23.2.0
+  - v22.13.0
 -->
 
 > Stability: 1.1 - Active development

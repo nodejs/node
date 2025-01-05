@@ -3370,7 +3370,9 @@ added:
   - v22.2.0
   - v20.15.0
 changes:
-  - version: v23.4.0
+  - version:
+    - v23.4.0
+    - v22.13.0
     pr-url: https://github.com/nodejs/node/pull/55895
     description: This function is no longer experimental.
 -->

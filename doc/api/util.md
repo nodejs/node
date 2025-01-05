@@ -1927,7 +1927,9 @@ added:
   - v21.7.0
   - v20.12.0
 changes:
-  - version: v23.5.0
+  - version:
+    - v23.5.0
+    - v22.13.0
     pr-url: https://github.com/nodejs/node/pull/56265
     description: styleText is now stable.
   - version:

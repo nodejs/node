@@ -193,6 +193,7 @@ Error: Access to this API has been restricted
 added: v20.0.0
 changes:
   - version: v23.5.0
+  - version: v22.13.0
     pr-url: https://github.com/nodejs/node/pull/56201
     description: Permission Model and --allow-fs flags are stable.
   - version: v20.7.0
@@ -238,6 +239,7 @@ node --permission --allow-fs-read=/path/to/index.js index.js
 added: v20.0.0
 changes:
   - version: v23.5.0
+  - version: v22.13.0
     pr-url: https://github.com/nodejs/node/pull/56201
     description: Permission Model and --allow-fs flags are stable.
   - version: v20.7.0
@@ -1654,6 +1656,7 @@ See [Loading ECMAScript modules using `require()`][].
 added: v22.5.0
 changes:
   - version: v23.4.0
+  - version: v22.13.0
     pr-url: https://github.com/nodejs/node/pull/55890
     description: SQLite is unflagged but still experimental.
 -->
@@ -1803,6 +1806,7 @@ developers may leverage to detect deprecated API usage.
 added: v20.0.0
 changes:
   - version: v23.5.0
+  - version: v22.13.0
     pr-url: https://github.com/nodejs/node/pull/56201
     description: Permission Model is now stable.
 -->
@@ -1960,7 +1964,9 @@ Location at which the report will be generated.
 ### `--report-exclude-env`
 
 <!-- YAML
-added: v23.3.0
+added:
+  - v23.3.0
+  - v22.13.0
 -->
 
 When `--report-exclude-env` is passed the diagnostic report generated will not
@@ -2482,6 +2488,7 @@ subtests inherit this value from their parent. The default value is `Infinity`.
 added: v22.3.0
 changes:
   - version: v23.4.0
+  - version: v22.13.0
     pr-url: https://github.com/nodejs/node/pull/55897
     description: Snapsnot testing is no longer experimental.
 -->
@@ -2599,7 +2606,9 @@ Print stack traces for deprecations.
 ### `--trace-env`
 
 <!-- YAML
-added: v23.4.0
+added:
+  - v23.4.0
+  - v22.13.0
 -->
 
 Print information about any access to environment variables done in the current Node.js
@@ -2622,7 +2631,9 @@ To print the stack trace of the access, use `--trace-env-js-stack` and/or
 ### `--trace-env-js-stack`
 
 <!-- YAML
-added: v23.4.0
+added:
+  - v23.4.0
+  - v22.13.0
 -->
 
 In addition to what `--trace-env` does, this prints the JavaScript stack trace of the access.
@@ -2630,7 +2641,9 @@ In addition to what `--trace-env` does, this prints the JavaScript stack trace o
 ### `--trace-env-native-stack`
 
 <!-- YAML
-added: v23.4.0
+added:
+  - v23.4.0
+  - v22.13.0
 -->
 
 In addition to what `--trace-env` does, this prints the native stack trace of the access.
@@ -2677,6 +2690,7 @@ i.e. invoking `process.exit()`.
 <!-- YAML
 added:
  - v23.5.0
+ - v22.13.0
 -->
 
 Prints information about usage of [Loading ECMAScript modules using `require()`][].
