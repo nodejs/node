@@ -2970,7 +2970,7 @@ added: v0.1.32
 added: v0.3.0
 -->
 
-When set, colors will not be used in the REPL.
+When set, colors will not be used in the REPL, nor at the command-line.
 
 ### `NODE_DISABLE_COMPILE_CACHE=1`
 
@@ -3352,7 +3352,8 @@ propagation.
 
 ### `NO_COLOR=<any>`
 
-[`NO_COLOR`][]  is an alias for `NODE_DISABLE_COLORS`. The value of the
+[`NO_COLOR`][] When set, disables color only for the command-line. The REPL will
+continue to output color unless `NODE_DISABLE_COLORS` is set. The value of the
 environment variable is arbitrary.
 
 #### Coverage output
