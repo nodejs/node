@@ -110,15 +110,32 @@ added: REPLACEME
 
 Is `true` if this code is running inside of an internal [`Worker`][] thread (e.g the loader thread).
 
-```js
-// loader.js
-const { isInternalThread } = require('node:worker_threads');
-
-console.log(isInternalThread);  // Prints 'true'.
+```bash
+node --experimental-loader ./loader.js main.js
 ```
 
-```bash
-node --no-warnings --experimental-loader ./loader.js --eval ""
+```cjs
+// loader.js
+const { isInternalThread } = require('node:worker_threads');
+console.log(isInternalThread);  // true
+```
+
+```mjs
+// loader.js
+import { isInternalThread } from 'node:worker_threads';
+console.log(isInternalThread);  // true
+```
+
+```cjs
+// main.js
+const { isInternalThread } = require('node:worker_threads');
+console.log(isInternalThread);  // false
+```
+
+```mjs
+// main.js
+import { isInternalThread } from 'node:worker_threads';
+console.log(isInternalThread);  // false
 ```
 
 ## `worker.isMainThread`
