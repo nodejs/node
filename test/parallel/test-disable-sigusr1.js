@@ -8,7 +8,7 @@ const { NodeInstance } = require('../common/inspector-helper.js');
 
 common.skipIfInspectorDisabled();
 
-it('should not attach a debugger with SIGUSR1', { skip: common.isWindows() }, async () => {
+it('should not attach a debugger with SIGUSR1', { skip: common.isWindows }, async () => {
   const file = fixtures.path('disable-signal/sigusr1.js');
   const instance = new NodeInstance(['--disable-sigusr1'], undefined, file);
 
