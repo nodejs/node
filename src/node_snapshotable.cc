@@ -992,10 +992,6 @@ ExitCode BuildSnapshotWithoutCodeCache(
     // example, a WeakRef may schedule an per-isolate platform task as a GC
     // root, and referencing an object in a context, causing an assertion in
     // the snapshot creator.
-
-    // FIXME(joyeecheung): right now running the loop in the snapshot
-    // builder might introduce inconsistencies in JS land that need to
-    // be synchronized again after snapshot restoration.
     ExitCode exit_code =
         SpinEventLoopInternal(env).FromMaybe(ExitCode::kGenericUserError);
     if (exit_code != ExitCode::kNoFailure) {
