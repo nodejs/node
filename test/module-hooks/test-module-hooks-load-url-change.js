@@ -9,7 +9,7 @@ const fixtures = require('../common/fixtures');
 // It changes `foo` package name into `redirected-fs` and then loads `redirected-fs`
 
 const hook = registerHooks({
-  resolve(specifier, context, nextLoad) {
+  resolve(specifier, context, nextResolve) {
     assert.strictEqual(specifier, 'foo');
     return {
       url: 'file:///foo',
