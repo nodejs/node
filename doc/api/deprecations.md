@@ -3779,12 +3779,12 @@ It is recommended to use the `new` qualifier instead. This applies to all REPL c
 
 <!-- YAML
 changes:
-  - version: v23.4.0
-    pr-url: https://github.com/nodejs/node/pull/55892
-    description: Documentation-only.
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/55753
     description: Runtime deprecation.
+  - version: v23.4.0
+    pr-url: https://github.com/nodejs/node/pull/55892
+    description: Documentation-only.
 -->
 
 Type: Runtime
