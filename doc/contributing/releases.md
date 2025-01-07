@@ -1104,7 +1104,7 @@ The post content can be as simple as:
 
 You can create the PR for the release post on nodejs/bluesky with the following:
 
-```sh
+```bash
 # Create a PR for a post:
 gh workflow run create-pr.yml --repo "https://github.com/nodejs/bluesky" \
   -F prTitle='vx.x.x release announcement' \
