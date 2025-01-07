@@ -1319,6 +1319,14 @@ added: v16.18.0
 
 Emitted when a new process is created.
 
+`execve`
+
+* `execPath` {string}
+* `args` {string\[]}
+* `env` {string\[]}
+
+Emitted when [`process.execve()`][] is invoked.
+
 #### Worker Thread
 
 <!-- YAML
@@ -1348,5 +1356,6 @@ Emitted when a new thread is created.
 [`end` event]: #endevent
 [`error` event]: #errorevent
 [`net.Server.listen()`]: net.md#serverlisten
+[`process.execve()`]: process.md#processexecvefile-args-env
 [`start` event]: #startevent
 [context loss]: async_context.md#troubleshooting-context-loss
