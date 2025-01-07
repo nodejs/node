@@ -9,7 +9,7 @@ const fixtures = require('../common/fixtures');
 // Check reads from the Node.js internals.
 spawnSyncAndAssert(process.execPath, ['--trace-env', fixtures.path('empty.js')], {
   stderr(output) {
-    // This is a non-exhaustive list of thes checked
+    // This is a non-exhaustive list of the environment variables checked
     // during startup of an empty script at the time this test was written.
     // If the internals remove any one of them, the checks here can be updated
     // accordingly.

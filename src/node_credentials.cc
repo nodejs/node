@@ -99,7 +99,7 @@ bool SafeGetenv(const char* key, std::string* text, Environment* env) {
     *text = value.value();
   }
 
-  TraceEnv(env, "get", key);
+  TraceEnvVar(env, "get", key);
 
   return has_env;
 }
