@@ -982,6 +982,8 @@ ExitCode BuildSnapshotWithoutCodeCache(
   }
 
   Isolate* isolate = setup->isolate();
+  v8::Locker locker(isolate);
+
   {
     HandleScope scope(isolate);
     TryCatch bootstrapCatch(isolate);
