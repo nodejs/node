@@ -1580,15 +1580,16 @@ void ConvertIpv6StringToBuffer(const FunctionCallbackInfo<Value>& args) {
 
   if (uv_inet_pton(AF_INET6, *ip, dst) != 0) {
     isolate->ThrowException(Exception::Error(
-        String::NewFromUtf8(isolate, "Invalid IPv6 address").ToLocalChecked()));
+        FIXED_ONE_BYTE_STRING(isolate, "Invalid IPv6 address")));
     return;
   }
 
-  Local<Object> buffer =
-      node::Buffer::Copy(
+  Local<Object> buffer;
+  if (node::Buffer::Copy(
           isolate, reinterpret_cast<const char*>(dst), sizeof(dst))
-          .ToLocalChecked();
-  args.GetReturnValue().Set(buffer);
+          .ToLocal(&buffer)) {
+    args.GetReturnValue().Set(buffer);
+  }
 }
 
 void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
@@ -1750,22 +1751,27 @@ void SetServers(const FunctionCallbackInfo<Value>& args) {
   int err;
 
   for (uint32_t i = 0; i < len; i++) {
-    CHECK(arr->Get(env->context(), i).ToLocalChecked()->IsArray());
+    Local<Value> val;
+    if (!arr->Get(env->context(), i).ToLocal(&val)) return;
+    CHECK(val->IsArray());
 
-    Local<Array> elm = arr->Get(env->context(), i).ToLocalChecked().As<Array>();
+    Local<Array> elm = val.As<Array>();
 
-    CHECK(elm->Get(env->context(),
-                   0).ToLocalChecked()->Int32Value(env->context()).FromJust());
-    CHECK(elm->Get(env->context(), 1).ToLocalChecked()->IsString());
-    CHECK(elm->Get(env->context(),
-                   2).ToLocalChecked()->Int32Value(env->context()).FromJust());
+    Local<Value> familyValue;
+    Local<Value> ipValue;
+    Local<Value> portValue;
 
-    int fam = elm->Get(env->context(), 0)
-        .ToLocalChecked()->Int32Value(env->context()).FromJust();
-    node::Utf8Value ip(env->isolate(),
-                       elm->Get(env->context(), 1).ToLocalChecked());
-    int port = elm->Get(env->context(), 2)
-        .ToLocalChecked()->Int32Value(env->context()).FromJust();
+    if (!elm->Get(env->context(), 0).ToLocal(&familyValue)) return;
+    if (!elm->Get(env->context(), 1).ToLocal(&ipValue)) return;
+    if (!elm->Get(env->context(), 2).ToLocal(&portValue)) return;
+
+    CHECK(familyValue->Int32Value(env->context()).FromJust());
+    CHECK(ipValue->IsString());
+    CHECK(portValue->Int32Value(env->context()).FromJust());
+
+    int fam = familyValue->Int32Value(env->context()).FromJust();
+    node::Utf8Value ip(env->isolate(), ipValue);
+    int port = portValue->Int32Value(env->context()).FromJust();
 
     ares_addr_port_node* cur = &servers[i];
 
