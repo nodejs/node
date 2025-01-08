@@ -2613,4 +2613,68 @@ bool CipherCtxPointer::getAeadTag(size_t len, unsigned char* out) {
   return EVP_CIPHER_CTX_ctrl(ctx_.get(), EVP_CTRL_AEAD_GET_TAG, len, out);
 }
 
+// ============================================================================
+
+ECDSASigPointer::ECDSASigPointer() : sig_(nullptr) {}
+ECDSASigPointer::ECDSASigPointer(ECDSA_SIG* sig) : sig_(sig) {
+  if (sig_) {
+    ECDSA_SIG_get0(sig_.get(), &pr_, &ps_);
+  }
+}
+ECDSASigPointer::ECDSASigPointer(ECDSASigPointer&& other) noexcept
+    : sig_(other.release()) {
+  if (sig_) {
+    ECDSA_SIG_get0(sig_.get(), &pr_, &ps_);
+  }
+}
+
+ECDSASigPointer& ECDSASigPointer::operator=(ECDSASigPointer&& other) noexcept {
+  sig_.reset(other.release());
+  if (sig_) {
+    ECDSA_SIG_get0(sig_.get(), &pr_, &ps_);
+  }
+  return *this;
+}
+
+ECDSASigPointer::~ECDSASigPointer() {
+  reset();
+}
+
+void ECDSASigPointer::reset(ECDSA_SIG* sig) {
+  sig_.reset();
+  pr_ = nullptr;
+  ps_ = nullptr;
+}
+
+ECDSA_SIG* ECDSASigPointer::release() {
+  pr_ = nullptr;
+  ps_ = nullptr;
+  return sig_.release();
+}
+
+ECDSASigPointer ECDSASigPointer::New() {
+  return ECDSASigPointer(ECDSA_SIG_new());
+}
+
+ECDSASigPointer ECDSASigPointer::Parse(const Buffer<const unsigned char>& sig) {
+  const unsigned char* ptr = sig.data;
+  return ECDSASigPointer(d2i_ECDSA_SIG(nullptr, &ptr, sig.len));
+}
+
+bool ECDSASigPointer::setParams(BignumPointer&& r, BignumPointer&& s) {
+  if (!sig_) return false;
+  return ECDSA_SIG_set0(sig_.get(), r.release(), s.release());
+}
+
+Buffer<unsigned char> ECDSASigPointer::encode() const {
+  if (!sig_)
+    return {
+        .data = nullptr,
+        .len = 0,
+    };
+  Buffer<unsigned char> buf;
+  buf.len = i2d_ECDSA_SIG(sig_.get(), &buf.data);
+  return buf;
+}
+
 }  // namespace ncrypto
