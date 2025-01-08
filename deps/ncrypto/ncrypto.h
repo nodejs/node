@@ -197,7 +197,6 @@ using DeleteFnPtr = typename FunctionDeleter<T, function>::Pointer;
 
 using BignumCtxPointer = DeleteFnPtr<BN_CTX, BN_CTX_free>;
 using BignumGenCallbackPointer = DeleteFnPtr<BN_GENCB, BN_GENCB_free>;
-using ECGroupPointer = DeleteFnPtr<EC_GROUP, EC_GROUP_free>;
 using ECKeyPointer = DeleteFnPtr<EC_KEY, EC_KEY_free>;
 using ECPointPointer = DeleteFnPtr<EC_POINT, EC_POINT_free>;
 using EVPKeyCtxPointer = DeleteFnPtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free>;
@@ -850,6 +849,28 @@ class ECDSASigPointer final {
   DeleteFnPtr<ECDSA_SIG, ECDSA_SIG_free> sig_;
   const BIGNUM* pr_ = nullptr;
   const BIGNUM* ps_ = nullptr;
+};
+
+class ECGroupPointer final {
+ public:
+  explicit ECGroupPointer();
+  explicit ECGroupPointer(EC_GROUP* group);
+  ECGroupPointer(ECGroupPointer&& other) noexcept;
+  ECGroupPointer& operator=(ECGroupPointer&& other) noexcept;
+  NCRYPTO_DISALLOW_COPY(ECGroupPointer)
+  ~ECGroupPointer();
+
+  inline bool operator==(std::nullptr_t) noexcept { return group_ == nullptr; }
+  inline operator bool() const { return group_ != nullptr; }
+  inline EC_GROUP* get() const { return group_.get(); }
+  inline operator EC_GROUP*() const { return group_.get(); }
+  void reset(EC_GROUP* group = nullptr);
+  EC_GROUP* release();
+
+  static ECGroupPointer NewByCurveName(int nid);
+
+ private:
+  DeleteFnPtr<EC_GROUP, EC_GROUP_free> group_;
 };
 
 #ifndef OPENSSL_NO_ENGINE
