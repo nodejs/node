@@ -12,12 +12,12 @@ const hook = registerHooks({
   resolve(specifier, context, nextResolve) {
     assert.strictEqual(specifier, 'foo');
     return {
-      url: 'file:///foo',
+      url: "foo://bar",
       shortCircuit: true,
     };
   },
   load: common.mustCall(function load(url, context, nextLoad) {
-    assert.strictEqual(url, 'file:///foo');
+    assert.strictEqual(url, "foo://bar",);
     return nextLoad(
       fixtures.fileURL('module-hooks', `redirected-fs.js`).href,
       context,
