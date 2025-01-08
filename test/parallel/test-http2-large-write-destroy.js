@@ -31,6 +31,11 @@ server.listen(0, common.mustCall(() => {
                                { rejectUnauthorized: false });
 
   const req = client.request({ ':path': '/' });
+  req.once('error', common.expectsError({
+    code: 'ERR_HTTP2_STREAM_ERROR',
+    name: 'Error',
+    message: 'Stream closed with error code NGHTTP2_INTERNAL_ERROR'
+  }));
   req.end();
   req.resume(); // Otherwise close won't be emitted if there's pending data.
 

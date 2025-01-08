@@ -59,6 +59,11 @@ server.listen(
     const client = http2.connect(`http://localhost:${server.address().port}`);
     const req = client.request();
     req.resume();
+    req.once('error', common.expectsError({
+      name: 'Error',
+      code: 'ERR_HTTP2_STREAM_ERROR',
+      message: 'Stream closed with error code NGHTTP2_INTERNAL_ERROR'
+    }));
     req.on('close', common.mustCall(() => {
       client.close();
       server.close();

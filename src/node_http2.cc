@@ -1726,7 +1726,19 @@ void Http2Session::OnStreamAfterWrite(WriteWrap* w, int status) {
     stream_->ReadStart();
   }
 
-  if (is_destroyed()) {
+  // If there is more incoming data queued up, consume it.
+  if (stream_buf_offset_ > 0) {
+    ConsumeHTTP2Data();
+  }
+
+  // This needs to be before is_destroyed(),
+  // so queued GOAWAY gets sent.
+  if (!is_write_scheduled()) {
+    // Schedule a new write if nghttp2 wants to send data.
+    MaybeScheduleWrite();
+  }
+
+  if (!is_write_scheduled() && is_destroyed()) {
     HandleScope scope(env()->isolate());
     MakeCallback(env()->ondone_string(), 0, nullptr);
     if (stream_ != nullptr) {
@@ -1735,16 +1747,6 @@ void Http2Session::OnStreamAfterWrite(WriteWrap* w, int status) {
       stream_->ReadStart();
     }
     return;
-  }
-
-  // If there is more incoming data queued up, consume it.
-  if (stream_buf_offset_ > 0) {
-    ConsumeHTTP2Data();
-  }
-
-  if (!is_write_scheduled() && !is_destroyed()) {
-    // Schedule a new write if nghttp2 wants to send data.
-    MaybeScheduleWrite();
   }
 }
 
@@ -1864,11 +1866,10 @@ void Http2Session::CopyDataIntoOutgoing(const uint8_t* src, size_t src_length) {
 // Returns non-zero value if a write is already in progress.
 uint8_t Http2Session::SendPendingData() {
   Debug(this, "sending pending data");
-  // Do not attempt to send data on the socket if the destroying flag has
-  // been set. That means everything is shutting down and the socket
-  // will not be usable.
-  if (is_destroyed())
-    return 0;
+
+  // Must not early return if is_destroyed(),
+  // otherwise queued GOAWAY gets dropped!
+
   set_write_scheduled(false);
 
   // SendPendingData should not be called recursively.
@@ -2665,6 +2666,11 @@ ssize_t Http2Stream::Provider::Stream::OnRead(nghttp2_session* handle,
   if (stream->available_outbound_length_ == 0 && !stream->is_writable()) {
     Debug(session, "no more data for stream %d", id);
     *flags |= NGHTTP2_DATA_FLAG_EOF;
+
+    if (session->has_pending_rststream(id)) {
+      *flags |= NGHTTP2_DATA_FLAG_NO_END_STREAM;
+    }
+
     if (stream->has_trailers()) {
       *flags |= NGHTTP2_DATA_FLAG_NO_END_STREAM;
       stream->OnTrailers();

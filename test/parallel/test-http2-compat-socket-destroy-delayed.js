@@ -32,7 +32,13 @@ app.listen(0, mustCall(() => {
   request.once('response', mustCall((headers, flags) => {
     let data = '';
     request.on('data', (chunk) => { data += chunk; });
-    request.on('end', mustCall(() => {
+    request.once('error', common.expectsError({
+      code: 'ERR_HTTP2_STREAM_ERROR',
+      name: 'Error',
+      message: 'Stream closed with error code NGHTTP2_INTERNAL_ERROR'
+    }));
+    request.on('end', common.mustNotCall());
+    request.on('close', mustCall(() => {
       assert.strictEqual(data, 'hello');
       session.close();
       app.close();

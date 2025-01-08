@@ -29,6 +29,6 @@ server.on('listening', common.mustCall(() => {
   req.resume();
   req.on('end', common.mustCall(() => {
     server.close();
-    client.destroy();
+    client.close();
   }));
 }));

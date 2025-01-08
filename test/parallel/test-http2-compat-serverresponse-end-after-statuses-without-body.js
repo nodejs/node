@@ -33,7 +33,7 @@ server.listen(0, common.mustCall(function() {
     let responseCount = 0;
     const closeAfterResponse = () => {
       if (STATUS_CODES_COUNT === ++responseCount) {
-        client.destroy();
+        client.close();
         server.close();
       }
     };

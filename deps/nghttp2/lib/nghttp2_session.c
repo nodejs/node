@@ -1478,6 +1478,11 @@ int nghttp2_session_close_stream(nghttp2_session *session, int32_t stream_id,
 
   DEBUGF("stream: stream(%p)=%d close\n", stream, stream->stream_id);
 
+  if (error_code == NGHTTP2_NO_ERROR &&
+      nghttp2_http_on_remote_end_stream(stream) == -1) {
+    error_code = NGHTTP2_PROTOCOL_ERROR;
+  }
+
   /* We call on_stream_close_callback even if stream->state is
      NGHTTP2_STREAM_INITIAL. This will happen while sending request
      HEADERS, a local endpoint receives RST_STREAM for that stream. It
@@ -2507,9 +2512,6 @@ static int session_prep_frame(nghttp2_session *session,
     return 0;
   }
   case NGHTTP2_RST_STREAM:
-    if (session_is_closing(session)) {
-      return NGHTTP2_ERR_SESSION_CLOSING;
-    }
     nghttp2_frame_pack_rst_stream(&session->aob.framebufs, &frame->rst_stream);
     return 0;
   case NGHTTP2_SETTINGS: {
@@ -4164,6 +4166,11 @@ static int session_after_header_block_received(nghttp2_session *session) {
   }
 
   if (frame->hd.type != NGHTTP2_HEADERS) {
+    return 0;
+  }
+
+  /* on_frame might free the stream */
+  if (!nghttp2_session_get_stream(session, frame->hd.stream_id)) {
     return 0;
   }
 
