@@ -1074,6 +1074,9 @@ behavior is similar to `cp dir1/ dir2/`.
 <!-- YAML
 added: v22.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/56489
+    description: Add support for `exclude` option to accept glob patterns.
   - version: v22.2.0
     pr-url: https://github.com/nodejs/node/pull/52837
     description: Add support for `withFileTypes` as an option.
@@ -1084,7 +1087,8 @@ changes:
 * `pattern` {string|string\[]}
 * `options` {Object}
   * `cwd` {string} current working directory. **Default:** `process.cwd()`
-  * `exclude` {Function} Function to filter out files/directories. Return
+  * `exclude` {Function|string\[]} Function to filter out files/directories or a
+    list of glob patterns to be excluded. If a function is provided, return
     `true` to exclude the item, `false` to include it. **Default:** `undefined`.
   * `withFileTypes` {boolean} `true` if the glob should return paths as Dirents,
     `false` otherwise. **Default:** `false`.
@@ -3120,6 +3124,9 @@ descriptor. See [`fs.utimes()`][].
 <!-- YAML
 added: v22.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/56489
+    description: Add support for `exclude` option to accept glob patterns.
   - version: v22.2.0
     pr-url: https://github.com/nodejs/node/pull/52837
     description: Add support for `withFileTypes` as an option.
@@ -3131,7 +3138,8 @@ changes:
 
 * `options` {Object}
   * `cwd` {string} current working directory. **Default:** `process.cwd()`
-  * `exclude` {Function} Function to filter out files/directories. Return
+  * `exclude` {Function|string\[]} Function to filter out files/directories or a
+    list of glob patterns to be excluded. If a function is provided, return
     `true` to exclude the item, `false` to include it. **Default:** `undefined`.
   * `withFileTypes` {boolean} `true` if the glob should return paths as Dirents,
     `false` otherwise. **Default:** `false`.
@@ -5656,6 +5664,9 @@ Synchronous version of [`fs.futimes()`][]. Returns `undefined`.
 <!-- YAML
 added: v22.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/56489
+    description: Add support for `exclude` option to accept glob patterns.
   - version: v22.2.0
     pr-url: https://github.com/nodejs/node/pull/52837
     description: Add support for `withFileTypes` as an option.
@@ -5666,7 +5677,8 @@ changes:
 * `pattern` {string|string\[]}
 * `options` {Object}
   * `cwd` {string} current working directory. **Default:** `process.cwd()`
-  * `exclude` {Function} Function to filter out files/directories. Return
+  * `exclude` {Function|string\[]} Function to filter out files/directories or a
+    list of glob patterns to be excluded. If a function is provided, return
     `true` to exclude the item, `false` to include it. **Default:** `undefined`.
   * `withFileTypes` {boolean} `true` if the glob should return paths as Dirents,
     `false` otherwise. **Default:** `false`.
