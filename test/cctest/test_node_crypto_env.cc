@@ -3,6 +3,7 @@
 #include "node_options.h"
 #include "node_test_fixture.h"
 #include "openssl/err.h"
+#include <ncrypto.h>
 
 using v8::Local;
 using v8::String;
@@ -21,7 +22,7 @@ TEST_F(NodeCryptoEnv, LoadBIO) {
   Env env{handle_scope, argv};
   //  just put a random string into BIO
   Local<String> key = String::NewFromUtf8(isolate_, "abcdef").ToLocalChecked();
-  node::crypto::BIOPointer bio(node::crypto::LoadBIO(*env, key));
+  ncrypto::BIOPointer bio(node::crypto::LoadBIO(*env, key));
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
   const int ofs = 2;
   ASSERT_EQ(BIO_seek(bio.get(), ofs), ofs);
