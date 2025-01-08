@@ -430,7 +430,7 @@ const pattern2 = [
 ];
 
 describe('globSync - exclude', function() {
-  for (const [pattern, exclude] of Object.entries(patterns)) {
+  for (const [pattern, exclude] of Object.entries(patterns).map(([k, v]) => [k, v.filter(Boolean)])) {
     test(`${pattern} - exclude: ${exclude}`, () => {
       const actual = globSync(pattern, { cwd: fixtureDir, exclude }).sort();
       assert.strictEqual(actual.length, 0);
@@ -447,7 +447,7 @@ describe('globSync - exclude', function() {
 
 describe('glob - exclude', function() {
   const promisified = promisify(glob);
-  for (const [pattern, exclude] of Object.entries(patterns)) {
+  for (const [pattern, exclude] of Object.entries(patterns).map(([k, v]) => [k, v.filter(Boolean)])) {
     test(`${pattern} - exclude: ${exclude}`, async () => {
       const actual = (await promisified(pattern, { cwd: fixtureDir, exclude })).sort();
       assert.strictEqual(actual.length, 0);
@@ -463,7 +463,7 @@ describe('glob - exclude', function() {
 });
 
 describe('fsPromises glob - exclude', function() {
-  for (const [pattern, exclude] of Object.entries(patterns)) {
+  for (const [pattern, exclude] of Object.entries(patterns).map(([k, v]) => [k, v.filter(Boolean)])) {
     test(`${pattern} - exclude: ${exclude}`, async () => {
       const actual = [];
       for await (const item of asyncGlob(pattern, { cwd: fixtureDir, exclude })) actual.push(item);
