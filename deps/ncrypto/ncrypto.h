@@ -197,7 +197,6 @@ using DeleteFnPtr = typename FunctionDeleter<T, function>::Pointer;
 
 using BignumCtxPointer = DeleteFnPtr<BN_CTX, BN_CTX_free>;
 using BignumGenCallbackPointer = DeleteFnPtr<BN_GENCB, BN_GENCB_free>;
-using ECDSASigPointer = DeleteFnPtr<ECDSA_SIG, ECDSA_SIG_free>;
 using ECGroupPointer = DeleteFnPtr<EC_GROUP, EC_GROUP_free>;
 using ECKeyPointer = DeleteFnPtr<EC_KEY, EC_KEY_free>;
 using ECPointPointer = DeleteFnPtr<EC_POINT, EC_POINT_free>;
@@ -819,6 +818,38 @@ class X509Pointer final {
 
  private:
   DeleteFnPtr<X509, X509_free> cert_;
+};
+
+class ECDSASigPointer final {
+ public:
+  explicit ECDSASigPointer();
+  explicit ECDSASigPointer(ECDSA_SIG* sig);
+  ECDSASigPointer(ECDSASigPointer&& other) noexcept;
+  ECDSASigPointer& operator=(ECDSASigPointer&& other) noexcept;
+  NCRYPTO_DISALLOW_COPY(ECDSASigPointer)
+  ~ECDSASigPointer();
+
+  inline bool operator==(std::nullptr_t) noexcept { return sig_ == nullptr; }
+  inline operator bool() const { return sig_ != nullptr; }
+  inline ECDSA_SIG* get() const { return sig_.get(); }
+  inline operator ECDSA_SIG*() const { return sig_.get(); }
+  void reset(ECDSA_SIG* sig = nullptr);
+  ECDSA_SIG* release();
+
+  static ECDSASigPointer New();
+  static ECDSASigPointer Parse(const Buffer<const unsigned char>& buffer);
+
+  inline const BIGNUM* r() const { return pr_; }
+  inline const BIGNUM* s() const { return ps_; }
+
+  bool setParams(BignumPointer&& r, BignumPointer&& s);
+
+  Buffer<unsigned char> encode() const;
+
+ private:
+  DeleteFnPtr<ECDSA_SIG, ECDSA_SIG_free> sig_;
+  const BIGNUM* pr_ = nullptr;
+  const BIGNUM* ps_ = nullptr;
 };
 
 #ifndef OPENSSL_NO_ENGINE
