@@ -1351,6 +1351,17 @@ test('Additional assert', () => {
     }
   );
 
+  assert.throws(
+    () => {
+      assert.partialDeepStrictEqual({ a: true }, { a: false }, 'custom message');
+    },
+    {
+      code: 'ERR_ASSERTION',
+      name: 'AssertionError',
+      message: 'custom message\n+ actual - expected\n\n  {\n+   a: true\n-   a: false\n  }\n'
+    }
+  );
+
   {
     let threw = false;
     try {
