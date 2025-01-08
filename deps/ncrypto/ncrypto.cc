@@ -2707,4 +2707,46 @@ ECGroupPointer ECGroupPointer::NewByCurveName(int nid) {
   return ECGroupPointer(EC_GROUP_new_by_curve_name(nid));
 }
 
+// ============================================================================
+
+ECPointPointer::ECPointPointer() : point_(nullptr) {}
+
+ECPointPointer::ECPointPointer(EC_POINT* point) : point_(point) {}
+
+ECPointPointer::ECPointPointer(ECPointPointer&& other) noexcept
+    : point_(other.release()) {}
+
+ECPointPointer& ECPointPointer::operator=(ECPointPointer&& other) noexcept {
+  point_.reset(other.release());
+  return *this;
+}
+
+ECPointPointer::~ECPointPointer() {
+  reset();
+}
+
+void ECPointPointer::reset(EC_POINT* point) {
+  point_.reset(point);
+}
+
+EC_POINT* ECPointPointer::release() {
+  return point_.release();
+}
+
+ECPointPointer ECPointPointer::New(const EC_GROUP* group) {
+  return ECPointPointer(EC_POINT_new(group));
+}
+
+bool ECPointPointer::setFromBuffer(const Buffer<const unsigned char>& buffer,
+                                   const EC_GROUP* group) {
+  if (!point_) return false;
+  return EC_POINT_oct2point(
+      group, point_.get(), buffer.data, buffer.len, nullptr);
+}
+
+bool ECPointPointer::mul(const EC_GROUP* group, const BIGNUM* priv_key) {
+  if (!point_) return false;
+  return EC_POINT_mul(group, point_.get(), priv_key, nullptr, nullptr, nullptr);
+}
+
 }  // namespace ncrypto

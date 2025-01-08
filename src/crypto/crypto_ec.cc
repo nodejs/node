@@ -157,28 +157,26 @@ void ECDH::GenerateKeys(const FunctionCallbackInfo<Value>& args) {
 ECPointPointer ECDH::BufferToPoint(Environment* env,
                                    const EC_GROUP* group,
                                    Local<Value> buf) {
-  int r;
+  ArrayBufferOrViewContents<unsigned char> input(buf);
+  if (!input.CheckSizeInt32()) [[unlikely]] {
+    THROW_ERR_OUT_OF_RANGE(env, "buffer is too big");
+    return {};
+  }
 
-  ECPointPointer pub(EC_POINT_new(group));
+  auto pub = ECPointPointer::New(group);
   if (!pub) {
     THROW_ERR_CRYPTO_OPERATION_FAILED(env,
         "Failed to allocate EC_POINT for a public key");
     return pub;
   }
 
-  ArrayBufferOrViewContents<unsigned char> input(buf);
-  if (!input.CheckSizeInt32()) [[unlikely]] {
-    THROW_ERR_OUT_OF_RANGE(env, "buffer is too big");
-    return ECPointPointer();
+  ncrypto::Buffer<const unsigned char> buffer{
+      .data = input.data(),
+      .len = input.size(),
+  };
+  if (!pub.setFromBuffer(buffer, group)) {
+    return {};
   }
-  r = EC_POINT_oct2point(
-      group,
-      pub.get(),
-      input.data(),
-      input.size(),
-      nullptr);
-  if (!r)
-    return ECPointPointer();
 
   return pub;
 }
@@ -196,10 +194,7 @@ void ECDH::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
   if (!ecdh->IsKeyPairValid())
     return THROW_ERR_CRYPTO_INVALID_KEYPAIR(env);
 
-  ECPointPointer pub(
-      ECDH::BufferToPoint(env,
-                          ecdh->group_,
-                          args[0]));
+  auto pub = ECDH::BufferToPoint(env, ecdh->group_, args[0]);
   if (!pub) {
     args.GetReturnValue().Set(
         FIXED_ONE_BYTE_STRING(env->isolate(),
@@ -217,7 +212,7 @@ void ECDH::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (!ECDH_compute_key(
-          bs->Data(), bs->ByteLength(), pub.get(), ecdh->key_.get(), nullptr))
+          bs->Data(), bs->ByteLength(), pub, ecdh->key_.get(), nullptr))
     return THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to compute ECDH key");
 
   Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), std::move(bs));
@@ -317,16 +312,15 @@ void ECDH::SetPrivateKey(const FunctionCallbackInfo<Value>& args) {
   const BIGNUM* priv_key = EC_KEY_get0_private_key(new_key.get());
   CHECK_NOT_NULL(priv_key);
 
-  ECPointPointer pub(EC_POINT_new(ecdh->group_));
+  auto pub = ECPointPointer::New(ecdh->group_);
   CHECK(pub);
 
-  if (!EC_POINT_mul(ecdh->group_, pub.get(), priv_key,
-                    nullptr, nullptr, nullptr)) {
+  if (!pub.mul(ecdh->group_, priv_key)) {
     return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
         "Failed to generate ECDH public key");
   }
 
-  if (!EC_KEY_set_public_key(new_key.get(), pub.get()))
+  if (!EC_KEY_set_public_key(new_key.get(), pub))
     return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
         "Failed to set generated public key");
 
@@ -344,16 +338,13 @@ void ECDH::SetPublicKey(const FunctionCallbackInfo<Value>& args) {
 
   MarkPopErrorOnReturn mark_pop_error_on_return;
 
-  ECPointPointer pub(
-      ECDH::BufferToPoint(env,
-                          ecdh->group_,
-                          args[0]));
+  auto pub = ECDH::BufferToPoint(env, ecdh->group_, args[0]);
   if (!pub) {
     return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
         "Failed to convert Buffer to EC_POINT");
   }
 
-  int r = EC_KEY_set_public_key(ecdh->key_.get(), pub.get());
+  int r = EC_KEY_set_public_key(ecdh->key_.get(), pub);
   if (!r) {
     return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
         "Failed to set EC_POINT as the public key");
@@ -403,9 +394,8 @@ void ECDH::ConvertKey(const FunctionCallbackInfo<Value>& args) {
   if (!group)
     return THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to get EC_GROUP");
 
-  ECPointPointer pub(ECDH::BufferToPoint(env, group, args[0]));
-
-  if (pub == nullptr) {
+  auto pub = ECDH::BufferToPoint(env, group, args[0]);
+  if (!pub) {
     return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
         "Failed to convert Buffer to EC_POINT");
   }
@@ -416,7 +406,7 @@ void ECDH::ConvertKey(const FunctionCallbackInfo<Value>& args) {
 
   const char* error;
   Local<Object> buf;
-  if (!ECPointToBuffer(env, group, pub.get(), form, &error).ToLocal(&buf))
+  if (!ECPointToBuffer(env, group, pub, form, &error).ToLocal(&buf))
     return THROW_ERR_CRYPTO_OPERATION_FAILED(env, error);
   args.GetReturnValue().Set(buf);
 }
@@ -698,14 +688,13 @@ WebCryptoKeyExportStatus ECKeyExportTraits::DoExport(
         if (have == 0) return WebCryptoKeyExportStatus::FAILED;
         ECKeyPointer ec(EC_KEY_new());
         CHECK_EQ(1, EC_KEY_set_group(ec.get(), group));
-        ECPointPointer uncompressed(EC_POINT_new(group));
-        CHECK_EQ(1,
-                 EC_POINT_oct2point(group,
-                                    uncompressed.get(),
-                                    data.data<unsigned char>(),
-                                    data.size(),
-                                    nullptr));
-        CHECK_EQ(1, EC_KEY_set_public_key(ec.get(), uncompressed.get()));
+        auto uncompressed = ECPointPointer::New(group);
+        ncrypto::Buffer<const unsigned char> buffer{
+            .data = data.data<unsigned char>(),
+            .len = data.size(),
+        };
+        CHECK(uncompressed.setFromBuffer(buffer, group));
+        CHECK_EQ(1, EC_KEY_set_public_key(ec.get(), uncompressed));
         auto pkey = EVPKeyPointer::New();
         CHECK_EQ(1, EVP_PKEY_set1_EC_KEY(pkey.get(), ec.get()));
         auto bio = pkey.derPublicKey();
