@@ -198,7 +198,6 @@ using DeleteFnPtr = typename FunctionDeleter<T, function>::Pointer;
 using BignumCtxPointer = DeleteFnPtr<BN_CTX, BN_CTX_free>;
 using BignumGenCallbackPointer = DeleteFnPtr<BN_GENCB, BN_GENCB_free>;
 using ECKeyPointer = DeleteFnPtr<EC_KEY, EC_KEY_free>;
-using ECPointPointer = DeleteFnPtr<EC_POINT, EC_POINT_free>;
 using EVPKeyCtxPointer = DeleteFnPtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free>;
 using EVPMDCtxPointer = DeleteFnPtr<EVP_MD_CTX, EVP_MD_CTX_free>;
 using HMACCtxPointer = DeleteFnPtr<HMAC_CTX, HMAC_CTX_free>;
@@ -871,6 +870,32 @@ class ECGroupPointer final {
 
  private:
   DeleteFnPtr<EC_GROUP, EC_GROUP_free> group_;
+};
+
+class ECPointPointer final {
+ public:
+  ECPointPointer();
+  explicit ECPointPointer(EC_POINT* point);
+  ECPointPointer(ECPointPointer&& other) noexcept;
+  ECPointPointer& operator=(ECPointPointer&& other) noexcept;
+  NCRYPTO_DISALLOW_COPY(ECPointPointer)
+  ~ECPointPointer();
+
+  inline bool operator==(std::nullptr_t) noexcept { return point_ == nullptr; }
+  inline operator bool() const { return point_ != nullptr; }
+  inline EC_POINT* get() const { return point_.get(); }
+  inline operator EC_POINT*() const { return point_.get(); }
+  void reset(EC_POINT* point = nullptr);
+  EC_POINT* release();
+
+  bool setFromBuffer(const Buffer<const unsigned char>& buffer,
+                     const EC_GROUP* group);
+  bool mul(const EC_GROUP* group, const BIGNUM* priv_key);
+
+  static ECPointPointer New(const EC_GROUP* group);
+
+ private:
+  DeleteFnPtr<EC_POINT, EC_POINT_free> point_;
 };
 
 #ifndef OPENSSL_NO_ENGINE
