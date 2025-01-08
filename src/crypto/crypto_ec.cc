@@ -399,15 +399,11 @@ void ECDH::ConvertKey(const FunctionCallbackInfo<Value>& args) {
   if (nid == NID_undef)
     return THROW_ERR_CRYPTO_INVALID_CURVE(env);
 
-  ECGroupPointer group(
-      EC_GROUP_new_by_curve_name(nid));
-  if (group == nullptr)
+  auto group = ECGroupPointer::NewByCurveName(nid);
+  if (!group)
     return THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to get EC_GROUP");
 
-  ECPointPointer pub(
-      ECDH::BufferToPoint(env,
-                          group.get(),
-                          args[0]));
+  ECPointPointer pub(ECDH::BufferToPoint(env, group, args[0]));
 
   if (pub == nullptr) {
     return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
@@ -420,7 +416,7 @@ void ECDH::ConvertKey(const FunctionCallbackInfo<Value>& args) {
 
   const char* error;
   Local<Object> buf;
-  if (!ECPointToBuffer(env, group.get(), pub.get(), form, &error).ToLocal(&buf))
+  if (!ECPointToBuffer(env, group, pub.get(), form, &error).ToLocal(&buf))
     return THROW_ERR_CRYPTO_OPERATION_FAILED(env, error);
   args.GetReturnValue().Set(buf);
 }
