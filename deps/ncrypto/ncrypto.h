@@ -197,10 +197,7 @@ using DeleteFnPtr = typename FunctionDeleter<T, function>::Pointer;
 
 using BignumCtxPointer = DeleteFnPtr<BN_CTX, BN_CTX_free>;
 using BignumGenCallbackPointer = DeleteFnPtr<BN_GENCB, BN_GENCB_free>;
-using DSAPointer = DeleteFnPtr<DSA, DSA_free>;
-using DSASigPointer = DeleteFnPtr<DSA_SIG, DSA_SIG_free>;
 using ECDSASigPointer = DeleteFnPtr<ECDSA_SIG, ECDSA_SIG_free>;
-using ECPointer = DeleteFnPtr<EC_KEY, EC_KEY_free>;
 using ECGroupPointer = DeleteFnPtr<EC_GROUP, EC_GROUP_free>;
 using ECKeyPointer = DeleteFnPtr<EC_KEY, EC_KEY_free>;
 using ECPointPointer = DeleteFnPtr<EC_POINT, EC_POINT_free>;

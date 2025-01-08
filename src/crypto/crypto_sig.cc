@@ -12,6 +12,12 @@
 
 namespace node {
 
+using ncrypto::BignumPointer;
+using ncrypto::ClearErrorOnReturn;
+using ncrypto::ECDSASigPointer;
+using ncrypto::EVPKeyCtxPointer;
+using ncrypto::EVPKeyPointer;
+using ncrypto::EVPMDCtxPointer;
 using v8::ArrayBuffer;
 using v8::BackingStore;
 using v8::Boolean;
