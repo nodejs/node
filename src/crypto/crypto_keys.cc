@@ -18,6 +18,13 @@
 
 namespace node {
 
+using ncrypto::BIOPointer;
+using ncrypto::ECKeyPointer;
+using ncrypto::ECPointPointer;
+using ncrypto::EVPKeyCtxPointer;
+using ncrypto::EVPKeyPointer;
+using ncrypto::MarkPopErrorOnReturn;
+using ncrypto::PKCS8Pointer;
 using v8::Array;
 using v8::Context;
 using v8::Function;
@@ -41,11 +48,11 @@ using v8::Value;
 
 namespace crypto {
 namespace {
-Maybe<ncrypto::EVPKeyPointer::AsymmetricKeyEncodingConfig>
-GetKeyFormatAndTypeFromJs(const FunctionCallbackInfo<Value>& args,
-                          unsigned int* offset,
-                          KeyEncodingContext context) {
-  ncrypto::EVPKeyPointer::AsymmetricKeyEncodingConfig config;
+Maybe<EVPKeyPointer::AsymmetricKeyEncodingConfig> GetKeyFormatAndTypeFromJs(
+    const FunctionCallbackInfo<Value>& args,
+    unsigned int* offset,
+    KeyEncodingContext context) {
+  EVPKeyPointer::AsymmetricKeyEncodingConfig config;
   // During key pair generation, it is possible not to specify a key encoding,
   // which will lead to a key object being returned.
   if (args[*offset]->IsUndefined()) {
@@ -56,19 +63,19 @@ GetKeyFormatAndTypeFromJs(const FunctionCallbackInfo<Value>& args,
     config.output_key_object = false;
 
     CHECK(args[*offset]->IsInt32());
-    config.format = static_cast<ncrypto::EVPKeyPointer::PKFormatType>(
+    config.format = static_cast<EVPKeyPointer::PKFormatType>(
         args[*offset].As<Int32>()->Value());
 
     if (args[*offset + 1]->IsInt32()) {
-      config.type = static_cast<ncrypto::EVPKeyPointer::PKEncodingType>(
+      config.type = static_cast<EVPKeyPointer::PKEncodingType>(
           args[*offset + 1].As<Int32>()->Value());
     } else {
       CHECK((context == kKeyContextInput &&
-             config.format == ncrypto::EVPKeyPointer::PKFormatType::PEM) ||
+             config.format == EVPKeyPointer::PKFormatType::PEM) ||
             (context == kKeyContextGenerate &&
-             config.format == ncrypto::EVPKeyPointer::PKFormatType::JWK));
+             config.format == EVPKeyPointer::PKFormatType::JWK));
       CHECK(args[*offset + 1]->IsNullOrUndefined());
-      config.type = ncrypto::EVPKeyPointer::PKEncodingType::PKCS1;
+      config.type = EVPKeyPointer::PKEncodingType::PKCS1;
     }
   }
 
@@ -79,16 +86,16 @@ GetKeyFormatAndTypeFromJs(const FunctionCallbackInfo<Value>& args,
 MaybeLocal<Value> BIOToStringOrBuffer(
     Environment* env,
     const BIOPointer& bio,
-    const ncrypto::EVPKeyPointer::AsymmetricKeyEncodingConfig& config) {
+    const EVPKeyPointer::AsymmetricKeyEncodingConfig& config) {
   BUF_MEM* bptr = bio;
-  if (config.format == ncrypto::EVPKeyPointer::PKFormatType::PEM) {
+  if (config.format == EVPKeyPointer::PKFormatType::PEM) {
     // PEM is an ASCII format, so we will return it as a string.
     return String::NewFromUtf8(
                env->isolate(), bptr->data, NewStringType::kNormal, bptr->length)
         .FromMaybe(Local<Value>());
   }
 
-  CHECK_EQ(config.format, ncrypto::EVPKeyPointer::PKFormatType::DER);
+  CHECK_EQ(config.format, EVPKeyPointer::PKFormatType::DER);
   // DER is binary, return it as a buffer.
   return Buffer::Copy(env, bptr->data, bptr->length).FromMaybe(Local<Value>());
 }
@@ -96,7 +103,7 @@ MaybeLocal<Value> BIOToStringOrBuffer(
 MaybeLocal<Value> WritePrivateKey(
     Environment* env,
     const EVPKeyPointer& pkey,
-    const ncrypto::EVPKeyPointer::PrivateKeyEncodingConfig& config) {
+    const EVPKeyPointer::PrivateKeyEncodingConfig& config) {
   CHECK(pkey);
   auto res = pkey.writePrivateKey(config);
   if (res) {
@@ -111,7 +118,7 @@ MaybeLocal<Value> WritePrivateKey(
 MaybeLocal<Value> WritePublicKey(
     Environment* env,
     const EVPKeyPointer& pkey,
-    const ncrypto::EVPKeyPointer::PublicKeyEncodingConfig& config) {
+    const EVPKeyPointer::PublicKeyEncodingConfig& config) {
   CHECK(pkey);
   auto res = pkey.writePublicKey(config);
   if (res) {
@@ -243,7 +250,7 @@ Maybe<void> GetAsymmetricKeyDetail(Environment* env,
 
 KeyObjectData TryParsePrivateKey(
     Environment* env,
-    const ncrypto::EVPKeyPointer::PrivateKeyEncodingConfig& config,
+    const EVPKeyPointer::PrivateKeyEncodingConfig& config,
     const ncrypto::Buffer<const unsigned char>& buffer) {
   auto res = EVPKeyPointer::TryParsePrivateKey(config, buffer);
   if (res) {
@@ -285,7 +292,7 @@ Maybe<void> ExportJWKInner(Environment* env,
 
 Maybe<void> KeyObjectData::ToEncodedPublicKey(
     Environment* env,
-    const ncrypto::EVPKeyPointer::PublicKeyEncodingConfig& config,
+    const EVPKeyPointer::PublicKeyEncodingConfig& config,
     Local<Value>* out) {
   CHECK(key_type_ != KeyType::kKeyTypeSecret);
   if (config.output_key_object) {
@@ -294,7 +301,7 @@ Maybe<void> KeyObjectData::ToEncodedPublicKey(
     return NothingIfFalse(
         KeyObjectHandle::Create(env, addRefWithType(KeyType::kKeyTypePublic))
             .ToLocal(out));
-  } else if (config.format == ncrypto::EVPKeyPointer::PKFormatType::JWK) {
+  } else if (config.format == EVPKeyPointer::PKFormatType::JWK) {
     *out = Object::New(env->isolate());
     return ExportJWKInner(
         env, addRefWithType(KeyType::kKeyTypePublic), *out, false);
@@ -306,14 +313,14 @@ Maybe<void> KeyObjectData::ToEncodedPublicKey(
 
 Maybe<void> KeyObjectData::ToEncodedPrivateKey(
     Environment* env,
-    const ncrypto::EVPKeyPointer::PrivateKeyEncodingConfig& config,
+    const EVPKeyPointer::PrivateKeyEncodingConfig& config,
     Local<Value>* out) {
   CHECK(key_type_ != KeyType::kKeyTypeSecret);
   if (config.output_key_object) {
     return NothingIfFalse(
         KeyObjectHandle::Create(env, addRefWithType(KeyType::kKeyTypePrivate))
             .ToLocal(out));
-  } else if (config.format == ncrypto::EVPKeyPointer::PKFormatType::JWK) {
+  } else if (config.format == EVPKeyPointer::PKFormatType::JWK) {
     *out = Object::New(env->isolate());
     return ExportJWKInner(
         env, addRefWithType(KeyType::kKeyTypePrivate), *out, false);
@@ -323,16 +330,16 @@ Maybe<void> KeyObjectData::ToEncodedPrivateKey(
       WritePrivateKey(env, GetAsymmetricKey(), config).ToLocal(out));
 }
 
-Maybe<ncrypto::EVPKeyPointer::PrivateKeyEncodingConfig>
+Maybe<EVPKeyPointer::PrivateKeyEncodingConfig>
 KeyObjectData::GetPrivateKeyEncodingFromJs(
     const FunctionCallbackInfo<Value>& args,
     unsigned int* offset,
     KeyEncodingContext context) {
   Environment* env = Environment::GetCurrent(args);
 
-  ncrypto::EVPKeyPointer::PrivateKeyEncodingConfig config;
+  EVPKeyPointer::PrivateKeyEncodingConfig config;
   if (!GetKeyFormatAndTypeFromJs(args, offset, context).To(&config)) {
-    return Nothing<ncrypto::EVPKeyPointer::PrivateKeyEncodingConfig>();
+    return Nothing<EVPKeyPointer::PrivateKeyEncodingConfig>();
   }
 
   if (config.output_key_object) {
@@ -346,7 +353,7 @@ KeyObjectData::GetPrivateKeyEncodingFromJs(
         config.cipher = EVP_get_cipherbyname(*cipher_name);
         if (config.cipher == nullptr) {
           THROW_ERR_CRYPTO_UNKNOWN_CIPHER(env);
-          return Nothing<ncrypto::EVPKeyPointer::PrivateKeyEncodingConfig>();
+          return Nothing<EVPKeyPointer::PrivateKeyEncodingConfig>();
         }
         needs_passphrase = true;
       } else {
@@ -361,7 +368,7 @@ KeyObjectData::GetPrivateKeyEncodingFromJs(
       ArrayBufferOrViewContents<char> passphrase(args[*offset]);
       if (!passphrase.CheckSizeInt32()) [[unlikely]] {
         THROW_ERR_OUT_OF_RANGE(env, "passphrase is too big");
-        return Nothing<ncrypto::EVPKeyPointer::PrivateKeyEncodingConfig>();
+        return Nothing<EVPKeyPointer::PrivateKeyEncodingConfig>();
       }
       config.passphrase = passphrase.ToDataPointer();
     } else {
@@ -370,11 +377,10 @@ KeyObjectData::GetPrivateKeyEncodingFromJs(
   }
 
   (*offset)++;
-  return Just<ncrypto::EVPKeyPointer::PrivateKeyEncodingConfig>(
-      std::move(config));
+  return Just<EVPKeyPointer::PrivateKeyEncodingConfig>(std::move(config));
 }
 
-Maybe<ncrypto::EVPKeyPointer::PublicKeyEncodingConfig>
+Maybe<EVPKeyPointer::PublicKeyEncodingConfig>
 KeyObjectData::GetPublicKeyEncodingFromJs(
     const FunctionCallbackInfo<Value>& args,
     unsigned int* offset,
@@ -390,7 +396,7 @@ KeyObjectData KeyObjectData::GetPrivateKeyFromJs(
     Environment* env = Environment::GetCurrent(args);
     auto key = ByteSource::FromStringOrBuffer(env, args[(*offset)++]);
 
-    ncrypto::EVPKeyPointer::PrivateKeyEncodingConfig config;
+    EVPKeyPointer::PrivateKeyEncodingConfig config;
     if (!GetPrivateKeyEncodingFromJs(args, offset, kKeyContextInput)
              .To(&config)) {
       return {};
@@ -423,7 +429,7 @@ KeyObjectData KeyObjectData::GetPublicOrPrivateKeyFromJs(
       return {};
     }
 
-    ncrypto::EVPKeyPointer::PrivateKeyEncodingConfig config;
+    EVPKeyPointer::PrivateKeyEncodingConfig config;
     if (!KeyObjectData::GetPrivateKeyEncodingFromJs(
              args, offset, kKeyContextInput)
              .To(&config)) {
@@ -435,7 +441,7 @@ KeyObjectData KeyObjectData::GetPublicOrPrivateKeyFromJs(
         .len = data.size(),
     };
 
-    if (config.format == ncrypto::EVPKeyPointer::PKFormatType::PEM) {
+    if (config.format == EVPKeyPointer::PKFormatType::PEM) {
       // For PEM, we can easily determine whether it is a public or private key
       // by looking for the respective PEM tags.
       auto res = EVPKeyPointer::TryParsePublicKeyPEM(buffer);
@@ -456,13 +462,13 @@ KeyObjectData KeyObjectData::GetPublicOrPrivateKeyFromJs(
     static const auto is_public = [](const auto& config,
                                      const auto& buffer) -> bool {
       switch (config.type) {
-        case ncrypto::EVPKeyPointer::PKEncodingType::PKCS1:
+        case EVPKeyPointer::PKEncodingType::PKCS1:
           return !EVPKeyPointer::IsRSAPrivateKey(buffer);
-        case ncrypto::EVPKeyPointer::PKEncodingType::SPKI:
+        case EVPKeyPointer::PKEncodingType::SPKI:
           return true;
-        case ncrypto::EVPKeyPointer::PKEncodingType::PKCS8:
+        case EVPKeyPointer::PKEncodingType::PKCS8:
           return false;
-        case ncrypto::EVPKeyPointer::PKEncodingType::SEC1:
+        case EVPKeyPointer::PKEncodingType::SEC1:
           return false;
         default:
           UNREACHABLE("Invalid key encoding type");
@@ -990,7 +996,7 @@ void KeyObjectHandle::Export(const FunctionCallbackInfo<Value>& args) {
     result = key->ExportSecretKey();
   } else if (type == kKeyTypePublic) {
     unsigned int offset = 0;
-    ncrypto::EVPKeyPointer::PublicKeyEncodingConfig config;
+    EVPKeyPointer::PublicKeyEncodingConfig config;
     if (!KeyObjectData::GetPublicKeyEncodingFromJs(
              args, &offset, kKeyContextExport)
              .To(&config)) {
@@ -1001,7 +1007,7 @@ void KeyObjectHandle::Export(const FunctionCallbackInfo<Value>& args) {
   } else {
     CHECK_EQ(type, kKeyTypePrivate);
     unsigned int offset = 0;
-    ncrypto::EVPKeyPointer::PrivateKeyEncodingConfig config;
+    EVPKeyPointer::PrivateKeyEncodingConfig config;
     if (!KeyObjectData::GetPrivateKeyEncodingFromJs(
              args, &offset, kKeyContextExport)
              .To(&config)) {
@@ -1022,12 +1028,12 @@ MaybeLocal<Value> KeyObjectHandle::ExportSecretKey() const {
 }
 
 MaybeLocal<Value> KeyObjectHandle::ExportPublicKey(
-    const ncrypto::EVPKeyPointer::PublicKeyEncodingConfig& config) const {
+    const EVPKeyPointer::PublicKeyEncodingConfig& config) const {
   return WritePublicKey(env(), data_.GetAsymmetricKey(), config);
 }
 
 MaybeLocal<Value> KeyObjectHandle::ExportPrivateKey(
-    const ncrypto::EVPKeyPointer::PrivateKeyEncodingConfig& config) const {
+    const EVPKeyPointer::PrivateKeyEncodingConfig& config) const {
   return WritePrivateKey(env(), data_.GetAsymmetricKey(), config);
 }
 
@@ -1184,19 +1190,19 @@ void Initialize(Environment* env, Local<Object> target) {
               KeyObjectHandle::Initialize(env)).Check();
 
   constexpr int kKeyEncodingPKCS1 =
-      static_cast<int>(ncrypto::EVPKeyPointer::PKEncodingType::PKCS1);
+      static_cast<int>(EVPKeyPointer::PKEncodingType::PKCS1);
   constexpr int kKeyEncodingPKCS8 =
-      static_cast<int>(ncrypto::EVPKeyPointer::PKEncodingType::PKCS8);
+      static_cast<int>(EVPKeyPointer::PKEncodingType::PKCS8);
   constexpr int kKeyEncodingSPKI =
-      static_cast<int>(ncrypto::EVPKeyPointer::PKEncodingType::SPKI);
+      static_cast<int>(EVPKeyPointer::PKEncodingType::SPKI);
   constexpr int kKeyEncodingSEC1 =
-      static_cast<int>(ncrypto::EVPKeyPointer::PKEncodingType::SEC1);
+      static_cast<int>(EVPKeyPointer::PKEncodingType::SEC1);
   constexpr int kKeyFormatDER =
-      static_cast<int>(ncrypto::EVPKeyPointer::PKFormatType::DER);
+      static_cast<int>(EVPKeyPointer::PKFormatType::DER);
   constexpr int kKeyFormatPEM =
-      static_cast<int>(ncrypto::EVPKeyPointer::PKFormatType::PEM);
+      static_cast<int>(EVPKeyPointer::PKFormatType::PEM);
   constexpr int kKeyFormatJWK =
-      static_cast<int>(ncrypto::EVPKeyPointer::PKFormatType::JWK);
+      static_cast<int>(EVPKeyPointer::PKFormatType::JWK);
 
   NODE_DEFINE_CONSTANT(target, kWebCryptoKeyFormatRaw);
   NODE_DEFINE_CONSTANT(target, kWebCryptoKeyFormatPKCS8);
