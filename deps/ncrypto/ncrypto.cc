@@ -2677,4 +2677,34 @@ Buffer<unsigned char> ECDSASigPointer::encode() const {
   return buf;
 }
 
+// ============================================================================
+
+ECGroupPointer::ECGroupPointer() : group_(nullptr) {}
+
+ECGroupPointer::ECGroupPointer(EC_GROUP* group) : group_(group) {}
+
+ECGroupPointer::ECGroupPointer(ECGroupPointer&& other) noexcept
+    : group_(other.release()) {}
+
+ECGroupPointer& ECGroupPointer::operator=(ECGroupPointer&& other) noexcept {
+  group_.reset(other.release());
+  return *this;
+}
+
+ECGroupPointer::~ECGroupPointer() {
+  reset();
+}
+
+void ECGroupPointer::reset(EC_GROUP* group) {
+  group_.reset();
+}
+
+EC_GROUP* ECGroupPointer::release() {
+  return group_.release();
+}
+
+ECGroupPointer ECGroupPointer::NewByCurveName(int nid) {
+  return ECGroupPointer(EC_GROUP_new_by_curve_name(nid));
+}
+
 }  // namespace ncrypto
