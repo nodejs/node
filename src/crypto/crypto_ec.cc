@@ -18,6 +18,14 @@
 
 namespace node {
 
+using ncrypto::BignumPointer;
+using ncrypto::DataPointer;
+using ncrypto::ECGroupPointer;
+using ncrypto::ECKeyPointer;
+using ncrypto::ECPointPointer;
+using ncrypto::EVPKeyCtxPointer;
+using ncrypto::EVPKeyPointer;
+using ncrypto::MarkPopErrorOnReturn;
 using v8::Array;
 using v8::ArrayBuffer;
 using v8::BackingStore;
@@ -821,7 +829,7 @@ Maybe<void> ExportJWKEdKey(Environment* env,
   })();
 
   static constexpr auto trySetKey = [](Environment* env,
-                                       ncrypto::DataPointer data,
+                                       DataPointer data,
                                        Local<Object> target,
                                        Local<String> key) {
     Local<Value> encoded;
