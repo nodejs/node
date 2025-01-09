@@ -15,6 +15,7 @@ namespace node {
 using ncrypto::BignumPointer;
 using ncrypto::ClearErrorOnReturn;
 using ncrypto::ECDSASigPointer;
+using ncrypto::ECKeyPointer;
 using ncrypto::EVPKeyCtxPointer;
 using ncrypto::EVPKeyPointer;
 using ncrypto::EVPMDCtxPointer;
@@ -135,9 +136,7 @@ unsigned int GetBytesOfRS(const EVPKeyPointer& pkey) {
     // Both r and s are computed mod q, so their width is limited by that of q.
     bits = BignumPointer::GetBitCount(DSA_get0_q(dsa_key));
   } else if (base_id == EVP_PKEY_EC) {
-    const EC_KEY* ec_key = EVP_PKEY_get0_EC_KEY(pkey.get());
-    const EC_GROUP* ec_group = EC_KEY_get0_group(ec_key);
-    bits = EC_GROUP_order_bits(ec_group);
+    bits = EC_GROUP_order_bits(ECKeyPointer::GetGroup(pkey));
   } else {
     return kNoDsaSignature;
   }
