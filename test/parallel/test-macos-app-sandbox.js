@@ -7,11 +7,13 @@ if (process.config.variables.node_builtin_modules_path)
 
 const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
-const assert = require('assert');
-const child_process = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const {
+  spawnSyncAndExit,
+  spawnSyncAndExitWithoutError
+} = require('../common/child_process');
 
 const nodeBinary = process.execPath;
 
@@ -42,30 +44,29 @@ fs.copyFileSync(
   nodeBinary,
   appExecutablePath);
 
-
 // Sign the app bundle with sandbox entitlements:
-assert.strictEqual(
-  child_process.spawnSync('/usr/bin/codesign', [
-    '--entitlements', fixtures.path(
-      'macos-app-sandbox', 'node_sandboxed.entitlements'),
-    '--force', '-s', '-',
-    appBundlePath,
-  ]).status,
-  0);
+spawnSyncAndExitWithoutError('codesign', [
+  '--entitlements',
+  fixtures.path('macos-app-sandbox', 'node_sandboxed.entitlements'),
+  '--force',
+  '-s',
+  '-',
+  appBundlePath,
+]);
 
 // Sandboxed app shouldn't be able to read the home dir
-assert.notStrictEqual(
-  child_process.spawnSync(appExecutablePath, [
-    '-e', 'fs.readdirSync(process.argv[1])', os.homedir(),
-  ]).status,
-  0);
+spawnSyncAndExit(
+  appExecutablePath,
+  ['-e', 'fs.readdirSync(process.argv[1])', os.homedir()],
+  {
+    status: 1,
+    signal: null,
+  },
+);
 
 if (process.stdin.isTTY) {
   // Run the sandboxed node instance with inherited tty stdin
-  const spawnResult = child_process.spawnSync(
-    appExecutablePath, ['-e', ''],
-    { stdio: 'inherit' }
-  );
-
-  assert.strictEqual(spawnResult.signal, null);
+  spawnSyncAndExitWithoutError(appExecutablePath, ['-e', ''], {
+    stdio: 'inherit',
+  });
 }
