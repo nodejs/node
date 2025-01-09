@@ -1790,6 +1790,21 @@ BIOPointer EVPKeyPointer::derPublicKey() const {
   return bio;
 }
 
+bool EVPKeyPointer::assign(const ECKeyPointer& eckey) {
+  if (!pkey_ || !eckey) return {};
+  return EVP_PKEY_assign_EC_KEY(pkey_.get(), eckey.get());
+}
+
+bool EVPKeyPointer::set(const ECKeyPointer& eckey) {
+  if (!pkey_ || !eckey) return false;
+  return EVP_PKEY_set1_EC_KEY(pkey_.get(), eckey);
+}
+
+EVPKeyPointer::operator const EC_KEY*() const {
+  if (!pkey_) return nullptr;
+  return EVP_PKEY_get0_EC_KEY(pkey_.get());
+}
+
 namespace {
 EVPKeyPointer::ParseKeyResult TryParsePublicKeyInner(const BIOPointer& bp,
                                                      const char* name,
@@ -2747,6 +2762,111 @@ bool ECPointPointer::setFromBuffer(const Buffer<const unsigned char>& buffer,
 bool ECPointPointer::mul(const EC_GROUP* group, const BIGNUM* priv_key) {
   if (!point_) return false;
   return EC_POINT_mul(group, point_.get(), priv_key, nullptr, nullptr, nullptr);
+}
+
+// ============================================================================
+
+ECKeyPointer::ECKeyPointer() : key_(nullptr) {}
+
+ECKeyPointer::ECKeyPointer(EC_KEY* key) : key_(key) {}
+
+ECKeyPointer::ECKeyPointer(ECKeyPointer&& other) noexcept
+    : key_(other.release()) {}
+
+ECKeyPointer& ECKeyPointer::operator=(ECKeyPointer&& other) noexcept {
+  key_.reset(other.release());
+  return *this;
+}
+
+ECKeyPointer::~ECKeyPointer() {
+  reset();
+}
+
+void ECKeyPointer::reset(EC_KEY* key) {
+  key_.reset(key);
+}
+
+EC_KEY* ECKeyPointer::release() {
+  return key_.release();
+}
+
+ECKeyPointer ECKeyPointer::clone() const {
+  if (!key_) return {};
+  return ECKeyPointer(EC_KEY_dup(key_.get()));
+}
+
+bool ECKeyPointer::generate() {
+  if (!key_) return false;
+  return EC_KEY_generate_key(key_.get());
+}
+
+bool ECKeyPointer::setPublicKey(const ECPointPointer& pub) {
+  if (!key_) return false;
+  return EC_KEY_set_public_key(key_.get(), pub.get()) == 1;
+}
+
+bool ECKeyPointer::setPublicKeyRaw(const BignumPointer& x,
+                                   const BignumPointer& y) {
+  if (!key_) return false;
+  return EC_KEY_set_public_key_affine_coordinates(
+             key_.get(), x.get(), y.get()) == 1;
+}
+
+bool ECKeyPointer::setPrivateKey(const BignumPointer& priv) {
+  if (!key_) return false;
+  return EC_KEY_set_private_key(key_.get(), priv.get()) == 1;
+}
+
+const BIGNUM* ECKeyPointer::getPrivateKey() const {
+  if (!key_) return nullptr;
+  return GetPrivateKey(key_.get());
+}
+
+const BIGNUM* ECKeyPointer::GetPrivateKey(const EC_KEY* key) {
+  return EC_KEY_get0_private_key(key);
+}
+
+const EC_POINT* ECKeyPointer::getPublicKey() const {
+  if (!key_) return nullptr;
+  return GetPublicKey(key_.get());
+}
+
+const EC_POINT* ECKeyPointer::GetPublicKey(const EC_KEY* key) {
+  return EC_KEY_get0_public_key(key);
+}
+
+const EC_GROUP* ECKeyPointer::getGroup() const {
+  if (!key_) return nullptr;
+  return GetGroup(key_.get());
+}
+
+const EC_GROUP* ECKeyPointer::GetGroup(const EC_KEY* key) {
+  return EC_KEY_get0_group(key);
+}
+
+int ECKeyPointer::GetGroupName(const EC_KEY* key) {
+  const EC_GROUP* group = GetGroup(key);
+  return group ? EC_GROUP_get_curve_name(group) : 0;
+}
+
+bool ECKeyPointer::Check(const EC_KEY* key) {
+  return EC_KEY_check_key(key) == 1;
+}
+
+bool ECKeyPointer::checkKey() const {
+  if (!key_) return false;
+  return Check(key_.get());
+}
+
+ECKeyPointer ECKeyPointer::NewByCurveName(int nid) {
+  return ECKeyPointer(EC_KEY_new_by_curve_name(nid));
+}
+
+ECKeyPointer ECKeyPointer::New(const EC_GROUP* group) {
+  auto ptr = ECKeyPointer(EC_KEY_new());
+  if (!ptr) return {};
+  if (!EC_KEY_set_group(ptr.get(), group)) return {};
+  return ptr;
 }
 
 }  // namespace ncrypto

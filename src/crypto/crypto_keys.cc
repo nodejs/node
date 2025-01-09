@@ -20,7 +20,6 @@ namespace node {
 
 using ncrypto::BIOPointer;
 using ncrypto::ECKeyPointer;
-using ncrypto::ECPointPointer;
 using ncrypto::EVPKeyCtxPointer;
 using ncrypto::EVPKeyPointer;
 using ncrypto::MarkPopErrorOnReturn;
@@ -761,22 +760,21 @@ void KeyObjectHandle::InitECRaw(const FunctionCallbackInfo<Value>& args) {
   MarkPopErrorOnReturn mark_pop_error_on_return;
 
   int id = OBJ_txt2nid(*name);
-  ECKeyPointer eckey(EC_KEY_new_by_curve_name(id));
+  auto eckey = ECKeyPointer::NewByCurveName(id);
   if (!eckey)
     return args.GetReturnValue().Set(false);
 
-  const EC_GROUP* group = EC_KEY_get0_group(eckey.get());
-  ECPointPointer pub(ECDH::BufferToPoint(env, group, args[1]));
+  const auto group = eckey.getGroup();
+  auto pub = ECDH::BufferToPoint(env, group, args[1]);
 
-  if (!pub ||
-      !eckey ||
-      !EC_KEY_set_public_key(eckey.get(), pub.get())) {
+  if (!pub || !eckey || !eckey.setPublicKey(pub)) {
     return args.GetReturnValue().Set(false);
   }
 
   auto pkey = EVPKeyPointer::New();
-  if (!EVP_PKEY_assign_EC_KEY(pkey.get(), eckey.get()))
+  if (!pkey.assign(eckey)) {
     args.GetReturnValue().Set(false);
+  }
 
   eckey.release();  // Release ownership of the key
 

@@ -28,6 +28,7 @@
 namespace node {
 
 using ncrypto::ClearErrorOnReturn;
+using ncrypto::ECKeyPointer;
 using ncrypto::EVPKeyPointer;
 using ncrypto::SSLPointer;
 using ncrypto::SSLSessionPointer;
@@ -271,8 +272,7 @@ MaybeLocal<Object> GetEphemeralKey(Environment* env, const SSLPointer& ssl) {
       {
         const char* curve_name;
         if (kid == EVP_PKEY_EC) {
-          OSSL3_CONST EC_KEY* ec = EVP_PKEY_get0_EC_KEY(key.get());
-          int nid = EC_GROUP_get_curve_name(EC_KEY_get0_group(ec));
+          int nid = ECKeyPointer::GetGroupName(key);
           curve_name = OBJ_nid2sn(nid);
         } else {
           curve_name = OBJ_nid2sn(kid);
