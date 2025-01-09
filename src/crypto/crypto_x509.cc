@@ -19,6 +19,7 @@ using ncrypto::BignumPointer;
 using ncrypto::BIOPointer;
 using ncrypto::ClearErrorOnReturn;
 using ncrypto::DataPointer;
+using ncrypto::ECKeyPointer;
 using ncrypto::SSLPointer;
 using ncrypto::StackOfASN1;
 using ncrypto::X509Pointer;
@@ -697,7 +698,7 @@ MaybeLocal<Value> GetExponentString(Environment* env, const BIGNUM* e) {
 MaybeLocal<Value> GetECPubKey(Environment* env,
                               const EC_GROUP* group,
                               OSSL3_CONST EC_KEY* ec) {
-  const EC_POINT* pubkey = EC_KEY_get0_public_key(ec);
+  const auto pubkey = ECKeyPointer::GetPublicKey(ec);
   if (pubkey == nullptr) return Undefined(env->isolate());
 
   return ECPointToBuffer(env, group, pubkey, EC_KEY_get_conv_form(ec), nullptr)
@@ -779,7 +780,7 @@ MaybeLocal<Object> X509ToObject(Environment* env, const X509View& cert) {
       return {};
     }
   } else if (ec) {
-    const EC_GROUP* group = EC_KEY_get0_group(ec);
+    const auto group = ECKeyPointer::GetGroup(ec);
 
     if (!Set<Value>(
             env, info, env->bits_string(), GetECGroupBits(env, group)) ||
