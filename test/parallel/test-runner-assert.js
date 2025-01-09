@@ -10,7 +10,7 @@ test('expected methods are on t.assert', (t) => {
     'strict',
   ];
   const assertKeys = Object.keys(assert).filter((key) => !uncopiedKeys.includes(key));
-  const expectedKeys = ['snapshot'].concat(assertKeys).sort();
+  const expectedKeys = ['snapshot', 'fileSnapshot'].concat(assertKeys).sort();
   assert.deepStrictEqual(Object.keys(t.assert).sort(), expectedKeys);
 });
 
