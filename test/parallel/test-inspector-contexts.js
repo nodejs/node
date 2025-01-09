@@ -8,7 +8,7 @@ common.skipIfInspectorDisabled();
 const assert = require('assert');
 const vm = require('vm');
 const { Session } = require('inspector');
-
+const { gcUntil } = require('../common/gc');
 const session = new Session();
 session.connect();
 
@@ -66,8 +66,7 @@ async function testContextCreatedAndDestroyed() {
 
     // GC is unpredictable...
     console.log('Checking/waiting for GC.');
-    while (!contextDestroyed)
-      global.gc();
+    await gcUntil('context destruction', () => contextDestroyed, Infinity, { type: 'major', execution: 'async' });
     console.log('Context destroyed.');
 
     assert.strictEqual(contextDestroyed.params.executionContextId, id,
@@ -98,8 +97,7 @@ async function testContextCreatedAndDestroyed() {
 
     // GC is unpredictable...
     console.log('Checking/waiting for GC again.');
-    while (!contextDestroyed)
-      global.gc();
+    await gcUntil('context destruction', () => contextDestroyed, Infinity, { type: 'major', execution: 'async' });
     console.log('Other context destroyed.');
   }
 
@@ -124,8 +122,7 @@ async function testContextCreatedAndDestroyed() {
 
     // GC is unpredictable...
     console.log('Checking/waiting for GC a third time.');
-    while (!contextDestroyed)
-      global.gc();
+    await gcUntil('context destruction', () => contextDestroyed, Infinity, { type: 'major', execution: 'async' });
     console.log('Context destroyed once again.');
   }
 
@@ -148,8 +145,7 @@ async function testContextCreatedAndDestroyed() {
 
     // GC is unpredictable...
     console.log('Checking/waiting for GC a fourth time.');
-    while (!contextDestroyed)
-      global.gc();
+    await gcUntil('context destruction', () => contextDestroyed, Infinity, { type: 'major', execution: 'async' });
     console.log('Context destroyed a fourth time.');
   }
 }
