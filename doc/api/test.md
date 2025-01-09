@@ -3280,6 +3280,43 @@ test('test', (t) => {
 });
 ```
 
+#### `context.assert.fileSnapshot(value, path[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `value` {any} A value to serialize to a string. If Node.js was started with
+  the [`--test-update-snapshots`][] flag, the serialized value is written to
+  `path`. Otherwise, the serialized value is compared to the contents of the
+  existing snapshot file.
+* `path` {string} The file where the serialized `value` is written.
+* `options` {Object} Optional configuration options. The following properties
+  are supported:
+  * `serializers` {Array} An array of synchronous functions used to serialize
+    `value` into a string. `value` is passed as the only argument to the first
+    serializer function. The return value of each serializer is passed as input
+    to the next serializer. Once all serializers have run, the resulting value
+    is coerced to a string. **Default:** If no serializers are provided, the
+    test runner's default serializers are used.
+
+This function serializes `value` and writes it to the file specified by `path`.
+
+```js
+test('snapshot test with default serialization', (t) => {
+  t.assert.fileSnapshot({ value1: 1, value2: 2 }, './snapshots/snapshot.json');
+});
+```
+
+This function differs from `context.assert.snapshot()` in the following ways:
+
+* The snapshot file path is explicitly provided by the user.
+* Each snapshot file is limited to a single snapshot value.
+* No additional escaping is performed by the test runner.
+
+These differences allow snapshot files to better support features such as syntax
+highlighting.
+
 #### `context.assert.snapshot(value[, options])`
 
 <!-- YAML
