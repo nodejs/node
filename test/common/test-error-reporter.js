@@ -32,7 +32,7 @@ module.exports = async function* errorReporter(source) {
       yield output.join('\n');
 
       if (process.env.FAIL_FAST) {
-        yield `\n\u001b[31m✖ Bailing on failed test: ${event.data.name}\u001b[0m\n`;
+        yield `\nBailing on failed test: ${event.data.name}\n`;
         process.exitCode = 1;
         process.emit('SIGINT');
       }
