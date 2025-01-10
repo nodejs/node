@@ -7,10 +7,11 @@ const { styleText } = require('node:util');
 const bench = common.createBenchmark(main, {
   messageType: ['string', 'number', 'boolean', 'invalid'],
   format: ['red', 'italic', 'invalid'],
+  validateStream: [1, 0],
   n: [1e3],
 });
 
-function main({ messageType, format, n }) {
+function main({ messageType, format, validateStream, n }) {
   let str;
   switch (messageType) {
     case 'string':
@@ -29,8 +30,10 @@ function main({ messageType, format, n }) {
 
   bench.start();
   for (let i = 0; i < n; i++) {
+    let colored = ''
     try {
-      styleText(format, str);
+      colored = util.styleText(format, str, { validateStream });
+      assert.ok(colored); // Attempt to avoid dead-code elimination
     } catch {
       // eslint-disable no-empty
     }
