@@ -2,7 +2,7 @@
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v23.6.0
     pr-url: https://github.com/nodejs/node/pull/56350
     description: Type stripping is enabled by default.
   - version: v22.7.0

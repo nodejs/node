@@ -21,6 +21,7 @@
 
 namespace node {
 
+using ncrypto::StackOfX509;
 using v8::Array;
 using v8::ArrayBufferView;
 using v8::Boolean;
@@ -550,7 +551,7 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  sc->ctx_.reset(SSL_CTX_new(method));
+  sc->ctx_.reset(method);
   if (!sc->ctx_) {
     return ThrowCryptoError(env, ERR_get_error(), "SSL_CTX_new");
   }
@@ -786,9 +787,8 @@ void SecureContext::SetCACert(const BIOPointer& bio) {
   while (X509Pointer x509 = X509Pointer(PEM_read_bio_X509_AUX(
              bio.get(), nullptr, NoPasswordCallback, nullptr))) {
     CHECK_EQ(1,
-             X509_STORE_add_cert(GetCertStoreOwnedByThisSecureContext(),
-                                 x509.get()));
-    CHECK_EQ(1, SSL_CTX_add_client_CA(ctx_.get(), x509.get()));
+             X509_STORE_add_cert(GetCertStoreOwnedByThisSecureContext(), x509));
+    CHECK_EQ(1, SSL_CTX_add_client_CA(ctx_.get(), x509));
   }
 }
 

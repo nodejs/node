@@ -307,6 +307,16 @@ describe('Object Comparison Tests', () => {
           expected: { dataView: new DataView(new ArrayBuffer(3)) },
         },
         {
+          description: 'throws when comparing Float32Array([+0.0]) with Float32Array([-0.0])',
+          actual: new Float32Array([+0.0]),
+          expected: new Float32Array([-0.0]),
+        },
+        {
+          description: 'throws when comparing two different urls',
+          actual: new URL('http://foo'),
+          expected: new URL('http://bar'),
+        },
+        {
           description: 'throws when comparing SharedArrayBuffers when expected has different elements actual',
           actual: (() => {
             const sharedBuffer = new SharedArrayBuffer(4 * Int32Array.BYTES_PER_ELEMENT);
@@ -777,6 +787,21 @@ describe('Object Comparison Tests', () => {
           'compares one subset array with another',
         actual: [1, 2, 3],
         expected: [2],
+      },
+      {
+        description: 'ensures that File extends Blob',
+        actual: Object.getPrototypeOf(File.prototype),
+        expected: Blob.prototype
+      },
+      {
+        description: 'compares NaN with NaN',
+        actual: NaN,
+        expected: NaN,
+      },
+      {
+        description: 'compares two identical urls',
+        actual: new URL('http://foo'),
+        expected: new URL('http://foo'),
       },
     ].forEach(({ description, actual, expected }) => {
       it(description, () => {

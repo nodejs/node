@@ -333,7 +333,7 @@ void Url(const FunctionCallbackInfo<Value>& args) {
   if (url.empty()) {
     return;
   }
-  args.GetReturnValue().Set(OneByteString(env->isolate(), url.c_str()));
+  args.GetReturnValue().Set(OneByteString(env->isolate(), url));
 }
 
 void Initialize(Local<Object> target, Local<Value> unused,

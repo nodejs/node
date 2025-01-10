@@ -118,7 +118,7 @@ void OOMErrorHandler(const char* location, const v8::OOMDetails& details);
   inline v8::Local<v8::Object> code(                                           \
       v8::Isolate* isolate, const char* format, Args&&... args) {              \
     std::string message = SPrintF(format, std::forward<Args>(args)...);        \
-    v8::Local<v8::String> js_code = OneByteString(isolate, #code);             \
+    v8::Local<v8::String> js_code = FIXED_ONE_BYTE_STRING(isolate, #code);     \
     v8::Local<v8::String> js_msg =                                             \
         v8::String::NewFromUtf8(isolate,                                       \
                                 message.c_str(),                               \
@@ -129,7 +129,7 @@ void OOMErrorHandler(const char* location, const v8::OOMDetails& details);
                                   ->ToObject(isolate->GetCurrentContext())     \
                                   .ToLocalChecked();                           \
     e->Set(isolate->GetCurrentContext(),                                       \
-           OneByteString(isolate, "code"),                                     \
+           FIXED_ONE_BYTE_STRING(isolate, "code"),                             \
            js_code)                                                            \
         .Check();                                                              \
     return e;                                                                  \

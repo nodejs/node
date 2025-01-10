@@ -14,6 +14,8 @@ const {
   checkPrimeSync,
 } = require('crypto');
 
+const { Worker } = require('worker_threads');
+
 const { promisify } = require('util');
 const pgeneratePrime = promisify(generatePrime);
 const pCheckPrime = promisify(checkPrime);
@@ -294,4 +296,18 @@ assert.throws(() => {
     assert(checkPrimeSync(prime));
     checkPrime(prime, common.mustSucceed(assert));
   }));
+}
+
+{
+  // Verify that generatePrime can be reasonably interrupted.
+  const worker = new Worker(`
+    const { generatePrime } = require('crypto');
+    generatePrime(2048, () => {
+      throw new Error('should not be called');
+    });
+    process.exit(42);
+  `, { eval: true });
+
+  worker.on('error', common.mustNotCall());
+  worker.on('exit', common.mustCall((exitCode) => assert.strictEqual(exitCode, 42)));
 }

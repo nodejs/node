@@ -7,8 +7,6 @@
 #include "threadpoolwork-inl.h"
 #include "v8.h"
 
-#include <openssl/bn.h>
-#include <openssl/rand.h>
 #include <compare>
 
 namespace node {
@@ -28,6 +26,16 @@ using v8::Uint32;
 using v8::Value;
 
 namespace crypto {
+namespace {
+ncrypto::BignumPointer::PrimeCheckCallback getPrimeCheckCallback(
+    Environment* env) {
+  // The callback is used to check if the operation should be stopped.
+  // Currently, the only check we perform is if env->is_stopping()
+  // is true.
+  return [env](int a, int b) -> bool { return !env->is_stopping(); };
+}
+
+}  // namespace
 MaybeLocal<Value> RandomBytesTraits::EncodeOutput(
     Environment* env, const RandomBytesConfig& params, ByteSource* unused) {
   return v8::Undefined(env->isolate());
@@ -146,21 +154,14 @@ Maybe<void> RandomPrimeTraits::AdditionalConfig(
 bool RandomPrimeTraits::DeriveBits(Environment* env,
                                    const RandomPrimeConfig& params,
                                    ByteSource* unused) {
-  // BN_generate_prime_ex() calls RAND_bytes_ex() internally.
-  // Make sure the CSPRNG is properly seeded.
-  CHECK(ncrypto::CSPRNG(nullptr, 0));
-
-  if (BN_generate_prime_ex(
-          params.prime.get(),
-          params.bits,
-          params.safe ? 1 : 0,
-          params.add.get(),
-          params.rem.get(),
-          nullptr) == 0) {
-    return false;
-  }
-
-  return true;
+  return params.prime.generate(
+      BignumPointer::PrimeConfig{
+          .bits = params.bits,
+          .safe = params.safe,
+          .add = params.add,
+          .rem = params.rem,
+      },
+      getPrimeCheckCallback(env));
 }
 
 void CheckPrimeConfig::MemoryInfo(MemoryTracker* tracker) const {
@@ -187,14 +188,7 @@ bool CheckPrimeTraits::DeriveBits(
     Environment* env,
     const CheckPrimeConfig& params,
     ByteSource* out) {
-
-  BignumCtxPointer ctx(BN_CTX_new());
-
-  int ret = BN_is_prime_ex(
-            params.candidate.get(),
-            params.checks,
-            ctx.get(),
-            nullptr);
+  int ret = params.candidate.isPrime(params.checks, getPrimeCheckCallback(env));
   if (ret < 0) return false;
   ByteSource::Builder buf(1);
   buf.data<char>()[0] = ret;

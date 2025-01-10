@@ -1735,7 +1735,7 @@ static void Initialize(Local<Object> target,
                          "StatementSync",
                          StatementSync::GetConstructorTemplate(env));
 
-  target->Set(context, OneByteString(isolate, "constants"), constants).Check();
+  target->Set(context, env->constants_string(), constants).Check();
 }
 
 }  // namespace sqlite
