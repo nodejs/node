@@ -3,6 +3,7 @@
 const common = require('../common.js');
 
 const { styleText } = require('node:util');
+const assert = require('node:assert');
 
 const bench = common.createBenchmark(main, {
   messageType: ['string', 'number', 'boolean', 'invalid'],
@@ -30,9 +31,9 @@ function main({ messageType, format, validateStream, n }) {
 
   bench.start();
   for (let i = 0; i < n; i++) {
-    let colored = ''
+    let colored = '';
     try {
-      colored = util.styleText(format, str, { validateStream });
+      colored = styleText(format, str, { validateStream });
       assert.ok(colored); // Attempt to avoid dead-code elimination
     } catch {
       // eslint-disable no-empty
