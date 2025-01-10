@@ -261,3 +261,8 @@ exports.license = yes ? license : prompt('license', license, (data) => {
   const errors = (its.errors || []).concat(its.warnings || [])
   return invalid(`Sorry, ${errors.join(' and ')}.`)
 })
+
+const type = package.type || getConfig('type') || 'commonjs'
+exports.type = yes ? type : prompt('type', type, (data) => {
+  return data
+})
