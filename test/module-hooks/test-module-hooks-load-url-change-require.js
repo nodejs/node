@@ -20,7 +20,7 @@ const hook = registerHooks({
     assert.strictEqual(url, 'foo://bar');
     return nextLoad(
       fixtures.fileURL('module-hooks', 'redirected-fs.js').href,
-      context
+      context,
     );
   }),
 });
