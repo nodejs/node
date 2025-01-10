@@ -3234,11 +3234,13 @@ console.log(`The parent process is pid ${ppid}`);
 added: v23.6.0
 -->
 
+> Stability: 1 - Experimental
+
 * `maybeRefable` {any} An object that may be "refable".
 
 An object is "refable" if it implements the Node.js "Refable protocol".
-Specifically, this means that the object implements the `Symbol.for('node:ref')`
-and `Symbol.for('node:unref')` methods. "Ref'd" objects will keep the Node.js
+Specifically, this means that the object implements the `Symbol.for('nodejs.ref')`
+and `Symbol.for('nodejs.unref')` methods. "Ref'd" objects will keep the Node.js
 event loop alive, while "unref'd" objects will not. Historically, this was
 implemented by using `ref()` and `unref()` methods directly on the objects.
 This pattern, however, is being deprecated in favor of the "Refable protocol"
@@ -4291,11 +4293,13 @@ In [`Worker`][] threads, `process.umask(mask)` will throw an exception.
 added: v23.6.0
 -->
 
+> Stability: 1 - Experimental
+
 * `maybeUnfefable` {any} An object that may be "unref'd".
 
 An object is "unrefable" if it implements the Node.js "Refable protocol".
-Specifically, this means that the object implements the `Symbol.for('node:ref')`
-and `Symbol.for('node:unref')` methods. "Ref'd" objects will keep the Node.js
+Specifically, this means that the object implements the `Symbol.for('nodejs.ref')`
+and `Symbol.for('nodejs.unref')` methods. "Ref'd" objects will keep the Node.js
 event loop alive, while "unref'd" objects will not. Historically, this was
 implemented by using `ref()` and `unref()` methods directly on the objects.
 This pattern, however, is being deprecated in favor of the "Refable protocol"
