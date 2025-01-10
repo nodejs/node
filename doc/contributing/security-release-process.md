@@ -65,6 +65,8 @@ The current security stewards are documented in the main Node.js
 * [ ] 4\. **Requesting CVEs:**
   * Request CVEs for the reports with `git node security --request-cve`.
   * Make sure to have a green CI before requesting a CVE.
+  * Check if there is a need to issue a CVE for any version that became
+    EOL after the last security release through [this issue](https://github.com/nodejs/security-wg/issues/1419).
 
 * [ ] 5\. **Choosing or Updating Release Date:**
   * Get agreement on the planned date for the release.
