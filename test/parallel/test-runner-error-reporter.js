@@ -6,7 +6,6 @@ const assert = require('node:assert');
 const { spawnSync } = require('node:child_process');
 const { test } = require('node:test');
 const cwd = fixtures.path('test-runner', 'error-reporter-fail-fast');
-const env = { ...process.env };
 
 test('all tests failures reported without FAIL_FAST flag', async () => {
   const args = [
