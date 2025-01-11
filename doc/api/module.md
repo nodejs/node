@@ -1039,8 +1039,9 @@ changes:
 * Returns: {Object|Promise} The asynchronous version takes either an object containing the
   following properties, or a `Promise` that will resolve to such an object. The
   synchronous version only accepts an object returned synchronously.
-  * `format` {string|null|undefined} A hint to the `load` hook (it might be ignored). It can be any
-    string value (`'css'`, `'yaml'`, etc).
+  * `format` {string|null|undefined} A hint to the `load` hook (it might be ignored). It can be a
+    module format (such as `'commonjs'` or `'module'`) or an arbitrary value like `'css'` or
+    `'yaml'`.
   * `importAttributes` {Object|undefined} The import attributes to use when
     caching the module (optional; if excluded the input will be used)
   * `shortCircuit` {undefined|boolean} A signal that this hook intends to
