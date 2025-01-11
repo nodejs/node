@@ -3359,11 +3359,6 @@ easier to instrument applications that call the `child_process.spawn()` family
 of functions. `NODE_V8_COVERAGE` can be set to an empty string, to prevent
 propagation.
 
-### `NO_COLOR=<any>`
-
-[`NO_COLOR`][]  is an alias for `NODE_DISABLE_COLORS`. The value of the
-environment variable is arbitrary.
-
 #### Coverage output
 
 Coverage is output as an array of [ScriptCoverage][] objects on the top-level
@@ -3428,6 +3423,11 @@ and the line lengths of the source file (in the key `lineLengths`).
   }
 }
 ```
+
+### `NO_COLOR=<any>`
+
+[`NO_COLOR`][]  is an alias for `NODE_DISABLE_COLORS`. The value of the
+environment variable is arbitrary.
 
 ### `OPENSSL_CONF=file`
 
