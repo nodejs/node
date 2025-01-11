@@ -346,7 +346,7 @@ bool BignumPointer::generate(const PrimeConfig& params,
                              PrimeCheckCallback innerCb) const {
   // BN_generate_prime_ex() calls RAND_bytes_ex() internally.
   // Make sure the CSPRNG is properly seeded.
-  CSPRNG(nullptr, 0);
+  std::ignore = CSPRNG(nullptr, 0);
   BignumGenCallbackPointer cb(nullptr);
   if (innerCb != nullptr) {
     cb = BignumGenCallbackPointer(BN_GENCB_new());
