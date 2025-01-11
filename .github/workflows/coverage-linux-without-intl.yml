@@ -68,7 +68,7 @@ jobs:
       # TODO(bcoe): fix the couple tests that fail with the inspector enabled.
       # The cause is most likely coverage's use of the inspector.
       - name: Test
-        run: NODE_V8_COVERAGE=coverage/tmp make test-cov -j4 V=1 TEST_CI_ARGS="-p dots --node-args='--test-reporter=spec' --measure-flakiness 9" || exit 0
+        run: NODE_V8_COVERAGE=coverage/tmp make test-cov -j4 V=1 TEST_CI_ARGS="-p dots --node-args='--test-reporter=./test/common/test-error-reporter.js' --measure-flakiness 9" || exit 0
       - name: Report JS
         run: npx c8 report --check-coverage
         env:
