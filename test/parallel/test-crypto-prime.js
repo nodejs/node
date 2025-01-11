@@ -254,6 +254,19 @@ for (const checks of [-(2 ** 31), -1, 2 ** 31, 2 ** 32 - 1, 2 ** 32, 2 ** 50]) {
   });
 }
 
+{
+  const bytes = Buffer.alloc(67108864);
+  bytes[0] = 0x1;
+  assert.throws(() => checkPrime(bytes, common.mustNotCall()), {
+    code: 'ERR_OSSL_BN_BIGNUM_TOO_LONG',
+    message: /bignum too long/
+  });
+  assert.throws(() => checkPrimeSync(bytes), {
+    code: 'ERR_OSSL_BN_BIGNUM_TOO_LONG',
+    message: /bignum too long/
+  });
+}
+
 assert(!checkPrimeSync(Buffer.from([0x1])));
 assert(checkPrimeSync(Buffer.from([0x2])));
 assert(checkPrimeSync(Buffer.from([0x3])));
