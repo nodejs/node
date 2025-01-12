@@ -24,6 +24,7 @@ using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::HandleScope;
 using v8::Isolate;
+using v8::JSON;
 using v8::Local;
 using v8::NewStringType;
 using v8::Object;
@@ -312,16 +313,14 @@ void V8CoverageConnection::WriteProfile(simdjson::ondemand::object* result) {
     // map cache in front of it, but source map cache is still experimental
     // anyway so just re-parse it with V8 for now.
     Local<String> profile_str;
-    if (!v8::String::NewFromUtf8(isolate,
-                                 profile.data(),
-                                 v8::NewStringType::kNormal,
-                                 profile.length())
+    if (!String::NewFromUtf8(
+             isolate, profile.data(), NewStringType::kNormal, profile.length())
              .ToLocal(&profile_str)) {
       fprintf(stderr, "Failed to re-parse %s profile as UTF8\n", type());
       return;
     }
     Local<Value> profile_value;
-    if (!v8::JSON::Parse(context, profile_str).ToLocal(&profile_value) ||
+    if (!JSON::Parse(context, profile_str).ToLocal(&profile_value) ||
         !profile_value->IsObject()) {
       fprintf(stderr, "Failed to re-parse %s profile from JSON\n", type());
       return;
@@ -337,7 +336,7 @@ void V8CoverageConnection::WriteProfile(simdjson::ondemand::object* result) {
       return;
     }
     Local<String> result_s;
-    if (!v8::JSON::Stringify(context, profile_value).ToLocal(&result_s)) {
+    if (!JSON::Stringify(context, profile_value).ToLocal(&result_s)) {
       fprintf(stderr, "Failed to stringify %s profile result\n", type());
       return;
     }

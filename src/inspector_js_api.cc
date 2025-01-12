@@ -13,6 +13,7 @@ namespace node {
 namespace inspector {
 namespace {
 
+using v8::ConstructorBehavior;
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -24,6 +25,8 @@ using v8::Local;
 using v8::MaybeLocal;
 using v8::NewStringType;
 using v8::Object;
+using v8::SideEffectType;
+using v8::Signature;
 using v8::String;
 using v8::Uint32;
 using v8::Value;
@@ -179,7 +182,7 @@ void SetConsoleExtensionInstaller(const FunctionCallbackInfo<Value>& info) {
   realm->set_inspector_console_extension_installer(info[0].As<Function>());
 }
 
-void CallAndPauseOnStart(const FunctionCallbackInfo<v8::Value>& args) {
+void CallAndPauseOnStart(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   THROW_IF_INSUFFICIENT_PERMISSIONS(env,
                                     permission::PermissionScope::kInspector,
@@ -188,9 +191,8 @@ void CallAndPauseOnStart(const FunctionCallbackInfo<v8::Value>& args) {
   CHECK(args[0]->IsFunction());
   SlicedArguments call_args(args, /* start */ 2);
   env->inspector_agent()->PauseOnNextJavascriptStatement("Break on start");
-  v8::MaybeLocal<v8::Value> retval =
-      args[0].As<v8::Function>()->Call(env->context(), args[1],
-                                       call_args.length(), call_args.out());
+  MaybeLocal<Value> retval = args[0].As<Function>()->Call(
+      env->context(), args[1], call_args.length(), call_args.out());
   if (!retval.IsEmpty()) {
     args.GetReturnValue().Set(retval.ToLocalChecked());
   }
@@ -341,12 +343,12 @@ void Initialize(Local<Object> target, Local<Value> unused,
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
 
-  v8::Local<v8::Function> consoleCallFunc =
+  Local<Function> consoleCallFunc =
       NewFunctionTemplate(isolate,
                           InspectorConsoleCall,
-                          v8::Local<v8::Signature>(),
-                          v8::ConstructorBehavior::kThrow,
-                          v8::SideEffectType::kHasSideEffect)
+                          Local<Signature>(),
+                          ConstructorBehavior::kThrow,
+                          SideEffectType::kHasSideEffect)
           ->GetFunction(context)
           .ToLocalChecked();
   auto name_string = FIXED_ONE_BYTE_STRING(isolate, "consoleCall");

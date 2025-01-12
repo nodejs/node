@@ -71,10 +71,10 @@ void Dotenv::SetEnvironment(node::Environment* env) {
     if (!existing.has_value()) {
       env->env_vars()->Set(
           isolate,
-          v8::String::NewFromUtf8(
+          String::NewFromUtf8(
               isolate, key.data(), NewStringType::kNormal, key.size())
               .ToLocalChecked(),
-          v8::String::NewFromUtf8(
+          String::NewFromUtf8(
               isolate, value.data(), NewStringType::kNormal, value.size())
               .ToLocalChecked());
     }
@@ -91,13 +91,13 @@ Local<Object> Dotenv::ToObject(Environment* env) const {
     result
         ->Set(
             env->context(),
-            v8::String::NewFromUtf8(
+            String::NewFromUtf8(
                 env->isolate(), key.data(), NewStringType::kNormal, key.size())
                 .ToLocalChecked(),
-            v8::String::NewFromUtf8(env->isolate(),
-                                    value.data(),
-                                    NewStringType::kNormal,
-                                    value.size())
+            String::NewFromUtf8(env->isolate(),
+                                value.data(),
+                                NewStringType::kNormal,
+                                value.size())
                 .ToLocalChecked())
         .Check();
   }

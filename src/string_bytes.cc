@@ -46,7 +46,9 @@ using v8::Just;
 using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
+using v8::NewStringType;
 using v8::Nothing;
+using v8::Object;
 using v8::String;
 using v8::Value;
 
@@ -171,7 +173,7 @@ MaybeLocal<Value> ExternOneByteString::NewSimpleFromCopy(Isolate* isolate,
   MaybeLocal<String> str =
       String::NewFromOneByte(isolate,
                              reinterpret_cast<const uint8_t*>(data),
-                             v8::NewStringType::kNormal,
+                             NewStringType::kNormal,
                              length);
   if (str.IsEmpty()) {
     *error = node::ERR_STRING_TOO_LONG(isolate);
@@ -187,10 +189,7 @@ MaybeLocal<Value> ExternTwoByteString::NewSimpleFromCopy(Isolate* isolate,
                                                          size_t length,
                                                          Local<Value>* error) {
   MaybeLocal<String> str =
-      String::NewFromTwoByte(isolate,
-                             data,
-                             v8::NewStringType::kNormal,
-                             length);
+      String::NewFromTwoByte(isolate, data, NewStringType::kNormal, length);
   if (str.IsEmpty()) {
     *error = node::ERR_STRING_TOO_LONG(isolate);
     return MaybeLocal<Value>();
@@ -510,7 +509,7 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
     case BUFFER:
       {
         auto maybe_buf = Buffer::Copy(isolate, buf, buflen);
-        Local<v8::Object> buf;
+        Local<Object> buf;
         if (!maybe_buf.ToLocal(&buf)) {
           *error = node::ERR_MEMORY_ALLOCATION_FAILED(isolate);
         }
@@ -533,14 +532,11 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
 
     case UTF8:
       {
-        val = String::NewFromUtf8(isolate,
-                                  buf,
-                                  v8::NewStringType::kNormal,
-                                  buflen);
-        Local<String> str;
-        if (!val.ToLocal(&str)) {
-          *error = node::ERR_STRING_TOO_LONG(isolate);
-        }
+      val = String::NewFromUtf8(isolate, buf, NewStringType::kNormal, buflen);
+      Local<String> str;
+      if (!val.ToLocal(&str)) {
+        *error = node::ERR_STRING_TOO_LONG(isolate);
+      }
         return str;
       }
 

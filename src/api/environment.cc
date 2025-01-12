@@ -25,6 +25,9 @@ using errors::TryCatchScope;
 using v8::Array;
 using v8::Boolean;
 using v8::Context;
+using v8::CpuProfiler;
+using v8::DeserializeContextDataCallback;
+using v8::DeserializeInternalFieldsCallback;
 using v8::EscapableHandleScope;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -39,10 +42,12 @@ using v8::Nothing;
 using v8::Null;
 using v8::Object;
 using v8::ObjectTemplate;
+using v8::PageAllocator;
 using v8::Private;
 using v8::PropertyDescriptor;
 using v8::SealHandleScope;
 using v8::String;
+using v8::TracingController;
 using v8::Value;
 
 bool AllowWasmCodeGenerationCallback(Local<Context> context,
@@ -218,7 +223,7 @@ void SetIsolateCreateParamsForNode(Isolate::CreateParams* params) {
 #endif
 }
 
-void SetIsolateErrorHandlers(v8::Isolate* isolate, const IsolateSettings& s) {
+void SetIsolateErrorHandlers(Isolate* isolate, const IsolateSettings& s) {
   if (s.flags & MESSAGE_LISTENER_WITH_ERROR_LEVEL)
     isolate->AddMessageListenerWithErrorLevel(
             errors::PerIsolateMessageListener,
@@ -242,7 +247,7 @@ void SetIsolateErrorHandlers(v8::Isolate* isolate, const IsolateSettings& s) {
   }
 }
 
-void SetIsolateMiscHandlers(v8::Isolate* isolate, const IsolateSettings& s) {
+void SetIsolateMiscHandlers(Isolate* isolate, const IsolateSettings& s) {
   isolate->SetMicrotasksPolicy(s.policy);
 
   auto* allow_wasm_codegen_cb = s.allow_wasm_code_generation_callback ?
@@ -278,18 +283,17 @@ void SetIsolateMiscHandlers(v8::Isolate* isolate, const IsolateSettings& s) {
   }
 
   if (s.flags & DETAILED_SOURCE_POSITIONS_FOR_PROFILING)
-    v8::CpuProfiler::UseDetailedSourcePositionsForProfiling(isolate);
+    CpuProfiler::UseDetailedSourcePositionsForProfiling(isolate);
 }
 
-void SetIsolateUpForNode(v8::Isolate* isolate,
-                         const IsolateSettings& settings) {
+void SetIsolateUpForNode(Isolate* isolate, const IsolateSettings& settings) {
   Isolate::Scope isolate_scope(isolate);
 
   SetIsolateErrorHandlers(isolate, settings);
   SetIsolateMiscHandlers(isolate, settings);
 }
 
-void SetIsolateUpForNode(v8::Isolate* isolate) {
+void SetIsolateUpForNode(Isolate* isolate) {
   IsolateSettings settings;
   SetIsolateUpForNode(isolate, settings);
 }
@@ -427,12 +431,12 @@ Environment* CreateEnvironment(
   if (use_snapshot) {
     context = Context::FromSnapshot(isolate,
                                     SnapshotData::kNodeMainContextIndex,
-                                    v8::DeserializeInternalFieldsCallback(
+                                    DeserializeInternalFieldsCallback(
                                         DeserializeNodeInternalFields, env),
                                     nullptr,
                                     MaybeLocal<Value>(),
                                     nullptr,
-                                    v8::DeserializeContextDataCallback(
+                                    DeserializeContextDataCallback(
                                         DeserializeNodeContextData, env))
                   .ToLocalChecked();
 
@@ -570,14 +574,12 @@ MultiIsolatePlatform* GetMultiIsolatePlatform(IsolateData* env) {
 MultiIsolatePlatform* CreatePlatform(
     int thread_pool_size,
     node::tracing::TracingController* tracing_controller) {
-  return CreatePlatform(
-      thread_pool_size,
-      static_cast<v8::TracingController*>(tracing_controller));
+  return CreatePlatform(thread_pool_size,
+                        static_cast<TracingController*>(tracing_controller));
 }
 
-MultiIsolatePlatform* CreatePlatform(
-    int thread_pool_size,
-    v8::TracingController* tracing_controller) {
+MultiIsolatePlatform* CreatePlatform(int thread_pool_size,
+                                     TracingController* tracing_controller) {
   return MultiIsolatePlatform::Create(thread_pool_size,
                                       tracing_controller)
       .release();
@@ -589,8 +591,8 @@ void FreePlatform(MultiIsolatePlatform* platform) {
 
 std::unique_ptr<MultiIsolatePlatform> MultiIsolatePlatform::Create(
     int thread_pool_size,
-    v8::TracingController* tracing_controller,
-    v8::PageAllocator* page_allocator) {
+    TracingController* tracing_controller,
+    PageAllocator* page_allocator) {
   return std::make_unique<NodePlatform>(thread_pool_size,
                                         tracing_controller,
                                         page_allocator);

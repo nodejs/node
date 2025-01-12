@@ -38,7 +38,7 @@ SessionTicket::SessionTicket(Store&& ticket, Store&& transport_params)
       transport_params_(std::move(transport_params)) {}
 
 Maybe<SessionTicket> SessionTicket::FromV8Value(Environment* env,
-                                                v8::Local<v8::Value> value) {
+                                                Local<Value> value) {
   if (!value->IsArrayBufferView()) {
     THROW_ERR_INVALID_ARG_TYPE(env, "The ticket must be an ArrayBufferView.");
     return Nothing<SessionTicket>();

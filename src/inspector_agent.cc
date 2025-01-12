@@ -44,6 +44,9 @@ using v8::Isolate;
 using v8::Local;
 using v8::Message;
 using v8::Object;
+using v8::StackTrace;
+using v8::String;
+using v8::TryCatch;
 using v8::Value;
 
 using v8_inspector::StringBuffer;
@@ -412,7 +415,7 @@ void ThrowUninitializedInspectorError(Environment* env) {
 
   const char* msg = "This Environment was initialized without a V8::Inspector";
   Local<Value> exception =
-    v8::String::NewFromUtf8(env->isolate(), msg).ToLocalChecked();
+      String::NewFromUtf8(env->isolate(), msg).ToLocalChecked();
 
   env->isolate()->ThrowException(exception);
 }
@@ -571,7 +574,7 @@ class NodeInspectorClient : public V8InspectorClient {
 
     int script_id = message->GetScriptOrigin().ScriptId();
 
-    Local<v8::StackTrace> stack_trace = message->GetStackTrace();
+    Local<StackTrace> stack_trace = message->GetStackTrace();
 
     if (!stack_trace.IsEmpty() && stack_trace->GetFrameCount() > 0 &&
         script_id == stack_trace->GetFrame(isolate, 0)->GetScriptId()) {
@@ -924,7 +927,7 @@ void Agent::ToggleNetworkTracking(Isolate* isolate, Local<Function> fn) {
   auto context = parent_env_->context();
   HandleScope scope(isolate);
   CHECK(!fn.IsEmpty());
-  v8::TryCatch try_catch(isolate);
+  TryCatch try_catch(isolate);
   USE(fn->Call(context, Undefined(isolate), 0, nullptr));
   if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
     PrintCaughtException(isolate, context, try_catch);
@@ -1023,7 +1026,7 @@ void Agent::ToggleAsyncHook(Isolate* isolate, Local<Function> fn) {
   HandleScope handle_scope(isolate);
   CHECK(!fn.IsEmpty());
   auto context = parent_env_->context();
-  v8::TryCatch try_catch(isolate);
+  TryCatch try_catch(isolate);
   USE(fn->Call(context, Undefined(isolate), 0, nullptr));
   if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
     PrintCaughtException(isolate, context, try_catch);

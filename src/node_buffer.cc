@@ -58,9 +58,11 @@ namespace Buffer {
 using v8::ArrayBuffer;
 using v8::ArrayBufferView;
 using v8::BackingStore;
+using v8::CFunction;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::FastApiTypedArray;
+using v8::FastOneByteString;
 using v8::FunctionCallbackInfo;
 using v8::Global;
 using v8::HandleScope;
@@ -518,9 +520,9 @@ MaybeLocal<Object> New(Environment* env,
     free(data);
   };
   std::unique_ptr<BackingStore> bs =
-      v8::ArrayBuffer::NewBackingStore(data, length, free_callback, nullptr);
+      ArrayBuffer::NewBackingStore(data, length, free_callback, nullptr);
 
-  Local<ArrayBuffer> ab = v8::ArrayBuffer::New(env->isolate(), std::move(bs));
+  Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), std::move(bs));
 
   Local<Object> obj;
   if (Buffer::New(env, ab, 0, length).ToLocal(&obj))
@@ -582,8 +584,8 @@ void SlowCopy(const FunctionCallbackInfo<Value>& args) {
 
 // Assume caller has properly validated args.
 uint32_t FastCopy(Local<Value> receiver,
-                  const v8::FastApiTypedArray<uint8_t>& source,
-                  const v8::FastApiTypedArray<uint8_t>& target,
+                  const FastApiTypedArray<uint8_t>& source,
+                  const FastApiTypedArray<uint8_t>& target,
                   uint32_t target_start,
                   uint32_t source_start,
                   uint32_t to_copy) {
@@ -598,7 +600,7 @@ uint32_t FastCopy(Local<Value> receiver,
   return to_copy;
 }
 
-static v8::CFunction fast_copy(v8::CFunction::Make(FastCopy));
+static CFunction fast_copy(CFunction::Make(FastCopy));
 
 void Fill(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -735,7 +737,7 @@ void SlowByteLengthUtf8(const FunctionCallbackInfo<Value>& args) {
 }
 
 uint32_t FastByteLengthUtf8(Local<Value> receiver,
-                            const v8::FastOneByteString& source) {
+                            const FastOneByteString& source) {
   // For short inputs, the function call overhead to simdutf is maybe
   // not worth it, reserve simdutf for long strings.
   if (source.length > 128) {
@@ -777,8 +779,7 @@ uint32_t FastByteLengthUtf8(Local<Value> receiver,
   return answer;
 }
 
-static v8::CFunction fast_byte_length_utf8(
-    v8::CFunction::Make(FastByteLengthUtf8));
+static CFunction fast_byte_length_utf8(CFunction::Make(FastByteLengthUtf8));
 
 // Normalize val to be an integer in the range of [1, -1] since
 // implementations of memcmp() can vary by platform.
@@ -857,7 +858,7 @@ void Compare(const FunctionCallbackInfo<Value> &args) {
   args.GetReturnValue().Set(val);
 }
 
-int32_t FastCompare(v8::Local<v8::Value>,
+int32_t FastCompare(Local<Value>,
                     const FastApiTypedArray<uint8_t>& a,
                     const FastApiTypedArray<uint8_t>& b) {
   uint8_t* data_a;
@@ -873,7 +874,7 @@ int32_t FastCompare(v8::Local<v8::Value>,
       b.length());
 }
 
-static v8::CFunction fast_compare(v8::CFunction::Make(FastCompare));
+static CFunction fast_compare(CFunction::Make(FastCompare));
 
 // Computes the offset for starting an indexOf or lastIndexOf search.
 // Returns either a valid offset in [0...<length - 1>], ie inside the Buffer,
@@ -1141,7 +1142,7 @@ void SlowIndexOfNumber(const FunctionCallbackInfo<Value>& args) {
       buffer.data(), buffer.length(), needle, offset_i64, is_forward));
 }
 
-int32_t FastIndexOfNumber(v8::Local<v8::Value>,
+int32_t FastIndexOfNumber(Local<Value>,
                           const FastApiTypedArray<uint8_t>& buffer,
                           uint32_t needle,
                           int64_t offset_i64,
@@ -1152,8 +1153,7 @@ int32_t FastIndexOfNumber(v8::Local<v8::Value>,
       buffer_data, buffer.length(), needle, offset_i64, is_forward);
 }
 
-static v8::CFunction fast_index_of_number(
-    v8::CFunction::Make(FastIndexOfNumber));
+static CFunction fast_index_of_number(CFunction::Make(FastIndexOfNumber));
 
 void Swap16(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -1502,8 +1502,8 @@ void SlowWriteString(const FunctionCallbackInfo<Value>& args) {
 
 template <encoding encoding>
 uint32_t FastWriteString(Local<Value> receiver,
-                         const v8::FastApiTypedArray<uint8_t>& dst,
-                         const v8::FastOneByteString& src,
+                         const FastApiTypedArray<uint8_t>& dst,
+                         const FastOneByteString& src,
                          uint32_t offset,
                          uint32_t max_length) {
   uint8_t* dst_data;
@@ -1519,12 +1519,11 @@ uint32_t FastWriteString(Local<Value> receiver,
       std::min<uint32_t>(dst.length() - offset, max_length));
 }
 
-static v8::CFunction fast_write_string_ascii(
-    v8::CFunction::Make(FastWriteString<ASCII>));
-static v8::CFunction fast_write_string_latin1(
-    v8::CFunction::Make(FastWriteString<LATIN1>));
-static v8::CFunction fast_write_string_utf8(
-    v8::CFunction::Make(FastWriteString<UTF8>));
+static CFunction fast_write_string_ascii(
+    CFunction::Make(FastWriteString<ASCII>));
+static CFunction fast_write_string_latin1(
+    CFunction::Make(FastWriteString<LATIN1>));
+static CFunction fast_write_string_utf8(CFunction::Make(FastWriteString<UTF8>));
 
 void Initialize(Local<Object> target,
                 Local<Value> unused,

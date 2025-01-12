@@ -39,6 +39,7 @@ using v8::Nothing;
 using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
+using v8::OutputStream;
 using v8::String;
 using v8::Uint8Array;
 using v8::Value;
@@ -79,7 +80,7 @@ class JSGraph : public EmbedderGraph {
  public:
   explicit JSGraph(Isolate* isolate) : isolate_(isolate) {}
 
-  Node* V8Node(const Local<v8::Data>& value) override {
+  Node* V8Node(const Local<Data>& value) override {
     std::unique_ptr<JSGraphJSNode> n { new JSGraphJSNode(isolate_, value) };
     auto it = engine_nodes_.find(n.get());
     if (it != engine_nodes_.end())
@@ -88,8 +89,8 @@ class JSGraph : public EmbedderGraph {
     return AddNode(std::unique_ptr<Node>(n.release()));
   }
 
-  Node* V8Node(const Local<v8::Value>& value) override {
-    return V8Node(value.As<v8::Data>());
+  Node* V8Node(const Local<Value>& value) override {
+    return V8Node(value.As<Data>());
   }
 
   Node* AddNode(std::unique_ptr<Node> node) override {
@@ -220,7 +221,7 @@ void BuildEmbedderGraph(const FunctionCallbackInfo<Value>& args) {
 }
 
 namespace {
-class FileOutputStream : public v8::OutputStream {
+class FileOutputStream : public OutputStream {
  public:
   FileOutputStream(const int fd, uv_fs_t* req) : fd_(fd), req_(req) {}
 
@@ -264,7 +265,7 @@ class FileOutputStream : public v8::OutputStream {
 
 class HeapSnapshotStream : public AsyncWrap,
                            public StreamBase,
-                           public v8::OutputStream {
+                           public OutputStream {
  public:
   HeapSnapshotStream(
       Environment* env,
@@ -343,7 +344,7 @@ class HeapSnapshotStream : public AsyncWrap,
 };
 
 inline void TakeSnapshot(Environment* env,
-                         v8::OutputStream* out,
+                         OutputStream* out,
                          HeapProfiler::HeapSnapshotOptions options) {
   HeapSnapshotPointer snapshot{
       env->isolate()->GetHeapProfiler()->TakeHeapSnapshot(options)};

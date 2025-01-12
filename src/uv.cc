@@ -49,6 +49,7 @@ using v8::Array;
 using v8::Context;
 using v8::DontDelete;
 using v8::FunctionCallbackInfo;
+using v8::Int32;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
@@ -61,7 +62,7 @@ using v8::Value;
 
 void GetErrMessage(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  int err = args[0].As<v8::Int32>()->Value();
+  int err = args[0].As<Int32>()->Value();
   CHECK_LT(err, 0);
   char message[50];
   uv_strerror_r(err, message, sizeof(message));
@@ -79,7 +80,7 @@ void ErrName(const FunctionCallbackInfo<Value>& args) {
         "DEP0119").IsNothing())
     return;
   }
-  int err = args[0].As<v8::Int32>()->Value();
+  int err = args[0].As<Int32>()->Value();
   CHECK_LT(err, 0);
   char name[50];
   uv_err_name_r(err, name, sizeof(name));

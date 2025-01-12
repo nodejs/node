@@ -59,6 +59,7 @@ namespace per_process {
 EnabledDebugList enabled_debug_list;
 }
 
+using v8::Isolate;
 using v8::Local;
 using v8::StackTrace;
 
@@ -327,7 +328,7 @@ void DumpNativeBacktrace(FILE* fp) {
 }
 
 void DumpJavaScriptBacktrace(FILE* fp) {
-  v8::Isolate* isolate = v8::Isolate::TryGetCurrent();
+  Isolate* isolate = Isolate::TryGetCurrent();
   if (isolate == nullptr) {
     return;
   }

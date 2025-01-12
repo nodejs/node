@@ -938,8 +938,7 @@ class FdEntry final : public EntryImpl {
     }
 
     void OnStreamRead(ssize_t nread, const uv_buf_t& buf) override {
-      std::shared_ptr<v8::BackingStore> store =
-          env_->release_managed_buffer(buf);
+      std::shared_ptr<BackingStore> store = env_->release_managed_buffer(buf);
 
       if (ended_) {
         // If we got here and ended_ is true, it means we ended and drained
@@ -1137,7 +1136,7 @@ std::unique_ptr<DataQueue::Entry> DataQueue::CreateFdEntry(Environment* env,
   return FdEntry::Create(env, path);
 }
 
-void DataQueue::Initialize(Environment* env, v8::Local<v8::Object> target) {
+void DataQueue::Initialize(Environment* env, Local<Object> target) {
   // Nothing to do here currently.
 }
 

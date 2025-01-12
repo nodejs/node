@@ -10,8 +10,10 @@
 namespace node {
 namespace builtins {
 
+using v8::Boolean;
 using v8::Context;
 using v8::EscapableHandleScope;
+using v8::Exception;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::IntegrityLevel;
@@ -19,6 +21,7 @@ using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
 using v8::Name;
+using v8::NewStringType;
 using v8::None;
 using v8::Object;
 using v8::ObjectTemplate;
@@ -28,6 +31,7 @@ using v8::ScriptOrigin;
 using v8::Set;
 using v8::SideEffectType;
 using v8::String;
+using v8::TryCatch;
 using v8::Undefined;
 using v8::Value;
 
@@ -209,11 +213,11 @@ MaybeLocal<String> BuiltinLoader::LoadBuiltinSource(Isolate* isolate,
                                     uv_strerror(r),
                                     filename);
     Local<String> message = OneByteString(isolate, buf);
-    isolate->ThrowException(v8::Exception::Error(message));
+    isolate->ThrowException(Exception::Error(message));
     return MaybeLocal<String>();
   }
   return String::NewFromUtf8(
-      isolate, contents.c_str(), v8::NewStringType::kNormal, contents.length());
+      isolate, contents.c_str(), NewStringType::kNormal, contents.length());
 #endif  // NODE_BUILTIN_MODULES_PATH
 }
 
@@ -538,7 +542,7 @@ bool BuiltinLoader::CompileAllBuiltinsAndCopyCodeCache(
       to_eager_compile_.emplace(id);
     }
 
-    v8::TryCatch bootstrapCatch(context->GetIsolate());
+    TryCatch bootstrapCatch(context->GetIsolate());
     auto fn = LookupAndCompile(context, id.data(), nullptr);
     if (bootstrapCatch.HasCaught()) {
       per_process::Debug(DebugCategory::CODE_CACHE,
@@ -703,8 +707,8 @@ void BuiltinLoader::CompileFunction(const FunctionCallbackInfo<Value>& args) {
 void BuiltinLoader::HasCachedBuiltins(const FunctionCallbackInfo<Value>& args) {
   auto instance = Environment::GetCurrent(args)->builtin_loader();
   RwLock::ScopedReadLock lock(instance->code_cache_->mutex);
-  args.GetReturnValue().Set(v8::Boolean::New(
-      args.GetIsolate(), instance->code_cache_->has_code_cache));
+  args.GetReturnValue().Set(
+      Boolean::New(args.GetIsolate(), instance->code_cache_->has_code_cache));
 }
 
 void SetInternalLoaders(const FunctionCallbackInfo<Value>& args) {

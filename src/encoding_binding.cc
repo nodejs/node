@@ -17,11 +17,14 @@ using v8::ArrayBuffer;
 using v8::BackingStore;
 using v8::Context;
 using v8::FunctionCallbackInfo;
+using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
+using v8::NewStringType;
 using v8::Object;
 using v8::ObjectTemplate;
+using v8::SnapshotCreator;
 using v8::String;
 using v8::Uint8Array;
 using v8::Value;
@@ -32,7 +35,7 @@ void BindingData::MemoryInfo(MemoryTracker* tracker) const {
 }
 
 BindingData::BindingData(Realm* realm,
-                         v8::Local<v8::Object> object,
+                         Local<Object> object,
                          InternalFieldInfo* info)
     : SnapshotableObject(realm, object, type_int),
       encode_into_results_buffer_(
@@ -52,7 +55,7 @@ BindingData::BindingData(Realm* realm,
 }
 
 bool BindingData::PrepareForSerialization(Local<Context> context,
-                                          v8::SnapshotCreator* creator) {
+                                          SnapshotCreator* creator) {
   DCHECK_NULL(internal_field_info_);
   internal_field_info_ = InternalFieldInfoBase::New<InternalFieldInfo>(type());
   internal_field_info_->encode_into_results_buffer =
@@ -74,7 +77,7 @@ void BindingData::Deserialize(Local<Context> context,
                               int index,
                               InternalFieldInfoBase* info) {
   DCHECK_IS_SNAPSHOT_SLOT(index);
-  v8::HandleScope scope(context->GetIsolate());
+  HandleScope scope(context->GetIsolate());
   Realm* realm = Realm::GetCurrent(context);
   // Recreate the buffer in the constructor.
   InternalFieldInfo* casted_info = static_cast<InternalFieldInfo*>(info);
@@ -197,7 +200,7 @@ void BindingData::DecodeUTF8(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(ret);
 }
 
-void BindingData::ToASCII(const v8::FunctionCallbackInfo<v8::Value>& args) {
+void BindingData::ToASCII(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK_GE(args.Length(), 1);
   CHECK(args[0]->IsString());
@@ -208,7 +211,7 @@ void BindingData::ToASCII(const v8::FunctionCallbackInfo<v8::Value>& args) {
       String::NewFromUtf8(env->isolate(), out.c_str()).ToLocalChecked());
 }
 
-void BindingData::ToUnicode(const v8::FunctionCallbackInfo<v8::Value>& args) {
+void BindingData::ToUnicode(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK_GE(args.Length(), 1);
   CHECK(args[0]->IsString());
@@ -288,7 +291,7 @@ void BindingData::DecodeLatin1(const FunctionCallbackInfo<Value>& args) {
 
   Local<String> output =
       String::NewFromUtf8(
-          env->isolate(), result.c_str(), v8::NewStringType::kNormal, written)
+          env->isolate(), result.c_str(), NewStringType::kNormal, written)
           .ToLocalChecked();
   args.GetReturnValue().Set(output);
 }

@@ -12,7 +12,11 @@ using v8::Local;
 using v8::MaybeLocal;
 using v8::Object;
 using v8::String;
+using v8::True;
+using v8::Undefined;
 using v8::Value;
+using v8::WeakCallbackInfo;
+using v8::WeakCallbackType;
 
 using TryCatchScope = node::errors::TryCatchScope;
 
@@ -52,7 +56,7 @@ MaybeLocal<Context> HostCreateShadowRealmContextCallback(
 }
 
 // static
-void ShadowRealm::WeakCallback(const v8::WeakCallbackInfo<ShadowRealm>& data) {
+void ShadowRealm::WeakCallback(const WeakCallbackInfo<ShadowRealm>& data) {
   ShadowRealm* realm = data.GetParameter();
   realm->context_.Reset();
 
@@ -76,7 +80,7 @@ void ShadowRealm::DeleteMe(void* data) {
 
 ShadowRealm::ShadowRealm(Environment* env)
     : Realm(env, NewContext(env->isolate()), kShadowRealm) {
-  context_.SetWeak(this, WeakCallback, v8::WeakCallbackType::kParameter);
+  context_.SetWeak(this, WeakCallback, WeakCallbackType::kParameter);
   CreateProperties();
 
   env->TrackShadowRealm(this);
@@ -101,7 +105,7 @@ ShadowRealm::~ShadowRealm() {
   }
 }
 
-v8::Local<v8::Context> ShadowRealm::context() const {
+Local<Context> ShadowRealm::context() const {
   Local<Context> ctx = PersistentToLocal::Default(isolate_, context_);
   DCHECK(!ctx.IsEmpty());
   return ctx;
@@ -113,18 +117,18 @@ v8::Local<v8::Context> ShadowRealm::context() const {
 // global object to avoid the strong global references to the per-realm objects
 // keep the context alive indefinitely.
 #define V(PropertyName, TypeName)                                              \
-  v8::Local<TypeName> ShadowRealm::PropertyName() const {                      \
+  Local<TypeName> ShadowRealm::PropertyName() const {                          \
     return PersistentToLocal::Default(isolate_, PropertyName##_);              \
   }                                                                            \
-  void ShadowRealm::set_##PropertyName(v8::Local<TypeName> value) {            \
+  void ShadowRealm::set_##PropertyName(Local<TypeName> value) {                \
     HandleScope scope(isolate_);                                               \
     PropertyName##_.Reset(isolate_, value);                                    \
-    v8::Local<v8::Context> ctx = context();                                    \
+    Local<Context> ctx = context();                                            \
     if (value.IsEmpty()) {                                                     \
       ctx->Global()                                                            \
           ->SetPrivate(ctx,                                                    \
                        isolate_data()->per_realm_##PropertyName(),             \
-                       v8::Undefined(isolate_))                                \
+                       Undefined(isolate_))                                    \
           .ToChecked();                                                        \
     } else {                                                                   \
       PropertyName##_.SetWeak();                                               \
@@ -136,7 +140,7 @@ v8::Local<v8::Context> ShadowRealm::context() const {
 PER_REALM_STRONG_PERSISTENT_VALUES(V)
 #undef V
 
-v8::MaybeLocal<v8::Value> ShadowRealm::BootstrapRealm() {
+MaybeLocal<Value> ShadowRealm::BootstrapRealm() {
   HandleScope scope(isolate_);
 
   // Skip "internal/bootstrap/node" as it installs node globals and per-isolate
@@ -171,7 +175,7 @@ v8::MaybeLocal<v8::Value> ShadowRealm::BootstrapRealm() {
     return MaybeLocal<Value>();
   }
 
-  return v8::True(isolate_);
+  return True(isolate_);
 }
 
 }  // namespace shadow_realm

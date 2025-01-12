@@ -41,8 +41,11 @@ using v8::FunctionCallbackInfo;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
+using v8::Locker;
 using v8::Object;
 using v8::ObjectTemplate;
+using v8::SerializeContextDataCallback;
+using v8::SerializeInternalFieldsCallback;
 using v8::SnapshotCreator;
 using v8::StartupData;
 using v8::String;
@@ -177,7 +180,7 @@ class SnapshotSerializer : public BlobSerializer<SnapshotSerializer> {
 // [  4/8 bytes       ] raw_size
 // [ |raw_size| bytes ] contents
 template <>
-v8::StartupData SnapshotDeserializer::Read() {
+StartupData SnapshotDeserializer::Read() {
   Debug("Read<v8::StartupData>()\n");
 
   int raw_size = ReadArithmetic<int>();
@@ -188,11 +191,11 @@ v8::StartupData SnapshotDeserializer::Read() {
   std::unique_ptr<char> buf = std::unique_ptr<char>(new char[raw_size]);
   ReadArithmetic<char>(buf.get(), raw_size);
 
-  return v8::StartupData{buf.release(), raw_size};
+  return StartupData{buf.release(), raw_size};
 }
 
 template <>
-size_t SnapshotSerializer::Write(const v8::StartupData& data) {
+size_t SnapshotSerializer::Write(const StartupData& data) {
   Debug("\nWrite<v8::StartupData>() size=%d\n", data.raw_size);
 
   CHECK_GT(data.raw_size, 0);  // There should be no startup data of size 0.
@@ -599,7 +602,7 @@ std::vector<char> SnapshotData::ToBlob() const {
   w.Debug("0x%x: Write metadata\n", w.sink.size());
   written_total += w.Write<SnapshotMetadata>(metadata);
   w.Debug("0x%x: Write snapshot blob\n", w.sink.size());
-  written_total += w.Write<v8::StartupData>(v8_snapshot_blob_data);
+  written_total += w.Write<StartupData>(v8_snapshot_blob_data);
   w.Debug("0x%x: Write IsolateDataSerializeInfo\n", w.sink.size());
   written_total += w.Write<IsolateDataSerializeInfo>(isolate_data_info);
   w.Debug("0x%x: Write EnvSerializeInfo\n", w.sink.size());
@@ -653,7 +656,7 @@ bool SnapshotData::FromBlob(SnapshotData* out, std::string_view in) {
     return false;
   }
 
-  out->v8_snapshot_blob_data = r.Read<v8::StartupData>();
+  out->v8_snapshot_blob_data = r.Read<StartupData>();
   r.Debug("Read isolate_data_info\n");
   out->isolate_data_info = r.Read<IsolateDataSerializeInfo>();
   out->env_info = r.Read<EnvSerializeInfo>();
@@ -867,7 +870,7 @@ void SnapshotBuilder::InitializeIsolateParams(const SnapshotData* data,
   CHECK_NULL(params->snapshot_blob);
   params->external_references = CollectExternalReferences().data();
   params->snapshot_blob =
-      const_cast<v8::StartupData*>(&(data->v8_snapshot_blob_data));
+      const_cast<StartupData*>(&(data->v8_snapshot_blob_data));
 }
 
 SnapshotFlags operator|(SnapshotFlags x, SnapshotFlags y) {
@@ -962,7 +965,7 @@ ExitCode BuildSnapshotWithoutCodeCache(
   }
 
   Isolate* isolate = setup->isolate();
-  v8::Locker locker(isolate);
+  Locker locker(isolate);
 
   {
     HandleScope scope(isolate);
@@ -1009,7 +1012,7 @@ ExitCode BuildCodeCacheFromSnapshot(SnapshotData* out,
                                     const std::vector<std::string>& exec_args) {
   RAIIIsolate raii_isolate(out);
   Isolate* isolate = raii_isolate.get();
-  v8::Locker locker(isolate);
+  Locker locker(isolate);
   Isolate::Scope isolate_scope(isolate);
   HandleScope handle_scope(isolate);
   TryCatch bootstrapCatch(isolate);
@@ -1142,9 +1145,9 @@ ExitCode SnapshotBuilder::CreateSnapshot(SnapshotData* out,
     CHECK_EQ(index, SnapshotData::kNodeBaseContextIndex);
     index = creator->AddContext(
         main_context,
-        v8::SerializeInternalFieldsCallback(SerializeNodeContextInternalFields,
-                                            env),
-        v8::SerializeContextDataCallback(SerializeNodeContextData, env));
+        SerializeInternalFieldsCallback(SerializeNodeContextInternalFields,
+                                        env),
+        SerializeContextDataCallback(SerializeNodeContextData, env));
     CHECK_EQ(index, SnapshotData::kNodeMainContextIndex);
   }
 
@@ -1521,7 +1524,7 @@ std::string GetAnonymousMainPath() {
 namespace mksnapshot {
 
 BindingData::BindingData(Realm* realm,
-                         v8::Local<v8::Object> object,
+                         Local<Object> object,
                          InternalFieldInfo* info)
     : SnapshotableObject(realm, object, type_int),
       is_building_snapshot_buffer_(
@@ -1547,7 +1550,7 @@ BindingData::BindingData(Realm* realm,
 }
 
 bool BindingData::PrepareForSerialization(Local<Context> context,
-                                          v8::SnapshotCreator* creator) {
+                                          SnapshotCreator* creator) {
   DCHECK_NULL(internal_field_info_);
   internal_field_info_ = InternalFieldInfoBase::New<InternalFieldInfo>(type());
   internal_field_info_->is_building_snapshot_buffer =
@@ -1569,7 +1572,7 @@ void BindingData::Deserialize(Local<Context> context,
                               int index,
                               InternalFieldInfoBase* info) {
   DCHECK_IS_SNAPSHOT_SLOT(index);
-  v8::HandleScope scope(context->GetIsolate());
+  HandleScope scope(context->GetIsolate());
   Realm* realm = Realm::GetCurrent(context);
   // Recreate the buffer in the constructor.
   InternalFieldInfo* casted_info = static_cast<InternalFieldInfo*>(info);

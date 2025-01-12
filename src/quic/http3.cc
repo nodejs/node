@@ -19,6 +19,7 @@
 
 namespace node {
 
+using v8::Array;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::Local;
@@ -403,7 +404,7 @@ class Http3ApplicationImpl final : public Session::Application {
 
   bool SendHeaders(const Stream& stream,
                    HeadersKind kind,
-                   const v8::Local<v8::Array>& headers,
+                   const Local<Array>& headers,
                    HeadersFlags flags = HeadersFlags::NONE) override {
     Session::SendPendingDataScope send_scope(&session());
     Http3Headers nva(env(), headers);

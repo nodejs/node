@@ -36,11 +36,11 @@ static Maybe<double> GetAssignedPromiseAsyncId(Environment* env,
                                                Local<Value> id_symbol) {
   Local<Value> maybe_async_id;
   if (!promise->Get(env->context(), id_symbol).ToLocal(&maybe_async_id)) {
-    return v8::Just(AsyncWrap::kInvalidAsyncId);
+    return Just(AsyncWrap::kInvalidAsyncId);
   }
   return maybe_async_id->IsNumber()
-      ? maybe_async_id->NumberValue(env->context())
-      : v8::Just(AsyncWrap::kInvalidAsyncId);
+             ? maybe_async_id->NumberValue(env->context())
+             : Just(AsyncWrap::kInvalidAsyncId);
 }
 
 void PromiseRejectCallback(PromiseRejectMessage message) {

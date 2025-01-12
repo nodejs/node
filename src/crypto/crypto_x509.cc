@@ -936,12 +936,12 @@ MaybeLocal<Object> X509Certificate::GetPeerCert(Environment* env,
                                 : New(env, std::move(cert));
 }
 
-v8::MaybeLocal<v8::Value> X509Certificate::toObject(Environment* env) {
+MaybeLocal<Value> X509Certificate::toObject(Environment* env) {
   return toObject(env, view());
 }
 
-v8::MaybeLocal<v8::Value> X509Certificate::toObject(
-    Environment* env, const ncrypto::X509View& cert) {
+MaybeLocal<Value> X509Certificate::toObject(Environment* env,
+                                            const ncrypto::X509View& cert) {
   if (!cert) return {};
   return X509ToObject(env, cert).FromMaybe(Local<Value>());
 }

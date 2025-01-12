@@ -213,7 +213,7 @@ Maybe<Endpoint::Options> Endpoint::Options::From(Environment* env,
                                  "The address option must be a SocketAddress");
       return Nothing<Options>();
     }
-    auto addr = FromJSObject<SocketAddressBase>(address.As<v8::Object>());
+    auto addr = FromJSObject<SocketAddressBase>(address.As<Object>());
     options.local_address = addr->address();
   } else {
     options.local_address = std::make_shared<SocketAddress>();

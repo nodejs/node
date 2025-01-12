@@ -15,6 +15,7 @@
 namespace node {
 
 using v8::ArrayBuffer;
+using v8::BackingStoreInitializationMode;
 using v8::Just;
 using v8::Local;
 using v8::Maybe;
@@ -193,7 +194,7 @@ Store TransportParams::Encode(Environment* env, int version) const {
   }
 
   auto result = ArrayBuffer::NewBackingStore(
-      env->isolate(), size, v8::BackingStoreInitializationMode::kUninitialized);
+      env->isolate(), size, BackingStoreInitializationMode::kUninitialized);
 
   auto ret = ngtcp2_transport_params_encode_versioned(
       static_cast<uint8_t*>(result->Data()), size, version, &params_);
@@ -279,8 +280,7 @@ const QuicError& TransportParams::error() const {
   return error_;
 }
 
-void TransportParams::Initialize(Environment* env,
-                                 v8::Local<v8::Object> target) {
+void TransportParams::Initialize(Environment* env, Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, DEFAULT_MAX_STREAM_DATA);
   NODE_DEFINE_CONSTANT(target, DEFAULT_MAX_DATA);
   NODE_DEFINE_CONSTANT(target, DEFAULT_MAX_IDLE_TIMEOUT);

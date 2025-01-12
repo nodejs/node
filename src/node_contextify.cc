@@ -45,10 +45,13 @@ using v8::Array;
 using v8::ArrayBufferView;
 using v8::Boolean;
 using v8::Context;
+using v8::DeserializeInternalFieldsCallback;
+using v8::DontEnum;
 using v8::EscapableHandleScope;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
+using v8::Global;
 using v8::HandleScope;
 using v8::IndexedPropertyHandlerConfiguration;
 using v8::IndexFilter;
@@ -62,14 +65,17 @@ using v8::Local;
 using v8::LocalVector;
 using v8::Maybe;
 using v8::MaybeLocal;
+using v8::MeasureMemoryDelegate;
 using v8::MeasureMemoryExecution;
 using v8::MeasureMemoryMode;
 using v8::Message;
 using v8::MicrotaskQueue;
 using v8::MicrotasksPolicy;
+using v8::Module;
 using v8::Name;
 using v8::NamedPropertyHandlerConfiguration;
 using v8::Nothing;
+using v8::Null;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::PrimitiveArray;
@@ -86,6 +92,7 @@ using v8::String;
 using v8::Symbol;
 using v8::Uint32;
 using v8::UnboundScript;
+using v8::Undefined;
 using v8::Value;
 
 // The vm module executes code in a sandboxed environment with a different
@@ -230,8 +237,8 @@ MaybeLocal<Context> ContextifyContext::CreateV8Context(
         isolate,
         nullptr,  // extensions
         object_template,
-        {},                                       // global object
-        v8::DeserializeInternalFieldsCallback(),  // deserialization callback
+        {},                                   // global object
+        DeserializeInternalFieldsCallback(),  // deserialization callback
         queue);
     if (ctx.IsEmpty() || InitializeBaseContextForSnapshot(ctx).IsNothing()) {
       return MaybeLocal<Context>();
@@ -239,10 +246,10 @@ MaybeLocal<Context> ContextifyContext::CreateV8Context(
   } else if (!Context::FromSnapshot(
                   isolate,
                   SnapshotData::kNodeVMContextIndex,
-                  v8::DeserializeInternalFieldsCallback(),  // deserialization
-                                                            // callback
-                  nullptr,                                  // extensions
-                  {},                                       // global object
+                  DeserializeInternalFieldsCallback(),  // deserialization
+                                                        // callback
+                  nullptr,                              // extensions
+                  {},                                   // global object
                   queue)
                   .ToLocal(&ctx)) {
     return MaybeLocal<Context>();
@@ -278,7 +285,7 @@ BaseObjectPtr<ContextifyContext> ContextifyContext::New(
   // the context from its constructor.
   if (sandbox_obj.IsEmpty()) {
     v8_context->SetEmbedderData(ContextEmbedderIndex::kSandboxObject,
-                                v8::Undefined(env->isolate()));
+                                Undefined(env->isolate()));
   } else {
     v8_context->SetEmbedderData(ContextEmbedderIndex::kSandboxObject,
                                 sandbox_obj);
@@ -309,11 +316,10 @@ BaseObjectPtr<ContextifyContext> ContextifyContext::New(
       if (!ctor_name->Equals(v8_context, env->object_string())
                .FromMaybe(false) &&
           new_context_global
-              ->DefineOwnProperty(
-                  v8_context,
-                  v8::Symbol::GetToStringTag(env->isolate()),
-                  ctor_name,
-                  static_cast<v8::PropertyAttribute>(v8::DontEnum))
+              ->DefineOwnProperty(v8_context,
+                                  Symbol::GetToStringTag(env->isolate()),
+                                  ctor_name,
+                                  static_cast<PropertyAttribute>(DontEnum))
               .IsNothing()) {
         return BaseObjectPtr<ContextifyContext>();
       }
@@ -826,7 +832,7 @@ void ContextifyContext::IndexedPropertyEnumeratorCallback(
            .ToLocal(&properties))
     return;
 
-  std::vector<v8::Global<Value>> properties_vec;
+  std::vector<Global<Value>> properties_vec;
   if (FromV8Array(context, properties, &properties_vec).IsNothing()) {
     return;
   }
@@ -1113,7 +1119,7 @@ Maybe<void> StoreCodeCacheResult(
     Environment* env,
     Local<Object> target,
     ScriptCompiler::CompileOptions compile_options,
-    const v8::ScriptCompiler::Source& source,
+    const ScriptCompiler::Source& source,
     bool produce_cached_data,
     std::unique_ptr<ScriptCompiler::CachedData> new_cached_data) {
   Local<Context> context;
@@ -1202,7 +1208,7 @@ void ContextifyScript::RunInContext(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsObject() || args[0]->IsNull());
 
   Local<Context> context;
-  v8::MicrotaskQueue* microtask_queue = nullptr;
+  MicrotaskQueue* microtask_queue = nullptr;
 
   if (args[0]->IsObject()) {
     Local<Object> sandbox = args[0].As<Object>();
@@ -1537,7 +1543,7 @@ Local<Object> ContextifyContext::CompileFunctionAndCacheResult(
       context_extensions.size(),
       context_extensions.data(),
       options,
-      v8::ScriptCompiler::NoCacheReason::kNoCacheNoReason);
+      ScriptCompiler::NoCacheReason::kNoCacheNoReason);
 
   Local<Function> fn;
   if (!maybe_fn.ToLocal(&fn)) {
@@ -1737,7 +1743,7 @@ static void CompileFunctionForCJSLoader(
       cached_data = new ScriptCompiler::CachedData(
           reinterpret_cast<const uint8_t*>(data.data()),
           static_cast<int>(data.size()),
-          v8::ScriptCompiler::CachedData::BufferNotOwned);
+          ScriptCompiler::CachedData::BufferNotOwned);
     }
   }
 #endif
@@ -1790,7 +1796,7 @@ static void CompileFunctionForCJSLoader(
     }
   }
 
-  Local<Value> undefined = v8::Undefined(isolate);
+  Local<Value> undefined = Undefined(isolate);
   Local<Name> names[] = {
       env->cached_data_rejected_string(),
       env->source_map_url_string(),
@@ -1804,7 +1810,7 @@ static void CompileFunctionForCJSLoader(
       Boolean::New(isolate, can_parse_as_esm),
   };
   Local<Object> result = Object::New(
-      isolate, v8::Null(isolate), &names[0], &values[0], arraysize(names));
+      isolate, Null(isolate), &names[0], &values[0], arraysize(names));
   args.GetReturnValue().Set(result);
 }
 
@@ -1841,7 +1847,7 @@ bool ShouldRetryAsESM(Realm* realm,
   bool cache_rejected = false;
   TryCatchScope try_catch(realm->env());
   ShouldNotAbortOnUncaughtScope no_abort_scope(realm->env());
-  Local<v8::Module> module;
+  Local<Module> module;
   Local<PrimitiveArray> hdo = loader::ModuleWrap::GetHostDefinedOptions(
       isolate, realm->isolate_data()->source_text_module_default_hdo());
   if (loader::ModuleWrap::CompileSourceTextModule(
@@ -1932,21 +1938,20 @@ static void WatchdogHasPendingSigint(const FunctionCallbackInfo<Value>& args) {
 static void MeasureMemory(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsInt32());
   CHECK(args[1]->IsInt32());
-  int32_t mode = args[0].As<v8::Int32>()->Value();
-  int32_t execution = args[1].As<v8::Int32>()->Value();
+  int32_t mode = args[0].As<Int32>()->Value();
+  int32_t execution = args[1].As<Int32>()->Value();
   Isolate* isolate = args.GetIsolate();
 
   Local<Context> current_context = isolate->GetCurrentContext();
   Local<Promise::Resolver> resolver;
   if (!Promise::Resolver::New(current_context).ToLocal(&resolver)) return;
-  std::unique_ptr<v8::MeasureMemoryDelegate> delegate =
-      v8::MeasureMemoryDelegate::Default(
-          isolate,
-          current_context,
-          resolver,
-          static_cast<v8::MeasureMemoryMode>(mode));
+  std::unique_ptr<MeasureMemoryDelegate> delegate =
+      MeasureMemoryDelegate::Default(isolate,
+                                     current_context,
+                                     resolver,
+                                     static_cast<MeasureMemoryMode>(mode));
   isolate->MeasureMemory(std::move(delegate),
-                         static_cast<v8::MeasureMemoryExecution>(execution));
+                         static_cast<MeasureMemoryExecution>(execution));
   Local<Promise> promise = resolver->GetPromise();
 
   args.GetReturnValue().Set(promise);

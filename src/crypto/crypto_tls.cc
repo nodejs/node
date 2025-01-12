@@ -54,6 +54,7 @@ using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
 using v8::Null;
+using v8::Number;
 using v8::Object;
 using v8::PropertyAttribute;
 using v8::ReadOnly;
@@ -274,7 +275,7 @@ int SelectALPNCallback(
     }
 
     CHECK(callback_result->IsNumber());
-    unsigned int result_int = callback_result.As<v8::Number>()->Value();
+    unsigned int result_int = callback_result.As<Number>()->Value();
 
     // The callback returns an offset into the given buffer, for the selected
     // protocol that should be returned. We then set outlen & out to point
@@ -1868,7 +1869,7 @@ void TLSWrap::VerifyError(const FunctionCallbackInfo<Value>& args) {
   if (reason->IsUndefined()) [[unlikely]]
     return;
 
-  Local<Object> error = Exception::Error(reason.As<v8::String>())
+  Local<Object> error = Exception::Error(reason.As<String>())
                             ->ToObject(env->isolate()->GetCurrentContext())
                             .FromMaybe(Local<Object>());
 

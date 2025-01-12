@@ -24,6 +24,7 @@ using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Name;
 using v8::Nothing;
+using v8::Null;
 using v8::Object;
 using v8::Uint32;
 using v8::Value;
@@ -153,12 +154,12 @@ void Hash::GetCachedAliases(const FunctionCallbackInfo<Value>& args) {
   values.reserve(size);
   for (auto& [alias, id] : env->alias_to_md_id_map) {
     names.push_back(OneByteString(isolate, alias));
-    values.push_back(v8::Uint32::New(isolate, id));
+    values.push_back(Uint32::New(isolate, id));
   }
 #else
   CHECK(env->alias_to_md_id_map.empty());
 #endif
-  Local<Value> prototype = v8::Null(isolate);
+  Local<Value> prototype = Null(isolate);
   Local<Object> result =
       Object::New(isolate, prototype, names.data(), values.data(), size);
   args.GetReturnValue().Set(result);
@@ -191,7 +192,7 @@ const EVP_MD* GetDigestImplementation(Environment* env,
     if (algorithm_cache.As<Object>()
             ->Set(isolate->GetCurrentContext(),
                   algorithm,
-                  v8::Int32::New(isolate, result.cache_id))
+                  Int32::New(isolate, result.cache_id))
             .IsNothing()) {
       return nullptr;
     }
@@ -532,7 +533,7 @@ bool HashTraits::DeriveBits(
   return true;
 }
 
-void InternalVerifyIntegrity(const v8::FunctionCallbackInfo<v8::Value>& args) {
+void InternalVerifyIntegrity(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   CHECK_EQ(args.Length(), 3);

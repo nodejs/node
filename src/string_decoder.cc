@@ -16,6 +16,7 @@ using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
+using v8::NewStringType;
 using v8::Object;
 using v8::String;
 using v8::Value;
@@ -32,9 +33,9 @@ MaybeLocal<String> MakeString(Isolate* isolate,
   MaybeLocal<Value> ret;
   if (encoding == UTF8) {
     MaybeLocal<String> utf8_string;
-    if (length <= static_cast<size_t>(v8::String::kMaxLength)) {
-      utf8_string = String::NewFromUtf8(
-          isolate, data, v8::NewStringType::kNormal, length);
+    if (length <= static_cast<size_t>(String::kMaxLength)) {
+      utf8_string =
+          String::NewFromUtf8(isolate, data, NewStringType::kNormal, length);
     }
     if (utf8_string.IsEmpty()) {
       isolate->ThrowException(node::ERR_STRING_TOO_LONG(isolate));

@@ -47,6 +47,7 @@ using v8::SampleInfo;
 using v8::StackFrame;
 using v8::StackTrace;
 using v8::String;
+using v8::Symbol;
 using v8::TryCatch;
 using v8::V8;
 using v8::Value;
@@ -435,7 +436,7 @@ static Maybe<std::string> ErrorToString(Isolate* isolate,
   MaybeLocal<String> maybe_str;
   // `ToString` is not available to Symbols.
   if (error->IsSymbol()) {
-    maybe_str = error.As<v8::Symbol>()->ToDetailString(context);
+    maybe_str = error.As<Symbol>()->ToDetailString(context);
   } else if (!error->IsObject()) {
     maybe_str = error->ToString(context);
   } else if (error->IsObject()) {
@@ -469,7 +470,7 @@ static void PrintJavaScriptStack(JSONWriter* writer,
                                  Isolate* isolate,
                                  const char* trigger) {
   HandleScope scope(isolate);
-  Local<v8::StackTrace> stack;
+  Local<StackTrace> stack;
   if (!GetCurrentStackTrace(isolate, MAX_FRAME_COUNT).ToLocal(&stack)) {
     PrintEmptyJavaScriptStack(writer);
     return;

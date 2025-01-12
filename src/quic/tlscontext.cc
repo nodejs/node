@@ -20,13 +20,16 @@
 
 namespace node {
 
+using v8::Array;
 using v8::ArrayBuffer;
+using v8::ArrayBufferView;
 using v8::Just;
 using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Nothing;
 using v8::Object;
+using v8::String;
 using v8::Value;
 
 namespace quic {
@@ -74,9 +77,9 @@ void EnableTrace(Environment* env, crypto::BIOPointer* bio, SSL* ssl) {
 template <typename T, typename Opt, std::vector<T> Opt::*member>
 bool SetOption(Environment* env,
                Opt* options,
-               const v8::Local<v8::Object>& object,
-               const v8::Local<v8::String>& name) {
-  v8::Local<v8::Value> value;
+               const Local<Object>& object,
+               const Local<String>& name) {
+  Local<Value> value;
   if (!object->Get(env->context(), name).ToLocal(&value)) return false;
 
   if (value->IsUndefined()) return true;
@@ -85,10 +88,10 @@ bool SetOption(Environment* env,
 
   if (value->IsArray()) {
     auto context = env->context();
-    auto values = value.As<v8::Array>();
+    auto values = value.As<Array>();
     uint32_t count = values->Length();
     for (uint32_t n = 0; n < count; n++) {
-      v8::Local<v8::Value> item;
+      Local<Value> item;
       if (!values->Get(context, n).ToLocal(&item)) {
         return false;
       }
@@ -105,9 +108,9 @@ bool SetOption(Environment* env,
         }
       } else if constexpr (std::is_same<T, Store>::value) {
         if (item->IsArrayBufferView()) {
-          (options->*member).emplace_back(item.As<v8::ArrayBufferView>());
+          (options->*member).emplace_back(item.As<ArrayBufferView>());
         } else if (item->IsArrayBuffer()) {
-          (options->*member).emplace_back(item.As<v8::ArrayBuffer>());
+          (options->*member).emplace_back(item.As<ArrayBuffer>());
         } else {
           Utf8Value namestr(env->isolate(), name);
           THROW_ERR_INVALID_ARG_TYPE(
@@ -130,9 +133,9 @@ bool SetOption(Environment* env,
       }
     } else if constexpr (std::is_same<T, Store>::value) {
       if (value->IsArrayBufferView()) {
-        (options->*member).emplace_back(value.As<v8::ArrayBufferView>());
+        (options->*member).emplace_back(value.As<ArrayBufferView>());
       } else if (value->IsArrayBuffer()) {
-        (options->*member).emplace_back(value.As<v8::ArrayBuffer>());
+        (options->*member).emplace_back(value.As<ArrayBuffer>());
       } else {
         Utf8Value namestr(env->isolate(), name);
         THROW_ERR_INVALID_ARG_TYPE(

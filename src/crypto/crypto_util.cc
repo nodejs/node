@@ -26,6 +26,7 @@
 
 namespace node {
 
+using v8::Array;
 using v8::ArrayBuffer;
 using v8::BackingStore;
 using v8::BigInt;
@@ -190,7 +191,7 @@ void SetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-void TestFipsCrypto(const v8::FunctionCallbackInfo<v8::Value>& args) {
+void TestFipsCrypto(const FunctionCallbackInfo<Value>& args) {
   Mutex::ScopedLock lock(per_process::cli_options_mutex);
   Mutex::ScopedLock fips_lock(fips_mutex);
   args.GetReturnValue().Set(ncrypto::testFipsEnabled() ? 1 : 0);
@@ -253,8 +254,8 @@ MaybeLocal<Value> cryptoErrorListToException(
       ++current;
     }
 
-    Local<v8::Array> stackArray =
-        v8::Array::New(env->isolate(), stack.data(), stack.size());
+    Local<Array> stackArray =
+        Array::New(env->isolate(), stack.data(), stack.size());
 
     if (exception_obj
             ->Set(env->context(), env->openssl_error_stack(), stackArray)
@@ -640,9 +641,9 @@ bool SetRsaOaepLabel(const EVPKeyCtxPointer& ctx, const ByteSource& label) {
   return true;
 }
 
-CryptoJobMode GetCryptoJobMode(v8::Local<v8::Value> args) {
+CryptoJobMode GetCryptoJobMode(Local<Value> args) {
   CHECK(args->IsUint32());
-  uint32_t mode = args.As<v8::Uint32>()->Value();
+  uint32_t mode = args.As<Uint32>()->Value();
   CHECK_LE(mode, kCryptoJobSync);
   return static_cast<CryptoJobMode>(mode);
 }

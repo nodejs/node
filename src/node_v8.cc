@@ -35,6 +35,8 @@ using v8::Array;
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
+using v8::GCCallbackFlags;
+using v8::GCType;
 using v8::HandleScope;
 using v8::HeapCodeStatistics;
 using v8::HeapSpaceStatistics;
@@ -42,8 +44,10 @@ using v8::HeapStatistics;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
+using v8::NewStringType;
 using v8::Object;
 using v8::ScriptCompiler;
+using v8::SnapshotCreator;
 using v8::String;
 using v8::Uint32;
 using v8::V8;
@@ -134,7 +138,7 @@ BindingData::BindingData(Realm* realm,
 }
 
 bool BindingData::PrepareForSerialization(Local<Context> context,
-                                          v8::SnapshotCreator* creator) {
+                                          SnapshotCreator* creator) {
   DCHECK_NULL(internal_field_info_);
   internal_field_info_ = InternalFieldInfoBase::New<InternalFieldInfo>(type());
   internal_field_info_->heap_statistics_buffer =
@@ -188,7 +192,7 @@ void CachedDataVersionTag(const FunctionCallbackInfo<Value>& args) {
 void SetHeapSnapshotNearHeapLimit(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsUint32());
   Environment* env = Environment::GetCurrent(args);
-  uint32_t limit = args[0].As<v8::Uint32>()->Value();
+  uint32_t limit = args[0].As<Uint32>()->Value();
   CHECK_GT(limit, 0);
   env->AddHeapSnapshotNearHeapLimitCallback();
   env->set_heap_snapshot_near_heap_limit(limit);
@@ -210,7 +214,7 @@ void UpdateHeapSpaceStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {
   HeapSpaceStatistics s;
   Isolate* const isolate = args.GetIsolate();
   CHECK(args[0]->IsUint32());
-  size_t space_index = static_cast<size_t>(args[0].As<v8::Uint32>()->Value());
+  size_t space_index = static_cast<size_t>(args[0].As<Uint32>()->Value());
   isolate->GetHeapSpaceStatistics(&s, space_index);
 
   AliasedFloat64Array& buffer = data->heap_space_statistics_buffer;
@@ -238,15 +242,15 @@ void SetFlagsFromString(const FunctionCallbackInfo<Value>& args) {
   V8::SetFlagsFromString(*flags, static_cast<size_t>(flags.length()));
 }
 
-static const char* GetGCTypeName(v8::GCType gc_type) {
+static const char* GetGCTypeName(GCType gc_type) {
   switch (gc_type) {
-    case v8::GCType::kGCTypeScavenge:
+    case GCType::kGCTypeScavenge:
       return "Scavenge";
-    case v8::GCType::kGCTypeMarkSweepCompact:
+    case GCType::kGCTypeMarkSweepCompact:
       return "MarkSweepCompact";
-    case v8::GCType::kGCTypeIncrementalMarking:
+    case GCType::kGCTypeIncrementalMarking:
       return "IncrementalMarking";
-    case v8::GCType::kGCTypeProcessWeakCallbacks:
+    case GCType::kGCTypeProcessWeakCallbacks:
       return "ProcessWeakCallbacks";
     default:
       return "Unknown";
@@ -296,8 +300,8 @@ static void SetHeapStatistics(JSONWriter* writer, Isolate* isolate) {
 }
 
 static void BeforeGCCallback(Isolate* isolate,
-                             v8::GCType gc_type,
-                             v8::GCCallbackFlags flags,
+                             GCType gc_type,
+                             GCCallbackFlags flags,
                              void* data) {
   GCProfiler* profiler = static_cast<GCProfiler*>(data);
   if (profiler->current_gc_type != 0) {
@@ -314,8 +318,8 @@ static void BeforeGCCallback(Isolate* isolate,
 }
 
 static void AfterGCCallback(Isolate* isolate,
-                            v8::GCType gc_type,
-                            v8::GCCallbackFlags flags,
+                            GCType gc_type,
+                            GCCallbackFlags flags,
                             void* data) {
   GCProfiler* profiler = static_cast<GCProfiler*>(data);
   if (profiler->current_gc_type != gc_type) {
@@ -391,7 +395,7 @@ void GCProfiler::Start(const FunctionCallbackInfo<Value>& args) {
   profiler->state = GCProfiler::GCProfilerState::kStarted;
 }
 
-void GCProfiler::Stop(const FunctionCallbackInfo<v8::Value>& args) {
+void GCProfiler::Stop(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   GCProfiler* profiler;
   ASSIGN_OR_RETURN_UNWRAP(&profiler, args.This());
@@ -409,11 +413,10 @@ void GCProfiler::Stop(const FunctionCallbackInfo<v8::Value>& args) {
   profiler->writer()->json_end();
   profiler->state = GCProfiler::GCProfilerState::kStopped;
   auto string = profiler->out_stream()->str();
-  args.GetReturnValue().Set(String::NewFromUtf8(env->isolate(),
-                                                string.data(),
-                                                v8::NewStringType::kNormal,
-                                                string.size())
-                                .ToLocalChecked());
+  args.GetReturnValue().Set(
+      String::NewFromUtf8(
+          env->isolate(), string.data(), NewStringType::kNormal, string.size())
+          .ToLocalChecked());
 }
 
 void Initialize(Local<Object> target,

@@ -123,11 +123,9 @@ void PendingStream::reject(QuicError error) {
 
 struct Stream::PendingHeaders {
   HeadersKind kind;
-  v8::Global<v8::Array> headers;
+  Global<Array> headers;
   HeadersFlags flags;
-  PendingHeaders(HeadersKind kind_,
-                 v8::Global<v8::Array> headers_,
-                 HeadersFlags flags_)
+  PendingHeaders(HeadersKind kind_, Global<Array> headers_, HeadersFlags flags_)
       : kind(kind_), headers(std::move(headers_)), flags(flags_) {}
   DISALLOW_COPY_AND_MOVE(PendingHeaders)
 };
@@ -813,7 +811,7 @@ BaseObjectPtr<Stream> Stream::Create(Session* session,
 }
 
 Stream::Stream(BaseObjectWeakPtr<Session> session,
-               v8::Local<v8::Object> object,
+               Local<Object> object,
                int64_t id,
                std::shared_ptr<DataQueue> source)
     : AsyncWrap(session->env(), object, AsyncWrap::PROVIDER_QUIC_STREAM),
@@ -846,7 +844,7 @@ Stream::Stream(BaseObjectWeakPtr<Session> session,
 }
 
 Stream::Stream(BaseObjectWeakPtr<Session> session,
-               v8::Local<v8::Object> object,
+               Local<Object> object,
                Direction direction,
                std::shared_ptr<DataQueue> source)
     : AsyncWrap(session->env(), object, AsyncWrap::PROVIDER_QUIC_STREAM),

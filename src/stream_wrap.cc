@@ -52,6 +52,7 @@ using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Nothing;
+using v8::Null;
 using v8::Object;
 using v8::PropertyAttribute;
 using v8::ReadOnly;
@@ -81,11 +82,11 @@ void LibuvStreamWrap::Initialize(Local<Object> target,
   // - oncomplete
   // - callback
   // - handle
-  sw->InstanceTemplate()->Set(env->oncomplete_string(), v8::Null(isolate));
+  sw->InstanceTemplate()->Set(env->oncomplete_string(), Null(isolate));
   sw->InstanceTemplate()->Set(FIXED_ONE_BYTE_STRING(isolate, "callback"),
-                              v8::Null(isolate));
+                              Null(isolate));
   sw->InstanceTemplate()->Set(FIXED_ONE_BYTE_STRING(isolate, "handle"),
-                              v8::Null(isolate));
+                              Null(isolate));
 
   sw->Inherit(AsyncWrap::GetConstructorTemplate(env));
 

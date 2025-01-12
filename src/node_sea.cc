@@ -423,7 +423,7 @@ std::optional<std::string> GenerateCodeCache(std::string_view main_path,
   RAIIIsolate raii_isolate(SnapshotBuilder::GetEmbeddedSnapshotData());
   Isolate* isolate = raii_isolate.get();
 
-  v8::Isolate::Scope isolate_scope(isolate);
+  Isolate::Scope isolate_scope(isolate);
   HandleScope handle_scope(isolate);
 
   Local<Context> context = Context::New(isolate);
@@ -592,7 +592,7 @@ void GetAsset(const FunctionCallbackInfo<Value>& args) {
   }
   // We cast away the constness here, the JS land should ensure that
   // the data is not mutated.
-  std::unique_ptr<v8::BackingStore> store = ArrayBuffer::NewBackingStore(
+  std::unique_ptr<BackingStore> store = ArrayBuffer::NewBackingStore(
       const_cast<char*>(it->second.data()),
       it->second.size(),
       [](void*, size_t, void*) {},

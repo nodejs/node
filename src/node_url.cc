@@ -29,6 +29,7 @@ using v8::Local;
 using v8::NewStringType;
 using v8::Object;
 using v8::ObjectTemplate;
+using v8::SnapshotCreator;
 using v8::String;
 using v8::Value;
 
@@ -36,7 +37,7 @@ void BindingData::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("url_components_buffer", url_components_buffer_);
 }
 
-BindingData::BindingData(Realm* realm, v8::Local<v8::Object> object)
+BindingData::BindingData(Realm* realm, Local<Object> object)
     : SnapshotableObject(realm, object, type_int),
       url_components_buffer_(realm->isolate(), kURLComponentsLength) {
   object
@@ -47,8 +48,8 @@ BindingData::BindingData(Realm* realm, v8::Local<v8::Object> object)
   url_components_buffer_.MakeWeak();
 }
 
-bool BindingData::PrepareForSerialization(v8::Local<v8::Context> context,
-                                          v8::SnapshotCreator* creator) {
+bool BindingData::PrepareForSerialization(Local<Context> context,
+                                          SnapshotCreator* creator) {
   // We'll just re-initialize the buffers in the constructor since their
   // contents can be thrown away once consumed in the previous call.
   url_components_buffer_.Release();
@@ -64,12 +65,12 @@ InternalFieldInfoBase* BindingData::Serialize(int index) {
   return info;
 }
 
-void BindingData::Deserialize(v8::Local<v8::Context> context,
-                              v8::Local<v8::Object> holder,
+void BindingData::Deserialize(Local<Context> context,
+                              Local<Object> holder,
                               int index,
                               InternalFieldInfoBase* info) {
   DCHECK_IS_SNAPSHOT_SLOT(index);
-  v8::HandleScope scope(context->GetIsolate());
+  HandleScope scope(context->GetIsolate());
   Realm* realm = Realm::GetCurrent(context);
   BindingData* binding = realm->AddBindingData<BindingData>(holder);
   CHECK_NOT_NULL(binding);
@@ -227,7 +228,7 @@ void BindingData::DomainToUnicode(const FunctionCallbackInfo<Value>& args) {
                                 .ToLocalChecked());
 }
 
-void BindingData::GetOrigin(const v8::FunctionCallbackInfo<Value>& args) {
+void BindingData::GetOrigin(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(args.Length(), 1);
   CHECK(args[0]->IsString());  // input
 
@@ -513,21 +514,20 @@ void ThrowInvalidURL(node::Environment* env,
 
   auto err_object = err.As<Object>();
 
-  USE(err_object->Set(env->context(),
-                      env->input_string(),
-                      v8::String::NewFromUtf8(env->isolate(),
-                                              input.data(),
-                                              v8::NewStringType::kNormal,
-                                              input.size())
-                          .ToLocalChecked()));
+  USE(err_object->Set(
+      env->context(),
+      env->input_string(),
+      String::NewFromUtf8(
+          env->isolate(), input.data(), NewStringType::kNormal, input.size())
+          .ToLocalChecked()));
 
   if (base.has_value()) {
     USE(err_object->Set(env->context(),
                         env->base_string(),
-                        v8::String::NewFromUtf8(env->isolate(),
-                                                base.value().c_str(),
-                                                v8::NewStringType::kNormal,
-                                                base.value().size())
+                        String::NewFromUtf8(env->isolate(),
+                                            base.value().c_str(),
+                                            NewStringType::kNormal,
+                                            base.value().size())
                             .ToLocalChecked()));
   }
 

@@ -16,6 +16,7 @@ using v8::MaybeLocal;
 using v8::Nothing;
 using v8::Object;
 using v8::String;
+using v8::Undefined;
 using v8::Value;
 
 Maybe<bool> ProcessEmitWarningSync(Environment* env, std::string_view message) {
@@ -29,7 +30,7 @@ Maybe<bool> ProcessEmitWarningSync(Environment* env, std::string_view message) {
   // finished.
   CHECK(!emit_function.IsEmpty());
   if (emit_function.As<Function>()
-          ->Call(context, v8::Undefined(isolate), arraysize(argv), argv)
+          ->Call(context, Undefined(isolate), arraysize(argv), argv)
           .IsEmpty()) {
     return Nothing<bool>();
   }

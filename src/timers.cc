@@ -9,14 +9,17 @@
 namespace node {
 namespace timers {
 
+using v8::CFunction;
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
+using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
 using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
+using v8::SnapshotCreator;
 using v8::Value;
 
 void BindingData::SetupTimers(const FunctionCallbackInfo<Value>& args) {
@@ -58,8 +61,7 @@ void BindingData::ScheduleTimerImpl(BindingData* data, int64_t duration) {
   data->env()->ScheduleTimer(duration);
 }
 
-void BindingData::SlowToggleTimerRef(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
+void BindingData::SlowToggleTimerRef(const FunctionCallbackInfo<Value>& args) {
   ToggleTimerRefImpl(Realm::GetBindingData<BindingData>(args),
                      args[0]->IsTrue());
 }
@@ -75,7 +77,7 @@ void BindingData::ToggleTimerRefImpl(BindingData* data, bool ref) {
 }
 
 void BindingData::SlowToggleImmediateRef(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
+    const FunctionCallbackInfo<Value>& args) {
   ToggleImmediateRefImpl(Realm::GetBindingData<BindingData>(args),
                          args[0]->IsTrue());
 }
@@ -94,7 +96,7 @@ BindingData::BindingData(Realm* realm, Local<Object> object)
     : SnapshotableObject(realm, object, type_int) {}
 
 bool BindingData::PrepareForSerialization(Local<Context> context,
-                                          v8::SnapshotCreator* creator) {
+                                          SnapshotCreator* creator) {
   // Return true because we need to maintain the reference to the binding from
   // JS land.
   return true;
@@ -112,21 +114,20 @@ void BindingData::Deserialize(Local<Context> context,
                               int index,
                               InternalFieldInfoBase* info) {
   DCHECK_IS_SNAPSHOT_SLOT(index);
-  v8::HandleScope scope(context->GetIsolate());
+  HandleScope scope(context->GetIsolate());
   Realm* realm = Realm::GetCurrent(context);
   // Recreate the buffer in the constructor.
   BindingData* binding = realm->AddBindingData<BindingData>(holder);
   CHECK_NOT_NULL(binding);
 }
 
-v8::CFunction BindingData::fast_get_libuv_now_(
-    v8::CFunction::Make(FastGetLibuvNow));
-v8::CFunction BindingData::fast_schedule_timers_(
-    v8::CFunction::Make(FastScheduleTimer));
-v8::CFunction BindingData::fast_toggle_timer_ref_(
-    v8::CFunction::Make(FastToggleTimerRef));
-v8::CFunction BindingData::fast_toggle_immediate_ref_(
-    v8::CFunction::Make(FastToggleImmediateRef));
+CFunction BindingData::fast_get_libuv_now_(CFunction::Make(FastGetLibuvNow));
+CFunction BindingData::fast_schedule_timers_(
+    CFunction::Make(FastScheduleTimer));
+CFunction BindingData::fast_toggle_timer_ref_(
+    CFunction::Make(FastToggleTimerRef));
+CFunction BindingData::fast_toggle_immediate_ref_(
+    CFunction::Make(FastToggleImmediateRef));
 
 void BindingData::CreatePerIsolateProperties(IsolateData* isolate_data,
                                              Local<ObjectTemplate> target) {

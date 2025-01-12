@@ -36,6 +36,7 @@ using v8::SharedArrayBuffer;
 using v8::SharedValueConveyor;
 using v8::String;
 using v8::Symbol;
+using v8::Uint32;
 using v8::Value;
 using v8::ValueDeserializer;
 using v8::ValueSerializer;
@@ -699,7 +700,7 @@ void MessagePort::TriggerAsync() {
   CHECK_EQ(uv_async_send(&async_), 0);
 }
 
-void MessagePort::Close(v8::Local<v8::Value> close_callback) {
+void MessagePort::Close(Local<Value> close_callback) {
   Debug(this, "Closing message port, data set = %d", static_cast<int>(!!data_));
 
   if (data_) {
@@ -1265,8 +1266,8 @@ BaseObjectPtr<JSTransferable> JSTransferable::Wrap(Environment* env,
 
 // static
 bool JSTransferable::IsJSTransferable(Environment* env,
-                                      v8::Local<v8::Context> context,
-                                      v8::Local<v8::Object> object) {
+                                      Local<Context> context,
+                                      Local<Object> object) {
   return object->HasPrivate(context, env->transfer_mode_private_symbol())
       .ToChecked();
 }
@@ -1302,7 +1303,7 @@ BaseObject::TransferMode JSTransferable::GetTransferMode() const {
   if (!transfer_mode_val->IsUint32()) {
     return TransferMode::kDisallowCloneAndTransfer;
   }
-  return static_cast<TransferMode>(transfer_mode_val.As<v8::Uint32>()->Value());
+  return static_cast<TransferMode>(transfer_mode_val.As<Uint32>()->Value());
 }
 
 std::unique_ptr<TransferData> JSTransferable::TransferForMessaging() {
@@ -1415,10 +1416,8 @@ Maybe<void> JSTransferable::FinalizeTransferRead(
   return JustVoid();
 }
 
-JSTransferable::Data::Data(std::string&& deserialize_info,
-                           v8::Global<v8::Value>&& data)
-    : deserialize_info_(std::move(deserialize_info)),
-      data_(std::move(data)) {}
+JSTransferable::Data::Data(std::string&& deserialize_info, Global<Value>&& data)
+    : deserialize_info_(std::move(deserialize_info)), data_(std::move(data)) {}
 
 BaseObjectPtr<BaseObject> JSTransferable::Data::Deserialize(
     Environment* env,

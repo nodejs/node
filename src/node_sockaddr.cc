@@ -873,7 +873,7 @@ void SocketAddressBase::TransferData::MemoryInfo(MemoryTracker* tracker) const {
 
 BaseObjectPtr<BaseObject> SocketAddressBase::TransferData::Deserialize(
     Environment* env,
-    v8::Local<v8::Context> context,
+    Local<Context> context,
     std::unique_ptr<worker::TransferData> self) {
   return SocketAddressBase::Create(env, std::move(address_));
 }

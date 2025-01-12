@@ -30,8 +30,10 @@ using v8::HandleScope;
 using v8::Int32;
 using v8::Isolate;
 using v8::Local;
+using v8::NewStringType;
 using v8::Object;
 using v8::ObjectTemplate;
+using v8::SnapshotCreator;
 using v8::String;
 using v8::Uint32;
 using v8::Undefined;
@@ -58,7 +60,7 @@ void Concat(const FunctionCallbackInfo<Value>& args) {
   std::vector<View> views;
   size_t total = 0;
 
-  std::vector<v8::Global<Value>> buffers;
+  std::vector<Global<Value>> buffers;
   if (FromV8Array(context, array, &buffers).IsNothing()) {
     return;
   }
@@ -159,7 +161,7 @@ Local<FunctionTemplate> Blob::GetConstructorTemplate(Environment* env) {
   return tmpl;
 }
 
-bool Blob::HasInstance(Environment* env, v8::Local<v8::Value> object) {
+bool Blob::HasInstance(Environment* env, Local<Value> object) {
   return GetConstructorTemplate(env)->HasInstance(object);
 }
 
@@ -188,7 +190,7 @@ void Blob::New(const FunctionCallbackInfo<Value>& args) {
   Local<Array> array = args[0].As<Array>();
   std::vector<std::unique_ptr<DataQueue::Entry>> entries(array->Length());
 
-  std::vector<v8::Global<Value>> sources;
+  std::vector<Global<Value>> sources;
   if (FromV8Array(context, array, &sources).IsNothing()) {
     return;
   }
@@ -197,7 +199,7 @@ void Blob::New(const FunctionCallbackInfo<Value>& args) {
   for (size_t i = 0; i < count; i++) {
     Local<Value> entry = sources[i].Get(isolate);
 
-    const auto entryFromArrayBuffer = [isolate](v8::Local<v8::ArrayBuffer> buf,
+    const auto entryFromArrayBuffer = [isolate](Local<ArrayBuffer> buf,
                                                 size_t byte_length,
                                                 size_t byte_offset = 0) {
       if (buf->IsDetachable()) {
@@ -279,14 +281,14 @@ BaseObjectPtr<Blob> Blob::Slice(Environment* env, size_t start, size_t end) {
 }
 
 Blob::Blob(Environment* env,
-           v8::Local<v8::Object> obj,
+           Local<Object> obj,
            std::shared_ptr<DataQueue> data_queue)
     : BaseObject(env, obj), data_queue_(data_queue) {
   MakeWeak();
 }
 
 Blob::Reader::Reader(Environment* env,
-                     v8::Local<v8::Object> obj,
+                     Local<Object> obj,
                      BaseObjectPtr<Blob> strong_ptr)
     : AsyncWrap(env, obj, AsyncWrap::PROVIDER_BLOBREADER),
       inner_(strong_ptr->data_queue_->get_reader()),
@@ -294,7 +296,7 @@ Blob::Reader::Reader(Environment* env,
   MakeWeak();
 }
 
-bool Blob::Reader::HasInstance(Environment* env, v8::Local<v8::Value> value) {
+bool Blob::Reader::HasInstance(Environment* env, Local<Value> value) {
   return GetConstructorTemplate(env)->HasInstance(value);
 }
 
@@ -370,7 +372,7 @@ void Blob::Reader::Pull(const FunctionCallbackInfo<Value>& args) {
       for (size_t n = 0; n < count; n++) total += vecs[n].len;
 
       std::shared_ptr<BackingStore> store =
-          v8::ArrayBuffer::NewBackingStore(env->isolate(), total);
+          ArrayBuffer::NewBackingStore(env->isolate(), total);
       auto ptr = static_cast<uint8_t*>(store->Data());
       for (size_t n = 0; n < count; n++) {
         std::copy(vecs[n].base, vecs[n].base + vecs[n].len, ptr);
@@ -415,7 +417,7 @@ std::unique_ptr<worker::TransferData> Blob::CloneForMessaging() const {
   return std::make_unique<BlobTransferData>(data_queue_);
 }
 
-void Blob::StoreDataObject(const v8::FunctionCallbackInfo<v8::Value>& args) {
+void Blob::StoreDataObject(const FunctionCallbackInfo<Value>& args) {
   Realm* realm = Realm::GetCurrent(args);
 
   CHECK(args[0]->IsString());  // ID key
@@ -468,7 +470,7 @@ void Blob::RevokeObjectURL(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-void Blob::GetDataObject(const v8::FunctionCallbackInfo<v8::Value>& args) {
+void Blob::GetDataObject(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
   Realm* realm = Realm::GetCurrent(args);
   BlobBindingData* binding_data = realm->GetBindingData<BlobBindingData>();
@@ -482,7 +484,7 @@ void Blob::GetDataObject(const v8::FunctionCallbackInfo<v8::Value>& args) {
     Local<Value> type;
     if (!String::NewFromUtf8(isolate,
                              stored.type.c_str(),
-                             v8::NewStringType::kNormal,
+                             NewStringType::kNormal,
                              static_cast<int>(stored.type.length()))
              .ToLocal(&type)) {
       return;
@@ -554,7 +556,7 @@ void BlobBindingData::Deserialize(Local<Context> context,
 }
 
 bool BlobBindingData::PrepareForSerialization(Local<Context> context,
-                                              v8::SnapshotCreator* creator) {
+                                              SnapshotCreator* creator) {
   // Stored blob objects are not actually persisted.
   // Return true because we need to maintain the reference to the binding from
   // JS land.

@@ -60,6 +60,7 @@ namespace fs {
 
 using v8::Array;
 using v8::BigInt;
+using v8::CFunction;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::FastApiCallbackOptions;
@@ -81,6 +82,7 @@ using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::Promise;
+using v8::SnapshotCreator;
 using v8::String;
 using v8::Undefined;
 using v8::Value;
@@ -311,7 +313,7 @@ FileHandle::TransferData::~TransferData() {
 
 BaseObjectPtr<BaseObject> FileHandle::TransferData::Deserialize(
     Environment* env,
-    v8::Local<v8::Context> context,
+    Local<Context> context,
     std::unique_ptr<worker::TransferData> self) {
   BindingData* bd = Realm::GetBindingData<BindingData>(context);
   if (bd == nullptr) return {};
@@ -1081,8 +1083,7 @@ static int32_t FastInternalModuleStat(
   }
 }
 
-v8::CFunction fast_internal_module_stat_(
-    v8::CFunction::Make(FastInternalModuleStat));
+CFunction fast_internal_module_stat_(CFunction::Make(FastInternalModuleStat));
 
 constexpr bool is_uv_error_except_no_entry(int result) {
   return result < 0 && result != UV_ENOENT;
@@ -3510,7 +3511,7 @@ void BindingData::MemoryInfo(MemoryTracker* tracker) const {
 }
 
 BindingData::BindingData(Realm* realm,
-                         v8::Local<v8::Object> wrap,
+                         Local<Object> wrap,
                          InternalFieldInfo* info)
     : SnapshotableObject(realm, wrap, type_int),
       stats_field_array(realm->isolate(),
@@ -3575,7 +3576,7 @@ void BindingData::Deserialize(Local<Context> context,
 }
 
 bool BindingData::PrepareForSerialization(Local<Context> context,
-                                          v8::SnapshotCreator* creator) {
+                                          SnapshotCreator* creator) {
   CHECK(file_handle_read_wrap_freelist.empty());
   DCHECK_NULL(internal_field_info_);
   internal_field_info_ = InternalFieldInfoBase::New<InternalFieldInfo>(type());

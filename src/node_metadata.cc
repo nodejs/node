@@ -46,6 +46,8 @@
 
 namespace node {
 
+using v8::V8;
+
 namespace per_process {
 Metadata metadata;
 }
@@ -95,7 +97,7 @@ void Metadata::Versions::InitializeIntlVersions() {
 
 Metadata::Versions::Versions() {
   node = NODE_VERSION_STRING;
-  v8 = v8::V8::GetVersion();
+  v8 = V8::GetVersion();
   uv = uv_version_string();
 #ifdef NODE_BUNDLED_ZLIB
   zlib = ZLIB_VERSION;

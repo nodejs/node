@@ -177,7 +177,7 @@ void PipeWrap::SetPendingInstances(const FunctionCallbackInfo<Value>& args) {
 }
 #endif
 
-void PipeWrap::Fchmod(const v8::FunctionCallbackInfo<v8::Value>& args) {
+void PipeWrap::Fchmod(const FunctionCallbackInfo<Value>& args) {
   PipeWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
   CHECK(args[0]->IsInt32());

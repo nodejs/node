@@ -30,6 +30,7 @@ using v8::Array;
 using v8::ArrayBuffer;
 using v8::BigInt;
 using v8::CFunction;
+using v8::ConstructorBehavior;
 using v8::Context;
 using v8::Exception;
 using v8::FastApiCallbackOptions;
@@ -40,7 +41,9 @@ using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
+using v8::NewStringType;
 using v8::Object;
+using v8::SideEffectType;
 using v8::Signature;
 using v8::String;
 using v8::Uint32;
@@ -217,10 +220,10 @@ void WASI::WasiFunction<FT, F, R, Args...>::SetFunction(
                             Local<Value>(),
                             Local<Signature>(),
                             sizeof...(Args),
-                            v8::ConstructorBehavior::kThrow,
-                            v8::SideEffectType::kHasSideEffect,
+                            ConstructorBehavior::kThrow,
+                            SideEffectType::kHasSideEffect,
                             &c_function);
-  const v8::NewStringType type = v8::NewStringType::kInternalized;
+  const NewStringType type = NewStringType::kInternalized;
   Local<String> name_string =
       String::NewFromUtf8(env->isolate(), name, type).ToLocalChecked();
   tmpl->PrototypeTemplate()->Set(name_string, t);

@@ -26,6 +26,7 @@ using v8::NewStringType;
 using v8::None;
 using v8::Object;
 using v8::PropertyCallbackInfo;
+using v8::ReadOnly;
 using v8::SideEffectType;
 using v8::String;
 using v8::Value;
@@ -107,7 +108,7 @@ static void SetVersions(Isolate* isolate, Local<Object> versions) {
         ->DefineOwnProperty(context,
                             OneByteString(isolate, version.first),
                             OneByteString(isolate, version.second),
-                            v8::ReadOnly)
+                            ReadOnly)
         .Check();
   }
 }

@@ -40,7 +40,9 @@ using v8::NewStringType;
 using v8::Null;
 using v8::Number;
 using v8::Object;
+using v8::PropertyDescriptor;
 using v8::SideEffectType;
+using v8::Signature;
 using v8::String;
 using v8::TryCatch;
 using v8::Uint8Array;
@@ -1334,23 +1336,21 @@ void StatementSync::Iterate(const FunctionCallbackInfo<Value>& args) {
   Local<Object> iterable_iterator = Object::New(
       isolate, js_iterator_prototype, keys.data(), values.data(), keys.size());
 
-  auto num_cols_pd = v8::PropertyDescriptor(
-      v8::Integer::New(isolate, sqlite3_column_count(stmt->statement_)), false);
+  auto num_cols_pd = PropertyDescriptor(
+      Integer::New(isolate, sqlite3_column_count(stmt->statement_)), false);
   num_cols_pd.set_enumerable(false);
   num_cols_pd.set_configurable(false);
   iterable_iterator
       ->DefineProperty(context, env->num_cols_string(), num_cols_pd)
       .ToChecked();
 
-  auto stmt_pd =
-      v8::PropertyDescriptor(v8::External::New(isolate, stmt), false);
+  auto stmt_pd = PropertyDescriptor(External::New(isolate, stmt), false);
   stmt_pd.set_enumerable(false);
   stmt_pd.set_configurable(false);
   iterable_iterator->DefineProperty(context, env->statement_string(), stmt_pd)
       .ToChecked();
 
-  auto is_finished_pd =
-      v8::PropertyDescriptor(v8::Boolean::New(isolate, false), true);
+  auto is_finished_pd = PropertyDescriptor(Boolean::New(isolate, false), true);
   stmt_pd.set_enumerable(false);
   stmt_pd.set_configurable(false);
   iterable_iterator
@@ -1539,7 +1539,7 @@ static inline void SetSideEffectFreeGetter(
       FunctionTemplate::New(isolate,
                             fn,
                             Local<Value>(),
-                            v8::Signature::New(isolate, class_template),
+                            Signature::New(isolate, class_template),
                             /* length */ 0,
                             ConstructorBehavior::kThrow,
                             SideEffectType::kHasNoSideEffect);

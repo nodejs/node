@@ -94,7 +94,7 @@ class SignalWrap : public HandleWrap {
     CHECK_EQ(r, 0);
   }
 
-  void Close(v8::Local<v8::Value> close_callback) override {
+  void Close(Local<Value> close_callback) override {
     if (active_) {
       DecreaseSignalHandlerCount(handle_.signum);
       active_ = false;

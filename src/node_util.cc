@@ -18,12 +18,14 @@ using v8::Context;
 using v8::External;
 using v8::FunctionCallbackInfo;
 using v8::IndexFilter;
+using v8::Int32;
 using v8::Integer;
 using v8::Isolate;
 using v8::KeyCollectionMode;
 using v8::Local;
 using v8::LocalVector;
 using v8::Name;
+using v8::Null;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::ONLY_CONFIGURABLE;
@@ -267,12 +269,12 @@ static void GetCallSites(const FunctionCallbackInfo<Value>& args) {
 
     Local<Value> function_name = stack_frame->GetFunctionName();
     if (function_name.IsEmpty()) {
-      function_name = v8::String::Empty(isolate);
+      function_name = String::Empty(isolate);
     }
 
     Local<Value> script_name = stack_frame->GetScriptName();
     if (script_name.IsEmpty()) {
-      script_name = v8::String::Empty(isolate);
+      script_name = String::Empty(isolate);
     }
 
     Local<Name> names[] = {
@@ -287,8 +289,8 @@ static void GetCallSites(const FunctionCallbackInfo<Value>& args) {
         Integer::NewFromUnsigned(isolate, stack_frame->GetLineNumber()),
         Integer::NewFromUnsigned(isolate, stack_frame->GetColumn()),
     };
-    Local<Object> obj = Object::New(
-        isolate, v8::Null(isolate), names, values, arraysize(names));
+    Local<Object> obj =
+        Object::New(isolate, Null(isolate), names, values, arraysize(names));
 
     callsite_objects.push_back(obj);
   }
@@ -304,7 +306,7 @@ static void IsInsideNodeModules(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsInt32());  // frame_limit
   // The second argument is the default value.
 
-  int frames_limit = args[0].As<v8::Int32>()->Value();
+  int frames_limit = args[0].As<Int32>()->Value();
   Local<StackTrace> stack =
       StackTrace::CurrentStackTrace(isolate, frames_limit);
   int frame_count = stack->GetFrameCount();

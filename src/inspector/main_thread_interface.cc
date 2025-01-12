@@ -8,6 +8,9 @@
 #include <memory>
 
 namespace node {
+
+using v8::SealHandleScope;
+
 namespace inspector {
 namespace {
 
@@ -255,7 +258,7 @@ void MainThreadInterface::DispatchMessages() {
       std::swap(dispatching_message_queue_.front(), task);
       dispatching_message_queue_.pop_front();
 
-      v8::SealHandleScope seal_handle_scope(agent_->env()->isolate());
+      SealHandleScope seal_handle_scope(agent_->env()->isolate());
       task->Call(this);
     }
   } while (had_messages);

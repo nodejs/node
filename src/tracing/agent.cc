@@ -7,6 +7,11 @@
 #include "env-inl.h"
 
 namespace node {
+
+using v8::ConvertableToTraceFormat;
+using v8::platform::tracing::TraceConfig;
+using v8::platform::tracing::TraceWriter;
+
 namespace tracing {
 
 class Agent::ScopedSuspendTracing {
@@ -44,10 +49,6 @@ std::set<std::string> flatten(
 }
 
 }  // namespace
-
-using v8::platform::tracing::TraceConfig;
-using v8::platform::tracing::TraceWriter;
-using std::string;
 
 Agent::Agent() : tracing_controller_(new TracingController()) {
   tracing_controller_->Initialize(nullptr);
@@ -230,7 +231,7 @@ void TracingController::AddMetadataEvent(
     const char** arg_names,
     const unsigned char* arg_types,
     const uint64_t* arg_values,
-    std::unique_ptr<v8::ConvertableToTraceFormat>* convertable_values,
+    std::unique_ptr<ConvertableToTraceFormat>* convertable_values,
     unsigned int flags) {
   std::unique_ptr<TraceObject> trace_event(new TraceObject);
   trace_event->Initialize(

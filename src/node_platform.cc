@@ -9,10 +9,19 @@
 
 namespace node {
 
+using v8::HandleScope;
+using v8::IdleTask;
 using v8::Isolate;
+using v8::JobHandle;
+using v8::JobTask;
 using v8::Object;
+using v8::PageAllocator;
 using v8::Platform;
+using v8::SourceLocation;
 using v8::Task;
+using v8::TaskPriority;
+using v8::TaskRunner;
+using v8::TracingController;
 
 namespace {
 
@@ -235,8 +244,7 @@ PerIsolatePlatformData::PerIsolatePlatformData(
   uv_unref(reinterpret_cast<uv_handle_t*>(flush_tasks_));
 }
 
-std::shared_ptr<v8::TaskRunner>
-PerIsolatePlatformData::GetForegroundTaskRunner() {
+std::shared_ptr<TaskRunner> PerIsolatePlatformData::GetForegroundTaskRunner() {
   return shared_from_this();
 }
 
@@ -245,13 +253,13 @@ void PerIsolatePlatformData::FlushTasks(uv_async_t* handle) {
   platform_data->FlushForegroundTasksInternal();
 }
 
-void PerIsolatePlatformData::PostIdleTaskImpl(
-    std::unique_ptr<v8::IdleTask> task, const v8::SourceLocation& location) {
+void PerIsolatePlatformData::PostIdleTaskImpl(std::unique_ptr<IdleTask> task,
+                                              const SourceLocation& location) {
   UNREACHABLE();
 }
 
 void PerIsolatePlatformData::PostTaskImpl(std::unique_ptr<Task> task,
-                                          const v8::SourceLocation& location) {
+                                          const SourceLocation& location) {
   if (flush_tasks_ == nullptr) {
     // V8 may post tasks during Isolate disposal. In that case, the only
     // sensible path forward is to discard the task.
@@ -264,7 +272,7 @@ void PerIsolatePlatformData::PostTaskImpl(std::unique_ptr<Task> task,
 void PerIsolatePlatformData::PostDelayedTaskImpl(
     std::unique_ptr<Task> task,
     double delay_in_seconds,
-    const v8::SourceLocation& location) {
+    const SourceLocation& location) {
   if (flush_tasks_ == nullptr) {
     // V8 may post tasks during Isolate disposal. In that case, the only
     // sensible path forward is to discard the task.
@@ -279,14 +287,14 @@ void PerIsolatePlatformData::PostDelayedTaskImpl(
 }
 
 void PerIsolatePlatformData::PostNonNestableTaskImpl(
-    std::unique_ptr<Task> task, const v8::SourceLocation& location) {
+    std::unique_ptr<Task> task, const SourceLocation& location) {
   PostTaskImpl(std::move(task), location);
 }
 
 void PerIsolatePlatformData::PostNonNestableDelayedTaskImpl(
     std::unique_ptr<Task> task,
     double delay_in_seconds,
-    const v8::SourceLocation& location) {
+    const SourceLocation& location) {
   PostDelayedTaskImpl(std::move(task), delay_in_seconds, location);
 }
 
@@ -337,12 +345,12 @@ void PerIsolatePlatformData::DecreaseHandleCount() {
 }
 
 NodePlatform::NodePlatform(int thread_pool_size,
-                           v8::TracingController* tracing_controller,
-                           v8::PageAllocator* page_allocator) {
+                           TracingController* tracing_controller,
+                           PageAllocator* page_allocator) {
   if (tracing_controller != nullptr) {
     tracing_controller_ = tracing_controller;
   } else {
-    tracing_controller_ = new v8::TracingController();
+    tracing_controller_ = new TracingController();
   }
 
   // V8 will default to its built in allocator if none is provided.
@@ -425,7 +433,7 @@ void PerIsolatePlatformData::RunForegroundTask(std::unique_ptr<Task> task) {
   DebugSealHandleScope scope(isolate_);
   Environment* env = Environment::GetCurrent(isolate_);
   if (env != nullptr) {
-    v8::HandleScope scope(isolate_);
+    HandleScope scope(isolate_);
     InternalCallbackScope cb_scope(env, Object::New(isolate_), { 0, 0 },
                                    InternalCallbackScope::kNoFlags);
     task->Run();
@@ -507,18 +515,17 @@ bool PerIsolatePlatformData::FlushForegroundTasksInternal() {
   return did_work;
 }
 
-void NodePlatform::PostTaskOnWorkerThreadImpl(
-    v8::TaskPriority priority,
-    std::unique_ptr<v8::Task> task,
-    const v8::SourceLocation& location) {
+void NodePlatform::PostTaskOnWorkerThreadImpl(TaskPriority priority,
+                                              std::unique_ptr<Task> task,
+                                              const SourceLocation& location) {
   worker_thread_task_runner_->PostTask(std::move(task));
 }
 
 void NodePlatform::PostDelayedTaskOnWorkerThreadImpl(
-    v8::TaskPriority priority,
-    std::unique_ptr<v8::Task> task,
+    TaskPriority priority,
+    std::unique_ptr<Task> task,
     double delay_in_seconds,
-    const v8::SourceLocation& location) {
+    const SourceLocation& location) {
   worker_thread_task_runner_->PostDelayedTask(std::move(task),
                                               delay_in_seconds);
 }
@@ -544,10 +551,10 @@ bool NodePlatform::FlushForegroundTasks(Isolate* isolate) {
   return per_isolate->FlushForegroundTasksInternal();
 }
 
-std::unique_ptr<v8::JobHandle> NodePlatform::CreateJobImpl(
-    v8::TaskPriority priority,
-    std::unique_ptr<v8::JobTask> job_task,
-    const v8::SourceLocation& location) {
+std::unique_ptr<JobHandle> NodePlatform::CreateJobImpl(
+    TaskPriority priority,
+    std::unique_ptr<JobTask> job_task,
+    const SourceLocation& location) {
   return v8::platform::NewDefaultJobHandle(
       this, priority, std::move(job_task), NumberOfWorkerThreads());
 }
@@ -556,8 +563,8 @@ bool NodePlatform::IdleTasksEnabled(Isolate* isolate) {
   return ForIsolate(isolate)->IdleTasksEnabled();
 }
 
-std::shared_ptr<v8::TaskRunner>
-NodePlatform::GetForegroundTaskRunner(Isolate* isolate) {
+std::shared_ptr<TaskRunner> NodePlatform::GetForegroundTaskRunner(
+    Isolate* isolate) {
   return ForIsolate(isolate)->GetForegroundTaskRunner();
 }
 
@@ -570,7 +577,7 @@ double NodePlatform::CurrentClockTimeMillis() {
   return SystemClockTimeMillis();
 }
 
-v8::TracingController* NodePlatform::GetTracingController() {
+TracingController* NodePlatform::GetTracingController() {
   CHECK_NOT_NULL(tracing_controller_);
   return tracing_controller_;
 }
@@ -583,7 +590,7 @@ Platform::StackTracePrinter NodePlatform::GetStackTracePrinter() {
   };
 }
 
-v8::PageAllocator* NodePlatform::GetPageAllocator() {
+PageAllocator* NodePlatform::GetPageAllocator() {
   return page_allocator_;
 }
 

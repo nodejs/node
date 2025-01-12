@@ -2,6 +2,7 @@
 #include "node.h"
 
 namespace node {
+
 namespace tracing {
 
 Agent* g_agent = nullptr;

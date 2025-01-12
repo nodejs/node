@@ -15,6 +15,7 @@
 namespace node::debug {
 
 #ifdef DEBUG
+using v8::CFunction;
 using v8::Context;
 using v8::FastApiCallbackOptions;
 using v8::FunctionCallbackInfo;
@@ -79,8 +80,8 @@ bool FastIsOdd(Local<Value> receiver,
   return value % 2 != 0;
 }
 
-static v8::CFunction fast_is_even(v8::CFunction::Make(FastIsEven));
-static v8::CFunction fast_is_odd(v8::CFunction::Make(FastIsOdd));
+static CFunction fast_is_even(CFunction::Make(FastIsEven));
+static CFunction fast_is_odd(CFunction::Make(FastIsOdd));
 
 void Initialize(Local<Object> target,
                 Local<Value> unused,

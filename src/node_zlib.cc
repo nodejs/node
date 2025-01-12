@@ -56,6 +56,7 @@ using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::Object;
+using v8::Uint32;
 using v8::Uint32Array;
 using v8::Value;
 
@@ -1297,7 +1298,7 @@ struct MakeClass {
 };
 
 template <typename T, typename F>
-T CallOnSequence(v8::Isolate* isolate, Local<Value> value, F callback) {
+T CallOnSequence(Isolate* isolate, Local<Value> value, F callback) {
   if (value->IsString()) {
     Utf8Value data(isolate, value);
     return callback(data.out(), data.length());
@@ -1311,7 +1312,7 @@ T CallOnSequence(v8::Isolate* isolate, Local<Value> value, F callback) {
 static void CRC32(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsArrayBufferView() || args[0]->IsString());
   CHECK(args[1]->IsUint32());
-  uint32_t value = args[1].As<v8::Uint32>()->Value();
+  uint32_t value = args[1].As<Uint32>()->Value();
 
   uint32_t result = CallOnSequence<uint32_t>(
       args.GetIsolate(),

@@ -37,11 +37,11 @@ using v8::FunctionTemplate;
 using v8::Isolate;
 using v8::Local;
 using v8::Object;
+using v8::StackTrace;
 using v8::Value;
 
-Watchdog::Watchdog(v8::Isolate* isolate, uint64_t ms, bool* timed_out)
+Watchdog::Watchdog(Isolate* isolate, uint64_t ms, bool* timed_out)
     : isolate_(isolate), timed_out_(timed_out) {
-
   int rc;
   rc = uv_loop_init(&loop_);
   if (rc != 0) {
@@ -64,7 +64,6 @@ Watchdog::Watchdog(v8::Isolate* isolate, uint64_t ms, bool* timed_out)
   rc = uv_thread_create(&thread_, &Watchdog::Run, this);
   CHECK_EQ(0, rc);
 }
-
 
 Watchdog::~Watchdog() {
   uv_async_send(&async_);
@@ -98,9 +97,7 @@ void Watchdog::Timer(uv_timer_t* timer) {
   uv_stop(&w->loop_);
 }
 
-
-SigintWatchdog::SigintWatchdog(
-  v8::Isolate* isolate, bool* received_signal)
+SigintWatchdog::SigintWatchdog(Isolate* isolate, bool* received_signal)
     : isolate_(isolate), received_signal_(received_signal) {
   Mutex::ScopedLock lock(SigintWatchdogHelper::GetInstanceActionMutex());
   // Register this watchdog with the global SIGINT/Ctrl+C listener.
@@ -108,7 +105,6 @@ SigintWatchdog::SigintWatchdog(
   // Start the helper thread, if that has not already happened.
   SigintWatchdogHelper::GetInstance()->Start();
 }
-
 
 SigintWatchdog::~SigintWatchdog() {
   Mutex::ScopedLock lock(SigintWatchdogHelper::GetInstanceActionMutex());
@@ -186,7 +182,7 @@ SignalPropagation TraceSigintWatchdog::HandleSigint() {
    */
   CHECK_EQ(uv_async_send(&handle_), 0);
   env()->isolate()->RequestInterrupt(
-      [](v8::Isolate* isolate, void* data) {
+      [](Isolate* isolate, void* data) {
         TraceSigintWatchdog* self = static_cast<TraceSigintWatchdog*>(data);
         if (self->signal_flag_ == SignalFlags::None) {
           self->signal_flag_ = SignalFlags::FromInterrupt;
@@ -215,8 +211,8 @@ void TraceSigintWatchdog::HandleInterrupt() {
       "KEYBOARD_INTERRUPT: Script execution was interrupted by `SIGINT`\n");
   if (signal_flag_ == SignalFlags::FromInterrupt) {
     PrintStackTrace(env_->isolate(),
-                    v8::StackTrace::CurrentStackTrace(
-                        env_->isolate(), 10, v8::StackTrace::kDetailed));
+                    StackTrace::CurrentStackTrace(
+                        env_->isolate(), 10, StackTrace::kDetailed));
   }
   signal_flag_ = SignalFlags::None;
   interrupting = false;

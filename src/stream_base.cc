@@ -40,10 +40,10 @@ using v8::Signature;
 using v8::String;
 using v8::Value;
 
-int StreamBase::Shutdown(v8::Local<v8::Object> req_wrap_obj) {
+int StreamBase::Shutdown(Local<Object> req_wrap_obj) {
   Environment* env = stream_env();
 
-  v8::HandleScope handle_scope(env->isolate());
+  HandleScope handle_scope(env->isolate());
 
   if (req_wrap_obj.IsEmpty()) {
     if (!env->shutdown_wrap_template()
@@ -82,7 +82,7 @@ int StreamBase::Shutdown(v8::Local<v8::Object> req_wrap_obj) {
 StreamWriteResult StreamBase::Write(uv_buf_t* bufs,
                                     size_t count,
                                     uv_stream_t* send_handle,
-                                    v8::Local<v8::Object> req_wrap_obj,
+                                    Local<Object> req_wrap_obj,
                                     bool skip_try_write) {
   Environment* env = stream_env();
   int err;
@@ -98,7 +98,7 @@ StreamWriteResult StreamBase::Write(uv_buf_t* bufs,
     }
   }
 
-  v8::HandleScope handle_scope(env->isolate());
+  HandleScope handle_scope(env->isolate());
 
   if (req_wrap_obj.IsEmpty()) {
     if (!env->write_wrap_template()
@@ -492,13 +492,13 @@ Local<Object> StreamBase::GetObject() {
   return GetAsyncWrap()->object();
 }
 
-void StreamBase::AddAccessor(v8::Isolate* isolate,
-                             v8::Local<v8::Signature> signature,
-                             enum v8::PropertyAttribute attributes,
-                             v8::Local<v8::FunctionTemplate> t,
+void StreamBase::AddAccessor(Isolate* isolate,
+                             Local<Signature> signature,
+                             enum PropertyAttribute attributes,
+                             Local<FunctionTemplate> t,
                              JSMethodFunction* getter,
                              JSMethodFunction* setter,
-                             v8::Local<v8::String> string) {
+                             Local<String> string) {
   Local<FunctionTemplate> getter_templ =
       NewFunctionTemplate(isolate,
                           getter,
@@ -869,7 +869,7 @@ void StreamReq::Done(int status, const char* error_str) {
   AsyncWrap* async_wrap = GetAsyncWrap();
   Environment* env = async_wrap->env();
   if (error_str != nullptr) {
-    v8::HandleScope handle_scope(env->isolate());
+    HandleScope handle_scope(env->isolate());
     if (async_wrap->object()
             ->Set(env->context(),
                   env->error_string(),

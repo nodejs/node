@@ -13,6 +13,9 @@
 namespace node {
 
 using v8::Array;
+using v8::ArrayBuffer;
+using v8::ArrayBufferView;
+using v8::BackingStore;
 using v8::BigInt;
 using v8::Integer;
 using v8::Local;
@@ -72,30 +75,26 @@ bool PathStorage::operator!=(const PathStorage& other) const {
 
 // ============================================================================
 
-Store::Store(std::shared_ptr<v8::BackingStore> store,
-             size_t length,
-             size_t offset)
+Store::Store(std::shared_ptr<BackingStore> store, size_t length, size_t offset)
     : store_(std::move(store)), length_(length), offset_(offset) {
   CHECK_LE(offset_, store_->ByteLength());
   CHECK_LE(length_, store_->ByteLength() - offset_);
 }
 
-Store::Store(std::unique_ptr<v8::BackingStore> store,
-             size_t length,
-             size_t offset)
+Store::Store(std::unique_ptr<BackingStore> store, size_t length, size_t offset)
     : store_(std::move(store)), length_(length), offset_(offset) {
   CHECK_LE(offset_, store_->ByteLength());
   CHECK_LE(length_, store_->ByteLength() - offset_);
 }
 
-Store::Store(v8::Local<v8::ArrayBuffer> buffer, Option option)
+Store::Store(Local<ArrayBuffer> buffer, Option option)
     : Store(buffer->GetBackingStore(), buffer->ByteLength()) {
   if (option == Option::DETACH) {
     USE(buffer->Detach(Local<Value>()));
   }
 }
 
-Store::Store(v8::Local<v8::ArrayBufferView> view, Option option)
+Store::Store(Local<ArrayBufferView> view, Option option)
     : Store(view->Buffer()->GetBackingStore(),
             view->ByteLength(),
             view->ByteOffset()) {
@@ -104,12 +103,11 @@ Store::Store(v8::Local<v8::ArrayBufferView> view, Option option)
   }
 }
 
-v8::Local<v8::Uint8Array> Store::ToUint8Array(Environment* env) const {
+Local<Uint8Array> Store::ToUint8Array(Environment* env) const {
   return !store_
-             ? Uint8Array::New(v8::ArrayBuffer::New(env->isolate(), 0), 0, 0)
-             : Uint8Array::New(v8::ArrayBuffer::New(env->isolate(), store_),
-                               offset_,
-                               length_);
+             ? Uint8Array::New(ArrayBuffer::New(env->isolate(), 0), 0, 0)
+             : Uint8Array::New(
+                   ArrayBuffer::New(env->isolate(), store_), offset_, length_);
 }
 
 Store::operator bool() const {

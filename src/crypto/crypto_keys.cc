@@ -383,7 +383,7 @@ KeyObjectData::GetPublicKeyEncodingFromJs(
 }
 
 KeyObjectData KeyObjectData::GetPrivateKeyFromJs(
-    const v8::FunctionCallbackInfo<v8::Value>& args,
+    const FunctionCallbackInfo<Value>& args,
     unsigned int* offset,
     bool allow_key_object) {
   if (args[*offset]->IsString() || IsAnyBufferSource(args[*offset])) {
@@ -592,7 +592,7 @@ bool KeyObjectHandle::HasInstance(Environment* env, Local<Value> value) {
   return !t.IsEmpty() && t->HasInstance(value);
 }
 
-v8::Local<v8::Function> KeyObjectHandle::Initialize(Environment* env) {
+Local<Function> KeyObjectHandle::Initialize(Environment* env) {
   Local<FunctionTemplate> templ = env->crypto_key_object_handle_constructor();
   if (templ.IsEmpty()) {
     Isolate* isolate = env->isolate();
@@ -1031,8 +1031,7 @@ MaybeLocal<Value> KeyObjectHandle::ExportPrivateKey(
   return WritePrivateKey(env(), data_.GetAsymmetricKey(), config);
 }
 
-void KeyObjectHandle::ExportJWK(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
+void KeyObjectHandle::ExportJWK(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   KeyObjectHandle* key;
   ASSIGN_OR_RETURN_UNWRAP(&key, args.This());

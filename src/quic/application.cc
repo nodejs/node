@@ -17,6 +17,7 @@
 
 namespace node {
 
+using v8::Array;
 using v8::Just;
 using v8::Local;
 using v8::Maybe;
@@ -155,7 +156,7 @@ bool Session::Application::CanAddHeader(size_t current_count,
 
 bool Session::Application::SendHeaders(const Stream& stream,
                                        HeadersKind kind,
-                                       const v8::Local<v8::Array>& headers,
+                                       const Local<Array>& headers,
                                        HeadersFlags flags) {
   // By default do nothing.
   return false;

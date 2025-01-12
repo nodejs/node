@@ -39,10 +39,13 @@ namespace node {
 
 using errors::TryCatchScope;
 using v8::Array;
+using v8::ArrayBuffer;
+using v8::BackingStore;
 using v8::Boolean;
 using v8::Context;
 using v8::CppHeap;
 using v8::CppHeapCreateParams;
+using v8::CppHeapPointerTag;
 using v8::EmbedderGraph;
 using v8::EscapableHandleScope;
 using v8::Function;
@@ -51,10 +54,13 @@ using v8::HeapProfiler;
 using v8::HeapSpaceStatistics;
 using v8::Integer;
 using v8::Isolate;
+using v8::Just;
 using v8::Local;
+using v8::LocalVector;
 using v8::Maybe;
 using v8::MaybeLocal;
 using v8::NewStringType;
+using v8::Nothing;
 using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
@@ -88,7 +94,7 @@ void AsyncHooks::ResetPromiseHooks(Local<Function> init,
 }
 
 Local<Array> AsyncHooks::GetPromiseHooks(Isolate* isolate) const {
-  v8::LocalVector<Value> values(isolate, js_promise_hooks_.size());
+  LocalVector<Value> values(isolate, js_promise_hooks_.size());
   for (size_t i = 0; i < js_promise_hooks_.size(); ++i) {
     if (js_promise_hooks_[i].IsEmpty()) {
       values[i] = Undefined(isolate);
@@ -453,7 +459,7 @@ void IsolateData::CreateProperties() {
   // One byte because our strings are ASCII and we can safely skip V8's UTF-8
   // decoding step.
 
-  v8::Isolate::Scope isolate_scope(isolate_);
+  Isolate::Scope isolate_scope(isolate_);
   HandleScope handle_scope(isolate_);
 
 #define V(PropertyName, StringValue)                                           \
@@ -569,14 +575,14 @@ IsolateData::IsolateData(Isolate* isolate,
       platform_(platform),
       snapshot_data_(snapshot_data),
       options_(std::move(options)) {
-  v8::CppHeap* cpp_heap = isolate->GetCppHeap();
+  CppHeap* cpp_heap = isolate->GetCppHeap();
 
   uint16_t cppgc_id = kDefaultCppGCEmbedderID;
   // We do not care about overflow since we just want this to be different
   // from the cppgc id.
   uint16_t non_cppgc_id = cppgc_id + 1;
   if (cpp_heap == nullptr) {
-    cpp_heap_ = CppHeap::Create(platform, v8::CppHeapCreateParams{{}});
+    cpp_heap_ = CppHeap::Create(platform, CppHeapCreateParams{{}});
     // TODO(joyeecheung): pass it into v8::Isolate::CreateParams and let V8
     // own it when we can keep the isolate registered/task runner discoverable
     // during isolate disposal.
@@ -617,8 +623,7 @@ IsolateData::~IsolateData() {
 void SetCppgcReference(Isolate* isolate,
                        Local<Object> object,
                        void* wrappable) {
-  v8::Object::Wrap<v8::CppHeapPointerTag::kDefaultTag>(
-      isolate, object, wrappable);
+  Object::Wrap<CppHeapPointerTag::kDefaultTag>(isolate, object, wrappable);
 }
 
 void IsolateData::MemoryInfo(MemoryTracker* tracker) const {
@@ -669,7 +674,7 @@ void TrackingTraceStateObserver::UpdateTraceCategoryState() {
   USE(cb->Call(env_->context(), Undefined(isolate), arraysize(args), args));
 }
 
-void Environment::AssignToContext(Local<v8::Context> context,
+void Environment::AssignToContext(Local<Context> context,
                                   Realm* realm,
                                   const ContextInfo& info) {
   context->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kEnvironment,
@@ -691,7 +696,7 @@ void Environment::AssignToContext(Local<v8::Context> context,
   TrackContext(context);
 }
 
-void Environment::UnassignFromContext(Local<v8::Context> context) {
+void Environment::UnassignFromContext(Local<Context> context) {
   if (!context.IsEmpty()) {
     context->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kEnvironment,
                                              nullptr);
@@ -738,16 +743,16 @@ void Environment::add_refs(int64_t diff) {
 
 uv_buf_t Environment::allocate_managed_buffer(const size_t suggested_size) {
   NoArrayBufferZeroFillScope no_zero_fill_scope(isolate_data());
-  std::unique_ptr<v8::BackingStore> bs =
-      v8::ArrayBuffer::NewBackingStore(isolate(), suggested_size);
+  std::unique_ptr<BackingStore> bs =
+      ArrayBuffer::NewBackingStore(isolate(), suggested_size);
   uv_buf_t buf = uv_buf_init(static_cast<char*>(bs->Data()), bs->ByteLength());
   released_allocated_buffers_.emplace(buf.base, std::move(bs));
   return buf;
 }
 
-std::unique_ptr<v8::BackingStore> Environment::release_managed_buffer(
+std::unique_ptr<BackingStore> Environment::release_managed_buffer(
     const uv_buf_t& buf) {
-  std::unique_ptr<v8::BackingStore> bs;
+  std::unique_ptr<BackingStore> bs;
   if (buf.base != nullptr) {
     auto it = released_allocated_buffers_.find(buf.base);
     CHECK_NE(it, released_allocated_buffers_.end());
@@ -1252,7 +1257,7 @@ MaybeLocal<Value> Environment::RunSnapshotSerializeCallback() const {
   if (!snapshot_serialize_callback().IsEmpty()) {
     Context::Scope context_scope(context());
     return handle_scope.EscapeMaybe(snapshot_serialize_callback()->Call(
-        context(), v8::Undefined(isolate()), 0, nullptr));
+        context(), Undefined(isolate()), 0, nullptr));
   }
   return handle_scope.Escape(Undefined(isolate()));
 }
@@ -1262,7 +1267,7 @@ MaybeLocal<Value> Environment::RunSnapshotDeserializeMain() const {
   if (!snapshot_deserialize_main().IsEmpty()) {
     Context::Scope context_scope(context());
     return handle_scope.EscapeMaybe(snapshot_deserialize_main()->Call(
-        context(), v8::Undefined(isolate()), 0, nullptr));
+        context(), Undefined(isolate()), 0, nullptr));
   }
   return handle_scope.Escape(Undefined(isolate()));
 }
@@ -1318,23 +1323,23 @@ Maybe<bool> Environment::CheckUnsettledTopLevelAwait() const {
   if (!ctx->Global()
            ->GetPrivate(ctx, entry_point_promise_private_symbol())
            .ToLocal(&entry_point_promise)) {
-    return v8::Nothing<bool>();
+    return Nothing<bool>();
   }
   if (!entry_point_promise->IsPromise()) {
-    return v8::Just(true);
+    return Just(true);
   }
   if (entry_point_promise.As<Promise>()->State() !=
       Promise::PromiseState::kPending) {
-    return v8::Just(true);
+    return Just(true);
   }
 
   if (!ctx->Global()
            ->GetPrivate(ctx, entry_point_module_private_symbol())
            .ToLocal(&value)) {
-    return v8::Nothing<bool>();
+    return Nothing<bool>();
   }
   if (!value->IsObject()) {
-    return v8::Just(true);
+    return Just(true);
   }
   Local<Object> object = value.As<Object>();
   CHECK(BaseObject::IsBaseObject(isolate_data_, object));

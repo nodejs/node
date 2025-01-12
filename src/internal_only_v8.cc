@@ -12,12 +12,13 @@ using v8::Isolate;
 using v8::Local;
 using v8::LocalVector;
 using v8::Object;
+using v8::QueryObjectPredicate;
 using v8::Value;
 
 namespace node {
 namespace internal_only_v8 {
 
-class PrototypeChainHas : public v8::QueryObjectPredicate {
+class PrototypeChainHas : public QueryObjectPredicate {
  public:
   PrototypeChainHas(Local<Context> context, Local<Object> search)
       : context_(context), search_(search) {}

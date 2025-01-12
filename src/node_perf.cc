@@ -15,6 +15,7 @@ namespace node {
 namespace performance {
 
 using v8::Array;
+using v8::CFunction;
 using v8::Context;
 using v8::DontDelete;
 using v8::Function;
@@ -29,6 +30,7 @@ using v8::Object;
 using v8::ObjectTemplate;
 using v8::PropertyAttribute;
 using v8::ReadOnly;
+using v8::SnapshotCreator;
 using v8::Value;
 
 // Microseconds in a millisecond, as a float.
@@ -76,7 +78,7 @@ void PerformanceState::ResetMilestones() {
 }
 
 PerformanceState::SerializeInfo PerformanceState::Serialize(
-    v8::Local<v8::Context> context, v8::SnapshotCreator* creator) {
+    Local<Context> context, SnapshotCreator* creator) {
   // Reset all the milestones to improve determinism in the snapshot.
   // We'll re-initialize them after deserialization.
   ResetMilestones();
@@ -98,7 +100,7 @@ void PerformanceState::Initialize(uint64_t time_origin,
       time_origin_timestamp;
 }
 
-void PerformanceState::Deserialize(v8::Local<v8::Context> context,
+void PerformanceState::Deserialize(Local<Context> context,
                                    uint64_t time_origin,
                                    double time_origin_timestamp) {
   // Resets the pointers.
@@ -311,7 +313,7 @@ static double PerformanceNowImpl() {
          NANOS_PER_MILLIS;
 }
 
-static double FastPerformanceNow(v8::Local<v8::Value> receiver) {
+static double FastPerformanceNow(Local<Value> receiver) {
   return PerformanceNowImpl();
 }
 
@@ -319,8 +321,7 @@ static void SlowPerformanceNow(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(PerformanceNowImpl());
 }
 
-static v8::CFunction fast_performance_now(
-    v8::CFunction::Make(FastPerformanceNow));
+static CFunction fast_performance_now(CFunction::Make(FastPerformanceNow));
 
 static void CreatePerIsolateProperties(IsolateData* isolate_data,
                                        Local<ObjectTemplate> target) {

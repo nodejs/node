@@ -35,7 +35,7 @@ Local<FunctionTemplate> LogStream::GetConstructorTemplate(Environment* env) {
 }
 
 BaseObjectPtr<LogStream> LogStream::Create(Environment* env) {
-  v8::Local<v8::Object> obj;
+  Local<Object> obj;
   if (!GetConstructorTemplate(env)
            ->InstanceTemplate()
            ->NewInstance(env->context())

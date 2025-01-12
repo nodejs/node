@@ -27,6 +27,7 @@ using v8::MaybeLocal;
 using v8::Name;
 using v8::NamedPropertyHandlerConfiguration;
 using v8::NewStringType;
+using v8::None;
 using v8::Nothing;
 using v8::Object;
 using v8::ObjectTemplate;
@@ -320,9 +321,9 @@ Maybe<void> KVStore::AssignFromObject(Local<Context> context,
 
 // TODO(bnoordhuis) Not super efficient but called infrequently. Not worth
 // the trouble yet of specializing for RealEnvStore and MapKVStore.
-Maybe<void> KVStore::AssignToObject(v8::Isolate* isolate,
-                                    v8::Local<v8::Context> context,
-                                    v8::Local<v8::Object> object) {
+Maybe<void> KVStore::AssignToObject(Isolate* isolate,
+                                    Local<Context> context,
+                                    Local<Object> object) {
   HandleScope scope(isolate);
   Local<Array> keys = Enumerate(isolate);
   uint32_t keys_length = keys->Length();
@@ -390,9 +391,7 @@ void TraceEnvVar(Environment* env, const char* message, const char* key) {
                   key);
 }
 
-void TraceEnvVar(Environment* env,
-                 const char* message,
-                 v8::Local<v8::String> key) {
+void TraceEnvVar(Environment* env, const char* message, Local<String> key) {
   TraceEnvVarOptions options = GetTraceEnvVarOptions(env);
   if (options.print_message) {
     Utf8Value key_utf8(env->isolate(), key);
@@ -473,7 +472,7 @@ static Intercepted EnvQuery(Local<Name> property,
     TraceEnvVar(env, "query", property.As<String>());
     if (has_env) {
       // Return attributes for the property.
-      info.GetReturnValue().Set(v8::None);
+      info.GetReturnValue().Set(None);
       return Intercepted::kYes;
     }
   }

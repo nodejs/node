@@ -29,11 +29,14 @@ using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Message;
+using v8::ModifyCodeGenerationFromStringsResult;
 using v8::Object;
+using v8::OOMDetails;
 using v8::ScriptOrigin;
 using v8::StackFrame;
 using v8::StackTrace;
 using v8::String;
+using v8::TryCatch;
 using v8::Undefined;
 using v8::Value;
 
@@ -56,7 +59,7 @@ static std::string GetSourceMapErrorSource(Isolate* isolate,
                                            Local<Context> context,
                                            Local<Message> message,
                                            bool* added_exception_line) {
-  v8::TryCatch try_catch(isolate);
+  TryCatch try_catch(isolate);
   HandleScope handle_scope(isolate);
   Environment* env = Environment::GetCurrent(context);
 
@@ -68,8 +71,8 @@ static std::string GetSourceMapErrorSource(Isolate* isolate,
   int columnum = message->GetStartColumn(context).FromJust();
 
   Local<Value> argv[] = {script_resource_name,
-                         v8::Int32::New(isolate, linenum),
-                         v8::Int32::New(isolate, columnum)};
+                         Int32::New(isolate, linenum),
+                         Int32::New(isolate, columnum)};
   MaybeLocal<Value> maybe_ret = env->get_source_map_error_source()->Call(
       context, Undefined(isolate), arraysize(argv), argv);
   Local<Value> ret;
@@ -331,14 +334,14 @@ std::string FormatErrorMessage(Isolate* isolate,
   }
   result += reason + '\n';
 
-  Local<v8::StackTrace> stack = message->GetStackTrace();
+  Local<StackTrace> stack = message->GetStackTrace();
   if (!stack.IsEmpty()) result += FormatStackTrace(isolate, stack);
   return result;
 }
 
 std::string FormatCaughtException(Isolate* isolate,
                                   Local<Context> context,
-                                  const v8::TryCatch& try_catch) {
+                                  const TryCatch& try_catch) {
   CHECK(try_catch.HasCaught());
   return FormatCaughtException(
       isolate, context, try_catch.Exception(), try_catch.Message());
@@ -346,7 +349,7 @@ std::string FormatCaughtException(Isolate* isolate,
 
 void PrintCaughtException(Isolate* isolate,
                           Local<Context> context,
-                          const v8::TryCatch& try_catch) {
+                          const TryCatch& try_catch) {
   PrintToStderrAndFlush(FormatCaughtException(isolate, context, try_catch));
 }
 
@@ -593,7 +596,7 @@ static void ReportFatalException(Environment* env,
   ABORT();
 }
 
-void OOMErrorHandler(const char* location, const v8::OOMDetails& details) {
+void OOMErrorHandler(const char* location, const OOMDetails& details) {
   // We should never recover from this handler so once it's true it's always
   // true.
   is_in_oom.store(true);
@@ -629,10 +632,8 @@ void OOMErrorHandler(const char* location, const v8::OOMDetails& details) {
   ABORT();
 }
 
-v8::ModifyCodeGenerationFromStringsResult ModifyCodeGenerationFromStrings(
-    v8::Local<v8::Context> context,
-    v8::Local<v8::Value> source,
-    bool is_code_like) {
+ModifyCodeGenerationFromStringsResult ModifyCodeGenerationFromStrings(
+    Local<Context> context, Local<Value> source, bool is_code_like) {
   HandleScope scope(context->GetIsolate());
 
   if (context->GetNumberOfEmbedderDataFields() <=
@@ -676,7 +677,7 @@ namespace errors {
 TryCatchScope::~TryCatchScope() {
   if (HasCaught() && !HasTerminated() && mode_ == CatchMode::kFatal) {
     HandleScope scope(env_->isolate());
-    Local<v8::Value> exception = Exception();
+    Local<Value> exception = Exception();
     Local<v8::Message> message = Message();
     EnhanceFatalException enhance = CanContinue() ?
         EnhanceFatalException::kEnhance : EnhanceFatalException::kDontEnhance;
@@ -1030,7 +1031,7 @@ void PerIsolateMessageListener(Local<Message> message, Local<Value> error) {
       warning << ":";
       warning << message->GetLineNumber(env->context()).FromMaybe(-1);
       warning << " ";
-      v8::String::Utf8Value msg(isolate, message->Get());
+      String::Utf8Value msg(isolate, message->Get());
       warning << *msg;
       USE(ProcessEmitWarningGeneric(env, warning.str().c_str(), "V8"));
       break;
@@ -1274,7 +1275,7 @@ void TriggerUncaughtException(Isolate* isolate,
   env->Exit(env->exit_code(ExitCode::kGenericUserError));
 }
 
-void TriggerUncaughtException(Isolate* isolate, const v8::TryCatch& try_catch) {
+void TriggerUncaughtException(Isolate* isolate, const TryCatch& try_catch) {
   // If the try_catch is verbose, the per-isolate message listener is going to
   // handle it (which is going to call into another overload of
   // TriggerUncaughtException()).

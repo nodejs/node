@@ -139,7 +139,7 @@ static void GetCategoryEnabledBuffer(const FunctionCallbackInfo<Value>& args) {
       [](void*, size_t, void*) {},
       nullptr);
   auto ab = ArrayBuffer::New(isolate, std::move(bs));
-  v8::Local<Uint8Array> u8 = v8::Uint8Array::New(ab, 0, 1);
+  Local<Uint8Array> u8 = Uint8Array::New(ab, 0, 1);
 
   args.GetReturnValue().Set(u8);
 }
