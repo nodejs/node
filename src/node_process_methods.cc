@@ -44,15 +44,18 @@ using v8::Context;
 using v8::Float64Array;
 using v8::Function;
 using v8::FunctionCallbackInfo;
+using v8::HandleScope;
 using v8::HeapStatistics;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
+using v8::LocalVector;
 using v8::Maybe;
 using v8::NewStringType;
 using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
+using v8::SnapshotCreator;
 using v8::String;
 using v8::Uint32;
 using v8::Value;
@@ -263,7 +266,7 @@ static void Uptime(const FunctionCallbackInfo<Value>& args) {
 static void GetActiveRequests(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  std::vector<Local<Value>> request_v;
+  LocalVector<Value> request_v(env->isolate());
   for (ReqWrapBase* req_wrap : *env->req_wrap_queue()) {
     AsyncWrap* w = req_wrap->GetAsyncWrap();
     if (w->persistent().IsEmpty())
@@ -280,7 +283,7 @@ static void GetActiveRequests(const FunctionCallbackInfo<Value>& args) {
 void GetActiveHandles(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  std::vector<Local<Value>> handle_v;
+  LocalVector<Value> handle_v(env->isolate());
   for (auto w : *env->handle_wrap_queue()) {
     if (!HandleWrap::HasRef(w))
       continue;
@@ -292,7 +295,8 @@ void GetActiveHandles(const FunctionCallbackInfo<Value>& args) {
 
 static void GetActiveResourcesInfo(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  std::vector<Local<Value>> resources_info;
+
+  LocalVector<Value> resources_info(env->isolate());
 
   // Active requests
   for (ReqWrapBase* req_wrap : *env->req_wrap_queue()) {
@@ -309,15 +313,18 @@ static void GetActiveResourcesInfo(const FunctionCallbackInfo<Value>& args) {
         OneByteString(env->isolate(), w->MemoryInfoName()));
   }
 
+  auto timeout = FIXED_ONE_BYTE_STRING(env->isolate(), "Timeout");
+  auto immediate = FIXED_ONE_BYTE_STRING(env->isolate(), "Immediate");
+
   // Active timeouts
-  resources_info.insert(resources_info.end(),
-                        env->timeout_info()[0],
-                        FIXED_ONE_BYTE_STRING(env->isolate(), "Timeout"));
+  for (int32_t n = 0; n < env->timeout_info()[0]; n++) {
+    resources_info.push_back(timeout);
+  }
 
   // Active immediates
-  resources_info.insert(resources_info.end(),
-                        env->immediate_info()->ref_count(),
-                        FIXED_ONE_BYTE_STRING(env->isolate(), "Immediate"));
+  for (uint32_t n = 0; n < env->immediate_info()->ref_count(); n++) {
+    resources_info.push_back(immediate);
+  }
 
   args.GetReturnValue().Set(
       Array::New(env->isolate(), resources_info.data(), resources_info.size()));
@@ -471,7 +478,7 @@ static void ReallyExit(const FunctionCallbackInfo<Value>& args) {
   env->Exit(code);
 }
 
-static void LoadEnvFile(const v8::FunctionCallbackInfo<v8::Value>& args) {
+static void LoadEnvFile(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   std::string path = ".env";
   if (args.Length() == 1) {
@@ -507,7 +514,7 @@ static void LoadEnvFile(const v8::FunctionCallbackInfo<v8::Value>& args) {
 namespace process {
 
 BindingData::BindingData(Realm* realm,
-                         v8::Local<v8::Object> object,
+                         Local<Object> object,
                          InternalFieldInfo* info)
     : SnapshotableObject(realm, object, type_int),
       hrtime_buffer_(realm->isolate(),
@@ -531,8 +538,8 @@ BindingData::BindingData(Realm* realm,
   hrtime_buffer_.MakeWeak();
 }
 
-v8::CFunction BindingData::fast_number_(v8::CFunction::Make(FastNumber));
-v8::CFunction BindingData::fast_bigint_(v8::CFunction::Make(FastBigInt));
+CFunction BindingData::fast_number_(CFunction::Make(FastNumber));
+CFunction BindingData::fast_bigint_(CFunction::Make(FastBigInt));
 
 void BindingData::AddMethods(Isolate* isolate, Local<ObjectTemplate> target) {
   SetFastMethodNoSideEffect(
@@ -591,12 +598,12 @@ void BindingData::SlowBigInt(const FunctionCallbackInfo<Value>& args) {
   BigIntImpl(FromJSObject<BindingData>(args.This()));
 }
 
-void BindingData::SlowNumber(const v8::FunctionCallbackInfo<v8::Value>& args) {
+void BindingData::SlowNumber(const FunctionCallbackInfo<Value>& args) {
   NumberImpl(FromJSObject<BindingData>(args.This()));
 }
 
 bool BindingData::PrepareForSerialization(Local<Context> context,
-                                          v8::SnapshotCreator* creator) {
+                                          SnapshotCreator* creator) {
   DCHECK_NULL(internal_field_info_);
   internal_field_info_ = InternalFieldInfoBase::New<InternalFieldInfo>(type());
   internal_field_info_->hrtime_buffer =
@@ -618,7 +625,7 @@ void BindingData::Deserialize(Local<Context> context,
                               int index,
                               InternalFieldInfoBase* info) {
   DCHECK_IS_SNAPSHOT_SLOT(index);
-  v8::HandleScope scope(context->GetIsolate());
+  HandleScope scope(context->GetIsolate());
   Realm* realm = Realm::GetCurrent(context);
   // Recreate the buffer in the constructor.
   InternalFieldInfo* casted_info = static_cast<InternalFieldInfo*>(info);
