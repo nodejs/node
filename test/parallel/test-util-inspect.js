@@ -777,16 +777,18 @@ assert.strictEqual(util.inspect(-5e-324), '-5e-324');
   [undefined, 'RangeError: foo', '[RangeError: foo]'],
   [false, 'false [RangeError]: foo', '[RangeError: foo]'],
   ['', 'foo', '[RangeError: foo]'],
-  [[1, 2, 3], '1,2,3 [RangeError]: foo', '[1,2,3]'],
+  [[1, 2, 3], '1,2,3 [RangeError]: foo', '[[\n  1,\n  2,\n  3\n]]'],
 ].forEach(([value, outputStart, stack]) => {
   let err = new RangeError('foo');
   err.name = value;
+  const result = util.inspect(err);
   assert(
-    util.inspect(err).startsWith(outputStart),
+    result.startsWith(outputStart),
     util.format(
-      'The name set to %o did not result in the expected output "%s"',
+      'The name set to %o did not result in the expected output "%s", got "%s"',
       value,
-      outputStart
+      outputStart,
+      result.split('\n')[0]
     )
   );
 
@@ -3414,5 +3416,15 @@ assert.strictEqual(
     util.inspect(error),
     `${re} [EvalError]
 ${error.stack.split('\n').slice(1).join('\n')}`,
+  );
+}
+
+{
+  const error = new Error();
+  error.stack = [Symbol('foo')];
+
+  assert.strictEqual(
+    inspect(error),
+    '[[\n  Symbol(foo)\n]]'
   );
 }
