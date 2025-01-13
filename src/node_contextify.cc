@@ -1694,7 +1694,7 @@ static bool warned_about_require_esm = false;
 // about which file or which package.json to update.
 const char* require_esm_warning =
     "To load an ES module, set \"type\": \"module\" in the package.json or use "
-    "the .mjs extension.";
+    "the .mjs extension. JIMMY";
 
 static bool ShouldRetryAsESM(Realm* realm,
                              Local<String> message,
