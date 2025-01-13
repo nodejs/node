@@ -2,7 +2,7 @@ import * as common from '../common/index.mjs';
 import tmpdir from '../common/tmpdir.js';
 import { join } from 'path';
 import { DatabaseSync } from 'node:sqlite';
-import { test } from 'node:test';
+import { describe, test } from 'node:test';
 import { writeFileSync } from 'fs';
 
 let cnt = 0;
@@ -32,17 +32,82 @@ function makeSourceDb() {
   return database;
 }
 
-test('throws exception when trying to start backup from a closed database', async (t) => {
-  t.assert.rejects(async () => {
-    const database = new DatabaseSync(':memory:');
+describe('DatabaseSync.prototype.backup()', () => {
+  test('throws if path is not a string', async (t) => {
+    const database = makeSourceDb();
 
-    database.close();
+    t.assert.rejects(async () => {
+      await database.backup();
+    }, common.expectsError({
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: 'The "destination" argument must be a string.'
+    }));
 
-    await database.backup('backup.db');
-  }, common.expectsError({
-    code: 'ERR_INVALID_STATE',
-    message: 'database is not open'
-  }));
+    t.assert.rejects(async () => {
+      await database.backup({});
+    }, common.expectsError({
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: 'The "destination" argument must be a string.'
+    }));
+  });
+
+  test('throws if options is not an object', async (t) => {
+    const database = makeSourceDb();
+
+    t.assert.rejects(async () => {
+      await database.backup('hello.db', 'invalid');
+    }, common.expectsError({
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: 'The "options" argument must be an object.'
+    }));
+
+    t.assert.rejects(async () => {
+      await database.backup({});
+    }, common.expectsError({
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: 'The "destination" argument must be a string.'
+    }));
+  });
+
+  test('throws if any of provided options is invalid', async (t) => {
+    const database = makeSourceDb();
+
+    t.assert.rejects(async () => {
+      await database.backup('hello.db', {
+        sourceDb: 42
+      });
+    }, common.expectsError({
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: 'The "options.sourceDb" argument must be a string.'
+    }));
+
+    t.assert.rejects(async () => {
+      await database.backup('hello.db', {
+        targetDb: 42
+      });
+    }, common.expectsError({
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: 'The "options.targetDb" argument must be a string.'
+    }));
+
+    t.assert.rejects(async () => {
+      await database.backup('hello.db', {
+        rate: 'invalid'
+      });
+    }, common.expectsError({
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: 'The "options.rate" argument must be an integer.'
+    }));
+
+    t.assert.rejects(async () => {
+      await database.backup('hello.db', {
+        progress: 'invalid'
+      });
+    }, common.expectsError({
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: 'The "options.progress" argument must be a function.'
+    }));
+  });
 });
 
 test('database backup', async (t) => {
@@ -66,6 +131,19 @@ test('database backup', async (t) => {
     { __proto__: null, key: 1, value: 'value-1' },
     { __proto__: null, key: 2, value: 'value-2' },
   ]);
+});
+
+test('throws exception when trying to start backup from a closed database', async (t) => {
+  t.assert.rejects(async () => {
+    const database = new DatabaseSync(':memory:');
+
+    database.close();
+
+    await database.backup('backup.db');
+  }, common.expectsError({
+    code: 'ERR_INVALID_STATE',
+    message: 'database is not open'
+  }));
 });
 
 test('database backup fails when dest file is not writable', (t) => {
