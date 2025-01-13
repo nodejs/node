@@ -79,9 +79,6 @@ function foo(){ await Promise.resolve(1)};
    :                       ^^^^^^^
    `----
 
-Caused by:
-    failed to parse
-
 SyntaxError: await is only valid in async functions and the top level bodies of modules
 
 Node.js *
@@ -93,9 +90,6 @@ function foo(){ await Promise.resolve(1)};
  1 | function foo(){ await Promise.resolve(1)};
    :                       ^^^^^^^
    `----
-
-Caused by:
-    failed to parse
 
 SyntaxError: await is only valid in async functions and the top level bodies of modules
 
