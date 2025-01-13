@@ -8,6 +8,7 @@
 #include "node_errors.h"
 #include "node_mem-inl.h"
 #include "sqlite3.h"
+#include "threadpoolwork-inl.h"
 #include "util-inl.h"
 
 #include <cinttypes>
@@ -29,6 +30,7 @@ using v8::FunctionCallback;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::Global;
+using v8::HandleScope;
 using v8::Int32;
 using v8::Integer;
 using v8::Isolate;
@@ -40,6 +42,7 @@ using v8::NewStringType;
 using v8::Null;
 using v8::Number;
 using v8::Object;
+using v8::Promise;
 using v8::SideEffectType;
 using v8::String;
 using v8::TryCatch;
@@ -76,6 +79,23 @@ inline MaybeLocal<Object> CreateSQLiteError(Isolate* isolate,
              env->code_string(),
              env->err_sqlite_error_string())
           .IsNothing()) {
+    return MaybeLocal<Object>();
+  }
+  return e;
+}
+
+inline MaybeLocal<Object> CreateSQLiteError(Isolate* isolate, int errcode) {
+  const char* errstr = sqlite3_errstr(errcode);
+  Local<String> js_errmsg;
+  Local<Object> e;
+  Environment* env = Environment::GetCurrent(isolate);
+  if (!String::NewFromUtf8(isolate, errstr).ToLocal(&js_errmsg) ||
+      !CreateSQLiteError(isolate, errstr).ToLocal(&e) ||
+      e->Set(env->context(),
+             env->errcode_string(),
+             Integer::New(isolate, errcode))
+          .IsNothing() ||
+      e->Set(env->context(), env->errstr_string(), js_errmsg).IsNothing()) {
     return MaybeLocal<Object>();
   }
   return e;
@@ -134,6 +154,180 @@ inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, int errcode) {
       .ToChecked();
   isolate->ThrowException(error);
 }
+
+class BackupJob : public ThreadPoolWork {
+ public:
+  explicit BackupJob(Environment* env,
+                     DatabaseSync* source,
+                     Local<Promise::Resolver> resolver,
+                     std::string source_db,
+                     std::string destination_name,
+                     std::string dest_db,
+                     int pages,
+                     Local<Function> progressFunc)
+      : ThreadPoolWork(env, "node_sqlite3.BackupJob"),
+        env_(env),
+        source_(source),
+        pages_(pages),
+        source_db_(source_db),
+        destination_name_(destination_name),
+        dest_db_(dest_db) {
+    resolver_.Reset(env->isolate(), resolver);
+    progressFunc_.Reset(env->isolate(), progressFunc);
+  }
+
+  void ScheduleBackup() {
+    Isolate* isolate = env()->isolate();
+    HandleScope handle_scope(isolate);
+
+    backup_status_ = sqlite3_open(destination_name_.c_str(), &pDest_);
+
+    Local<Promise::Resolver> resolver =
+        Local<Promise::Resolver>::New(env()->isolate(), resolver_);
+
+    Local<Object> e = Local<Object>();
+
+    if (backup_status_ != SQLITE_OK) {
+      if (!CreateSQLiteError(isolate, pDest_).ToLocal(&e)) {
+        Finalize();
+
+        return;
+      }
+
+      Finalize();
+
+      resolver->Reject(env()->context(), e).ToChecked();
+
+      return;
+    }
+
+    pBackup_ = sqlite3_backup_init(
+        pDest_, dest_db_.c_str(), source_->Connection(), source_db_.c_str());
+
+    if (pBackup_ == nullptr) {
+      if (!CreateSQLiteError(isolate, pDest_).ToLocal(&e)) {
+        Finalize();
+
+        return;
+      }
+
+      Finalize();
+
+      resolver->Reject(env()->context(), e).ToChecked();
+
+      return;
+    }
+
+    this->ScheduleWork();
+  }
+
+  void DoThreadPoolWork() override {
+    backup_status_ = sqlite3_backup_step(pBackup_, pages_);
+  }
+
+  void AfterThreadPoolWork(int status) override {
+    HandleScope handle_scope(env()->isolate());
+    Local<Promise::Resolver> resolver =
+        Local<Promise::Resolver>::New(env()->isolate(), resolver_);
+
+    if (!(backup_status_ == SQLITE_OK || backup_status_ == SQLITE_DONE ||
+          backup_status_ == SQLITE_BUSY || backup_status_ == SQLITE_LOCKED)) {
+      Local<Object> e;
+      if (!CreateSQLiteError(env()->isolate(), backup_status_).ToLocal(&e)) {
+        Finalize();
+
+        return;
+      }
+
+      Finalize();
+
+      resolver->Reject(env()->context(), e).ToChecked();
+
+      return;
+    }
+
+    int total_pages = sqlite3_backup_pagecount(pBackup_);
+    int remaining_pages = sqlite3_backup_remaining(pBackup_);
+
+    if (remaining_pages != 0) {
+      Local<Function> fn =
+          Local<Function>::New(env()->isolate(), progressFunc_);
+
+      if (!fn.IsEmpty()) {
+        Local<Value> argv[] = {
+            Integer::New(env()->isolate(), total_pages),
+            Integer::New(env()->isolate(), remaining_pages),
+        };
+
+        TryCatch try_catch(env()->isolate());
+        fn->Call(env()->context(), Null(env()->isolate()), 2, argv)
+            .FromMaybe(Local<Value>());
+
+        if (try_catch.HasCaught()) {
+          Finalize();
+
+          resolver->Reject(env()->context(), try_catch.Exception()).ToChecked();
+
+          return;
+        }
+      }
+
+      // There's still work to do
+      this->ScheduleWork();
+
+      return;
+    }
+
+    Local<String> message =
+        String::NewFromUtf8(
+            env()->isolate(), "Backup completed", NewStringType::kNormal)
+            .ToLocalChecked();
+
+    Local<Object> e =
+        CreateSQLiteError(env()->isolate(), pDest_).ToLocalChecked();
+
+    Finalize();
+
+    if (backup_status_ == SQLITE_OK) {
+      resolver->Resolve(env()->context(), message).ToChecked();
+    } else {
+      resolver->Reject(env()->context(), e).ToChecked();
+    }
+  }
+
+  void Finalize() {
+    Cleanup();
+    source_->RemoveBackup(this);
+  }
+
+  void Cleanup() {
+    if (pBackup_) {
+      sqlite3_backup_finish(pBackup_);
+      pBackup_ = nullptr;
+    }
+
+    if (pDest_) {
+      backup_status_ = sqlite3_errcode(pDest_);
+      sqlite3_close(pDest_);
+      pDest_ = nullptr;
+    }
+  }
+
+ private:
+  Environment* env() const { return env_; }
+
+  Environment* env_;
+  DatabaseSync* source_;
+  Global<Promise::Resolver> resolver_;
+  Global<Function> progressFunc_;
+  sqlite3* pDest_ = nullptr;
+  sqlite3_backup* pBackup_ = nullptr;
+  int pages_;
+  int backup_status_;
+  std::string source_db_;
+  std::string destination_name_;
+  std::string dest_db_;
+};
 
 UserDefinedFunction::UserDefinedFunction(Environment* env,
                                          Local<Function> fn,
@@ -277,6 +471,10 @@ DatabaseSync::DatabaseSync(Environment* env,
   }
 }
 
+void DatabaseSync::RemoveBackup(BackupJob* job) {
+  backups_.erase(job);
+}
+
 void DatabaseSync::DeleteSessions() {
   // all attached sessions need to be deleted before the database is closed
   // https://www.sqlite.org/session/sqlite3session_create.html
@@ -289,6 +487,7 @@ void DatabaseSync::DeleteSessions() {
 DatabaseSync::~DatabaseSync() {
   if (IsOpen()) {
     FinalizeStatements();
+    FinalizeBackups();
     DeleteSessions();
     sqlite3_close_v2(connection_);
     connection_ = nullptr;
@@ -349,6 +548,14 @@ bool DatabaseSync::Open() {
   }
 
   return true;
+}
+
+void DatabaseSync::FinalizeBackups() {
+  for (auto backup : backups_) {
+    backup->Cleanup();
+  }
+
+  backups_.clear();
 }
 
 void DatabaseSync::FinalizeStatements() {
@@ -555,6 +762,121 @@ void DatabaseSync::Exec(const FunctionCallbackInfo<Value>& args) {
   Utf8Value sql(env->isolate(), args[0].As<String>());
   int r = sqlite3_exec(db->connection_, *sql, nullptr, nullptr, nullptr);
   CHECK_ERROR_OR_THROW(env->isolate(), db, r, SQLITE_OK, void());
+}
+
+// database.backup(destination, { sourceDb, targetDb, rate, progress: (total,
+// remaining) => {} )
+void DatabaseSync::Backup(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  if (!args[0]->IsString()) {
+    THROW_ERR_INVALID_ARG_TYPE(
+        env->isolate(), "The \"destination\" argument must be a string.");
+    return;
+  }
+
+  int rate = 100;
+  std::string source_db = "main";
+  std::string dest_db = "main";
+
+  DatabaseSync* db;
+  ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
+
+  THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
+
+  Utf8Value destFilename(env->isolate(), args[0].As<String>());
+  Local<Function> progressFunc = Local<Function>();
+
+  if (args.Length() > 1) {
+    if (!args[1]->IsObject()) {
+      THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
+                                 "The \"options\" argument must be an object.");
+      return;
+    }
+
+    Local<Object> options = args[1].As<Object>();
+
+    Local<Value> rateValue;
+    if (!options->Get(env->context(), env->rate_string()).ToLocal(&rateValue)) {
+      return;
+    }
+
+    if (!rateValue->IsUndefined()) {
+      if (!rateValue->IsInt32()) {
+        THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            "The \"options.rate\" argument must be an integer.");
+        return;
+      }
+
+      rate = rateValue.As<Int32>()->Value();
+    }
+
+    Local<Value> sourceDbValue;
+    if (!options->Get(env->context(), env->source_db_string())
+             .ToLocal(&sourceDbValue)) {
+      return;
+    }
+
+    if (!sourceDbValue->IsUndefined()) {
+      if (!sourceDbValue->IsString()) {
+        THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            "The \"options.sourceDb\" argument must be a string.");
+        return;
+      }
+
+      source_db =
+          Utf8Value(env->isolate(), sourceDbValue.As<String>()).ToString();
+    }
+
+    Local<Value> targetDbValue;
+    if (!options->Get(env->context(), env->target_db_string())
+             .ToLocal(&targetDbValue)) {
+      return;
+    }
+
+    if (!targetDbValue->IsUndefined()) {
+      if (!targetDbValue->IsString()) {
+        THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            "The \"options.targetDb\" argument must be a string.");
+        return;
+      }
+
+      dest_db =
+          Utf8Value(env->isolate(), targetDbValue.As<String>()).ToString();
+    }
+
+    Local<Value> progressValue;
+    if (!options->Get(env->context(), env->progress_string())
+             .ToLocal(&progressValue)) {
+      return;
+    }
+
+    if (!progressValue->IsUndefined()) {
+      if (!progressValue->IsFunction()) {
+        THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            "The \"options.progress\" argument must be a function.");
+        return;
+      }
+
+      progressFunc = progressValue.As<Function>();
+    }
+  }
+
+  Local<Promise::Resolver> resolver;
+  if (!Promise::Resolver::New(env->context()).ToLocal(&resolver)) {
+    return;
+  }
+
+  args.GetReturnValue().Set(resolver->GetPromise());
+
+  BackupJob* job = new BackupJob(
+      env, db, resolver, source_db, *destFilename, dest_db, rate, progressFunc);
+  db->backups_.insert(job);
+  job->ScheduleBackup();
 }
 
 void DatabaseSync::CustomFunction(const FunctionCallbackInfo<Value>& args) {
@@ -1735,6 +2057,7 @@ static void Initialize(Local<Object> target,
   SetProtoMethod(isolate, db_tmpl, "close", DatabaseSync::Close);
   SetProtoMethod(isolate, db_tmpl, "prepare", DatabaseSync::Prepare);
   SetProtoMethod(isolate, db_tmpl, "exec", DatabaseSync::Exec);
+  SetProtoMethod(isolate, db_tmpl, "backup", DatabaseSync::Backup);
   SetProtoMethod(isolate, db_tmpl, "function", DatabaseSync::CustomFunction);
   SetProtoMethod(
       isolate, db_tmpl, "createSession", DatabaseSync::CreateSession);

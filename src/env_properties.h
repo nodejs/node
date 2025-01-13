@@ -71,6 +71,9 @@
   V(__dirname_string, "__dirname")                                             \
   V(ack_string, "ack")                                                         \
   V(address_string, "address")                                                 \
+  V(source_db_string, "sourceDb")                                              \
+  V(target_db_string, "targetDb")                                              \
+  V(progress_string, "progress")                                               \
   V(aliases_string, "aliases")                                                 \
   V(alpn_callback_string, "ALPNCallback")                                      \
   V(args_string, "args")                                                       \
