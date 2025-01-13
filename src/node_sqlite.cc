@@ -278,18 +278,20 @@ class BackupJob : public ThreadPoolWork {
       return;
     }
 
-    Local<String> message =
-        String::NewFromUtf8(
-            env()->isolate(), "Backup completed", NewStringType::kNormal)
-            .ToLocalChecked();
+    Local<Object> e;
+    if (!CreateSQLiteError(env()->isolate(), pDest_).ToLocal(&e)) {
+      Finalize();
 
-    Local<Object> e =
-        CreateSQLiteError(env()->isolate(), pDest_).ToLocalChecked();
+      return;
+    }
 
     Finalize();
 
     if (backup_status_ == SQLITE_OK) {
-      resolver->Resolve(env()->context(), message).ToChecked();
+      resolver
+          ->Resolve(env()->context(),
+                    Integer::New(env()->isolate(), total_pages))
+          .ToChecked();
     } else {
       resolver->Reject(env()->context(), e).ToChecked();
     }
