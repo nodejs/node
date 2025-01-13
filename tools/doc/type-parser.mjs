@@ -178,6 +178,16 @@ const customTypesMap = {
 
   'https.Server': 'https.html#class-httpsserver',
 
+  'metrics.Counter': 'metrics.html#class-counter',
+  'metrics.Gauge': 'metrics.html#class-gauge',
+  'metrics.Meter': 'metrics.html#class-meter',
+  'metrics.Metric': 'metrics.html#class-metric',
+  'metrics.MetricReport': 'metrics.html#class-metricreport',
+  'metrics.PeriodicGauge': 'metrics.html#class-periodicgauge',
+  'metrics.Timer': 'metrics.html#class-timer',
+  'metrics.TimerFactory': 'metrics.html#class-timerfactory',
+  'metrics.UniqueSet': 'metrics.html#class-uniqueset',
+
   'module': 'modules.html#the-module-object',
 
   'module.SourceMap':
