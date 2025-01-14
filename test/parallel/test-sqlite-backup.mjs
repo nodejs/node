@@ -210,7 +210,7 @@ test('backup fails when destination cannot be opened', async (t) => {
   const database = makeSourceDb();
 
   t.assert.rejects(async () => {
-    await database.backup('/invalid/path/to/db.sqlite');
+    await database.backup(`${tmpdir.path}/invalid/backup.db`);
   }, {
     message: 'unable to open database file'
   });
