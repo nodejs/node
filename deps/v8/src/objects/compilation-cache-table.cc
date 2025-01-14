@@ -268,6 +268,13 @@ bool ScriptCacheKey::MatchesOrigin(Script script) {
     return false;
   }
 
+  // Don't compare host options if the script was deserialized because we didn't
+  // serialize host options (see CodeSerializer::SerializeObjectImpl())
+  if (script.deserialized() &&
+      script.host_defined_options() ==
+          ReadOnlyRoots(isolate_).empty_fixed_array()) {
+    return true;
+  }
   // TODO(cbruni, chromium:1244145): Remove once migrated to the context
   Handle<Object> maybe_host_defined_options;
   if (!host_defined_options_.ToHandle(&maybe_host_defined_options)) {
