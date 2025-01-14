@@ -31,6 +31,8 @@ using ncrypto::BIOPointer;
 using ncrypto::CryptoErrorList;
 using ncrypto::EnginePointer;
 using ncrypto::EVPKeyCtxPointer;
+using ncrypto::SSLCtxPointer;
+using ncrypto::SSLPointer;
 using v8::ArrayBuffer;
 using v8::BackingStore;
 using v8::BigInt;
@@ -199,6 +201,27 @@ void TestFipsCrypto(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Mutex::ScopedLock lock(per_process::cli_options_mutex);
   Mutex::ScopedLock fips_lock(fips_mutex);
   args.GetReturnValue().Set(ncrypto::testFipsEnabled() ? 1 : 0);
+}
+
+void GetOpenSSLSecLevelCrypto(const FunctionCallbackInfo<Value>& args) {
+  // for BoringSSL assume the same as the default
+  int sec_level = OPENSSL_TLS_SECURITY_LEVEL;
+#ifndef OPENSSL_IS_BORINGSSL
+  Environment* env = Environment::GetCurrent(args);
+
+  auto ctx = SSLCtxPointer::New();
+  if (!ctx) {
+    return ThrowCryptoError(env, ERR_get_error(), "SSL_CTX_new");
+  }
+
+  auto ssl = SSLPointer::New(ctx);
+  if (!ssl) {
+    return ThrowCryptoError(env, ERR_get_error(), "SSL_new");
+  }
+
+  sec_level = SSL_get_security_level(ssl);
+#endif  // OPENSSL_IS_BORINGSSL
+  args.GetReturnValue().Set(sec_level);
 }
 
 void CryptoErrorStore::Capture() {
@@ -699,6 +722,9 @@ void Initialize(Environment* env, Local<Object> target) {
 
   SetMethod(context, target, "secureBuffer", SecureBuffer);
   SetMethod(context, target, "secureHeapUsed", SecureHeapUsed);
+
+  SetMethodNoSideEffect(
+      context, target, "getOpenSSLSecLevelCrypto", GetOpenSSLSecLevelCrypto);
 }
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 #ifndef OPENSSL_NO_ENGINE
@@ -710,6 +736,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(TestFipsCrypto);
   registry->Register(SecureBuffer);
   registry->Register(SecureHeapUsed);
+  registry->Register(GetOpenSSLSecLevelCrypto);
 }
 
 }  // namespace Util
