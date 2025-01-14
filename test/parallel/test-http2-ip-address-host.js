@@ -27,7 +27,7 @@ server.on('stream', common.mustCall((stream) => {
 
 let done = 0;
 
-server.listen(0, common.mustCall(async () => {
+server.listen(0, common.mustCall(() => {
   function handleRequest(url) {
     const client = h2.connect(url,
                               { rejectUnauthorized: false });
