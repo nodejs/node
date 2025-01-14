@@ -119,6 +119,14 @@ std::string GetFileExtension(std::string_view filename) {
   return std::string(filename.substr(dot_position));
 }
 
+std::string GetWarningMessage(const std::string& file_extension) {
+    if (file_extension == ".cjs") {
+        return "Cannot use 'import' statement in a .cjs file. "
+               "CommonJS files (.cjs) do not support 'import'. Use 'require()' instead.";
+    }
+    return "To load an ES module, set \"type\": \"module\" in the package.json or use the .mjs extension.";
+}
+
 // Convert an int to a V8 Name (String or Symbol).
 Local<Name> Uint32ToName(Local<Context> context, uint32_t index) {
   return Uint32::New(context->GetIsolate(), index)->ToString(context)
@@ -1766,13 +1774,7 @@ static void CompileFunctionForCJSLoader(
     std::string url = url::FromFilePath(filename_utf8.ToStringView());
     std::string file_extension = GetFileExtension(filename_utf8.ToStringView());
     // TODO: Enhance require_esm_warning to include the specific package.json file location, if applicable.
-    std::string require_esm_warning;
-    if (file_extension == ".cjs") {
-      require_esm_warning = "Cannot use 'import' statement in a .cjs file. "
-                            "CommonJS files (.cjs) do not support 'import'. Use 'require()' instead.";
-    } else {
-      require_esm_warning = "To load an ES module, set \"type\": \"module\" in the package.json or use the .mjs extension.";
-    }
+    std::string require_esm_warning = GetWarningMessage(file_extension);
     Local<String> url_value;
     if (!String::NewFromUtf8(isolate, url.c_str()).ToLocal(&url_value)) {
       return;
