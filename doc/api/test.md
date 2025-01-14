@@ -3614,8 +3614,9 @@ test('top level test', async (t) => {
 added: REPLACEME
 -->
 
-* `condition` {Function|AsyncFunction} A function that is invoked periodically
-  until it completes successfully or the defined polling timeout elapses. This
+* `condition` {Function|AsyncFunction} An assertion function that is invoked
+  periodically until it completes successfully or the defined polling timeout
+  elapses. Successful completion is defined as not throwing or rejecting. This
   function does not accept any arguments, and is allowed to return any value.
 * `options` {Object} An optional configuration object for the polling operation.
   The following properties are supported:
