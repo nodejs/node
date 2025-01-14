@@ -1,6 +1,7 @@
 'use strict';
 
-const common = require('../common'); if (!common.hasCrypto) { common.skip('missing crypto'); };
+const common = require('../common');
+if (!common.hasCrypto) { common.skip('missing crypto'); };
 const assert = require('assert');
 const fixtures = require('../common/fixtures');
 const h2 = require('http2');
@@ -23,26 +24,12 @@ server.on('stream', common.mustCall((stream) => {
   })
   );
 }, 2));
-server.on('close', common.mustCall());
-server.listen(0, common.mustCall(async () => {
-  await new Promise((resolve) => {
-    const client = h2.connect(`https://127.0.0.1:${server.address().port}`,
-                              { rejectUnauthorized: false });
-    const req = client.request();
-    let data = '';
-    req.setEncoding('utf8');
-    req.on('data', (d) => data += d);
-    req.on('end', common.mustCall(() => {
-      const originSet = req.session.originSet;
-      assert.strictEqual(originSet[0], `https://127.0.0.1:${server.address().port}`);
-      client.close();
-      resolve();
-    }));
-  });
 
-  await new Promise((resolve) => {
-    // Test with IPv6 address
-    const client = h2.connect(`https://[::1]:${server.address().port}`,
+let done = 0;
+
+server.listen(0, common.mustCall(async () => {
+  function handleRequest(url) {
+    const client = h2.connect(url,
                               { rejectUnauthorized: false });
     const req = client.request();
     let data = '';
@@ -50,10 +37,14 @@ server.listen(0, common.mustCall(async () => {
     req.on('data', (d) => data += d);
     req.on('end', common.mustCall(() => {
       const originSet = req.session.originSet;
-      assert.strictEqual(originSet[0], `https://[::1]:${server.address().port}`);
+      assert.strictEqual(originSet[0], url);
       client.close();
-      resolve();
+      if (++done === 2) server.close();
     }));
-  });
-  server.close();
+  }
+
+  const ipv4Url = `https://127.0.0.1:${server.address().port}`;
+  const ipv6Url = `https://[::1]:${server.address().port}`;
+  handleRequest(ipv4Url);
+  if (common.hasIPv6) handleRequest(ipv6Url);
 }));
