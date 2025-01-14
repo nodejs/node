@@ -153,9 +153,8 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   // Create a function that results from wrapping |source| in a function,
   // with |arguments| being a list of parameters for that function.
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSFunction> GetWrappedFunction(
-      Handle<String> source, Handle<FixedArray> arguments,
-      Handle<Context> context, const ScriptDetails& script_details,
-      AlignedCachedData* cached_data,
+      Handle<String> source, Handle<Context> context,
+      const ScriptDetails& script_details, AlignedCachedData* cached_data,
       v8::ScriptCompiler::CompileOptions compile_options,
       v8::ScriptCompiler::NoCacheReason no_cache_reason);
 

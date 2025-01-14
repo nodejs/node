@@ -244,7 +244,7 @@ Smi ScriptHash(String source, MaybeHandle<Object> maybe_name, int line_offset,
 // We only re-use a cached function for some script source code if the
 // script originates from the same place. This is to avoid issues
 // when reporting errors, etc.
-bool ScriptCacheKey::MatchesOrigin(Script script) {
+bool ScriptCacheKey::MatchesScript(Script script) {
   DisallowGarbageCollection no_gc;
 
   // If the script name isn't set, the boilerplate script should have
@@ -265,6 +265,30 @@ bool ScriptCacheKey::MatchesOrigin(Script script) {
   }
   // Compare the two name strings for equality.
   if (!String::cast(*name).Equals(String::cast(script.name()))) {
+    return false;
+  }
+
+  Handle<FixedArray> wrapped_arguments_handle;
+  if (wrapped_arguments_.ToHandle(&wrapped_arguments_handle)) {
+    if (!script.is_wrapped()) {
+      return false;
+    }
+    FixedArray wrapped_arguments = *wrapped_arguments_handle;
+    FixedArray other_wrapped_arguments = script.wrapped_arguments();
+    int length = wrapped_arguments.length();
+    if (length != other_wrapped_arguments.length()) {
+      return false;
+    }
+    for (int i = 0; i < length; i++) {
+      Object arg = wrapped_arguments.get(i);
+      Object other_arg = other_wrapped_arguments.get(i);
+      DCHECK(arg.IsString());
+      DCHECK(other_arg.IsString());
+      if (!String::cast(arg).Equals(String::cast(other_arg))) {
+        return false;
+      }
+    }
+  } else if (script.is_wrapped()) {
     return false;
   }
 
@@ -303,12 +327,14 @@ ScriptCacheKey::ScriptCacheKey(Handle<String> source,
     : ScriptCacheKey(source, script_details->name_obj,
                      script_details->line_offset, script_details->column_offset,
                      script_details->origin_options,
-                     script_details->host_defined_options, isolate) {}
+                     script_details->host_defined_options,
+                     script_details->wrapped_arguments, isolate) {}
 
 ScriptCacheKey::ScriptCacheKey(Handle<String> source, MaybeHandle<Object> name,
                                int line_offset, int column_offset,
                                v8::ScriptOriginOptions origin_options,
                                MaybeHandle<Object> host_defined_options,
+                               MaybeHandle<FixedArray> maybe_wrapped_arguments,
                                Isolate* isolate)
     : HashTableKey(static_cast<uint32_t>(ScriptHash(*source, name, line_offset,
                                                     column_offset,
@@ -320,8 +346,19 @@ ScriptCacheKey::ScriptCacheKey(Handle<String> source, MaybeHandle<Object> name,
       column_offset_(column_offset),
       origin_options_(origin_options),
       host_defined_options_(host_defined_options),
+      wrapped_arguments_(maybe_wrapped_arguments),
       isolate_(isolate) {
   DCHECK(Smi::IsValid(static_cast<int>(Hash())));
+#ifdef DEBUG
+  Handle<FixedArray> wrapped_arguments;
+  if (maybe_wrapped_arguments.ToHandle(&wrapped_arguments)) {
+    int length = wrapped_arguments->length();
+    for (int i = 0; i < length; i++) {
+      Object arg = wrapped_arguments->get(i);
+      DCHECK(arg.IsString());
+    }
+  }
+#endif
 }
 
 bool ScriptCacheKey::IsMatch(Object other) {
@@ -342,7 +379,7 @@ bool ScriptCacheKey::IsMatch(Object other) {
   }
   Script other_script = Script::cast(other_script_object);
   String other_source = String::cast(other_script.source());
-  return other_source.Equals(*source_) && MatchesOrigin(other_script);
+  return other_source.Equals(*source_) && MatchesScript(other_script);
 }
 
 Handle<Object> ScriptCacheKey::AsHandle(Isolate* isolate,
@@ -469,6 +506,7 @@ Handle<CompilationCacheTable> CompilationCacheTable::EnsureScriptTableCapacity(
 
 Handle<CompilationCacheTable> CompilationCacheTable::PutScript(
     Handle<CompilationCacheTable> cache, Handle<String> src,
+    MaybeHandle<FixedArray> maybe_wrapped_arguments,
     Handle<SharedFunctionInfo> value, Isolate* isolate) {
   src = String::Flatten(isolate, src);
   Handle<Script> script = handle(Script::cast(value->script()), isolate);
@@ -480,7 +518,7 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutScript(
                                           isolate);
   ScriptCacheKey key(src, script_name, script->line_offset(),
                      script->column_offset(), script->origin_options(),
-                     host_defined_options, isolate);
+                     host_defined_options, maybe_wrapped_arguments, isolate);
   Handle<Object> k = key.AsHandle(isolate, value);
 
   // Check whether there is already a matching entry. If so, we must overwrite

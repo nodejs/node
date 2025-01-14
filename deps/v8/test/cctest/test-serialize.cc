@@ -28,6 +28,8 @@
 #include <signal.h>
 #include <sys/stat.h>
 
+#include <vector>
+
 #include "include/v8-extension.h"
 #include "include/v8-function.h"
 #include "include/v8-locker.h"
@@ -60,7 +62,6 @@
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
 #include "test/cctest/setup-isolate-for-tests.h"
-
 namespace v8 {
 namespace internal {
 
@@ -1904,6 +1905,259 @@ TEST(CodeSerializerPromotedToCompilationCache) {
   }
 
   delete cache;
+}
+
+TEST(CompileFunctionCompilationCache) {
+  LocalContext env;
+  Isolate* i_isolate = CcTest::i_isolate();
+
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  const char* source = "a + b";
+  v8::Local<v8::String> src = v8_str(source);
+  v8::Local<v8::String> resource_name = v8_str("test");
+  Handle<String> i_src = Utils::OpenHandle(*src);
+  Handle<String> i_resource_name = Utils::OpenHandle(*resource_name);
+
+  v8::Local<v8::PrimitiveArray> host_defined_options =
+      v8::PrimitiveArray::New(isolate, 1);
+  v8::Local<v8::Symbol> sym = v8::Symbol::New(isolate, v8_str("hdo"));
+  host_defined_options->Set(isolate, 0, sym);
+
+  Handle<FixedArray> i_host_defined_options =
+      i_isolate->factory()->NewFixedArray(1);
+  Handle<Symbol> i_sym = Utils::OpenHandle(*sym);
+  i_host_defined_options->set(0, *i_sym);
+
+  v8::ScriptOrigin origin(resource_name, 0, 0, false, -1,
+                          v8::Local<v8::Value>(), false, false, false,
+                          host_defined_options);
+
+  std::vector<const char*> raw_args = {"a", "b"};
+
+  std::vector<v8::Local<v8::String>> args;
+  for (size_t i = 0; i < raw_args.size(); ++i) {
+    args.push_back(v8_str(raw_args[i]));
+  }
+  Handle<FixedArray> i_args =
+      i_isolate->factory()->NewFixedArray(static_cast<int>(args.size()));
+  for (size_t i = 0; i < raw_args.size(); ++i) {
+    Handle<String> arg =
+        i_isolate->factory()->NewStringFromAsciiChecked(raw_args[i]);
+    i_args->set(static_cast<int>(i), *arg);
+  }
+
+  Handle<SharedFunctionInfo> sfi;
+  v8::ScriptCompiler::CachedData* cache;
+  {
+    v8::ScriptCompiler::Source script_source(src, origin);
+    v8::Local<v8::Function> fun =
+        v8::ScriptCompiler::CompileFunction(
+            env.local(), &script_source, args.size(), args.data(), 0, nullptr,
+            v8::ScriptCompiler::kEagerCompile)
+            .ToLocalChecked();
+    cache = v8::ScriptCompiler::CreateCodeCacheForFunction(fun);
+    auto js_function =
+        DirectHandle<JSFunction>::cast(Utils::OpenDirectHandle(*fun));
+    sfi = Handle<SharedFunctionInfo>(js_function->shared(), i_isolate);
+  }
+
+  {
+    DisallowCompilation no_compile_expected(i_isolate);
+    v8::ScriptCompiler::Source script_source(src, origin, cache);
+    v8::Local<v8::Function> fun =
+        v8::ScriptCompiler::CompileFunction(
+            env.local(), &script_source, args.size(), args.data(), 0, nullptr,
+            v8::ScriptCompiler::kConsumeCodeCache)
+            .ToLocalChecked();
+    auto js_function =
+        DirectHandle<JSFunction>::cast(Utils::OpenDirectHandle(*fun));
+    CHECK_EQ(js_function->shared(), *sfi);
+  }
+
+  auto CopyScriptDetails = [&](ScriptOriginOptions origin_options =
+                                   v8::ScriptOriginOptions()) {
+    ScriptDetails script_details(i_resource_name, origin_options);
+    script_details.wrapped_arguments = i_args;
+    script_details.host_defined_options = i_host_defined_options;
+    return script_details;
+  };
+
+  {
+    // Lookup with the same wrapped arguments should succeed.
+    ScriptDetails script_details = CopyScriptDetails();
+    auto lookup_result = i_isolate->compilation_cache()->LookupScript(
+        i_src, script_details, LanguageMode::kSloppy);
+    CHECK_EQ(*lookup_result.toplevel_sfi().ToHandleChecked(), *sfi);
+  }
+
+  {
+    // Lookup with empty wrapped arguments and host-defined options should fail:
+    ScriptDetails script_details = CopyScriptDetails();
+    script_details.wrapped_arguments = kNullMaybeHandle;
+
+    auto lookup_result = i_isolate->compilation_cache()->LookupScript(
+        i_src, script_details, LanguageMode::kSloppy);
+    CHECK(lookup_result.script().is_null() &&
+          lookup_result.toplevel_sfi().is_null());
+  }
+
+  {
+    // Lookup with different wrapped arguments should fail:
+    Handle<FixedArray> new_args = i_isolate->factory()->NewFixedArray(3);
+    Handle<String> arg_1 = i_isolate->factory()->NewStringFromAsciiChecked("a");
+    Handle<String> arg_2 = i_isolate->factory()->NewStringFromAsciiChecked("b");
+    Handle<String> arg_3 = i_isolate->factory()->NewStringFromAsciiChecked("c");
+    new_args->set(0, *arg_1);
+    new_args->set(1, *arg_2);
+    new_args->set(2, *arg_3);
+    ScriptDetails script_details = CopyScriptDetails();
+    script_details.wrapped_arguments = new_args;
+
+    auto lookup_result = i_isolate->compilation_cache()->LookupScript(
+        i_src, script_details, LanguageMode::kSloppy);
+    CHECK(lookup_result.script().is_null() &&
+          lookup_result.toplevel_sfi().is_null());
+  }
+
+  {
+    // Lookup with different host_defined_options should fail:
+    Handle<FixedArray> new_options = i_isolate->factory()->NewFixedArray(1);
+    Handle<Symbol> new_sym = i_isolate->factory()->NewSymbol();
+    new_options->set(0, *new_sym);
+    ScriptDetails script_details = CopyScriptDetails();
+    script_details.host_defined_options = new_options;
+
+    auto lookup_result = i_isolate->compilation_cache()->LookupScript(
+        i_src, script_details, LanguageMode::kSloppy);
+    CHECK(lookup_result.script().is_null() &&
+          lookup_result.toplevel_sfi().is_null());
+  }
+
+  {
+    // Lookup with different string with same contents should succeed:
+    ScriptDetails script_details = CopyScriptDetails();
+
+    Handle<String> new_src =
+        i_isolate->factory()->NewStringFromAsciiChecked(source);
+    auto lookup_result = i_isolate->compilation_cache()->LookupScript(
+        new_src, script_details, LanguageMode::kSloppy);
+    CHECK_EQ(*lookup_result.toplevel_sfi().ToHandleChecked(), *sfi);
+  }
+
+  {
+    // Lookup with different content should fail;
+    ScriptDetails script_details = CopyScriptDetails();
+
+    Handle<String> new_src =
+        i_isolate->factory()->NewStringFromAsciiChecked("a + b + 1");
+    auto lookup_result = i_isolate->compilation_cache()->LookupScript(
+        new_src, script_details, LanguageMode::kSloppy);
+    CHECK(lookup_result.script().is_null() &&
+          lookup_result.toplevel_sfi().is_null());
+  }
+
+  {
+    // Lookup with different name string should fail:
+    ScriptDetails script_details = CopyScriptDetails();
+    script_details.name_obj =
+        i_isolate->factory()->NewStringFromAsciiChecked("other");
+
+    auto lookup_result = i_isolate->compilation_cache()->LookupScript(
+        i_src, script_details, LanguageMode::kSloppy);
+    CHECK(lookup_result.script().is_null() &&
+          lookup_result.toplevel_sfi().is_null());
+  }
+
+  {
+    // Lookup with different position should fail:
+    ScriptDetails script_details = CopyScriptDetails();
+    script_details.line_offset = 0xFF;
+
+    auto lookup_result = i_isolate->compilation_cache()->LookupScript(
+        i_src, script_details, LanguageMode::kSloppy);
+    CHECK(lookup_result.script().is_null() &&
+          lookup_result.toplevel_sfi().is_null());
+  }
+
+  {
+    // Lookup with different position should fail:
+    ScriptDetails script_details = CopyScriptDetails();
+    script_details.column_offset = 0xFF;
+
+    auto lookup_result = i_isolate->compilation_cache()->LookupScript(
+        i_src, script_details, LanguageMode::kSloppy);
+    CHECK(lookup_result.script().is_null() &&
+          lookup_result.toplevel_sfi().is_null());
+  }
+
+  {
+    // Lookup with different language mode should fail:
+    ScriptDetails script_details = CopyScriptDetails();
+
+    auto lookup_result = i_isolate->compilation_cache()->LookupScript(
+        i_src, script_details, LanguageMode::kStrict);
+    CHECK(lookup_result.script().is_null() &&
+          lookup_result.toplevel_sfi().is_null());
+  }
+
+  {
+    // Lookup with different script_options should fail
+    ScriptOriginOptions origin_options(false, true);
+    CHECK_NE(ScriptOriginOptions().Flags(), origin_options.Flags());
+    ScriptDetails script_details = CopyScriptDetails(origin_options);
+
+    auto lookup_result = i_isolate->compilation_cache()->LookupScript(
+        i_src, script_details, LanguageMode::kSloppy);
+    CHECK(lookup_result.script().is_null() &&
+          lookup_result.toplevel_sfi().is_null());
+  }
+
+  // Compile the function again with different options.
+  Handle<SharedFunctionInfo> other_sfi;
+  v8::Local<v8::Symbol> other_sym;
+  {
+    v8::Local<v8::PrimitiveArray> other_options =
+        v8::PrimitiveArray::New(isolate, 1);
+    other_sym = v8::Symbol::New(isolate, v8_str("hdo2"));
+    other_options->Set(isolate, 0, other_sym);
+    v8::ScriptOrigin other_origin(resource_name, 0, 0, false, -1,
+                                  v8::Local<v8::Value>(), false, false, false,
+                                  other_options);
+
+    v8::ScriptCompiler::Source script_source(src, other_origin);
+    v8::Local<v8::Function> fun =
+        v8::ScriptCompiler::CompileFunction(
+            env.local(), &script_source, args.size(), args.data(), 0, nullptr,
+            v8::ScriptCompiler::kNoCompileOptions,
+            ScriptCompiler::kNoCacheNoReason)
+            .ToLocalChecked();
+    auto js_function =
+        DirectHandle<JSFunction>::cast(Utils::OpenDirectHandle(*fun));
+    other_sfi = Handle<SharedFunctionInfo>(js_function->shared(), i_isolate);
+    CHECK_NE(*other_sfi, *sfi);
+  }
+
+  {
+    // The original script can still be found.
+    ScriptDetails script_details = CopyScriptDetails();
+    auto lookup_result = i_isolate->compilation_cache()->LookupScript(
+        i_src, script_details, LanguageMode::kSloppy);
+    CHECK_EQ(*lookup_result.toplevel_sfi().ToHandleChecked(), *sfi);
+  }
+
+  {
+    // The new script can also be found.
+    Handle<FixedArray> other_options = i_isolate->factory()->NewFixedArray(1);
+    Handle<Symbol> i_other_sym = Utils::OpenHandle(*other_sym);
+    other_options->set(0, *i_other_sym);
+    ScriptDetails script_details = CopyScriptDetails();
+    script_details.host_defined_options = other_options;
+
+    auto lookup_result = i_isolate->compilation_cache()->LookupScript(
+        i_src, script_details, LanguageMode::kSloppy);
+    CHECK_EQ(*lookup_result.toplevel_sfi().ToHandleChecked(), *other_sfi);
+  }
 }
 
 TEST(CodeSerializerInternalizedString) {
