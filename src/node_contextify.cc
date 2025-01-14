@@ -110,6 +110,15 @@ using v8::Value;
 
 namespace {
 
+// Utility function to get the file extension from a filename
+std::string GetFileExtension(std::string_view filename) {
+  size_t dot_position = filename.find_last_of('.');
+  if (dot_position == std::string_view::npos) {
+    return ""; // No extension found
+  }
+  return std::string(filename.substr(dot_position));
+}
+
 // Convert an int to a V8 Name (String or Symbol).
 Local<Name> Uint32ToName(Local<Context> context, uint32_t index) {
   return Uint32::New(context->GetIsolate(), index)->ToString(context)
@@ -1689,13 +1698,6 @@ static MaybeLocal<Function> CompileFunctionForCJSLoader(
 }
 
 static bool warned_about_require_esm = false;
-// TODO(joyeecheung): this was copied from the warning previously emitted in the
-// JS land, but it's not very helpful. There should be specific information
-// about which file or which package.json to update.
-const char* require_esm_warning =
-    "To load an ES module, set \"type\": \"module\" in the package.json or use "
-    "the .mjs extension. JIMMY";
-
 static bool ShouldRetryAsESM(Realm* realm,
                              Local<String> message,
                              Local<String> code,
@@ -1762,6 +1764,15 @@ static void CompileFunctionForCJSLoader(
     // be reparsed as ESM.
     Utf8Value filename_utf8(isolate, filename);
     std::string url = url::FromFilePath(filename_utf8.ToStringView());
+    std::string file_extension = GetFileExtension(filename_utf8.ToStringView());
+    // TODO: Enhance require_esm_warning to include the specific package.json file location, if applicable.
+    std::string require_esm_warning;
+    if (file_extension == ".cjs") {
+      require_esm_warning = "Cannot use 'import' statement in a .cjs file. "
+                            "CommonJS files (.cjs) do not support 'import'. Use 'require()' instead.";
+    } else {
+      require_esm_warning = "To load an ES module, set \"type\": \"module\" in the package.json or use the .mjs extension.";
+    }
     Local<String> url_value;
     if (!String::NewFromUtf8(isolate, url.c_str()).ToLocal(&url_value)) {
       return;
