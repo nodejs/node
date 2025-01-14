@@ -1039,13 +1039,14 @@ changes:
 * `nextResolve` {Function} The subsequent `resolve` hook in the chain, or the
   Node.js default `resolve` hook after the last user-supplied `resolve` hook
   * `specifier` {string}
-  * `context` {Object}
+  * `context` {Object|undefined} When omitted, the defaults are provided. When provided, defaults
+    are merged in with preference to the provided properties.
 * Returns: {Object|Promise} The asynchronous version takes either an object containing the
   following properties, or a `Promise` that will resolve to such an object. The
   synchronous version only accepts an object returned synchronously.
-  * `format` {string|null|undefined} A hint to the load hook (it might be
-    ignored)
-    `'builtin' | 'commonjs' | 'json' | 'module' | 'wasm'`
+  * `format` {string|null|undefined} A hint to the `load` hook (it might be ignored). It can be a
+    module format (such as `'commonjs'` or `'module'`) or an arbitrary value like `'css'` or
+    `'yaml'`.
   * `importAttributes` {Object|undefined} The import attributes to use when
     caching the module (optional; if excluded the input will be used)
   * `shortCircuit` {undefined|boolean} A signal that this hook intends to
@@ -1148,12 +1149,14 @@ changes:
 * `context` {Object}
   * `conditions` {string\[]} Export conditions of the relevant `package.json`
   * `format` {string|null|undefined} The format optionally supplied by the
-    `resolve` hook chain
+    `resolve` hook chain. This can be any string value as an input; input values do not need to
+    conform to the list of acceptable return values described below.
   * `importAttributes` {Object}
 * `nextLoad` {Function} The subsequent `load` hook in the chain, or the
   Node.js default `load` hook after the last user-supplied `load` hook
   * `url` {string}
-  * `context` {Object}
+  * `context` {Object|undefined} When omitted, defaults are provided. When provided, defaults are
+    merged in with preference to the provided properties.
 * Returns: {Object|Promise} The asynchronous version takes either an object containing the
   following properties, or a `Promise` that will resolve to such an object. The
   synchronous version only accepts an object returned synchronously.
