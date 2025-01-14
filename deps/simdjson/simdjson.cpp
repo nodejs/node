@@ -16560,8 +16560,12 @@ public:
    *
    * - increment_count(iter) - each time a value is found in an array or object.
    */
+  /**
+   * To backport simdjson to Node.js v20.x which uses gnu++17, this is patched to use inline
+   * instead of always_inline to avoid forcing GCC to inline it on platforms that don't support it.
+   */
   template<bool STREAMING, typename V>
-  simdjson_warn_unused simdjson_inline error_code walk_document(V &visitor) noexcept;
+  simdjson_warn_unused inline error_code walk_document(V &visitor) noexcept;
 
   /**
    * Create an iterator capable of walking a JSON document.
@@ -16633,8 +16637,12 @@ public:
   simdjson_warn_unused simdjson_inline error_code visit_primitive(V &visitor, const uint8_t *value) noexcept;
 };
 
+/**
+ * To backport simdjson to Node.js v20.x which uses gnu++17, this is patched to use inline
+ * instead of always_inline to avoid forcing GCC to inline it on platforms that don't support it.
+ */
 template<bool STREAMING, typename V>
-simdjson_warn_unused simdjson_inline error_code json_iterator::walk_document(V &visitor) noexcept {
+simdjson_warn_unused inline error_code json_iterator::walk_document(V &visitor) noexcept {
   logger::log_start();
 
   //
