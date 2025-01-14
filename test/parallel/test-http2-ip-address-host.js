@@ -14,6 +14,9 @@ const key = loadKey('agent8-key.pem');
 const cert = fixtures.readKey('agent8-cert.pem');
 
 const server = h2.createSecureServer({ key, cert });
+const hasIPv6 = common.hasIPv6;
+const testCount = hasIPv6 ? 2 : 1;
+
 server.on('stream', common.mustCall((stream) => {
   const session = stream.session;
   assert.strictEqual(session.servername, undefined);
@@ -23,7 +26,7 @@ server.on('stream', common.mustCall((stream) => {
     originSet: session.originSet
   })
   );
-}, 2));
+}, testCount));
 
 let done = 0;
 
@@ -39,12 +42,12 @@ server.listen(0, common.mustCall(() => {
       const originSet = req.session.originSet;
       assert.strictEqual(originSet[0], url);
       client.close();
-      if (++done === 2) server.close();
+      if (++done === testCount) server.close();
     }));
   }
 
   const ipv4Url = `https://127.0.0.1:${server.address().port}`;
   const ipv6Url = `https://[::1]:${server.address().port}`;
   handleRequest(ipv4Url);
-  if (common.hasIPv6) handleRequest(ipv6Url);
+  if (hasIPv6) handleRequest(ipv6Url);
 }));
