@@ -43,7 +43,7 @@ describe('DatabaseSync.prototype.backup()', () => {
       message: 'The "destination" argument must be a string.'
     });
 
-    t.assert.rejects(() => {
+    t.assert.throws(() => {
       database.backup({});
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
@@ -54,7 +54,7 @@ describe('DatabaseSync.prototype.backup()', () => {
   test('throws if options is not an object', (t) => {
     const database = makeSourceDb();
 
-    t.assert.rejects(() => {
+    t.assert.throws(() => {
       database.backup('hello.db', 'invalid');
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
@@ -65,25 +65,25 @@ describe('DatabaseSync.prototype.backup()', () => {
   test('throws if any of provided options is invalid', (t) => {
     const database = makeSourceDb();
 
-    t.assert.rejects(() => {
+    t.assert.throws(() => {
       database.backup('hello.db', {
-        sourceDb: 42
+        source: 42
       });
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: 'The "options.sourceDb" argument must be a string.'
+      message: 'The "options.source" argument must be a string.'
     });
 
-    t.assert.rejects(() => {
+    t.assert.throws(() => {
       database.backup('hello.db', {
-        targetDb: 42
+        target: 42
       });
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       message: 'The "options.targetDb" argument must be a string.'
     });
 
-    t.assert.rejects(() => {
+    t.assert.throws(() => {
       database.backup('hello.db', {
         rate: 'invalid'
       });
@@ -92,7 +92,7 @@ describe('DatabaseSync.prototype.backup()', () => {
       message: 'The "options.rate" argument must be an integer.'
     });
 
-    t.assert.rejects(() => {
+    t.assert.throws(() => {
       database.backup('hello.db', {
         progress: 'invalid'
       });
@@ -199,7 +199,7 @@ test('backup fails when source db is invalid', async (t) => {
   t.assert.rejects(async () => {
     await database.backup(destDb, {
       rate: 1,
-      sourceDb: 'invalid',
+      source: 'invalid',
     });
   }, {
     message: 'unknown database invalid'
