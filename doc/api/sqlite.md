@@ -115,6 +115,26 @@ added: v22.5.0
 
 Constructs a new `DatabaseSync` instance.
 
+### `database.backup(destination[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `destination` {string} The path where the backup will be created. If the file already exists, the contents will be
+  overwritten.
+* `options` {Object} Optional configuration for the backup. The
+  following properties are supported:
+  * `source` {string} Name of the source database. **Default:** `'main'`.
+  * `target` {string} NAme of the target database. **Default:** `'main'`.
+  * `rate` {number} Number of pages to be transmitted in each batch of the backup. **Default:** `100`.
+  * `progress` {Function} Callback function that will be called with the number of pages copied and the total number of
+    pages.
+
+This method makes a backup of the database. The returned {Promise} will resolve when the backup is completed and will
+reject if an error occurs. This method abstracts the [`sqlite3_backup_init()`][], [`sqlite3_backup_step()`][] and
+[`sqlite3_backup_finish()`][] functions.
+
 ### `database.close()`
 
 <!-- YAML
@@ -609,6 +629,9 @@ resolution handler passed to [`database.applyChangeset()`][]. See also
 [`SQLITE_DIRECTONLY`]: https://www.sqlite.org/c3ref/c_deterministic.html
 [`SQLITE_MAX_FUNCTION_ARG`]: https://www.sqlite.org/limits.html#max_function_arg
 [`database.applyChangeset()`]: #databaseapplychangesetchangeset-options
+[`sqlite3_backup_finish()`]: https://www.sqlite.org/c3ref/backup_finish.html#sqlite3backupfinish
+[`sqlite3_backup_init()`]: https://www.sqlite.org/c3ref/backup_finish.html#sqlite3backupinit
+[`sqlite3_backup_step()`]: https://www.sqlite.org/c3ref/backup_finish.html#sqlite3backupstep
 [`sqlite3_changes64()`]: https://www.sqlite.org/c3ref/changes.html
 [`sqlite3_close_v2()`]: https://www.sqlite.org/c3ref/close.html
 [`sqlite3_create_function_v2()`]: https://www.sqlite.org/c3ref/create_function.html
