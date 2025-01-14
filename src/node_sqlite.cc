@@ -254,13 +254,25 @@ class BackupJob : public ThreadPoolWork {
           Local<Function>::New(env()->isolate(), progressFunc_);
 
       if (!fn.IsEmpty()) {
-        Local<Value> argv[] = {
-            Integer::New(env()->isolate(), total_pages),
-            Integer::New(env()->isolate(), remaining_pages),
-        };
+        Local<Object> progress_info = Object::New(env()->isolate());
+
+        if (progress_info
+                ->Set(env()->context(),
+                      env()->total_pages_string(),
+                      Integer::New(env()->isolate(), total_pages))
+                .IsNothing() ||
+            progress_info
+                ->Set(env()->context(),
+                      env()->remaining_pages_string(),
+                      Integer::New(env()->isolate(), remaining_pages))
+                .IsNothing()) {
+          return;
+        }
+
+        Local<Value> argv[] = {progress_info};
 
         TryCatch try_catch(env()->isolate());
-        fn->Call(env()->context(), Null(env()->isolate()), 2, argv)
+        fn->Call(env()->context(), Null(env()->isolate()), 1, argv)
             .FromMaybe(Local<Value>());
 
         if (try_catch.HasCaught()) {
@@ -766,7 +778,7 @@ void DatabaseSync::Exec(const FunctionCallbackInfo<Value>& args) {
   CHECK_ERROR_OR_THROW(env->isolate(), db, r, SQLITE_OK, void());
 }
 
-// database.backup(destination, { sourceDb, targetDb, rate, progress: (total,
+// database.backup(path, { sourceDb, targetDb, rate, progress: (total,
 // remaining) => {} )
 void DatabaseSync::Backup(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -786,7 +798,7 @@ void DatabaseSync::Backup(const FunctionCallbackInfo<Value>& args) {
 
   THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
 
-  Utf8Value destFilename(env->isolate(), args[0].As<String>());
+  Utf8Value destPath(env->isolate(), args[0].As<String>());
   Local<Function> progressFunc = Local<Function>();
 
   if (args.Length() > 1) {
@@ -876,7 +888,7 @@ void DatabaseSync::Backup(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(resolver->GetPromise());
 
   BackupJob* job = new BackupJob(
-      env, db, resolver, source_db, *destFilename, dest_db, rate, progressFunc);
+      env, db, resolver, source_db, *destPath, dest_db, rate, progressFunc);
   db->backups_.insert(job);
   job->ScheduleBackup();
 }

@@ -73,6 +73,8 @@
   V(address_string, "address")                                                 \
   V(source_db_string, "sourceDb")                                              \
   V(target_db_string, "targetDb")                                              \
+  V(total_pages_string, "totalPages")                                          \
+  V(remaining_pages_string, "remainingPages")                                  \
   V(progress_string, "progress")                                               \
   V(aliases_string, "aliases")                                                 \
   V(alpn_callback_string, "ALPNCallback")                                      \

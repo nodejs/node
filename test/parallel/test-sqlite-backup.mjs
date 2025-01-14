@@ -127,6 +127,27 @@ test('database backup', async (t) => {
   // so the progress function should be called once (the last call is not made since
   // the promise resolves)
   t.assert.strictEqual(progressFn.mock.calls.length, 1);
+  t.assert.deepStrictEqual(progressFn.mock.calls[0].arguments, [{ totalPages: 2, remainingPages: 1 }]);
+  t.assert.deepStrictEqual(rows, [
+    { __proto__: null, key: 1, value: 'value-1' },
+    { __proto__: null, key: 2, value: 'value-2' },
+  ]);
+});
+
+test('database backup in a single call', async (t) => {
+  const progressFn = t.mock.fn();
+  const database = makeSourceDb();
+  const destDb = nextDb();
+
+  // Let rate to be default (100) to backup in a single call
+  await database.backup(destDb, {
+    progress: progressFn,
+  });
+
+  const backup = new DatabaseSync(destDb);
+  const rows = backup.prepare('SELECT * FROM data').all();
+
+  t.assert.strictEqual(progressFn.mock.calls.length, 0);
   t.assert.deepStrictEqual(rows, [
     { __proto__: null, key: 1, value: 'value-1' },
     { __proto__: null, key: 2, value: 'value-2' },
