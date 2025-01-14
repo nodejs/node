@@ -172,7 +172,7 @@
 /test/parallel/test-permission-* @nodejs/security-wg
 
 # Security Release
-/doc/contributing/security-release-process.md @nodejs/security-release
+/doc/contributing/security-release-process.md @nodejs/security-stewards
 
 # Dependency Update Tools
 
