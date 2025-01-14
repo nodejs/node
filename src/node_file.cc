@@ -50,7 +50,6 @@ namespace fs {
 
 using v8::Array;
 using v8::BigInt;
-using v8::Boolean;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::Function;
