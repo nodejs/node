@@ -1,3 +1,3 @@
 function foo(): string {
-    await Promise.resolve(1);
+  await Promise.resolve(1);
 }
