@@ -62,16 +62,16 @@ struct ContextOptions {
  * hold the vm "context" object alive.
  *
  * It's also critical for the V8 context to keep the wrapper holder
- * (specifically, the "sandbox object") as well as the node::ContextifyContext
- * C++ object alive, so that when the code runs inside the object and accesses
- * the global object, the interceptors can still access the "sandbox object"
- * as well as and perform operations
+ * (specifically, the "sandbox object" if users pass one) as well as the
+ * node::ContextifyContext C++ object alive, so that when the code
+ * runs inside the object and accesses the global object, the interceptors
+ * can still access the "sandbox object" and perform operations
  * on them, even if users already relinquish access to the outer
  * "sandbox object".
  *
  * The v8::TracedReference and the ContextEmbedderIndex::kContextifyContext
- * slot in the context act as shortcuts from the node::ContextifyContext
- * C++ object to the V8 context.
+ * slot in the context only act as shortcuts between
+ * the node::ContextifyContext C++ object and the V8 context.
  */
 class ContextifyContext final : CPPGC_MIXIN(ContextifyContext) {
  public:
@@ -89,7 +89,7 @@ class ContextifyContext final : CPPGC_MIXIN(ContextifyContext) {
   // in the context. Also, any global handles to the context would've been
   // empty at this point, and the per-Environment context tracking code is
   // capable of dealing with empty handles from contexts purged elsewhere.
-  ~ContextifyContext() {}
+  ~ContextifyContext() = default;
 
   static v8::MaybeLocal<v8::Context> CreateV8Context(
       v8::Isolate* isolate,
