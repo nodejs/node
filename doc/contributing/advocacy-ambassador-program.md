@@ -227,8 +227,7 @@ The goal is to raise awareness of the Node.js TypeScript Type Stripping in the J
 Some of the things to highlight include:
 
 * The new feature and its benefits and limitations.
-* The tsconfig.json configuration options to use in combination for type checking.
-* New relevant TypeScript compiler options.
+* The `tsconfig.json` configuration options to use in combination for type checking.
 * Updates on the implementation advancements.
 
 #### Related Links
