@@ -1,40 +1,42 @@
 'use strict';
 require('../common');
-const { test } = require('node:test');
+const { suite, test } = require('node:test');
 
-test('throws if condition is not a function', (t) => {
-  t.assert.throws(() => {
-    t.waitFor(5);
-  }, {
-    code: 'ERR_INVALID_ARG_TYPE',
-    message: /The "condition" argument must be of type function/,
+suite('input validation', () => {
+  test('throws if condition is not a function', (t) => {
+    t.assert.throws(() => {
+      t.waitFor(5);
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /The "condition" argument must be of type function/,
+    });
   });
-});
 
-test('throws if options is not an object', (t) => {
-  t.assert.throws(() => {
-    t.waitFor(() => {}, null);
-  }, {
-    code: 'ERR_INVALID_ARG_TYPE',
-    message: /The "options" argument must be of type object/,
+  test('throws if options is not an object', (t) => {
+    t.assert.throws(() => {
+      t.waitFor(() => {}, null);
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /The "options" argument must be of type object/,
+    });
   });
-});
 
-test('throws if options.interval is not a number', (t) => {
-  t.assert.throws(() => {
-    t.waitFor(() => {}, { interval: 'foo' });
-  }, {
-    code: 'ERR_INVALID_ARG_TYPE',
-    message: /The "options\.interval" property must be of type number/,
+  test('throws if options.interval is not a number', (t) => {
+    t.assert.throws(() => {
+      t.waitFor(() => {}, { interval: 'foo' });
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /The "options\.interval" property must be of type number/,
+    });
   });
-});
 
-test('throws if options.timeout is not a number', (t) => {
-  t.assert.throws(() => {
-    t.waitFor(() => {}, { timeout: 'foo' });
-  }, {
-    code: 'ERR_INVALID_ARG_TYPE',
-    message: /The "options\.timeout" property must be of type number/,
+  test('throws if options.timeout is not a number', (t) => {
+    t.assert.throws(() => {
+      t.waitFor(() => {}, { timeout: 'foo' });
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /The "options\.timeout" property must be of type number/,
+    });
   });
 });
 
@@ -98,4 +100,25 @@ test('sets last failure as error cause on timeouts', async (t) => {
     t.assert.strictEqual(err.cause, error);
     return true;
   });
+});
+
+test('limits polling if condition takes longer than interval', async (t) => {
+  let count = 0;
+
+  function condition() {
+    count++;
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve('success');
+      }, 200);
+    });
+  }
+
+  const result = await t.waitFor(condition, {
+    interval: 1,
+    timeout: 60_000,
+  });
+
+  t.assert.strictEqual(result, 'success');
+  t.assert.strictEqual(count, 1);
 });
