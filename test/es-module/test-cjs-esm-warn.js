@@ -101,23 +101,24 @@ describe(
       'The output for loading a .mjs file in a CommonJS package should match the expected text.';
 
     // Test case 1: invalid-import-in-cjs.cjs
-    it('should throw an error when "import" is used in a .cjs file', async () => {
+    it('should emit a warning when "import" is used in a .cjs file', async () => {
       const filePath = path.resolve(
         fixtures.path('/es-modules/invalid-import-in-cjs.cjs')
       );
       const { code, signal, stderr } = await spawnPromisified(execPath, [
+        '--trace-warnings',
         filePath,
       ]);
-
+      // Check the warning message in stderr
       assert.ok(
         stderr
-          .replace(/\r/g, '')
+          .replace(/\r?\n|\r/g, ' ')
           .includes(
-            `Cannot use 'import' statement in a .cjs file. CommonJS files (.cjs) do not support 'import'. Use 'require()' instead.`
+            "Cannot use 'import' statement in a .cjs file. CommonJS files " +
+              "(.cjs) do not support 'import'. Use 'require()' instead."
           ),
-        `Expected error message for "import" in .cjs file but got:\n${stderr}`
+        `Expected warning message but got:\n${stderr}`
       );
-
       assert.strictEqual(code, 1, codeErrorMessageForCJS);
       assert.strictEqual(signal, null, signalErrorMessageForCJS);
     });

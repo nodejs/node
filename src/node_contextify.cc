@@ -121,11 +121,11 @@ std::string GetFileExtension(std::string_view filename) {
 
 std::string GetWarningMessage(const std::string& file_extension) {
   if (file_extension == ".cjs") {
-    return R"(Cannot use 'import' statement in a .cjs file. 
-      CommonJS files (.cjs) do not support 'import'. Use 'require()' instead.)";
+    return "Cannot use 'import' statement in a .cjs file. "
+           "CommonJS files (.cjs) do not support 'import'. Use 'require()' instead.";
   }
-  return R"(To load an ES module, set "type": "module" in the package.json 
-    or use the .mjs extension.)";
+  return "To load an ES module, set \"type\": \"module\" in the package.json "
+         "or use the .mjs extension.";
 }
 
 // Convert an int to a V8 Name (String or Symbol).
