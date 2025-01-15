@@ -1,5 +1,5 @@
-#!/usr/bin/env python
-# Copyright 2017 The Chromium Authors. All rights reserved.
+#!/usr/bin/env python3
+# Copyright 2017 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -9,6 +9,13 @@ import os.path
 import sys
 
 import pdl
+
+def open_to_write(path):
+    if sys.version_info >= (3,0):
+        return open(path, 'w', encoding='utf-8')
+    else:
+        return open(path, 'wb')
+
 
 def main(argv):
     parser = argparse.ArgumentParser(description=(
@@ -21,12 +28,13 @@ def main(argv):
     parser.add_argument("json_file", help="The .json output file write.")
     args = parser.parse_args(argv)
     file_name = os.path.normpath(args.pdl_file)
-    with open(file_name, "r") as input_file:
-        pdl_string = input_file.read()
+    input_file = open(file_name, "r")
+    pdl_string = input_file.read()
     protocol = pdl.loads(pdl_string, file_name, args.map_binary_to_string)
-
-    with open(os.path.normpath(args.json_file), 'w') as output_file:
-        json.dump(protocol, output_file, indent=4, separators=(',', ': '))
+    input_file.close()
+    output_file = open_to_write(os.path.normpath(args.json_file))
+    json.dump(protocol, output_file, indent=4, separators=(',', ': '))
+    output_file.close()
 
 
 if __name__ == '__main__':
