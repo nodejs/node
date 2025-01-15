@@ -2097,9 +2097,7 @@ added:
  - v22.10.0
 -->
 
-The provided TypeScript syntax is not valid or unsupported.
-This could happen when using TypeScript syntax that requires
-transformation with [type-stripping][].
+The provided TypeScript syntax is not valid.
 
 <a id="ERR_INVALID_URI"></a>
 
@@ -3134,6 +3132,18 @@ try {
   console.log(e.code); // ERR_UNSUPPORTED_RESOLVE_REQUEST
 }
 ```
+
+<a id="ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX"></a>
+
+### `ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The provided TypeScript syntax is unsupported.
+This could happen when using TypeScript syntax that requires
+transformation with [type-stripping][].
 
 <a id="ERR_USE_AFTER_CLOSE"></a>
 

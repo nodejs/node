@@ -1390,7 +1390,8 @@ Node.js will try to detect the syntax with the following steps:
 1. Run the input as CommonJS.
 2. If step 1 fails, run the input as an ES module.
 3. If step 2 fails with a SyntaxError, strip the types.
-4. If step 3 fails with an error code [`ERR_INVALID_TYPESCRIPT_SYNTAX`][],
+4. If step 3 fails with an error code [`ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`][]
+   or [`ERR_INVALID_TYPESCRIPT_SYNTAX`][],
    throw the error from step 2, including the TypeScript error in the message,
    else run as CommonJS.
 5. If step 4 fails, run the input as an ES module.
@@ -3708,6 +3709,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`Buffer`]: buffer.md#class-buffer
 [`CRYPTO_secure_malloc_init`]: https://www.openssl.org/docs/man3.0/man3/CRYPTO_secure_malloc_init.html
 [`ERR_INVALID_TYPESCRIPT_SYNTAX`]: errors.md#err_invalid_typescript_syntax
+[`ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`]: errors.md#err_unsupported_typescript_syntax
 [`NODE_OPTIONS`]: #node_optionsoptions
 [`NO_COLOR`]: https://no-color.org
 [`SlowBuffer`]: buffer.md#class-slowbuffer
