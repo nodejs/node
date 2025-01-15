@@ -2095,6 +2095,10 @@ does not consist of exactly two elements.
 added:
  - v23.0.0
  - v22.10.0
+changes:
+    - version: REPLACEME
+      pr-url: https://github.com/nodejs/node/pull/56610
+      description: This error is no longer thrown on valid yet unsupported syntax.
 -->
 
 The provided TypeScript syntax is not valid.
