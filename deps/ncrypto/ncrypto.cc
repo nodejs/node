@@ -1346,8 +1346,11 @@ DHPointer DHPointer::New(BignumPointer&& p, BignumPointer&& g) {
   if (DH_set0_pqg(dh.get(), p.get(), nullptr, g.get()) != 1) return {};
 
   // If the call above is successful, the DH object takes ownership of the
-  // BIGNUMs, so we must release them here.
+  // BIGNUMs, so we must release them here. Unfortunately coverity does not
+  // know that so we need to tell it not to complain.
+  // coverity[resource_leak]
   p.release();
+  // coverity[resource_leak]
   g.release();
 
   return dh;
@@ -1430,7 +1433,10 @@ DataPointer DHPointer::generateKeys() const {
 
 size_t DHPointer::size() const {
   if (!dh_) return 0;
-  return DH_size(dh_.get());
+  int ret = DH_size(dh_.get());
+  // DH_size can return a -1 on error but we just want to return a 0
+  // in that case so we don't wrap around when returning the size_t.
+  return ret >= 0 ? static_cast<size_t>(ret) : 0;
 }
 
 DataPointer DHPointer::computeSecret(const BignumPointer& peer) const {
@@ -1459,6 +1465,10 @@ DataPointer DHPointer::computeSecret(const BignumPointer& peer) const {
 bool DHPointer::setPublicKey(BignumPointer&& key) {
   if (!dh_) return false;
   if (DH_set0_key(dh_.get(), key.get(), nullptr) == 1) {
+    // If DH_set0_key returns successfully, then dh_ takes ownership of the
+    // BIGNUM, so we must release it here. Unfortunately coverity does not
+    // know that so we need to tell it not to complain.
+    // coverity[resource_leak]
     key.release();
     return true;
   }
@@ -1468,6 +1478,10 @@ bool DHPointer::setPublicKey(BignumPointer&& key) {
 bool DHPointer::setPrivateKey(BignumPointer&& key) {
   if (!dh_) return false;
   if (DH_set0_key(dh_.get(), nullptr, key.get()) == 1) {
+    // If DH_set0_key returns successfully, then dh_ takes ownership of the
+    // BIGNUM, so we must release it here. Unfortunately coverity does not
+    // know that so we need to tell it not to complain.
+    // coverity[resource_leak]
     key.release();
     return true;
   }
