@@ -226,7 +226,7 @@ You can find their contact email in the [`README.md`](../../README.md#tsc-techni
 The goal is to raise awareness of the Node.js TypeScript Type Stripping in the JavaScript ecosystem.
 Some of the things to highlight include:
 
-* The new feature and its benefits and limitations.
+* The benefits and limitations of the current implementation.
 * The `tsconfig.json` configuration options to use in combination for type checking.
 * Updates on the implementation advancements.
 
