@@ -96,19 +96,17 @@ class CipherBase : public BaseObject {
 
 class PublicKeyCipher {
  public:
-  typedef int (*EVP_PKEY_cipher_init_t)(EVP_PKEY_CTX* ctx);
-  typedef int (*EVP_PKEY_cipher_t)(EVP_PKEY_CTX* ctx,
-                                   unsigned char* out, size_t* outlen,
-                                   const unsigned char* in, size_t inlen);
+  using Cipher_t = ncrypto::DataPointer(
+      const ncrypto::EVPKeyPointer&,
+      const ncrypto::Cipher::CipherParams& params,
+      const ncrypto::Buffer<const void>);
 
   enum Operation {
     kPublic,
     kPrivate
   };
 
-  template <Operation operation,
-            EVP_PKEY_cipher_init_t EVP_PKEY_cipher_init,
-            EVP_PKEY_cipher_t EVP_PKEY_cipher>
+  template <Cipher_t cipher>
   static bool Cipher(Environment* env,
                      const ncrypto::EVPKeyPointer& pkey,
                      int padding,
@@ -117,9 +115,7 @@ class PublicKeyCipher {
                      const ArrayBufferOrViewContents<unsigned char>& data,
                      std::unique_ptr<v8::BackingStore>* out);
 
-  template <Operation operation,
-            EVP_PKEY_cipher_init_t EVP_PKEY_cipher_init,
-            EVP_PKEY_cipher_t EVP_PKEY_cipher>
+  template <Operation operation, Cipher_t cipher>
   static void Cipher(const v8::FunctionCallbackInfo<v8::Value>& args);
 };
 

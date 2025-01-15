@@ -62,7 +62,7 @@ class Sign : public SignBase {
 
   SignResult SignFinal(const ncrypto::EVPKeyPointer& pkey,
                        int padding,
-                       const v8::Maybe<int>& saltlen,
+                       std::optional<int> saltlen,
                        DSASigEnc dsa_sig_enc);
 
   static void SignSync(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -84,7 +84,7 @@ class Verify : public SignBase {
   Error VerifyFinal(const ncrypto::EVPKeyPointer& key,
                     const ByteSource& sig,
                     int padding,
-                    const v8::Maybe<int>& saltlen,
+                    std::optional<int> saltlen,
                     bool* verify_result);
 
   static void VerifySync(const v8::FunctionCallbackInfo<v8::Value>& args);

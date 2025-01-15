@@ -12,6 +12,7 @@ namespace node {
 
 using ncrypto::Cipher;
 using ncrypto::CipherCtxPointer;
+using ncrypto::DataPointer;
 using ncrypto::EVPKeyCtxPointer;
 using ncrypto::EVPKeyPointer;
 using ncrypto::MarkPopErrorOnReturn;
@@ -244,26 +245,22 @@ void CipherBase::Initialize(Environment* env, Local<Object> target) {
             target,
             "publicEncrypt",
             PublicKeyCipher::Cipher<PublicKeyCipher::kPublic,
-                                    EVP_PKEY_encrypt_init,
-                                    EVP_PKEY_encrypt>);
+                                    ncrypto::Cipher::encrypt>);
   SetMethod(context,
             target,
             "privateDecrypt",
             PublicKeyCipher::Cipher<PublicKeyCipher::kPrivate,
-                                    EVP_PKEY_decrypt_init,
-                                    EVP_PKEY_decrypt>);
+                                    ncrypto::Cipher::decrypt>);
   SetMethod(context,
             target,
             "privateEncrypt",
             PublicKeyCipher::Cipher<PublicKeyCipher::kPrivate,
-                                    EVP_PKEY_sign_init,
-                                    EVP_PKEY_sign>);
+                                    ncrypto::Cipher::sign>);
   SetMethod(context,
             target,
             "publicDecrypt",
             PublicKeyCipher::Cipher<PublicKeyCipher::kPublic,
-                                    EVP_PKEY_verify_recover_init,
-                                    EVP_PKEY_verify_recover>);
+                                    ncrypto::Cipher::recover>);
 
   SetMethodNoSideEffect(context, target, "getCipherInfo", GetCipherInfo);
 
@@ -288,17 +285,13 @@ void CipherBase::RegisterExternalReferences(
   registry->Register(GetCiphers);
 
   registry->Register(PublicKeyCipher::Cipher<PublicKeyCipher::kPublic,
-                                             EVP_PKEY_encrypt_init,
-                                             EVP_PKEY_encrypt>);
+                                             ncrypto::Cipher::encrypt>);
   registry->Register(PublicKeyCipher::Cipher<PublicKeyCipher::kPrivate,
-                                             EVP_PKEY_decrypt_init,
-                                             EVP_PKEY_decrypt>);
+                                             ncrypto::Cipher::decrypt>);
   registry->Register(PublicKeyCipher::Cipher<PublicKeyCipher::kPrivate,
-                                             EVP_PKEY_sign_init,
-                                             EVP_PKEY_sign>);
+                                             ncrypto::Cipher::sign>);
   registry->Register(PublicKeyCipher::Cipher<PublicKeyCipher::kPublic,
-                                             EVP_PKEY_verify_recover_init,
-                                             EVP_PKEY_verify_recover>);
+                                             ncrypto::Cipher::recover>);
 
   registry->Register(GetCipherInfo);
 }
@@ -939,9 +932,7 @@ void CipherBase::Final(const FunctionCallbackInfo<Value>& args) {
       Buffer::New(env, ab, 0, ab->ByteLength()).FromMaybe(Local<Value>()));
 }
 
-template <PublicKeyCipher::Operation operation,
-          PublicKeyCipher::EVP_PKEY_cipher_init_t EVP_PKEY_cipher_init,
-          PublicKeyCipher::EVP_PKEY_cipher_t EVP_PKEY_cipher>
+template <PublicKeyCipher::Cipher_t cipher>
 bool PublicKeyCipher::Cipher(
     Environment* env,
     const EVPKeyPointer& pkey,
@@ -950,62 +941,32 @@ bool PublicKeyCipher::Cipher(
     const ArrayBufferOrViewContents<unsigned char>& oaep_label,
     const ArrayBufferOrViewContents<unsigned char>& data,
     std::unique_ptr<BackingStore>* out) {
-  EVPKeyCtxPointer ctx = pkey.newCtx();
-  if (!ctx)
-    return false;
-  if (EVP_PKEY_cipher_init(ctx.get()) <= 0)
-    return false;
-  if (EVP_PKEY_CTX_set_rsa_padding(ctx.get(), padding) <= 0)
-    return false;
+  auto label = oaep_label.ToByteSource();
+  auto in = data.ToByteSource();
 
-  if (digest != nullptr) {
-    if (EVP_PKEY_CTX_set_rsa_oaep_md(ctx.get(), digest) <= 0)
-      return false;
-  }
+  const ncrypto::Cipher::CipherParams params {
+    .padding = padding,
+    .digest = digest,
+    .label = label,
+  };
 
-  if (!SetRsaOaepLabel(ctx, oaep_label.ToByteSource())) return false;
+  auto buf = cipher(pkey, params, in);
+  if (!buf) return false;
 
-  size_t out_len = 0;
-  if (EVP_PKEY_cipher(
-          ctx.get(),
-          nullptr,
-          &out_len,
-          data.data(),
-          data.size()) <= 0) {
-    return false;
-  }
-
-  {
-    NoArrayBufferZeroFillScope no_zero_fill_scope(env->isolate_data());
-    *out = ArrayBuffer::NewBackingStore(env->isolate(), out_len);
-  }
-
-  if (EVP_PKEY_cipher(
-          ctx.get(),
-          static_cast<unsigned char*>((*out)->Data()),
-          &out_len,
-          data.data(),
-          data.size()) <= 0) {
-    return false;
-  }
-
-  CHECK_LE(out_len, (*out)->ByteLength());
-  if (out_len == 0) {
+  if (buf.size() == 0) {
     *out = ArrayBuffer::NewBackingStore(env->isolate(), 0);
-  } else if (out_len != (*out)->ByteLength()) {
-    std::unique_ptr<BackingStore> old_out = std::move(*out);
-    *out = ArrayBuffer::NewBackingStore(env->isolate(), out_len);
+  } else {
+    *out = ArrayBuffer::NewBackingStore(env->isolate(), buf.size());
     memcpy(static_cast<char*>((*out)->Data()),
-           static_cast<char*>(old_out->Data()),
-           out_len);
+           static_cast<char*>(buf.get()),
+           buf.size());
   }
 
   return true;
 }
 
 template <PublicKeyCipher::Operation operation,
-          PublicKeyCipher::EVP_PKEY_cipher_init_t EVP_PKEY_cipher_init,
-          PublicKeyCipher::EVP_PKEY_cipher_t EVP_PKEY_cipher>
+          PublicKeyCipher::Cipher_t cipher>
 void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
   MarkPopErrorOnReturn mark_pop_error_on_return;
   Environment* env = Environment::GetCurrent(args);
@@ -1024,25 +985,16 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
   uint32_t padding;
   if (!args[offset + 1]->Uint32Value(env->context()).To(&padding)) return;
 
-  if (EVP_PKEY_cipher == EVP_PKEY_decrypt &&
+  if (cipher == ncrypto::Cipher::decrypt &&
       operation == PublicKeyCipher::kPrivate && padding == RSA_PKCS1_PADDING) {
     EVPKeyCtxPointer ctx = pkey.newCtx();
     CHECK(ctx);
 
-    if (EVP_PKEY_decrypt_init(ctx.get()) <= 0) {
+    if (!ctx.initForDecrypt()) {
       return ThrowCryptoError(env, ERR_get_error());
     }
 
-    int rsa_pkcs1_implicit_rejection =
-        EVP_PKEY_CTX_ctrl_str(ctx.get(), "rsa_pkcs1_implicit_rejection", "1");
-    // From the doc -2 means that the option is not supported.
-    // The default for the option is enabled and if it has been
-    // specifically disabled we want to respect that so we will
-    // not throw an error if the option is supported regardless
-    // of how it is set. The call to set the value
-    // will not affect what is used since a different context is
-    // used in the call if the option is supported
-    if (rsa_pkcs1_implicit_rejection <= 0) {
+    if (!ctx.setRsaImplicitRejection()) {
       return THROW_ERR_INVALID_ARG_VALUE(
           env,
           "RSA_PKCS1_PADDING is no longer supported for private decryption");
@@ -1052,7 +1004,7 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
   const EVP_MD* digest = nullptr;
   if (args[offset + 2]->IsString()) {
     const Utf8Value oaep_str(env->isolate(), args[offset + 2]);
-    digest = EVP_get_digestbyname(*oaep_str);
+    digest = ncrypto::getDigestByName(*oaep_str);
     if (digest == nullptr)
       return THROW_ERR_OSSL_EVP_INVALID_DIGEST(env);
   }
@@ -1063,8 +1015,7 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
     return THROW_ERR_OUT_OF_RANGE(env, "oaepLabel is too big");
   }
   std::unique_ptr<BackingStore> out;
-  if (!Cipher<operation, EVP_PKEY_cipher_init, EVP_PKEY_cipher>(
-          env, pkey, padding, digest, oaep_label, buf, &out)) {
+  if (!Cipher<cipher>(env, pkey, padding, digest, oaep_label, buf, &out)) {
     return ThrowCryptoError(env, ERR_get_error());
   }
 

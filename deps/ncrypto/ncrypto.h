@@ -201,17 +201,25 @@ struct FunctionDeleter {
 template <typename T, void (*function)(T*)>
 using DeleteFnPtr = typename FunctionDeleter<T, function>::Pointer;
 
-using BignumCtxPointer = DeleteFnPtr<BN_CTX, BN_CTX_free>;
-using BignumGenCallbackPointer = DeleteFnPtr<BN_GENCB, BN_GENCB_free>;
-using EVPKeyCtxPointer = DeleteFnPtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free>;
 using EVPMDCtxPointer = DeleteFnPtr<EVP_MD_CTX, EVP_MD_CTX_free>;
 using HMACCtxPointer = DeleteFnPtr<HMAC_CTX, HMAC_CTX_free>;
-using NetscapeSPKIPointer = DeleteFnPtr<NETSCAPE_SPKI, NETSCAPE_SPKI_free>;
 using PKCS8Pointer = DeleteFnPtr<PKCS8_PRIV_KEY_INFO, PKCS8_PRIV_KEY_INFO_free>;
 using RSAPointer = DeleteFnPtr<RSA, RSA_free>;
 using SSLSessionPointer = DeleteFnPtr<SSL_SESSION, SSL_SESSION_free>;
 
+class BIOPointer;
 class CipherCtxPointer;
+class DataPointer;
+class DHPointer;
+class ECKeyPointer;
+class EVPKeyPointer;
+class SSLCtxPointer;
+class SSLPointer;
+class X509View;
+class X509Pointer;
+class ECDSASigPointer;
+class ECGroupPointer;
+class ECPointPointer;
 class ECKeyPointer;
 
 struct StackOfXASN1Deleter {
@@ -258,8 +266,45 @@ class Cipher final {
   static const Cipher FromNid(int nid);
   static const Cipher FromCtx(const CipherCtxPointer& ctx);
 
+  struct CipherParams {
+    int padding;
+    const EVP_MD* digest;
+    const Buffer<const void> label;
+  };
+
+  static DataPointer encrypt(const EVPKeyPointer& key,
+                             const CipherParams& params,
+                             const Buffer<const void> in);
+  static DataPointer decrypt(const EVPKeyPointer& key,
+                             const CipherParams& params,
+                             const Buffer<const void> in);
+
+  static DataPointer sign(const EVPKeyPointer& key,
+                          const CipherParams& params,
+                          const Buffer<const void> in);
+
+  static DataPointer recover(const EVPKeyPointer& key,
+                             const CipherParams& params,
+                             const Buffer<const void> in);
+
  private:
   const EVP_CIPHER* cipher_ = nullptr;
+};
+
+// ============================================================================
+// RSA
+
+class Rsa final {
+ public:
+  using CipherParams = Cipher::CipherParams;
+
+  static DataPointer encrypt(const EVPKeyPointer& key,
+                             const CipherParams& params,
+                             const Buffer<const void> in);
+  static DataPointer decrypt(const EVPKeyPointer& key,
+                             const CipherParams& params,
+                             const Buffer<const void> in);
+
 };
 
 // A managed pointer to a buffer of data. When destroyed the underlying
@@ -267,6 +312,7 @@ class Cipher final {
 class DataPointer final {
  public:
   static DataPointer Alloc(size_t len);
+  static DataPointer Copy(const Buffer<const void>& buffer);
 
   DataPointer() = default;
   explicit DataPointer(void* data, size_t len);
@@ -282,6 +328,8 @@ class DataPointer final {
   inline size_t size() const noexcept { return len_; }
   void reset(void* data = nullptr, size_t len = 0);
   void reset(const Buffer<void>& buffer);
+
+  DataPointer resize(size_t len);
 
   // Releases ownership of the underlying data buffer. It is the caller's
   // responsibility to ensure the buffer is appropriately freed.
@@ -469,6 +517,66 @@ class CipherCtxPointer final {
 
  private:
   DeleteFnPtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free> ctx_;
+};
+
+class EVPKeyCtxPointer final {
+ public:
+  EVPKeyCtxPointer();
+  explicit EVPKeyCtxPointer(EVP_PKEY_CTX* ctx);
+  EVPKeyCtxPointer(EVPKeyCtxPointer&& other) noexcept;
+  EVPKeyCtxPointer& operator=(EVPKeyCtxPointer&& other) noexcept;
+  NCRYPTO_DISALLOW_COPY(EVPKeyCtxPointer)
+  ~EVPKeyCtxPointer();
+
+  inline bool operator==(std::nullptr_t) const noexcept {
+    return ctx_ == nullptr;
+  }
+  inline operator bool() const { return ctx_ != nullptr; }
+  inline EVP_PKEY_CTX* get() const { return ctx_.get(); }
+  void reset(EVP_PKEY_CTX* ctx = nullptr);
+  EVP_PKEY_CTX* release();
+
+  bool initForDerive(const EVPKeyPointer& peer);
+  DataPointer derive() const;
+
+  bool initForParamgen();
+  bool setDhParameters(int prime_size, uint32_t generator);
+  bool setDsaParameters(uint32_t bits, std::optional<int> q_bits);
+  bool setEcParameters(int curve, int encoding);
+
+  bool setRsaOaepMd(const EVP_MD* md);
+  bool setRsaMgf1Md(const EVP_MD* md);
+  bool setRsaPadding(int padding);
+  bool setRsaKeygenPubExp(BignumPointer&& e);
+  bool setRsaKeygenBits(int bits);
+  bool setRsaPssKeygenMd(const EVP_MD* md);
+  bool setRsaPssKeygenMgf1Md(const EVP_MD* md);
+  bool setRsaPssSaltlen(int salt_len);
+  bool setRsaImplicitRejection();
+  bool setRsaOaepLabel(DataPointer&& data);
+
+  bool setSignatureMd(const EVPMDCtxPointer& md);
+
+  static constexpr int kDefaultRsaExponent = 0x10001;
+
+  static bool setRsaPadding(EVP_PKEY_CTX* ctx,
+                            int padding,
+                            std::optional<int> salt_len = std::nullopt);
+
+  EVPKeyPointer paramgen() const;
+
+  bool initForEncrypt();
+  bool initForDecrypt();
+  bool initForKeygen();
+  int initForVerify();
+  int initForSign();
+
+
+  static EVPKeyCtxPointer New(const EVPKeyPointer& key);
+  static EVPKeyCtxPointer NewFromID(int id);
+
+ private:
+  DeleteFnPtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free> ctx_;
 };
 
 class EVPKeyPointer final {

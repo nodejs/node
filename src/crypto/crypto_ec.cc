@@ -459,24 +459,14 @@ bool ECDHBitsTraits::DeriveBits(Environment* env,
     case EVP_PKEY_X25519:
       // Fall through
     case EVP_PKEY_X448: {
-      EVPKeyCtxPointer ctx = m_privkey.newCtx();
       Mutex::ScopedLock pub_lock(params.public_.mutex());
-      if (EVP_PKEY_derive_init(ctx.get()) <= 0 ||
-          EVP_PKEY_derive_set_peer(
-              ctx.get(),
-              m_pubkey.get()) <= 0 ||
-          EVP_PKEY_derive(ctx.get(), nullptr, &len) <= 0) {
-        return false;
-      }
+      EVPKeyCtxPointer ctx = m_privkey.newCtx();
+      if (!ctx.initForDerive(m_pubkey)) return false;
 
-      ByteSource::Builder buf(len);
+      auto data = ctx.derive();
+      if (!data) return false;
 
-      if (EVP_PKEY_derive(ctx.get(), buf.data<unsigned char>(), &len) <= 0) {
-        return false;
-      }
-
-      *out = std::move(buf).release(len);
-
+      *out = ByteSource::Allocated(data.release());
       break;
     }
     default: {
@@ -523,28 +513,24 @@ EVPKeyCtxPointer EcKeyGenTraits::Setup(EcKeyPairGenConfig* params) {
     case EVP_PKEY_X25519:
       // Fall through
     case EVP_PKEY_X448:
-      key_ctx.reset(EVP_PKEY_CTX_new_id(params->params.curve_nid, nullptr));
+      key_ctx = EVPKeyCtxPointer::NewFromID(params->params.curve_nid);
       break;
     default: {
-      EVPKeyCtxPointer param_ctx(EVP_PKEY_CTX_new_id(EVP_PKEY_EC, nullptr));
-      EVP_PKEY* raw_params = nullptr;
-      if (!param_ctx ||
-          EVP_PKEY_paramgen_init(param_ctx.get()) <= 0 ||
-          EVP_PKEY_CTX_set_ec_paramgen_curve_nid(
-              param_ctx.get(), params->params.curve_nid) <= 0 ||
-          EVP_PKEY_CTX_set_ec_param_enc(
-              param_ctx.get(), params->params.param_encoding) <= 0 ||
-          EVP_PKEY_paramgen(param_ctx.get(), &raw_params) <= 0) {
-        return EVPKeyCtxPointer();
+      auto param_ctx = EVPKeyCtxPointer::NewFromID(EVP_PKEY_EC);
+      if (!param_ctx.initForParamgen() ||
+          !param_ctx.setEcParameters(params->params.curve_nid,
+                                     params->params.param_encoding)) {
+        return {};
       }
-      EVPKeyPointer key_params(raw_params);
+
+      auto key_params = param_ctx.paramgen();
+      if (!key_params) return {};
+
       key_ctx = key_params.newCtx();
     }
   }
 
-  if (key_ctx && EVP_PKEY_keygen_init(key_ctx.get()) <= 0)
-    key_ctx.reset();
-
+  if (!key_ctx.initForKeygen()) return {};
   return key_ctx;
 }
 

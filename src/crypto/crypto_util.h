@@ -224,8 +224,15 @@ class ByteSource {
   ByteSource& operator=(const ByteSource&) = delete;
 
   template <typename T = void>
-  const T* data() const {
+  inline const T* data() const {
     return reinterpret_cast<const T*>(data_);
+  }
+
+  inline operator ncrypto::Buffer<const void>() const {
+    return ncrypto::Buffer {
+      .data = data<void>(),
+      .len = size()
+    };
   }
 
   size_t size() const { return size_; }
@@ -707,7 +714,7 @@ v8::Maybe<void> SetEncodedValue(Environment* env,
                                 const BIGNUM* bn,
                                 int size = 0);
 
-bool SetRsaOaepLabel(const ncrypto::EVPKeyCtxPointer& rsa,
+bool SetRsaOaepLabel(ncrypto::EVPKeyCtxPointer* rsa,
                      const ByteSource& label);
 
 namespace Util {

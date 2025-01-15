@@ -66,15 +66,11 @@ bool ValidateDSAParameters(EVP_PKEY* key) {
 bool ApplyRSAOptions(const EVPKeyPointer& pkey,
                      EVP_PKEY_CTX* pkctx,
                      int padding,
-                     const Maybe<int>& salt_len) {
+                     std::optional<int> salt_len) {
   int id = pkey.id();
-  if (id == EVP_PKEY_RSA || id == EVP_PKEY_RSA2 || id == EVP_PKEY_RSA_PSS) {
-    if (EVP_PKEY_CTX_set_rsa_padding(pkctx, padding) <= 0)
-      return false;
-    if (padding == RSA_PKCS1_PSS_PADDING && salt_len.IsJust()) {
-      if (EVP_PKEY_CTX_set_rsa_pss_saltlen(pkctx, salt_len.FromJust()) <= 0)
-        return false;
-    }
+  if ((id == EVP_PKEY_RSA || id == EVP_PKEY_RSA2 || id == EVP_PKEY_RSA_PSS) &&
+       !EVPKeyCtxPointer::setRsaPadding(pkctx, padding, salt_len)) {
+    return false;
   }
 
   return true;
@@ -84,7 +80,7 @@ std::unique_ptr<BackingStore> Node_SignFinal(Environment* env,
                                              EVPMDCtxPointer&& mdctx,
                                              const EVPKeyPointer& pkey,
                                              int padding,
-                                             Maybe<int> pss_salt_len) {
+                                             std::optional<int> pss_salt_len) {
   unsigned char m[EVP_MAX_MD_SIZE];
   unsigned int m_len;
 
@@ -98,10 +94,9 @@ std::unique_ptr<BackingStore> Node_SignFinal(Environment* env,
     sig = ArrayBuffer::NewBackingStore(env->isolate(), sig_len);
   }
   EVPKeyCtxPointer pkctx = pkey.newCtx();
-  if (pkctx && EVP_PKEY_sign_init(pkctx.get()) > 0 &&
+  if (pkctx.initForSign() > 0 &&
       ApplyRSAOptions(pkey, pkctx.get(), padding, pss_salt_len) &&
-      EVP_PKEY_CTX_set_signature_md(pkctx.get(), EVP_MD_CTX_md(mdctx.get())) >
-          0 &&
+      pkctx.setSignatureMd(mdctx) &&
       EVP_PKEY_sign(pkctx.get(),
                     static_cast<unsigned char*>(sig->Data()),
                     &sig_len,
@@ -380,7 +375,7 @@ void Sign::SignUpdate(const FunctionCallbackInfo<Value>& args) {
 
 Sign::SignResult Sign::SignFinal(const EVPKeyPointer& pkey,
                                  int padding,
-                                 const Maybe<int>& salt_len,
+                                 std::optional<int> salt_len,
                                  DSASigEnc dsa_sig_enc) {
   if (!mdctx_)
     return SignResult(kSignNotInitialised);
@@ -426,10 +421,10 @@ void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
     padding = args[offset].As<Int32>()->Value();
   }
 
-  Maybe<int> salt_len = Nothing<int>();
+  std::optional<int> salt_len;
   if (!args[offset + 1]->IsUndefined()) {
     CHECK(args[offset + 1]->IsInt32());
-    salt_len = Just<int>(args[offset + 1].As<Int32>()->Value());
+    salt_len = args[offset + 1].As<Int32>()->Value();
   }
 
   CHECK(args[offset + 2]->IsInt32());
@@ -505,7 +500,7 @@ void Verify::VerifyUpdate(const FunctionCallbackInfo<Value>& args) {
 SignBase::Error Verify::VerifyFinal(const EVPKeyPointer& pkey,
                                     const ByteSource& sig,
                                     int padding,
-                                    const Maybe<int>& saltlen,
+                                    std::optional<int> saltlen,
                                     bool* verify_result) {
   if (!mdctx_)
     return kSignNotInitialised;
@@ -520,13 +515,12 @@ SignBase::Error Verify::VerifyFinal(const EVPKeyPointer& pkey,
 
   EVPKeyCtxPointer pkctx = pkey.newCtx();
   if (pkctx) {
-    const int init_ret = EVP_PKEY_verify_init(pkctx.get());
+    const int init_ret = pkctx.initForVerify();
     if (init_ret == -2) {
       return kSignPublicKey;
     }
     if (init_ret > 0 && ApplyRSAOptions(pkey, pkctx.get(), padding, saltlen) &&
-        EVP_PKEY_CTX_set_signature_md(pkctx.get(), EVP_MD_CTX_md(mdctx.get())) >
-            0) {
+        pkctx.setSignatureMd(mdctx)) {
       const unsigned char* s = sig.data<unsigned char>();
       const int r = EVP_PKEY_verify(pkctx.get(), s, sig.size(), m, m_len);
       *verify_result = r == 1;
@@ -565,10 +559,10 @@ void Verify::VerifyFinal(const FunctionCallbackInfo<Value>& args) {
     padding = args[offset + 1].As<Int32>()->Value();
   }
 
-  Maybe<int> salt_len = Nothing<int>();
+  std::optional<int> salt_len;
   if (!args[offset + 2]->IsUndefined()) {
     CHECK(args[offset + 2]->IsInt32());
-    salt_len = Just<int>(args[offset + 2].As<Int32>()->Value());
+    salt_len = args[offset + 2].As<Int32>()->Value();
   }
 
   CHECK(args[offset + 3]->IsInt32());
@@ -734,8 +728,9 @@ bool SignTraits::DeriveBits(
                     ? params.padding
                     : GetDefaultSignPadding(key);
 
-  Maybe<int> salt_length = params.flags & SignConfiguration::kHasSaltLength
-      ? Just<int>(params.salt_length) : Nothing<int>();
+  std::optional<int> salt_length =
+      params.flags & SignConfiguration::kHasSaltLength
+          ? std::optional<int>(params.salt_length) : std::nullopt;
 
   if (!ApplyRSAOptions(key, ctx, padding, salt_length)) {
     crypto::CheckThrow(env, SignBase::Error::kSignPrivateKey);

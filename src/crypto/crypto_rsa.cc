@@ -15,6 +15,7 @@
 namespace node {
 
 using ncrypto::BignumPointer;
+using ncrypto::DataPointer;
 using ncrypto::EVPKeyCtxPointer;
 using ncrypto::EVPKeyPointer;
 using ncrypto::RSAPointer;
@@ -34,37 +35,29 @@ using v8::Value;
 
 namespace crypto {
 EVPKeyCtxPointer RsaKeyGenTraits::Setup(RsaKeyPairGenConfig* params) {
-  EVPKeyCtxPointer ctx(
-      EVP_PKEY_CTX_new_id(
+  auto ctx = EVPKeyCtxPointer::NewFromID(
           params->params.variant == kKeyVariantRSA_PSS
               ? EVP_PKEY_RSA_PSS
-              : EVP_PKEY_RSA,
-          nullptr));
+              : EVP_PKEY_RSA);
 
-  if (EVP_PKEY_keygen_init(ctx.get()) <= 0)
-    return EVPKeyCtxPointer();
-
-  if (EVP_PKEY_CTX_set_rsa_keygen_bits(
-          ctx.get(),
-          params->params.modulus_bits) <= 0) {
-    return EVPKeyCtxPointer();
+  if (!ctx.initForKeygen() ||
+      !ctx.setRsaKeygenBits(params->params.modulus_bits)) {
+    return {};
   }
 
   // 0x10001 is the default RSA exponent.
-  if (params->params.exponent != 0x10001) {
+  if (params->params.exponent != EVPKeyCtxPointer::kDefaultRsaExponent) {
     auto bn = BignumPointer::New();
-    CHECK(bn.setWord(params->params.exponent));
-    // EVP_CTX accepts ownership of bn on success.
-    if (EVP_PKEY_CTX_set_rsa_keygen_pubexp(ctx.get(), bn.get()) <= 0)
-      return EVPKeyCtxPointer();
-
-    bn.release();
+    if (!bn.setWord(params->params.exponent) ||
+        !ctx.setRsaKeygenPubExp(std::move(bn))) {
+      return {};
+    }
   }
 
   if (params->params.variant == kKeyVariantRSA_PSS) {
     if (params->params.md != nullptr &&
-        EVP_PKEY_CTX_set_rsa_pss_keygen_md(ctx.get(), params->params.md) <= 0) {
-      return EVPKeyCtxPointer();
+        !ctx.setRsaPssKeygenMd(params->params.md)) {
+      return {};
     }
 
     // TODO(tniessen): This appears to only be necessary in OpenSSL 3, while
@@ -77,10 +70,8 @@ EVPKeyCtxPointer RsaKeyGenTraits::Setup(RsaKeyPairGenConfig* params) {
     }
 
     if (mgf1_md != nullptr &&
-        EVP_PKEY_CTX_set_rsa_pss_keygen_mgf1_md(
-            ctx.get(),
-            mgf1_md) <= 0) {
-      return EVPKeyCtxPointer();
+        !ctx.setRsaPssKeygenMgf1Md(mgf1_md)) {
+      return {};
     }
 
     int saltlen = params->params.saltlen;
@@ -88,11 +79,8 @@ EVPKeyCtxPointer RsaKeyGenTraits::Setup(RsaKeyPairGenConfig* params) {
       saltlen = EVP_MD_size(params->params.md);
     }
 
-    if (saltlen >= 0 &&
-        EVP_PKEY_CTX_set_rsa_pss_keygen_saltlen(
-            ctx.get(),
-            saltlen) <= 0) {
-      return EVPKeyCtxPointer();
+    if (saltlen >= 0 && !ctx.setRsaPssSaltlen(saltlen)) {
+      return {};
     }
   }
 
@@ -196,8 +184,11 @@ WebCryptoKeyExportStatus RSA_JWK_Export(const KeyObjectData& key_data,
   return WebCryptoKeyExportStatus::FAILED;
 }
 
-template <PublicKeyCipher::EVP_PKEY_cipher_init_t init,
-          PublicKeyCipher::EVP_PKEY_cipher_t cipher>
+using Cipher_t = DataPointer(const EVPKeyPointer& key,
+                             const ncrypto::Rsa::CipherParams& params,
+                             const ncrypto::Buffer<const void> in);
+
+template <Cipher_t cipher>
 WebCryptoCipherStatus RSA_Cipher(Environment* env,
                                  const KeyObjectData& key_data,
                                  const RSACipherConfig& params,
@@ -206,45 +197,16 @@ WebCryptoCipherStatus RSA_Cipher(Environment* env,
   CHECK_NE(key_data.GetKeyType(), kKeyTypeSecret);
   Mutex::ScopedLock lock(key_data.mutex());
   const auto& m_pkey = key_data.GetAsymmetricKey();
+  const ncrypto::Rsa::CipherParams nparams {
+    .padding = params.padding,
+    .digest = params.digest,
+    .label = params.label,
+  };
 
-  EVPKeyCtxPointer ctx = m_pkey.newCtx();
+  auto data = cipher(m_pkey, nparams, in);
+  if (!data) return WebCryptoCipherStatus::FAILED;
 
-  if (!ctx || init(ctx.get()) <= 0)
-    return WebCryptoCipherStatus::FAILED;
-
-  if (EVP_PKEY_CTX_set_rsa_padding(ctx.get(), params.padding) <= 0) {
-    return WebCryptoCipherStatus::FAILED;
-  }
-
-  if (params.digest != nullptr &&
-      (EVP_PKEY_CTX_set_rsa_oaep_md(ctx.get(), params.digest) <= 0 ||
-       EVP_PKEY_CTX_set_rsa_mgf1_md(ctx.get(), params.digest) <= 0)) {
-    return WebCryptoCipherStatus::FAILED;
-  }
-
-  if (!SetRsaOaepLabel(ctx, params.label)) return WebCryptoCipherStatus::FAILED;
-
-  size_t out_len = 0;
-  if (cipher(
-          ctx.get(),
-          nullptr,
-          &out_len,
-          in.data<unsigned char>(),
-          in.size()) <= 0) {
-    return WebCryptoCipherStatus::FAILED;
-  }
-
-  ByteSource::Builder buf(out_len);
-
-  if (cipher(ctx.get(),
-             buf.data<unsigned char>(),
-             &out_len,
-             in.data<unsigned char>(),
-             in.size()) <= 0) {
-    return WebCryptoCipherStatus::FAILED;
-  }
-
-  *out = std::move(buf).release(out_len);
+  *out = ByteSource::Allocated(data.release());
   return WebCryptoCipherStatus::OK;
 }
 }  // namespace
@@ -349,11 +311,11 @@ WebCryptoCipherStatus RSACipherTraits::DoCipher(Environment* env,
   switch (cipher_mode) {
     case kWebCryptoCipherEncrypt:
       CHECK_EQ(key_data.GetKeyType(), kKeyTypePublic);
-      return RSA_Cipher<EVP_PKEY_encrypt_init, EVP_PKEY_encrypt>(
+      return RSA_Cipher<ncrypto::Rsa::encrypt>(
           env, key_data, params, in, out);
     case kWebCryptoCipherDecrypt:
       CHECK_EQ(key_data.GetKeyType(), kKeyTypePrivate);
-      return RSA_Cipher<EVP_PKEY_decrypt_init, EVP_PKEY_decrypt>(
+      return RSA_Cipher<ncrypto::Rsa::decrypt>(
           env, key_data, params, in, out);
   }
   return WebCryptoCipherStatus::FAILED;
