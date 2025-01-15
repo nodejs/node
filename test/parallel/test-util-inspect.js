@@ -3426,3 +3426,13 @@ assert.strictEqual(
     Object.defineProperty(BuiltinPrototype, 'constructor', desc);
   }
 }
+
+{
+  function f() {}
+  Object.defineProperty(f, 'name', { value: Symbol('f') });
+
+  assert.strictEqual(
+    util.inspect(f),
+    '[Function: Symbol(f)]',
+  );
+}
