@@ -1451,7 +1451,7 @@ void SecureContext::GetCertificate(const FunctionCallbackInfo<Value>& args) {
 }
 
 // UseExtraCaCerts is called only once at the start of the Node.js process.
-void UseExtraCaCerts(const std::string& file) {
+void UseExtraCaCerts(std::string_view file) {
   extra_root_certs_file = file;
 }
 

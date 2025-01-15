@@ -397,31 +397,23 @@ EVPKeyCtxPointer DhKeyGenTraits::Setup(DhKeyPairGenConfig* params) {
     auto dh = DHPointer::New(std::move(prime), std::move(bn_g));
     if (!dh) return {};
 
-    key_params = EVPKeyPointer::New();
-    CHECK(key_params);
-    CHECK_EQ(EVP_PKEY_assign_DH(key_params.get(), dh.release()), 1);
+    key_params = EVPKeyPointer::NewDH(std::move(dh));
   } else if (int* prime_size = std::get_if<int>(&params->params.prime)) {
-    EVPKeyCtxPointer param_ctx(EVP_PKEY_CTX_new_id(EVP_PKEY_DH, nullptr));
-    EVP_PKEY* raw_params = nullptr;
-    if (!param_ctx ||
-        EVP_PKEY_paramgen_init(param_ctx.get()) <= 0 ||
-        EVP_PKEY_CTX_set_dh_paramgen_prime_len(
-            param_ctx.get(),
-            *prime_size) <= 0 ||
-        EVP_PKEY_CTX_set_dh_paramgen_generator(
-            param_ctx.get(),
-            params->params.generator) <= 0 ||
-        EVP_PKEY_paramgen(param_ctx.get(), &raw_params) <= 0) {
+    auto param_ctx = EVPKeyCtxPointer::NewFromID(EVP_PKEY_DH);
+    if (!param_ctx.initForParamgen() ||
+        !param_ctx.setDhParameters(*prime_size, params->params.generator)) {
       return {};
     }
 
-    key_params = EVPKeyPointer(raw_params);
+    key_params = param_ctx.paramgen();
   } else {
     UNREACHABLE();
   }
 
+  if (!key_params) return {};
+
   EVPKeyCtxPointer ctx = key_params.newCtx();
-  if (!ctx || EVP_PKEY_keygen_init(ctx.get()) <= 0) return {};
+  if (!ctx.initForKeygen()) return {};
 
   return ctx;
 }
