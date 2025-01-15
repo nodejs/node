@@ -630,17 +630,12 @@ Maybe<void> SetEncodedValue(Environment* env,
                                                            : Nothing<void>();
 }
 
-bool SetRsaOaepLabel(const EVPKeyCtxPointer& ctx, const ByteSource& label) {
+bool SetRsaOaepLabel(EVPKeyCtxPointer* ctx, const ByteSource& label) {
   if (label.size() != 0) {
     // OpenSSL takes ownership of the label, so we need to create a copy.
-    void* label_copy = OPENSSL_memdup(label.data(), label.size());
-    CHECK_NOT_NULL(label_copy);
-    int ret = EVP_PKEY_CTX_set0_rsa_oaep_label(
-        ctx.get(), static_cast<unsigned char*>(label_copy), label.size());
-    if (ret <= 0) {
-      OPENSSL_free(label_copy);
-      return false;
-    }
+    auto dup = ncrypto::DataPointer::Copy(label);
+    if (!dup) return false;
+    return ctx->setRsaOaepLabel(std::move(dup));
   }
   return true;
 }

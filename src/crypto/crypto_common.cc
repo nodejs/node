@@ -36,7 +36,7 @@ using ncrypto::StackOfX509;
 using ncrypto::X509Pointer;
 using ncrypto::X509View;
 using v8::ArrayBuffer;
-using v8::BackingStore;
+using v8::BackingStoreInitializationMode;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::Integer;
@@ -307,11 +307,8 @@ MaybeLocal<Object> ECPointToBuffer(Environment* env,
     return MaybeLocal<Object>();
   }
 
-  std::unique_ptr<BackingStore> bs;
-  {
-    NoArrayBufferZeroFillScope no_zero_fill_scope(env->isolate_data());
-    bs = ArrayBuffer::NewBackingStore(env->isolate(), len);
-  }
+  auto bs = ArrayBuffer::NewBackingStore(
+      env->isolate(), len, BackingStoreInitializationMode::kUninitialized);
 
   len = EC_POINT_point2oct(group,
                            point,
