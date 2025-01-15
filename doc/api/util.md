@@ -372,6 +372,9 @@ util.formatWithOptions({ colors: true }, 'See object %O', { foo: 42 });
 added: v22.9.0
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/56584
+    description: Property `column` is deprecated in favor of `columnNumber`.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/56551
     description: Property `CallSite.scriptId` is exposed.
   - version: v23.3.0
@@ -389,8 +392,8 @@ changes:
   * `scriptName` {string} Returns the name of the resource that contains the script for the
     function for this call site.
   * `scriptId` {string} Returns the unique id of the script, as in Chrome DevTools protocol [`Runtime.ScriptId`][].
-  * `lineNumber` {number} Returns the number, 1-based, of the line for the associate function call.
-  * `column` {number} Returns the 1-based column offset on the line for the associated function call.
+  * `lineNumber` {number} Returns the JavaScript script line number (1-based).
+  * `columnNumber` {number} Returns the JavaScript script column number (1-based).
 
 Returns an array of call site objects containing the stack of
 the caller function.
@@ -407,7 +410,7 @@ function exampleFunction() {
     console.log(`Function Name: ${callSite.functionName}`);
     console.log(`Script Name: ${callSite.scriptName}`);
     console.log(`Line Number: ${callSite.lineNumber}`);
-    console.log(`Column Number: ${callSite.column}`);
+    console.log(`Column Number: ${callSite.columnNumber}`);
   });
   // CallSite 1:
   // Function Name: exampleFunction
