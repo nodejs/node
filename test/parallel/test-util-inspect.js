@@ -770,14 +770,14 @@ assert.strictEqual(util.inspect(-5e-324), '-5e-324');
 // Note: Symbols are not supported by `Error#toString()` which is called by
 // accessing the `stack` property.
 [
-  [404, '404: foo', '[404]'],
-  [0, '0: foo', '[RangeError: foo]'],
-  [0n, '0: foo', '[RangeError: foo]'],
+  [404, '404 [RangeError]: foo', '[404]'],
+  [0, '0 [RangeError]: foo', '[RangeError: foo]'],
+  [0n, '0 [RangeError]: foo', '[RangeError: foo]'],
   [null, 'null: foo', '[RangeError: foo]'],
   [undefined, 'RangeError: foo', '[RangeError: foo]'],
-  [false, 'false: foo', '[RangeError: foo]'],
+  [false, 'false [RangeError]: foo', '[RangeError: foo]'],
   ['', 'foo', '[RangeError: foo]'],
-  [[1, 2, 3], '1,2,3: foo', '[1,2,3]'],
+  [[1, 2, 3], '1,2,3 [RangeError]: foo', '[1,2,3]'],
 ].forEach(([value, outputStart, stack]) => {
   let err = new RangeError('foo');
   err.name = value;
@@ -3402,5 +3402,17 @@ assert.strictEqual(
   assert.strictEqual(
     util.inspect(f),
     '[Function: Symbol(f)]',
+  );
+}
+
+{
+  const error = new EvalError();
+  const re = /a/g;
+  error.name = re;
+  assert.strictEqual(error.name, re);
+  assert.strictEqual(
+    util.inspect(error),
+    `${re} [EvalError]
+${error.stack.split('\n').slice(1).join('\n')}`,
   );
 }
