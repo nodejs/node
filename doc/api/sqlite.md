@@ -126,13 +126,13 @@ added: REPLACEME
 * `options` {Object} Optional configuration for the backup. The
   following properties are supported:
   * `source` {string} Name of the source database. **Default:** `'main'`.
-  * `target` {string} NAme of the target database. **Default:** `'main'`.
+  * `target` {string} Name of the target database. **Default:** `'main'`.
   * `rate` {number} Number of pages to be transmitted in each batch of the backup. **Default:** `100`.
   * `progress` {Function} Callback function that will be called with the number of pages copied and the total number of
     pages.
+* Returns: {Promise} A promise that resolves when the backup is completed and rejects if an error occurs.
 
-This method makes a backup of the database. The returned {Promise} will resolve when the backup is completed and will
-reject if an error occurs. This method abstracts the [`sqlite3_backup_init()`][], [`sqlite3_backup_step()`][] and
+This method makes a database backup. This method abstracts the [`sqlite3_backup_init()`][], [`sqlite3_backup_step()`][] and
 [`sqlite3_backup_finish()`][] functions.
 
 ### `database.close()`
