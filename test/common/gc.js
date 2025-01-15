@@ -3,7 +3,8 @@
 const wait = require('timers/promises').setTimeout;
 const assert = require('assert');
 const common = require('../common');
-const { setImmediate } = require('timers/promises');
+// TODO(joyeecheung): rewrite checkIfCollectable to use this too.
+const { setImmediate: setImmediatePromisified } = require('timers/promises');
 const gcTrackerMap = new WeakMap();
 const gcTrackerTag = 'NODE_TEST_COMMON_GC_TRACKER';
 
@@ -50,7 +51,7 @@ function onGC(obj, gcListener) {
  */
 async function gcUntil(name, condition, maxCount = 10, gcOptions) {
   for (let count = 0; count < maxCount; ++count) {
-    await setImmediate();
+    await setImmediatePromisified();
     if (gcOptions) {
       await global.gc(gcOptions);
     } else {
