@@ -3604,6 +3604,27 @@ test('top level test', async (t) => {
 });
 ```
 
+### `context.waitFor(condition[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `condition` {Function|AsyncFunction} An assertion function that is invoked
+  periodically until it completes successfully or the defined polling timeout
+  elapses. Successful completion is defined as not throwing or rejecting. This
+  function does not accept any arguments, and is allowed to return any value.
+* `options` {Object} An optional configuration object for the polling operation.
+  The following properties are supported:
+  * `interval` {number} The number of milliseconds to wait after an unsuccessful
+    invocation of `condition` before trying again. **Default:** `50`.
+  * `timeout` {number} The poll timeout in milliseconds. If `condition` has not
+    succeeded by the time this elapses, an error occurs. **Default:** `1000`.
+* Returns: {Promise} Fulfilled with the value returned by `condition`.
+
+This method polls a `condition` function until that function either returns
+successfully or the operation times out.
+
 ## Class: `SuiteContext`
 
 <!-- YAML
