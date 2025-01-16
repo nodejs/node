@@ -16,7 +16,6 @@ namespace node {
 
 using ncrypto::BignumPointer;
 using ncrypto::EVPKeyCtxPointer;
-using ncrypto::EVPKeyPointer;
 using v8::FunctionCallbackInfo;
 using v8::Int32;
 using v8::JustVoid;
@@ -35,9 +34,9 @@ EVPKeyCtxPointer DsaKeyGenTraits::Setup(DsaKeyPairGenConfig* params) {
   if (!param_ctx.initForParamgen() ||
       !param_ctx.setDsaParameters(
           params->params.modulus_bits,
-          params->params.divisor_bits != -1 ?
-              std::optional<int>(params->params.divisor_bits) :
-              std::nullopt)) {
+          params->params.divisor_bits != -1
+              ? std::optional<int>(params->params.divisor_bits)
+              : std::nullopt)) {
     return {};
   }
 

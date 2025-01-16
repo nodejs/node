@@ -59,7 +59,7 @@ struct MaybeCachedMD {
 };
 
 MaybeCachedMD FetchAndMaybeCacheMD(Environment* env, const char* search_name) {
-  const EVP_MD* implicit_md = EVP_get_digestbyname(search_name);
+  const EVP_MD* implicit_md = ncrypto::getDigestByName(search_name);
   if (!implicit_md) return {nullptr, nullptr, -1};
 
   const char* real_name = EVP_MD_get0_name(implicit_md);
@@ -202,7 +202,7 @@ const EVP_MD* GetDigestImplementation(Environment* env,
   return result.explicit_md ? result.explicit_md : result.implicit_md;
 #else
   Utf8Value utf8(env->isolate(), algorithm);
-  return EVP_get_digestbyname(*utf8);
+  return ncrypto::getDigestByName(utf8.ToStringView());
 #endif
 }
 
@@ -314,7 +314,8 @@ void Hash::New(const FunctionCallbackInfo<Value>& args) {
   const EVP_MD* md = nullptr;
   if (args[0]->IsObject()) {
     ASSIGN_OR_RETURN_UNWRAP(&orig, args[0].As<Object>());
-    md = EVP_MD_CTX_md(orig->mdctx_.get());
+    CHECK_NOT_NULL(orig);
+    md = orig->mdctx_.getDigest();
   } else {
     md = GetDigestImplementation(env, args[0], args[2], args[3]);
   }
@@ -331,25 +332,25 @@ void Hash::New(const FunctionCallbackInfo<Value>& args) {
                             "Digest method not supported");
   }
 
-  if (orig != nullptr &&
-      0 >= EVP_MD_CTX_copy(hash->mdctx_.get(), orig->mdctx_.get())) {
+  if (orig != nullptr && !orig->mdctx_.copyTo(hash->mdctx_)) {
     return ThrowCryptoError(env, ERR_get_error(), "Digest copy error");
   }
 }
 
 bool Hash::HashInit(const EVP_MD* md, Maybe<unsigned int> xof_md_len) {
-  mdctx_.reset(EVP_MD_CTX_new());
-  if (!mdctx_ || EVP_DigestInit_ex(mdctx_.get(), md, nullptr) <= 0) {
+  mdctx_ = EVPMDCtxPointer::New();
+  if (!mdctx_.digestInit(md)) {
     mdctx_.reset();
     return false;
   }
 
-  md_len_ = EVP_MD_size(md);
+  md_len_ = mdctx_.getDigestSize();
   if (xof_md_len.IsJust() && xof_md_len.FromJust() != md_len_) {
     // This is a little hack to cause createHash to fail when an incorrect
     // hashSize option was passed for a non-XOF hash function.
-    if ((EVP_MD_flags(md) & EVP_MD_FLAG_XOF) == 0) {
+    if (!mdctx_.hasXofFlag()) {
       EVPerr(EVP_F_EVP_DIGESTFINALXOF, EVP_R_NOT_XOF_OR_INVALID_LENGTH);
+      mdctx_.reset();
       return false;
     }
     md_len_ = xof_md_len.FromJust();
@@ -359,9 +360,11 @@ bool Hash::HashInit(const EVP_MD* md, Maybe<unsigned int> xof_md_len) {
 }
 
 bool Hash::HashUpdate(const char* data, size_t len) {
-  if (!mdctx_)
-    return false;
-  return EVP_DigestUpdate(mdctx_.get(), data, len) == 1;
+  if (!mdctx_) return false;
+  return mdctx_.digestUpdate(ncrypto::Buffer<const void> {
+    .data = data,
+    .len = len,
+  });
 }
 
 void Hash::HashUpdate(const FunctionCallbackInfo<Value>& args) {
@@ -402,25 +405,12 @@ void Hash::HashDigest(const FunctionCallbackInfo<Value>& args) {
     // and Hash.digest can both be used to retrieve the digest,
     // so we need to cache it.
     // See https://github.com/nodejs/node/issues/28245.
-
-    ByteSource::Builder digest(len);
-
-    size_t default_len = EVP_MD_CTX_size(hash->mdctx_.get());
-    int ret;
-    if (len == default_len) {
-      ret = EVP_DigestFinal_ex(
-          hash->mdctx_.get(), digest.data<unsigned char>(), &len);
-      // The output length should always equal hash->md_len_
-      CHECK_EQ(len, hash->md_len_);
-    } else {
-      ret = EVP_DigestFinalXOF(
-          hash->mdctx_.get(), digest.data<unsigned char>(), len);
+    auto data = hash->mdctx_.digestFinal(len);
+    if (!data) {
+      return ThrowCryptoError(env, ERR_get_error());
     }
 
-    if (ret != 1)
-      return ThrowCryptoError(env, ERR_get_error());
-
-    hash->digest_ = std::move(digest).release();
+    hash->digest_ = ByteSource::Allocated(data.release());
   }
 
   Local<Value> error;
@@ -469,7 +459,7 @@ Maybe<void> HashTraits::AdditionalConfig(
 
   CHECK(args[offset]->IsString());  // Hash algorithm
   Utf8Value digest(env->isolate(), args[offset]);
-  params->digest = EVP_get_digestbyname(*digest);
+  params->digest = ncrypto::getDigestByName(digest.ToStringView());
   if (params->digest == nullptr) [[unlikely]] {
     THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *digest);
     return Nothing<void>();
@@ -506,29 +496,18 @@ bool HashTraits::DeriveBits(
     Environment* env,
     const HashConfig& params,
     ByteSource* out) {
-  EVPMDCtxPointer ctx(EVP_MD_CTX_new());
+  auto ctx = EVPMDCtxPointer::New();
 
-  if (!ctx || EVP_DigestInit_ex(ctx.get(), params.digest, nullptr) <= 0 ||
-      EVP_DigestUpdate(ctx.get(), params.in.data<char>(), params.in.size()) <=
-          0) [[unlikely]] {
+  if (!ctx.digestInit(params.digest) || !ctx.digestUpdate(params.in))
+      [[unlikely]] {
     return false;
   }
 
   if (params.length > 0) [[likely]] {
-    unsigned int length = params.length;
-    ByteSource::Builder buf(length);
+    auto data = ctx.digestFinal(params.length);
+    if (!data) return false;
 
-    size_t expected = EVP_MD_CTX_size(ctx.get());
-
-    int ret =
-        (length == expected)
-            ? EVP_DigestFinal_ex(ctx.get(), buf.data<unsigned char>(), &length)
-            : EVP_DigestFinalXOF(ctx.get(), buf.data<unsigned char>(), length);
-
-    if (ret != 1) [[unlikely]]
-      return false;
-
-    *out = std::move(buf).release();
+    *out = ByteSource::Allocated(data.release());
   }
 
   return true;
@@ -548,7 +527,7 @@ void InternalVerifyIntegrity(const v8::FunctionCallbackInfo<v8::Value>& args) {
   CHECK(args[2]->IsArrayBufferView());
   ArrayBufferOrViewContents<unsigned char> expected(args[2]);
 
-  const EVP_MD* md_type = EVP_get_digestbyname(*algorithm);
+  const EVP_MD* md_type = ncrypto::getDigestByName(algorithm.ToStringView());
   unsigned char digest[EVP_MAX_MD_SIZE];
   unsigned int digest_size;
   if (md_type == nullptr || EVP_Digest(content.data(),

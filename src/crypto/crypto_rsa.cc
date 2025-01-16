@@ -20,7 +20,7 @@ using ncrypto::EVPKeyCtxPointer;
 using ncrypto::EVPKeyPointer;
 using ncrypto::RSAPointer;
 using v8::ArrayBuffer;
-using v8::BackingStore;
+using v8::BackingStoreInitializationMode;
 using v8::FunctionCallbackInfo;
 using v8::Int32;
 using v8::Integer;
@@ -37,9 +37,8 @@ using v8::Value;
 namespace crypto {
 EVPKeyCtxPointer RsaKeyGenTraits::Setup(RsaKeyPairGenConfig* params) {
   auto ctx = EVPKeyCtxPointer::NewFromID(
-          params->params.variant == kKeyVariantRSA_PSS
-              ? EVP_PKEY_RSA_PSS
-              : EVP_PKEY_RSA);
+      params->params.variant == kKeyVariantRSA_PSS ? EVP_PKEY_RSA_PSS
+                                                   : EVP_PKEY_RSA);
 
   if (!ctx.initForKeygen() ||
       !ctx.setRsaKeygenBits(params->params.modulus_bits)) {
@@ -70,8 +69,7 @@ EVPKeyCtxPointer RsaKeyGenTraits::Setup(RsaKeyPairGenConfig* params) {
       mgf1_md = params->params.md;
     }
 
-    if (mgf1_md != nullptr &&
-        !ctx.setRsaPssKeygenMgf1Md(mgf1_md)) {
+    if (mgf1_md != nullptr && !ctx.setRsaPssKeygenMgf1Md(mgf1_md)) {
       return {};
     }
 
@@ -143,7 +141,7 @@ Maybe<void> RsaKeyGenTraits::AdditionalConfig(
     if (!args[*offset]->IsUndefined()) {
       CHECK(args[*offset]->IsString());
       Utf8Value digest(env->isolate(), args[*offset]);
-      params->params.md = EVP_get_digestbyname(*digest);
+      params->params.md = ncrypto::getDigestByName(digest.ToStringView());
       if (params->params.md == nullptr) {
         THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *digest);
         return Nothing<void>();
@@ -153,7 +151,7 @@ Maybe<void> RsaKeyGenTraits::AdditionalConfig(
     if (!args[*offset + 1]->IsUndefined()) {
       CHECK(args[*offset + 1]->IsString());
       Utf8Value digest(env->isolate(), args[*offset + 1]);
-      params->params.mgf1_md = EVP_get_digestbyname(*digest);
+      params->params.mgf1_md = ncrypto::getDigestByName(digest.ToStringView());
       if (params->params.mgf1_md == nullptr) {
         THROW_ERR_CRYPTO_INVALID_DIGEST(
             env, "Invalid MGF1 digest: %s", *digest);
@@ -198,10 +196,10 @@ WebCryptoCipherStatus RSA_Cipher(Environment* env,
   CHECK_NE(key_data.GetKeyType(), kKeyTypeSecret);
   Mutex::ScopedLock lock(key_data.mutex());
   const auto& m_pkey = key_data.GetAsymmetricKey();
-  const ncrypto::Rsa::CipherParams nparams {
-    .padding = params.padding,
-    .digest = params.digest,
-    .label = params.label,
+  const ncrypto::Rsa::CipherParams nparams{
+      .padding = params.padding,
+      .digest = params.digest,
+      .label = params.label,
   };
 
   auto data = cipher(m_pkey, nparams, in);
@@ -279,7 +277,7 @@ Maybe<void> RSACipherTraits::AdditionalConfig(
       CHECK(args[offset + 1]->IsString());  // digest
       Utf8Value digest(env->isolate(), args[offset + 1]);
 
-      params->digest = EVP_get_digestbyname(*digest);
+      params->digest = ncrypto::getDigestByName(digest.ToStringView());
       if (params->digest == nullptr) {
         THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *digest);
         return Nothing<void>();
@@ -312,12 +310,10 @@ WebCryptoCipherStatus RSACipherTraits::DoCipher(Environment* env,
   switch (cipher_mode) {
     case kWebCryptoCipherEncrypt:
       CHECK_EQ(key_data.GetKeyType(), kKeyTypePublic);
-      return RSA_Cipher<ncrypto::Rsa::encrypt>(
-          env, key_data, params, in, out);
+      return RSA_Cipher<ncrypto::Rsa::encrypt>(env, key_data, params, in, out);
     case kWebCryptoCipherDecrypt:
       CHECK_EQ(key_data.GetKeyType(), kKeyTypePrivate);
-      return RSA_Cipher<ncrypto::Rsa::decrypt>(
-          env, key_data, params, in, out);
+      return RSA_Cipher<ncrypto::Rsa::decrypt>(env, key_data, params, in, out);
   }
   return WebCryptoCipherStatus::FAILED;
 }
@@ -329,28 +325,35 @@ Maybe<void> ExportJWKRsaKey(Environment* env,
   const auto& m_pkey = key.GetAsymmetricKey();
 
   const ncrypto::Rsa rsa = m_pkey;
-  if (!rsa || target->Set(
-          env->context(),
-          env->jwk_kty_string(),
-          env->jwk_rsa_string()).IsNothing()) {
+  if (!rsa ||
+      target->Set(env->context(), env->jwk_kty_string(), env->jwk_rsa_string())
+          .IsNothing()) {
     return Nothing<void>();
   }
 
   auto pub_key = rsa.getPublicKey();
 
-  if (SetEncodedValue(env, target, env->jwk_n_string(), pub_key.n).IsNothing() ||
-      SetEncodedValue(env, target, env->jwk_e_string(), pub_key.e).IsNothing()) {
+  if (SetEncodedValue(env, target, env->jwk_n_string(), pub_key.n)
+          .IsNothing() ||
+      SetEncodedValue(env, target, env->jwk_e_string(), pub_key.e)
+          .IsNothing()) {
     return Nothing<void>();
   }
 
   if (key.GetKeyType() == kKeyTypePrivate) {
     auto pvt_key = rsa.getPrivateKey();
-    if (SetEncodedValue(env, target, env->jwk_d_string(), pub_key.d).IsNothing() ||
-        SetEncodedValue(env, target, env->jwk_p_string(), pvt_key.p).IsNothing() ||
-        SetEncodedValue(env, target, env->jwk_q_string(), pvt_key.q).IsNothing() ||
-        SetEncodedValue(env, target, env->jwk_dp_string(), pvt_key.dp).IsNothing() ||
-        SetEncodedValue(env, target, env->jwk_dq_string(), pvt_key.dq).IsNothing() ||
-        SetEncodedValue(env, target, env->jwk_qi_string(), pvt_key.qi).IsNothing()) {
+    if (SetEncodedValue(env, target, env->jwk_d_string(), pub_key.d)
+            .IsNothing() ||
+        SetEncodedValue(env, target, env->jwk_p_string(), pvt_key.p)
+            .IsNothing() ||
+        SetEncodedValue(env, target, env->jwk_q_string(), pvt_key.q)
+            .IsNothing() ||
+        SetEncodedValue(env, target, env->jwk_dp_string(), pvt_key.dp)
+            .IsNothing() ||
+        SetEncodedValue(env, target, env->jwk_dq_string(), pvt_key.dq)
+            .IsNothing() ||
+        SetEncodedValue(env, target, env->jwk_qi_string(), pvt_key.qi)
+            .IsNothing()) {
       return Nothing<void>();
     }
   }
@@ -425,8 +428,8 @@ KeyObjectData ImportJWKRsaKey(Environment* env,
     ByteSource dq = ByteSource::FromEncodedString(env, dq_value.As<String>());
     ByteSource qi = ByteSource::FromEncodedString(env, qi_value.As<String>());
 
-    if (!rsa_view.setPrivateKey(d.ToBN(), q.ToBN(), p.ToBN(), dp.ToBN(),
-                                dq.ToBN(), qi.ToBN())) {
+    if (!rsa_view.setPrivateKey(
+            d.ToBN(), q.ToBN(), p.ToBN(), dp.ToBN(), dq.ToBN(), qi.ToBN())) {
       THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK RSA key");
       return {};
     }
@@ -454,15 +457,17 @@ Maybe<void> GetRsaKeyDetail(Environment* env,
   if (target
           ->Set(env->context(),
                 env->modulus_length_string(),
-                Number::New(env->isolate(),
+                Number::New(
+                    env->isolate(),
                     static_cast<double>(BignumPointer::GetBitCount(pub_key.n))))
           .IsNothing()) {
     return Nothing<void>();
   }
 
   auto public_exponent = ArrayBuffer::NewBackingStore(
-      env->isolate(), BignumPointer::GetByteCount(pub_key.e),
-      v8::BackingStoreInitializationMode::kUninitialized);
+      env->isolate(),
+      BignumPointer::GetByteCount(pub_key.e),
+      BackingStoreInitializationMode::kUninitialized);
   CHECK_EQ(BignumPointer::EncodePaddedInto(
                pub_key.e,
                static_cast<unsigned char*>(public_exponent->Data()),
@@ -491,10 +496,9 @@ Maybe<void> GetRsaKeyDetail(Environment* env,
     if (maybe_params.has_value()) {
       auto& params = maybe_params.value();
       if (target
-              ->Set(
-                  env->context(),
-                  env->hash_algorithm_string(),
-                  OneByteString(env->isolate(), params.digest))
+              ->Set(env->context(),
+                    env->hash_algorithm_string(),
+                    OneByteString(env->isolate(), params.digest))
               .IsNothing()) {
         return Nothing<void>();
       }
@@ -504,20 +508,18 @@ Maybe<void> GetRsaKeyDetail(Environment* env,
       if (params.mgf1_digest.has_value()) {
         auto digest = params.mgf1_digest.value();
         if (target
-                ->Set(
-                    env->context(),
-                    env->mgf1_hash_algorithm_string(),
-                    OneByteString(env->isolate(), digest))
+                ->Set(env->context(),
+                      env->mgf1_hash_algorithm_string(),
+                      OneByteString(env->isolate(), digest))
                 .IsNothing()) {
           return Nothing<void>();
         }
       }
 
       if (target
-              ->Set(
-                  env->context(),
-                  env->salt_length_string(),
-                  Integer::New(env->isolate(), params.salt_length))
+              ->Set(env->context(),
+                    env->salt_length_string(),
+                    Integer::New(env->isolate(), params.salt_length))
               .IsNothing()) {
         return Nothing<void>();
       }

@@ -13,9 +13,10 @@ namespace node {
 namespace crypto {
 static const unsigned int kNoDsaSignature = static_cast<unsigned int>(-1);
 
-enum DSASigEnc {
-  kSigEncDER,
-  kSigEncP1363
+enum class DSASigEnc {
+  DER,
+  P1363,
+  Invalid
 };
 
 class SignBase : public BaseObject {
@@ -33,7 +34,7 @@ class SignBase : public BaseObject {
 
   SignBase(Environment* env, v8::Local<v8::Object> wrap);
 
-  Error Init(const char* sign_type);
+  Error Init(std::string_view digest);
   Error Update(const char* data, size_t len);
 
   // TODO(joyeecheung): track the memory used by OpenSSL types
@@ -118,7 +119,7 @@ struct SignConfiguration final : public MemoryRetainer {
   int flags = SignConfiguration::kHasNone;
   int padding = 0;
   int salt_length = 0;
-  DSASigEnc dsa_encoding = kSigEncDER;
+  DSASigEnc dsa_encoding = DSASigEnc::DER;
 
   SignConfiguration() = default;
 

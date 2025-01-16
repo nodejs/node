@@ -349,7 +349,7 @@ KeyObjectData::GetPrivateKeyEncodingFromJs(
     if (context != kKeyContextInput) {
       if (args[*offset]->IsString()) {
         Utf8Value cipher_name(env->isolate(), args[*offset]);
-        config.cipher = EVP_get_cipherbyname(*cipher_name);
+        config.cipher = ncrypto::getCipherByName(cipher_name.ToStringView());
         if (config.cipher == nullptr) {
           THROW_ERR_CRYPTO_UNKNOWN_CIPHER(env);
           return Nothing<EVPKeyPointer::PrivateKeyEncodingConfig>();
@@ -1197,6 +1197,9 @@ void Initialize(Environment* env, Local<Object> target) {
       static_cast<int>(EVPKeyPointer::PKFormatType::PEM);
   constexpr int kKeyFormatJWK =
       static_cast<int>(EVPKeyPointer::PKFormatType::JWK);
+
+  constexpr auto kSigEncDER = DSASigEnc::DER;
+  constexpr auto kSigEncP1363 = DSASigEnc::P1363;
 
   NODE_DEFINE_CONSTANT(target, kWebCryptoKeyFormatRaw);
   NODE_DEFINE_CONSTANT(target, kWebCryptoKeyFormatPKCS8);

@@ -1550,7 +1550,16 @@ DataPointer DHPointer::stateless(const EVPKeyPointer& ourKey,
 // KDF
 
 const EVP_MD* getDigestByName(const std::string_view name) {
+  // Historically, "dss1" and "DSS1" were DSA aliases for SHA-1
+  // exposed through the public API.
+  if (name == "dss1" || name == "DSS1") [[unlikely]] {
+    return EVP_sha1();
+  }
   return EVP_get_digestbyname(name.data());
+}
+
+const EVP_CIPHER* getCipherByName(const std::string_view name) {
+  return EVP_get_cipherbyname(name.data());
 }
 
 bool checkHkdfLength(const EVP_MD* md, size_t length) {
@@ -2277,6 +2286,35 @@ Result<BIOPointer, bool> EVPKeyPointer::writePublicKey(
   return bio;
 }
 
+bool EVPKeyPointer::isRsaVariant() const {
+  int type = id();
+  return type == EVP_PKEY_RSA ||
+         type == EVP_PKEY_RSA2 ||
+         type == EVP_PKEY_RSA_PSS;
+}
+
+int EVPKeyPointer::getDefaultSignPadding() const {
+  return id() == EVP_PKEY_RSA_PSS ? RSA_PKCS1_PSS_PADDING
+                                  : RSA_PKCS1_PADDING;
+}
+
+std::optional<uint32_t> EVPKeyPointer::getBytesOfRS() const {
+  if (!pkey_) return std::nullopt;
+  int bits, id = base_id();
+
+  if (id == EVP_PKEY_DSA) {
+    const DSA* dsa_key = EVP_PKEY_get0_DSA(get());
+    // Both r and s are computed mod q, so their width is limited by that of q.
+    bits = BignumPointer::GetBitCount(DSA_get0_q(dsa_key));
+  } else if (id == EVP_PKEY_EC) {
+    bits = EC_GROUP_order_bits(ECKeyPointer::GetGroup(*this));
+  } else {
+    return std::nullopt;
+  }
+
+  return (bits + 7) / 8;
+}
+
 EVPKeyPointer::operator Rsa() const {
   int type = id();
   if (type != EVP_PKEY_RSA && type != EVP_PKEY_RSA_PSS) return {};
@@ -2961,7 +2999,9 @@ EVPKeyCtxPointer& EVPKeyCtxPointer::operator=(
   return *this;
 }
 
-EVPKeyCtxPointer::~EVPKeyCtxPointer() { reset(); }
+EVPKeyCtxPointer::~EVPKeyCtxPointer() {
+  reset();
+}
 
 void EVPKeyCtxPointer::reset(EVP_PKEY_CTX* ctx) {
   ctx_.reset(ctx);
@@ -3012,14 +3052,15 @@ bool EVPKeyCtxPointer::setDhParameters(int prime_size, uint32_t generator) {
          EVP_PKEY_CTX_set_dh_paramgen_generator(ctx_.get(), generator) == 1;
 }
 
-bool EVPKeyCtxPointer::setDsaParameters(uint32_t bits, std::optional<int> q_bits) {
+bool EVPKeyCtxPointer::setDsaParameters(uint32_t bits,
+                                        std::optional<int> q_bits) {
   if (!ctx_) return false;
   if (EVP_PKEY_CTX_set_dsa_paramgen_bits(ctx_.get(), bits) != 1) {
     return false;
   }
   if (q_bits.has_value() &&
       EVP_PKEY_CTX_set_dsa_paramgen_q_bits(ctx_.get(), q_bits.value()) != 1) {
-      return false;
+    return false;
   }
   return true;
 }
@@ -3044,10 +3085,9 @@ bool EVPKeyCtxPointer::setRsaPadding(int padding) {
   return setRsaPadding(ctx_.get(), padding, std::nullopt);
 }
 
-bool EVPKeyCtxPointer::setRsaPadding(
-    EVP_PKEY_CTX* ctx,
-    int padding,
-    std::optional<int> salt_len) {
+bool EVPKeyCtxPointer::setRsaPadding(EVP_PKEY_CTX* ctx,
+                                     int padding,
+                                     std::optional<int> salt_len) {
   if (ctx == nullptr) return false;
   if (EVP_PKEY_CTX_set_rsa_padding(ctx, padding) <= 0) {
     return false;
@@ -3090,8 +3130,8 @@ bool EVPKeyCtxPointer::setRsaPssSaltlen(int salt_len) {
 
 bool EVPKeyCtxPointer::setRsaImplicitRejection() {
   if (!ctx_) return false;
-  return EVP_PKEY_CTX_ctrl_str(ctx_.get(),
-      "rsa_pkcs1_implicit_rejection", "1") > 0;
+  return EVP_PKEY_CTX_ctrl_str(
+             ctx_.get(), "rsa_pkcs1_implicit_rejection", "1") > 0;
   // From the doc -2 means that the option is not supported.
   // The default for the option is enabled and if it has been
   // specifically disabled we want to respect that so we will
@@ -3103,10 +3143,9 @@ bool EVPKeyCtxPointer::setRsaImplicitRejection() {
 
 bool EVPKeyCtxPointer::setRsaOaepLabel(DataPointer&& data) {
   if (!ctx_) return false;
-  if (EVP_PKEY_CTX_set0_rsa_oaep_label(
-          ctx_.get(),
-          static_cast<unsigned char*>(data.get()),
-          data.size()) > 0) {
+  if (EVP_PKEY_CTX_set0_rsa_oaep_label(ctx_.get(),
+                                       static_cast<unsigned char*>(data.get()),
+                                       data.size()) > 0) {
     // The ctx_ takes ownership of data on success.
     data.release();
     return true;
@@ -3116,8 +3155,8 @@ bool EVPKeyCtxPointer::setRsaOaepLabel(DataPointer&& data) {
 
 bool EVPKeyCtxPointer::setSignatureMd(const EVPMDCtxPointer& md) {
   if (!ctx_) return false;
-  return EVP_PKEY_CTX_set_signature_md(ctx_.get(),
-      EVP_MD_CTX_md(md.get())) == 1;
+  return EVP_PKEY_CTX_set_signature_md(ctx_.get(), EVP_MD_CTX_md(md.get())) ==
+         1;
 }
 
 bool EVPKeyCtxPointer::initForEncrypt() {
@@ -3136,8 +3175,8 @@ DataPointer EVPKeyCtxPointer::derive() const {
   if (EVP_PKEY_derive(ctx_.get(), nullptr, &len) != 1) return {};
   auto data = DataPointer::Alloc(len);
   if (!data) return {};
-  if (EVP_PKEY_derive(ctx_.get(),
-      static_cast<unsigned char*>(data.get()), &len) != 1) {
+  if (EVP_PKEY_derive(
+          ctx_.get(), static_cast<unsigned char*>(data.get()), &len) != 1) {
     return {};
   }
   return data;
@@ -3170,38 +3209,35 @@ namespace {
 
 using EVP_PKEY_cipher_init_t = int(EVP_PKEY_CTX* ctx);
 using EVP_PKEY_cipher_t = int(EVP_PKEY_CTX* ctx,
-                              unsigned char* out, size_t* outlen,
-                              const unsigned char* in, size_t inlen);
+                              unsigned char* out,
+                              size_t* outlen,
+                              const unsigned char* in,
+                              size_t inlen);
 
-template <EVP_PKEY_cipher_init_t init,
-          EVP_PKEY_cipher_t cipher>
+template <EVP_PKEY_cipher_init_t init, EVP_PKEY_cipher_t cipher>
 DataPointer RSA_Cipher(const EVPKeyPointer& key,
                        const Rsa::CipherParams& params,
                        const Buffer<const void> in) {
   if (!key) return {};
   EVPKeyCtxPointer ctx = key.newCtx();
 
-  if (!ctx || init(ctx.get()) <= 0 ||
-      !ctx.setRsaPadding(params.padding) ||
-      (params.digest != nullptr &&
-       (!ctx.setRsaOaepMd(params.digest) ||
-        !ctx.setRsaMgf1Md(params.digest)))) {
+  if (!ctx || init(ctx.get()) <= 0 || !ctx.setRsaPadding(params.padding) ||
+      (params.digest != nullptr && (!ctx.setRsaOaepMd(params.digest) ||
+                                    !ctx.setRsaMgf1Md(params.digest)))) {
     return {};
   }
 
-  if (params.label.len != 0 &&
-      params.label.data != nullptr &&
+  if (params.label.len != 0 && params.label.data != nullptr &&
       !ctx.setRsaOaepLabel(DataPointer::Copy(params.label))) {
     return {};
   }
 
   size_t out_len = 0;
-  if (cipher(
-          ctx.get(),
-          nullptr,
-          &out_len,
-          reinterpret_cast<const unsigned char*>(in.data),
-          in.len) <= 0) {
+  if (cipher(ctx.get(),
+             nullptr,
+             &out_len,
+             reinterpret_cast<const unsigned char*>(in.data),
+             in.len) <= 0) {
     return {};
   }
 
@@ -3219,22 +3255,18 @@ DataPointer RSA_Cipher(const EVPKeyPointer& key,
   return buf.resize(out_len);
 }
 
-template <EVP_PKEY_cipher_init_t init,
-          EVP_PKEY_cipher_t cipher>
+template <EVP_PKEY_cipher_init_t init, EVP_PKEY_cipher_t cipher>
 DataPointer CipherImpl(const EVPKeyPointer& key,
                        const Rsa::CipherParams& params,
                        const Buffer<const void> in) {
   if (!key) return {};
   EVPKeyCtxPointer ctx = key.newCtx();
-  if (!ctx ||
-      init(ctx.get()) <= 0 ||
-      !ctx.setRsaPadding(params.padding) ||
+  if (!ctx || init(ctx.get()) <= 0 || !ctx.setRsaPadding(params.padding) ||
       (params.digest != nullptr && !ctx.setRsaOaepMd(params.digest))) {
     return {};
   }
 
-  if (params.label.len != 0 &&
-      params.label.data != nullptr &&
+  if (params.label.len != 0 && params.label.data != nullptr &&
       !ctx.setRsaOaepLabel(DataPointer::Copy(params.label))) {
     return {};
   }
@@ -3286,10 +3318,10 @@ const std::optional<Rsa::PssParams> Rsa::getPssParams() const {
   if (rsa_ == nullptr) return std::nullopt;
   const RSA_PSS_PARAMS* params = RSA_get0_pss_params(rsa_);
   if (params == nullptr) return std::nullopt;
-  Rsa::PssParams ret {
-    .digest = OBJ_nid2ln(NID_sha1),
-    .mgf1_digest = OBJ_nid2ln(NID_sha1),
-    .salt_length = 20,
+  Rsa::PssParams ret{
+      .digest = OBJ_nid2ln(NID_sha1),
+      .mgf1_digest = OBJ_nid2ln(NID_sha1),
+      .salt_length = 20,
   };
 
   if (params->hashAlgorithm != nullptr) {
@@ -3344,8 +3376,8 @@ bool Rsa::setPrivateKey(BignumPointer&& d,
   p.release();
   q.release();
 
-  if (!RSA_set0_crt_params(const_cast<RSA*>(rsa_),
-                           dp.get(), dq.get(), qi.get())) {
+  if (!RSA_set0_crt_params(
+          const_cast<RSA*>(rsa_), dp.get(), dq.get(), qi.get())) {
     return false;
   }
   dp.release();
@@ -3358,16 +3390,14 @@ DataPointer Rsa::encrypt(const EVPKeyPointer& key,
                          const Rsa::CipherParams& params,
                          const Buffer<const void> in) {
   if (!key) return {};
-  return RSA_Cipher<EVP_PKEY_encrypt_init,
-                    EVP_PKEY_encrypt>(key, params, in);
+  return RSA_Cipher<EVP_PKEY_encrypt_init, EVP_PKEY_encrypt>(key, params, in);
 }
 
 DataPointer Rsa::decrypt(const EVPKeyPointer& key,
                          const Rsa::CipherParams& params,
                          const Buffer<const void> in) {
   if (!key) return {};
-  return RSA_Cipher<EVP_PKEY_decrypt_init,
-                    EVP_PKEY_decrypt>(key, params, in);
+  return RSA_Cipher<EVP_PKEY_decrypt_init, EVP_PKEY_decrypt>(key, params, in);
 }
 
 DataPointer Cipher::encrypt(const EVPKeyPointer& key,
@@ -3381,7 +3411,7 @@ DataPointer Cipher::decrypt(const EVPKeyPointer& key,
                             const CipherParams& params,
                             const Buffer<const void> in) {
   // private operation
-   return CipherImpl<EVP_PKEY_decrypt_init, EVP_PKEY_decrypt>(key, params, in);
+  return CipherImpl<EVP_PKEY_decrypt_init, EVP_PKEY_decrypt>(key, params, in);
 }
 
 DataPointer Cipher::sign(const EVPKeyPointer& key,
@@ -3397,6 +3427,84 @@ DataPointer Cipher::recover(const EVPKeyPointer& key,
   // public operation
   return CipherImpl<EVP_PKEY_verify_recover_init, EVP_PKEY_verify_recover>(
       key, params, in);
+}
+
+// ============================================================================
+
+EVPMDCtxPointer::EVPMDCtxPointer() : ctx_(nullptr) {}
+
+EVPMDCtxPointer::EVPMDCtxPointer(EVP_MD_CTX* ctx) : ctx_(ctx) {}
+
+EVPMDCtxPointer::EVPMDCtxPointer(EVPMDCtxPointer&& other) noexcept
+    : ctx_(other.release()) {}
+
+EVPMDCtxPointer& EVPMDCtxPointer::operator=(EVPMDCtxPointer&& other) noexcept {
+  ctx_.reset(other.release());
+  return *this;
+}
+
+EVPMDCtxPointer::~EVPMDCtxPointer() { reset(); }
+
+void EVPMDCtxPointer::reset(EVP_MD_CTX* ctx) { ctx_.reset(ctx); }
+
+EVP_MD_CTX* EVPMDCtxPointer::release() {
+  return ctx_.release();
+}
+
+bool EVPMDCtxPointer::digestInit(const EVP_MD* digest) {
+  if (!ctx_) return false;
+  return EVP_DigestInit_ex(ctx_.get(), digest, nullptr) > 0;
+}
+
+bool EVPMDCtxPointer::digestUpdate(const Buffer<const void>& in) {
+  if (!ctx_) return false;
+  return EVP_DigestUpdate(ctx_.get(), in.data, in.len) > 0;
+}
+
+DataPointer EVPMDCtxPointer::digestFinal(size_t length) {
+  if (!ctx_) return {};
+
+  auto buf = DataPointer::Alloc(length);
+  if (!buf) return {};
+  auto ptr = static_cast<unsigned char*>(buf.get());
+
+  int ret =
+      (length == getExpectedSize())
+          ? EVP_DigestFinal_ex(ctx_.get(), ptr, nullptr)
+          : EVP_DigestFinalXOF(ctx_.get(), ptr, length);
+
+  if (ret != 1) [[unlikely]] return {};
+
+  return buf;
+}
+
+size_t EVPMDCtxPointer::getExpectedSize() {
+  if (!ctx_) return 0;
+  return EVP_MD_CTX_size(ctx_.get());
+}
+
+size_t EVPMDCtxPointer::getDigestSize() const {
+  return EVP_MD_size(getDigest());
+}
+
+const EVP_MD* EVPMDCtxPointer::getDigest() const {
+  if (!ctx_) return nullptr;
+  return EVP_MD_CTX_md(ctx_.get());
+}
+
+bool EVPMDCtxPointer::hasXofFlag() const {
+  if (!ctx_) return false;
+  return (EVP_MD_flags(getDigest()) & EVP_MD_FLAG_XOF) == EVP_MD_FLAG_XOF;
+}
+
+bool EVPMDCtxPointer::copyTo(const EVPMDCtxPointer& other) const {
+  if (!ctx_ ||!other) return {};
+  if (EVP_MD_CTX_copy(other.get(), ctx_.get()) != 1) return false;
+  return true;
+}
+
+EVPMDCtxPointer EVPMDCtxPointer::New() {
+  return EVPMDCtxPointer(EVP_MD_CTX_new());
 }
 
 }  // namespace ncrypto

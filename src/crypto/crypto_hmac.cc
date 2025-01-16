@@ -70,7 +70,7 @@ void Hmac::New(const FunctionCallbackInfo<Value>& args) {
 void Hmac::HmacInit(const char* hash_type, const char* key, int key_len) {
   HandleScope scope(env()->isolate());
 
-  const EVP_MD* md = EVP_get_digestbyname(hash_type);
+  const EVP_MD* md = ncrypto::getDigestByName(hash_type);
   if (md == nullptr)
     return THROW_ERR_CRYPTO_INVALID_DIGEST(
         env(), "Invalid digest: %s", hash_type);
@@ -188,7 +188,7 @@ Maybe<void> HmacTraits::AdditionalConfig(
   CHECK(args[offset + 2]->IsObject());  // Key
 
   Utf8Value digest(env->isolate(), args[offset + 1]);
-  params->digest = EVP_get_digestbyname(*digest);
+  params->digest = ncrypto::getDigestByName(digest.ToStringView());
   if (params->digest == nullptr) {
     THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *digest);
     return Nothing<void>();

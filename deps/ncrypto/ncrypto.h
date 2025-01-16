@@ -201,7 +201,6 @@ struct FunctionDeleter {
 template <typename T, void (*function)(T*)>
 using DeleteFnPtr = typename FunctionDeleter<T, function>::Pointer;
 
-using EVPMDCtxPointer = DeleteFnPtr<EVP_MD_CTX, EVP_MD_CTX_free>;
 using HMACCtxPointer = DeleteFnPtr<HMAC_CTX, HMAC_CTX_free>;
 using PKCS8Pointer = DeleteFnPtr<PKCS8_PRIV_KEY_INFO, PKCS8_PRIV_KEY_INFO_free>;
 using RSAPointer = DeleteFnPtr<RSA, RSA_free>;
@@ -214,6 +213,7 @@ class DataPointer;
 class DHPointer;
 class ECKeyPointer;
 class EVPKeyPointer;
+class EVPMDCtxPointer;
 class SSLCtxPointer;
 class SSLPointer;
 class X509View;
@@ -614,7 +614,6 @@ class EVPKeyCtxPointer final {
   int initForVerify();
   int initForSign();
 
-
   static EVPKeyCtxPointer New(const EVPKeyPointer& key);
   static EVPKeyCtxPointer NewFromID(int id);
 
@@ -731,6 +730,9 @@ class EVPKeyPointer final {
 
   static bool IsRSAPrivateKey(const Buffer<const unsigned char>& buffer);
 
+  std::optional<uint32_t> getBytesOfRS() const;
+  int getDefaultSignPadding() const;
+  bool isRsaVariant() const;
   operator Rsa() const;
 
  private:
@@ -1103,6 +1105,39 @@ class ECKeyPointer final {
   DeleteFnPtr<EC_KEY, EC_KEY_free> key_;
 };
 
+class EVPMDCtxPointer final {
+ public:
+  EVPMDCtxPointer();
+  explicit EVPMDCtxPointer(EVP_MD_CTX* ctx);
+  EVPMDCtxPointer(EVPMDCtxPointer&& other) noexcept;
+  EVPMDCtxPointer& operator=(EVPMDCtxPointer&& other) noexcept;
+  NCRYPTO_DISALLOW_COPY(EVPMDCtxPointer)
+  ~EVPMDCtxPointer();
+
+  inline bool operator==(std::nullptr_t) noexcept { return ctx_ == nullptr; }
+  inline operator bool() const { return ctx_ != nullptr; }
+  inline EVP_MD_CTX* get() const { return ctx_.get(); }
+  inline operator EVP_MD_CTX*() const { return ctx_.get(); }
+  void reset(EVP_MD_CTX* ctx = nullptr);
+  EVP_MD_CTX* release();
+
+  bool digestInit(const EVP_MD* digest);
+  bool digestUpdate(const Buffer<const void>& in);
+  DataPointer digestFinal(size_t length);
+  size_t getExpectedSize();
+
+  const EVP_MD* getDigest() const;
+  size_t getDigestSize() const;
+  bool hasXofFlag() const;
+
+  bool copyTo(const EVPMDCtxPointer& other) const;
+
+  static EVPMDCtxPointer New();
+
+ private:
+  DeleteFnPtr<EVP_MD_CTX, EVP_MD_CTX_free> ctx_;
+};
+
 #ifndef OPENSSL_NO_ENGINE
 class EnginePointer final {
  public:
@@ -1180,6 +1215,7 @@ Buffer<char> ExportChallenge(const char* input, size_t length);
 // KDF
 
 const EVP_MD* getDigestByName(const std::string_view name);
+const EVP_CIPHER* getCipherByName(const std::string_view name);
 
 // Verify that the specified HKDF output length is valid for the given digest.
 // The maximum length for HKDF output for a given digest is 255 times the

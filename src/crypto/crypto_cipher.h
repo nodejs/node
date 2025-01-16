@@ -96,10 +96,10 @@ class CipherBase : public BaseObject {
 
 class PublicKeyCipher {
  public:
-  using Cipher_t = ncrypto::DataPointer(
-      const ncrypto::EVPKeyPointer&,
-      const ncrypto::Cipher::CipherParams& params,
-      const ncrypto::Buffer<const void>);
+  using Cipher_t =
+      ncrypto::DataPointer(const ncrypto::EVPKeyPointer&,
+                           const ncrypto::Cipher::CipherParams& params,
+                           const ncrypto::Buffer<const void>);
 
   enum Operation {
     kPublic,

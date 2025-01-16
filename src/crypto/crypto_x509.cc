@@ -27,7 +27,7 @@ using ncrypto::X509View;
 using v8::Array;
 using v8::ArrayBuffer;
 using v8::ArrayBufferView;
-using v8::BackingStore;
+using v8::BackingStoreInitializationMode;
 using v8::Boolean;
 using v8::Context;
 using v8::Date;
@@ -668,8 +668,8 @@ MaybeLocal<Object> GetPubKey(Environment* env, const ncrypto::Rsa& rsa) {
   int size = i2d_RSA_PUBKEY(rsa, nullptr);
   CHECK_GE(size, 0);
 
-  auto bs = ArrayBuffer::NewBackingStore(env->isolate(), size,
-      v8::BackingStoreInitializationMode::kUninitialized);
+  auto bs = ArrayBuffer::NewBackingStore(
+      env->isolate(), size, BackingStoreInitializationMode::kUninitialized);
 
   auto serialized = reinterpret_cast<unsigned char*>(bs->Data());
   CHECK_GE(i2d_RSA_PUBKEY(rsa, &serialized), 0);
@@ -763,15 +763,19 @@ MaybeLocal<Object> X509ToObject(Environment* env, const X509View& cert) {
   if (rsa) {
     ncrypto::Rsa nrsa(rsa);
     auto pub_key = nrsa.getPublicKey();
-    if (!Set<Value>(
-            env, info, env->modulus_string(), GetModulusString(env, pub_key.n)) ||
-        !Set<Value>(
-            env,
-            info,
-            env->bits_string(),
-            Integer::New(env->isolate(), BignumPointer::GetBitCount(pub_key.n))) ||
-        !Set<Value>(
-            env, info, env->exponent_string(), GetExponentString(env, pub_key.e)) ||
+    if (!Set<Value>(env,
+                    info,
+                    env->modulus_string(),
+                    GetModulusString(env, pub_key.n)) ||
+        !Set<Value>(env,
+                    info,
+                    env->bits_string(),
+                    Integer::New(env->isolate(),
+                                 BignumPointer::GetBitCount(pub_key.n))) ||
+        !Set<Value>(env,
+                    info,
+                    env->exponent_string(),
+                    GetExponentString(env, pub_key.e)) ||
         !Set<Object>(env, info, env->pubkey_string(), GetPubKey(env, nrsa))) {
       return {};
     }

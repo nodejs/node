@@ -12,7 +12,6 @@ namespace node {
 
 using ncrypto::Cipher;
 using ncrypto::CipherCtxPointer;
-using ncrypto::DataPointer;
 using ncrypto::EVPKeyCtxPointer;
 using ncrypto::EVPKeyPointer;
 using ncrypto::MarkPopErrorOnReturn;
@@ -944,10 +943,10 @@ bool PublicKeyCipher::Cipher(
   auto label = oaep_label.ToByteSource();
   auto in = data.ToByteSource();
 
-  const ncrypto::Cipher::CipherParams params {
-    .padding = padding,
-    .digest = digest,
-    .label = label,
+  const ncrypto::Cipher::CipherParams params{
+      .padding = padding,
+      .digest = digest,
+      .label = label,
   };
 
   auto buf = cipher(pkey, params, in);
@@ -1004,7 +1003,7 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
   const EVP_MD* digest = nullptr;
   if (args[offset + 2]->IsString()) {
     const Utf8Value oaep_str(env->isolate(), args[offset + 2]);
-    digest = ncrypto::getDigestByName(*oaep_str);
+    digest = ncrypto::getDigestByName(oaep_str.ToStringView());
     if (digest == nullptr)
       return THROW_ERR_OSSL_EVP_INVALID_DIGEST(env);
   }

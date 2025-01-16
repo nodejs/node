@@ -229,10 +229,7 @@ class ByteSource {
   }
 
   inline operator ncrypto::Buffer<const void>() const {
-    return ncrypto::Buffer {
-      .data = data<void>(),
-      .len = size()
-    };
+    return ncrypto::Buffer{.data = data<void>(), .len = size()};
   }
 
   size_t size() const { return size_; }
@@ -714,8 +711,7 @@ v8::Maybe<void> SetEncodedValue(Environment* env,
                                 const BIGNUM* bn,
                                 int size = 0);
 
-bool SetRsaOaepLabel(ncrypto::EVPKeyCtxPointer* rsa,
-                     const ByteSource& label);
+bool SetRsaOaepLabel(ncrypto::EVPKeyCtxPointer* rsa, const ByteSource& label);
 
 namespace Util {
 void Initialize(Environment* env, v8::Local<v8::Object> target);
