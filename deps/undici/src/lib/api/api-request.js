@@ -73,7 +73,7 @@ class RequestHandler extends AsyncResource {
         this.removeAbortListener = util.addAbortListener(this.signal, () => {
           this.reason = this.signal.reason ?? new RequestAbortedError()
           if (this.res) {
-            util.destroy(this.res, this.reason)
+            util.destroy(this.res.on('error', util.nop), this.reason)
           } else if (this.abort) {
             this.abort(this.reason)
           }
