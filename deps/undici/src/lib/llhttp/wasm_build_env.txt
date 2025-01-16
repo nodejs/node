@@ -1,15 +1,15 @@
 
-> undici@6.21.0 prebuild:wasm
+> undici@6.21.1 prebuild:wasm
 > node build/wasm.js --prebuild
 
-> docker build --platform=linux/x86_64 -t llhttp_wasm_builder -f /home/runner/work/node/node/deps/undici/src/build/Dockerfile /home/runner/work/node/node/deps/undici/src
+> docker build --platform=linux/aarch64 -t llhttp_wasm_builder -f /Users/matteo/repos/node-private/deps/undici/src/build/Dockerfile /Users/matteo/repos/node-private/deps/undici/src
 
 
 
-> undici@6.21.0 build:wasm
+> undici@6.21.1 build:wasm
 > node build/wasm.js --docker
 
-> docker run --rm -t --platform=linux/x86_64 --user 1001:127 --mount type=bind,source=/home/runner/work/node/node/deps/undici/src/lib/llhttp,target=/home/node/undici/lib/llhttp llhttp_wasm_builder node build/wasm.js
+> docker run --rm -t --platform=linux/aarch64 --mount type=bind,source=/Users/matteo/repos/node-private/deps/undici/src/lib/llhttp,target=/home/node/undici/lib/llhttp llhttp_wasm_builder node build/wasm.js
 
 
 alpine-baselayout-3.4.3-r2

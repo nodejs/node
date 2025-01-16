@@ -31,6 +31,8 @@ const {
 
 const kOpenStreams = Symbol('open streams')
 
+let extractBody
+
 // Experimental
 let h2ExperimentalWarned = false
 
@@ -240,11 +242,12 @@ function onHTTP2GoAway (code) {
   util.destroy(this[kSocket], err)
 
   // Fail head of pipeline.
-  const request = client[kQueue][client[kRunningIdx]]
-  client[kQueue][client[kRunningIdx]++] = null
-  util.errorRequest(client, request, err)
-
-  client[kPendingIdx] = client[kRunningIdx]
+  if (client[kRunningIdx] < client[kQueue].length) {
+    const request = client[kQueue][client[kRunningIdx]]
+    client[kQueue][client[kRunningIdx]++] = null
+    util.errorRequest(client, request, err)
+    client[kPendingIdx] = client[kRunningIdx]
+  }
 
   assert(client[kRunning] === 0)
 
@@ -260,7 +263,8 @@ function shouldSendContentLength (method) {
 
 function writeH2 (client, request) {
   const session = client[kHTTP2Session]
-  const { body, method, path, host, upgrade, expectContinue, signal, headers: reqHeaders } = request
+  const { method, path, host, upgrade, expectContinue, signal, headers: reqHeaders } = request
+  let { body } = request
 
   if (upgrade) {
     util.errorRequest(client, request, new Error('Upgrade not supported for H2'))
@@ -380,6 +384,16 @@ function writeH2 (client, request) {
   }
 
   let contentLength = util.bodyLength(body)
+
+  if (util.isFormDataLike(body)) {
+    extractBody ??= require('../web/fetch/body.js').extractBody
+
+    const [bodyStream, contentType] = extractBody(body)
+    headers['content-type'] = contentType
+
+    body = bodyStream.stream
+    contentLength = bodyStream.length
+  }
 
   if (contentLength == null) {
     contentLength = request.contentLength

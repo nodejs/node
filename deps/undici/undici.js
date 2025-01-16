@@ -5456,6 +5456,13 @@ var require_body = __commonJS({
     var { isArrayBuffer } = require("node:util/types");
     var { serializeAMimeType } = require_data_url();
     var { multipartFormDataParser } = require_formdata_parser();
+    var random;
+    try {
+      const crypto = require("node:crypto");
+      random = /* @__PURE__ */ __name((max) => crypto.randomInt(0, max), "random");
+    } catch {
+      random = /* @__PURE__ */ __name((max) => Math.floor(Math.random(max)), "random");
+    }
     var textEncoder = new TextEncoder();
     function noop() {
     }
@@ -5506,7 +5513,7 @@ var require_body = __commonJS({
       } else if (ArrayBuffer.isView(object)) {
         source = new Uint8Array(object.buffer.slice(object.byteOffset, object.byteOffset + object.byteLength));
       } else if (util.isFormDataLike(object)) {
-        const boundary = `----formdata-undici-0${`${Math.floor(Math.random() * 1e11)}`.padStart(11, "0")}`;
+        const boundary = `----formdata-undici-0${`${random(1e11)}`.padStart(11, "0")}`;
         const prefix = `--${boundary}\r
 Content-Disposition: form-data`;
         const escape = /* @__PURE__ */ __name((str) => str.replace(/\n/g, "%0A").replace(/\r/g, "%0D").replace(/"/g, "%22"), "escape");
@@ -6822,6 +6829,7 @@ var require_client_h2 = __commonJS({
       kHTTPContext
     } = require_symbols();
     var kOpenStreams = Symbol("open streams");
+    var extractBody;
     var h2ExperimentalWarned = false;
     var http2;
     try {
@@ -6981,10 +6989,12 @@ var require_client_h2 = __commonJS({
         this[kHTTP2Session] = null;
       }
       util.destroy(this[kSocket], err);
-      const request = client[kQueue][client[kRunningIdx]];
-      client[kQueue][client[kRunningIdx]++] = null;
-      util.errorRequest(client, request, err);
-      client[kPendingIdx] = client[kRunningIdx];
+      if (client[kRunningIdx] < client[kQueue].length) {
+        const request = client[kQueue][client[kRunningIdx]];
+        client[kQueue][client[kRunningIdx]++] = null;
+        util.errorRequest(client, request, err);
+        client[kPendingIdx] = client[kRunningIdx];
+      }
       assert(client[kRunning] === 0);
       client.emit("disconnect", client[kUrl], [client], err);
       client[kResume]();
@@ -6996,7 +7006,8 @@ var require_client_h2 = __commonJS({
     __name(shouldSendContentLength, "shouldSendContentLength");
     function writeH2(client, request) {
       const session = client[kHTTP2Session];
-      const { body, method, path, host, upgrade, expectContinue, signal, headers: reqHeaders } = request;
+      const { method, path, host, upgrade, expectContinue, signal, headers: reqHeaders } = request;
+      let { body } = request;
       if (upgrade) {
         util.errorRequest(client, request, new Error("Upgrade not supported for H2"));
         return false;
@@ -7070,6 +7081,13 @@ var require_client_h2 = __commonJS({
         body.read(0);
       }
       let contentLength = util.bodyLength(body);
+      if (util.isFormDataLike(body)) {
+        extractBody ??= require_body().extractBody;
+        const [bodyStream, contentType] = extractBody(body);
+        headers["content-type"] = contentType;
+        body = bodyStream.stream;
+        contentLength = bodyStream.length;
+      }
       if (contentLength == null) {
         contentLength = request.contentLength;
       }
