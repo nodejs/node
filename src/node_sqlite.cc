@@ -179,35 +179,18 @@ class BackupJob : public ThreadPoolWork {
   void ScheduleBackup() {
     Isolate* isolate = env()->isolate();
     HandleScope handle_scope(isolate);
-
     backup_status_ = sqlite3_open(destination_name_.c_str(), &dest_);
-
     Local<Promise::Resolver> resolver =
         Local<Promise::Resolver>::New(env()->isolate(), resolver_);
-
-    Local<Object> e = Local<Object>();
-
     if (backup_status_ != SQLITE_OK) {
-      if (!CreateSQLiteError(isolate, dest_).ToLocal(&e)) {
-        return;
-      }
-
-      Finalize();
-      resolver->Reject(env()->context(), e).ToChecked();
+      HandleBackupError(resolver);
       return;
     }
 
     backup_ = sqlite3_backup_init(
         dest_, dest_db_.c_str(), source_->Connection(), source_db_.c_str());
-
     if (backup_ == nullptr) {
-      if (!CreateSQLiteError(isolate, dest_).ToLocal(&e)) {
-        Finalize();
-        return;
-      }
-
-      Finalize();
-      resolver->Reject(env()->context(), e).ToChecked();
+      HandleBackupError(resolver);
       return;
     }
 
@@ -225,14 +208,7 @@ class BackupJob : public ThreadPoolWork {
 
     if (!(backup_status_ == SQLITE_OK || backup_status_ == SQLITE_DONE ||
           backup_status_ == SQLITE_BUSY || backup_status_ == SQLITE_LOCKED)) {
-      Local<Object> e;
-      if (!CreateSQLiteError(env()->isolate(), backup_status_).ToLocal(&e)) {
-        Finalize();
-        return;
-      }
-
-      Finalize();
-      resolver->Reject(env()->context(), e).ToChecked();
+      HandleBackupError(resolver, backup_status_);
       return;
     }
 
@@ -241,10 +217,8 @@ class BackupJob : public ThreadPoolWork {
     if (remaining_pages != 0) {
       Local<Function> fn =
           Local<Function>::New(env()->isolate(), progressFunc_);
-
       if (!fn.IsEmpty()) {
         Local<Object> progress_info = Object::New(env()->isolate());
-
         if (progress_info
                 ->Set(env()->context(),
                       env()->total_pages_string(),
@@ -274,21 +248,14 @@ class BackupJob : public ThreadPoolWork {
       return;
     }
 
-    Local<Object> e;
-    if (!CreateSQLiteError(env()->isolate(), dest_).ToLocal(&e)) {
-      Finalize();
+    if (backup_status_ != SQLITE_DONE) {
+      HandleBackupError(resolver);
       return;
     }
 
-    Finalize();
-    if (backup_status_ == SQLITE_OK) {
-      resolver
-          ->Resolve(env()->context(),
-                    Integer::New(env()->isolate(), total_pages))
-          .ToChecked();
-    } else {
-      resolver->Reject(env()->context(), e).ToChecked();
-    }
+    resolver
+        ->Resolve(env()->context(), Integer::New(env()->isolate(), total_pages))
+        .ToChecked();
   }
 
   void Finalize() {
@@ -310,6 +277,28 @@ class BackupJob : public ThreadPoolWork {
   }
 
  private:
+  void HandleBackupError(Local<Promise::Resolver> resolver) {
+    Local<Object> e;
+    if (!CreateSQLiteError(env()->isolate(), dest_).ToLocal(&e)) {
+      Finalize();
+      return;
+    }
+
+    Finalize();
+    resolver->Reject(env()->context(), e).ToChecked();
+  }
+
+  void HandleBackupError(Local<Promise::Resolver> resolver, int errcode) {
+    Local<Object> e;
+    if (!CreateSQLiteError(env()->isolate(), errcode).ToLocal(&e)) {
+      Finalize();
+      return;
+    }
+
+    Finalize();
+    resolver->Reject(env()->context(), e).ToChecked();
+  }
+
   Environment* env() const { return env_; }
 
   Environment* env_;
@@ -829,7 +818,7 @@ void DatabaseSync::Backup(const FunctionCallbackInfo<Value>& args) {
       if (!target_v->IsString()) {
         THROW_ERR_INVALID_ARG_TYPE(
             env->isolate(),
-            "The \"options.targetDb\" argument must be a string.");
+            "The \"options.target\" argument must be a string.");
         return;
       }
 

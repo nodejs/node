@@ -132,8 +132,8 @@ added: REPLACEME
     pages.
 * Returns: {Promise} A promise that resolves when the backup is completed and rejects if an error occurs.
 
-This method makes a database backup. This method abstracts the [`sqlite3_backup_init()`][], [`sqlite3_backup_step()`][] and
-[`sqlite3_backup_finish()`][] functions.
+This method makes a database backup. This method abstracts the [`sqlite3_backup_init()`][], [`sqlite3_backup_step()`][]
+and [`sqlite3_backup_finish()`][] functions.
 
 ### `database.close()`
 

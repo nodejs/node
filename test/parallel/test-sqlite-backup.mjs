@@ -80,7 +80,7 @@ describe('DatabaseSync.prototype.backup()', () => {
       });
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: 'The "options.targetDb" argument must be a string.'
+      message: 'The "options.target" argument must be a string.'
     });
 
     t.assert.throws(() => {
