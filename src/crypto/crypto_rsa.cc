@@ -23,6 +23,7 @@ using v8::ArrayBuffer;
 using v8::BackingStore;
 using v8::FunctionCallbackInfo;
 using v8::Int32;
+using v8::Integer;
 using v8::JustVoid;
 using v8::Local;
 using v8::Maybe;
@@ -326,50 +327,30 @@ Maybe<void> ExportJWKRsaKey(Environment* env,
                             Local<Object> target) {
   Mutex::ScopedLock lock(key.mutex());
   const auto& m_pkey = key.GetAsymmetricKey();
-  int type = m_pkey.id();
-  CHECK(type == EVP_PKEY_RSA || type == EVP_PKEY_RSA_PSS);
 
-  // TODO(tniessen): Remove the "else" branch once we drop support for OpenSSL
-  // versions older than 1.1.1e via FIPS / dynamic linking.
-  const RSA* rsa;
-  if (OpenSSL_version_num() >= 0x1010105fL) {
-    rsa = EVP_PKEY_get0_RSA(m_pkey.get());
-  } else {
-    rsa = static_cast<const RSA*>(EVP_PKEY_get0(m_pkey.get()));
-  }
-  CHECK_NOT_NULL(rsa);
-
-  const BIGNUM* n;
-  const BIGNUM* e;
-  const BIGNUM* d;
-  const BIGNUM* p;
-  const BIGNUM* q;
-  const BIGNUM* dp;
-  const BIGNUM* dq;
-  const BIGNUM* qi;
-  RSA_get0_key(rsa, &n, &e, &d);
-
-  if (target->Set(
+  const ncrypto::Rsa rsa = m_pkey;
+  if (!rsa || target->Set(
           env->context(),
           env->jwk_kty_string(),
           env->jwk_rsa_string()).IsNothing()) {
     return Nothing<void>();
   }
 
-  if (SetEncodedValue(env, target, env->jwk_n_string(), n).IsNothing() ||
-      SetEncodedValue(env, target, env->jwk_e_string(), e).IsNothing()) {
+  auto pub_key = rsa.getPublicKey();
+
+  if (SetEncodedValue(env, target, env->jwk_n_string(), pub_key.n).IsNothing() ||
+      SetEncodedValue(env, target, env->jwk_e_string(), pub_key.e).IsNothing()) {
     return Nothing<void>();
   }
 
   if (key.GetKeyType() == kKeyTypePrivate) {
-    RSA_get0_factors(rsa, &p, &q);
-    RSA_get0_crt_params(rsa, &dp, &dq, &qi);
-    if (SetEncodedValue(env, target, env->jwk_d_string(), d).IsNothing() ||
-        SetEncodedValue(env, target, env->jwk_p_string(), p).IsNothing() ||
-        SetEncodedValue(env, target, env->jwk_q_string(), q).IsNothing() ||
-        SetEncodedValue(env, target, env->jwk_dp_string(), dp).IsNothing() ||
-        SetEncodedValue(env, target, env->jwk_dq_string(), dq).IsNothing() ||
-        SetEncodedValue(env, target, env->jwk_qi_string(), qi).IsNothing()) {
+    auto pvt_key = rsa.getPrivateKey();
+    if (SetEncodedValue(env, target, env->jwk_d_string(), pub_key.d).IsNothing() ||
+        SetEncodedValue(env, target, env->jwk_p_string(), pvt_key.p).IsNothing() ||
+        SetEncodedValue(env, target, env->jwk_q_string(), pvt_key.q).IsNothing() ||
+        SetEncodedValue(env, target, env->jwk_dp_string(), pvt_key.dp).IsNothing() ||
+        SetEncodedValue(env, target, env->jwk_dq_string(), pvt_key.dq).IsNothing() ||
+        SetEncodedValue(env, target, env->jwk_qi_string(), pvt_key.qi).IsNothing()) {
       return Nothing<void>();
     }
   }
@@ -402,15 +383,12 @@ KeyObjectData ImportJWKRsaKey(Environment* env,
   KeyType type = d_value->IsString() ? kKeyTypePrivate : kKeyTypePublic;
 
   RSAPointer rsa(RSA_new());
+  ncrypto::Rsa rsa_view(rsa.get());
 
   ByteSource n = ByteSource::FromEncodedString(env, n_value.As<String>());
   ByteSource e = ByteSource::FromEncodedString(env, e_value.As<String>());
 
-  if (!RSA_set0_key(
-          rsa.get(),
-          n.ToBN().release(),
-          e.ToBN().release(),
-          nullptr)) {
+  if (!rsa_view.setPublicKey(n.ToBN(), e.ToBN())) {
     THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK RSA key");
     return {};
   }
@@ -447,20 +425,15 @@ KeyObjectData ImportJWKRsaKey(Environment* env,
     ByteSource dq = ByteSource::FromEncodedString(env, dq_value.As<String>());
     ByteSource qi = ByteSource::FromEncodedString(env, qi_value.As<String>());
 
-    if (!RSA_set0_key(rsa.get(), nullptr, nullptr, d.ToBN().release()) ||
-        !RSA_set0_factors(rsa.get(), p.ToBN().release(), q.ToBN().release()) ||
-        !RSA_set0_crt_params(
-            rsa.get(),
-            dp.ToBN().release(),
-            dq.ToBN().release(),
-            qi.ToBN().release())) {
+    if (!rsa_view.setPrivateKey(d.ToBN(), q.ToBN(), p.ToBN(), dp.ToBN(),
+                                dq.ToBN(), qi.ToBN())) {
       THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK RSA key");
       return {};
     }
   }
 
-  auto pkey = EVPKeyPointer::New();
-  CHECK_EQ(EVP_PKEY_set1_RSA(pkey.get(), rsa.get()), 1);
+  auto pkey = EVPKeyPointer::NewRSA(std::move(rsa));
+  if (!pkey) return {};
 
   return KeyObjectData::CreateAsymmetric(type, std::move(pkey));
 }
@@ -468,43 +441,30 @@ KeyObjectData ImportJWKRsaKey(Environment* env,
 Maybe<void> GetRsaKeyDetail(Environment* env,
                             const KeyObjectData& key,
                             Local<Object> target) {
-  const BIGNUM* e;  // Public Exponent
-  const BIGNUM* n;  // Modulus
-
   Mutex::ScopedLock lock(key.mutex());
   const auto& m_pkey = key.GetAsymmetricKey();
-  int type = m_pkey.id();
-  CHECK(type == EVP_PKEY_RSA || type == EVP_PKEY_RSA_PSS);
 
   // TODO(tniessen): Remove the "else" branch once we drop support for OpenSSL
   // versions older than 1.1.1e via FIPS / dynamic linking.
-  const RSA* rsa;
-  if (OpenSSL_version_num() >= 0x1010105fL) {
-    rsa = EVP_PKEY_get0_RSA(m_pkey.get());
-  } else {
-    rsa = static_cast<const RSA*>(EVP_PKEY_get0(m_pkey.get()));
-  }
-  CHECK_NOT_NULL(rsa);
+  const ncrypto::Rsa rsa = m_pkey;
+  if (!rsa) return Nothing<void>();
 
-  RSA_get0_key(rsa, &n, &e, nullptr);
+  auto pub_key = rsa.getPublicKey();
 
   if (target
           ->Set(env->context(),
                 env->modulus_length_string(),
                 Number::New(env->isolate(),
-                            static_cast<double>(BignumPointer::GetBitCount(n))))
+                    static_cast<double>(BignumPointer::GetBitCount(pub_key.n))))
           .IsNothing()) {
     return Nothing<void>();
   }
 
-  std::unique_ptr<BackingStore> public_exponent;
-  {
-    NoArrayBufferZeroFillScope no_zero_fill_scope(env->isolate_data());
-    public_exponent = ArrayBuffer::NewBackingStore(
-        env->isolate(), BignumPointer::GetByteCount(e));
-  }
+  auto public_exponent = ArrayBuffer::NewBackingStore(
+      env->isolate(), BignumPointer::GetByteCount(pub_key.e),
+      v8::BackingStoreInitializationMode::kUninitialized);
   CHECK_EQ(BignumPointer::EncodePaddedInto(
-               e,
+               pub_key.e,
                static_cast<unsigned char*>(public_exponent->Data()),
                public_exponent->ByteLength()),
            public_exponent->ByteLength());
@@ -517,7 +477,7 @@ Maybe<void> GetRsaKeyDetail(Environment* env,
     return Nothing<void>();
   }
 
-  if (type == EVP_PKEY_RSA_PSS) {
+  if (m_pkey.id() == EVP_PKEY_RSA_PSS) {
     // Due to the way ASN.1 encoding works, default values are omitted when
     // encoding the data structure. However, there are also RSA-PSS keys for
     // which no parameters are set. In that case, the ASN.1 RSASSA-PSS-params
@@ -527,55 +487,28 @@ Maybe<void> GetRsaKeyDetail(Environment* env,
     // In that case, RSA_get0_pss_params does not return nullptr but all fields
     // of the returned RSA_PSS_PARAMS will be set to nullptr.
 
-    const RSA_PSS_PARAMS* params = RSA_get0_pss_params(rsa);
-    if (params != nullptr) {
-      int hash_nid = NID_sha1;
-      int mgf_nid = NID_mgf1;
-      int mgf1_hash_nid = NID_sha1;
-      int64_t salt_length = 20;
-
-      if (params->hashAlgorithm != nullptr) {
-        const ASN1_OBJECT* hash_obj;
-        X509_ALGOR_get0(&hash_obj, nullptr, nullptr, params->hashAlgorithm);
-        hash_nid = OBJ_obj2nid(hash_obj);
-      }
-
+    auto maybe_params = rsa.getPssParams();
+    if (maybe_params.has_value()) {
+      auto& params = maybe_params.value();
       if (target
               ->Set(
                   env->context(),
                   env->hash_algorithm_string(),
-                  OneByteString(env->isolate(), OBJ_nid2ln(hash_nid)))
+                  OneByteString(env->isolate(), params.digest))
               .IsNothing()) {
         return Nothing<void>();
       }
 
-      if (params->maskGenAlgorithm != nullptr) {
-        const ASN1_OBJECT* mgf_obj;
-        X509_ALGOR_get0(&mgf_obj, nullptr, nullptr, params->maskGenAlgorithm);
-        mgf_nid = OBJ_obj2nid(mgf_obj);
-        if (mgf_nid == NID_mgf1) {
-          const ASN1_OBJECT* mgf1_hash_obj;
-          X509_ALGOR_get0(&mgf1_hash_obj, nullptr, nullptr, params->maskHash);
-          mgf1_hash_nid = OBJ_obj2nid(mgf1_hash_obj);
-        }
-      }
-
       // If, for some reason, the MGF is not MGF1, then the MGF1 hash function
       // is intentionally not added to the object.
-      if (mgf_nid == NID_mgf1) {
+      if (params.mgf1_digest.has_value()) {
+        auto digest = params.mgf1_digest.value();
         if (target
                 ->Set(
                     env->context(),
                     env->mgf1_hash_algorithm_string(),
-                    OneByteString(env->isolate(), OBJ_nid2ln(mgf1_hash_nid)))
+                    OneByteString(env->isolate(), digest))
                 .IsNothing()) {
-          return Nothing<void>();
-        }
-      }
-
-      if (params->saltLength != nullptr) {
-        if (ASN1_INTEGER_get_int64(&salt_length, params->saltLength) != 1) {
-          ThrowCryptoError(env, ERR_get_error(), "ASN1_INTEGER_get_in64 error");
           return Nothing<void>();
         }
       }
@@ -584,7 +517,7 @@ Maybe<void> GetRsaKeyDetail(Environment* env,
               ->Set(
                   env->context(),
                   env->salt_length_string(),
-                  Number::New(env->isolate(), static_cast<double>(salt_length)))
+                  Integer::New(env->isolate(), params.salt_length))
               .IsNothing()) {
         return Nothing<void>();
       }

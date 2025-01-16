@@ -1731,6 +1731,26 @@ EVPKeyPointer EVPKeyPointer::NewRawPrivate(
       EVP_PKEY_new_raw_private_key(id, nullptr, data.data, data.len));
 }
 
+EVPKeyPointer EVPKeyPointer::NewDH(DHPointer&& dh) {
+  if (!dh) return {};
+  auto key = New();
+  if (!key) return {};
+  if (EVP_PKEY_assign_DH(key.get(), dh.get())) {
+    dh.release();
+  }
+  return key;
+}
+
+EVPKeyPointer EVPKeyPointer::NewRSA(RSAPointer&& rsa) {
+  if (!rsa) return {};
+  auto key = New();
+  if (!key) return {};
+  if (EVP_PKEY_assign_RSA(key.get(), rsa.get())) {
+    rsa.release();
+  }
+  return key;
+}
+
 EVPKeyPointer::EVPKeyPointer(EVP_PKEY* pkey) : pkey_(pkey) {}
 
 EVPKeyPointer::EVPKeyPointer(EVPKeyPointer&& other) noexcept
@@ -2255,6 +2275,22 @@ Result<BIOPointer, bool> EVPKeyPointer::writePublicKey(
                                     mark_pop_error_on_return.peekError());
   }
   return bio;
+}
+
+EVPKeyPointer::operator Rsa() const {
+  int type = id();
+  if (type != EVP_PKEY_RSA && type != EVP_PKEY_RSA_PSS) return {};
+
+  // TODO(tniessen): Remove the "else" branch once we drop support for OpenSSL
+  // versions older than 1.1.1e via FIPS / dynamic linking.
+  const RSA* rsa;
+  if (OPENSSL_VERSION_NUMBER >= 0x1010105fL) {
+    rsa = EVP_PKEY_get0_RSA(get());
+  } else {
+    rsa = static_cast<const RSA*>(EVP_PKEY_get0(get()));
+  }
+  if (rsa == nullptr) return {};
+  return Rsa(rsa);
 }
 
 // ============================================================================
@@ -3114,6 +3150,20 @@ EVPKeyPointer EVPKeyCtxPointer::paramgen() const {
   return EVPKeyPointer(key);
 }
 
+bool EVPKeyCtxPointer::publicCheck() const {
+  if (!ctx_) return false;
+#if OPENSSL_VERSION_MAJOR >= 3
+  return EVP_PKEY_public_check_quick(ctx_.get()) == 1;
+#else
+  return EVP_PKEY_public_check(ctx_.get()) == 1;
+#endif
+}
+
+bool EVPKeyCtxPointer::privateCheck() const {
+  if (!ctx_) return false;
+  return EVP_PKEY_check(ctx_.get()) == 1;
+}
+
 // ============================================================================
 
 namespace {
@@ -3212,6 +3262,97 @@ DataPointer CipherImpl(const EVPKeyPointer& key,
   return buf.resize(out_len);
 }
 }  // namespace
+
+Rsa::Rsa() : rsa_(nullptr) {}
+
+Rsa::Rsa(const RSA* ptr) : rsa_(ptr) {}
+
+const Rsa::PublicKey Rsa::getPublicKey() const {
+  if (rsa_ == nullptr) return {};
+  PublicKey key;
+  RSA_get0_key(rsa_, &key.n, &key.e, &key.d);
+  return key;
+}
+
+const Rsa::PrivateKey Rsa::getPrivateKey() const {
+  if (rsa_ == nullptr) return {};
+  PrivateKey key;
+  RSA_get0_factors(rsa_, &key.p, &key.q);
+  RSA_get0_crt_params(rsa_, &key.dp, &key.dq, &key.qi);
+  return key;
+}
+
+const std::optional<Rsa::PssParams> Rsa::getPssParams() const {
+  if (rsa_ == nullptr) return std::nullopt;
+  const RSA_PSS_PARAMS* params = RSA_get0_pss_params(rsa_);
+  if (params == nullptr) return std::nullopt;
+  Rsa::PssParams ret {
+    .digest = OBJ_nid2ln(NID_sha1),
+    .mgf1_digest = OBJ_nid2ln(NID_sha1),
+    .salt_length = 20,
+  };
+
+  if (params->hashAlgorithm != nullptr) {
+    const ASN1_OBJECT* hash_obj;
+    X509_ALGOR_get0(&hash_obj, nullptr, nullptr, params->hashAlgorithm);
+    ret.digest = OBJ_nid2ln(OBJ_obj2nid(hash_obj));
+  }
+
+  if (params->maskGenAlgorithm != nullptr) {
+    const ASN1_OBJECT* mgf_obj;
+    X509_ALGOR_get0(&mgf_obj, nullptr, nullptr, params->maskGenAlgorithm);
+    int mgf_nid = OBJ_obj2nid(mgf_obj);
+    if (mgf_nid == NID_mgf1) {
+      const ASN1_OBJECT* mgf1_hash_obj;
+      X509_ALGOR_get0(&mgf1_hash_obj, nullptr, nullptr, params->maskHash);
+      ret.mgf1_digest = OBJ_nid2ln(OBJ_obj2nid(mgf1_hash_obj));
+    }
+  }
+
+  if (params->saltLength != nullptr) {
+    if (ASN1_INTEGER_get_int64(&ret.salt_length, params->saltLength) != 1) {
+      return std::nullopt;
+    }
+  }
+  return ret;
+}
+
+bool Rsa::setPublicKey(BignumPointer&& n, BignumPointer&& e) {
+  if (!n || !e) return false;
+  if (RSA_set0_key(const_cast<RSA*>(rsa_), n.get(), e.get(), nullptr) == 1) {
+    n.release();
+    e.release();
+    return true;
+  }
+  return false;
+}
+
+bool Rsa::setPrivateKey(BignumPointer&& d,
+                        BignumPointer&& q,
+                        BignumPointer&& p,
+                        BignumPointer&& dp,
+                        BignumPointer&& dq,
+                        BignumPointer&& qi) {
+  if (!RSA_set0_key(const_cast<RSA*>(rsa_), nullptr, nullptr, d.get())) {
+    return false;
+  }
+  d.release();
+
+  if (!RSA_set0_factors(const_cast<RSA*>(rsa_), p.get(), q.get())) {
+    return false;
+  }
+  p.release();
+  q.release();
+
+  if (!RSA_set0_crt_params(const_cast<RSA*>(rsa_),
+                           dp.get(), dq.get(), qi.get())) {
+    return false;
+  }
+  dp.release();
+  dq.release();
+  qi.release();
+  return true;
+}
 
 DataPointer Rsa::encrypt(const EVPKeyPointer& key,
                          const Rsa::CipherParams& params,

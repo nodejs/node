@@ -397,9 +397,7 @@ EVPKeyCtxPointer DhKeyGenTraits::Setup(DhKeyPairGenConfig* params) {
     auto dh = DHPointer::New(std::move(prime), std::move(bn_g));
     if (!dh) return {};
 
-    key_params = EVPKeyPointer::New();
-    CHECK(key_params);
-    CHECK_EQ(EVP_PKEY_assign_DH(key_params.get(), dh.release()), 1);
+    key_params = EVPKeyPointer::NewDH(std::move(dh));
   } else if (int* prime_size = std::get_if<int>(&params->params.prime)) {
     auto param_ctx = EVPKeyCtxPointer::NewFromID(EVP_PKEY_DH);
     if (!param_ctx.initForParamgen() ||

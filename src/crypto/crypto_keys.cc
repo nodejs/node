@@ -958,14 +958,10 @@ bool KeyObjectHandle::CheckEcKeyData() const {
   CHECK_EQ(key.id(), EVP_PKEY_EC);
 
   if (data_.GetKeyType() == kKeyTypePrivate) {
-    return EVP_PKEY_check(ctx.get()) == 1;
+    return ctx.privateCheck();
   }
 
-#if OPENSSL_VERSION_MAJOR >= 3
-  return EVP_PKEY_public_check_quick(ctx.get()) == 1;
-#else
-  return EVP_PKEY_public_check(ctx.get()) == 1;
-#endif
+  return ctx.publicCheck();
 }
 
 void KeyObjectHandle::CheckEcKeyData(const FunctionCallbackInfo<Value>& args) {

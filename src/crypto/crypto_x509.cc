@@ -664,20 +664,17 @@ static MaybeLocal<Value> GetX509NameObject(Environment* env,
   return result;
 }
 
-MaybeLocal<Object> GetPubKey(Environment* env, OSSL3_CONST RSA* rsa) {
+MaybeLocal<Object> GetPubKey(Environment* env, const ncrypto::Rsa& rsa) {
   int size = i2d_RSA_PUBKEY(rsa, nullptr);
   CHECK_GE(size, 0);
 
-  std::unique_ptr<BackingStore> bs;
-  {
-    NoArrayBufferZeroFillScope no_zero_fill_scope(env->isolate_data());
-    bs = ArrayBuffer::NewBackingStore(env->isolate(), size);
-  }
+  auto bs = ArrayBuffer::NewBackingStore(env->isolate(), size,
+      v8::BackingStoreInitializationMode::kUninitialized);
 
-  unsigned char* serialized = reinterpret_cast<unsigned char*>(bs->Data());
+  auto serialized = reinterpret_cast<unsigned char*>(bs->Data());
   CHECK_GE(i2d_RSA_PUBKEY(rsa, &serialized), 0);
 
-  Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), std::move(bs));
+  auto ab = ArrayBuffer::New(env->isolate(), std::move(bs));
   return Buffer::New(env, ab, 0, ab->ByteLength()).FromMaybe(Local<Object>());
 }
 
@@ -764,19 +761,18 @@ MaybeLocal<Object> X509ToObject(Environment* env, const X509View& cert) {
   }
 
   if (rsa) {
-    const BIGNUM* n;
-    const BIGNUM* e;
-    RSA_get0_key(rsa, &n, &e, nullptr);
+    ncrypto::Rsa nrsa(rsa);
+    auto pub_key = nrsa.getPublicKey();
     if (!Set<Value>(
-            env, info, env->modulus_string(), GetModulusString(env, n)) ||
+            env, info, env->modulus_string(), GetModulusString(env, pub_key.n)) ||
         !Set<Value>(
             env,
             info,
             env->bits_string(),
-            Integer::New(env->isolate(), BignumPointer::GetBitCount(n))) ||
+            Integer::New(env->isolate(), BignumPointer::GetBitCount(pub_key.n))) ||
         !Set<Value>(
-            env, info, env->exponent_string(), GetExponentString(env, e)) ||
-        !Set<Object>(env, info, env->pubkey_string(), GetPubKey(env, rsa))) {
+            env, info, env->exponent_string(), GetExponentString(env, pub_key.e)) ||
+        !Set<Object>(env, info, env->pubkey_string(), GetPubKey(env, nrsa))) {
       return {};
     }
   } else if (ec) {

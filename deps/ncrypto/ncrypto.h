@@ -208,6 +208,7 @@ using RSAPointer = DeleteFnPtr<RSA, RSA_free>;
 using SSLSessionPointer = DeleteFnPtr<SSL_SESSION, SSL_SESSION_free>;
 
 class BIOPointer;
+class BignumPointer;
 class CipherCtxPointer;
 class DataPointer;
 class DHPointer;
@@ -296,6 +297,43 @@ class Cipher final {
 
 class Rsa final {
  public:
+  Rsa();
+  Rsa(const RSA* rsa);
+  NCRYPTO_DISALLOW_COPY_AND_MOVE(Rsa)
+
+  inline operator bool() const { return rsa_ != nullptr; }
+  inline operator const RSA*() const { return rsa_; }
+
+  struct PublicKey {
+    const BIGNUM* n;
+    const BIGNUM* e;
+    const BIGNUM* d;
+  };
+  struct PrivateKey {
+    const BIGNUM* p;
+    const BIGNUM* q;
+    const BIGNUM* dp;
+    const BIGNUM* dq;
+    const BIGNUM* qi;
+  };
+  struct PssParams {
+    std::string_view digest = "sha1";
+    std::optional<std::string_view> mgf1_digest = "sha1";
+    int64_t salt_length = 20;
+  };
+
+  const PublicKey getPublicKey() const;
+  const PrivateKey getPrivateKey() const;
+  const std::optional<PssParams> getPssParams() const;
+
+  bool setPublicKey(BignumPointer&& n, BignumPointer&& e);
+  bool setPrivateKey(BignumPointer&& d,
+                     BignumPointer&& q,
+                     BignumPointer&& p,
+                     BignumPointer&& dp,
+                     BignumPointer&& dq,
+                     BignumPointer&& qi);
+
   using CipherParams = Cipher::CipherParams;
 
   static DataPointer encrypt(const EVPKeyPointer& key,
@@ -305,6 +343,8 @@ class Rsa final {
                              const CipherParams& params,
                              const Buffer<const void> in);
 
+ private:
+  const RSA* rsa_;
 };
 
 // A managed pointer to a buffer of data. When destroyed the underlying
@@ -557,6 +597,9 @@ class EVPKeyCtxPointer final {
 
   bool setSignatureMd(const EVPMDCtxPointer& md);
 
+  bool publicCheck() const;
+  bool privateCheck() const;
+
   static constexpr int kDefaultRsaExponent = 0x10001;
 
   static bool setRsaPadding(EVP_PKEY_CTX* ctx,
@@ -586,6 +629,8 @@ class EVPKeyPointer final {
                                     const Buffer<const unsigned char>& data);
   static EVPKeyPointer NewRawPrivate(int id,
                                      const Buffer<const unsigned char>& data);
+  static EVPKeyPointer NewDH(DHPointer&& dh);
+  static EVPKeyPointer NewRSA(RSAPointer&& rsa);
 
   enum class PKEncodingType {
     // RSAPublicKey / RSAPrivateKey according to PKCS#1.
@@ -685,6 +730,8 @@ class EVPKeyPointer final {
   EVPKeyCtxPointer newCtx() const;
 
   static bool IsRSAPrivateKey(const Buffer<const unsigned char>& buffer);
+
+  operator Rsa() const;
 
  private:
   DeleteFnPtr<EVP_PKEY, EVP_PKEY_free> pkey_;
