@@ -218,3 +218,30 @@ Some of the things to highlight include:
 * @marco-ippolito
 
 You can find their contact email in the [`README.md`](../../README.md#tsc-technical-steering-committee)
+
+#### Node.js Type Stripping
+
+##### Goal
+
+The goal is to raise awareness of the Node.js TypeScript Type Stripping in the JavaScript ecosystem.
+Some of the things to highlight include:
+
+* The benefits and limitations of the current implementation.
+* The `tsconfig.json` configuration options to use in combination for type checking.
+* Updates on the implementation advancements.
+
+#### Related Links
+
+<!-- lint disable prohibited-strings remark-lint-->
+
+* <https://github.com/nodejs/typescript>
+* <https://nodejs.org/api/typescript.html>
+* <https://nodejs.org/en/learn/typescript/run-natively>
+* <https://satanacchio.hashnode.dev/everything-you-need-to-know-about-nodejs-type-stripping>
+* <https://github.com/nodejs/amaro>
+
+<!-- lint enable prohibited-strings remark-lint-->
+
+#### Project contacts
+
+* @marco-ippolito
