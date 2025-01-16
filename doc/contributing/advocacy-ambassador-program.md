@@ -94,11 +94,14 @@ process. An ambassador can request promotion of content in the following ways:
 * Posting a link to the content in the "what's new" issue in nodejs/ambassadors
   so that it goes out on the news feed.
 
-Foundation staff will repost the social media post
-without any need for validation based on the request coming from
-an ambassador. These requests can be made through the existing social channel
-in the OpenJS Slack. For that reason and for communication purposes and
-collaboration opportunities, ambassadors should be members of the
+For accounts managed by foundation staff, the staff will repost the social
+media post without any need for validation based on the request coming from
+an ambassador. For accounts managed by the project with an approval process,
+(for example bluesky) documentation for the approval process will indicate
+that repost requests from ambassadors should generally be approved. These
+requests can be made through the existing social channel in the OpenJS Slack.
+For that reason and for communication purposes and collaboration opportunities,
+ambassadors should be members of the
 [OpenJS Slack](https://slack-invite.openjsf.org/).
 
 ## Messages and topics to promote
