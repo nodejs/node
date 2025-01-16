@@ -67,6 +67,12 @@ interface WebidlUtil {
    * Stringifies {@param V}
    */
   Stringify (V: any): string
+
+  /**
+   * Mark a value as uncloneable for Node.js.
+   * This is only effective in some newer Node.js versions.
+   */
+  markAsUncloneable (V: any): void
 }
 
 interface WebidlConverters {

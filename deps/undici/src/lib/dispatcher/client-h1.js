@@ -860,7 +860,10 @@ function writeH1 (client, request) {
   const expectsPayload = (
     method === 'PUT' ||
     method === 'POST' ||
-    method === 'PATCH'
+    method === 'PATCH' ||
+    method === 'QUERY' ||
+    method === 'PROPFIND' ||
+    method === 'PROPPATCH'
   )
 
   if (util.isFormDataLike(body)) {
@@ -1139,7 +1142,7 @@ function writeBuffer (abort, body, client, request, socket, contentLength, heade
       socket.uncork()
       request.onBodySent(body)
 
-      if (!expectsPayload) {
+      if (!expectsPayload && request.reset !== false) {
         socket[kReset] = true
       }
     }
@@ -1169,7 +1172,7 @@ async function writeBlob (abort, body, client, request, socket, contentLength, h
     request.onBodySent(buffer)
     request.onRequestSent()
 
-    if (!expectsPayload) {
+    if (!expectsPayload && request.reset !== false) {
       socket[kReset] = true
     }
 
@@ -1270,7 +1273,7 @@ class AsyncWriter {
     socket.cork()
 
     if (bytesWritten === 0) {
-      if (!expectsPayload) {
+      if (!expectsPayload && request.reset !== false) {
         socket[kReset] = true
       }
 
