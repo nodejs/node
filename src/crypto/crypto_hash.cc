@@ -361,9 +361,9 @@ bool Hash::HashInit(const EVP_MD* md, Maybe<unsigned int> xof_md_len) {
 
 bool Hash::HashUpdate(const char* data, size_t len) {
   if (!mdctx_) return false;
-  return mdctx_.digestUpdate(ncrypto::Buffer<const void> {
-    .data = data,
-    .len = len,
+  return mdctx_.digestUpdate(ncrypto::Buffer<const void>{
+      .data = data,
+      .len = len,
   });
 }
 

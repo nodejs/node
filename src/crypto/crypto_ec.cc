@@ -28,7 +28,7 @@ using ncrypto::EVPKeyPointer;
 using ncrypto::MarkPopErrorOnReturn;
 using v8::Array;
 using v8::ArrayBuffer;
-using v8::BackingStore;
+using v8::BackingStoreInitializationMode;
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -201,14 +201,10 @@ void ECDH::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  std::unique_ptr<BackingStore> bs;
-  {
-    NoArrayBufferZeroFillScope no_zero_fill_scope(env->isolate_data());
-    // NOTE: field_size is in bits
-    int field_size = EC_GROUP_get_degree(ecdh->group_);
-    size_t out_len = (field_size + 7) / 8;
-    bs = ArrayBuffer::NewBackingStore(env->isolate(), out_len);
-  }
+  int field_size = EC_GROUP_get_degree(ecdh->group_);
+  size_t out_len = (field_size + 7) / 8;
+  auto bs = ArrayBuffer::NewBackingStore(
+      env->isolate(), out_len, BackingStoreInitializationMode::kUninitialized);
 
   if (!ECDH_compute_key(
           bs->Data(), bs->ByteLength(), pub, ecdh->key_.get(), nullptr))
@@ -257,12 +253,11 @@ void ECDH::GetPrivateKey(const FunctionCallbackInfo<Value>& args) {
     return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
         "Failed to get ECDH private key");
 
-  std::unique_ptr<BackingStore> bs;
-  {
-    NoArrayBufferZeroFillScope no_zero_fill_scope(env->isolate_data());
-    bs = ArrayBuffer::NewBackingStore(env->isolate(),
-                                      BignumPointer::GetByteCount(b));
-  }
+  auto bs = ArrayBuffer::NewBackingStore(
+      env->isolate(),
+      BignumPointer::GetByteCount(b),
+      BackingStoreInitializationMode::kUninitialized);
+
   CHECK_EQ(bs->ByteLength(),
            BignumPointer::EncodePaddedInto(
                b, static_cast<unsigned char*>(bs->Data()), bs->ByteLength()));

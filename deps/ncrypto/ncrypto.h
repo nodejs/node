@@ -222,6 +222,8 @@ class ECDSASigPointer;
 class ECGroupPointer;
 class ECPointPointer;
 class ECKeyPointer;
+class Rsa;
+class Ec;
 
 struct StackOfXASN1Deleter {
   void operator()(STACK_OF(ASN1_OBJECT) * p) const {
@@ -347,6 +349,22 @@ class Rsa final {
   const RSA* rsa_;
 };
 
+class Ec final {
+ public:
+  Ec();
+  Ec(const EC_KEY* key);
+  NCRYPTO_DISALLOW_COPY_AND_MOVE(Ec)
+
+  const EC_GROUP* getGroup() const;
+  int getCurve() const;
+
+  inline operator bool() const { return ec_ != nullptr; }
+  inline operator const EC_KEY*() const { return ec_; }
+
+ private:
+  const EC_KEY* ec_ = nullptr;
+};
+
 // A managed pointer to a buffer of data. When destroyed the underlying
 // buffer will be freed.
 class DataPointer final {
@@ -368,6 +386,9 @@ class DataPointer final {
   inline size_t size() const noexcept { return len_; }
   void reset(void* data = nullptr, size_t len = 0);
   void reset(const Buffer<void>& buffer);
+
+  // Sets the underlying data buffer to all zeros.
+  void zero();
 
   DataPointer resize(size_t len);
 
@@ -600,6 +621,12 @@ class EVPKeyCtxPointer final {
   bool publicCheck() const;
   bool privateCheck() const;
 
+  bool verify(const Buffer<const unsigned char>& sig,
+              const Buffer<const unsigned char>& data);
+  DataPointer sign(const Buffer<const unsigned char>& data);
+  bool signInto(const Buffer<const unsigned char>& data,
+                Buffer<unsigned char>* sig);
+
   static constexpr int kDefaultRsaExponent = 0x10001;
 
   static bool setRsaPadding(EVP_PKEY_CTX* ctx,
@@ -732,8 +759,12 @@ class EVPKeyPointer final {
 
   std::optional<uint32_t> getBytesOfRS() const;
   int getDefaultSignPadding() const;
-  bool isRsaVariant() const;
   operator Rsa() const;
+
+  bool isRsaVariant() const;
+  bool isOneShotVariant() const;
+  bool isSigVariant() const;
+  bool validateDsaParameters() const;
 
  private:
   DeleteFnPtr<EVP_PKEY, EVP_PKEY_free> pkey_;
@@ -819,9 +850,6 @@ struct StackOfX509Deleter {
   void operator()(STACK_OF(X509) * p) const { sk_X509_pop_free(p, X509_free); }
 };
 using StackOfX509 = std::unique_ptr<STACK_OF(X509), StackOfX509Deleter>;
-
-class X509Pointer;
-class X509View;
 
 class SSLCtxPointer final {
  public:
@@ -948,6 +976,14 @@ class X509View final {
                        DataPointer* peerName = nullptr) const;
   CheckMatch checkEmail(const std::string_view email, int flags) const;
   CheckMatch checkIp(const std::string_view ip, int flags) const;
+
+  using UsageCallback = std::function<void(std::string_view)>;
+  bool enumUsages(UsageCallback callback) const;
+
+  template <typename T>
+  using KeyCallback = std::function<bool(const T& t)>;
+  bool ifRsa(KeyCallback<Rsa> callback) const;
+  bool ifEc(KeyCallback<Ec> callback) const;
 
  private:
   const X509* cert_ = nullptr;
@@ -1124,7 +1160,18 @@ class EVPMDCtxPointer final {
   bool digestInit(const EVP_MD* digest);
   bool digestUpdate(const Buffer<const void>& in);
   DataPointer digestFinal(size_t length);
+  bool digestFinalInto(Buffer<void>* buf);
   size_t getExpectedSize();
+
+  std::optional<EVP_PKEY_CTX*> signInit(const EVPKeyPointer& key,
+                                        const EVP_MD* digest);
+  std::optional<EVP_PKEY_CTX*> verifyInit(const EVPKeyPointer& key,
+                                          const EVP_MD* digest);
+
+  DataPointer signOneShot(const Buffer<const unsigned char>& buf) const;
+  DataPointer sign(const Buffer<const unsigned char>& buf) const;
+  bool verify(const Buffer<const unsigned char>& buf,
+              const Buffer<const unsigned char>& sig) const;
 
   const EVP_MD* getDigest() const;
   size_t getDigestSize() const;
@@ -1221,6 +1268,10 @@ const EVP_CIPHER* getCipherByName(const std::string_view name);
 // The maximum length for HKDF output for a given digest is 255 times the
 // hash size for the given digest algorithm.
 bool checkHkdfLength(const EVP_MD* md, size_t length);
+
+bool extractP1363(const Buffer<const unsigned char>& buf,
+                  unsigned char* dest,
+                  size_t n);
 
 DataPointer hkdf(const EVP_MD* md,
                  const Buffer<const unsigned char>& key,

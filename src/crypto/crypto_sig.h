@@ -13,23 +13,19 @@ namespace node {
 namespace crypto {
 static const unsigned int kNoDsaSignature = static_cast<unsigned int>(-1);
 
-enum class DSASigEnc {
-  DER,
-  P1363,
-  Invalid
-};
+enum class DSASigEnc { DER, P1363, Invalid };
 
 class SignBase : public BaseObject {
  public:
-  enum Error {
-    kSignOk,
-    kSignUnknownDigest,
-    kSignInit,
-    kSignNotInitialised,
-    kSignUpdate,
-    kSignPrivateKey,
-    kSignPublicKey,
-    kSignMalformedSignature
+  enum class Error {
+    Ok,
+    UnknownDigest,
+    Init,
+    NotInitialised,
+    Update,
+    PrivateKey,
+    PublicKey,
+    MalformedSignature
   };
 
   SignBase(Environment* env, v8::Local<v8::Object> wrap);
@@ -46,7 +42,7 @@ class SignBase : public BaseObject {
   ncrypto::EVPMDCtxPointer mdctx_;
 };
 
-class Sign : public SignBase {
+class Sign final : public SignBase {
  public:
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
@@ -55,10 +51,9 @@ class Sign : public SignBase {
     Error error;
     std::unique_ptr<v8::BackingStore> signature;
 
-    explicit SignResult(
-        Error err,
-        std::unique_ptr<v8::BackingStore>&& sig = nullptr)
-      : error(err), signature(std::move(sig)) {}
+    inline explicit SignResult(
+        Error err, std::unique_ptr<v8::BackingStore>&& sig = nullptr)
+        : error(err), signature(std::move(sig)) {}
   };
 
   SignResult SignFinal(const ncrypto::EVPKeyPointer& pkey,
@@ -77,7 +72,7 @@ class Sign : public SignBase {
   Sign(Environment* env, v8::Local<v8::Object> wrap);
 };
 
-class Verify : public SignBase {
+class Verify final : public SignBase {
  public:
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
@@ -100,10 +95,7 @@ class Verify : public SignBase {
 };
 
 struct SignConfiguration final : public MemoryRetainer {
-  enum Mode {
-    kSign,
-    kVerify
-  };
+  enum class Mode { Sign, Verify };
   enum Flags {
     kHasNone = 0,
     kHasSaltLength = 1,
@@ -135,8 +127,6 @@ struct SignConfiguration final : public MemoryRetainer {
 struct SignTraits final {
   using AdditionalParameters = SignConfiguration;
   static constexpr const char* JobName = "SignJob";
-
-// TODO(@jasnell): Sign request vs. Verify request
 
   static constexpr AsyncWrap::ProviderType Provider =
       AsyncWrap::PROVIDER_SIGNREQUEST;

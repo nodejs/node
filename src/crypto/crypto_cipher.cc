@@ -20,6 +20,7 @@ using ncrypto::SSLPointer;
 using v8::Array;
 using v8::ArrayBuffer;
 using v8::BackingStore;
+using v8::BackingStoreInitializationMode;
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -765,10 +766,10 @@ CipherBase::UpdateResult CipherBase::Update(
     return kErrorState;
   }
 
-  {
-    NoArrayBufferZeroFillScope no_zero_fill_scope(env()->isolate_data());
-    *out = ArrayBuffer::NewBackingStore(env()->isolate(), buf_len);
-  }
+  *out = ArrayBuffer::NewBackingStore(
+      env()->isolate(),
+      buf_len,
+      BackingStoreInitializationMode::kUninitialized);
 
   buffer = {
       .data = reinterpret_cast<const unsigned char*>(data),
@@ -845,11 +846,10 @@ bool CipherBase::Final(std::unique_ptr<BackingStore>* out) {
 
   const int mode = ctx_.getMode();
 
-  {
-    NoArrayBufferZeroFillScope no_zero_fill_scope(env()->isolate_data());
-    *out = ArrayBuffer::NewBackingStore(
-        env()->isolate(), static_cast<size_t>(ctx_.getBlockSize()));
-  }
+  *out = ArrayBuffer::NewBackingStore(
+      env()->isolate(),
+      static_cast<size_t>(ctx_.getBlockSize()),
+      BackingStoreInitializationMode::kUninitialized);
 
   if (kind_ == kDecipher &&
       Cipher::FromCtx(ctx_).isSupportedAuthenticatedMode()) {

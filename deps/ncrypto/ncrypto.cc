@@ -128,6 +128,11 @@ DataPointer::~DataPointer() {
   reset();
 }
 
+void DataPointer::zero() {
+  if (!data_) return;
+  OPENSSL_cleanse(data_, len_);
+}
+
 void DataPointer::reset(void* data, size_t length) {
   if (data_ != nullptr) {
     OPENSSL_clear_free(data_, len_);
@@ -1158,6 +1163,52 @@ Result<X509Pointer, int> X509Pointer::Parse(
   if (der) return Result<X509Pointer, int>(std::move(der));
 
   return Result<X509Pointer, int>(ERR_get_error());
+}
+
+bool X509View::enumUsages(UsageCallback callback) const {
+  if (cert_ == nullptr) return false;
+  StackOfASN1 eku(static_cast<STACK_OF(ASN1_OBJECT)*>(
+      X509_get_ext_d2i(cert_, NID_ext_key_usage, nullptr, nullptr)));
+  if (!eku) return false;
+  const int count = sk_ASN1_OBJECT_num(eku.get());
+  char buf[256]{};
+
+  int j = 0;
+  for (int i = 0; i < count; i++) {
+    if (OBJ_obj2txt(buf, sizeof(buf), sk_ASN1_OBJECT_value(eku.get(), i), 1) >=
+        0) {
+      callback(buf);
+    }
+  }
+  return true;
+}
+
+bool X509View::ifRsa(KeyCallback<Rsa> callback) const {
+  if (cert_ == nullptr) return true;
+  OSSL3_CONST EVP_PKEY* pkey = X509_get0_pubkey(cert_);
+  OSSL3_CONST RSA* rsa = nullptr;
+  auto id = EVP_PKEY_id(pkey);
+  if (id == EVP_PKEY_RSA || id == EVP_PKEY_RSA2 || id == EVP_PKEY_RSA_PSS) {
+    Rsa rsa(EVP_PKEY_get0_RSA(pkey));
+    if (!rsa) [[unlikely]]
+      return true;
+    return callback(rsa);
+  }
+  return true;
+}
+
+bool X509View::ifEc(KeyCallback<Ec> callback) const {
+  if (cert_ == nullptr) return true;
+  OSSL3_CONST EVP_PKEY* pkey = X509_get0_pubkey(cert_);
+  OSSL3_CONST EC_KEY* ec = nullptr;
+  auto id = EVP_PKEY_id(pkey);
+  if (id == EVP_PKEY_EC) {
+    Ec ec(EVP_PKEY_get0_EC_KEY(pkey));
+    if (!ec) [[unlikely]]
+      return true;
+    return callback(ec);
+  }
+  return true;
 }
 
 X509Pointer X509Pointer::IssuerFrom(const SSLPointer& ssl,
@@ -2287,15 +2338,26 @@ Result<BIOPointer, bool> EVPKeyPointer::writePublicKey(
 }
 
 bool EVPKeyPointer::isRsaVariant() const {
+  if (!pkey_) return false;
   int type = id();
-  return type == EVP_PKEY_RSA ||
-         type == EVP_PKEY_RSA2 ||
+  return type == EVP_PKEY_RSA || type == EVP_PKEY_RSA2 ||
          type == EVP_PKEY_RSA_PSS;
 }
 
+bool EVPKeyPointer::isOneShotVariant() const {
+  if (!pkey_) return false;
+  int type = id();
+  return type == EVP_PKEY_ED25519 || type == EVP_PKEY_ED448;
+}
+
+bool EVPKeyPointer::isSigVariant() const {
+  if (!pkey_) return false;
+  int type = id();
+  return type == EVP_PKEY_EC || type == EVP_PKEY_DSA;
+}
+
 int EVPKeyPointer::getDefaultSignPadding() const {
-  return id() == EVP_PKEY_RSA_PSS ? RSA_PKCS1_PSS_PADDING
-                                  : RSA_PKCS1_PADDING;
+  return id() == EVP_PKEY_RSA_PSS ? RSA_PKCS1_PSS_PADDING : RSA_PKCS1_PADDING;
 }
 
 std::optional<uint32_t> EVPKeyPointer::getBytesOfRS() const {
@@ -2329,6 +2391,28 @@ EVPKeyPointer::operator Rsa() const {
   }
   if (rsa == nullptr) return {};
   return Rsa(rsa);
+}
+
+bool EVPKeyPointer::validateDsaParameters() const {
+  if (!pkey_) return false;
+    /* Validate DSA2 parameters from FIPS 186-4 */
+#if OPENSSL_VERSION_MAJOR >= 3
+  if (EVP_default_properties_is_fips_enabled(nullptr) && EVP_PKEY_DSA == id()) {
+#else
+  if (FIPS_mode() && EVP_PKEY_DSA == id()) {
+#endif
+    const DSA* dsa = EVP_PKEY_get0_DSA(pkey_.get());
+    const BIGNUM* p;
+    const BIGNUM* q;
+    DSA_get0_pqg(dsa, &p, &q, nullptr);
+    int L = BignumPointer::GetBitCount(p);
+    int N = BignumPointer::GetBitCount(q);
+
+    return (L == 1024 && N == 160) || (L == 2048 && N == 224) ||
+           (L == 2048 && N == 256) || (L == 3072 && N == 256);
+  }
+
+  return true;
 }
 
 // ============================================================================
@@ -3203,6 +3287,42 @@ bool EVPKeyCtxPointer::privateCheck() const {
   return EVP_PKEY_check(ctx_.get()) == 1;
 }
 
+bool EVPKeyCtxPointer::verify(const Buffer<const unsigned char>& sig,
+                              const Buffer<const unsigned char>& data) {
+  if (!ctx_) return false;
+  return EVP_PKEY_verify(ctx_.get(), sig.data, sig.len, data.data, data.len) ==
+         1;
+}
+
+DataPointer EVPKeyCtxPointer::sign(const Buffer<const unsigned char>& data) {
+  if (!ctx_) return {};
+  size_t len = 0;
+  if (EVP_PKEY_sign(ctx_.get(), nullptr, &len, data.data, data.len) != 1) {
+    return {};
+  }
+  auto buf = DataPointer::Alloc(len);
+  if (!buf) return {};
+  if (EVP_PKEY_sign(ctx_.get(),
+                    static_cast<unsigned char*>(buf.get()),
+                    &len,
+                    data.data,
+                    data.len) != 1) {
+    return {};
+  }
+  return buf.resize(len);
+}
+
+bool EVPKeyCtxPointer::signInto(const Buffer<const unsigned char>& data,
+                                Buffer<unsigned char>* sig) {
+  if (!ctx_) return false;
+  size_t len = sig->len;
+  if (EVP_PKEY_sign(ctx_.get(), sig->data, &len, data.data, data.len) != 1) {
+    return false;
+  }
+  sig->len = len;
+  return true;
+}
+
 // ============================================================================
 
 namespace {
@@ -3431,6 +3551,20 @@ DataPointer Cipher::recover(const EVPKeyPointer& key,
 
 // ============================================================================
 
+Ec::Ec() : ec_(nullptr) {}
+
+Ec::Ec(const EC_KEY* key) : ec_(key) {}
+
+const EC_GROUP* Ec::getGroup() const {
+  return ECKeyPointer::GetGroup(ec_);
+}
+
+int Ec::getCurve() const {
+  return EC_GROUP_get_curve_name(getGroup());
+}
+
+// ============================================================================
+
 EVPMDCtxPointer::EVPMDCtxPointer() : ctx_(nullptr) {}
 
 EVPMDCtxPointer::EVPMDCtxPointer(EVP_MD_CTX* ctx) : ctx_(ctx) {}
@@ -3443,9 +3577,13 @@ EVPMDCtxPointer& EVPMDCtxPointer::operator=(EVPMDCtxPointer&& other) noexcept {
   return *this;
 }
 
-EVPMDCtxPointer::~EVPMDCtxPointer() { reset(); }
+EVPMDCtxPointer::~EVPMDCtxPointer() {
+  reset();
+}
 
-void EVPMDCtxPointer::reset(EVP_MD_CTX* ctx) { ctx_.reset(ctx); }
+void EVPMDCtxPointer::reset(EVP_MD_CTX* ctx) {
+  ctx_.reset(ctx);
+}
 
 EVP_MD_CTX* EVPMDCtxPointer::release() {
   return ctx_.release();
@@ -3466,16 +3604,29 @@ DataPointer EVPMDCtxPointer::digestFinal(size_t length) {
 
   auto buf = DataPointer::Alloc(length);
   if (!buf) return {};
-  auto ptr = static_cast<unsigned char*>(buf.get());
 
-  int ret =
-      (length == getExpectedSize())
-          ? EVP_DigestFinal_ex(ctx_.get(), ptr, nullptr)
-          : EVP_DigestFinalXOF(ctx_.get(), ptr, length);
+  Buffer<void> buffer = buf;
 
-  if (ret != 1) [[unlikely]] return {};
+  if (!digestFinalInto(&buffer)) [[unlikely]] {
+    return {};
+  }
 
   return buf;
+}
+
+bool EVPMDCtxPointer::digestFinalInto(Buffer<void>* buf) {
+  if (!ctx_) false;
+
+  auto ptr = static_cast<unsigned char*>(buf->data);
+
+  int ret = (buf->len == getExpectedSize())
+                ? EVP_DigestFinal_ex(ctx_.get(), ptr, nullptr)
+                : EVP_DigestFinalXOF(ctx_.get(), ptr, buf->len);
+
+  if (ret != 1) [[unlikely]]
+    return false;
+
+  return true;
 }
 
 size_t EVPMDCtxPointer::getExpectedSize() {
@@ -3498,13 +3649,90 @@ bool EVPMDCtxPointer::hasXofFlag() const {
 }
 
 bool EVPMDCtxPointer::copyTo(const EVPMDCtxPointer& other) const {
-  if (!ctx_ ||!other) return {};
+  if (!ctx_ || !other) return {};
   if (EVP_MD_CTX_copy(other.get(), ctx_.get()) != 1) return false;
   return true;
 }
 
+std::optional<EVP_PKEY_CTX*> EVPMDCtxPointer::signInit(const EVPKeyPointer& key,
+                                                       const EVP_MD* digest) {
+  EVP_PKEY_CTX* ctx = nullptr;
+  if (!EVP_DigestSignInit(ctx_.get(), &ctx, digest, nullptr, key.get())) {
+    return std::nullopt;
+  }
+  return ctx;
+}
+
+std::optional<EVP_PKEY_CTX*> EVPMDCtxPointer::verifyInit(
+    const EVPKeyPointer& key, const EVP_MD* digest) {
+  EVP_PKEY_CTX* ctx = nullptr;
+  if (!EVP_DigestVerifyInit(ctx_.get(), &ctx, digest, nullptr, key.get())) {
+    return std::nullopt;
+  }
+  return ctx;
+}
+
+DataPointer EVPMDCtxPointer::signOneShot(
+    const Buffer<const unsigned char>& buf) const {
+  if (!ctx_) return {};
+  size_t len;
+  if (!EVP_DigestSign(ctx_.get(), nullptr, &len, buf.data, buf.len)) {
+    return {};
+  }
+  auto data = DataPointer::Alloc(len);
+  if (!data) [[unlikely]]
+    return {};
+
+  if (!EVP_DigestSign(ctx_.get(),
+                      static_cast<unsigned char*>(data.get()),
+                      &len,
+                      buf.data,
+                      buf.len)) {
+    return {};
+  }
+  return data;
+}
+
+DataPointer EVPMDCtxPointer::sign(
+    const Buffer<const unsigned char>& buf) const {
+  if (!ctx_) [[unlikely]]
+    return {};
+  size_t len;
+  if (!EVP_DigestSignUpdate(ctx_.get(), buf.data, buf.len) ||
+      !EVP_DigestSignFinal(ctx_.get(), nullptr, &len)) {
+    return {};
+  }
+  auto data = DataPointer::Alloc(len);
+  if (!data) [[unlikely]]
+    return {};
+  if (!EVP_DigestSignFinal(
+          ctx_.get(), static_cast<unsigned char*>(data.get()), &len)) {
+    return {};
+  }
+  return data.resize(len);
+}
+
+bool EVPMDCtxPointer::verify(const Buffer<const unsigned char>& buf,
+                             const Buffer<const unsigned char>& sig) const {
+  if (!ctx_) return false;
+  int ret = EVP_DigestVerify(ctx_.get(), sig.data, sig.len, buf.data, buf.len);
+  return ret == 1;
+}
+
 EVPMDCtxPointer EVPMDCtxPointer::New() {
   return EVPMDCtxPointer(EVP_MD_CTX_new());
+}
+
+// ============================================================================
+
+bool extractP1363(const Buffer<const unsigned char>& buf,
+                  unsigned char* dest,
+                  size_t n) {
+  auto asn1_sig = ECDSASigPointer::Parse(buf);
+  if (!asn1_sig) return false;
+
+  return BignumPointer::EncodePaddedInto(asn1_sig.r(), dest, n) > 0 &&
+         BignumPointer::EncodePaddedInto(asn1_sig.s(), dest + n, n) > 0;
 }
 
 }  // namespace ncrypto

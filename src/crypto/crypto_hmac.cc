@@ -71,14 +71,14 @@ void Hmac::HmacInit(const char* hash_type, const char* key, int key_len) {
   HandleScope scope(env()->isolate());
 
   const EVP_MD* md = ncrypto::getDigestByName(hash_type);
-  if (md == nullptr)
+  if (md == nullptr) [[unlikely]]
     return THROW_ERR_CRYPTO_INVALID_DIGEST(
         env(), "Invalid digest: %s", hash_type);
   if (key_len == 0) {
     key = "";
   }
   ctx_.reset(HMAC_CTX_new());
-  if (!ctx_ || !HMAC_Init_ex(ctx_.get(), key, key_len, md, nullptr)) {
+  if (!ctx_ || !HMAC_Init_ex(ctx_.get(), key, key_len, md, nullptr)) [[unlikely]] {
     ctx_.reset();
     return ThrowCryptoError(env(), ERR_get_error());
   }
@@ -189,7 +189,7 @@ Maybe<void> HmacTraits::AdditionalConfig(
 
   Utf8Value digest(env->isolate(), args[offset + 1]);
   params->digest = ncrypto::getDigestByName(digest.ToStringView());
-  if (params->digest == nullptr) {
+  if (params->digest == nullptr) [[unlikely]] {
     THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *digest);
     return Nothing<void>();
   }
@@ -258,9 +258,9 @@ MaybeLocal<Value> HmacTraits::EncodeOutput(Environment* env,
                                            const HmacConfig& params,
                                            ByteSource* out) {
   switch (params.mode) {
-    case SignConfiguration::kSign:
+    case SignConfiguration::Mode::Sign:
       return out->ToArrayBuffer(env);
-    case SignConfiguration::kVerify:
+    case SignConfiguration::Mode::Verify:
       return Boolean::New(
           env->isolate(),
           out->size() > 0 && out->size() == params.signature.size() &&

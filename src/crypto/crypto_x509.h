@@ -25,10 +25,10 @@ class ManagedX509 final : public MemoryRetainer {
   ManagedX509(const ManagedX509& that);
   ManagedX509& operator=(const ManagedX509& that);
 
-  operator bool() const { return !!cert_; }
-  X509* get() const { return cert_.get(); }
-  ncrypto::X509View view() const { return cert_; }
-  operator ncrypto::X509View() const { return cert_; }
+  inline operator bool() const { return !!cert_; }
+  inline X509* get() const { return cert_.get(); }
+  inline ncrypto::X509View view() const { return cert_; }
+  inline operator ncrypto::X509View() const { return cert_; }
 
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(ManagedX509)
@@ -77,7 +77,7 @@ class X509Certificate final : public BaseObject {
   }
 
   inline ncrypto::X509View view() const { return *cert_; }
-  X509* get() { return cert_->get(); }
+  inline X509* get() { return cert_->get(); }
 
   v8::MaybeLocal<v8::Value> toObject(Environment* env);
   static v8::MaybeLocal<v8::Value> toObject(Environment* env,

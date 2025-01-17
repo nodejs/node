@@ -597,7 +597,7 @@ bool KeyObjectHandle::HasInstance(Environment* env, Local<Value> value) {
   return !t.IsEmpty() && t->HasInstance(value);
 }
 
-v8::Local<v8::Function> KeyObjectHandle::Initialize(Environment* env) {
+Local<Function> KeyObjectHandle::Initialize(Environment* env) {
   Local<FunctionTemplate> templ = env->crypto_key_object_handle_constructor();
   if (templ.IsEmpty()) {
     Isolate* isolate = env->isolate();
