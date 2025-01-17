@@ -110,36 +110,36 @@ test('expect fail eval TypeScript ESM syntax with input-type commonjs-typescript
   strictEqual(result.code, 1);
 });
 
-test('check syntax error is thrown when passing invalid syntax', async () => {
+test('check syntax error is thrown when passing unsupported syntax', async () => {
   const result = await spawnPromisified(process.execPath, [
     '--experimental-strip-types',
     '--eval',
     'enum Foo { A, B, C }']);
   strictEqual(result.stdout, '');
   match(result.stderr, /SyntaxError/);
-  doesNotMatch(result.stderr, /ERR_INVALID_TYPESCRIPT_SYNTAX/);
+  doesNotMatch(result.stderr, /ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX/);
   strictEqual(result.code, 1);
 });
 
-test('check syntax error is thrown when passing invalid syntax with --input-type=module-typescript', async () => {
+test('check syntax error is thrown when passing unsupported syntax with --input-type=module-typescript', async () => {
   const result = await spawnPromisified(process.execPath, [
     '--experimental-strip-types',
     '--input-type=module-typescript',
     '--eval',
     'enum Foo { A, B, C }']);
   strictEqual(result.stdout, '');
-  match(result.stderr, /ERR_INVALID_TYPESCRIPT_SYNTAX/);
+  match(result.stderr, /ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX/);
   strictEqual(result.code, 1);
 });
 
-test('check syntax error is thrown when passing invalid syntax with --input-type=commonjs-typescript', async () => {
+test('check syntax error is thrown when passing unsupported syntax with --input-type=commonjs-typescript', async () => {
   const result = await spawnPromisified(process.execPath, [
     '--experimental-strip-types',
     '--input-type=commonjs-typescript',
     '--eval',
     'enum Foo { A, B, C }']);
   strictEqual(result.stdout, '');
-  match(result.stderr, /ERR_INVALID_TYPESCRIPT_SYNTAX/);
+  match(result.stderr, /ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX/);
   strictEqual(result.code, 1);
 });
 
@@ -152,7 +152,7 @@ test('should not parse TypeScript with --type-module=commonjs', async () => {
 
   strictEqual(result.stdout, '');
   match(result.stderr, /SyntaxError/);
-  doesNotMatch(result.stderr, /ERR_INVALID_TYPESCRIPT_SYNTAX/);
+  doesNotMatch(result.stderr, /ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX/);
   strictEqual(result.code, 1);
 });
 
@@ -165,7 +165,7 @@ test('should not parse TypeScript with --type-module=module', async () => {
 
   strictEqual(result.stdout, '');
   match(result.stderr, /SyntaxError/);
-  doesNotMatch(result.stderr, /ERR_INVALID_TYPESCRIPT_SYNTAX/);
+  doesNotMatch(result.stderr, /ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX/);
   strictEqual(result.code, 1);
 });
 
@@ -239,5 +239,27 @@ test('typescript CJS code is throwing a syntax error at runtime', async () => {
   // If evaluated in TypeScript `foo<Number>(1)` is evaluated as `foo(1)`
   match(result.stderr, /SyntaxError: false/);
   strictEqual(result.stdout, '');
+  strictEqual(result.code, 1);
+});
+
+test('check syntax error is thrown when passing invalid syntax with --input-type=commonjs-typescript', async () => {
+  const result = await spawnPromisified(process.execPath, [
+    '--experimental-strip-types',
+    '--input-type=commonjs-typescript',
+    '--eval',
+    'function foo(){ await Promise.resolve(1); }']);
+  strictEqual(result.stdout, '');
+  match(result.stderr, /ERR_INVALID_TYPESCRIPT_SYNTAX/);
+  strictEqual(result.code, 1);
+});
+
+test('check syntax error is thrown when passing invalid syntax with --input-type=module-typescript', async () => {
+  const result = await spawnPromisified(process.execPath, [
+    '--experimental-strip-types',
+    '--input-type=module-typescript',
+    '--eval',
+    'function foo(){ await Promise.resolve(1); }']);
+  strictEqual(result.stdout, '');
+  match(result.stderr, /ERR_INVALID_TYPESCRIPT_SYNTAX/);
   strictEqual(result.code, 1);
 });
