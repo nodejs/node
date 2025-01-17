@@ -13,17 +13,19 @@ import shutil
 
 
 FILES_TO_SYNC = [
-    'README.md',
+    'crdtp/*',
+    'lib/*',
+    'templates/*',
+
+    'BUILD.gn',
     'check_protocol_compatibility.py',
     'code_generator.py',
     'concatenate_protocols.py',
     'convert_protocol_to_json.py',
-    'crdtp/*',
     'inspector_protocol.gni',
-    'inspector_protocol.gypi',
-    'lib/*',
+    'README.md',
+    'LICENSE',
     'pdl.py',
-    'templates/*',
 ]
 
 REVISION_LINE_PREFIX = 'Revision: '
@@ -96,7 +98,7 @@ def GetHeadRevision(path):
 def main(argv):
   parser = argparse.ArgumentParser(description=(
       "Rolls the inspector_protocol project (upstream) into node's "
-      "tools/inspector_protocol (downstream)."))
+      "deps/inspector_protocol (downstream)."))
   parser.add_argument("--ip_src_upstream",
                       help="The inspector_protocol (upstream) tree.",
                       default="~/ip/src")
@@ -126,7 +128,7 @@ def main(argv):
   CheckoutRevision(upstream, v8_ip_revision)
 
   src_dir = upstream
-  dest_dir = os.path.join(downstream, 'tools/inspector_protocol')
+  dest_dir = os.path.join(downstream, 'deps/inspector_protocol')
   print('Rolling %s into %s ...' % (src_dir, dest_dir))
   src_files = set(FindFilesToSyncIn(src_dir))
   dest_files = set(FindFilesToSyncIn(dest_dir))

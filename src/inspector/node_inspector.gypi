@@ -1,6 +1,7 @@
 {
   'variables': {
-    'protocol_tool_path': '../../tools/inspector_protocol',
+    'protocol_tool_path': '../../deps/inspector_protocol',
+    'jinja_dir': '../../tools/inspector_protocol',
     'node_inspector_sources': [
       'src/inspector_agent.cc',
       'src/inspector_io.cc',
@@ -31,30 +32,6 @@
       'src/inspector/network_agent.h',
       'src/inspector/worker_inspector.cc',
       'src/inspector/worker_inspector.h',
-
-      '<(protocol_tool_path)/crdtp/cbor.cc',
-      '<(protocol_tool_path)/crdtp/cbor.h',
-      '<(protocol_tool_path)/crdtp/dispatch.cc',
-      '<(protocol_tool_path)/crdtp/dispatch.h',
-      '<(protocol_tool_path)/crdtp/error_support.cc',
-      '<(protocol_tool_path)/crdtp/error_support.h',
-      '<(protocol_tool_path)/crdtp/export.h',
-      '<(protocol_tool_path)/crdtp/find_by_first.h',
-      '<(protocol_tool_path)/crdtp/frontend_channel.h',
-      '<(protocol_tool_path)/crdtp/json.cc',
-      '<(protocol_tool_path)/crdtp/json.h',
-      '<(protocol_tool_path)/crdtp/json_platform.cc',
-      '<(protocol_tool_path)/crdtp/json_platform.h',
-      '<(protocol_tool_path)/crdtp/maybe.h',
-      '<(protocol_tool_path)/crdtp/parser_handler.h',
-      '<(protocol_tool_path)/crdtp/protocol_core.cc',
-      '<(protocol_tool_path)/crdtp/protocol_core.h',
-      '<(protocol_tool_path)/crdtp/serializable.cc',
-      '<(protocol_tool_path)/crdtp/serializable.h',
-      '<(protocol_tool_path)/crdtp/span.cc',
-      '<(protocol_tool_path)/crdtp/span.h',
-      '<(protocol_tool_path)/crdtp/status.cc',
-      '<(protocol_tool_path)/crdtp/status.h',
     ],
     'node_inspector_generated_sources': [
       '<(SHARED_INTERMEDIATE_DIR)/src/node/inspector/protocol/Forward.h',
@@ -91,10 +68,12 @@
     '<@(node_inspector_sources)',
   ],
   'include_dirs': [
-    '<(protocol_tool_path)',
     '<(SHARED_INTERMEDIATE_DIR)/include', # for inspector
     '<(SHARED_INTERMEDIATE_DIR)',
     '<(SHARED_INTERMEDIATE_DIR)/src', # for inspector
+  ],
+  'dependencies': [
+    '<(protocol_tool_path)/inspector_protocol.gyp:crdtp',
   ],
   'actions': [
     {
@@ -107,7 +86,7 @@
       ],
       'action': [
         '<(python)',
-        'tools/inspector_protocol/convert_protocol_to_json.py',
+        '<(protocol_tool_path)/convert_protocol_to_json.py',
         '<@(_inputs)',
         '<@(_outputs)',
       ],
@@ -126,9 +105,9 @@
       'process_outputs_as_sources': 1,
       'action': [
         '<(python)',
-        'tools/inspector_protocol/code_generator.py',
-        '--inspector_protocol_dir', 'tools/inspector_protocol/',
-        '--jinja_dir', '<@(protocol_tool_path)',
+        '<(protocol_tool_path)/code_generator.py',
+        '--inspector_protocol_dir', '<(protocol_tool_path)',
+        '--jinja_dir', '<(jinja_dir)',
         '--output_base', '<(SHARED_INTERMEDIATE_DIR)/src/',
         '--config', 'src/inspector/node_protocol_config.json',
       ],
@@ -145,7 +124,7 @@
       ],
       'action': [
         '<(python)',
-        'tools/inspector_protocol/concatenate_protocols.py',
+        '<(protocol_tool_path)/concatenate_protocols.py',
         '<@(_inputs)',
         '<@(_outputs)',
       ],
