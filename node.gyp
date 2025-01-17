@@ -871,8 +871,6 @@
         'openssl_default_cipher_list%': '',
       },
 
-      'cflags': ['-Werror=unused-result'],
-
       'defines': [
         'NODE_ARCH="<(target_arch)"',
         'NODE_PLATFORM="<(OS)"',
@@ -892,6 +890,9 @@
           'defines': [
             'NODE_OPENSSL_DEFAULT_CIPHER_LIST="<(openssl_default_cipher_list)"'
            ]
+        }],
+        [ 'suppress_all_error_on_warn=="false"', {
+          'cflags': ['-Werror=unused-result'],
         }],
         [ 'error_on_warn=="true"', {
           'cflags': ['-Werror'],
