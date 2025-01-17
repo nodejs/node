@@ -308,6 +308,22 @@ branch.
 git checkout -b v1.2.3-proposal upstream/v1.x-staging
 ```
 
+You can also run:
+
+```bash
+git node release -S --prepare --security --filterLabel vX.x
+```
+
+Example:
+
+```bash
+git checkout v20.x
+git node release -S --prepare --security --filterLabel v20.x
+```
+
+to automate the remaining steps until step 6 or you can perform it manually
+following the below steps.
+
 <details>
 <summary>Security release</summary>
 
