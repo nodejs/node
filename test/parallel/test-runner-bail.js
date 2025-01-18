@@ -6,50 +6,47 @@ const { describe, it } = require('node:test');
 const { spawnSync } = require('node:child_process');
 const assert = require('node:assert');
 
-const bailTestFixtures = fixtures.path('test-runner/bailout');
+const testFixtures = fixtures.path('test-runner', 'bailout');
 
-describe('node:test bail in watch mode', () => {
-
-  it('should not bail out if --test-bail is not set', () => {
+describe('node:test bail', () => {
+  it('should run all tests when --test-bail is not set', () => {
     const child = spawnSync(
       process.execPath,
       [
         '--test',
         '--test-reporter=spec',
-        '--test-concurrency=1',
+        fixtures.path('test-runner', 'bailout', 'sequential', 'test.mjs'),
       ],
-      {
-        cwd: bailTestFixtures,
-      });
+      { cwd: testFixtures }
+    );
 
     assert.strictEqual(child.stderr.toString(), '');
-
     const output = child.stdout.toString();
 
-    assert.match(output, /tests 4/);
-    assert.match(output, /suites 2/);
-    assert.match(output, /pass 1/);
+    assert.doesNotMatch(output, /Bail out!/);
+    assert.match(output, /tests 3/);
+    assert.match(output, /suites 1/);
+    assert.match(output, /pass 0/);
     assert.match(output, /fail 3/);
     assert.match(output, /cancelled 0/);
   });
 
-  it('should bail out on the first failing test', () => {
+  it('should bail on sequential single file', () => {
     const child = spawnSync(
       process.execPath,
       [
         '--test',
         '--test-bail',
         '--test-reporter=spec',
-        '--test-concurrency=1',
+        fixtures.path('test-runner', 'bailout', 'sequential', 'test.mjs'),
       ],
-      {
-        cwd: bailTestFixtures,
-      });
+      { cwd: testFixtures }
+    );
 
     assert.strictEqual(child.stderr.toString(), '');
-
     const output = child.stdout.toString();
 
+    assert.match(output, /Bail out!/);
     assert.match(output, /tests 3/);
     assert.match(output, /suites 1/);
     assert.match(output, /pass 0/);
@@ -57,28 +54,132 @@ describe('node:test bail in watch mode', () => {
     assert.match(output, /cancelled 2/);
   });
 
-  it('should bail out on the first failing test with isolation none', () => {
+  it('should bail on sequential with isolation none', () => {
     const child = spawnSync(
       process.execPath,
       [
         '--test',
         '--test-bail',
         '--test-reporter=spec',
-        '--test-concurrency=1',
         '--test-isolation=none',
+        fixtures.path('test-runner', 'bailout', 'sequential', 'test.mjs'),
       ],
-      {
-        cwd: bailTestFixtures,
-      });
+      { cwd: testFixtures }
+    );
 
     assert.strictEqual(child.stderr.toString(), '');
-
     const output = child.stdout.toString();
 
-    assert.match(output, /tests 4/);
-    assert.match(output, /suites 2/);
+    assert.match(output, /Bail out!/);
+    assert.match(output, /tests 3/);
+    assert.match(output, /suites 1/);
     assert.match(output, /pass 0/);
     assert.match(output, /fail 1/);
-    assert.match(output, /cancelled 3/);
+    assert.match(output, /cancelled 2/);
   });
+
+  it('should bail on parallel files with different loading times', () => {
+    const child = spawnSync(
+      process.execPath,
+      [
+        '--test',
+        '--test-bail',
+        '--test-reporter=spec',
+        '--test-concurrency=2',
+        fixtures.path('test-runner', 'bailout', 'parallel-loading', 'slow-loading.mjs'),
+        fixtures.path('test-runner', 'bailout', 'parallel-loading', 'infinite-loop.mjs'),
+      ],
+      { cwd: testFixtures }
+    );
+
+    assert.strictEqual(child.stderr.toString(), '');
+    const output = child.stdout.toString();
+
+    assert.match(output, /Bail out!/);
+    assert.match(output, /tests 2/);
+    assert.match(output, /suites 1/);
+    assert.match(output, /pass 0/);
+    assert.match(output, /fail 1/);
+    assert.match(output, /cancelled 1/);
+  });
+
+  it('should bail with limited concurrency and multiple files', () => {
+    const child = spawnSync(
+      process.execPath,
+      [
+        '--test',
+        '--test-bail',
+        '--test-reporter=spec',
+        '--test-concurrency=2',
+        fixtures.path('test-runner', 'bailout', 'parallel-concurrency', 'first.mjs'),
+        fixtures.path('test-runner', 'bailout', 'parallel-concurrency', 'second.mjs'),
+        fixtures.path('test-runner', 'bailout', 'parallel-concurrency', 'third.mjs'),
+      ],
+      { cwd: testFixtures }
+    );
+
+    assert.strictEqual(child.stderr.toString(), '');
+    const output = child.stdout.toString();
+
+    assert.match(output, /Bail out!/);
+    assert.match(output, /tests 4/);
+    assert.match(output, /suites 1/);
+    assert.match(output, /pass 1/);
+    assert.match(output, /fail 1/);
+    assert.match(output, /cancelled 2/);
+  });
+
+  it('should execute hooks in correct order during bailout', () => {
+    const child = spawnSync(
+      process.execPath,
+      [
+        '--test',
+        '--test-bail',
+        '--test-reporter=spec',
+        fixtures.path('test-runner', 'bailout', 'hooks-order', 'test.mjs'),
+      ],
+      { cwd: testFixtures }
+    );
+
+    assert.strictEqual(child.stderr.toString(), '');
+    const output = child.stdout.toString();
+
+    // Extract hooks order from the output
+    const hooksOrderMatch = output.match(/HOOKS_ORDER: (.*)/);
+    assert(hooksOrderMatch, 'Hooks order output should be present');
+    const hooksOrder = hooksOrderMatch[1].split(',');
+
+    assert.deepStrictEqual(hooksOrder, [
+      'before',
+      'beforeEach',
+      'test1',
+      'afterEach',
+      'after',
+    ]);
+
+    // Keep existing assertions
+    assert.match(output, /Bail out!/);
+    assert.match(output, /tests 2/);
+    assert.match(output, /suites 1/);
+    assert.match(output, /pass 0/);
+    assert.match(output, /fail 1/);
+    assert.match(output, /cancelled 1/);
+  });
+
+  describe('validation', () => {
+    it('should not allow bail with watch mode', () => {
+      const child = spawnSync(
+        process.execPath,
+        ['--test', '--test-bail', '--watch'],
+        { cwd: testFixtures }
+      );
+
+      assert.match(child.stderr.toString(),
+                   /bail not supported while watch mode is enabled/);
+    });
+  });
+
+  // TODO(pmarchini): Bailout is not supported in watch mode yet but it should be.
+  // We should enable this test once it is supported.
+  it.todo('should handle the bail option with watch mode');
 });
