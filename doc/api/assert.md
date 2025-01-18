@@ -805,9 +805,9 @@ are recursively evaluated also by the following rules.
 * Recursion stops when both sides differ or both sides encounter a circular
   reference.
 * [`WeakMap`][] and [`WeakSet`][] instances are **not** compared structurally.
-They are only equal if they reference the same object. Any comparison between
-different `WeakMap` or `WeakSet` instances will result in inequality,
-even if they contain the same entries.
+  They are only equal if they reference the same object. Any comparison between
+  different `WeakMap` or `WeakSet` instances will result in inequality,
+  even if they contain the same entries.
 * [`RegExp`][] lastIndex, flags, and source are always compared, even if these
   are not enumerable properties.
 
