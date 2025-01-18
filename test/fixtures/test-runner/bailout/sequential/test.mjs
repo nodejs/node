@@ -12,4 +12,4 @@ describe('sequential', { concurrency: false }, () => {
   it('third test that should not run', () => {
     throw new Error('This test should not run');
   });
-}); 
+});

@@ -3,7 +3,7 @@ import { describe, it, before } from 'node:test';
 describe('slow loading test', () => {
   before(async () => {
     // Simulate slow loading
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
   });
 
   it('failing test after slow load', () => {
