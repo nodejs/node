@@ -175,7 +175,7 @@ describe('node:test bail', () => {
       );
 
       assert.match(child.stderr.toString(),
-                   /bail not supported while watch mode is enabled/);
+                   /The property 'options\.bail' bail is not supported while watch mode is enabled/);
     });
   });
 
