@@ -815,7 +815,7 @@ bool PrintGeneralName(const BIOPointer& out, const GENERAL_NAME* gen) {
 
 bool SafeX509SubjectAltNamePrint(const BIOPointer& out, X509_EXTENSION* ext) {
   auto ret = OBJ_obj2nid(X509_EXTENSION_get_object(ext));
-  NCRYPTO_ASSERT_EQUAL(ret, NID_subject_alt_name, "unexpected extension type");
+  if (ret != NID_subject_alt_name) return false;
 
   GENERAL_NAMES* names = static_cast<GENERAL_NAMES*>(X509V3_EXT_d2i(ext));
   if (names == nullptr) return false;
@@ -838,7 +838,7 @@ bool SafeX509SubjectAltNamePrint(const BIOPointer& out, X509_EXTENSION* ext) {
 
 bool SafeX509InfoAccessPrint(const BIOPointer& out, X509_EXTENSION* ext) {
   auto ret = OBJ_obj2nid(X509_EXTENSION_get_object(ext));
-  NCRYPTO_ASSERT_EQUAL(ret, NID_info_access, "unexpected extension type");
+  if (ret != NID_info_access) return false;
 
   AUTHORITY_INFO_ACCESS* descs =
       static_cast<AUTHORITY_INFO_ACCESS*>(X509V3_EXT_d2i(ext));
@@ -1173,7 +1173,6 @@ bool X509View::enumUsages(UsageCallback callback) const {
   const int count = sk_ASN1_OBJECT_num(eku.get());
   char buf[256]{};
 
-  int j = 0;
   for (int i = 0; i < count; i++) {
     if (OBJ_obj2txt(buf, sizeof(buf), sk_ASN1_OBJECT_value(eku.get(), i), 1) >=
         0) {
@@ -1186,7 +1185,6 @@ bool X509View::enumUsages(UsageCallback callback) const {
 bool X509View::ifRsa(KeyCallback<Rsa> callback) const {
   if (cert_ == nullptr) return true;
   OSSL3_CONST EVP_PKEY* pkey = X509_get0_pubkey(cert_);
-  OSSL3_CONST RSA* rsa = nullptr;
   auto id = EVP_PKEY_id(pkey);
   if (id == EVP_PKEY_RSA || id == EVP_PKEY_RSA2 || id == EVP_PKEY_RSA_PSS) {
     Rsa rsa(EVP_PKEY_get0_RSA(pkey));
@@ -1200,7 +1198,6 @@ bool X509View::ifRsa(KeyCallback<Rsa> callback) const {
 bool X509View::ifEc(KeyCallback<Ec> callback) const {
   if (cert_ == nullptr) return true;
   OSSL3_CONST EVP_PKEY* pkey = X509_get0_pubkey(cert_);
-  OSSL3_CONST EC_KEY* ec = nullptr;
   auto id = EVP_PKEY_id(pkey);
   if (id == EVP_PKEY_EC) {
     Ec ec(EVP_PKEY_get0_EC_KEY(pkey));
@@ -2383,11 +2380,11 @@ EVPKeyPointer::operator Rsa() const {
 
   // TODO(tniessen): Remove the "else" branch once we drop support for OpenSSL
   // versions older than 1.1.1e via FIPS / dynamic linking.
-  const RSA* rsa;
+  OSSL3_CONST RSA* rsa;
   if (OPENSSL_VERSION_NUMBER >= 0x1010105fL) {
     rsa = EVP_PKEY_get0_RSA(get());
   } else {
-    rsa = static_cast<const RSA*>(EVP_PKEY_get0(get()));
+    rsa = static_cast<OSSL3_CONST RSA*>(EVP_PKEY_get0(get()));
   }
   if (rsa == nullptr) return {};
   return Rsa(rsa);
@@ -3417,7 +3414,7 @@ DataPointer CipherImpl(const EVPKeyPointer& key,
 
 Rsa::Rsa() : rsa_(nullptr) {}
 
-Rsa::Rsa(const RSA* ptr) : rsa_(ptr) {}
+Rsa::Rsa(OSSL3_CONST RSA* ptr) : rsa_(ptr) {}
 
 const Rsa::PublicKey Rsa::getPublicKey() const {
   if (rsa_ == nullptr) return {};
@@ -3553,7 +3550,7 @@ DataPointer Cipher::recover(const EVPKeyPointer& key,
 
 Ec::Ec() : ec_(nullptr) {}
 
-Ec::Ec(const EC_KEY* key) : ec_(key) {}
+Ec::Ec(OSSL3_CONST EC_KEY* key) : ec_(key) {}
 
 const EC_GROUP* Ec::getGroup() const {
   return ECKeyPointer::GetGroup(ec_);
@@ -3615,7 +3612,7 @@ DataPointer EVPMDCtxPointer::digestFinal(size_t length) {
 }
 
 bool EVPMDCtxPointer::digestFinalInto(Buffer<void>* buf) {
-  if (!ctx_) false;
+  if (!ctx_) return false;
 
   auto ptr = static_cast<unsigned char*>(buf->data);
 
@@ -3733,6 +3730,87 @@ bool extractP1363(const Buffer<const unsigned char>& buf,
 
   return BignumPointer::EncodePaddedInto(asn1_sig.r(), dest, n) > 0 &&
          BignumPointer::EncodePaddedInto(asn1_sig.s(), dest + n, n) > 0;
+}
+
+// ============================================================================
+
+HMACCtxPointer::HMACCtxPointer() : ctx_(nullptr) {}
+
+HMACCtxPointer::HMACCtxPointer(HMAC_CTX* ctx) : ctx_(ctx) {}
+
+HMACCtxPointer::HMACCtxPointer(HMACCtxPointer&& other) noexcept
+    : ctx_(other.release()) {}
+
+HMACCtxPointer& HMACCtxPointer::operator=(HMACCtxPointer&& other) noexcept {
+  ctx_.reset(other.release());
+  return *this;
+}
+
+HMACCtxPointer::~HMACCtxPointer() {
+  reset();
+}
+
+void HMACCtxPointer::reset(HMAC_CTX* ctx) {
+  ctx_.reset(ctx);
+}
+
+HMAC_CTX* HMACCtxPointer::release() {
+  return ctx_.release();
+}
+
+bool HMACCtxPointer::init(const Buffer<const void>& buf, const EVP_MD* md) {
+  if (!ctx_) return false;
+  return HMAC_Init_ex(ctx_.get(), buf.data, buf.len, md, nullptr) == 1;
+}
+
+bool HMACCtxPointer::update(const Buffer<const void>& buf) {
+  if (!ctx_) return false;
+  return HMAC_Update(ctx_.get(),
+                     static_cast<const unsigned char*>(buf.data),
+                     buf.len) == 1;
+}
+
+DataPointer HMACCtxPointer::digest() {
+  auto data = DataPointer::Alloc(EVP_MAX_MD_SIZE);
+  if (!data) return {};
+  Buffer<void> buf = data;
+  if (!digestInto(&buf)) return {};
+  return data.resize(buf.len);
+}
+
+bool HMACCtxPointer::digestInto(Buffer<void>* buf) {
+  if (!ctx_) return false;
+
+  unsigned int len = buf->len;
+  if (!HMAC_Final(ctx_.get(), static_cast<unsigned char*>(buf->data), &len)) {
+    return false;
+  }
+  buf->len = len;
+  return true;
+}
+
+HMACCtxPointer HMACCtxPointer::New() {
+  return HMACCtxPointer(HMAC_CTX_new());
+}
+
+DataPointer hashDigest(const Buffer<const unsigned char>& buf,
+                       const EVP_MD* md) {
+  if (md == nullptr) return {};
+  size_t md_len = EVP_MD_size(md);
+  unsigned int result_size;
+  auto data = DataPointer::Alloc(md_len);
+  if (!data) return {};
+
+  if (!EVP_Digest(buf.data,
+                  buf.len,
+                  reinterpret_cast<unsigned char*>(data.get()),
+                  &result_size,
+                  md,
+                  nullptr)) {
+    return {};
+  }
+
+  return data.resize(result_size);
 }
 
 }  // namespace ncrypto

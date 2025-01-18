@@ -11,6 +11,7 @@
 
 namespace node {
 
+using ncrypto::DataPointer;
 using ncrypto::EVPMDCtxPointer;
 using ncrypto::MarkPopErrorOnReturn;
 using v8::Context;
@@ -220,7 +221,7 @@ void Hash::OneShotDigest(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[5]->IsUint32() || args[5]->IsUndefined());  // outputEncodingId
 
   const EVP_MD* md = GetDigestImplementation(env, args[0], args[1], args[2]);
-  if (md == nullptr) {
+  if (md == nullptr) [[unlikely]] {
     Utf8Value method(isolate, args[0]);
     std::string message =
         "Digest method " + method.ToString() + " is not supported";
@@ -229,41 +230,36 @@ void Hash::OneShotDigest(const FunctionCallbackInfo<Value>& args) {
 
   enum encoding output_enc = ParseEncoding(isolate, args[4], args[5], HEX);
 
-  int md_len = EVP_MD_size(md);
-  unsigned int result_size;
-  ByteSource::Builder output(md_len);
-  int success;
-  // On smaller inputs, EVP_Digest() can be slower than the
-  // deprecated helpers e.g SHA256_XXX. The speedup may not
-  // be worth using deprecated APIs, however, so we use
-  // EVP_Digest(), unless there's a better alternative
-  // in the future.
-  // https://github.com/openssl/openssl/issues/19612
-  if (args[3]->IsString()) {
-    Utf8Value utf8(isolate, args[3]);
-    success = EVP_Digest(utf8.out(),
-                         utf8.length(),
-                         output.data<unsigned char>(),
-                         &result_size,
-                         md,
-                         nullptr);
-  } else {
+  DataPointer output = ([&] {
+    if (args[3]->IsString()) {
+      Utf8Value utf8(isolate, args[3]);
+      ncrypto::Buffer<const unsigned char> buf{
+          .data = reinterpret_cast<const unsigned char*>(utf8.out()),
+          .len = utf8.length(),
+      };
+      return ncrypto::hashDigest(buf, md);
+    }
+
     ArrayBufferViewContents<unsigned char> input(args[3]);
-    success = EVP_Digest(input.data(),
-                         input.length(),
-                         output.data<unsigned char>(),
-                         &result_size,
-                         md,
-                         nullptr);
-  }
-  if (!success) {
+    ncrypto::Buffer<const unsigned char> buf{
+        .data = reinterpret_cast<const unsigned char*>(input.data()),
+        .len = input.length(),
+    };
+    return ncrypto::hashDigest(buf, md);
+  })();
+
+  if (!output) [[unlikely]] {
     return ThrowCryptoError(env, ERR_get_error());
   }
 
   Local<Value> error;
-  MaybeLocal<Value> rc = StringBytes::Encode(
-      env->isolate(), output.data<char>(), md_len, output_enc, &error);
-  if (rc.IsEmpty()) {
+  MaybeLocal<Value> rc =
+      StringBytes::Encode(env->isolate(),
+                          static_cast<const char*>(output.get()),
+                          output.size(),
+                          output_enc,
+                          &error);
+  if (rc.IsEmpty()) [[unlikely]] {
     CHECK(!error.IsEmpty());
     env->isolate()->ThrowException(error);
     return;
@@ -339,7 +335,7 @@ void Hash::New(const FunctionCallbackInfo<Value>& args) {
 
 bool Hash::HashInit(const EVP_MD* md, Maybe<unsigned int> xof_md_len) {
   mdctx_ = EVPMDCtxPointer::New();
-  if (!mdctx_.digestInit(md)) {
+  if (!mdctx_.digestInit(md)) [[unlikely]] {
     mdctx_.reset();
     return false;
   }
@@ -348,7 +344,7 @@ bool Hash::HashInit(const EVP_MD* md, Maybe<unsigned int> xof_md_len) {
   if (xof_md_len.IsJust() && xof_md_len.FromJust() != md_len_) {
     // This is a little hack to cause createHash to fail when an incorrect
     // hashSize option was passed for a non-XOF hash function.
-    if (!mdctx_.hasXofFlag()) {
+    if (!mdctx_.hasXofFlag()) [[unlikely]] {
       EVPerr(EVP_F_EVP_DIGESTFINALXOF, EVP_R_NOT_XOF_OR_INVALID_LENGTH);
       mdctx_.reset();
       return false;
@@ -406,7 +402,7 @@ void Hash::HashDigest(const FunctionCallbackInfo<Value>& args) {
     // so we need to cache it.
     // See https://github.com/nodejs/node/issues/28245.
     auto data = hash->mdctx_.digestFinal(len);
-    if (!data) {
+    if (!data) [[unlikely]] {
       return ThrowCryptoError(env, ERR_get_error());
     }
 
@@ -416,7 +412,7 @@ void Hash::HashDigest(const FunctionCallbackInfo<Value>& args) {
   Local<Value> error;
   MaybeLocal<Value> rc = StringBytes::Encode(
       env->isolate(), hash->digest_.data<char>(), len, encoding, &error);
-  if (rc.IsEmpty()) {
+  if (rc.IsEmpty()) [[unlikely]] {
     CHECK(!error.IsEmpty());
     env->isolate()->ThrowException(error);
     return;
@@ -482,7 +478,7 @@ Maybe<void> HashTraits::AdditionalConfig(
         static_cast<uint32_t>(args[offset + 2]
             .As<Uint32>()->Value()) / CHAR_BIT;
     if (params->length != expected) {
-      if ((EVP_MD_flags(params->digest) & EVP_MD_FLAG_XOF) == 0) {
+      if ((EVP_MD_flags(params->digest) & EVP_MD_FLAG_XOF) == 0) [[unlikely]] {
         THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Digest method not supported");
         return Nothing<void>();
       }
@@ -505,7 +501,8 @@ bool HashTraits::DeriveBits(
 
   if (params.length > 0) [[likely]] {
     auto data = ctx.digestFinal(params.length);
-    if (!data) return false;
+    if (!data) [[unlikely]]
+      return false;
 
     *out = ByteSource::Allocated(data.release());
   }
@@ -535,7 +532,7 @@ void InternalVerifyIntegrity(const v8::FunctionCallbackInfo<v8::Value>& args) {
                                        digest,
                                        &digest_size,
                                        md_type,
-                                       nullptr) != 1) {
+                                       nullptr) != 1) [[unlikely]] {
     return ThrowCryptoError(
         env, ERR_get_error(), "Digest method not supported");
   }
@@ -549,7 +546,7 @@ void InternalVerifyIntegrity(const v8::FunctionCallbackInfo<v8::Value>& args) {
                             digest_size,
                             BASE64,
                             &error);
-    if (rc.IsEmpty()) {
+    if (rc.IsEmpty()) [[unlikely]] {
       CHECK(!error.IsEmpty());
       env->isolate()->ThrowException(error);
       return;

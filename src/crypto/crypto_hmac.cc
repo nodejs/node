@@ -71,14 +71,20 @@ void Hmac::HmacInit(const char* hash_type, const char* key, int key_len) {
   HandleScope scope(env()->isolate());
 
   const EVP_MD* md = ncrypto::getDigestByName(hash_type);
-  if (md == nullptr) [[unlikely]]
+  if (md == nullptr) [[unlikely]] {
     return THROW_ERR_CRYPTO_INVALID_DIGEST(
         env(), "Invalid digest: %s", hash_type);
+  }
   if (key_len == 0) {
     key = "";
   }
-  ctx_.reset(HMAC_CTX_new());
-  if (!ctx_ || !HMAC_Init_ex(ctx_.get(), key, key_len, md, nullptr)) [[unlikely]] {
+
+  ctx_ = HMACCtxPointer::New();
+  ncrypto::Buffer<const void> key_buf{
+      .data = key,
+      .len = static_cast<size_t>(key_len),
+  };
+  if (!ctx_.init(key_buf, md)) [[unlikely]] {
     ctx_.reset();
     return ThrowCryptoError(env(), ERR_get_error());
   }
@@ -95,9 +101,11 @@ void Hmac::HmacInit(const FunctionCallbackInfo<Value>& args) {
 }
 
 bool Hmac::HmacUpdate(const char* data, size_t len) {
-  return ctx_ && HMAC_Update(ctx_.get(),
-                             reinterpret_cast<const unsigned char*>(data),
-                             len) == 1;
+  ncrypto::Buffer<const void> buf{
+      .data = data,
+      .len = len,
+  };
+  return ctx_.update(buf);
 }
 
 void Hmac::HmacUpdate(const FunctionCallbackInfo<Value>& args) {
@@ -123,24 +131,27 @@ void Hmac::HmacDigest(const FunctionCallbackInfo<Value>& args) {
   }
 
   unsigned char md_value[EVP_MAX_MD_SIZE];
-  unsigned int md_len = 0;
+  ncrypto::Buffer<void> buf{
+      .data = md_value,
+      .len = sizeof(md_value),
+  };
 
   if (hmac->ctx_) {
-    bool ok = HMAC_Final(hmac->ctx_.get(), md_value, &md_len);
-    hmac->ctx_.reset();
-    if (!ok) {
+    if (!hmac->ctx_.digestInto(&buf)) [[unlikely]] {
+      hmac->ctx_.reset();
       return ThrowCryptoError(env, ERR_get_error(), "Failed to finalize HMAC");
     }
+    hmac->ctx_.reset();
   }
 
   Local<Value> error;
   MaybeLocal<Value> rc =
       StringBytes::Encode(env->isolate(),
                           reinterpret_cast<const char*>(md_value),
-                          md_len,
+                          buf.len,
                           encoding,
                           &error);
-  if (rc.IsEmpty()) {
+  if (rc.IsEmpty()) [[unlikely]] {
     CHECK(!error.IsEmpty());
     env->isolate()->ThrowException(error);
     return;
@@ -225,31 +236,29 @@ bool HmacTraits::DeriveBits(
     Environment* env,
     const HmacConfig& params,
     ByteSource* out) {
-  HMACCtxPointer ctx(HMAC_CTX_new());
+  auto ctx = HMACCtxPointer::New();
 
-  if (!ctx || !HMAC_Init_ex(ctx.get(),
-                            params.key.GetSymmetricKey(),
-                            params.key.GetSymmetricKeySize(),
-                            params.digest,
-                            nullptr)) {
+  ncrypto::Buffer<const void> key_buf{
+      .data = params.key.GetSymmetricKey(),
+      .len = params.key.GetSymmetricKeySize(),
+  };
+  if (!ctx.init(key_buf, params.digest)) [[unlikely]] {
     return false;
   }
 
-  if (!HMAC_Update(
-          ctx.get(),
-          params.data.data<unsigned char>(),
-          params.data.size())) {
+  ncrypto::Buffer<const void> buffer{
+      .data = params.data.data(),
+      .len = params.data.size(),
+  };
+  if (!ctx.update(buffer)) [[unlikely]] {
     return false;
   }
 
-  ByteSource::Builder buf(EVP_MAX_MD_SIZE);
-  unsigned int len;
-
-  if (!HMAC_Final(ctx.get(), buf.data<unsigned char>(), &len)) {
+  auto buf = ctx.digest();
+  if (!buf) [[unlikely]]
     return false;
-  }
 
-  *out = std::move(buf).release(len);
+  *out = ByteSource::Allocated(buf.release());
 
   return true;
 }

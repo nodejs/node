@@ -229,7 +229,10 @@ class ByteSource final {
 
   template <typename T = void>
   operator ncrypto::Buffer<const T>() const {
-    return ncrypto::Buffer{.data = data<T>(), .len = size()};
+    return ncrypto::Buffer<const T>{
+        .data = data<T>(),
+        .len = size(),
+    };
   }
 
   inline size_t size() const { return size_; }
