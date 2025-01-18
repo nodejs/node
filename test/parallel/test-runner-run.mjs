@@ -658,6 +658,10 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
       assert.strictEqual(counts.failedTestCount, 1);
       assert.strictEqual(counts.passedTestCount, 1);
     });
+
+    // TODO(pmarchini): Bailout is not supported in watch mode yet but it should be.
+    // We should enable this test once it is supported.
+    it.todo('should handle the bail option with watch mode');
   });
 
   it('should avoid running recursively', async () => {

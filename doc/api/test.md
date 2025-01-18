@@ -1001,11 +1001,10 @@ added:
 
 The `--test-bail` flag provides a way to stop test execution
 as soon as a test fails.
-By enabling this flag, the test runner will exit the test suite early
-when it encounters the first failing test, preventing
-the execution of subsequent tests.
-Already running tests will be canceled, and no further tests will be started.
-**Default:** `false`.
+By enabling this flag, the test runner will cancel all remaining tests
+when it encounters the first failing test.
+
+Note: The bail option is not currently supported in watch mode.
 
 ## Test reporters
 
@@ -1318,6 +1317,10 @@ changes:
     parallel.
     If `false`, it would only run one test file at a time.
     **Default:** `false`.
+  * `bail`: {boolean} Determines whether the test runner stops execution after the first test failure.
+    If set to `true`, the runner cancels all remaining tests immediately upon encountering a failure,
+    following the [bailing out][] behavior.
+    **Default:** `false`.
   * `cwd`: {string} Specifies the current working directory to be used by the test runner.
     Serves as the base path for resolving files according to the [test runner execution model][].
     **Default:** `process.cwd()`.
@@ -1345,8 +1348,7 @@ changes:
     and can be used to setup listeners before any tests are run.
     **Default:** `undefined`.
   * `execArgv` {Array} An array of CLI flags to pass to the `node` executable when
-    spawning the subprocesses. This option has no effect when `isolation` is `'none`'.
-    **Default:** `[]`
+    spawning the subprocesses. This option has no effect when `isolation` is `'none''. **Default:** `\[]\`
   * `argv` {Array} An array of CLI flags to pass to each test file when spawning the
     subprocesses. This option has no effect when `isolation` is `'none'`.
     **Default:** `[]`.
@@ -1512,11 +1514,6 @@ changes:
   does not have a name.
 * `options` {Object} Configuration options for the test. The following
   properties are supported:
-  * `bail` {boolean}
-    If `true`, it will exit the test suite early
-    when it encounters the first failing test, preventing
-    the execution of subsequent tests and canceling already running tests.
-    **Default:** `false`.
   * `concurrency` {number|boolean} If a number is provided,
     then that many tests would run in parallel within the application thread.
     If `true`, all scheduled asynchronous tests run concurrently within the
@@ -3755,6 +3752,7 @@ Can be used to abort test subtasks when the test has been aborted.
 [`run()`]: #runoptions
 [`suite()`]: #suitename-options-fn
 [`test()`]: #testname-options-fn
+[bailing out]: #bailing-out
 [code coverage]: #collecting-code-coverage
 [describe options]: #describename-options-fn
 [it options]: #testname-options-fn
