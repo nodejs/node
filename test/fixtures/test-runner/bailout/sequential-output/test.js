@@ -1,5 +1,6 @@
 'use strict';
-const common = require('../../../common');
+
+const common = require('../../../../common');
 const test = require('node:test');
 
 test('nested', (t) => {

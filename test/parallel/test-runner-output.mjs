@@ -296,22 +296,16 @@ const tests = [
     flags: ['--test-reporter=tap', '--test-coverage-exclude=!test/**'],
   } : false,
   {
-    name: 'test-runner/output/bail-spec.js',
-    flags: [
-      '--test',
-      '--test-bail',
-      '--test-reporter=spec',
-    ],
+    name: 'test-runner/output/bail-concurrent-spec.mjs',
     transform: specTransform,
   },
   {
-    name: 'test-runner/output/bail-tap.js',
-    flags: [
-      '--test',
-      '--test-bail',
-      '--test-reporter=tap',
-    ],
+    name: 'test-runner/output/bail-sequential-spec.js',
+    transform: specTransform,
   },
+  { name: 'test-runner/output/bail-concurrent-tap.mjs' },
+
+  { name: 'test-runner/output/bail-sequential-tap.js' },
 ]
 .filter(Boolean)
 .map(({ flags, name, tty, transform }) => ({

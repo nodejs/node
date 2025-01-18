@@ -1,0 +1,33 @@
+▶ long-running-test
+  ✔ first (*ms)
+▶ test-with-setup
+  ✖ first (*ms)
+    Error: First test failed
+        *
+        *
+        *
+        at async Promise.all (index 0)
+        *
+        *
+
+✖ Bail out!
+ℹ tests 3
+ℹ suites 1
+ℹ pass 1
+ℹ fail 1
+ℹ cancelled 1
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms *
+
+✖ failing tests:
+
+*
+✖ first (*ms)
+  Error: First test failed
+      *
+      *
+      *
+      at async Promise.all (index 0)
+      *
+      *

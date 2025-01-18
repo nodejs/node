@@ -1,0 +1,38 @@
+TAP version 13
+# Subtest: long-running-test
+    # Subtest: first
+    ok 1 - first
+      ---
+      duration_ms: *
+      type: 'test'
+      ...
+# Subtest: test-with-setup
+    # Subtest: first
+    not ok 1 - first
+      ---
+      duration_ms: *
+      type: 'test'
+      location: '/test/fixtures/test-runner/bailout/parallel-output/test-with-setup.test.mjs:(LINE):3'
+      failureType: 'testCodeFailure'
+      error: 'First test failed'
+      code: 'ERR_TEST_FAILURE'
+      stack: |-
+        *
+        *
+        *
+        async Promise.all (index 0)
+        *
+        *
+      ...
+    # Subtest: second
+    1..2
+Bail out!
+1..1
+# tests 3
+# suites 1
+# pass 1
+# fail 1
+# cancelled 1
+# skipped 0
+# todo 0
+# duration_ms *
