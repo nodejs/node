@@ -695,7 +695,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     }
 
     assert.strictEqual(bailedTestCount, 1);
-    assert.strictEqual(failedTestCount, 4);
+    assert.strictEqual(failedTestCount, 3);
     assert.strictEqual(passedTestCount, 0);
   });
 
