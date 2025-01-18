@@ -144,7 +144,6 @@ describe('node:test bail', () => {
     assert.strictEqual(child.stderr.toString(), '');
     const output = child.stdout.toString();
 
-    // Extract hooks order from the output
     const hooksOrderMatch = output.match(/HOOKS_ORDER: (.*)/);
     assert(hooksOrderMatch, 'Hooks order output should be present');
     const hooksOrder = hooksOrderMatch[1].split(',');
@@ -157,7 +156,6 @@ describe('node:test bail', () => {
       'after',
     ]);
 
-    // Keep existing assertions
     assert.match(output, /Bail out!/);
     assert.match(output, /tests 2/);
     assert.match(output, /suites 1/);
