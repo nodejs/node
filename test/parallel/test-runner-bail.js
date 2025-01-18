@@ -6,8 +6,6 @@ const { describe, it } = require('node:test');
 const { spawnSync } = require('node:child_process');
 const assert = require('node:assert');
 
-const testFixtures = fixtures.path('test-runner', 'bailout');
-
 describe('node:test bail', () => {
   it('should run all tests when --test-bail is not set', () => {
     const child = spawnSync(
@@ -17,7 +15,6 @@ describe('node:test bail', () => {
         '--test-reporter=spec',
         fixtures.path('test-runner', 'bailout', 'sequential', 'test.mjs'),
       ],
-      { cwd: testFixtures }
     );
 
     assert.strictEqual(child.stderr.toString(), '');
@@ -40,7 +37,6 @@ describe('node:test bail', () => {
         '--test-reporter=spec',
         fixtures.path('test-runner', 'bailout', 'sequential', 'test.mjs'),
       ],
-      { cwd: testFixtures }
     );
 
     assert.strictEqual(child.stderr.toString(), '');
@@ -64,7 +60,6 @@ describe('node:test bail', () => {
         '--test-isolation=none',
         fixtures.path('test-runner', 'bailout', 'sequential', 'test.mjs'),
       ],
-      { cwd: testFixtures }
     );
 
     assert.strictEqual(child.stderr.toString(), '');
@@ -89,7 +84,6 @@ describe('node:test bail', () => {
         fixtures.path('test-runner', 'bailout', 'parallel-loading', 'slow-loading.mjs'),
         fixtures.path('test-runner', 'bailout', 'parallel-loading', 'infinite-loop.mjs'),
       ],
-      { cwd: testFixtures }
     );
 
     assert.strictEqual(child.stderr.toString(), '');
@@ -114,8 +108,7 @@ describe('node:test bail', () => {
         fixtures.path('test-runner', 'bailout', 'parallel-concurrency', 'first.mjs'),
         fixtures.path('test-runner', 'bailout', 'parallel-concurrency', 'second.mjs'),
         fixtures.path('test-runner', 'bailout', 'parallel-concurrency', 'third.mjs'),
-      ],
-      { cwd: testFixtures }
+      ]
     );
 
     assert.strictEqual(child.stderr.toString(), '');
@@ -138,7 +131,6 @@ describe('node:test bail', () => {
         '--test-reporter=spec',
         fixtures.path('test-runner', 'bailout', 'hooks-order', 'test.mjs'),
       ],
-      { cwd: testFixtures }
     );
 
     assert.strictEqual(child.stderr.toString(), '');
@@ -169,7 +161,6 @@ describe('node:test bail', () => {
       const child = spawnSync(
         process.execPath,
         ['--test', '--test-bail', '--watch'],
-        { cwd: testFixtures }
       );
 
       assert.match(child.stderr.toString(),
