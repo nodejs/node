@@ -15,6 +15,7 @@ namespace encoding_binding {
 
 using v8::ArrayBuffer;
 using v8::BackingStore;
+using v8::BackingStoreInitializationMode;
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::Isolate;
@@ -124,9 +125,8 @@ void BindingData::EncodeUtf8String(const FunctionCallbackInfo<Value>& args) {
 
   Local<ArrayBuffer> ab;
   {
-    NoArrayBufferZeroFillScope no_zero_fill_scope(env->isolate_data());
-    std::unique_ptr<BackingStore> bs =
-        ArrayBuffer::NewBackingStore(isolate, length);
+    std::unique_ptr<BackingStore> bs = ArrayBuffer::NewBackingStore(
+        isolate, length, BackingStoreInitializationMode::kUninitialized);
 
     CHECK(bs);
 
