@@ -2,11 +2,16 @@
 
 require('../common');
 const fixtures = require('../common/fixtures');
-const { describe, it } = require('node:test');
+const { describe, it, beforeEach } = require('node:test');
 const { spawnSync } = require('node:child_process');
 const assert = require('node:assert');
+const tmpdir = require('../common/tmpdir.js');
 
 describe('node:test bail', () => {
+  beforeEach(() => {
+    tmpdir.refresh();
+  });
+
   it('should run all tests when --test-bail is not set', () => {
     const child = spawnSync(
       process.execPath,
@@ -81,18 +86,23 @@ describe('node:test bail', () => {
         '--test-bail',
         '--test-reporter=spec',
         '--test-concurrency=2',
-        fixtures.path('test-runner', 'bailout', 'parallel-loading', 'slow-loading.mjs'),
-        fixtures.path('test-runner', 'bailout', 'parallel-loading', 'infinite-loop.mjs'),
+        fixtures.path('test-runner', 'bailout', 'parallel-concurrency', 'first.mjs'),
+        fixtures.path('test-runner', 'bailout', 'parallel-concurrency', 'second.mjs'),
       ],
+      {
+        env: {
+          __TEST_SYNC_PATH__: tmpdir.path,
+        }
+      }
     );
 
     assert.strictEqual(child.stderr.toString(), '');
     const output = child.stdout.toString();
 
     assert.match(output, /Bail out!/);
-    assert.match(output, /tests 2/);
+    assert.match(output, /tests 3/);
     assert.match(output, /suites 1/);
-    assert.match(output, /pass 0/);
+    assert.match(output, /pass 1/);
     assert.match(output, /fail 1/);
     assert.match(output, /cancelled 1/);
   });
@@ -108,7 +118,12 @@ describe('node:test bail', () => {
         fixtures.path('test-runner', 'bailout', 'parallel-concurrency', 'first.mjs'),
         fixtures.path('test-runner', 'bailout', 'parallel-concurrency', 'second.mjs'),
         fixtures.path('test-runner', 'bailout', 'parallel-concurrency', 'third.mjs'),
-      ]
+      ],
+      {
+        env: {
+          __TEST_SYNC_PATH__: tmpdir.path,
+        }
+      }
     );
 
     assert.strictEqual(child.stderr.toString(), '');
