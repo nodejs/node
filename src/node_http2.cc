@@ -27,6 +27,7 @@ using v8::Array;
 using v8::ArrayBuffer;
 using v8::ArrayBufferView;
 using v8::BackingStore;
+using v8::BackingStoreInitializationMode;
 using v8::Boolean;
 using v8::Context;
 using v8::EscapableHandleScope;
@@ -292,11 +293,10 @@ Local<Value> Http2Settings::Pack(
     size_t count,
     const nghttp2_settings_entry* entries) {
   EscapableHandleScope scope(env->isolate());
-  std::unique_ptr<BackingStore> bs;
-  {
-    NoArrayBufferZeroFillScope no_zero_fill_scope(env->isolate_data());
-    bs = ArrayBuffer::NewBackingStore(env->isolate(), count * 6);
-  }
+  std::unique_ptr<BackingStore> bs = ArrayBuffer::NewBackingStore(
+      env->isolate(),
+      count * 6,
+      BackingStoreInitializationMode::kUninitialized);
   if (nghttp2_pack_settings_payload(static_cast<uint8_t*>(bs->Data()),
                                     bs->ByteLength(),
                                     entries,
@@ -457,13 +457,11 @@ Origins::Origins(
     return;
   }
 
-  {
-    NoArrayBufferZeroFillScope no_zero_fill_scope(env->isolate_data());
-    bs_ = ArrayBuffer::NewBackingStore(env->isolate(),
-                                       alignof(nghttp2_origin_entry) - 1 +
-                                       count_ * sizeof(nghttp2_origin_entry) +
-                                       origin_string_len);
-  }
+  bs_ = ArrayBuffer::NewBackingStore(
+      env->isolate(),
+      alignof(nghttp2_origin_entry) - 1 +
+          count_ * sizeof(nghttp2_origin_entry) + origin_string_len,
+      BackingStoreInitializationMode::kUninitialized);
 
   // Make sure the start address is aligned appropriately for an nghttp2_nv*.
   char* start = nbytes::AlignUp(static_cast<char*>(bs_->Data()),
@@ -2090,12 +2088,10 @@ void Http2Session::OnStreamRead(ssize_t nread, const uv_buf_t& buf_) {
     // happen, we concatenate the data we received with the already-stored
     // pending input data, slicing off the already processed part.
     size_t pending_len = stream_buf_.len - stream_buf_offset_;
-    std::unique_ptr<BackingStore> new_bs;
-    {
-      NoArrayBufferZeroFillScope no_zero_fill_scope(env()->isolate_data());
-      new_bs = ArrayBuffer::NewBackingStore(env()->isolate(),
-                                            pending_len + nread);
-    }
+    std::unique_ptr<BackingStore> new_bs = ArrayBuffer::NewBackingStore(
+        env()->isolate(),
+        pending_len + nread,
+        BackingStoreInitializationMode::kUninitialized);
     memcpy(static_cast<char*>(new_bs->Data()),
            stream_buf_.base + stream_buf_offset_,
            pending_len);
