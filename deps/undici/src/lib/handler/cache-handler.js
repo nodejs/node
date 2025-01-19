@@ -6,8 +6,16 @@ const {
   parseVaryHeader,
   isEtagUsable
 } = require('../util/cache')
+const { parseHttpDate } = require('../util/date.js')
 
 function noop () {}
+
+// Status codes that we can use some heuristics on to cache
+const HEURISTICALLY_CACHEABLE_STATUS_CODES = [
+  200, 203, 204, 206, 300, 301, 308, 404, 405, 410, 414, 501
+]
+
+const MAX_RESPONSE_AGE = 2147483647000
 
 /**
  * @typedef {import('../../types/dispatcher.d.ts').default.DispatchHandler} DispatchHandler
@@ -68,17 +76,23 @@ class CacheHandler {
     this.#handler.onRequestUpgrade?.(controller, statusCode, headers, socket)
   }
 
+  /**
+   * @param {import('../../types/dispatcher.d.ts').default.DispatchController} controller
+   * @param {number} statusCode
+   * @param {import('../../types/header.d.ts').IncomingHttpHeaders} resHeaders
+   * @param {string} statusMessage
+   */
   onResponseStart (
     controller,
     statusCode,
-    headers,
+    resHeaders,
     statusMessage
   ) {
     const downstreamOnHeaders = () =>
       this.#handler.onResponseStart?.(
         controller,
         statusCode,
-        headers,
+        resHeaders,
         statusMessage
       )
 
@@ -87,97 +101,113 @@ class CacheHandler {
       statusCode >= 200 &&
       statusCode <= 399
     ) {
-      // https://www.rfc-editor.org/rfc/rfc9111.html#name-invalidating-stored-response
+      // Successful response to an unsafe method, delete it from cache
+      //  https://www.rfc-editor.org/rfc/rfc9111.html#name-invalidating-stored-response
       try {
-        this.#store.delete(this.#cacheKey).catch?.(noop)
+        this.#store.delete(this.#cacheKey)?.catch?.(noop)
       } catch {
         // Fail silently
       }
       return downstreamOnHeaders()
     }
 
-    const cacheControlHeader = headers['cache-control']
-    if (!cacheControlHeader && !headers['expires'] && !this.#cacheByDefault) {
-      // Don't have the cache control header or the cache is full
+    const cacheControlHeader = resHeaders['cache-control']
+    const heuristicallyCacheable = resHeaders['last-modified'] && HEURISTICALLY_CACHEABLE_STATUS_CODES.includes(statusCode)
+    if (
+      !cacheControlHeader &&
+      !resHeaders['expires'] &&
+      !heuristicallyCacheable &&
+      !this.#cacheByDefault
+    ) {
+      // Don't have anything to tell us this response is cachable and we're not
+      //  caching by default
       return downstreamOnHeaders()
     }
 
     const cacheControlDirectives = cacheControlHeader ? parseCacheControlHeader(cacheControlHeader) : {}
-    if (!canCacheResponse(this.#cacheType, statusCode, headers, cacheControlDirectives)) {
+    if (!canCacheResponse(this.#cacheType, statusCode, resHeaders, cacheControlDirectives)) {
       return downstreamOnHeaders()
     }
 
-    const age = getAge(headers)
-
     const now = Date.now()
-    const staleAt = determineStaleAt(this.#cacheType, now, headers, cacheControlDirectives) ?? this.#cacheByDefault
-    if (staleAt) {
-      let baseTime = now
-      if (headers['date']) {
-        const parsedDate = parseInt(headers['date'])
-        const date = new Date(isNaN(parsedDate) ? headers['date'] : parsedDate)
-        if (date instanceof Date && !isNaN(date)) {
-          baseTime = date.getTime()
-        }
-      }
+    const resAge = resHeaders.age ? getAge(resHeaders.age) : undefined
+    if (resAge && resAge >= MAX_RESPONSE_AGE) {
+      // Response considered stale
+      return downstreamOnHeaders()
+    }
 
-      const absoluteStaleAt = staleAt + baseTime
+    const resDate = typeof resHeaders.date === 'string'
+      ? parseHttpDate(resHeaders.date)
+      : undefined
 
-      if (now >= absoluteStaleAt || (age && age >= staleAt)) {
-        // Response is already stale
+    const staleAt =
+      determineStaleAt(this.#cacheType, now, resAge, resHeaders, resDate, cacheControlDirectives) ??
+      this.#cacheByDefault
+    if (staleAt === undefined || (resAge && resAge > staleAt)) {
+      return downstreamOnHeaders()
+    }
+
+    const baseTime = resDate ? resDate.getTime() : now
+    const absoluteStaleAt = staleAt + baseTime
+    if (now >= absoluteStaleAt) {
+      // Response is already stale
+      return downstreamOnHeaders()
+    }
+
+    let varyDirectives
+    if (this.#cacheKey.headers && resHeaders.vary) {
+      varyDirectives = parseVaryHeader(resHeaders.vary, this.#cacheKey.headers)
+      if (!varyDirectives) {
+        // Parse error
         return downstreamOnHeaders()
       }
-
-      let varyDirectives
-      if (this.#cacheKey.headers && headers.vary) {
-        varyDirectives = parseVaryHeader(headers.vary, this.#cacheKey.headers)
-        if (!varyDirectives) {
-          // Parse error
-          return downstreamOnHeaders()
-        }
-      }
-
-      const deleteAt = determineDeleteAt(cacheControlDirectives, absoluteStaleAt)
-      const strippedHeaders = stripNecessaryHeaders(headers, cacheControlDirectives)
-
-      /**
-       * @type {import('../../types/cache-interceptor.d.ts').default.CacheValue}
-       */
-      const value = {
-        statusCode,
-        statusMessage,
-        headers: strippedHeaders,
-        vary: varyDirectives,
-        cacheControlDirectives,
-        cachedAt: age ? now - (age * 1000) : now,
-        staleAt: absoluteStaleAt,
-        deleteAt
-      }
-
-      if (typeof headers.etag === 'string' && isEtagUsable(headers.etag)) {
-        value.etag = headers.etag
-      }
-
-      this.#writeStream = this.#store.createWriteStream(this.#cacheKey, value)
-
-      if (this.#writeStream) {
-        const handler = this
-        this.#writeStream
-          .on('drain', () => controller.resume())
-          .on('error', function () {
-            // TODO (fix): Make error somehow observable?
-            handler.#writeStream = undefined
-          })
-          .on('close', function () {
-            if (handler.#writeStream === this) {
-              handler.#writeStream = undefined
-            }
-
-            // TODO (fix): Should we resume even if was paused downstream?
-            controller.resume()
-          })
-      }
     }
+
+    const deleteAt = determineDeleteAt(baseTime, cacheControlDirectives, absoluteStaleAt)
+    const strippedHeaders = stripNecessaryHeaders(resHeaders, cacheControlDirectives)
+
+    /**
+     * @type {import('../../types/cache-interceptor.d.ts').default.CacheValue}
+     */
+    const value = {
+      statusCode,
+      statusMessage,
+      headers: strippedHeaders,
+      vary: varyDirectives,
+      cacheControlDirectives,
+      cachedAt: resAge ? now - resAge : now,
+      staleAt: absoluteStaleAt,
+      deleteAt
+    }
+
+    if (typeof resHeaders.etag === 'string' && isEtagUsable(resHeaders.etag)) {
+      value.etag = resHeaders.etag
+    }
+
+    this.#writeStream = this.#store.createWriteStream(this.#cacheKey, value)
+    if (!this.#writeStream) {
+      return downstreamOnHeaders()
+    }
+
+    const handler = this
+    this.#writeStream
+      .on('drain', () => controller.resume())
+      .on('error', function () {
+        // TODO (fix): Make error somehow observable?
+        handler.#writeStream = undefined
+
+        // Delete the value in case the cache store is holding onto state from
+        //  the call to createWriteStream
+        handler.#store.delete(handler.#cacheKey)
+      })
+      .on('close', function () {
+        if (handler.#writeStream === this) {
+          handler.#writeStream = undefined
+        }
+
+        // TODO (fix): Should we resume even if was paused downstream?
+        controller.resume()
+      })
 
     return downstreamOnHeaders()
   }
@@ -207,18 +237,15 @@ class CacheHandler {
  *
  * @param {import('../../types/cache-interceptor.d.ts').default.CacheOptions['type']} cacheType
  * @param {number} statusCode
- * @param {Record<string, string | string[]>} headers
+ * @param {import('../../types/header.d.ts').IncomingHttpHeaders} resHeaders
  * @param {import('../../types/cache-interceptor.d.ts').default.CacheControlDirectives} cacheControlDirectives
  */
-function canCacheResponse (cacheType, statusCode, headers, cacheControlDirectives) {
+function canCacheResponse (cacheType, statusCode, resHeaders, cacheControlDirectives) {
   if (statusCode !== 200 && statusCode !== 307) {
     return false
   }
 
-  if (
-    cacheControlDirectives['no-cache'] === true ||
-    cacheControlDirectives['no-store']
-  ) {
+  if (cacheControlDirectives['no-store']) {
     return false
   }
 
@@ -227,13 +254,13 @@ function canCacheResponse (cacheType, statusCode, headers, cacheControlDirective
   }
 
   // https://www.rfc-editor.org/rfc/rfc9111.html#section-4.1-5
-  if (headers.vary?.includes('*')) {
+  if (resHeaders.vary?.includes('*')) {
     return false
   }
 
   // https://www.rfc-editor.org/rfc/rfc9111.html#name-storing-responses-to-authen
-  if (headers.authorization) {
-    if (!cacheControlDirectives.public || typeof headers.authorization !== 'string') {
+  if (resHeaders.authorization) {
+    if (!cacheControlDirectives.public || typeof resHeaders.authorization !== 'string') {
       return false
     }
 
@@ -256,55 +283,74 @@ function canCacheResponse (cacheType, statusCode, headers, cacheControlDirective
 }
 
 /**
- * @param {Record<string, string | string[]>} headers
+ * @param {string | string[]} ageHeader
  * @returns {number | undefined}
  */
-function getAge (headers) {
-  if (!headers.age) {
-    return undefined
-  }
+function getAge (ageHeader) {
+  const age = parseInt(Array.isArray(ageHeader) ? ageHeader[0] : ageHeader)
 
-  const age = parseInt(Array.isArray(headers.age) ? headers.age[0] : headers.age)
-  if (isNaN(age) || age >= 2147483647) {
-    return undefined
-  }
-
-  return age
+  return isNaN(age) ? undefined : age * 1000
 }
 
 /**
  * @param {import('../../types/cache-interceptor.d.ts').default.CacheOptions['type']} cacheType
  * @param {number} now
- * @param {Record<string, string | string[]>} headers
+ * @param {number | undefined} age
+ * @param {import('../../types/header.d.ts').IncomingHttpHeaders} resHeaders
+ * @param {Date | undefined} responseDate
  * @param {import('../../types/cache-interceptor.d.ts').default.CacheControlDirectives} cacheControlDirectives
  *
- * @returns {number | undefined} time that the value is stale at or undefined if it shouldn't be cached
+ * @returns {number | undefined} time that the value is stale at in seconds or undefined if it shouldn't be cached
  */
-function determineStaleAt (cacheType, now, headers, cacheControlDirectives) {
+function determineStaleAt (cacheType, now, age, resHeaders, responseDate, cacheControlDirectives) {
   if (cacheType === 'shared') {
     // Prioritize s-maxage since we're a shared cache
     //  s-maxage > max-age > Expire
     //  https://www.rfc-editor.org/rfc/rfc9111.html#section-5.2.2.10-3
     const sMaxAge = cacheControlDirectives['s-maxage']
-    if (sMaxAge) {
-      return sMaxAge * 1000
+    if (sMaxAge !== undefined) {
+      return sMaxAge > 0 ? sMaxAge * 1000 : undefined
     }
   }
 
   const maxAge = cacheControlDirectives['max-age']
-  if (maxAge) {
-    return maxAge * 1000
+  if (maxAge !== undefined) {
+    return maxAge > 0 ? maxAge * 1000 : undefined
   }
 
-  if (headers.expires && typeof headers.expires === 'string') {
+  if (typeof resHeaders.expires === 'string') {
     // https://www.rfc-editor.org/rfc/rfc9111.html#section-5.3
-    const expiresDate = new Date(headers.expires)
-    if (expiresDate instanceof Date && Number.isFinite(expiresDate.valueOf())) {
+    const expiresDate = parseHttpDate(resHeaders.expires)
+    if (expiresDate) {
       if (now >= expiresDate.getTime()) {
         return undefined
       }
 
+      if (responseDate) {
+        if (responseDate >= expiresDate) {
+          return undefined
+        }
+
+        if (age !== undefined && age > (expiresDate - responseDate)) {
+          return undefined
+        }
+      }
+
       return expiresDate.getTime() - now
+    }
+  }
+
+  if (typeof resHeaders['last-modified'] === 'string') {
+    // https://www.rfc-editor.org/rfc/rfc9111.html#name-calculating-heuristic-fresh
+    const lastModified = new Date(resHeaders['last-modified'])
+    if (isValidDate(lastModified)) {
+      if (lastModified.getTime() >= now) {
+        return undefined
+      }
+
+      const responseAge = now - lastModified.getTime()
+
+      return responseAge * 0.1
     }
   }
 
@@ -317,10 +363,11 @@ function determineStaleAt (cacheType, now, headers, cacheControlDirectives) {
 }
 
 /**
+ * @param {number} now
  * @param {import('../../types/cache-interceptor.d.ts').default.CacheControlDirectives} cacheControlDirectives
  * @param {number} staleAt
  */
-function determineDeleteAt (cacheControlDirectives, staleAt) {
+function determineDeleteAt (now, cacheControlDirectives, staleAt) {
   let staleWhileRevalidate = -Infinity
   let staleIfError = -Infinity
   let immutable = -Infinity
@@ -334,7 +381,7 @@ function determineDeleteAt (cacheControlDirectives, staleAt) {
   }
 
   if (staleWhileRevalidate === -Infinity && staleIfError === -Infinity) {
-    immutable = 31536000
+    immutable = now + 31536000000
   }
 
   return Math.max(staleAt, staleWhileRevalidate, staleIfError, immutable)
@@ -342,11 +389,11 @@ function determineDeleteAt (cacheControlDirectives, staleAt) {
 
 /**
  * Strips headers required to be removed in cached responses
- * @param {Record<string, string | string[]>} headers
+ * @param {import('../../types/header.d.ts').IncomingHttpHeaders} resHeaders
  * @param {import('../../types/cache-interceptor.d.ts').default.CacheControlDirectives} cacheControlDirectives
  * @returns {Record<string, string | string []>}
  */
-function stripNecessaryHeaders (headers, cacheControlDirectives) {
+function stripNecessaryHeaders (resHeaders, cacheControlDirectives) {
   const headersToRemove = [
     'connection',
     'proxy-authenticate',
@@ -360,14 +407,14 @@ function stripNecessaryHeaders (headers, cacheControlDirectives) {
     'age'
   ]
 
-  if (headers['connection']) {
-    if (Array.isArray(headers['connection'])) {
+  if (resHeaders['connection']) {
+    if (Array.isArray(resHeaders['connection'])) {
       // connection: a
       // connection: b
-      headersToRemove.push(...headers['connection'].map(header => header.trim()))
+      headersToRemove.push(...resHeaders['connection'].map(header => header.trim()))
     } else {
       // connection: a, b
-      headersToRemove.push(...headers['connection'].split(',').map(header => header.trim()))
+      headersToRemove.push(...resHeaders['connection'].split(',').map(header => header.trim()))
     }
   }
 
@@ -381,13 +428,21 @@ function stripNecessaryHeaders (headers, cacheControlDirectives) {
 
   let strippedHeaders
   for (const headerName of headersToRemove) {
-    if (headers[headerName]) {
-      strippedHeaders ??= { ...headers }
+    if (resHeaders[headerName]) {
+      strippedHeaders ??= { ...resHeaders }
       delete strippedHeaders[headerName]
     }
   }
 
-  return strippedHeaders ?? headers
+  return strippedHeaders ?? resHeaders
+}
+
+/**
+ * @param {Date} date
+ * @returns {boolean}
+ */
+function isValidDate (date) {
+  return date instanceof Date && Number.isFinite(date.valueOf())
 }
 
 module.exports = CacheHandler

@@ -73,6 +73,7 @@ using v8::Integer;
 using v8::Isolate;
 using v8::JustVoid;
 using v8::Local;
+using v8::LocalVector;
 using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Nothing;
@@ -902,8 +903,8 @@ void AfterScanDir(uv_fs_t* req) {
   Local<Value> error;
   int r;
 
-  std::vector<Local<Value>> name_v;
-  std::vector<Local<Value>> type_v;
+  LocalVector<Value> name_v(isolate);
+  LocalVector<Value> type_v(isolate);
 
   const bool with_file_types = req_wrap->with_file_types();
 
@@ -1405,16 +1406,15 @@ static void ReadLink(const FunctionCallbackInfo<Value>& args) {
     const char* link_path = static_cast<const char*>(req_wrap_sync.req.ptr);
 
     Local<Value> error;
-    MaybeLocal<Value> rc = StringBytes::Encode(isolate,
-                                               link_path,
-                                               encoding,
-                                               &error);
-    if (rc.IsEmpty()) {
+    Local<Value> ret;
+    if (!StringBytes::Encode(isolate, link_path, encoding, &error)
+             .ToLocal(&ret)) {
+      DCHECK(!error.IsEmpty());
       env->isolate()->ThrowException(error);
       return;
     }
 
-    args.GetReturnValue().Set(rc.ToLocalChecked());
+    args.GetReturnValue().Set(ret);
   }
 }
 
@@ -1966,15 +1966,16 @@ static void MKDir(const FunctionCallbackInfo<Value>& args) {
       }
       if (!req_wrap_sync.continuation_data()->first_path().empty()) {
         Local<Value> error;
+        Local<Value> ret;
         std::string first_path(req_wrap_sync.continuation_data()->first_path());
-        MaybeLocal<Value> path = StringBytes::Encode(env->isolate(),
-                                                     first_path.c_str(),
-                                                     UTF8, &error);
-        if (path.IsEmpty()) {
+        if (!StringBytes::Encode(
+                 env->isolate(), first_path.c_str(), UTF8, &error)
+                 .ToLocal(&ret)) {
+          DCHECK(!error.IsEmpty());
           env->isolate()->ThrowException(error);
           return;
         }
-        args.GetReturnValue().Set(path.ToLocalChecked());
+        args.GetReturnValue().Set(ret);
       }
     } else {
       SyncCallAndThrowOnError(env, &req_wrap_sync, uv_fs_mkdir, *path, mode);
@@ -2015,16 +2016,15 @@ static void RealPath(const FunctionCallbackInfo<Value>& args) {
     const char* link_path = static_cast<const char*>(req_wrap_sync.req.ptr);
 
     Local<Value> error;
-    MaybeLocal<Value> rc = StringBytes::Encode(isolate,
-                                               link_path,
-                                               encoding,
-                                               &error);
-    if (rc.IsEmpty()) {
+    Local<Value> ret;
+    if (!StringBytes::Encode(isolate, link_path, encoding, &error)
+             .ToLocal(&ret)) {
+      DCHECK(!error.IsEmpty());
       env->isolate()->ThrowException(error);
       return;
     }
 
-    args.GetReturnValue().Set(rc.ToLocalChecked());
+    args.GetReturnValue().Set(ret);
   }
 }
 
@@ -2037,7 +2037,28 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
 
   BufferValue path(isolate, args[0]);
   CHECK_NOT_NULL(*path);
+#ifdef _WIN32
+  // On Windows, some API functions accept paths with trailing slashes,
+  // while others do not. This code checks if the input path ends with
+  // a slash (either '/' or '\\') and, if so, ensures that the processed
+  // path also ends with a trailing backslash ('\\').
+  bool slashCheck = false;
+  if (path.ToStringView().ends_with("/") ||
+      path.ToStringView().ends_with("\\")) {
+    slashCheck = true;
+  }
+#endif
+
   ToNamespacedPath(env, &path);
+
+#ifdef _WIN32
+  if (slashCheck) {
+    size_t new_length = path.length() + 1;
+    path.AllocateSufficientStorage(new_length + 1);
+    path.SetLengthAndZeroTerminate(new_length);
+    path.out()[new_length - 1] = '\\';
+  }
+#endif
 
   const enum encoding encoding = ParseEncoding(isolate, args[1], UTF8);
 
@@ -2075,8 +2096,8 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
     }
 
     int r;
-    std::vector<Local<Value>> name_v;
-    std::vector<Local<Value>> type_v;
+    LocalVector<Value> name_v(isolate);
+    LocalVector<Value> type_v(isolate);
 
     for (;;) {
       uv_dirent_t ent;
@@ -2090,17 +2111,15 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
       }
 
       Local<Value> error;
-      MaybeLocal<Value> filename = StringBytes::Encode(isolate,
-                                                       ent.name,
-                                                       encoding,
-                                                       &error);
-
-      if (filename.IsEmpty()) {
+      Local<Value> fn;
+      if (!StringBytes::Encode(isolate, ent.name, encoding, &error)
+               .ToLocal(&fn)) {
+        DCHECK(!error.IsEmpty());
         isolate->ThrowException(error);
         return;
       }
 
-      name_v.push_back(filename.ToLocalChecked());
+      name_v.push_back(fn);
 
       if (with_types) {
         type_v.emplace_back(Integer::New(isolate, ent.type));
@@ -3121,13 +3140,14 @@ static void Mkdtemp(const FunctionCallbackInfo<Value>& args) {
       return;
     }
     Local<Value> error;
-    MaybeLocal<Value> rc =
-        StringBytes::Encode(isolate, req_wrap_sync.req.path, encoding, &error);
-    if (rc.IsEmpty()) {
+    Local<Value> ret;
+    if (!StringBytes::Encode(isolate, req_wrap_sync.req.path, encoding, &error)
+             .ToLocal(&ret)) {
+      DCHECK(!error.IsEmpty());
       env->isolate()->ThrowException(error);
       return;
     }
-    args.GetReturnValue().Set(rc.ToLocalChecked());
+    args.GetReturnValue().Set(ret);
   }
 }
 
@@ -3390,9 +3410,11 @@ void BindingData::LegacyMainResolve(const FunctionCallbackInfo<Value>& args) {
     for (int i = 0; i < legacy_main_extensions_with_main_end; i++) {
       file_path = *initial_file_path + std::string(legacy_main_extensions[i]);
       // TODO(anonrig): Remove this when ToNamespacedPath supports std::string
-      Local<Value> local_file_path =
-          Buffer::Copy(env->isolate(), file_path.c_str(), file_path.size())
-              .ToLocalChecked();
+      Local<Value> local_file_path;
+      if (!Buffer::Copy(env->isolate(), file_path.c_str(), file_path.size())
+               .ToLocal(&local_file_path)) {
+        return;
+      }
       BufferValue buff_file_path(isolate, local_file_path);
       ToNamespacedPath(env, &buff_file_path);
 
@@ -3425,9 +3447,11 @@ void BindingData::LegacyMainResolve(const FunctionCallbackInfo<Value>& args) {
        i++) {
     file_path = *initial_file_path + std::string(legacy_main_extensions[i]);
     // TODO(anonrig): Remove this when ToNamespacedPath supports std::string
-    Local<Value> local_file_path =
-        Buffer::Copy(env->isolate(), file_path.c_str(), file_path.size())
-            .ToLocalChecked();
+    Local<Value> local_file_path;
+    if (!Buffer::Copy(env->isolate(), file_path.c_str(), file_path.size())
+             .ToLocal(&local_file_path)) {
+      return;
+    }
     BufferValue buff_file_path(isolate, local_file_path);
     ToNamespacedPath(env, &buff_file_path);
 

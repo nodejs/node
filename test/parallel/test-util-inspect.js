@@ -770,14 +770,14 @@ assert.strictEqual(util.inspect(-5e-324), '-5e-324');
 // Note: Symbols are not supported by `Error#toString()` which is called by
 // accessing the `stack` property.
 [
-  [404, '404: foo', '[404]'],
-  [0, '0: foo', '[RangeError: foo]'],
-  [0n, '0: foo', '[RangeError: foo]'],
+  [404, '404 [RangeError]: foo', '[404]'],
+  [0, '0 [RangeError]: foo', '[RangeError: foo]'],
+  [0n, '0 [RangeError]: foo', '[RangeError: foo]'],
   [null, 'null: foo', '[RangeError: foo]'],
   [undefined, 'RangeError: foo', '[RangeError: foo]'],
-  [false, 'false: foo', '[RangeError: foo]'],
+  [false, 'false [RangeError]: foo', '[RangeError: foo]'],
   ['', 'foo', '[RangeError: foo]'],
-  [[1, 2, 3], '1,2,3: foo', '[1,2,3]'],
+  [[1, 2, 3], '1,2,3 [RangeError]: foo', '[1,2,3]'],
 ].forEach(([value, outputStart, stack]) => {
   let err = new RangeError('foo');
   err.name = value;
@@ -3353,5 +3353,98 @@ assert.strictEqual(
     '  Symbol(foo()): 0,\n' +
     '  [Symbol(bar())]: 0\n' +
     '}',
+  );
+}
+
+{
+  const o = {};
+  const { prototype: BuiltinPrototype } = Object;
+  const desc = Reflect.getOwnPropertyDescriptor(BuiltinPrototype, 'constructor');
+  Object.defineProperty(BuiltinPrototype, 'constructor', {
+    get: () => BuiltinPrototype,
+    configurable: true,
+  });
+  assert.strictEqual(
+    util.inspect(o),
+    '{}',
+  );
+  Object.defineProperty(BuiltinPrototype, 'constructor', desc);
+}
+
+{
+  const o = { f() {} };
+  const { prototype: BuiltinPrototype } = Function;
+  const desc = Reflect.getOwnPropertyDescriptor(BuiltinPrototype, 'constructor');
+  Object.defineProperty(BuiltinPrototype, 'constructor', {
+    get: () => BuiltinPrototype,
+    configurable: true,
+  });
+  assert.strictEqual(
+    util.inspect(o),
+    '{ f: [Function: f] }',
+  );
+  Object.defineProperty(BuiltinPrototype, 'constructor', desc);
+}
+{
+  const prototypes = [
+    Array.prototype,
+    ArrayBuffer.prototype,
+    Buffer.prototype,
+    Function.prototype,
+    Map.prototype,
+    Object.prototype,
+    Reflect.getPrototypeOf(Uint8Array.prototype),
+    Set.prototype,
+    Uint8Array.prototype,
+  ];
+  const descriptors = new Map();
+  const buffer = Buffer.from('Hello');
+  const o = {
+    arrayBuffer: new ArrayBuffer(), buffer, typedArray: Uint8Array.from(buffer),
+    array: [], func() {}, set: new Set([1]), map: new Map(),
+  };
+  for (const BuiltinPrototype of prototypes) {
+    descriptors.set(BuiltinPrototype, Reflect.getOwnPropertyDescriptor(BuiltinPrototype, 'constructor'));
+    Object.defineProperty(BuiltinPrototype, 'constructor', {
+      get: () => BuiltinPrototype,
+      configurable: true,
+    });
+  }
+  assert.strictEqual(
+    util.inspect(o),
+    '{\n' +
+    '  arrayBuffer: ArrayBuffer { [Uint8Contents]: <>, byteLength: 0 },\n' +
+    '  buffer: <Buffer 48 65 6c 6c 6f>,\n' +
+    '  typedArray: TypedArray(5) [Uint8Array] [ 72, 101, 108, 108, 111 ],\n' +
+    '  array: [],\n' +
+    '  func: [Function: func],\n' +
+    '  set: Set(1) { 1 },\n' +
+    '  map: Map(0) {}\n' +
+    '}',
+  );
+  for (const [BuiltinPrototype, desc] of descriptors) {
+    Object.defineProperty(BuiltinPrototype, 'constructor', desc);
+  }
+}
+
+{
+  function f() {}
+  Object.defineProperty(f, 'name', { value: Symbol('f') });
+
+  assert.strictEqual(
+    util.inspect(f),
+    '[Function: Symbol(f)]',
+  );
+}
+
+{
+  const error = new EvalError();
+  const re = /a/g;
+  error.name = re;
+  assert.strictEqual(error.name, re);
+  assert.strictEqual(
+    util.inspect(error),
+    `${re} [EvalError]
+${error.stack.split('\n').slice(1).join('\n')}`,
   );
 }

@@ -6,12 +6,8 @@ prefix parallel
 
 [true] # This section applies to all platforms
 # https://github.com/nodejs/node/issues/52273
-test-net-write-fully-async-hex-string: PASS, FLAKY
-# https://github.com/nodejs/node/issues/52273
 test-shadow-realm-gc: SKIP
 test-shadow-realm-gc-module: SKIP
-# https://github.com/nodejs/node/issues/52274
-test-worker-arraybuffer-zerofill: PASS, FLAKY
 
 # https://github.com/nodejs/node/issues/51862
 test-fs-read-stream-concurrent-reads: PASS, FLAKY
@@ -24,8 +20,6 @@ test-fs-read-stream-concurrent-reads: PASS, FLAKY
 test-snapshot-incompatible: SKIP
 
 [$system==win32]
-# https://github.com/nodejs/node/issues/54807
-test-runner-watch-mode-complex: PASS, FLAKY
 # https://github.com/nodejs/node/issues/54808
 test-async-context-frame: PASS, FLAKY
 # https://github.com/nodejs/node/issues/54534
@@ -39,12 +33,8 @@ test-runner-run-watch: PASS, FLAKY
 test-performance-function: PASS, FLAKY
 # https://github.com/nodejs/node/issues/54346
 test-esm-loader-hooks-inspect-wait: PASS, FLAKY
-# https://github.com/nodejs/node/issues/54810
-test-sqlite-statement-sync: PASS, FLAKY
 # https://github.com/nodejs/node/issues/54534
 test-runner-run-watch: PASS, FLAKY
-# https://github.com/nodejs/node/issues/37692
-test-fs-utimes: PASS, FLAKY
 
 [$system==linux || $system==win32]
 # https://github.com/nodejs/node/issues/49605
@@ -54,17 +44,11 @@ test-runner-watch-mode: PASS,FLAKY
 # https://github.com/nodejs/node/issues/42741
 test-http-server-headers-timeout-keepalive: PASS,FLAKY
 test-http-server-request-timeout-keepalive: PASS,FLAKY
-# https://github.com/nodejs/node/issues/50243
-test-inspector-async-stack-traces-set-interval: PASS, FLAKY
-# https://github.com/nodejs/node/issues/54811
-test-macos-app-sandbox: PASS, FLAKY
 
 [$arch==arm || $arch==arm64]
 # https://github.com/nodejs/node/pull/31178
 test-crypto-dh-stateless: SKIP
 test-crypto-keygen: SKIP
-# https://github.com/nodejs/node/issues/52963
-test-pipe-file-to-http: PASS, FLAKY
 # https://github.com/nodejs/node/issues/54801
 test-debugger-heap-profiler: PASS, FLAKY
 

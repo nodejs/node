@@ -419,14 +419,14 @@ var require_wrap_handler = __commonJS({
       onRequestUpgrade(controller, statusCode, headers, socket) {
         const rawHeaders = [];
         for (const [key, val] of Object.entries(headers)) {
-          rawHeaders.push(Buffer.from(key), Buffer.from(val));
+          rawHeaders.push(Buffer.from(key), Array.isArray(val) ? val.map((v) => Buffer.from(v)) : Buffer.from(val));
         }
         this.#handler.onUpgrade?.(statusCode, rawHeaders, socket);
       }
       onResponseStart(controller, statusCode, headers, statusMessage) {
         const rawHeaders = [];
         for (const [key, val] of Object.entries(headers)) {
-          rawHeaders.push(Buffer.from(key), Buffer.from(val));
+          rawHeaders.push(Buffer.from(key), Array.isArray(val) ? val.map((v) => Buffer.from(v)) : Buffer.from(val));
         }
         if (this.#handler.onHeaders?.(statusCode, rawHeaders, () => controller.resume(), statusMessage) === false) {
           controller.pause();
@@ -440,7 +440,7 @@ var require_wrap_handler = __commonJS({
       onResponseEnd(controller, trailers) {
         const rawTrailers = [];
         for (const [key, val] of Object.entries(trailers)) {
-          rawTrailers.push(Buffer.from(key), Buffer.from(val));
+          rawTrailers.push(Buffer.from(key), Array.isArray(val) ? val.map((v) => Buffer.from(v)) : Buffer.from(val));
         }
         this.#handler.onComplete?.(rawTrailers);
       }
@@ -3820,7 +3820,7 @@ var require_data_url = __commonJS({
       if (type.length === 0 || !HTTP_TOKEN_CODEPOINTS.test(type)) {
         return "failure";
       }
-      if (position.position > input.length) {
+      if (position.position >= input.length) {
         return "failure";
       }
       position.position++;
@@ -3863,7 +3863,7 @@ var require_data_url = __commonJS({
           }
           position.position++;
         }
-        if (position.position > input.length) {
+        if (position.position >= input.length) {
           break;
         }
         let parameterValue = null;
@@ -7472,9 +7472,9 @@ var require_client_h2 = __commonJS({
       kClosed,
       kBodyTimeout
     } = require_symbols();
+    var { channels } = require_diagnostics();
     var kOpenStreams = Symbol("open streams");
     var extractBody;
-    var h2ExperimentalWarned = false;
     var http2;
     try {
       http2 = require("node:http2");
@@ -7508,12 +7508,6 @@ var require_client_h2 = __commonJS({
     __name(parseH2Headers, "parseH2Headers");
     async function connectH2(client, socket) {
       client[kSocket] = socket;
-      if (!h2ExperimentalWarned) {
-        h2ExperimentalWarned = true;
-        process.emitWarning("H2 support is experimental, expect them to change at any time.", {
-          code: "UNDICI-H2"
-        });
-      }
       const session = http2.connect(client[kUrl], {
         createConnection: /* @__PURE__ */ __name(() => socket, "createConnection"),
         peerMaxConcurrentStreams: client[kMaxConcurrentStreams],
@@ -7768,6 +7762,14 @@ var require_client_h2 = __commonJS({
         headers[HTTP2_HEADER_CONTENT_LENGTH] = `${contentLength}`;
       }
       session.ref();
+      if (channels.sendHeaders.hasSubscribers) {
+        let header = "";
+        for (const key in headers) {
+          header += `${key}: ${headers[key]}\r
+`;
+        }
+        channels.sendHeaders.publish({ request, headers: header, socket: session[kSocket] });
+      }
       const shouldEndStream = method === "GET" || method === "HEAD" || body === null;
       if (expectContinue) {
         headers[HTTP2_HEADER_EXPECT] = "100-continue";
@@ -12466,7 +12468,7 @@ var require_util3 = __commonJS({
       if (buffer.byteLength === buffer.buffer.byteLength) {
         return buffer.buffer;
       }
-      return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+      return new Uint8Array(buffer).buffer;
     }
     __name(toArrayBuffer, "toArrayBuffer");
     function isValidSubprotocol(protocol) {
@@ -12715,6 +12717,7 @@ var require_receiver = __commonJS({
         __name(this, "ByteParser");
       }
       #buffers = [];
+      #fragmentsBytes = 0;
       #byteOffset = 0;
       #loop = false;
       #state = parserStates.INFO;
@@ -12844,11 +12847,9 @@ var require_receiver = __commonJS({
               this.#state = parserStates.INFO;
             } else {
               if (!this.#info.compressed) {
-                this.#fragments.push(body);
+                this.writeFragments(body);
                 if (!this.#info.fragmented && this.#info.fin) {
-                  const fullMessage = Buffer.concat(this.#fragments);
-                  websocketMessageReceived(this.#handler, this.#info.binaryType, fullMessage);
-                  this.#fragments.length = 0;
+                  websocketMessageReceived(this.#handler, this.#info.binaryType, this.consumeFragments());
                 }
                 this.#state = parserStates.INFO;
               } else {
@@ -12857,17 +12858,16 @@ var require_receiver = __commonJS({
                     failWebsocketConnection(this.#handler, 1007, error.message);
                     return;
                   }
-                  this.#fragments.push(data);
+                  this.writeFragments(data);
                   if (!this.#info.fin) {
                     this.#state = parserStates.INFO;
                     this.#loop = true;
                     this.run(callback);
                     return;
                   }
-                  websocketMessageReceived(this.#handler, this.#info.binaryType, Buffer.concat(this.#fragments));
+                  websocketMessageReceived(this.#handler, this.#info.binaryType, this.consumeFragments());
                   this.#loop = true;
                   this.#state = parserStates.INFO;
-                  this.#fragments.length = 0;
                   this.run(callback);
                 });
                 this.#loop = false;
@@ -12888,29 +12888,54 @@ var require_receiver = __commonJS({
         } else if (n === 0) {
           return emptyBuffer;
         }
-        if (this.#buffers[0].length === n) {
-          this.#byteOffset -= this.#buffers[0].length;
-          return this.#buffers.shift();
-        }
-        const buffer = Buffer.allocUnsafe(n);
-        let offset = 0;
-        while (offset !== n) {
-          const next = this.#buffers[0];
-          const { length } = next;
-          if (length + offset === n) {
-            buffer.set(this.#buffers.shift(), offset);
-            break;
-          } else if (length + offset > n) {
-            buffer.set(next.subarray(0, n - offset), offset);
-            this.#buffers[0] = next.subarray(n - offset);
-            break;
-          } else {
-            buffer.set(this.#buffers.shift(), offset);
-            offset += next.length;
-          }
-        }
         this.#byteOffset -= n;
-        return buffer;
+        const first = this.#buffers[0];
+        if (first.length > n) {
+          this.#buffers[0] = first.subarray(n, first.length);
+          return first.subarray(0, n);
+        } else if (first.length === n) {
+          return this.#buffers.shift();
+        } else {
+          let offset = 0;
+          const buffer = Buffer.allocUnsafeSlow(n);
+          while (offset !== n) {
+            const next = this.#buffers[0];
+            const length = next.length;
+            if (length + offset === n) {
+              buffer.set(this.#buffers.shift(), offset);
+              break;
+            } else if (length + offset > n) {
+              buffer.set(next.subarray(0, n - offset), offset);
+              this.#buffers[0] = next.subarray(n - offset);
+              break;
+            } else {
+              buffer.set(this.#buffers.shift(), offset);
+              offset += length;
+            }
+          }
+          return buffer;
+        }
+      }
+      writeFragments(fragment) {
+        this.#fragmentsBytes += fragment.length;
+        this.#fragments.push(fragment);
+      }
+      consumeFragments() {
+        const fragments = this.#fragments;
+        if (fragments.length === 1) {
+          this.#fragmentsBytes = 0;
+          return fragments.shift();
+        }
+        let offset = 0;
+        const output = Buffer.allocUnsafeSlow(this.#fragmentsBytes);
+        for (let i = 0; i < fragments.length; ++i) {
+          const buffer = fragments[i];
+          output.set(buffer, offset);
+          offset += buffer.length;
+        }
+        this.#fragments = [];
+        this.#fragmentsBytes = 0;
+        return output;
       }
       parseCloseBody(data) {
         assert(data.length !== 1);

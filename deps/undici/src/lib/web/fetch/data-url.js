@@ -283,7 +283,7 @@ function parseMIMEType (input) {
 
   // 5. If position is past the end of input, then return
   // failure
-  if (position.position > input.length) {
+  if (position.position >= input.length) {
     return 'failure'
   }
 
@@ -364,7 +364,7 @@ function parseMIMEType (input) {
     }
 
     // 6. If position is past the end of input, then break.
-    if (position.position > input.length) {
+    if (position.position >= input.length) {
       break
     }
 

@@ -32,6 +32,9 @@ class DirFetcher extends Fetcher {
       if (!mani.scripts || !mani.scripts.prepare) {
         return
       }
+      if (this.opts.ignoreScripts) {
+        return
+      }
 
       // we *only* run prepare.
       // pre/post-pack is run by the npm CLI for publish and pack,

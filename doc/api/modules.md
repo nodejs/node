@@ -175,10 +175,20 @@ added:
   - v22.0.0
   - v20.17.0
 changes:
-  - version: v23.0.0
+  - version:
+    - v23.5.0
+    - v22.13.0
+    pr-url: https://github.com/nodejs/node/pull/56194
+    description: This feature no longer emits an experimental warning by default,
+                 though the warning can still be emitted by --trace-require-module.
+  - version:
+    - v23.0.0
+    - v22.12.0
     pr-url: https://github.com/nodejs/node/pull/55085
     description: This feature is no longer behind the `--experimental-require-module` CLI flag.
-  - version: v23.0.0
+  - version:
+    - v23.0.0
+    - v22.12.0
     pr-url: https://github.com/nodejs/node/pull/54563
     description: Support `'module.exports'` interop export in `require(esm)`.
 -->
@@ -315,9 +325,8 @@ help users fix them.
 
 Support for loading ES modules using `require()` is currently
 experimental and can be disabled using `--no-experimental-require-module`.
-When `require()` actually encounters an ES module for the
-first time in the process, it will emit an experimental warning. The
-warning is expected to be removed when this feature stablizes.
+To print where this feature is used, use [`--trace-require-module`][].
+
 This feature can be detected by checking if
 [`process.features.require_module`][] is `true`.
 
@@ -509,7 +518,7 @@ Some built-in modules are always preferentially loaded if their identifier is
 passed to `require()`. For instance, `require('http')` will always
 return the built-in HTTP module, even if there is a file by that name. The list
 of built-in modules that can be loaded without using the `node:` prefix is exposed
-as [`module.builtinModules`][].
+in [`module.builtinModules`][], listed without the prefix.
 
 ### Built-in modules with mandatory `node:` prefix
 
@@ -522,6 +531,8 @@ taken the name. Currently the built-in modules that requires the `node:` prefix 
 * [`node:sqlite`][]
 * [`node:test`][]
 * [`node:test/reporters`][]
+
+The list of these modules is exposed in [`module.builtinModules`][], including the prefix.
 
 ## Cycles
 
@@ -1267,6 +1278,7 @@ This section was moved to
 [GLOBAL_FOLDERS]: #loading-from-the-global-folders
 [`"main"`]: packages.md#main
 [`"type"`]: packages.md#type
+[`--trace-require-module`]: cli.md#--trace-require-modulemode
 [`ERR_REQUIRE_ASYNC_MODULE`]: errors.md#err_require_async_module
 [`ERR_UNSUPPORTED_DIR_IMPORT`]: errors.md#err_unsupported_dir_import
 [`MODULE_NOT_FOUND`]: errors.md#module_not_found

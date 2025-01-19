@@ -11,6 +11,8 @@
 
 namespace node {
 
+using ncrypto::EVPMDCtxPointer;
+using ncrypto::MarkPopErrorOnReturn;
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -19,6 +21,7 @@ using v8::Isolate;
 using v8::Just;
 using v8::JustVoid;
 using v8::Local;
+using v8::LocalVector;
 using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Name;
@@ -144,14 +147,14 @@ void Hash::GetCachedAliases(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   Local<Context> context = args.GetIsolate()->GetCurrentContext();
   Environment* env = Environment::GetCurrent(context);
-  std::vector<Local<Name>> names;
-  std::vector<Local<Value>> values;
   size_t size = env->alias_to_md_id_map.size();
+  LocalVector<Name> names(isolate);
+  LocalVector<Value> values(isolate);
 #if OPENSSL_VERSION_MAJOR >= 3
   names.reserve(size);
   values.reserve(size);
   for (auto& [alias, id] : env->alias_to_md_id_map) {
-    names.push_back(OneByteString(isolate, alias.c_str(), alias.size()));
+    names.push_back(OneByteString(isolate, alias));
     values.push_back(v8::Uint32::New(isolate, id));
   }
 #else

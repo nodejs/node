@@ -1,4 +1,4 @@
-// Flags: --experimental-permission --allow-fs-read=* --allow-child-process
+// Flags: --permission --allow-fs-read=* --allow-child-process
 'use strict';
 
 const common = require('../common');
@@ -26,7 +26,7 @@ if (!common.hasCrypto)
   const { status, stderr } = spawnSync(
     process.execPath,
     [
-      '--experimental-permission',
+      '--permission',
       '-e',
       '(new (require("inspector")).Session()).connect()',
     ],

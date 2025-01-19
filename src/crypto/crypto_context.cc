@@ -21,6 +21,17 @@
 
 namespace node {
 
+using ncrypto::BignumPointer;
+using ncrypto::BIOPointer;
+using ncrypto::ClearErrorOnReturn;
+using ncrypto::CryptoErrorList;
+using ncrypto::DHPointer;
+using ncrypto::EnginePointer;
+using ncrypto::EVPKeyPointer;
+using ncrypto::MarkPopErrorOnReturn;
+using ncrypto::SSLPointer;
+using ncrypto::StackOfX509;
+using ncrypto::X509Pointer;
 using v8::Array;
 using v8::ArrayBufferView;
 using v8::Boolean;
@@ -550,7 +561,7 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  sc->ctx_.reset(SSL_CTX_new(method));
+  sc->ctx_.reset(method);
   if (!sc->ctx_) {
     return ThrowCryptoError(env, ERR_get_error(), "SSL_CTX_new");
   }
@@ -692,10 +703,10 @@ void SecureContext::SetEngineKey(const FunctionCallbackInfo<Value>& args) {
         "experimental permission model is enabled");
   }
 
-  ncrypto::CryptoErrorList errors;
+  CryptoErrorList errors;
   Utf8Value engine_id(env->isolate(), args[1]);
-  auto engine = ncrypto::EnginePointer::getEngineByName(
-      engine_id.ToStringView(), &errors);
+  auto engine =
+      EnginePointer::getEngineByName(engine_id.ToStringView(), &errors);
   if (!engine) {
     Local<Value> exception;
     if (errors.empty()) {
@@ -786,9 +797,8 @@ void SecureContext::SetCACert(const BIOPointer& bio) {
   while (X509Pointer x509 = X509Pointer(PEM_read_bio_X509_AUX(
              bio.get(), nullptr, NoPasswordCallback, nullptr))) {
     CHECK_EQ(1,
-             X509_STORE_add_cert(GetCertStoreOwnedByThisSecureContext(),
-                                 x509.get()));
-    CHECK_EQ(1, SSL_CTX_add_client_CA(ctx_.get(), x509.get()));
+             X509_STORE_add_cert(GetCertStoreOwnedByThisSecureContext(), x509));
+    CHECK_EQ(1, SSL_CTX_add_client_CA(ctx_.get(), x509));
   }
 }
 
@@ -1154,7 +1164,7 @@ void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
     X509* ca = sk_X509_value(extra_certs.get(), i);
 
     X509_STORE_add_cert(sc->GetCertStoreOwnedByThisSecureContext(), ca);
-    SSL_CTX_add_client_CA(sc->ctx_.get(), ca);
+    CHECK_EQ(1, SSL_CTX_add_client_CA(sc->ctx_.get(), ca));
   }
   ret = true;
 
@@ -1205,10 +1215,10 @@ void SecureContext::SetClientCertEngine(
         "experimental permission model is enabled");
   }
 
-  ncrypto::CryptoErrorList errors;
+  CryptoErrorList errors;
   const Utf8Value engine_id(env->isolate(), args[0]);
-  auto engine = ncrypto::EnginePointer::getEngineByName(
-      engine_id.ToStringView(), &errors);
+  auto engine =
+      EnginePointer::getEngineByName(engine_id.ToStringView(), &errors);
   if (!engine) {
     Local<Value> exception;
     if (errors.empty()) {

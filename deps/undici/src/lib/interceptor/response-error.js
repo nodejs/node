@@ -1,43 +1,41 @@
 'use strict'
 
-const { parseHeaders } = require('../core/util')
+// const { parseHeaders } = require('../core/util')
 const DecoratorHandler = require('../handler/decorator-handler')
 const { ResponseError } = require('../core/errors')
 
 class ResponseErrorHandler extends DecoratorHandler {
-  #handler
   #statusCode
   #contentType
   #decoder
   #headers
   #body
 
-  constructor (opts, { handler }) {
+  constructor (_opts, { handler }) {
     super(handler)
-    this.#handler = handler
   }
 
-  onConnect (abort) {
+  #checkContentType (contentType) {
+    return (this.#contentType ?? '').indexOf(contentType) === 0
+  }
+
+  onRequestStart (controller, context) {
     this.#statusCode = 0
     this.#contentType = null
     this.#decoder = null
     this.#headers = null
     this.#body = ''
 
-    return this.#handler.onConnect(abort)
+    return super.onRequestStart(controller, context)
   }
 
-  #checkContentType (contentType) {
-    return this.#contentType.indexOf(contentType) === 0
-  }
-
-  onHeaders (statusCode, rawHeaders, resume, statusMessage, headers = parseHeaders(rawHeaders)) {
+  onResponseStart (controller, statusCode, headers, statusMessage) {
     this.#statusCode = statusCode
     this.#headers = headers
     this.#contentType = headers['content-type']
 
     if (this.#statusCode < 400) {
-      return this.#handler.onHeaders(statusCode, rawHeaders, resume, statusMessage, headers)
+      return super.onResponseStart(controller, statusCode, headers, statusMessage)
     }
 
     if (this.#checkContentType('application/json') || this.#checkContentType('text/plain')) {
@@ -45,15 +43,15 @@ class ResponseErrorHandler extends DecoratorHandler {
     }
   }
 
-  onData (chunk) {
+  onResponseData (controller, chunk) {
     if (this.#statusCode < 400) {
-      return this.#handler.onData(chunk)
+      return super.onResponseData(controller, chunk)
     }
 
     this.#body += this.#decoder?.decode(chunk, { stream: true }) ?? ''
   }
 
-  onComplete (rawTrailers) {
+  onResponseEnd (controller, trailers) {
     if (this.#statusCode >= 400) {
       this.#body += this.#decoder?.decode(undefined, { stream: false }) ?? ''
 
@@ -77,14 +75,14 @@ class ResponseErrorHandler extends DecoratorHandler {
         Error.stackTraceLimit = stackTraceLimit
       }
 
-      this.#handler.onError(err)
+      super.onResponseError(controller, err)
     } else {
-      this.#handler.onComplete(rawTrailers)
+      super.onResponseEnd(controller, trailers)
     }
   }
 
-  onError (err) {
-    this.#handler.onError(err)
+  onResponseError (controller, err) {
+    super.onResponseError(controller, err)
   }
 }
 

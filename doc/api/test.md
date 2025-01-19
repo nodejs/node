@@ -420,8 +420,8 @@ By default, Node.js will run all files matching these patterns:
 * `**/test.{cjs,mjs,js}`
 * `**/test/**/*.{cjs,mjs,js}`
 
-When [`--experimental-strip-types`][] is supplied, the following
-additional patterns are matched:
+Unless [`--no-experimental-strip-types`][] is supplied, the following
+additional patterns are also matched:
 
 * `**/*.test.{cts,mts,ts}`
 * `**/*-test.{cts,mts,ts}`
@@ -476,8 +476,10 @@ all tests have completed. If the [`NODE_V8_COVERAGE`][] environment variable is
 used to specify a code coverage directory, the generated V8 coverage files are
 written to that directory. Node.js core modules and files within
 `node_modules/` directories are, by default, not included in the coverage report.
-However, they can be explicitly included via the [`--test-coverage-include`][] flag. If
-coverage is enabled, the coverage report is sent to any [test reporters][] via
+However, they can be explicitly included via the [`--test-coverage-include`][] flag.
+By default all the matching test files are excluded from the coverage report.
+Exclusions can be overridden by using the [`--test-coverage-exclude`][] flag.
+If coverage is enabled, the coverage report is sent to any [test reporters][] via
 the `'test:coverage'` event.
 
 Coverage can be disabled on a series of lines using the following
@@ -930,7 +932,13 @@ test('runs timers as setTime passes ticks', (context) => {
 
 ## Snapshot testing
 
-> Stability: 1.0 - Early development
+<!-- YAML
+added: v22.3.0
+changes:
+  - version: v23.4.0
+    pr-url: https://github.com/nodejs/node/pull/55897
+    description: Snapsnot testing is no longer experimental.
+-->
 
 Snapshot tests allow arbitrary values to be serialized into string values and
 compared against a set of known good values. The known good values are known as
@@ -1742,13 +1750,34 @@ describe('tests', async () => {
 });
 ```
 
+## `assert`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+An object whose methods are used to configure available assertions on the
+`TestContext` objects in the current process. The methods from `node:assert`
+and snapshot testing functions are available by default.
+
+It is possible to apply the same configuration to all files by placing common
+configuration code in a module
+preloaded with `--require` or `--import`.
+
+### `assert.register(name, fn)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Defines a new assertion function with the provided name and function. If an
+assertion already exists with the same name, it is overwritten.
+
 ## `snapshot`
 
 <!-- YAML
 added: v22.3.0
 -->
-
-> Stability: 1.0 - Early development
 
 An object whose methods are used to configure default snapshot settings in the
 current process. It is possible to apply the same configuration to all files by
@@ -1760,8 +1789,6 @@ placing common configuration code in a module preloaded with `--require` or
 <!-- YAML
 added: v22.3.0
 -->
-
-> Stability: 1.0 - Early development
 
 * `serializers` {Array} An array of synchronous functions used as the default
   serializers for snapshot tests.
@@ -1777,8 +1804,6 @@ more robust serialization mechanism is required, this function should be used.
 <!-- YAML
 added: v22.3.0
 -->
-
-> Stability: 1.0 - Early development
 
 * `fn` {Function} A function used to compute the location of the snapshot file.
   The function receives the path of the test file as its only argument. If the
@@ -2928,6 +2953,7 @@ The corresponding declaration ordered events are `'test:pass'` and `'test:fail'`
     `undefined` if the test was run through the REPL.
   * `name` {string} The test name.
   * `nesting` {number} The nesting level of the test.
+  * `type` {string} The test type. Either `'suite'` or `'test'`.
 
 Emitted when a test is dequeued, right before it is executed.
 This event is not guaranteed to be emitted in the same order as the tests are
@@ -2960,6 +2986,7 @@ defined.
     `undefined` if the test was run through the REPL.
   * `name` {string} The test name.
   * `nesting` {number} The nesting level of the test.
+  * `type` {string} The test type. Either `'suite'` or `'test'`.
 
 Emitted when a test is enqueued for execution.
 
@@ -3253,13 +3280,48 @@ test('test', (t) => {
 });
 ```
 
+#### `context.assert.fileSnapshot(value, path[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `value` {any} A value to serialize to a string. If Node.js was started with
+  the [`--test-update-snapshots`][] flag, the serialized value is written to
+  `path`. Otherwise, the serialized value is compared to the contents of the
+  existing snapshot file.
+* `path` {string} The file where the serialized `value` is written.
+* `options` {Object} Optional configuration options. The following properties
+  are supported:
+  * `serializers` {Array} An array of synchronous functions used to serialize
+    `value` into a string. `value` is passed as the only argument to the first
+    serializer function. The return value of each serializer is passed as input
+    to the next serializer. Once all serializers have run, the resulting value
+    is coerced to a string. **Default:** If no serializers are provided, the
+    test runner's default serializers are used.
+
+This function serializes `value` and writes it to the file specified by `path`.
+
+```js
+test('snapshot test with default serialization', (t) => {
+  t.assert.fileSnapshot({ value1: 1, value2: 2 }, './snapshots/snapshot.json');
+});
+```
+
+This function differs from `context.assert.snapshot()` in the following ways:
+
+* The snapshot file path is explicitly provided by the user.
+* Each snapshot file is limited to a single snapshot value.
+* No additional escaping is performed by the test runner.
+
+These differences allow snapshot files to better support features such as syntax
+highlighting.
+
 #### `context.assert.snapshot(value[, options])`
 
 <!-- YAML
 added: v22.3.0
 -->
-
-> Stability: 1.0 - Early development
 
 * `value` {any} A value to serialize to a string. If Node.js was started with
   the [`--test-update-snapshots`][] flag, the serialized value is written to
@@ -3345,7 +3407,9 @@ added:
   - v22.2.0
   - v20.15.0
 changes:
-  - version: REPLACEME
+  - version:
+    - v23.4.0
+    - v22.13.0
     pr-url: https://github.com/nodejs/node/pull/55895
     description: This function is no longer experimental.
 -->
@@ -3544,6 +3608,27 @@ test('top level test', async (t) => {
 });
 ```
 
+### `context.waitFor(condition[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `condition` {Function|AsyncFunction} An assertion function that is invoked
+  periodically until it completes successfully or the defined polling timeout
+  elapses. Successful completion is defined as not throwing or rejecting. This
+  function does not accept any arguments, and is allowed to return any value.
+* `options` {Object} An optional configuration object for the polling operation.
+  The following properties are supported:
+  * `interval` {number} The number of milliseconds to wait after an unsuccessful
+    invocation of `condition` before trying again. **Default:** `50`.
+  * `timeout` {number} The poll timeout in milliseconds. If `condition` has not
+    succeeded by the time this elapses, an error occurs. **Default:** `1000`.
+* Returns: {Promise} Fulfilled with the value returned by `condition`.
+
+This method polls a `condition` function until that function either returns
+successfully or the operation times out.
+
 ## Class: `SuiteContext`
 
 <!-- YAML
@@ -3589,11 +3674,12 @@ added:
 Can be used to abort test subtasks when the test has been aborted.
 
 [TAP]: https://testanything.org/
-[`--experimental-strip-types`]: cli.md#--experimental-strip-types
 [`--experimental-test-coverage`]: cli.md#--experimental-test-coverage
 [`--experimental-test-module-mocks`]: cli.md#--experimental-test-module-mocks
 [`--import`]: cli.md#--importmodule
+[`--no-experimental-strip-types`]: cli.md#--no-experimental-strip-types
 [`--test-concurrency`]: cli.md#--test-concurrency
+[`--test-coverage-exclude`]: cli.md#--test-coverage-exclude
 [`--test-coverage-include`]: cli.md#--test-coverage-include
 [`--test-name-pattern`]: cli.md#--test-name-pattern
 [`--test-only`]: cli.md#--test-only

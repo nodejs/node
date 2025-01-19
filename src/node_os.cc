@@ -48,6 +48,7 @@ using v8::Int32;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
+using v8::LocalVector;
 using v8::MaybeLocal;
 using v8::NewStringType;
 using v8::Null;
@@ -112,7 +113,7 @@ static void GetCPUInfo(const FunctionCallbackInfo<Value>& args) {
   // assemble them into objects in JS than to call Object::Set() repeatedly
   // The array is in the format
   // [model, speed, (5 entries of cpu_times), model2, speed2, ...]
-  std::vector<Local<Value>> result;
+  LocalVector<Value> result(isolate);
   result.reserve(count * 7);
   for (int i = 0; i < count; i++) {
     uv_cpu_info_t* ci = cpu_infos + i;
@@ -193,7 +194,7 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
   }
 
   Local<Value> no_scope_id = Integer::New(isolate, -1);
-  std::vector<Local<Value>> result;
+  LocalVector<Value> result(isolate);
   result.reserve(count * 7);
   for (i = 0; i < count; i++) {
     const char* const raw_name = interfaces[i].name;

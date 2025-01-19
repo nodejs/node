@@ -39,9 +39,14 @@ describe('Object Comparison Tests', () => {
     describe('throws an error', () => {
       const tests = [
         {
-          description: 'throws when only one argument is provided',
+          description: 'throws when only actual is provided',
           actual: { a: 1 },
           expected: undefined,
+        },
+        {
+          description: 'throws when only expected is provided',
+          actual: undefined,
+          expected: { a: 1 },
         },
         {
           description: 'throws when expected has more properties than actual',
@@ -91,6 +96,41 @@ describe('Object Comparison Tests', () => {
             'throws when comparing two arrays with different elements',
           actual: [1, 'two', true],
           expected: [1, 'two', false],
+        },
+        {
+          description: 'throws when comparing [0] with [-0]',
+          actual: [0],
+          expected: [-0],
+        },
+        {
+          description: 'throws when comparing [0, 0, 0] with [0, -0]',
+          actual: [0, 0, 0],
+          expected: [0, -0],
+        },
+        {
+          description: 'throws when comparing ["-0"] with [-0]',
+          actual: ['-0'],
+          expected: [-0],
+        },
+        {
+          description: 'throws when comparing [-0] with [0]',
+          actual: [-0],
+          expected: [0],
+        },
+        {
+          description: 'throws when comparing [-0] with ["-0"]',
+          actual: [-0],
+          expected: ['-0'],
+        },
+        {
+          description: 'throws when comparing ["0"] with [0]',
+          actual: ['0'],
+          expected: [0],
+        },
+        {
+          description: 'throws when comparing [0] with ["0"]',
+          actual: [0],
+          expected: ['0'],
         },
         {
           description:
@@ -164,12 +204,26 @@ describe('Object Comparison Tests', () => {
         },
         {
           description:
-            'throws when comparing two Map objects with different length',
+            'throws when the expected Map has more entries than the actual Map',
           actual: new Map([
             ['key1', 'value1'],
             ['key2', 'value2'],
           ]),
-          expected: new Map([['key1', 'value1']]),
+          expected: new Map([
+            ['key1', 'value1'],
+            ['key2', 'value2'],
+            ['key3', 'value3'],
+          ]),
+        },
+        {
+          description: 'throws when the nested array in the Map is not a subset of the other nested array',
+          actual: new Map([
+            ['key1', ['value1', 'value2']],
+            ['key2', 'value2'],
+          ]),
+          expected: new Map([
+            ['key1', ['value3']],
+          ]),
         },
         {
           description:
@@ -206,6 +260,84 @@ describe('Object Comparison Tests', () => {
           description: 'throws when comparing one subset array with another',
           actual: [1, 2, 3],
           expected: ['2'],
+        },
+        {
+          description: 'throws when comparing an ArrayBuffer with a Uint8Array',
+          actual: new ArrayBuffer(3),
+          expected: new Uint8Array(3),
+        },
+        {
+          description: 'throws when comparing a ArrayBuffer with a SharedArrayBuffer',
+          actual: new ArrayBuffer(3),
+          expected: new SharedArrayBuffer(3),
+        },
+        {
+          description: 'throws when comparing a SharedArrayBuffer with an ArrayBuffer',
+          actual: new SharedArrayBuffer(3),
+          expected: new ArrayBuffer(3),
+        },
+        {
+          description: 'throws when comparing an Int16Array with a Uint16Array',
+          actual: new Int16Array(3),
+          expected: new Uint16Array(3),
+        },
+        {
+          description: 'throws when comparing two dataviews with different buffers',
+          actual: { dataView: new DataView(new ArrayBuffer(3)) },
+          expected: { dataView: new DataView(new ArrayBuffer(4)) },
+        },
+        {
+          description: 'throws because expected Uint8Array(SharedArrayBuffer) is not a subset of actual',
+          actual: { typedArray: new Uint8Array(new SharedArrayBuffer(3)) },
+          expected: { typedArray: new Uint8Array(new SharedArrayBuffer(5)) },
+        },
+        {
+          description: 'throws because expected SharedArrayBuffer is not a subset of actual',
+          actual: { typedArray: new SharedArrayBuffer(3) },
+          expected: { typedArray: new SharedArrayBuffer(5) },
+        },
+        {
+          description: 'throws when comparing a DataView with a TypedArray',
+          actual: { dataView: new DataView(new ArrayBuffer(3)) },
+          expected: { dataView: new Uint8Array(3) },
+        },
+        {
+          description: 'throws when comparing a TypedArray with a DataView',
+          actual: { dataView: new Uint8Array(3) },
+          expected: { dataView: new DataView(new ArrayBuffer(3)) },
+        },
+        {
+          description: 'throws when comparing Float32Array([+0.0]) with Float32Array([-0.0])',
+          actual: new Float32Array([+0.0]),
+          expected: new Float32Array([-0.0]),
+        },
+        {
+          description: 'throws when comparing two different urls',
+          actual: new URL('http://foo'),
+          expected: new URL('http://bar'),
+        },
+        {
+          description: 'throws when comparing SharedArrayBuffers when expected has different elements actual',
+          actual: (() => {
+            const sharedBuffer = new SharedArrayBuffer(4 * Int32Array.BYTES_PER_ELEMENT);
+            const sharedArray = new Int32Array(sharedBuffer);
+
+            sharedArray[0] = 1;
+            sharedArray[1] = 2;
+            sharedArray[2] = 3;
+
+            return sharedBuffer;
+          })(),
+          expected: (() => {
+            const sharedBuffer = new SharedArrayBuffer(4 * Int32Array.BYTES_PER_ELEMENT);
+            const sharedArray = new Int32Array(sharedBuffer);
+
+            sharedArray[0] = 1;
+            sharedArray[1] = 2;
+            sharedArray[2] = 6;
+
+            return sharedBuffer;
+          })(),
         },
       ];
 
@@ -299,6 +431,21 @@ describe('Object Comparison Tests', () => {
         expected: [1, 'two', true],
       },
       {
+        description: 'compares [0] with [0]',
+        actual: [0],
+        expected: [0],
+      },
+      {
+        description: 'compares [-0] with [-0]',
+        actual: [-0],
+        expected: [-0],
+      },
+      {
+        description: 'compares [0, -0, 0] with [0, 0]',
+        actual: [0, -0, 0],
+        expected: [0, 0],
+      },
+      {
         description: 'compares two Date objects with the same time',
         actual: new Date(0),
         expected: new Date(0),
@@ -343,9 +490,88 @@ describe('Object Comparison Tests', () => {
         expected: { error: new Error('Test error') },
       },
       {
-        description: 'compares two objects with TypedArray instances with the same content',
-        actual: { typedArray: new Uint8Array([1, 2, 3]) },
+        description: 'compares two Uint8Array objects',
+        actual: { typedArray: new Uint8Array([1, 2, 3, 4, 5]) },
         expected: { typedArray: new Uint8Array([1, 2, 3]) },
+      },
+      {
+        description: 'compares two Int16Array objects',
+        actual: { typedArray: new Int16Array([1, 2, 3, 4, 5]) },
+        expected: { typedArray: new Int16Array([1, 2, 3]) },
+      },
+      {
+        description: 'compares two DataView objects with the same buffer and different views',
+        actual: { dataView: new DataView(new ArrayBuffer(8), 0, 4) },
+        expected: { dataView: new DataView(new ArrayBuffer(8), 4, 4) },
+      },
+      {
+        description: 'compares two DataView objects with different buffers',
+        actual: { dataView: new DataView(new ArrayBuffer(8)) },
+        expected: { dataView: new DataView(new ArrayBuffer(8)) },
+      },
+      {
+        description: 'compares two DataView objects with the same buffer and same views',
+        actual: { dataView: new DataView(new ArrayBuffer(8), 0, 8) },
+        expected: { dataView: new DataView(new ArrayBuffer(8), 0, 8) },
+      },
+      {
+        description: 'compares two SharedArrayBuffers with the same length',
+        actual: new SharedArrayBuffer(3),
+        expected: new SharedArrayBuffer(3),
+      },
+      {
+        description: 'compares two Uint8Array objects from SharedArrayBuffer',
+        actual: { typedArray: new Uint8Array(new SharedArrayBuffer(5)) },
+        expected: { typedArray: new Uint8Array(new SharedArrayBuffer(3)) },
+      },
+      {
+        description: 'compares two Int16Array objects from SharedArrayBuffer',
+        actual: { typedArray: new Int16Array(new SharedArrayBuffer(10)) },
+        expected: { typedArray: new Int16Array(new SharedArrayBuffer(6)) },
+      },
+      {
+        description: 'compares two DataView objects with the same SharedArrayBuffer and different views',
+        actual: { dataView: new DataView(new SharedArrayBuffer(8), 0, 4) },
+        expected: { dataView: new DataView(new SharedArrayBuffer(8), 4, 4) },
+      },
+      {
+        description: 'compares two DataView objects with different SharedArrayBuffers',
+        actual: { dataView: new DataView(new SharedArrayBuffer(8)) },
+        expected: { dataView: new DataView(new SharedArrayBuffer(8)) },
+      },
+      {
+        description: 'compares two DataView objects with the same SharedArrayBuffer and same views',
+        actual: { dataView: new DataView(new SharedArrayBuffer(8), 0, 8) },
+        expected: { dataView: new DataView(new SharedArrayBuffer(8), 0, 8) },
+      },
+      {
+        description: 'compares two SharedArrayBuffers',
+        actual: { typedArray: new SharedArrayBuffer(5) },
+        expected: { typedArray: new SharedArrayBuffer(3) },
+      },
+      {
+        description: 'compares two SharedArrayBuffers with data inside',
+        actual: (() => {
+          const sharedBuffer = new SharedArrayBuffer(4 * Int32Array.BYTES_PER_ELEMENT);
+          const sharedArray = new Int32Array(sharedBuffer);
+
+          sharedArray[0] = 1;
+          sharedArray[1] = 2;
+          sharedArray[2] = 3;
+          sharedArray[3] = 4;
+
+          return sharedBuffer;
+        })(),
+        expected: (() => {
+          const sharedBuffer = new SharedArrayBuffer(3 * Int32Array.BYTES_PER_ELEMENT);
+          const sharedArray = new Int32Array(sharedBuffer);
+
+          sharedArray[0] = 1;
+          sharedArray[1] = 2;
+          sharedArray[2] = 3;
+
+          return sharedBuffer;
+        })(),
       },
       {
         description: 'compares two Map objects with identical entries',
@@ -357,6 +583,19 @@ describe('Object Comparison Tests', () => {
           ['key1', 'value1'],
           ['key2', 'value2'],
         ]),
+      },
+      {
+        description: 'compares two Map where one is a subset of the other',
+        actual: new Map([
+          ['key1', { nested: { property: true } }],
+          ['key2', new Set([1, 2, 3])],
+          ['key3', new Uint8Array([1, 2, 3])],
+        ]),
+        expected: new Map([
+          ['key1', { nested: { property: true } }],
+          ['key2', new Set([1, 2, 3])],
+          ['key3', new Uint8Array([1, 2, 3])],
+        ])
       },
       {
         describe: 'compares two array of objects',
@@ -397,6 +636,63 @@ describe('Object Comparison Tests', () => {
         expected: new Map([
           ['key1', 'value1'],
           ['key2', 'value2'],
+        ]),
+      },
+      {
+        description:
+          'compares two Map objects where expected is a subset of actual',
+        actual: new Map([
+          ['key1', 'value1'],
+          ['key2', 'value2'],
+        ]),
+        expected: new Map([['key1', 'value1']]),
+      },
+      {
+        description:
+          'compares two deeply nested Maps',
+        actual: {
+          a: {
+            b: {
+              c: new Map([
+                ['key1', 'value1'],
+                ['key2', 'value2'],
+              ])
+            },
+            z: [1, 2, 3]
+          }
+        },
+        expected: {
+          a: {
+            z: [1, 2, 3],
+            b: {
+              c: new Map([['key1', 'value1']])
+            }
+          }
+        },
+      },
+      {
+        description: 'compares Maps nested into Maps',
+        actual: new Map([
+          ['key1', new Map([
+            ['nestedKey1', 'nestedValue1'],
+            ['nestedKey2', 'nestedValue2'],
+          ])],
+          ['key2', 'value2'],
+        ]),
+        expected: new Map([
+          ['key1', new Map([
+            ['nestedKey1', 'nestedValue1'],
+          ])],
+        ])
+      },
+      {
+        description: 'compares Maps with nested arrays inside',
+        actual: new Map([
+          ['key1', ['value1', 'value2']],
+          ['key2', 'value2'],
+        ]),
+        expected: new Map([
+          ['key1', ['value1', 'value2']],
         ]),
       },
       {
@@ -491,6 +787,21 @@ describe('Object Comparison Tests', () => {
           'compares one subset array with another',
         actual: [1, 2, 3],
         expected: [2],
+      },
+      {
+        description: 'ensures that File extends Blob',
+        actual: Object.getPrototypeOf(File.prototype),
+        expected: Blob.prototype
+      },
+      {
+        description: 'compares NaN with NaN',
+        actual: NaN,
+        expected: NaN,
+      },
+      {
+        description: 'compares two identical urls',
+        actual: new URL('http://foo'),
+        expected: new URL('http://foo'),
       },
     ].forEach(({ description, actual, expected }) => {
       it(description, () => {

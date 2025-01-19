@@ -35,21 +35,27 @@ if (!hasIntl) {
   publicBuiltins.delete('inspector');
   publicBuiltins.delete('trace_events');
 }
+// TODO(@jasnell): Remove this once node:quic graduates from unflagged.
+publicBuiltins.delete('node:quic');
 
 for (const id of publicBuiltins) {
   assert.strictEqual(process.getBuiltinModule(id), require(id));
 }
 // Check that import(id).default returns the same thing as process.getBuiltinModule(id).
 for (const id of publicBuiltins) {
-  const imported = await import(`node:${id}`);
-  assert.strictEqual(process.getBuiltinModule(id), imported.default);
+  if (!id.startsWith('node:')) {
+    const imported = await import(`node:${id}`);
+    assert.strictEqual(process.getBuiltinModule(id), imported.default);
+  }
 }
 
 // publicBuiltins does not include 'test' which requires the node: prefix.
 const ids = publicBuiltins.add('test');
 // Check that import(id).default returns the same thing as process.getBuiltinModule(id).
 for (const id of ids) {
-  const prefixed = `node:${id}`;
-  const imported = await import(prefixed);
-  assert.strictEqual(process.getBuiltinModule(prefixed), imported.default);
+  if (!id.startsWith('node:')) {
+    const prefixed = `node:${id}`;
+    const imported = await import(prefixed);
+    assert.strictEqual(process.getBuiltinModule(prefixed), imported.default);
+  }
 }

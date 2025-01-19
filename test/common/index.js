@@ -1051,14 +1051,6 @@ const common = {
     return hasOpenSSL(3);
   },
 
-  get hasOpenSSL31() {
-    return hasOpenSSL(3, 1);
-  },
-
-  get hasOpenSSL32() {
-    return hasOpenSSL(3, 2);
-  },
-
   get inFreeBSDJail() {
     if (inFreeBSDJail !== null) return inFreeBSDJail;
 
@@ -1142,6 +1134,15 @@ const common = {
    */
   get checkoutEOL() {
     return fs.readFileSync(__filename).includes('\r\n') ? '\r\n' : '\n';
+  },
+
+  get isInsideDirWithUnusualChars() {
+    return __dirname.includes('%') ||
+           (!isWindows && __dirname.includes('\\')) ||
+           __dirname.includes('$') ||
+           __dirname.includes('\n') ||
+           __dirname.includes('\r') ||
+           __dirname.includes('\t');
   },
 };
 

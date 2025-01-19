@@ -99,6 +99,7 @@
     "transferList")                                                            \
   V(clone_untransferable_str, "Found invalid value in transferList.")          \
   V(code_string, "code")                                                       \
+  V(column_number_string, "columnNumber")                                      \
   V(column_string, "column")                                                   \
   V(commonjs_string, "commonjs")                                               \
   V(config_string, "config")                                                   \
@@ -144,10 +145,13 @@
   V(entry_type_string, "entryType")                                            \
   V(env_pairs_string, "envPairs")                                              \
   V(env_var_settings_string, "envVarSettings")                                 \
+  V(err_sqlite_error_string, "ERR_SQLITE_ERROR")                               \
+  V(errcode_string, "errcode")                                                 \
   V(errno_string, "errno")                                                     \
   V(error_string, "error")                                                     \
-  V(events, "events")                                                          \
+  V(errstr_string, "errstr")                                                   \
   V(events_waiting, "eventsWaiting")                                           \
+  V(events, "events")                                                          \
   V(exchange_string, "exchange")                                               \
   V(expire_string, "expire")                                                   \
   V(exponent_string, "exponent")                                               \
@@ -317,6 +321,7 @@
   V(salt_length_string, "saltLength")                                          \
   V(scheme_string, "scheme")                                                   \
   V(scopeid_string, "scopeid")                                                 \
+  V(script_id_string, "scriptId")                                              \
   V(script_name_string, "scriptName")                                          \
   V(serial_number_string, "serialNumber")                                      \
   V(serial_string, "serial")                                                   \

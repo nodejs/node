@@ -289,6 +289,11 @@ const regularFile = __filename;
     permission: 'FileSystemRead',
     resource: path.toNamespacedPath(blockedFolder),
   }));
+  fs.readdir(blockedFolder, { recursive: true }, common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemRead',
+    resource: path.toNamespacedPath(blockedFolder),
+  }));
   assert.throws(() => {
     fs.readdirSync(blockedFolder);
   }, common.expectsError({

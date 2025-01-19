@@ -49,15 +49,20 @@ class DatabaseSync : public BaseObject {
   DatabaseSync(Environment* env,
                v8::Local<v8::Object> object,
                DatabaseOpenConfiguration&& open_config,
-               bool open);
+               bool open,
+               bool allow_load_extension);
   void MemoryInfo(MemoryTracker* tracker) const override;
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Open(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Prepare(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Exec(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void CustomFunction(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void CreateSession(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ApplyChangeset(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void EnableLoadExtension(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void LoadExtension(const v8::FunctionCallbackInfo<v8::Value>& args);
   void FinalizeStatements();
   void UntrackStatement(StatementSync* statement);
   bool IsOpen();
@@ -72,6 +77,8 @@ class DatabaseSync : public BaseObject {
 
   ~DatabaseSync() override;
   DatabaseOpenConfiguration open_config_;
+  bool allow_load_extension_;
+  bool enable_load_extension_;
   sqlite3* connection_;
 
   std::set<sqlite3_session*> sessions_;

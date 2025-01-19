@@ -49,14 +49,8 @@ module.exports.cacheStores = {
   MemoryCacheStore: require('./lib/cache/memory-cache-store')
 }
 
-try {
-  const SqliteCacheStore = require('./lib/cache/sqlite-cache-store')
-  module.exports.cacheStores.SqliteCacheStore = SqliteCacheStore
-} catch (err) {
-  if (err.code !== 'ERR_UNKNOWN_BUILTIN_MODULE') {
-    throw err
-  }
-}
+const SqliteCacheStore = require('./lib/cache/sqlite-cache-store')
+module.exports.cacheStores.SqliteCacheStore = SqliteCacheStore
 
 module.exports.buildConnector = buildConnector
 module.exports.errors = errors

@@ -64,6 +64,7 @@ declare namespace Undici {
   const caches: typeof import('./cache').caches
   const interceptors: typeof import('./interceptors').default
   const cacheStores: {
-    MemoryCacheStore: typeof import('./cache-interceptor').default.MemoryCacheStore
+    MemoryCacheStore: typeof import('./cache-interceptor').default.MemoryCacheStore,
+    SqliteCacheStore: typeof import('./cache-interceptor').default.SqliteCacheStore
   }
 }
