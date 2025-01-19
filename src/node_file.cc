@@ -1686,11 +1686,11 @@ static void RmSync(const FunctionCallbackInfo<Value>& args) {
   int recursive = args[2]->IsTrue();
   int retryDelay = args[3].As<Int32>()->Value();
 
-  auto file_path_as_str = PathToString(file_path);
 
   // File is a directory and recursive is false
   if (file_status.type() == std::filesystem::file_type::directory &&
       !recursive) {
+    auto file_path_as_str = PathToString(file_path);
     return THROW_ERR_FS_EISDIR(
         isolate, "Path is a directory: %s", file_path_as_str);
   }
@@ -1736,7 +1736,7 @@ static void RmSync(const FunctionCallbackInfo<Value>& args) {
   }
 
   // On Windows path::c_str() returns wide char, convert to std::string first.
-  std::string file_path_str = file_path.string();
+  std::string file_path_str = PathToString(file_path);
   const char* path_c_str = file_path_str.c_str();
 #ifdef _WIN32
   int permission_denied_error = EPERM;
