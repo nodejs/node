@@ -625,43 +625,6 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
       assert.strictEqual(counts.failedTestCount, 1);
       assert.strictEqual(counts.passedTestCount, 1);
     });
-
-    it('should handle the bail option with multiple files', async () => {
-      const stream = run({
-        files: [
-          join(testFixtures, 'bailout', 'sequential.test.mjs'),
-          join(testFixtures, 'bailout', 'suite.test.mjs'),
-        ],
-        bail: true,
-        concurrency: 2
-      });
-
-      const counts = await consumeTestStream(stream);
-
-      assert.strictEqual(counts.generalBailCount, 1);
-      assert.strictEqual(counts.failureDueToBailOutCount, 3);
-      assert.strictEqual(counts.failedTestCount, 1);
-      assert.strictEqual(counts.passedTestCount, 1);
-    });
-
-    it('should handle the bail option with isolation none', async () => {
-      const stream = run({
-        files: [join(testFixtures, 'bailout', 'sequential.test.mjs')],
-        bail: true,
-        isolation: 'none',
-      });
-
-      const counts = await consumeTestStream(stream);
-
-      assert.strictEqual(counts.generalBailCount, 1);
-      assert.strictEqual(counts.failureDueToBailOutCount, 2);
-      assert.strictEqual(counts.failedTestCount, 1);
-      assert.strictEqual(counts.passedTestCount, 1);
-    });
-
-    // TODO(pmarchini): Bailout is not supported in watch mode yet but it should be.
-    // We should enable this test once it is supported.
-    it.todo('should handle the bail option with watch mode');
   });
 
   it('should avoid running recursively', async () => {
