@@ -807,7 +807,10 @@
           }],
           # Temporary refs: https://github.com/nodejs/node/pull/23801
           ['v8_enable_handle_zapping==1', {
-            'defines': ['ENABLE_HANDLE_ZAPPING',],
+            'defines': [
+              'ENABLE_LOCAL_HANDLE_ZAPPING',
+              'ENABLE_GLOBAL_HANDLE_ZAPPING',
+            ],
           }],
         ],
 
