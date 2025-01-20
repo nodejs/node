@@ -242,6 +242,9 @@
     # Sets -DV8_ENABLE_SANDBOX.
     'v8_enable_sandbox%': 0,
 
+    # Enable leaptiering
+    'v8_enable_leaptiering%': 1,
+
     # Experimental feature for collecting per-class zone memory stats.
     # Requires use_rtti = true
     'v8_enable_precise_zone_stats%': 0,
@@ -482,6 +485,9 @@
       }],
       ['v8_enable_extensible_ro_snapshot==1', {
         'defines': ['V8_ENABLE_EXTENSIBLE_RO_SNAPSHOT',],
+      }],
+      ['v8_enable_leaptiering==1', {
+        'defines': ['V8_ENABLE_LEAPTIERING',],
       }],
       ['v8_enable_precise_zone_stats==1', {
         'defines': ['V8_ENABLE_PRECISE_ZONE_STATS',],
