@@ -20,35 +20,31 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
-const assert = require('assert');
-const events = require('events');
+const common = require('../common');
+const assert = require('node:assert');
+const events = require('node:events');
+const { test } = require('node:test');
 
-const e = new events.EventEmitter();
-const num_args_emitted = [];
+[...Array(15).keys()].forEach(number => {
+  test(`eventEmitter.on registered callback correctly gets ${number} arguments`, () => {
+    const eventEmitter = new events.EventEmitter();
 
-e.on('numArgs', function() {
-  const numArgs = arguments.length;
-  num_args_emitted.push(numArgs);
-});
+    eventEmitter.on('numArgs', common.mustCall(function () {
+      assert.strictEqual(arguments.length, number);
+    }));
 
-e.on('foo', function() {
-  num_args_emitted.push(arguments.length);
-});
+    eventEmitter.emit('numArgs', ...new Array(number).fill(null));
+  })
 
-e.on('foo', function() {
-  num_args_emitted.push(arguments.length);
-});
+  test(`eventEmitter.on multiple registered callbacks correctly get ${number} arguments`, () => {
+    const eventEmitter = new events.EventEmitter();
 
-e.emit('numArgs');
-e.emit('numArgs', null);
-e.emit('numArgs', null, null);
-e.emit('numArgs', null, null, null);
-e.emit('numArgs', null, null, null, null);
-e.emit('numArgs', null, null, null, null, null);
+    [0, 1, 2].forEach(() => {
+      eventEmitter.on('numArgs', common.mustCall(function () {
+        assert.strictEqual(arguments.length, number);
+      }));
+    })
 
-e.emit('foo', null, null, null, null);
-
-process.on('exit', function() {
-  assert.deepStrictEqual(num_args_emitted, [0, 1, 2, 3, 4, 5, 4, 4]);
+    eventEmitter.emit('numArgs', ...new Array(number).fill(null));
+  })
 });
