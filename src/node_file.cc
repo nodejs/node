@@ -1686,7 +1686,6 @@ static void RmSync(const FunctionCallbackInfo<Value>& args) {
   int recursive = args[2]->IsTrue();
   int retryDelay = args[3].As<Int32>()->Value();
 
-
   // File is a directory and recursive is false
   if (file_status.type() == std::filesystem::file_type::directory &&
       !recursive) {
