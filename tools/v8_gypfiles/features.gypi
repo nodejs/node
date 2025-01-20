@@ -87,6 +87,12 @@
       }, {
         'v8_enable_private_mapping_fork_optimization': 0,
       }],
+
+      ['OS in "aix os400"', {
+        'v8_enable_leaptiering': 0,
+      }, {
+        'v8_enable_leaptiering': 1,
+      }],
     ],
 
     # Variables from BUILD.gn
@@ -482,6 +488,9 @@
       }],
       ['v8_enable_extensible_ro_snapshot==1', {
         'defines': ['V8_ENABLE_EXTENSIBLE_RO_SNAPSHOT',],
+      }],
+      ['v8_enable_leaptiering==1', {
+        'defines': ['V8_ENABLE_LEAPTIERING',],
       }],
       ['v8_enable_precise_zone_stats==1', {
         'defines': ['V8_ENABLE_PRECISE_ZONE_STATS',],
