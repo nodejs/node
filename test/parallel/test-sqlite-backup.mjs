@@ -160,13 +160,13 @@ test('throws exception when trying to start backup from a closed database', asyn
   });
 });
 
-test('database backup fails when dest file is not writable', (t) => {
+test('database backup fails when dest file is not writable', async (t) => {
   const readonlyDestDb = nextDb();
   writeFileSync(readonlyDestDb, '', { mode: 0o444 });
 
   const database = makeSourceDb();
 
-  t.assert.rejects(async () => {
+  await t.assert.rejects(async () => {
     await database.backup(readonlyDestDb);
   }, {
     code: 'ERR_SQLITE_ERROR',
@@ -182,7 +182,7 @@ test('backup fails when progress function throws', async (t) => {
     throw new Error('progress error');
   });
 
-  t.assert.rejects(async () => {
+  await t.assert.rejects(async () => {
     await database.backup(destDb, {
       rate: 1,
       progress: progressFn,
@@ -196,7 +196,7 @@ test('backup fails when source db is invalid', async (t) => {
   const database = makeSourceDb();
   const destDb = nextDb();
 
-  t.assert.rejects(async () => {
+  await t.assert.rejects(async () => {
     await database.backup(destDb, {
       rate: 1,
       source: 'invalid',
@@ -209,7 +209,7 @@ test('backup fails when source db is invalid', async (t) => {
 test('backup fails when destination cannot be opened', async (t) => {
   const database = makeSourceDb();
 
-  t.assert.rejects(async () => {
+  await t.assert.rejects(async () => {
     await database.backup(`${tmpdir.path}/invalid/backup.db`);
   }, {
     message: 'unable to open database file'
