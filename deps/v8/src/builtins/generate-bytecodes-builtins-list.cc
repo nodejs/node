@@ -41,6 +41,14 @@ void WriteBytecode(std::ofstream& out, Bytecode bytecode,
 void WriteHeader(const char* header_filename) {
   std::ofstream out(header_filename);
 
+#ifdef CCACHE_USED
+  // Write a cache invalidator to ensure that ccache does not cache this file.
+  out << "#ifndef CACHE_INVALIDATOR\n"
+      << "#define CACHE_INVALIDATOR\n"
+      << "inline const char* cache_invalidator = __TIME__;\n"
+      << "#endif\n\n";
+#endif
+
   out << "// Automatically generated from interpreter/bytecodes.h\n"
       << "// The following list macro is used to populate the builtins list\n"
       << "// with the bytecode handlers\n\n"
