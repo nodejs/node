@@ -74,3 +74,9 @@ jobs:
         uses: codecov/codecov-action@015f24e6818733317a2da2edd6290ab26238649a  # v5.0.7
         with:
           directory: ./coverage
+      - name: Change locale ja-JP for testing on SJIS environment
+        run: Set-WinSystemLocale -SystemLocale "ja-JP"
+      - name: Test on SJIS environment
+        run: ./vcbuild.bat test-ci-js; node -e 'process.exit(0)'
+        env:
+          NODE_V8_COVERAGE: ./coverage/tmp
