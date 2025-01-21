@@ -25,26 +25,26 @@ const assert = require('node:assert');
 const events = require('node:events');
 const { test } = require('node:test');
 
-[0, 1, 2, 3, 4, 5].forEach(number => {
+[0, 1, 2, 3, 4, 5].forEach((number) => {
   test(`eventEmitter.on registered callback correctly gets ${number} arguments`, () => {
     const eventEmitter = new events.EventEmitter();
 
-    eventEmitter.on('numArgs', common.mustCall(function () {
+    eventEmitter.on('numArgs', common.mustCall(() => {
       assert.strictEqual(arguments.length, number);
     }));
 
     eventEmitter.emit('numArgs', ...new Array(number).fill(null));
-  })
+  });
 
   test(`eventEmitter.on multiple registered callbacks correctly get ${number} arguments`, () => {
     const eventEmitter = new events.EventEmitter();
 
     [0, 1, 2].forEach(() => {
-      eventEmitter.on('numArgs', common.mustCall(function () {
+      eventEmitter.on('numArgs', common.mustCall(() => {
         assert.strictEqual(arguments.length, number);
       }));
-    })
+    });
 
     eventEmitter.emit('numArgs', ...new Array(number).fill(null));
-  })
+  });
 });
