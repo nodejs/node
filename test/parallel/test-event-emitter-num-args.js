@@ -29,7 +29,7 @@ const { test } = require('node:test');
   test(`eventEmitter.on registered callback correctly gets ${number} arguments`, () => {
     const eventEmitter = new events.EventEmitter();
 
-    eventEmitter.on('numArgs', common.mustCall(function () {
+    eventEmitter.on('numArgs', common.mustCall(function() {
       assert.strictEqual(arguments.length, number);
     }));
 
@@ -39,8 +39,8 @@ const { test } = require('node:test');
   test(`eventEmitter.on multiple registered callbacks correctly get ${number} arguments`, () => {
     const eventEmitter = new events.EventEmitter();
 
-    [0, 1, 2].forEach(() => {
-      eventEmitter.on('numArgs', common.mustCall(function () {
+    [0, 1, 2].forEach(function() {
+      eventEmitter.on('numArgs', common.mustCall(function() {
         assert.strictEqual(arguments.length, number);
       }));
     });
