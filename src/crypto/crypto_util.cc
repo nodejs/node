@@ -205,7 +205,7 @@ void TestFipsCrypto(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 void GetOpenSSLSecLevelCrypto(const FunctionCallbackInfo<Value>& args) {
   // for BoringSSL assume the same as the default
-  int sec_level = 1;
+  int sec_level = OPENSSL_TLS_SECURITY_LEVEL;
 #ifndef OPENSSL_IS_BORINGSSL
   Environment* env = Environment::GetCurrent(args);
 
