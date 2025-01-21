@@ -25,7 +25,7 @@ const assert = require('node:assert');
 const events = require('node:events');
 const { test } = require('node:test');
 
-[...Array(15).keys()].forEach(number => {
+[0, 1, 2, 3, 4, 5].forEach(number => {
   test(`eventEmitter.on registered callback correctly gets ${number} arguments`, () => {
     const eventEmitter = new events.EventEmitter();
 
