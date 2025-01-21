@@ -1,4 +1,4 @@
-// Flags: --experimental-permission --allow-fs-read=* --experimental-test-module-mocks
+// Flags: --permission --allow-fs-read=* --experimental-test-module-mocks
 'use strict';
 
 const common = require('../common');
