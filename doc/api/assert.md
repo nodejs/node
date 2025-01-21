@@ -909,11 +909,12 @@ weakSet2.add(obj);
 
 // Comparing different instances fails, even with same contents
 assert.deepStrictEqual(weakSet1, weakSet2);
-// AssertionError: Expected inputs to be strictly deep-equal:
+// AssertionError: Values have same structure but are not reference-equal:
 // + actual - expected
 //
-// + WeakSet { <items unknown> }
-// - WeakSet { <items unknown> }
+// WeakSet {
+//   <items unknown>
+// }
 
 // Comparing the same instance to itself succeeds
 assert.deepStrictEqual(weakSet1, weakSet1);
@@ -1018,11 +1019,12 @@ weakSet2.add(obj);
 
 // Comparing different instances fails, even with same contents
 assert.deepStrictEqual(weakSet1, weakSet2);
-// AssertionError: Expected inputs to be strictly deep-equal:
+// AssertionError: Values have same structure but are not reference-equal:
 // + actual - expected
 //
-// + WeakSet { <items unknown> }
-// - WeakSet { <items unknown> }
+// WeakSet {
+//   <items unknown>
+// }
 
 // Comparing the same instance to itself succeeds
 assert.deepStrictEqual(weakSet1, weakSet1);
