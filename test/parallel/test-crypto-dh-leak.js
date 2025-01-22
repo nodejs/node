@@ -21,7 +21,7 @@ const before = process.memoryUsage.rss();
     dh.setPrivateKey(privateKey);
   }
 }
-global.gc();
+globalThis.gc();
 const after = process.memoryUsage.rss();
 
 // RSS should stay the same, ceteris paribus, but allow for
