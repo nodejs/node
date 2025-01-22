@@ -1,5 +1,9 @@
 # Permissions
 
+<!--introduced_in=v20.0.0-->
+
+<!-- source_link=src/permission.cc -->
+
 Permissions can be used to control what system resources the
 Node.js process has access to or what actions the process can take
 with those resources. Permissions can also control what modules can
@@ -475,11 +479,11 @@ Additionally, import maps only work on `import` so it may be desirable to add a
 
 ### Permission Model
 
-<!-- type=misc -->
+<!-- YAML
+added: v20.0.0
+-->
 
 > Stability: 1.1 - Active development
-
-<!-- name=permission-model -->
 
 The Node.js Permission Model is a mechanism for restricting access to specific
 resources during execution.
