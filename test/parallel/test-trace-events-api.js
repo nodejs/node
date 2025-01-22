@@ -109,7 +109,7 @@ if (isChild) {
       assert.strictEqual(getEnabledCategories(), 'abc');
       tracing3 = undefined;
     }
-    global.gc();
+    globalThis.gc();
     assert.strictEqual(getEnabledCategories(), 'abc');
     // Not able to disable the thing after this point, however.
   }

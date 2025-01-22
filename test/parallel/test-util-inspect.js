@@ -1265,9 +1265,9 @@ if (typeof Symbol !== 'undefined') {
 // a bonafide native Promise.
 {
   const oldPromise = Promise;
-  global.Promise = function() { this.bar = 42; };
+  globalThis.Promise = function() { this.bar = 42; };
   assert.strictEqual(util.inspect(new Promise()), '{ bar: 42 }');
-  global.Promise = oldPromise;
+  globalThis.Promise = oldPromise;
 }
 
 // Test Map iterators.
@@ -3181,7 +3181,7 @@ assert.strictEqual(
   }
 
   // Consistency check.
-  assert(fullObjectGraph(global).has(Function.prototype));
+  assert(fullObjectGraph(globalThis).has(Function.prototype));
 }
 
 {
