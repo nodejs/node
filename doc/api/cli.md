@@ -1061,6 +1061,8 @@ added:
 
 Enable module mocking in the test runner.
 
+This feature requires `--allow-worker` if used with the [Permission Model][].
+
 ### `--experimental-transform-types`
 
 <!-- YAML
