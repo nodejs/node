@@ -71,9 +71,11 @@ jobs:
           git config --local user.name "Node.js GitHub Bot"
 
       - name: Start git node release prepare
+        # `git update-index` tells git to ignore future changes to the `.sh` file,
+        # `|| true` is there to ignore the error if such file doesn't exist yet.
         # The curl command is to make sure we run the version of the script corresponding to the current workflow.
         run: |
-          git update-index --assume-unchanged tools/actions/create-release-proposal.sh
+          git update-index --assume-unchanged tools/actions/create-release-proposal.sh || true
           curl -fsSLo tools/actions/create-release-proposal.sh https://github.com/${GITHUB_REPOSITORY}/raw/${GITHUB_SHA}/tools/actions/create-release-proposal.sh
           ./tools/actions/create-release-proposal.sh "${RELEASE_DATE}" "${RELEASE_LINE}" "${GITHUB_ACTOR}"
         env:
