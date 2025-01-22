@@ -305,7 +305,7 @@ jobs:
         if: env.COMMIT_MSG == '' && (github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id)
         run: |
           echo "COMMIT_MSG=${{ matrix.subsystem }}: update ${{ matrix.id }} to ${{ env.NEW_VERSION }}" >> "$GITHUB_ENV"
-      - uses: peter-evans/create-pull-request@6d6857d36972b65feb161a90e484f2984215f83e # v6.0.5
+      - uses: peter-evans/create-pull-request@5e914681df9dc83aa4e4905692ca88beb2f9e91f  # v7.0.5
         if: github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id
         # Creates a PR or update the Action's existing PR, or
         # no-op if the base branch is already up-to-date.
