@@ -159,8 +159,6 @@ const isPi = (() => {
   }
 })();
 
-const isDumbTerminal = process.env.TERM === 'dumb';
-
 // When using high concurrency or in the CI we need much more time for each connection attempt
 net.setDefaultAutoSelectFamilyAttemptTimeout(platformTimeout(net.getDefaultAutoSelectFamilyAttemptTimeout() * 10));
 const defaultAutoSelectFamilyAttemptTimeout = net.getDefaultAutoSelectFamilyAttemptTimeout();
@@ -263,13 +261,6 @@ function childShouldThrowAndAbort() {
     assert(nodeProcessAborted(exitCode, signal), errMsg);
   });
 }
-
-function createZeroFilledFile(filename) {
-  const fd = fs.openSync(filename, 'w');
-  fs.ftruncateSync(fd, 10 * 1024 * 1024);
-  fs.closeSync(fd);
-}
-
 
 const pwdCommand = isWindows ?
   ['cmd.exe', ['/d', '/c', 'cd']] :
@@ -746,12 +737,6 @@ function skipIf32Bits() {
   }
 }
 
-function skipIfWorker() {
-  if (!isMainThread) {
-    skip('This test only works on a main thread');
-  }
-}
-
 function getArrayBufferViews(buf) {
   const { buffer, byteOffset, byteLength } = buf;
 
@@ -836,12 +821,6 @@ function invalidArgTypeHelper(input) {
   return ` Received type ${typeof input} (${inspected})`;
 }
 
-function skipIfDumbTerminal() {
-  if (isDumbTerminal) {
-    skip('skipping - dumb terminal');
-  }
-}
-
 function requireNoPackageJSONAbove(dir = __dirname) {
   let possiblePackage = path.join(dir, '..', 'package.json');
   let lastPackage = null;
@@ -912,45 +891,6 @@ function escapePOSIXShell(cmdParts, ...args) {
   return [cmd, { env }];
 };
 
-function getPrintedStackTrace(stderr) {
-  const lines = stderr.split('\n');
-
-  let state = 'initial';
-  const result = {
-    message: [],
-    nativeStack: [],
-    jsStack: [],
-  };
-  for (let i = 0; i < lines.length; ++i) {
-    const line = lines[i].trim();
-    if (line.length === 0) {
-      continue;  // Skip empty lines.
-    }
-
-    switch (state) {
-      case 'initial':
-        result.message.push(line);
-        if (line.includes('Native stack trace')) {
-          state = 'native-stack';
-        } else {
-          result.message.push(line);
-        }
-        break;
-      case 'native-stack':
-        if (line.includes('JavaScript stack trace')) {
-          state = 'js-stack';
-        } else {
-          result.nativeStack.push(line);
-        }
-        break;
-      case 'js-stack':
-        result.jsStack.push(line);
-        break;
-    }
-  }
-  return result;
-}
-
 /**
  * Check the exports of require(esm).
  * TODO(joyeecheung): use it in all the test-require-module-* tests to minimize changes
@@ -973,7 +913,6 @@ const common = {
   buildType,
   canCreateSymLink,
   childShouldThrowAndAbort,
-  createZeroFilledFile,
   defaultAutoSelectFamilyAttemptTimeout,
   escapePOSIXShell,
   expectsError,
@@ -981,7 +920,6 @@ const common = {
   expectWarning,
   getArrayBufferViews,
   getBufferSources,
-  getPrintedStackTrace,
   getTTYfd,
   hasIntl,
   hasCrypto,
@@ -992,10 +930,8 @@ const common = {
   isAlive,
   isASan,
   isDebug,
-  isDumbTerminal,
   isFreeBSD,
   isLinux,
-  isMainThread,
   isOpenBSD,
   isMacOS,
   isPi,
@@ -1017,10 +953,8 @@ const common = {
   runWithInvalidFD,
   skip,
   skipIf32Bits,
-  skipIfDumbTerminal,
   skipIfEslintMissing,
   skipIfInspectorDisabled,
-  skipIfWorker,
   spawnPromisified,
 
   get enoughTestMem() {

@@ -9,8 +9,9 @@ if (!common.hasOpenSSL3)
 
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
+const { isMainThread } = require('worker_threads');
 
-if (common.isMainThread) {
+if (isMainThread) {
   // TODO(richardlau): Decide if `crypto.setFips` should error if the
   // provider named "fips" is not available.
   crypto.setFips(1);
