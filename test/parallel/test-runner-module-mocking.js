@@ -1,8 +1,9 @@
 // Flags: --experimental-test-module-mocks --experimental-require-module
 'use strict';
 const common = require('../common');
+const { isMainThread } = require('worker_threads');
 
-if (!common.isMainThread) {
+if (!isMainThread) {
   common.skip('registering customization hooks in Workers does not work');
 }
 
