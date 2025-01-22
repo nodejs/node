@@ -1,6 +1,7 @@
 'use strict';
 const common = require('../common');
 const http = require('http');
+const assert = require('assert');
 
 // This test is to make sure that when the HTTP server
 // responds to a HEAD request with data to res.end,
@@ -18,6 +19,8 @@ server.on('listening', common.mustCall(function() {
     method: 'HEAD',
     path: '/'
   }, common.mustCall(function(res) {
+    assert(res.headers['content-length'] !== undefined, 'Content-Length header is missing');
+
     res.on('end', common.mustCall(function() {
       server.close();
     }));
