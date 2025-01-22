@@ -19,7 +19,7 @@ server.on('listening', common.mustCall(function() {
     method: 'HEAD',
     path: '/'
   }, common.mustCall(function(res) {
-    assert(res.headers['content-length'] !== undefined, 'Content-Length header is missing');
+    assert.notStrictEqual(res.headers['content-length'], undefined, 'Expected Content-Length header to be present');
 
     res.on('end', common.mustCall(function() {
       server.close();
