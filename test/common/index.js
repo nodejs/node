@@ -1034,11 +1034,6 @@ const common = {
     return require('os').type() === 'OS400';
   },
 
-  get isLinuxPPCBE() {
-    return (process.platform === 'linux') && (process.arch === 'ppc64') &&
-           (require('os').endianness() === 'BE');
-  },
-
   get localhostIPv4() {
     if (localhostIPv4 !== null) return localhostIPv4;
 
@@ -1065,13 +1060,6 @@ const common = {
       throw new Error('common.PORT cannot be used in a parallelized test');
     }
     return +process.env.NODE_COMMON_PORT || 12346;
-  },
-
-  /**
-   * Returns the EOL character used by this Git checkout.
-   */
-  get checkoutEOL() {
-    return fs.readFileSync(__filename).includes('\r\n') ? '\r\n' : '\n';
   },
 
   get isInsideDirWithUnusualChars() {
