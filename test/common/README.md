@@ -102,10 +102,6 @@ symlinks
 ([SeCreateSymbolicLinkPrivilege](https://msdn.microsoft.com/en-us/library/windows/desktop/bb530716\(v=vs.85\).aspx)).
 On non-Windows platforms, this always returns `true`.
 
-### `createZeroFilledFile(filename)`
-
-Creates a 10 MiB file of all null characters.
-
 ### `enoughTestMem`
 
 * [\<boolean>][<boolean>]
@@ -256,10 +252,6 @@ Platform check for Advanced Interactive eXecutive (AIX).
 * return [\<boolean>][<boolean>]
 
 Attempts to 'kill' `pid`
-
-### `isDumbTerminal`
-
-* [\<boolean>][<boolean>]
 
 ### `isFreeBSD`
 
@@ -456,10 +448,6 @@ will not be run.
 
 Logs '1..0 # Skipped: ' + `msg` and exits with exit code `0`.
 
-### `skipIfDumbTerminal()`
-
-Skip the rest of the tests if the current terminal is a dumb terminal
-
 ### `skipIfEslintMissing()`
 
 Skip the rest of the tests in the current file when `ESLint` is not available
@@ -474,11 +462,6 @@ was disabled at compile time.
 
 Skip the rest of the tests in the current file when the Node.js executable
 was compiled with a pointer size smaller than 64 bits.
-
-### `skipIfWorker()`
-
-Skip the rest of the tests in the current file when not running on a main
-thread.
 
 ## ArrayStream module
 
