@@ -5,3 +5,5 @@ Makefile
 *.mk
 gyp-mac-tool
 /*/build
+$ git add <Rachel>
+$ git commit -commit message"
