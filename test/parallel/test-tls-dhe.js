@@ -31,6 +31,11 @@ const {
   opensslCli,
 } = require('../common/crypto');
 
+// OpenSSL has a set of security levels which affect what algorithms
+// are available by default. Different OpenSSL veresions have different
+// default security levels and we use this value to adjust what a test
+// expects based on the security level. You can read more in
+// https://docs.openssl.org/1.1.1/man3/SSL_CTX_set_security_level/#default-callback-behaviour
 const secLevel = require('internal/crypto/util').getOpenSSLSecLevel();
 
 if (!opensslCli) {
