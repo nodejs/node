@@ -272,6 +272,7 @@ X509_STORE* NewRootCertStore() {
   }
 
   X509_STORE* store = X509_STORE_new();
+  CHECK_NOT_NULL(store);
   if (*system_cert_path != '\0') {
     ERR_set_mark();
     X509_STORE_load_locations(store, system_cert_path, nullptr);
