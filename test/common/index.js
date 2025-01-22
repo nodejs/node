@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const process = global.process;  // Some tests tamper with the process global.
+const process = globalThis.process;  // Some tests tamper with the process globalThis.
 
 const assert = require('assert');
 const { exec, execSync, spawn, spawnSync } = require('child_process');
@@ -266,7 +266,7 @@ function platformTimeout(ms) {
   return ms;
 }
 
-let knownGlobals = [
+const knownGlobals = new Set([
   AbortController,
   atob,
   btoa,
@@ -278,88 +278,59 @@ let knownGlobals = [
   setInterval,
   setTimeout,
   queueMicrotask,
-];
+  structuredClone,
+  fetch,
+]);
 
-if (global.gc) {
-  knownGlobals.push(global.gc);
-}
+['gc',
+ // The following are assumed to be conditionally available in the
+ // global object currently. They can likely be added to the fixed
+ // set of known globals, however.
+ 'navigator',
+ 'Navigator',
+ 'performance',
+ 'Performance',
+ 'PerformanceMark',
+ 'PerformanceMeasure',
+ 'EventSource',
+ 'CustomEvent',
+ 'ReadableStream',
+ 'ReadableStreamDefaultReader',
+ 'ReadableStreamBYOBReader',
+ 'ReadableStreamBYOBRequest',
+ 'ReadableByteStreamController',
+ 'ReadableStreamDefaultController',
+ 'TransformStream',
+ 'TransformStreamDefaultController',
+ 'WritableStream',
+ 'WritableStreamDefaultWriter',
+ 'WritableStreamDefaultController',
+ 'ByteLengthQueuingStrategy',
+ 'CountQueuingStrategy',
+ 'TextEncoderStream',
+ 'TextDecoderStream',
+ 'CompressionStream',
+ 'DecompressionStream',
+ 'Storage',
+ 'localStorage',
+ 'sessionStorage',
+].forEach((i) => {
+  if (globalThis[i] !== undefined) {
+    knownGlobals.add(globalThis[i]);
+  }
+});
 
-if (global.navigator) {
-  knownGlobals.push(global.navigator);
-}
-
-if (global.Navigator) {
-  knownGlobals.push(global.Navigator);
-}
-
-if (global.Performance) {
-  knownGlobals.push(global.Performance);
-}
-if (global.performance) {
-  knownGlobals.push(global.performance);
-}
-if (global.PerformanceMark) {
-  knownGlobals.push(global.PerformanceMark);
-}
-if (global.PerformanceMeasure) {
-  knownGlobals.push(global.PerformanceMeasure);
-}
-
-// TODO(@ethan-arrowood): Similar to previous checks, this can be temporary
-// until v16.x is EOL. Once all supported versions have structuredClone we
-// can add this to the list above instead.
-if (global.structuredClone) {
-  knownGlobals.push(global.structuredClone);
-}
-
-if (global.EventSource) {
-  knownGlobals.push(EventSource);
-}
-
-if (global.fetch) {
-  knownGlobals.push(fetch);
-}
-if (hasCrypto && global.crypto) {
-  knownGlobals.push(global.crypto);
-  knownGlobals.push(global.Crypto);
-  knownGlobals.push(global.CryptoKey);
-  knownGlobals.push(global.SubtleCrypto);
-}
-if (global.CustomEvent) {
-  knownGlobals.push(global.CustomEvent);
-}
-if (global.ReadableStream) {
-  knownGlobals.push(
-    global.ReadableStream,
-    global.ReadableStreamDefaultReader,
-    global.ReadableStreamBYOBReader,
-    global.ReadableStreamBYOBRequest,
-    global.ReadableByteStreamController,
-    global.ReadableStreamDefaultController,
-    global.TransformStream,
-    global.TransformStreamDefaultController,
-    global.WritableStream,
-    global.WritableStreamDefaultWriter,
-    global.WritableStreamDefaultController,
-    global.ByteLengthQueuingStrategy,
-    global.CountQueuingStrategy,
-    global.TextEncoderStream,
-    global.TextDecoderStream,
-    global.CompressionStream,
-    global.DecompressionStream,
-  );
-}
-
-if (global.Storage) {
-  knownGlobals.push(
-    global.localStorage,
-    global.sessionStorage,
-    global.Storage,
-  );
+if (hasCrypto) {
+  knownGlobals.add(globalThis.crypto);
+  knownGlobals.add(globalThis.Crypto);
+  knownGlobals.add(globalThis.CryptoKey);
+  knownGlobals.add(globalThis.SubtleCrypto);
 }
 
 function allowGlobals(...allowlist) {
-  knownGlobals = knownGlobals.concat(allowlist);
+  for (const val of allowlist) {
+    knownGlobals.add(val);
+  }
 }
 
 if (process.env.NODE_TEST_KNOWN_GLOBALS !== '0') {
@@ -371,10 +342,13 @@ if (process.env.NODE_TEST_KNOWN_GLOBALS !== '0') {
   function leakedGlobals() {
     const leaked = [];
 
-    for (const val in global) {
+    for (const val in globalThis) {
       // globalThis.crypto is a getter that throws if Node.js was compiled
-      // without OpenSSL.
-      if (val !== 'crypto' && !knownGlobals.includes(global[val])) {
+      // without OpenSSL so we'll skip it if it is not available.
+      if (val === 'crypto' && !hasCrypto) {
+        continue;
+      }
+      if (!knownGlobals.has(globalThis[val])) {
         leaked.push(val);
       }
     }
