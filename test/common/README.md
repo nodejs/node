@@ -279,12 +279,6 @@ Platform check for IBMi.
 
 Platform check for Linux.
 
-### `isLinuxPPCBE`
-
-* [\<boolean>][<boolean>]
-
-Platform check for Linux on PowerPC.
-
 ### `isMacOS`
 
 * [\<boolean>][<boolean>]
