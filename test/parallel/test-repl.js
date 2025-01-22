@@ -36,7 +36,7 @@ const prompt_tcp = 'node via TCP socket> ';
 const moduleFilename = fixtures.path('a');
 
 // Function for REPL to run
-global.invoke_me = function(arg) {
+globalThis.invoke_me = function(arg) {
   return `invoked ${arg}`;
 };
 
@@ -939,8 +939,8 @@ alternatively use dynamic import: const { default: alias, namedExport } = await 
 
     socket.end();
   }
-  common.allowGlobals(global.invoke_me, global.message, global.a, global.blah,
-                      global.I, global.f, global.path, global.x, global.name, global.foo);
+  common.allowGlobals(globalThis.invoke_me, globalThis.message, globalThis.a, globalThis.blah,
+                      globalThis.I, globalThis.f, globalThis.path, globalThis.x, globalThis.name, globalThis.foo);
 })().then(common.mustCall());
 
 function startTCPRepl() {
