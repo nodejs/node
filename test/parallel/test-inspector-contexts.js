@@ -8,6 +8,7 @@ common.skipIfInspectorDisabled();
 const assert = require('assert');
 const vm = require('vm');
 const { Session } = require('inspector');
+const { isMainThread } = require('worker_threads');
 
 const session = new Session();
 session.connect();
@@ -34,7 +35,7 @@ async function testContextCreatedAndDestroyed() {
       assert.strictEqual(name.includes(`[${process.pid}]`), true);
     } else {
       let expects = `${process.argv0}[${process.pid}]`;
-      if (!common.isMainThread) {
+      if (!isMainThread) {
         expects = `Worker[${require('worker_threads').threadId}]`;
       }
       assert.strictEqual(expects, name);
