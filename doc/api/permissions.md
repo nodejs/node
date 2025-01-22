@@ -1,5 +1,9 @@
 # Permissions
 
+<!--introduced_in=v20.0.0-->
+
+<!-- source_link=src/permission.cc -->
+
 Permissions can be used to control what system resources the
 Node.js process has access to or what actions the process can take
 with those resources.
@@ -26,11 +30,15 @@ If you find a potential security vulnerability, please refer to our
 
 ### Permission Model
 
-<!-- type=misc -->
+<!-- YAML
+added: v20.0.0
+changes:
+  - version: v22.13.0
+    pr-url: https://github.com/nodejs/node/pull/56201
+    description: This feature is no longer experimental.
+-->
 
 > Stability: 2 - Stable.
-
-<!-- name=permission-model -->
 
 The Node.js Permission Model is a mechanism for restricting access to specific
 resources during execution.
