@@ -23,7 +23,6 @@
 const process = globalThis.process;  // Some tests tamper with the process globalThis.
 
 const assert = require('assert');
-const { exec, execSync, spawn, spawnSync } = require('child_process');
 const fs = require('fs');
 const net = require('net');
 // Do not require 'os' until needed so that test-os-checked-function can
@@ -31,7 +30,6 @@ const net = require('net');
 const path = require('path');
 const { inspect, getCallSites } = require('util');
 const { isMainThread } = require('worker_threads');
-const { isModuleNamespaceObject } = require('util/types');
 
 const tmpdir = require('./tmpdir');
 const bits = ['arm64', 'loong64', 'mips', 'mipsel', 'ppc64', 'riscv64', 's390x', 'x64']
@@ -104,6 +102,7 @@ if (process.argv.length === 2 &&
         inspect(flags),
         'Use NODE_SKIP_FLAG_CHECK to run the test with the original flags.',
       );
+      const { spawnSync } = require('child_process');
       const args = [...flags, ...process.execArgv, ...process.argv.slice(1)];
       const options = { encoding: 'utf8', stdio: 'inherit' };
       const result = spawnSync(process.execPath, args, options);
@@ -232,6 +231,7 @@ function childShouldThrowAndAbort() {
     // continuous testing and developers' machines
     escapedArgs[0] = 'ulimit -c 0 && ' + escapedArgs[0];
   }
+  const { exec } = require('child_process');
   const child = exec(...escapedArgs);
   child.on('exit', function onExit(exitCode, signal) {
     const errMsg = 'Test should have aborted ' +
@@ -474,6 +474,7 @@ function canCreateSymLink() {
                                  'System32', 'whoami.exe');
 
     try {
+      const { execSync } = require('child_process');
       const output = execSync(`${whoamiPath} /priv`, { timeout: 1000 });
       return output.includes('SeCreateSymbolicLinkPrivilege');
     } catch {
@@ -780,6 +781,7 @@ function requireNoPackageJSONAbove(dir = __dirname) {
 }
 
 function spawnPromisified(...args) {
+  const { spawn } = require('child_process');
   let stderr = '';
   let stdout = '';
 
@@ -843,6 +845,7 @@ function escapePOSIXShell(cmdParts, ...args) {
  * @param {object} expectation shape of expected namespace.
  */
 function expectRequiredModule(mod, expectation, checkESModule = true) {
+  const { isModuleNamespaceObject } = require('util/types');
   const clone = { ...mod };
   if (Object.hasOwn(mod, 'default') && checkESModule) {
     assert.strictEqual(mod.__esModule, true);
@@ -920,6 +923,7 @@ const common = {
   },
 
   get inFreeBSDJail() {
+    const { execSync } = require('child_process');
     if (inFreeBSDJail !== null) return inFreeBSDJail;
 
     if (exports.isFreeBSD &&
