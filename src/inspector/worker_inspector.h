@@ -9,6 +9,7 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <cstdint>
 
 namespace node {
 namespace inspector {
