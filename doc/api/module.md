@@ -87,6 +87,10 @@ isBuiltin('wss'); // false
 <!-- YAML
 added: v20.6.0
 changes:
+  - version: v20.18.2
+    pr-url: https://github.com/nodejs-private/node-private/pull/629
+    description: Using this feature with the permission model enabled requires
+                 passing `--allow-worker`.
   - version: v20.8.0
     pr-url: https://github.com/nodejs/node/pull/49655
     description: Add support for WHATWG URL instances.
@@ -112,6 +116,8 @@ changes:
 
 Register a module that exports [hooks][] that customize Node.js module
 resolution and loading behavior. See [Customization hooks][].
+
+This feature requires `--allow-worker` if used with the [Permission Model][].
 
 ### `module.syncBuiltinESMExports()`
 
@@ -1117,6 +1123,7 @@ returned object contains the following keys:
 [Customization hooks]: #customization-hooks
 [ES Modules]: esm.md
 [HTTPS and HTTP imports]: esm.md#https-and-http-imports
+[Permission Model]: permissions.md#permission-model
 [Source map v3 format]: https://sourcemaps.info/spec.html#h.mofvlxcwqzej
 [`"exports"`]: packages.md#exports
 [`--enable-source-maps`]: cli.md#--enable-source-maps
