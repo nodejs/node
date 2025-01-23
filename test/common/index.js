@@ -510,15 +510,6 @@ function _mustCallInner(fn, criteria = 1, field) {
   return _return;
 }
 
-function hasMultiLocalhost() {
-  const { internalBinding } = require('internal/test/binding');
-  const { TCP, constants: TCPConstants } = internalBinding('tcp_wrap');
-  const t = new TCP(TCPConstants.SOCKET);
-  const ret = t.bind('127.0.0.2', 0);
-  t.close();
-  return ret === 0;
-}
-
 function skipIfEslintMissing() {
   if (!fs.existsSync(
     path.join(__dirname, '..', '..', 'tools', 'eslint', 'node_modules', 'eslint'),
@@ -987,7 +978,6 @@ const common = {
   hasCrypto,
   hasOpenSSL,
   hasQuic,
-  hasMultiLocalhost,
   invalidArgTypeHelper,
   isAlive,
   isASan,

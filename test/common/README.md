@@ -249,12 +249,6 @@ Indicates if [internationalization][] is supported.
 
 Indicates whether `IPv6` is supported on this platform.
 
-### `hasMultiLocalhost`
-
-* [\<boolean>][<boolean>]
-
-Indicates if there are multiple localhosts available.
-
 ### `inFreeBSDJail`
 
 * [\<boolean>][<boolean>]
