@@ -13,19 +13,22 @@ using v8::Local;
 using v8::Object;
 using v8::Value;
 
+namespace per_process {
+  bool isWldpInitialized = false;
+  pfnWldpCanExecuteFile WldpCanExecuteFile;
+  pfnWldpGetApplicationSettingBoolean WldpGetApplicationSettingBoolean;
+  pfnWldpQuerySecurityPolicy WldpQuerySecurityPolicy;
+}
+
 namespace codeintegrity {
 
-static bool isWldpInitialized = false;
-static pfnWldpCanExecuteFile WldpCanExecuteFile;
-static pfnWldpGetApplicationSettingBoolean WldpGetApplicationSettingBoolean;
-static pfnWldpQuerySecurityPolicy WldpQuerySecurityPolicy;
 static PCWSTR NODEJS = L"Node.js";
 static PCWSTR ENFORCE_CODE_INTEGRITY_SETTING_NAME = L"EnforceCodeIntegrity";
 static PCWSTR DISABLE_INTERPRETIVE_MODE_SETTING_NAME =
   L"DisableInteractiveMode";
 
 void InitWldp(Environment* env) {
-  if (isWldpInitialized) {
+  if (per_process::isWldpInitialized) {
     return;
   }
 
@@ -38,22 +41,22 @@ void InitWldp(Environment* env) {
     return env->ThrowError("Unable to load wldp.dll");
   }
 
-  WldpCanExecuteFile =
+  per_process::WldpCanExecuteFile =
     (pfnWldpCanExecuteFile)GetProcAddress(
       wldp_module,
       "WldpCanExecuteFile");
 
-  WldpGetApplicationSettingBoolean =
+  per_process::WldpGetApplicationSettingBoolean =
     (pfnWldpGetApplicationSettingBoolean)GetProcAddress(
       wldp_module,
       "WldpGetApplicationSettingBoolean");
 
-  WldpQuerySecurityPolicy =
+  per_process::WldpQuerySecurityPolicy =
     (pfnWldpQuerySecurityPolicy)GetProcAddress(
       wldp_module,
       "WldpQuerySecurityPolicy");
 
-  isWldpInitialized = true;
+  per_process::isWldpInitialized = true;
 }
 
 static void IsFileTrustedBySystemCodeIntegrityPolicy(
@@ -62,7 +65,7 @@ static void IsFileTrustedBySystemCodeIntegrityPolicy(
   CHECK(args[0]->IsString());
 
   Environment* env = Environment::GetCurrent(args);
-  if (!isWldpInitialized) {
+  if (!per_process::isWldpInitialized) {
     InitWldp(env);
   }
 
@@ -86,7 +89,7 @@ static void IsFileTrustedBySystemCodeIntegrityPolicy(
 
   const GUID wldp_host_other = WLDP_HOST_OTHER;
   WLDP_EXECUTION_POLICY result;
-  HRESULT hr = WldpCanExecuteFile(
+  HRESULT hr = per_process::WldpCanExecuteFile(
     wldp_host_other,
     WLDP_EXECUTION_EVALUATION_OPTION_NONE,
     hFile,
@@ -108,13 +111,13 @@ static void IsInteractiveModeDisabledInternal(
 
   Environment* env = Environment::GetCurrent(args);
 
-  if (!isWldpInitialized) {
+  if (!per_process::isWldpInitialized) {
     InitWldp(env);
   }
 
-  if (WldpGetApplicationSettingBoolean != nullptr) {
+  if (per_process::WldpGetApplicationSettingBoolean != nullptr) {
     BOOL ret;
-    HRESULT hr = WldpGetApplicationSettingBoolean(
+    HRESULT hr = per_process::WldpGetApplicationSettingBoolean(
       NODEJS,
       DISABLE_INTERPRETIVE_MODE_SETTING_NAME,
       &ret);
@@ -137,7 +140,7 @@ static void IsInteractiveModeDisabledInternal(
   // versions going back to circa Win10 2023H2. In order to support systems
   // older than that (down to Win10RS2), we can use the deprecated
   // WldpQuerySecurityPolicy
-  if (WldpQuerySecurityPolicy != nullptr) {
+  if (per_process::WldpQuerySecurityPolicy != nullptr) {
     DECLARE_CONST_UNICODE_STRING(providerName, L"Node.js");
     DECLARE_CONST_UNICODE_STRING(keyName, L"Settings");
     DECLARE_CONST_UNICODE_STRING(valueName, L"DisableInteractiveMode");
@@ -145,7 +148,7 @@ static void IsInteractiveModeDisabledInternal(
       WLDP_SECURE_SETTING_VALUE_TYPE_BOOLEAN;
     ULONG valueSize = sizeof(int);
     int ret = 0;
-    HRESULT hr = WldpQuerySecurityPolicy(
+    HRESULT hr = per_process::WldpQuerySecurityPolicy(
               &providerName,
               &keyName,
               &valueName,
@@ -168,13 +171,13 @@ static void IsSystemEnforcingCodeIntegrity(
 
   Environment* env = Environment::GetCurrent(args);
 
-  if (!isWldpInitialized) {
+  if (!per_process::isWldpInitialized) {
     InitWldp(env);
   }
 
-  if (WldpGetApplicationSettingBoolean != nullptr) {
+  if (per_process::WldpGetApplicationSettingBoolean != nullptr) {
     BOOL ret;
-    HRESULT hr = WldpGetApplicationSettingBoolean(
+    HRESULT hr = per_process::WldpGetApplicationSettingBoolean(
       NODEJS,
       ENFORCE_CODE_INTEGRITY_SETTING_NAME,
       &ret);
@@ -197,7 +200,7 @@ static void IsSystemEnforcingCodeIntegrity(
   // versions going back to circa Win10 2023H2. In order to support systems
   // older than that (down to Win10RS2), we can use the deprecated
   // WldpQuerySecurityPolicy
-  if (WldpQuerySecurityPolicy != nullptr) {
+  if (per_process::WldpQuerySecurityPolicy != nullptr) {
     DECLARE_CONST_UNICODE_STRING(providerName, L"Node.js");
     DECLARE_CONST_UNICODE_STRING(keyName, L"Settings");
     DECLARE_CONST_UNICODE_STRING(valueName, L"EnforceCodeIntegrity");
@@ -205,7 +208,7 @@ static void IsSystemEnforcingCodeIntegrity(
       WLDP_SECURE_SETTING_VALUE_TYPE_BOOLEAN;
     ULONG valueSize = sizeof(int);
     int ret = 0;
-    HRESULT hr = WldpQuerySecurityPolicy(
+    HRESULT hr = per_process::WldpQuerySecurityPolicy(
               &providerName,
               &keyName,
               &valueName,
