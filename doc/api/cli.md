@@ -962,6 +962,10 @@ Previously gated the entire `import.meta.resolve` feature.
 <!-- YAML
 added: v8.8.0
 changes:
+  - version: v22.13.1
+    pr-url: https://github.com/nodejs-private/node-private/pull/629
+    description: Using this feature with the permission model enabled requires
+                 passing `--allow-worker`.
   - version: v12.11.1
     pr-url: https://github.com/nodejs/node/pull/29752
     description: This flag was renamed from `--loader` to
@@ -974,6 +978,8 @@ changes:
 
 Specify the `module` containing exported [module customization hooks][].
 `module` may be any string accepted as an [`import` specifier][].
+
+This feature requires `--allow-worker` if used with the [Permission Model][].
 
 ### `--experimental-network-inspection`
 
@@ -1082,6 +1088,11 @@ present. See the [test runner execution model][] section for more information.
 
 <!-- YAML
 added: v22.3.0
+changes:
+  - version: v22.13.1
+    pr-url: https://github.com/nodejs-private/node-private/pull/629
+    description: Using this feature with the permission model enabled requires
+                 passing `--allow-worker`.
 -->
 
 > Stability: 1.0 - Early development
