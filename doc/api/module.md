@@ -177,6 +177,10 @@ added:
   - v20.6.0
   - v18.19.0
 changes:
+  - version: v23.6.1
+    pr-url: https://github.com/nodejs-private/node-private/pull/629
+    description: Using this feature with the permission model enabled requires
+                 passing `--allow-worker`.
   - version:
     - v20.8.0
     - v18.19.0
@@ -204,6 +208,8 @@ changes:
 
 Register a module that exports [hooks][] that customize Node.js module
 resolution and loading behavior. See [Customization hooks][].
+
+This feature requires `--allow-worker` if used with the [Permission Model][].
 
 ### `module.registerHooks(options)`
 
@@ -1699,6 +1705,7 @@ returned object contains the following keys:
 [Conditional exports]: packages.md#conditional-exports
 [Customization hooks]: #customization-hooks
 [ES Modules]: esm.md
+[Permission Model]: permissions.md#permission-model
 [Source map v3 format]: https://sourcemaps.info/spec.html#h.mofvlxcwqzej
 [V8 JavaScript code coverage]: https://v8project.blogspot.com/2017/12/javascript-code-coverage.html
 [V8 code cache]: https://v8.dev/blog/code-caching-for-devs
