@@ -66,6 +66,8 @@ test-pipe-file-to-http: PASS, FLAKY
 test-debugger-heap-profiler: PASS, FLAKY
 
 [$system==solaris] # Also applies to SmartOS
+# https://github.com/nodejs/node/issues/56726
+test-buffer-tostring-range: SKIP
 # https://github.com/nodejs/node/issues/43457
 test-domain-no-error-handler-abort-on-uncaught-0: PASS, FLAKY
 test-domain-no-error-handler-abort-on-uncaught-1: PASS,FLAKY
