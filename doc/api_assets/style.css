@@ -562,38 +562,26 @@ hr {
 }
 
 .toc ul {
-  margin: 0
+  margin: 0;
 }
-
-.toc li a::before {
-  content: "■";
-  color: var(--color-text-primary);
-  padding-right: 1em;
-  font-size: 0.9em;
+.toc>ul:first-child {
+  margin-left: 1rem;
+}
+.toc li {
+  display: list-item;
+  list-style: square;
+}
+.toc li a {
+  display: inline;
+  padding-left: 0;
 }
 
 .toc li a:hover::before {
   color: var(--white);
 }
 
-.toc ul ul a {
+.toc ul {
   padding-left: 1rem;
-}
-
-.toc ul ul ul a {
-  padding-left: 2rem;
-}
-
-.toc ul ul ul ul a {
-  padding-left: 3rem;
-}
-
-.toc ul ul ul ul ul a {
-  padding-left: 4rem;
-}
-
-.toc ul ul ul ul ul ul a {
-  padding-left: 5rem;
 }
 
 #toc .stability_0::after,
