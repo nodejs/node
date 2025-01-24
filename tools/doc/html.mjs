@@ -531,7 +531,7 @@ function altDocs(filename, docCreated, versions) {
         <span class="picker-arrow"></span>
         Other versions
       </a>
-      <div class="picker"><ol id="alt-docs">${list}</ol></div>
+      <div class="picker" tabindex="-1"><ol id="alt-docs">${list}</ol></div>
     </li>
   ` : '';
 }
@@ -562,7 +562,7 @@ function gtocPicker(id) {
         Index
       </a>
 
-      <div class="picker">${gtoc}</div>
+      <div class="picker" tabindex="-1">${gtoc}</div>
     </li>
   `;
 }
@@ -579,7 +579,7 @@ function tocPicker(id, content) {
         Table of contents
       </a>
 
-      <div class="picker">${content.tocPicker}</div>
+      <div class="picker" tabindex="-1">${content.tocPicker}</div>
     </li>
   `;
 }

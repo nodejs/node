@@ -78,6 +78,7 @@
           parentNode.classList.add('expanded');
           window.addEventListener('click', closeAllPickers);
           window.addEventListener('keydown', onKeyDown);
+          parentNode.querySelector('.picker a').focus();
         });
       });
     }
