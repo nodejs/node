@@ -196,6 +196,7 @@ li.picker-header a:hover .picker-arrow {
 li.picker-header.expanded a:focus .picker-arrow,
 li.picker-header.expanded a:active .picker-arrow,
 li.picker-header.expanded a:hover .picker-arrow,
+:root:not(.has-js) li.picker-header:focus-within .picker-arrow,
 :root:not(.has-js) li.picker-header:hover .picker-arrow  {
   border-top: .6rem solid var(--white);
   border-bottom: none;
@@ -205,11 +206,13 @@ li.picker-header.expanded a:hover .picker-arrow,
 }
 
 li.picker-header.expanded > a,
+:root:not(.has-js) li.picker-header:focus-within > a,
 :root:not(.has-js) li.picker-header:hover > a {
   border-radius: 2px 2px 0 0;
 }
 
 li.picker-header.expanded > .picker, 
+:root:not(.has-js) li.picker-header:focus-within > .picker,
 :root:not(.has-js) li.picker-header:hover > .picker {
   display: block;
   z-index: 1;
