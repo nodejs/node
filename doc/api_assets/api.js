@@ -58,7 +58,7 @@
 
     for (const picker of pickers) {
       const parentNode = picker.parentNode;
-      
+
       picker.ariaExpanded = parentNode.classList.contains('expanded');
       picker.addEventListener('click', function(e) {
         e.preventDefault();

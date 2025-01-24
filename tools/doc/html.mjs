@@ -579,7 +579,7 @@ function tocPicker(id, content) {
         Table of contents
       </a>
 
-      <div class="picker" tabindex="-1">${content.tocPicker.replace('<ul>', '<ul id="toc-picker">')}</div>
+      <div class="picker" tabindex="-1">${content.tocPicker.replace('<ul', '<ul id="toc-picker"')}</div>
     </li>
   `;
 }
