@@ -24,6 +24,8 @@ test-snapshot-incompatible: SKIP
 test-async-context-frame: PASS, FLAKY
 # https://github.com/nodejs/node/issues/54534
 test-runner-run-watch: PASS, FLAKY
+# https://github.com/nodejs/node/issues/56743
+test-runner-module-mocking: PASS, FLAKY
 
 # Windows on ARM
 [$system==win32 && $arch==arm64]
