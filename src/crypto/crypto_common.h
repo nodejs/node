@@ -42,11 +42,6 @@ v8::MaybeLocal<v8::Object> ECPointToBuffer(
     point_conversion_form_t form,
     const char** error);
 
-v8::MaybeLocal<v8::Value> GetCurrentCipherName(Environment* env,
-                                               const ncrypto::SSLPointer& ssl);
-v8::MaybeLocal<v8::Value> GetCurrentCipherVersion(
-    Environment* env, const ncrypto::SSLPointer& ssl);
-
 }  // namespace crypto
 }  // namespace node
 

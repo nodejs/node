@@ -2585,6 +2585,24 @@ EVPKeyPointer SSLPointer::getPeerTempKey() const {
   return EVPKeyPointer(raw_key);
 }
 
+std::optional<std::string_view> SSLPointer::getCipherName() const {
+  auto cipher = getCipher();
+  if (cipher == nullptr) return std::nullopt;
+  return SSL_CIPHER_get_name(cipher);
+}
+
+std::optional<std::string_view> SSLPointer::getCipherStandardName() const {
+  auto cipher = getCipher();
+  if (cipher == nullptr) return std::nullopt;
+  return SSL_CIPHER_standard_name(cipher);
+}
+
+std::optional<std::string_view> SSLPointer::getCipherVersion() const {
+  auto cipher = getCipher();
+  if (cipher == nullptr) return std::nullopt;
+  return SSL_CIPHER_get_version(cipher);
+}
+
 SSLCtxPointer::SSLCtxPointer(SSL_CTX* ctx) : ctx_(ctx) {}
 
 SSLCtxPointer::SSLCtxPointer(SSLCtxPointer&& other) noexcept

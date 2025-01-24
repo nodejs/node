@@ -34,6 +34,7 @@ using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Nothing;
 using v8::Object;
+using v8::Undefined;
 using v8::Value;
 
 namespace quic {
@@ -619,11 +620,15 @@ MaybeLocal<Object> TLSSession::ephemeral_key(Environment* env) const {
 }
 
 MaybeLocal<Value> TLSSession::cipher_name(Environment* env) const {
-  return crypto::GetCurrentCipherName(env, ssl_);
+  auto name = ssl_.getCipherName();
+  if (!name.has_value()) return Undefined(env->isolate());
+  return OneByteString(env->isolate(), name.value());
 }
 
 MaybeLocal<Value> TLSSession::cipher_version(Environment* env) const {
-  return crypto::GetCurrentCipherVersion(env, ssl_);
+  auto version = ssl_.getCipherVersion();
+  if (!version.has_value()) return Undefined(env->isolate());
+  return OneByteString(env->isolate(), version.value());
 }
 
 const std::string_view TLSSession::servername() const {

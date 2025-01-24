@@ -914,6 +914,10 @@ class SSLPointer final {
   const SSL_CIPHER* getCipher() const;
   bool isServer() const;
 
+  std::optional<std::string_view> getCipherName() const;
+  std::optional<std::string_view> getCipherStandardName() const;
+  std::optional<std::string_view> getCipherVersion() const;
+
   std::optional<uint32_t> verifyPeerCertificate() const;
 
   void getCiphers(std::function<void(const std::string_view)> cb) const;

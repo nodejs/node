@@ -43,7 +43,6 @@ using v8::Integer;
 using v8::Local;
 using v8::MaybeLocal;
 using v8::Object;
-using v8::String;
 using v8::Undefined;
 using v8::Value;
 
@@ -73,35 +72,6 @@ MaybeLocal<Value> GetCert(Environment* env, const SSLPointer& ssl) {
 }
 
 namespace {
-template <typename T>
-bool Set(
-    Local<Context> context,
-    Local<Object> target,
-    Local<Value> name,
-    MaybeLocal<T> maybe_value) {
-  Local<Value> value;
-  if (!maybe_value.ToLocal(&value))
-    return false;
-
-  // Undefined is ignored, but still considered successful
-  if (value->IsUndefined())
-    return true;
-
-  return !target->Set(context, name, value).IsNothing();
-}
-
-template <const char* (*getstr)(const SSL_CIPHER* cipher)>
-MaybeLocal<Value> GetCipherValue(Environment* env, const SSL_CIPHER* cipher) {
-  if (cipher == nullptr)
-    return Undefined(env->isolate());
-
-  return OneByteString(env->isolate(), getstr(cipher));
-}
-
-constexpr auto GetCipherName = GetCipherValue<SSL_CIPHER_get_name>;
-constexpr auto GetCipherStandardName = GetCipherValue<SSL_CIPHER_standard_name>;
-constexpr auto GetCipherVersion = GetCipherValue<SSL_CIPHER_get_version>;
-
 StackOfX509 CloneSSLCerts(X509Pointer&& cert,
                           const STACK_OF(X509)* const ssl_certs) {
   StackOfX509 peer_certs(sk_X509_new(nullptr));
@@ -132,11 +102,11 @@ MaybeLocal<Object> AddIssuerChainToObject(X509Pointer* cert,
       Local<Value> ca_info;
       if (!X509Certificate::toObject(env, ca).ToLocal(&ca_info)) return {};
       CHECK(ca_info->IsObject());
-
-      if (!Set<Object>(env->context(),
-                       object,
-                       env->issuercert_string(),
-                       ca_info.As<Object>())) {
+      if (object
+              ->Set(env->context(),
+                    env->issuercert_string(),
+                    ca_info.As<Object>())
+              .IsNothing()) {
         return {};
       }
       object = ca_info.As<Object>();
@@ -168,10 +138,10 @@ MaybeLocal<Object> GetLastIssuedCert(
 
     CHECK(ca_info->IsObject());
 
-    if (!Set<Object>(env->context(),
-                     issuer_chain,
-                     env->issuercert_string(),
-                     ca_info.As<Object>())) {
+    if (issuer_chain
+            ->Set(
+                env->context(), env->issuercert_string(), ca_info.As<Object>())
+            .IsNothing()) {
       return {};
     }
     issuer_chain = ca_info.As<Object>();
@@ -188,41 +158,30 @@ MaybeLocal<Object> GetLastIssuedCert(
   return MaybeLocal<Object>(issuer_chain);
 }
 
+Local<Value> maybeString(Environment* env,
+                         std::optional<std::string_view> value) {
+  if (!value.has_value()) return Undefined(env->isolate());
+  return OneByteString(env->isolate(), value.value());
+}
 }  // namespace
-
-MaybeLocal<Value> GetCurrentCipherName(Environment* env,
-                                       const SSLPointer& ssl) {
-  return GetCipherName(env, ssl.getCipher());
-}
-
-MaybeLocal<Value> GetCurrentCipherVersion(Environment* env,
-                                          const SSLPointer& ssl) {
-  return GetCipherVersion(env, ssl.getCipher());
-}
-
-template <MaybeLocal<Value> (*Get)(Environment* env, const SSL_CIPHER* cipher)>
-MaybeLocal<Value> GetCurrentCipherValue(Environment* env,
-                                        const SSLPointer& ssl) {
-  return Get(env, ssl.getCipher());
-}
 
 MaybeLocal<Object> GetCipherInfo(Environment* env, const SSLPointer& ssl) {
   if (ssl.getCipher() == nullptr) return MaybeLocal<Object>();
   EscapableHandleScope scope(env->isolate());
   Local<Object> info = Object::New(env->isolate());
 
-  if (!Set<Value>(env->context(),
-                  info,
-                  env->name_string(),
-                  GetCurrentCipherValue<GetCipherName>(env, ssl)) ||
-      !Set<Value>(env->context(),
-                  info,
-                  env->standard_name_string(),
-                  GetCurrentCipherValue<GetCipherStandardName>(env, ssl)) ||
-      !Set<Value>(env->context(),
-                  info,
-                  env->version_string(),
-                  GetCurrentCipherValue<GetCipherVersion>(env, ssl))) {
+  if (info->Set(env->context(),
+                env->name_string(),
+                maybeString(env, ssl.getCipherName()))
+          .IsNothing() ||
+      info->Set(env->context(),
+                env->standard_name_string(),
+                maybeString(env, ssl.getCipherStandardName()))
+          .IsNothing() ||
+      info->Set(env->context(),
+                env->version_string(),
+                maybeString(env, ssl.getCipherVersion()))
+          .IsNothing()) {
     return MaybeLocal<Object>();
   }
 
@@ -242,11 +201,12 @@ MaybeLocal<Object> GetEphemeralKey(Environment* env, const SSLPointer& ssl) {
   int kid = key.id();
   switch (kid) {
     case EVP_PKEY_DH:
-      if (!Set<String>(context, info, env->type_string(), env->dh_string()) ||
-          !Set<Integer>(context,
-                        info,
-                        env->size_string(),
-                        Integer::New(env->isolate(), key.bits()))) {
+      if (info->Set(context, env->type_string(), env->dh_string())
+              .IsNothing() ||
+          info->Set(context,
+                    env->size_string(),
+                    Integer::New(env->isolate(), key.bits()))
+              .IsNothing()) {
         return MaybeLocal<Object>();
       }
       break;
@@ -261,16 +221,16 @@ MaybeLocal<Object> GetEphemeralKey(Environment* env, const SSLPointer& ssl) {
         } else {
           curve_name = OBJ_nid2sn(kid);
         }
-        if (!Set<String>(
-                context, info, env->type_string(), env->ecdh_string()) ||
-            !Set<String>(context,
-                         info,
-                         env->name_string(),
-                         OneByteString(env->isolate(), curve_name)) ||
-            !Set<Integer>(context,
-                          info,
-                          env->size_string(),
-                          Integer::New(env->isolate(), key.bits()))) {
+        if (info->Set(context, env->type_string(), env->ecdh_string())
+                .IsNothing() ||
+            info->Set(context,
+                      env->name_string(),
+                      OneByteString(env->isolate(), curve_name))
+                .IsNothing() ||
+            info->Set(context,
+                      env->size_string(),
+                      Integer::New(env->isolate(), key.bits()))
+                .IsNothing()) {
           return MaybeLocal<Object>();
         }
       }
@@ -362,10 +322,8 @@ MaybeLocal<Value> GetPeerCert(
 
   // Last certificate should be self-signed.
   if (cert.view().isIssuedBy(cert.view()) &&
-      !Set<Object>(env->context(),
-                   issuer_chain,
-                   env->issuercert_string(),
-                   issuer_chain)) {
+      issuer_chain->Set(env->context(), env->issuercert_string(), issuer_chain)
+          .IsNothing()) {
     return {};
   }
 
