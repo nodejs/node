@@ -1,4 +1,4 @@
-/* eslint-disable strict */
+'use strict';
 require('../common');
 const assert = require('assert');
 const _process = require('process');
