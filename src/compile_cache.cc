@@ -89,6 +89,8 @@ const char* CompileCacheEntry::type_name() const {
       return "TransformedTypeScript";
     case CachedCodeType::kTransformedTypeScriptWithSourceMaps:
       return "TransformedTypeScriptWithSourceMaps";
+    default:
+      UNREACHABLE();
   }
 }
 
