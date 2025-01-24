@@ -456,6 +456,10 @@ DatabaseSync::DatabaseSync(Environment* env,
   }
 }
 
+void DatabaseSync::AddBackup(BackupJob* job) {
+  backups_.insert(job);
+}
+
 void DatabaseSync::RemoveBackup(BackupJob* job) {
   backups_.erase(job);
 }
@@ -749,112 +753,6 @@ void DatabaseSync::Exec(const FunctionCallbackInfo<Value>& args) {
   CHECK_ERROR_OR_THROW(env->isolate(), db, r, SQLITE_OK, void());
 }
 
-void DatabaseSync::Backup(const FunctionCallbackInfo<Value>& args) {
-  DatabaseSync* db;
-  ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
-  Environment* env = Environment::GetCurrent(args);
-  THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
-
-  if (!args[0]->IsString()) {
-    THROW_ERR_INVALID_ARG_TYPE(
-        env->isolate(), "The \"destination\" argument must be a string.");
-    return;
-  }
-
-  int rate = 100;
-  std::string source_db = "main";
-  std::string dest_db = "main";
-
-  Utf8Value dest_path(env->isolate(), args[0].As<String>());
-  Local<Function> progressFunc = Local<Function>();
-
-  if (args.Length() > 1) {
-    if (!args[1]->IsObject()) {
-      THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
-                                 "The \"options\" argument must be an object.");
-      return;
-    }
-
-    Local<Object> options = args[1].As<Object>();
-    Local<Value> rate_v;
-    if (!options->Get(env->context(), env->rate_string()).ToLocal(&rate_v)) {
-      return;
-    }
-
-    if (!rate_v->IsUndefined()) {
-      if (!rate_v->IsInt32()) {
-        THROW_ERR_INVALID_ARG_TYPE(
-            env->isolate(),
-            "The \"options.rate\" argument must be an integer.");
-        return;
-      }
-      rate = rate_v.As<Int32>()->Value();
-    }
-
-    Local<Value> source_v;
-    if (!options->Get(env->context(), env->source_string())
-             .ToLocal(&source_v)) {
-      return;
-    }
-
-    if (!source_v->IsUndefined()) {
-      if (!source_v->IsString()) {
-        THROW_ERR_INVALID_ARG_TYPE(
-            env->isolate(),
-            "The \"options.source\" argument must be a string.");
-        return;
-      }
-
-      source_db = Utf8Value(env->isolate(), source_v.As<String>()).ToString();
-    }
-
-    Local<Value> target_v;
-    if (!options->Get(env->context(), env->target_string())
-             .ToLocal(&target_v)) {
-      return;
-    }
-
-    if (!target_v->IsUndefined()) {
-      if (!target_v->IsString()) {
-        THROW_ERR_INVALID_ARG_TYPE(
-            env->isolate(),
-            "The \"options.target\" argument must be a string.");
-        return;
-      }
-
-      dest_db = Utf8Value(env->isolate(), target_v.As<String>()).ToString();
-    }
-
-    Local<Value> progress_v;
-    if (!options->Get(env->context(), env->progress_string())
-             .ToLocal(&progress_v)) {
-      return;
-    }
-
-    if (!progress_v->IsUndefined()) {
-      if (!progress_v->IsFunction()) {
-        THROW_ERR_INVALID_ARG_TYPE(
-            env->isolate(),
-            "The \"options.progress\" argument must be a function.");
-        return;
-      }
-      progressFunc = progress_v.As<Function>();
-    }
-  }
-
-  Local<Promise::Resolver> resolver;
-  if (!Promise::Resolver::New(env->context()).ToLocal(&resolver)) {
-    return;
-  }
-
-  args.GetReturnValue().Set(resolver->GetPromise());
-
-  BackupJob* job = new BackupJob(
-      env, db, resolver, source_db, *dest_path, dest_db, rate, progressFunc);
-  db->backups_.insert(job);
-  job->ScheduleBackup();
-}
-
 void DatabaseSync::CustomFunction(const FunctionCallbackInfo<Value>& args) {
   DatabaseSync* db;
   ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
@@ -1063,6 +961,117 @@ void DatabaseSync::CreateSession(const FunctionCallbackInfo<Value>& args) {
   BaseObjectPtr<Session> session =
       Session::Create(env, BaseObjectWeakPtr<DatabaseSync>(db), pSession);
   args.GetReturnValue().Set(session->object());
+}
+
+void Backup(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (args.Length() < 1 || !args[0]->IsObject()) {
+    THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
+                               "The \"sourceDb\" argument must be an object.");
+    return;
+  }
+
+  DatabaseSync* db;
+  ASSIGN_OR_RETURN_UNWRAP(&db, args[0].As<Object>());
+  THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
+  if (!args[1]->IsString()) {
+    THROW_ERR_INVALID_ARG_TYPE(
+        env->isolate(), "The \"destination\" argument must be a string.");
+    return;
+  }
+
+  int rate = 100;
+  std::string source_db = "main";
+  std::string dest_db = "main";
+
+  Utf8Value dest_path(env->isolate(), args[1].As<String>());
+  Local<Function> progressFunc = Local<Function>();
+
+  if (args.Length() > 2) {
+    if (!args[2]->IsObject()) {
+      THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
+                                 "The \"options\" argument must be an object.");
+      return;
+    }
+
+    Local<Object> options = args[2].As<Object>();
+    Local<Value> rate_v;
+    if (!options->Get(env->context(), env->rate_string()).ToLocal(&rate_v)) {
+      return;
+    }
+
+    if (!rate_v->IsUndefined()) {
+      if (!rate_v->IsInt32()) {
+        THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            "The \"options.rate\" argument must be an integer.");
+        return;
+      }
+      rate = rate_v.As<Int32>()->Value();
+    }
+
+    Local<Value> source_v;
+    if (!options->Get(env->context(), env->source_string())
+             .ToLocal(&source_v)) {
+      return;
+    }
+
+    if (!source_v->IsUndefined()) {
+      if (!source_v->IsString()) {
+        THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            "The \"options.source\" argument must be a string.");
+        return;
+      }
+
+      source_db = Utf8Value(env->isolate(), source_v.As<String>()).ToString();
+    }
+
+    Local<Value> target_v;
+    if (!options->Get(env->context(), env->target_string())
+             .ToLocal(&target_v)) {
+      return;
+    }
+
+    if (!target_v->IsUndefined()) {
+      if (!target_v->IsString()) {
+        THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            "The \"options.target\" argument must be a string.");
+        return;
+      }
+
+      dest_db = Utf8Value(env->isolate(), target_v.As<String>()).ToString();
+    }
+
+    Local<Value> progress_v;
+    if (!options->Get(env->context(), env->progress_string())
+             .ToLocal(&progress_v)) {
+      return;
+    }
+
+    if (!progress_v->IsUndefined()) {
+      if (!progress_v->IsFunction()) {
+        THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            "The \"options.progress\" argument must be a function.");
+        return;
+      }
+      progressFunc = progress_v.As<Function>();
+    }
+  }
+
+  Local<Promise::Resolver> resolver;
+  if (!Promise::Resolver::New(env->context()).ToLocal(&resolver)) {
+    return;
+  }
+
+  args.GetReturnValue().Set(resolver->GetPromise());
+
+  BackupJob* job = new BackupJob(
+      env, db, resolver, source_db, *dest_path, dest_db, rate, progressFunc);
+  db->AddBackup(job);
+  job->ScheduleBackup();
 }
 
 // the reason for using static functions here is that SQLite needs a
@@ -2033,7 +2042,6 @@ static void Initialize(Local<Object> target,
   SetProtoMethod(isolate, db_tmpl, "close", DatabaseSync::Close);
   SetProtoMethod(isolate, db_tmpl, "prepare", DatabaseSync::Prepare);
   SetProtoMethod(isolate, db_tmpl, "exec", DatabaseSync::Exec);
-  SetProtoMethod(isolate, db_tmpl, "backup", DatabaseSync::Backup);
   SetProtoMethod(isolate, db_tmpl, "function", DatabaseSync::CustomFunction);
   SetProtoMethod(
       isolate, db_tmpl, "createSession", DatabaseSync::CreateSession);
@@ -2052,6 +2060,14 @@ static void Initialize(Local<Object> target,
                          StatementSync::GetConstructorTemplate(env));
 
   target->Set(context, env->constants_string(), constants).Check();
+
+  Local<Function> backup_function;
+
+  if (!Function::New(context, Backup).ToLocal(&backup_function)) {
+    return;
+  }
+
+  target->Set(context, env->backup_string(), backup_function).Check();
 }
 
 }  // namespace sqlite

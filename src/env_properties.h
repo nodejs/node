@@ -77,6 +77,7 @@
   V(asn1curve_string, "asn1Curve")                                             \
   V(async_ids_stack_string, "async_ids_stack")                                 \
   V(attributes_string, "attributes")                                           \
+  V(backup_string, "backup")                                                   \
   V(base_string, "base")                                                       \
   V(base_url_string, "baseURL")                                                \
   V(bits_string, "bits")                                                       \

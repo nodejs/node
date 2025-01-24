@@ -1,7 +1,7 @@
 import '../common/index.mjs';
 import tmpdir from '../common/tmpdir.js';
 import { join } from 'node:path';
-import { DatabaseSync } from 'node:sqlite';
+import { backup, DatabaseSync } from 'node:sqlite';
 import { describe, test } from 'node:test';
 import { writeFileSync } from 'node:fs';
 
@@ -32,19 +32,28 @@ function makeSourceDb() {
   return database;
 }
 
-describe('DatabaseSync.prototype.backup()', () => {
-  test('throws if path is not a string', async (t) => {
+describe('backup()', () => {
+  test('throws if the source database is not provided', (t) => {
+    t.assert.throws(() => {
+      backup();
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: 'The "sourceDb" argument must be an object.'
+    });
+  });
+
+  test('throws if path is not a string', (t) => {
     const database = makeSourceDb();
 
     t.assert.throws(() => {
-      database.backup();
+      backup(database);
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       message: 'The "destination" argument must be a string.'
     });
 
     t.assert.throws(() => {
-      database.backup({});
+      backup(database, {});
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       message: 'The "destination" argument must be a string.'
@@ -55,7 +64,7 @@ describe('DatabaseSync.prototype.backup()', () => {
     const database = makeSourceDb();
 
     t.assert.throws(() => {
-      database.backup('hello.db', 'invalid');
+      backup(database, 'hello.db', 'invalid');
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       message: 'The "options" argument must be an object.'
@@ -66,7 +75,7 @@ describe('DatabaseSync.prototype.backup()', () => {
     const database = makeSourceDb();
 
     t.assert.throws(() => {
-      database.backup('hello.db', {
+      backup(database, 'hello.db', {
         source: 42
       });
     }, {
@@ -75,7 +84,7 @@ describe('DatabaseSync.prototype.backup()', () => {
     });
 
     t.assert.throws(() => {
-      database.backup('hello.db', {
+      backup(database, 'hello.db', {
         target: 42
       });
     }, {
@@ -84,7 +93,7 @@ describe('DatabaseSync.prototype.backup()', () => {
     });
 
     t.assert.throws(() => {
-      database.backup('hello.db', {
+      backup(database, 'hello.db', {
         rate: 'invalid'
       });
     }, {
@@ -93,7 +102,7 @@ describe('DatabaseSync.prototype.backup()', () => {
     });
 
     t.assert.throws(() => {
-      database.backup('hello.db', {
+      backup(database, 'hello.db', {
         progress: 'invalid'
       });
     }, {
@@ -108,13 +117,13 @@ test('database backup', async (t) => {
   const database = makeSourceDb();
   const destDb = nextDb();
 
-  await database.backup(destDb, {
+  await backup(database, destDb, {
     rate: 1,
     progress: progressFn,
   });
 
-  const backup = new DatabaseSync(destDb);
-  const rows = backup.prepare('SELECT * FROM data').all();
+  const backupDb = new DatabaseSync(destDb);
+  const rows = backupDb.prepare('SELECT * FROM data').all();
 
   // The source database has two pages - using the default page size -,
   // so the progress function should be called once (the last call is not made since
@@ -133,12 +142,12 @@ test('database backup in a single call', async (t) => {
   const destDb = nextDb();
 
   // Let rate to be default (100) to backup in a single call
-  await database.backup(destDb, {
+  await backup(database, destDb, {
     progress: progressFn,
   });
 
-  const backup = new DatabaseSync(destDb);
-  const rows = backup.prepare('SELECT * FROM data').all();
+  const backupDb = new DatabaseSync(destDb);
+  const rows = backupDb.prepare('SELECT * FROM data').all();
 
   t.assert.strictEqual(progressFn.mock.calls.length, 0);
   t.assert.deepStrictEqual(rows, [
@@ -153,7 +162,7 @@ test('throws exception when trying to start backup from a closed database', asyn
 
     database.close();
 
-    database.backup('backup.db');
+    backup(database, 'backup.db');
   }, {
     code: 'ERR_INVALID_STATE',
     message: 'database is not open'
@@ -167,7 +176,7 @@ test('database backup fails when dest file is not writable', async (t) => {
   const database = makeSourceDb();
 
   await t.assert.rejects(async () => {
-    await database.backup(readonlyDestDb);
+    await backup(database, readonlyDestDb);
   }, {
     code: 'ERR_SQLITE_ERROR',
     message: 'attempt to write a readonly database'
@@ -183,7 +192,7 @@ test('backup fails when progress function throws', async (t) => {
   });
 
   await t.assert.rejects(async () => {
-    await database.backup(destDb, {
+    await backup(database, destDb, {
       rate: 1,
       progress: progressFn,
     });
@@ -197,7 +206,7 @@ test('backup fails when source db is invalid', async (t) => {
   const destDb = nextDb();
 
   await t.assert.rejects(async () => {
-    await database.backup(destDb, {
+    await backup(database, destDb, {
       rate: 1,
       source: 'invalid',
     });
@@ -210,7 +219,7 @@ test('backup fails when destination cannot be opened', async (t) => {
   const database = makeSourceDb();
 
   await t.assert.rejects(async () => {
-    await database.backup(`${tmpdir.path}/invalid/backup.db`);
+    await backup(database, `${tmpdir.path}/invalid/backup.db`);
   }, {
     message: 'unable to open database file'
   });

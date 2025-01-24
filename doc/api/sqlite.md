@@ -115,26 +115,6 @@ added: v22.5.0
 
 Constructs a new `DatabaseSync` instance.
 
-### `database.backup(destination[, options])`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `destination` {string} The path where the backup will be created. If the file already exists, the contents will be
-  overwritten.
-* `options` {Object} Optional configuration for the backup. The
-  following properties are supported:
-  * `source` {string} Name of the source database. **Default:** `'main'`.
-  * `target` {string} Name of the target database. **Default:** `'main'`.
-  * `rate` {number} Number of pages to be transmitted in each batch of the backup. **Default:** `100`.
-  * `progress` {Function} Callback function that will be called with the number of pages copied and the total number of
-    pages.
-* Returns: {Promise} A promise that resolves when the backup is completed and rejects if an error occurs.
-
-This method makes a database backup. This method abstracts the [`sqlite3_backup_init()`][], [`sqlite3_backup_step()`][]
-and [`sqlite3_backup_finish()`][] functions.
-
 ### `database.close()`
 
 <!-- YAML
@@ -545,6 +525,27 @@ exception.
 | `REAL`    | {number}                   |
 | `TEXT`    | {string}                   |
 | `BLOB`    | {TypedArray} or {DataView} |
+
+## `sqlite.backup(sourceDb, destination[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `sourceDb` {DatabaseSync} The database to backup. The source database must be open.
+* `destination` {string} The path where the backup will be created. If the file already exists, the contents will be
+  overwritten.
+* `options` {Object} Optional configuration for the backup. The
+  following properties are supported:
+  * `source` {string} Name of the source database. **Default:** `'main'`.
+  * `target` {string} Name of the target database. **Default:** `'main'`.
+  * `rate` {number} Number of pages to be transmitted in each batch of the backup. **Default:** `100`.
+  * `progress` {Function} Callback function that will be called with the number of pages copied and the total number of
+    pages.
+* Returns: {Promise} A promise that resolves when the backup is completed and rejects if an error occurs.
+
+This method makes a database backup. This method abstracts the [`sqlite3_backup_init()`][], [`sqlite3_backup_step()`][]
+and [`sqlite3_backup_finish()`][] functions.
 
 ## `sqlite.constants`
 
