@@ -1612,7 +1612,7 @@ void TLSWrap::CertCbDone(const FunctionCallbackInfo<Value>& args) {
     // Store the SNI context for later use.
     w->sni_context_ = BaseObjectPtr<SecureContext>(sc);
 
-    if (UseSNIContext(w->ssl_, w->sni_context_) && !w->SetCACerts(sc)) {
+    if (w->ssl_.setSniContext(w->sni_context_->ctx()) && !w->SetCACerts(sc)) {
       // Not clear why sometimes we throw error, and sometimes we call
       // onerror(). Both cause .destroy(), but onerror does a bit more.
       unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
@@ -1675,8 +1675,7 @@ void TLSWrap::SetKeyCert(const FunctionCallbackInfo<Value>& args) {
   if (cons->HasInstance(ctx)) {
     SecureContext* sc = Unwrap<SecureContext>(ctx.As<Object>());
     CHECK_NOT_NULL(sc);
-    if (!UseSNIContext(w->ssl_, BaseObjectPtr<SecureContext>(sc)) ||
-        !w->SetCACerts(sc)) {
+    if (!w->ssl_.setSniContext(sc->ctx()) || !w->SetCACerts(sc)) {
       unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
       return ThrowCryptoError(env, err, "SetKeyCert");
     }
@@ -1851,8 +1850,7 @@ void TLSWrap::VerifyError(const FunctionCallbackInfo<Value>& args) {
   // peer certificate is questionable but it's compatible with what was
   // here before.
   long x509_verify_error =  // NOLINT(runtime/int)
-      VerifyPeerCertificate(
-          w->ssl_,
+      w->ssl_.verifyPeerCertificate().value_or(
           X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT);
 
   if (x509_verify_error == X509_V_OK)
