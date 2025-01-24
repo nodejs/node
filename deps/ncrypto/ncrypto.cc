@@ -915,6 +915,18 @@ BIOPointer X509View::toDER() const {
   return bio;
 }
 
+const X509Name X509View::getSubjectName() const {
+  ClearErrorOnReturn clearErrorOnReturn;
+  if (cert_ == nullptr) return {};
+  return X509Name(X509_get_subject_name(cert_));
+}
+
+const X509Name X509View::getIssuerName() const {
+  ClearErrorOnReturn clearErrorOnReturn;
+  if (cert_ == nullptr) return {};
+  return X509Name(X509_get_issuer_name(cert_));
+}
+
 BIOPointer X509View::getSubject() const {
   ClearErrorOnReturn clearErrorOnReturn;
   if (cert_ == nullptr) return {};
@@ -2390,6 +2402,15 @@ EVPKeyPointer::operator Rsa() const {
   return Rsa(rsa);
 }
 
+EVPKeyPointer::operator Dsa() const {
+  int type = id();
+  if (type != EVP_PKEY_DSA) return {};
+
+  OSSL3_CONST DSA* dsa = EVP_PKEY_get0_DSA(get());
+  if (dsa == nullptr) return {};
+  return Dsa(dsa);
+}
+
 bool EVPKeyPointer::validateDsaParameters() const {
   if (!pkey_) return false;
     /* Validate DSA2 parameters from FIPS 186-4 */
@@ -2585,6 +2606,24 @@ EVPKeyPointer SSLPointer::getPeerTempKey() const {
   return EVPKeyPointer(raw_key);
 }
 
+std::optional<std::string_view> SSLPointer::getCipherName() const {
+  auto cipher = getCipher();
+  if (cipher == nullptr) return std::nullopt;
+  return SSL_CIPHER_get_name(cipher);
+}
+
+std::optional<std::string_view> SSLPointer::getCipherStandardName() const {
+  auto cipher = getCipher();
+  if (cipher == nullptr) return std::nullopt;
+  return SSL_CIPHER_standard_name(cipher);
+}
+
+std::optional<std::string_view> SSLPointer::getCipherVersion() const {
+  auto cipher = getCipher();
+  if (cipher == nullptr) return std::nullopt;
+  return SSL_CIPHER_get_version(cipher);
+}
+
 SSLCtxPointer::SSLCtxPointer(SSL_CTX* ctx) : ctx_(ctx) {}
 
 SSLCtxPointer::SSLCtxPointer(SSLCtxPointer&& other) noexcept
@@ -2630,8 +2669,8 @@ bool SSLCtxPointer::setGroups(const char* groups) {
 
 // ============================================================================
 
-const Cipher Cipher::FromName(const char* name) {
-  return Cipher(EVP_get_cipherbyname(name));
+const Cipher Cipher::FromName(std::string_view name) {
+  return Cipher(EVP_get_cipherbyname(name.data()));
 }
 
 const Cipher Cipher::FromNid(int nid) {
@@ -3811,6 +3850,95 @@ DataPointer hashDigest(const Buffer<const unsigned char>& buf,
   }
 
   return data.resize(result_size);
+}
+
+// ============================================================================
+
+X509Name::X509Name() : name_(nullptr), total_(0) {}
+
+X509Name::X509Name(const X509_NAME* name)
+    : name_(name), total_(X509_NAME_entry_count(name)) {}
+
+X509Name::Iterator::Iterator(const X509Name& name, int pos)
+    : name_(name), loc_(pos) {}
+
+X509Name::Iterator& X509Name::Iterator::operator++() {
+  ++loc_;
+  return *this;
+}
+
+X509Name::Iterator::operator bool() const {
+  return loc_ < name_.total_;
+}
+
+bool X509Name::Iterator::operator==(const Iterator& other) const {
+  return loc_ == other.loc_;
+}
+
+bool X509Name::Iterator::operator!=(const Iterator& other) const {
+  return loc_ != other.loc_;
+}
+
+std::pair<std::string, std::string> X509Name::Iterator::operator*() const {
+  if (loc_ == name_.total_) return {{}, {}};
+
+  X509_NAME_ENTRY* entry = X509_NAME_get_entry(name_, loc_);
+  if (entry == nullptr) [[unlikely]]
+    return {{}, {}};
+
+  ASN1_OBJECT* name = X509_NAME_ENTRY_get_object(entry);
+  ASN1_STRING* value = X509_NAME_ENTRY_get_data(entry);
+
+  if (name == nullptr || value == nullptr) [[unlikely]] {
+    return {{}, {}};
+  }
+
+  int nid = OBJ_obj2nid(name);
+  std::string name_str;
+  if (nid != NID_undef) {
+    name_str = std::string(OBJ_nid2sn(nid));
+  } else {
+    char buf[80];
+    OBJ_obj2txt(buf, sizeof(buf), name, 0);
+    name_str = std::string(buf);
+  }
+
+  unsigned char* value_str;
+  int value_str_size = ASN1_STRING_to_UTF8(&value_str, value);
+
+  return {
+      std::move(name_str),
+      std::string(reinterpret_cast<const char*>(value_str), value_str_size)};
+}
+
+// ============================================================================
+
+Dsa::Dsa() : dsa_(nullptr) {}
+
+Dsa::Dsa(OSSL3_CONST DSA* dsa) : dsa_(dsa) {}
+
+const BIGNUM* Dsa::getP() const {
+  if (dsa_ == nullptr) return nullptr;
+  const BIGNUM* p;
+  DSA_get0_pqg(dsa_, &p, nullptr, nullptr);
+  return p;
+}
+
+const BIGNUM* Dsa::getQ() const {
+  if (dsa_ == nullptr) return nullptr;
+  const BIGNUM* q;
+  DSA_get0_pqg(dsa_, nullptr, &q, nullptr);
+  return q;
+}
+
+size_t Dsa::getModulusLength() const {
+  if (dsa_ == nullptr) return 0;
+  return BignumPointer::GetBitCount(getP());
+}
+
+size_t Dsa::getDivisorLength() const {
+  if (dsa_ == nullptr) return 0;
+  return BignumPointer::GetBitCount(getQ());
 }
 
 }  // namespace ncrypto

@@ -700,12 +700,12 @@ bool SignTraits::DeriveBits(
       break;
     }
     case SignConfiguration::Mode::Verify: {
-      ByteSource::Builder buf(1);
-      buf.data<char>()[0] = 0;
+      auto buf = DataPointer::Alloc(1);
+      static_cast<char*>(buf.get())[0] = 0;
       if (context.verify(params.data, params.signature)) {
-        buf.data<char>()[0] = 1;
+        static_cast<char*>(buf.get())[0] = 1;
       }
-      *out = std::move(buf).release();
+      *out = ByteSource::Allocated(buf.release());
     }
   }
 

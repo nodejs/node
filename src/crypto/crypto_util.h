@@ -166,53 +166,6 @@ T* MallocOpenSSL(size_t count) {
 // contents are zeroed.
 class ByteSource final {
  public:
-  class Builder {
-   public:
-    // Allocates memory using OpenSSL's memory allocator.
-    explicit Builder(size_t size)
-        : data_(MallocOpenSSL<char>(size)), size_(size) {}
-
-    Builder(Builder&& other) = delete;
-    Builder& operator=(Builder&& other) = delete;
-    Builder(const Builder&) = delete;
-    Builder& operator=(const Builder&) = delete;
-
-    ~Builder() { OPENSSL_clear_free(data_, size_); }
-
-    // Returns the underlying non-const pointer.
-    template <typename T>
-    T* data() {
-      return reinterpret_cast<T*>(data_);
-    }
-
-    // Returns the (allocated) size in bytes.
-    size_t size() const { return size_; }
-
-    // Returns if (allocated) size is zero.
-    bool empty() const { return size_ == 0; }
-
-    // Finalizes the Builder and returns a read-only view that is optionally
-    // truncated.
-    ByteSource release(std::optional<size_t> resize = std::nullopt) && {
-      if (resize) {
-        CHECK_LE(*resize, size_);
-        if (*resize == 0) {
-          OPENSSL_clear_free(data_, size_);
-          data_ = nullptr;
-        }
-        size_ = *resize;
-      }
-      ByteSource out = ByteSource::Allocated(data_, size_);
-      data_ = nullptr;
-      size_ = 0;
-      return out;
-    }
-
-   private:
-    void* data_;
-    size_t size_;
-  };
-
   ByteSource() = default;
   ByteSource(ByteSource&& other) noexcept;
   ~ByteSource();
@@ -651,18 +604,18 @@ class ArrayBufferOrViewContents final {
   }
 
   inline ByteSource ToCopy() const {
-    if (empty()) return ByteSource();
-    ByteSource::Builder buf(size());
-    memcpy(buf.data<void>(), data(), size());
-    return std::move(buf).release();
+    if (empty()) return {};
+    auto buf = ncrypto::DataPointer::Alloc(size());
+    memcpy(buf.get(), data(), size());
+    return ByteSource::Allocated(buf.release());
   }
 
   inline ByteSource ToNullTerminatedCopy() const {
-    if (empty()) return ByteSource();
-    ByteSource::Builder buf(size() + 1);
-    memcpy(buf.data<void>(), data(), size());
-    buf.data<char>()[size()] = 0;
-    return std::move(buf).release(size());
+    if (empty()) return {};
+    auto buf = ncrypto::DataPointer::Alloc(size() + 1);
+    memcpy(buf.get(), data(), size());
+    static_cast<char*>(buf.get())[size()] = 0;
+    return ByteSource::Allocated(buf.release());
   }
 
   inline ncrypto::DataPointer ToDataPointer() const {
