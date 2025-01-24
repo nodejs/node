@@ -4,7 +4,7 @@ if (!common.hasCrypto) {
   common.skip('missing crypto');
 }
 
-// Tests the that the AES wrap and unwrap functions are working correctly.
+// Tests that the AES wrap and unwrap functions are working correctly.
 
 const assert = require('assert');
 const crypto = require('crypto');
