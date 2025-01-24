@@ -589,7 +589,7 @@ SSLPointer TLSSession::Initialize(
 
 std::optional<TLSSession::PeerIdentityValidationError>
 TLSSession::VerifyPeerIdentity(Environment* env) {
-  int err = crypto::VerifyPeerCertificate(ssl_);
+  int err = ssl_.verifyPeerCertificate().value_or(X509_V_ERR_UNSPECIFIED);
   if (err == X509_V_OK) return std::nullopt;
   Local<Value> reason;
   Local<Value> code;

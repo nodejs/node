@@ -53,32 +53,16 @@ SSLSessionPointer GetTLSSession(const unsigned char* buf, size_t length) {
   return SSLSessionPointer(d2i_SSL_SESSION(nullptr, &buf, length));
 }
 
-long VerifyPeerCertificate(  // NOLINT(runtime/int)
-    const SSLPointer& ssl,
-    long def) {  // NOLINT(runtime/int)
-  return ssl.verifyPeerCertificate().value_or(def);
-}
-
-bool UseSNIContext(
-    const SSLPointer& ssl, BaseObjectPtr<SecureContext> context) {
-  return ssl.setSniContext(context->ctx());
-}
-
-bool SetGroups(SecureContext* sc, const char* groups) {
-  return sc->ctx().setGroups(groups);
-}
-
 MaybeLocal<Value> GetValidationErrorReason(Environment* env, int err) {
   auto reason = X509Pointer::ErrorReason(err).value_or("");
   if (reason == "") return Undefined(env->isolate());
-  return OneByteString(env->isolate(), reason.data(), reason.length());
+  return OneByteString(env->isolate(), reason);
 }
 
 MaybeLocal<Value> GetValidationErrorCode(Environment* env, int err) {
-  if (err == 0)
-    return Undefined(env->isolate());
+  if (err == 0) return Undefined(env->isolate());
   auto error = X509Pointer::ErrorCode(err);
-  return OneByteString(env->isolate(), error.data(), error.length());
+  return OneByteString(env->isolate(), error);
 }
 
 MaybeLocal<Value> GetCert(Environment* env, const SSLPointer& ssl) {

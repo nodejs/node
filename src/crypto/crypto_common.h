@@ -17,15 +17,6 @@ namespace crypto {
 ncrypto::SSLSessionPointer GetTLSSession(const unsigned char* buf,
                                          size_t length);
 
-long VerifyPeerCertificate(  // NOLINT(runtime/int)
-    const ncrypto::SSLPointer& ssl,
-    long def = X509_V_ERR_UNSPECIFIED);  // NOLINT(runtime/int)
-
-bool UseSNIContext(const ncrypto::SSLPointer& ssl,
-                   BaseObjectPtr<SecureContext> context);
-
-bool SetGroups(SecureContext* sc, const char* groups);
-
 v8::MaybeLocal<v8::Value> GetValidationErrorReason(Environment* env, int err);
 
 v8::MaybeLocal<v8::Value> GetValidationErrorCode(Environment* env, int err);
