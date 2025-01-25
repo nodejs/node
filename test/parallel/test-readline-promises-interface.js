@@ -951,12 +951,12 @@ for (let i = 0; i < 12; i++) {
     rli.close();
   }
 
-  // Aborting a question with ctrl+D
+  // Aborting a question with ctrl+C
   {
     const [rli, fi] = getInterface({ terminal: true });
     assert.rejects(rli.question('hello?'), { name: 'AbortError' })
         .then(common.mustCall());
-    fi.emit('keypress', '.', { ctrl: true, name: 'd' });
+    fi.emit('keypress', '.', { ctrl: true, name: 'c' });
   }
 
   // Aborting a question with ctrl+D
