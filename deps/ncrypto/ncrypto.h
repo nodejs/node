@@ -384,7 +384,12 @@ class DataPointer final {
 
   inline bool operator==(std::nullptr_t) noexcept { return data_ == nullptr; }
   inline operator bool() const { return data_ != nullptr; }
-  inline void* get() const noexcept { return data_; }
+
+  template <typename T = void>
+  inline T* get() const noexcept {
+    return static_cast<T*>(data_);
+  }
+
   inline size_t size() const noexcept { return len_; }
   void reset(void* data = nullptr, size_t len = 0);
   void reset(const Buffer<void>& buffer);

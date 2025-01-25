@@ -12,6 +12,7 @@
 
 namespace node {
 
+using ncrypto::DataPointer;
 using ncrypto::EVPKeyCtxPointer;
 using v8::FunctionCallbackInfo;
 using v8::Int32;
@@ -70,10 +71,11 @@ Maybe<void> SecretKeyGenTraits::AdditionalConfig(
 
 KeyGenJobStatus SecretKeyGenTraits::DoKeyGen(Environment* env,
                                              SecretKeyGenConfig* params) {
-  ByteSource::Builder bytes(params->length);
-  if (!ncrypto::CSPRNG(bytes.data<unsigned char>(), params->length))
+  auto bytes = DataPointer::Alloc(params->length);
+  if (!ncrypto::CSPRNG(static_cast<unsigned char*>(bytes.get()),
+                       params->length))
     return KeyGenJobStatus::FAILED;
-  params->out = std::move(bytes).release();
+  params->out = ByteSource::Allocated(bytes.release());
   return KeyGenJobStatus::OK;
 }
 

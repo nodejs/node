@@ -483,15 +483,16 @@ bool ECDHBitsTraits::DeriveBits(Environment* env,
       const auto pub = ECKeyPointer::GetPublicKey(public_key);
       int field_size = EC_GROUP_get_degree(group);
       len = (field_size + 7) / 8;
-      ByteSource::Builder buf(len);
+      auto buf = DataPointer::Alloc(len);
       CHECK_NOT_NULL(pub);
       CHECK_NOT_NULL(private_key);
-      if (ECDH_compute_key(buf.data<char>(), len, pub, private_key, nullptr) <=
+      if (ECDH_compute_key(
+              static_cast<char*>(buf.get()), len, pub, private_key, nullptr) <=
           0) {
         return false;
       }
 
-      *out = std::move(buf).release();
+      *out = ByteSource::Allocated(buf.release());
     }
   }
 
@@ -605,14 +606,19 @@ WebCryptoKeyExportStatus EC_Raw_Export(const KeyObjectData& key_data,
     size_t len = EC_POINT_point2oct(group, point, form, nullptr, 0, nullptr);
     if (len == 0)
       return WebCryptoKeyExportStatus::FAILED;
-    ByteSource::Builder data(len);
-    size_t check_len = EC_POINT_point2oct(
-        group, point, form, data.data<unsigned char>(), len, nullptr);
+    auto data = DataPointer::Alloc(len);
+    size_t check_len =
+        EC_POINT_point2oct(group,
+                           point,
+                           form,
+                           static_cast<unsigned char*>(data.get()),
+                           len,
+                           nullptr);
     if (check_len == 0)
       return WebCryptoKeyExportStatus::FAILED;
 
     CHECK_EQ(len, check_len);
-    *out = std::move(data).release();
+    *out = ByteSource::Allocated(data.release());
   }
 
   return WebCryptoKeyExportStatus::OK;
@@ -660,15 +666,20 @@ WebCryptoKeyExportStatus ECKeyExportTraits::DoExport(
         const size_t need =
             EC_POINT_point2oct(group, point, form, nullptr, 0, nullptr);
         if (need == 0) return WebCryptoKeyExportStatus::FAILED;
-        ByteSource::Builder data(need);
-        const size_t have = EC_POINT_point2oct(
-            group, point, form, data.data<unsigned char>(), need, nullptr);
+        auto data = DataPointer::Alloc(need);
+        const size_t have =
+            EC_POINT_point2oct(group,
+                               point,
+                               form,
+                               static_cast<unsigned char*>(data.get()),
+                               need,
+                               nullptr);
         if (have == 0) return WebCryptoKeyExportStatus::FAILED;
         auto ec = ECKeyPointer::New(group);
         CHECK(ec);
         auto uncompressed = ECPointPointer::New(group);
         ncrypto::Buffer<const unsigned char> buffer{
-            .data = data.data<unsigned char>(),
+            .data = static_cast<unsigned char*>(data.get()),
             .len = data.size(),
         };
         CHECK(uncompressed.setFromBuffer(buffer, group));
