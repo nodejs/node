@@ -19,7 +19,6 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-/* eslint-disable node-core/crypto-check */
 'use strict';
 const process = global.process;  // Some tests tamper with the process global.
 
@@ -56,25 +55,6 @@ const noop = () => {};
 
 const hasCrypto = Boolean(process.versions.openssl) &&
                   !process.env.NODE_SKIP_CRYPTO;
-
-// Synthesize OPENSSL_VERSION_NUMBER format with the layout 0xMNN00PPSL
-const opensslVersionNumber = (major = 0, minor = 0, patch = 0) => {
-  assert(major >= 0 && major <= 0xf);
-  assert(minor >= 0 && minor <= 0xff);
-  assert(patch >= 0 && patch <= 0xff);
-  return (major << 28) | (minor << 20) | (patch << 4);
-};
-
-let OPENSSL_VERSION_NUMBER;
-const hasOpenSSL = (major = 0, minor = 0, patch = 0) => {
-  if (!hasCrypto) return false;
-  if (OPENSSL_VERSION_NUMBER === undefined) {
-    const regexp = /(?<m>\d+)\.(?<n>\d+)\.(?<p>\d+)/;
-    const { m, n, p } = process.versions.openssl.match(regexp).groups;
-    OPENSSL_VERSION_NUMBER = opensslVersionNumber(m, n, p);
-  }
-  return OPENSSL_VERSION_NUMBER >= opensslVersionNumber(major, minor, patch);
-};
 
 const hasQuic = hasCrypto && !!process.config.variables.openssl_quic;
 
@@ -220,7 +200,6 @@ if (process.env.NODE_TEST_WITH_ASYNC_HOOKS) {
   }).enable();
 }
 
-let opensslCli = null;
 let inFreeBSDJail = null;
 let localhostIPv4 = null;
 
@@ -985,7 +964,6 @@ const common = {
   getTTYfd,
   hasIntl,
   hasCrypto,
-  hasOpenSSL,
   hasQuic,
   hasMultiLocalhost,
   invalidArgTypeHelper,
@@ -1027,10 +1005,6 @@ const common = {
     return require('os').totalmem() > 0x70000000; /* 1.75 Gb */
   },
 
-  get hasFipsCrypto() {
-    return hasCrypto && require('crypto').getFips();
-  },
-
   get hasIPv6() {
     const iFaces = require('os').networkInterfaces();
     let re;
@@ -1045,10 +1019,6 @@ const common = {
       return re.test(name) &&
              iFaces[name].some(({ family }) => family === 'IPv6');
     });
-  },
-
-  get hasOpenSSL3() {
-    return hasOpenSSL(3);
   },
 
   get inFreeBSDJail() {
@@ -1098,28 +1068,6 @@ const common = {
     if (localhostIPv4 === null) localhostIPv4 = '127.0.0.1';
 
     return localhostIPv4;
-  },
-
-  // opensslCli defined lazily to reduce overhead of spawnSync
-  get opensslCli() {
-    if (opensslCli !== null) return opensslCli;
-
-    if (process.config.variables.node_shared_openssl) {
-      // Use external command
-      opensslCli = 'openssl';
-    } else {
-      // Use command built from sources included in Node.js repository
-      opensslCli = path.join(path.dirname(process.execPath), 'openssl-cli');
-    }
-
-    if (exports.isWindows) opensslCli += '.exe';
-
-    const opensslCmd = spawnSync(opensslCli, ['version']);
-    if (opensslCmd.status !== 0 || opensslCmd.error !== undefined) {
-      // OpenSSL command cannot be executed
-      opensslCli = false;
-    }
-    return opensslCli;
   },
 
   get PORT() {
