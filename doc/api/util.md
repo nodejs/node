@@ -1972,7 +1972,7 @@ const errorMessage = styleText(
   // Validate if process.stderr has TTY
   { stream: stderr },
 );
-console.error(successMessage);
+console.error(errorMessage);
 ```
 
 ```cjs
