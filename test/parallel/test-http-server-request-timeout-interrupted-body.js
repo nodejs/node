@@ -57,12 +57,13 @@ server.listen(0, common.mustCall(() => {
   client.on('end', errOrEnd);
 
   client.resume();
-  client.write('POST / HTTP/1.1\r\n');
-  client.write('Host: example.com\r\n');
-  client.write('Content-Length: 20\r\n');
-  client.write('Connection: close\r\n');
-  client.write('\r\n');
-  client.write('1234567890');
+  client.write(
+    'POST / HTTP/1.1\r\n' +
+    'Host: example.com\r\n' +
+    'Content-Length: 20\r\n' +
+    'Connection: close\r\n\r\n' +
+    '1234567890'
+  );
 
   sendDelayedRequestBody = common.mustCall(() => {
     setTimeout(() => {

@@ -50,9 +50,11 @@ server.listen(0, common.mustCall(() => {
   client.on('error', errOrEnd);
 
   client.resume();
-  client.write('GET / HTTP/1.1\r\n');
-  client.write('Connection: close\r\n');
-  client.write('X-CRASH: ');
+  client.write(
+    'GET / HTTP/1.1\r\n' +
+    'Connection: close\r\n' +
+    'X-CRASH: '
+  );
 
   sendDelayedRequestHeaders = common.mustCall(() => {
     setTimeout(() => {

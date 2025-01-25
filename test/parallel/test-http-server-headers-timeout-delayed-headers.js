@@ -53,10 +53,12 @@ server.listen(0, common.mustCall(() => {
 
   sendDelayedRequestHeaders = common.mustCall(() => {
     setTimeout(() => {
-      client.write('POST / HTTP/1.1\r\n');
-      client.write('Content-Length: 20\r\n');
-      client.write('Connection: close\r\n\r\n');
-      client.write('12345678901234567890\r\n\r\n');
+      client.write(
+        'POST / HTTP/1.1\r\n' +
+        'Content-Length: 20\r\n' +
+        'Connection: close\r\n\r\n' +
+        '12345678901234567890\r\n\r\n'
+      );
     }, common.platformTimeout(headersTimeout * 2)).unref();
   });
 }));
