@@ -915,6 +915,18 @@ BIOPointer X509View::toDER() const {
   return bio;
 }
 
+const X509Name X509View::getSubjectName() const {
+  ClearErrorOnReturn clearErrorOnReturn;
+  if (cert_ == nullptr) return {};
+  return X509Name(X509_get_subject_name(cert_));
+}
+
+const X509Name X509View::getIssuerName() const {
+  ClearErrorOnReturn clearErrorOnReturn;
+  if (cert_ == nullptr) return {};
+  return X509Name(X509_get_issuer_name(cert_));
+}
+
 BIOPointer X509View::getSubject() const {
   ClearErrorOnReturn clearErrorOnReturn;
   if (cert_ == nullptr) return {};
@@ -3829,6 +3841,65 @@ DataPointer hashDigest(const Buffer<const unsigned char>& buf,
   }
 
   return data.resize(result_size);
+}
+
+// ============================================================================
+
+X509Name::X509Name() : name_(nullptr), total_(0) {}
+
+X509Name::X509Name(const X509_NAME* name)
+    : name_(name), total_(X509_NAME_entry_count(name)) {}
+
+X509Name::Iterator::Iterator(const X509Name& name, int pos)
+    : name_(name), loc_(pos) {}
+
+X509Name::Iterator& X509Name::Iterator::operator++() {
+  ++loc_;
+  return *this;
+}
+
+X509Name::Iterator::operator bool() const {
+  return loc_ < name_.total_;
+}
+
+bool X509Name::Iterator::operator==(const Iterator& other) const {
+  return loc_ == other.loc_;
+}
+
+bool X509Name::Iterator::operator!=(const Iterator& other) const {
+  return loc_ != other.loc_;
+}
+
+std::pair<std::string, std::string> X509Name::Iterator::operator*() const {
+  if (loc_ == name_.total_) return {{}, {}};
+
+  X509_NAME_ENTRY* entry = X509_NAME_get_entry(name_, loc_);
+  if (entry == nullptr) [[unlikely]]
+    return {{}, {}};
+
+  ASN1_OBJECT* name = X509_NAME_ENTRY_get_object(entry);
+  ASN1_STRING* value = X509_NAME_ENTRY_get_data(entry);
+
+  if (name == nullptr || value == nullptr) [[unlikely]] {
+    return {{}, {}};
+  }
+
+  int nid = OBJ_obj2nid(name);
+  std::string name_str;
+  if (nid != NID_undef) {
+    name_str = std::string(OBJ_nid2sn(nid));
+  } else {
+    char buf[80];
+    OBJ_obj2txt(buf, sizeof(buf), name, 0);
+    name_str = std::string(buf);
+  }
+
+  unsigned char* value_str;
+  int value_str_size = ASN1_STRING_to_UTF8(&value_str, value);
+
+  return {
+      std::move(name_str),
+      std::string(reinterpret_cast<const char*>(value_str), value_str_size)};
 }
 
 }  // namespace ncrypto

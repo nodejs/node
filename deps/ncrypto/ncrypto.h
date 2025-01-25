@@ -934,6 +934,43 @@ class SSLPointer final {
   DeleteFnPtr<SSL, SSL_free> ssl_;
 };
 
+class X509Name final {
+ public:
+  X509Name();
+  explicit X509Name(const X509_NAME* name);
+  NCRYPTO_DISALLOW_COPY_AND_MOVE(X509Name)
+
+  inline operator const X509_NAME*() const { return name_; }
+  inline operator bool() const { return name_ != nullptr; }
+  inline const X509_NAME* get() const { return name_; }
+  inline size_t size() const { return total_; }
+
+  class Iterator final {
+   public:
+    Iterator(const X509Name& name, int pos);
+    Iterator(const Iterator& other) = default;
+    Iterator(Iterator&& other) = default;
+    Iterator& operator=(const Iterator& other) = delete;
+    Iterator& operator=(Iterator&& other) = delete;
+    Iterator& operator++();
+    operator bool() const;
+    bool operator==(const Iterator& other) const;
+    bool operator!=(const Iterator& other) const;
+    std::pair<std::string, std::string> operator*() const;
+
+   private:
+    const X509Name& name_;
+    int loc_;
+  };
+
+  inline Iterator begin() const { return Iterator(*this, 0); }
+  inline Iterator end() const { return Iterator(*this, total_); }
+
+ private:
+  const X509_NAME* name_;
+  int total_;
+};
+
 class X509View final {
  public:
   static X509View From(const SSLPointer& ssl);
@@ -955,6 +992,8 @@ class X509View final {
   BIOPointer toPEM() const;
   BIOPointer toDER() const;
 
+  const X509Name getSubjectName() const;
+  const X509Name getIssuerName() const;
   BIOPointer getSubject() const;
   BIOPointer getSubjectAltName() const;
   BIOPointer getIssuer() const;
