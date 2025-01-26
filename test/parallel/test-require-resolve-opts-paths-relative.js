@@ -3,8 +3,9 @@
 const common = require('../common');
 const assert = require('assert');
 const fixtures = require('../common/fixtures');
+const { isMainThread } = require('worker_threads');
 
-if (!common.isMainThread)
+if (!isMainThread)
   common.skip('process.chdir is not available in Workers');
 
 const subdir = fixtures.path('module-require', 'relative', 'subdir');
