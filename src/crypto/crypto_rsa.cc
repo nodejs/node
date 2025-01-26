@@ -318,9 +318,9 @@ WebCryptoCipherStatus RSACipherTraits::DoCipher(Environment* env,
   return WebCryptoCipherStatus::FAILED;
 }
 
-Maybe<void> ExportJWKRsaKey(Environment* env,
-                            const KeyObjectData& key,
-                            Local<Object> target) {
+bool ExportJWKRsaKey(Environment* env,
+                     const KeyObjectData& key,
+                     Local<Object> target) {
   Mutex::ScopedLock lock(key.mutex());
   const auto& m_pkey = key.GetAsymmetricKey();
 
@@ -328,7 +328,7 @@ Maybe<void> ExportJWKRsaKey(Environment* env,
   if (!rsa ||
       target->Set(env->context(), env->jwk_kty_string(), env->jwk_rsa_string())
           .IsNothing()) {
-    return Nothing<void>();
+    return false;
   }
 
   auto pub_key = rsa.getPublicKey();
@@ -337,7 +337,7 @@ Maybe<void> ExportJWKRsaKey(Environment* env,
           .IsNothing() ||
       SetEncodedValue(env, target, env->jwk_e_string(), pub_key.e)
           .IsNothing()) {
-    return Nothing<void>();
+    return false;
   }
 
   if (key.GetKeyType() == kKeyTypePrivate) {
@@ -354,11 +354,11 @@ Maybe<void> ExportJWKRsaKey(Environment* env,
             .IsNothing() ||
         SetEncodedValue(env, target, env->jwk_qi_string(), pvt_key.qi)
             .IsNothing()) {
-      return Nothing<void>();
+      return false;
     }
   }
 
-  return JustVoid();
+  return true;
 }
 
 KeyObjectData ImportJWKRsaKey(Environment* env,
@@ -441,16 +441,16 @@ KeyObjectData ImportJWKRsaKey(Environment* env,
   return KeyObjectData::CreateAsymmetric(type, std::move(pkey));
 }
 
-Maybe<void> GetRsaKeyDetail(Environment* env,
-                            const KeyObjectData& key,
-                            Local<Object> target) {
+bool GetRsaKeyDetail(Environment* env,
+                     const KeyObjectData& key,
+                     Local<Object> target) {
   Mutex::ScopedLock lock(key.mutex());
   const auto& m_pkey = key.GetAsymmetricKey();
 
   // TODO(tniessen): Remove the "else" branch once we drop support for OpenSSL
   // versions older than 1.1.1e via FIPS / dynamic linking.
   const ncrypto::Rsa rsa = m_pkey;
-  if (!rsa) return Nothing<void>();
+  if (!rsa) return false;
 
   auto pub_key = rsa.getPublicKey();
 
@@ -461,7 +461,7 @@ Maybe<void> GetRsaKeyDetail(Environment* env,
                     env->isolate(),
                     static_cast<double>(BignumPointer::GetBitCount(pub_key.n))))
           .IsNothing()) {
-    return Nothing<void>();
+    return false;
   }
 
   auto public_exponent = ArrayBuffer::NewBackingStore(
@@ -479,7 +479,7 @@ Maybe<void> GetRsaKeyDetail(Environment* env,
                 env->public_exponent_string(),
                 ArrayBuffer::New(env->isolate(), std::move(public_exponent)))
           .IsNothing()) {
-    return Nothing<void>();
+    return false;
   }
 
   if (m_pkey.id() == EVP_PKEY_RSA_PSS) {
@@ -500,7 +500,7 @@ Maybe<void> GetRsaKeyDetail(Environment* env,
                     env->hash_algorithm_string(),
                     OneByteString(env->isolate(), params.digest))
               .IsNothing()) {
-        return Nothing<void>();
+        return false;
       }
 
       // If, for some reason, the MGF is not MGF1, then the MGF1 hash function
@@ -512,7 +512,7 @@ Maybe<void> GetRsaKeyDetail(Environment* env,
                       env->mgf1_hash_algorithm_string(),
                       OneByteString(env->isolate(), digest))
                 .IsNothing()) {
-          return Nothing<void>();
+          return false;
         }
       }
 
@@ -521,12 +521,12 @@ Maybe<void> GetRsaKeyDetail(Environment* env,
                     env->salt_length_string(),
                     Integer::New(env->isolate(), params.salt_length))
               .IsNothing()) {
-        return Nothing<void>();
+        return false;
       }
     }
   }
 
-  return JustVoid();
+  return true;
 }
 
 namespace RSAAlg {

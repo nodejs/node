@@ -2402,6 +2402,15 @@ EVPKeyPointer::operator Rsa() const {
   return Rsa(rsa);
 }
 
+EVPKeyPointer::operator Dsa() const {
+  int type = id();
+  if (type != EVP_PKEY_DSA) return {};
+
+  OSSL3_CONST DSA* dsa = EVP_PKEY_get0_DSA(get());
+  if (dsa == nullptr) return {};
+  return Dsa(dsa);
+}
+
 bool EVPKeyPointer::validateDsaParameters() const {
   if (!pkey_) return false;
     /* Validate DSA2 parameters from FIPS 186-4 */
@@ -2660,8 +2669,8 @@ bool SSLCtxPointer::setGroups(const char* groups) {
 
 // ============================================================================
 
-const Cipher Cipher::FromName(const char* name) {
-  return Cipher(EVP_get_cipherbyname(name));
+const Cipher Cipher::FromName(std::string_view name) {
+  return Cipher(EVP_get_cipherbyname(name.data()));
 }
 
 const Cipher Cipher::FromNid(int nid) {
@@ -3900,6 +3909,36 @@ std::pair<std::string, std::string> X509Name::Iterator::operator*() const {
   return {
       std::move(name_str),
       std::string(reinterpret_cast<const char*>(value_str), value_str_size)};
+}
+
+// ============================================================================
+
+Dsa::Dsa() : dsa_(nullptr) {}
+
+Dsa::Dsa(OSSL3_CONST DSA* dsa) : dsa_(dsa) {}
+
+const BIGNUM* Dsa::getP() const {
+  if (dsa_ == nullptr) return nullptr;
+  const BIGNUM* p;
+  DSA_get0_pqg(dsa_, &p, nullptr, nullptr);
+  return p;
+}
+
+const BIGNUM* Dsa::getQ() const {
+  if (dsa_ == nullptr) return nullptr;
+  const BIGNUM* q;
+  DSA_get0_pqg(dsa_, nullptr, &q, nullptr);
+  return q;
+}
+
+size_t Dsa::getModulusLength() const {
+  if (dsa_ == nullptr) return 0;
+  return BignumPointer::GetBitCount(getP());
+}
+
+size_t Dsa::getDivisorLength() const {
+  if (dsa_ == nullptr) return 0;
+  return BignumPointer::GetBitCount(getQ());
 }
 
 }  // namespace ncrypto

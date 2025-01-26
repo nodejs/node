@@ -141,22 +141,22 @@ struct ECKeyExportTraits final {
 
 using ECKeyExportJob = KeyExportJob<ECKeyExportTraits>;
 
-v8::Maybe<void> ExportJWKEcKey(Environment* env,
-                               const KeyObjectData& key,
-                               v8::Local<v8::Object> target);
+bool ExportJWKEcKey(Environment* env,
+                    const KeyObjectData& key,
+                    v8::Local<v8::Object> target);
 
-v8::Maybe<void> ExportJWKEdKey(Environment* env,
-                               const KeyObjectData& key,
-                               v8::Local<v8::Object> target);
+bool ExportJWKEdKey(Environment* env,
+                    const KeyObjectData& key,
+                    v8::Local<v8::Object> target);
 
 KeyObjectData ImportJWKEcKey(Environment* env,
                              v8::Local<v8::Object> jwk,
                              const v8::FunctionCallbackInfo<v8::Value>& args,
                              unsigned int offset);
 
-v8::Maybe<void> GetEcKeyDetail(Environment* env,
-                               const KeyObjectData& key,
-                               v8::Local<v8::Object> target);
+bool GetEcKeyDetail(Environment* env,
+                    const KeyObjectData& key,
+                    v8::Local<v8::Object> target);
 }  // namespace crypto
 }  // namespace node
 

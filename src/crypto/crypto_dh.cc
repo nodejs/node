@@ -524,11 +524,11 @@ bool DHBitsTraits::DeriveBits(
   return true;
 }
 
-Maybe<void> GetDhKeyDetail(Environment* env,
-                           const KeyObjectData& key,
-                           Local<Object> target) {
+bool GetDhKeyDetail(Environment* env,
+                    const KeyObjectData& key,
+                    Local<Object> target) {
   CHECK_EQ(key.GetAsymmetricKey().id(), EVP_PKEY_DH);
-  return JustVoid();
+  return true;
 }
 
 void DiffieHellman::Initialize(Environment* env, Local<Object> target) {

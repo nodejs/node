@@ -221,6 +221,7 @@ class ECDSASigPointer;
 class ECGroupPointer;
 class ECPointPointer;
 class ECKeyPointer;
+class Dsa;
 class Rsa;
 class Ec;
 
@@ -267,7 +268,7 @@ class Cipher final {
 
   bool isSupportedAuthenticatedMode() const;
 
-  static const Cipher FromName(const char* name);
+  static const Cipher FromName(std::string_view name);
   static const Cipher FromNid(int nid);
   static const Cipher FromCtx(const CipherCtxPointer& ctx);
 
@@ -292,8 +293,33 @@ class Cipher final {
                              const CipherParams& params,
                              const Buffer<const void> in);
 
+  static constexpr bool IsValidGCMTagLength(unsigned int tag_len) {
+    return tag_len == 4 || tag_len == 8 || (tag_len >= 12 && tag_len <= 16);
+  }
+
  private:
   const EVP_CIPHER* cipher_ = nullptr;
+};
+
+// ============================================================================
+// DSA
+
+class Dsa final {
+ public:
+  Dsa();
+  Dsa(OSSL3_CONST DSA* dsa);
+  NCRYPTO_DISALLOW_COPY_AND_MOVE(Dsa)
+
+  inline operator bool() const { return dsa_ != nullptr; }
+  inline operator OSSL3_CONST DSA*() const { return dsa_; }
+
+  const BIGNUM* getP() const;
+  const BIGNUM* getQ() const;
+  size_t getModulusLength() const;
+  size_t getDivisorLength() const;
+
+ private:
+  OSSL3_CONST DSA* dsa_;
 };
 
 // ============================================================================
@@ -767,6 +793,7 @@ class EVPKeyPointer final {
   std::optional<uint32_t> getBytesOfRS() const;
   int getDefaultSignPadding() const;
   operator Rsa() const;
+  operator Dsa() const;
 
   bool isRsaVariant() const;
   bool isOneShotVariant() const;

@@ -14,14 +14,13 @@
 
 namespace node {
 
-using ncrypto::BignumPointer;
+using ncrypto::Dsa;
 using ncrypto::EVPKeyCtxPointer;
 using v8::FunctionCallbackInfo;
 using v8::Int32;
 using v8::JustVoid;
 using v8::Local;
 using v8::Maybe;
-using v8::Nothing;
 using v8::Number;
 using v8::Object;
 using v8::Uint32;
@@ -106,41 +105,28 @@ WebCryptoKeyExportStatus DSAKeyExportTraits::DoExport(
   }
 }
 
-Maybe<void> GetDsaKeyDetail(Environment* env,
-                            const KeyObjectData& key,
-                            Local<Object> target) {
-  const BIGNUM* p;  // Modulus length
-  const BIGNUM* q;  // Divisor length
+bool GetDsaKeyDetail(Environment* env,
+                     const KeyObjectData& key,
+                     Local<Object> target) {
+  if (!key) return false;
+  Dsa dsa = key.GetAsymmetricKey();
+  if (!dsa) return false;
 
-  Mutex::ScopedLock lock(key.mutex());
-  const auto& m_pkey = key.GetAsymmetricKey();
-  int type = m_pkey.id();
-  CHECK(type == EVP_PKEY_DSA);
+  size_t modulus_length = dsa.getModulusLength();
+  size_t divisor_length = dsa.getDivisorLength();
 
-  const DSA* dsa = EVP_PKEY_get0_DSA(m_pkey.get());
-  CHECK_NOT_NULL(dsa);
-
-  DSA_get0_pqg(dsa, &p, &q, nullptr);
-
-  size_t modulus_length = BignumPointer::GetBitCount(p);
-  size_t divisor_length = BignumPointer::GetBitCount(q);
-
-  if (target
-          ->Set(
-              env->context(),
-              env->modulus_length_string(),
-              Number::New(env->isolate(), static_cast<double>(modulus_length)))
-          .IsNothing() ||
-      target
-          ->Set(
-              env->context(),
-              env->divisor_length_string(),
-              Number::New(env->isolate(), static_cast<double>(divisor_length)))
-          .IsNothing()) {
-    return Nothing<void>();
-  }
-
-  return JustVoid();
+  return target
+             ->Set(env->context(),
+                   env->modulus_length_string(),
+                   Number::New(env->isolate(),
+                               static_cast<double>(modulus_length)))
+             .IsJust() &&
+         target
+             ->Set(env->context(),
+                   env->divisor_length_string(),
+                   Number::New(env->isolate(),
+                               static_cast<double>(divisor_length)))
+             .IsJust();
 }
 
 namespace DSAAlg {

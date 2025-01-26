@@ -697,9 +697,9 @@ WebCryptoKeyExportStatus ECKeyExportTraits::DoExport(
   }
 }
 
-Maybe<void> ExportJWKEcKey(Environment* env,
-                           const KeyObjectData& key,
-                           Local<Object> target) {
+bool ExportJWKEcKey(Environment* env,
+                    const KeyObjectData& key,
+                    Local<Object> target) {
   Mutex::ScopedLock lock(key.mutex());
   const auto& m_pkey = key.GetAsymmetricKey();
   CHECK_EQ(m_pkey.id(), EVP_PKEY_EC);
@@ -720,14 +720,14 @@ Maybe<void> ExportJWKEcKey(Environment* env,
   if (!EC_POINT_get_affine_coordinates(group, pub, x.get(), y.get(), nullptr)) {
     ThrowCryptoError(env, ERR_get_error(),
                      "Failed to get elliptic-curve point coordinates");
-    return Nothing<void>();
+    return false;
   }
 
   if (target->Set(
           env->context(),
           env->jwk_kty_string(),
           env->jwk_ec_string()).IsNothing()) {
-    return Nothing<void>();
+    return false;
   }
 
   if (SetEncodedValue(
@@ -742,7 +742,7 @@ Maybe<void> ExportJWKEcKey(Environment* env,
           env->jwk_y_string(),
           y.get(),
           degree_bytes).IsNothing()) {
-    return Nothing<void>();
+    return false;
   }
 
   Local<String> crv_name;
@@ -763,27 +763,28 @@ Maybe<void> ExportJWKEcKey(Environment* env,
     default: {
       THROW_ERR_CRYPTO_JWK_UNSUPPORTED_CURVE(
           env, "Unsupported JWK EC curve: %s.", OBJ_nid2sn(nid));
-      return Nothing<void>();
+      return false;
     }
   }
   if (target->Set(
       env->context(),
       env->jwk_crv_string(),
       crv_name).IsNothing()) {
-    return Nothing<void>();
+    return false;
   }
 
   if (key.GetKeyType() == kKeyTypePrivate) {
     auto pvt = ECKeyPointer::GetPrivateKey(ec);
-    return SetEncodedValue(env, target, env->jwk_d_string(), pvt, degree_bytes);
+    return SetEncodedValue(env, target, env->jwk_d_string(), pvt, degree_bytes)
+        .IsJust();
   }
 
-  return JustVoid();
+  return true;
 }
 
-Maybe<void> ExportJWKEdKey(Environment* env,
-                           const KeyObjectData& key,
-                           Local<Object> target) {
+bool ExportJWKEdKey(Environment* env,
+                    const KeyObjectData& key,
+                    Local<Object> target) {
   Mutex::ScopedLock lock(key.mutex());
   const auto& pkey = key.GetAsymmetricKey();
 
@@ -820,7 +821,8 @@ Maybe<void> ExportJWKEdKey(Environment* env,
     return true;
   };
 
-  if (target
+  return !(
+      target
           ->Set(env->context(),
                 env->jwk_crv_string(),
                 OneByteString(env->isolate(), curve))
@@ -829,11 +831,7 @@ Maybe<void> ExportJWKEdKey(Environment* env,
        !trySetKey(env, pkey.rawPrivateKey(), target, env->jwk_d_string())) ||
       !trySetKey(env, pkey.rawPublicKey(), target, env->jwk_x_string()) ||
       target->Set(env->context(), env->jwk_kty_string(), env->jwk_okp_string())
-          .IsNothing()) {
-    return Nothing<void>();
-  }
-
-  return JustVoid();
+          .IsNothing());
 }
 
 KeyObjectData ImportJWKEcKey(Environment* env,
@@ -897,9 +895,9 @@ KeyObjectData ImportJWKEcKey(Environment* env,
   return KeyObjectData::CreateAsymmetric(type, std::move(pkey));
 }
 
-Maybe<void> GetEcKeyDetail(Environment* env,
-                           const KeyObjectData& key,
-                           Local<Object> target) {
+bool GetEcKeyDetail(Environment* env,
+                    const KeyObjectData& key,
+                    Local<Object> target) {
   Mutex::ScopedLock lock(key.mutex());
   const auto& m_pkey = key.GetAsymmetricKey();
   CHECK_EQ(m_pkey.id(), EVP_PKEY_EC);
@@ -910,14 +908,11 @@ Maybe<void> GetEcKeyDetail(Environment* env,
   const auto group = ECKeyPointer::GetGroup(ec);
   int nid = EC_GROUP_get_curve_name(group);
 
-  if (target
-          ->Set(env->context(),
-                env->named_curve_string(),
-                OneByteString(env->isolate(), OBJ_nid2sn(nid)))
-          .IsNothing()) {
-    return Nothing<void>();
-  }
-  return JustVoid();
+  return target
+      ->Set(env->context(),
+            env->named_curve_string(),
+            OneByteString(env->isolate(), OBJ_nid2sn(nid)))
+      .IsJust();
 }
 
 // WebCrypto requires a different format for ECDSA signatures than

@@ -32,7 +32,6 @@ using v8::FunctionTemplate;
 using v8::Int32;
 using v8::Isolate;
 using v8::Just;
-using v8::JustVoid;
 using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
@@ -82,10 +81,11 @@ Maybe<EVPKeyPointer::AsymmetricKeyEncodingConfig> GetKeyFormatAndTypeFromJs(
   return Just(config);
 }
 
-MaybeLocal<Value> BIOToStringOrBuffer(
+MaybeLocal<Value> ToV8Value(
     Environment* env,
     const BIOPointer& bio,
     const EVPKeyPointer::AsymmetricKeyEncodingConfig& config) {
+  if (!bio) return {};
   BUF_MEM* bptr = bio;
   if (config.format == EVPKeyPointer::PKFormatType::PEM) {
     // PEM is an ASCII format, so we will return it as a string.
@@ -103,11 +103,9 @@ MaybeLocal<Value> WritePrivateKey(
     Environment* env,
     const EVPKeyPointer& pkey,
     const EVPKeyPointer::PrivateKeyEncodingConfig& config) {
-  CHECK(pkey);
+  if (!pkey) return {};
   auto res = pkey.writePrivateKey(config);
-  if (res) {
-    return BIOToStringOrBuffer(env, std::move(res.value), config);
-  }
+  if (res) return ToV8Value(env, std::move(res.value), config);
 
   ThrowCryptoError(
       env, res.openssl_error.value_or(0), "Failed to encode private key");
@@ -118,47 +116,37 @@ MaybeLocal<Value> WritePublicKey(
     Environment* env,
     const EVPKeyPointer& pkey,
     const EVPKeyPointer::PublicKeyEncodingConfig& config) {
-  CHECK(pkey);
+  if (!pkey) return {};
   auto res = pkey.writePublicKey(config);
-  if (res) {
-    return BIOToStringOrBuffer(env, res.value, config);
-  }
+  if (res) return ToV8Value(env, res.value, config);
 
   ThrowCryptoError(
       env, res.openssl_error.value_or(0), "Failed to encode public key");
   return MaybeLocal<Value>();
 }
 
-Maybe<void> ExportJWKSecretKey(Environment* env,
-                               const KeyObjectData& key,
-                               Local<Object> target) {
+bool ExportJWKSecretKey(Environment* env,
+                        const KeyObjectData& key,
+                        Local<Object> target) {
   CHECK_EQ(key.GetKeyType(), kKeyTypeSecret);
 
   Local<Value> error;
   Local<Value> raw;
-  MaybeLocal<Value> key_data = StringBytes::Encode(env->isolate(),
-                                                   key.GetSymmetricKey(),
-                                                   key.GetSymmetricKeySize(),
-                                                   BASE64URL,
-                                                   &error);
-  if (!key_data.ToLocal(&raw)) {
-    CHECK(!error.IsEmpty());
+  if (!StringBytes::Encode(env->isolate(),
+                           key.GetSymmetricKey(),
+                           key.GetSymmetricKeySize(),
+                           BASE64URL,
+                           &error)
+           .ToLocal(&raw)) {
+    DCHECK(!error.IsEmpty());
     env->isolate()->ThrowException(error);
-    return Nothing<void>();
+    return false;
   }
 
-  if (target->Set(
-          env->context(),
-          env->jwk_kty_string(),
-          env->jwk_oct_string()).IsNothing() ||
-      target->Set(
-          env->context(),
-          env->jwk_k_string(),
-          raw).IsNothing()) {
-    return Nothing<void>();
-  }
-
-  return JustVoid();
+  return target
+             ->Set(env->context(), env->jwk_kty_string(), env->jwk_oct_string())
+             .IsJust() &&
+         target->Set(env->context(), env->jwk_k_string(), raw).IsJust();
 }
 
 KeyObjectData ImportJWKSecretKey(Environment* env, Local<Object> jwk) {
@@ -174,10 +162,10 @@ KeyObjectData ImportJWKSecretKey(Environment* env, Local<Object> jwk) {
       ByteSource::FromEncodedString(env, key.As<String>()));
 }
 
-Maybe<void> ExportJWKAsymmetricKey(Environment* env,
-                                   const KeyObjectData& key,
-                                   Local<Object> target,
-                                   bool handleRsaPss) {
+bool ExportJWKAsymmetricKey(Environment* env,
+                            const KeyObjectData& key,
+                            Local<Object> target,
+                            bool handleRsaPss) {
   switch (key.GetAsymmetricKey().id()) {
     case EVP_PKEY_RSA_PSS: {
       if (handleRsaPss) return ExportJWKRsaKey(env, key, target);
@@ -197,7 +185,7 @@ Maybe<void> ExportJWKAsymmetricKey(Environment* env,
       return ExportJWKEdKey(env, key, target);
   }
   THROW_ERR_CRYPTO_JWK_UNSUPPORTED_KEY_TYPE(env);
-  return Nothing<void>();
+  return false;
 }
 
 KeyObjectData ImportJWKAsymmetricKey(Environment* env,
@@ -216,27 +204,31 @@ KeyObjectData ImportJWKAsymmetricKey(Environment* env,
   return {};
 }
 
-Maybe<void> GetSecretKeyDetail(Environment* env,
-                               const KeyObjectData& key,
-                               Local<Object> target) {
+bool GetSecretKeyDetail(Environment* env,
+                        const KeyObjectData& key,
+                        Local<Object> target) {
   // For the secret key detail, all we care about is the length,
   // converted to bits.
-  size_t length = key.GetSymmetricKeySize() * CHAR_BIT;
-  if (target
-          ->Set(env->context(),
-                env->length_string(),
-                Number::New(env->isolate(), static_cast<double>(length)))
-          .IsNothing()) {
-    return Nothing<void>();
-  }
-  return JustVoid();
+  return target
+      ->Set(env->context(),
+            env->length_string(),
+            Number::New(
+                env->isolate(),
+                static_cast<double>(key.GetSymmetricKeySize() * CHAR_BIT)))
+      .IsJust();
 }
 
-Maybe<void> GetAsymmetricKeyDetail(Environment* env,
-                                   const KeyObjectData& key,
-                                   Local<Object> target) {
+bool GetAsymmetricKeyDetail(Environment* env,
+                            const KeyObjectData& key,
+                            Local<Object> target) {
+  if (!key) {
+    THROW_ERR_CRYPTO_OPERATION_FAILED(env);
+    return false;
+  }
   switch (key.GetAsymmetricKey().id()) {
     case EVP_PKEY_RSA:
+      // Fall through
+    case EVP_PKEY_RSA2:
       // Fall through
     case EVP_PKEY_RSA_PSS: return GetRsaKeyDetail(env, key, target);
     case EVP_PKEY_DSA: return GetDsaKeyDetail(env, key, target);
@@ -244,7 +236,7 @@ Maybe<void> GetAsymmetricKeyDetail(Environment* env,
     case EVP_PKEY_DH: return GetDhKeyDetail(env, key, target);
   }
   THROW_ERR_CRYPTO_INVALID_KEYTYPE(env);
-  return Nothing<void>();
+  return false;
 }
 
 KeyObjectData TryParsePrivateKey(
@@ -266,30 +258,34 @@ KeyObjectData TryParsePrivateKey(
   return {};
 }
 
-// This maps true to JustVoid and false to Nothing<void>().
-static inline Maybe<void> NothingIfFalse(bool b) {
-  return b ? JustVoid() : Nothing<void>();
+bool ExportJWKInner(Environment* env,
+                    const KeyObjectData& key,
+                    Local<Value> result,
+                    bool handleRsaPss) {
+  return key.GetKeyType() == kKeyTypeSecret
+             ? ExportJWKSecretKey(env, key, result.As<Object>())
+             : ExportJWKAsymmetricKey(
+                   env, key, result.As<Object>(), handleRsaPss);
 }
 
-Maybe<void> ExportJWKInner(Environment* env,
-                           const KeyObjectData& key,
-                           Local<Value> result,
-                           bool handleRsaPss) {
-  switch (key.GetKeyType()) {
-    case kKeyTypeSecret:
-      return ExportJWKSecretKey(env, key, result.As<Object>());
-    case kKeyTypePublic:
-      // Fall through
-    case kKeyTypePrivate:
-      return ExportJWKAsymmetricKey(
-        env, key, result.As<Object>(), handleRsaPss);
-    default:
-      UNREACHABLE();
+int GetOKPCurveFromName(const char* name) {
+  int nid;
+  if (strcmp(name, "Ed25519") == 0) {
+    nid = EVP_PKEY_ED25519;
+  } else if (strcmp(name, "Ed448") == 0) {
+    nid = EVP_PKEY_ED448;
+  } else if (strcmp(name, "X25519") == 0) {
+    nid = EVP_PKEY_X25519;
+  } else if (strcmp(name, "X448") == 0) {
+    nid = EVP_PKEY_X448;
+  } else {
+    nid = NID_undef;
   }
+  return nid;
 }
 }  // namespace
 
-Maybe<void> KeyObjectData::ToEncodedPublicKey(
+bool KeyObjectData::ToEncodedPublicKey(
     Environment* env,
     const EVPKeyPointer::PublicKeyEncodingConfig& config,
     Local<Value>* out) {
@@ -297,36 +293,33 @@ Maybe<void> KeyObjectData::ToEncodedPublicKey(
   if (config.output_key_object) {
     // Note that this has the downside of containing sensitive data of the
     // private key.
-    return NothingIfFalse(
-        KeyObjectHandle::Create(env, addRefWithType(KeyType::kKeyTypePublic))
-            .ToLocal(out));
+    return KeyObjectHandle::Create(env, addRefWithType(KeyType::kKeyTypePublic))
+        .ToLocal(out);
   } else if (config.format == EVPKeyPointer::PKFormatType::JWK) {
     *out = Object::New(env->isolate());
     return ExportJWKInner(
         env, addRefWithType(KeyType::kKeyTypePublic), *out, false);
   }
 
-  return NothingIfFalse(
-      WritePublicKey(env, GetAsymmetricKey(), config).ToLocal(out));
+  return WritePublicKey(env, GetAsymmetricKey(), config).ToLocal(out);
 }
 
-Maybe<void> KeyObjectData::ToEncodedPrivateKey(
+bool KeyObjectData::ToEncodedPrivateKey(
     Environment* env,
     const EVPKeyPointer::PrivateKeyEncodingConfig& config,
     Local<Value>* out) {
   CHECK(key_type_ != KeyType::kKeyTypeSecret);
   if (config.output_key_object) {
-    return NothingIfFalse(
-        KeyObjectHandle::Create(env, addRefWithType(KeyType::kKeyTypePrivate))
-            .ToLocal(out));
+    return KeyObjectHandle::Create(env,
+                                   addRefWithType(KeyType::kKeyTypePrivate))
+        .ToLocal(out);
   } else if (config.format == EVPKeyPointer::PKFormatType::JWK) {
     *out = Object::New(env->isolate());
     return ExportJWKInner(
         env, addRefWithType(KeyType::kKeyTypePrivate), *out, false);
   }
 
-  return NothingIfFalse(
-      WritePrivateKey(env, GetAsymmetricKey(), config).ToLocal(out));
+  return WritePrivateKey(env, GetAsymmetricKey(), config).ToLocal(out);
 }
 
 Maybe<EVPKeyPointer::PrivateKeyEncodingConfig>
@@ -502,6 +495,7 @@ KeyObjectData KeyObjectData::GetParsedKey(KeyType type,
                                           EVPKeyPointer&& pkey,
                                           ParseKeyResult ret,
                                           const char* default_msg) {
+  MarkPopErrorOnReturn mark_pop_error_on_return;
   switch (ret) {
     case ParseKeyResult::kParseKeyOk: {
       return CreateAsymmetric(type, std::move(pkey));
@@ -512,7 +506,7 @@ KeyObjectData KeyObjectData::GetParsedKey(KeyType type,
       return {};
     }
     default: {
-      ThrowCryptoError(env, ERR_get_error(), default_msg);
+      ThrowCryptoError(env, mark_pop_error_on_return.peekError(), default_msg);
       return {};
     }
   }
@@ -593,12 +587,12 @@ size_t KeyObjectData::GetSymmetricKeySize() const {
 }
 
 bool KeyObjectHandle::HasInstance(Environment* env, Local<Value> value) {
-  Local<FunctionTemplate> t = env->crypto_key_object_handle_constructor();
+  auto t = env->crypto_key_object_handle_constructor();
   return !t.IsEmpty() && t->HasInstance(value);
 }
 
 Local<Function> KeyObjectHandle::Initialize(Environment* env) {
-  Local<FunctionTemplate> templ = env->crypto_key_object_handle_constructor();
+  auto templ = env->crypto_key_object_handle_constructor();
   if (templ.IsEmpty()) {
     Isolate* isolate = env->isolate();
     templ = NewFunctionTemplate(isolate, New);
@@ -646,8 +640,9 @@ MaybeLocal<Object> KeyObjectHandle::Create(Environment* env,
   Local<Object> obj;
   Local<Function> ctor = KeyObjectHandle::Initialize(env);
   CHECK(!env->crypto_key_object_handle_constructor().IsEmpty());
-  if (!ctor->NewInstance(env->context(), 0, nullptr).ToLocal(&obj))
-    return MaybeLocal<Object>();
+  if (!ctor->NewInstance(env->context(), 0, nullptr).ToLocal(&obj)) {
+    return {};
+  }
 
   KeyObjectHandle* key = Unwrap<KeyObjectHandle>(obj);
   CHECK_NOT_NULL(key);
@@ -783,22 +778,6 @@ void KeyObjectHandle::InitECRaw(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(true);
 }
 
-int GetOKPCurveFromName(const char* name) {
-  int nid;
-  if (strcmp(name, "Ed25519") == 0) {
-    nid = EVP_PKEY_ED25519;
-  } else if (strcmp(name, "Ed448") == 0) {
-    nid = EVP_PKEY_ED448;
-  } else if (strcmp(name, "X25519") == 0) {
-    nid = EVP_PKEY_X25519;
-  } else if (strcmp(name, "X448") == 0) {
-    nid = EVP_PKEY_X448;
-  } else {
-    nid = NID_undef;
-  }
-  return nid;
-}
-
 void KeyObjectHandle::InitEDRaw(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   KeyObjectHandle* key;
@@ -867,6 +846,7 @@ void KeyObjectHandle::Equals(const FunctionCallbackInfo<Value>& args) {
       break;
     }
     case kKeyTypePublic:
+      // Fall through
     case kKeyTypePrivate: {
       EVP_PKEY* pkey = key.GetAsymmetricKey().get();
       EVP_PKEY* pkey2 = key2.GetAsymmetricKey().get();
@@ -898,22 +878,16 @@ void KeyObjectHandle::GetKeyDetail(const FunctionCallbackInfo<Value>& args) {
 
   const auto& data = key->Data();
 
-  switch (data.GetKeyType()) {
-    case kKeyTypeSecret:
-      if (GetSecretKeyDetail(env, data, args[0].As<Object>()).IsNothing())
-        return;
-      break;
-    case kKeyTypePublic:
-      // Fall through
-    case kKeyTypePrivate:
-      if (GetAsymmetricKeyDetail(env, data, args[0].As<Object>()).IsNothing())
-        return;
-      break;
-    default:
-      UNREACHABLE();
+  if (data.GetKeyType() == kKeyTypeSecret) {
+    if (GetSecretKeyDetail(env, data, args[0].As<Object>())) [[likely]] {
+      args.GetReturnValue().Set(args[0]);
+    }
+    return;
   }
 
-  args.GetReturnValue().Set(args[0]);
+  if (GetAsymmetricKeyDetail(env, data, args[0].As<Object>())) [[likely]] {
+    args.GetReturnValue().Set(args[0]);
+  }
 }
 
 Local<Value> KeyObjectHandle::GetAsymmetricKeyType() const {
@@ -957,11 +931,8 @@ bool KeyObjectHandle::CheckEcKeyData() const {
   CHECK(ctx);
   CHECK_EQ(key.id(), EVP_PKEY_EC);
 
-  if (data_.GetKeyType() == kKeyTypePrivate) {
-    return ctx.privateCheck();
-  }
-
-  return ctx.publicCheck();
+  return data_.GetKeyType() == kKeyTypePrivate ? ctx.privateCheck()
+                                               : ctx.publicCheck();
 }
 
 void KeyObjectHandle::CheckEcKeyData(const FunctionCallbackInfo<Value>& args) {
@@ -984,12 +955,17 @@ void KeyObjectHandle::Export(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&key, args.This());
 
   KeyType type = key->Data().GetKeyType();
+  unsigned int offset = 0;
 
-  MaybeLocal<Value> result;
+  Local<Value> result;
   if (type == kKeyTypeSecret) {
-    result = key->ExportSecretKey();
-  } else if (type == kKeyTypePublic) {
-    unsigned int offset = 0;
+    if (key->ExportSecretKey().ToLocal(&result)) [[likely]] {
+      args.GetReturnValue().Set(result);
+    }
+    return;
+  }
+
+  if (type == kKeyTypePublic) {
     EVPKeyPointer::PublicKeyEncodingConfig config;
     if (!KeyObjectData::GetPublicKeyEncodingFromJs(
              args, &offset, kKeyContextExport)
@@ -997,28 +973,29 @@ void KeyObjectHandle::Export(const FunctionCallbackInfo<Value>& args) {
       return;
     }
     CHECK_EQ(offset, static_cast<unsigned int>(args.Length()));
-    result = key->ExportPublicKey(config);
-  } else {
-    CHECK_EQ(type, kKeyTypePrivate);
-    unsigned int offset = 0;
-    EVPKeyPointer::PrivateKeyEncodingConfig config;
-    if (!KeyObjectData::GetPrivateKeyEncodingFromJs(
-             args, &offset, kKeyContextExport)
-             .To(&config)) {
-      return;
+    if (key->ExportPublicKey(config).ToLocal(&result)) [[likely]] {
+      args.GetReturnValue().Set(result);
     }
-    CHECK_EQ(offset, static_cast<unsigned int>(args.Length()));
-    result = key->ExportPrivateKey(config);
+    return;
   }
 
-  if (!result.IsEmpty())
-    args.GetReturnValue().Set(result.FromMaybe(Local<Value>()));
+  CHECK_EQ(type, kKeyTypePrivate);
+  EVPKeyPointer::PrivateKeyEncodingConfig config;
+  if (!KeyObjectData::GetPrivateKeyEncodingFromJs(
+           args, &offset, kKeyContextExport)
+           .To(&config)) {
+    return;
+  }
+  CHECK_EQ(offset, static_cast<unsigned int>(args.Length()));
+  if (key->ExportPrivateKey(config).ToLocal(&result)) [[likely]] {
+    args.GetReturnValue().Set(result);
+  }
 }
 
 MaybeLocal<Value> KeyObjectHandle::ExportSecretKey() const {
-  const char* buf = data_.GetSymmetricKey();
-  unsigned int len = data_.GetSymmetricKeySize();
-  return Buffer::Copy(env(), buf, len).FromMaybe(Local<Value>());
+  return Buffer::Copy(
+             env(), data_.GetSymmetricKey(), data_.GetSymmetricKeySize())
+      .FromMaybe(Local<Value>());
 }
 
 MaybeLocal<Value> KeyObjectHandle::ExportPublicKey(
@@ -1040,9 +1017,9 @@ void KeyObjectHandle::ExportJWK(
   CHECK(args[0]->IsObject());
   CHECK(args[1]->IsBoolean());
 
-  ExportJWKInner(env, key->Data(), args[0], args[1]->IsTrue());
-
-  args.GetReturnValue().Set(args[0]);
+  if (ExportJWKInner(env, key->Data(), args[0], args[1]->IsTrue())) {
+    args.GetReturnValue().Set(args[0]);
+  }
 }
 
 void NativeKeyObject::Initialize(Environment* env, Local<Object> target) {

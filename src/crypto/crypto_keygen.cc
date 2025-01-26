@@ -73,8 +73,9 @@ KeyGenJobStatus SecretKeyGenTraits::DoKeyGen(Environment* env,
                                              SecretKeyGenConfig* params) {
   auto bytes = DataPointer::Alloc(params->length);
   if (!ncrypto::CSPRNG(static_cast<unsigned char*>(bytes.get()),
-                       params->length))
+                       params->length)) {
     return KeyGenJobStatus::FAILED;
+  }
   params->out = ByteSource::Allocated(bytes.release());
   return KeyGenJobStatus::OK;
 }
@@ -82,11 +83,7 @@ KeyGenJobStatus SecretKeyGenTraits::DoKeyGen(Environment* env,
 MaybeLocal<Value> SecretKeyGenTraits::EncodeKey(Environment* env,
                                                 SecretKeyGenConfig* params) {
   auto data = KeyObjectData::CreateSecret(std::move(params->out));
-  Local<Value> ret;
-  if (!KeyObjectHandle::Create(env, data).ToLocal(&ret)) {
-    return MaybeLocal<Value>();
-  }
-  return ret;
+  return KeyObjectHandle::Create(env, data).FromMaybe(Local<Value>());
 }
 
 namespace Keygen {
@@ -99,7 +96,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   NidKeyPairGenJob::RegisterExternalReferences(registry);
   SecretKeyGenJob::RegisterExternalReferences(registry);
 }
-
 }  // namespace Keygen
 }  // namespace crypto
 }  // namespace node

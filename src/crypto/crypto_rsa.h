@@ -112,18 +112,18 @@ struct RSACipherTraits final {
 
 using RSACipherJob = CipherJob<RSACipherTraits>;
 
-v8::Maybe<void> ExportJWKRsaKey(Environment* env,
-                                const KeyObjectData& key,
-                                v8::Local<v8::Object> target);
+bool ExportJWKRsaKey(Environment* env,
+                     const KeyObjectData& key,
+                     v8::Local<v8::Object> target);
 
 KeyObjectData ImportJWKRsaKey(Environment* env,
                               v8::Local<v8::Object> jwk,
                               const v8::FunctionCallbackInfo<v8::Value>& args,
                               unsigned int offset);
 
-v8::Maybe<void> GetRsaKeyDetail(Environment* env,
-                                const KeyObjectData& key,
-                                v8::Local<v8::Object> target);
+bool GetRsaKeyDetail(Environment* env,
+                     const KeyObjectData& key,
+                     v8::Local<v8::Object> target);
 
 namespace RSAAlg {
 void Initialize(Environment* env, v8::Local<v8::Object> target);
