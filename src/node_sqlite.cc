@@ -203,6 +203,7 @@ class UserDefinedFunction {
         fn->Call(env->context(), recv, argc, js_argv.data());
     Local<Value> result;
     if (!retval.ToLocal(&result)) {
+      sqlite3_result_error(ctx, "User-defined function threw an error", -1);
       return;
     }
 

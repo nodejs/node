@@ -370,4 +370,37 @@ suite('DatabaseSync.prototype.function()', () => {
       message: /database is not open/,
     });
   });
+
+  test('custom function callback errors are reported to the sqlite API', () => {
+    const db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE test (id NUMBER NOT NULL PRIMARY KEY, data TEXT)');
+
+    db.function('MYFUNC', function () { throw new Error('MYFUNC callback threw!') });
+
+    const stmt = db.prepare('INSERT INTO test (id, data) VALUES (?, ?)');
+    for (let i = 0; i < 10; i++) {
+      stmt.run(i, Math.random().toString());
+    }
+
+    assert.throws(() => {
+      db.exec('UPDATE test SET data = MYFUNC()');
+    }, {
+      code: 'ERR_SQLITE_ERROR',
+      message: 'MYFUNC callback threw!',
+    });
+
+    const result = db.prepare('SELECT * FROM test').all();
+    assert.deepStrictEqual(result, [
+      { id: 0, data: null },
+      { id: 1, data: null },
+      { id: 2, data: null },
+      { id: 3, data: null },
+      { id: 4, data: null },
+      { id: 5, data: null },
+      { id: 6, data: null },
+      { id: 7, data: null },
+      { id: 8, data: null },
+      { id: 9, data: null },
+    ]);
+  });
 });
