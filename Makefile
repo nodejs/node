@@ -1474,6 +1474,8 @@ LINT_CPP_FILES = $(filter-out $(LINT_CPP_EXCLUDE), $(wildcard \
 	src/*/*.h \
 	test/addons/*/*.cc \
 	test/addons/*/*.h \
+	test/cctest/*/*.cc \
+	test/cctest/*/*.h \
 	test/cctest/*.cc \
 	test/cctest/*.h \
 	test/embedding/*.cc \

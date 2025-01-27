@@ -432,6 +432,7 @@
       'test/cctest/test_quic_tokens.cc',
     ],
     'node_cctest_inspector_sources': [
+      'test/cctest/inspector/test_node_protocol.cc',
       'test/cctest/test_inspector_socket.cc',
       'test/cctest/test_inspector_socket_server.cc',
     ],
@@ -1209,6 +1210,14 @@
             'HAVE_INSPECTOR=1',
           ],
           'sources': [ '<@(node_cctest_inspector_sources)' ],
+          'include_dirs': [
+            # TODO(legendecas): make node_inspector.gypi a dependable target.
+            '<(SHARED_INTERMEDIATE_DIR)', # for inspector
+            '<(SHARED_INTERMEDIATE_DIR)/src', # for inspector
+          ],
+          'dependencies': [
+            'deps/inspector_protocol/inspector_protocol.gyp:crdtp',
+          ],
         }, {
            'defines': [
              'HAVE_INSPECTOR=0',
