@@ -12,21 +12,16 @@ const { Session } = require('inspector');
 
 const session = new Session();
 
-async function test() {
-  session.connect();
-  
-  new Worker(fixtures.path("worker-script.mjs"), { type: 'module' });
-  session.on("Target.targetCreated", common.mustCall(({ params }) => {
-    const targetInfo = params.targetInfo;
-    assert.strictEqual(targetInfo.type, "worker");
-    assert.ok(targetInfo.url.includes("worker-script.mjs"));
-    assert.strictEqual(targetInfo.targetId, "1");
-  }));
+session.connect();
 
-  session.on("Target.attachedToTarget", common.mustCall(({ params }) => {
-    assert.strictEqual(params.sessionId, "1");
-  }));
-}
+new Worker(fixtures.path("worker-script.mjs"), { type: 'module' });
+session.on("Target.targetCreated", common.mustCall(({ params }) => {
+  const targetInfo = params.targetInfo;
+  assert.strictEqual(targetInfo.type, "worker");
+  assert.ok(targetInfo.url.includes("worker-script.mjs"));
+  assert.strictEqual(targetInfo.targetId, "1");
+}));
 
-test().then(common.mustCall());
-
+session.on("Target.attachedToTarget", common.mustCall(({ params }) => {
+  assert.strictEqual(params.sessionId, "1");
+}));
