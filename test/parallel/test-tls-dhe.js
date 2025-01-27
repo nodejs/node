@@ -27,7 +27,6 @@ if (!common.hasCrypto) {
 }
 
 const {
-  hasOpenSSL,
   opensslCli,
 } = require('../common/crypto');
 
