@@ -272,6 +272,7 @@ X509_STORE* NewRootCertStore() {
   }
 
   X509_STORE* store = X509_STORE_new();
+  CHECK_NOT_NULL(store);
   if (*system_cert_path != '\0') {
     ERR_set_mark();
     X509_STORE_load_locations(store, system_cert_path, nullptr);
@@ -1451,7 +1452,7 @@ void SecureContext::GetCertificate(const FunctionCallbackInfo<Value>& args) {
 }
 
 // UseExtraCaCerts is called only once at the start of the Node.js process.
-void UseExtraCaCerts(const std::string& file) {
+void UseExtraCaCerts(std::string_view file) {
   extra_root_certs_file = file;
 }
 

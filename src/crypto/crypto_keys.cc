@@ -349,7 +349,7 @@ KeyObjectData::GetPrivateKeyEncodingFromJs(
     if (context != kKeyContextInput) {
       if (args[*offset]->IsString()) {
         Utf8Value cipher_name(env->isolate(), args[*offset]);
-        config.cipher = EVP_get_cipherbyname(*cipher_name);
+        config.cipher = ncrypto::getCipherByName(cipher_name.ToStringView());
         if (config.cipher == nullptr) {
           THROW_ERR_CRYPTO_UNKNOWN_CIPHER(env);
           return Nothing<EVPKeyPointer::PrivateKeyEncodingConfig>();
@@ -597,7 +597,7 @@ bool KeyObjectHandle::HasInstance(Environment* env, Local<Value> value) {
   return !t.IsEmpty() && t->HasInstance(value);
 }
 
-v8::Local<v8::Function> KeyObjectHandle::Initialize(Environment* env) {
+Local<Function> KeyObjectHandle::Initialize(Environment* env) {
   Local<FunctionTemplate> templ = env->crypto_key_object_handle_constructor();
   if (templ.IsEmpty()) {
     Isolate* isolate = env->isolate();
@@ -958,14 +958,10 @@ bool KeyObjectHandle::CheckEcKeyData() const {
   CHECK_EQ(key.id(), EVP_PKEY_EC);
 
   if (data_.GetKeyType() == kKeyTypePrivate) {
-    return EVP_PKEY_check(ctx.get()) == 1;
+    return ctx.privateCheck();
   }
 
-#if OPENSSL_VERSION_MAJOR >= 3
-  return EVP_PKEY_public_check_quick(ctx.get()) == 1;
-#else
-  return EVP_PKEY_public_check(ctx.get()) == 1;
-#endif
+  return ctx.publicCheck();
 }
 
 void KeyObjectHandle::CheckEcKeyData(const FunctionCallbackInfo<Value>& args) {
@@ -1201,6 +1197,9 @@ void Initialize(Environment* env, Local<Object> target) {
       static_cast<int>(EVPKeyPointer::PKFormatType::PEM);
   constexpr int kKeyFormatJWK =
       static_cast<int>(EVPKeyPointer::PKFormatType::JWK);
+
+  constexpr auto kSigEncDER = DSASigEnc::DER;
+  constexpr auto kSigEncP1363 = DSASigEnc::P1363;
 
   NODE_DEFINE_CONSTANT(target, kWebCryptoKeyFormatRaw);
   NODE_DEFINE_CONSTANT(target, kWebCryptoKeyFormatPKCS8);

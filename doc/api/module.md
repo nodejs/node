@@ -178,6 +178,13 @@ added:
   - v18.19.0
 changes:
   - version:
+    - v23.6.1
+    - v22.13.1
+    - v20.18.2
+    pr-url: https://github.com/nodejs-private/node-private/pull/629
+    description: Using this feature with the permission model enabled requires
+                 passing `--allow-worker`.
+  - version:
     - v20.8.0
     - v18.19.0
     pr-url: https://github.com/nodejs/node/pull/49655
@@ -204,6 +211,8 @@ changes:
 
 Register a module that exports [hooks][] that customize Node.js module
 resolution and loading behavior. See [Customization hooks][].
+
+This feature requires `--allow-worker` if used with the [Permission Model][].
 
 ### `module.registerHooks(options)`
 
@@ -1587,6 +1596,20 @@ import { findSourceMap, SourceMap } from 'node:module';
 const { findSourceMap, SourceMap } = require('node:module');
 ```
 
+### `module.getSourceMapsSupport()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Object}
+  * `enabled` {boolean} If the source maps support is enabled
+  * `nodeModules` {boolean} If the support is enabled for files in `node_modules`.
+  * `generatedCode` {boolean} If the support is enabled for generated code from `eval` or `new Function`.
+
+This method returns whether the [Source Map v3][Source Map] support for stack
+traces is enabled.
+
 <!-- Anchors to make sure old links find a target -->
 
 <a id="module_module_findsourcemap_path_error"></a>
@@ -1605,6 +1628,31 @@ added:
 
 `path` is the resolved path for the file for which a corresponding source map
 should be fetched.
+
+### `module.setSourceMapsSupport(enabled[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `enabled` {boolean} Enable the source map support.
+* `options` {Object} Optional
+  * `nodeModules` {boolean} If enabling the support for files in
+    `node_modules`. **Default:** `false`.
+  * `generatedCode` {boolean} If enabling the support for generated code from
+    `eval` or `new Function`. **Default:** `false`.
+
+This function enables or disables the [Source Map v3][Source Map] support for
+stack traces.
+
+It provides same features as launching Node.js process with commandline options
+`--enable-source-maps`, with additional options to alter the support for files
+in `node_modules` or generated codes.
+
+Only source maps in JavaScript files that are loaded after source maps has been
+enabled will be parsed and loaded. Preferably, use the commandline options
+`--enable-source-maps` to avoid losing track of source maps of modules loaded
+before this API call.
 
 ### Class: `module.SourceMap`
 
@@ -1705,6 +1753,8 @@ returned object contains the following keys:
 [Conditional exports]: packages.md#conditional-exports
 [Customization hooks]: #customization-hooks
 [ES Modules]: esm.md
+[Permission Model]: permissions.md#permission-model
+[Source Map]: https://sourcemaps.info/spec.html
 [Source map v3 format]: https://sourcemaps.info/spec.html#h.mofvlxcwqzej
 [V8 JavaScript code coverage]: https://v8project.blogspot.com/2017/12/javascript-code-coverage.html
 [V8 code cache]: https://v8.dev/blog/code-caching-for-devs
