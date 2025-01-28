@@ -12,8 +12,7 @@
 
 #include <string>
 
-namespace node {
-namespace crypto {
+namespace node::crypto {
 class CipherBase : public BaseObject {
  public:
   static void GetSSLCiphers(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -163,8 +162,7 @@ class CipherJob final : public CryptoJob<CipherTraits> {
       return THROW_ERR_OUT_OF_RANGE(env, "data is too large");
 
     AdditionalParams params;
-    if (CipherTraits::AdditionalConfig(mode, args, 4, cipher_mode, &params)
-            .IsNothing()) {
+    if (!CipherTraits::AdditionalConfig(mode, args, 4, cipher_mode, &params)) {
       // The CipherTraits::AdditionalConfig is responsible for
       // calling an appropriate THROW_CRYPTO_* variant reporting
       // whatever error caused initialization to fail.
@@ -282,8 +280,7 @@ class CipherJob final : public CryptoJob<CipherTraits> {
   ByteSource out_;
 };
 
-}  // namespace crypto
-}  // namespace node
+}  // namespace node::crypto
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 #endif  // SRC_CRYPTO_CRYPTO_CIPHER_H_

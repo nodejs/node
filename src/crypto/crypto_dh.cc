@@ -32,7 +32,6 @@ using v8::JustVoid;
 using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
-using v8::Nothing;
 using v8::Object;
 using v8::PropertyAttribute;
 using v8::ReadOnly;
@@ -340,11 +339,10 @@ void Check(const FunctionCallbackInfo<Value>& args) {
 //   * Private type
 //   * Cipher
 //   * Passphrase
-Maybe<void> DhKeyGenTraits::AdditionalConfig(
-    CryptoJobMode mode,
-    const FunctionCallbackInfo<Value>& args,
-    unsigned int* offset,
-    DhKeyPairGenConfig* params) {
+bool DhKeyGenTraits::AdditionalConfig(CryptoJobMode mode,
+                                      const FunctionCallbackInfo<Value>& args,
+                                      unsigned int* offset,
+                                      DhKeyPairGenConfig* params) {
   Environment* env = Environment::GetCurrent(args);
 
   if (args[*offset]->IsString()) {
@@ -352,7 +350,7 @@ Maybe<void> DhKeyGenTraits::AdditionalConfig(
     auto group = DHPointer::FindGroup(group_name.ToStringView());
     if (!group) {
       THROW_ERR_CRYPTO_UNKNOWN_DH_GROUP(env);
-      return Nothing<void>();
+      return false;
     }
 
     static constexpr int kStandardizedGenerator = 2;
@@ -365,14 +363,14 @@ Maybe<void> DhKeyGenTraits::AdditionalConfig(
       int size = args[*offset].As<Int32>()->Value();
       if (size < 0) {
         THROW_ERR_OUT_OF_RANGE(env, "Invalid prime size");
-        return Nothing<void>();
+        return false;
       }
       params->params.prime = size;
     } else {
       ArrayBufferOrViewContents<unsigned char> input(args[*offset]);
       if (!input.CheckSizeInt32()) [[unlikely]] {
         THROW_ERR_OUT_OF_RANGE(env, "prime is too big");
-        return Nothing<void>();
+        return false;
       }
       params->params.prime = BignumPointer(input.data(), input.size());
     }
@@ -382,7 +380,7 @@ Maybe<void> DhKeyGenTraits::AdditionalConfig(
     *offset += 2;
   }
 
-  return JustVoid();
+  return true;
 }
 
 EVPKeyCtxPointer DhKeyGenTraits::Setup(DhKeyPairGenConfig* params) {
@@ -418,11 +416,11 @@ EVPKeyCtxPointer DhKeyGenTraits::Setup(DhKeyPairGenConfig* params) {
   return ctx;
 }
 
-Maybe<void> DHKeyExportTraits::AdditionalConfig(
+bool DHKeyExportTraits::AdditionalConfig(
     const FunctionCallbackInfo<Value>& args,
     unsigned int offset,
     DHKeyExportConfig* params) {
-  return JustVoid();
+  return true;
 }
 
 WebCryptoKeyExportStatus DHKeyExportTraits::DoExport(
@@ -481,11 +479,10 @@ void Stateless(const FunctionCallbackInfo<Value>& args) {
 }
 }  // namespace
 
-Maybe<void> DHBitsTraits::AdditionalConfig(
-    CryptoJobMode mode,
-    const FunctionCallbackInfo<Value>& args,
-    unsigned int offset,
-    DHBitsConfig* params) {
+bool DHBitsTraits::AdditionalConfig(CryptoJobMode mode,
+                                    const FunctionCallbackInfo<Value>& args,
+                                    unsigned int offset,
+                                    DHBitsConfig* params) {
   Environment* env = Environment::GetCurrent(args);
 
   CHECK(args[offset]->IsObject());  // public key
@@ -494,19 +491,19 @@ Maybe<void> DHBitsTraits::AdditionalConfig(
   KeyObjectHandle* private_key;
   KeyObjectHandle* public_key;
 
-  ASSIGN_OR_RETURN_UNWRAP(&public_key, args[offset], Nothing<void>());
-  ASSIGN_OR_RETURN_UNWRAP(&private_key, args[offset + 1], Nothing<void>());
+  ASSIGN_OR_RETURN_UNWRAP(&public_key, args[offset], false);
+  ASSIGN_OR_RETURN_UNWRAP(&private_key, args[offset + 1], false);
 
   if (private_key->Data().GetKeyType() != kKeyTypePrivate ||
       public_key->Data().GetKeyType() != kKeyTypePublic) {
     THROW_ERR_CRYPTO_INVALID_KEYTYPE(env);
-    return Nothing<void>();
+    return false;
   }
 
   params->public_key = public_key->Data().addRef();
   params->private_key = private_key->Data().addRef();
 
-  return JustVoid();
+  return true;
 }
 
 MaybeLocal<Value> DHBitsTraits::EncodeOutput(Environment* env,

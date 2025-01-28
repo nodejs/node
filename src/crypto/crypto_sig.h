@@ -9,8 +9,7 @@
 #include "env.h"
 #include "memory_tracker.h"
 
-namespace node {
-namespace crypto {
+namespace node::crypto {
 static const unsigned int kNoDsaSignature = static_cast<unsigned int>(-1);
 
 enum class DSASigEnc { DER, P1363, Invalid };
@@ -131,11 +130,10 @@ struct SignTraits final {
   static constexpr AsyncWrap::ProviderType Provider =
       AsyncWrap::PROVIDER_SIGNREQUEST;
 
-  static v8::Maybe<void> AdditionalConfig(
-      CryptoJobMode mode,
-      const v8::FunctionCallbackInfo<v8::Value>& args,
-      unsigned int offset,
-      SignConfiguration* params);
+  static bool AdditionalConfig(CryptoJobMode mode,
+                               const v8::FunctionCallbackInfo<v8::Value>& args,
+                               unsigned int offset,
+                               SignConfiguration* params);
 
   static bool DeriveBits(
       Environment* env,
@@ -149,8 +147,7 @@ struct SignTraits final {
 
 using SignJob = DeriveBitsJob<SignTraits>;
 
-}  // namespace crypto
-}  // namespace node
+}  // namespace node::crypto
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 #endif  // SRC_CRYPTO_CRYPTO_SIG_H_

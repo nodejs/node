@@ -415,11 +415,10 @@ MaybeLocal<Value> ECDHBitsTraits::EncodeOutput(Environment* env,
   return out->ToArrayBuffer(env);
 }
 
-Maybe<void> ECDHBitsTraits::AdditionalConfig(
-    CryptoJobMode mode,
-    const FunctionCallbackInfo<Value>& args,
-    unsigned int offset,
-    ECDHBitsConfig* params) {
+bool ECDHBitsTraits::AdditionalConfig(CryptoJobMode mode,
+                                      const FunctionCallbackInfo<Value>& args,
+                                      unsigned int offset,
+                                      ECDHBitsConfig* params) {
   Environment* env = Environment::GetCurrent(args);
 
   CHECK(args[offset]->IsObject());      // public key
@@ -428,19 +427,19 @@ Maybe<void> ECDHBitsTraits::AdditionalConfig(
   KeyObjectHandle* private_key;
   KeyObjectHandle* public_key;
 
-  ASSIGN_OR_RETURN_UNWRAP(&public_key, args[offset], Nothing<void>());
-  ASSIGN_OR_RETURN_UNWRAP(&private_key, args[offset + 1], Nothing<void>());
+  ASSIGN_OR_RETURN_UNWRAP(&public_key, args[offset], false);
+  ASSIGN_OR_RETURN_UNWRAP(&private_key, args[offset + 1], false);
 
   if (private_key->Data().GetKeyType() != kKeyTypePrivate ||
       public_key->Data().GetKeyType() != kKeyTypePublic) {
     THROW_ERR_CRYPTO_INVALID_KEYTYPE(env);
-    return Nothing<void>();
+    return false;
   }
 
   params->private_ = private_key->Data().addRef();
   params->public_ = public_key->Data().addRef();
 
-  return JustVoid();
+  return true;
 }
 
 bool ECDHBitsTraits::DeriveBits(Environment* env,
@@ -539,11 +538,10 @@ EVPKeyCtxPointer EcKeyGenTraits::Setup(EcKeyPairGenConfig* params) {
 //   7. Private Type
 //   8. Cipher
 //   9. Passphrase
-Maybe<void> EcKeyGenTraits::AdditionalConfig(
-    CryptoJobMode mode,
-    const FunctionCallbackInfo<Value>& args,
-    unsigned int* offset,
-    EcKeyPairGenConfig* params) {
+bool EcKeyGenTraits::AdditionalConfig(CryptoJobMode mode,
+                                      const FunctionCallbackInfo<Value>& args,
+                                      unsigned int* offset,
+                                      EcKeyPairGenConfig* params) {
   Environment* env = Environment::GetCurrent(args);
   CHECK(args[*offset]->IsString());  // curve name
   CHECK(args[*offset + 1]->IsInt32());  // param encoding
@@ -552,19 +550,19 @@ Maybe<void> EcKeyGenTraits::AdditionalConfig(
   params->params.curve_nid = GetCurveFromName(*curve_name);
   if (params->params.curve_nid == NID_undef) {
     THROW_ERR_CRYPTO_INVALID_CURVE(env);
-    return Nothing<void>();
+    return false;
   }
 
   params->params.param_encoding = args[*offset + 1].As<Int32>()->Value();
   if (params->params.param_encoding != OPENSSL_EC_NAMED_CURVE &&
       params->params.param_encoding != OPENSSL_EC_EXPLICIT_CURVE) {
     THROW_ERR_OUT_OF_RANGE(env, "Invalid param_encoding specified");
-    return Nothing<void>();
+    return false;
   }
 
   *offset += 2;
 
-  return JustVoid();
+  return true;
 }
 
 namespace {
@@ -619,11 +617,11 @@ WebCryptoKeyExportStatus EC_Raw_Export(const KeyObjectData& key_data,
 }
 }  // namespace
 
-Maybe<void> ECKeyExportTraits::AdditionalConfig(
+bool ECKeyExportTraits::AdditionalConfig(
     const FunctionCallbackInfo<Value>& args,
     unsigned int offset,
     ECKeyExportConfig* params) {
-  return JustVoid();
+  return true;
 }
 
 WebCryptoKeyExportStatus ECKeyExportTraits::DoExport(

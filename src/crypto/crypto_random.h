@@ -10,8 +10,7 @@
 #include "node_internals.h"
 #include "v8.h"
 
-namespace node {
-namespace crypto {
+namespace node::crypto {
 struct RandomBytesConfig final : public MemoryRetainer {
   unsigned char* buffer;
   size_t size;
@@ -26,11 +25,10 @@ struct RandomBytesTraits final {
   static constexpr AsyncWrap::ProviderType Provider =
       AsyncWrap::PROVIDER_RANDOMBYTESREQUEST;
 
-  static v8::Maybe<void> AdditionalConfig(
-      CryptoJobMode mode,
-      const v8::FunctionCallbackInfo<v8::Value>& args,
-      unsigned int offset,
-      RandomBytesConfig* params);
+  static bool AdditionalConfig(CryptoJobMode mode,
+                               const v8::FunctionCallbackInfo<v8::Value>& args,
+                               unsigned int offset,
+                               RandomBytesConfig* params);
 
   static bool DeriveBits(
       Environment* env,
@@ -61,11 +59,10 @@ struct RandomPrimeTraits final {
   static constexpr AsyncWrap::ProviderType Provider =
       AsyncWrap::PROVIDER_RANDOMPRIMEREQUEST;
 
-  static v8::Maybe<void> AdditionalConfig(
-      CryptoJobMode mode,
-      const v8::FunctionCallbackInfo<v8::Value>& args,
-      unsigned int offset,
-      RandomPrimeConfig* params);
+  static bool AdditionalConfig(CryptoJobMode mode,
+                               const v8::FunctionCallbackInfo<v8::Value>& args,
+                               unsigned int offset,
+                               RandomPrimeConfig* params);
 
   static bool DeriveBits(
       Environment* env,
@@ -95,11 +92,10 @@ struct CheckPrimeTraits final {
   static constexpr AsyncWrap::ProviderType Provider =
       AsyncWrap::PROVIDER_CHECKPRIMEREQUEST;
 
-  static v8::Maybe<void> AdditionalConfig(
-      CryptoJobMode mode,
-      const v8::FunctionCallbackInfo<v8::Value>& args,
-      unsigned int offset,
-      CheckPrimeConfig* params);
+  static bool AdditionalConfig(CryptoJobMode mode,
+                               const v8::FunctionCallbackInfo<v8::Value>& args,
+                               unsigned int offset,
+                               CheckPrimeConfig* params);
 
   static bool DeriveBits(
       Environment* env,
@@ -117,8 +113,7 @@ namespace Random {
 void Initialize(Environment* env, v8::Local<v8::Object> target);
 void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 }  // namespace Random
-}  // namespace crypto
-}  // namespace node
+}  // namespace node::crypto
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 #endif  // SRC_CRYPTO_CRYPTO_RANDOM_H_

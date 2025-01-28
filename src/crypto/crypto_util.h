@@ -37,9 +37,7 @@
 #include <string>
 #include <vector>
 
-namespace node {
-
-namespace crypto {
+namespace node::crypto {
 // Currently known sizes of commonly used OpenSSL struct sizes.
 // OpenSSL considers it's various structs to be opaque and the
 // sizes may change from one version of OpenSSL to another, so
@@ -439,8 +437,7 @@ class DeriveBitsJob final : public CryptoJob<DeriveBitsTraits> {
     CryptoJobMode mode = GetCryptoJobMode(args[0]);
 
     AdditionalParams params;
-    if (DeriveBitsTraits::AdditionalConfig(mode, args, 1, &params)
-            .IsNothing()) {
+    if (!DeriveBitsTraits::AdditionalConfig(mode, args, 1, &params)) {
       // The DeriveBitsTraits::AdditionalConfig is responsible for
       // calling an appropriate THROW_CRYPTO_* variant reporting
       // whatever error caused initialization to fail.
@@ -715,9 +712,7 @@ namespace Util {
 void Initialize(Environment* env, v8::Local<v8::Object> target);
 void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 }  // namespace Util
-
-}  // namespace crypto
-}  // namespace node
+}  // namespace node::crypto
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 #endif  // SRC_CRYPTO_CRYPTO_UTIL_H_

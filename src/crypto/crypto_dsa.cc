@@ -58,11 +58,10 @@ EVPKeyCtxPointer DsaKeyGenTraits::Setup(DsaKeyPairGenConfig* params) {
 //   7. Private Type
 //   8. Cipher
 //   9. Passphrase
-Maybe<void> DsaKeyGenTraits::AdditionalConfig(
-    CryptoJobMode mode,
-    const FunctionCallbackInfo<Value>& args,
-    unsigned int* offset,
-    DsaKeyPairGenConfig* params) {
+bool DsaKeyGenTraits::AdditionalConfig(CryptoJobMode mode,
+                                       const FunctionCallbackInfo<Value>& args,
+                                       unsigned int* offset,
+                                       DsaKeyPairGenConfig* params) {
   CHECK(args[*offset]->IsUint32());  // modulus bits
   CHECK(args[*offset + 1]->IsInt32());  // divisor bits
 
@@ -72,14 +71,14 @@ Maybe<void> DsaKeyGenTraits::AdditionalConfig(
 
   *offset += 2;
 
-  return JustVoid();
+  return true;
 }
 
-Maybe<void> DSAKeyExportTraits::AdditionalConfig(
+bool DSAKeyExportTraits::AdditionalConfig(
     const FunctionCallbackInfo<Value>& args,
     unsigned int offset,
     DSAKeyExportConfig* params) {
-  return JustVoid();
+  return true;
 }
 
 WebCryptoKeyExportStatus DSAKeyExportTraits::DoExport(

@@ -11,10 +11,7 @@ namespace node {
 
 using v8::FunctionCallbackInfo;
 using v8::Int32;
-using v8::JustVoid;
-using v8::Maybe;
 using v8::MaybeLocal;
-using v8::Nothing;
 using v8::Value;
 
 namespace crypto {
@@ -53,11 +50,10 @@ MaybeLocal<Value> PBKDF2Traits::EncodeOutput(Environment* env,
 //   4. The number of iterations
 //   5. The number of bytes to generate
 //   6. The digest algorithm name
-Maybe<void> PBKDF2Traits::AdditionalConfig(
-    CryptoJobMode mode,
-    const FunctionCallbackInfo<Value>& args,
-    unsigned int offset,
-    PBKDF2Config* params) {
+bool PBKDF2Traits::AdditionalConfig(CryptoJobMode mode,
+                                    const FunctionCallbackInfo<Value>& args,
+                                    unsigned int offset,
+                                    PBKDF2Config* params) {
   Environment* env = Environment::GetCurrent(args);
 
   params->mode = mode;
@@ -67,12 +63,12 @@ Maybe<void> PBKDF2Traits::AdditionalConfig(
 
   if (!pass.CheckSizeInt32()) [[unlikely]] {
     THROW_ERR_OUT_OF_RANGE(env, "pass is too large");
-    return Nothing<void>();
+    return false;
   }
 
   if (!salt.CheckSizeInt32()) [[unlikely]] {
     THROW_ERR_OUT_OF_RANGE(env, "salt is too large");
-    return Nothing<void>();
+    return false;
   }
 
   params->pass = mode == kCryptoJobAsync
@@ -90,23 +86,23 @@ Maybe<void> PBKDF2Traits::AdditionalConfig(
   params->iterations = args[offset + 2].As<Int32>()->Value();
   if (params->iterations < 0) [[unlikely]] {
     THROW_ERR_OUT_OF_RANGE(env, "iterations must be <= %d", INT_MAX);
-    return Nothing<void>();
+    return false;
   }
 
   params->length = args[offset + 3].As<Int32>()->Value();
   if (params->length < 0) [[unlikely]] {
     THROW_ERR_OUT_OF_RANGE(env, "length must be <= %d", INT_MAX);
-    return Nothing<void>();
+    return false;
   }
 
   Utf8Value name(args.GetIsolate(), args[offset + 4]);
   params->digest = ncrypto::getDigestByName(name.ToStringView());
   if (params->digest == nullptr) [[unlikely]] {
     THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *name);
-    return Nothing<void>();
+    return false;
   }
 
-  return JustVoid();
+  return true;
 }
 
 bool PBKDF2Traits::DeriveBits(Environment* env,

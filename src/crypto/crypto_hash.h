@@ -10,8 +10,7 @@
 #include "memory_tracker.h"
 #include "v8.h"
 
-namespace node {
-namespace crypto {
+namespace node::crypto {
 class Hash final : public BaseObject {
  public:
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
@@ -64,11 +63,10 @@ struct HashTraits final {
   static constexpr AsyncWrap::ProviderType Provider =
       AsyncWrap::PROVIDER_HASHREQUEST;
 
-  static v8::Maybe<void> AdditionalConfig(
-      CryptoJobMode mode,
-      const v8::FunctionCallbackInfo<v8::Value>& args,
-      unsigned int offset,
-      HashConfig* params);
+  static bool AdditionalConfig(CryptoJobMode mode,
+                               const v8::FunctionCallbackInfo<v8::Value>& args,
+                               unsigned int offset,
+                               HashConfig* params);
 
   static bool DeriveBits(
       Environment* env,
@@ -84,8 +82,7 @@ using HashJob = DeriveBitsJob<HashTraits>;
 
 void InternalVerifyIntegrity(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-}  // namespace crypto
-}  // namespace node
+}  // namespace node::crypto
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 #endif  // SRC_CRYPTO_CRYPTO_HASH_H_

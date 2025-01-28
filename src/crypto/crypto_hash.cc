@@ -20,7 +20,6 @@ using v8::FunctionTemplate;
 using v8::Int32;
 using v8::Isolate;
 using v8::Just;
-using v8::JustVoid;
 using v8::Local;
 using v8::LocalVector;
 using v8::Maybe;
@@ -444,11 +443,10 @@ MaybeLocal<Value> HashTraits::EncodeOutput(Environment* env,
   return out->ToArrayBuffer(env);
 }
 
-Maybe<void> HashTraits::AdditionalConfig(
-    CryptoJobMode mode,
-    const FunctionCallbackInfo<Value>& args,
-    unsigned int offset,
-    HashConfig* params) {
+bool HashTraits::AdditionalConfig(CryptoJobMode mode,
+                                  const FunctionCallbackInfo<Value>& args,
+                                  unsigned int offset,
+                                  HashConfig* params) {
   Environment* env = Environment::GetCurrent(args);
 
   params->mode = mode;
@@ -458,13 +456,13 @@ Maybe<void> HashTraits::AdditionalConfig(
   params->digest = ncrypto::getDigestByName(digest.ToStringView());
   if (params->digest == nullptr) [[unlikely]] {
     THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *digest);
-    return Nothing<void>();
+    return false;
   }
 
   ArrayBufferOrViewContents<char> data(args[offset + 1]);
   if (!data.CheckSizeInt32()) [[unlikely]] {
     THROW_ERR_OUT_OF_RANGE(env, "data is too big");
-    return Nothing<void>();
+    return false;
   }
   params->in = mode == kCryptoJobAsync
       ? data.ToCopy()
@@ -480,12 +478,12 @@ Maybe<void> HashTraits::AdditionalConfig(
     if (params->length != expected) {
       if ((EVP_MD_flags(params->digest) & EVP_MD_FLAG_XOF) == 0) [[unlikely]] {
         THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Digest method not supported");
-        return Nothing<void>();
+        return false;
       }
     }
   }
 
-  return JustVoid();
+  return true;
 }
 
 bool HashTraits::DeriveBits(

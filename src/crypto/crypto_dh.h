@@ -12,8 +12,7 @@
 
 #include <variant>
 
-namespace node {
-namespace crypto {
+namespace node::crypto {
 class DiffieHellman final : public BaseObject {
  public:
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
@@ -51,11 +50,10 @@ struct DhKeyGenTraits final {
 
   static ncrypto::EVPKeyCtxPointer Setup(DhKeyPairGenConfig* params);
 
-  static v8::Maybe<void> AdditionalConfig(
-      CryptoJobMode mode,
-      const v8::FunctionCallbackInfo<v8::Value>& args,
-      unsigned int* offset,
-      DhKeyPairGenConfig* params);
+  static bool AdditionalConfig(CryptoJobMode mode,
+                               const v8::FunctionCallbackInfo<v8::Value>& args,
+                               unsigned int* offset,
+                               DhKeyPairGenConfig* params);
 };
 
 using DHKeyPairGenJob = KeyGenJob<KeyPairGenTraits<DhKeyGenTraits>>;
@@ -70,10 +68,9 @@ struct DHKeyExportTraits final {
   static constexpr const char* JobName = "DHKeyExportJob";
   using AdditionalParameters = DHKeyExportConfig;
 
-  static v8::Maybe<void> AdditionalConfig(
-      const v8::FunctionCallbackInfo<v8::Value>& args,
-      unsigned int offset,
-      DHKeyExportConfig* config);
+  static bool AdditionalConfig(const v8::FunctionCallbackInfo<v8::Value>& args,
+                               unsigned int offset,
+                               DHKeyExportConfig* config);
 
   static WebCryptoKeyExportStatus DoExport(const KeyObjectData& key_data,
                                            WebCryptoKeyFormat format,
@@ -97,11 +94,10 @@ struct DHBitsTraits final {
   static constexpr AsyncWrap::ProviderType Provider =
       AsyncWrap::PROVIDER_DERIVEBITSREQUEST;
 
-  static v8::Maybe<void> AdditionalConfig(
-      CryptoJobMode mode,
-      const v8::FunctionCallbackInfo<v8::Value>& args,
-      unsigned int offset,
-      DHBitsConfig* params);
+  static bool AdditionalConfig(CryptoJobMode mode,
+                               const v8::FunctionCallbackInfo<v8::Value>& args,
+                               unsigned int offset,
+                               DHBitsConfig* params);
 
   static bool DeriveBits(
       Environment* env,
@@ -119,8 +115,7 @@ v8::Maybe<void> GetDhKeyDetail(Environment* env,
                                const KeyObjectData& key,
                                v8::Local<v8::Object> target);
 
-}  // namespace crypto
-}  // namespace node
+}  // namespace node::crypto
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 #endif  // SRC_CRYPTO_CRYPTO_DH_H_

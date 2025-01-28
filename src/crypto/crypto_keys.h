@@ -16,9 +16,7 @@
 #include <memory>
 #include <string>
 
-namespace node {
-namespace crypto {
-
+namespace node::crypto {
 enum KeyType {
   kKeyTypeSecret,
   kKeyTypePublic,
@@ -266,7 +264,7 @@ class KeyExportJob final : public CryptoJob<KeyExportTraits> {
     CHECK_NOT_NULL(key);
 
     AdditionalParams params;
-    if (KeyExportTraits::AdditionalConfig(args, 3, &params).IsNothing()) {
+    if (!KeyExportTraits::AdditionalConfig(args, 3, &params)) {
       // The KeyExportTraits::AdditionalConfig is responsible for
       // calling an appropriate THROW_CRYPTO_* variant reporting
       // whatever error caused initialization to fail.
@@ -385,8 +383,7 @@ void Initialize(Environment* env, v8::Local<v8::Object> target);
 void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 }  // namespace Keys
 
-}  // namespace crypto
-}  // namespace node
+}  // namespace node::crypto
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 #endif  // SRC_CRYPTO_CRYPTO_KEYS_H_

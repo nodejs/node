@@ -28,11 +28,8 @@ using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Int32;
 using v8::Isolate;
-using v8::JustVoid;
 using v8::Local;
-using v8::Maybe;
 using v8::MaybeLocal;
-using v8::Nothing;
 using v8::Object;
 using v8::Uint32;
 using v8::Value;
@@ -549,11 +546,10 @@ void SignConfiguration::MemoryInfo(MemoryTracker* tracker) const {
   }
 }
 
-Maybe<void> SignTraits::AdditionalConfig(
-    CryptoJobMode mode,
-    const FunctionCallbackInfo<Value>& args,
-    unsigned int offset,
-    SignConfiguration* params) {
+bool SignTraits::AdditionalConfig(CryptoJobMode mode,
+                                  const FunctionCallbackInfo<Value>& args,
+                                  unsigned int offset,
+                                  SignConfiguration* params) {
   ClearErrorOnReturn clear_error_on_return;
   Environment* env = Environment::GetCurrent(args);
 
@@ -568,18 +564,18 @@ Maybe<void> SignTraits::AdditionalConfig(
   if (params->mode == SignConfiguration::Mode::Verify) {
     auto data =
         KeyObjectData::GetPublicOrPrivateKeyFromJs(args, &keyParamOffset);
-    if (!data) return Nothing<void>();
+    if (!data) return false;
     params->key = std::move(data);
   } else {
     auto data = KeyObjectData::GetPrivateKeyFromJs(args, &keyParamOffset, true);
-    if (!data) return Nothing<void>();
+    if (!data) return false;
     params->key = std::move(data);
   }
 
   ArrayBufferOrViewContents<char> data(args[offset + 5]);
   if (!data.CheckSizeInt32()) [[unlikely]] {
     THROW_ERR_OUT_OF_RANGE(env, "data is too big");
-    return Nothing<void>();
+    return false;
   }
   params->data = mode == kCryptoJobAsync
       ? data.ToCopy()
@@ -590,7 +586,7 @@ Maybe<void> SignTraits::AdditionalConfig(
     params->digest = ncrypto::getDigestByName(digest.ToStringView());
     if (params->digest == nullptr) [[unlikely]] {
       THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *digest);
-      return Nothing<void>();
+      return false;
     }
   }
 
@@ -609,7 +605,7 @@ Maybe<void> SignTraits::AdditionalConfig(
     params->dsa_encoding = GetDSASigEncFromJS(args[offset + 9]);
     if (params->dsa_encoding == DSASigEnc::Invalid) [[unlikely]] {
       THROW_ERR_OUT_OF_RANGE(env, "invalid signature encoding");
-      return Nothing<void>();
+      return false;
     }
   }
 
@@ -617,7 +613,7 @@ Maybe<void> SignTraits::AdditionalConfig(
     ArrayBufferOrViewContents<char> signature(args[offset + 10]);
     if (!signature.CheckSizeInt32()) [[unlikely]] {
       THROW_ERR_OUT_OF_RANGE(env, "signature is too big");
-      return Nothing<void>();
+      return false;
     }
     // If this is an EC key (assuming ECDSA) we need to convert the
     // the signature from WebCrypto format into DER format...
@@ -632,7 +628,7 @@ Maybe<void> SignTraits::AdditionalConfig(
     }
   }
 
-  return JustVoid();
+  return true;
 }
 
 bool SignTraits::DeriveBits(

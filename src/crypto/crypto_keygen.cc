@@ -15,9 +15,7 @@ namespace node {
 using ncrypto::EVPKeyCtxPointer;
 using v8::FunctionCallbackInfo;
 using v8::Int32;
-using v8::JustVoid;
 using v8::Local;
-using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Object;
 using v8::Uint32;
@@ -33,7 +31,7 @@ namespace crypto {
 //   6. Private Type
 //   7. Cipher
 //   8. Passphrase
-Maybe<void> NidKeyPairGenTraits::AdditionalConfig(
+bool NidKeyPairGenTraits::AdditionalConfig(
     CryptoJobMode mode,
     const FunctionCallbackInfo<Value>& args,
     unsigned int* offset,
@@ -43,7 +41,7 @@ Maybe<void> NidKeyPairGenTraits::AdditionalConfig(
 
   *offset += 1;
 
-  return JustVoid();
+  return true;
 }
 
 EVPKeyCtxPointer NidKeyPairGenTraits::Setup(NidKeyPairGenConfig* params) {
@@ -56,7 +54,7 @@ void SecretKeyGenConfig::MemoryInfo(MemoryTracker* tracker) const {
   if (out) tracker->TrackFieldWithSize("out", length);
 }
 
-Maybe<void> SecretKeyGenTraits::AdditionalConfig(
+bool SecretKeyGenTraits::AdditionalConfig(
     CryptoJobMode mode,
     const FunctionCallbackInfo<Value>& args,
     unsigned int* offset,
@@ -65,7 +63,7 @@ Maybe<void> SecretKeyGenTraits::AdditionalConfig(
   uint32_t bits = args[*offset].As<Uint32>()->Value();
   params->length = bits / CHAR_BIT;
   *offset += 1;
-  return JustVoid();
+  return true;
 }
 
 KeyGenJobStatus SecretKeyGenTraits::DoKeyGen(Environment* env,

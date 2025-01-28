@@ -20,11 +20,7 @@ using ncrypto::BignumPointer;
 using ncrypto::Cipher;
 using ncrypto::CipherCtxPointer;
 using v8::FunctionCallbackInfo;
-using v8::Just;
-using v8::JustVoid;
 using v8::Local;
-using v8::Maybe;
-using v8::Nothing;
 using v8::Object;
 using v8::Uint32;
 using v8::Value;
@@ -440,12 +436,11 @@ void AESCipherConfig::MemoryInfo(MemoryTracker* tracker) const {
   }
 }
 
-Maybe<void> AESCipherTraits::AdditionalConfig(
-    CryptoJobMode mode,
-    const FunctionCallbackInfo<Value>& args,
-    unsigned int offset,
-    WebCryptoCipherMode cipher_mode,
-    AESCipherConfig* params) {
+bool AESCipherTraits::AdditionalConfig(CryptoJobMode mode,
+                                       const FunctionCallbackInfo<Value>& args,
+                                       unsigned int offset,
+                                       WebCryptoCipherMode cipher_mode,
+                                       AESCipherConfig* params) {
   Environment* env = Environment::GetCurrent(args);
 
   params->mode = mode;
@@ -470,22 +465,22 @@ Maybe<void> AESCipherTraits::AdditionalConfig(
   params->cipher = Cipher::FromNid(cipher_nid);
   if (!params->cipher) {
     THROW_ERR_CRYPTO_UNKNOWN_CIPHER(env);
-    return Nothing<void>();
+    return false;
   }
 
   int cipher_op_mode = params->cipher.getMode();
   if (cipher_op_mode != EVP_CIPH_WRAP_MODE) {
     if (!ValidateIV(env, mode, args[offset + 1], params)) {
-      return Nothing<void>();
+      return false;
     }
     if (cipher_op_mode == EVP_CIPH_CTR_MODE) {
       if (!ValidateCounter(env, args[offset + 2], params)) {
-        return Nothing<void>();
+        return false;
       }
     } else if (cipher_op_mode == EVP_CIPH_GCM_MODE) {
       if (!ValidateAuthTag(env, mode, cipher_mode, args[offset + 2], params) ||
           !ValidateAdditionalData(env, mode, args[offset + 3], params)) {
-        return Nothing<void>();
+        return false;
       }
     }
   } else {
@@ -494,10 +489,10 @@ Maybe<void> AESCipherTraits::AdditionalConfig(
 
   if (params->iv.size() < static_cast<size_t>(params->cipher.getIvLength())) {
     THROW_ERR_CRYPTO_INVALID_IV(env);
-    return Nothing<void>();
+    return false;
   }
 
-  return JustVoid();
+  return true;
 }
 
 WebCryptoCipherStatus AESCipherTraits::DoCipher(Environment* env,

@@ -11,10 +11,7 @@ namespace node {
 
 using v8::FunctionCallbackInfo;
 using v8::Int32;
-using v8::JustVoid;
-using v8::Maybe;
 using v8::MaybeLocal;
-using v8::Nothing;
 using v8::Uint32;
 using v8::Value;
 
@@ -50,11 +47,10 @@ MaybeLocal<Value> ScryptTraits::EncodeOutput(Environment* env,
   return out->ToArrayBuffer(env);
 }
 
-Maybe<void> ScryptTraits::AdditionalConfig(
-    CryptoJobMode mode,
-    const FunctionCallbackInfo<Value>& args,
-    unsigned int offset,
-    ScryptConfig* params) {
+bool ScryptTraits::AdditionalConfig(CryptoJobMode mode,
+                                    const FunctionCallbackInfo<Value>& args,
+                                    unsigned int offset,
+                                    ScryptConfig* params) {
   Environment* env = Environment::GetCurrent(args);
 
   params->mode = mode;
@@ -64,12 +60,12 @@ Maybe<void> ScryptTraits::AdditionalConfig(
 
   if (!pass.CheckSizeInt32()) [[unlikely]] {
     THROW_ERR_OUT_OF_RANGE(env, "pass is too large");
-    return Nothing<void>();
+    return false;
   }
 
   if (!salt.CheckSizeInt32()) [[unlikely]] {
     THROW_ERR_OUT_OF_RANGE(env, "salt is too large");
-    return Nothing<void>();
+    return false;
   }
 
   params->pass = mode == kCryptoJobAsync
@@ -107,10 +103,10 @@ Maybe<void> ScryptTraits::AdditionalConfig(
     } else {
       THROW_ERR_CRYPTO_INVALID_SCRYPT_PARAMS(env);
     }
-    return Nothing<void>();
+    return false;
   }
 
-  return JustVoid();
+  return true;
 }
 
 bool ScryptTraits::DeriveBits(

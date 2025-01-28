@@ -10,10 +10,7 @@
 namespace node {
 
 using v8::FunctionCallbackInfo;
-using v8::JustVoid;
-using v8::Maybe;
 using v8::MaybeLocal;
-using v8::Nothing;
 using v8::Uint32;
 using v8::Value;
 
@@ -38,11 +35,10 @@ MaybeLocal<Value> HKDFTraits::EncodeOutput(Environment* env,
   return out->ToArrayBuffer(env);
 }
 
-Maybe<void> HKDFTraits::AdditionalConfig(
-    CryptoJobMode mode,
-    const FunctionCallbackInfo<Value>& args,
-    unsigned int offset,
-    HKDFConfig* params) {
+bool HKDFTraits::AdditionalConfig(CryptoJobMode mode,
+                                  const FunctionCallbackInfo<Value>& args,
+                                  unsigned int offset,
+                                  HKDFConfig* params) {
   Environment* env = Environment::GetCurrent(args);
 
   params->mode = mode;
@@ -57,11 +53,11 @@ Maybe<void> HKDFTraits::AdditionalConfig(
   params->digest = ncrypto::getDigestByName(hash.ToStringView());
   if (params->digest == nullptr) [[unlikely]] {
     THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *hash);
-    return Nothing<void>();
+    return false;
   }
 
   KeyObjectHandle* key;
-  ASSIGN_OR_RETURN_UNWRAP(&key, args[offset + 1], Nothing<void>());
+  ASSIGN_OR_RETURN_UNWRAP(&key, args[offset + 1], false);
   params->key = key->Data().addRef();
 
   ArrayBufferOrViewContents<char> salt(args[offset + 2]);
@@ -69,11 +65,11 @@ Maybe<void> HKDFTraits::AdditionalConfig(
 
   if (!salt.CheckSizeInt32()) [[unlikely]] {
     THROW_ERR_OUT_OF_RANGE(env, "salt is too big");
-    return Nothing<void>();
+    return false;
   }
   if (!info.CheckSizeInt32()) [[unlikely]] {
     THROW_ERR_OUT_OF_RANGE(env, "info is too big");
-    return Nothing<void>();
+    return false;
   }
 
   params->salt = mode == kCryptoJobAsync
@@ -90,10 +86,10 @@ Maybe<void> HKDFTraits::AdditionalConfig(
   // 8-bit counter to each HMAC'd message, starting at 1.
   if (!ncrypto::checkHkdfLength(params->digest, params->length)) [[unlikely]] {
     THROW_ERR_CRYPTO_INVALID_KEYLEN(env);
-    return Nothing<void>();
+    return false;
   }
 
-  return JustVoid();
+  return true;
 }
 
 bool HKDFTraits::DeriveBits(

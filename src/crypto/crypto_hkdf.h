@@ -9,8 +9,7 @@
 #include "crypto/crypto_util.h"
 #include "v8.h"
 
-namespace node {
-namespace crypto {
+namespace node::crypto {
 struct HKDFConfig final : public MemoryRetainer {
   CryptoJobMode mode;
   size_t length;
@@ -36,11 +35,10 @@ struct HKDFTraits final {
   static constexpr AsyncWrap::ProviderType Provider =
       AsyncWrap::PROVIDER_DERIVEBITSREQUEST;
 
-  static v8::Maybe<void> AdditionalConfig(
-      CryptoJobMode mode,
-      const v8::FunctionCallbackInfo<v8::Value>& args,
-      unsigned int offset,
-      HKDFConfig* params);
+  static bool AdditionalConfig(CryptoJobMode mode,
+                               const v8::FunctionCallbackInfo<v8::Value>& args,
+                               unsigned int offset,
+                               HKDFConfig* params);
 
   static bool DeriveBits(
       Environment* env,
@@ -54,8 +52,7 @@ struct HKDFTraits final {
 
 using HKDFJob = DeriveBitsJob<HKDFTraits>;
 
-}  // namespace crypto
-}  // namespace node
+}  // namespace node::crypto
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 #endif  // SRC_CRYPTO_CRYPTO_HKDF_H_

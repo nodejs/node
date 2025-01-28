@@ -9,8 +9,7 @@
 #include "memory_tracker.h"
 #include "v8.h"
 
-namespace node {
-namespace crypto {
+namespace node::crypto {
 // PBKDF2 is a pseudo-random key derivation scheme defined
 // in https://tools.ietf.org/html/rfc8018
 //
@@ -49,11 +48,10 @@ struct PBKDF2Traits final {
   static constexpr AsyncWrap::ProviderType Provider =
       AsyncWrap::PROVIDER_PBKDF2REQUEST;
 
-  static v8::Maybe<void> AdditionalConfig(
-      CryptoJobMode mode,
-      const v8::FunctionCallbackInfo<v8::Value>& args,
-      unsigned int offset,
-      PBKDF2Config* params);
+  static bool AdditionalConfig(CryptoJobMode mode,
+                               const v8::FunctionCallbackInfo<v8::Value>& args,
+                               unsigned int offset,
+                               PBKDF2Config* params);
 
   static bool DeriveBits(
       Environment* env,
@@ -67,8 +65,7 @@ struct PBKDF2Traits final {
 
 using PBKDF2Job = DeriveBitsJob<PBKDF2Traits>;
 
-}  // namespace crypto
-}  // namespace node
+}  // namespace node::crypto
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 #endif  // SRC_CRYPTO_CRYPTO_PBKDF2_H_

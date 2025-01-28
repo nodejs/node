@@ -11,8 +11,7 @@
 #include "memory_tracker.h"
 #include "v8.h"
 
-namespace node {
-namespace crypto {
+namespace node::crypto {
 namespace Keygen {
 void Initialize(Environment* env, v8::Local<v8::Object> target);
 void RegisterExternalReferences(ExternalReferenceRegistry* registry);
@@ -41,8 +40,7 @@ class KeyGenJob final : public CryptoJob<KeyGenTraits> {
     unsigned int offset = 1;
 
     AdditionalParams params;
-    if (KeyGenTraits::AdditionalConfig(mode, args, &offset, &params)
-            .IsNothing()) {
+    if (!KeyGenTraits::AdditionalConfig(mode, args, &offset, &params)) {
       // The KeyGenTraits::AdditionalConfig is responsible for
       // calling an appropriate THROW_CRYPTO_* variant reporting
       // whatever error caused initialization to fail.
@@ -136,28 +134,23 @@ struct KeyPairGenTraits final {
       AsyncWrap::PROVIDER_KEYPAIRGENREQUEST;
   static constexpr const char* JobName = KeyPairAlgorithmTraits::JobName;
 
-  static v8::Maybe<void> AdditionalConfig(
-      CryptoJobMode mode,
-      const v8::FunctionCallbackInfo<v8::Value>& args,
-      unsigned int* offset,
-      AdditionalParameters* params) {
+  static bool AdditionalConfig(CryptoJobMode mode,
+                               const v8::FunctionCallbackInfo<v8::Value>& args,
+                               unsigned int* offset,
+                               AdditionalParameters* params) {
     // Notice that offset is a pointer. Each of the AdditionalConfig,
     // GetPublicKeyEncodingFromJs, and GetPrivateKeyEncodingFromJs
     // functions will update the value of the offset as they successfully
     // process input parameters. This allows each job to have a variable
     // number of input parameters specific to each job type.
-    if (KeyPairAlgorithmTraits::AdditionalConfig(mode, args, offset, params)
-            .IsNothing() ||
-        !KeyObjectData::GetPublicKeyEncodingFromJs(
-             args, offset, kKeyContextGenerate)
-             .To(&params->public_key_encoding) ||
-        !KeyObjectData::GetPrivateKeyEncodingFromJs(
-             args, offset, kKeyContextGenerate)
-             .To(&params->private_key_encoding)) {
-      return v8::Nothing<void>();
-    }
-
-    return v8::JustVoid();
+    return KeyPairAlgorithmTraits::AdditionalConfig(
+               mode, args, offset, params) &&
+           KeyObjectData::GetPublicKeyEncodingFromJs(
+               args, offset, kKeyContextGenerate)
+               .To(&params->public_key_encoding) &&
+           KeyObjectData::GetPrivateKeyEncodingFromJs(
+               args, offset, kKeyContextGenerate)
+               .To(&params->private_key_encoding);
   }
 
   static KeyGenJobStatus DoKeyGen(
@@ -211,11 +204,10 @@ struct SecretKeyGenTraits final {
       AsyncWrap::PROVIDER_KEYGENREQUEST;
   static constexpr const char* JobName = "SecretKeyGenJob";
 
-  static v8::Maybe<void> AdditionalConfig(
-      CryptoJobMode mode,
-      const v8::FunctionCallbackInfo<v8::Value>& args,
-      unsigned int* offset,
-      SecretKeyGenConfig* params);
+  static bool AdditionalConfig(CryptoJobMode mode,
+                               const v8::FunctionCallbackInfo<v8::Value>& args,
+                               unsigned int* offset,
+                               SecretKeyGenConfig* params);
 
   static KeyGenJobStatus DoKeyGen(
       Environment* env,
@@ -282,17 +274,15 @@ struct NidKeyPairGenTraits final {
 
   static ncrypto::EVPKeyCtxPointer Setup(NidKeyPairGenConfig* params);
 
-  static v8::Maybe<void> AdditionalConfig(
-      CryptoJobMode mode,
-      const v8::FunctionCallbackInfo<v8::Value>& args,
-      unsigned int* offset,
-      NidKeyPairGenConfig* params);
+  static bool AdditionalConfig(CryptoJobMode mode,
+                               const v8::FunctionCallbackInfo<v8::Value>& args,
+                               unsigned int* offset,
+                               NidKeyPairGenConfig* params);
 };
 
 using NidKeyPairGenJob = KeyGenJob<KeyPairGenTraits<NidKeyPairGenTraits>>;
 using SecretKeyGenJob = KeyGenJob<SecretKeyGenTraits>;
-}  // namespace crypto
-}  // namespace node
+}  // namespace node::crypto
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 #endif  // SRC_CRYPTO_CRYPTO_KEYGEN_H_

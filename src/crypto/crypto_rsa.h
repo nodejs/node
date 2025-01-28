@@ -11,8 +11,7 @@
 #include "memory_tracker.h"
 #include "v8.h"
 
-namespace node {
-namespace crypto {
+namespace node::crypto {
 enum RSAKeyVariant {
   kKeyVariantRSA_SSA_PKCS1_v1_5,
   kKeyVariantRSA_PSS,
@@ -43,11 +42,10 @@ struct RsaKeyGenTraits final {
 
   static ncrypto::EVPKeyCtxPointer Setup(RsaKeyPairGenConfig* params);
 
-  static v8::Maybe<void> AdditionalConfig(
-      CryptoJobMode mode,
-      const v8::FunctionCallbackInfo<v8::Value>& args,
-      unsigned int* offset,
-      RsaKeyPairGenConfig* params);
+  static bool AdditionalConfig(CryptoJobMode mode,
+                               const v8::FunctionCallbackInfo<v8::Value>& args,
+                               unsigned int* offset,
+                               RsaKeyPairGenConfig* params);
 };
 
 using RSAKeyPairGenJob = KeyGenJob<KeyPairGenTraits<RsaKeyGenTraits>>;
@@ -63,10 +61,9 @@ struct RSAKeyExportTraits final {
   static constexpr const char* JobName = "RSAKeyExportJob";
   using AdditionalParameters = RSAKeyExportConfig;
 
-  static v8::Maybe<void> AdditionalConfig(
-      const v8::FunctionCallbackInfo<v8::Value>& args,
-      unsigned int offset,
-      RSAKeyExportConfig* config);
+  static bool AdditionalConfig(const v8::FunctionCallbackInfo<v8::Value>& args,
+                               unsigned int offset,
+                               RSAKeyExportConfig* config);
 
   static WebCryptoKeyExportStatus DoExport(const KeyObjectData& key_data,
                                            WebCryptoKeyFormat format,
@@ -95,12 +92,11 @@ struct RSACipherTraits final {
   static constexpr const char* JobName = "RSACipherJob";
   using AdditionalParameters = RSACipherConfig;
 
-  static v8::Maybe<void> AdditionalConfig(
-      CryptoJobMode mode,
-      const v8::FunctionCallbackInfo<v8::Value>& args,
-      unsigned int offset,
-      WebCryptoCipherMode cipher_mode,
-      RSACipherConfig* config);
+  static bool AdditionalConfig(CryptoJobMode mode,
+                               const v8::FunctionCallbackInfo<v8::Value>& args,
+                               unsigned int offset,
+                               WebCryptoCipherMode cipher_mode,
+                               RSACipherConfig* config);
 
   static WebCryptoCipherStatus DoCipher(Environment* env,
                                         const KeyObjectData& key_data,
@@ -129,8 +125,7 @@ namespace RSAAlg {
 void Initialize(Environment* env, v8::Local<v8::Object> target);
 void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 }  // namespace RSAAlg
-}  // namespace crypto
-}  // namespace node
+}  // namespace node::crypto
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 #endif  // SRC_CRYPTO_CRYPTO_RSA_H_

@@ -13,8 +13,7 @@
 #include "node_internals.h"
 #include "v8.h"
 
-namespace node {
-namespace crypto {
+namespace node::crypto {
 int GetCurveFromName(const char* name);
 
 class ECDH final : public BaseObject {
@@ -72,11 +71,10 @@ struct ECDHBitsTraits final {
   static constexpr AsyncWrap::ProviderType Provider =
       AsyncWrap::PROVIDER_DERIVEBITSREQUEST;
 
-  static v8::Maybe<void> AdditionalConfig(
-      CryptoJobMode mode,
-      const v8::FunctionCallbackInfo<v8::Value>& args,
-      unsigned int offset,
-      ECDHBitsConfig* params);
+  static bool AdditionalConfig(CryptoJobMode mode,
+                               const v8::FunctionCallbackInfo<v8::Value>& args,
+                               unsigned int offset,
+                               ECDHBitsConfig* params);
 
   static bool DeriveBits(
       Environment* env,
@@ -106,11 +104,10 @@ struct EcKeyGenTraits final {
 
   static ncrypto::EVPKeyCtxPointer Setup(EcKeyPairGenConfig* params);
 
-  static v8::Maybe<void> AdditionalConfig(
-      CryptoJobMode mode,
-      const v8::FunctionCallbackInfo<v8::Value>& args,
-      unsigned int* offset,
-      EcKeyPairGenConfig* params);
+  static bool AdditionalConfig(CryptoJobMode mode,
+                               const v8::FunctionCallbackInfo<v8::Value>& args,
+                               unsigned int* offset,
+                               EcKeyPairGenConfig* params);
 };
 
 using ECKeyPairGenJob = KeyGenJob<KeyPairGenTraits<EcKeyGenTraits>>;
@@ -128,10 +125,9 @@ struct ECKeyExportTraits final {
   static constexpr const char* JobName = "ECKeyExportJob";
   using AdditionalParameters = ECKeyExportConfig;
 
-  static v8::Maybe<void> AdditionalConfig(
-      const v8::FunctionCallbackInfo<v8::Value>& args,
-      unsigned int offset,
-      ECKeyExportConfig* config);
+  static bool AdditionalConfig(const v8::FunctionCallbackInfo<v8::Value>& args,
+                               unsigned int offset,
+                               ECKeyExportConfig* config);
 
   static WebCryptoKeyExportStatus DoExport(const KeyObjectData& key_data,
                                            WebCryptoKeyFormat format,
@@ -157,8 +153,7 @@ KeyObjectData ImportJWKEcKey(Environment* env,
 v8::Maybe<void> GetEcKeyDetail(Environment* env,
                                const KeyObjectData& key,
                                v8::Local<v8::Object> target);
-}  // namespace crypto
-}  // namespace node
+}  // namespace node::crypto
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 #endif  // SRC_CRYPTO_CRYPTO_EC_H_

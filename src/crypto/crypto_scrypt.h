@@ -8,8 +8,7 @@
 #include "memory_tracker.h"
 #include "v8.h"
 
-namespace node {
-namespace crypto {
+namespace node::crypto {
 #ifndef OPENSSL_NO_SCRYPT
 
 // Scrypt is a password-based key derivation algorithm
@@ -51,11 +50,10 @@ struct ScryptTraits final {
   static constexpr AsyncWrap::ProviderType Provider =
       AsyncWrap::PROVIDER_SCRYPTREQUEST;
 
-  static v8::Maybe<void> AdditionalConfig(
-      CryptoJobMode mode,
-      const v8::FunctionCallbackInfo<v8::Value>& args,
-      unsigned int offset,
-      ScryptConfig* params);
+  static bool AdditionalConfig(CryptoJobMode mode,
+                               const v8::FunctionCallbackInfo<v8::Value>& args,
+                               unsigned int offset,
+                               ScryptConfig* params);
 
   static bool DeriveBits(
       Environment* env,
@@ -78,8 +76,7 @@ struct ScryptJob {
 };
 #endif  // !OPENSSL_NO_SCRYPT
 
-}  // namespace crypto
-}  // namespace node
+}  // namespace node::crypto
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 #endif  // SRC_CRYPTO_CRYPTO_SCRYPT_H_

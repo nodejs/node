@@ -113,11 +113,10 @@ EVPKeyCtxPointer RsaKeyGenTraits::Setup(RsaKeyPairGenConfig* params) {
 //   11. Private Type
 //   12. Cipher
 //   13. Passphrase
-Maybe<void> RsaKeyGenTraits::AdditionalConfig(
-    CryptoJobMode mode,
-    const FunctionCallbackInfo<Value>& args,
-    unsigned int* offset,
-    RsaKeyPairGenConfig* params) {
+bool RsaKeyGenTraits::AdditionalConfig(CryptoJobMode mode,
+                                       const FunctionCallbackInfo<Value>& args,
+                                       unsigned int* offset,
+                                       RsaKeyPairGenConfig* params) {
   Environment* env = Environment::GetCurrent(args);
 
   CHECK(args[*offset]->IsUint32());  // Variant
@@ -144,7 +143,7 @@ Maybe<void> RsaKeyGenTraits::AdditionalConfig(
       params->params.md = ncrypto::getDigestByName(digest.ToStringView());
       if (params->params.md == nullptr) {
         THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *digest);
-        return Nothing<void>();
+        return false;
       }
     }
 
@@ -155,7 +154,7 @@ Maybe<void> RsaKeyGenTraits::AdditionalConfig(
       if (params->params.mgf1_md == nullptr) {
         THROW_ERR_CRYPTO_INVALID_DIGEST(
             env, "Invalid MGF1 digest: %s", *digest);
-        return Nothing<void>();
+        return false;
       }
     }
 
@@ -166,14 +165,14 @@ Maybe<void> RsaKeyGenTraits::AdditionalConfig(
         THROW_ERR_OUT_OF_RANGE(
           env,
           "salt length is out of range");
-        return Nothing<void>();
+        return false;
       }
     }
 
     *offset += 3;
   }
 
-  return JustVoid();
+  return true;
 }
 
 namespace {
@@ -210,14 +209,14 @@ WebCryptoCipherStatus RSA_Cipher(Environment* env,
 }
 }  // namespace
 
-Maybe<void> RSAKeyExportTraits::AdditionalConfig(
+bool RSAKeyExportTraits::AdditionalConfig(
     const FunctionCallbackInfo<Value>& args,
     unsigned int offset,
     RSAKeyExportConfig* params) {
   CHECK(args[offset]->IsUint32());  // RSAKeyVariant
   params->variant =
       static_cast<RSAKeyVariant>(args[offset].As<Uint32>()->Value());
-  return JustVoid();
+  return true;
 }
 
 WebCryptoKeyExportStatus RSAKeyExportTraits::DoExport(
@@ -257,12 +256,11 @@ void RSACipherConfig::MemoryInfo(MemoryTracker* tracker) const {
     tracker->TrackFieldWithSize("label", label.size());
 }
 
-Maybe<void> RSACipherTraits::AdditionalConfig(
-    CryptoJobMode mode,
-    const FunctionCallbackInfo<Value>& args,
-    unsigned int offset,
-    WebCryptoCipherMode cipher_mode,
-    RSACipherConfig* params) {
+bool RSACipherTraits::AdditionalConfig(CryptoJobMode mode,
+                                       const FunctionCallbackInfo<Value>& args,
+                                       unsigned int offset,
+                                       WebCryptoCipherMode cipher_mode,
+                                       RSACipherConfig* params) {
   Environment* env = Environment::GetCurrent(args);
 
   params->mode = mode;
@@ -280,14 +278,14 @@ Maybe<void> RSACipherTraits::AdditionalConfig(
       params->digest = ncrypto::getDigestByName(digest.ToStringView());
       if (params->digest == nullptr) {
         THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *digest);
-        return Nothing<void>();
+        return false;
       }
 
       if (IsAnyBufferSource(args[offset + 2])) {
         ArrayBufferOrViewContents<char> label(args[offset + 2]);
         if (!label.CheckSizeInt32()) [[unlikely]] {
           THROW_ERR_OUT_OF_RANGE(env, "label is too big");
-          return Nothing<void>();
+          return false;
         }
         params->label = label.ToCopy();
       }
@@ -295,10 +293,10 @@ Maybe<void> RSACipherTraits::AdditionalConfig(
     }
     default:
       THROW_ERR_CRYPTO_INVALID_KEYTYPE(env);
-      return Nothing<void>();
+      return false;
   }
 
-  return JustVoid();
+  return true;
 }
 
 WebCryptoCipherStatus RSACipherTraits::DoCipher(Environment* env,

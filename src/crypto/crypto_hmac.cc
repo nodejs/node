@@ -19,11 +19,8 @@ using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Isolate;
-using v8::JustVoid;
 using v8::Local;
-using v8::Maybe;
 using v8::MaybeLocal;
-using v8::Nothing;
 using v8::Object;
 using v8::Uint32;
 using v8::Value;
@@ -182,11 +179,10 @@ void HmacConfig::MemoryInfo(MemoryTracker* tracker) const {
   }
 }
 
-Maybe<void> HmacTraits::AdditionalConfig(
-    CryptoJobMode mode,
-    const FunctionCallbackInfo<Value>& args,
-    unsigned int offset,
-    HmacConfig* params) {
+bool HmacTraits::AdditionalConfig(CryptoJobMode mode,
+                                  const FunctionCallbackInfo<Value>& args,
+                                  unsigned int offset,
+                                  HmacConfig* params) {
   Environment* env = Environment::GetCurrent(args);
 
   params->job_mode = mode;
@@ -202,17 +198,17 @@ Maybe<void> HmacTraits::AdditionalConfig(
   params->digest = ncrypto::getDigestByName(digest.ToStringView());
   if (params->digest == nullptr) [[unlikely]] {
     THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *digest);
-    return Nothing<void>();
+    return false;
   }
 
   KeyObjectHandle* key;
-  ASSIGN_OR_RETURN_UNWRAP(&key, args[offset + 2], Nothing<void>());
+  ASSIGN_OR_RETURN_UNWRAP(&key, args[offset + 2], false);
   params->key = key->Data().addRef();
 
   ArrayBufferOrViewContents<char> data(args[offset + 3]);
   if (!data.CheckSizeInt32()) [[unlikely]] {
     THROW_ERR_OUT_OF_RANGE(env, "data is too big");
-    return Nothing<void>();
+    return false;
   }
   params->data = mode == kCryptoJobAsync
       ? data.ToCopy()
@@ -222,14 +218,14 @@ Maybe<void> HmacTraits::AdditionalConfig(
     ArrayBufferOrViewContents<char> signature(args[offset + 4]);
     if (!signature.CheckSizeInt32()) [[unlikely]] {
       THROW_ERR_OUT_OF_RANGE(env, "signature is too big");
-      return Nothing<void>();
+      return false;
     }
     params->signature = mode == kCryptoJobAsync
         ? signature.ToCopy()
         : signature.ToByteSource();
   }
 
-  return JustVoid();
+  return true;
 }
 
 bool HmacTraits::DeriveBits(
