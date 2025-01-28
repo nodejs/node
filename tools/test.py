@@ -351,7 +351,9 @@ class TapProgressIndicator(SimpleProgressIndicator):
     self._done = 0
 
   def AboutToRun(self, case):
-    pass
+    case.additional_flags = case.additional_flags.copy() if hasattr(case, 'additional_flags') else []
+    case.additional_flags.append('--test-reporter=./test/common/test-error-reporter.js')
+    case.additional_flags.append('--test-reporter-destination=stdout')
 
   def HasRun(self, output):
     self._done += 1
