@@ -23,6 +23,9 @@ test-fs-read-stream-concurrent-reads: PASS, FLAKY
 # https://github.com/nodejs/build/issues/3043
 test-snapshot-incompatible: SKIP
 
+# Requires manual setup for certificates to be trusted by the system
+test-native-certs-macos: SKIP
+
 [$system==win32]
 # https://github.com/nodejs/node/issues/54807
 test-runner-watch-mode-complex: PASS, FLAKY

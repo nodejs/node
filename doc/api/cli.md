@@ -2857,6 +2857,13 @@ The following values are valid for `mode`:
 * `silent`: If supported by the OS, mapping will be attempted. Failure to map
   will be ignored and will not be reported.
 
+### `--use-system-ca`
+
+Node.js uses the trusted CA certificates present in the system store along with
+the `--use-bundled-ca`, `--use-openssl-ca` options.
+
+This option is available to macOS only.
+
 ### `--v8-options`
 
 <!-- YAML
@@ -3254,6 +3261,7 @@ one is included in the list below.
 * `--use-bundled-ca`
 * `--use-largepages`
 * `--use-openssl-ca`
+* `--use-system-ca`
 * `--v8-pool-size`
 * `--watch-path`
 * `--watch-preserve-output`
