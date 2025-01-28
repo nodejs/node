@@ -1614,55 +1614,6 @@ static void RMDir(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-#ifdef _WIN32
-std::wstring ConvertToWideString(const std::string& str) {
-  int size_needed = MultiByteToWideChar(
-      CP_UTF8, 0, &str[0], static_cast<int>(str.size()), nullptr, 0);
-  std::wstring wstrTo(size_needed, 0);
-  MultiByteToWideChar(CP_UTF8,
-                      0,
-                      &str[0],
-                      static_cast<int>(str.size()),
-                      &wstrTo[0],
-                      size_needed);
-  return wstrTo;
-}
-
-#define BufferValueToPath(str)                                                 \
-  std::filesystem::path(ConvertToWideString(str.ToString()))
-
-std::string ConvertWideToUTF8(const std::wstring& wstr) {
-  if (wstr.empty()) return std::string();
-
-  int size_needed = WideCharToMultiByte(CP_UTF8,
-                                        0,
-                                        &wstr[0],
-                                        static_cast<int>(wstr.size()),
-                                        nullptr,
-                                        0,
-                                        nullptr,
-                                        nullptr);
-  std::string strTo(size_needed, 0);
-  WideCharToMultiByte(CP_UTF8,
-                      0,
-                      &wstr[0],
-                      static_cast<int>(wstr.size()),
-                      &strTo[0],
-                      size_needed,
-                      nullptr,
-                      nullptr);
-  return strTo;
-}
-
-#define PathToString(path) ConvertWideToUTF8(path.wstring());
-
-#else  // _WIN32
-
-#define BufferValueToPath(str) std::filesystem::path(str.ToStringView());
-#define PathToString(path) path.native();
-
-#endif  // _WIN32
-
 static void RmSync(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
@@ -2532,7 +2483,6 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
     }
   } else {  // write(fd, string, pos, enc, undefined, ctx)
     CHECK_EQ(argc, 6);
-    FSReqWrapSync req_wrap_sync;
     FSReqBase::FSReqBuffer stack_buffer;
     if (buf == nullptr) {
       if (!StringBytes::StorageSize(isolate, value, enc).To(&len))
@@ -2546,6 +2496,7 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
       buf = *stack_buffer;
     }
     uv_buf_t uvbuf = uv_buf_init(buf, len);
+    FSReqWrapSync req_wrap_sync("write");
     FS_SYNC_TRACE_BEGIN(write);
     int bytesWritten = SyncCall(env, args[5], &req_wrap_sync, "write",
                                 uv_fs_write, fd, &uvbuf, 1, pos);
@@ -3194,6 +3145,42 @@ static void GetFormatOfExtensionlessFile(
 
   return args.GetReturnValue().Set(EXTENSIONLESS_FORMAT_JAVASCRIPT);
 }
+
+#ifdef _WIN32
+#define BufferValueToPath(str)                                                 \
+  std::filesystem::path(ConvertToWideString(str.ToString(), CP_UTF8))
+
+std::string ConvertWideToUTF8(const std::wstring& wstr) {
+  if (wstr.empty()) return std::string();
+
+  int size_needed = WideCharToMultiByte(CP_UTF8,
+                                        0,
+                                        &wstr[0],
+                                        static_cast<int>(wstr.size()),
+                                        nullptr,
+                                        0,
+                                        nullptr,
+                                        nullptr);
+  std::string strTo(size_needed, 0);
+  WideCharToMultiByte(CP_UTF8,
+                      0,
+                      &wstr[0],
+                      static_cast<int>(wstr.size()),
+                      &strTo[0],
+                      size_needed,
+                      nullptr,
+                      nullptr);
+  return strTo;
+}
+
+#define PathToString(path) ConvertWideToUTF8(path.wstring());
+
+#else  // _WIN32
+
+#define BufferValueToPath(str) std::filesystem::path(str.ToStringView());
+#define PathToString(path) path.native();
+
+#endif  // _WIN32
 
 static void CpSyncCheckPaths(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
