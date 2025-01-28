@@ -1120,6 +1120,10 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             ,
             &PerProcessOptions::use_openssl_ca,
             kAllowedInEnvvar);
+  AddOption("--use-system-ca",
+            "use system's CA store",
+            &PerProcessOptions::use_system_ca,
+            kAllowedInEnvvar);
   AddOption("--use-bundled-ca",
             "use bundled CA store"
 #if !defined(NODE_OPENSSL_CERT_STORE)
