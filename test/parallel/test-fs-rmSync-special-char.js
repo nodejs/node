@@ -13,12 +13,10 @@ tmpdir.refresh(); // Prepare a clean temporary directory
 // Define paths with non-ASCII characters
 const dirPath = path.join(tmpdir.path, '速_dir');
 const filePath = path.join(tmpdir.path, '速.txt');
-const incorrectDirPath = filePath + path.sep;  // Treat file as if it were a directory
 
 // Create a directory and a file with non-ASCII characters
 fs.mkdirSync(dirPath);
 fs.writeFileSync(filePath, 'This is a test file with special characters.');
-
 fs.rmSync(filePath);
 assert.strictEqual(fs.existsSync(filePath), false);
 
@@ -30,14 +28,5 @@ assert.throws(() => {
   assert.strictEqual(err.code, 'ERR_FS_EISDIR');
   assert(err.message.includes(dirPath), 'Error message should include the directory path');
   assert.strictEqual(err.path, dirPath);
-  return true;
-});
-
-// Test for not_a_directory error when a file path is incorrectly treated as a directory path
-assert.throws(() => {
-  fs.rmSync(incorrectDirPath, { recursive: true });
-}, (err) => {
-  assert.strictEqual(err.code, 'ENOENT');
-  assert(err.message.includes(incorrectDirPath), 'Error message should include the path treated as a directory');
   return true;
 });

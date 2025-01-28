@@ -1744,16 +1744,16 @@ static void RmSync(const FunctionCallbackInfo<Value>& args) {
 #endif  // !_WIN32
 
   if (error == std::errc::operation_not_permitted) {
-    std::string message = "Operation not permitted: " + file_path_str;
+    std::string message = "Operation not permitted: ";
     return env->ThrowErrnoException(EPERM, "rm", message.c_str(), path_c_str);
   } else if (error == std::errc::directory_not_empty) {
-    std::string message = "Directory not empty: " + file_path_str;
+    std::string message = "Directory not empty: ";
     return env->ThrowErrnoException(EACCES, "rm", message.c_str(), path_c_str);
   } else if (error == std::errc::not_a_directory) {
-    std::string message = "Not a directory: " + file_path_str;
+    std::string message = "Not a directory: ";
     return env->ThrowErrnoException(ENOTDIR, "rm", message.c_str(), path_c_str);
   } else if (error == std::errc::permission_denied) {
-    std::string message = "Permission denied: " + file_path_str;
+    std::string message = "Permission denied: ";
     return env->ThrowErrnoException(
         permission_denied_error, "rm", message.c_str(), path_c_str);
   }
