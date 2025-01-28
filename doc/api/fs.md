@@ -805,6 +805,7 @@ changes:
 * `options` {Object|string}
   * `encoding` {string|null} The expected character encoding when `data` is a
     string. **Default:** `'utf8'`
+  * `signal` {AbortSignal|undefined} allows aborting an in-progress writeFile. **Default:** `undefined`
 * Returns: {Promise}
 
 Asynchronously writes data to a file, replacing the file if it already exists.
