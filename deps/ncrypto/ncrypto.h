@@ -40,6 +40,14 @@
 #define NCRYPTO_MUST_USE_RESULT
 #endif
 
+#ifdef OPENSSL_IS_BORINGSSL
+// Boringssl has opted to use size_t for some size related
+// APIs while Openssl is still using ints
+using OPENSSL_SIZE_T = size_t;
+#else
+using OPENSSL_SIZE_T = int;
+#endif
+
 namespace ncrypto {
 
 // ============================================================================
@@ -845,17 +853,25 @@ class DHPointer final {
     UNABLE_TO_CHECK_GENERATOR = DH_UNABLE_TO_CHECK_GENERATOR,
     NOT_SUITABLE_GENERATOR = DH_NOT_SUITABLE_GENERATOR,
     Q_NOT_PRIME = DH_CHECK_Q_NOT_PRIME,
+#ifndef OPENSSL_IS_BORINGSSL
+    // Boringssl does not define the DH_CHECK_INVALID_[Q or J]_VALUE
     INVALID_Q = DH_CHECK_INVALID_Q_VALUE,
     INVALID_J = DH_CHECK_INVALID_J_VALUE,
+#endif
     CHECK_FAILED = 512,
   };
   CheckResult check();
 
   enum class CheckPublicKeyResult {
     NONE,
+#ifndef OPENSSL_IS_BORINGSSL
+    // Boringssl does not define DH_R_CHECK_PUBKEY_TOO_SMALL or TOO_LARGE
     TOO_SMALL = DH_R_CHECK_PUBKEY_TOO_SMALL,
     TOO_LARGE = DH_R_CHECK_PUBKEY_TOO_LARGE,
     INVALID = DH_R_CHECK_PUBKEY_INVALID,
+#else
+    INVALID = DH_R_INVALID_PUBKEY,
+#endif
     CHECK_FAILED = 512,
   };
   // Check to see if the given public key is suitable for this DH instance.
