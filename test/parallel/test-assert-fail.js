@@ -47,4 +47,5 @@ test('Object prototype get', () => {
   Object.prototype.get = () => { throw new Error('failed'); };
   assert.throws(() => assert.fail(''), { code: 'ERR_ASSERTION' });
   delete Object.prototype.get;
+  throw new Error('fail');
 });
