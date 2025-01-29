@@ -388,15 +388,11 @@ constexpr size_t strsize(const T (&)[N]) {
 template <typename T, size_t kStackStorageSize = 1024>
 class MaybeStackBuffer {
  public:
-  // Disallow move constructor
-  MaybeStackBuffer(MaybeStackBuffer&&) = delete;
   // Disallow copy constructor
   MaybeStackBuffer(const MaybeStackBuffer&) = delete;
-  // Disallow move assignment operator
-  MaybeStackBuffer& operator=(MaybeStackBuffer&& other) = delete;
   // Disallow copy assignment operator
   MaybeStackBuffer&
-    operator=(MaybeStackBuffer& other) = delete;  // NOLINT(runtime/references)
+    operator=(const MaybeStackBuffer& other) = delete;
 
   const T* out() const {
     return buf_;
