@@ -1774,7 +1774,7 @@ The externally maintained libraries used by Node.js are:
        limitations under the License.
   """
 
-- simdutf, located at deps/simdutf, is licensed as follows:
+- simdutf, located at deps/v8/third_party/simdutf, is licensed as follows:
   """
     Copyright 2021 The simdutf authors
 
