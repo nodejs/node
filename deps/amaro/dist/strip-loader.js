@@ -3,7 +3,7 @@ import { isSwcError, wrapAndReThrowSwcError } from "./errors.js";
 import { transformSync } from "./index.js";
 export async function load(url, context, nextLoad) {
   const { format } = context;
-  if (format.endsWith("-typescript")) {
+  if (format?.endsWith("-typescript")) {
     try {
       const { source } = await nextLoad(url, {
         ...context,
