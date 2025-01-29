@@ -241,4 +241,3 @@ experimental domain Target
       SessionID sessionId
       TargetInfo targetInfo
       boolean waitingForDebugger
-      

@@ -6,6 +6,7 @@
 #include "inspector/main_thread_interface.h"
 #include "inspector/node_json.h"
 #include "inspector/node_string.h"
+#include "inspector/target_agent.h"
 #include "inspector_socket_server.h"
 #include "ncrypto.h"
 #include "node.h"
@@ -14,7 +15,6 @@
 #include "util-inl.h"
 #include "v8-inspector.h"
 #include "zlib.h"
-#include "inspector/target_agent.h"
 
 #include <deque>
 #include <cstring>
@@ -343,11 +343,11 @@ void InspectorIoDelegate::StartSession(int session_id,
   fprintf(stderr, "Debugger attached.\n");
 }
 
-std::optional<std::string> InspectorIoDelegate::GetTargetSessionId(const std::string& message) {
-  const std::string_view view(message.data(), message.size());
+std::optional<std::string> InspectorIoDelegate::GetTargetSessionId(
+    const std::string& message) {
+  std::string_view view(message.data(), message.size());
   std::unique_ptr<protocol::DictionaryValue> value =
-      protocol::DictionaryValue::cast(
-          JsonUtil::parseJSON(view));
+      protocol::DictionaryValue::cast(JsonUtil::parseJSON(view));
   protocol::String target_session_id;
   protocol::Value* target_session_id_value = value->get("sessionId");
   if (target_session_id_value) {
@@ -362,34 +362,39 @@ std::optional<std::string> InspectorIoDelegate::GetTargetSessionId(const std::st
 
 void InspectorIoDelegate::MessageReceived(int session_id,
                                           const std::string& message) {
-  std::optional<std::string> target_session_id_str = GetTargetSessionId(message);
+  std::optional<std::string> target_session_id_str =
+      GetTargetSessionId(message);
   std::shared_ptr<MainThreadHandle> worker = nullptr;
   int merged_session_id = session_id;
-  if(!target_session_id_str->empty()) {
+  if (!target_session_id_str->empty()) {
     int target_session_id = std::stoi(*target_session_id_str);
-    worker = protocol::TargetAgent::target_session_id_worker_map_[target_session_id];
-    if(worker) {
+    worker =
+        protocol::TargetAgent::target_session_id_worker_map_[target_session_id];
+    if (worker) {
       merged_session_id += target_session_id << 16;
     }
   }
 
   auto session = sessions_.find(merged_session_id);
 
-  if(session == sessions_.end()) {
+  if (session == sessions_.end()) {
     std::unique_ptr<InspectorSession> session;
-    if(worker) {
+    if (worker) {
       session = worker->Connect(
-        std::unique_ptr<InspectorSessionDelegate>(
-            new IoSessionDelegate(request_queue_->handle(), session_id)), true);
+          std::unique_ptr<InspectorSessionDelegate>(
+              new IoSessionDelegate(request_queue_->handle(), session_id)),
+          true);
     } else {
       session = main_thread_->Connect(
-        std::unique_ptr<InspectorSessionDelegate>(
-            new IoSessionDelegate(request_queue_->handle(), session_id)), true);
+          std::unique_ptr<InspectorSessionDelegate>(
+              new IoSessionDelegate(request_queue_->handle(), session_id)),
+          true);
     }
 
     if (session) {
       sessions_[merged_session_id] = std::move(session);
-      sessions_[merged_session_id]->Dispatch(Utf8ToStringView(message)->string());
+      sessions_[merged_session_id]->Dispatch(
+          Utf8ToStringView(message)->string());
     } else {
       fprintf(stderr, "Failed to connect to inspector session.\n");
     }

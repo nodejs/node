@@ -1,4 +1,4 @@
-// Flags: --experimental-worker-inspection
+// Flags: --inspect=0 --experimental-worker-inspection
 'use strict';
 
 const common = require('../common');
@@ -14,14 +14,14 @@ const session = new Session();
 
 session.connect();
 
-new Worker(fixtures.path("worker-script.mjs"), { type: 'module' });
-session.on("Target.targetCreated", common.mustCall(({ params }) => {
+new Worker(fixtures.path('worker-script.mjs'), { type: 'module' });
+session.on('Target.targetCreated', common.mustCall(({ params }) => {
   const targetInfo = params.targetInfo;
-  assert.strictEqual(targetInfo.type, "worker");
-  assert.ok(targetInfo.url.includes("worker-script.mjs"));
-  assert.strictEqual(targetInfo.targetId, "1");
+  assert.strictEqual(targetInfo.type, 'worker');
+  assert.ok(targetInfo.url.includes('worker-script.mjs'));
+  assert.strictEqual(targetInfo.targetId, '1');
 }));
 
-session.on("Target.attachedToTarget", common.mustCall(({ params }) => {
-  assert.strictEqual(params.sessionId, "1");
+session.on('Target.attachedToTarget', common.mustCall(({ params }) => {
+  assert.strictEqual(params.sessionId, '1');
 }));

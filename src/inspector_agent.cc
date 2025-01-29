@@ -1,5 +1,4 @@
 #include "inspector_agent.h"
-#include <string>
 
 #include "crdtp/json.h"
 #include "env-inl.h"
@@ -22,7 +21,6 @@
 #include "permission/permission.h"
 #include "timer_wrap-inl.h"
 #include "util-inl.h"
-#include "util.h"
 #include "v8-inspector.h"
 #include "v8-platform.h"
 
@@ -224,11 +222,10 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
                        const std::unique_ptr<V8Inspector>& inspector,
                        std::shared_ptr<WorkerManager> worker_manager,
                        std::unique_ptr<InspectorSessionDelegate> delegate,
-                       std::shared_ptr<MainThreadHandle> main_thread_,
+                       std::shared_ptr<MainThreadHandle> main_thread,
                        bool prevent_shutdown)
-      : delegate_(std::move(delegate)), main_thread_(main_thread_),
-        prevent_shutdown_(prevent_shutdown), retaining_context_(false)
-         {
+      : delegate_(std::move(delegate)), main_thread_(main_thread),
+        prevent_shutdown_(prevent_shutdown), retaining_context_(false) {
     session_ = inspector->connect(CONTEXT_GROUP_ID,
                                   this,
                                   StringView(),
@@ -245,7 +242,7 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
     runtime_agent_->Wire(node_dispatcher_.get());
     network_inspector_ = std::make_unique<NetworkInspector>(env);
     network_inspector_->Wire(node_dispatcher_.get());
-    if(env->options()->experimental_worker_inspection) {
+    if (env->options()->experimental_worker_inspection) {
       target_agent_ = std::make_shared<protocol::TargetAgent>();
       target_agent_->Wire(node_dispatcher_.get());
       target_agent_->listenWorker(worker_manager);
@@ -263,7 +260,7 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
     runtime_agent_.reset();  // Dispose before the dispatchers
     network_inspector_->Disable();
     network_inspector_.reset();  // Dispose before the dispatchers
-    if(target_agent_) {
+    if (target_agent_) {
       target_agent_->reset();
     }
   }
@@ -369,17 +366,18 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
     }
     std::optional<int> target_session_id = main_thread_->GetTargetSessionId();
     if (target_session_id.has_value()) {
+      std::string raw_message = protocol::StringUtil::StringViewToUtf8(message);
       std::unique_ptr<protocol::DictionaryValue> value =
           protocol::DictionaryValue::cast(
-              JsonUtil::parseJSON(message));
+              JsonUtil::parseJSON(raw_message));
       std::string target_session_id_str = std::to_string(*target_session_id);
       value->setString("sessionId", target_session_id_str);
       std::string json = serializeToJSON(std::move(value));
-
-      delegate_->SendMessageToFrontend(Utf8ToStringView(json)->string());
+      delegate_->SendMessageToFrontend(
+        Utf8ToStringView(json)->string());
+    } else {
+      delegate_->SendMessageToFrontend(message);
     }
-
-    delegate_->SendMessageToFrontend(message);
   }
 
   void sendMessageToFrontend(const std::string& message) {
@@ -414,7 +412,7 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
   std::unique_ptr<NetworkInspector> network_inspector_;
   std::unique_ptr<InspectorSessionDelegate> delegate_;
   std::unique_ptr<v8_inspector::V8InspectorSession> session_;
-  std::unique_ptr<protocol::UberDispatcher> node_dispatcher_;
+  std::unique_ptr<UberDispatcher> node_dispatcher_;
   std::shared_ptr<MainThreadHandle> main_thread_;
   bool prevent_shutdown_;
   bool retaining_context_;
