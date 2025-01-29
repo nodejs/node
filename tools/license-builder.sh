@@ -79,7 +79,7 @@ licenseText="$(curl -sL https://raw.githubusercontent.com/bestiejs/punycode.js/H
 addlicense "Punycode.js" "lib/punycode.js" "$licenseText"
 licenseText="$(cat "${rootdir}/deps/v8/LICENSE")"
 addlicense "V8" "deps/v8" "$licenseText"
-licenseText="$(sed -e '/You should have received a copy of the CC0/,$d' -e 's/^\/\* *//' -e 's/^ \* *//' deps/v8/src/third_party/siphash/halfsiphash.cc)"
+licenseText="$(sed -e '/You should have received a copy of the CC0/,$d' -e 's/^\/\* *//' -e 's/^ \* *//' deps/v8/third_party/siphash/halfsiphash.cc)"
 addlicense "SipHash" "deps/v8/src/third_party/siphash" "$licenseText"
 licenseText="$(sed -e '/The data format used by the zlib library/,$d' -e 's/^\/\* *//' -e 's/^ *//' "${rootdir}/deps/zlib/zlib.h")"
 addlicense "zlib" "deps/zlib" "$licenseText"
