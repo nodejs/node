@@ -391,8 +391,7 @@ class MaybeStackBuffer {
   // Disallow copy constructor
   MaybeStackBuffer(const MaybeStackBuffer&) = delete;
   // Disallow copy assignment operator
-  MaybeStackBuffer&
-    operator=(const MaybeStackBuffer& other) = delete;
+  MaybeStackBuffer& operator=(const MaybeStackBuffer& other) = delete;
 
   const T* out() const {
     return buf_;
