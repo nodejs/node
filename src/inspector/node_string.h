@@ -32,6 +32,9 @@ using StringBuilder = std::ostringstream;
 using ProtocolMessage = std::string;
 
 // Implements StringUtil methods used in `inspector_protocol/lib/`.
+// Refer to
+// https://source.chromium.org/chromium/chromium/src/+/main:third_party/blink/renderer/core/inspector/v8_inspector_string.h;l=40;drc=2b15d6974a49d3a14d3d67ae099a649d523a828d
+// for more details about the interface.
 struct StringUtil {
   // Convert Utf16 in local endianness to Utf8 if needed.
   static String StringViewToUtf8(v8_inspector::StringView view);
