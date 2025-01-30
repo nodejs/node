@@ -2116,6 +2116,13 @@ constructor][`new URL(input)`] or the legacy [`url.parse()`][] to be parsed.
 The thrown error object typically has an additional property `'input'` that
 contains the URL that failed to parse.
 
+<a id="ERR_INVALID_URL_PATTERN"></a>
+
+### `ERR_INVALID_URL_PATTERN`
+
+An invalid URLPattern was passed to the [WHATWG][WHATWG URL API] \[`URLPattern`
+constructor]\[`new URLPattern(input)`] to be parsed.
+
 <a id="ERR_INVALID_URL_SCHEME"></a>
 
 ### `ERR_INVALID_URL_SCHEME`
