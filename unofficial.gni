@@ -190,6 +190,7 @@ template("node_gn_build") {
     }
     if (node_enable_inspector) {
       deps += [
+        "src/inspector:crdtp",
         "src/inspector:node_protocol_generated_sources",
         "src/inspector:v8_inspector_compress_protocol_json",
       ]
