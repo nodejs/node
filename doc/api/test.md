@@ -1751,7 +1751,7 @@ describe('tests', async () => {
 ## `assert`
 
 <!-- YAML
-added: REPLACEME
+added: v23.7.0
 -->
 
 An object whose methods are used to configure available assertions on the
@@ -1765,7 +1765,7 @@ preloaded with `--require` or `--import`.
 ### `assert.register(name, fn)`
 
 <!-- YAML
-added: REPLACEME
+added: v23.7.0
 -->
 
 Defines a new assertion function with the provided name and function. If an
@@ -3281,7 +3281,7 @@ test('test', (t) => {
 #### `context.assert.fileSnapshot(value, path[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v23.7.0
 -->
 
 * `value` {any} A value to serialize to a string. If Node.js was started with
@@ -3607,7 +3607,7 @@ test('top level test', async (t) => {
 ### `context.waitFor(condition[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v23.7.0
 -->
 
 * `condition` {Function|AsyncFunction} An assertion function that is invoked

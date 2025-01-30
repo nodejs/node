@@ -2094,7 +2094,7 @@ does not consist of exactly two elements.
 <!-- YAML
 added: v23.0.0
 changes:
-    - version: REPLACEME
+    - version: v23.7.0
       pr-url: https://github.com/nodejs/node/pull/56610
       description: This error is no longer thrown on valid yet unsupported syntax.
 -->
@@ -3103,7 +3103,7 @@ try {
 ### `ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`
 
 <!-- YAML
-added: REPLACEME
+added: v23.7.0
 -->
 
 The provided TypeScript syntax is unsupported.
