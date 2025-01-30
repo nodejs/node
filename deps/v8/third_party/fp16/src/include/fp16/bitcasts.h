@@ -12,7 +12,7 @@
 	#include <immintrin.h>
 #endif
 
-#if defined(_MSC_VER) && !defined(__clang__) && (defined(_M_ARM) || defined(_M_ARM64))
+#if defined(_MSC_VER) && (defined(_M_ARM) || defined(_M_ARM64))
 	#include <intrin.h>
 #endif
 
@@ -24,7 +24,7 @@ static inline float fp32_from_bits(uint32_t w) {
 	return __uint_as_float((unsigned int) w);
 #elif defined(__INTEL_COMPILER)
 	return _castu32_f32(w);
-#elif defined(_MSC_VER) && !defined(__clang__) && (defined(_M_ARM) || defined(_M_ARM64))
+#elif defined(_MSC_VER) && (defined(_M_ARM) || defined(_M_ARM64))
 	return _CopyFloatFromInt32((__int32) w);
 #else
 	union {
@@ -42,7 +42,7 @@ static inline uint32_t fp32_to_bits(float f) {
 	return (uint32_t) __float_as_uint(f);
 #elif defined(__INTEL_COMPILER)
 	return _castf32_u32(f);
-#elif defined(_MSC_VER) && !defined(__clang__) && (defined(_M_ARM) || defined(_M_ARM64))
+#elif defined(_MSC_VER) && (defined(_M_ARM) || defined(_M_ARM64))
 	return (uint32_t) _CopyInt32FromFloat(f);
 #else
 	union {
@@ -60,7 +60,7 @@ static inline double fp64_from_bits(uint64_t w) {
 	return __longlong_as_double((long long) w);
 #elif defined(__INTEL_COMPILER)
 	return _castu64_f64(w);
-#elif defined(_MSC_VER) && !defined(__clang__) && (defined(_M_ARM) || defined(_M_ARM64))
+#elif defined(_MSC_VER) && (defined(_M_ARM) || defined(_M_ARM64))
 	return _CopyDoubleFromInt64((__int64) w);
 #else
 	union {
@@ -78,7 +78,7 @@ static inline uint64_t fp64_to_bits(double f) {
 	return (uint64_t) __double_as_longlong(f);
 #elif defined(__INTEL_COMPILER)
 	return _castf64_u64(f);
-#elif defined(_MSC_VER) && !defined(__clang__) && (defined(_M_ARM) || defined(_M_ARM64))
+#elif defined(_MSC_VER) && (defined(_M_ARM) || defined(_M_ARM64))
 	return (uint64_t) _CopyInt64FromDouble(f);
 #else
 	union {
