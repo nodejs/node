@@ -1988,7 +1988,7 @@ const errorMessage = styleText(
   // Validate if process.stderr has TTY
   { stream: stderr },
 );
-console.error(successMessage);
+console.error(errorMessage);
 ```
 
 `util.inspect.colors` also provides text formats such as `italic`, and
