@@ -78,6 +78,7 @@
   V(async_ids_stack_string, "async_ids_stack")                                 \
   V(attributes_string, "attributes")                                           \
   V(base_string, "base")                                                       \
+  V(base_url_string, "baseURL")                                                \
   V(bits_string, "bits")                                                       \
   V(block_list_string, "blockList")                                            \
   V(buffer_string, "buffer")                                                   \
@@ -179,6 +180,9 @@
   V(get_data_clone_error_string, "_getDataCloneError")                         \
   V(get_shared_array_buffer_id_string, "_getSharedArrayBufferId")              \
   V(gid_string, "gid")                                                         \
+  V(groups_string, "groups")                                                   \
+  V(has_regexp_groups_string, "hasRegExpGroups")                               \
+  V(hash_string, "hash")                                                       \
   V(h2_string, "h2")                                                           \
   V(handle_string, "handle")                                                   \
   V(hash_algorithm_string, "hashAlgorithm")                                    \
@@ -191,10 +195,12 @@
   V(http_1_1_string, "http/1.1")                                               \
   V(id_string, "id")                                                           \
   V(identity_string, "identity")                                               \
+  V(ignore_case_string, "ignoreCase")                                          \
   V(ignore_string, "ignore")                                                   \
   V(infoaccess_string, "infoAccess")                                           \
   V(inherit_string, "inherit")                                                 \
   V(input_string, "input")                                                     \
+  V(inputs_string, "inputs")                                                   \
   V(internal_binding_string, "internalBinding")                                \
   V(internal_string, "internal")                                               \
   V(ipv4_string, "IPv4")                                                       \
@@ -282,6 +288,7 @@
   V(parse_error_string, "Parse Error")                                         \
   V(password_string, "password")                                               \
   V(path_string, "path")                                                       \
+  V(pathname_string, "pathname")                                               \
   V(pending_handle_string, "pendingHandle")                                    \
   V(permission_string, "permission")                                           \
   V(pid_string, "pid")                                                         \
@@ -326,6 +333,7 @@
   V(scopeid_string, "scopeid")                                                 \
   V(script_id_string, "scriptId")                                              \
   V(script_name_string, "scriptName")                                          \
+  V(search_string, "search")                                                   \
   V(serial_number_string, "serialNumber")                                      \
   V(serial_string, "serial")                                                   \
   V(servername_string, "servername")                                           \
