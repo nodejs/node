@@ -224,8 +224,10 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
                        std::unique_ptr<InspectorSessionDelegate> delegate,
                        std::shared_ptr<MainThreadHandle> main_thread,
                        bool prevent_shutdown)
-      : delegate_(std::move(delegate)), main_thread_(main_thread),
-        prevent_shutdown_(prevent_shutdown), retaining_context_(false) {
+      : delegate_(std::move(delegate)),
+        main_thread_(main_thread),
+        prevent_shutdown_(prevent_shutdown),
+        retaining_context_(false) {
     session_ = inspector->connect(CONTEXT_GROUP_ID,
                                   this,
                                   StringView(),
@@ -346,8 +348,7 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
   // crdtp::FrontendChannel
   void FlushProtocolNotifications() override {}
 
-  std::string serializeToJSON(
-    std::unique_ptr<Serializable> message) {
+  std::string serializeToJSON(std::unique_ptr<Serializable> message) {
     std::vector<uint8_t> cbor = message->Serialize();
     std::string json;
     crdtp::Status status = ConvertCBORToJSON(crdtp::SpanFrom(cbor), &json);
@@ -368,13 +369,11 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
     if (target_session_id.has_value()) {
       std::string raw_message = protocol::StringUtil::StringViewToUtf8(message);
       std::unique_ptr<protocol::DictionaryValue> value =
-          protocol::DictionaryValue::cast(
-              JsonUtil::parseJSON(raw_message));
+          protocol::DictionaryValue::cast(JsonUtil::parseJSON(raw_message));
       std::string target_session_id_str = std::to_string(*target_session_id);
       value->setString("sessionId", target_session_id_str);
       std::string json = serializeToJSON(std::move(value));
-      delegate_->SendMessageToFrontend(
-        Utf8ToStringView(json)->string());
+      delegate_->SendMessageToFrontend(Utf8ToStringView(json)->string());
     } else {
       delegate_->SendMessageToFrontend(message);
     }

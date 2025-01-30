@@ -60,10 +60,7 @@ class MainThreadHandle : public std::enable_shared_from_this<MainThreadHandle> {
   void SetTargetSessionId(int target_session_id) {
     target_session_id_ = target_session_id;
   }
-  std::optional<int> GetTargetSessionId() {
-    return target_session_id_;
-  }
-
+  std::optional<int> GetTargetSessionId() { return target_session_id_; }
 
  private:
   void Reset();
