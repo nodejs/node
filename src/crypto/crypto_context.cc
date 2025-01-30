@@ -35,6 +35,7 @@ using ncrypto::MarkPopErrorOnReturn;
 using ncrypto::SSLPointer;
 using ncrypto::StackOfX509;
 using ncrypto::X509Pointer;
+using ncrypto::X509View;
 using v8::Array;
 using v8::ArrayBufferView;
 using v8::Boolean;
@@ -255,6 +256,35 @@ bool isSelfIssued(X509* cert) {
   return X509_NAME_cmp(subject, issuer) == 0;
 }
 
+// TODO(joyeecheung): it is a bit excessive to do this X509 -> PEM -> X509
+// dance when we could've just pass everything around in binary. Change the
+// root_certs to be embedded as DER so that we can save the serialization
+// and deserialization.
+void X509VectorToPEMVector(const std::vector<X509Pointer>& src,
+                           std::vector<std::string>* dest) {
+  for (size_t i = 0; i < src.size(); i++) {
+    X509View x509_view(src[i].get());
+
+    auto pem_bio = x509_view.toPEM();
+    if (!pem_bio) {
+      fprintf(stderr,
+              "Warning: converting system certificate to PEM format failed\n");
+      continue;
+    }
+
+    char* pem_data = nullptr;
+    auto pem_size = BIO_get_mem_data(pem_bio.get(), &pem_data);
+    if (pem_size <= 0 || !pem_data) {
+      fprintf(
+          stderr,
+          "Warning: cannot read PEM-encoded data from system certificate\n");
+      continue;
+    }
+
+    dest->emplace_back(pem_data, pem_size);
+  }
+}
+
 #ifdef __APPLE__
 // This code is loosely based on
 // https://github.com/chromium/chromium/blob/54bd8e3/net/cert/internal/trust_store_mac.cc
@@ -467,7 +497,7 @@ void ReadMacOSKeychainCertificates(
 
   CFIndex count = CFArrayGetCount(curr_anchors);
 
-  std::vector<X509*> system_root_certificates_X509;
+  std::vector<X509Pointer> system_root_certificates_X509;
   for (int i = 0; i < count; ++i) {
     SecCertificateRef cert_ref = reinterpret_cast<SecCertificateRef>(
         const_cast<void*>(CFArrayGetValueAtIndex(curr_anchors, i)));
@@ -489,28 +519,8 @@ void ReadMacOSKeychainCertificates(
   }
   CFRelease(curr_anchors);
 
-  for (size_t i = 0; i < system_root_certificates_X509.size(); i++) {
-    ncrypto::X509View x509_view(system_root_certificates_X509[i]);
-
-    auto pem_bio = x509_view.toPEM();
-    if (!pem_bio) {
-      fprintf(stderr,
-              "Warning: converting system certificate to PEM format failed\n");
-      continue;
-    }
-
-    char* pem_data = nullptr;
-    auto pem_size = BIO_get_mem_data(pem_bio.get(), &pem_data);
-    if (pem_size <= 0 || !pem_data) {
-      fprintf(
-          stderr,
-          "Warning: cannot read PEM-encoded data from system certificate\n");
-      continue;
-    }
-    std::string certificate_string_pem(pem_data, pem_size);
-
-    system_root_certificates->emplace_back(certificate_string_pem);
-  }
+  X509VectorToPEMVector(system_root_certificates_X509,
+                        system_root_certificates);
 }
 #endif  // __APPLE__
 
