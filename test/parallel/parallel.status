@@ -27,6 +27,8 @@ test-native-certs-macos: SKIP
 test-async-context-frame: PASS, FLAKY
 # https://github.com/nodejs/node/issues/54534
 test-runner-run-watch: PASS, FLAKY
+# https://github.com/nodejs/node/issues/56794
+test-fs-cp: PASS, FLAKY
 
 # https://github.com/nodejs/node/issues/56751
 test-without-async-context-frame: PASS, FLAKY
