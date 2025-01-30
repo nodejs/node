@@ -402,8 +402,8 @@
     ],
     'node_cctest_sources': [
       'src/node_snapshot_stub.cc',
-      '<!@(<(python) tools/search_files.py . test/cctest cc)',
-      '<!@(<(python) tools/search_files.py . test/cctest h)',
+      '<!@("<(python)" tools/search_files.py . test/cctest cc)',
+      '<!@("<(python)" tools/search_files.py . test/cctest h)',
     ],
     'node_cctest_openssl_sources': [
       'test/cctest/test_crypto_clienthello.cc',
