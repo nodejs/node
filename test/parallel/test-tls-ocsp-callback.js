@@ -26,12 +26,6 @@ if (!common.hasCrypto) {
   common.skip('missing crypto');
 }
 
-const { opensslCli } = require('../common/crypto');
-
-if (!opensslCli) {
-  common.skip('node compiled without OpenSSL CLI.');
-}
-
 const crypto = require('crypto');
 const tls = require('tls');
 const fixtures = require('../common/fixtures');
