@@ -349,7 +349,7 @@ over hand-crafted SQL strings when handling user input.
 <!-- YAML
 added: v22.5.0
 changes:
-  - version: REPLACEME
+  - version: v23.7.0
     pr-url: https://github.com/nodejs/node/pull/56385
     description: Add support for `DataView` and typed array objects for `anonymousParameters`.
 -->
@@ -385,7 +385,7 @@ execution of this prepared statement. This property is a wrapper around
 <!-- YAML
 added: v22.5.0
 changes:
-  - version: REPLACEME
+  - version: v23.7.0
     pr-url: https://github.com/nodejs/node/pull/56385
     description: Add support for `DataView` and typed array objects for `anonymousParameters`.
 -->
@@ -411,7 +411,7 @@ added:
   - v23.4.0
   - v22.13.0
 changes:
-  - version: REPLACEME
+  - version: v23.7.0
     pr-url: https://github.com/nodejs/node/pull/56385
     description: Add support for `DataView` and typed array objects for `anonymousParameters`.
 -->
@@ -434,7 +434,7 @@ the values in `namedParameters` and `anonymousParameters`.
 <!-- YAML
 added: v22.5.0
 changes:
-  - version: REPLACEME
+  - version: v23.7.0
     pr-url: https://github.com/nodejs/node/pull/56385
     description: Add support for `DataView` and typed array objects for `anonymousParameters`.
 -->
