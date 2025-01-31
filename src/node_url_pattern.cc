@@ -70,7 +70,6 @@ bool URLPatternRegexProvider::regex_match(std::string_view input,
            .ToLocal(&result_object)) {
     return false;
   }
-  DCHECK(result_object->IsArray());
   // RegExp::Exec returns null if there is no match.
   return !result_object->IsNull();
 }
