@@ -15,7 +15,7 @@ std::vector<CleanupQueue::CleanupHookCallback> CleanupQueue::GetOrdered()
 
   // Sort in descending order so that the most recently inserted callbacks are
   // run first.
-  std::ranges::sort(callbacks, std::greater());
+  std::ranges::sort(callbacks, std::ranges::greater());
 
   return callbacks;
 }
