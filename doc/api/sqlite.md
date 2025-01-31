@@ -537,8 +537,10 @@ added: REPLACEME
   overwritten.
 * `options` {Object} Optional configuration for the backup. The
   following properties are supported:
-  * `source` {string} Name of the source database. **Default:** `'main'`.
-  * `target` {string} Name of the target database. **Default:** `'main'`.
+  * `source` {string} Name of the source database. This can be `'main'` (the default primary database) or any other
+    database that have been added with [`ATTACH DATABASE`][] **Default:** `'main'`.
+  * `target` {string} Name of the target database. This can be `'main'` (the default primary database) or any other
+    database that have been added with [`ATTACH DATABASE`][] **Default:** `'main'`.
   * `rate` {number} Number of pages to be transmitted in each batch of the backup. **Default:** `100`.
   * `progress` {Function} Callback function that will be called with the number of pages copied and the total number of
     pages.
@@ -546,6 +548,42 @@ added: REPLACEME
 
 This method makes a database backup. This method abstracts the [`sqlite3_backup_init()`][], [`sqlite3_backup_step()`][]
 and [`sqlite3_backup_finish()`][] functions.
+
+The backed-up database can be used normally during the backup process. Mutations coming from the same connection - same
+{DatabaseSync} - object will be reflected in the backup right away. However, mutations from other connections will cause
+the backup process to restart.
+
+```cjs
+const { backup, DatabaseSync } = require('node:sqlite');
+
+const sourceDb = new DatabaseSync('source.db');
+backup(sourceDb, 'backup.db', {
+  rate: 1, // Copy one page at a time.
+  progress: ({ totalPages, remainingPages }) => {
+    console.log('Backup in progress', { totalPages, remainingPages });
+  },
+}).then(() => {
+  console.log('Backup completed');
+}).catch((err) => {
+  console.error('Backup failed', err);
+});
+```
+
+```mjs
+import { backup, DatabaseSync } from 'node:sqlite';
+
+const sourceDb = new DatabaseSync('source.db');
+backup(sourceDb, 'backup.db', {
+  rate: 1, // Copy one page at a time.
+  progress: ({ totalPages, remainingPages }) => {
+    console.log('Backup in progress', { totalPages, remainingPages });
+  },
+}).then(() => {
+  console.log('Backup completed');
+}).catch((err) => {
+  console.error('Backup failed', err);
+});
+```
 
 ## `sqlite.constants`
 
