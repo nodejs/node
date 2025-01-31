@@ -579,7 +579,11 @@ Tips: follow <https://github.com/ccache/ccache/wiki/MS-Visual-Studio>, and you
 should notice that obj file will be bigger the normal one.
 
 First, install ccache, assume ccache install to c:\ccache, copy
-c:\ccache\ccache.exe to c:\ccache\cl.exe
+c:\ccache\ccache.exe to c:\ccache\cl.exe with this command
+
+```powershell
+cp c:\ccache\ccache.exe c:\ccache\cl.exe
+```
 
 When building Node.js provide a path to your ccache via the option
 
