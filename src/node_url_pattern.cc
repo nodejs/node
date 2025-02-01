@@ -300,7 +300,7 @@ MaybeLocal<Value> URLPattern::URLPatternInit::ToJsObject(
   return result;
 }
 
-ada::url_pattern_init URLPattern::URLPatternInit::FromJsObject(
+std::optional<ada::url_pattern_init> URLPattern::URLPatternInit::FromJsObject(
     Environment* env, Local<Object> obj) {
   ada::url_pattern_init init{};
   Local<String> components[] = {
@@ -344,6 +344,10 @@ ada::url_pattern_init URLPattern::URLPatternInit::FromJsObject(
         Utf8Value utf8_value(isolate, value);
         set_parameter(key.ToStringView(), utf8_value.ToStringView());
       }
+    } else {
+      // If ToLocal failed then we assume an error occurred,
+      // bail out early to propagate the error.
+      return std::nullopt;
     }
   }
   return init;
@@ -541,7 +545,9 @@ void URLPattern::Exec(const FunctionCallbackInfo<Value>& args) {
     input_base = input_value.ToString();
     input = std::string_view(input_base);
   } else if (args[0]->IsObject()) {
-    input = URLPatternInit::FromJsObject(env, args[0].As<Object>());
+    auto maybeInput = URLPatternInit::FromJsObject(env, args[0].As<Object>());
+    if (!maybeInput.has_value()) return;
+    input = std::move(*maybeInput);
   } else {
     THROW_ERR_INVALID_ARG_TYPE(
         env, "URLPattern input needs to be a string or an object");
@@ -582,7 +588,9 @@ void URLPattern::Test(const FunctionCallbackInfo<Value>& args) {
     input_base = input_value.ToString();
     input = std::string_view(input_base);
   } else if (args[0]->IsObject()) {
-    input = URLPatternInit::FromJsObject(env, args[0].As<Object>());
+    auto maybeInput = URLPatternInit::FromJsObject(env, args[0].As<Object>());
+    if (!maybeInput.has_value()) return;
+    input = std::move(*maybeInput);
   } else {
     THROW_ERR_INVALID_ARG_TYPE(
         env, "URLPattern input needs to be a string or an object");
