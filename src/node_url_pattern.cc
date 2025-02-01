@@ -165,6 +165,10 @@ void URLPattern::New(const FunctionCallbackInfo<Value>& args) {
     input = input_buffer.ToString();
   } else if (args[0]->IsObject()) {
     init = URLPatternInit::FromJsObject(env, args[0].As<Object>());
+    // If init does not have a value here, the implication is that an
+    // error was thrown. Let's allow that to be handled now by returning
+    // early. If we don't, the error thrown will be swallowed.
+    if (!init.has_value()) return;
   } else {
     THROW_ERR_INVALID_ARG_TYPE(env, "Input must be an object or a string");
     return;
@@ -180,7 +184,9 @@ void URLPattern::New(const FunctionCallbackInfo<Value>& args) {
       CHECK(!options.has_value());
       options = URLPatternOptions::FromJsObject(env, args[1].As<Object>());
       if (!options) {
-        THROW_ERR_INVALID_ARG_TYPE(env, "options.ignoreCase must be a boolean");
+        // If options does not have a value, we assume an error was
+        // thrown and scheduled on the isolate. Return early to
+        // propagate it.
         return;
       }
     } else {
@@ -197,7 +203,9 @@ void URLPattern::New(const FunctionCallbackInfo<Value>& args) {
       CHECK(!options.has_value());
       options = URLPatternOptions::FromJsObject(env, args[2].As<Object>());
       if (!options) {
-        THROW_ERR_INVALID_ARG_TYPE(env, "options.ignoreCase must be a boolean");
+        // If options does not have a value, we assume an error was
+        // thrown and scheduled on the isolate. Return early to
+        // propagate it.
         return;
       }
     }
@@ -453,9 +461,15 @@ URLPattern::URLPatternOptions::FromJsObject(Environment* env,
   if (obj->Get(env->context(), env->ignore_case_string())
           .ToLocal(&ignore_case)) {
     if (!ignore_case->IsBoolean()) {
+      THROW_ERR_INVALID_ARG_TYPE(env, "options.ignoreCase must be a boolean");
       return std::nullopt;
     }
     options.ignore_case = ignore_case->IsTrue();
+  } else {
+    // If ToLocal returns false, the assumption is that getting the
+    // ignore_case_string threw an error, let's propagate that now
+    // by returning std::nullopt.
+    return std::nullopt;
   }
   return options;
 }
