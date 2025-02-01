@@ -123,13 +123,13 @@ URLPattern::URLPattern(Environment* env,
 }
 
 void URLPattern::MemoryInfo(MemoryTracker* tracker) const {
-  tracker->TrackFieldWithSize("protocol", url_pattern_.get_protocol().size());
-  tracker->TrackFieldWithSize("username", url_pattern_.get_username().size());
-  tracker->TrackFieldWithSize("password", url_pattern_.get_password().size());
-  tracker->TrackFieldWithSize("hostname", url_pattern_.get_hostname().size());
-  tracker->TrackFieldWithSize("pathname", url_pattern_.get_pathname().size());
-  tracker->TrackFieldWithSize("search", url_pattern_.get_search().size());
-  tracker->TrackFieldWithSize("hash", url_pattern_.get_hash().size());
+  tracker->TrackField("protocol", url_pattern_.get_protocol());
+  tracker->TrackField("username", url_pattern_.get_username());
+  tracker->TrackField("password", url_pattern_.get_password());
+  tracker->TrackField("hostname", url_pattern_.get_hostname());
+  tracker->TrackField("pathname", url_pattern_.get_pathname());
+  tracker->TrackField("search", url_pattern_.get_search());
+  tracker->TrackField("hash", url_pattern_.get_hash());
 }
 
 void URLPattern::New(const FunctionCallbackInfo<Value>& args) {
