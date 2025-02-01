@@ -436,6 +436,41 @@ async function* asyncIterableGenerator() {
 })();
 ```
 
+To pipe the resulting {ReadableStream} into a {WritableStream} the {Iterable}
+should yield a sequence of {Buffer}, {TypedArray}, or {DataView} objects.
+
+```mjs
+import { ReadableStream } from 'node:stream/web';
+import { Buffer } from 'node:buffer';
+
+async function* asyncIterableGenerator() {
+  yield Buffer.from('a');
+  yield Buffer.from('b');
+  yield Buffer.from('c');
+}
+
+const stream = ReadableStream.from(asyncIterableGenerator());
+
+await stream.pipeTo(createWritableStreamSomehow());
+```
+
+```cjs
+const { ReadableStream } = require('node:stream/web');
+const { Buffer } = require('node:buffer');
+
+async function* asyncIterableGenerator() {
+  yield Buffer.from('a');
+  yield Buffer.from('b');
+  yield Buffer.from('c');
+}
+
+const stream = ReadableStream.from(asyncIterableGenerator());
+
+(async () => {
+  await stream.pipeTo(createWritableStreamSomehow());
+})();
+```
+
 ### Class: `ReadableStreamDefaultReader`
 
 <!-- YAML
@@ -622,7 +657,9 @@ added: v16.5.0
 <!-- YAML
 added: v16.5.0
 changes:
-  - version: REPLACEME
+  - version:
+    - v21.7.0
+    - v20.17.0
     pr-url: https://github.com/nodejs/node/pull/50888
     description: Added `min` option.
 -->
@@ -1042,7 +1079,7 @@ changes:
     description: This class is now exposed on the global object.
 -->
 
-The `WritableStreamDefaultController` manage's the {WritableStream}'s
+The `WritableStreamDefaultController` manages the {WritableStream}'s
 internal state.
 
 #### `writableStreamDefaultController.error([error])`
@@ -1430,7 +1467,9 @@ changes:
 <!-- YAML
 added: v17.0.0
 changes:
-  - version: v21.2.0
+  - version:
+    - v21.2.0
+    - v20.12.0
     pr-url: https://github.com/nodejs/node/pull/50097
     description: format now accepts `deflate-raw` value.
 -->
@@ -1468,7 +1507,9 @@ changes:
 <!-- YAML
 added: v17.0.0
 changes:
-  - version: v21.2.0
+  - version:
+    - v21.2.0
+    - v20.12.0
     pr-url: https://github.com/nodejs/node/pull/50097
     description: format now accepts `deflate-raw` value.
 -->

@@ -38,6 +38,7 @@ MemoryReducer::TimerTask::TimerTask(MemoryReducer* memory_reducer)
 void MemoryReducer::TimerTask::RunInternal() {
   Heap* heap = memory_reducer_->heap();
   const double time_ms = heap->MonotonicallyIncreasingTimeInMs();
+  heap->allocator()->new_space_allocator()->FreeLinearAllocationArea();
   heap->tracer()->SampleAllocation(base::TimeTicks::Now(),
                                    heap->NewSpaceAllocationCounter(),
                                    heap->OldGenerationAllocationCounter(),
@@ -60,15 +61,15 @@ void MemoryReducer::TimerTask::RunInternal() {
       false,
       low_allocation_rate || optimize_for_memory,
       heap->incremental_marking()->IsStopped() &&
-          (heap->incremental_marking()->CanBeStarted() || optimize_for_memory),
+          heap->incremental_marking()->CanAndShouldBeStarted(),
   };
   memory_reducer_->NotifyTimer(event);
 }
 
 
 void MemoryReducer::NotifyTimer(const Event& event) {
+  if (state_.id() != kWait) return;
   DCHECK_EQ(kTimer, event.type);
-  DCHECK_EQ(kWait, state_.id());
   state_ = Step(state_, event);
   if (state_.id() == kRun) {
     DCHECK(heap()->incremental_marking()->IsStopped());
@@ -77,7 +78,10 @@ void MemoryReducer::NotifyTimer(const Event& event) {
       heap()->isolate()->PrintWithTimestamp("Memory reducer: started GC #%d\n",
                                             state_.started_gcs());
     }
-    heap()->StartIncrementalMarking(GCFlag::kReduceMemoryFootprint,
+    GCFlags gc_flags = v8_flags.memory_reducer_favors_memory
+                           ? GCFlag::kReduceMemoryFootprint
+                           : GCFlag::kNoFlags;
+    heap()->StartIncrementalMarking(gc_flags,
                                     GarbageCollectionReason::kMemoryReducer,
                                     kGCCallbackFlagCollectAllExternalMemory);
   } else if (state_.id() == kWait) {
@@ -120,6 +124,7 @@ void MemoryReducer::NotifyMarkCompact(size_t committed_memory_before) {
 }
 
 void MemoryReducer::NotifyPossibleGarbage() {
+  if (!v8_flags.incremental_marking) return;
   const MemoryReducer::Event event{MemoryReducer::kPossibleGarbage,
                                    heap()->MonotonicallyIncreasingTimeInMs(),
                                    0,
@@ -226,7 +231,6 @@ void MemoryReducer::TearDown() { state_ = State::CreateUninitialized(); }
 
 // static
 int MemoryReducer::MaxNumberOfGCs() {
-  if (v8_flags.memory_reducer_single_gc) return 1;
   DCHECK_GT(v8_flags.memory_reducer_gc_count, 0);
   return v8_flags.memory_reducer_gc_count;
 }

@@ -42,6 +42,7 @@ class V8_EXPORT_PRIVATE TypeCache final {
       Type::Union(kDoubleRepresentableInt64, Type::MinusZero(), zone());
   Type const kDoubleRepresentableUint64 = CreateRange(
       std::numeric_limits<uint64_t>::min(), kMaxDoubleRepresentableUint64);
+  Type const kFloat16 = Type::Number();
   Type const kFloat32 = Type::Number();
   Type const kFloat64 = Type::Number();
   Type const kBigInt64 = Type::SignedBigInt64();
@@ -95,10 +96,9 @@ class V8_EXPORT_PRIVATE TypeCache final {
   // [0, FixedArray::kMaxLength].
   Type const kFixedArrayLengthType = CreateRange(0.0, FixedArray::kMaxLength);
 
-  // The WeakFixedArray::length property always containts a smi in the range
-  // [0, WeakFixedArray::kMaxLength].
+  // The WeakFixedArray::length property always containts a smi in the range:
   Type const kWeakFixedArrayLengthType =
-      CreateRange(0.0, WeakFixedArray::kMaxLength);
+      CreateRange(0.0, WeakFixedArray::kMaxCapacity);
 
   // The FixedDoubleArray::length property always containts a smi in the range
   // [0, FixedDoubleArray::kMaxLength].

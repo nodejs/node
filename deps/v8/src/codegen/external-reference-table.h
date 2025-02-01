@@ -5,6 +5,7 @@
 #ifndef V8_CODEGEN_EXTERNAL_REFERENCE_TABLE_H_
 #define V8_CODEGEN_EXTERNAL_REFERENCE_TABLE_H_
 
+#include "include/v8-memory-span.h"
 #include "src/builtins/accessors.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/external-reference.h"
@@ -38,7 +39,7 @@ class ExternalReferenceTable {
       Accessors::kAccessorInfoCount + Accessors::kAccessorGetterCount +
       Accessors::kAccessorSetterCount + Accessors::kAccessorCallbackCount;
   // The number of stub cache external references, see AddStubCache.
-  static constexpr int kStubCacheReferenceCount = 12;
+  static constexpr int kStubCacheReferenceCount = 6 * 3;  // 3 stub caches
   static constexpr int kStatsCountersReferenceCount =
 #define SC(...) +1
       STATS_COUNTER_NATIVE_CODE_LIST(SC);
@@ -67,8 +68,10 @@ class ExternalReferenceTable {
     return i * kEntrySize;
   }
 
-  static void InitializeOncePerProcess();
-  static const char* NameOfIsolateIndependentAddress(Address address);
+  static void InitializeOncePerIsolateGroup(
+      MemorySpan<Address> shared_external_references);
+  static const char* NameOfIsolateIndependentAddress(
+      Address address, MemorySpan<Address> shared_external_references);
 
   const char* NameFromOffset(uint32_t offset) {
     DCHECK_EQ(offset % kEntrySize, 0);
@@ -81,20 +84,29 @@ class ExternalReferenceTable {
   ExternalReferenceTable(const ExternalReferenceTable&) = delete;
   ExternalReferenceTable& operator=(const ExternalReferenceTable&) = delete;
 
-  void InitIsolateIndependent();  // Step 1.
+  void InitIsolateIndependent(
+      MemorySpan<Address> shared_external_references);  // Step 1.
+
   void Init(Isolate* isolate);    // Step 2.
 
  private:
-  static void AddIsolateIndependent(Address address, int* index);
+  static void AddIsolateIndependent(
+      Address address, int* index,
+      MemorySpan<Address> shared_external_references);
 
-  static void AddIsolateIndependentReferences(int* index);
-  static void AddBuiltins(int* index);
-  static void AddRuntimeFunctions(int* index);
-  static void AddAccessors(int* index);
+  static void AddIsolateIndependentReferences(
+      int* index, MemorySpan<Address> shared_external_references);
+  static void AddBuiltins(int* index,
+                          MemorySpan<Address> shared_external_references);
+  static void AddRuntimeFunctions(
+      int* index, MemorySpan<Address> shared_external_references);
+  static void AddAccessors(int* index,
+                           MemorySpan<Address> shared_external_references);
 
   void Add(Address address, int* index);
 
-  void CopyIsolateIndependentReferences(int* index);
+  void CopyIsolateIndependentReferences(
+      int* index, MemorySpan<Address> shared_external_references);
   void AddIsolateDependentReferences(Isolate* isolate, int* index);
   void AddIsolateAddresses(Isolate* isolate, int* index);
   void AddStubCache(Isolate* isolate, int* index);

@@ -6,13 +6,14 @@
 #define V8_COMPILER_TURBOSHAFT_TYPE_INFERENCE_REDUCER_H_
 
 #include <limits>
+#include <optional>
 
 #include "src/base/logging.h"
 #include "src/base/vector.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/turboshaft/assembler.h"
+#include "src/compiler/turboshaft/copying-phase.h"
 #include "src/compiler/turboshaft/operations.h"
-#include "src/compiler/turboshaft/optimization-phase.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "src/compiler/turboshaft/sidetable.h"
 #include "src/compiler/turboshaft/snapshot-table.h"
@@ -79,7 +80,7 @@ class TypeInferenceReducer
   using table_t = SnapshotTable<Type>;
 
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
+  TURBOSHAFT_REDUCER_BOILERPLATE(TypeInference)
 
   using Adapter = UniformReducerAdapter<TypeInferenceReducer, Next>;
   using Args = TypeInferenceReducerArgs;
@@ -191,7 +192,7 @@ class TypeInferenceReducer
     {
       predecessors_.clear();
       for (const Block* pred : new_block->PredecessorsIterable()) {
-        base::Optional<table_t::Snapshot> pred_snapshot =
+        std::optional<table_t::Snapshot> pred_snapshot =
             block_to_snapshot_mapping_[pred->index()];
         DCHECK(pred_snapshot.has_value());
         predecessors_.push_back(pred_snapshot.value());
@@ -220,7 +221,7 @@ class TypeInferenceReducer
     // types.
     if (args_.output_graph_typing ==
         Args::OutputGraphTyping::kRefineFromInputGraph) {
-      if (new_block->HasExactlyNPredecessors(1)) {
+      if (new_block->PredecessorCount() == 1) {
         Block* predecessor = new_block->LastPredecessor();
         const Operation& terminator =
             predecessor->LastOperation(Asm().output_graph());
@@ -315,9 +316,9 @@ class TypeInferenceReducer
     return index;
   }
 
-  OpIndex REDUCE(Comparison)(OpIndex left, OpIndex right,
-                             ComparisonOp::Kind kind,
-                             RegisterRepresentation rep) {
+  V<Word32> REDUCE(Comparison)(V<Any> left, V<Any> right,
+                               ComparisonOp::Kind kind,
+                               RegisterRepresentation rep) {
     OpIndex index = Next::ReduceComparison(left, right, kind, rep);
     if (!NeedsTyping(index)) return index;
 
@@ -327,9 +328,9 @@ class TypeInferenceReducer
     return index;
   }
 
-  OpIndex REDUCE(Projection)(OpIndex input, uint16_t idx,
-                             RegisterRepresentation rep) {
-    OpIndex index = Next::ReduceProjection(input, idx, rep);
+  V<Any> REDUCE(Projection)(V<Any> input, uint16_t idx,
+                            RegisterRepresentation rep) {
+    V<Any> index = Next::ReduceProjection(input, idx, rep);
     if (!NeedsTyping(index)) return index;
 
     Type type = Typer::TypeProjection(GetType(input), idx);
@@ -337,9 +338,9 @@ class TypeInferenceReducer
     return index;
   }
 
-  OpIndex REDUCE(WordBinop)(OpIndex left, OpIndex right, WordBinopOp::Kind kind,
+  V<Word> REDUCE(WordBinop)(V<Word> left, V<Word> right, WordBinopOp::Kind kind,
                             WordRepresentation rep) {
-    OpIndex index = Next::ReduceWordBinop(left, right, kind, rep);
+    V<Word> index = Next::ReduceWordBinop(left, right, kind, rep);
     if (!NeedsTyping(index)) return index;
 
     Type type = Typer::TypeWordBinop(GetType(left), GetType(right), kind, rep,
@@ -348,7 +349,7 @@ class TypeInferenceReducer
     return index;
   }
 
-  OpIndex REDUCE(OverflowCheckedBinop)(OpIndex left, OpIndex right,
+  OpIndex REDUCE(OverflowCheckedBinop)(V<Word> left, V<Word> right,
                                        OverflowCheckedBinopOp::Kind kind,
                                        WordRepresentation rep) {
     OpIndex index = Next::ReduceOverflowCheckedBinop(left, right, kind, rep);
@@ -360,9 +361,10 @@ class TypeInferenceReducer
     return index;
   }
 
-  OpIndex REDUCE(FloatBinop)(OpIndex left, OpIndex right,
-                             FloatBinopOp::Kind kind, FloatRepresentation rep) {
-    OpIndex index = Next::ReduceFloatBinop(left, right, kind, rep);
+  V<Float> REDUCE(FloatBinop)(V<Float> left, V<Float> right,
+                              FloatBinopOp::Kind kind,
+                              FloatRepresentation rep) {
+    V<Float> index = Next::ReduceFloatBinop(left, right, kind, rep);
     if (!NeedsTyping(index)) return index;
 
     Type type = Typer::TypeFloatBinop(GetType(left), GetType(right), kind, rep,
@@ -405,7 +407,7 @@ class TypeInferenceReducer
 
   void RemoveLast(OpIndex index_of_last_operation) {
     if (op_to_key_mapping_[index_of_last_operation]) {
-      op_to_key_mapping_[index_of_last_operation] = base::nullopt;
+      op_to_key_mapping_[index_of_last_operation] = std::nullopt;
       TURBOSHAFT_TRACE_TYPING_OK(
           "REM  %3d:%-40s %-40s\n", index_of_last_operation.id(),
           Asm()
@@ -547,16 +549,17 @@ class TypeInferenceReducer
   }
 
   TypeInferenceReducerArgs args_{TypeInferenceReducerArgs::Get()};
-  GrowingSidetable<Type> input_graph_types_{Asm().graph_zone()};
-  GrowingSidetable<Type>& output_graph_types_{
+  GrowingOpIndexSidetable<Type> input_graph_types_{Asm().graph_zone(),
+                                                   &Asm().input_graph()};
+  GrowingOpIndexSidetable<Type>& output_graph_types_{
       Asm().output_graph().operation_types()};
   table_t table_{Asm().phase_zone()};
   const Block* current_block_ = nullptr;
-  GrowingSidetable<base::Optional<table_t::Key>> op_to_key_mapping_{
-      Asm().phase_zone()};
-  GrowingBlockSidetable<base::Optional<table_t::Snapshot>>
+  GrowingOpIndexSidetable<std::optional<table_t::Key>> op_to_key_mapping_{
+      Asm().phase_zone(), &Asm().output_graph()};
+  GrowingBlockSidetable<std::optional<table_t::Snapshot>>
       block_to_snapshot_mapping_{Asm().input_graph().block_count(),
-                                 base::nullopt, Asm().phase_zone()};
+                                 std::nullopt, Asm().phase_zone()};
   // {predecessors_} is used during merging, but we use an instance variable for
   // it, in order to save memory and not reallocate it for each merge.
   ZoneVector<table_t::Snapshot> predecessors_{Asm().phase_zone()};

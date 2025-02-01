@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-gc
-
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 let instance = (() => {
@@ -16,7 +14,7 @@ let instance = (() => {
     .addLocals(kWasmAnyRef, 1)
     .addBody([
       kExprLocalGet, 0,
-      kGCPrefix, kExprExternInternalize,
+      kGCPrefix, kExprAnyConvertExtern,
       kExprLocalTee, 1,
       // After this cast the local[1] can only be a subtype of
       // (ref null structI32).

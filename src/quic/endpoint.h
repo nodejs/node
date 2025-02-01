@@ -17,8 +17,7 @@
 #include "sessionticket.h"
 #include "tokens.h"
 
-namespace node {
-namespace quic {
+namespace node::quic {
 
 // An Endpoint encapsulates the UDP local port binding and is responsible for
 // sending and receiving QUIC packets. A single endpoint can act as both a QUIC
@@ -32,10 +31,6 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
       (DEFAULT_MAX_CONNECTIONS_PER_HOST * 10);
   static constexpr uint64_t DEFAULT_MAX_STATELESS_RESETS = 10;
   static constexpr uint64_t DEFAULT_MAX_RETRY_LIMIT = 10;
-
-  static constexpr auto QUIC_CC_ALGO_RENO = NGTCP2_CC_ALGO_RENO;
-  static constexpr auto QUIC_CC_ALGO_CUBIC = NGTCP2_CC_ALGO_CUBIC;
-  static constexpr auto QUIC_CC_ALGO_BBR = NGTCP2_CC_ALGO_BBR;
 
   // Endpoint configuration options
   struct Options final : public MemoryRetainer {
@@ -87,33 +82,9 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
     // Similar to stateless resets, we enforce a limit on the number of retry
     // packets that can be generated and sent for a remote host. Generating
     // retry packets consumes a modest amount of resources and it's fairly
-    // trivial for a malcious peer to trigger generation of a large number of
+    // trivial for a malicious peer to trigger generation of a large number of
     // retries, so limiting them helps prevent a DOS vector.
     uint64_t max_retries = DEFAULT_MAX_RETRY_LIMIT;
-
-    // The max_payload_size is the maximum size of a serialized QUIC packet. It
-    // should always be set small enough to fit within a single MTU without
-    // fragmentation. The default is set by the QUIC specification at 1200. This
-    // value should not be changed unless you know for sure that the entire path
-    // supports a given MTU without fragmenting at any point in the path.
-    uint64_t max_payload_size = kDefaultMaxPacketLength;
-
-    // The unacknowledged_packet_threshold is the maximum number of
-    // unacknowledged packets that an ngtcp2 session will accumulate before
-    // sending an acknowledgement. Setting this to 0 uses the ngtcp2 defaults,
-    // which is what most will want. The value can be changed to fine tune some
-    // of the performance characteristics of the session. This should only be
-    // changed if you have a really good reason for doing so.
-    uint64_t unacknowledged_packet_threshold = 0;
-
-    // The amount of time (in milliseconds) that the endpoint will wait for the
-    // completion of the tls handshake.
-    uint64_t handshake_timeout = UINT64_MAX;
-
-    uint64_t max_stream_window = 0;
-    uint64_t max_window = 0;
-
-    bool no_udp_payload_size_shaping = true;
 
     // The validate_address parameter instructs the Endpoint to perform explicit
     // address validation using retry tokens. This is strongly recommended and
@@ -137,14 +108,6 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
     double rx_loss = 0.0;
     double tx_loss = 0.0;
 #endif  // DEBUG
-
-    // There are several common congestion control algorithms that ngtcp2 uses
-    // to determine how it manages the flow control window: RENO, CUBIC, and
-    // BBR. The details of how each works is not relevant here. The choice of
-    // which to use by default is arbitrary and we can choose whichever we'd
-    // like. Additional performance profiling will be needed to determine which
-    // is the better of the two for our needs.
-    ngtcp2_cc_algo cc_algorithm = NGTCP2_CC_ALGO_CUBIC;
 
     // By default, when the endpoint is created, it will generate a
     // reset_token_secret at random. This is a secret used in generating
@@ -193,6 +156,10 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
            v8::Local<v8::Object> object,
            const Endpoint::Options& options);
 
+  inline operator Packet::Listener*() {
+    return this;
+  }
+
   inline const Options& options() const {
     return options_;
   }
@@ -212,7 +179,7 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
                                                      const CID& cid) const;
 
   void AddSession(const CID& cid, BaseObjectPtr<Session> session);
-  void RemoveSession(const CID& cid);
+  void RemoveSession(const CID& cid, const SocketAddress& remote_address);
   BaseObjectPtr<Session> FindSession(const CID& cid);
 
   // A single session may be associated with multiple CIDs.
@@ -228,7 +195,7 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
                                     Session* session);
   void DisassociateStatelessResetToken(const StatelessResetToken& token);
 
-  void Send(Packet* packet);
+  void Send(const BaseObjectPtr<Packet>& packet);
 
   // Generates and sends a retry packet. This is terminal for the connection.
   // Retry packets are used to force explicit path validation by issuing a token
@@ -294,7 +261,7 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
     int Start();
     void Stop();
     void Close();
-    int Send(Packet* packet);
+    int Send(const BaseObjectPtr<Packet>& packet);
 
     // Returns the local UDP socket address to which we are bound,
     // or fail with an assert if we are not bound.
@@ -409,8 +376,12 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
   const Options options_;
   UDP udp_;
 
+  struct ServerState {
+    Session::Options options;
+    std::shared_ptr<TLSContext> tls_context;
+  };
   // Set if/when the endpoint is configured to listen.
-  std::optional<Session::Options> server_options_{};
+  std::optional<ServerState> server_state_ = std::nullopt;
 
   // A Session is generally identified by one or more CIDs. We use two
   // maps for this rather than one to avoid creating a whole bunch of
@@ -444,8 +415,7 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
   friend class Session;
 };
 
-}  // namespace quic
-}  // namespace node
+}  // namespace node::quic
 
 #endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

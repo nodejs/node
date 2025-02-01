@@ -44,26 +44,30 @@ bind(
     actual = "@com_google_absl//absl/types:optional"
 )
 
+bind(
+    name = "absl_btree",
+    actual = "@com_google_absl//absl/container:btree"
+)
+
+bind(
+    name = "absl_flat_hash_map",
+    actual = "@com_google_absl//absl/container:flat_hash_map"
+)
+
+bind(
+    name = "absl_flat_hash_set",
+    actual = "@com_google_absl//absl/container:flat_hash_set"
+)
+
 new_local_repository(
     name = "com_googlesource_chromium_icu",
-    build_file = "bazel/BUILD.icu",
+    build_file = ":bazel/BUILD.icu",
     path = "third_party/icu",
 )
 
 bind(
     name = "icu",
     actual = "@com_googlesource_chromium_icu//:icu",
-)
-
-new_local_repository(
-    name = "com_googlesource_chromium_base_trace_event_common",
-    build_file = "bazel/BUILD.trace_event_common",
-    path = "base/trace_event/common",
-)
-
-bind(
-    name = "base_trace_event_common",
-    actual = "@com_googlesource_chromium_base_trace_event_common//:trace_event_common",
 )
 
 http_archive(

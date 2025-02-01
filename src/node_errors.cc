@@ -1,5 +1,6 @@
 #include <cerrno>
 #include <cstdarg>
+#include <filesystem>
 #include <sstream>
 
 #include "debug_utils-inl.h"
@@ -135,8 +136,13 @@ static std::string GetErrorSource(Isolate* isolate,
 
   // Print (filename):(line number): (message).
   ScriptOrigin origin = message->GetScriptOrigin();
-  node::Utf8Value filename(isolate, message->GetScriptResourceName());
-  const char* filename_string = *filename;
+  std::string filename_string;
+  if (message->GetScriptResourceName()->IsUndefined()) {
+    filename_string = "<anonymous_script>";
+  } else {
+    node::Utf8Value filename(isolate, message->GetScriptResourceName());
+    filename_string = filename.ToString();
+  }
   int linenum = message->GetLineNumber(context).FromJust();
 
   int script_start = (linenum - origin.LineOffset()) == 1
@@ -303,17 +309,27 @@ std::string FormatCaughtException(Isolate* isolate,
                                   Local<Value> err,
                                   Local<Message> message,
                                   bool add_source_line = true) {
-  std::string result;
   node::Utf8Value reason(isolate,
                          err->ToDetailString(context)
                              .FromMaybe(Local<String>()));
+  std::string reason_str = reason.ToString();
+  return FormatErrorMessage(
+      isolate, context, reason_str, message, add_source_line);
+}
+
+std::string FormatErrorMessage(Isolate* isolate,
+                               Local<Context> context,
+                               const std::string& reason,
+                               Local<Message> message,
+                               bool add_source_line) {
+  std::string result;
   if (add_source_line) {
     bool added_exception_line = false;
     std::string source =
         GetErrorSource(isolate, context, message, &added_exception_line);
     result = source + '\n';
   }
-  result += reason.ToString() + '\n';
+  result += reason + '\n';
 
   Local<v8::StackTrace> stack = message->GetStackTrace();
   if (!stack.IsEmpty()) result += FormatStackTrace(isolate, stack);
@@ -528,10 +544,11 @@ static void ReportFatalException(Environment* env,
       std::string argv0;
       if (!env->argv().empty()) argv0 = env->argv()[0];
       if (argv0.empty()) argv0 = "node";
+      auto filesystem_path = std::filesystem::path(argv0).replace_extension();
       FPrintF(stderr,
               "(Use `%s --trace-uncaught ...` to show where the exception "
               "was thrown)\n",
-              fs::Basename(argv0, ".exe"));
+              filesystem_path.filename().string());
     }
   }
 
@@ -587,6 +604,9 @@ void OOMErrorHandler(const char* location, const v8::OOMDetails& details) {
     FPrintF(stderr, "FATAL ERROR: %s %s\n", location, message);
   } else {
     FPrintF(stderr, "FATAL ERROR: %s\n", message);
+  }
+  if (details.detail != nullptr) {
+    FPrintF(stderr, "Reason: %s\n", details.detail);
   }
 
   Isolate* isolate = Isolate::TryGetCurrent();
@@ -1128,15 +1148,19 @@ void Initialize(Local<Object> target,
 
 void DecorateErrorStack(Environment* env,
                         const errors::TryCatchScope& try_catch) {
-  Local<Value> exception = try_catch.Exception();
+  DecorateErrorStack(env, try_catch.Exception(), try_catch.Message());
+}
 
+void DecorateErrorStack(Environment* env,
+                        Local<Value> exception,
+                        Local<Message> message) {
   if (!exception->IsObject()) return;
 
   Local<Object> err_obj = exception.As<Object>();
 
   if (IsExceptionDecorated(env, err_obj)) return;
 
-  AppendExceptionLine(env, exception, try_catch.Message(), CONTEXTIFY_ERROR);
+  AppendExceptionLine(env, exception, message, CONTEXTIFY_ERROR);
   TryCatchScope try_catch_scope(env);  // Ignore exceptions below.
   MaybeLocal<Value> stack = err_obj->Get(env->context(), env->stack_string());
   MaybeLocal<Value> maybe_value =

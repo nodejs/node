@@ -21,11 +21,11 @@ on October 1st 2022.
 
 _Present in: 2021_
 
-Base HTTP support is a key component of modern cloud-native applications
+Base HTTP support is a key component of modern cloud-native applications,
 and built-in support was part of what made Node.js a success in the first
 10 years. The current implementation is hard to support and a common
 source of vulnerabilities. We must work towards an
-implementation which is easier to support and makes it easier to integrate
+implementation that is easier to support and makes it easier to integrate
 the new HTTP versions (HTTP3, QUIC) and to support efficient
 implementations of different versions concurrently.
 
@@ -96,7 +96,7 @@ supported tools to implement those processes (logging, metrics and tracing).
 This includes support within the Node.js runtime itself (for example
 generating heap dumps, performance metrics, etc.) as well as support for
 applications on top of the runtime. In addition, it is also important to
-clearly document the use cases, problem determination methods and best
+clearly document the use cases, problem determination methods, and best
 practices for those tools.
 
 ## Better multithreaded support
@@ -130,7 +130,7 @@ the expansion of where/when Node.js is used in building solutions.
 ## Serverless
 
 Serverless is a cloud computing model where the cloud provider manages the
-underlyinginfrastructure and automatically allocates resources as
+underlying infrastructure and automatically allocates resources as
 needed. Developers only need to focus on writing code for specific
 functions, which are executed as individual units of work in response to
 events. Node.js is one of the main technology used by developers in
@@ -160,3 +160,18 @@ and integration with other systems.
 As TypeScript usage continues to grow and gains more prominence in the
 ecosystem, enhancing its support is essential for delivering an improved
 developer experience for newcomers and experienced users alike.
+
+## Package management
+
+The ability to easily install and manage dependencies and development tools is a
+key part of the user experience, and for that reason Node.js must provide a
+package manager as part of its distribution. Node.js includes `npm` for this
+purpose. This is for historical reasons — when `npm` was added in 2011, it was
+the only JavaScript package manager — and because it is the reference
+implementation for the npm registry, which is the de facto primary source for
+most JavaScript software. In accordance with our [policy][distribution-policy]
+of not including multiple dependencies or tools that serve the same purpose, the
+Node.js project does not include any other package managers; though it may
+include other software to download other package managers.
+
+[distribution-policy]: ./distribution.md

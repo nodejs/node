@@ -1665,7 +1665,7 @@ domain Runtime
   # Binding function takes exactly one argument, this argument should be string,
   # in case of any other input, function throws an exception.
   # Each binding function call produces Runtime.bindingCalled notification.
-  experimental command addBinding
+  command addBinding
     parameters
       string name
       # If specified, the binding would only be exposed to the specified
@@ -1675,17 +1675,17 @@ domain Runtime
       # Deprecated in favor of `executionContextName` due to an unclear use case
       # and bugs in implementation (crbug.com/1169639). `executionContextId` will be
       # removed in the future.
-      deprecated optional ExecutionContextId executionContextId
+      experimental deprecated optional ExecutionContextId executionContextId
       # If specified, the binding is exposed to the executionContext with
       # matching name, even for contexts created after the binding is added.
       # See also `ExecutionContext.name` and `worldName` parameter to
       # `Page.addScriptToEvaluateOnNewDocument`.
       # This parameter is mutually exclusive with `executionContextId`.
-      experimental optional string executionContextName
+      optional string executionContextName
 
   # This method does not remove binding function from global object but
   # unsubscribes current runtime agent from Runtime.bindingCalled notifications.
-  experimental command removeBinding
+  command removeBinding
     parameters
       string name
 

@@ -27,7 +27,8 @@ if (v8_enable_google_benchmark) {
 
     deps = [
       "//:v8_libbase",
-      "//third_party/google_benchmark:benchmark_main",
+      "//third_party/google_benchmark_chrome:benchmark_main",
+      "//third_party/google_benchmark_chrome:google_benchmark",
     ]
   }
 
@@ -40,7 +41,26 @@ if (v8_enable_google_benchmark) {
 
     deps = [
       "//:v8_libbase",
-      "//third_party/google_benchmark:benchmark_main",
+      "//third_party/google_benchmark_chrome:benchmark_main",
+      "//third_party/google_benchmark_chrome:google_benchmark",
+    ]
+  }
+
+  v8_executable("bindings_benchmark") {
+    testonly = true
+
+    configs = []
+
+    sources = [
+      "benchmark-main.cc",
+      "benchmark-utils.cc",
+      "benchmark-utils.h",
+      "bindings.cc",
+    ]
+
+    deps = [
+      "//:v8",
+      "//third_party/google_benchmark_chrome:google_benchmark",
     ]
   }
 }

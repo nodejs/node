@@ -284,11 +284,10 @@ class CompactionState final {
       ReturnCurrentPageToSpace();
     }
 
-    // Return remaining available pages to the free page pool, decommitting
-    // them from the pagefile.
+    // Return remaining available pages back to the backend.
     for (NormalPage* page : available_pages_) {
       SetMemoryInaccessible(page->PayloadStart(), page->PayloadSize());
-      NormalPage::Destroy(page);
+      NormalPage::Destroy(page, FreeMemoryHandling::kDiscardWherePossible);
     }
   }
 
@@ -436,6 +435,7 @@ void CompactSpace(NormalPageSpace* space, MovableReferences& movable_references,
 
   CompactionState compaction_state(space, movable_references);
   for (BasePage* page : pages) {
+    page->ResetMarkedBytes();
     // Large objects do not belong to this arena.
     CompactPage(NormalPage::From(page), compaction_state, sticky_bits);
   }

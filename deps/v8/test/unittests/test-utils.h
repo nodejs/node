@@ -202,7 +202,7 @@ class WithIsolateScopeMixin : public TMixin {
                                   Local<String> origin_url,
                                   bool is_shared_cross_origin) {
     Isolate* isolate = Isolate::GetCurrent();
-    ScriptOrigin origin(isolate, origin_url, 0, 0, is_shared_cross_origin);
+    ScriptOrigin origin(origin_url, 0, 0, is_shared_cross_origin);
     ScriptCompiler::Source script_source(source, origin);
     return ScriptCompiler::Compile(isolate->GetCurrentContext(), &script_source)
         .ToLocalChecked();
@@ -257,13 +257,20 @@ class WithIsolateScopeMixin : public TMixin {
 template <typename TMixin>
 class WithContextMixin : public TMixin {
  public:
-  WithContextMixin()
-      : context_(Context::New(this->v8_isolate())), context_scope_(context_) {}
+  WithContextMixin() {
+    v8::Local<v8::Context> context = Context::New(this->v8_isolate());
+    context->Enter();
+    context_.Reset(this->v8_isolate(), context);
+  }
+  ~WithContextMixin() {
+    context_.Get(this->v8_isolate())->Exit();
+    context_.Reset();
+  }
   WithContextMixin(const WithContextMixin&) = delete;
   WithContextMixin& operator=(const WithContextMixin&) = delete;
 
-  const Local<Context>& context() const { return v8_context(); }
-  const Local<Context>& v8_context() const { return context_; }
+  Local<Context> context() const { return v8_context(); }
+  Local<Context> v8_context() const { return context_.Get(this->v8_isolate()); }
 
   void SetGlobalProperty(const char* name, v8::Local<v8::Value> value) {
     CHECK(v8_context()
@@ -273,8 +280,7 @@ class WithContextMixin : public TMixin {
   }
 
  private:
-  v8::Local<v8::Context> context_;
-  v8::Context::Scope context_scope_;
+  v8::Global<v8::Context> context_;
 };
 
 using TestWithPlatform =       //
@@ -388,7 +394,7 @@ class WithInternalIsolateMixin : public TMixin {
 
   template <typename T = Object>
   Handle<T> RunJS(const char* source) {
-    return Handle<T>::cast(RunJSInternal(source));
+    return Cast<T>(RunJSInternal(source));
   }
 
   Handle<Object> RunJSInternal(const char* source) {
@@ -397,7 +403,7 @@ class WithInternalIsolateMixin : public TMixin {
 
   template <typename T = Object>
   Handle<T> RunJS(::v8::String::ExternalOneByteStringResource* source) {
-    return Handle<T>::cast(RunJSInternal(source));
+    return Cast<T>(RunJSInternal(source));
   }
 
   Handle<Object> RunJSInternal(
@@ -529,7 +535,7 @@ class TestTransitionsAccessor : public TransitionsAccessor {
  public:
   TestTransitionsAccessor(Isolate* isolate, Tagged<Map> map)
       : TransitionsAccessor(isolate, map) {}
-  TestTransitionsAccessor(Isolate* isolate, Handle<Map> map)
+  TestTransitionsAccessor(Isolate* isolate, DirectHandle<Map> map)
       : TransitionsAccessor(isolate, *map) {}
 
   // Expose internals for tests.
@@ -622,6 +628,9 @@ class FakeCodeEventLogger : public i::CodeEventLogger {
 #elif V8_HOST_ARCH_MIPS64
 #define GET_STACK_POINTER_TO(sp_addr) \
   __asm__ __volatile__("sd $sp, %0" : "=g"(sp_addr))
+#elif V8_OS_ZOS
+#define GET_STACK_POINTER_TO(sp_addr) \
+  __asm__ __volatile__(" stg 15,%0" : "=m"(sp_addr))
 #elif defined(__s390x__) || defined(_ARCH_S390X)
 #define GET_STACK_POINTER_TO(sp_addr) \
   __asm__ __volatile__("stg %%r15, %0" : "=m"(sp_addr))

@@ -8,6 +8,10 @@ const fs = require('fs');
 const exec = require('child_process').exec;
 const crypto = require('crypto');
 const fixtures = require('../common/fixtures');
+const {
+  hasOpenSSL3,
+  opensslCli,
+} = require('../common/crypto');
 
 // Test certificates
 const certPem = fixtures.readKey('rsa_cert.crt');
@@ -62,7 +66,7 @@ const keySize = 2048;
         key: keyPem,
         padding: crypto.constants.RSA_PKCS1_OAEP_PADDING
       });
-  }, { message: common.hasOpenSSL3 ?
+  }, { message: hasOpenSSL3 ?
     'error:1C8000A5:Provider routines::illegal or unsupported padding mode' :
     'bye, bye, error stack' });
 
@@ -340,7 +344,7 @@ assert.throws(
         key: keyPem,
         padding: crypto.constants.RSA_PKCS1_OAEP_PADDING
       });
-  }, common.hasOpenSSL3 ? {
+  }, hasOpenSSL3 ? {
     code: 'ERR_OSSL_ILLEGAL_OR_UNSUPPORTED_PADDING_MODE',
     message: /illegal or unsupported padding mode/,
   } : {
@@ -599,8 +603,9 @@ assert.throws(
 // Note: this particular test *must* be the last in this file as it will exit
 // early if no openssl binary is found
 {
-  if (!common.opensslCli)
+  if (!opensslCli) {
     common.skip('node compiled without OpenSSL CLI.');
+  }
 
   const pubfile = fixtures.path('keys', 'rsa_public_2048.pem');
   const privkey = fixtures.readKey('rsa_private_2048.pem');
@@ -621,12 +626,10 @@ assert.throws(
   const msgfile = tmpdir.resolve('s5.msg');
   fs.writeFileSync(msgfile, msg);
 
-  const cmd =
-    `"${common.opensslCli}" dgst -sha256 -verify "${pubfile}" -signature "${
-      sigfile}" -sigopt rsa_padding_mode:pss -sigopt rsa_pss_saltlen:-2 "${
-      msgfile}"`;
-
-  exec(cmd, common.mustCall((err, stdout, stderr) => {
+  exec(...common.escapePOSIXShell`"${
+    opensslCli}" dgst -sha256 -verify "${pubfile}" -signature "${
+    sigfile}" -sigopt rsa_padding_mode:pss -sigopt rsa_pss_saltlen:-2 "${msgfile
+  }"`, common.mustCall((err, stdout, stderr) => {
     assert(stdout.includes('Verified OK'));
   }));
 }
@@ -771,5 +774,43 @@ assert.throws(
     assert.throws(() => {
       crypto.createSign('sha256').sign({ key, format: 'jwk' });
     }, { code: 'ERR_INVALID_ARG_TYPE', message: /The "key\.key" property must be of type object/ });
+  }
+}
+
+{
+  // Ed25519 and Ed448 must use the one-shot methods
+  const keys = [{ privateKey: fixtures.readKey('ed25519_private.pem', 'ascii'),
+                  publicKey: fixtures.readKey('ed25519_public.pem', 'ascii') },
+                { privateKey: fixtures.readKey('ed448_private.pem', 'ascii'),
+                  publicKey: fixtures.readKey('ed448_public.pem', 'ascii') }];
+
+  for (const { publicKey, privateKey } of keys) {
+    assert.throws(() => {
+      crypto.createSign('SHA256').update('Test123').sign(privateKey);
+    }, { code: 'ERR_CRYPTO_UNSUPPORTED_OPERATION', message: 'Unsupported crypto operation' });
+    assert.throws(() => {
+      crypto.createVerify('SHA256').update('Test123').verify(privateKey, 'sig');
+    }, { code: 'ERR_CRYPTO_UNSUPPORTED_OPERATION', message: 'Unsupported crypto operation' });
+    assert.throws(() => {
+      crypto.createVerify('SHA256').update('Test123').verify(publicKey, 'sig');
+    }, { code: 'ERR_CRYPTO_UNSUPPORTED_OPERATION', message: 'Unsupported crypto operation' });
+  }
+}
+
+{
+  // Dh, x25519 and x448 should not be used for signing/verifying
+  // https://github.com/nodejs/node/issues/53742
+  for (const algo of ['dh', 'x25519', 'x448']) {
+    const privateKey = fixtures.readKey(`${algo}_private.pem`, 'ascii');
+    const publicKey = fixtures.readKey(`${algo}_public.pem`, 'ascii');
+    assert.throws(() => {
+      crypto.createSign('SHA256').update('Test123').sign(privateKey);
+    }, { code: 'ERR_OSSL_EVP_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE', message: /operation not supported for this keytype/ });
+    assert.throws(() => {
+      crypto.createVerify('SHA256').update('Test123').verify(privateKey, 'sig');
+    }, { code: 'ERR_OSSL_EVP_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE', message: /operation not supported for this keytype/ });
+    assert.throws(() => {
+      crypto.createVerify('SHA256').update('Test123').verify(publicKey, 'sig');
+    }, { code: 'ERR_OSSL_EVP_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE', message: /operation not supported for this keytype/ });
   }
 }

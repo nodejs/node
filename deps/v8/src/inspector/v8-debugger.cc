@@ -39,6 +39,10 @@ void cleanupExpiredWeakPointers(Map& map) {
   }
 }
 
+// Allow usages of v8::Object::GetPrototype() for now.
+// TODO(https://crbug.com/333672197): remove.
+START_ALLOW_USE_DEPRECATED()
+
 class MatchPrototypePredicate : public v8::QueryObjectPredicate {
  public:
   MatchPrototypePredicate(V8InspectorImpl* inspector,
@@ -68,6 +72,10 @@ class MatchPrototypePredicate : public v8::QueryObjectPredicate {
   v8::Local<v8::Context> m_context;
   v8::Local<v8::Value> m_prototype;
 };
+
+// Allow usages of v8::Object::GetPrototype() for now.
+// TODO(https://crbug.com/333672197): remove.
+END_ALLOW_USE_DEPRECATED()
 
 }  // namespace
 
@@ -803,7 +811,7 @@ v8::MaybeLocal<v8::Value> V8Debugger::getTargetScopes(
   }
   if (!iterator) return v8::MaybeLocal<v8::Value>();
   v8::Local<v8::Array> result = v8::Array::New(m_isolate);
-  if (!result->SetPrototype(context, v8::Null(m_isolate)).FromMaybe(false)) {
+  if (!result->SetPrototypeV2(context, v8::Null(m_isolate)).FromMaybe(false)) {
     return v8::MaybeLocal<v8::Value>();
   }
 
@@ -883,7 +891,7 @@ v8::MaybeLocal<v8::Array> V8Debugger::collectionsEntries(
 
   v8::Local<v8::Array> wrappedEntries = v8::Array::New(isolate);
   CHECK(!isKeyValue || wrappedEntries->Length() % 2 == 0);
-  if (!wrappedEntries->SetPrototype(context, v8::Null(isolate))
+  if (!wrappedEntries->SetPrototypeV2(context, v8::Null(isolate))
            .FromMaybe(false))
     return v8::MaybeLocal<v8::Array>();
   for (uint32_t i = 0; i < entries->Length(); i += isKeyValue ? 2 : 1) {
@@ -892,7 +900,7 @@ v8::MaybeLocal<v8::Array> V8Debugger::collectionsEntries(
     v8::Local<v8::Value> value;
     if (isKeyValue && !entries->Get(context, i + 1).ToLocal(&value)) continue;
     v8::Local<v8::Object> wrapper = v8::Object::New(isolate);
-    if (!wrapper->SetPrototype(context, v8::Null(isolate)).FromMaybe(false))
+    if (!wrapper->SetPrototypeV2(context, v8::Null(isolate)).FromMaybe(false))
       continue;
     createDataProperty(
         context, wrapper,
@@ -915,25 +923,25 @@ v8::MaybeLocal<v8::Array> V8Debugger::privateMethods(
     return v8::MaybeLocal<v8::Array>();
   }
   v8::Isolate* isolate = context->GetIsolate();
-  std::vector<v8::Local<v8::Value>> names;
-  std::vector<v8::Local<v8::Value>> values;
+  v8::LocalVector<v8::Value> names(isolate);
+  v8::LocalVector<v8::Value> values(isolate);
   int filter =
       static_cast<int>(v8::debug::PrivateMemberFilter::kPrivateMethods);
   if (!v8::debug::GetPrivateMembers(context, receiver.As<v8::Object>(), filter,
                                     &names, &values) ||
-      names.size() == 0) {
+      names.empty()) {
     return v8::MaybeLocal<v8::Array>();
   }
 
   v8::Local<v8::Array> result = v8::Array::New(isolate);
-  if (!result->SetPrototype(context, v8::Null(isolate)).FromMaybe(false))
+  if (!result->SetPrototypeV2(context, v8::Null(isolate)).FromMaybe(false))
     return v8::MaybeLocal<v8::Array>();
   for (uint32_t i = 0; i < names.size(); i++) {
     v8::Local<v8::Value> name = names[i];
     v8::Local<v8::Value> value = values[i];
     DCHECK(value->IsFunction());
     v8::Local<v8::Object> wrapper = v8::Object::New(isolate);
-    if (!wrapper->SetPrototype(context, v8::Null(isolate)).FromMaybe(false))
+    if (!wrapper->SetPrototypeV2(context, v8::Null(isolate)).FromMaybe(false))
       continue;
     createDataProperty(context, wrapper,
                        toV8StringInternalized(isolate, "name"), name);
@@ -1207,7 +1215,7 @@ void V8Debugger::asyncTaskStartedForStack(void* task) {
 void V8Debugger::asyncTaskFinishedForStack(void* task) {
   if (!m_maxAsyncCallStackDepth) return;
   // We could start instrumenting half way and the stack is empty.
-  if (!m_currentTasks.size()) return;
+  if (m_currentTasks.empty()) return;
   DCHECK(m_currentTasks.back() == task);
   m_currentTasks.pop_back();
 

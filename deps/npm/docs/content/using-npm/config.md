@@ -6,6 +6,9 @@ description: More than you probably want to know about npm configuration
 
 ### Description
 
+This article details npm configuration in general. To learn about the `config` command,
+see [`npm config`](/commands/npm-config).
+
 npm gets its configuration values from the following sources, sorted by priority:
 
 #### Command Line Flags
@@ -489,6 +492,25 @@ This can be overridden by setting the `--force` flag.
 
 
 
+#### `expect-result-count`
+
+* Default: null
+* Type: null or Number
+
+Tells to expect a specific number of results from the command.
+
+This config can not be used with: `expect-results`
+
+#### `expect-results`
+
+* Default: null
+* Type: null or Boolean
+
+Tells npm whether or not to expect results from the command. Can be either
+true (expect some results) or false (expect no results).
+
+This config can not be used with: `expect-result-count`
+
 #### `fetch-retries`
 
 * Default: 2
@@ -570,7 +592,8 @@ recommended that you do not use this option!
 
 #### `foreground-scripts`
 
-* Default: false
+* Default: `false` unless when using `npm pack` or `npm publish` where it
+  defaults to `true`
 * Type: Boolean
 
 Run all build scripts (ie, `preinstall`, `install`, and `postinstall`)
@@ -1194,7 +1217,7 @@ a semver. Like the `rc` in `1.2.0-rc.8`.
 * Type: Boolean
 
 When set to `true`, npm will display a progress bar during time intensive
-operations, if `process.stderr` is a TTY.
+operations, if `process.stderr` and `process.stdout` are a TTY.
 
 Set to `false` to suppress the progress bar.
 
@@ -1544,11 +1567,14 @@ See also the `ca` config.
 If you ask npm to install a package and don't tell it a specific version,
 then it will install the specified tag.
 
-Also the tag that is added to the package@version specified by the `npm tag`
-command, if no explicit tag is given.
+It is the tag added to the package@version specified in the `npm dist-tag
+add` command, if no explicit tag is given.
 
 When used by the `npm diff` command, this is the tag used to fetch the
 tarball that will be compared with the local files by default.
+
+If used in the `npm publish` command, this is the tag that will be added to
+the package submitted to the registry.
 
 
 
@@ -1807,9 +1833,9 @@ When set to `dev` or `development`, this is an alias for `--include=dev`.
 * Default: null
 * Type: null or String
 * DEPRECATED: `key` and `cert` are no longer used for most registry
-  operations. Use registry scoped `keyfile` and `certfile` instead. Example:
+  operations. Use registry scoped `keyfile` and `cafile` instead. Example:
   //other-registry.tld/:keyfile=/path/to/key.pem
-  //other-registry.tld/:certfile=/path/to/cert.crt
+  //other-registry.tld/:cafile=/path/to/cert.crt
 
 A client certificate to pass when accessing the registry. Values should be
 in PEM format (Windows calls it "Base-64 encoded X.509 (.CER)") with
@@ -1820,8 +1846,8 @@ cert="-----BEGIN CERTIFICATE-----\nXXXX\nXXXX\n-----END CERTIFICATE-----"
 ```
 
 It is _not_ the path to a certificate file, though you can set a
-registry-scoped "certfile" path like
-"//other-registry.tld/:certfile=/path/to/cert.pem".
+registry-scoped "cafile" path like
+"//other-registry.tld/:cafile=/path/to/cert.pem".
 
 
 
@@ -1912,9 +1938,9 @@ Alias for `--init-version`
 * Default: null
 * Type: null or String
 * DEPRECATED: `key` and `cert` are no longer used for most registry
-  operations. Use registry scoped `keyfile` and `certfile` instead. Example:
+  operations. Use registry scoped `keyfile` and `cafile` instead. Example:
   //other-registry.tld/:keyfile=/path/to/key.pem
-  //other-registry.tld/:certfile=/path/to/cert.crt
+  //other-registry.tld/:cafile=/path/to/cert.crt
 
 A client key to pass when accessing the registry. Values should be in PEM
 format with newlines replaced by the string "\n". For example:

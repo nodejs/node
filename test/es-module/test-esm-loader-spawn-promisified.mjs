@@ -4,7 +4,7 @@ import assert from 'node:assert';
 import { execPath } from 'node:process';
 import { describe, it } from 'node:test';
 
-describe('Loader hooks throwing errors', { concurrency: true }, () => {
+describe('Loader hooks throwing errors', { concurrency: !process.env.TEST_PARALLEL }, () => {
   it('throws on nonexistent modules', async () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
@@ -161,7 +161,7 @@ describe('Loader hooks throwing errors', { concurrency: true }, () => {
   });
 });
 
-describe('Loader hooks parsing modules', { concurrency: true }, () => {
+describe('Loader hooks parsing modules', { concurrency: !process.env.TEST_PARALLEL }, () => {
   it('can parse .js files as ESM', async () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
@@ -283,6 +283,22 @@ describe('Loader hooks parsing modules', { concurrency: true }, () => {
     assert.strictEqual(stderr, '');
     assert.strictEqual(stdout, '');
     assert.strictEqual(code, 0);
+    assert.strictEqual(signal, null);
+  });
+
+  it('throw maximum call stack error on the loader', async () => {
+    const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+      '--no-warnings',
+      '--experimental-loader',
+      fixtures.fileURL('/es-module-loaders/hooks-custom.mjs'),
+      '--input-type=module',
+      '--eval',
+      'await import("esmHook/maximumCallStack.mjs")',
+    ]);
+
+    assert(stderr.includes('Maximum call stack size exceeded'));
+    assert.strictEqual(stdout, '');
+    assert.strictEqual(code, 1);
     assert.strictEqual(signal, null);
   });
 });

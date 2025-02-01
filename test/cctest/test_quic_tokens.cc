@@ -14,7 +14,7 @@ using node::quic::RetryToken;
 using node::quic::StatelessResetToken;
 using node::quic::TokenSecret;
 
-TEST(TokenScret, Basics) {
+TEST(TokenSecret, Basics) {
   uint8_t secret[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6};
   TokenSecret fixed_secret(secret);
 

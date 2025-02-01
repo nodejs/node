@@ -19,9 +19,11 @@ env:
 
   WARN_MESSAGE: >
     There has been no activity on this feature request for
-    5 months and it is unlikely to be implemented.
-    It will be closed 6 months after the last non-automated comment.
-
+    5 months. To help maintain relevant open issues, please
+    add the https://github.com/nodejs/node/labels/never-stale
+    label or close this issue if it should be closed. If not,
+    the issue will be automatically closed 6 months after the
+    last non-automated comment.
 
     For more information on how the project manages
     feature requests, please consult the

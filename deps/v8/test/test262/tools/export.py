@@ -21,18 +21,25 @@ def main():
       '--config-path',
       help="Absolute path to a project configuration json file.",
       default=(Path(__file__).parent / 'v8configs.json'))
+  parser.add_argument(
+      '--approver',
+      help="Flag indicating that this run will only approve and merge "
+      "exisiting PRs. Approval of these PRs needs to be done by an account "
+      "different from the one that created the PR.",
+      action="store_true")
   args, exporter_args = parser.parse_known_args(sys.argv)
 
   sys.path.append(args.blink_tools_path)
   from blinkpy.common import exit_codes
   from blinkpy.common.host import Host
   from blinkpy.common.path_finder import add_depot_tools_dir_to_os_path
-  from blinkpy.w3c.test_exporter import TestExporter
+
+  from v8_exporter import V8TestExporter, V8TestApprover
   from v8configs import config_from_file
 
   add_depot_tools_dir_to_os_path()
   host = Host(project_config_factory=config_from_file(args.config_path))
-  exporter = TestExporter(host)
+  exporter = (V8TestApprover if args.approver else V8TestExporter)(host)
   try:
     success = exporter.main(exporter_args[1:])
     host.exit(0 if success else 1)

@@ -50,6 +50,9 @@ LocalHandleScope::LocalHandleScope(LocalHeap* local_heap) {
 
 LocalHandleScope::~LocalHandleScope() {
   if (local_heap_->is_main_thread()) {
+#ifdef V8_ENABLE_CHECKS
+    VerifyMainThreadScope();
+#endif
     CloseMainThreadScope(local_heap_, prev_next_, prev_limit_);
   } else {
     CloseScope(local_heap_, prev_next_, prev_limit_);
@@ -62,6 +65,9 @@ Handle<T> LocalHandleScope::CloseAndEscape(Handle<T> handle_value) {
   Tagged<T> value = *handle_value;
   // Throw away all handles in the current scope.
   if (local_heap_->is_main_thread()) {
+#ifdef V8_ENABLE_CHECKS
+    VerifyMainThreadScope();
+#endif
     current = local_heap_->heap()->isolate()->handle_scope_data();
     CloseMainThreadScope(local_heap_, prev_next_, prev_limit_);
   } else {

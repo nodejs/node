@@ -5,6 +5,8 @@
 #ifndef V8_HEAP_EVACUATION_ALLOCATOR_H_
 #define V8_HEAP_EVACUATION_ALLOCATOR_H_
 
+#include <optional>
+
 #include "src/common/globals.h"
 #include "src/heap/heap.h"
 #include "src/heap/new-spaces.h"
@@ -18,44 +20,41 @@ namespace internal {
 // that all other allocations also go through EvacuationAllocator.
 class EvacuationAllocator {
  public:
-  static const int kLabSize = 32 * KB;
-  static const int kMaxLabObjectSize = 8 * KB;
-
-  explicit EvacuationAllocator(Heap* heap,
-                               CompactionSpaceKind compaction_space_kind)
-      : heap_(heap),
-        new_space_(heap->new_space()),
-        compaction_spaces_(heap, compaction_space_kind),
-        new_space_lab_(LocalAllocationBuffer::InvalidBuffer()),
-        lab_allocation_will_fail_(false) {}
+  EvacuationAllocator(Heap* heap, CompactionSpaceKind compaction_space_kind);
 
   // Needs to be called from the main thread to finalize this
   // EvacuationAllocator.
   void Finalize();
 
   inline AllocationResult Allocate(AllocationSpace space, int object_size,
-                                   AllocationOrigin origin,
                                    AllocationAlignment alignment);
-  inline void FreeLast(AllocationSpace space, Tagged<HeapObject> object,
-                       int object_size);
+  void FreeLast(AllocationSpace space, Tagged<HeapObject> object,
+                int object_size);
 
  private:
-  inline AllocationResult AllocateInNewSpace(int object_size,
-                                             AllocationOrigin origin,
-                                             AllocationAlignment alignment);
-  inline bool NewLocalAllocationBuffer();
-  inline AllocationResult AllocateInLAB(int object_size,
-                                        AllocationAlignment alignment);
-  inline void FreeLastInNewSpace(Tagged<HeapObject> object, int object_size);
-  inline void FreeLastInCompactionSpace(AllocationSpace space,
-                                        Tagged<HeapObject> object,
-                                        int object_size);
+  void FreeLastInMainAllocator(MainAllocator* allocator,
+                               Tagged<HeapObject> object, int object_size);
+
+  MainAllocator* new_space_allocator() { return &new_space_allocator_.value(); }
+  MainAllocator* old_space_allocator() { return &old_space_allocator_.value(); }
+  MainAllocator* code_space_allocator() {
+    return &code_space_allocator_.value();
+  }
+  MainAllocator* shared_space_allocator() {
+    return &shared_space_allocator_.value();
+  }
+  MainAllocator* trusted_space_allocator() {
+    return &trusted_space_allocator_.value();
+  }
 
   Heap* const heap_;
   NewSpace* const new_space_;
   CompactionSpaceCollection compaction_spaces_;
-  LocalAllocationBuffer new_space_lab_;
-  bool lab_allocation_will_fail_;
+  std::optional<MainAllocator> new_space_allocator_;
+  std::optional<MainAllocator> old_space_allocator_;
+  std::optional<MainAllocator> code_space_allocator_;
+  std::optional<MainAllocator> shared_space_allocator_;
+  std::optional<MainAllocator> trusted_space_allocator_;
 };
 
 }  // namespace internal

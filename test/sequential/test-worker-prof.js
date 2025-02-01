@@ -3,7 +3,7 @@ const common = require('../common');
 const tmpdir = require('../common/tmpdir');
 const fs = require('fs');
 const assert = require('assert');
-const { spawnSyncAndExitWithoutError } = require('../common/child_process');
+const { spawnSyncAndAssert } = require('../common/child_process');
 
 // Test that --prof also tracks Worker threads.
 // Refs: https://github.com/nodejs/node/issues/24016
@@ -50,7 +50,7 @@ if (process.argv[2] === 'child') {
 
   const workerProfRegexp = /worker prof file: (.+\.log)/;
   const parentProfRegexp = /parent prof file: (.+\.log)/;
-  const { stdout } = spawnSyncAndExitWithoutError(
+  const { stdout } = spawnSyncAndAssert(
     process.execPath, ['--prof', __filename, 'child'],
     { cwd: tmpdir.path, encoding: 'utf8' }, {
       stdout(output) {
@@ -76,7 +76,7 @@ if (process.argv[2] === 'child') {
   console.log('parent ticks', parentTicks.length);
   // When not tracking Worker threads, only 1 or 2 ticks would
   // have been recorded.
-  // prof_sampling_interval is by default 1 millsecond. A higher NODE_TEST_SPIN_MS
+  // prof_sampling_interval is by default 1 millisecond. A higher NODE_TEST_SPIN_MS
   // should result in more ticks, while 15 should be safe on most machines.
   assert(workerTicks.length > 15, `worker ticks <= 15:\n${workerTicks.join('\n')}`);
   assert(parentTicks.length > 15, `parent ticks <= 15:\n${parentTicks.join('\n')}`);

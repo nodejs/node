@@ -9,13 +9,26 @@
 #include "src/wasm/std-object-sizes.h"
 #include "src/wasm/wasm-code-manager.h"
 
-namespace v8 {
-namespace internal {
-namespace wasm {
+namespace v8::internal::wasm {
 
 WasmCode*& WasmImportWrapperCache::ModificationScope::operator[](
     const CacheKey& key) {
   return cache_->entry_map_[key];
+}
+
+void WasmImportWrapperCache::clear() {
+  std::vector<WasmCode*> ptrs;
+  {
+    base::MutexGuard lock(&mutex_);
+    if (entry_map_.empty()) return;
+    ptrs.reserve(entry_map_.size());
+    for (auto& [key, code] : entry_map_) {
+      if (code) ptrs.push_back(code);
+    }
+    entry_map_.clear();
+  }
+  if (ptrs.empty()) return;
+  WasmCode::DecrementRefCount(base::VectorOf(ptrs));
 }
 
 WasmCode*& WasmImportWrapperCache::operator[](
@@ -47,22 +60,10 @@ WasmCode* WasmImportWrapperCache::MaybeGet(ImportCallKind kind,
   return it->second;
 }
 
-WasmImportWrapperCache::~WasmImportWrapperCache() {
-  std::vector<WasmCode*> ptrs;
-  ptrs.reserve(entry_map_.size());
-  for (auto& e : entry_map_) {
-    if (e.second) {
-      ptrs.push_back(e.second);
-    }
-  }
-  WasmCode::DecrementRefCount(base::VectorOf(ptrs));
-}
-
 size_t WasmImportWrapperCache::EstimateCurrentMemoryConsumption() const {
   UPDATE_WHEN_CLASS_CHANGES(WasmImportWrapperCache, 88);
+  base::MutexGuard lock(&mutex_);
   return sizeof(WasmImportWrapperCache) + ContentSize(entry_map_);
 }
 
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::wasm

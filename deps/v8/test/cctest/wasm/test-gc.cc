@@ -31,16 +31,17 @@ class WasmGCTester {
  public:
   explicit WasmGCTester(
       TestExecutionTier execution_tier = TestExecutionTier::kTurbofan)
-      : flag_gc(&v8::internal::v8_flags.experimental_wasm_gc, true),
-        flag_typedfuns(&v8::internal::v8_flags.experimental_wasm_typed_funcref,
-                       true),
-        flag_liftoff(&v8::internal::v8_flags.liftoff,
+      : flag_liftoff(&v8::internal::v8_flags.liftoff,
                      execution_tier == TestExecutionTier::kLiftoff),
         flag_liftoff_only(&v8::internal::v8_flags.liftoff_only,
                           execution_tier == TestExecutionTier::kLiftoff),
         flag_wasm_dynamic_tiering(&v8::internal::v8_flags.wasm_dynamic_tiering,
                                   v8::internal::v8_flags.liftoff_only != true),
         flag_tierup(&v8::internal::v8_flags.wasm_tier_up, false),
+        // Manually apply flag implication by disabling deopts in case of
+        // --no-liftoff.
+        flag_wasm_deopt(&v8::internal::v8_flags.wasm_deopt,
+                        v8_flags.wasm_deopt && v8_flags.liftoff),
         zone_(&allocator, ZONE_NAME),
         builder_(&zone_),
         isolate_(CcTest::InitIsolateOnce()),
@@ -75,7 +76,7 @@ class WasmGCTester {
   MaybeHandle<Object> CallExportedFunction(const char* name, int argc,
                                            Handle<Object> args[]) {
     Handle<WasmExportedFunction> func =
-        testing::GetExportedFunction(isolate_, instance_, name)
+        testing::GetExportedFunction(isolate_, instance_object_, name)
             .ToHandleChecked();
     return Execution::Call(isolate_, func,
                            isolate_->factory()->undefined_value(), argc, args);
@@ -115,50 +116,55 @@ class WasmGCTester {
         testing::CompileAndInstantiateForTesting(
             isolate_, &thrower, ModuleWireBytes(buffer.begin(), buffer.end()));
     if (thrower.error()) FATAL("%s", thrower.error_msg());
-    instance_ = maybe_instance.ToHandleChecked();
+    instance_object_ = maybe_instance.ToHandleChecked();
+    trusted_instance_data_ =
+        handle(instance_object_->trusted_data(isolate_), isolate_);
   }
 
   void CheckResult(uint32_t function_index, int32_t expected) {
     const FunctionSig* sig = sigs.i_v();
-    DCHECK(*sig == *instance_->module()->functions[function_index].sig);
+    DCHECK(*sig == *instance_object_->module()->functions[function_index].sig);
     CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(sig));
     CheckResultImpl(function_index, sig, &packer, expected);
   }
 
   void CheckResult(uint32_t function_index, int32_t expected, int32_t arg) {
     const FunctionSig* sig = sigs.i_i();
-    DCHECK(*sig == *instance_->module()->functions[function_index].sig);
+    DCHECK(*sig == *instance_object_->module()->functions[function_index].sig);
     CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(sig));
     packer.Push(arg);
     CheckResultImpl(function_index, sig, &packer, expected);
   }
 
   MaybeHandle<Object> GetResultObject(uint32_t function_index) {
-    const FunctionSig* sig = instance_->module()->functions[function_index].sig;
+    const FunctionSig* sig =
+        instance_object_->module()->functions[function_index].sig;
     DCHECK_EQ(sig->parameter_count(), 0);
     DCHECK_EQ(sig->return_count(), 1);
     CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(sig));
     CallFunctionImpl(function_index, sig, &packer);
-    CHECK(!isolate_->has_pending_exception());
+    CHECK(!isolate_->has_exception());
     packer.Reset();
     return Handle<Object>(Tagged<Object>(packer.Pop<Address>()), isolate_);
   }
 
   MaybeHandle<Object> GetResultObject(uint32_t function_index, int32_t arg) {
-    const FunctionSig* sig = instance_->module()->functions[function_index].sig;
+    const FunctionSig* sig =
+        instance_object_->module()->functions[function_index].sig;
     DCHECK_EQ(sig->parameter_count(), 1);
     DCHECK_EQ(sig->return_count(), 1);
     DCHECK(sig->parameters()[0] == kWasmI32);
     CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(sig));
     packer.Push(arg);
     CallFunctionImpl(function_index, sig, &packer);
-    CHECK(!isolate_->has_pending_exception());
+    CHECK(!isolate_->has_exception());
     packer.Reset();
     return Handle<Object>(Tagged<Object>(packer.Pop<Address>()), isolate_);
   }
 
   void CheckHasThrown(uint32_t function_index, const char* expected = "") {
-    const FunctionSig* sig = instance_->module()->functions[function_index].sig;
+    const FunctionSig* sig =
+        instance_object_->module()->functions[function_index].sig;
     DCHECK_EQ(sig->parameter_count(), 0);
     CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(sig));
     CheckHasThrownImpl(function_index, sig, &packer, expected);
@@ -166,7 +172,8 @@ class WasmGCTester {
 
   void CheckHasThrown(uint32_t function_index, int32_t arg,
                       const char* expected = "") {
-    const FunctionSig* sig = instance_->module()->functions[function_index].sig;
+    const FunctionSig* sig =
+        instance_object_->module()->functions[function_index].sig;
     DCHECK_EQ(sig->parameter_count(), 1);
     DCHECK(sig->parameters()[0] == kWasmI32);
     CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(sig));
@@ -187,20 +194,24 @@ class WasmGCTester {
     return true;
   }
 
-  Handle<WasmInstanceObject> instance() { return instance_; }
-  Isolate* isolate() { return isolate_; }
+  Handle<WasmInstanceObject> instance_object() const {
+    return instance_object_;
+  }
+  Handle<WasmTrustedInstanceData> trusted_instance_data() const {
+    return trusted_instance_data_;
+  }
+  Isolate* isolate() const { return isolate_; }
   WasmModuleBuilder* builder() { return &builder_; }
   Zone* zone() { return &zone_; }
 
   TestSignatures sigs;
 
  private:
-  const FlagScope<bool> flag_gc;
-  const FlagScope<bool> flag_typedfuns;
   const FlagScope<bool> flag_liftoff;
   const FlagScope<bool> flag_liftoff_only;
   const FlagScope<bool> flag_wasm_dynamic_tiering;
   const FlagScope<bool> flag_tierup;
+  const FlagScope<bool> flag_wasm_deopt;
 
   uint8_t DefineFunctionImpl(WasmFunctionBuilder* fun,
                              std::initializer_list<ValueType> locals,
@@ -215,10 +226,10 @@ class WasmGCTester {
   void CheckResultImpl(uint32_t function_index, const FunctionSig* sig,
                        CWasmArgumentsPacker* packer, int32_t expected) {
     CallFunctionImpl(function_index, sig, packer);
-    if (isolate_->has_pending_exception()) {
-      Handle<String> message =
+    if (isolate_->has_exception()) {
+      DirectHandle<String> message =
           ErrorUtils::ToString(isolate_,
-                               handle(isolate_->pending_exception(), isolate_))
+                               handle(isolate_->exception(), isolate_))
               .ToHandleChecked();
       FATAL("%s", message->ToCString().get());
     }
@@ -229,24 +240,24 @@ class WasmGCTester {
   void CheckHasThrownImpl(uint32_t function_index, const FunctionSig* sig,
                           CWasmArgumentsPacker* packer, const char* expected) {
     CallFunctionImpl(function_index, sig, packer);
-    CHECK(isolate_->has_pending_exception());
-    Handle<String> message =
-        ErrorUtils::ToString(isolate_,
-                             handle(isolate_->pending_exception(), isolate_))
+    CHECK(isolate_->has_exception());
+    DirectHandle<String> message =
+        ErrorUtils::ToString(isolate_, handle(isolate_->exception(), isolate_))
             .ToHandleChecked();
     std::string message_str(message->ToCString().get());
     CHECK_NE(message_str.find(expected), std::string::npos);
-    isolate_->clear_pending_exception();
+    isolate_->clear_exception();
   }
 
   void CallFunctionImpl(uint32_t function_index, const FunctionSig* sig,
                         CWasmArgumentsPacker* packer) {
     WasmCodeRefScope code_ref_scope;
-    NativeModule* native_module = instance_->module_object()->native_module();
-    Address wasm_call_target = instance_->GetCallTarget(function_index);
-    Handle<Object> object_ref = instance_;
-    Handle<Code> c_wasm_entry =
-        compiler::CompileCWasmEntry(isolate_, sig, native_module->module());
+    const WasmModule* module = trusted_instance_data_->module();
+    Address wasm_call_target =
+        trusted_instance_data_->GetCallTarget(function_index);
+    DirectHandle<Object> object_ref = instance_object_;
+    DirectHandle<Code> c_wasm_entry =
+        compiler::CompileCWasmEntry(isolate_, sig, module);
     Execution::CallWasm(isolate_, c_wasm_entry, wasm_call_target, object_ref,
                         packer->argv());
   }
@@ -257,7 +268,8 @@ class WasmGCTester {
 
   Isolate* const isolate_;
   const HandleScope scope;
-  Handle<WasmInstanceObject> instance_;
+  Handle<WasmInstanceObject> instance_object_;
+  Handle<WasmTrustedInstanceData> trusted_instance_data_;
   ErrorThrower thrower;
 };
 
@@ -390,7 +402,7 @@ WASM_COMPILED_EXEC_TEST(WasmRefAsNonNullSkipCheck) {
        WASM_REF_AS_NON_NULL(WASM_GLOBAL_GET(global_index)), kExprEnd});
 
   tester.CompileModule();
-  Handle<Object> result = tester.GetResultObject(kFunc).ToHandleChecked();
+  DirectHandle<Object> result = tester.GetResultObject(kFunc).ToHandleChecked();
   // Without null checks, ref.as_non_null can actually return null.
   CHECK(IsWasmNull(*result));
 }
@@ -923,25 +935,24 @@ WASM_COMPILED_EXEC_TEST(WasmBasicArray) {
 
   Handle<Object> h_result = tester.GetResultObject(kAllocate).ToHandleChecked();
   CHECK(IsWasmArray(*h_result));
-  CHECK_EQ(2, Handle<WasmArray>::cast(h_result)->length());
+  CHECK_EQ(2, Cast<WasmArray>(h_result)->length());
 
   h_result = tester.GetResultObject(kAllocateStatic).ToHandleChecked();
   CHECK(IsWasmArray(*h_result));
-  CHECK_EQ(2, Handle<WasmArray>::cast(h_result)->length());
+  CHECK_EQ(2, Cast<WasmArray>(h_result)->length());
 
   Handle<Object> init_result = tester.GetResultObject(kInit).ToHandleChecked();
   CHECK(IsWasmArray(*init_result));
-  CHECK_EQ(3, Handle<WasmArray>::cast(init_result)->length());
-  CHECK_EQ(10, Handle<WasmArray>::cast(init_result)->GetElement(0).to_i32());
-  CHECK_EQ(20, Handle<WasmArray>::cast(init_result)->GetElement(1).to_i32());
-  CHECK_EQ(30, Handle<WasmArray>::cast(init_result)->GetElement(2).to_i32());
+  CHECK_EQ(3, Cast<WasmArray>(init_result)->length());
+  CHECK_EQ(10, Cast<WasmArray>(init_result)->GetElement(0).to_i32());
+  CHECK_EQ(20, Cast<WasmArray>(init_result)->GetElement(1).to_i32());
+  CHECK_EQ(30, Cast<WasmArray>(init_result)->GetElement(2).to_i32());
 
   MaybeHandle<Object> maybe_large_result =
       tester.GetResultObject(kAllocateLarge);
   Handle<Object> large_result = maybe_large_result.ToHandleChecked();
   CHECK(IsWasmArray(*large_result));
-  CHECK(Handle<WasmArray>::cast(large_result)->Size() >
-        kMaxRegularHeapObjectSize);
+  CHECK(Cast<WasmArray>(large_result)->Size() > kMaxRegularHeapObjectSize);
 
   tester.CheckHasThrown(kAllocateTooLarge, "requested new array is too large");
 }
@@ -1140,15 +1151,14 @@ WASM_COMPILED_EXEC_TEST(WasmArrayCopy) {
   tester.CheckResult(kCopyI16, 3, 9);
 
   {
-    Handle<Object> result5 =
+    DirectHandle<Object> result5 =
         tester.GetResultObject(kCopyRef, 5).ToHandleChecked();
     CHECK(IsWasmNull(*result5));
     for (int i = 6; i <= 9; i++) {
       Handle<Object> res =
           tester.GetResultObject(kCopyRef, i).ToHandleChecked();
       CHECK(IsWasmArray(*res));
-      CHECK_EQ(Handle<WasmArray>::cast(res)->length(),
-               static_cast<uint32_t>(i));
+      CHECK_EQ(Cast<WasmArray>(res)->length(), static_cast<uint32_t>(i));
     }
   }
   CHECK(IsWasmNull(
@@ -1156,12 +1166,12 @@ WASM_COMPILED_EXEC_TEST(WasmArrayCopy) {
   Handle<Object> res0 =
       tester.GetResultObject(kCopyRefOverlapping, 0).ToHandleChecked();
   CHECK(IsWasmArray(*res0));
-  CHECK_EQ(Handle<WasmArray>::cast(res0)->length(), static_cast<uint32_t>(2));
+  CHECK_EQ(Cast<WasmArray>(res0)->length(), static_cast<uint32_t>(2));
   for (int i = 2; i <= 5; i++) {
     Handle<Object> res =
         tester.GetResultObject(kCopyRefOverlapping, i).ToHandleChecked();
     CHECK(IsWasmArray(*res));
-    CHECK_EQ(Handle<WasmArray>::cast(res)->length(), static_cast<uint32_t>(i));
+    CHECK_EQ(Cast<WasmArray>(res)->length(), static_cast<uint32_t>(i));
   }
 
   tester.CheckHasThrown(kOobSource);
@@ -1423,8 +1433,9 @@ WASM_COMPILED_EXEC_TEST(ArrayNewMap) {
   tester.CompileModule();
   Handle<Object> result = tester.GetResultObject(array_new).ToHandleChecked();
   CHECK(IsWasmArray(*result));
-  CHECK_EQ(Handle<WasmArray>::cast(result)->map(),
-           tester.instance()->managed_object_maps()->get(type_index));
+  CHECK_EQ(
+      Cast<WasmArray>(result)->map(),
+      tester.trusted_instance_data()->managed_object_maps()->get(type_index));
 }
 
 WASM_COMPILED_EXEC_TEST(FunctionRefs) {
@@ -1462,20 +1473,26 @@ WASM_COMPILED_EXEC_TEST(FunctionRefs) {
 
   tester.CompileModule();
 
-  Handle<Object> result_cast = tester.GetResultObject(cast).ToHandleChecked();
-  CHECK(IsWasmInternalFunction(*result_cast));
-  Handle<JSFunction> cast_function = WasmInternalFunction::GetOrCreateExternal(
-      Handle<WasmInternalFunction>::cast(result_cast));
+  i::Isolate* i_isolate = CcTest::i_isolate();
+  DirectHandle<Object> result_cast =
+      tester.GetResultObject(cast).ToHandleChecked();
+  CHECK(IsWasmFuncRef(*result_cast));
+  DirectHandle<WasmInternalFunction> result_cast_internal{
+      Cast<WasmFuncRef>(*result_cast)->internal(i_isolate), i_isolate};
+  DirectHandle<JSFunction> cast_function =
+      WasmInternalFunction::GetOrCreateExternal(result_cast_internal);
 
-  Handle<Object> result_cast_reference =
+  DirectHandle<Object> result_cast_reference =
       tester.GetResultObject(cast_reference).ToHandleChecked();
-  CHECK(IsWasmInternalFunction(*result_cast_reference));
-  Handle<JSFunction> cast_function_reference =
-      WasmInternalFunction::GetOrCreateExternal(
-          Handle<WasmInternalFunction>::cast(result_cast_reference));
+  CHECK(IsWasmFuncRef(*result_cast_reference));
+  DirectHandle<WasmInternalFunction> result_cast_reference_internal{
+      Cast<WasmFuncRef>(*result_cast_reference)->internal(i_isolate),
+      i_isolate};
+  DirectHandle<JSFunction> cast_function_reference =
+      WasmInternalFunction::GetOrCreateExternal(result_cast_reference_internal);
 
-  CHECK_EQ(cast_function->code()->instruction_start(),
-           cast_function_reference->code()->instruction_start());
+  CHECK_EQ(cast_function->code(i_isolate)->instruction_start(),
+           cast_function_reference->code(i_isolate)->instruction_start());
 
   tester.CheckResult(test, 1);
   tester.CheckResult(test_fail, 0);
@@ -1505,6 +1522,7 @@ WASM_COMPILED_EXEC_TEST(CallRef) {
 // Test that calling a function expecting any ref accepts the abstract null
 // type argument (nullref, nullfuncref, nullexternref).
 WASM_COMPILED_EXEC_TEST(CallAbstractNullTypeImplicitConversion) {
+  FlagScope<bool> exnref(&v8_flags.experimental_wasm_exnref, true);
   const struct {
     ValueType super_type;
     ValueTypeCode sub_type_code;
@@ -1516,6 +1534,7 @@ WASM_COMPILED_EXEC_TEST(CallAbstractNullTypeImplicitConversion) {
       {kWasmArrayRef.AsNullable(), kNoneCode},
       {kWasmAnyRef, kNoneCode},
       {kWasmExternRef, kNoExternCode},
+      {kWasmExnRef, kNoExnCode},
       {refNull(0), kNoneCode},    // struct
       {refNull(1), kNoneCode},    // array
       {refNull(2), kNoFuncCode},  // signature
@@ -2026,7 +2045,7 @@ WASM_COMPILED_EXEC_TEST(JsAccess) {
     }
     Handle<Object> result = maybe_result.ToHandleChecked();
     CHECK(IsSmi(*result));
-    CHECK_EQ(42, Smi::cast(*result).value());
+    CHECK_EQ(42, Cast<Smi>(*result).value());
     // Calling {consumer} with any other object (e.g. the Smi we just got as
     // {result}) should trap.
     {
@@ -2036,28 +2055,29 @@ WASM_COMPILED_EXEC_TEST(JsAccess) {
     CHECK(maybe_result.is_null());
     CHECK(try_catch.HasCaught());
     try_catch.Reset();
-    isolate->clear_pending_exception();
+    isolate->clear_exception();
   }
 }
 
-WASM_COMPILED_EXEC_TEST(WasmExternInternalize) {
+WASM_COMPILED_EXEC_TEST(WasmAnyConvertExtern) {
   WasmGCTester tester(execution_tier);
 
   const uint8_t kNull = tester.DefineFunction(
       tester.sigs.i_v(), {},
-      {WASM_REF_IS_NULL(WASM_GC_INTERNALIZE(WASM_REF_NULL(kNoExternCode))),
+      {WASM_REF_IS_NULL(
+           WASM_GC_ANY_CONVERT_EXTERN(WASM_REF_NULL(kNoExternCode))),
        kExprEnd});
 
   tester.CompileModule();
   tester.CheckResult(kNull, 1);
 }
 
-WASM_COMPILED_EXEC_TEST(WasmExternExternalize) {
+WASM_COMPILED_EXEC_TEST(WasmExternConvertAny) {
   WasmGCTester tester(execution_tier);
 
   const uint8_t kNull = tester.DefineFunction(
       tester.sigs.i_v(), {},
-      {WASM_REF_IS_NULL(WASM_GC_EXTERNALIZE(WASM_REF_NULL(kNoneCode))),
+      {WASM_REF_IS_NULL(WASM_GC_EXTERN_CONVERT_ANY(WASM_REF_NULL(kNoneCode))),
        kExprEnd});
 
   tester.CompileModule();

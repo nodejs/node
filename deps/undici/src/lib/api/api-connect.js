@@ -1,7 +1,8 @@
 'use strict'
 
+const assert = require('node:assert')
 const { AsyncResource } = require('node:async_hooks')
-const { InvalidArgumentError, RequestAbortedError, SocketError } = require('../core/errors')
+const { InvalidArgumentError, SocketError } = require('../core/errors')
 const util = require('../core/util')
 const { addSignal, removeSignal } = require('./abort-signal')
 
@@ -32,9 +33,12 @@ class ConnectHandler extends AsyncResource {
   }
 
   onConnect (abort, context) {
-    if (!this.callback) {
-      throw new RequestAbortedError()
+    if (this.reason) {
+      abort(this.reason)
+      return
     }
+
+    assert(this.callback)
 
     this.abort = abort
     this.context = context
@@ -91,7 +95,9 @@ function connect (opts, callback) {
 
   try {
     const connectHandler = new ConnectHandler(opts, callback)
-    this.dispatch({ ...opts, method: 'CONNECT' }, connectHandler)
+    const connectOptions = { ...opts, method: 'CONNECT' }
+
+    this.dispatch(connectOptions, connectHandler)
   } catch (err) {
     if (typeof callback !== 'function') {
       throw err

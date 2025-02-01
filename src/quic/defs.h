@@ -2,19 +2,33 @@
 
 #include <aliased_struct.h>
 #include <env.h>
+#include <nghttp3/nghttp3.h>
+#include <ngtcp2/ngtcp2.h>
 #include <node_errors.h>
 #include <uv.h>
 #include <v8.h>
+#include <limits>
 
-namespace node {
-namespace quic {
+namespace node::quic {
 
 #define NGTCP2_SUCCESS 0
 #define NGTCP2_ERR(V) (V != NGTCP2_SUCCESS)
 #define NGTCP2_OK(V) (V == NGTCP2_SUCCESS)
 
 #define IF_QUIC_DEBUG(env)                                                     \
-  if (UNLIKELY(env->enabled_debug_list()->enabled(DebugCategory::QUIC)))
+  if (env->enabled_debug_list()->enabled(DebugCategory::QUIC)) [[unlikely]]
+
+#define DISALLOW_COPY(Name)                                                    \
+  Name(const Name&) = delete;                                                  \
+  Name& operator=(const Name&) = delete;
+
+#define DISALLOW_MOVE(Name)                                                    \
+  Name(Name&&) = delete;                                                       \
+  Name& operator=(Name&&) = delete;
+
+#define DISALLOW_COPY_AND_MOVE(Name)                                           \
+  DISALLOW_COPY(Name)                                                          \
+  DISALLOW_MOVE(Name)
 
 template <typename Opt, std::string Opt::*member>
 bool SetOption(Environment* env,
@@ -150,20 +164,83 @@ uint64_t GetStat(Stats* stats) {
 #define JS_METHOD(name)                                                        \
   static void name(const v8::FunctionCallbackInfo<v8::Value>& args)
 
+enum class Side : uint8_t {
+  CLIENT,
+  SERVER,
+};
+
+enum class EndpointLabel : uint8_t {
+  LOCAL,
+  REMOTE,
+};
+
+enum class Direction : uint8_t {
+  BIDIRECTIONAL,
+  UNIDIRECTIONAL,
+};
+
+enum class HeadersKind : uint8_t {
+  HINTS,
+  INITIAL,
+  TRAILING,
+};
+
+enum class HeadersFlags : uint8_t {
+  NONE,
+  TERMINAL,
+};
+
+enum class StreamPriority : uint8_t {
+  DEFAULT = NGHTTP3_DEFAULT_URGENCY,
+  LOW = NGHTTP3_URGENCY_LOW,
+  HIGH = NGHTTP3_URGENCY_HIGH,
+};
+
+enum class StreamPriorityFlags : uint8_t {
+  NONE,
+  NON_INCREMENTAL,
+};
+
+enum class PathValidationResult : uint8_t {
+  SUCCESS = NGTCP2_PATH_VALIDATION_RESULT_SUCCESS,
+  FAILURE = NGTCP2_PATH_VALIDATION_RESULT_FAILURE,
+  ABORTED = NGTCP2_PATH_VALIDATION_RESULT_ABORTED,
+};
+
+enum class DatagramStatus : uint8_t {
+  ACKNOWLEDGED,
+  LOST,
+};
+
+#define CC_ALGOS(V)                                                            \
+  V(RENO, reno)                                                                \
+  V(CUBIC, cubic)                                                              \
+  V(BBR, bbr)
+
+#define V(name, _) static constexpr auto CC_ALGO_##name = NGTCP2_CC_ALGO_##name;
+CC_ALGOS(V)
+#undef V
+
+constexpr uint64_t NGTCP2_APP_NOERROR = 65280;
+constexpr size_t kDefaultMaxPacketLength = NGTCP2_MAX_UDP_PAYLOAD_SIZE;
+constexpr size_t kMaxSizeT = std::numeric_limits<size_t>::max();
+constexpr uint64_t kMaxSafeJsInteger = 9007199254740991;
+constexpr auto kSocketAddressInfoTimeout = 60 * NGTCP2_SECONDS;
+constexpr size_t kMaxVectorCount = 16;
+
+using error_code = uint64_t;
+
 class DebugIndentScope {
  public:
   inline DebugIndentScope() { ++indent_; }
-  DebugIndentScope(const DebugIndentScope&) = delete;
-  DebugIndentScope(DebugIndentScope&&) = delete;
-  DebugIndentScope& operator=(const DebugIndentScope&) = delete;
-  DebugIndentScope& operator=(DebugIndentScope&&) = delete;
+  DISALLOW_COPY_AND_MOVE(DebugIndentScope)
   inline ~DebugIndentScope() { --indent_; }
-  std::string Prefix() const {
+  inline std::string Prefix() const {
     std::string res("\n");
     res.append(indent_, '\t');
     return res;
   }
-  std::string Close() const {
+  inline std::string Close() const {
     std::string res("\n");
     res.append(indent_ - 1, '\t');
     res += "}";
@@ -174,5 +251,4 @@ class DebugIndentScope {
   static int indent_;
 };
 
-}  // namespace quic
-}  // namespace node
+}  // namespace node::quic

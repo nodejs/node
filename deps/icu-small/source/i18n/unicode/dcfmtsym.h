@@ -455,13 +455,13 @@ public:
      * Returns that pattern stored in currency info. Internal API for use by NumberFormat API.
      * @internal
      */
-    inline const char16_t* getCurrencyPattern(void) const;
+    inline const char16_t* getCurrencyPattern() const;
 
     /**
      * Returns the numbering system with which this DecimalFormatSymbols was initialized.
      * @internal
      */
-    inline const char* getNumberingSystemName(void) const;
+    inline const char* getNumberingSystemName() const;
 #endif  /* U_HIDE_INTERNAL_API */
 
 private:
@@ -576,7 +576,7 @@ DecimalFormatSymbols::setSymbol(ENumberFormatSymbol symbol, const UnicodeString 
             fCodePointZero = sym;
             for ( int8_t i = 1 ; i<= 9 ; i++ ) {
                 sym++;
-                fSymbols[(int)kOneDigitSymbol+i-1] = UnicodeString(sym);
+                fSymbols[static_cast<int>(kOneDigitSymbol) + i - 1] = UnicodeString(sym);
             }
         } else {
             fCodePointZero = -1;

@@ -154,9 +154,10 @@ class ProcessWrap : public HandleWrap {
     Environment* env = Environment::GetCurrent(args);
     Local<Context> context = env->context();
     ProcessWrap* wrap;
-    ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
     THROW_IF_INSUFFICIENT_PERMISSIONS(
         env, permission::PermissionScope::kChildProcess, "");
+    int err = 0;
 
     Local<Object> js_options =
         args[0]->ToObject(env->context()).ToLocalChecked();
@@ -194,6 +195,15 @@ class ProcessWrap : public HandleWrap {
     CHECK(file_v->IsString());
     node::Utf8Value file(env->isolate(), file_v);
     options.file = *file;
+
+    // Undocumented feature of Win32 CreateProcess API allows spawning
+    // batch files directly but is potentially insecure because arguments
+    // are not escaped (and sometimes cannot be unambiguously escaped),
+    // hence why they are rejected here.
+#ifdef _WIN32
+    if (IsWindowsBatchFile(options.file))
+      err = UV_EINVAL;
+#endif
 
     // options.args
     Local<Value> argv_v =
@@ -272,8 +282,10 @@ class ProcessWrap : public HandleWrap {
       options.flags |= UV_PROCESS_DETACHED;
     }
 
-    int err = uv_spawn(env->event_loop(), &wrap->process_, &options);
-    wrap->MarkAsInitialized();
+    if (err == 0) {
+      err = uv_spawn(env->event_loop(), &wrap->process_, &options);
+      wrap->MarkAsInitialized();
+    }
 
     if (err == 0) {
       CHECK_EQ(wrap->process_.data, wrap);
@@ -300,8 +312,14 @@ class ProcessWrap : public HandleWrap {
   static void Kill(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
     ProcessWrap* wrap;
-    ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
     int signal = args[0]->Int32Value(env->context()).FromJust();
+#ifdef _WIN32
+    if (signal != SIGKILL && signal != SIGTERM && signal != SIGINT &&
+        signal != SIGQUIT) {
+      signal = SIGKILL;
+    }
+#endif
     int err = uv_process_kill(&wrap->process_, signal);
     args.GetReturnValue().Set(err);
   }

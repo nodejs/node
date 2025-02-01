@@ -6,6 +6,7 @@
 #define V8_SNAPSHOT_CODE_SERIALIZER_H_
 
 #include "src/base/macros.h"
+#include "src/codegen/script-details.h"
 #include "src/snapshot/serializer.h"
 #include "src/snapshot/snapshot-data.h"
 
@@ -81,7 +82,7 @@ class CodeSerializer : public Serializer {
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<SharedFunctionInfo> Deserialize(
       Isolate* isolate, AlignedCachedData* cached_data, Handle<String> source,
-      ScriptOriginOptions origin_options,
+      const ScriptDetails& script_details,
       MaybeHandle<Script> maybe_cached_script = {});
 
   V8_WARN_UNUSED_RESULT static OffThreadDeserializeData
@@ -91,8 +92,8 @@ class CodeSerializer : public Serializer {
   V8_WARN_UNUSED_RESULT static MaybeHandle<SharedFunctionInfo>
   FinishOffThreadDeserialize(
       Isolate* isolate, OffThreadDeserializeData&& data,
-      AlignedCachedData* cached_data, Handle<String> source,
-      ScriptOriginOptions origin_options,
+      AlignedCachedData* cached_data, DirectHandle<String> source,
+      const ScriptDetails& script_details,
       BackgroundMergeTask* background_merge_task = nullptr);
 
   uint32_t source_hash() const { return source_hash_; }
@@ -151,7 +152,7 @@ class SerializedCodeData : public SerializedData {
 
   base::Vector<const uint8_t> Payload() const;
 
-  static uint32_t SourceHash(Handle<String> source,
+  static uint32_t SourceHash(DirectHandle<String> source,
                              ScriptOriginOptions origin_options);
 
  private:

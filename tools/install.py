@@ -4,9 +4,14 @@ import argparse
 import ast
 import errno
 import os
+import platform
 import shutil
 import sys
 import re
+
+current_system = platform.system()
+
+SYSTEM_AIX = "AIX"
 
 def abspath(*args):
   path = os.path.join(*args)
@@ -44,6 +49,7 @@ def try_rmdir_r(options, path):
     except OSError as e:
       if e.errno == errno.ENOTEMPTY: return
       if e.errno == errno.ENOENT: return
+      if e.errno == errno.EEXIST and current_system == SYSTEM_AIX: return
       raise
     path = abspath(path, '..')
 
@@ -176,13 +182,13 @@ def files(options, action):
       try_symlink(options, so_name, link_path)
     else:
       output_lib = 'libnode.' + options.variables.get('shlib_suffix')
-      action(options, [os.path.join(output_prefix, output_lib)],
+      action(options, [os.path.join(options.build_dir, output_lib)],
              os.path.join(options.variables.get('libdir'), output_lib))
 
   action(options, [os.path.join(options.v8_dir, 'tools/gdbinit')], 'share/doc/node/')
   action(options, [os.path.join(options.v8_dir, 'tools/lldb_commands.py')], 'share/doc/node/')
 
-  if 'freebsd' in sys.platform or 'openbsd' in sys.platform:
+  if 'openbsd' in sys.platform:
     action(options, ['doc/node.1'], 'man/man1/')
   else:
     action(options, ['doc/node.1'], 'share/man/man1/')
@@ -285,6 +291,7 @@ def headers(options, action):
       'include/v8-promise.h',
       'include/v8-proxy.h',
       'include/v8-regexp.h',
+      'include/v8-sandbox.h',
       'include/v8-script.h',
       'include/v8-snapshot.h',
       'include/v8-source-location.h',

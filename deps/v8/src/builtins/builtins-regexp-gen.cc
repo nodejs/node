@@ -4,12 +4,13 @@
 
 #include "src/builtins/builtins-regexp-gen.h"
 
+#include <optional>
+
 #include "src/builtins/builtins-constructor-gen.h"
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/builtins/growable-fixed-array-gen.h"
-#include "src/codegen/code-factory.h"
-#include "src/codegen/code-stub-assembler.h"
+#include "src/codegen/code-stub-assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/common/globals.h"
 #include "src/execution/protectors.h"
@@ -60,7 +61,7 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::AllocateRegExpResult(
 
   Label result_has_indices(this), allocated(this);
   const ElementsKind elements_kind = PACKED_ELEMENTS;
-  base::Optional<TNode<AllocationSite>> no_gc_site = base::nullopt;
+  std::optional<TNode<AllocationSite>> no_gc_site = std::nullopt;
   TNode<IntPtrT> length_intptr = PositiveSmiUntag(length);
   // Note: The returned `var_elements` may be in young large object space, but
   // `var_array` is guaranteed to be in new space so we could skip write
@@ -116,8 +117,8 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::AllocateRegExpResult(
   // If non-smi last_index then store an SmiZero instead.
   {
     TNode<Smi> last_index_smi = Select<Smi>(
-        TaggedIsSmi(last_index), [=] { return CAST(last_index); },
-        [=] { return SmiZero(); });
+        TaggedIsSmi(last_index), [=, this] { return CAST(last_index); },
+        [=, this] { return SmiZero(); });
     StoreObjectField(result, JSRegExpResult::kRegexpLastIndexOffset,
                      last_index_smi);
   }
@@ -170,7 +171,8 @@ void RegExpBuiltinsAssembler::FastStoreLastIndex(TNode<JSRegExp> regexp,
 void RegExpBuiltinsAssembler::SlowStoreLastIndex(TNode<Context> context,
                                                  TNode<Object> regexp,
                                                  TNode<Object> value) {
-  TNode<String> name = HeapConstant(isolate()->factory()->lastIndex_string());
+  TNode<String> name =
+      HeapConstantNoHole(isolate()->factory()->lastIndex_string());
   SetPropertyStrict(context, regexp, name, value);
 }
 
@@ -180,14 +182,11 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
     TNode<Number> last_index) {
   Label named_captures(this), maybe_build_indices(this), out(this);
 
-  TNode<IntPtrT> num_indices =
-      PositiveSmiUntag(CAST(UnsafeLoadFixedArrayElement(
-          match_info, RegExpMatchInfo::kNumberOfCapturesIndex)));
+  TNode<IntPtrT> num_indices = PositiveSmiUntag(CAST(LoadObjectField(
+      match_info, RegExpMatchInfo::kNumberOfCaptureRegistersOffset)));
   TNode<Smi> num_results = SmiTag(WordShr(num_indices, 1));
-  TNode<Smi> start = CAST(UnsafeLoadFixedArrayElement(
-      match_info, RegExpMatchInfo::kFirstCaptureIndex));
-  TNode<Smi> end = CAST(UnsafeLoadFixedArrayElement(
-      match_info, RegExpMatchInfo::kFirstCaptureIndex + 1));
+  TNode<Smi> start = LoadArrayElement(match_info, IntPtrConstant(0));
+  TNode<Smi> end = LoadArrayElement(match_info, IntPtrConstant(1));
 
   // Calculate the substring of the first match before creating the result array
   // to avoid an unnecessary write barrier storing the first result.
@@ -210,11 +209,9 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
   GotoIf(SmiEqual(num_results, SmiConstant(1)), &maybe_build_indices);
 
   // Store all remaining captures.
-  TNode<IntPtrT> limit = IntPtrAdd(
-      IntPtrConstant(RegExpMatchInfo::kFirstCaptureIndex), num_indices);
+  TNode<IntPtrT> limit = num_indices;
 
-  TVARIABLE(IntPtrT, var_from_cursor,
-            IntPtrConstant(RegExpMatchInfo::kFirstCaptureIndex + 2));
+  TVARIABLE(IntPtrT, var_from_cursor, IntPtrConstant(2));
   TVARIABLE(IntPtrT, var_to_cursor, IntPtrConstant(1));
 
   Label loop(this, {&var_from_cursor, &var_to_cursor});
@@ -224,16 +221,14 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
   {
     TNode<IntPtrT> from_cursor = var_from_cursor.value();
     TNode<IntPtrT> to_cursor = var_to_cursor.value();
-    TNode<Smi> start_cursor =
-        CAST(UnsafeLoadFixedArrayElement(match_info, from_cursor));
+    TNode<Smi> start_cursor = LoadArrayElement(match_info, from_cursor);
 
     Label next_iter(this);
     GotoIf(SmiEqual(start_cursor, SmiConstant(-1)), &next_iter);
 
     TNode<IntPtrT> from_cursor_plus1 =
         IntPtrAdd(from_cursor, IntPtrConstant(1));
-    TNode<Smi> end_cursor =
-        CAST(UnsafeLoadFixedArrayElement(match_info, from_cursor_plus1));
+    TNode<Smi> end_cursor = LoadArrayElement(match_info, from_cursor_plus1);
 
     TNode<String> capture = CAST(CallBuiltin(Builtin::kSubString, context,
                                              string, start_cursor, end_cursor));
@@ -254,23 +249,17 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
     // Preparations for named capture properties. Exit early if the result does
     // not have any named captures to minimize performance impact.
 
-    TNode<FixedArray> data =
-        CAST(LoadObjectField(regexp, JSRegExp::kDataOffset));
+    TNode<RegExpData> data = CAST(LoadTrustedPointerFromObject(
+        regexp, JSRegExp::kDataOffset, kRegExpDataIndirectPointerTag));
 
     // We reach this point only if captures exist, implying that the assigned
     // regexp engine must be able to handle captures.
-    CSA_DCHECK(
-        this,
-        Word32Or(
-            SmiEqual(CAST(LoadFixedArrayElement(data, JSRegExp::kTagIndex)),
-                     SmiConstant(JSRegExp::IRREGEXP)),
-            SmiEqual(CAST(LoadFixedArrayElement(data, JSRegExp::kTagIndex)),
-                     SmiConstant(JSRegExp::EXPERIMENTAL))));
+    CSA_SBXCHECK(this, HasInstanceType(data, IR_REG_EXP_DATA_TYPE));
 
     // The names fixed array associates names at even indices with a capture
     // index at odd indices.
     TNode<Object> maybe_names =
-        LoadFixedArrayElement(data, JSRegExp::kIrregexpCaptureNameMapIndex);
+        LoadObjectField(data, IrRegExpData::kCaptureNameMapOffset);
     GotoIf(TaggedEqual(maybe_names, SmiZero()), &maybe_build_indices);
 
     // One or more named captures exist, add a property for each one.
@@ -319,19 +308,38 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
       // implementation of CreateDataProperty instead.
 
       // At this point the spec says to call CreateDataProperty. However, we can
-      // skip most of the steps and go straight to adding a dictionary entry
-      // because we know a bunch of useful facts:
+      // skip most of the steps and go straight to adding/updating a dictionary
+      // entry because we know a bunch of useful facts:
       // - All keys are non-numeric internalized strings
-      // - No keys repeat
       // - Receiver has no prototype
       // - Receiver isn't used as a prototype
       // - Receiver isn't any special object like a Promise intrinsic object
       // - Receiver is extensible
       // - Receiver has no interceptors
       Label add_dictionary_property_slow(this, Label::kDeferred);
-      AddToDictionary<PropertyDictionary>(CAST(properties), name, capture,
-                                          &add_dictionary_property_slow);
+      TVARIABLE(IntPtrT, var_name_index);
+      Label add_name_entry(this, &var_name_index),
+          duplicate_name(this, &var_name_index), next(this);
+      NameDictionaryLookup<PropertyDictionary>(
+          CAST(properties), name, &duplicate_name, &var_name_index,
+          &add_name_entry, kFindExistingOrInsertionIndex);
+      BIND(&duplicate_name);
+      GotoIf(IsUndefined(capture), &next);
+      CSA_DCHECK(this,
+                 TaggedEqual(LoadValueByKeyIndex<PropertyDictionary>(
+                                 CAST(properties), var_name_index.value()),
+                             UndefinedConstant()));
+      StoreValueByKeyIndex<PropertyDictionary>(CAST(properties),
+                                               var_name_index.value(), capture);
+      Goto(&next);
 
+      BIND(&add_name_entry);
+      AddToDictionary<PropertyDictionary>(CAST(properties), name, capture,
+                                          &add_dictionary_property_slow,
+                                          var_name_index.value());
+      Goto(&next);
+
+      BIND(&next);
       var_i = i_plus_2;
       Branch(IntPtrGreaterThanOrEqual(var_i.value(), names_length),
              &maybe_build_indices, &inner_loop);
@@ -398,7 +406,7 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
 
   // External constants.
   TNode<ExternalReference> isolate_address =
-      ExternalConstant(ExternalReference::isolate_address(isolate()));
+      ExternalConstant(ExternalReference::isolate_address());
   TNode<ExternalReference> static_offsets_vector_address = ExternalConstant(
       ExternalReference::address_of_static_offsets_vector(isolate()));
 
@@ -419,18 +427,22 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
   GotoIf(UintPtrGreaterThan(int_last_index, int_string_length), &if_failure);
 
   // Since the RegExp has been compiled, data contains a fixed array.
-  TNode<FixedArray> data = CAST(LoadObjectField(regexp, JSRegExp::kDataOffset));
+  TNode<RegExpData> data = CAST(LoadTrustedPointerFromObject(
+      regexp, JSRegExp::kDataOffset, kRegExpDataIndirectPointerTag));
   {
     // Dispatch on the type of the RegExp.
+    // Since the type tag is in trusted space, it is safe to interpret
+    // RegExpData as IrRegExpData/AtomRegExpData in the respective branches
+    // without checks.
     {
       Label next(this), unreachable(this, Label::kDeferred);
-      TNode<Int32T> tag = LoadAndUntagToWord32FixedArrayElement(
-          data, IntPtrConstant(JSRegExp::kTagIndex));
+      TNode<Int32T> tag =
+          SmiToInt32(LoadObjectField<Smi>(data, RegExpData::kTypeTagOffset));
 
       int32_t values[] = {
-          JSRegExp::IRREGEXP,
-          JSRegExp::ATOM,
-          JSRegExp::EXPERIMENTAL,
+          static_cast<uint8_t>(RegExpData::Type::IRREGEXP),
+          static_cast<uint8_t>(RegExpData::Type::ATOM),
+          static_cast<uint8_t>(RegExpData::Type::EXPERIMENTAL),
       };
       Label* labels[] = {&next, &atom, &next};
 
@@ -445,8 +457,8 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
 
     // Check (number_of_captures + 1) * 2 <= offsets vector size
     // Or              number_of_captures <= offsets vector size / 2 - 1
-    TNode<Smi> capture_count = CAST(UnsafeLoadFixedArrayElement(
-        data, JSRegExp::kIrregexpCaptureCountIndex));
+    TNode<Smi> capture_count =
+        LoadObjectField<Smi>(data, IrRegExpData::kCaptureCountOffset);
 
     const int kOffsetsSize = Isolate::kJSRegexpStaticOffsetsVectorSize;
     static_assert(kOffsetsSize >= 2);
@@ -463,15 +475,19 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
 
   TVARIABLE(RawPtrT, var_string_start);
   TVARIABLE(RawPtrT, var_string_end);
-  TVARIABLE(Object, var_code);
+#ifdef V8_ENABLE_SANDBOX
+  using kVarCodeT = IndirectPointerHandleT;
+#else
+  using kVarCodeT = Object;
+#endif
+  TVARIABLE(kVarCodeT, var_code);
   TVARIABLE(Object, var_bytecode);
 
   {
     TNode<RawPtrT> direct_string_data = to_direct.PointerToData(&runtime);
 
     Label next(this), if_isonebyte(this), if_istwobyte(this, Label::kDeferred);
-    Branch(IsOneByteStringInstanceType(to_direct.instance_type()),
-           &if_isonebyte, &if_istwobyte);
+    Branch(to_direct.IsOneByte(), &if_isonebyte, &if_istwobyte);
 
     BIND(&if_isonebyte);
     {
@@ -479,9 +495,8 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
                         int_string_length, String::ONE_BYTE_ENCODING,
                         &var_string_start, &var_string_end);
       var_code =
-          UnsafeLoadFixedArrayElement(data, JSRegExp::kIrregexpLatin1CodeIndex);
-      var_bytecode = UnsafeLoadFixedArrayElement(
-          data, JSRegExp::kIrregexpLatin1BytecodeIndex);
+          LoadObjectField<kVarCodeT>(data, IrRegExpData::kLatin1CodeOffset);
+      var_bytecode = LoadObjectField(data, IrRegExpData::kLatin1BytecodeOffset);
       Goto(&next);
     }
 
@@ -491,9 +506,8 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
                         int_string_length, String::TWO_BYTE_ENCODING,
                         &var_string_start, &var_string_end);
       var_code =
-          UnsafeLoadFixedArrayElement(data, JSRegExp::kIrregexpUC16CodeIndex);
-      var_bytecode = UnsafeLoadFixedArrayElement(
-          data, JSRegExp::kIrregexpUC16BytecodeIndex);
+          LoadObjectField<kVarCodeT>(data, IrRegExpData::kUc16CodeOffset);
+      var_bytecode = LoadObjectField(data, IrRegExpData::kUc16BytecodeOffset);
       Goto(&next);
     }
 
@@ -501,21 +515,15 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
   }
 
   // Check that the irregexp code has been generated for the actual string
-  // encoding. If it has, the field contains a code object; and otherwise it
-  // contains the uninitialized sentinel as a smi.
-#ifdef DEBUG
-  {
-    Label next(this);
-    GotoIfNot(TaggedIsSmi(var_code.value()), &next);
-    CSA_DCHECK(this, SmiEqual(CAST(var_code.value()),
-                              SmiConstant(JSRegExp::kUninitializedValue)));
-    Goto(&next);
-    BIND(&next);
-  }
-#endif
+  // encoding.
 
+#ifdef V8_ENABLE_SANDBOX
+  GotoIf(
+      Word32Equal(var_code.value(), Int32Constant(kNullIndirectPointerHandle)),
+      &runtime);
+#else
   GotoIf(TaggedIsSmi(var_code.value()), &runtime);
-  TNode<Code> code = CAST(var_code.value());
+#endif
 
   Label if_success(this), if_exception(this, Label::kDeferred);
   {
@@ -555,8 +563,8 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
     // Argument 5: Number of capture registers.
     // Setting this to the number of registers required to store all captures
     // forces global regexps to behave as non-global.
-    TNode<Smi> capture_count = CAST(UnsafeLoadFixedArrayElement(
-        data, JSRegExp::kIrregexpCaptureCountIndex));
+    TNode<Smi> capture_count =
+        LoadObjectField<Smi>(data, IrRegExpData::kCaptureCountOffset);
     // capture_count is the number of captures without the match itself.
     // Required registers = (capture_count + 1) * 2.
     static_assert(Internals::IsValidSmi((JSRegExp::kMaxCaptures + 1) * 2));
@@ -574,12 +582,19 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
     MachineType arg7_type = type_ptr;
     TNode<ExternalReference> arg7 = isolate_address;
 
-    // Argument 8: Regular expression object. This argument is ignored in native
-    // irregexp code.
+    // Argument 8: Regular expression data object. This argument is ignored in
+    // native irregexp code.
     MachineType arg8_type = type_tagged;
-    TNode<JSRegExp> arg8 = regexp;
+    TNode<IrRegExpData> arg8 = CAST(data);
 
-    TNode<RawPtrT> code_entry = LoadCodeInstructionStart(code);
+#ifdef V8_ENABLE_SANDBOX
+    TNode<RawPtrT> code_entry = LoadCodeEntryFromIndirectPointerHandle(
+        var_code.value(), kRegExpEntrypointTag);
+#else
+    TNode<Code> code = CAST(var_code.value());
+    TNode<RawPtrT> code_entry =
+        LoadCodeInstructionStart(code, kRegExpEntrypointTag);
+#endif
 
     // AIX uses function descriptors on CFunction calls. code_entry in this case
     // may also point to a Regex interpreter entry trampoline which does not
@@ -626,35 +641,30 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
       GotoIf(UintPtrGreaterThanOrEqual(value, int_string_length), &if_failure);
     }
 
-    // Check that the last match info has space for the capture registers and
-    // the additional information. Ensure no overflow in add.
-    static_assert(FixedArray::kMaxLength < kMaxInt - FixedArray::kLengthOffset);
-    TNode<Smi> available_slots =
-        SmiSub(LoadFixedArrayBaseLength(match_info),
-               SmiConstant(RegExpMatchInfo::kLastMatchOverhead));
-    TNode<Smi> capture_count = CAST(UnsafeLoadFixedArrayElement(
-        data, JSRegExp::kIrregexpCaptureCountIndex));
+    // Check that the last match info has space for the capture registers.
+    TNode<Smi> available_slots = LoadArrayCapacity(match_info);
+    TNode<Smi> capture_count =
+        LoadObjectField<Smi>(data, IrRegExpData::kCaptureCountOffset);
     // Calculate number of register_count = (capture_count + 1) * 2.
     TNode<Smi> register_count =
         SmiShl(SmiAdd(capture_count, SmiConstant(1)), 1);
     GotoIf(SmiGreaterThan(register_count, available_slots), &runtime);
 
     // Fill match_info.
-    UnsafeStoreFixedArrayElement(
-        match_info, RegExpMatchInfo::kNumberOfCapturesIndex, register_count);
-    UnsafeStoreFixedArrayElement(match_info, RegExpMatchInfo::kLastSubjectIndex,
-                                 string);
-    UnsafeStoreFixedArrayElement(match_info, RegExpMatchInfo::kLastInputIndex,
-                                 string);
+    StoreObjectField(match_info,
+                     RegExpMatchInfo::kNumberOfCaptureRegistersOffset,
+                     register_count);
+    StoreObjectField(match_info, RegExpMatchInfo::kLastSubjectOffset, string);
+    StoreObjectField(match_info, RegExpMatchInfo::kLastInputOffset, string);
 
     // Fill match and capture offsets in match_info.
     {
+      // The offset within static_offsets_vector.
       TNode<IntPtrT> limit_offset =
           ElementOffsetFromIndex(register_count, INT32_ELEMENTS, 0);
-
-      TNode<IntPtrT> to_offset = ElementOffsetFromIndex(
-          IntPtrConstant(RegExpMatchInfo::kFirstCaptureIndex), PACKED_ELEMENTS,
-          RegExpMatchInfo::kHeaderSize - kHeapObjectTag);
+      // The offset within RegExpMatchInfo.
+      TNode<IntPtrT> to_offset =
+          OffsetOfElementAt<RegExpMatchInfo>(SmiConstant(0));
       TVARIABLE(IntPtrT, var_to_offset, to_offset);
 
       VariableList vars({&var_to_offset}, zone());
@@ -685,11 +695,11 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
   {
 // A stack overflow was detected in RegExp code.
 #ifdef DEBUG
-    TNode<ExternalReference> pending_exception_address =
+    TNode<ExternalReference> exception_address =
         ExternalConstant(ExternalReference::Create(
-            IsolateAddressId::kPendingExceptionAddress, isolate()));
-    TNode<Object> pending_exception = LoadFullTagged(pending_exception_address);
-    CSA_DCHECK(this, IsTheHole(pending_exception));
+            IsolateAddressId::kExceptionAddress, isolate()));
+    TNode<Object> exception = LoadFullTagged(exception_address);
+    CSA_DCHECK(this, IsTheHole(exception));
 #endif  // DEBUG
     CallRuntime(Runtime::kThrowStackOverflow, context);
     Unreachable();
@@ -767,7 +777,7 @@ TNode<BoolT> RegExpBuiltinsAssembler::IsFastRegExpNoPrototype(
 void RegExpBuiltinsAssembler::BranchIfFastRegExp(
     TNode<Context> context, TNode<HeapObject> object, TNode<Map> map,
     PrototypeCheckAssembler::Flags prototype_check_flags,
-    base::Optional<DescriptorIndexNameValue> additional_property_to_check,
+    std::optional<DescriptorIndexNameValue> additional_property_to_check,
     Label* if_isunmodified, Label* if_ismodified) {
   CSA_DCHECK(this, TaggedEqual(LoadMap(object), map));
 
@@ -843,14 +853,14 @@ void RegExpBuiltinsAssembler::BranchIfFastRegExp_Strict(
     Label* if_ismodified) {
   BranchIfFastRegExp(context, object, LoadMap(object),
                      PrototypeCheckAssembler::kCheckPrototypePropertyConstness,
-                     base::nullopt, if_isunmodified, if_ismodified);
+                     std::nullopt, if_isunmodified, if_ismodified);
 }
 
 void RegExpBuiltinsAssembler::BranchIfFastRegExp_Permissive(
     TNode<Context> context, TNode<HeapObject> object, Label* if_isunmodified,
     Label* if_ismodified) {
   BranchIfFastRegExp(context, object, LoadMap(object),
-                     PrototypeCheckAssembler::kCheckFull, base::nullopt,
+                     PrototypeCheckAssembler::kCheckFull, std::nullopt,
                      if_isunmodified, if_ismodified);
 }
 
@@ -888,16 +898,14 @@ TF_BUILTIN(RegExpExecAtom, RegExpBuiltinsAssembler) {
   auto regexp = Parameter<JSRegExp>(Descriptor::kRegExp);
   auto subject_string = Parameter<String>(Descriptor::kString);
   auto last_index = Parameter<Smi>(Descriptor::kLastIndex);
-  auto match_info = Parameter<FixedArray>(Descriptor::kMatchInfo);
+  auto match_info = Parameter<RegExpMatchInfo>(Descriptor::kMatchInfo);
   auto context = Parameter<Context>(Descriptor::kContext);
 
   CSA_DCHECK(this, TaggedIsPositiveSmi(last_index));
 
-  TNode<FixedArray> data = CAST(LoadObjectField(regexp, JSRegExp::kDataOffset));
-  CSA_DCHECK(
-      this,
-      SmiEqual(CAST(UnsafeLoadFixedArrayElement(data, JSRegExp::kTagIndex)),
-               SmiConstant(JSRegExp::ATOM)));
+  TNode<RegExpData> data = CAST(LoadTrustedPointerFromObject(
+      regexp, JSRegExp::kDataOffset, kRegExpDataIndirectPointerTag));
+  CSA_SBXCHECK(this, HasInstanceType(data, ATOM_REG_EXP_DATA_TYPE));
 
   // Callers ensure that last_index is in-bounds.
   CSA_DCHECK(this,
@@ -905,7 +913,7 @@ TF_BUILTIN(RegExpExecAtom, RegExpBuiltinsAssembler) {
                                     LoadStringLengthAsWord(subject_string)));
 
   const TNode<String> needle_string =
-      CAST(UnsafeLoadFixedArrayElement(data, JSRegExp::kAtomPatternIndex));
+      LoadObjectField<String>(data, AtomRegExpData::kPatternOffset);
 
   // ATOM patterns are guaranteed to not be the empty string (these are
   // intercepted and replaced in JSRegExp::Initialize.
@@ -929,22 +937,21 @@ TF_BUILTIN(RegExpExecAtom, RegExpBuiltinsAssembler) {
                                      LoadStringLengthAsWord(subject_string)));
 
     const int kNumRegisters = 2;
-    static_assert(RegExpMatchInfo::kInitialCaptureIndices >= kNumRegisters);
+    static_assert(kNumRegisters <= RegExpMatchInfo::kMinCapacity);
 
     const TNode<Smi> match_to =
         SmiAdd(match_from, LoadStringLengthAsSmi(needle_string));
 
-    UnsafeStoreFixedArrayElement(match_info,
-                                 RegExpMatchInfo::kNumberOfCapturesIndex,
-                                 SmiConstant(kNumRegisters));
-    UnsafeStoreFixedArrayElement(match_info, RegExpMatchInfo::kLastSubjectIndex,
-                                 subject_string);
-    UnsafeStoreFixedArrayElement(match_info, RegExpMatchInfo::kLastInputIndex,
-                                 subject_string);
-    UnsafeStoreFixedArrayElement(
-        match_info, RegExpMatchInfo::kFirstCaptureIndex, match_from);
-    UnsafeStoreFixedArrayElement(
-        match_info, RegExpMatchInfo::kFirstCaptureIndex + 1, match_to);
+    StoreObjectField(match_info,
+                     RegExpMatchInfo::kNumberOfCaptureRegistersOffset,
+                     SmiConstant(kNumRegisters));
+    StoreObjectField(match_info, RegExpMatchInfo::kLastSubjectOffset,
+                     subject_string);
+    StoreObjectField(match_info, RegExpMatchInfo::kLastInputOffset,
+                     subject_string);
+    UnsafeStoreArrayElement(match_info, 0, match_from,
+                            UNSAFE_SKIP_WRITE_BARRIER);
+    UnsafeStoreArrayElement(match_info, 1, match_to, UNSAFE_SKIP_WRITE_BARRIER);
 
     Return(match_info);
   }
@@ -1029,6 +1036,7 @@ TNode<String> RegExpBuiltinsAssembler::FlagsGetter(TNode<Context> context,
     CASE_FOR_FLAG("dotAll", JSRegExp::kDotAll);
     CASE_FOR_FLAG("unicode", JSRegExp::kUnicode);
     CASE_FOR_FLAG("sticky", JSRegExp::kSticky);
+    CASE_FOR_FLAG("unicodeSets", JSRegExp::kUnicodeSets);
 #undef CASE_FOR_FLAG
 
 #define CASE_FOR_FLAG(NAME, V8_FLAG_EXTERN_REF, FLAG)                      \
@@ -1054,10 +1062,6 @@ TNode<String> RegExpBuiltinsAssembler::FlagsGetter(TNode<Context> context,
         "linear",
         ExternalReference::address_of_enable_experimental_regexp_engine(),
         JSRegExp::kLinear);
-    CASE_FOR_FLAG(
-        "unicodeSets",
-        ExternalReference::address_of_FLAG_harmony_regexp_unicode_sets(),
-        JSRegExp::kUnicodeSets);
 #undef CASE_FOR_FLAG
   }
 
@@ -1065,10 +1069,12 @@ TNode<String> RegExpBuiltinsAssembler::FlagsGetter(TNode<Context> context,
   // corresponding char for each set flag.
 
   {
-    const TNode<String> string = AllocateSeqOneByteString(var_length.value());
+    const TNode<SeqOneByteString> string =
+        CAST(AllocateSeqOneByteString(var_length.value()));
 
     TVARIABLE(IntPtrT, var_offset,
-              IntPtrConstant(SeqOneByteString::kHeaderSize - kHeapObjectTag));
+              IntPtrSub(FieldSliceSeqOneByteStringChars(string).offset,
+                        IntPtrConstant(1)));
 
 #define CASE_FOR_FLAG(Lower, Camel, LowerCamel, Char, ...)              \
   do {                                                                  \
@@ -1111,13 +1117,13 @@ TNode<Object> RegExpBuiltinsAssembler::RegExpInitialize(
     const TNode<Object> maybe_pattern, const TNode<Object> maybe_flags) {
   // Normalize pattern.
   const TNode<Object> pattern = Select<Object>(
-      IsUndefined(maybe_pattern), [=] { return EmptyStringConstant(); },
-      [=] { return ToString_Inline(context, maybe_pattern); });
+      IsUndefined(maybe_pattern), [=, this] { return EmptyStringConstant(); },
+      [=, this] { return ToString_Inline(context, maybe_pattern); });
 
   // Normalize flags.
   const TNode<Object> flags = Select<Object>(
-      IsUndefined(maybe_flags), [=] { return EmptyStringConstant(); },
-      [=] { return ToString_Inline(context, maybe_flags); });
+      IsUndefined(maybe_flags), [=, this] { return EmptyStringConstant(); },
+      [=, this] { return ToString_Inline(context, maybe_flags); });
 
   // Initialize.
 
@@ -1240,6 +1246,10 @@ TF_BUILTIN(RegExpConstructor, RegExpBuiltinsAssembler) {
 
     BIND(&next);
   }
+
+  // Clear data field, as a GC can be triggered before it is initialized with a
+  // correct trusted pointer handle.
+  ClearTrustedPointerField(var_regexp.value(), JSRegExp::kDataOffset);
 
   const TNode<Object> result = RegExpInitialize(
       context, var_regexp.value(), var_pattern.value(), var_flags.value());
@@ -1519,7 +1529,7 @@ TNode<JSArray> RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(
       {
         TNode<Smi> length = SmiConstant(1);
         TNode<IntPtrT> capacity = IntPtrConstant(1);
-        base::Optional<TNode<AllocationSite>> allocation_site = base::nullopt;
+        std::optional<TNode<AllocationSite>> allocation_site = std::nullopt;
         var_result =
             AllocateJSArray(kind, array_map, capacity, length, allocation_site);
 
@@ -1574,11 +1584,9 @@ TNode<JSArray> RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(
       BIND(&next);
     }
 
-    TNode<FixedArray> match_indices = CAST(match_indices_ho);
-    const TNode<Smi> match_from = CAST(UnsafeLoadFixedArrayElement(
-        match_indices, RegExpMatchInfo::kFirstCaptureIndex));
-    const TNode<Smi> match_to = CAST(UnsafeLoadFixedArrayElement(
-        match_indices, RegExpMatchInfo::kFirstCaptureIndex + 1));
+    TNode<RegExpMatchInfo> match_info = CAST(match_indices_ho);
+    TNode<Smi> match_from = LoadArrayElement(match_info, IntPtrConstant(0));
+    TNode<Smi> match_to = LoadArrayElement(match_info, IntPtrConstant(1));
     CSA_DCHECK(this, SmiNotEqual(match_from, string_length));
 
     // Advance index and continue if the match is empty.
@@ -1609,8 +1617,8 @@ TNode<JSArray> RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(
 
     // Add all captures to the array.
     {
-      const TNode<Smi> num_registers = CAST(LoadFixedArrayElement(
-          match_indices, RegExpMatchInfo::kNumberOfCapturesIndex));
+      const TNode<Smi> num_registers = CAST(LoadObjectField(
+          match_info, RegExpMatchInfo::kNumberOfCaptureRegistersOffset));
       const TNode<IntPtrT> int_num_registers = PositiveSmiUntag(num_registers);
 
       TVARIABLE(IntPtrT, var_reg, IntPtrConstant(2));
@@ -1623,13 +1631,9 @@ TNode<JSArray> RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(
 
       BIND(&nested_loop);
       {
-        const TNode<IntPtrT> reg = var_reg.value();
-        const TNode<Object> from = LoadFixedArrayElement(
-            match_indices, reg,
-            RegExpMatchInfo::kFirstCaptureIndex * kTaggedSize);
-        const TNode<Smi> to = CAST(LoadFixedArrayElement(
-            match_indices, reg,
-            (RegExpMatchInfo::kFirstCaptureIndex + 1) * kTaggedSize));
+        TNode<IntPtrT> reg = var_reg.value();
+        TNode<Smi> from = LoadArrayElement(match_info, reg);
+        TNode<Smi> to = LoadArrayElement(match_info, reg, 1 * kTaggedSize);
 
         Label select_capture(this), select_undefined(this), store_value(this);
         TVARIABLE(Object, var_value);
@@ -1688,7 +1692,7 @@ TNode<JSArray> RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(
   {
     TNode<Smi> length = SmiZero();
     TNode<IntPtrT> capacity = IntPtrZero();
-    base::Optional<TNode<AllocationSite>> allocation_site = base::nullopt;
+    std::optional<TNode<AllocationSite>> allocation_site = std::nullopt;
     var_result =
         AllocateJSArray(kind, array_map, capacity, length, allocation_site);
     Goto(&done);

@@ -2,6 +2,7 @@
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "node_external_reference.h"
+#include "path.h"
 #include "permission/permission.h"
 #include "stream_base-inl.h"
 #include "util-inl.h"
@@ -20,6 +21,7 @@
 using v8::Array;
 using v8::Boolean;
 using v8::Context;
+using v8::Data;
 using v8::EmbedderGraph;
 using v8::EscapableHandleScope;
 using v8::FunctionCallbackInfo;
@@ -49,48 +51,45 @@ class JSGraphJSNode : public EmbedderGraph::Node {
   const char* Name() override { return "<JS Node>"; }
   size_t SizeInBytes() override { return 0; }
   bool IsEmbedderNode() override { return false; }
-  Local<Value> JSValue() { return PersistentToLocal::Strong(persistent_); }
+  Local<Data> V8Value() { return PersistentToLocal::Strong(persistent_); }
 
-  int IdentityHash() {
-    Local<Value> v = JSValue();
-    if (v->IsObject()) return v.As<Object>()->GetIdentityHash();
-    if (v->IsName()) return v.As<v8::Name>()->GetIdentityHash();
-    if (v->IsInt32()) return v.As<v8::Int32>()->Value();
-    return 0;
-  }
-
-  JSGraphJSNode(Isolate* isolate, Local<Value> val)
-      : persistent_(isolate, val) {
+  JSGraphJSNode(Isolate* isolate, Local<Data> val) : persistent_(isolate, val) {
     CHECK(!val.IsEmpty());
   }
 
-  struct Hash {
-    inline size_t operator()(JSGraphJSNode* n) const {
-      return static_cast<size_t>(n->IdentityHash());
-    }
-  };
-
   struct Equal {
     inline bool operator()(JSGraphJSNode* a, JSGraphJSNode* b) const {
-      return a->JSValue()->SameValue(b->JSValue());
+      Local<Data> data_a = a->V8Value();
+      Local<Data> data_b = a->V8Value();
+      if (data_a->IsValue()) {
+        if (!data_b->IsValue()) {
+          return false;
+        }
+        return data_a.As<Value>()->SameValue(data_b.As<Value>());
+      }
+      return data_a == data_b;
     }
   };
 
  private:
-  Global<Value> persistent_;
+  Global<Data> persistent_;
 };
 
 class JSGraph : public EmbedderGraph {
  public:
   explicit JSGraph(Isolate* isolate) : isolate_(isolate) {}
 
-  Node* V8Node(const Local<Value>& value) override {
+  Node* V8Node(const Local<v8::Data>& value) override {
     std::unique_ptr<JSGraphJSNode> n { new JSGraphJSNode(isolate_, value) };
     auto it = engine_nodes_.find(n.get());
     if (it != engine_nodes_.end())
       return *it;
     engine_nodes_.insert(n.get());
     return AddNode(std::unique_ptr<Node>(n.release()));
+  }
+
+  Node* V8Node(const Local<v8::Value>& value) override {
+    return V8Node(value.As<v8::Data>());
   }
 
   Node* AddNode(std::unique_ptr<Node> node) override {
@@ -153,8 +152,9 @@ class JSGraph : public EmbedderGraph {
         if (nodes->Set(context, i++, obj).IsNothing())
           return MaybeLocal<Array>();
         if (!n->IsEmbedderNode()) {
-          value = static_cast<JSGraphJSNode*>(n.get())->JSValue();
-          if (obj->Set(context, value_string, value).IsNothing())
+          Local<Data> data = static_cast<JSGraphJSNode*>(n.get())->V8Value();
+          if (data->IsValue() &&
+              obj->Set(context, value_string, data.As<Value>()).IsNothing())
             return MaybeLocal<Array>();
         }
       }
@@ -206,8 +206,7 @@ class JSGraph : public EmbedderGraph {
  private:
   Isolate* isolate_;
   std::unordered_set<std::unique_ptr<Node>> nodes_;
-  std::unordered_set<JSGraphJSNode*, JSGraphJSNode::Hash, JSGraphJSNode::Equal>
-      engine_nodes_;
+  std::set<JSGraphJSNode*, JSGraphJSNode::Equal> engine_nodes_;
   std::unordered_map<Node*, std::set<std::pair<const char*, Node*>>> edges_;
 };
 
@@ -468,43 +467,11 @@ void TriggerHeapSnapshot(const FunctionCallbackInfo<Value>& args) {
 
   BufferValue path(isolate, filename_v);
   CHECK_NOT_NULL(*path);
+  ToNamespacedPath(env, &path);
   THROW_IF_INSUFFICIENT_PERMISSIONS(
       env, permission::PermissionScope::kFileSystemWrite, path.ToStringView());
   if (WriteSnapshot(env, *path, options).IsNothing()) return;
   return args.GetReturnValue().Set(filename_v);
-}
-
-class PrototypeChainHas : public v8::QueryObjectPredicate {
- public:
-  PrototypeChainHas(Local<Context> context, Local<Object> search)
-      : context_(context), search_(search) {}
-
-  // What we can do in the filter can be quite limited, but looking up
-  // the prototype chain is something that the inspector console API
-  // queryObject() does so it is supported.
-  bool Filter(Local<Object> object) override {
-    for (Local<Value> proto = object->GetPrototype(); proto->IsObject();
-         proto = proto.As<Object>()->GetPrototype()) {
-      if (search_ == proto) return true;
-    }
-    return false;
-  }
-
- private:
-  Local<Context> context_;
-  Local<Object> search_;
-};
-
-void CountObjectsWithPrototype(const FunctionCallbackInfo<Value>& args) {
-  CHECK_EQ(args.Length(), 1);
-  CHECK(args[0]->IsObject());
-  Local<Object> proto = args[0].As<Object>();
-  Isolate* isolate = args.GetIsolate();
-  Local<Context> context = isolate->GetCurrentContext();
-  PrototypeChainHas prototype_chain_has(context, proto);
-  std::vector<Global<Object>> out;
-  isolate->GetHeapProfiler()->QueryObjects(context, &prototype_chain_has, &out);
-  args.GetReturnValue().Set(static_cast<uint32_t>(out.size()));
 }
 
 void Initialize(Local<Object> target,
@@ -515,15 +482,12 @@ void Initialize(Local<Object> target,
   SetMethod(context, target, "triggerHeapSnapshot", TriggerHeapSnapshot);
   SetMethod(
       context, target, "createHeapSnapshotStream", CreateHeapSnapshotStream);
-  SetMethod(
-      context, target, "countObjectsWithPrototype", CountObjectsWithPrototype);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(BuildEmbedderGraph);
   registry->Register(TriggerHeapSnapshot);
   registry->Register(CreateHeapSnapshotStream);
-  registry->Register(CountObjectsWithPrototype);
 }
 
 }  // namespace heap

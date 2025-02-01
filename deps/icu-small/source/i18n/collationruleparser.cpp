@@ -24,7 +24,6 @@
 #include "unicode/uloc.h"
 #include "unicode/unistr.h"
 #include "unicode/utf16.h"
-#include "bytesinkutil.h"
 #include "charstr.h"
 #include "cmemory.h"
 #include "collation.h"
@@ -42,7 +41,7 @@ U_NAMESPACE_BEGIN
 
 namespace {
 
-static const char16_t BEFORE[] = { 0x5b, 0x62, 0x65, 0x66, 0x6f, 0x72, 0x65, 0 };  // "[before"
+const char16_t BEFORE[] = { 0x5b, 0x62, 0x65, 0x66, 0x6f, 0x72, 0x65, 0 };  // "[before"
 const int32_t BEFORE_LENGTH = 7;
 
 }  // namespace
@@ -379,7 +378,7 @@ CollationRuleParser::parseString(int32_t i, UnicodeString &raw, UErrorCode &erro
             if(c == 0x27) {  // apostrophe
                 if(i < rules->length() && rules->charAt(i) == 0x27) {
                     // Double apostrophe, encodes a single one.
-                    raw.append((char16_t)0x27);
+                    raw.append(static_cast<char16_t>(0x27));
                     ++i;
                     continue;
                 }
@@ -399,7 +398,7 @@ CollationRuleParser::parseString(int32_t i, UnicodeString &raw, UErrorCode &erro
                             break;
                         }
                     }
-                    raw.append((char16_t)c);
+                    raw.append(static_cast<char16_t>(c));
                 }
             } else if(c == 0x5c) {  // backslash
                 if(i == rules->length()) {
@@ -419,7 +418,7 @@ CollationRuleParser::parseString(int32_t i, UnicodeString &raw, UErrorCode &erro
             --i;
             break;
         } else {
-            raw.append((char16_t)c);
+            raw.append(static_cast<char16_t>(c));
         }
     }
     for(int32_t j = 0; j < raw.length();) {
@@ -439,7 +438,7 @@ CollationRuleParser::parseString(int32_t i, UnicodeString &raw, UErrorCode &erro
 
 namespace {
 
-static const char *const positions[] = {
+const char* const positions[] = {
     "first tertiary ignorable",
     "last tertiary ignorable",
     "first secondary ignorable",
@@ -467,16 +466,16 @@ CollationRuleParser::parseSpecialPosition(int32_t i, UnicodeString &str, UErrorC
         ++j;
         for(int32_t pos = 0; pos < UPRV_LENGTHOF(positions); ++pos) {
             if(raw == UnicodeString(positions[pos], -1, US_INV)) {
-                str.setTo((char16_t)POS_LEAD).append((char16_t)(POS_BASE + pos));
+                str.setTo(POS_LEAD).append(static_cast<char16_t>(POS_BASE + pos));
                 return j;
             }
         }
         if(raw == UNICODE_STRING_SIMPLE("top")) {
-            str.setTo((char16_t)POS_LEAD).append((char16_t)(POS_BASE + LAST_REGULAR));
+            str.setTo(POS_LEAD).append(static_cast<char16_t>(POS_BASE + LAST_REGULAR));
             return j;
         }
         if(raw == UNICODE_STRING_SIMPLE("variable top")) {
-            str.setTo((char16_t)POS_LEAD).append((char16_t)(POS_BASE + LAST_VARIABLE));
+            str.setTo(POS_LEAD).append(static_cast<char16_t>(POS_BASE + LAST_VARIABLE));
             return j;
         }
     }
@@ -508,7 +507,7 @@ CollationRuleParser::parseSetting(UErrorCode &errorCode) {
             return;
         }
         UnicodeString v;
-        int32_t valueIndex = raw.lastIndexOf((char16_t)0x20);
+        int32_t valueIndex = raw.lastIndexOf(static_cast<char16_t>(0x20));
         if(valueIndex >= 0) {
             v.setTo(raw, valueIndex + 1);
             raw.truncate(valueIndex);
@@ -606,12 +605,8 @@ CollationRuleParser::parseSetting(UErrorCode &errorCode) {
             lang.appendInvariantChars(v, errorCode);
             if(errorCode == U_MEMORY_ALLOCATION_ERROR) { return; }
             // BCP 47 language tag -> ICU locale ID
-            CharString localeID;
             int32_t parsedLength;
-            {
-                CharStringByteSink sink(&localeID);
-                ulocimp_forLanguageTag(lang.data(), -1, sink, &parsedLength, &errorCode);
-            }
+            CharString localeID = ulocimp_forLanguageTag(lang.data(), -1, &parsedLength, errorCode);
             if(U_FAILURE(errorCode) || parsedLength != lang.length()) {
                 errorCode = U_ZERO_ERROR;
                 setParseError("expected language tag in [import langTag]", errorCode);
@@ -632,11 +627,7 @@ CollationRuleParser::parseSetting(UErrorCode &errorCode) {
                 uprv_memcpy(baseID, "und", 3);
             }
             // @collation=type, or length=0 if not specified
-            CharString collationType;
-            {
-                CharStringByteSink sink(&collationType);
-                ulocimp_getKeywordValue(localeID.data(), "collation", sink, &errorCode);
-            }
+            CharString collationType = ulocimp_getKeywordValue(localeID.data(), "collation", errorCode);
             if(U_FAILURE(errorCode)) {
                 errorCode = U_ZERO_ERROR;
                 setParseError("expected language tag in [import langTag]", errorCode);
@@ -703,7 +694,7 @@ CollationRuleParser::parseReordering(const UnicodeString &raw, UErrorCode &error
     CharString word;
     while(i < raw.length()) {
         ++i;  // skip the word-separating space
-        int32_t limit = raw.indexOf((char16_t)0x20, i);
+        int32_t limit = raw.indexOf(static_cast<char16_t>(0x20), i);
         if(limit < 0) { limit = raw.length(); }
         word.clear().appendInvariantChars(raw.tempSubStringBetween(i, limit), errorCode);
         if(U_FAILURE(errorCode)) { return; }

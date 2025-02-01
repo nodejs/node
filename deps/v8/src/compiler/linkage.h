@@ -5,6 +5,8 @@
 #ifndef V8_COMPILER_LINKAGE_H_
 #define V8_COMPILER_LINKAGE_H_
 
+#include <optional>
+
 #include "src/base/compiler-specific.h"
 #include "src/base/flags.h"
 #include "src/codegen/interface-descriptors.h"
@@ -15,6 +17,7 @@
 #include "src/codegen/signature.h"
 #include "src/common/globals.h"
 #include "src/compiler/frame.h"
+#include "src/compiler/globals.h"
 #include "src/compiler/operator.h"
 #include "src/execution/encoded-c-signature.h"
 #include "src/runtime/runtime.h"
@@ -99,9 +102,9 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   };
   using Flags = base::Flags<Flag>;
 
-  CallDescriptor(Kind kind, MachineType target_type, LinkageLocation target_loc,
-                 LocationSignature* location_sig, size_t param_slot_count,
-                 Operator::Properties properties,
+  CallDescriptor(Kind kind, CodeEntrypointTag tag, MachineType target_type,
+                 LinkageLocation target_loc, LocationSignature* location_sig,
+                 size_t param_slot_count, Operator::Properties properties,
                  RegList callee_saved_registers,
                  DoubleRegList callee_saved_fp_registers, Flags flags,
                  const char* debug_name = "",
@@ -109,6 +112,7 @@ class V8_EXPORT_PRIVATE CallDescriptor final
                  const RegList allocatable_registers = {},
                  size_t return_slot_count = 0)
       : kind_(kind),
+        tag_(tag),
         target_type_(target_type),
         target_loc_(target_loc),
         location_sig_(location_sig),
@@ -128,6 +132,19 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   // Returns the kind of this call.
   Kind kind() const { return kind_; }
 
+  // Returns the entrypoint tag for this call.
+  CodeEntrypointTag tag() const { return tag_; }
+
+  // Returns the entrypoint tag for this call, shifted to the right by
+  // kCodeEntrypointTagShift so that it fits into a 32-bit immediate.
+  uint32_t shifted_tag() const {
+    static_assert(kCodeEntrypointTagShift >= 32);
+    return tag_ >> kCodeEntrypointTagShift;
+  }
+
+  // Returns {true} if this descriptor is a call to a Code object.
+  bool IsCodeObjectCall() const { return kind_ == kCallCodeObject; }
+
   // Returns {true} if this descriptor is a call to a C function.
   bool IsCFunctionCall() const { return kind_ == kCallAddress; }
 
@@ -145,6 +162,8 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   bool IsWasmCapiFunction() const { return kind_ == kCallWasmCapiFunction; }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+  bool IsBuiltinPointerCall() const { return kind_ == kCallBuiltinPointer; }
+
   bool RequiresFrameAsIncoming() const {
     if (IsCFunctionCall() || IsJSFunctionCall()) return true;
 #if V8_ENABLE_WEBASSEMBLY
@@ -153,6 +172,8 @@ class V8_EXPORT_PRIVATE CallDescriptor final
     if (CalleeSavedRegisters() != kNoCalleeSaved) return true;
     return false;
   }
+
+  bool RequiresEntrypointTagForCall() const { return IsCodeObjectCall(); }
 
   // The number of return values from this call.
   size_t ReturnCount() const { return location_sig_->return_count(); }
@@ -296,6 +317,7 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   friend class Linkage;
 
   const Kind kind_;
+  const CodeEntrypointTag tag_;
   const MachineType target_type_;
   const LinkageLocation target_loc_;
   const LocationSignature* const location_sig_;
@@ -311,8 +333,8 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   const StackArgumentOrder stack_order_;
   const char* const debug_name_;
 
-  mutable base::Optional<size_t> gp_param_count_;
-  mutable base::Optional<size_t> fp_param_count_;
+  mutable std::optional<size_t> gp_param_count_;
+  mutable std::optional<size_t> fp_param_count_;
 };
 
 DEFINE_OPERATORS_FOR_FLAGS(CallDescriptor::Flags)
@@ -320,6 +342,13 @@ DEFINE_OPERATORS_FOR_FLAGS(CallDescriptor::Flags)
 std::ostream& operator<<(std::ostream& os, const CallDescriptor& d);
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            const CallDescriptor::Kind& k);
+
+#if V8_ENABLE_WEBASSEMBLY
+// Lowers a wasm CallDescriptor for 32 bit platforms by replacing i64 parameters
+// and returns with two i32s each.
+V8_EXPORT_PRIVATE CallDescriptor* GetI32WasmCallDescriptor(
+    Zone* zone, const CallDescriptor* call_descriptor);
+#endif
 
 // Defines the linkage for a compilation, including the calling conventions
 // for incoming parameters and return value(s) as well as the outgoing calling
@@ -356,7 +385,8 @@ class V8_EXPORT_PRIVATE Linkage : public NON_EXPORTED_BASE(ZoneObject) {
 
   static CallDescriptor* GetRuntimeCallDescriptor(
       Zone* zone, Runtime::FunctionId function, int js_parameter_count,
-      Operator::Properties properties, CallDescriptor::Flags flags);
+      Operator::Properties properties, CallDescriptor::Flags flags,
+      LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow::kNo);
 
   static CallDescriptor* GetCEntryStubCallDescriptor(
       Zone* zone, int return_count, int js_parameter_count,

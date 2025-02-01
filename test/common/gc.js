@@ -1,9 +1,68 @@
 'use strict';
 
 const wait = require('timers/promises').setTimeout;
+const assert = require('assert');
+const common = require('../common');
+// TODO(joyeecheung): rewrite checkIfCollectable to use this too.
+const { setImmediate: setImmediatePromisified } = require('timers/promises');
+const gcTrackerMap = new WeakMap();
+const gcTrackerTag = 'NODE_TEST_COMMON_GC_TRACKER';
 
-// TODO(joyeecheung): merge ongc.js and gcUntil from common/index.js
-// into this.
+/**
+ * Installs a garbage collection listener for the specified object.
+ * Uses async_hooks for GC tracking, which may affect test functionality.
+ * A full setImmediate() invocation passes between a global.gc() call and the listener being invoked.
+ * @param {object} obj - The target object to track for garbage collection.
+ * @param {object} gcListener - The listener object containing the ongc callback.
+ * @param {Function} gcListener.ongc - The function to call when the target object is garbage collected.
+ */
+function onGC(obj, gcListener) {
+  const async_hooks = require('async_hooks');
+
+  const onGcAsyncHook = async_hooks.createHook({
+    init: common.mustCallAtLeast(function(id, type) {
+      if (this.trackedId === undefined) {
+        assert.strictEqual(type, gcTrackerTag);
+        this.trackedId = id;
+      }
+    }),
+    destroy(id) {
+      assert.notStrictEqual(this.trackedId, -1);
+      if (id === this.trackedId) {
+        this.gcListener.ongc();
+        onGcAsyncHook.disable();
+      }
+    },
+  }).enable();
+  onGcAsyncHook.gcListener = gcListener;
+
+  gcTrackerMap.set(obj, new async_hooks.AsyncResource(gcTrackerTag));
+  obj = null;
+}
+
+/**
+ * Repeatedly triggers garbage collection until a specified condition is met or a maximum number of attempts is reached.
+ * This utillity must be run in a Node.js instance that enables --expose-gc.
+ * @param {string|Function} [name] - Optional name, used in the rejection message if the condition is not met.
+ * @param {Function} condition - A function that returns true when the desired condition is met.
+ * @param {number} maxCount - Maximum number of garbage collections that should be tried.
+ * @param {object} gcOptions - Options to pass into the global gc() function.
+ * @returns {Promise} A promise that resolves when the condition is met, or rejects after 10 failed attempts.
+ */
+async function gcUntil(name, condition, maxCount = 10, gcOptions) {
+  for (let count = 0; count < maxCount; ++count) {
+    await setImmediatePromisified();
+    if (gcOptions) {
+      await global.gc(gcOptions);
+    } else {
+      await global.gc();  // Passing in undefined is not the same as empty.
+    }
+    if (condition()) {
+      return;
+    }
+  }
+  throw new Error(`Test ${name} failed`);
+}
 
 // This function can be used to check if an object factor leaks or not,
 // but it needs to be used with care:
@@ -83,15 +142,14 @@ async function runAndBreathe(fn, repeat, waitTime = 20) {
  * @param {(i: number) => number} fn The factory receiving iteration count
  *   and returning number of objects created. The return value should be
  *   precise otherwise false negatives can be produced.
- * @param {Function} klass The class whose object is used to count the objects
+ * @param {Function} ctor The constructor of the objects being counted.
  * @param {number} count Number of iterations that this check should be done
  * @param {number} waitTime Optional breathing time for GC.
  */
-async function checkIfCollectableByCounting(fn, klass, count, waitTime = 20) {
-  const { internalBinding } = require('internal/test/binding');
-  const { countObjectsWithPrototype } = internalBinding('heap_utils');
-  const { prototype, name } = klass;
-  const initialCount = countObjectsWithPrototype(prototype);
+async function checkIfCollectableByCounting(fn, ctor, count, waitTime = 20) {
+  const { queryObjects } = require('v8');
+  const { name } = ctor;
+  const initialCount = queryObjects(ctor, { format: 'count' });
   console.log(`Initial count of ${name}: ${initialCount}`);
   let totalCreated = 0;
   for (let i = 0; i < count; ++i) {
@@ -99,7 +157,7 @@ async function checkIfCollectableByCounting(fn, klass, count, waitTime = 20) {
     totalCreated += created;
     console.log(`#${i}: created ${created} ${name}, total ${totalCreated}`);
     await wait(waitTime);  // give GC some breathing room.
-    const currentCount = countObjectsWithPrototype(prototype);
+    const currentCount = queryObjects(ctor, { format: 'count' });
     const collected = totalCreated - (currentCount - initialCount);
     console.log(`#${i}: counted ${currentCount} ${name}, collected ${collected}`);
     if (collected > 0) {
@@ -109,7 +167,7 @@ async function checkIfCollectableByCounting(fn, klass, count, waitTime = 20) {
   }
 
   await wait(waitTime);  // give GC some breathing room.
-  const currentCount = countObjectsWithPrototype(prototype);
+  const currentCount = queryObjects(ctor, { format: 'count' });
   const collected = totalCreated - (currentCount - initialCount);
   console.log(`Last count: counted ${currentCount} ${name}, collected ${collected}`);
   // Some objects with the prototype can be collected.
@@ -125,4 +183,6 @@ module.exports = {
   checkIfCollectable,
   runAndBreathe,
   checkIfCollectableByCounting,
+  onGC,
+  gcUntil,
 };

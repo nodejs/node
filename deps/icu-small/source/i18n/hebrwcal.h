@@ -319,7 +319,7 @@ public:
      * implementation than the default implementation in Calendar.
      * @internal
      */
-    virtual int32_t handleGetMonthLength(int32_t extendedYear, int32_t month) const override;
+    virtual int32_t handleGetMonthLength(int32_t extendedYear, int32_t month, UErrorCode& status) const override;
 
     /**
      * Return the number of days in the given extended year of this
@@ -329,6 +329,7 @@ public:
      * @stable ICU 2.0
      */
     virtual int32_t handleGetYearLength(int32_t eyear) const override;
+
     /**
      * Subclasses may override this method to compute several fields
      * specific to each calendar system.  These are:
@@ -350,10 +351,11 @@ public:
      * use the UCAL_EXTENDED_YEAR field or the UCAL_YEAR and supra-year fields (such
      * as UCAL_ERA) specific to the calendar system, depending on which set of
      * fields is newer.
+     * @param status
      * @return the extended year
      * @internal
      */
-    virtual int32_t handleGetExtendedYear() override;
+    virtual int32_t handleGetExtendedYear(UErrorCode& status) override;
     /**
      * Return the Julian day number of day before the first day of the
      * given month in the given extended year.  Subclasses should override
@@ -367,8 +369,8 @@ public:
      * day of the given month and year
      * @internal
      */
-    virtual int32_t handleComputeMonthStart(int32_t eyear, int32_t month,
-                                                   UBool useMonth) const override;
+    virtual int64_t handleComputeMonthStart(int32_t eyear, int32_t month,
+                                                   UBool useMonth, UErrorCode& status) const override;
 
 
     /**
@@ -380,24 +382,7 @@ public:
     virtual void validateField(UCalendarDateFields field, UErrorCode &status) override;
 
  protected:
-  /**
-   * Returns true because the Hebrew Calendar does have a default century
-   * @internal
-   */
-  virtual UBool haveDefaultCentury() const override;
-
-  /**
-   * Returns the date of the start of the default century
-   * @return start of century - in milliseconds since epoch, 1970
-   * @internal
-   */
-  virtual UDate defaultCenturyStart() const override;
-
-  /**
-   * Returns the year in which the default century begins
-   * @internal
-   */
-  virtual int32_t defaultCenturyStartYear() const override;
+  DECLARE_OVERRIDE_SYSTEM_DEFAULT_CENTURY
 
  public:
   /**
@@ -442,45 +427,7 @@ public:
   virtual void setTemporalMonthCode(const char* code, UErrorCode& status ) override;
 
  protected:
-   virtual int32_t internalGetMonth() const override;
-
- private: // Calendar-specific implementation
-    /**
-     * Finds the day # of the first day in the given Hebrew year.
-     * To do this, we want to calculate the time of the Tishri 1 new moon
-     * in that year.
-     * <p>
-     * The algorithm here is similar to ones described in a number of
-     * references, including:
-     * <ul>
-     * <li>"Calendrical Calculations", by Nachum Dershowitz & Edward Reingold,
-     *     Cambridge University Press, 1997, pages 85-91.
-     *
-     * <li>Hebrew Calendar Science and Myths,
-     *     <a href="http://www.geocities.com/Athens/1584/">
-     *     http://www.geocities.com/Athens/1584/</a>
-     *
-     * <li>The Calendar FAQ,
-     *      <a href="http://www.faqs.org/faqs/calendars/faq/">
-     *      http://www.faqs.org/faqs/calendars/faq/</a>
-     * </ul>
-     * @param year extended year
-     * @return day number (JD)
-     * @internal
-     */
-    static int32_t startOfYear(int32_t year, UErrorCode& status);
-
-    static int32_t absoluteDayToDayOfWeek(int32_t day) ;
-    
-    /**
-     * @internal 
-     */
-    int32_t yearType(int32_t year) const;
-
-    /**
-     * @internal 
-     */
-    static int32_t monthsInYear(int32_t year) ;
+   virtual int32_t internalGetMonth(UErrorCode& status) const override;
 };
 
 U_NAMESPACE_END

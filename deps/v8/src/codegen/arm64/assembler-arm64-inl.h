@@ -219,7 +219,7 @@ struct ImmediateInitializer<ExternalReference> {
     return RelocInfo::EXTERNAL_REFERENCE;
   }
   static inline int64_t immediate_for(ExternalReference t) {
-    return static_cast<int64_t>(t.address());
+    return static_cast<int64_t>(t.raw());
   }
 };
 
@@ -497,7 +497,7 @@ Handle<Code> Assembler::code_target_object_handle_at(Address pc) {
   } else {
     DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
     DCHECK_EQ(instr->ImmPCOffset() % kInstrSize, 0);
-    return Handle<Code>::cast(
+    return Cast<Code>(
         GetEmbeddedObject(instr->ImmPCOffset() >> kInstrSizeLog2));
   }
 }
@@ -667,14 +667,9 @@ Tagged<HeapObject> RelocInfo::target_object(PtrComprCageBase cage_base) {
     DCHECK(!HAS_SMI_TAG(compressed));
     Tagged<Object> obj(
         V8HeapCompressionScheme::DecompressTagged(cage_base, compressed));
-    // Embedding of compressed InstructionStream objects must not happen when
-    // external code space is enabled, because Codes must be used
-    // instead.
-    DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
-                   !IsCodeSpaceObject(HeapObject::cast(obj)));
-    return HeapObject::cast(obj);
+    return Cast<HeapObject>(obj);
   } else {
-    return HeapObject::cast(
+    return Cast<HeapObject>(
         Tagged<Object>(Assembler::target_address_at(pc_, constant_pool_)));
   }
 }
@@ -692,6 +687,12 @@ void WritableRelocInfo::set_target_object(Tagged<HeapObject> target,
                                           ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
   if (IsCompressedEmbeddedObject(rmode_)) {
+    DCHECK(COMPRESS_POINTERS_BOOL);
+    // We must not compress pointers to objects outside of the main pointer
+    // compression cage as we wouldn't be able to decompress them with the
+    // correct cage base.
+    DCHECK_IMPLIES(V8_ENABLE_SANDBOX_BOOL, !IsTrustedSpaceObject(target));
+    DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !IsCodeSpaceObject(target));
     Assembler::set_target_compressed_address_at(
         pc_, constant_pool_,
         V8HeapCompressionScheme::CompressObject(target.ptr()),
@@ -733,6 +734,21 @@ Builtin RelocInfo::target_builtin_at(Assembler* origin) {
 Address RelocInfo::target_off_heap_target() {
   DCHECK(IsOffHeapTarget(rmode_));
   return Assembler::target_address_at(pc_, constant_pool_);
+}
+
+uint32_t Assembler::uint32_constant_at(Address pc, Address constant_pool) {
+  Instruction* instr = reinterpret_cast<Instruction*>(pc);
+  CHECK(instr->IsLdrLiteralW());
+  return ReadUnalignedValue<uint32_t>(target_pointer_address_at(pc));
+}
+
+void Assembler::set_uint32_constant_at(Address pc, Address constant_pool,
+                                       uint32_t new_constant,
+                                       ICacheFlushMode icache_flush_mode) {
+  Instruction* instr = reinterpret_cast<Instruction*>(pc);
+  CHECK(instr->IsLdrLiteralW());
+  WriteUnalignedValue<uint32_t>(target_pointer_address_at(pc), new_constant);
+  // Icache flushing not needed for Ldr via the constant pool.
 }
 
 LoadStoreOp Assembler::LoadOpFor(const CPURegister& rt) {
@@ -851,10 +867,14 @@ inline void Assembler::DataProcImmediate(const Register& rd, const Register& rn,
        RnSP(rn));
 }
 
-int Assembler::LinkAndGetInstructionOffsetTo(Label* label) {
+int Assembler::LinkAndGetBranchInstructionOffsetTo(Label* label) {
   DCHECK_EQ(kStartOfLabelLinkChain, 0);
   int offset = LinkAndGetByteOffsetTo(label);
   DCHECK(IsAligned(offset, kInstrSize));
+  if (label->is_linked() && (offset != kStartOfLabelLinkChain)) {
+    branch_link_chain_back_edge_.emplace(
+        std::pair<int, int>(pc_offset() + offset, pc_offset()));
+  }
   return offset >> kInstrSizeLog2;
 }
 
@@ -870,31 +890,26 @@ Instr Assembler::Flags(FlagsUpdate S) {
 Instr Assembler::Cond(Condition cond) { return cond << Condition_offset; }
 
 Instr Assembler::ImmPCRelAddress(int imm21) {
-  CHECK(is_int21(imm21));
-  Instr imm = static_cast<Instr>(truncate_to_int21(imm21));
+  Instr imm = static_cast<Instr>(checked_truncate_to_int21(imm21));
   Instr immhi = (imm >> ImmPCRelLo_width) << ImmPCRelHi_offset;
   Instr immlo = imm << ImmPCRelLo_offset;
   return (immhi & ImmPCRelHi_mask) | (immlo & ImmPCRelLo_mask);
 }
 
 Instr Assembler::ImmUncondBranch(int imm26) {
-  CHECK(is_int26(imm26));
-  return truncate_to_int26(imm26) << ImmUncondBranch_offset;
+  return checked_truncate_to_int26(imm26) << ImmUncondBranch_offset;
 }
 
 Instr Assembler::ImmCondBranch(int imm19) {
-  CHECK(is_int19(imm19));
-  return truncate_to_int19(imm19) << ImmCondBranch_offset;
+  return checked_truncate_to_int19(imm19) << ImmCondBranch_offset;
 }
 
 Instr Assembler::ImmCmpBranch(int imm19) {
-  CHECK(is_int19(imm19));
-  return truncate_to_int19(imm19) << ImmCmpBranch_offset;
+  return checked_truncate_to_int19(imm19) << ImmCmpBranch_offset;
 }
 
 Instr Assembler::ImmTestBranch(int imm14) {
-  CHECK(is_int14(imm14));
-  return truncate_to_int14(imm14) << ImmTestBranch_offset;
+  return checked_truncate_to_int14(imm14) << ImmTestBranch_offset;
 }
 
 Instr Assembler::ImmTestBranchBit(unsigned bit_pos) {
@@ -953,8 +968,7 @@ Instr Assembler::ImmRotate(unsigned immr, unsigned reg_size) {
 }
 
 Instr Assembler::ImmLLiteral(int imm19) {
-  CHECK(is_int19(imm19));
-  return truncate_to_int19(imm19) << ImmLLiteral_offset;
+  return checked_truncate_to_int19(imm19) << ImmLLiteral_offset;
 }
 
 Instr Assembler::BitN(unsigned bitn, unsigned reg_size) {
@@ -998,16 +1012,14 @@ Instr Assembler::ImmLSUnsigned(int imm12) {
 }
 
 Instr Assembler::ImmLS(int imm9) {
-  DCHECK(is_int9(imm9));
-  return truncate_to_int9(imm9) << ImmLS_offset;
+  return checked_truncate_to_int9(imm9) << ImmLS_offset;
 }
 
 Instr Assembler::ImmLSPair(int imm7, unsigned size) {
   DCHECK_EQ(imm7,
             static_cast<int>(static_cast<uint32_t>(imm7 >> size) << size));
   int scaled_imm7 = imm7 >> size;
-  DCHECK(is_int7(scaled_imm7));
-  return truncate_to_int7(scaled_imm7) << ImmLSPair_offset;
+  return checked_truncate_to_int7(scaled_imm7) << ImmLSPair_offset;
 }
 
 Instr Assembler::ImmShiftLS(unsigned shift_amount) {

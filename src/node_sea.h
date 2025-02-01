@@ -3,8 +3,6 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#if !defined(DISABLE_SINGLE_EXECUTABLE_APPLICATION)
-
 #include <cinttypes>
 #include <optional>
 #include <string>
@@ -16,6 +14,7 @@
 #include "node_exit_code.h"
 
 namespace node {
+class Environment;
 namespace sea {
 // A special number that will appear at the beginning of the single executable
 // preparation blobs ready to be injected into the binary. We use this to check
@@ -39,6 +38,8 @@ struct SeaResource {
   std::unordered_map<std::string_view, std::string_view> assets;
 
   bool use_snapshot() const;
+  bool use_code_cache() const;
+
   static constexpr size_t kHeaderSize = sizeof(kMagic) + sizeof(SeaFlags);
 };
 
@@ -49,10 +50,14 @@ node::ExitCode BuildSingleExecutableBlob(
     const std::string& config_path,
     const std::vector<std::string>& args,
     const std::vector<std::string>& exec_args);
+
+// Try loading the Environment as a single-executable application.
+// Returns true if it is loaded as a single-executable application.
+// Otherwise returns false and the caller is expected to call LoadEnvironment()
+// differently.
+bool MaybeLoadSingleExecutableApplication(Environment* env);
 }  // namespace sea
 }  // namespace node
-
-#endif  // !defined(DISABLE_SINGLE_EXECUTABLE_APPLICATION)
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 

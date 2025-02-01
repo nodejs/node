@@ -5,11 +5,6 @@
 #ifndef V8_BASELINE_BASELINE_ASSEMBLER_H_
 #define V8_BASELINE_BASELINE_ASSEMBLER_H_
 
-// TODO(v8:11421): Remove #if once baseline compiler is ported to other
-// architectures.
-#include "src/flags/flags.h"
-#if ENABLE_SPARKPLUG
-
 #include "src/codegen/macro-assembler.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/objects/tagged-index.h"
@@ -215,7 +210,7 @@ class BaselineAssembler {
   inline void StaModuleVariable(Register context, Register value,
                                 int cell_index, uint32_t depth);
 
-  inline void AddSmi(Register lhs, Tagged<Smi> rhs);
+  inline void IncrementSmi(MemOperand lhs);
   inline void SmiUntag(Register value);
   inline void SmiUntag(Register output, Register value);
 
@@ -263,7 +258,5 @@ class EnsureAccumulatorPreservedScope final {
 }  // namespace baseline
 }  // namespace internal
 }  // namespace v8
-
-#endif
 
 #endif  // V8_BASELINE_BASELINE_ASSEMBLER_H_

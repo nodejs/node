@@ -30,6 +30,9 @@ namespace cares_wrap {
 
 constexpr int ns_t_cname_or_a = -1;
 constexpr int DNS_ESETSRVPENDING = -1000;
+constexpr uint8_t DNS_ORDER_VERBATIM = 0;
+constexpr uint8_t DNS_ORDER_IPV4_FIRST = 1;
+constexpr uint8_t DNS_ORDER_IPV6_FIRST = 2;
 
 class ChannelWrap;
 
@@ -195,16 +198,16 @@ class GetAddrInfoReqWrap final : public ReqWrap<uv_getaddrinfo_t> {
  public:
   GetAddrInfoReqWrap(Environment* env,
                      v8::Local<v8::Object> req_wrap_obj,
-                     bool verbatim);
+                     uint8_t order);
 
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(GetAddrInfoReqWrap)
   SET_SELF_SIZE(GetAddrInfoReqWrap)
 
-  bool verbatim() const { return verbatim_; }
+  uint8_t order() const { return order_; }
 
  private:
-  const bool verbatim_;
+  const uint8_t order_;
 };
 
 class GetNameInfoReqWrap final : public ReqWrap<uv_getnameinfo_t> {
@@ -243,18 +246,20 @@ class QueryWrap final : public AsyncWrap {
     return Traits::Send(this, name);
   }
 
-  void AresQuery(const char* name, int dnsclass, int type) {
+  void AresQuery(const char* name,
+                 ares_dns_class_t dnsclass,
+                 ares_dns_rec_type_t type) {
     channel_->EnsureServers();
     TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(
       TRACING_CATEGORY_NODE2(dns, native), trace_name_, this,
       "name", TRACE_STR_COPY(name));
-    ares_query(
-        channel_->cares_channel(),
-        name,
-        dnsclass,
-        type,
-        Callback,
-        MakeCallbackPointer());
+    ares_query_dnsrec(channel_->cares_channel(),
+                      name,
+                      dnsclass,
+                      type,
+                      Callback,
+                      MakeCallbackPointer(),
+                      nullptr);
   }
 
   void ParseError(int status) {
@@ -301,19 +306,20 @@ class QueryWrap final : public AsyncWrap {
     return wrap;
   }
 
-  static void Callback(
-      void* arg,
-      int status,
-      int timeouts,
-      unsigned char* answer_buf,
-      int answer_len) {
+  static void Callback(void* arg,
+                       ares_status_t status,
+                       size_t timeouts,
+                       const ares_dns_record_t* dnsrec) {
     QueryWrap<Traits>* wrap = FromCallbackPointer(arg);
     if (wrap == nullptr) return;
 
     unsigned char* buf_copy = nullptr;
+    size_t answer_len = 0;
     if (status == ARES_SUCCESS) {
-      buf_copy = node::Malloc<unsigned char>(answer_len);
-      memcpy(buf_copy, answer_buf, answer_len);
+      // No need to explicitly call ares_free_string here,
+      // as it is a wrapper around free, which is already
+      // invoked when MallocedBuffer is destructed.
+      ares_dns_write(dnsrec, &buf_copy, &answer_len);
     }
 
     wrap->response_data_ = std::make_unique<ResponseData>();

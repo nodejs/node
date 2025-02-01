@@ -215,11 +215,9 @@ void FutexEmulation::NotifyAsyncWaiter(FutexWaitListNode* node) {
 void FutexWaitList::AddNode(FutexWaitListNode* node) {
   DCHECK_NULL(node->prev_);
   DCHECK_NULL(node->next_);
-  auto it = location_lists_.find(node->wait_location_);
-  if (it == location_lists_.end()) {
-    location_lists_.insert(
-        std::make_pair(node->wait_location_, HeadAndTail{node, node}));
-  } else {
+  auto [it, inserted] =
+      location_lists_.insert({node->wait_location_, HeadAndTail{node, node}});
+  if (!inserted) {
     it->second.tail->next_ = node;
     node->prev_ = it->second.tail;
     it->second.tail = node;
@@ -229,30 +227,38 @@ void FutexWaitList::AddNode(FutexWaitListNode* node) {
 }
 
 void FutexWaitList::RemoveNode(FutexWaitListNode* node) {
-  auto it = location_lists_.find(node->wait_location_);
-  DCHECK_NE(location_lists_.end(), it);
-  DCHECK(NodeIsOnList(node, it->second.head));
-
-  if (node->prev_) {
+  if (!node->prev_ && !node->next_) {
+    // If the node was the last one on its list, delete the whole list.
+    size_t erased = location_lists_.erase(node->wait_location_);
+    DCHECK_EQ(1, erased);
+    USE(erased);
+  } else if (node->prev_ && node->next_) {
+    // If we have both a successor and a predecessor, skip the lookup in the
+    // list and just update those two nodes directly.
     node->prev_->next_ = node->next_;
-  } else {
-    DCHECK_EQ(node, it->second.head);
-    it->second.head = node->next_;
-  }
-
-  if (node->next_) {
     node->next_->prev_ = node->prev_;
+    node->prev_ = node->next_ = nullptr;
   } else {
-    DCHECK_EQ(node, it->second.tail);
-    it->second.tail = node->prev_;
-  }
+    // Otherwise we have to lookup in the list to find the head and tail
+    // pointers.
+    auto it = location_lists_.find(node->wait_location_);
+    DCHECK_NE(location_lists_.end(), it);
+    DCHECK(NodeIsOnList(node, it->second.head));
 
-  // If the node was the last one on its list, delete the whole list.
-  if (node->prev_ == nullptr && node->next_ == nullptr) {
-    location_lists_.erase(it);
+    if (node->prev_) {
+      DCHECK(!node->next_);
+      node->prev_->next_ = nullptr;
+      DCHECK_EQ(node, it->second.tail);
+      it->second.tail = node->prev_;
+      node->prev_ = nullptr;
+    } else {
+      DCHECK_EQ(node, it->second.head);
+      it->second.head = node->next_;
+      DCHECK(node->next_);
+      node->next_->prev_ = nullptr;
+      node->next_ = nullptr;
+    }
   }
-
-  node->prev_ = node->next_ = nullptr;
 
   Verify();
 }
@@ -394,12 +400,9 @@ Tagged<Object> FutexEmulation::WaitSync(Isolate* isolate,
 
   isolate->RunAtomicsWaitCallback(AtomicsWaitEvent::kStartWait, array_buffer,
                                   addr, value, rel_timeout_ms, &stop_handle);
+  if (isolate->has_exception()) return ReadOnlyRoots(isolate).exception();
 
-  if (isolate->has_scheduled_exception()) {
-    return isolate->PromoteScheduledException();
-  }
-
-  Handle<Object> result;
+  DirectHandle<Object> result;
   AtomicsWaitEvent callback_result = AtomicsWaitEvent::kWokenUp;
 
   FutexWaitList* wait_list = GetWaitList();
@@ -419,13 +422,6 @@ Tagged<Object> FutexEmulation::WaitSync(Isolate* isolate,
   do {
     NoGarbageCollectionMutexGuard lock_guard(wait_list->mutex());
 
-    node->wait_location_ = wait_location;
-    node->waiting_ = true;
-
-    // Reset node->waiting_ = false when leaving this scope (but while
-    // still holding the lock).
-    FutexWaitListNode::ResetWaitingOnScopeExit reset_waiting(node);
-
     std::atomic<T>* p = reinterpret_cast<std::atomic<T>*>(wait_location);
     T loaded_value = p->load();
 #if defined(V8_TARGET_BIG_ENDIAN)
@@ -436,11 +432,14 @@ Tagged<Object> FutexEmulation::WaitSync(Isolate* isolate,
     }
 #endif
     if (loaded_value != value) {
-      result = handle(Smi::FromInt(WaitReturnValue::kNotEqualValue), isolate);
+      result =
+          direct_handle(Smi::FromInt(WaitReturnValue::kNotEqualValue), isolate);
       callback_result = AtomicsWaitEvent::kNotEqual;
       break;
     }
 
+    node->wait_location_ = wait_location;
+    node->waiting_ = true;
     wait_list->AddNode(node);
 
     while (true) {
@@ -471,7 +470,7 @@ Tagged<Object> FutexEmulation::WaitSync(Isolate* isolate,
         lock_guard.Lock();
 
         if (IsException(interrupt_object, isolate)) {
-          result = handle(interrupt_object, isolate);
+          result = direct_handle(interrupt_object, isolate);
           callback_result = AtomicsWaitEvent::kTerminatedExecution;
           break;
         }
@@ -488,7 +487,8 @@ Tagged<Object> FutexEmulation::WaitSync(Isolate* isolate,
       }
 
       if (!node->waiting_) {
-        result = handle(Smi::FromInt(WaitReturnValue::kOk), isolate);
+        // We were woken either via the stop_handle or via Wake.
+        result = direct_handle(Smi::FromInt(WaitReturnValue::kOk), isolate);
         break;
       }
 
@@ -496,7 +496,8 @@ Tagged<Object> FutexEmulation::WaitSync(Isolate* isolate,
       if (use_timeout) {
         base::TimeTicks current_time = base::TimeTicks::Now();
         if (current_time >= timeout_time) {
-          result = handle(Smi::FromInt(WaitReturnValue::kTimedOut), isolate);
+          result =
+              direct_handle(Smi::FromInt(WaitReturnValue::kTimedOut), isolate);
           callback_result = AtomicsWaitEvent::kTimedOut;
           break;
         }
@@ -513,15 +514,17 @@ Tagged<Object> FutexEmulation::WaitSync(Isolate* isolate,
       // Spurious wakeup, interrupt or timeout.
     }
 
+    node->waiting_ = false;
     wait_list->RemoveNode(node);
   } while (false);
+  DCHECK(!node->waiting_);
 
   isolate->RunAtomicsWaitCallback(callback_result, array_buffer, addr, value,
                                   rel_timeout_ms, nullptr);
 
-  if (isolate->has_scheduled_exception()) {
-    CHECK_NE(callback_result, AtomicsWaitEvent::kTerminatedExecution);
-    result = handle(isolate->PromoteScheduledException(), isolate);
+  if (isolate->has_exception() &&
+      callback_result != AtomicsWaitEvent::kTerminatedExecution) {
+    return ReadOnlyRoots(isolate).exception();
   }
 
   return *result;
@@ -551,11 +554,9 @@ FutexWaitListNode::FutexWaitListNode(std::weak_ptr<BackingStore> backing_store,
           GetWeakGlobal(isolate, Utils::ToLocal(isolate->native_context())))) {}
 
 template <typename T>
-Tagged<Object> FutexEmulation::WaitAsync(Isolate* isolate,
-                                         Handle<JSArrayBuffer> array_buffer,
-                                         size_t addr, T value, bool use_timeout,
-                                         int64_t rel_timeout_ns,
-                                         CallType call_type) {
+Tagged<Object> FutexEmulation::WaitAsync(
+    Isolate* isolate, DirectHandle<JSArrayBuffer> array_buffer, size_t addr,
+    T value, bool use_timeout, int64_t rel_timeout_ns, CallType call_type) {
   base::TimeDelta rel_timeout =
       base::TimeDelta::FromNanoseconds(rel_timeout_ns);
 
@@ -652,7 +653,7 @@ Tagged<Object> FutexEmulation::WaitAsync(Isolate* isolate,
     case ResultKind::kAsync:
       // Add the Promise into the NativeContext's atomics_waitasync_promises
       // set, so that the list keeps it alive.
-      Handle<NativeContext> native_context(isolate->native_context());
+      DirectHandle<NativeContext> native_context(isolate->native_context());
       Handle<OrderedHashSet> promises(
           native_context->atomics_waitasync_promises(), isolate);
       promises = OrderedHashSet::Add(isolate, promises, promise_capability)
@@ -679,8 +680,12 @@ Tagged<Object> FutexEmulation::WaitAsync(Isolate* isolate,
 
 int FutexEmulation::Wake(Tagged<JSArrayBuffer> array_buffer, size_t addr,
                          uint32_t num_waiters_to_wake) {
-  int num_waiters_woken = 0;
   void* wait_location = FutexWaitList::ToWaitLocation(array_buffer, addr);
+  return Wake(wait_location, num_waiters_to_wake);
+}
+
+int FutexEmulation::Wake(void* wait_location, uint32_t num_waiters_to_wake) {
+  int num_waiters_woken = 0;
   FutexWaitList* wait_list = GetWaitList();
   NoGarbageCollectionMutexGuard lock_guard(wait_list->mutex());
 
@@ -782,12 +787,12 @@ void FutexEmulation::CleanupAsyncWaiterPromise(FutexWaitListNode* node) {
   auto v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
 
   if (!node->async_state_->promise.IsEmpty()) {
-    Handle<JSPromise> promise = Handle<JSPromise>::cast(
-        Utils::OpenHandle(*node->async_state_->promise.Get(v8_isolate)));
+    auto promise = Cast<JSPromise>(
+        Utils::OpenDirectHandle(*node->async_state_->promise.Get(v8_isolate)));
     // Promise keeps the NativeContext alive.
     DCHECK(!node->async_state_->native_context.IsEmpty());
-    Handle<NativeContext> native_context = Handle<NativeContext>::cast(
-        Utils::OpenHandle(*node->async_state_->native_context.Get(v8_isolate)));
+    auto native_context = Cast<NativeContext>(Utils::OpenDirectHandle(
+        *node->async_state_->native_context.Get(v8_isolate)));
 
     // Remove the Promise from the NativeContext's set.
     Handle<OrderedHashSet> promises(
@@ -827,7 +832,7 @@ void FutexEmulation::ResolveAsyncWaiterPromise(FutexWaitListNode* node) {
     Local<v8::Context> native_context =
         node->async_state_->native_context.Get(v8_isolate);
     v8::Context::Scope contextScope(native_context);
-    Handle<JSPromise> promise = Handle<JSPromise>::cast(
+    Handle<JSPromise> promise = Cast<JSPromise>(
         Utils::OpenHandle(*node->async_state_->promise.Get(v8_isolate)));
     Handle<String> result_string;
     // When waiters are notified, their timeout_time is reset. Having a
@@ -971,23 +976,6 @@ int FutexEmulation::NumWaitersForTesting(Tagged<JSArrayBuffer> array_buffer,
                 node->async_state_->backing_store.lock());
     }
     num_waiters++;
-  }
-
-  return num_waiters;
-}
-
-int FutexEmulation::NumAsyncWaitersForTesting(Isolate* isolate) {
-  FutexWaitList* wait_list = GetWaitList();
-  NoGarbageCollectionMutexGuard lock_guard(wait_list->mutex());
-
-  int num_waiters = 0;
-  for (const auto& it : wait_list->location_lists_) {
-    for (FutexWaitListNode* node = it.second.head; node; node = node->next_) {
-      if (!node->IsAsync()) continue;
-      if (!node->waiting_) continue;
-      if (node->async_state_->isolate_for_async_waiters != isolate) continue;
-      num_waiters++;
-    }
   }
 
   return num_waiters;

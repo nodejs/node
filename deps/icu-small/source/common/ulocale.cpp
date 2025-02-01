@@ -1,6 +1,7 @@
 // © 2023 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 //
+#include "unicode/bytestream.h"
 #include "unicode/errorcode.h"
 #include "unicode/stringpiece.h"
 #include "unicode/utypes.h"
@@ -8,9 +9,9 @@
 #include "unicode/ulocale.h"
 #include "unicode/locid.h"
 
+#include "bytesinkutil.h"
 #include "charstr.h"
 #include "cmemory.h"
-#include "ustr_imp.h"
 
 U_NAMESPACE_USE
 #define EXTERNAL(i) (reinterpret_cast<ULocale*>(i))
@@ -19,15 +20,20 @@ U_NAMESPACE_USE
 
 ULocale*
 ulocale_openForLocaleID(const char* localeID, int32_t length, UErrorCode* err) {
-    CharString str(length < 0 ? StringPiece(localeID) : StringPiece(localeID, length), *err);
-    if (U_FAILURE(*err)) return nullptr;
+    if (U_FAILURE(*err)) { return nullptr; }
+    if (length < 0) {
+        return EXTERNAL(icu::Locale::createFromName(localeID).clone());
+    }
+    CharString str(localeID, length, *err);  // Make a NUL terminated copy.
+    if (U_FAILURE(*err)) { return nullptr; }
     return EXTERNAL(icu::Locale::createFromName(str.data()).clone());
 }
 
 ULocale*
 ulocale_openForLanguageTag(const char* tag, int32_t length, UErrorCode* err) {
+  if (U_FAILURE(*err)) { return nullptr; }
   Locale l = icu::Locale::forLanguageTag(length < 0 ? StringPiece(tag) : StringPiece(tag, length), *err);
-  if (U_FAILURE(*err)) return nullptr;
+  if (U_FAILURE(*err)) { return nullptr; }
   return EXTERNAL(l.clone());
 }
 
@@ -53,20 +59,14 @@ int32_t ulocale_get ##N ( \
         *err = U_ILLEGAL_ARGUMENT_ERROR; \
         return 0; \
     } \
-    CheckedArrayByteSink sink(valueBuffer, bufferCapacity); \
-    CONST_INTERNAL(locale)->get ## N( \
-        keywordLength < 0 ? StringPiece(keyword) : StringPiece(keyword, keywordLength), \
-        sink, *err); \
-    int32_t reslen = sink.NumberOfBytesAppended(); \
-    if (U_FAILURE(*err)) { \
-        return reslen; \
-    } \
-    if (sink.Overflowed()) { \
-        *err = U_BUFFER_OVERFLOW_ERROR; \
-    } else { \
-        u_terminateChars(valueBuffer, bufferCapacity, reslen, err); \
-    } \
-    return reslen; \
+    return ByteSinkUtil::viaByteSinkToTerminatedChars( \
+        valueBuffer, bufferCapacity, \
+        [&](ByteSink& sink, UErrorCode& status) { \
+            CONST_INTERNAL(locale)->get ## N( \
+                keywordLength < 0 ? StringPiece(keyword) : StringPiece(keyword, keywordLength), \
+                sink, status); \
+        }, \
+        *err); \
 }
 
 #define IMPL_ULOCALE_GET_KEYWORDS(N) \

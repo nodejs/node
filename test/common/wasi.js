@@ -1,7 +1,7 @@
 // Test version set to preview1
 'use strict';
 
-const { spawnSyncAndExitWithoutError } = require('./child_process');
+const { spawnSyncAndAssert } = require('./child_process');
 const fixtures = require('./fixtures');
 const childPath = fixtures.path('wasi-preview-1.js');
 
@@ -15,7 +15,7 @@ function testWasiPreview1(args, spawnArgs = {}, expectations = {}) {
   spawnArgs.env = newEnv;
 
   console.log('Testing with --turbo-fast-api-calls:', ...args);
-  spawnSyncAndExitWithoutError(
+  spawnSyncAndAssert(
     process.execPath, [
       '--turbo-fast-api-calls',
       childPath,
@@ -26,7 +26,7 @@ function testWasiPreview1(args, spawnArgs = {}, expectations = {}) {
   );
 
   console.log('Testing with --no-turbo-fast-api-calls:', ...args);
-  spawnSyncAndExitWithoutError(
+  spawnSyncAndAssert(
     process.execPath,
     [
       '--no-turbo-fast-api-calls',

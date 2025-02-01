@@ -111,6 +111,8 @@ async function testImportSpki({ name, publicUsages }, namedCurve, extractable) {
   assert.deepStrictEqual(key.usages, publicUsages);
   assert.deepStrictEqual(key.algorithm.name, name);
   assert.deepStrictEqual(key.algorithm.namedCurve, namedCurve);
+  assert.strictEqual(key.algorithm, key.algorithm);
+  assert.strictEqual(key.usages, key.usages);
 
   if (extractable) {
     // Test the roundtrip
@@ -151,6 +153,8 @@ async function testImportPkcs8(
   assert.deepStrictEqual(key.usages, privateUsages);
   assert.deepStrictEqual(key.algorithm.name, name);
   assert.deepStrictEqual(key.algorithm.namedCurve, namedCurve);
+  assert.strictEqual(key.algorithm, key.algorithm);
+  assert.strictEqual(key.usages, key.usages);
 
   if (extractable) {
     // Test the roundtrip
@@ -234,6 +238,10 @@ async function testImportJwk(
   assert.strictEqual(privateKey.algorithm.name, name);
   assert.strictEqual(publicKey.algorithm.namedCurve, namedCurve);
   assert.strictEqual(privateKey.algorithm.namedCurve, namedCurve);
+  assert.strictEqual(privateKey.algorithm, privateKey.algorithm);
+  assert.strictEqual(privateKey.usages, privateKey.usages);
+  assert.strictEqual(publicKey.algorithm, publicKey.algorithm);
+  assert.strictEqual(publicKey.usages, publicKey.usages);
 
   if (extractable) {
     // Test the round trip
@@ -330,6 +338,15 @@ async function testImportJwk(
       extractable,
       [/* empty usages */]),
     { name: 'SyntaxError', message: 'Usages cannot be empty when importing a private key.' });
+
+  await assert.rejects(
+    subtle.importKey(
+      'jwk',
+      { kty: jwk.kty, /* missing x */ y: jwk.y, crv: jwk.crv },
+      { name, namedCurve },
+      extractable,
+      publicUsages),
+    { name: 'DataError', message: 'Invalid keyData' });
 }
 
 async function testImportRaw({ name, publicUsages }, namedCurve) {
@@ -359,6 +376,8 @@ async function testImportRaw({ name, publicUsages }, namedCurve) {
   assert.deepStrictEqual(publicKey.usages, publicUsages);
   assert.strictEqual(publicKey.algorithm.name, name);
   assert.strictEqual(publicKey.algorithm.namedCurve, namedCurve);
+  assert.strictEqual(publicKey.algorithm, publicKey.algorithm);
+  assert.strictEqual(publicKey.usages, publicKey.usages);
 }
 
 (async function() {
@@ -380,8 +399,8 @@ async function testImportRaw({ name, publicUsages }, namedCurve) {
 
 // https://github.com/nodejs/node/issues/45859
 (async function() {
-  const compressed = Buffer.from([48, 57, 48, 19, 6, 7, 42, 134, 72, 206, 61, 2, 1, 6, 8, 42, 134, 72, 206, 61, 3, 1, 7, 3, 34, 0, 2, 210, 16, 176, 166, 249, 217, 240, 18, 134, 128, 88, 180, 63, 164, 244, 113, 1, 133, 67, 187, 160, 12, 146, 80, 223, 146, 87, 194, 172, 174, 93, 209]);  // eslint-disable-line max-len
-  const uncompressed = Buffer.from([48, 89, 48, 19, 6, 7, 42, 134, 72, 206, 61, 2, 1, 6, 8, 42, 134, 72, 206, 61, 3, 1, 7, 3, 66, 0, 4, 210, 16, 176, 166, 249, 217, 240, 18, 134, 128, 88, 180, 63, 164, 244, 113, 1, 133, 67, 187, 160, 12, 146, 80, 223, 146, 87, 194, 172, 174, 93, 209, 206, 3, 117, 82, 212, 129, 69, 12, 227, 155, 77, 16, 149, 112, 27, 23, 91, 250, 179, 75, 142, 108, 9, 158, 24, 241, 193, 152, 53, 131, 97, 232]);  // eslint-disable-line max-len
+  const compressed = Buffer.from([48, 57, 48, 19, 6, 7, 42, 134, 72, 206, 61, 2, 1, 6, 8, 42, 134, 72, 206, 61, 3, 1, 7, 3, 34, 0, 2, 210, 16, 176, 166, 249, 217, 240, 18, 134, 128, 88, 180, 63, 164, 244, 113, 1, 133, 67, 187, 160, 12, 146, 80, 223, 146, 87, 194, 172, 174, 93, 209]);  // eslint-disable-line @stylistic/js/max-len
+  const uncompressed = Buffer.from([48, 89, 48, 19, 6, 7, 42, 134, 72, 206, 61, 2, 1, 6, 8, 42, 134, 72, 206, 61, 3, 1, 7, 3, 66, 0, 4, 210, 16, 176, 166, 249, 217, 240, 18, 134, 128, 88, 180, 63, 164, 244, 113, 1, 133, 67, 187, 160, 12, 146, 80, 223, 146, 87, 194, 172, 174, 93, 209, 206, 3, 117, 82, 212, 129, 69, 12, 227, 155, 77, 16, 149, 112, 27, 23, 91, 250, 179, 75, 142, 108, 9, 158, 24, 241, 193, 152, 53, 131, 97, 232]);  // eslint-disable-line @stylistic/js/max-len
   for (const name of ['ECDH', 'ECDSA']) {
     const options = { name, namedCurve: 'P-256' };
     const key = await subtle.importKey('spki', compressed, options, true, []);

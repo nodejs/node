@@ -113,6 +113,10 @@ namespace interpreter {
     OperandType::kIdx, OperandType::kUImm)                                     \
   V(StaCurrentContextSlot, ImplicitRegisterUse::kReadAccumulator,              \
     OperandType::kIdx)                                                         \
+  V(StaScriptContextSlot, ImplicitRegisterUse::kReadAccumulator,               \
+    OperandType::kReg, OperandType::kIdx, OperandType::kUImm)                  \
+  V(StaCurrentScriptContextSlot, ImplicitRegisterUse::kReadAccumulator,        \
+    OperandType::kIdx)                                                         \
                                                                                \
   /* Load-Store lookup slots */                                                \
   V(LdaLookupSlot, ImplicitRegisterUse::kWriteAccumulator, OperandType::kIdx)  \
@@ -136,6 +140,9 @@ namespace interpreter {
     OperandType::kReg, OperandType::kIdx, OperandType::kIdx)                   \
   V(GetKeyedProperty, ImplicitRegisterUse::kReadWriteAccumulator,              \
     OperandType::kReg, OperandType::kIdx)                                      \
+  V(GetEnumeratedKeyedProperty, ImplicitRegisterUse::kReadWriteAccumulator,    \
+    OperandType::kReg, OperandType::kReg, OperandType::kReg,                   \
+    OperandType::kIdx)                                                         \
                                                                                \
   /* Operations on module variables */                                         \
   V(LdaModuleVariable, ImplicitRegisterUse::kWriteAccumulator,                 \
@@ -218,7 +225,7 @@ namespace interpreter {
   V(BitwiseNot, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kIdx) \
   V(ToBooleanLogicalNot, ImplicitRegisterUse::kReadWriteAccumulator)           \
   V(LogicalNot, ImplicitRegisterUse::kReadWriteAccumulator)                    \
-  V(TypeOf, ImplicitRegisterUse::kReadWriteAccumulator)                        \
+  V(TypeOf, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kIdx)     \
   V(DeletePropertyStrict, ImplicitRegisterUse::kReadWriteAccumulator,          \
     OperandType::kReg)                                                         \
   V(DeletePropertySloppy, ImplicitRegisterUse::kReadWriteAccumulator,          \
@@ -274,6 +281,8 @@ namespace interpreter {
   V(ConstructWithSpread, ImplicitRegisterUse::kReadWriteAccumulator,           \
     OperandType::kReg, OperandType::kRegList, OperandType::kRegCount,          \
     OperandType::kIdx)                                                         \
+  V(ConstructForwardAllArgs, ImplicitRegisterUse::kReadWriteAccumulator,       \
+    OperandType::kReg, OperandType::kIdx)                                      \
                                                                                \
   /* Effectful Test Operators */                                               \
   V(TestEqual, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kReg,  \
@@ -366,6 +375,8 @@ namespace interpreter {
     OperandType::kIdx)                                                         \
   V(JumpIfJSReceiverConstant, ImplicitRegisterUse::kReadAccumulator,           \
     OperandType::kIdx)                                                         \
+  V(JumpIfForInDoneConstant, ImplicitRegisterUse::kNone, OperandType::kIdx,    \
+    OperandType::kReg, OperandType::kReg)                                      \
   /* - [Start ToBoolean jumps] */                                              \
   V(JumpIfToBooleanTrueConstant, ImplicitRegisterUse::kReadAccumulator,        \
     OperandType::kIdx)                                                         \
@@ -390,6 +401,8 @@ namespace interpreter {
     OperandType::kUImm)                                                        \
   V(JumpIfJSReceiver, ImplicitRegisterUse::kReadAccumulator,                   \
     OperandType::kUImm)                                                        \
+  V(JumpIfForInDone, ImplicitRegisterUse::kNone, OperandType::kUImm,           \
+    OperandType::kReg, OperandType::kReg)                                      \
                                                                                \
   /* Smi-table lookup for switch statements */                                 \
   V(SwitchOnSmiNoFeedback, ImplicitRegisterUse::kReadAccumulator,              \
@@ -399,11 +412,9 @@ namespace interpreter {
   V(ForInEnumerate, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg) \
   V(ForInPrepare, ImplicitRegisterUse::kReadAndClobberAccumulator,             \
     OperandType::kRegOutTriple, OperandType::kIdx)                             \
-  V(ForInContinue, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg,  \
-    OperandType::kReg)                                                         \
   V(ForInNext, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg,      \
     OperandType::kReg, OperandType::kRegPair, OperandType::kIdx)               \
-  V(ForInStep, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg)      \
+  V(ForInStep, ImplicitRegisterUse::kNone, OperandType::kRegInOut)             \
                                                                                \
   /* Update the pending message */                                             \
   V(SetPendingMessage, ImplicitRegisterUse::kReadWriteAccumulator)             \
@@ -494,7 +505,8 @@ namespace interpreter {
   V(JumpIfUndefined)                                    \
   V(JumpIfNotUndefined)                                 \
   V(JumpIfUndefinedOrNull)                              \
-  V(JumpIfJSReceiver)
+  V(JumpIfJSReceiver)                                   \
+  V(JumpIfForInDone)
 
 #define JUMP_CONDITIONAL_CONSTANT_BYTECODE_LIST(V)     \
   JUMP_TOBOOLEAN_CONDITIONAL_CONSTANT_BYTECODE_LIST(V) \
@@ -505,7 +517,8 @@ namespace interpreter {
   V(JumpIfUndefinedOrNullConstant)                     \
   V(JumpIfTrueConstant)                                \
   V(JumpIfFalseConstant)                               \
-  V(JumpIfJSReceiverConstant)
+  V(JumpIfJSReceiverConstant)                          \
+  V(JumpIfForInDoneConstant)
 
 #define JUMP_CONSTANT_BYTECODE_LIST(V)         \
   JUMP_UNCONDITIONAL_CONSTANT_BYTECODE_LIST(V) \
@@ -713,7 +726,7 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
   // an immediate byte operand (OperandType::kImm).
   static constexpr bool IsConditionalJumpImmediate(Bytecode bytecode) {
     return bytecode >= Bytecode::kJumpIfToBooleanTrue &&
-           bytecode <= Bytecode::kJumpIfJSReceiver;
+           bytecode <= Bytecode::kJumpIfForInDone;
   }
 
   // Returns true if the bytecode is a conditional jump taking
@@ -727,7 +740,7 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
   // any kind of operand.
   static constexpr bool IsConditionalJump(Bytecode bytecode) {
     return bytecode >= Bytecode::kJumpIfNullConstant &&
-           bytecode <= Bytecode::kJumpIfJSReceiver;
+           bytecode <= Bytecode::kJumpIfForInDone;
   }
 
   // Returns true if the bytecode is an unconditional jump.
@@ -761,14 +774,14 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
   // any kind of operand.
   static constexpr bool IsJump(Bytecode bytecode) {
     return bytecode >= Bytecode::kJumpLoop &&
-           bytecode <= Bytecode::kJumpIfJSReceiver;
+           bytecode <= Bytecode::kJumpIfForInDone;
   }
 
   // Returns true if the bytecode is a forward jump or conditional jump taking
   // any kind of operand.
   static constexpr bool IsForwardJump(Bytecode bytecode) {
     return bytecode >= Bytecode::kJump &&
-           bytecode <= Bytecode::kJumpIfJSReceiver;
+           bytecode <= Bytecode::kJumpIfForInDone;
   }
 
   // Return true if |bytecode| is a jump without effects,
@@ -791,7 +804,8 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
     return (IsAccumulatorLoadWithoutEffects(bytecode) ||
             IsRegisterLoadWithoutEffects(bytecode) ||
             IsCompareWithoutEffects(bytecode) ||
-            IsJumpWithoutEffects(bytecode) || IsSwitch(bytecode));
+            IsJumpWithoutEffects(bytecode) || IsSwitch(bytecode) ||
+            bytecode == Bytecode::kReturn);
   }
 
   // Returns true if the bytecode is Ldar or Star.
@@ -813,6 +827,7 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
            bytecode == Bytecode::kConstruct ||
            bytecode == Bytecode::kCallWithSpread ||
            bytecode == Bytecode::kConstructWithSpread ||
+           bytecode == Bytecode::kConstructForwardAllArgs ||
            bytecode == Bytecode::kCallJSRuntime;
   }
 
@@ -846,8 +861,10 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
 
   // Returns the number of operands expected by |bytecode|.
   static int NumberOfOperands(Bytecode bytecode) {
-    DCHECK_LE(bytecode, Bytecode::kLast);
-    return kOperandCount[static_cast<size_t>(bytecode)];
+    // Using V8_ASSUME instead of DCHECK here works around a spurious GCC
+    // warning -- somehow GCC thinks that bytecode == kLast+1 can happen here.
+    V8_ASSUME(bytecode <= Bytecode::kLast);
+    return kOperandCount[static_cast<uint8_t>(bytecode)];
   }
 
   // Returns the i-th operand of |bytecode|.
@@ -909,7 +926,15 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
   // Returns the offset of the i-th operand of |bytecode| relative to the start
   // of the bytecode.
   static int GetOperandOffset(Bytecode bytecode, int i,
-                              OperandScale operand_scale);
+                              OperandScale operand_scale) {
+    DCHECK_LE(bytecode, Bytecode::kLast);
+    DCHECK_GE(operand_scale, OperandScale::kSingle);
+    DCHECK_LE(operand_scale, OperandScale::kLast);
+    static_assert(static_cast<int>(OperandScale::kQuadruple) == 4 &&
+                  OperandScale::kLast == OperandScale::kQuadruple);
+    int scale_index = static_cast<int>(operand_scale) >> 1;
+    return kOperandOffsets[scale_index][static_cast<size_t>(bytecode)][i];
+  }
 
   // Returns the size of the bytecode including its operands for the
   // given |operand_scale|.
@@ -923,9 +948,6 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
 
   // Returns a debug break bytecode to replace |bytecode|.
   static Bytecode GetDebugBreak(Bytecode bytecode);
-
-  // Returns the equivalent jump bytecode without the accumulator coercion.
-  static Bytecode GetJumpWithoutToBoolean(Bytecode bytecode);
 
   // Returns true if there is a call in the most-frequently executed path
   // through the bytecode's handler.
@@ -985,6 +1007,7 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
     switch (operand_type) {
       case OperandType::kReg:
       case OperandType::kRegOut:
+      case OperandType::kRegInOut:
         return 1;
       case OperandType::kRegPair:
       case OperandType::kRegOutPair:
@@ -1071,6 +1094,7 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
   static const bool kIsScalable[];
   static const uint8_t kBytecodeSizes[3][kBytecodeCount];
   static const OperandSize* const kOperandSizes[3][kBytecodeCount];
+  static const int* const kOperandOffsets[3][kBytecodeCount];
   static OperandSize const
       kOperandKindSizes[3][BytecodeOperands::kOperandTypeCount];
 };

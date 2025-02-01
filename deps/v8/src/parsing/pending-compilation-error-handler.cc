@@ -147,9 +147,9 @@ void PendingCompilationErrorHandler::ReportWarnings(
 
   for (const MessageDetails& warning : warning_messages_) {
     MessageLocation location = warning.GetLocation(script);
-    Handle<String> argument = warning.ArgString(isolate, 0);
+    DirectHandle<String> argument = warning.ArgString(isolate, 0);
     DCHECK_LT(warning.ArgCount(), 2);  // Arg1 is only used for errors.
-    Handle<JSMessageObject> message =
+    DirectHandle<JSMessageObject> message =
         MessageHandler::MakeMessageObject(isolate, warning.message(), &location,
                                           argument, Handle<FixedArray>::null());
     message->set_error_level(v8::Isolate::kMessageWarning);
@@ -189,24 +189,31 @@ void PendingCompilationErrorHandler::ThrowPendingError(
   if (!has_pending_error_) return;
 
   MessageLocation location = error_details_.GetLocation(script);
-  Handle<String> arg0 = error_details_.ArgString(isolate, 0);
-  Handle<String> arg1 = error_details_.ArgString(isolate, 1);
-  Handle<String> arg2 = error_details_.ArgString(isolate, 2);
+  int num_args = 0;
+  DirectHandle<Object> args[MessageDetails::kMaxArgumentCount];
+  for (; num_args < MessageDetails::kMaxArgumentCount; ++num_args) {
+    args[num_args] = error_details_.ArgString(isolate, num_args);
+    if (args[num_args].is_null()) break;
+  }
   isolate->debug()->OnCompileError(script);
 
   Factory* factory = isolate->factory();
-  Handle<JSObject> error =
-      factory->NewSyntaxError(error_details_.message(), arg0, arg1, arg2);
+  Handle<JSObject> error = factory->NewSyntaxError(
+      error_details_.message(), base::VectorOf(args, num_args));
   isolate->ThrowAt(error, &location);
 }
 
 Handle<String> PendingCompilationErrorHandler::FormatErrorMessageForTest(
     Isolate* isolate) {
   error_details_.Prepare(isolate);
+  int num_args = 0;
+  DirectHandle<Object> args[MessageDetails::kMaxArgumentCount];
+  for (; num_args < MessageDetails::kMaxArgumentCount; ++num_args) {
+    args[num_args] = error_details_.ArgString(isolate, num_args);
+    if (args[num_args].is_null()) break;
+  }
   return MessageFormatter::Format(isolate, error_details_.message(),
-                                  error_details_.ArgString(isolate, 0),
-                                  error_details_.ArgString(isolate, 1),
-                                  error_details_.ArgString(isolate, 2));
+                                  base::VectorOf(args, num_args));
 }
 
 }  // namespace internal

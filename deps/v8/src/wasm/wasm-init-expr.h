@@ -19,7 +19,6 @@ namespace internal {
 namespace wasm {
 
 struct WasmModule;
-class WasmFeatures;
 
 // Representation of an constant expression. Unlike {ConstantExpression}, this
 // does not use {WireBytesRef}, i.e., it does not depend on a wasm module's
@@ -48,8 +47,8 @@ class WasmInitExpr : public ZoneObject {
     kArrayNewFixed,
     kRefI31,
     kStringConst,
-    kExternInternalize,
-    kExternExternalize
+    kAnyConvertExtern,
+    kExternConvertAny
   };
 
   union Immediate {
@@ -149,12 +148,12 @@ class WasmInitExpr : public ZoneObject {
     return expr;
   }
 
-  static WasmInitExpr ExternInternalize(Zone* zone, WasmInitExpr arg) {
-    return WasmInitExpr(zone, kExternInternalize, {arg});
+  static WasmInitExpr AnyConvertExtern(Zone* zone, WasmInitExpr arg) {
+    return WasmInitExpr(zone, kAnyConvertExtern, {arg});
   }
 
-  static WasmInitExpr ExternExternalize(Zone* zone, WasmInitExpr arg) {
-    return WasmInitExpr(zone, kExternExternalize, {arg});
+  static WasmInitExpr ExternConvertAny(Zone* zone, WasmInitExpr arg) {
+    return WasmInitExpr(zone, kExternConvertAny, {arg});
   }
 
   Immediate immediate() const { return immediate_; }
@@ -206,8 +205,8 @@ class WasmInitExpr : public ZoneObject {
         }
         return true;
       case kRefI31:
-      case kExternInternalize:
-      case kExternExternalize:
+      case kAnyConvertExtern:
+      case kExternConvertAny:
         return operands_[0] == other.operands_[0];
     }
   }
@@ -225,6 +224,7 @@ class WasmInitExpr : public ZoneObject {
         return WasmInitExpr(int32_t{0});
       case kI64:
         return WasmInitExpr(int64_t{0});
+      case kF16:
       case kF32:
         return WasmInitExpr(0.0f);
       case kF64:

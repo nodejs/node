@@ -789,6 +789,11 @@ if the given function throws an error. This will run the given function using
 [`channel.runStores(context, ...)`][] on the `start` channel which ensures all
 events should have any bound stores set to match this trace context.
 
+To ensure only correct trace graphs are formed, events will only be published
+if subscribers are present prior to starting the trace. Subscriptions which are
+added after the trace begins will not receive future events from that trace,
+only future traces will be seen.
+
 ```mjs
 import diagnostics_channel from 'node:diagnostics_channel';
 
@@ -838,6 +843,11 @@ returned promise rejects. This will run the given function using
 [`channel.runStores(context, ...)`][] on the `start` channel which ensures all
 events should have any bound stores set to match this trace context.
 
+To ensure only correct trace graphs are formed, events will only be published
+if subscribers are present prior to starting the trace. Subscriptions which are
+added after the trace begins will not receive future events from that trace,
+only future traces will be seen.
+
 ```mjs
 import diagnostics_channel from 'node:diagnostics_channel';
 
@@ -862,7 +872,7 @@ channels.tracePromise(async () => {
 });
 ```
 
-#### `tracingChannel.traceCallback(fn, position, context, thisArg, ...args)`
+#### `tracingChannel.traceCallback(fn[, position[, context[, thisArg[, ...args]]]])`
 
 <!-- YAML
 added:
@@ -891,6 +901,11 @@ the callback is set. This will run the given function using
 [`channel.runStores(context, ...)`][] on the `start` channel which ensures all
 events should have any bound stores set to match this trace context.
 
+To ensure only correct trace graphs are formed, events will only be published
+if subscribers are present prior to starting the trace. Subscriptions which are
+added after the trace begins will not receive future events from that trace,
+only future traces will be seen.
+
 ```mjs
 import diagnostics_channel from 'node:diagnostics_channel';
 
@@ -912,7 +927,7 @@ const channels = diagnostics_channel.tracingChannel('my-channel');
 channels.traceCallback((arg1, callback) => {
   // Do something
   callback(null, 'result');
-}, {
+}, 1, {
   some: 'thing',
 }, thisArg, arg1, callback);
 ```
@@ -962,6 +977,43 @@ channels.asyncStart.bindStore(myStore, (data) => {
 });
 ```
 
+#### `tracingChannel.hasSubscribers`
+
+<!-- YAML
+added:
+ - v22.0.0
+ - v20.13.0
+-->
+
+> Stability: 1 - Experimental
+
+* Returns: {boolean} `true` if any of the individual channels has a subscriber,
+  `false` if not.
+
+This is a helper method available on a [`TracingChannel`][] instance to check if
+any of the [TracingChannel Channels][] have subscribers. A `true` is returned if
+any of them have at least one subscriber, a `false` is returned otherwise.
+
+```mjs
+import diagnostics_channel from 'node:diagnostics_channel';
+
+const channels = diagnostics_channel.tracingChannel('my-channel');
+
+if (channels.hasSubscribers) {
+  // Do something
+}
+```
+
+```cjs
+const diagnostics_channel = require('node:diagnostics_channel');
+
+const channels = diagnostics_channel.tracingChannel('my-channel');
+
+if (channels.hasSubscribers) {
+  // Do something
+}
+```
+
 ### TracingChannel Channels
 
 A TracingChannel is a collection of several diagnostics\_channels representing
@@ -978,6 +1030,11 @@ With callback-based async functions the `result` will be the second argument
 of the callback while the `error` will either be a thrown error visible in the
 `end` event or the first callback argument in either of the `asyncStart` or
 `asyncEnd` events.
+
+To ensure only correct trace graphs are formed, events should only be published
+if subscribers are present prior to starting the trace. Subscriptions which are
+added after the trace begins should not receive future events from that trace,
+only future traces will be seen.
 
 Tracing channels should follow a naming pattern of:
 
@@ -1064,13 +1121,64 @@ While the diagnostics\_channel API is now considered stable, the built-in
 channels currently available are not. Each channel must be declared stable
 independently.
 
+#### Console
+
+`console.log`
+
+* `args` {any\[]}
+
+Emitted when `console.log()` is called. Receives and array of the arguments
+passed to `console.log()`.
+
+`console.info`
+
+* `args` {any\[]}
+
+Emitted when `console.info()` is called. Receives and array of the arguments
+passed to `console.info()`.
+
+`console.debug`
+
+* `args` {any\[]}
+
+Emitted when `console.debug()` is called. Receives and array of the arguments
+passed to `console.debug()`.
+
+`console.warn`
+
+* `args` {any\[]}
+
+Emitted when `console.warn()` is called. Receives and array of the arguments
+passed to `console.warn()`.
+
+`console.error`
+
+* `args` {any\[]}
+
+Emitted when `console.error()` is called. Receives and array of the arguments
+passed to `console.error()`.
+
 #### HTTP
+
+`http.client.request.created`
+
+* `request` {http.ClientRequest}
+
+Emitted when client creates a request object.
+Unlike `http.client.request.start`, this event is emitted before the request has been sent.
 
 `http.client.request.start`
 
 * `request` {http.ClientRequest}
 
 Emitted when client starts a request.
+
+`http.client.request.error`
+
+* `request` {http.ClientRequest}
+* `error` {Error}
+
+Emitted when an error occurs during a client request.
 
 `http.client.response.finish`
 
@@ -1088,6 +1196,14 @@ Emitted when client receives a response.
 
 Emitted when server receives a request.
 
+`http.server.response.created`
+
+* `request` {http.IncomingMessage}
+* `response` {http.ServerResponse}
+
+Emitted when server creates a response.
+The event is emitted before the response is sent.
+
 `http.server.response.finish`
 
 * `request` {http.IncomingMessage}
@@ -1096,6 +1212,58 @@ Emitted when server receives a request.
 * `server` {http.Server}
 
 Emitted when server sends a response.
+
+#### Modules
+
+`module.require.start`
+
+* `event` {Object} containing the following properties
+  * `id` - Argument passed to `require()`. Module name.
+  * `parentFilename` - Name of the module that attempted to require(id).
+
+Emitted when `require()` is executed. See [`start` event][].
+
+`module.require.end`
+
+* `event` {Object} containing the following properties
+  * `id` - Argument passed to `require()`. Module name.
+  * `parentFilename` - Name of the module that attempted to require(id).
+
+Emitted when a `require()` call returns. See [`end` event][].
+
+`module.require.error`
+
+* `event` {Object} containing the following properties
+  * `id` - Argument passed to `require()`. Module name.
+  * `parentFilename` - Name of the module that attempted to require(id).
+* `error` {Error}
+
+Emitted when a `require()` throws an error. See [`error` event][].
+
+`module.import.asyncStart`
+
+* `event` {Object} containing the following properties
+  * `id` - Argument passed to `import()`. Module name.
+  * `parentURL` - URL object of the module that attempted to import(id).
+
+Emitted when `import()` is invoked. See [`asyncStart` event][].
+
+`module.import.asyncEnd`
+
+* `event` {Object} containing the following properties
+  * `id` - Argument passed to `import()`. Module name.
+  * `parentURL` - URL object of the module that attempted to import(id).
+
+Emitted when `import()` has completed. See [`asyncEnd` event][].
+
+`module.import.error`
+
+* `event` {Object} containing the following properties
+  * `id` - Argument passed to `import()`. Module name.
+  * `parentURL` - URL object of the module that attempted to import(id).
+* `error` {Error}
+
+Emitted when a `import()` throws an error. See [`error` event][].
 
 #### NET
 
@@ -1110,6 +1278,26 @@ Emitted when a new TCP or pipe client socket is created.
 * `socket` {net.Socket}
 
 Emitted when a new TCP or pipe connection is received.
+
+`tracing:net.server.listen:asyncStart`
+
+* `server` {net.Server}
+* `options` {Object}
+
+Emitted when [`net.Server.listen()`][] is invoked, before the port or pipe is actually setup.
+
+`tracing:net.server.listen:asyncEnd`
+
+* `server` {net.Server}
+
+Emitted when [`net.Server.listen()`][] has completed and thus the server is ready to accept connection.
+
+`tracing:net.server.listen:error`
+
+* `server` {net.Server}
+* `error` {Error}
+
+Emitted when [`net.Server.listen()`][] is returning an error.
 
 #### UDP
 
@@ -1159,5 +1347,6 @@ Emitted when a new thread is created.
 [`diagnostics_channel.unsubscribe(name, onMessage)`]: #diagnostics_channelunsubscribename-onmessage
 [`end` event]: #endevent
 [`error` event]: #errorevent
+[`net.Server.listen()`]: net.md#serverlisten
 [`start` event]: #startevent
 [context loss]: async_context.md#troubleshooting-context-loss

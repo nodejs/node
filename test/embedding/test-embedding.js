@@ -4,11 +4,13 @@ const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 const {
+  spawnSyncAndAssert,
   spawnSyncAndExit,
   spawnSyncAndExitWithoutError,
 } = require('../common/child_process');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 
 tmpdir.refresh();
 common.allowGlobals(global.require);
@@ -23,7 +25,7 @@ function resolveBuiltBinary(binary) {
 
 const binary = resolveBuiltBinary('embedtest');
 
-spawnSyncAndExitWithoutError(
+spawnSyncAndAssert(
   binary,
   ['console.log(42)'],
   {
@@ -31,7 +33,7 @@ spawnSyncAndExitWithoutError(
     stdout: '42',
   });
 
-spawnSyncAndExitWithoutError(
+spawnSyncAndAssert(
   binary,
   ['console.log(embedVars.nön_ascıı)'],
   {
@@ -111,9 +113,8 @@ for (const extraSnapshotArgs of [
   spawnSyncAndExitWithoutError(
     binary,
     [ '--', ...buildSnapshotArgs ],
-    { cwd: tmpdir.path },
-    {});
-  spawnSyncAndExitWithoutError(
+    { cwd: tmpdir.path });
+  spawnSyncAndAssert(
     binary,
     [ '--', ...runSnapshotArgs ],
     { cwd: tmpdir.path },
@@ -145,11 +146,27 @@ for (const extraSnapshotArgs of [
   spawnSyncAndExitWithoutError(
     binary,
     [ '--', ...buildSnapshotArgs ],
-    { cwd: tmpdir.path },
-    {});
+    { cwd: tmpdir.path });
   spawnSyncAndExitWithoutError(
     binary,
     [ '--', ...runEmbeddedArgs ],
-    { cwd: tmpdir.path },
-    {});
+    { cwd: tmpdir.path });
+}
+
+// Guarantee NODE_REPL_EXTERNAL_MODULE won't bypass kDisableNodeOptionsEnv
+{
+  spawnSyncAndExit(
+    binary,
+    ['require("os")'],
+    {
+      env: {
+        ...process.env,
+        'NODE_REPL_EXTERNAL_MODULE': 'fs',
+      },
+    },
+    {
+      status: 9,
+      signal: null,
+      stderr: `${binary}: NODE_REPL_EXTERNAL_MODULE can't be used with kDisableNodeOptionsEnv${os.EOL}`,
+    });
 }

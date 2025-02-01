@@ -313,7 +313,7 @@ private:
     char16_t *pat = nullptr;
     int32_t patLen = 0;
 
-    UVector* strings = nullptr; // maintained in sorted order
+    UVector* strings_ = nullptr; // maintained in sorted order
     UnicodeSetStringSpan *stringSpan = nullptr;
 
     /**
@@ -333,7 +333,7 @@ public:
      * @see setToBogus()
      * @stable ICU 4.0
      */
-    inline UBool isBogus(void) const;
+    inline UBool isBogus() const;
 
     /**
      * Make this UnicodeSet object invalid.
@@ -522,7 +522,7 @@ public:
      * @see Object#hashCode()
      * @stable ICU 2.0
      */
-    virtual int32_t hashCode(void) const;
+    virtual int32_t hashCode() const;
 
     /**
      * Get a UnicodeSet pointer from a USet
@@ -792,7 +792,7 @@ public:
      * @stable ICU 2.0
      * @see getRangeCount
      */
-    virtual int32_t size(void) const;
+    virtual int32_t size() const;
 
     /**
      * Returns <tt>true</tt> if this set contains no elements.
@@ -800,7 +800,7 @@ public:
      * @return <tt>true</tt> if this set contains no elements.
      * @stable ICU 2.0
      */
-    virtual UBool isEmpty(void) const;
+    virtual UBool isEmpty() const;
 
     /**
      * @return true if this set contains multi-character strings or the empty string.
@@ -1102,6 +1102,118 @@ public:
      */
     UChar32 charAt(int32_t index) const;
 
+#ifndef U_HIDE_DRAFT_API
+    /**
+     * Returns a C++ "range" for iterating over the code points of this set.
+     *
+     * \code
+     * UnicodeSet set(u"[abcçカ🚴]", errorCode);
+     * for (UChar32 c : set.codePoints()) {
+     *     printf("set.codePoint U+%04lx\n", (long)c);
+     * }
+     * \endcode
+     *
+     * @return a "range" object for iterating over the code points of this set.
+     * @draft ICU 76
+     * @see ranges
+     * @see strings
+     * @see begin
+     * @see end
+     */
+    inline U_HEADER_NESTED_NAMESPACE::USetCodePoints codePoints() const {
+        return U_HEADER_NESTED_NAMESPACE::USetCodePoints(toUSet());
+    }
+
+    /**
+     * Returns a C++ "range" for iterating over the code point ranges of this set.
+     *
+     * \code
+     * UnicodeSet set(u"[abcçカ🚴]", errorCode);
+     * for (auto [start, end] : set.ranges()) {
+     *     printf("set.range U+%04lx..U+%04lx\n", (long)start, (long)end);
+     * }
+     * for (auto range : set.ranges()) {
+     *     for (UChar32 c : range) {
+     *         printf("set.range.c U+%04lx\n", (long)c);
+     *     }
+     * }
+     * \endcode
+     *
+     * @return a "range" object for iterating over the code point ranges of this set.
+     * @draft ICU 76
+     * @see codePoints
+     * @see strings
+     * @see begin
+     * @see end
+     */
+    inline U_HEADER_NESTED_NAMESPACE::USetRanges ranges() const {
+        return U_HEADER_NESTED_NAMESPACE::USetRanges(toUSet());
+    }
+
+    /**
+     * Returns a C++ "range" for iterating over the empty and multi-character strings of this set.
+     * Returns each string as a std::u16string_view without copying its contents.
+     *
+     * \code
+     * UnicodeSet set(u"[abcçカ🚴{}{abc}{de}]", errorCode);
+     * for (auto s : set.strings()) {
+     *     UnicodeString us(s);
+     *     std::string u8;
+     *     printf("set.string length %ld \"%s\"\n", (long)s.length(), us.toUTF8String(u8).c_str());
+     * }
+     * \endcode
+     *
+     * @return a "range" object for iterating over the strings of this set.
+     * @draft ICU 76
+     * @see codePoints
+     * @see ranges
+     * @see begin
+     * @see end
+     */
+    inline U_HEADER_NESTED_NAMESPACE::USetStrings strings() const {
+        return U_HEADER_NESTED_NAMESPACE::USetStrings(toUSet());
+    }
+
+    /**
+     * Returns a C++ iterator for iterating over all of the elements of this set.
+     * Convenient all-in one iteration, but creates a UnicodeString for each
+     * code point or string.
+     * (Similar to how Java UnicodeSet *is an* Iterable&lt;String&gt;.)
+     *
+     * Code points are returned first, then empty and multi-character strings.
+     *
+     * \code
+     * UnicodeSet set(u"[abcçカ🚴{}{abc}{de}]", errorCode);
+     * for (auto el : set) {
+     *     std::string u8;
+     *     printf("set.string length %ld \"%s\"\n", (long)el.length(), el.toUTF8String(u8).c_str());
+     * }
+     * \endcode
+     *
+     * @return an all-elements iterator.
+     * @draft ICU 76
+     * @see end
+     * @see codePoints
+     * @see ranges
+     * @see strings
+     */
+    inline U_HEADER_NESTED_NAMESPACE::USetElementIterator begin() const {
+        return U_HEADER_NESTED_NAMESPACE::USetElements(toUSet()).begin();
+    }
+
+    /**
+     * @return an exclusive-end sentinel for iterating over all of the elements of this set.
+     * @draft ICU 76
+     * @see begin
+     * @see codePoints
+     * @see ranges
+     * @see strings
+     */
+    inline U_HEADER_NESTED_NAMESPACE::USetElementIterator end() const {
+        return U_HEADER_NESTED_NAMESPACE::USetElements(toUSet()).end();
+    }
+#endif  // U_HIDE_DRAFT_API
+
     /**
      * Adds the specified range to this set if it is not already
      * present.  If this set already contains the specified range,
@@ -1394,7 +1506,7 @@ public:
      * A frozen set will not be modified.
      * @stable ICU 2.0
      */
-    virtual UnicodeSet& clear(void);
+    virtual UnicodeSet& clear();
 
     /**
      * Close this set over the given attribute.  For the attribute
@@ -1440,7 +1552,7 @@ public:
      * @see #getRangeEnd
      * @stable ICU 2.4
      */
-    virtual int32_t getRangeCount(void) const;
+    virtual int32_t getRangeCount() const;
 
     /**
      * Iteration method that returns the first character in the
@@ -1529,7 +1641,7 @@ public:
      * @return          The class ID for all objects of this class.
      * @stable ICU 2.0
      */
-    static UClassID U_EXPORT2 getStaticClassID(void);
+    static UClassID U_EXPORT2 getStaticClassID();
 
     /**
      * Implement UnicodeFunctor API.
@@ -1539,9 +1651,9 @@ public:
      * different class IDs.
      * @stable ICU 2.4
      */
-    virtual UClassID getDynamicClassID(void) const override;
+    virtual UClassID getDynamicClassID() const override;
 
-private:
+  private:
 
     // Private API for the USet API
 
@@ -1602,7 +1714,7 @@ private:
 
     bool ensureBufferCapacity(int32_t newLen);
 
-    void swapBuffers(void);
+    void swapBuffers();
 
     UBool allocateStrings(UErrorCode &status);
     int32_t stringsSize() const;
@@ -1731,7 +1843,7 @@ inline bool UnicodeSet::operator!=(const UnicodeSet& o) const {
 }
 
 inline UBool UnicodeSet::isFrozen() const {
-    return (UBool)(bmpSet!=nullptr || stringSpan!=nullptr);
+    return bmpSet != nullptr || stringSpan != nullptr;
 }
 
 inline UBool UnicodeSet::containsSome(UChar32 start, UChar32 end) const {
@@ -1747,7 +1859,7 @@ inline UBool UnicodeSet::containsSome(const UnicodeString& s) const {
 }
 
 inline UBool UnicodeSet::isBogus() const {
-    return (UBool)(fFlags & kIsBogus);
+    return fFlags & kIsBogus;
 }
 
 inline UnicodeSet *UnicodeSet::fromUSet(USet *uset) {

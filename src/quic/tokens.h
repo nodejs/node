@@ -8,9 +8,9 @@
 #include <node_internals.h>
 #include <node_sockaddr.h>
 #include "cid.h"
+#include "defs.h"
 
-namespace node {
-namespace quic {
+namespace node::quic {
 
 // TokenSecrets are used to generate things like stateless reset tokens,
 // retry tokens, and token packets. They are always QUIC_TOKENSECRET_LEN
@@ -35,8 +35,7 @@ class TokenSecret final : public MemoryRetainer {
 
   TokenSecret(const TokenSecret&) = default;
   TokenSecret& operator=(const TokenSecret&) = default;
-  TokenSecret(TokenSecret&&) = delete;
-  TokenSecret& operator=(TokenSecret&&) = delete;
+  DISALLOW_MOVE(TokenSecret)
 
   operator const uint8_t*() const;
   uint8_t operator[](int pos) const;
@@ -99,7 +98,7 @@ class StatelessResetToken final : public MemoryRetainer {
   explicit StatelessResetToken(const uint8_t* token);
 
   StatelessResetToken(const StatelessResetToken& other);
-  StatelessResetToken(StatelessResetToken&&) = delete;
+  DISALLOW_MOVE(StatelessResetToken)
 
   std::string ToString() const;
 
@@ -251,8 +250,7 @@ class RegularToken final : public MemoryRetainer {
   const ngtcp2_vec ptr_;
 };
 
-}  // namespace quic
-}  // namespace node
+}  // namespace node::quic
 
 #endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

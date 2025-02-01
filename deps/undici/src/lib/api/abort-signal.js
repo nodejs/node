@@ -1,3 +1,5 @@
+'use strict'
+
 const { addAbortListener } = require('../core/util')
 const { RequestAbortedError } = require('../core/errors')
 
@@ -8,11 +10,14 @@ function abort (self) {
   if (self.abort) {
     self.abort(self[kSignal]?.reason)
   } else {
-    self.onError(self[kSignal]?.reason ?? new RequestAbortedError())
+    self.reason = self[kSignal]?.reason ?? new RequestAbortedError()
   }
+  removeSignal(self)
 }
 
 function addSignal (self, signal) {
+  self.reason = null
+
   self[kSignal] = null
   self[kListener] = null
 

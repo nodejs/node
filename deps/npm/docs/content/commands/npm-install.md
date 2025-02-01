@@ -138,6 +138,8 @@ into a tarball (b).
 
     * `-D, --save-dev`: Package will appear in your `devDependencies`.
 
+    * `--save-peer`: Package will appear in your `peerDependencies`.
+
     * `-O, --save-optional`: Package will appear in your
       `optionalDependencies`.
 
@@ -175,10 +177,6 @@ into a tarball (b).
     npm install readable-stream --save-exact
     npm install ansi-regex --save-bundle
     ```
-
-    **Note**: If there is a file or folder named `<name>` in the current
-    working directory, then it will try to install that, and only try to
-    fetch the package by name if it is not valid.
 
 * `npm install <alias>@npm:<name>`:
 
@@ -582,7 +580,8 @@ For `list` this means the output will be based on the tree described by the
 
 #### `foreground-scripts`
 
-* Default: false
+* Default: `false` unless when using `npm pack` or `npm publish` where it
+  defaults to `true`
 * Type: Boolean
 
 Run all build scripts (ie, `preinstall`, `install`, and `postinstall`)

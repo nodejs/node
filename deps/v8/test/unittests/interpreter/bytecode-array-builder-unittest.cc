@@ -7,6 +7,7 @@
 #include <limits>
 
 #include "src/ast/scopes.h"
+#include "src/common/globals.h"
 #include "src/init/v8.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-jump-table.h"
@@ -15,6 +16,7 @@
 #include "src/numbers/hash-seed-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
+#include "test/common/flag-utils.h"
 #include "test/unittests/interpreter/bytecode-utils.h"
 #include "test/unittests/test-utils.h"
 
@@ -31,6 +33,8 @@ class BytecodeArrayBuilderTest : public TestWithIsolateAndZone {
 using ToBooleanMode = BytecodeArrayBuilder::ToBooleanMode;
 
 TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
+  FlagScope<bool> const_tracking_let(&i::v8_flags.const_tracking_let, true);
+
   FeedbackVectorSpec feedback_spec(zone());
   BytecodeArrayBuilder builder(zone(), 1, 131, &feedback_spec);
   Factory* factory = isolate()->factory();
@@ -59,7 +63,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.LoadLiteral(Smi::zero())
       .StoreAccumulatorInRegister(reg)
       .LoadLiteral(Smi::FromInt(8))
-      .CompareOperation(Token::Value::EQ, reg,
+      .CompareOperation(Token::kEq, reg,
                         1)  // Prevent peephole optimization
                             // LdaSmi, Star -> LdrSmi.
       .StoreAccumulatorInRegister(reg)
@@ -80,7 +84,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
   // Emit Ldar and Star taking care to foil the register optimizer.
   builder.LoadAccumulatorWithRegister(other)
-      .BinaryOperation(Token::ADD, reg, 1)
+      .BinaryOperation(Token::kAdd, reg, 1)
       .StoreAccumulatorInRegister(reg)
       .LoadNull();
 
@@ -122,26 +126,43 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .StoreGlobal(name, sloppy_store_global_slot.ToInt());
 
   // Emit context operations.
+  Variable var1(&scope, name, VariableMode::kVar, VariableKind::NORMAL_VARIABLE,
+                InitializationFlag::kCreatedInitialized);
+  var1.AllocateTo(VariableLocation::CONTEXT, 1);
+  Variable var3(&scope, name, VariableMode::kVar, VariableKind::NORMAL_VARIABLE,
+                InitializationFlag::kCreatedInitialized);
+  var3.AllocateTo(VariableLocation::CONTEXT, 3);
+  Variable let_var(&scope, name, VariableMode::kLet,
+                   VariableKind::NORMAL_VARIABLE,
+                   InitializationFlag::kCreatedInitialized);
+  let_var.AllocateTo(VariableLocation::CONTEXT, 1);
+
   builder.PushContext(reg)
       .PopContext(reg)
       .LoadContextSlot(reg, 1, 0, BytecodeArrayBuilder::kMutableSlot)
-      .StoreContextSlot(reg, 1, 0)
+      .StoreContextSlot(reg, &var1, 0)
       .LoadContextSlot(reg, 2, 0, BytecodeArrayBuilder::kImmutableSlot)
-      .StoreContextSlot(reg, 3, 0);
+      .StoreContextSlot(reg, &var3, 0)
+      .LoadContextSlot(reg, 1, 0, BytecodeArrayBuilder::kMutableSlot)
+      .StoreContextSlot(reg, &let_var, 0);
 
   // Emit context operations which operate on the local context.
   builder
       .LoadContextSlot(Register::current_context(), 1, 0,
                        BytecodeArrayBuilder::kMutableSlot)
-      .StoreContextSlot(Register::current_context(), 1, 0)
+      .StoreContextSlot(Register::current_context(), &var1, 0)
       .LoadContextSlot(Register::current_context(), 2, 0,
                        BytecodeArrayBuilder::kImmutableSlot)
-      .StoreContextSlot(Register::current_context(), 3, 0);
+      .StoreContextSlot(Register::current_context(), &var3, 0)
+      .LoadContextSlot(Register::current_context(), 1, 0,
+                       BytecodeArrayBuilder::kMutableSlot)
+      .StoreContextSlot(Register::current_context(), &let_var, 0);
 
   // Emit load / store property operations.
   builder.LoadNamedProperty(reg, name, load_slot.ToInt())
       .LoadNamedPropertyFromSuper(reg, name, load_slot.ToInt())
       .LoadKeyedProperty(reg, keyed_load_slot.ToInt())
+      .LoadEnumeratedKeyedProperty(reg, reg, reg, keyed_load_slot.ToInt())
       .SetNamedProperty(reg, name, sloppy_store_slot.ToInt(),
                         LanguageMode::kSloppy)
       .SetKeyedProperty(reg, reg, sloppy_keyed_store_slot.ToInt(),
@@ -209,65 +230,67 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .CallWithSpread(reg, reg_list, 1);
 
   // Emit binary operator invocations.
-  builder.BinaryOperation(Token::Value::ADD, reg, 1)
-      .BinaryOperation(Token::Value::SUB, reg, 2)
-      .BinaryOperation(Token::Value::MUL, reg, 3)
-      .BinaryOperation(Token::Value::DIV, reg, 4)
-      .BinaryOperation(Token::Value::MOD, reg, 5)
-      .BinaryOperation(Token::Value::EXP, reg, 6);
+  builder.BinaryOperation(Token::kAdd, reg, 1)
+      .BinaryOperation(Token::kSub, reg, 2)
+      .BinaryOperation(Token::kMul, reg, 3)
+      .BinaryOperation(Token::kDiv, reg, 4)
+      .BinaryOperation(Token::kMod, reg, 5)
+      .BinaryOperation(Token::kExp, reg, 6);
 
   // Emit bitwise operator invocations
-  builder.BinaryOperation(Token::Value::BIT_OR, reg, 6)
-      .BinaryOperation(Token::Value::BIT_XOR, reg, 7)
-      .BinaryOperation(Token::Value::BIT_AND, reg, 8);
+  builder.BinaryOperation(Token::kBitOr, reg, 6)
+      .BinaryOperation(Token::kBitXor, reg, 7)
+      .BinaryOperation(Token::kBitAnd, reg, 8);
 
   // Emit shift operator invocations
-  builder.BinaryOperation(Token::Value::SHL, reg, 9)
-      .BinaryOperation(Token::Value::SAR, reg, 10)
-      .BinaryOperation(Token::Value::SHR, reg, 11);
+  builder.BinaryOperation(Token::kShl, reg, 9)
+      .BinaryOperation(Token::kSar, reg, 10)
+      .BinaryOperation(Token::kShr, reg, 11);
 
   // Emit Smi binary operations.
-  builder.BinaryOperationSmiLiteral(Token::Value::ADD, Smi::FromInt(42), 2)
-      .BinaryOperationSmiLiteral(Token::Value::SUB, Smi::FromInt(42), 2)
-      .BinaryOperationSmiLiteral(Token::Value::MUL, Smi::FromInt(42), 2)
-      .BinaryOperationSmiLiteral(Token::Value::DIV, Smi::FromInt(42), 2)
-      .BinaryOperationSmiLiteral(Token::Value::MOD, Smi::FromInt(42), 2)
-      .BinaryOperationSmiLiteral(Token::Value::EXP, Smi::FromInt(42), 2)
-      .BinaryOperationSmiLiteral(Token::Value::BIT_OR, Smi::FromInt(42), 2)
-      .BinaryOperationSmiLiteral(Token::Value::BIT_XOR, Smi::FromInt(42), 2)
-      .BinaryOperationSmiLiteral(Token::Value::BIT_AND, Smi::FromInt(42), 2)
-      .BinaryOperationSmiLiteral(Token::Value::SHL, Smi::FromInt(42), 2)
-      .BinaryOperationSmiLiteral(Token::Value::SAR, Smi::FromInt(42), 2)
-      .BinaryOperationSmiLiteral(Token::Value::SHR, Smi::FromInt(42), 2);
+  builder.BinaryOperationSmiLiteral(Token::kAdd, Smi::FromInt(42), 2)
+      .BinaryOperationSmiLiteral(Token::kSub, Smi::FromInt(42), 2)
+      .BinaryOperationSmiLiteral(Token::kMul, Smi::FromInt(42), 2)
+      .BinaryOperationSmiLiteral(Token::kDiv, Smi::FromInt(42), 2)
+      .BinaryOperationSmiLiteral(Token::kMod, Smi::FromInt(42), 2)
+      .BinaryOperationSmiLiteral(Token::kExp, Smi::FromInt(42), 2)
+      .BinaryOperationSmiLiteral(Token::kBitOr, Smi::FromInt(42), 2)
+      .BinaryOperationSmiLiteral(Token::kBitXor, Smi::FromInt(42), 2)
+      .BinaryOperationSmiLiteral(Token::kBitAnd, Smi::FromInt(42), 2)
+      .BinaryOperationSmiLiteral(Token::kShl, Smi::FromInt(42), 2)
+      .BinaryOperationSmiLiteral(Token::kSar, Smi::FromInt(42), 2)
+      .BinaryOperationSmiLiteral(Token::kShr, Smi::FromInt(42), 2);
 
   // Emit unary and count operator invocations.
-  builder.UnaryOperation(Token::Value::INC, 1)
-      .UnaryOperation(Token::Value::DEC, 1)
-      .UnaryOperation(Token::Value::ADD, 1)
-      .UnaryOperation(Token::Value::SUB, 1)
-      .UnaryOperation(Token::Value::BIT_NOT, 1);
+  builder.UnaryOperation(Token::kInc, 1)
+      .UnaryOperation(Token::kDec, 1)
+      .UnaryOperation(Token::kAdd, 1)
+      .UnaryOperation(Token::kSub, 1)
+      .UnaryOperation(Token::kBitNot, 1);
 
   // Emit unary operator invocations.
   builder.LogicalNot(ToBooleanMode::kConvertToBoolean)
       .LogicalNot(ToBooleanMode::kAlreadyBoolean)
-      .TypeOf();
+      .TypeOf(1);
 
   // Emit delete
   builder.Delete(reg, LanguageMode::kSloppy).Delete(reg, LanguageMode::kStrict);
 
   // Emit construct.
-  builder.Construct(reg, reg_list, 1).ConstructWithSpread(reg, reg_list, 1);
+  builder.Construct(reg, reg_list, 1)
+      .ConstructWithSpread(reg, reg_list, 1)
+      .ConstructForwardAllArgs(reg, 1);
 
   // Emit test operator invocations.
-  builder.CompareOperation(Token::Value::EQ, reg, 1)
-      .CompareOperation(Token::Value::EQ_STRICT, reg, 2)
-      .CompareOperation(Token::Value::LT, reg, 3)
-      .CompareOperation(Token::Value::GT, reg, 4)
-      .CompareOperation(Token::Value::LTE, reg, 5)
-      .CompareOperation(Token::Value::GTE, reg, 6)
+  builder.CompareOperation(Token::kEq, reg, 1)
+      .CompareOperation(Token::kEqStrict, reg, 2)
+      .CompareOperation(Token::kLessThan, reg, 3)
+      .CompareOperation(Token::kGreaterThan, reg, 4)
+      .CompareOperation(Token::kLessThanEq, reg, 5)
+      .CompareOperation(Token::kGreaterThanEq, reg, 6)
       .CompareTypeOf(TestTypeOfFlags::LiteralFlag::kNumber)
-      .CompareOperation(Token::Value::INSTANCEOF, reg, 7)
-      .CompareOperation(Token::Value::IN, reg, 8)
+      .CompareOperation(Token::kInstanceOf, reg, 7)
+      .CompareOperation(Token::kIn, reg, 8)
       .CompareReference(reg)
       .CompareUndetectable()
       .CompareUndefined()
@@ -293,7 +316,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
     BytecodeLoopHeader loop_header;
     BytecodeLabel after_jump1, after_jump2, after_jump3, after_jump4,
         after_jump5, after_jump6, after_jump7, after_jump8, after_jump9,
-        after_jump10, after_jump11, after_loop;
+        after_jump10, after_jump11, after_jump12, after_loop;
     builder.JumpIfNull(&after_loop)
         .Bind(&loop_header)
         .Jump(&after_jump1)
@@ -310,19 +333,21 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
         .Bind(&after_jump6)
         .JumpIfJSReceiver(&after_jump7)
         .Bind(&after_jump7)
-        .JumpIfTrue(ToBooleanMode::kConvertToBoolean, &after_jump8)
+        .JumpIfForInDone(&after_jump8, reg, reg)
         .Bind(&after_jump8)
-        .JumpIfTrue(ToBooleanMode::kAlreadyBoolean, &after_jump9)
+        .JumpIfTrue(ToBooleanMode::kConvertToBoolean, &after_jump9)
         .Bind(&after_jump9)
-        .JumpIfFalse(ToBooleanMode::kConvertToBoolean, &after_jump10)
+        .JumpIfTrue(ToBooleanMode::kAlreadyBoolean, &after_jump10)
         .Bind(&after_jump10)
-        .JumpIfFalse(ToBooleanMode::kAlreadyBoolean, &after_jump11)
+        .JumpIfFalse(ToBooleanMode::kConvertToBoolean, &after_jump11)
         .Bind(&after_jump11)
+        .JumpIfFalse(ToBooleanMode::kAlreadyBoolean, &after_jump12)
+        .Bind(&after_jump12)
         .JumpLoop(&loop_header, 0, 0, 0)
         .Bind(&after_loop);
   }
 
-  BytecodeLabel end[11];
+  BytecodeLabel end[12];
   {
     // Longer jumps with constant operands
     BytecodeLabel after_jump;
@@ -339,7 +364,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
         .JumpIfNotUndefined(&end[8])
         .JumpIfUndefinedOrNull(&end[9])
         .LoadLiteral(ast_factory.prototype_string())
-        .JumpIfJSReceiver(&end[10]);
+        .JumpIfJSReceiver(&end[10])
+        .JumpIfForInDone(&end[11], reg, reg);
   }
 
   // Emit Smi table switch bytecode.
@@ -357,7 +383,6 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
   builder.ForInEnumerate(reg)
       .ForInPrepare(triple, 1)
-      .ForInContinue(reg, reg)
       .ForInNext(reg, reg, pair, 1)
       .ForInStep(reg);
 
@@ -373,8 +398,12 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       reg, reg, DefineKeyedOwnPropertyInLiteralFlag::kNoFlags, 0);
 
   // Emit wide context operations.
+  Variable var(&scope, name, VariableMode::kVar, VariableKind::NORMAL_VARIABLE,
+               InitializationFlag::kCreatedInitialized);
+  var.AllocateTo(VariableLocation::CONTEXT, 1024);
+
   builder.LoadContextSlot(reg, 1024, 0, BytecodeArrayBuilder::kMutableSlot)
-      .StoreContextSlot(reg, 1024, 0);
+      .StoreContextSlot(reg, &var, 0);
 
   // Emit wide load / store lookup slots.
   builder.LoadLookupSlot(wide_name, TypeofMode::kNotInside)
@@ -455,10 +484,12 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   scope_info->set_flags(flags);
   scope_info->set_context_local_count(0);
   scope_info->set_parameter_count(0);
+  scope_info->set_position_info_start(0);
+  scope_info->set_position_info_end(0);
   scope.SetScriptScopeInfo(scope_info);
 
   ast_factory.Internalize(isolate());
-  Handle<BytecodeArray> the_array = builder.ToBytecodeArray(isolate());
+  DirectHandle<BytecodeArray> the_array = builder.ToBytecodeArray(isolate());
   CHECK_EQ(the_array->frame_size(),
            builder.total_register_count() * kSystemPointerSize);
 
@@ -522,7 +553,8 @@ TEST_F(BytecodeArrayBuilderTest, FrameSizesLookGood) {
       }
       builder.Return();
 
-      Handle<BytecodeArray> the_array = builder.ToBytecodeArray(isolate());
+      DirectHandle<BytecodeArray> the_array =
+          builder.ToBytecodeArray(isolate());
       int total_registers = locals + temps;
       CHECK_EQ(the_array->frame_size(), total_registers * kSystemPointerSize);
     }
@@ -571,7 +603,7 @@ TEST_F(BytecodeArrayBuilderTest, Constants) {
       .Return();
 
   ast_factory.Internalize(isolate());
-  Handle<BytecodeArray> array = builder.ToBytecodeArray(isolate());
+  DirectHandle<BytecodeArray> array = builder.ToBytecodeArray(isolate());
   // Should only have one entry for each identical constant.
   EXPECT_EQ(4, array->constant_pool()->length());
 }
@@ -589,13 +621,13 @@ TEST_F(BytecodeArrayBuilderTest, ForwardJumps) {
   builder.JumpIfNull(&after_jump_near0)
       .Jump(&near0)
       .Bind(&after_jump_near0)
-      .CompareOperation(Token::Value::EQ, reg, 1)
+      .CompareOperation(Token::kEq, reg, 1)
       .JumpIfTrue(ToBooleanMode::kAlreadyBoolean, &near1)
-      .CompareOperation(Token::Value::EQ, reg, 2)
+      .CompareOperation(Token::kEq, reg, 2)
       .JumpIfFalse(ToBooleanMode::kAlreadyBoolean, &near2)
-      .BinaryOperation(Token::Value::ADD, reg, 1)
+      .BinaryOperation(Token::kAdd, reg, 1)
       .JumpIfTrue(ToBooleanMode::kConvertToBoolean, &near3)
-      .BinaryOperation(Token::Value::ADD, reg, 2)
+      .BinaryOperation(Token::kAdd, reg, 2)
       .JumpIfFalse(ToBooleanMode::kConvertToBoolean, &near4)
       .Bind(&near0)
       .Bind(&near1)
@@ -605,13 +637,13 @@ TEST_F(BytecodeArrayBuilderTest, ForwardJumps) {
       .JumpIfNull(&after_jump_far0)
       .Jump(&far0)
       .Bind(&after_jump_far0)
-      .CompareOperation(Token::Value::EQ, reg, 3)
+      .CompareOperation(Token::kEq, reg, 3)
       .JumpIfTrue(ToBooleanMode::kAlreadyBoolean, &far1)
-      .CompareOperation(Token::Value::EQ, reg, 4)
+      .CompareOperation(Token::kEq, reg, 4)
       .JumpIfFalse(ToBooleanMode::kAlreadyBoolean, &far2)
-      .BinaryOperation(Token::Value::ADD, reg, 3)
+      .BinaryOperation(Token::kAdd, reg, 3)
       .JumpIfTrue(ToBooleanMode::kConvertToBoolean, &far3)
-      .BinaryOperation(Token::Value::ADD, reg, 4)
+      .BinaryOperation(Token::kAdd, reg, 4)
       .JumpIfFalse(ToBooleanMode::kConvertToBoolean, &far4);
   for (int i = 0; i < kFarJumpDistance - 22; i++) {
     builder.Debugger();

@@ -15,25 +15,26 @@ Generally we like to see pull requests that
 ## Building
 
 ```
-npm install
-npm test
+yarn
+yarn test
 ```
 
-The `npm test -- dev` implements watching for tests within Node and `karma start` may be used for manual testing in browsers.
+Running `yarn test -- dev` will watch for tests within Node and `karma start` may be used for manual testing in browsers.
 
 If you notice any problems, please report them to the GitHub issue tracker at
 [http://github.com/kpdecker/jsdiff/issues](http://github.com/kpdecker/jsdiff/issues).
 
 ## Releasing
 
-JsDiff utilizes the [release yeoman generator][generator-release] to perform most release tasks.
-
-A full release may be completed with the following:
+A full release may be completed by first updating the `"version"` property in package.json, then running the following:
 
 ```
-yo release
-npm publish
+yarn clean
+yarn grunt release
+yarn publish
 ```
 
-[generator-release]: https://github.com/walmartlabs/generator-release
-[pull-request]: https://github.com/kpdecker/jsdiff/pull/new/master
+After releasing, remember to:
+* commit the `package.json` change and push it to GitHub
+* create a new version tag on GitHub
+* update `diff.js` on the `gh-pages` branch to the latest built version from the `dist/` folder.

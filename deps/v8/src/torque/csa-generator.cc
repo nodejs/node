@@ -4,17 +4,17 @@
 
 #include "src/torque/csa-generator.h"
 
+#include <optional>
+
 #include "src/common/globals.h"
 #include "src/torque/global-context.h"
 #include "src/torque/type-oracle.h"
 #include "src/torque/types.h"
 #include "src/torque/utils.h"
 
-namespace v8 {
-namespace internal {
-namespace torque {
+namespace v8::internal::torque {
 
-base::Optional<Stack<std::string>> CSAGenerator::EmitGraph(
+std::optional<Stack<std::string>> CSAGenerator::EmitGraph(
     Stack<std::string> parameters) {
   for (BottomOffset i = {0}; i < parameters.AboveTop(); ++i) {
     SetDefinitionVariable(DefinitionLocation::Parameter(i.offset),
@@ -63,7 +63,7 @@ base::Optional<Stack<std::string>> CSAGenerator::EmitGraph(
     out() << "\n";
     return EmitBlock(*cfg_.end());
   }
-  return base::nullopt;
+  return std::nullopt;
 }
 
 Stack<std::string> CSAGenerator::EmitBlock(const Block* block) {
@@ -227,7 +227,7 @@ void CSAGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
       }
     }
   } else if (instruction.intrinsic->ExternalName() == "%GetClassMapConstant") {
-    if (parameter_types.size() != 0) {
+    if (!parameter_types.empty()) {
       ReportError("%GetClassMapConstant must not take parameters");
     }
     if (instruction.specialization_types.size() != 1) {
@@ -575,14 +575,12 @@ void CSAGenerator::EmitInstruction(const CallBuiltinInstruction& instruction,
       stack->Push(name);
     }
     if (result_types.empty()) {
-      out() << "ca_.CallStubVoid("
-               "Builtins::CallableFor(ca_.isolate(), Builtin::k"
-            << instruction.builtin->ExternalName() << ")";
+      out() << "ca_.CallBuiltinVoid(Builtin::k"
+            << instruction.builtin->ExternalName();
     } else {
       out() << "    " << lhs_name << " = ";
-      out() << "ca_.CallStub<" << lhs_type
-            << ">(Builtins::CallableFor(ca_.isolate(), Builtin::k"
-            << instruction.builtin->ExternalName() << ")";
+      out() << "ca_.CallBuiltin<" << lhs_type << ">(Builtin::k"
+            << instruction.builtin->ExternalName();
     }
     if (!instruction.builtin->signature().HasContextParameter()) {
       // Add dummy context parameter to satisfy the CallBuiltin signature.
@@ -602,7 +600,7 @@ void CSAGenerator::EmitInstruction(const CallBuiltinInstruction& instruction,
 
     PostCallableExceptionPreparation(
         catch_name,
-        result_types.size() == 0 ? TypeOracle::GetVoidType() : result_types[0],
+        result_types.empty() ? TypeOracle::GetVoidType() : result_types[0],
         instruction.catch_block, &pre_call_stack,
         instruction.GetExceptionObjectDefinition());
   }
@@ -629,11 +627,9 @@ void CSAGenerator::EmitInstruction(
   out() << stack->Top() << " = ";
   if (generated_type != "Object") out() << "TORQUE_CAST(";
   out() << "CodeStubAssembler(state_).CallBuiltinPointer(Builtins::"
-           "CallableFor(ca_."
-           "isolate(),"
+           "CallInterfaceDescriptorFor("
            "ExampleBuiltinForTorqueFunctionPointerType("
-        << instruction.type->function_pointer_type_id() << ")).descriptor(), "
-        << function;
+        << instruction.type->function_pointer_type_id() << ")), " << function;
   if (!instruction.type->HasContextParameter()) {
     // Add dummy context parameter to satisfy the CallBuiltinPointer signature.
     out() << ", TNode<Object>()";
@@ -647,7 +643,7 @@ void CSAGenerator::EmitInstruction(
 }
 
 std::string CSAGenerator::PreCallableExceptionPreparation(
-    base::Optional<Block*> catch_block) {
+    std::optional<Block*> catch_block) {
   std::string catch_name;
   if (catch_block) {
     catch_name = FreshCatchName();
@@ -661,8 +657,8 @@ std::string CSAGenerator::PreCallableExceptionPreparation(
 
 void CSAGenerator::PostCallableExceptionPreparation(
     const std::string& catch_name, const Type* return_type,
-    base::Optional<Block*> catch_block, Stack<std::string>* stack,
-    const base::Optional<DefinitionLocation>& exception_object_definition) {
+    std::optional<Block*> catch_block, Stack<std::string>* stack,
+    const std::optional<DefinitionLocation>& exception_object_definition) {
   if (catch_block) {
     DCHECK(exception_object_definition);
     std::string block_name = BlockName(*catch_block);
@@ -1064,6 +1060,4 @@ void CSAGenerator::EmitCSAValue(VisitResult result,
   }
 }
 
-}  // namespace torque
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::torque

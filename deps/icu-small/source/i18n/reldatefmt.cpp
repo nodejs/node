@@ -1161,7 +1161,8 @@ void RelativeDateTimeFormatter::formatRelativeImpl(
     if (offset > -2.1 && offset < 2.1) {
         // Allow a 1% epsilon, so offsets in -1.01..-0.99 map to LAST
         double offsetx100 = offset * 100.0;
-        int32_t intoffset = (offsetx100 < 0)? (int32_t)(offsetx100-0.5) : (int32_t)(offsetx100+0.5);
+        int32_t intoffset = offsetx100 < 0 ? static_cast<int32_t>(offsetx100 - 0.5)
+                                           : static_cast<int32_t>(offsetx100 + 0.5);
         switch (intoffset) {
             case -200/*-2*/: direction = UDAT_DIRECTION_LAST_2; break;
             case -100/*-1*/: direction = UDAT_DIRECTION_LAST; break;
@@ -1380,7 +1381,7 @@ ureldatefmt_formatNumericToResult(
     if (U_FAILURE(*status)) {
         return;
     }
-    auto* fmt = reinterpret_cast<const RelativeDateTimeFormatter*>(reldatefmt);
+    const auto* fmt = reinterpret_cast<const RelativeDateTimeFormatter*>(reldatefmt);
     auto* resultImpl = UFormattedRelativeDateTimeApiHelper::validate(result, *status);
     resultImpl->fImpl = fmt->formatNumericToValue(offset, unit, *status);
 }
@@ -1423,7 +1424,7 @@ ureldatefmt_formatToResult(
     if (U_FAILURE(*status)) {
         return;
     }
-    auto* fmt = reinterpret_cast<const RelativeDateTimeFormatter*>(reldatefmt);
+    const auto* fmt = reinterpret_cast<const RelativeDateTimeFormatter*>(reldatefmt);
     auto* resultImpl = UFormattedRelativeDateTimeApiHelper::validate(result, *status);
     resultImpl->fImpl = fmt->formatToValue(offset, unit, *status);
 }
@@ -1447,8 +1448,8 @@ ureldatefmt_combineDateAndTime( const URelativeDateTimeFormatter* reldatefmt,
         *status = U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
     }
-    UnicodeString relDateStr((UBool)(relativeDateStringLen == -1), relativeDateString, relativeDateStringLen);
-    UnicodeString timeStr((UBool)(timeStringLen == -1), timeString, timeStringLen);
+    UnicodeString relDateStr(relativeDateStringLen == -1, relativeDateString, relativeDateStringLen);
+    UnicodeString timeStr(timeStringLen == -1, timeString, timeStringLen);
     UnicodeString res(result, 0, resultCapacity);
     ((RelativeDateTimeFormatter*)reldatefmt)->combineDateAndTime(relDateStr, timeStr, res, *status);
     if (U_FAILURE(*status)) {

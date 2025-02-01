@@ -5,18 +5,17 @@
 #include "src/compiler/turboshaft/int64-lowering-phase.h"
 
 #if V8_TARGET_ARCH_32_BIT
+#include "src/compiler/turboshaft/copying-phase.h"
 #include "src/compiler/turboshaft/int64-lowering-reducer.h"
-#include "src/compiler/turboshaft/optimization-phase.h"
 #include "src/compiler/turboshaft/variable-reducer.h"
 #endif
 
 namespace v8::internal::compiler::turboshaft {
 
-void Int64LoweringPhase::Run(Zone* temp_zone) {
+void Int64LoweringPhase::Run(PipelineData* data, Zone* temp_zone) {
 #if V8_TARGET_ARCH_32_BIT
-  turboshaft::OptimizationPhase<
-      turboshaft::Int64LoweringReducer, turboshaft::VariableReducer,
-      turboshaft::RequiredOptimizationReducer>::Run(temp_zone);
+  turboshaft::CopyingPhase<turboshaft::Int64LoweringReducer>::Run(data,
+                                                                  temp_zone);
 #else
   UNREACHABLE();
 #endif

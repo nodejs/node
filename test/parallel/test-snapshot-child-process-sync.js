@@ -3,8 +3,8 @@
 // This tests that process.cwd() is accurate when
 // restoring state from a snapshot
 
-require('../common');
-const { spawnSyncAndExitWithoutError } = require('../common/child_process');
+const { isInsideDirWithUnusualChars } = require('../common');
+const { spawnSyncAndAssert } = require('../common/child_process');
 const tmpdir = require('../common/tmpdir');
 const fixtures = require('../common/fixtures');
 const assert = require('assert');
@@ -14,19 +14,20 @@ const blobPath = tmpdir.resolve('snapshot.blob');
 const file = fixtures.path('snapshot', 'child-process-sync.js');
 const expected = [
   'From child process spawnSync',
-  'From child process execSync',
+  ...(isInsideDirWithUnusualChars ? [] : ['From child process execSync']),
   'From child process execFileSync',
 ];
 
 {
   // Create the snapshot.
-  spawnSyncAndExitWithoutError(process.execPath, [
+  spawnSyncAndAssert(process.execPath, [
     '--snapshot-blob',
     blobPath,
     '--build-snapshot',
     file,
   ], {
     cwd: tmpdir.path,
+    env: { ...process.env, DIRNAME_CONTAINS_SHELL_UNSAFE_CHARS: isInsideDirWithUnusualChars ? 'TRUE' : '' },
   }, {
     trim: true,
     stdout(output) {
@@ -37,12 +38,13 @@ const expected = [
 }
 
 {
-  spawnSyncAndExitWithoutError(process.execPath, [
+  spawnSyncAndAssert(process.execPath, [
     '--snapshot-blob',
     blobPath,
     file,
   ], {
     cwd: tmpdir.path,
+    env: { ...process.env, DIRNAME_CONTAINS_SHELL_UNSAFE_CHARS: isInsideDirWithUnusualChars ? 'TRUE' : '' },
   }, {
     trim: true,
     stdout(output) {

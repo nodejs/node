@@ -1,5 +1,5 @@
 
-const crypto = require('crypto')
+const crypto = require('node:crypto')
 const normalizeData = require('normalize-package-data')
 const npa = require('npm-package-arg')
 const ssri = require('ssri')
@@ -173,7 +173,7 @@ const isGitNode = (node) => {
   try {
     const { type } = npa(node.resolved)
     return type === 'git' || type === 'hosted'
-  } catch (err) {
+  } catch {
     /* istanbul ignore next */
     return false
   }
