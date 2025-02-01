@@ -165,6 +165,10 @@ void URLPattern::New(const FunctionCallbackInfo<Value>& args) {
     input = input_buffer.ToString();
   } else if (args[0]->IsObject()) {
     init = URLPatternInit::FromJsObject(env, args[0].As<Object>());
+    // If init does not have a value here, the implication is that an
+    // error was thrown. Let's allow that to be handled now by returning
+    // early. If we don't, the error thrown will be swallowed.
+    if (!init) return;
   } else {
     THROW_ERR_INVALID_ARG_TYPE(env, "Input must be an object or a string");
     return;
@@ -180,7 +184,9 @@ void URLPattern::New(const FunctionCallbackInfo<Value>& args) {
       CHECK(!options.has_value());
       options = URLPatternOptions::FromJsObject(env, args[1].As<Object>());
       if (!options) {
-        THROW_ERR_INVALID_ARG_TYPE(env, "options.ignoreCase must be a boolean");
+        // If options does not have a value, we assume an error was
+        // thrown and scheduled on the isolate. Return early to
+        // propagate it.
         return;
       }
     } else {
@@ -197,7 +203,9 @@ void URLPattern::New(const FunctionCallbackInfo<Value>& args) {
       CHECK(!options.has_value());
       options = URLPatternOptions::FromJsObject(env, args[2].As<Object>());
       if (!options) {
-        THROW_ERR_INVALID_ARG_TYPE(env, "options.ignoreCase must be a boolean");
+        // If options does not have a value, we assume an error was
+        // thrown and scheduled on the isolate. Return early to
+        // propagate it.
         return;
       }
     }
@@ -234,73 +242,29 @@ MaybeLocal<Value> URLPattern::URLPatternInit::ToJsObject(
   auto isolate = env->isolate();
   auto context = env->context();
   auto result = Object::New(isolate);
-  if (init.protocol) {
-    Local<Value> protocol;
-    if (!ToV8Value(context, *init.protocol).ToLocal(&protocol) ||
-        result->Set(context, env->protocol_string(), protocol).IsNothing()) {
-      return {};
-    }
-  }
-  if (init.username) {
-    Local<Value> username;
-    if (!ToV8Value(context, *init.username).ToLocal(&username) ||
-        result->Set(context, env->username_string(), username).IsNothing()) {
-      return {};
-    }
-  }
-  if (init.password) {
-    Local<Value> password;
-    if (!ToV8Value(context, *init.password).ToLocal(&password) ||
-        result->Set(context, env->password_string(), password).IsNothing()) {
-      return {};
-    }
-  }
-  if (init.hostname) {
-    Local<Value> hostname;
-    if (!ToV8Value(context, *init.hostname).ToLocal(&hostname) ||
-        result->Set(context, env->hostname_string(), hostname).IsNothing()) {
-      return {};
-    }
-  }
-  if (init.port) {
-    Local<Value> port;
-    if (!ToV8Value(context, *init.port).ToLocal(&port) ||
-        result->Set(context, env->port_string(), port).IsNothing()) {
-      return {};
-    }
-  }
-  if (init.pathname) {
-    Local<Value> pathname;
-    if (!ToV8Value(context, *init.pathname).ToLocal(&pathname) ||
-        result->Set(context, env->pathname_string(), pathname).IsNothing()) {
-      return {};
-    }
-  }
-  if (init.search) {
-    Local<Value> search;
-    if (!ToV8Value(context, *init.search).ToLocal(&search) ||
-        result->Set(context, env->search_string(), search).IsNothing()) {
-      return {};
-    }
-  }
-  if (init.hash) {
-    Local<Value> hash;
-    if (!ToV8Value(context, *init.hash).ToLocal(&hash) ||
-        result->Set(context, env->hash_string(), hash).IsNothing()) {
-      return {};
-    }
-  }
-  if (init.base_url) {
-    Local<Value> base_url;
-    if (!ToV8Value(context, *init.base_url).ToLocal(&base_url) ||
-        result->Set(context, env->base_url_string(), base_url).IsNothing()) {
-      return {};
-    }
+
+  const auto trySet = [&](auto name, const std::optional<std::string>& val) {
+    if (!val) return true;
+    Local<Value> temp;
+    return ToV8Value(context, *val).ToLocal(&temp) &&
+           result->Set(context, name, temp).IsJust();
+  };
+
+  if (!trySet(env->protocol_string(), init.protocol) ||
+      !trySet(env->username_string(), init.username) ||
+      !trySet(env->password_string(), init.password) ||
+      !trySet(env->hostname_string(), init.hostname) ||
+      !trySet(env->port_string(), init.port) ||
+      !trySet(env->pathname_string(), init.pathname) ||
+      !trySet(env->search_string(), init.search) ||
+      !trySet(env->hash_string(), init.hash) ||
+      !trySet(env->base_url_string(), init.base_url)) {
+    return {};
   }
   return result;
 }
 
-ada::url_pattern_init URLPattern::URLPatternInit::FromJsObject(
+std::optional<ada::url_pattern_init> URLPattern::URLPatternInit::FromJsObject(
     Environment* env, Local<Object> obj) {
   ada::url_pattern_init init{};
   Local<String> components[] = {
@@ -344,6 +308,10 @@ ada::url_pattern_init URLPattern::URLPatternInit::FromJsObject(
         Utf8Value utf8_value(isolate, value);
         set_parameter(key.ToStringView(), utf8_value.ToStringView());
       }
+    } else {
+      // If ToLocal failed then we assume an error occurred,
+      // bail out early to propagate the error.
+      return std::nullopt;
     }
   }
   return init;
@@ -355,12 +323,8 @@ MaybeLocal<Object> URLPattern::URLPatternComponentResult::ToJSObject(
   auto context = env->context();
   auto parsed_group = Object::New(isolate);
   for (const auto& [group_key, group_value] : result.groups) {
-    Local<String> key;
-    if (!String::NewFromUtf8(isolate,
-                             group_key.c_str(),
-                             NewStringType::kNormal,
-                             group_key.size())
-             .ToLocal(&key)) {
+    Local<Value> key;
+    if (!ToV8Value(context, group_key).ToLocal(&key)) {
       return {};
     }
     Local<Value> value;
@@ -371,7 +335,9 @@ MaybeLocal<Object> URLPattern::URLPatternComponentResult::ToJSObject(
     } else {
       value = Undefined(isolate);
     }
-    USE(parsed_group->Set(context, key, value));
+    if (parsed_group->Set(context, key, value).IsNothing()) {
+      return {};
+    }
   }
   Local<Value> input;
   if (!ToV8Value(env->context(), result.input).ToLocal(&input)) {
@@ -418,34 +384,20 @@ MaybeLocal<Value> URLPattern::URLPatternResult::ToJSValue(
   LocalVector<Value> values(isolate, arraysize(names));
   values[0] = Array::New(isolate, inputs.data(), inputs.size());
   if (!URLPatternComponentResult::ToJSObject(env, result.protocol)
-           .ToLocal(&values[1])) {
-    return {};
-  }
-  if (!URLPatternComponentResult::ToJSObject(env, result.username)
-           .ToLocal(&values[2])) {
-    return {};
-  }
-  if (!URLPatternComponentResult::ToJSObject(env, result.password)
-           .ToLocal(&values[3])) {
-    return {};
-  }
-  if (!URLPatternComponentResult::ToJSObject(env, result.hostname)
-           .ToLocal(&values[4])) {
-    return {};
-  }
-  if (!URLPatternComponentResult::ToJSObject(env, result.port)
-           .ToLocal(&values[5])) {
-    return {};
-  }
-  if (!URLPatternComponentResult::ToJSObject(env, result.pathname)
-           .ToLocal(&values[6])) {
-    return {};
-  }
-  if (!URLPatternComponentResult::ToJSObject(env, result.search)
-           .ToLocal(&values[7])) {
-    return {};
-  }
-  if (!URLPatternComponentResult::ToJSObject(env, result.hash)
+           .ToLocal(&values[1]) ||
+      !URLPatternComponentResult::ToJSObject(env, result.username)
+           .ToLocal(&values[2]) ||
+      !URLPatternComponentResult::ToJSObject(env, result.password)
+           .ToLocal(&values[3]) ||
+      !URLPatternComponentResult::ToJSObject(env, result.hostname)
+           .ToLocal(&values[4]) ||
+      !URLPatternComponentResult::ToJSObject(env, result.port)
+           .ToLocal(&values[5]) ||
+      !URLPatternComponentResult::ToJSObject(env, result.pathname)
+           .ToLocal(&values[6]) ||
+      !URLPatternComponentResult::ToJSObject(env, result.search)
+           .ToLocal(&values[7]) ||
+      !URLPatternComponentResult::ToJSObject(env, result.hash)
            .ToLocal(&values[8])) {
     return {};
   }
@@ -461,9 +413,15 @@ URLPattern::URLPatternOptions::FromJsObject(Environment* env,
   if (obj->Get(env->context(), env->ignore_case_string())
           .ToLocal(&ignore_case)) {
     if (!ignore_case->IsBoolean()) {
+      THROW_ERR_INVALID_ARG_TYPE(env, "options.ignoreCase must be a boolean");
       return std::nullopt;
     }
     options.ignore_case = ignore_case->IsTrue();
+  } else {
+    // If ToLocal returns false, the assumption is that getting the
+    // ignore_case_string threw an error, let's propagate that now
+    // by returning std::nullopt.
+    return std::nullopt;
   }
   return options;
 }
@@ -553,7 +511,9 @@ void URLPattern::Exec(const FunctionCallbackInfo<Value>& args) {
     input_base = input_value.ToString();
     input = std::string_view(input_base);
   } else if (args[0]->IsObject()) {
-    input = URLPatternInit::FromJsObject(env, args[0].As<Object>());
+    auto maybeInput = URLPatternInit::FromJsObject(env, args[0].As<Object>());
+    if (!maybeInput.has_value()) return;
+    input = std::move(*maybeInput);
   } else {
     THROW_ERR_INVALID_ARG_TYPE(
         env, "URLPattern input needs to be a string or an object");
@@ -594,7 +554,9 @@ void URLPattern::Test(const FunctionCallbackInfo<Value>& args) {
     input_base = input_value.ToString();
     input = std::string_view(input_base);
   } else if (args[0]->IsObject()) {
-    input = URLPatternInit::FromJsObject(env, args[0].As<Object>());
+    auto maybeInput = URLPatternInit::FromJsObject(env, args[0].As<Object>());
+    if (!maybeInput.has_value()) return;
+    input = std::move(*maybeInput);
   } else {
     THROW_ERR_INVALID_ARG_TYPE(
         env, "URLPattern input needs to be a string or an object");
