@@ -59,8 +59,8 @@ class URLPattern : public BaseObject {
 
   class URLPatternInit {
    public:
-    static ada::url_pattern_init FromJsObject(Environment* env,
-                                              v8::Local<v8::Object> obj);
+    static std::optional<ada::url_pattern_init> FromJsObject(
+        Environment* env, v8::Local<v8::Object> obj);
     static v8::MaybeLocal<v8::Value> ToJsObject(
         Environment* env, const ada::url_pattern_init& init);
   };
