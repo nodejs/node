@@ -123,13 +123,13 @@ URLPattern::URLPattern(Environment* env,
 }
 
 void URLPattern::MemoryInfo(MemoryTracker* tracker) const {
-  tracker->TrackField("protocol", url_pattern_.get_protocol());
-  tracker->TrackField("username", url_pattern_.get_username());
-  tracker->TrackField("password", url_pattern_.get_password());
-  tracker->TrackField("hostname", url_pattern_.get_hostname());
-  tracker->TrackField("pathname", url_pattern_.get_pathname());
-  tracker->TrackField("search", url_pattern_.get_search());
-  tracker->TrackField("hash", url_pattern_.get_hash());
+  tracker->TrackFieldWithSize("protocol", url_pattern_.get_protocol().size());
+  tracker->TrackFieldWithSize("username", url_pattern_.get_username().size());
+  tracker->TrackFieldWithSize("password", url_pattern_.get_password().size());
+  tracker->TrackFieldWithSize("hostname", url_pattern_.get_hostname().size());
+  tracker->TrackFieldWithSize("pathname", url_pattern_.get_pathname().size());
+  tracker->TrackFieldWithSize("search", url_pattern_.get_search().size());
+  tracker->TrackFieldWithSize("hash", url_pattern_.get_hash().size());
 }
 
 void URLPattern::New(const FunctionCallbackInfo<Value>& args) {
@@ -242,68 +242,24 @@ MaybeLocal<Value> URLPattern::URLPatternInit::ToJsObject(
   auto isolate = env->isolate();
   auto context = env->context();
   auto result = Object::New(isolate);
-  if (init.protocol) {
-    Local<Value> protocol;
-    if (!ToV8Value(context, *init.protocol).ToLocal(&protocol) ||
-        result->Set(context, env->protocol_string(), protocol).IsNothing()) {
-      return {};
-    }
-  }
-  if (init.username) {
-    Local<Value> username;
-    if (!ToV8Value(context, *init.username).ToLocal(&username) ||
-        result->Set(context, env->username_string(), username).IsNothing()) {
-      return {};
-    }
-  }
-  if (init.password) {
-    Local<Value> password;
-    if (!ToV8Value(context, *init.password).ToLocal(&password) ||
-        result->Set(context, env->password_string(), password).IsNothing()) {
-      return {};
-    }
-  }
-  if (init.hostname) {
-    Local<Value> hostname;
-    if (!ToV8Value(context, *init.hostname).ToLocal(&hostname) ||
-        result->Set(context, env->hostname_string(), hostname).IsNothing()) {
-      return {};
-    }
-  }
-  if (init.port) {
-    Local<Value> port;
-    if (!ToV8Value(context, *init.port).ToLocal(&port) ||
-        result->Set(context, env->port_string(), port).IsNothing()) {
-      return {};
-    }
-  }
-  if (init.pathname) {
-    Local<Value> pathname;
-    if (!ToV8Value(context, *init.pathname).ToLocal(&pathname) ||
-        result->Set(context, env->pathname_string(), pathname).IsNothing()) {
-      return {};
-    }
-  }
-  if (init.search) {
-    Local<Value> search;
-    if (!ToV8Value(context, *init.search).ToLocal(&search) ||
-        result->Set(context, env->search_string(), search).IsNothing()) {
-      return {};
-    }
-  }
-  if (init.hash) {
-    Local<Value> hash;
-    if (!ToV8Value(context, *init.hash).ToLocal(&hash) ||
-        result->Set(context, env->hash_string(), hash).IsNothing()) {
-      return {};
-    }
-  }
-  if (init.base_url) {
-    Local<Value> base_url;
-    if (!ToV8Value(context, *init.base_url).ToLocal(&base_url) ||
-        result->Set(context, env->base_url_string(), base_url).IsNothing()) {
-      return {};
-    }
+
+  const auto trySet = [&](auto name, const std::optional<std::string>& val) {
+    if (!val.has_value()) return true;
+    Local<Value> temp;
+    return ToV8Value(context, *val).ToLocal(&temp) &&
+           result->Set(context, name, temp).IsJust();
+  };
+
+  if (!trySet(env->protocol_string(), init.protocol) ||
+      !trySet(env->username_string(), init.username) ||
+      !trySet(env->password_string(), init.password) ||
+      !trySet(env->hostname_string(), init.hostname) ||
+      !trySet(env->port_string(), init.port) ||
+      !trySet(env->pathname_string(), init.pathname) ||
+      !trySet(env->search_string(), init.search) ||
+      !trySet(env->hash_string(), init.hash) ||
+      !trySet(env->base_url_string(), init.base_url)) {
+    return {};
   }
   return result;
 }

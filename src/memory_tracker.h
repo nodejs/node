@@ -199,10 +199,6 @@ class MemoryTracker {
   inline void TrackField(const char* edge_name,
                          const std::basic_string<T>& value,
                          const char* node_name = nullptr);
-  template <typename T>
-  inline void TrackField(const char* edge_name,
-                         const std::basic_string_view<T>& value,
-                         const char* node_name = nullptr);
   template <typename T,
             typename test_for_number = typename std::
                 enable_if<std::numeric_limits<T>::is_specialized, bool>::type,

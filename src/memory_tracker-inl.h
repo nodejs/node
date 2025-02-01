@@ -213,14 +213,6 @@ void MemoryTracker::TrackField(const char* edge_name,
 
 template <typename T>
 void MemoryTracker::TrackField(const char* edge_name,
-                               const std::basic_string_view<T>& value,
-                               const char* node_name) {
-  TrackFieldWithSize(
-      edge_name, value.size() * sizeof(T), "std::basic_string_view");
-}
-
-template <typename T>
-void MemoryTracker::TrackField(const char* edge_name,
                                const v8::Eternal<T>& value,
                                const char* node_name) {
   TrackField(edge_name, value.Get(isolate_));
