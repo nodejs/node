@@ -682,18 +682,29 @@ void SecureBuffer(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsUint32());
   Environment* env = Environment::GetCurrent(args);
   uint32_t len = args[0].As<Uint32>()->Value();
+#ifndef OPENSSL_IS_BORINGSSL
   void* data = OPENSSL_secure_zalloc(len);
+#else
+  void* data = OPENSSL_malloc(len);
+#endif
   if (data == nullptr) {
     // There's no memory available for the allocation.
     // Return nothing.
     return;
   }
+#ifdef OPENSSL_IS_BORINGSSL
+  memset(data, 0, len);
+#endif
   std::shared_ptr<BackingStore> store =
       ArrayBuffer::NewBackingStore(
           data,
           len,
           [](void* data, size_t len, void* deleter_data) {
+#ifndef OPENSSL_IS_BORINGSSL
             OPENSSL_secure_clear_free(data, len);
+#else
+        OPENSSL_clear_free(data, len);
+#endif
           },
           data);
   Local<ArrayBuffer> buffer = ArrayBuffer::New(env->isolate(), store);
@@ -701,10 +712,16 @@ void SecureBuffer(const FunctionCallbackInfo<Value>& args) {
 }
 
 void SecureHeapUsed(const FunctionCallbackInfo<Value>& args) {
+#ifndef OPENSSL_IS_BORINGSSL
   Environment* env = Environment::GetCurrent(args);
   if (CRYPTO_secure_malloc_initialized())
     args.GetReturnValue().Set(
         BigInt::New(env->isolate(), CRYPTO_secure_used()));
+#else
+  // BoringSSL does not have the secure heap and therefore
+  // will always return 0.
+  args.GetReturnValue().Set(BigInt::New(args.GetIsolate(), 0));
+#endif
 }
 }  // namespace
 
