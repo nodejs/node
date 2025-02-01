@@ -367,12 +367,8 @@ MaybeLocal<Object> URLPattern::URLPatternComponentResult::ToJSObject(
   auto context = env->context();
   auto parsed_group = Object::New(isolate);
   for (const auto& [group_key, group_value] : result.groups) {
-    Local<String> key;
-    if (!String::NewFromUtf8(isolate,
-                             group_key.c_str(),
-                             NewStringType::kNormal,
-                             group_key.size())
-             .ToLocal(&key)) {
+    Local<Value> key;
+    if (!ToV8Value(context, group_key).ToLocal(&key)) {
       return {};
     }
     Local<Value> value;
