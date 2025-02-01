@@ -504,13 +504,13 @@ more data types than SQLite, only a subset of JavaScript types are supported.
 Attempting to write an unsupported data type to SQLite will result in an
 exception.
 
-| SQLite    | JavaScript           |
-| --------- | -------------------- |
-| `NULL`    | {null}               |
-| `INTEGER` | {number} or {bigint} |
-| `REAL`    | {number}             |
-| `TEXT`    | {string}             |
-| `BLOB`    | {Uint8Array}         |
+| SQLite    | JavaScript                 |
+| --------- | -------------------------- |
+| `NULL`    | {null}                     |
+| `INTEGER` | {number} or {bigint}       |
+| `REAL`    | {number}                   |
+| `TEXT`    | {string}                   |
+| `BLOB`    | {TypedArray} or {DataView} |
 
 ## `sqlite.constants`
 
