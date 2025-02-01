@@ -371,7 +371,9 @@ MaybeLocal<Object> URLPattern::URLPatternComponentResult::ToJSObject(
     } else {
       value = Undefined(isolate);
     }
-    USE(parsed_group->Set(context, key, value));
+    if (parsed_group->Set(context, key, value).IsNothing()) {
+      return {};
+    }
   }
   Local<Value> input;
   if (!ToV8Value(env->context(), result.input).ToLocal(&input)) {
