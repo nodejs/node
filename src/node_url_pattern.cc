@@ -420,34 +420,20 @@ MaybeLocal<Value> URLPattern::URLPatternResult::ToJSValue(
   LocalVector<Value> values(isolate, arraysize(names));
   values[0] = Array::New(isolate, inputs.data(), inputs.size());
   if (!URLPatternComponentResult::ToJSObject(env, result.protocol)
-           .ToLocal(&values[1])) {
-    return {};
-  }
-  if (!URLPatternComponentResult::ToJSObject(env, result.username)
-           .ToLocal(&values[2])) {
-    return {};
-  }
-  if (!URLPatternComponentResult::ToJSObject(env, result.password)
-           .ToLocal(&values[3])) {
-    return {};
-  }
-  if (!URLPatternComponentResult::ToJSObject(env, result.hostname)
-           .ToLocal(&values[4])) {
-    return {};
-  }
-  if (!URLPatternComponentResult::ToJSObject(env, result.port)
-           .ToLocal(&values[5])) {
-    return {};
-  }
-  if (!URLPatternComponentResult::ToJSObject(env, result.pathname)
-           .ToLocal(&values[6])) {
-    return {};
-  }
-  if (!URLPatternComponentResult::ToJSObject(env, result.search)
-           .ToLocal(&values[7])) {
-    return {};
-  }
-  if (!URLPatternComponentResult::ToJSObject(env, result.hash)
+           .ToLocal(&values[1]) ||
+      !URLPatternComponentResult::ToJSObject(env, result.username)
+           .ToLocal(&values[2]) ||
+      !URLPatternComponentResult::ToJSObject(env, result.password)
+           .ToLocal(&values[3]) ||
+      !URLPatternComponentResult::ToJSObject(env, result.hostname)
+           .ToLocal(&values[4]) ||
+      !URLPatternComponentResult::ToJSObject(env, result.port)
+           .ToLocal(&values[5]) ||
+      !URLPatternComponentResult::ToJSObject(env, result.pathname)
+           .ToLocal(&values[6]) ||
+      !URLPatternComponentResult::ToJSObject(env, result.search)
+           .ToLocal(&values[7]) ||
+      !URLPatternComponentResult::ToJSObject(env, result.hash)
            .ToLocal(&values[8])) {
     return {};
   }
