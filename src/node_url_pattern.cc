@@ -168,7 +168,7 @@ void URLPattern::New(const FunctionCallbackInfo<Value>& args) {
     // If init does not have a value here, the implication is that an
     // error was thrown. Let's allow that to be handled now by returning
     // early. If we don't, the error thrown will be swallowed.
-    if (!init.has_value()) return;
+    if (!init) return;
   } else {
     THROW_ERR_INVALID_ARG_TYPE(env, "Input must be an object or a string");
     return;
@@ -244,7 +244,7 @@ MaybeLocal<Value> URLPattern::URLPatternInit::ToJsObject(
   auto result = Object::New(isolate);
 
   const auto trySet = [&](auto name, const std::optional<std::string>& val) {
-    if (!val.has_value()) return true;
+    if (!val) return true;
     Local<Value> temp;
     return ToV8Value(context, *val).ToLocal(&temp) &&
            result->Set(context, name, temp).IsJust();
