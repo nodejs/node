@@ -442,17 +442,19 @@ test/samples/*.js (3635 KiB)
 
 ### Wasm Build Steps
 
-To build download the WASI SDK from https://github.com/WebAssembly/wasi-sdk/releases.
+The build uses docker and make, they must be installed first.
 
-The Makefile assumes the existence of "wasi-sdk-11.0" and "wabt" (optional) as sibling folders to this project.
+To build the lexer wasm run `npm run build-wasm`.
 
-The build through the Makefile is then run via `make lib/lexer.wasm`, which can also be triggered via `npm run build-wasm` to create `dist/lexer.js`.
+Optimization passes are run with [Binaryen](https://github.com/WebAssembly/binaryen)
+prior to publish to reduce the Web Assembly footprint.
 
-On Windows it may be preferable to use the Linux subsystem.
+After building the lexer wasm, build the final distribution components
+(lexer.js and lexer.mjs) by running `npm run build`.
 
-After the Web Assembly build, the CJS build can be triggered via `npm run build`.
-
-Optimization passes are run with [Binaryen](https://github.com/WebAssembly/binaryen) prior to publish to reduce the Web Assembly footprint.
+If you need to build lib/lexer.wat (optional) you must first install
+[wabt](https://github.com/WebAssembly/wabt) as a sibling folder to this
+project. The wat file is then build by running `make lib/lexer.wat`
 
 ### License
 
