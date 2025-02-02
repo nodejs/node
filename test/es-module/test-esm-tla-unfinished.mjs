@@ -174,4 +174,31 @@ describe('ESM: unsettled and rejected promises', { concurrency: !process.env.TES
     assert.strictEqual(stdout, '');
     assert.strictEqual(code, 13);
   });
+
+  describe('with exit listener', () => {
+    it('the process exit event should provide the correct code', async () => {
+      const { code, stdout } = await spawnPromisified(execPath, [
+        fixtures.path('es-modules/tla/unresolved-with-listener.mjs'),
+      ]);
+
+      assert.strictEqual(stdout,
+                         'the exit listener received code: 13\n' +
+                         'process.exitCode inside the exist listener: 13\n'
+      );
+      assert.strictEqual(code, 13);
+    });
+
+    it('should exit for an unsettled TLA promise and respect explicit exit code in process exit event', async () => {
+      const { code, stdout } = await spawnPromisified(execPath, [
+        '--no-warnings',
+        fixtures.path('es-modules/tla/unresolved-withexitcode-and-listener.mjs'),
+      ]);
+
+      assert.strictEqual(stdout,
+                         'the exit listener received code: 42\n' +
+                         'process.exitCode inside the exist listener: 42\n'
+      );
+      assert.strictEqual(code, 42);
+    });
+  });
 });
