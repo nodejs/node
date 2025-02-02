@@ -1663,7 +1663,8 @@ int tls_parse_stoc_alpn(SSL *s, PACKET *pkt, unsigned int context, X509 *x,
     }
     s->s3.alpn_selected_len = len;
 
-    if (s->session->ext.alpn_selected == NULL
+    if (s->s3.alpn_selected == NULL
+            || s->session->ext.alpn_selected == NULL
             || s->session->ext.alpn_selected_len != len
             || memcmp(s->session->ext.alpn_selected, s->s3.alpn_selected, len)
                != 0) {
