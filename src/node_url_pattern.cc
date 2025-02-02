@@ -26,6 +26,7 @@ using v8::Object;
 using v8::PropertyAttribute;
 using v8::ReadOnly;
 using v8::RegExp;
+using v8::Signature;
 using v8::String;
 using v8::Value;
 
@@ -720,58 +721,71 @@ static void Initialize(Local<Object> target,
   auto prototype_template = ctor_tmpl->PrototypeTemplate();
   ctor_tmpl->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "URLPattern"));
 
+  // The signature is used to prevent the property accessors from being
+  // called on the wrong receiver object (`this`)
+  auto signature = Signature::New(isolate, ctor_tmpl);
+
   instance_template->SetInternalFieldCount(URLPattern::kInternalFieldCount);
   prototype_template->SetAccessorProperty(
       env->protocol_string(),
-      FunctionTemplate::New(isolate, URLPattern::Protocol),
+      FunctionTemplate::New(
+          isolate, URLPattern::Protocol, Local<Value>(), signature),
       Local<FunctionTemplate>(),
       attributes);
 
   prototype_template->SetAccessorProperty(
       env->username_string(),
-      FunctionTemplate::New(isolate, URLPattern::Username),
+      FunctionTemplate::New(
+          isolate, URLPattern::Username, Local<Value>(), signature),
       Local<FunctionTemplate>(),
       attributes);
 
   prototype_template->SetAccessorProperty(
       env->password_string(),
-      FunctionTemplate::New(isolate, URLPattern::Password),
+      FunctionTemplate::New(
+          isolate, URLPattern::Password, Local<Value>(), signature),
       Local<FunctionTemplate>(),
       attributes);
 
   prototype_template->SetAccessorProperty(
       env->hostname_string(),
-      FunctionTemplate::New(isolate, URLPattern::Hostname),
+      FunctionTemplate::New(
+          isolate, URLPattern::Hostname, Local<Value>(), signature),
       Local<FunctionTemplate>(),
       attributes);
 
   prototype_template->SetAccessorProperty(
       env->port_string(),
-      FunctionTemplate::New(isolate, URLPattern::Port),
+      FunctionTemplate::New(
+          isolate, URLPattern::Port, Local<Value>(), signature),
       Local<FunctionTemplate>(),
       attributes);
 
   prototype_template->SetAccessorProperty(
       env->pathname_string(),
-      FunctionTemplate::New(isolate, URLPattern::Pathname),
+      FunctionTemplate::New(
+          isolate, URLPattern::Pathname, Local<Value>(), signature),
       Local<FunctionTemplate>(),
       attributes);
 
   prototype_template->SetAccessorProperty(
       env->search_string(),
-      FunctionTemplate::New(isolate, URLPattern::Search),
+      FunctionTemplate::New(
+          isolate, URLPattern::Search, Local<Value>(), signature),
       Local<FunctionTemplate>(),
       attributes);
 
   prototype_template->SetAccessorProperty(
       env->hash_string(),
-      FunctionTemplate::New(isolate, URLPattern::Hash),
+      FunctionTemplate::New(
+          isolate, URLPattern::Hash, Local<Value>(), signature),
       Local<FunctionTemplate>(),
       attributes);
 
   prototype_template->SetAccessorProperty(
       env->has_regexp_groups_string(),
-      FunctionTemplate::New(isolate, URLPattern::HasRegexpGroups),
+      FunctionTemplate::New(
+          isolate, URLPattern::HasRegexpGroups, Local<Value>(), signature),
       Local<FunctionTemplate>(),
       attributes);
 
