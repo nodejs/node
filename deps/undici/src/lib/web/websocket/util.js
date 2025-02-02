@@ -157,32 +157,6 @@ function isValidStatusCode (code) {
 }
 
 /**
- * @param {import('./websocket').Handler} handler
- * @param {number} code
- * @param {string|undefined} reason
- * @returns {void}
- */
-function failWebsocketConnection (handler, code, reason) {
-  // If _The WebSocket Connection is Established_ prior to the point where
-  // the endpoint is required to _Fail the WebSocket Connection_, the
-  // endpoint SHOULD send a Close frame with an appropriate status code
-  // (Section 7.4) before proceeding to _Close the WebSocket Connection_.
-  if (isEstablished(handler.readyState)) {
-    // avoid circular require - performance is not important here
-    const { closeWebSocketConnection } = require('./connection')
-    closeWebSocketConnection(handler, code, reason, false)
-  }
-
-  handler.controller.abort()
-
-  if (handler.socket?.destroyed === false) {
-    handler.socket.destroy()
-  }
-
-  handler.onFail(code, reason)
-}
-
-/**
  * @see https://datatracker.ietf.org/doc/html/rfc6455#section-5.5
  * @param {number} opcode
  * @returns {boolean}
@@ -350,7 +324,6 @@ module.exports = {
   fireEvent,
   isValidSubprotocol,
   isValidStatusCode,
-  failWebsocketConnection,
   websocketMessageReceived,
   utf8Decode,
   isControlFrame,
