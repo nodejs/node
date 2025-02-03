@@ -367,8 +367,6 @@ For information about the governance of the Node.js project, see
   **Minwoo Jung** <<nodecorelab@gmail.com>> (he/him)
 * [KhafraDev](https://github.com/KhafraDev) -
   **Matthew Aitken** <<maitken033380023@gmail.com>> (he/him)
-* [kvakil](https://github.com/kvakil) -
-  **Keyhan Vakil** <<kvakil@sylph.kvakil.me>>
 * [legendecas](https://github.com/legendecas) -
   **Chengzhong Wu** <<legendecas@gmail.com>> (he/him)
 * [lemire](https://github.com/lemire) -
@@ -579,6 +577,8 @@ For information about the governance of the Node.js project, see
   **Kunal Pathak** <<kunal.pathak@microsoft.com>>
 * [kuriyosh](https://github.com/kuriyosh) -
   **Yoshiki Kurihara** <<yosyos0306@gmail.com>> (he/him)
+* [kvakil](https://github.com/kvakil) -
+  **Keyhan Vakil** <<kvakil@sylph.kvakil.me>>
 * [lance](https://github.com/lance) -
   **Lance Ball** <<lball@redhat.com>> (he/him)
 * [Leko](https://github.com/Leko) -
