@@ -25,7 +25,7 @@ template("brotli_gn_build") {
     } else if (target_os == "freebsd") {
       defines = [ "OS_FREEBSD" ]
     }
-    if (!is_win) {
+    if (is_linux) {
       libs = [ "m" ]
     }
     if (is_clang || !is_win) {
