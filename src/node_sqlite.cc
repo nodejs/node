@@ -119,13 +119,15 @@ inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, int errcode) {
   const char* errstr = sqlite3_errstr(errcode);
 
   Environment* env = Environment::GetCurrent(isolate);
-  auto error = CreateSQLiteError(isolate, errstr).ToLocalChecked();
-  error
-      ->Set(isolate->GetCurrentContext(),
-            env->errcode_string(),
-            Integer::New(isolate, errcode))
-      .ToChecked();
-  isolate->ThrowException(error);
+  Local<Object> error;
+  if (CreateSQLiteError(isolate, errstr).ToLocal(&error) &&
+      error
+          ->Set(isolate->GetCurrentContext(),
+                env->errcode_string(),
+                Integer::New(isolate, errcode))
+          .IsJust()) {
+    isolate->ThrowException(error);
+  }
 }
 
 class UserDefinedFunction {
@@ -709,12 +711,14 @@ void DatabaseSync::CreateSession(const FunctionCallbackInfo<Value>& args) {
       }
     }
 
-    Local<String> db_key =
-        String::NewFromUtf8(env->isolate(), "db", NewStringType::kNormal)
-            .ToLocalChecked();
+    Local<String> db_key = FIXED_ONE_BYTE_STRING(env->isolate(), "db");
+
     if (options->HasOwnProperty(env->context(), db_key).FromJust()) {
-      Local<Value> db_value =
-          options->Get(env->context(), db_key).ToLocalChecked();
+      Local<Value> db_value;
+      if (!options->Get(env->context(), db_key).ToLocal(&db_value)) {
+        // An error will have been scheduled.
+        return;
+      }
       if (db_value->IsString()) {
         String::Utf8Value str(env->isolate(), db_value);
         db_name = std::string(*str);
@@ -783,8 +787,12 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
     }
 
     Local<Object> options = args[1].As<Object>();
-    Local<Value> conflictValue =
-        options->Get(env->context(), env->onconflict_string()).ToLocalChecked();
+    Local<Value> conflictValue;
+    if (!options->Get(env->context(), env->onconflict_string())
+             .ToLocal(&conflictValue)) {
+      // An error will have been scheduled.
+      return;
+    }
 
     if (!conflictValue->IsUndefined()) {
       if (!conflictValue->IsFunction()) {
@@ -812,8 +820,12 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
 
     if (options->HasOwnProperty(env->context(), env->filter_string())
             .FromJust()) {
-      Local<Value> filterValue =
-          options->Get(env->context(), env->filter_string()).ToLocalChecked();
+      Local<Value> filterValue;
+      if (!options->Get(env->context(), env->filter_string())
+               .ToLocal(&filterValue)) {
+        // An error will have been scheduled.
+        return;
+      }
 
       if (!filterValue->IsFunction()) {
         THROW_ERR_INVALID_ARG_TYPE(
@@ -825,6 +837,10 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
       Local<Function> filterFunc = filterValue.As<Function>();
 
       filterCallback = [env, filterFunc](std::string item) -> bool {
+        // TODO(@jasnell): The use of ToLocalChecked here means that if
+        // the filter function throws an error the process will crash.
+        // The filterCallback should be updated to avoid the check and
+        // propagate the error correctly.
         Local<Value> argv[] = {String::NewFromUtf8(env->isolate(),
                                                    item.c_str(),
                                                    NewStringType::kNormal)
@@ -1194,11 +1210,18 @@ void StatementSync::IterateReturnCallback(
 
   auto self = args.This();
   // iterator has fetch all result or break, prevent next func to return result
-  self->Set(context, env->isfinished_string(), Boolean::New(isolate, true))
-      .ToChecked();
+  if (self->Set(context, env->isfinished_string(), Boolean::New(isolate, true))
+          .IsNothing()) {
+    // An error will have been scheduled.
+    return;
+  }
 
-  auto external_stmt = Local<External>::Cast(
-      self->Get(context, env->statement_string()).ToLocalChecked());
+  Local<Value> val;
+  if (!self->Get(context, env->statement_string()).ToLocal(&val)) {
+    // An error will have been scheduled.
+    return;
+  }
+  auto external_stmt = Local<External>::Cast(val);
   auto stmt = static_cast<StatementSync*>(external_stmt->Value());
   if (!stmt->IsFinalized()) {
     sqlite3_reset(stmt->statement_);
@@ -1222,28 +1245,38 @@ void StatementSync::IterateNextCallback(
 
   auto self = args.This();
 
-  // skip iteration if is_finished
-  auto is_finished = Local<Boolean>::Cast(
-      self->Get(context, env->isfinished_string()).ToLocalChecked());
-  if (is_finished->Value()) {
-    LocalVector<Name> keys(isolate, {env->done_string(), env->value_string()});
-    LocalVector<Value> values(isolate,
-                              {Boolean::New(isolate, true), Null(isolate)});
+  Local<Value> val;
+  if (!self->Get(context, env->isfinished_string()).ToLocal(&val)) {
+    // An error will have been scheduled.
+    return;
+  }
 
-    DCHECK_EQ(keys.size(), values.size());
+  // skip iteration if is_finished
+  auto is_finished = Local<Boolean>::Cast(val);
+  if (is_finished->Value()) {
+    Local<Name> keys[] = {env->done_string(), env->value_string()};
+    Local<Value> values[] = {Boolean::New(isolate, true), Null(isolate)};
+    static_assert(arraysize(keys) == arraysize(values));
     Local<Object> result = Object::New(
-        isolate, Null(isolate), keys.data(), values.data(), keys.size());
+        isolate, Null(isolate), &keys[0], &values[0], arraysize(keys));
     args.GetReturnValue().Set(result);
     return;
   }
 
-  auto external_stmt = Local<External>::Cast(
-      self->Get(context, env->statement_string()).ToLocalChecked());
+  if (!self->Get(context, env->statement_string()).ToLocal(&val)) {
+    // An error will have been scheduled.
+    return;
+  }
+
+  auto external_stmt = Local<External>::Cast(val);
   auto stmt = static_cast<StatementSync*>(external_stmt->Value());
-  auto num_cols =
-      Local<Integer>::Cast(
-          self->Get(context, env->num_cols_string()).ToLocalChecked())
-          ->Value();
+
+  if (!self->Get(context, env->num_cols_string()).ToLocal(&val)) {
+    // An error will have been scheduled.
+    return;
+  }
+
+  auto num_cols = Local<Integer>::Cast(val)->Value();
 
   THROW_AND_RETURN_ON_BAD_STATE(
       env, stmt->IsFinalized(), "statement has been finalized");
@@ -1255,8 +1288,12 @@ void StatementSync::IterateNextCallback(
 
     // cleanup when no more rows to fetch
     sqlite3_reset(stmt->statement_);
-    self->Set(context, env->isfinished_string(), Boolean::New(isolate, true))
-        .ToChecked();
+    if (self->Set(
+                context, env->isfinished_string(), Boolean::New(isolate, true))
+            .IsNothing()) {
+      // An error would have been scheduled
+      return;
+    }
 
     LocalVector<Name> keys(isolate, {env->done_string(), env->value_string()});
     LocalVector<Value> values(isolate,
@@ -1310,15 +1347,19 @@ void StatementSync::Iterate(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  Local<Function> next_func =
-      Function::New(context, StatementSync::IterateNextCallback)
-          .ToLocalChecked();
-  Local<Function> return_func =
-      Function::New(context, StatementSync::IterateReturnCallback)
-          .ToLocalChecked();
+  Local<Function> next_func;
+  Local<Function> return_func;
+  if (!Function::New(context, StatementSync::IterateNextCallback)
+           .ToLocal(&next_func) ||
+      !Function::New(context, StatementSync::IterateReturnCallback)
+           .ToLocal(&return_func)) {
+    // An error will have been scheduled.
+    return;
+  }
 
-  LocalVector<Name> keys(isolate, {env->next_string(), env->return_string()});
-  LocalVector<Value> values(isolate, {next_func, return_func});
+  Local<Name> keys[] = {env->next_string(), env->return_string()};
+  Local<Value> values[] = {next_func, return_func};
+  static_assert(arraysize(keys) == arraysize(values));
 
   Local<Object> global = context->Global();
   Local<Value> js_iterator;
@@ -1330,32 +1371,41 @@ void StatementSync::Iterate(const FunctionCallbackInfo<Value>& args) {
            .ToLocal(&js_iterator_prototype))
     return;
 
-  DCHECK_EQ(keys.size(), values.size());
   Local<Object> iterable_iterator = Object::New(
-      isolate, js_iterator_prototype, keys.data(), values.data(), keys.size());
+      isolate, js_iterator_prototype, &keys[0], &values[0], arraysize(keys));
 
   auto num_cols_pd = v8::PropertyDescriptor(
       v8::Integer::New(isolate, sqlite3_column_count(stmt->statement_)), false);
   num_cols_pd.set_enumerable(false);
   num_cols_pd.set_configurable(false);
-  iterable_iterator
-      ->DefineProperty(context, env->num_cols_string(), num_cols_pd)
-      .ToChecked();
+  if (iterable_iterator
+          ->DefineProperty(context, env->num_cols_string(), num_cols_pd)
+          .IsNothing()) {
+    // An error will have been scheduled.
+    return;
+  }
 
   auto stmt_pd =
       v8::PropertyDescriptor(v8::External::New(isolate, stmt), false);
   stmt_pd.set_enumerable(false);
   stmt_pd.set_configurable(false);
-  iterable_iterator->DefineProperty(context, env->statement_string(), stmt_pd)
-      .ToChecked();
+  if (iterable_iterator
+          ->DefineProperty(context, env->statement_string(), stmt_pd)
+          .IsNothing()) {
+    // An error will have been scheduled.
+    return;
+  }
 
   auto is_finished_pd =
       v8::PropertyDescriptor(v8::Boolean::New(isolate, false), true);
   stmt_pd.set_enumerable(false);
   stmt_pd.set_configurable(false);
-  iterable_iterator
-      ->DefineProperty(context, env->isfinished_string(), is_finished_pd)
-      .ToChecked();
+  if (iterable_iterator
+          ->DefineProperty(context, env->isfinished_string(), is_finished_pd)
+          .IsNothing()) {
+    // An error will have been scheduled.
+    return;
+  }
 
   args.GetReturnValue().Set(iterable_iterator);
 }
