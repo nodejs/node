@@ -556,33 +556,31 @@ the backup process to restart.
 ```cjs
 const { backup, DatabaseSync } = require('node:sqlite');
 
-const sourceDb = new DatabaseSync('source.db');
-backup(sourceDb, 'backup.db', {
-  rate: 1, // Copy one page at a time.
-  progress: ({ totalPages, remainingPages }) => {
-    console.log('Backup in progress', { totalPages, remainingPages });
-  },
-}).then(() => {
-  console.log('Backup completed');
-}).catch((err) => {
-  console.error('Backup failed', err);
-});
+(async () => {
+  const sourceDb = new DatabaseSync('source.db');
+  const totalPagesTransferred = await backup(sourceDb, 'backup.db', {
+    rate: 1, // Copy one page at a time.
+    progress: ({ totalPages, remainingPages }) => {
+      console.log('Backup in progress', { totalPages, remainingPages });
+    },
+  });
+
+  console.log('Backup completed', totalPagesTransferred);
+})();
 ```
 
 ```mjs
 import { backup, DatabaseSync } from 'node:sqlite';
 
 const sourceDb = new DatabaseSync('source.db');
-backup(sourceDb, 'backup.db', {
+const totalPagesTransferred = await backup(sourceDb, 'backup.db', {
   rate: 1, // Copy one page at a time.
   progress: ({ totalPages, remainingPages }) => {
     console.log('Backup in progress', { totalPages, remainingPages });
   },
-}).then(() => {
-  console.log('Backup completed');
-}).catch((err) => {
-  console.error('Backup failed', err);
 });
+
+console.log('Backup completed', totalPagesTransferred);
 ```
 
 ## `sqlite.constants`
