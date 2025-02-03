@@ -179,7 +179,10 @@ class BackupJob : public ThreadPoolWork {
   void ScheduleBackup() {
     Isolate* isolate = env()->isolate();
     HandleScope handle_scope(isolate);
-    backup_status_ = sqlite3_open(destination_name_.c_str(), &dest_);
+    backup_status_ = sqlite3_open_v2(destination_name_.c_str(),
+                                     &dest_,
+                                     SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE,
+                                     nullptr);
     Local<Promise::Resolver> resolver =
         Local<Promise::Resolver>::New(env()->isolate(), resolver_);
     if (backup_status_ != SQLITE_OK) {
@@ -271,7 +274,7 @@ class BackupJob : public ThreadPoolWork {
 
     if (dest_) {
       backup_status_ = sqlite3_errcode(dest_);
-      sqlite3_close(dest_);
+      sqlite3_close_v2(dest_);
       dest_ = nullptr;
     }
   }
