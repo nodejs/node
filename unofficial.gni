@@ -173,7 +173,10 @@ template("node_gn_build") {
       libs = [ "psapi.lib" ]
     }
     if (is_mac) {
-      frameworks = [ "CoreFoundation.framework" ]
+      frameworks = [
+        "CoreFoundation.framework",
+        "Security.framework",
+      ]
     }
     if (is_posix) {
       configs -= [ "//build/config/gcc:symbol_visibility_hidden" ]
