@@ -380,7 +380,11 @@ suite('filter tables', () => {
     if (options.error) {
       t.assert.throws(applyChangeset, options.error);
     } else {
-      applyChangeset();
+      try {
+        applyChangeset();
+      } catch (error) {
+        if (!options.expectError) throw error;
+      }
     }
 
     t.assert.strictEqual(database2.prepare('SELECT * FROM data1').all().length, options.data1);
@@ -406,6 +410,18 @@ suite('filter tables', () => {
       data2: 0
     });
   });
+
+  test('database.createSession() - throw sometimes in filter callback', (t) => {
+    testFilter(t, {
+      filter: (tableName) => { if (tableName === 'data2') throw new Error(); else { return true; } },
+      // Only changes to data1 should be applied
+      // note that the changeset was not aborted
+      data1: 3,
+      data2: 0,
+      expectError: true
+    });
+  });
+
 
   test('database.createSession() - do not return anything in filter callback', (t) => {
     testFilter(t, {
@@ -439,7 +455,7 @@ suite('filter tables', () => {
   test('database.createSession() - no filter callback', (t) => {
     testFilter(t, {
       filter: undefined,
-      // all changes should be applied
+      // All changes should be applied
       data1: 3,
       data2: 5
     });
