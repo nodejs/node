@@ -1186,8 +1186,8 @@ def check_compiler(o):
       o['variables']['clang'] = 0
       o['variables']['llvm_version'] = '0.0'
 
-    if options.ccache_used:
-      o['variables']['ccache_used'] = 1
+    if options.use_ccache_win:
+      o['variables']['use_ccache_win'] = 1
 
     if not options.openssl_no_asm and options.dest_cpu in ('x86', 'x64'):
       nasm_version = get_nasm_version('nasm')
