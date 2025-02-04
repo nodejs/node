@@ -4,7 +4,7 @@ const assert = require('assert');
 
 // Import of pure js (non-shared) deps for comparison
 const acorn = require('../../deps/acorn/acorn/package.json');
-const cjs_module_lexer = require('../../deps/cjs-module-lexer/package.json');
+const cjs_module_lexer = require('../../deps/cjs-module-lexer/src/package.json');
 
 const expected_keys = [
   'ares',
