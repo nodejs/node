@@ -44,6 +44,7 @@ using v8::MemorySpan;
 using v8::Message;
 using v8::MicrotaskQueue;
 using v8::Module;
+using v8::ModuleImportPhase;
 using v8::ModuleRequest;
 using v8::Name;
 using v8::Null;
@@ -73,6 +74,8 @@ ModuleWrap::ModuleWrap(Realm* realm,
 
   object->SetInternalField(kModuleSlot, module);
   object->SetInternalField(kURLSlot, url);
+  object->SetInternalField(kModuleSourceObjectSlot,
+                           v8::Undefined(realm->isolate()));
   object->SetInternalField(kSyntheticEvaluationStepsSlot,
                            synthetic_evaluation_step);
   object->SetInternalField(kContextObjectSlot, context_object);
@@ -102,8 +105,7 @@ Local<Context> ModuleWrap::context() const {
   return obj.As<Object>()->GetCreationContextChecked();
 }
 
-ModuleWrap* ModuleWrap::GetFromModule(Environment* env,
-                                      Local<Module> module) {
+ModuleWrap* ModuleWrap::GetFromModule(Environment* env, Local<Module> module) {
   auto range = env->hash_to_module_map.equal_range(module->GetIdentityHash());
   for (auto it = range.first; it != range.second; ++it) {
     if (it->second->module_ == module) {
@@ -410,6 +412,16 @@ MaybeLocal<Module> ModuleWrap::CompileSourceTextModule(
   return scope.Escape(module);
 }
 
+ModulePhase to_phase_constant(ModuleImportPhase phase) {
+  switch (phase) {
+    case ModuleImportPhase::kEvaluation:
+      return kEvaluationPhase;
+    case ModuleImportPhase::kSource:
+      return kSourcePhase;
+  }
+  CHECK(false);
+}
+
 static Local<Object> createImportAttributesContainer(
     Realm* realm,
     Isolate* isolate,
@@ -445,14 +457,17 @@ static Local<Array> createModuleRequestsContainer(
     Local<FixedArray> raw_attributes = module_request->GetImportAttributes();
     Local<Object> attributes =
         createImportAttributesContainer(realm, isolate, raw_attributes, 3);
+    ModuleImportPhase phase = module_request->GetPhase();
 
     Local<Name> names[] = {
         realm->isolate_data()->specifier_string(),
         realm->isolate_data()->attributes_string(),
+        realm->isolate_data()->phase_string(),
     };
     Local<Value> values[] = {
         specifier,
         attributes,
+        v8::Integer::New(isolate, to_phase_constant(phase)),
     };
     DCHECK_EQ(arraysize(names), arraysize(values));
 
@@ -525,7 +540,8 @@ void ModuleWrap::Instantiate(const FunctionCallbackInfo<Value>& args) {
   Local<Context> context = obj->context();
   Local<Module> module = obj->module_.Get(isolate);
   TryCatchScope try_catch(realm->env());
-  USE(module->InstantiateModule(context, ResolveModuleCallback));
+  USE(module->InstantiateModule(
+      context, ResolveModuleCallback, ResolveSourceCallback));
 
   // clear resolve cache on instantiate
   obj->resolve_cache_.clear();
@@ -553,7 +569,7 @@ void ModuleWrap::Evaluate(const FunctionCallbackInfo<Value>& args) {
   ContextifyContext* contextify_context = obj->contextify_context_;
   MicrotaskQueue* microtask_queue = nullptr;
   if (contextify_context != nullptr)
-      microtask_queue = contextify_context->microtask_queue();
+    microtask_queue = contextify_context->microtask_queue();
 
   // module.evaluate(timeout, breakOnSigint)
   CHECK_EQ(args.Length(), 2);
@@ -609,8 +625,7 @@ void ModuleWrap::Evaluate(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (try_catch.HasCaught()) {
-    if (!try_catch.HasTerminated())
-      try_catch.ReThrow();
+    if (!try_catch.HasTerminated()) try_catch.ReThrow();
     return;
   }
 
@@ -631,7 +646,8 @@ void ModuleWrap::InstantiateSync(const FunctionCallbackInfo<Value>& args) {
 
   {
     TryCatchScope try_catch(env);
-    USE(module->InstantiateModule(context, ResolveModuleCallback));
+    USE(module->InstantiateModule(
+        context, ResolveModuleCallback, ResolveSourceCallback));
 
     // clear resolve cache on instantiate
     obj->resolve_cache_.clear();
@@ -777,6 +793,40 @@ void ModuleWrap::GetNamespace(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(result);
 }
 
+void ModuleWrap::SetModuleSourceObject(
+    const FunctionCallbackInfo<Value>& args) {
+  ModuleWrap* obj;
+  ASSIGN_OR_RETURN_UNWRAP(&obj, args.This());
+
+  CHECK_EQ(args.Length(), 1);
+  CHECK(args[0]->IsObject());
+  CHECK(obj->object()
+            ->GetInternalField(kModuleSourceObjectSlot)
+            .As<Value>()
+            ->IsUndefined());
+
+  obj->object()->SetInternalField(kModuleSourceObjectSlot, args[0]);
+}
+
+void ModuleWrap::GetModuleSourceObject(
+    const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  ModuleWrap* obj;
+  ASSIGN_OR_RETURN_UNWRAP(&obj, args.This());
+
+  CHECK_EQ(args.Length(), 0);
+  Local<Value> module_source_object =
+      obj->object()->GetInternalField(kModuleSourceObjectSlot).As<Value>();
+
+  if (module_source_object->IsUndefined()) {
+    Local<String> url = obj->object()->GetInternalField(kURLSlot).As<String>();
+    THROW_ERR_SOURCE_PHASE_NOT_DEFINED(isolate, url);
+    return;
+  }
+
+  args.GetReturnValue().Set(module_source_object);
+}
+
 void ModuleWrap::GetStatus(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   ModuleWrap* obj;
@@ -837,11 +887,63 @@ MaybeLocal<Module> ModuleWrap::ResolveModuleCallback(
   return module->module_.Get(isolate);
 }
 
-static MaybeLocal<Promise> ImportModuleDynamically(
+MaybeLocal<Object> ModuleWrap::ResolveSourceCallback(
+    Local<Context> context,
+    Local<String> specifier,
+    Local<FixedArray> import_attributes,
+    Local<Module> referrer) {
+  Isolate* isolate = context->GetIsolate();
+  Environment* env = Environment::GetCurrent(context);
+  if (env == nullptr) {
+    THROW_ERR_EXECUTION_ENVIRONMENT_NOT_AVAILABLE(isolate);
+    return MaybeLocal<Object>();
+  }
+
+  Utf8Value specifier_utf8(isolate, specifier);
+  std::string specifier_std(*specifier_utf8, specifier_utf8.length());
+
+  ModuleWrap* dependent = GetFromModule(env, referrer);
+  if (dependent == nullptr) {
+    THROW_ERR_VM_MODULE_LINK_FAILURE(
+        env, "request for '%s' is from invalid module", specifier_std);
+    return MaybeLocal<Object>();
+  }
+
+  if (dependent->resolve_cache_.count(specifier_std) != 1) {
+    THROW_ERR_VM_MODULE_LINK_FAILURE(
+        env, "request for '%s' is not in cache", specifier_std);
+    return MaybeLocal<Object>();
+  }
+
+  Local<Object> module_object =
+      dependent->resolve_cache_[specifier_std].Get(isolate);
+  if (module_object.IsEmpty() || !module_object->IsObject()) {
+    THROW_ERR_VM_MODULE_LINK_FAILURE(
+        env, "request for '%s' did not return an object", specifier_std);
+    return MaybeLocal<Object>();
+  }
+
+  ModuleWrap* module;
+  ASSIGN_OR_RETURN_UNWRAP(&module, module_object, MaybeLocal<Object>());
+
+  Local<Value> module_source_object =
+      module->object()->GetInternalField(kModuleSourceObjectSlot).As<Value>();
+  if (module_source_object->IsUndefined()) {
+    Local<String> url =
+        module->object()->GetInternalField(kURLSlot).As<String>();
+    THROW_ERR_SOURCE_PHASE_NOT_DEFINED(isolate, url);
+    return MaybeLocal<Object>();
+  }
+  CHECK(module_source_object->IsObject());
+  return module_source_object.As<Object>();
+}
+
+static MaybeLocal<Promise> ImportModuleDynamicallyWithPhase(
     Local<Context> context,
     Local<Data> host_defined_options,
     Local<Value> resource_name,
     Local<String> specifier,
+    ModuleImportPhase phase,
     Local<FixedArray> import_attributes) {
   Isolate* isolate = context->GetIsolate();
   Environment* env = Environment::GetCurrent(context);
@@ -879,21 +981,35 @@ static MaybeLocal<Promise> ImportModuleDynamically(
   Local<Value> import_args[] = {
       id,
       Local<Value>(specifier),
+      v8::Integer::New(isolate, to_phase_constant(phase)),
       attributes,
       resource_name,
   };
 
   Local<Value> result;
-  if (import_callback->Call(
-        context,
-        Undefined(isolate),
-        arraysize(import_args),
-        import_args).ToLocal(&result)) {
+  if (import_callback
+          ->Call(
+              context, Undefined(isolate), arraysize(import_args), import_args)
+          .ToLocal(&result)) {
     CHECK(result->IsPromise());
     return handle_scope.Escape(result.As<Promise>());
   }
 
   return MaybeLocal<Promise>();
+}
+
+static MaybeLocal<Promise> ImportModuleDynamically(
+    Local<Context> context,
+    Local<Data> host_defined_options,
+    Local<Value> resource_name,
+    Local<String> specifier,
+    Local<FixedArray> import_attributes) {
+  return ImportModuleDynamicallyWithPhase(context,
+                                          host_defined_options,
+                                          resource_name,
+                                          specifier,
+                                          ModuleImportPhase::kEvaluation,
+                                          import_attributes);
 }
 
 void ModuleWrap::SetImportModuleDynamicallyCallback(
@@ -908,13 +1024,17 @@ void ModuleWrap::SetImportModuleDynamicallyCallback(
   realm->set_host_import_module_dynamically_callback(import_callback);
 
   isolate->SetHostImportModuleDynamicallyCallback(ImportModuleDynamically);
+  // TODO(guybedford): Enable this once
+  //                   https://github.com/nodejs/node/pull/56842 lands.
+  // isolate->SetHostImportModuleWithPhaseDynamicallyCallback(
+  //     ImportModuleDynamicallyWithPhase);
 }
 
-void ModuleWrap::HostInitializeImportMetaObjectCallback(
-    Local<Context> context, Local<Module> module, Local<Object> meta) {
+void ModuleWrap::HostInitializeImportMetaObjectCallback(Local<Context> context,
+                                                        Local<Module> module,
+                                                        Local<Object> meta) {
   Environment* env = Environment::GetCurrent(context);
-  if (env == nullptr)
-    return;
+  if (env == nullptr) return;
   ModuleWrap* module_wrap = GetFromModule(env, module);
 
   if (module_wrap == nullptr) {
@@ -971,10 +1091,10 @@ MaybeLocal<Value> ModuleWrap::SyntheticModuleEvaluationStepsCallback(
           ->GetInternalField(kSyntheticEvaluationStepsSlot)
           .As<Value>()
           .As<Function>();
-  obj->object()->SetInternalField(
-      kSyntheticEvaluationStepsSlot, Undefined(isolate));
-  MaybeLocal<Value> ret = synthetic_evaluation_steps->Call(context,
-      obj->object(), 0, nullptr);
+  obj->object()->SetInternalField(kSyntheticEvaluationStepsSlot,
+                                  Undefined(isolate));
+  MaybeLocal<Value> ret =
+      synthetic_evaluation_steps->Call(context, obj->object(), 0, nullptr);
   if (ret.IsEmpty()) {
     CHECK(try_catch.HasCaught());
   }
@@ -1132,6 +1252,8 @@ void ModuleWrap::CreatePerIsolateProperties(IsolateData* isolate_data,
   SetProtoMethod(isolate, tpl, "instantiate", Instantiate);
   SetProtoMethod(isolate, tpl, "evaluate", Evaluate);
   SetProtoMethod(isolate, tpl, "setExport", SetSyntheticExport);
+  SetProtoMethod(isolate, tpl, "setModuleSourceObject", SetModuleSourceObject);
+  SetProtoMethod(isolate, tpl, "getModuleSourceObject", GetModuleSourceObject);
   SetProtoMethodNoSideEffect(
       isolate, tpl, "createCachedData", CreateCachedData);
   SetProtoMethodNoSideEffect(isolate, tpl, "getNamespace", GetNamespace);
@@ -1160,18 +1282,21 @@ void ModuleWrap::CreatePerContextProperties(Local<Object> target,
                                             void* priv) {
   Realm* realm = Realm::GetCurrent(context);
   Isolate* isolate = realm->isolate();
-#define V(name)                                                                \
+#define V(enum_type, name)                                                     \
   target                                                                       \
       ->Set(context,                                                           \
             FIXED_ONE_BYTE_STRING(isolate, #name),                             \
-            Integer::New(isolate, Module::Status::name))                       \
+            Integer::New(isolate, enum_type::name))                            \
       .FromJust()
-  V(kUninstantiated);
-  V(kInstantiating);
-  V(kInstantiated);
-  V(kEvaluating);
-  V(kEvaluated);
-  V(kErrored);
+  V(Module::Status, kUninstantiated);
+  V(Module::Status, kInstantiating);
+  V(Module::Status, kInstantiated);
+  V(Module::Status, kEvaluating);
+  V(Module::Status, kEvaluated);
+  V(Module::Status, kErrored);
+
+  V(ModulePhase, kEvaluationPhase);
+  V(ModulePhase, kSourcePhase);
 #undef V
 }
 
@@ -1187,6 +1312,8 @@ void ModuleWrap::RegisterExternalReferences(
   registry->Register(Instantiate);
   registry->Register(Evaluate);
   registry->Register(SetSyntheticExport);
+  registry->Register(SetModuleSourceObject);
+  registry->Register(GetModuleSourceObject);
   registry->Register(CreateCachedData);
   registry->Register(GetNamespace);
   registry->Register(GetStatus);

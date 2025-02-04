@@ -669,17 +669,19 @@ imported from the same path.
 
 > Stability: 1 - Experimental
 
-Importing WebAssembly modules is supported under the
-`--experimental-wasm-modules` flag, allowing any `.wasm` files to be
-imported as normal modules while also supporting their module imports.
+Importing both WebAssembly module instances and WebAssembly source phase
+imports are supported under the `--experimental-wasm-modules` flag.
 
-This integration is in line with the
+Both of these integrations are in line with the
 [ES Module Integration Proposal for WebAssembly][].
 
-For example, an `index.mjs` containing:
+Instance imports allow any `.wasm` files to be imported as normal modules,
+supporting their module imports in turn.
+
+For example, an `index.js` containing:
 
 ```js
-import * as M from './module.wasm';
+import * as M from './library.wasm';
 console.log(M);
 ```
 
@@ -689,7 +691,37 @@ executed under:
 node --experimental-wasm-modules index.mjs
 ```
 
-would provide the exports interface for the instantiation of `module.wasm`.
+would provide the exports interface for the instantiation of `library.wasm`.
+
+### Wasm Source Phase Imports
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The [Source Phase Imports][] proposal allows the `import source` keyword
+combination to import a `WebAssembly.Module` object directly, instead of getting
+a module instance already instantiated with its dependencies.
+
+This is useful when needing custom instantiations for Wasm, while still
+resolving and loading it through the ES module integration.
+
+For example, to create multiple instances of a module, or to pass custom imports
+into a new instance of `library.wasm`:
+
+<!-- eslint-skip -->
+
+```js
+import source libraryModule from './library.wasm`;
+
+const instance1 = await WebAssembly.instantiate(libraryModule, {
+  custom: import1
+});
+
+const instance2 = await WebAssembly.instantiate(libraryModule, {
+  custom: import2
+});
+```
 
 <i id="esm_experimental_top_level_await"></i>
 
@@ -1126,6 +1158,7 @@ resolution for ESM specifiers is [commonjs-extension-resolution-loader][].
 [Loading ECMAScript modules using `require()`]: modules.md#loading-ecmascript-modules-using-require
 [Module customization hooks]: module.md#customization-hooks
 [Node.js Module Resolution And Loading Algorithm]: #resolution-algorithm-specification
+[Source Phase Imports]: https://github.com/tc39/proposal-source-phase-imports
 [Terminology]: #terminology
 [URL]: https://url.spec.whatwg.org/
 [`"exports"`]: packages.md#exports
