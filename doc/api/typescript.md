@@ -57,7 +57,7 @@ added: v22.6.0
 
 The flag [`--no-experimental-strip-types`][] prevents Node.js from running TypeScript
 files. By default Node.js will execute only files that contain no
-TypeScript features that require transformation, such as enums or namespaces.
+TypeScript features that require transformation, such as enums.
 Node.js will replace inline type annotations with whitespace,
 and no type checking is performed.
 To enable the transformation of such features
@@ -119,10 +119,30 @@ unless the flag [`--experimental-transform-types`][] is passed.
 
 The most prominent features that require transformation are:
 
-* `Enum`
-* `namespaces`
-* `legacy module`
+* `Enum` declarations
+* `namespace` with runtime code
+* legacy `module` with runtime code
 * parameter properties
+* import aliases
+
+`namespaces` and `module` that do not contain runtime code are supported.
+This example will work correctly:
+
+```ts
+// This namespace is exporting a type
+namespace TypeOnly {
+   export type A = string;
+}
+```
+
+This will result in [`ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`][] error:
+
+```ts
+// This namespace is exporting a value
+namespace A { 
+   export let x = 1
+}
+```
 
 Since Decorators are currently a [TC39 Stage 3 proposal](https://github.com/tc39/proposal-decorators)
 and will soon be supported by the JavaScript engine,
@@ -184,6 +204,7 @@ with `#`.
 [CommonJS]: modules.md
 [ES Modules]: esm.md
 [Full TypeScript support]: #full-typescript-support
+[`ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`]: errors.md#err_unsupported_typescript_syntax
 [`--experimental-transform-types`]: cli.md#--experimental-transform-types
 [`--no-experimental-strip-types`]: cli.md#--no-experimental-strip-types
 [`tsconfig` "paths"]: https://www.typescriptlang.org/tsconfig/#paths
