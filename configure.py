@@ -1176,7 +1176,7 @@ def get_gas_version(cc):
 # check involves checking the build number against an allowlist.  I'm not
 # quite prepared to go that far yet.
 def check_compiler(o):
-  o['variables']['ccache_used'] = 0
+  o['variables']['use_ccache_win'] = 0
 
   if sys.platform == 'win32':
     if options.clang_cl:
