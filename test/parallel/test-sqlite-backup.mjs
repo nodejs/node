@@ -134,6 +134,11 @@ test('database backup', async (t) => {
     { __proto__: null, key: 1, value: 'value-1' },
     { __proto__: null, key: 2, value: 'value-2' },
   ]);
+
+  t.after(() => {
+    database.close();
+    backupDb.close();
+  });
 });
 
 test('database backup in a single call', async (t) => {
@@ -154,9 +159,14 @@ test('database backup in a single call', async (t) => {
     { __proto__: null, key: 1, value: 'value-1' },
     { __proto__: null, key: 2, value: 'value-2' },
   ]);
+
+  t.after(() => {
+    database.close();
+    backupDb.close();
+  });
 });
 
-test('throws exception when trying to start backup from a closed database', async (t) => {
+test('throws exception when trying to start backup from a closed database', (t) => {
   t.assert.throws(() => {
     const database = new DatabaseSync(':memory:');
 
