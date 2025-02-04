@@ -8,6 +8,48 @@
 #include "path.h"
 #include "util-inl.h"
 
+namespace node {
+using node::url_pattern::URLPatternRegexProvider;
+
+template <>
+struct MemoryRetainerTraits<ada::url_pattern<URLPatternRegexProvider>> {
+  using Type = ada::url_pattern<URLPatternRegexProvider>;
+  static void MemoryInfo(MemoryTracker* tracker, const Type& value) {
+    tracker->TraitTrackInline(value.protocol_component, "protocol_component");
+    tracker->TraitTrackInline(value.username_component, "username_component");
+    tracker->TraitTrackInline(value.password_component, "password_component");
+    tracker->TraitTrackInline(value.hostname_component, "hostname_component");
+    tracker->TraitTrackInline(value.port_component, "port_component");
+    tracker->TraitTrackInline(value.pathname_component, "pathname_component");
+    tracker->TraitTrackInline(value.search_component, "search_component");
+    tracker->TraitTrackInline(value.hash_component, "hash_component");
+  }
+
+  static const char* MemoryInfoName(const Type& value) {
+    return "ada::url_pattern";
+  }
+
+  static size_t SelfSize(const Type& value) { return sizeof(value); }
+};
+
+template <>
+struct MemoryRetainerTraits<
+    ada::url_pattern_component<URLPatternRegexProvider>> {
+  using Type = ada::url_pattern_component<URLPatternRegexProvider>;
+  static void MemoryInfo(MemoryTracker* tracker, const Type& value) {
+    tracker->TrackField("pattern", value.pattern);
+    tracker->TrackField("group_name_list", value.group_name_list);
+  }
+
+  static const char* MemoryInfoName(const Type& value) {
+    return "ada::url_pattern_component";
+  }
+
+  static size_t SelfSize(const Type& value) { return sizeof(value); }
+};
+
+}  // namespace node
+
 namespace node::url_pattern {
 
 using v8::Array;
@@ -125,13 +167,7 @@ URLPattern::URLPattern(Environment* env,
 }
 
 void URLPattern::MemoryInfo(MemoryTracker* tracker) const {
-  tracker->TrackFieldWithSize("protocol", url_pattern_.get_protocol().size());
-  tracker->TrackFieldWithSize("username", url_pattern_.get_username().size());
-  tracker->TrackFieldWithSize("password", url_pattern_.get_password().size());
-  tracker->TrackFieldWithSize("hostname", url_pattern_.get_hostname().size());
-  tracker->TrackFieldWithSize("pathname", url_pattern_.get_pathname().size());
-  tracker->TrackFieldWithSize("search", url_pattern_.get_search().size());
-  tracker->TrackFieldWithSize("hash", url_pattern_.get_hash().size());
+  tracker->TraitTrackInline(url_pattern_, "url_pattern");
 }
 
 void URLPattern::New(const FunctionCallbackInfo<Value>& args) {
