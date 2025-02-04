@@ -995,7 +995,7 @@ parser.add_argument('--clang-cl',
     default=None,
     help='Configure for clang-cl on Windows. This flag sets the GYP "clang" ' +
          'variable to 1 and "llvm_version" to the specified value.')
-parser.add_argument('--ccache-used',
+parser.add_argument('--use-ccache-win',
     action='store_true',
     dest='ccache_used',
     default=None,
