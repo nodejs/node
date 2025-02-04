@@ -104,13 +104,14 @@ URLPatternRegexProvider::regex_search(std::string_view input,
       return std::nullopt;
     }
 
+    // V8 checks that the regexp exec result is one of the correct types.
+    DCHECK_IMPLIES(!entry->IsUndefined(), entry->IsString());
+
     if (entry->IsUndefined()) {
       result.emplace_back(std::nullopt);
     } else if (entry->IsString()) {
       Utf8Value utf8_entry(isolate, entry.As<String>());
       result.emplace_back(utf8_entry.ToString());
-    } else {
-      UNREACHABLE("v8::RegExp::Exec return a non-string, non-undefined value.");
     }
   }
   return result;
@@ -191,7 +192,8 @@ void URLPattern::New(const FunctionCallbackInfo<Value>& args) {
         return;
       }
     } else {
-      THROW_ERR_MISSING_ARGS(env, "baseURL or options must be provided");
+      THROW_ERR_INVALID_ARG_TYPE(env,
+                                 "second argument must be a string or object");
       return;
     }
 
