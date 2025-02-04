@@ -339,6 +339,40 @@ suite('DatabaseSync.prototype.function()', () => {
     });
   });
 
+  suite('handles conflicting errors from SQLite and JavaScript', () => {
+    test('throws if value cannot fit in a number', () => {
+      const db = new DatabaseSync(':memory:');
+      const expected = { __proto__: null, id: 5, data: 'foo' };
+      db.function('custom', (arg) => {});
+      db.exec('CREATE TABLE test (id NUMBER NOT NULL PRIMARY KEY, data TEXT)');
+      db.prepare('INSERT INTO test (id, data) VALUES (?, ?)').run(5, 'foo');
+      assert.deepStrictEqual(db.prepare('SELECT * FROM test').get(), expected);
+      assert.throws(() => {
+        db.exec(`UPDATE test SET data = CUSTOM(${Number.MAX_SAFE_INTEGER + 1})`);
+      }, {
+        code: 'ERR_OUT_OF_RANGE',
+        message: /Value is too large to be represented as a JavaScript number: 9007199254740992/,
+      });
+      assert.deepStrictEqual(db.prepare('SELECT * FROM test').get(), expected);
+    });
+
+    test('propagates JavaScript errors', () => {
+      const db = new DatabaseSync(':memory:');
+      const expected = { __proto__: null, id: 5, data: 'foo' };
+      const err = new Error('boom');
+      db.function('throws', () => {
+        throw err;
+      });
+      db.exec('CREATE TABLE test (id NUMBER NOT NULL PRIMARY KEY, data TEXT)');
+      db.prepare('INSERT INTO test (id, data) VALUES (?, ?)').run(5, 'foo');
+      assert.deepStrictEqual(db.prepare('SELECT * FROM test').get(), expected);
+      assert.throws(() => {
+        db.exec('UPDATE test SET data = THROWS()');
+      }, err);
+      assert.deepStrictEqual(db.prepare('SELECT * FROM test').get(), expected);
+    });
+  });
+
   test('supported argument types', () => {
     const db = new DatabaseSync(':memory:');
     db.function('arguments', (i, f, s, n, b) => {
