@@ -997,9 +997,9 @@ parser.add_argument('--clang-cl',
          'variable to 1 and "llvm_version" to the specified value.')
 parser.add_argument('--use-ccache-win',
     action='store_true',
-    dest='ccache_used',
+    dest='use_ccache_win',
     default=None,
-    help='Ccache is used in compulation on Windows.')
+    help='Use ccache for compiling on Windows. ')
 
 (options, args) = parser.parse_known_args()
 
