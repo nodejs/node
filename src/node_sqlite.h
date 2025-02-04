@@ -71,6 +71,13 @@ class DatabaseSync : public BaseObject {
   bool IsOpen();
   sqlite3* Connection();
 
+  // In some situations, such as when using custom functions, it is possible
+  // that SQLite reports an error while JavaScript already has a pending
+  // exception. In this case, the SQLite error should be ignored. These methods
+  // enable that use case.
+  void SetIgnoreNextSQLiteError(bool ignore);
+  bool ShouldIgnoreSQLiteError();
+
   SET_MEMORY_INFO_NAME(DatabaseSync)
   SET_SELF_SIZE(DatabaseSync)
 
@@ -83,6 +90,7 @@ class DatabaseSync : public BaseObject {
   bool allow_load_extension_;
   bool enable_load_extension_;
   sqlite3* connection_;
+  bool ignore_next_sqlite_error_;
 
   std::set<sqlite3_session*> sessions_;
   std::unordered_set<StatementSync*> statements_;
@@ -165,6 +173,23 @@ class Session : public BaseObject {
   void Delete();
   sqlite3_session* session_;
   BaseObjectWeakPtr<DatabaseSync> database_;  // The Parent Database
+};
+
+class UserDefinedFunction {
+ public:
+  UserDefinedFunction(Environment* env,
+                      v8::Local<v8::Function> fn,
+                      DatabaseSync* db,
+                      bool use_bigint_args);
+  ~UserDefinedFunction();
+  static void xFunc(sqlite3_context* ctx, int argc, sqlite3_value** argv);
+  static void xDestroy(void* self);
+
+ private:
+  Environment* env_;
+  v8::Global<v8::Function> fn_;
+  DatabaseSync* db_;
+  bool use_bigint_args_;
 };
 
 }  // namespace sqlite
