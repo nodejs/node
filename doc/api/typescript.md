@@ -208,9 +208,9 @@ with `#`.
 [CommonJS]: modules.md
 [ES Modules]: esm.md
 [Full TypeScript support]: #full-typescript-support
-[`ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`]: errors.md#err_unsupported_typescript_syntax
 [`--experimental-strip-types`]: cli.md#--experimental-strip-types
 [`--experimental-transform-types`]: cli.md#--experimental-transform-types
+[`ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`]: errors.md#err_unsupported_typescript_syntax
 [`tsconfig` "paths"]: https://www.typescriptlang.org/tsconfig/#paths
 [`tsx`]: https://tsx.is/
 [`verbatimModuleSyntax`]: https://www.typescriptlang.org/tsconfig/#verbatimModuleSyntax
