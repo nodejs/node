@@ -208,7 +208,7 @@ if defined debug_nghttp2    set configure_flags=%configure_flags% --debug-nghttp
 if defined openssl_no_asm   set configure_flags=%configure_flags% --openssl-no-asm
 if defined no_shared_roheap set configure_flags=%configure_flags% --disable-shared-readonly-heap
 if defined DEBUG_HELPER     set configure_flags=%configure_flags% --verbose
-if defined ccache_path      set configure_flags=%configure_flags% --ccache-used
+if defined ccache_path      set configure_flags=%configure_flags% --use-ccache-win
 if defined compile_commands set configure_flags=%configure_flags% -C
 
 if "%target_arch%"=="x86" (
