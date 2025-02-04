@@ -110,9 +110,28 @@ using v8::Value;
 
 namespace {
 
+// Utility function to get the file extension from a filename
+std::string GetFileExtension(std::string_view filename) {
+  size_t dot_position = filename.find_last_of('.');
+  if (dot_position == std::string_view::npos) {
+    return "";  // No extension found
+  }
+  return std::string(filename.substr(dot_position));
+}
+
+std::string GetWarningMessage(const std::string& file_extension) {
+  if (file_extension == ".cjs") {
+    return "Cannot use 'import' statement in a .cjs file. "
+           "CommonJS files (.cjs) do not support 'import'. Use 'require()' instead.";
+  }
+  return "To load an ES module, set \"type\": \"module\" in the package.json "
+         "or use the .mjs extension.";
+}
+
 // Convert an int to a V8 Name (String or Symbol).
 Local<Name> Uint32ToName(Local<Context> context, uint32_t index) {
-  return Uint32::New(context->GetIsolate(), index)->ToString(context)
+  return Uint32::New(context->GetIsolate(), index)
+      ->ToString(context)
       .ToLocalChecked();
 }
 
@@ -435,8 +454,7 @@ void ContextifyContext::MakeContext(const FunctionCallbackInfo<Value>& args) {
       ContextifyContext::New(env, sandbox, &options);
 
   if (try_catch.HasCaught()) {
-    if (!try_catch.HasTerminated())
-      try_catch.ReThrow();
+    if (!try_catch.HasTerminated()) try_catch.ReThrow();
     return;
   }
 
@@ -546,11 +564,9 @@ Intercepted ContextifyContext::PropertyGetterCallback(
   Local<Object> sandbox = ctx->sandbox();
 
   TryCatchScope try_catch(env);
-  MaybeLocal<Value> maybe_rv =
-      sandbox->GetRealNamedProperty(context, property);
+  MaybeLocal<Value> maybe_rv = sandbox->GetRealNamedProperty(context, property);
   if (maybe_rv.IsEmpty()) {
-    maybe_rv =
-        ctx->global_proxy()->GetRealNamedProperty(context, property);
+    maybe_rv = ctx->global_proxy()->GetRealNamedProperty(context, property);
   }
 
   Local<Value> rv;
@@ -558,8 +574,7 @@ Intercepted ContextifyContext::PropertyGetterCallback(
     if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
       try_catch.ReThrow();
     }
-    if (rv == sandbox)
-      rv = ctx->global_proxy();
+    if (rv == sandbox) rv = ctx->global_proxy();
 
     args.GetReturnValue().Set(rv);
     return Intercepted::kYes;
@@ -581,19 +596,19 @@ Intercepted ContextifyContext::PropertySetterCallback(
 
   Local<Context> context = ctx->context();
   PropertyAttribute attributes = PropertyAttribute::None;
-  bool is_declared_on_global_proxy = ctx->global_proxy()
-      ->GetRealNamedPropertyAttributes(context, property)
-      .To(&attributes);
-  bool read_only =
-      static_cast<int>(attributes) &
-      static_cast<int>(PropertyAttribute::ReadOnly);
+  bool is_declared_on_global_proxy =
+      ctx->global_proxy()
+          ->GetRealNamedPropertyAttributes(context, property)
+          .To(&attributes);
+  bool read_only = static_cast<int>(attributes) &
+                   static_cast<int>(PropertyAttribute::ReadOnly);
 
-  bool is_declared_on_sandbox = ctx->sandbox()
-      ->GetRealNamedPropertyAttributes(context, property)
-      .To(&attributes);
-  read_only = read_only ||
-      (static_cast<int>(attributes) &
-      static_cast<int>(PropertyAttribute::ReadOnly));
+  bool is_declared_on_sandbox =
+      ctx->sandbox()
+          ->GetRealNamedPropertyAttributes(context, property)
+          .To(&attributes);
+  read_only = read_only || (static_cast<int>(attributes) &
+                            static_cast<int>(PropertyAttribute::ReadOnly));
 
   if (read_only) {
     return Intercepted::kNo;
@@ -686,13 +701,11 @@ Intercepted ContextifyContext::PropertyDefinerCallback(
   Isolate* isolate = context->GetIsolate();
 
   PropertyAttribute attributes = PropertyAttribute::None;
-  bool is_declared =
-      ctx->global_proxy()->GetRealNamedPropertyAttributes(context,
-                                                          property)
-          .To(&attributes);
-  bool read_only =
-      static_cast<int>(attributes) &
-          static_cast<int>(PropertyAttribute::ReadOnly);
+  bool is_declared = ctx->global_proxy()
+                         ->GetRealNamedPropertyAttributes(context, property)
+                         .To(&attributes);
+  bool read_only = static_cast<int>(attributes) &
+                   static_cast<int>(PropertyAttribute::ReadOnly);
   bool dont_delete = static_cast<int>(attributes) &
                      static_cast<int>(PropertyAttribute::DontDelete);
 
@@ -704,17 +717,16 @@ Intercepted ContextifyContext::PropertyDefinerCallback(
 
   Local<Object> sandbox = ctx->sandbox();
 
-  auto define_prop_on_sandbox =
-      [&] (PropertyDescriptor* desc_for_sandbox) {
-        if (desc.has_enumerable()) {
-          desc_for_sandbox->set_enumerable(desc.enumerable());
-        }
-        if (desc.has_configurable()) {
-          desc_for_sandbox->set_configurable(desc.configurable());
-        }
-        // Set the property on the sandbox.
-        USE(sandbox->DefineProperty(context, property, *desc_for_sandbox));
-      };
+  auto define_prop_on_sandbox = [&](PropertyDescriptor* desc_for_sandbox) {
+    if (desc.has_enumerable()) {
+      desc_for_sandbox->set_enumerable(desc.enumerable());
+    }
+    if (desc.has_configurable()) {
+      desc_for_sandbox->set_configurable(desc.configurable());
+    }
+    // Set the property on the sandbox.
+    USE(sandbox->DefineProperty(context, property, *desc_for_sandbox));
+  };
 
   if (desc.has_get() || desc.has_set()) {
     PropertyDescriptor desc_for_sandbox(
@@ -1066,8 +1078,7 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
   if (!maybe_v8_script.ToLocal(&v8_script)) {
     errors::DecorateErrorStack(env, try_catch);
     no_abort_scope.Close();
-    if (!try_catch.HasTerminated())
-      try_catch.ReThrow();
+    if (!try_catch.HasTerminated()) try_catch.ReThrow();
     TRACE_EVENT_END0(TRACING_CATEGORY_NODE2(vm, script),
                      "ContextifyScript::New");
     return;
@@ -1166,8 +1177,7 @@ MaybeLocal<Function> CompileFunction(Local<Context> context,
                                          nullptr);
 }
 
-bool ContextifyScript::InstanceOf(Environment* env,
-                                  const Local<Value>& value) {
+bool ContextifyScript::InstanceOf(Environment* env, const Local<Value>& value) {
   return !value.IsEmpty() &&
          env->script_context_constructor_template()->HasInstance(value);
 }
@@ -1182,10 +1192,10 @@ void ContextifyScript::CreateCachedData(
   if (!cached_data) {
     args.GetReturnValue().Set(Buffer::New(env, 0).ToLocalChecked());
   } else {
-    MaybeLocal<Object> buf = Buffer::Copy(
-        env,
-        reinterpret_cast<const char*>(cached_data->data),
-        cached_data->length);
+    MaybeLocal<Object> buf =
+        Buffer::Copy(env,
+                     reinterpret_cast<const char*>(cached_data->data),
+                     cached_data->length);
     args.GetReturnValue().Set(buf.ToLocalChecked());
   }
 }
@@ -1252,12 +1262,10 @@ bool ContextifyScript::EvalMachine(Local<Context> context,
                                    const FunctionCallbackInfo<Value>& args) {
   Context::Scope context_scope(context);
 
-  if (!env->can_call_into_js())
-    return false;
+  if (!env->can_call_into_js()) return false;
   if (!ContextifyScript::InstanceOf(env, args.This())) {
     THROW_ERR_INVALID_THIS(
-        env,
-        "Script methods can only be called on script instances.");
+        env, "Script methods can only be called on script instances.");
     return false;
   }
 
@@ -1313,8 +1321,7 @@ bool ContextifyScript::EvalMachine(Local<Context> context,
 
   // Convert the termination exception into a regular exception.
   if (timed_out || received_signal) {
-    if (!env->is_main_thread() && env->is_stopping())
-      return false;
+    if (!env->is_main_thread() && env->is_stopping()) return false;
     env->isolate()->CancelTerminateExecution();
     // It is possible that execution was terminated by another timeout in
     // which this timeout is nested, so check whether one of the watchdogs
@@ -1337,8 +1344,7 @@ bool ContextifyScript::EvalMachine(Local<Context> context,
     // letting try_catch catch it.
     // If execution has been terminated, but not by one of the watchdogs from
     // this invocation, this will re-throw a `null` value.
-    if (!try_catch.HasTerminated())
-      try_catch.ReThrow();
+    if (!try_catch.HasTerminated()) try_catch.ReThrow();
 
     return false;
   }
@@ -1404,8 +1410,8 @@ void ContextifyContext::CompileFunction(
   if (!args[6]->IsUndefined()) {
     CHECK(args[6]->IsObject());
     ContextifyContext* sandbox =
-        ContextifyContext::ContextFromContextifiedSandbox(
-            env, args[6].As<Object>());
+        ContextifyContext::ContextFromContextifiedSandbox(env,
+                                                          args[6].As<Object>());
     CHECK_NOT_NULL(sandbox);
     parsing_context = sandbox->context();
   } else {
@@ -1435,7 +1441,7 @@ void ContextifyContext::CompileFunction(
   if (!cached_data_buf.IsEmpty()) {
     uint8_t* data = static_cast<uint8_t*>(cached_data_buf->Buffer()->Data());
     cached_data = new ScriptCompiler::CachedData(
-      data + cached_data_buf->ByteOffset(), cached_data_buf->ByteLength());
+        data + cached_data_buf->ByteOffset(), cached_data_buf->ByteLength());
   }
 
   Local<PrimitiveArray> host_defined_options =
@@ -1686,13 +1692,6 @@ static MaybeLocal<Function> CompileFunctionForCJSLoader(
 }
 
 static bool warned_about_require_esm = false;
-// TODO(joyeecheung): this was copied from the warning previously emitted in the
-// JS land, but it's not very helpful. There should be specific information
-// about which file or which package.json to update.
-const char* require_esm_warning =
-    "To load an ES module, set \"type\": \"module\" in the package.json or use "
-    "the .mjs extension.";
-
 static bool ShouldRetryAsESM(Realm* realm,
                              Local<String> message,
                              Local<String> code,
@@ -1759,6 +1758,10 @@ static void CompileFunctionForCJSLoader(
     // be reparsed as ESM.
     Utf8Value filename_utf8(isolate, filename);
     std::string url = url::FromFilePath(filename_utf8.ToStringView());
+    std::string file_extension = GetFileExtension(filename_utf8.ToStringView());
+    // TODO(wongprom): Enhance require_esm_warning to include
+    // the specific package.json file location, if applicable.
+    std::string require_esm_warning = GetWarningMessage(file_extension);
     Local<String> url_value;
     if (!String::NewFromUtf8(isolate, url.c_str()).ToLocal(&url_value)) {
       return;
