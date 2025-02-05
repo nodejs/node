@@ -580,7 +580,7 @@ property throw an exception with the code `ERR_PROTO_ACCESS`.
 ### `--disable-sigusr1`
 
 <!-- YAML
-added: REPLACEME
+added: v23.7.0
 -->
 
 > Stability: 1.2 - Release candidate
@@ -799,6 +799,8 @@ node --entry-url 'data:text/javascript,console.log("Hello")'
 ```
 
 ### `--env-file-if-exists=config`
+
+> Stability: 1.1 - Active development
 
 <!-- YAML
 added: v22.9.0
@@ -2861,6 +2863,13 @@ The following values are valid for `mode`:
 * `silent`: If supported by the OS, mapping will be attempted. Failure to map
   will be ignored and will not be reported.
 
+### `--use-system-ca`
+
+Node.js uses the trusted CA certificates present in the system store along with
+the `--use-bundled-ca`, `--use-openssl-ca` options.
+
+This option is available to macOS only.
+
 ### `--v8-options`
 
 <!-- YAML
@@ -3260,6 +3269,7 @@ one is included in the list below.
 * `--use-bundled-ca`
 * `--use-largepages`
 * `--use-openssl-ca`
+* `--use-system-ca`
 * `--v8-pool-size`
 * `--watch-path`
 * `--watch-preserve-output`

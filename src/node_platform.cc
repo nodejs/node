@@ -556,8 +556,8 @@ bool NodePlatform::IdleTasksEnabled(Isolate* isolate) {
   return ForIsolate(isolate)->IdleTasksEnabled();
 }
 
-std::shared_ptr<v8::TaskRunner>
-NodePlatform::GetForegroundTaskRunner(Isolate* isolate) {
+std::shared_ptr<v8::TaskRunner> NodePlatform::GetForegroundTaskRunner(
+    Isolate* isolate, v8::TaskPriority priority) {
   return ForIsolate(isolate)->GetForegroundTaskRunner();
 }
 

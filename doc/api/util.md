@@ -371,10 +371,10 @@ util.formatWithOptions({ colors: true }, 'See object %O', { foo: 42 });
 <!-- YAML
 added: v22.9.0
 changes:
-  - version: REPLACEME
+  - version: v23.7.0
     pr-url: https://github.com/nodejs/node/pull/56584
     description: Property `column` is deprecated in favor of `columnNumber`.
-  - version: REPLACEME
+  - version: v23.7.0
     pr-url: https://github.com/nodejs/node/pull/56551
     description: Property `CallSite.scriptId` is exposed.
   - version:
@@ -1988,7 +1988,7 @@ const errorMessage = styleText(
   // Validate if process.stderr has TTY
   { stream: stderr },
 );
-console.error(successMessage);
+console.error(errorMessage);
 ```
 
 `util.inspect.colors` also provides text formats such as `italic`, and

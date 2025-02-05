@@ -13,6 +13,7 @@ namespace node {
 
 using ncrypto::BignumPointer;
 using ncrypto::ClearErrorOnReturn;
+using ncrypto::DataPointer;
 using v8::ArrayBuffer;
 using v8::Boolean;
 using v8::FunctionCallbackInfo;
@@ -196,9 +197,9 @@ bool CheckPrimeTraits::DeriveBits(
   int ret = params.candidate.isPrime(params.checks, getPrimeCheckCallback(env));
   if (ret < 0) [[unlikely]]
     return false;
-  ByteSource::Builder buf(1);
-  buf.data<char>()[0] = ret;
-  *out = std::move(buf).release();
+  auto buf = DataPointer::Alloc(1);
+  static_cast<char*>(buf.get())[0] = ret;
+  *out = ByteSource::Allocated(buf.release());
   return true;
 }
 

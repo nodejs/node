@@ -1599,7 +1599,7 @@ const { findSourceMap, SourceMap } = require('node:module');
 ### `module.getSourceMapsSupport()`
 
 <!-- YAML
-added: REPLACEME
+added: v23.7.0
 -->
 
 * Returns: {Object}
@@ -1632,7 +1632,7 @@ should be fetched.
 ### `module.setSourceMapsSupport(enabled[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v23.7.0
 -->
 
 * `enabled` {boolean} Enable the source map support.

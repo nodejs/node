@@ -115,9 +115,9 @@ struct DHBitsTraits final {
 
 using DHBitsJob = DeriveBitsJob<DHBitsTraits>;
 
-v8::Maybe<void> GetDhKeyDetail(Environment* env,
-                               const KeyObjectData& key,
-                               v8::Local<v8::Object> target);
+bool GetDhKeyDetail(Environment* env,
+                    const KeyObjectData& key,
+                    v8::Local<v8::Object> target);
 
 }  // namespace crypto
 }  // namespace node

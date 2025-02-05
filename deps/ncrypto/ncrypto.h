@@ -40,6 +40,14 @@
 #define NCRYPTO_MUST_USE_RESULT
 #endif
 
+#ifdef OPENSSL_IS_BORINGSSL
+// Boringssl has opted to use size_t for some size related
+// APIs while Openssl is still using ints
+using OPENSSL_SIZE_T = size_t;
+#else
+using OPENSSL_SIZE_T = int;
+#endif
+
 namespace ncrypto {
 
 // ============================================================================
@@ -221,6 +229,7 @@ class ECDSASigPointer;
 class ECGroupPointer;
 class ECPointPointer;
 class ECKeyPointer;
+class Dsa;
 class Rsa;
 class Ec;
 
@@ -267,7 +276,7 @@ class Cipher final {
 
   bool isSupportedAuthenticatedMode() const;
 
-  static const Cipher FromName(const char* name);
+  static const Cipher FromName(std::string_view name);
   static const Cipher FromNid(int nid);
   static const Cipher FromCtx(const CipherCtxPointer& ctx);
 
@@ -292,8 +301,33 @@ class Cipher final {
                              const CipherParams& params,
                              const Buffer<const void> in);
 
+  static constexpr bool IsValidGCMTagLength(unsigned int tag_len) {
+    return tag_len == 4 || tag_len == 8 || (tag_len >= 12 && tag_len <= 16);
+  }
+
  private:
   const EVP_CIPHER* cipher_ = nullptr;
+};
+
+// ============================================================================
+// DSA
+
+class Dsa final {
+ public:
+  Dsa();
+  Dsa(OSSL3_CONST DSA* dsa);
+  NCRYPTO_DISALLOW_COPY_AND_MOVE(Dsa)
+
+  inline operator bool() const { return dsa_ != nullptr; }
+  inline operator OSSL3_CONST DSA*() const { return dsa_; }
+
+  const BIGNUM* getP() const;
+  const BIGNUM* getQ() const;
+  size_t getModulusLength() const;
+  size_t getDivisorLength() const;
+
+ private:
+  OSSL3_CONST DSA* dsa_;
 };
 
 // ============================================================================
@@ -384,7 +418,12 @@ class DataPointer final {
 
   inline bool operator==(std::nullptr_t) noexcept { return data_ == nullptr; }
   inline operator bool() const { return data_ != nullptr; }
-  inline void* get() const noexcept { return data_; }
+
+  template <typename T = void>
+  inline T* get() const noexcept {
+    return static_cast<T*>(data_);
+  }
+
   inline size_t size() const noexcept { return len_; }
   void reset(void* data = nullptr, size_t len = 0);
   void reset(const Buffer<void>& buffer);
@@ -762,6 +801,7 @@ class EVPKeyPointer final {
   std::optional<uint32_t> getBytesOfRS() const;
   int getDefaultSignPadding() const;
   operator Rsa() const;
+  operator Dsa() const;
 
   bool isRsaVariant() const;
   bool isOneShotVariant() const;
@@ -813,17 +853,25 @@ class DHPointer final {
     UNABLE_TO_CHECK_GENERATOR = DH_UNABLE_TO_CHECK_GENERATOR,
     NOT_SUITABLE_GENERATOR = DH_NOT_SUITABLE_GENERATOR,
     Q_NOT_PRIME = DH_CHECK_Q_NOT_PRIME,
+#ifndef OPENSSL_IS_BORINGSSL
+    // Boringssl does not define the DH_CHECK_INVALID_[Q or J]_VALUE
     INVALID_Q = DH_CHECK_INVALID_Q_VALUE,
     INVALID_J = DH_CHECK_INVALID_J_VALUE,
+#endif
     CHECK_FAILED = 512,
   };
   CheckResult check();
 
   enum class CheckPublicKeyResult {
     NONE,
+#ifndef OPENSSL_IS_BORINGSSL
+    // Boringssl does not define DH_R_CHECK_PUBKEY_TOO_SMALL or TOO_LARGE
     TOO_SMALL = DH_R_CHECK_PUBKEY_TOO_SMALL,
     TOO_LARGE = DH_R_CHECK_PUBKEY_TOO_LARGE,
     INVALID = DH_R_CHECK_PUBKEY_INVALID,
+#else
+    INVALID = DH_R_INVALID_PUBKEY,
+#endif
     CHECK_FAILED = 512,
   };
   // Check to see if the given public key is suitable for this DH instance.
@@ -914,6 +962,10 @@ class SSLPointer final {
   const SSL_CIPHER* getCipher() const;
   bool isServer() const;
 
+  std::optional<std::string_view> getCipherName() const;
+  std::optional<std::string_view> getCipherStandardName() const;
+  std::optional<std::string_view> getCipherVersion() const;
+
   std::optional<uint32_t> verifyPeerCertificate() const;
 
   void getCiphers(std::function<void(const std::string_view)> cb) const;
@@ -923,6 +975,43 @@ class SSLPointer final {
 
  private:
   DeleteFnPtr<SSL, SSL_free> ssl_;
+};
+
+class X509Name final {
+ public:
+  X509Name();
+  explicit X509Name(const X509_NAME* name);
+  NCRYPTO_DISALLOW_COPY_AND_MOVE(X509Name)
+
+  inline operator const X509_NAME*() const { return name_; }
+  inline operator bool() const { return name_ != nullptr; }
+  inline const X509_NAME* get() const { return name_; }
+  inline size_t size() const { return total_; }
+
+  class Iterator final {
+   public:
+    Iterator(const X509Name& name, int pos);
+    Iterator(const Iterator& other) = default;
+    Iterator(Iterator&& other) = default;
+    Iterator& operator=(const Iterator& other) = delete;
+    Iterator& operator=(Iterator&& other) = delete;
+    Iterator& operator++();
+    operator bool() const;
+    bool operator==(const Iterator& other) const;
+    bool operator!=(const Iterator& other) const;
+    std::pair<std::string, std::string> operator*() const;
+
+   private:
+    const X509Name& name_;
+    int loc_;
+  };
+
+  inline Iterator begin() const { return Iterator(*this, 0); }
+  inline Iterator end() const { return Iterator(*this, total_); }
+
+ private:
+  const X509_NAME* name_;
+  int total_;
 };
 
 class X509View final {
@@ -946,6 +1035,8 @@ class X509View final {
   BIOPointer toPEM() const;
   BIOPointer toDER() const;
 
+  const X509Name getSubjectName() const;
+  const X509Name getIssuerName() const;
   BIOPointer getSubject() const;
   BIOPointer getSubjectAltName() const;
   BIOPointer getIssuer() const;

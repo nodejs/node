@@ -61,6 +61,7 @@ const conditionalOpts = [
         '--tls-cipher-list',
         '--use-bundled-ca',
         '--use-openssl-ca',
+        common.isMacOS ? '--use-system-ca' : '',
         '--secure-heap',
         '--secure-heap-min',
         '--enable-fips',

@@ -1,4 +1,5 @@
 #include "ncrypto.h"
+#include <openssl/asn1.h>
 #include <openssl/bn.h>
 #include <openssl/dh.h>
 #include <openssl/evp.h>
@@ -99,7 +100,15 @@ std::optional<std::string> CryptoErrorList::pop_front() {
 
 // ============================================================================
 DataPointer DataPointer::Alloc(size_t len) {
+#ifdef OPENSSL_IS_BORINGSSL
+  // Boringssl does not implement OPENSSL_zalloc
+  auto ptr = OPENSSL_malloc(len);
+  if (ptr == nullptr) return {};
+  memset(ptr, 0, len);
+  return DataPointer(ptr, len);
+#else
   return DataPointer(OPENSSL_zalloc(len), len);
+#endif
 }
 
 DataPointer DataPointer::Copy(const Buffer<const void>& buffer) {
@@ -218,7 +227,12 @@ BignumPointer BignumPointer::New() {
 }
 
 BignumPointer BignumPointer::NewSecure() {
+#ifdef OPENSSL_IS_BORINGSSL
+  // Boringssl does not implement BN_secure_new.
+  return New();
+#else
   return BignumPointer(BN_secure_new());
+#endif
 }
 
 BignumPointer& BignumPointer::operator=(BignumPointer&& other) noexcept {
@@ -492,6 +506,7 @@ constexpr int days_from_epoch(int y, unsigned m, unsigned d) {
   return era * 146097 + static_cast<int>(doe) - 719468;
 }
 
+#ifndef OPENSSL_IS_BORINGSSL
 // tm must be in UTC
 // using time_t causes problems on 32-bit systems and windows x64.
 int64_t PortableTimeGM(struct tm* t) {
@@ -512,6 +527,7 @@ int64_t PortableTimeGM(struct tm* t) {
                t->tm_min) +
          t->tm_sec;
 }
+#endif
 
 // ============================================================================
 // SPKAC
@@ -822,7 +838,7 @@ bool SafeX509SubjectAltNamePrint(const BIOPointer& out, X509_EXTENSION* ext) {
 
   bool ok = true;
 
-  for (int i = 0; i < sk_GENERAL_NAME_num(names); i++) {
+  for (OPENSSL_SIZE_T i = 0; i < sk_GENERAL_NAME_num(names); i++) {
     GENERAL_NAME* gen = sk_GENERAL_NAME_value(names, i);
 
     if (i != 0) BIO_write(out.get(), ", ", 2);
@@ -846,7 +862,7 @@ bool SafeX509InfoAccessPrint(const BIOPointer& out, X509_EXTENSION* ext) {
 
   bool ok = true;
 
-  for (int i = 0; i < sk_ACCESS_DESCRIPTION_num(descs); i++) {
+  for (OPENSSL_SIZE_T i = 0; i < sk_ACCESS_DESCRIPTION_num(descs); i++) {
     ACCESS_DESCRIPTION* desc = sk_ACCESS_DESCRIPTION_value(descs, i);
 
     if (i != 0) BIO_write(out.get(), "\n", 1);
@@ -913,6 +929,18 @@ BIOPointer X509View::toDER() const {
   if (!bio) return {};
   if (i2d_X509_bio(bio.get(), const_cast<X509*>(cert_)) <= 0) return {};
   return bio;
+}
+
+const X509Name X509View::getSubjectName() const {
+  ClearErrorOnReturn clearErrorOnReturn;
+  if (cert_ == nullptr) return {};
+  return X509Name(X509_get_subject_name(cert_));
+}
+
+const X509Name X509View::getIssuerName() const {
+  ClearErrorOnReturn clearErrorOnReturn;
+  if (cert_ == nullptr) return {};
+  return X509Name(X509_get_issuer_name(cert_));
 }
 
 BIOPointer X509View::getSubject() const {
@@ -987,15 +1015,31 @@ BIOPointer X509View::getValidTo() const {
 }
 
 int64_t X509View::getValidToTime() const {
+#ifdef OPENSSL_IS_BORINGSSL
+  // Boringssl does not implement ASN1_TIME_to_tm in a public way,
+  // and only recently added ASN1_TIME_to_posix. Some boringssl
+  // users on older version may still need to patch around this
+  // or use a different implementation.
+  int64_t tp;
+  ASN1_TIME_to_posix(X509_get0_notAfter(cert_), &tp);
+  return tp;
+#else
   struct tm tp;
   ASN1_TIME_to_tm(X509_get0_notAfter(cert_), &tp);
   return PortableTimeGM(&tp);
+#endif
 }
 
 int64_t X509View::getValidFromTime() const {
+#ifdef OPENSSL_IS_BORINGSSL
+  int64_t tp;
+  ASN1_TIME_to_posix(X509_get0_notBefore(cert_), &tp);
+  return tp;
+#else
   struct tm tp;
   ASN1_TIME_to_tm(X509_get0_notBefore(cert_), &tp);
   return PortableTimeGM(&tp);
+#endif
 }
 
 DataPointer X509View::getSerialNumber() const {
@@ -1312,7 +1356,12 @@ BIOPointer BIOPointer::NewMem() {
 }
 
 BIOPointer BIOPointer::NewSecMem() {
+#ifdef OPENSSL_IS_BORINGSSL
+  // Boringssl does not implement the BIO_s_secmem API.
+  return BIOPointer(BIO_new(BIO_s_mem()));
+#else
   return BIOPointer(BIO_new(BIO_s_secmem()));
+#endif
 }
 
 BIOPointer BIOPointer::New(const BIO_METHOD* method) {
@@ -1382,8 +1431,11 @@ BignumPointer DHPointer::FindGroup(const std::string_view name,
 #define V(n, p)                                                                \
   if (EqualNoCase(name, n)) return BignumPointer(p(nullptr));
   if (option != FindGroupOption::NO_SMALL_PRIMES) {
+#ifndef OPENSSL_IS_BORINGSSL
+    // Boringssl does not support the 768 and 1024 small primes
     V("modp1", BN_get_rfc2409_prime_768);
     V("modp2", BN_get_rfc2409_prime_1024);
+#endif
     V("modp5", BN_get_rfc3526_prime_1536);
   }
   V("modp14", BN_get_rfc3526_prime_2048);
@@ -1455,15 +1507,22 @@ DHPointer::CheckResult DHPointer::check() {
 DHPointer::CheckPublicKeyResult DHPointer::checkPublicKey(
     const BignumPointer& pub_key) {
   ClearErrorOnReturn clearErrorOnReturn;
-  if (!pub_key || !dh_) return DHPointer::CheckPublicKeyResult::CHECK_FAILED;
-  int codes = 0;
-  if (DH_check_pub_key(dh_.get(), pub_key.get(), &codes) != 1)
+  if (!pub_key || !dh_) {
     return DHPointer::CheckPublicKeyResult::CHECK_FAILED;
+  }
+  int codes = 0;
+  if (DH_check_pub_key(dh_.get(), pub_key.get(), &codes) != 1) {
+    return DHPointer::CheckPublicKeyResult::CHECK_FAILED;
+  }
+#ifndef OPENSSL_IS_BORINGSSL
+  // Boringssl does not define DH_CHECK_PUBKEY_TOO_SMALL or TOO_LARGE
   if (codes & DH_CHECK_PUBKEY_TOO_SMALL) {
     return DHPointer::CheckPublicKeyResult::TOO_SMALL;
-  } else if (codes & DH_CHECK_PUBKEY_TOO_SMALL) {
+  } else if (codes & DH_CHECK_PUBKEY_TOO_LARGE) {
     return DHPointer::CheckPublicKeyResult::TOO_LARGE;
-  } else if (codes != 0) {
+  }
+#endif
+  if (codes != 0) {
     return DHPointer::CheckPublicKeyResult::INVALID;
   }
   return CheckPublicKeyResult::NONE;
@@ -2390,6 +2449,15 @@ EVPKeyPointer::operator Rsa() const {
   return Rsa(rsa);
 }
 
+EVPKeyPointer::operator Dsa() const {
+  int type = id();
+  if (type != EVP_PKEY_DSA) return {};
+
+  OSSL3_CONST DSA* dsa = EVP_PKEY_get0_DSA(get());
+  if (dsa == nullptr) return {};
+  return Dsa(dsa);
+}
+
 bool EVPKeyPointer::validateDsaParameters() const {
   if (!pkey_) return false;
     /* Validate DSA2 parameters from FIPS 186-4 */
@@ -2509,6 +2577,7 @@ std::optional<uint32_t> SSLPointer::verifyPeerCertificate() const {
 
 const std::string_view SSLPointer::getClientHelloAlpn() const {
   if (ssl_ == nullptr) return {};
+#ifndef OPENSSL_IS_BORINGSSL
   const unsigned char* buf;
   size_t len;
   size_t rem;
@@ -2525,10 +2594,15 @@ const std::string_view SSLPointer::getClientHelloAlpn() const {
   len = (buf[0] << 8) | buf[1];
   if (len + 2 != rem) return {};
   return reinterpret_cast<const char*>(buf + 3);
+#else
+  // Boringssl doesn't have a public API for this.
+  return {};
+#endif
 }
 
 const std::string_view SSLPointer::getClientHelloServerName() const {
   if (ssl_ == nullptr) return {};
+#ifndef OPENSSL_IS_BORINGSSL
   const unsigned char* buf;
   size_t len;
   size_t rem;
@@ -2548,6 +2622,10 @@ const std::string_view SSLPointer::getClientHelloServerName() const {
   len = (*(buf + 3) << 8) | *(buf + 4);
   if (len + 2 > rem) return {};
   return reinterpret_cast<const char*>(buf + 5);
+#else
+  // Boringssl doesn't have a public API for this.
+  return {};
+#endif
 }
 
 std::optional<const std::string_view> SSLPointer::GetServerName(
@@ -2581,8 +2659,30 @@ bool SSLPointer::isServer() const {
 EVPKeyPointer SSLPointer::getPeerTempKey() const {
   if (!ssl_) return {};
   EVP_PKEY* raw_key = nullptr;
+#ifndef OPENSSL_IS_BORINGSSL
   if (!SSL_get_peer_tmp_key(get(), &raw_key)) return {};
+#else
+  if (!SSL_get_server_tmp_key(get(), &raw_key)) return {};
+#endif
   return EVPKeyPointer(raw_key);
+}
+
+std::optional<std::string_view> SSLPointer::getCipherName() const {
+  auto cipher = getCipher();
+  if (cipher == nullptr) return std::nullopt;
+  return SSL_CIPHER_get_name(cipher);
+}
+
+std::optional<std::string_view> SSLPointer::getCipherStandardName() const {
+  auto cipher = getCipher();
+  if (cipher == nullptr) return std::nullopt;
+  return SSL_CIPHER_standard_name(cipher);
+}
+
+std::optional<std::string_view> SSLPointer::getCipherVersion() const {
+  auto cipher = getCipher();
+  if (cipher == nullptr) return std::nullopt;
+  return SSL_CIPHER_get_version(cipher);
 }
 
 SSLCtxPointer::SSLCtxPointer(SSL_CTX* ctx) : ctx_(ctx) {}
@@ -2630,8 +2730,8 @@ bool SSLCtxPointer::setGroups(const char* groups) {
 
 // ============================================================================
 
-const Cipher Cipher::FromName(const char* name) {
-  return Cipher(EVP_get_cipherbyname(name));
+const Cipher Cipher::FromName(std::string_view name) {
+  return Cipher(EVP_get_cipherbyname(name.data()));
 }
 
 const Cipher Cipher::FromNid(int nid) {
@@ -3128,9 +3228,15 @@ int EVPKeyCtxPointer::initForSign() {
 }
 
 bool EVPKeyCtxPointer::setDhParameters(int prime_size, uint32_t generator) {
+#ifndef OPENSSL_IS_BORINGSSL
   if (!ctx_) return false;
   return EVP_PKEY_CTX_set_dh_paramgen_prime_len(ctx_.get(), prime_size) == 1 &&
          EVP_PKEY_CTX_set_dh_paramgen_generator(ctx_.get(), generator) == 1;
+#else
+  // TODO(jasnell): Boringssl appears not to support this operation.
+  // Is there an alternative approach that Boringssl does support?
+  return false;
+#endif
 }
 
 bool EVPKeyCtxPointer::setDsaParameters(uint32_t bits,
@@ -3210,6 +3316,7 @@ bool EVPKeyCtxPointer::setRsaPssSaltlen(int salt_len) {
 }
 
 bool EVPKeyCtxPointer::setRsaImplicitRejection() {
+#ifndef OPENSSL_IS_BORINGSSL
   if (!ctx_) return false;
   return EVP_PKEY_CTX_ctrl_str(
              ctx_.get(), "rsa_pkcs1_implicit_rejection", "1") > 0;
@@ -3220,6 +3327,11 @@ bool EVPKeyCtxPointer::setRsaImplicitRejection() {
   // of how it is set. The call to set the value
   // will not affect what is used since a different context is
   // used in the call if the option is supported
+#else
+  // TODO(jasnell): Boringssl appears not to support this operation.
+  // Is there an alternative approach that Boringssl does support?
+  return true;
+#endif
 }
 
 bool EVPKeyCtxPointer::setRsaOaepLabel(DataPointer&& data) {
@@ -3272,16 +3384,31 @@ EVPKeyPointer EVPKeyCtxPointer::paramgen() const {
 
 bool EVPKeyCtxPointer::publicCheck() const {
   if (!ctx_) return false;
+#ifndef OPENSSL_IS_BORINGSSL
+  return EVP_PKEY_public_check(ctx_.get()) == 1;
 #if OPENSSL_VERSION_MAJOR >= 3
   return EVP_PKEY_public_check_quick(ctx_.get()) == 1;
 #else
   return EVP_PKEY_public_check(ctx_.get()) == 1;
 #endif
+#else  // OPENSSL_IS_BORINGSSL
+  // Boringssl appears not to support this operation.
+  // TODO(jasnell): Is there an alternative approach that Boringssl does
+  // support?
+  return true;
+#endif
 }
 
 bool EVPKeyCtxPointer::privateCheck() const {
   if (!ctx_) return false;
+#ifndef OPENSSL_IS_BORINGSSL
   return EVP_PKEY_check(ctx_.get()) == 1;
+#else
+  // Boringssl appears not to support this operation.
+  // TODO(jasnell): Is there an alternative approach that Boringssl does
+  // support?
+  return true;
+#endif
 }
 
 bool EVPKeyCtxPointer::verify(const Buffer<const unsigned char>& sig,
@@ -3811,6 +3938,95 @@ DataPointer hashDigest(const Buffer<const unsigned char>& buf,
   }
 
   return data.resize(result_size);
+}
+
+// ============================================================================
+
+X509Name::X509Name() : name_(nullptr), total_(0) {}
+
+X509Name::X509Name(const X509_NAME* name)
+    : name_(name), total_(X509_NAME_entry_count(name)) {}
+
+X509Name::Iterator::Iterator(const X509Name& name, int pos)
+    : name_(name), loc_(pos) {}
+
+X509Name::Iterator& X509Name::Iterator::operator++() {
+  ++loc_;
+  return *this;
+}
+
+X509Name::Iterator::operator bool() const {
+  return loc_ < name_.total_;
+}
+
+bool X509Name::Iterator::operator==(const Iterator& other) const {
+  return loc_ == other.loc_;
+}
+
+bool X509Name::Iterator::operator!=(const Iterator& other) const {
+  return loc_ != other.loc_;
+}
+
+std::pair<std::string, std::string> X509Name::Iterator::operator*() const {
+  if (loc_ == name_.total_) return {{}, {}};
+
+  X509_NAME_ENTRY* entry = X509_NAME_get_entry(name_, loc_);
+  if (entry == nullptr) [[unlikely]]
+    return {{}, {}};
+
+  ASN1_OBJECT* name = X509_NAME_ENTRY_get_object(entry);
+  ASN1_STRING* value = X509_NAME_ENTRY_get_data(entry);
+
+  if (name == nullptr || value == nullptr) [[unlikely]] {
+    return {{}, {}};
+  }
+
+  int nid = OBJ_obj2nid(name);
+  std::string name_str;
+  if (nid != NID_undef) {
+    name_str = std::string(OBJ_nid2sn(nid));
+  } else {
+    char buf[80];
+    OBJ_obj2txt(buf, sizeof(buf), name, 0);
+    name_str = std::string(buf);
+  }
+
+  unsigned char* value_str;
+  int value_str_size = ASN1_STRING_to_UTF8(&value_str, value);
+
+  return {
+      std::move(name_str),
+      std::string(reinterpret_cast<const char*>(value_str), value_str_size)};
+}
+
+// ============================================================================
+
+Dsa::Dsa() : dsa_(nullptr) {}
+
+Dsa::Dsa(OSSL3_CONST DSA* dsa) : dsa_(dsa) {}
+
+const BIGNUM* Dsa::getP() const {
+  if (dsa_ == nullptr) return nullptr;
+  const BIGNUM* p;
+  DSA_get0_pqg(dsa_, &p, nullptr, nullptr);
+  return p;
+}
+
+const BIGNUM* Dsa::getQ() const {
+  if (dsa_ == nullptr) return nullptr;
+  const BIGNUM* q;
+  DSA_get0_pqg(dsa_, nullptr, &q, nullptr);
+  return q;
+}
+
+size_t Dsa::getModulusLength() const {
+  if (dsa_ == nullptr) return 0;
+  return BignumPointer::GetBitCount(getP());
+}
+
+size_t Dsa::getDivisorLength() const {
+  if (dsa_ == nullptr) return 0;
+  return BignumPointer::GetBitCount(getQ());
 }
 
 }  // namespace ncrypto

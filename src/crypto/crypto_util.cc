@@ -29,8 +29,11 @@ namespace node {
 using ncrypto::BignumPointer;
 using ncrypto::BIOPointer;
 using ncrypto::CryptoErrorList;
+using ncrypto::DataPointer;
 using ncrypto::EnginePointer;
 using ncrypto::EVPKeyCtxPointer;
+using ncrypto::SSLCtxPointer;
+using ncrypto::SSLPointer;
 using v8::ArrayBuffer;
 using v8::BackingStore;
 using v8::BigInt;
@@ -201,6 +204,27 @@ void TestFipsCrypto(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(ncrypto::testFipsEnabled() ? 1 : 0);
 }
 
+void GetOpenSSLSecLevelCrypto(const FunctionCallbackInfo<Value>& args) {
+  // for BoringSSL assume the same as the default
+  int sec_level = OPENSSL_TLS_SECURITY_LEVEL;
+#ifndef OPENSSL_IS_BORINGSSL
+  Environment* env = Environment::GetCurrent(args);
+
+  auto ctx = SSLCtxPointer::New();
+  if (!ctx) {
+    return ThrowCryptoError(env, ERR_get_error(), "SSL_CTX_new");
+  }
+
+  auto ssl = SSLPointer::New(ctx);
+  if (!ssl) {
+    return ThrowCryptoError(env, ERR_get_error(), "SSL_new");
+  }
+
+  sec_level = SSL_get_security_level(ssl);
+#endif  // OPENSSL_IS_BORINGSSL
+  args.GetReturnValue().Set(sec_level);
+}
+
 void CryptoErrorStore::Capture() {
   errors_.clear();
   while (const uint32_t err = ERR_get_error()) {
@@ -363,9 +387,9 @@ MaybeLocal<Uint8Array> ByteSource::ToBuffer(Environment* env) {
 ByteSource ByteSource::FromBIO(const BIOPointer& bio) {
   CHECK(bio);
   BUF_MEM* bptr = bio;
-  ByteSource::Builder out(bptr->length);
-  memcpy(out.data<void>(), bptr->data, bptr->length);
-  return std::move(out).release();
+  auto out = DataPointer::Alloc(bptr->length);
+  memcpy(out.get(), bptr->data, bptr->length);
+  return ByteSource::Allocated(out.release());
 }
 
 ByteSource ByteSource::FromEncodedString(Environment* env,
@@ -375,10 +399,10 @@ ByteSource ByteSource::FromEncodedString(Environment* env,
   ByteSource out;
 
   if (StringBytes::Size(env->isolate(), key, enc).To(&length) && length > 0) {
-    ByteSource::Builder buf(length);
-    size_t actual =
-        StringBytes::Write(env->isolate(), buf.data<char>(), length, key, enc);
-    out = std::move(buf).release(actual);
+    auto buf = DataPointer::Alloc(length);
+    size_t actual = StringBytes::Write(
+        env->isolate(), static_cast<char*>(buf.get()), length, key, enc);
+    out = ByteSource::Allocated(buf.resize(actual).release());
   }
 
   return out;
@@ -395,11 +419,12 @@ ByteSource ByteSource::FromString(Environment* env, Local<String> str,
   CHECK(str->IsString());
   size_t size = str->Utf8Length(env->isolate());
   size_t alloc_size = ntc ? size + 1 : size;
-  ByteSource::Builder out(alloc_size);
+  auto out = DataPointer::Alloc(alloc_size);
   int opts = String::NO_OPTIONS;
   if (!ntc) opts |= String::NO_NULL_TERMINATION;
-  str->WriteUtf8(env->isolate(), out.data<char>(), alloc_size, nullptr, opts);
-  return std::move(out).release();
+  str->WriteUtf8(
+      env->isolate(), static_cast<char*>(out.get()), alloc_size, nullptr, opts);
+  return ByteSource::Allocated(out.release());
 }
 
 ByteSource ByteSource::FromBuffer(Local<Value> buffer, bool ntc) {
@@ -657,18 +682,29 @@ void SecureBuffer(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsUint32());
   Environment* env = Environment::GetCurrent(args);
   uint32_t len = args[0].As<Uint32>()->Value();
+#ifndef OPENSSL_IS_BORINGSSL
   void* data = OPENSSL_secure_zalloc(len);
+#else
+  void* data = OPENSSL_malloc(len);
+#endif
   if (data == nullptr) {
     // There's no memory available for the allocation.
     // Return nothing.
     return;
   }
+#ifdef OPENSSL_IS_BORINGSSL
+  memset(data, 0, len);
+#endif
   std::shared_ptr<BackingStore> store =
       ArrayBuffer::NewBackingStore(
           data,
           len,
           [](void* data, size_t len, void* deleter_data) {
+#ifndef OPENSSL_IS_BORINGSSL
             OPENSSL_secure_clear_free(data, len);
+#else
+        OPENSSL_clear_free(data, len);
+#endif
           },
           data);
   Local<ArrayBuffer> buffer = ArrayBuffer::New(env->isolate(), store);
@@ -676,10 +712,16 @@ void SecureBuffer(const FunctionCallbackInfo<Value>& args) {
 }
 
 void SecureHeapUsed(const FunctionCallbackInfo<Value>& args) {
+#ifndef OPENSSL_IS_BORINGSSL
   Environment* env = Environment::GetCurrent(args);
   if (CRYPTO_secure_malloc_initialized())
     args.GetReturnValue().Set(
         BigInt::New(env->isolate(), CRYPTO_secure_used()));
+#else
+  // BoringSSL does not have the secure heap and therefore
+  // will always return 0.
+  args.GetReturnValue().Set(BigInt::New(args.GetIsolate(), 0));
+#endif
 }
 }  // namespace
 
@@ -699,6 +741,9 @@ void Initialize(Environment* env, Local<Object> target) {
 
   SetMethod(context, target, "secureBuffer", SecureBuffer);
   SetMethod(context, target, "secureHeapUsed", SecureHeapUsed);
+
+  SetMethodNoSideEffect(
+      context, target, "getOpenSSLSecLevelCrypto", GetOpenSSLSecLevelCrypto);
 }
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 #ifndef OPENSSL_NO_ENGINE
@@ -710,6 +755,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(TestFipsCrypto);
   registry->Register(SecureBuffer);
   registry->Register(SecureHeapUsed);
+  registry->Register(GetOpenSSLSecLevelCrypto);
 }
 
 }  // namespace Util
