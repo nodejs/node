@@ -41,6 +41,19 @@ bool HasOnlyStringMaps(JSHeapBroker* broker, ZoneVector<MapRef> const& maps) {
   return true;
 }
 
+bool HasOnlyStringWrapperMaps(JSHeapBroker* broker,
+                              ZoneVector<MapRef> const& maps) {
+  for (MapRef map : maps) {
+    if (!map.IsJSPrimitiveWrapperMap()) return false;
+    auto elements_kind = map.elements_kind();
+    if (elements_kind != FAST_STRING_WRAPPER_ELEMENTS &&
+        elements_kind != SLOW_STRING_WRAPPER_ELEMENTS) {
+      return false;
+    }
+  }
+  return true;
+}
+
 namespace {
 
 bool HasOnlyNumberMaps(JSHeapBroker* broker, ZoneVector<MapRef> const& maps) {
@@ -191,6 +204,12 @@ Node* PropertyAccessBuilder::TryFoldLoadConstantDataField(
   // If {access_info} has a holder, just use it.
   if (!holder.has_value()) {
     // Otherwise, try to match the {lookup_start_object} as a constant.
+    if (lookup_start_object->opcode() == IrOpcode::kCheckString ||
+        lookup_start_object->opcode() ==
+            IrOpcode::kCheckStringOrStringWrapper) {
+      // Bypassing Check inputs in order to allow constant folding.
+      lookup_start_object = lookup_start_object->InputAt(0);
+    }
     HeapObjectMatcher m(lookup_start_object);
     if (!m.HasResolvedValue() || !m.Ref(broker()).IsJSObject()) return nullptr;
 
@@ -318,6 +337,7 @@ Node* PropertyAccessBuilder::BuildLoadDataField(
       if (field_map->is_stable()) {
         dependencies()->DependOnStableMap(field_map.value());
         field_access.map = field_map;
+        field_access.type = Type::For(*field_map, broker());
       }
     }
   }

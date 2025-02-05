@@ -48,13 +48,13 @@ class PrototypeIterator {
 
   inline bool HasAccess() const;
 
-  template <typename T = HeapObject>
+  template <typename T = JSPrototype>
   Tagged<T> GetCurrent() const {
     DCHECK(handle_.is_null());
     return Cast<T>(object_);
   }
 
-  template <typename T = HeapObject>
+  template <typename T = JSPrototype>
   static Handle<T> GetCurrent(const PrototypeIterator& iterator) {
     DCHECK(!iterator.handle_.is_null());
     DCHECK_EQ(iterator.object_, Tagged<HeapObject>());
@@ -76,8 +76,8 @@ class PrototypeIterator {
 
  private:
   Isolate* isolate_;
-  Tagged<Object> object_ = Tagged<HeapObject>();
-  Handle<HeapObject> handle_;
+  Tagged<JSPrototype> object_ = {};
+  Handle<JSPrototype> handle_;
   WhereToEnd where_to_end_;
   bool is_at_end_;
   int seen_proxies_;

@@ -748,6 +748,34 @@ void CodeGenerator::AssembleCodeStartRegisterCheck() {
   __ Assert(eq, AbortReason::kWrongFunctionCodeStart);
 }
 
+#ifdef V8_ENABLE_LEAPTIERING
+// Check that {kJavaScriptCallDispatchHandleRegister} is correct.
+void CodeGenerator::AssembleDispatchHandleRegisterCheck() {
+  DCHECK(linkage()->GetIncomingDescriptor()->IsJSFunctionCall());
+
+  // We currently don't check this for JS builtins as those are sometimes
+  // called directly (e.g. from other builtins) and not through the dispatch
+  // table. This is fine as builtin functions don't use the dispatch handle,
+  // but we could enable this check in the future if we make sure to pass the
+  // kInvalidDispatchHandle whenever we do a direct call to a JS builtin.
+  if (Builtins::IsBuiltinId(info()->builtin())) {
+    return;
+  }
+
+  // For now, we only ensure that the register references a valid dispatch
+  // entry with the correct parameter count. In the future, we may also be able
+  // to check that the entry points back to this code.
+  UseScratchRegisterScope temps(masm());
+  Register actual_parameter_count = temps.AcquireX();
+  Register scratch = temps.AcquireX();
+  __ LoadParameterCountFromJSDispatchTable(
+      actual_parameter_count, kJavaScriptCallDispatchHandleRegister, scratch);
+  __ Mov(scratch, parameter_count_);
+  __ cmp(actual_parameter_count, scratch);
+  __ Assert(eq, AbortReason::kWrongFunctionDispatchHandle);
+}
+#endif  // V8_ENABLE_LEAPTIERING
+
 void CodeGenerator::BailoutIfDeoptimized() { __ BailoutIfDeoptimized(); }
 
 // Assembles an instruction after register allocation, producing machine code.
@@ -860,7 +888,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ cmp(cp, temp);
         __ Assert(eq, AbortReason::kWrongFunctionContext);
       }
-      __ CallJSFunction(func);
+      uint32_t num_arguments =
+          i.InputUint32(instr->JSCallArgumentCountInputIndex());
+      __ CallJSFunction(func, num_arguments);
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
       break;
@@ -1882,6 +1912,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArm64Float64ToFloat32:
       __ Fcvt(i.OutputDoubleRegister().S(), i.InputDoubleRegister(0));
+      break;
+    case kArm64Float64ToFloat16:
+      __ Fcvt(i.OutputDoubleRegister().H(), i.InputDoubleRegister(0));
       break;
     case kArm64Float32ToInt32: {
       __ Fcvtzs(i.OutputRegister32(), i.InputFloat32Register(0));
@@ -3534,34 +3567,36 @@ void CodeGenerator::AssembleArchBinarySearchSwitch(Instruction* instr) {
 void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
   Arm64OperandConverter i(this, instr);
   UseScratchRegisterScope scope(masm());
-  Register input = i.InputRegister32(0);
-  Register temp = scope.AcquireX();
+  Register input = i.InputRegister64(0);
   size_t const case_count = instr->InputCount() - 2;
-  Label table;
-  __ Cmp(input, case_count);
-  __ B(hs, GetLabel(i.InputRpo(1)));
-  __ Adr(temp, &table);
-  int entry_size_log2 = 2;
-#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
-  ++entry_size_log2;  // Account for BTI.
-  constexpr int instructions_per_jump_target = 1;
-#else
-  constexpr int instructions_per_jump_target = 0;
-#endif
-  constexpr int instructions_per_case = 1 + instructions_per_jump_target;
-  __ Add(temp, temp, Operand(input, UXTW, entry_size_log2));
-  __ Br(temp);
-  {
-    const size_t instruction_count =
-        case_count * instructions_per_case + instructions_per_jump_target;
-    MacroAssembler::BlockPoolsScope block_pools(masm(),
-                                                instruction_count * kInstrSize);
-    __ Bind(&table);
-    for (size_t index = 0; index < case_count; ++index) {
-      __ JumpTarget();
-      __ B(GetLabel(i.InputRpo(index + 2)));
-    }
-    __ JumpTarget();
+
+  base::Vector<Label*> cases = zone()->AllocateVector<Label*>(case_count);
+  for (size_t index = 0; index < case_count; ++index) {
+    cases[index] = GetLabel(i.InputRpo(index + 2));
+  }
+  Label* fallthrough = GetLabel(i.InputRpo(1));
+  __ Cmp(input, Immediate(case_count));
+  __ B(fallthrough, hs);
+
+  Label* const jump_table = AddJumpTable(cases);
+  Register addr = scope.AcquireX();
+  __ Adr(addr, jump_table, MacroAssembler::kAdrFar);
+  Register offset = scope.AcquireX();
+  // Load the 32-bit offset.
+  __ Ldrsw(offset, MemOperand(addr, input, LSL, 2));
+  // The offset is relative to the address of 'jump_table', so add 'offset'
+  // to 'addr' to reconstruct the absolute address.
+  __ Add(addr, addr, offset);
+  __ Br(addr);
+}
+
+void CodeGenerator::AssembleJumpTable(base::Vector<Label*> targets) {
+  const size_t jump_table_size = targets.size() * kInt32Size;
+  MacroAssembler::BlockPoolsScope no_pool_inbetween(masm(), jump_table_size);
+  int table_pos = __ pc_offset();
+  // Store 32-bit pc-relative offsets.
+  for (auto* target : targets) {
+    __ dc32(target->pos() - table_pos);
   }
 }
 
@@ -4296,11 +4331,6 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     default:
       UNREACHABLE();
   }
-}
-
-void CodeGenerator::AssembleJumpTable(Label** targets, size_t target_count) {
-  // On 64-bit ARM we emit the jump tables inline.
-  UNREACHABLE();
 }
 
 #undef __

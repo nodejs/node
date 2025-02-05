@@ -51,8 +51,7 @@ V8_EXPORT_PRIVATE void BuildTSGraph(
 void BuildWasmWrapper(compiler::turboshaft::PipelineData* data,
                       AccountingAllocator* allocator,
                       compiler::turboshaft::Graph& graph,
-                      const wasm::FunctionSig* sig, WrapperCompilationInfo,
-                      const WasmModule* module);
+                      const wasm::CanonicalSig* sig, WrapperCompilationInfo);
 
 // Base class for the decoder graph builder interface and for the wrapper
 // builder.
@@ -84,9 +83,11 @@ class V8_EXPORT_PRIVATE WasmGraphBuilderBase {
 
   using RegisterRepresentation = compiler::turboshaft::RegisterRepresentation;
   using TSCallDescriptor = compiler::turboshaft::TSCallDescriptor;
+  using WasmCodePtr = compiler::turboshaft::WasmCodePtr;
   using Word32 = compiler::turboshaft::Word32;
   using Word64 = compiler::turboshaft::Word64;
   using WordPtr = compiler::turboshaft::WordPtr;
+  using CallTarget = compiler::turboshaft::CallTarget;
   using Word = compiler::turboshaft::Word;
   using Any = compiler::turboshaft::Any;
 
@@ -103,16 +104,16 @@ class V8_EXPORT_PRIVATE WasmGraphBuilderBase {
   V<WordPtr> GetTargetForBuiltinCall(Builtin builtin, StubCallMode stub_mode);
   V<BigInt> BuildChangeInt64ToBigInt(V<Word64> input, StubCallMode stub_mode);
 
-  std::pair<V<WordPtr>, V<HeapObject>>
+  std::pair<V<WasmCodePtr>, V<HeapObject>>
   BuildImportedFunctionTargetAndImplicitArg(
       ConstOrV<Word32> func_index,
       V<WasmTrustedInstanceData> trusted_instance_data);
 
-  std::pair<V<WordPtr>, V<ExposedTrustedObject>>
+  std::pair<V<WasmCodePtr>, V<ExposedTrustedObject>>
   BuildFunctionTargetAndImplicitArg(V<WasmInternalFunction> internal_function,
                                     uint64_t expected_sig_hash);
 
-  RegisterRepresentation RepresentationFor(ValueType type);
+  RegisterRepresentation RepresentationFor(ValueTypeBase type);
   V<WasmTrustedInstanceData> LoadTrustedDataFromInstanceObject(
       V<HeapObject> instance_object);
 

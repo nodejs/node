@@ -17,6 +17,8 @@
 #include "src/maglev/arm/maglev-assembler-arm-inl.h"
 #elif V8_TARGET_ARCH_ARM64
 #include "src/maglev/arm64/maglev-assembler-arm64-inl.h"
+#elif V8_TARGET_ARCH_RISCV64
+#include "src/maglev/riscv/maglev-assembler-riscv-inl.h"
 #elif V8_TARGET_ARCH_X64
 #include "src/maglev/x64/maglev-assembler-x64-inl.h"
 #elif V8_TARGET_ARCH_S390X
@@ -277,6 +279,57 @@ inline void MaglevAssembler::SmiToDouble(DoubleRegister result, Register smi) {
   Int32ToDouble(result, smi);
 }
 
+#if !defined(V8_TARGET_ARCH_RISCV64)
+
+inline void MaglevAssembler::CompareInstanceTypeAndJumpIf(
+    Register map, InstanceType type, Condition cond, Label* target,
+    Label::Distance distance) {
+  CompareInstanceType(map, type);
+  JumpIf(cond, target, distance);
+}
+
+template <typename NodeT>
+inline void MaglevAssembler::CompareInstanceTypeRangeAndEagerDeoptIf(
+    Register map, Register instance_type_out, InstanceType lower_limit,
+    InstanceType higher_limit, Condition cond, DeoptimizeReason reason,
+    NodeT* node) {
+  CompareInstanceTypeRange(map, instance_type_out, lower_limit, higher_limit);
+  EmitEagerDeoptIf(cond, reason, node);
+}
+
+template <typename NodeT>
+inline void MaglevAssembler::CompareRootAndEmitEagerDeoptIf(
+    Register reg, RootIndex index, Condition cond, DeoptimizeReason reason,
+    NodeT* node) {
+  CompareRoot(reg, index);
+  EmitEagerDeoptIf(cond, reason, node);
+}
+
+template <typename NodeT>
+inline void MaglevAssembler::CompareMapWithRootAndEmitEagerDeoptIf(
+    Register reg, RootIndex index, Register scratch, Condition cond,
+    DeoptimizeReason reason, NodeT* node) {
+  CompareMapWithRoot(reg, index, scratch);
+  EmitEagerDeoptIf(cond, reason, node);
+}
+
+template <typename NodeT>
+inline void MaglevAssembler::CompareTaggedRootAndEmitEagerDeoptIf(
+    Register reg, RootIndex index, Condition cond, DeoptimizeReason reason,
+    NodeT* node) {
+  CompareTaggedRoot(reg, index);
+  EmitEagerDeoptIf(cond, reason, node);
+}
+
+template <typename NodeT>
+inline void MaglevAssembler::CompareUInt32AndEmitEagerDeoptIf(
+    Register reg, int imm, Condition cond, DeoptimizeReason reason,
+    NodeT* node) {
+  Cmp(reg, imm);
+  EmitEagerDeoptIf(cond, reason, node);
+}
+#endif
+
 inline void MaglevAssembler::CompareInt32AndBranch(Register r1, int32_t value,
                                                    Condition cond,
                                                    BasicBlock* if_true,
@@ -335,12 +388,6 @@ inline void MaglevAssembler::LoadTaggedField(Register result,
 inline void MaglevAssembler::LoadTaggedField(Register result, Register object,
                                              int offset) {
   MacroAssembler::LoadTaggedField(result, FieldMemOperand(object, offset));
-}
-
-inline void MaglevAssembler::LoadTaggedFieldWithoutDecompressing(
-    Register result, Register object, int offset) {
-  MacroAssembler::LoadTaggedFieldWithoutDecompressing(
-      result, FieldMemOperand(object, offset));
 }
 
 inline void MaglevAssembler::LoadTaggedSignedField(Register result,
@@ -815,9 +862,10 @@ inline void MaglevAssembler::JumpIfStringMap(Register map, Label* target,
   DecompressTagged(map, map);
 #endif
   static_assert(FIRST_STRING_TYPE == FIRST_TYPE);
-  CompareInstanceType(map, LAST_STRING_TYPE);
-  JumpIf(jump_if_true ? kUnsignedLessThanEqual : kUnsignedGreaterThan, target,
-         distance);
+  CompareInstanceTypeAndJumpIf(
+      map, LAST_STRING_TYPE,
+      jump_if_true ? kUnsignedLessThanEqual : kUnsignedGreaterThan, target,
+      distance);
 #endif
 }
 

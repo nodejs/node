@@ -236,6 +236,13 @@ class MachineType {
     return MachineType(MachineRepresentation::kTaggedPointer,
                        MachineSemantic::kAny);
   }
+  constexpr static MachineType WasmCodePointer() {
+    if constexpr (V8_ENABLE_WASM_CODE_POINTER_TABLE_BOOL) {
+      return Uint32();
+    } else {
+      return Pointer();
+    }
+  }
   constexpr static MachineType MapInHeader() {
     return MachineType(MachineRepresentation::kMapWord, MachineSemantic::kAny);
   }

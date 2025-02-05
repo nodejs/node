@@ -618,7 +618,7 @@ Handle<Code> CreateDummyOptimizedCode(Isolate* isolate) {
   desc.buffer = buffer;
   desc.buffer_size = arraysize(buffer);
   desc.instr_size = arraysize(buffer);
-  return Factory::CodeBuilder(isolate, desc, CodeKind::TURBOFAN)
+  return Factory::CodeBuilder(isolate, desc, CodeKind::TURBOFAN_JS)
       .set_is_turbofanned()
       .set_empty_source_position_table()
       .set_deoptimization_data(DeoptimizationData::Empty(isolate))
@@ -1566,7 +1566,8 @@ TEST(ReconfigureDataFieldAttribute_DataConstantToDataFieldAfterTargetMap) {
       Handle<Map> sloppy_map =
           Map::CopyInitialMap(isolate, isolate->sloppy_function_map());
       Handle<SharedFunctionInfo> info =
-          factory->NewSharedFunctionInfoForBuiltin(name, Builtin::kIllegal);
+          factory->NewSharedFunctionInfoForBuiltin(name, Builtin::kIllegal, 0,
+                                                   kDontAdapt);
       function_type_ = FieldType::Class(sloppy_map, isolate);
       CHECK(sloppy_map->is_stable());
 
@@ -3235,8 +3236,8 @@ TEST(TransitionDataConstantToAnotherDataConstant) {
   Handle<String> name = factory->empty_string();
   Handle<Map> sloppy_map =
       Map::CopyInitialMap(isolate, isolate->sloppy_function_map());
-  Handle<SharedFunctionInfo> info =
-      factory->NewSharedFunctionInfoForBuiltin(name, Builtin::kIllegal);
+  Handle<SharedFunctionInfo> info = factory->NewSharedFunctionInfoForBuiltin(
+      name, Builtin::kIllegal, 0, kDontAdapt);
   CHECK(sloppy_map->is_stable());
 
   Handle<JSFunction> js_func1 =

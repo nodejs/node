@@ -8,6 +8,7 @@
 #include <optional>
 
 #include "src/common/globals.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-write-barrier.h"
 #include "src/objects/dictionary.h"
 #include "src/objects/elements.h"
@@ -104,15 +105,15 @@ Handle<Object> JSReceiver::GetDataProperty(Isolate* isolate,
   return GetDataProperty(&it);
 }
 
-MaybeHandle<HeapObject> JSReceiver::GetPrototype(Isolate* isolate,
-                                                 Handle<JSReceiver> receiver) {
+MaybeHandle<JSPrototype> JSReceiver::GetPrototype(Isolate* isolate,
+                                                  Handle<JSReceiver> receiver) {
   // We don't expect access checks to be needed on JSProxy objects.
   DCHECK(!IsAccessCheckNeeded(*receiver) || IsJSObject(*receiver));
 
   PrototypeIterator iter(isolate, receiver, kStartAtReceiver,
                          PrototypeIterator::END_AT_NON_HIDDEN);
   do {
-    if (!iter.AdvanceFollowingProxies()) return MaybeHandle<HeapObject>();
+    if (!iter.AdvanceFollowingProxies()) return {};
   } while (!iter.IsAtEnd());
   return PrototypeIterator::GetCurrent(iter);
 }
@@ -644,9 +645,11 @@ void JSApiWrapper::SetCppHeapWrappable(IsolateForPointerCompression isolate,
   object_->WriteLazilyInitializedCppHeapPointerField<tag>(
       JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset, isolate,
       reinterpret_cast<Address>(instance));
-  if (instance) {
-    WriteBarrier::ForCppHeapPointer(object_, instance);
-  }
+  WriteBarrier::ForCppHeapPointer(
+      object_,
+      object_->RawCppHeapPointerField(
+          JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset),
+      instance);
 }
 
 void JSApiWrapper::SetCppHeapWrappable(IsolateForPointerCompression isolate,
@@ -654,9 +657,11 @@ void JSApiWrapper::SetCppHeapWrappable(IsolateForPointerCompression isolate,
   object_->WriteLazilyInitializedCppHeapPointerField(
       JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset, isolate,
       reinterpret_cast<Address>(instance), tag);
-  if (instance) {
-    WriteBarrier::ForCppHeapPointer(object_, instance);
-  }
+  WriteBarrier::ForCppHeapPointer(
+      object_,
+      object_->RawCppHeapPointerField(
+          JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset),
+      instance);
 }
 
 bool JSMessageObject::DidEnsureSourcePositionsAvailable() const {
@@ -709,7 +714,7 @@ DEF_GETTER(JSObject, GetElementsKind, ElementsKind) {
   // If a GC was caused while constructing this object, the elements
   // pointer may point to a one pointer filler map.
   if (ElementsAreSafeToExamine(cage_base)) {
-    Tagged<Map> map = fixed_array->map(cage_base);
+    Tagged<Map> map = fixed_array->map();
     if (IsSmiOrObjectElementsKind(kind)) {
       CHECK(map == GetReadOnlyRoots(cage_base).fixed_array_map() ||
             map == GetReadOnlyRoots(cage_base).fixed_cow_array_map());
@@ -844,9 +849,10 @@ DEF_GETTER(JSObject, element_dictionary, Tagged<NumberDictionary>) {
 
 void JSReceiver::initialize_properties(Isolate* isolate) {
   ReadOnlyRoots roots(isolate);
-  DCHECK(!ObjectInYoungGeneration(roots.empty_fixed_array()));
-  DCHECK(!ObjectInYoungGeneration(roots.empty_property_dictionary()));
-  DCHECK(!ObjectInYoungGeneration(roots.empty_ordered_property_dictionary()));
+  DCHECK(!HeapLayout::InYoungGeneration(roots.empty_fixed_array()));
+  DCHECK(!HeapLayout::InYoungGeneration(roots.empty_property_dictionary()));
+  DCHECK(!HeapLayout::InYoungGeneration(
+      roots.empty_ordered_property_dictionary()));
   if (map(isolate)->is_dictionary_map()) {
     if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       WRITE_FIELD(*this, kPropertiesOrHashOffset,
@@ -1034,7 +1040,7 @@ static inline bool ShouldConvertToSlowElements(Tagged<JSObject> object,
   DCHECK_LT(index, *new_capacity);
   if (*new_capacity <= JSObject::kMaxUncheckedOldFastElementsLength ||
       (*new_capacity <= JSObject::kMaxUncheckedFastElementsLength &&
-       ObjectInYoungGeneration(object))) {
+       HeapLayout::InYoungGeneration(object))) {
     return false;
   }
   return ShouldConvertToSlowElements(object->GetFastElementsUsage(),

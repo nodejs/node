@@ -252,12 +252,10 @@ class Object : public AllStatic {
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<String> ToString(
       Isolate* isolate, Handle<T> input);
 
-#ifdef V8_ENABLE_DIRECT_HANDLE
   template <typename T, typename = std::enable_if_t<std::is_convertible_v<
                             DirectHandle<T>, DirectHandle<Object>>>>
   V8_WARN_UNUSED_RESULT static inline MaybeDirectHandle<String> ToString(
       Isolate* isolate, DirectHandle<T> input);
-#endif
 
   V8_EXPORT_PRIVATE static MaybeDirectHandle<String> NoSideEffectsToMaybeString(
       Isolate* isolate, DirectHandle<Object> input);
@@ -311,11 +309,11 @@ class Object : public AllStatic {
 
   // ES6 section 7.3.19 OrdinaryHasInstance (C, O).
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> OrdinaryHasInstance(
-      Isolate* isolate, Handle<Object> callable, Handle<Object> object);
+      Isolate* isolate, Handle<JSAny> callable, Handle<JSAny> object);
 
   // ES6 section 12.10.4 Runtime Semantics: InstanceofOperator(O, C)
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> InstanceOf(
-      Isolate* isolate, Handle<Object> object, Handle<Object> callable);
+      Isolate* isolate, Handle<JSAny> object, Handle<JSAny> callable);
 
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
   GetProperty(LookupIterator* it, bool is_global_reference = false);
@@ -331,12 +329,12 @@ class Object : public AllStatic {
       LookupIterator* it, Handle<Object> value, StoreOrigin store_origin,
       Maybe<ShouldThrow> should_throw = Nothing<ShouldThrow>());
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
-  SetProperty(Isolate* isolate, Handle<Object> object, Handle<Name> name,
+  SetProperty(Isolate* isolate, Handle<JSAny> object, Handle<Name> name,
               Handle<Object> value,
               StoreOrigin store_origin = StoreOrigin::kMaybeKeyed,
               Maybe<ShouldThrow> should_throw = Nothing<ShouldThrow>());
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> SetPropertyOrElement(
-      Isolate* isolate, Handle<Object> object, Handle<Name> name,
+      Isolate* isolate, Handle<JSAny> object, Handle<Name> name,
       Handle<Object> value,
       Maybe<ShouldThrow> should_throw = Nothing<ShouldThrow>(),
       StoreOrigin store_origin = StoreOrigin::kMaybeKeyed);
@@ -346,13 +344,13 @@ class Object : public AllStatic {
       Maybe<ShouldThrow> should_throw = Nothing<ShouldThrow>());
 
   V8_WARN_UNUSED_RESULT static Maybe<bool> CannotCreateProperty(
-      Isolate* isolate, Handle<Object> receiver, Handle<Object> name,
+      Isolate* isolate, Handle<JSAny> receiver, Handle<Object> name,
       DirectHandle<Object> value, Maybe<ShouldThrow> should_throw);
   V8_WARN_UNUSED_RESULT static Maybe<bool> WriteToReadOnlyProperty(
       LookupIterator* it, DirectHandle<Object> value,
       Maybe<ShouldThrow> should_throw);
   V8_WARN_UNUSED_RESULT static Maybe<bool> WriteToReadOnlyProperty(
-      Isolate* isolate, Handle<Object> receiver, Handle<Object> name,
+      Isolate* isolate, Handle<JSAny> receiver, Handle<Object> name,
       DirectHandle<Object> value, ShouldThrow should_throw);
   V8_WARN_UNUSED_RESULT static Maybe<bool> RedefineIncompatibleProperty(
       Isolate* isolate, Handle<Object> name, DirectHandle<Object> value,
@@ -371,11 +369,11 @@ class Object : public AllStatic {
       StoreOrigin store_origin);
 
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> GetPropertyOrElement(
-      Isolate* isolate, Handle<Object> object, Handle<Name> name);
+      Isolate* isolate, Handle<JSAny> object, Handle<Name> name);
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> GetPropertyOrElement(
-      Handle<Object> receiver, Handle<Name> name, Handle<JSReceiver> holder);
+      Handle<JSAny> receiver, Handle<Name> name, Handle<JSReceiver> holder);
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> GetProperty(
-      Isolate* isolate, Handle<Object> object, Handle<Name> name);
+      Isolate* isolate, Handle<JSAny> object, Handle<Name> name);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSAny> GetPropertyWithAccessor(
       LookupIterator* it);
@@ -384,16 +382,16 @@ class Object : public AllStatic {
       Maybe<ShouldThrow> should_throw);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSAny> GetPropertyWithDefinedGetter(
-      Handle<Object> receiver, Handle<JSReceiver> getter);
+      Handle<JSAny> receiver, Handle<JSReceiver> getter);
   V8_WARN_UNUSED_RESULT static Maybe<bool> SetPropertyWithDefinedSetter(
-      Handle<Object> receiver, Handle<JSReceiver> setter, Handle<Object> value,
+      Handle<JSAny> receiver, Handle<JSReceiver> setter, Handle<Object> value,
       Maybe<ShouldThrow> should_throw);
 
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> GetElement(
-      Isolate* isolate, Handle<Object> object, uint32_t index);
+      Isolate* isolate, Handle<JSAny> object, uint32_t index);
 
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> SetElement(
-      Isolate* isolate, Handle<Object> object, uint32_t index,
+      Isolate* isolate, Handle<JSAny> object, uint32_t index,
       Handle<Object> value, ShouldThrow should_throw);
 
   // Returns the permanent hash code associated with this object. May return
@@ -424,7 +422,7 @@ class Object : public AllStatic {
 
   // ES6 section 9.4.2.3 ArraySpeciesCreate (part of it)
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> ArraySpeciesConstructor(
-      Isolate* isolate, Handle<Object> original_array);
+      Isolate* isolate, Handle<JSAny> original_array);
 
   // ES6 section 7.3.20 SpeciesConstructor ( O, defaultConstructor )
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> SpeciesConstructor(

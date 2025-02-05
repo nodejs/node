@@ -34,7 +34,7 @@ class CompressedObjectSlot : public SlotBase<CompressedObjectSlot, Tagged_t> {
   inline explicit CompressedObjectSlot(Tagged<Object>* object);
   explicit CompressedObjectSlot(Tagged<Object> const* const* ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
-  explicit CompressedObjectSlot(TaggedMemberBase* member)
+  explicit CompressedObjectSlot(const TaggedMemberBase* member)
       : SlotBase(reinterpret_cast<Address>(member->ptr_location())) {}
   template <typename T>
   explicit CompressedObjectSlot(SlotBase<T, TData, kSlotDataAlignment> slot)
@@ -93,6 +93,8 @@ class CompressedMaybeObjectSlot
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
   explicit CompressedMaybeObjectSlot(Tagged<MaybeObject>* ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
+  explicit CompressedMaybeObjectSlot(const TaggedMemberBase* member)
+      : SlotBase(reinterpret_cast<Address>(member->ptr_location())) {}
   template <typename T>
   explicit CompressedMaybeObjectSlot(
       SlotBase<T, TData, kSlotDataAlignment> slot)

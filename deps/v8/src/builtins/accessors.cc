@@ -83,7 +83,7 @@ bool Accessors::IsJSObjectFieldAccessor(Isolate* isolate, DirectHandle<Map> map,
 
 V8_WARN_UNUSED_RESULT MaybeHandle<Object>
 Accessors::ReplaceAccessorWithDataProperty(Isolate* isolate,
-                                           Handle<Object> receiver,
+                                           Handle<JSAny> receiver,
                                            Handle<JSObject> holder,
                                            Handle<Name> name,
                                            Handle<Object> value) {
@@ -114,7 +114,7 @@ void Accessors::ReconfigureToDataProperty(
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   RCS_SCOPE(isolate, RuntimeCallCounterId::kReconfigureToDataProperty);
   HandleScope scope(isolate);
-  Handle<Object> receiver = Utils::OpenHandle(*info.This());
+  Handle<JSReceiver> receiver = Utils::OpenHandle(*info.This());
   Handle<JSObject> holder = Cast<JSObject>(Utils::OpenHandle(*info.Holder()));
   Handle<Name> name = Utils::OpenHandle(*key);
   Handle<Object> value = Utils::OpenHandle(*val);

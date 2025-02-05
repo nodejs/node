@@ -8,7 +8,9 @@
 
 #include "src/common/assert-scope.h"
 #include "src/execution/isolate.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap.h"
+#include "src/heap/visit-object.h"
 #include "src/objects/heap-object-inl.h"
 #include "src/sandbox/external-pointer-table.h"
 
@@ -59,7 +61,7 @@ class Committee final {
     // and therefore that no filtering of unreachable objects is required here.
     HeapObjectIterator it(isolate_->heap(), safepoint_scope);
     for (Tagged<HeapObject> o = it.Next(); !o.is_null(); o = it.Next()) {
-      DCHECK(!InReadOnlySpace(o));
+      DCHECK(!HeapLayout::InReadOnlySpace(o));
 
       // Note that cycles prevent us from promoting/rejecting each subgraph as
       // we visit it, since locally we cannot determine whether the deferred
@@ -108,7 +110,7 @@ class Committee final {
   // will be processed further up the callchain.
   bool EvaluateSubgraph(Tagged<HeapObject> o, HeapObjectSet* accepted_subgraph,
                         HeapObjectSet* visited, HeapObjectList* promotees) {
-    if (InReadOnlySpace(o)) return true;
+    if (HeapLayout::InReadOnlySpace(o)) return true;
     if (Contains(promo_rejected_, o)) return false;
     if (Contains(promo_accepted_, o)) return true;
     if (Contains(*visited, o)) return true;
@@ -122,7 +124,7 @@ class Committee final {
     }
     // Recurse into outgoing pointers.
     CandidateVisitor v(this, accepted_subgraph, visited, promotees);
-    o->Iterate(isolate_, &v);
+    VisitObject(isolate_, o, &v);
     if (!v.all_slots_are_promo_candidates()) {
       const auto& [it, inserted] = promo_rejected_.insert(o);
       if (V8_UNLIKELY(v8_flags.trace_read_only_promotion) && inserted) {
@@ -333,12 +335,12 @@ class ReadOnlyPromotionImpl final : public AllStatic {
     // and therefore that no filtering of unreachable objects is required here.
     HeapObjectIterator it(heap, safepoint_scope);
     for (Tagged<HeapObject> o = it.Next(); !o.is_null(); o = it.Next()) {
-      o->Iterate(isolate, &v);
+      VisitObject(isolate, o, &v);
     }
 
     // Iterate all objects we just copied into RO space.
     for (auto [src, dst] : moves) {
-      dst->Iterate(isolate, &v);
+      VisitObject(isolate, dst, &v);
     }
 
 #ifdef V8_ENABLE_LEAPTIERING
@@ -354,7 +356,8 @@ class ReadOnlyPromotionImpl final : public AllStatic {
                                   CHECK(IsCode(new_code));
                                   // TODO(saelo): is it worth logging something
                                   // in this case?
-                                  jdt->SetCode(handle, Cast<Code>(new_code));
+                                  jdt->SetCodeNoWriteBarrier(
+                                      handle, Cast<Code>(new_code));
                                 });
 #endif  // V8_ENABLE_LEAPTIERING
   }
@@ -369,7 +372,7 @@ class ReadOnlyPromotionImpl final : public AllStatic {
     // and instead just iterates linearly over pages. Without this change the
     // verifier would fail on this now-dead object.
     for (auto [src, dst] : moves) {
-      CHECK(!InReadOnlySpace(src));
+      CHECK(!HeapLayout::InReadOnlySpace(src));
       isolate->heap()->CreateFillerObjectAt(src.address(), src->Size(isolate));
     }
   }
@@ -380,7 +383,7 @@ class ReadOnlyPromotionImpl final : public AllStatic {
     //
     // Known objects.
     Heap* heap = isolate->heap();
-    CHECK(InReadOnlySpace(
+    CHECK(HeapLayout::InReadOnlySpace(
         heap->promise_all_resolve_element_closure_shared_fun()));
     // TODO(jgruber): Extend here with more objects as they are added to
     // the promotion algorithm.
@@ -389,7 +392,8 @@ class ReadOnlyPromotionImpl final : public AllStatic {
     if (Builtins::kCodeObjectsAreInROSpace) {
       Builtins* builtins = isolate->builtins();
       for (int i = 0; i < Builtins::kBuiltinCount; i++) {
-        CHECK(InReadOnlySpace(builtins->code(static_cast<Builtin>(i))));
+        CHECK(HeapLayout::InReadOnlySpace(
+            builtins->code(static_cast<Builtin>(i))));
       }
     }
 #endif  // DEBUG
@@ -532,14 +536,14 @@ class ReadOnlyPromotionImpl final : public AllStatic {
 
     void PromoteCodePointerEntryFor(Tagged<Code> code) {
       // If we reach here, `code` is a moved Code object located in RO space.
-      CHECK(InReadOnlySpace(code));
+      CHECK(HeapLayout::InReadOnlySpace(code));
 
       IndirectPointerSlot slot = code->RawIndirectPointerField(
           Code::kSelfIndirectPointerOffset, kCodeIndirectPointerTag);
       CodeEntrypointTag entrypoint_tag = code->entrypoint_tag();
 
       IndirectPointerHandle old_handle = slot.Relaxed_LoadHandle();
-      CodePointerTable* cpt = GetProcessWideCodePointerTable();
+      CodePointerTable* cpt = IsolateGroup::current()->code_pointer_table();
 
       // To preserve the 1:1 relation between slots and code table entries,
       // allocate a new entry (in the code_pointer_space of the RO heap) now.

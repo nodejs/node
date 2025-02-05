@@ -705,6 +705,7 @@ class LiftoffAssembler : public MacroAssembler {
                                    int32_t offset);
   inline void LoadFullPointer(Register dst, Register src_addr,
                               int32_t offset_imm);
+  inline void LoadCodePointer(Register dst, Register src_addr, int32_t offset);
 #ifdef V8_ENABLE_SANDBOX
   inline void LoadCodeEntrypointViaCodePointer(Register dsr, Register src_addr,
                                                int offset_imm);
@@ -1506,8 +1507,8 @@ class LiftoffAssembler : public MacroAssembler {
   inline void emit_f64x2_qfms(LiftoffRegister dst, LiftoffRegister src1,
                               LiftoffRegister src2, LiftoffRegister src3);
 
-  inline void set_trap_on_oob_mem64(Register index, uint64_t oob_size,
-                                    uint64_t oob_index);
+  inline void set_trap_on_oob_mem64(Register index, uint64_t max_index,
+                                    Label* trap_label);
 
   inline void StackCheck(Label* ool_code);
 

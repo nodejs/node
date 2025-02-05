@@ -36,8 +36,10 @@
 #include "src/snapshot/snapshot-data.h"
 #include "src/utils/memcopy.h"
 
-namespace v8 {
-namespace internal {
+// Has to be the last include (doesn't have include guards)
+#include "src/objects/object-macros.h"
+
+namespace v8::internal {
 
 #ifdef V8_COMPRESS_POINTERS
 #define PRIxTAGGED PRIx32
@@ -171,7 +173,7 @@ class SlotAccessorForRootSlots {
 template <typename IsolateT>
 class SlotAccessorForHandle {
  public:
-  SlotAccessorForHandle(Handle<HeapObject>* handle, IsolateT* isolate)
+  SlotAccessorForHandle(DirectHandle<HeapObject>* handle, IsolateT* isolate)
       : handle_(handle), isolate_(isolate) {}
 
   MaybeObjectSlot slot() const { UNREACHABLE(); }
@@ -188,10 +190,10 @@ class SlotAccessorForHandle {
             int slot_offset, WriteBarrierMode mode) {
     DCHECK_EQ(slot_offset, 0);
     DCHECK_EQ(ref_type, HeapObjectReferenceType::STRONG);
-    *handle_ = handle(value, isolate_);
+    *handle_ = direct_handle(value, isolate_);
     return 1;
   }
-  int Write(Handle<HeapObject> value, HeapObjectReferenceType ref_type,
+  int Write(DirectHandle<HeapObject> value, HeapObjectReferenceType ref_type,
             int slot_offset, WriteBarrierMode mode) {
     DCHECK_EQ(slot_offset, 0);
     DCHECK_EQ(ref_type, HeapObjectReferenceType::STRONG);
@@ -207,7 +209,7 @@ class SlotAccessorForHandle {
   }
 
  private:
-  Handle<HeapObject>* handle_;
+  DirectHandle<HeapObject>* handle_;
   IsolateT* isolate_;
 };
 
@@ -226,10 +228,9 @@ int Deserializer<IsolateT>::WriteHeapPointer(SlotAccessor slot_accessor,
 
 template <typename IsolateT>
 template <typename SlotAccessor>
-int Deserializer<IsolateT>::WriteHeapPointer(SlotAccessor slot_accessor,
-                                             Handle<HeapObject> heap_object,
-                                             ReferenceDescriptor descr,
-                                             WriteBarrierMode mode) {
+int Deserializer<IsolateT>::WriteHeapPointer(
+    SlotAccessor slot_accessor, DirectHandle<HeapObject> heap_object,
+    ReferenceDescriptor descr, WriteBarrierMode mode) {
   if (descr.is_indirect_pointer) {
     return slot_accessor.WriteIndirectPointerTo(*heap_object, mode);
   } else if (descr.is_protected_pointer) {
@@ -313,12 +314,20 @@ Deserializer<IsolateT>::Deserializer(IsolateT* isolate,
                                      bool deserializing_user_code,
                                      bool can_rehash)
     : isolate_(isolate),
+      attached_objects_(isolate),
       source_(payload),
       magic_number_(magic_number),
+      new_maps_(isolate),
+      new_allocation_sites_(isolate),
+      new_code_objects_(isolate),
+      accessor_infos_(isolate),
+      function_template_infos_(isolate),
+      new_scripts_(isolate),
       new_descriptor_arrays_(isolate->heap()),
       deserializing_user_code_(deserializing_user_code),
       should_rehash_((v8_flags.rehash_snapshot && can_rehash) ||
-                     deserializing_user_code) {
+                     deserializing_user_code),
+      to_rehash_(isolate) {
   DCHECK_NOT_NULL(isolate);
   isolate->RegisterDeserializerStarted();
 
@@ -711,8 +720,8 @@ Handle<HeapObject> Deserializer<IsolateT>::GetBackReferencedObject(
 }
 
 template <typename IsolateT>
-Handle<HeapObject> Deserializer<IsolateT>::ReadObject() {
-  Handle<HeapObject> ret;
+DirectHandle<HeapObject> Deserializer<IsolateT>::ReadObject() {
+  DirectHandle<HeapObject> ret;
   CHECK_EQ(ReadSingleBytecodeData(
                source_.Get(), SlotAccessorForHandle<IsolateT>(&ret, isolate())),
            1);
@@ -743,7 +752,7 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
   // then you're probably serializing the meta-map, in which case you want to
   // use the kNewContextlessMetaMap/kNewContextfulMetaMap bytecode.
   DCHECK_NE(source()->Peek(), kRegisterPendingForwardRef);
-  Handle<Map> map = Cast<Map>(ReadObject());
+  DirectHandle<Map> map = Cast<Map>(ReadObject());
 
   AllocationType allocation = SpaceToAllocation(space);
 
@@ -783,7 +792,7 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
   //       previously allocated object has a valid size (see `Allocate`).
   Tagged<HeapObject> raw_obj =
       Allocate(allocation, size_in_bytes, HeapObject::RequiredAlignment(*map));
-  raw_obj->set_map_after_allocation(*map);
+  raw_obj->set_map_after_allocation(isolate_, *map);
   MemsetTagged(raw_obj->RawField(kTaggedSize),
                Smi::uninitialized_deserialization_value(), size_in_tagged - 1);
   DCHECK(raw_obj->CheckRequiredAlignment(isolate()));
@@ -797,7 +806,7 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
     // marker does not break when marking EphemeronHashTable, see
     // MarkingVisitorBase::VisitEphemeronHashTable.
     Tagged<EphemeronHashTable> table = Cast<EphemeronHashTable>(raw_obj);
-    MemsetTagged(table->RawField(table->kElementsStartOffset),
+    MemsetTagged(Cast<HeapObject>(table)->RawField(table->kElementsStartOffset),
                  ReadOnlyRoots(isolate()).undefined_value(),
                  (size_in_bytes - table->kElementsStartOffset) / kTaggedSize);
   }
@@ -860,7 +869,7 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadMetaMap(SnapshotSpace space) {
 
   Tagged<HeapObject> raw_obj =
       Allocate(SpaceToAllocation(space), size_in_bytes, kTaggedAligned);
-  raw_obj->set_map_after_allocation(UncheckedCast<Map>(raw_obj));
+  raw_obj->set_map_after_allocation(isolate_, UncheckedCast<Map>(raw_obj));
   MemsetTagged(raw_obj->RawField(kTaggedSize),
                Smi::uninitialized_deserialization_value(), size_in_tagged - 1);
   DCHECK(raw_obj->CheckRequiredAlignment(isolate()));
@@ -1092,7 +1101,7 @@ template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadBackref(uint8_t data,
                                         SlotAccessor slot_accessor) {
   uint32_t index = source_.GetUint30();
-  Handle<HeapObject> heap_object = GetBackReferencedObject(index);
+  DirectHandle<HeapObject> heap_object = GetBackReferencedObject(index);
   if (v8_flags.trace_deserialization) {
     PrintF("%*sBackref [%u]\n", depth_, "", index);
     // Don't print the backref object, since it might still be being
@@ -1252,7 +1261,7 @@ template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadAttachedReference(uint8_t data,
                                                   SlotAccessor slot_accessor) {
   int index = source_.GetUint30();
-  Handle<HeapObject> heap_object = attached_objects_[index];
+  DirectHandle<HeapObject> heap_object = attached_objects_[index];
   if (v8_flags.trace_deserialization) {
     PrintF("%*sAttachedReference [%u] : ", depth_, "", index);
     ShortPrint(*heap_object);
@@ -1478,7 +1487,7 @@ int Deserializer<IsolateT>::ReadAllocateJSDispatchEntry(
            parameter_count);
   }
 
-  Handle<Code> code = Cast<Code>(ReadObject());
+  DirectHandle<Code> code = Cast<Code>(ReadObject());
 
   JSDispatchHandle handle;
   auto it = js_dispatch_entries_map_.find(entry_id);
@@ -1492,7 +1501,7 @@ int Deserializer<IsolateT>::ReadAllocateJSDispatchEntry(
             host->address());
     handle = jdt->AllocateAndInitializeEntry(space, parameter_count);
     js_dispatch_entries_map_[entry_id] = handle;
-    jdt->SetCode(handle, *code);
+    jdt->SetCodeNoWriteBarrier(handle, *code);
   }
 
   host->Relaxed_WriteField<JSDispatchHandle>(slot_accessor.offset(), handle);
@@ -1542,7 +1551,7 @@ template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadHotObject(uint8_t data,
                                           SlotAccessor slot_accessor) {
   int index = HotObject::Decode(data);
-  Handle<HeapObject> hot_object = hot_objects_.Get(index);
+  DirectHandle<HeapObject> hot_object = hot_objects_.Get(index);
   if (v8_flags.trace_deserialization) {
     PrintF("%*sHotObject [%u] : ", depth_, "", index);
     ShortPrint(*hot_object);
@@ -1648,5 +1657,6 @@ template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) Deserializer<Isolate>;
 template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Deserializer<LocalIsolate>;
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
+
+#include "src/objects/object-macros-undef.h"

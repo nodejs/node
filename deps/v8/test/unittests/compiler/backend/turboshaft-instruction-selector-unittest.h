@@ -247,7 +247,7 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
           kDefaultCodeEntrypointTag,     // tag
           target_type,                   // target MachineType
           target_loc,                    // target location
-          locations.Build(),             // location_sig
+          locations.Get(),               // location_sig
           0,                             // stack_parameter_count
           Operator::kNoProperties,       // properties
           kCalleeSaveRegisters,          // callee-saved registers
@@ -458,7 +458,7 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
       MachineSignature::Builder builder(zone, 1, sizeof...(ParamT));
       builder.AddReturn(return_type);
       (builder.AddParam(parameter_type), ...);
-      return MakeSimpleCallDescriptor(zone, builder.Build());
+      return MakeSimpleCallDescriptor(zone, builder.Get());
     }
 
     void Init() {

@@ -49,6 +49,7 @@ namespace DebuggerAgentState {
 static const char pauseOnExceptionsState[] = "pauseOnExceptionsState";
 static const char asyncCallStackDepth[] = "asyncCallStackDepth";
 static const char blackboxPattern[] = "blackboxPattern";
+static const char skipAnonymousScripts[] = "skipAnonymousScripts";
 static const char debuggerEnabled[] = "debuggerEnabled";
 static const char breakpointsActiveWhenEnabled[] = "breakpointsActive";
 static const char skipAllPauses[] = "skipAllPauses";
@@ -553,6 +554,8 @@ void V8DebuggerAgentImpl::restore() {
                          &blackboxPattern)) {
     setBlackboxPattern(blackboxPattern);
   }
+  m_skipAnonymousScripts =
+      m_state->booleanProperty(DebuggerAgentState::skipAnonymousScripts, false);
 }
 
 Response V8DebuggerAgentImpl::setBreakpointsActive(bool active) {
@@ -986,11 +989,21 @@ bool V8DebuggerAgentImpl::isFunctionBlackboxed(const String16& scriptId,
     // Unknown scripts are blackboxed.
     return true;
   }
-  if (m_blackboxPattern) {
-    const String16& scriptSourceURL = it->second->sourceURL();
-    if (!scriptSourceURL.isEmpty() &&
-        m_blackboxPattern->match(scriptSourceURL) != -1)
+  const String16& scriptSourceURL = it->second->sourceURL();
+  if (m_blackboxPattern && !scriptSourceURL.isEmpty()
+      && m_blackboxPattern->match(scriptSourceURL) != -1) {
+    return true;
+  }
+  if (m_skipAnonymousScripts && scriptSourceURL.isEmpty()) {
+    return true;
+  }
+  if (!m_blackboxedExecutionContexts.empty()) {
+    int contextId = it->second->executionContextId();
+    InspectedContext* inspected = m_inspector->getContext(contextId);
+    if (inspected && m_blackboxedExecutionContexts.count(
+                         inspected->uniqueId().toString()) > 0) {
       return true;
+    }
   }
   auto itBlackboxedPositions = m_blackboxedPositions.find(scriptId);
   if (itBlackboxedPositions == m_blackboxedPositions.end()) return false;
@@ -1222,8 +1235,8 @@ Response V8DebuggerAgentImpl::getScriptSource(
                      });
     if (cachedScriptIt != m_cachedScripts.end()) {
       *scriptSource = cachedScriptIt->source;
-      *bytecode = protocol::Binary::fromSpan(cachedScriptIt->bytecode.data(),
-                                             cachedScriptIt->bytecode.size());
+      *bytecode = protocol::Binary::fromSpan(v8::MemorySpan<const uint8_t>(
+          cachedScriptIt->bytecode.begin(), cachedScriptIt->bytecode.size()));
       return Response::Success();
     }
     return Response::ServerError("No script for id: " + scriptId.utf8());
@@ -1235,7 +1248,7 @@ Response V8DebuggerAgentImpl::getScriptSource(
     if (span.size() > kWasmBytecodeMaxLength) {
       return Response::ServerError(kWasmBytecodeExceedsTransferLimit);
     }
-    *bytecode = protocol::Binary::fromSpan(span.data(), span.size());
+    *bytecode = protocol::Binary::fromSpan(span);
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   return Response::Success();
@@ -1404,7 +1417,7 @@ Response V8DebuggerAgentImpl::getWasmBytecode(const String16& scriptId,
   if (span.size() > kWasmBytecodeMaxLength) {
     return Response::ServerError(kWasmBytecodeExceedsTransferLimit);
   }
-  *bytecode = protocol::Binary::fromSpan(span.data(), span.size());
+  *bytecode = protocol::Binary::fromSpan(span);
   return Response::Success();
 #else
   return Response::ServerError("WebAssembly is disabled");
@@ -1665,7 +1678,11 @@ Response V8DebuggerAgentImpl::setAsyncCallStackDepth(int depth) {
 }
 
 Response V8DebuggerAgentImpl::setBlackboxPatterns(
-    std::unique_ptr<protocol::Array<String16>> patterns) {
+    std::unique_ptr<protocol::Array<String16>> patterns,
+    Maybe<bool> skipAnonymous) {
+  m_skipAnonymousScripts = skipAnonymous.value_or(false);
+  m_state->setBoolean(DebuggerAgentState::skipAnonymousScripts,
+                      m_skipAnonymousScripts);
   if (patterns->empty()) {
     m_blackboxPattern = nullptr;
     resetBlackboxedStateCache();
@@ -1686,6 +1703,15 @@ Response V8DebuggerAgentImpl::setBlackboxPatterns(
   if (!response.IsSuccess()) return response;
   resetBlackboxedStateCache();
   m_state->setString(DebuggerAgentState::blackboxPattern, pattern);
+  return Response::Success();
+}
+
+Response V8DebuggerAgentImpl::setBlackboxExecutionContexts(
+    std::unique_ptr<protocol::Array<String16>> uniqueIds) {
+  m_blackboxedExecutionContexts.clear();
+  for (const String16& uniqueId : *uniqueIds) {
+    m_blackboxedExecutionContexts.insert(uniqueId);
+  }
   return Response::Success();
 }
 
@@ -1857,36 +1883,39 @@ static String16 getScriptLanguage(const V8DebuggerScript& script) {
 
 #if V8_ENABLE_WEBASSEMBLY
 static const char* getDebugSymbolTypeName(
-    v8::debug::WasmScript::DebugSymbolsType type) {
+    v8::debug::WasmScript::DebugSymbols::Type type) {
   switch (type) {
-    case v8::debug::WasmScript::DebugSymbolsType::None:
-      return v8_inspector::protocol::Debugger::DebugSymbols::TypeEnum::None;
-    case v8::debug::WasmScript::DebugSymbolsType::SourceMap:
+    case v8::debug::WasmScript::DebugSymbols::Type::SourceMap:
       return v8_inspector::protocol::Debugger::DebugSymbols::TypeEnum::
           SourceMap;
-    case v8::debug::WasmScript::DebugSymbolsType::EmbeddedDWARF:
+    case v8::debug::WasmScript::DebugSymbols::Type::EmbeddedDWARF:
       return v8_inspector::protocol::Debugger::DebugSymbols::TypeEnum::
           EmbeddedDWARF;
-    case v8::debug::WasmScript::DebugSymbolsType::ExternalDWARF:
+    case v8::debug::WasmScript::DebugSymbols::Type::ExternalDWARF:
       return v8_inspector::protocol::Debugger::DebugSymbols::TypeEnum::
           ExternalDWARF;
   }
 }
 
-static std::unique_ptr<protocol::Debugger::DebugSymbols> getDebugSymbols(
-    const V8DebuggerScript& script) {
-  v8::debug::WasmScript::DebugSymbolsType type;
-  if (!script.getDebugSymbolsType().To(&type)) return {};
+static void getDebugSymbols(
+    const V8DebuggerScript& script,
+    std::unique_ptr<Array<protocol::Debugger::DebugSymbols>>* debug_symbols) {
+  std::vector<v8::debug::WasmScript::DebugSymbols> v8_script_debug_symbols =
+      script.getDebugSymbols();
 
-  std::unique_ptr<protocol::Debugger::DebugSymbols> debugSymbols =
-      v8_inspector::protocol::Debugger::DebugSymbols::create()
-          .setType(getDebugSymbolTypeName(type))
-          .build();
-  String16 externalUrl;
-  if (script.getExternalDebugSymbolsURL().To(&externalUrl)) {
-    debugSymbols->setExternalURL(externalUrl);
+  *debug_symbols = std::make_unique<Array<protocol::Debugger::DebugSymbols>>();
+  for (size_t i = 0; i < v8_script_debug_symbols.size(); ++i) {
+    v8::debug::WasmScript::DebugSymbols& symbol = v8_script_debug_symbols[i];
+    std::unique_ptr<protocol::Debugger::DebugSymbols> protocolDebugSymbol =
+        v8_inspector::protocol::Debugger::DebugSymbols::create()
+            .setType(getDebugSymbolTypeName(symbol.type))
+            .build();
+    if (symbol.external_url.size() > 0) {
+      protocolDebugSymbol->setExternalURL(
+          String16(symbol.external_url.data(), symbol.external_url.size()));
+    }
+    (*debug_symbols)->emplace_back(std::move(protocolDebugSymbol));
   }
-  return debugSymbols;
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -1922,11 +1951,12 @@ void V8DebuggerAgentImpl::didParseSource(
   String16 embedderName = script->embedderName();
   String16 scriptLanguage = getScriptLanguage(*script);
   Maybe<int> codeOffset;
-  std::unique_ptr<protocol::Debugger::DebugSymbols> debugSymbols;
+  std::unique_ptr<Array<protocol::Debugger::DebugSymbols>> debugSymbols;
 #if V8_ENABLE_WEBASSEMBLY
-  if (script->getLanguage() == V8DebuggerScript::Language::WebAssembly)
+  if (script->getLanguage() == V8DebuggerScript::Language::WebAssembly) {
     codeOffset = script->codeOffset();
-  debugSymbols = getDebugSymbols(*script);
+    getDebugSymbols(*script, &debugSymbols);
+  }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   m_scripts[scriptId] = std::move(script);
@@ -2271,6 +2301,7 @@ void V8DebuggerAgentImpl::reset() {
   m_cachedScripts.clear();
   m_cachedScriptSize = 0;
   m_debugger->allAsyncTasksCanceled();
+  m_blackboxedExecutionContexts.clear();
 }
 
 void V8DebuggerAgentImpl::ScriptCollected(const V8DebuggerScript* script) {

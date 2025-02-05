@@ -307,52 +307,19 @@ bool Parser::ShortcutLiteralBinaryExpression(Expression** x, Expression* y,
     // Only consider string concatenation of two strings.
     // TODO(leszeks): We could also eagerly convert other literals to string if
     // one side of the addition is a string.
-    if ((*x)->IsStringLiteral() && y->IsStringLiteral()) {
-      const AstRawString* x_val = (*x)->AsLiteral()->AsRawString();
-      const AstRawString* y_val = y->AsLiteral()->AsRawString();
-
-      int new_length = x_val->length() + y_val->length();
-      // Copy the strings into a new AstRawString.
-      // TODO(leszeks): We could avoid the string copy here by using an
-      // AstConsString, but then we'd need to make StringLiteral be able to hold
-      // different kinds of AstString, and we'd need to figure out if we want to
-      // later internalize the concatenated string (right now AstRawStrings are
-      // internalized but AstConsString is not).
-      const AstRawString* new_val;
-      if (x_val->is_one_byte() && y_val->is_one_byte()) {
-        // TODO(leszeks): The data will be copied again by the AstValueFactory.
-        // We could avoid the multiple copies by using a stack vector here, or
-        // by making GetOneByteString do the string concatenation as part of its
-        // string table lookup.
-        base::Vector<uint8_t> new_data =
-            zone()->AllocateVector<uint8_t>(new_length);
-        CopyChars(new_data.data(), x_val->raw_data(), x_val->length());
-        CopyChars(new_data.data() + x_val->length(), y_val->raw_data(),
-                  y_val->length());
-        new_val = ast_value_factory()->GetOneByteString(new_data);
-      } else {
-        base::Vector<uint16_t> new_data =
-            zone()->AllocateVector<uint16_t>(new_length);
-        if (x_val->is_one_byte()) {
-          CopyChars(new_data.data(), x_val->raw_data(), x_val->length());
-        } else {
-          CopyChars(new_data.data(),
-                    reinterpret_cast<const uint16_t*>(x_val->raw_data()),
-                    x_val->length());
-        }
-        if (y_val->is_one_byte()) {
-          CopyChars(new_data.data() + x_val->length(), y_val->raw_data(),
-                    y_val->length());
-        } else {
-          CopyChars(new_data.data() + x_val->length(),
-                    reinterpret_cast<const uint16_t*>(y_val->raw_data()),
-                    y_val->length());
-        }
-        new_val = ast_value_factory()->GetTwoByteString(new_data);
+    if (y->IsStringLiteral()) {
+      if ((*x)->IsStringLiteral()) {
+        const AstRawString* x_val = (*x)->AsLiteral()->AsRawString();
+        const AstRawString* y_val = y->AsLiteral()->AsRawString();
+        AstConsString* cons = ast_value_factory()->NewConsString(x_val, y_val);
+        *x = factory()->NewConsStringLiteral(cons, (*x)->position());
+        return true;
       }
-
-      *x = factory()->NewStringLiteral(new_val, (*x)->position());
-      return true;
+      if ((*x)->IsConsStringLiteral()) {
+        const AstRawString* y_val = y->AsLiteral()->AsRawString();
+        (*x)->AsLiteral()->AsConsString()->AddString(zone(), y_val);
+        return true;
+      }
     }
   }
   return false;
@@ -599,11 +566,11 @@ Expression* Parser::NewV8RuntimeFunctionForFuzzing(
 }
 
 Parser::Parser(LocalIsolate* local_isolate, ParseInfo* info)
-    : ParserBase<Parser>(info->zone(), &scanner_, info->stack_limit(),
-                         info->ast_value_factory(),
-                         info->pending_error_handler(),
-                         info->runtime_call_stats(), info->v8_file_logger(),
-                         info->flags(), true),
+    : ParserBase<Parser>(
+          info->zone(), &scanner_, info->stack_limit(),
+          info->ast_value_factory(), info->pending_error_handler(),
+          info->runtime_call_stats(), info->v8_file_logger(), info->flags(),
+          true, info->flags().compile_hints_magic_enabled()),
       local_isolate_(local_isolate),
       info_(info),
       scanner_(info->character_stream(), flags()),
@@ -663,11 +630,10 @@ void Parser::DeserializeScopeChain(
     original_scope_ = Scope::DeserializeScopeChain(
         isolate, zone(), *outer_scope_info, info->script_scope(),
         ast_value_factory(), mode, info);
-    if (flags().is_eval() || IsArrowFunction(flags().function_kind()) ||
-        flags().function_kind() ==
-            FunctionKind::kClassStaticInitializerFunction) {
-      original_scope_->GetReceiverScope()->DeserializeReceiver(
-          ast_value_factory());
+
+    DeclarationScope* receiver_scope = original_scope_->GetReceiverScope();
+    if (receiver_scope->HasReceiverToDeserialize()) {
+      receiver_scope->DeserializeReceiver(ast_value_factory());
     }
     if (info->has_module_in_scope_chain()) {
       set_has_module_in_scope_chain();
@@ -1478,26 +1444,10 @@ ImportAttributes* Parser::ParseImportWithOrAssertClause() {
   //    LiteralPropertyName
   //    LiteralPropertyName ':' StringLiteral , WithEntries
 
-  // (DEPRECATED)
-  // AssertClause :
-  //    assert '{' '}'
-  //    assert '{' WithEntries ','? '}'
-
   auto import_attributes = zone()->New<ImportAttributes>(zone());
 
   if (v8_flags.harmony_import_attributes && Check(Token::kWith)) {
     // 'with' keyword consumed
-  } else if (v8_flags.harmony_import_assertions &&
-             !scanner()->HasLineTerminatorBeforeNext() &&
-             CheckContextualKeyword(ast_value_factory()->assert_string())) {
-    // The 'assert' contextual keyword is deprecated in favor of 'with', and we
-    // need to investigate feasibility of unshipping.
-    //
-    // TODO(v8:13856): Remove once decision is made to unship 'assert' or keep.
-    ++use_counts_[v8::Isolate::kImportAssertionDeprecatedSyntax];
-    info_->pending_error_handler()->ReportWarningAt(
-        position(), end_position(), MessageTemplate::kImportAssertDeprecated,
-        "V8 v12.6 and Chrome 126");
   } else {
     return import_attributes;
   }
@@ -1523,7 +1473,7 @@ ImportAttributes* Parser::ParseImportWithOrAssertClause() {
         attribute_key, std::make_pair(attribute_value, location)));
     if (!result.second) {
       // It is a syntax error if two WithEntries have the same key.
-      ReportMessageAt(location, MessageTemplate::kImportAssertionDuplicateKey,
+      ReportMessageAt(location, MessageTemplate::kImportAttributesDuplicateKey,
                       attribute_key);
       break;
     }
@@ -2195,92 +2145,14 @@ void Parser::ParseGeneratorFunctionBody(int pos, FunctionKind kind,
   ParseStatementList(body, Token::kRightBrace);
 }
 
-void Parser::ParseAndRewriteAsyncGeneratorFunctionBody(
-    int pos, FunctionKind kind, ScopedPtrList<Statement>* body) {
-  // For ES2017 Async Generators, we produce:
-  //
-  // try {
-  //   InitialYield;
-  //   ...body...;
-  //   // fall through to the implicit return after the try-finally
-  // } catch (.catch) {
-  //   %AsyncGeneratorReject(generator, .catch);
-  // } finally {
-  //   %_GeneratorClose(generator);
-  // }
-  //
-  // - InitialYield yields the actual generator object.
-  // - Any return statement inside the body will have its argument wrapped
-  //   in an iterator result object with a "done" property set to `true`.
-  // - If the generator terminates for whatever reason, we must close it.
-  //   Hence the finally clause.
-  // - BytecodeGenerator performs special handling for ReturnStatements in
-  //   async generator functions, resolving the appropriate Promise with an
-  //   "done" iterator result object containing a Promise-unwrapped value.
+void Parser::ParseAsyncGeneratorFunctionBody(int pos, FunctionKind kind,
+                                             ScopedPtrList<Statement>* body) {
   DCHECK(IsAsyncGeneratorFunction(kind));
 
-  Block* try_block;
-  {
-    ScopedPtrList<Statement> statements(pointer_buffer());
-    Expression* initial_yield = BuildInitialYield(pos, kind);
-    statements.Add(
-        factory()->NewExpressionStatement(initial_yield, kNoSourcePosition));
-    ParseStatementList(&statements, Token::kRightBrace);
-    // Since the whole body is wrapped in a try-catch, make the implicit
-    // end-of-function return explicit to ensure BytecodeGenerator's special
-    // handling for ReturnStatements in async generators applies.
-    statements.Add(factory()->NewSyntheticAsyncReturnStatement(
-        factory()->NewUndefinedLiteral(kNoSourcePosition), kNoSourcePosition));
-
-    // Don't create iterator result for async generators, as the resume methods
-    // will create it.
-    try_block = factory()->NewBlock(false, statements);
-  }
-
-  // For AsyncGenerators, a top-level catch block will reject the Promise.
-  Scope* catch_scope = NewHiddenCatchScope();
-
-  Block* catch_block;
-  {
-    ScopedPtrList<Expression> reject_args(pointer_buffer());
-    reject_args.Add(factory()->NewVariableProxy(
-        function_state_->scope()->generator_object_var()));
-    reject_args.Add(factory()->NewVariableProxy(catch_scope->catch_variable()));
-
-    Expression* reject_call = factory()->NewCallRuntime(
-        Runtime::kInlineAsyncGeneratorReject, reject_args, kNoSourcePosition);
-    catch_block = IgnoreCompletion(factory()->NewReturnStatement(
-        reject_call, kNoSourcePosition, kNoSourcePosition));
-  }
-
-  {
-    ScopedPtrList<Statement> statements(pointer_buffer());
-    TryStatement* try_catch = factory()->NewTryCatchStatementForAsyncAwait(
-        try_block, catch_scope, catch_block, kNoSourcePosition);
-    statements.Add(try_catch);
-    try_block = factory()->NewBlock(false, statements);
-  }
-
-  Expression* close_call;
-  {
-    ScopedPtrList<Expression> close_args(pointer_buffer());
-    VariableProxy* call_proxy = factory()->NewVariableProxy(
-        function_state_->scope()->generator_object_var());
-    close_args.Add(call_proxy);
-    close_call = factory()->NewCallRuntime(Runtime::kInlineGeneratorClose,
-                                           close_args, kNoSourcePosition);
-  }
-
-  Block* finally_block;
-  {
-    ScopedPtrList<Statement> statements(pointer_buffer());
-    statements.Add(
-        factory()->NewExpressionStatement(close_call, kNoSourcePosition));
-    finally_block = factory()->NewBlock(false, statements);
-  }
-
-  body->Add(factory()->NewTryFinallyStatement(try_block, finally_block,
-                                              kNoSourcePosition));
+  Expression* initial_yield = BuildInitialYield(pos, kind);
+  body->Add(
+      factory()->NewExpressionStatement(initial_yield, kNoSourcePosition));
+  ParseStatementList(body, Token::kRightBrace);
 }
 
 void Parser::DeclareFunctionNameVar(const AstRawString* function_name,
@@ -3112,22 +2984,7 @@ Block* Parser::BuildParameterInitializationBlock(
 
     ++index;
   }
-  return factory()->NewBlock(true, init_statements);
-}
-
-// TODO(verwaest): Consider building these try/catches in the bytecode generator
-// without hidden scopes.
-Scope* Parser::NewHiddenCatchScope() {
-  DCHECK(scope()->is_declaration_scope());
-  Scope* catch_scope = NewScopeWithParent(scope(), CATCH_SCOPE);
-  catch_scope->set_start_position(position());
-  catch_scope->set_end_position(end_position());
-  bool was_added;
-  catch_scope->DeclareLocal(ast_value_factory()->dot_catch_string(),
-                            VariableMode::kVar, NORMAL_VARIABLE, &was_added);
-  DCHECK(was_added);
-  catch_scope->set_is_hidden();
-  return catch_scope;
+  return factory()->NewParameterInitializationBlock(init_statements);
 }
 
 Expression* Parser::BuildInitialYield(int pos, FunctionKind kind) {

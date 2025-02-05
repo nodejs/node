@@ -66,10 +66,10 @@ inline Local<To> Utils::Convert(v8::internal::DirectHandle<From> obj) {
 
 // Implementations of ToLocal
 
-#define MAKE_TO_LOCAL(Name)                                                  \
-  template <template <typename T> typename HandleType, typename T, typename> \
-  inline auto Utils::Name(HandleType<T> obj) {                               \
-    return Utils::Name##_helper(v8::internal::DirectHandle<T>(obj));         \
+#define MAKE_TO_LOCAL(Name)                                                \
+  template <template <typename> typename HandleType, typename T, typename> \
+  inline auto Utils::Name(HandleType<T> obj) {                             \
+    return Utils::Name##_helper(v8::internal::DirectHandle<T>(obj));       \
   }
 
 TO_LOCAL_NAME_LIST(MAKE_TO_LOCAL)

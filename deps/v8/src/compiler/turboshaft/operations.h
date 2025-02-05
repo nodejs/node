@@ -273,7 +273,8 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(TransitionAndStoreArrayElement)             \
   V(TransitionElementsKind)                     \
   V(DebugPrint)                                 \
-  V(CheckTurboshaftTypeOf)
+  V(CheckTurboshaftTypeOf)                      \
+  V(Word32SignHint)
 
 // These Operations are the lowest level handled by Turboshaft, and are
 // supported by the InstructionSelector.
@@ -1319,7 +1320,7 @@ struct FixedArityOperationT : OperationT<Derived> {
   V(sat_conversion_is_safe, SatConversionIsSafe)   \
   V(word32_select, Word32Select)                   \
   V(word64_select, Word64Select)                   \
-  V(float64_to_float16, Float64ToFloat16)          \
+  V(float64_to_float16, TruncateFloat64ToFloat16)  \
   V(float16, Float16)
 
 class V8_EXPORT_PRIVATE SupportedOperations {
@@ -1531,6 +1532,36 @@ struct ToNumberOrNumericOp : FixedArityOperationT<3, ToNumberOrNumericOp> {
   void Validate(const Graph& graph) const {}
   auto options() const { return std::tuple{kind, lazy_deopt_on_throw}; }
 };
+
+// Word32SignHint is a type-hint used during Maglev->Turboshaft
+// translation to avoid having multiple values being used as both Int32 and
+// Uint32: for such cases, Maglev has explicit conversions, and it's helpful to
+// also have them in Turboshaft. Eventually, Word32SignHint is just a
+// nop in Turboshaft, since as far as Machine level graph is concerned, both
+// Int32 and Uint32 are just Word32 registers.
+struct Word32SignHintOp : FixedArityOperationT<1, Word32SignHintOp> {
+  enum class Sign : bool { kSigned, kUnsigned };
+  Sign sign;
+
+  static constexpr OpEffects effects = OpEffects();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Word32()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<MaybeRegisterRepresentation::Word32()>();
+  }
+
+  V<Word32> input() const { return Base::input<Word32>(0); }
+
+  Word32SignHintOp(V<Word32> input, Sign sign) : Base(input), sign(sign) {}
+
+  void Validate(const Graph& graph) const {}
+  auto options() const { return std::tuple{sign}; }
+};
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           Word32SignHintOp::Sign sign);
 
 struct WordBinopOp : FixedArityOperationT<2, WordBinopOp> {
   enum class Kind : uint8_t {
@@ -2553,6 +2584,7 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
     kTrustedHeapObject,
     kRelocatableWasmCall,
     kRelocatableWasmStubCall,
+    kRelocatableWasmIndirectCallTarget,
     kRelocatableWasmCanonicalSignatureId
   };
 
@@ -2563,14 +2595,14 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
     i::Float32 float32;
     i::Float64 float64;
     ExternalReference external;
-    Handle<HeapObject> handle;
+    IndirectHandle<HeapObject> handle;
 
     Storage(uint64_t integral = 0) : integral(integral) {}
     Storage(i::Tagged<Smi> smi) : integral(smi.ptr()) {}
     Storage(i::Float64 constant) : float64(constant) {}
     Storage(i::Float32 constant) : float32(constant) {}
     Storage(ExternalReference constant) : external(constant) {}
-    Storage(Handle<HeapObject> constant) : handle(constant) {}
+    Storage(IndirectHandle<HeapObject> constant) : handle(constant) {}
 
     inline bool operator==(const ConstantOp::Storage&) const {
       // It is tricky to implement this properly. We currently need to define
@@ -2606,6 +2638,8 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
       case Kind::kRelocatableWasmCall:
       case Kind::kRelocatableWasmStubCall:
         return RegisterRepresentation::WordPtr();
+      case Kind::kRelocatableWasmIndirectCallTarget:
+        return RegisterRepresentation::WasmCodePointer();
       case Kind::kSmi:
       case Kind::kHeapObject:
       case Kind::kNumber:
@@ -2685,7 +2719,7 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
     return storage.external;
   }
 
-  Handle<i::HeapObject> handle() const {
+  IndirectHandle<i::HeapObject> handle() const {
     DCHECK(kind == Kind::kHeapObject || kind == Kind::kCompressedHeapObject ||
            kind == Kind::kTrustedHeapObject);
     return storage.handle;
@@ -2706,7 +2740,8 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
     return kind == Kind::kWord32 || kind == Kind::kWord64 ||
            kind == Kind::kRelocatableWasmCall ||
            kind == Kind::kRelocatableWasmStubCall ||
-           kind == Kind::kRelocatableWasmCanonicalSignatureId;
+           kind == Kind::kRelocatableWasmCanonicalSignatureId ||
+           kind == Kind::kRelocatableWasmIndirectCallTarget;
   }
 
   auto options() const { return std::tuple{kind, storage}; }
@@ -2721,6 +2756,7 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
       case Kind::kTaggedIndex:
       case Kind::kRelocatableWasmCall:
       case Kind::kRelocatableWasmStubCall:
+      case Kind::kRelocatableWasmIndirectCallTarget:
       case Kind::kRelocatableWasmCanonicalSignatureId:
         return HashWithOptions(storage.integral);
       case Kind::kFloat32:
@@ -2751,6 +2787,7 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
       case Kind::kRelocatableWasmCall:
       case Kind::kRelocatableWasmStubCall:
       case Kind::kRelocatableWasmCanonicalSignatureId:
+      case Kind::kRelocatableWasmIndirectCallTarget:
         return storage.integral == other.storage.integral;
       case Kind::kFloat32:
         // Using a bit_cast to uint32_t in order to return false when comparing
@@ -2842,22 +2879,50 @@ struct LoadOp : OperationT<LoadOp> {
           return RawAligned();
       }
     }
-
-    // TODO(dmercadier): use designed initializers once we move to C++20.
     static constexpr Kind TaggedBase() {
-      return {true, false, false, false, true, false, false};
+      return {.tagged_base = true,
+              .maybe_unaligned = false,
+              .with_trap_handler = false,
+              .trap_on_null = false,
+              .load_eliminable = true,
+              .is_immutable = false,
+              .is_atomic = false};
     }
     static constexpr Kind RawAligned() {
-      return {false, false, false, false, true, false, false};
+      return {.tagged_base = false,
+              .maybe_unaligned = false,
+              .with_trap_handler = false,
+              .trap_on_null = false,
+              .load_eliminable = true,
+              .is_immutable = false,
+              .is_atomic = false};
     }
     static constexpr Kind RawUnaligned() {
-      return {false, true, false, false, true, false, false};
+      return {.tagged_base = false,
+              .maybe_unaligned = true,
+              .with_trap_handler = false,
+              .trap_on_null = false,
+              .load_eliminable = true,
+              .is_immutable = false,
+              .is_atomic = false};
     }
     static constexpr Kind Protected() {
-      return {false, false, true, false, true, false, false};
+      return {.tagged_base = false,
+              .maybe_unaligned = false,
+              .with_trap_handler = true,
+              .trap_on_null = false,
+              .load_eliminable = true,
+              .is_immutable = false,
+              .is_atomic = false};
     }
     static constexpr Kind TrapOnNull() {
-      return {true, false, true, true, true, false, false};
+      return {.tagged_base = true,
+              .maybe_unaligned = false,
+              .with_trap_handler = true,
+              .trap_on_null = true,
+              .load_eliminable = true,
+              .is_immutable = false,
+              .is_atomic = false};
     }
     static constexpr Kind MaybeUnaligned(MemoryRepresentation rep) {
       return rep == MemoryRepresentation::Int8() ||
@@ -5922,8 +5987,8 @@ struct TransitionAndStoreArrayElementOp
     kSignedSmallElement,
   };
   Kind kind;
-  MaybeHandle<Map> fast_map;
-  MaybeHandle<Map> double_map;
+  MaybeIndirectHandle<Map> fast_map;
+  MaybeIndirectHandle<Map> double_map;
 
   static constexpr OpEffects effects =
       OpEffects()
@@ -5946,8 +6011,8 @@ struct TransitionAndStoreArrayElementOp
   OpIndex value() const { return Base::input(2); }
 
   TransitionAndStoreArrayElementOp(OpIndex array, OpIndex index, OpIndex value,
-                                   Kind kind, MaybeHandle<Map> fast_map,
-                                   MaybeHandle<Map> double_map)
+                                   Kind kind, MaybeIndirectHandle<Map> fast_map,
+                                   MaybeIndirectHandle<Map> double_map)
       : Base(array, index, value),
         kind(kind),
         fast_map(fast_map),
@@ -5981,6 +6046,7 @@ struct TransitionAndStoreArrayElementOp
 
   auto options() const { return std::tuple{kind, fast_map, double_map}; }
 };
+
 V8_EXPORT_PRIVATE std::ostream& operator<<(
     std::ostream& os, TransitionAndStoreArrayElementOp::Kind kind);
 
@@ -6005,6 +6071,7 @@ struct CompareMapsOp : FixedArityOperationT<1, CompareMapsOp> {
   void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{maps}; }
+  void PrintOptions(std::ostream& os) const;
 };
 
 struct CheckMapsOp : FixedArityOperationT<2, CheckMapsOp> {
@@ -6041,6 +6108,7 @@ struct CheckMapsOp : FixedArityOperationT<2, CheckMapsOp> {
   }
 
   auto options() const { return std::tuple{maps, flags, feedback}; }
+  void PrintOptions(std::ostream& os) const;
 };
 
 // AssumeMaps are inserted after CheckMaps have been lowered, in order to keep
@@ -6069,6 +6137,7 @@ struct AssumeMapOp : FixedArityOperationT<1, AssumeMapOp> {
   void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{maps}; }
+  void PrintOptions(std::ostream& os) const;
 };
 
 struct CheckedClosureOp : FixedArityOperationT<2, CheckedClosureOp> {
@@ -6298,6 +6367,7 @@ struct FastApiCallOp : OperationT<FastApiCallOp> {
     const CTypeInfo& arg_type =
         parameters->c_signature()->ArgumentInfo(argument_index);
     uint8_t flags = static_cast<uint8_t>(arg_type.GetFlags());
+    START_ALLOW_USE_DEPRECATED()
     switch (arg_type.GetSequenceType()) {
       case CTypeInfo::SequenceType::kScalar:
         if (flags & (static_cast<uint8_t>(CTypeInfo::Flags::kEnforceRangeBit) |
@@ -6334,6 +6404,7 @@ struct FastApiCallOp : OperationT<FastApiCallOp> {
       case CTypeInfo::SequenceType::kIsArrayBuffer:
         UNREACHABLE();
     }
+    END_ALLOW_USE_DEPRECATED()
   }
 
   V<FrameState> frame_state() const { return input<FrameState>(0); }
@@ -6734,16 +6805,16 @@ struct AssertNotNullOp : FixedArityOperationT<1, AssertNotNullOp> {
   auto options() const { return std::tuple{type, trap_id}; }
 };
 
-// The runtime type (RTT) is a value representing a conrete type (in this case
+// The runtime type (RTT) is a value representing a concrete type (in this case
 // heap-type). The canonical RTTs are implicitly created values and invisible to
 // the user in wasm-gc MVP. (See
 // https://github.com/WebAssembly/gc/blob/main/proposals/gc/MVP.md#runtime-types)
 struct RttCanonOp : FixedArityOperationT<1, RttCanonOp> {
-  uint32_t type_index;
+  wasm::ModuleTypeIndex type_index;
 
   static constexpr OpEffects effects = OpEffects();
 
-  explicit RttCanonOp(V<FixedArray> rtts, uint32_t type_index)
+  explicit RttCanonOp(V<FixedArray> rtts, wasm::ModuleTypeIndex type_index)
       : Base(rtts), type_index(type_index) {}
 
   V<FixedArray> rtts() const { return input<FixedArray>(0); }
@@ -6932,7 +7003,7 @@ struct StructGetOp : FixedArityOperationT<1, StructGetOp> {
   bool is_signed;  // `false` only for unsigned packed type accesses.
   CheckForNull null_check;
   const wasm::StructType* type;
-  uint32_t type_index;
+  wasm::ModuleTypeIndex type_index;
   int field_index;
 
   OpEffects Effects() const {
@@ -6949,7 +7020,7 @@ struct StructGetOp : FixedArityOperationT<1, StructGetOp> {
   }
 
   StructGetOp(V<WasmStructNullable> object, const wasm::StructType* type,
-              uint32_t type_index, int field_index, bool is_signed,
+              wasm::ModuleTypeIndex type_index, int field_index, bool is_signed,
               CheckForNull null_check)
       : Base(object),
         is_signed(is_signed),
@@ -6982,7 +7053,7 @@ struct StructGetOp : FixedArityOperationT<1, StructGetOp> {
 struct StructSetOp : FixedArityOperationT<2, StructSetOp> {
   CheckForNull null_check;
   const wasm::StructType* type;
-  uint32_t type_index;
+  wasm::ModuleTypeIndex type_index;
   int field_index;
 
   OpEffects Effects() const {
@@ -6999,7 +7070,7 @@ struct StructSetOp : FixedArityOperationT<2, StructSetOp> {
   }
 
   StructSetOp(V<WasmStructNullable> object, V<Any> value,
-              const wasm::StructType* type, uint32_t type_index,
+              const wasm::StructType* type, wasm::ModuleTypeIndex type_index,
               int field_index, CheckForNull null_check)
       : Base(object, value),
         null_check(null_check),
@@ -8275,6 +8346,7 @@ struct Simd256Extract128LaneOp
 #define FOREACH_SIMD_256_LOAD_TRANSFORM_OPCODE(V) \
   V(8x16S)                                        \
   V(8x16U)                                        \
+  V(8x8U)                                         \
   V(16x8S)                                        \
   V(16x8U)                                        \
   V(32x4S)                                        \
@@ -8354,11 +8426,15 @@ struct Simd256LoadTransformOp
   V(F32x8Abs)                            \
   V(F32x8Neg)                            \
   V(F32x8Sqrt)                           \
+  V(F64x4Abs)                            \
+  V(F64x4Neg)                            \
   V(F64x4Sqrt)                           \
   V(I32x8UConvertF32x8)                  \
   V(I32x8SConvertF32x8)                  \
   V(F32x8UConvertI32x8)                  \
   V(F32x8SConvertI32x8)                  \
+  V(I32x8RelaxedTruncF32x8S)             \
+  V(I32x8RelaxedTruncF32x8U)             \
   FOREACH_SIMD_256_UNARY_SIGN_EXTENSION_OPCODE(V)
 
 struct Simd256UnaryOp : FixedArityOperationT<1, Simd256UnaryOp> {
@@ -9048,7 +9124,7 @@ constexpr size_t input_count(T) {
 // TODO(42203211): The first parameter should be just DirectHandle<T> and
 // MaybeDirectHandle<T> but now it does not compile with implicit Handle to
 // DirectHandle conversions.
-template <template <typename T> typename HandleType, typename T,
+template <template <typename> typename HandleType, typename T,
           typename = std::enable_if_t<std::disjunction_v<
               std::is_convertible<HandleType<T>, DirectHandle<T>>,
               std::is_convertible<HandleType<T>, MaybeDirectHandle<T>>>>>
@@ -9084,6 +9160,7 @@ constexpr size_t input_count(const wasm::StructType*) { return 0; }
 constexpr size_t input_count(const wasm::ArrayType*) { return 0; }
 constexpr size_t input_count(wasm::ValueType) { return 0; }
 constexpr size_t input_count(WasmTypeCheckConfig) { return 0; }
+constexpr size_t input_count(wasm::ModuleTypeIndex) { return 0; }
 #endif
 
 // All parameters that are OpIndex-like (ie, OpIndex, and OpIndex containers)

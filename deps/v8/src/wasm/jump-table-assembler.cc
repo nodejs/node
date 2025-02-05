@@ -4,6 +4,7 @@
 
 #include "src/wasm/jump-table-assembler.h"
 
+#include "src/base/sanitizer/ubsan.h"
 #include "src/codegen/macro-assembler-inl.h"
 
 namespace v8 {
@@ -12,14 +13,14 @@ namespace wasm {
 
 // static
 void JumpTableAssembler::GenerateLazyCompileTable(
-    Address base, uint32_t num_slots, uint32_t num_imported_functions,
-    Address wasm_compile_lazy_target) {
+    AccountingAllocator* allocator, Address base, uint32_t num_slots,
+    uint32_t num_imported_functions, Address wasm_compile_lazy_target) {
   uint32_t lazy_compile_table_size = num_slots * kLazyCompileTableSlotSize;
   WritableJitAllocation jit_allocation = ThreadIsolation::LookupJitAllocation(
       base, RoundUp<kCodeAlignment>(lazy_compile_table_size),
       ThreadIsolation::JitAllocationType::kWasmLazyCompileTable);
   // Assume enough space, so the Assembler does not try to grow the buffer.
-  JumpTableAssembler jtasm(base, lazy_compile_table_size + 256);
+  JumpTableAssembler jtasm(allocator, base, lazy_compile_table_size + 256);
   for (uint32_t slot_index = 0; slot_index < num_slots; ++slot_index) {
     DCHECK_EQ(slot_index * kLazyCompileTableSlotSize, jtasm.pc_offset());
     jtasm.EmitLazyCompileJumpSlot(slot_index + num_imported_functions,
@@ -30,12 +31,13 @@ void JumpTableAssembler::GenerateLazyCompileTable(
 }
 
 void JumpTableAssembler::InitializeJumpsToLazyCompileTable(
-    Address base, uint32_t num_slots, Address lazy_compile_table_start) {
+    AccountingAllocator* allocator, Address base, uint32_t num_slots,
+    Address lazy_compile_table_start) {
   uint32_t jump_table_size = SizeForNumberOfSlots(num_slots);
   WritableJitAllocation jit_allocation = ThreadIsolation::LookupJitAllocation(
       base, RoundUp<kCodeAlignment>(jump_table_size),
       ThreadIsolation::JitAllocationType::kWasmJumpTable);
-  JumpTableAssembler jtasm(base, jump_table_size + 256);
+  JumpTableAssembler jtasm(allocator, base, jump_table_size + 256);
 
   for (uint32_t slot_index = 0; slot_index < num_slots; ++slot_index) {
     // Make sure we write at the correct offset.
@@ -69,40 +71,87 @@ void JumpTableAssembler::InitializeJumpsToLazyCompileTable(
   FlushInstructionCache(base, jump_table_size);
 }
 
+template <typename T>
+void JumpTableAssembler::emit(T value) {
+  base::WriteUnalignedValue<T>(reinterpret_cast<Address>(pc_), value);
+  pc_ += sizeof(T);
+}
+
+template <typename T>
+void JumpTableAssembler::emit(T value, RelaxedStoreTag) DISABLE_UBSAN {
+  // We disable ubsan for these stores since they don't follow the alignment
+  // requirements. We instead guarantee in the jump table layout that the writes
+  // will still be atomic since they don't cross a qword boundary.
+#if V8_TARGET_ARCH_X64
+#ifdef DEBUG
+  Address write_start = reinterpret_cast<Address>(pc_);
+  Address write_end = write_start + sizeof(T) - 1;
+  // Check that the write doesn't cross a qword boundary.
+  DCHECK_EQ(write_start >> kSystemPointerSizeLog2,
+            write_end >> kSystemPointerSizeLog2);
+#endif
+#endif
+  reinterpret_cast<std::atomic<T>*>(pc_)->store(value,
+                                                std::memory_order_relaxed);
+  pc_ += sizeof(T);
+}
+
 // The implementation is compact enough to implement it inline here. If it gets
 // much bigger, we might want to split it in a separate file per architecture.
 #if V8_TARGET_ARCH_X64
 void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
                                                  Address lazy_compile_target) {
   // Use a push, because mov to an extended register takes 6 bytes.
-  pushq_imm32(func_index);  // 5 bytes
+  const uint8_t inst[kLazyCompileTableSlotSize] = {
+      0x68, 0, 0, 0, 0,  // pushq func_index
+      0xe9, 0, 0, 0, 0,  // near_jmp displacement
+  };
+
   intptr_t displacement =
       static_cast<intptr_t>(reinterpret_cast<uint8_t*>(lazy_compile_target) -
-                            (pc_ + kIntraSegmentJmpInstrSize));
-  DCHECK(is_int32(displacement));
-  near_jmp(displacement, RelocInfo::NO_INFO);  // 5 bytes
+                            (pc_ + kLazyCompileTableSlotSize));
+
+  emit<uint8_t>(inst[0]);
+  emit<uint32_t>(func_index);
+  emit<uint8_t>(inst[5]);
+  emit<int32_t>(base::checked_cast<int32_t>(displacement));
 }
 
 bool JumpTableAssembler::EmitJumpSlot(Address target) {
-  intptr_t displacement =
-      static_cast<intptr_t>(reinterpret_cast<uint8_t*>(target) -
-                            (pc_ + kEndbrSize + kIntraSegmentJmpInstrSize));
+#ifdef V8_ENABLE_CET_IBT
+  uint32_t endbr_insn = 0xfa1e0ff3;
+  uint32_t nop = 0x00401f0f;
+  emit<uint32_t>(endbr_insn, kRelaxedStore);
+  // Add a nop to ensure that the next block is 8 byte aligned.
+  emit<uint32_t>(nop, kRelaxedStore);
+#endif
+
+  intptr_t displacement = static_cast<intptr_t>(
+      reinterpret_cast<uint8_t*>(target) - (pc_ + kIntraSegmentJmpInstrSize));
   if (!is_int32(displacement)) return false;
-  CodeEntry();                                 // kEndbrSize bytes (0 or 4)
-  near_jmp(displacement, RelocInfo::NO_INFO);  // 5 bytes
+
+  uint8_t inst[kJumpTableSlotSize] = {
+      0xe9, 0,    0,    0, 0,  // near_jmp displacement
+      0xcc, 0xcc, 0xcc,        // int3 * 3
+  };
+  int32_t displacement32 = base::checked_cast<int32_t>(displacement);
+  memcpy(&inst[1], &displacement32, sizeof(int32_t));
+
+  // The jump table is updated live, so the write has to be atomic.
+  emit<uint64_t>(*reinterpret_cast<uint64_t*>(inst), kRelaxedStore);
+
   return true;
 }
 
 void JumpTableAssembler::EmitFarJumpSlot(Address target) {
-  Label data;
-  [[maybe_unused]] int start_offset = pc_offset();
-  jmp(Operand(&data));  // 6 bytes
-  Nop(2);               // 2 bytes
-  // The data must be properly aligned, so it can be patched atomically (see
-  // {PatchFarJumpSlot}).
-  DCHECK_EQ(start_offset + kSystemPointerSize, pc_offset());
-  bind(&data);
-  dq(target);  // 8 bytes
+  const uint8_t inst[kFarJumpTableSlotSize] = {
+      0xff, 0x25, 0x02, 0, 0, 0,        // jmp [rip+0x2]
+      0x66, 0x90,                       // Nop(2)
+      0,    0,    0,    0, 0, 0, 0, 0,  // target
+  };
+
+  emit<uint64_t>(*reinterpret_cast<const uint64_t*>(inst));
+  emit<uint64_t>(target);
 }
 
 // static
@@ -129,17 +178,39 @@ void JumpTableAssembler::SkipUntil(int offset) {
 #elif V8_TARGET_ARCH_IA32
 void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
                                                  Address lazy_compile_target) {
-  mov(kWasmCompileLazyFuncIndexRegister, func_index);  // 5 bytes
-  jmp(lazy_compile_target, RelocInfo::NO_INFO);        // 5 bytes
+  static_assert(kWasmCompileLazyFuncIndexRegister == edi);
+  const uint8_t inst[kLazyCompileTableSlotSize] = {
+      0xbf, 0, 0, 0, 0,  // mov edi, func_index
+      0xe9, 0, 0, 0, 0,  // near_jmp displacement
+  };
+  intptr_t displacement =
+      static_cast<intptr_t>(reinterpret_cast<uint8_t*>(lazy_compile_target) -
+                            (pc_ + kLazyCompileTableSlotSize));
+
+  emit<uint8_t>(inst[0]);
+  emit<uint32_t>(func_index);
+  emit<uint8_t>(inst[5]);
+  emit<int32_t>(base::checked_cast<int32_t>(displacement));
 }
 
 bool JumpTableAssembler::EmitJumpSlot(Address target) {
-  jmp(target, RelocInfo::NO_INFO);
+  intptr_t displacement = static_cast<intptr_t>(
+      reinterpret_cast<uint8_t*>(target) - (pc_ + kJumpTableSlotSize));
+
+  const uint8_t inst[kJumpTableSlotSize] = {
+      0xe9, 0, 0, 0, 0,  // near_jmp displacement
+  };
+
+  // The jump table is updated live, so the writes have to be atomic.
+  emit<uint8_t>(inst[0], kRelaxedStore);
+  emit<int32_t>(base::checked_cast<int32_t>(displacement), kRelaxedStore);
+
   return true;
 }
 
 void JumpTableAssembler::EmitFarJumpSlot(Address target) {
-  jmp(target, RelocInfo::NO_INFO);
+  static_assert(kJumpTableSlotSize == kFarJumpTableSlotSize);
+  EmitJumpSlot(target);
 }
 
 // static
@@ -159,33 +230,41 @@ void JumpTableAssembler::SkipUntil(int offset) {
 #elif V8_TARGET_ARCH_ARM
 void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
                                                  Address lazy_compile_target) {
-  // Load function index to a register.
-  // This generates [movw, movt] on ARMv7 and later, [ldr, constant pool marker,
-  // constant] on ARMv6.
-  Move32BitImmediate(kWasmCompileLazyFuncIndexRegister, Operand(func_index));
-  // EmitJumpSlot emits either [b], [movw, movt, mov] (ARMv7+), or [ldr,
-  // constant].
-  // In total, this is <=5 instructions on all architectures.
-  // TODO(arm): Optimize this for code size; lazy compile is not performance
-  // critical, as it's only executed once per function.
-  EmitJumpSlot(lazy_compile_target);
+  static_assert(kWasmCompileLazyFuncIndexRegister == r4);
+  // Note that below, [pc] points to the instruction after the next.
+  const uint32_t inst[kLazyCompileTableSlotSize / 4] = {
+      0xe59f4000,  // ldr r4, [pc]
+      0xe59ff000,  // ldr pc, [pc]
+      0x00000000,  // func_index
+      0x00000000,  // target
+  };
+  emit<uint32_t>(inst[0]);
+  emit<uint32_t>(inst[1]);
+  emit<uint32_t>(func_index);
+  emit<Address>(lazy_compile_target);
 }
 
 bool JumpTableAssembler::EmitJumpSlot(Address target) {
-  // Note that {Move32BitImmediate} emits [ldr, constant] for the relocation
-  // mode used below, we need this to allow concurrent patching of this slot.
-  Move32BitImmediate(pc, Operand(target, RelocInfo::WASM_CALL));
-  CheckConstPool(true, false);  // force emit of const pool
+  static_assert(kInstrSize == kInt32Size);
+  static_assert(kJumpTableSlotSize == 2 * kInstrSize);
+
+  // Load from [pc + kInstrSize] to pc. Note that {pc} points two instructions
+  // after the currently executing one.
+  const uint32_t inst[kJumpTableSlotSize / kInstrSize] = {
+      0xe51ff004,  // ldr pc, [pc, -4]
+      0x00000000,  // target
+  };
+
+  // This function is also used for patching existing jump slots and the writes
+  // need to be atomic.
+  emit<uint32_t>(inst[0], kRelaxedStore);
+  emit<uint32_t>(target, kRelaxedStore);
   return true;
 }
 
 void JumpTableAssembler::EmitFarJumpSlot(Address target) {
-  // Load from [pc + kInstrSize] to pc. Note that {pc} points two instructions
-  // after the currently executing one.
-  ldr_pcrel(pc, -kInstrSize);  // 1 instruction
-  dd(target);                  // 4 bytes (== 1 instruction)
-  static_assert(kInstrSize == kInt32Size);
-  static_assert(kFarJumpTableSlotSize == 2 * kInstrSize);
+  static_assert(kJumpTableSlotSize == kFarJumpTableSlotSize);
+  EmitJumpSlot(target);
 }
 
 // static
@@ -210,13 +289,29 @@ void JumpTableAssembler::SkipUntil(int offset) {
 #elif V8_TARGET_ARCH_ARM64
 void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
                                                  Address lazy_compile_target) {
-  int start = pc_offset();
-  CodeEntry();                                             // 0-1 instr
-  Mov(kWasmCompileLazyFuncIndexRegister.W(), func_index);  // 1-2 instr
-  Jump(lazy_compile_target, RelocInfo::NO_INFO);           // 1 instr
-  int nop_bytes = start + kLazyCompileTableSlotSize - pc_offset();
-  DCHECK(nop_bytes == 0 || nop_bytes == kInstrSize);
-  if (nop_bytes) nop();
+  uint16_t func_index_low = func_index & 0xffff;
+  uint16_t func_index_high = func_index >> 16;
+
+  // TODO(sroettger): This bti instruction is a temporary fix for crashes that
+  // we observed in the wild. We can probably avoid this again if we change the
+  // callee to jump to the far jump table instead.
+  const uint32_t inst[kLazyCompileTableSlotSize / 4] = {
+      0xd50324df,  // bti.jc
+      0x52800008,  // mov  w8, func_index_low
+      0x72a00008,  // movk w8, func_index_high, LSL#0x10
+      0x14000000,  // b lazy_compile_target
+  };
+  static_assert(kWasmCompileLazyFuncIndexRegister == x8);
+
+  int64_t target_offset = MacroAssembler::CalculateTargetOffset(
+      lazy_compile_target, RelocInfo::NO_INFO, pc_ + 3 * kInstrSize);
+  DCHECK(MacroAssembler::IsNearCallOffset(target_offset));
+
+  emit<uint32_t>(inst[0]);
+  emit<uint32_t>(inst[1] | Assembler::ImmMoveWide(func_index_low));
+  emit<uint32_t>(inst[2] | Assembler::ImmMoveWide(func_index_high));
+  emit<uint32_t>(inst[3] | Assembler::ImmUncondBranch(
+                               base::checked_cast<int32_t>(target_offset)));
 }
 
 bool JumpTableAssembler::EmitJumpSlot(Address target) {
@@ -226,52 +321,46 @@ bool JumpTableAssembler::EmitJumpSlot(Address target) {
   static constexpr ptrdiff_t kCodeEntryMarkerSize = 0;
 #endif
 
-  uint8_t* jump_pc = pc_ + kCodeEntryMarkerSize;
-  ptrdiff_t jump_distance = reinterpret_cast<uint8_t*>(target) - jump_pc;
-  DCHECK_EQ(0, jump_distance % kInstrSize);
-  int64_t instr_offset = jump_distance / kInstrSize;
-  if (!MacroAssembler::IsNearCallOffset(instr_offset)) {
+  int64_t target_offset = MacroAssembler::CalculateTargetOffset(
+      target, RelocInfo::NO_INFO, pc_ + kCodeEntryMarkerSize);
+  if (!MacroAssembler::IsNearCallOffset(target_offset)) {
     return false;
   }
 
-  CodeEntry();
+#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
+  uint32_t bti_inst = 0xd503245f;  // bti c
+  emit<uint32_t>(bti_inst, kRelaxedStore);
+#endif
 
-  DCHECK_EQ(jump_pc, pc_);
-  DCHECK_EQ(instr_offset,
-            reinterpret_cast<Instr*>(target) - reinterpret_cast<Instr*>(pc_));
-  DCHECK(is_int26(instr_offset));
-  b(static_cast<int>(instr_offset));
+  uint32_t branch_inst =
+      0x14000000 |
+      Assembler::ImmUncondBranch(base::checked_cast<int32_t>(target_offset));
+  emit<uint32_t>(branch_inst, kRelaxedStore);
+
   return true;
 }
 
 void JumpTableAssembler::EmitFarJumpSlot(Address target) {
-  // This code uses hard-coded registers and instructions (and avoids
-  // {UseScratchRegisterScope} or {InstructionAccurateScope}) because this code
-  // will only be called for the very specific runtime slot table, and we want
-  // to have maximum control over the generated code.
-  // Do not reuse this code without validating that the same assumptions hold.
-  CodeEntry();  // 0-1 instructions
-  constexpr Register kTmpReg = x16;
-  DCHECK(TmpList()->IncludesAliasOf(kTmpReg));
-  int kOffset = ENABLE_CONTROL_FLOW_INTEGRITY_BOOL ? 3 : 2;
-  // Load from [pc + kOffset * kInstrSize] to {kTmpReg}, then branch there.
-  ldr_pcrel(kTmpReg, kOffset);  // 1 instruction
-  br(kTmpReg);                  // 1 instruction
-#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
-  nop();       // To keep the target below aligned to kSystemPointerSize.
-#endif
-  dq(target);  // 8 bytes (== 2 instructions)
+  DCHECK(TmpList()->IncludesAliasOf(x16));
+
+  const uint32_t inst[kFarJumpTableSlotSize / 4] = {
+      0x58000050,  // ldr x16, #8
+      0xd61f0200,  // br x16
+      0x00000000,  // target[0]
+      0x00000000,  // target[1]
+  };
+  emit<uint32_t>(inst[0]);
+  emit<uint32_t>(inst[1]);
+  emit<Address>(target);
+
   static_assert(2 * kInstrSize == kSystemPointerSize);
-  const int kSlotCount = ENABLE_CONTROL_FLOW_INTEGRITY_BOOL ? 6 : 4;
-  static_assert(kFarJumpTableSlotSize == kSlotCount * kInstrSize);
 }
 
 // static
 void JumpTableAssembler::PatchFarJumpSlot(Address slot, Address target) {
   // See {EmitFarJumpSlot} for the offset of the target (16 bytes with
   // CFI enabled, 8 bytes otherwise).
-  int kTargetOffset =
-      ENABLE_CONTROL_FLOW_INTEGRITY_BOOL ? 4 * kInstrSize : 2 * kInstrSize;
+  int kTargetOffset = 2 * kInstrSize;
   // The slot needs to be pointer-size aligned so we can atomically update it.
   DCHECK(IsAligned(slot + kTargetOffset, kSystemPointerSize));
   reinterpret_cast<std::atomic<Address>*>(slot + kTargetOffset)
@@ -507,13 +596,19 @@ void JumpTableAssembler::SkipUntil(int offset) {
 #elif V8_TARGET_ARCH_RISCV64
 void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
                                                  Address lazy_compile_target) {
-  int start = pc_offset();
+  const int tile = pc_offset() + kLazyCompileTableSlotSize;
   li(kWasmCompileLazyFuncIndexRegister, func_index);  // max. 2 instr
   // Jump produces max. 8 instructions (include constant pool and j)
   Jump(lazy_compile_target, RelocInfo::NO_INFO);
-  int nop_bytes = start + kLazyCompileTableSlotSize - pc_offset();
-  DCHECK_EQ(nop_bytes % kInstrSize, 0);
-  for (int i = 0; i < nop_bytes; i += kInstrSize) nop();
+  while (pc_offset() + kInstrSize <= tile) {
+    nop();
+  }
+  // the earlier JIT code still may contain compressed instruction and thus
+  // cannot be adjusted with only a sequence of NOP's
+  if (v8_flags.riscv_c_extension && pc_offset() + kShortInstrSize <= tile) {
+    c_nop();
+  }
+  DCHECK_EQ(pc_offset(), tile);
 }
 
 bool JumpTableAssembler::EmitJumpSlot(Address target) {
@@ -538,10 +633,14 @@ void JumpTableAssembler::PatchFarJumpSlot(Address slot, Address target) {
 
 void JumpTableAssembler::NopBytes(int bytes) {
   DCHECK_LE(0, bytes);
-  DCHECK_EQ(0, bytes % kInstrSize);
-  for (; bytes > 0; bytes -= kInstrSize) {
+  for (; bytes >= kInstrSize; bytes -= kInstrSize) {
     nop();
   }
+  if (v8_flags.riscv_c_extension && bytes >= kShortInstrSize) {
+    c_nop();
+    bytes -= kShortInstrSize;
+  }
+  DCHECK_EQ(0, bytes);
 }
 
 void JumpTableAssembler::SkipUntil(int offset) {
@@ -553,13 +652,19 @@ void JumpTableAssembler::SkipUntil(int offset) {
 #elif V8_TARGET_ARCH_RISCV32
 void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
                                                  Address lazy_compile_target) {
-  int start = pc_offset();
+  const int tile = pc_offset() + kLazyCompileTableSlotSize;
   li(kWasmCompileLazyFuncIndexRegister, func_index);  // max. 2 instr
   // Jump produces max. 8 instructions (include constant pool and j)
   Jump(lazy_compile_target, RelocInfo::NO_INFO);
-  int nop_bytes = start + kLazyCompileTableSlotSize - pc_offset();
-  DCHECK_EQ(nop_bytes % kInstrSize, 0);
-  for (int i = 0; i < nop_bytes; i += kInstrSize) nop();
+  while (pc_offset() + kInstrSize <= tile) {
+    nop();
+  }
+  // the earlier JIT code still may contain compressed instruction and thus
+  // cannot be adjusted with only a sequence of NOP's
+  if (v8_flags.riscv_c_extension && pc_offset() + kShortInstrSize <= tile) {
+    c_nop();
+  }
+  DCHECK_EQ(pc_offset(), tile);
 }
 
 bool JumpTableAssembler::EmitJumpSlot(Address target) {
@@ -584,10 +689,14 @@ void JumpTableAssembler::PatchFarJumpSlot(Address slot, Address target) {
 
 void JumpTableAssembler::NopBytes(int bytes) {
   DCHECK_LE(0, bytes);
-  DCHECK_EQ(0, bytes % kInstrSize);
-  for (; bytes > 0; bytes -= kInstrSize) {
+  for (; bytes >= kInstrSize; bytes -= kInstrSize) {
     nop();
   }
+  if (v8_flags.riscv_c_extension && bytes >= kShortInstrSize) {
+    c_nop();
+    bytes -= kShortInstrSize;
+  }
+  DCHECK_EQ(0, bytes);
 }
 
 void JumpTableAssembler::SkipUntil(int offset) {

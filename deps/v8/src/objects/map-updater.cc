@@ -237,7 +237,8 @@ Handle<Map> MapUpdater::ReconfigureElementsKind(ElementsKind elements_kind) {
   return Update();
 }
 
-Handle<Map> MapUpdater::ApplyPrototypeTransition(Handle<HeapObject> prototype) {
+Handle<Map> MapUpdater::ApplyPrototypeTransition(
+    Handle<JSPrototype> prototype) {
   DCHECK(v8_flags.move_prototype_transitions_first);
   DCHECK_EQ(kInitialized, state_);
   DCHECK_NE(old_map_->prototype(), *prototype);

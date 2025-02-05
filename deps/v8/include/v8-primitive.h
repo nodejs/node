@@ -240,6 +240,13 @@ class V8_EXPORT String : public Name {
      */
     virtual bool IsCacheable() const { return true; }
 
+    /**
+     * Internally V8 will call this Unaccount method when the external string
+     * resource should be unaccounted for. This method can be overridden in
+     * subclasses to control how allocated external bytes are accounted.
+     */
+    virtual void Unaccount(Isolate* isolate) {}
+
     // Disallow copying and assigning.
     ExternalStringResourceBase(const ExternalStringResourceBase&) = delete;
     void operator=(const ExternalStringResourceBase&) = delete;
@@ -474,7 +481,19 @@ class V8_EXPORT String : public Name {
    * The string is not modified if the operation fails. See NewExternal for
    * information on the lifetime of the resource.
    */
+  V8_DEPRECATE_SOON("Use the version with the isolate argument instead.")
   bool MakeExternal(ExternalStringResource* resource);
+
+  /**
+   * Associate an external string resource with this string by transforming it
+   * in place so that existing references to this string in the JavaScript heap
+   * will use the external string resource. The external string resource's
+   * character contents need to be equivalent to this string.
+   * Returns true if the string has been changed to be an external string.
+   * The string is not modified if the operation fails. See NewExternal for
+   * information on the lifetime of the resource.
+   */
+  bool MakeExternal(Isolate* isolate, ExternalStringResource* resource);
 
   /**
    * Creates a new external string using the one-byte data defined in the given
@@ -496,7 +515,19 @@ class V8_EXPORT String : public Name {
    * The string is not modified if the operation fails. See NewExternal for
    * information on the lifetime of the resource.
    */
+  V8_DEPRECATE_SOON("Use the version with the isolate argument instead.")
   bool MakeExternal(ExternalOneByteStringResource* resource);
+
+  /**
+   * Associate an external string resource with this string by transforming it
+   * in place so that existing references to this string in the JavaScript heap
+   * will use the external string resource. The external string resource's
+   * character contents need to be equivalent to this string.
+   * Returns true if the string has been changed to be an external string.
+   * The string is not modified if the operation fails. See NewExternal for
+   * information on the lifetime of the resource.
+   */
+  bool MakeExternal(Isolate* isolate, ExternalOneByteStringResource* resource);
 
   /**
    * Returns true if this string can be made external, given the encoding for

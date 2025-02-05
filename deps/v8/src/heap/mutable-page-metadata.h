@@ -83,8 +83,6 @@ class MutablePageMetadata : public MemoryChunkMetadata {
       ExternalBackingStoreType type, MutablePageMetadata* from,
       MutablePageMetadata* to, size_t amount);
 
-  void DiscardUnusedMemory(Address addr, size_t size);
-
   base::Mutex* mutex() const { return mutex_; }
   base::SharedMutex* shared_mutex() const { return shared_mutex_; }
 
@@ -255,6 +253,13 @@ class MutablePageMetadata : public MemoryChunkMetadata {
   }
 
   void ClearLiveness();
+
+  bool IsLargePage() {
+    // The active_system_pages_ will be nullptr for large pages, so we uses
+    // that here instead of (for example) adding another enum member. See also
+    // the constructor where this field is set.
+    return active_system_pages_ == nullptr;
+  }
 
  protected:
   // Release all memory allocated by the chunk. Should be called when memory

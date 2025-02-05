@@ -432,7 +432,7 @@ def _v8_target_cpu_transition_impl(settings,
         "armeabi-v7a": "arm32",
         "s390x": "s390x",
         "riscv64": "riscv64",
-        "ppc": "ppc64le",
+        "ppc64": "ppc64le",
     }
     v8_target_cpu = mapping[settings["//command_line_option:cpu"]]
     return {"@v8//bazel/config:v8_target_cpu": v8_target_cpu}
@@ -535,6 +535,7 @@ def build_config_content(cpu, icu):
         ("arch", arch),
         ("asan", "false"),
         ("atomic_object_field_writes", "false"),
+        ("cet_shadow_stack", "false"),
         ("cfi", "false"),
         ("clang_coverage", "false"),
         ("clang", "true"),
@@ -588,6 +589,7 @@ def build_config_content(cpu, icu):
         ("verify_csa", "false"),
         ("verify_heap", "false"),
         ("verify_predictable", "false"),
+        ("wasm_random_fuzzers", "false"),
         ("write_barriers", "false"),
     ])
 

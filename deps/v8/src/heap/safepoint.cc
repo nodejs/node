@@ -426,5 +426,14 @@ SafepointScope::SafepointScope(Isolate* initiator, SafepointKind kind) {
   }
 }
 
+SafepointScope::SafepointScope(Isolate* initiator,
+                               GlobalSafepointForSharedSpaceIsolateTag) {
+  if (initiator->is_shared_space_isolate()) {
+    global_safepoint_.emplace(initiator);
+  } else {
+    isolate_safepoint_.emplace(initiator->heap());
+  }
+}
+
 }  // namespace internal
 }  // namespace v8

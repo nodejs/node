@@ -109,7 +109,7 @@ Handle<Derived> OrderedHashTable<Derived, entrysize>::Clear(
     Isolate* isolate, Handle<Derived> table) {
   DCHECK(!table->IsObsolete());
 
-  AllocationType allocation_type = Heap::InYoungGeneration(*table)
+  AllocationType allocation_type = HeapLayout::InYoungGeneration(*table)
                                        ? AllocationType::kYoung
                                        : AllocationType::kOld;
 
@@ -222,7 +222,7 @@ Handle<FixedArray> OrderedHashSet::ConvertToKeysArray(
   // Convert the dictionary to a linear list.
   Handle<FixedArray> result = Cast<FixedArray>(table);
   // From this point on table is no longer a valid OrderedHashSet.
-  result->set_map(ReadOnlyRoots(isolate).fixed_array_map());
+  result->set_map(isolate, ReadOnlyRoots(isolate).fixed_array_map());
   int const kMaxStringTableEntries =
       isolate->heap()->MaxNumberToStringCacheSize();
   for (int i = 0; i < length; i++) {
@@ -265,10 +265,10 @@ MaybeHandle<Derived> OrderedHashTable<Derived, entrysize>::Rehash(
     Isolate* isolate, Handle<Derived> table, int new_capacity) {
   DCHECK(!table->IsObsolete());
 
-  MaybeHandle<Derived> new_table_candidate =
-      Derived::Allocate(isolate, new_capacity,
-                        Heap::InYoungGeneration(*table) ? AllocationType::kYoung
-                                                        : AllocationType::kOld);
+  MaybeHandle<Derived> new_table_candidate = Derived::Allocate(
+      isolate, new_capacity,
+      HeapLayout::InYoungGeneration(*table) ? AllocationType::kYoung
+                                            : AllocationType::kOld);
   Handle<Derived> new_table;
   if (!new_table_candidate.ToHandle(&new_table)) {
     return new_table_candidate;
@@ -931,8 +931,8 @@ Handle<Derived> SmallOrderedHashTable<Derived>::Rehash(Isolate* isolate,
 
   Handle<Derived> new_table = SmallOrderedHashTable<Derived>::Allocate(
       isolate, new_capacity,
-      Heap::InYoungGeneration(*table) ? AllocationType::kYoung
-                                      : AllocationType::kOld);
+      HeapLayout::InYoungGeneration(*table) ? AllocationType::kYoung
+                                            : AllocationType::kOld);
   int new_entry = 0;
 
   {

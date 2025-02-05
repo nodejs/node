@@ -121,14 +121,6 @@
   /* Shipped in v9.5 */                                                        \
   V(legacy_eh, "legacy exception handling opcodes", true)                      \
                                                                                \
-  /* Not user-visible, defined here so an Origin Trial can control it. */      \
-  /* V8 side owner: manoskouk, clemensb */                                     \
-  /* Staged in v11.3 */                                                        \
-  /* Shipped in V12.7 */                                                       \
-  /* Shipped for wasm-gc modules as part of wasm-gc in v11.9 */                \
-  /* Launch bug: https://crbug.com/40898108 */                                 \
-  V(inlining, "wasm-into-wasm inlining", true)                                 \
-                                                                               \
   /* Imported Strings Proposal. */                                             \
   /* https://github.com/WebAssembly/js-string-builtins */                      \
   /* V8 side owner: jkummerow */                                               \

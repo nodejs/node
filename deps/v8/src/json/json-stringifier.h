@@ -11,8 +11,8 @@ namespace v8 {
 namespace internal {
 
 V8_WARN_UNUSED_RESULT MaybeHandle<Object> JsonStringify(Isolate* isolate,
-                                                        Handle<Object> object,
-                                                        Handle<Object> replacer,
+                                                        Handle<JSAny> object,
+                                                        Handle<JSAny> replacer,
                                                         Handle<Object> gap);
 }  // namespace internal
 }  // namespace v8

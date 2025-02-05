@@ -693,9 +693,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                         TNode<JSReceiver> target,
                                         TNode<JSReceiver> new_target,
                                         TArgs... args) {
-    return CAST(ConstructJSWithTarget(Builtin::kConstruct, context, target,
-                                      new_target,
-                                      implicit_cast<TNode<Object>>(args)...));
+    return CAST(ConstructJS(Builtin::kConstruct, context, target, new_target,
+                            implicit_cast<TNode<Object>>(args)...));
   }
   template <class... TArgs>
   TNode<JSReceiver> Construct(TNode<Context> context,
@@ -760,8 +759,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
             single_char[0]));
   }
 
-  TNode<Float16T> TruncateFloat32ToFloat16(TNode<Float32T> value);
-  TNode<Float16T> TruncateFloat64ToFloat16(TNode<Float64T> value);
+  TNode<Float16RawBitsT> TruncateFloat32ToFloat16(TNode<Float32T> value);
+  TNode<Float16RawBitsT> TruncateFloat64ToFloat16(TNode<Float64T> value);
 
   TNode<Int32T> TruncateWordToInt32(TNode<WordT> value);
   TNode<Int32T> TruncateIntPtrToInt32(TNode<IntPtrT> value);
@@ -991,6 +990,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<UintPtrT> ComputeJSDispatchTableEntryOffset(
       TNode<JSDispatchHandleT> handle);
 #endif
+
+  TNode<JSDispatchHandleT> InvalidDispatchHandleConstant();
 
   TNode<Object> LoadProtectedPointerField(TNode<TrustedObject> object,
                                           TNode<IntPtrT> offset) {
@@ -1314,8 +1315,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Load the length of a fixed array base instance.
   TNode<Smi> LoadFixedArrayBaseLength(TNode<FixedArrayBase> array);
   template <typename Array>
-  TNode<Smi> LoadArrayCapacity(TNode<Array> array) {
-    return LoadObjectField<Smi>(array, Array::Shape::kCapacityOffset);
+  TNode<Smi> LoadSmiArrayLength(TNode<Array> array) {
+    return LoadObjectField<Smi>(array, offsetof(Array, length_));
   }
   // Load the length of a fixed array base instance.
   TNode<IntPtrT> LoadAndUntagFixedArrayBaseLength(TNode<FixedArrayBase> array);
@@ -1488,7 +1489,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<typename Array::Shape::ElementT> LoadArrayElement(
       TNode<Array> array, TNode<TIndex> index, int additional_offset = 0) {
     return LoadArrayElement<Array, TIndex, typename Array::Shape::ElementT>(
-        array, Array::Shape::kHeaderSize, index, additional_offset);
+        array, OFFSET_OF_DATA_START(Array), index, additional_offset);
   }
 
   template <typename TIndex>
@@ -1840,7 +1841,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     // StoreFixedArrayOrPropertyArrayElement. We can make it more robust and
     // generic if needed.
     TNode<IntPtrT> offset = ElementOffsetFromIndex(index, PACKED_ELEMENTS,
-                                                   Array::Shape::kHeaderSize);
+                                                   OFFSET_OF_DATA_START(Array));
     if (barrier_mode == SKIP_WRITE_BARRIER) {
       StoreObjectFieldNoWriteBarrier(object, offset, value);
     } else if (barrier_mode == UPDATE_WRITE_BARRIER) {
@@ -2295,8 +2296,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       HoleConversionMode convert_holes = HoleConversionMode::kDontConvert,
       TVariable<BoolT>* var_holes_converted = nullptr);
 
-  void JumpIfPointersFromHereAreInteresting(TNode<Object> object,
-                                            Label* interesting);
+  void TrySkipWriteBarrier(TNode<Object> object, Label* if_needs_write_barrier);
 
   // Efficiently copy elements within a single array. The regions
   // [src_index, src_index + length) and [dst_index, dst_index + length)
@@ -2567,12 +2567,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Smi> TryFloat32ToSmi(TNode<Float32T> number, Label* not_smi);
   TNode<Smi> TryFloat64ToSmi(TNode<Float64T> number, Label* not_smi);
 
-  TNode<Uint32T> BitcastFloat16ToUint32(TNode<Float16T> value);
-  TNode<Float16T> BitcastUint32ToFloat16(TNode<Uint32T> value);
-  TNode<Float16T> RoundInt32ToFloat16(TNode<Int32T> value);
+  TNode<Uint32T> BitcastFloat16ToUint32(TNode<Float16RawBitsT> value);
+  TNode<Float16RawBitsT> BitcastUint32ToFloat16(TNode<Uint32T> value);
+  TNode<Float16RawBitsT> RoundInt32ToFloat16(TNode<Int32T> value);
 
-  TNode<Float64T> ChangeFloat16ToFloat64(TNode<Float16T> value);
-  TNode<Float32T> ChangeFloat16ToFloat32(TNode<Float16T> value);
+  TNode<Float64T> ChangeFloat16ToFloat64(TNode<Float16RawBitsT> value);
+  TNode<Float32T> ChangeFloat16ToFloat32(TNode<Float16RawBitsT> value);
   TNode<Number> ChangeFloat32ToTagged(TNode<Float32T> value);
   TNode<Number> ChangeFloat64ToTagged(TNode<Float64T> value);
   TNode<Number> ChangeInt32ToTagged(TNode<Int32T> value);
@@ -2858,6 +2858,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> HasSharedStringTableFlag() {
     return LoadRuntimeFlag(
         ExternalReference::address_of_shared_string_table_flag());
+  }
+
+  TNode<BoolT> IsScriptContextMutableHeapNumberFlag() {
+    return LoadRuntimeFlag(
+        ExternalReference::script_context_mutable_heap_number_flag());
   }
 
   // True iff |object| is a Smi or a HeapNumber or a BigInt.
@@ -3625,6 +3630,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                      TNode<Object> callable,
                                      TNode<Object> object);
 
+  TNode<BytecodeArray> LoadBytecodeArrayFromBaseline();
+
   // Load type feedback vector from the stub caller's frame.
   TNode<FeedbackVector> LoadFeedbackVectorForStub();
   TNode<FeedbackVector> LoadFeedbackVectorFromBaseline();
@@ -3823,7 +3830,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   template <typename TIndex>
   TNode<IntPtrT> GetFixedArrayAllocationSize(TNode<TIndex> element_count,
                                              ElementsKind kind) {
-    return GetArrayAllocationSize(element_count, kind, FixedArray::kHeaderSize);
+    return GetArrayAllocationSize(element_count, kind,
+                                  OFFSET_OF_DATA_START(FixedArray));
   }
 
   TNode<IntPtrT> GetPropertyArrayAllocationSize(TNode<IntPtrT> element_count) {
@@ -4063,9 +4071,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                         int base_size = 0);
   template <typename Array, typename TIndex>
   TNode<IntPtrT> OffsetOfElementAt(TNode<TIndex> index) {
-    static_assert(Array::Shape::kElementSize == kTaggedSize);
+    static_assert(Array::kElementSize == kTaggedSize);
     return ElementOffsetFromIndex(index, PACKED_ELEMENTS,
-                                  Array::kHeaderSize - kHeapObjectTag);
+                                  OFFSET_OF_DATA_START(Array) - kHeapObjectTag);
   }
 
   // Check that a field offset is within the bounds of the an object.
@@ -4084,9 +4092,32 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return LoadBuiltinDispatchHandle(JSBuiltinDispatchHandleRoot::to_idx(idx));
   }
 
-  // Load a Code object from the JSDispatchTable.
-  TNode<Code> ResolveJSDispatchHandle(TNode<JSDispatchHandleT> dispatch_handle);
+  // Load the Code object of a JSDispatchTable entry.
+  TNode<Code> LoadCodeObjectFromJSDispatchTable(
+      TNode<JSDispatchHandleT> dispatch_handle);
+  // Load the parameter count of a JSDispatchTable entry.
+  TNode<Uint16T> LoadParameterCountFromJSDispatchTable(
+      TNode<JSDispatchHandleT> dispatch_handle);
 #endif
+
+  // Indicate that this code must support a dynamic parameter count.
+  //
+  // This is used for builtins that must work on functions with different
+  // parameter counts. In that case, the true JS parameter count is only known
+  // at runtime and must be obtained in order to compute the total number of
+  // arguments (which may include padding arguments). The parameter count is
+  // subsequently available through the corresponding CodeAssembler accessors.
+  // The target function object and the dispatch handle need to be passed in
+  // and are used to obtain the actual parameter count of the called function.
+  //
+  // This should generally be invoked directly at the start of the function.
+  //
+  // TODO(saelo): it would be a bit nicer if this would happen automatically in
+  // the function prologue for functions marked as requiring this (e.g. via the
+  // call descriptor). It's not clear if that's worth the effort though for the
+  // handful of builtins that need this.
+  void SetSupportsDynamicParameterCount(
+      TNode<JSFunction> callee, TNode<JSDispatchHandleT> dispatch_handle);
 
   // Figure out the SFI's code object using its data field.
   // If |data_type_out| is provided, the instance type of the function data will
@@ -4695,6 +4726,9 @@ class V8_EXPORT_PRIVATE CodeStubArguments {
         argc_(torque_arguments.actual_count),
         base_(torque_arguments.base),
         fp_(torque_arguments.frame) {}
+
+  // Return true if there may be additional padding arguments, false otherwise.
+  bool MayHavePaddingArguments() const;
 
   TNode<Object> GetReceiver() const;
   // Replaces receiver argument on the expression stack. Should be used only

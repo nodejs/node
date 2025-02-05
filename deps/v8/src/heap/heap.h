@@ -232,64 +232,65 @@ class Heap final {
    public:
     static constexpr size_t kExternalAllocationLimitForInterrupt = 128 * KB;
 
-    int64_t total() const { return total_.load(std::memory_order_relaxed); }
-    int64_t limit_for_interrupt() const {
+    uint64_t total() const { return total_.load(std::memory_order_relaxed); }
+    uint64_t limit_for_interrupt() const {
       return limit_for_interrupt_.load(std::memory_order_relaxed);
     }
-    int64_t soft_limit() const {
+    uint64_t soft_limit() const {
       return low_since_mark_compact() + kExternalAllocationSoftLimit;
     }
-    int64_t low_since_mark_compact() const {
+    uint64_t low_since_mark_compact() const {
       return low_since_mark_compact_.load(std::memory_order_relaxed);
     }
 
-    int64_t UpdateAmount(int64_t delta) {
-      const int64_t amount =
-          total_.fetch_add(delta, std::memory_order_relaxed) + delta;
-      return amount;
+    uint64_t UpdateAmount(int64_t delta) {
+      const uint64_t amount_before =
+          total_.fetch_add(delta, std::memory_order_relaxed);
+      CHECK_GE(static_cast<int64_t>(amount_before), -delta);
+      return amount_before + delta;
     }
 
-    void UpdateLimitForInterrupt(int64_t amount) {
+    void UpdateLimitForInterrupt(uint64_t amount) {
       set_limit_for_interrupt(amount + kExternalAllocationLimitForInterrupt);
     }
 
-    void UpdateLowSinceMarkCompact(int64_t amount) {
+    void UpdateLowSinceMarkCompact(uint64_t amount) {
       set_low_since_mark_compact(amount);
       UpdateLimitForInterrupt(amount);
     }
 
     uint64_t AllocatedSinceMarkCompact() const {
-      int64_t total_bytes = total();
-      int64_t low_since_mark_compact_bytes = low_since_mark_compact();
+      uint64_t total_bytes = total();
+      uint64_t low_since_mark_compact_bytes = low_since_mark_compact();
 
       if (total_bytes <= low_since_mark_compact_bytes) {
         return 0;
       }
-      return static_cast<uint64_t>(total_bytes - low_since_mark_compact_bytes);
+      return total_bytes - low_since_mark_compact_bytes;
     }
 
    private:
-    void set_total(int64_t value) {
+    void set_total(uint64_t value) {
       total_.store(value, std::memory_order_relaxed);
     }
 
-    void set_limit_for_interrupt(int64_t value) {
+    void set_limit_for_interrupt(uint64_t value) {
       limit_for_interrupt_.store(value, std::memory_order_relaxed);
     }
 
-    void set_low_since_mark_compact(int64_t value) {
+    void set_low_since_mark_compact(uint64_t value) {
       low_since_mark_compact_.store(value, std::memory_order_relaxed);
     }
 
     // The amount of external memory registered through the API.
-    std::atomic<int64_t> total_{0};
+    std::atomic<uint64_t> total_{0};
 
     // The limit when to trigger memory pressure from the API.
-    std::atomic<int64_t> limit_for_interrupt_{
+    std::atomic<uint64_t> limit_for_interrupt_{
         kExternalAllocationLimitForInterrupt};
 
     // Caches the amount of external memory registered at the last MC.
-    std::atomic<int64_t> low_since_mark_compact_{0};
+    std::atomic<uint64_t> low_since_mark_compact_{0};
   };
 
   // Taking this mutex prevents the GC from entering a phase that relocates
@@ -358,14 +359,12 @@ class Heap final {
   // Checks whether the space is valid.
   static bool IsValidAllocationSpace(AllocationSpace space);
 
-  // Helper function to get the bytecode flushing mode based on the flags. This
-  // is required because it is not safe to access flags in concurrent marker.
-  static inline base::EnumSet<CodeFlushMode> GetCodeFlushMode(Isolate* isolate);
-
   static inline bool IsYoungGenerationCollector(GarbageCollector collector) {
     return collector == GarbageCollector::SCAVENGER ||
            collector == GarbageCollector::MINOR_MARK_SWEEPER;
   }
+
+  V8_EXPORT_PRIVATE static bool IsFreeSpaceValid(FreeSpace object);
 
   static inline GarbageCollector YoungGenerationCollector() {
     return (v8_flags.minor_ms) ? GarbageCollector::MINOR_MARK_SWEEPER
@@ -580,6 +579,8 @@ class Heap final {
 
   V8_EXPORT_PRIVATE void AppendArrayBufferExtension(
       Tagged<JSArrayBuffer> object, ArrayBufferExtension* extension);
+  V8_EXPORT_PRIVATE void ResizeArrayBufferExtension(
+      ArrayBufferExtension* extension, int64_t delta);
   void DetachArrayBufferExtension(ArrayBufferExtension* extension);
 
   IsolateSafepoint* safepoint() { return safepoint_.get(); }
@@ -595,8 +596,8 @@ class Heap final {
   bool MeasureMemory(std::unique_ptr<v8::MeasureMemoryDelegate> delegate,
                      v8::MeasureMemoryExecution execution);
 
-  std::unique_ptr<v8::MeasureMemoryDelegate> MeasureMemoryDelegate(
-      Handle<NativeContext> context, Handle<JSPromise> promise,
+  std::unique_ptr<v8::MeasureMemoryDelegate> CreateDefaultMeasureMemoryDelegate(
+      v8::Local<v8::Context> context, v8::Local<v8::Promise::Resolver> promise,
       v8::MeasureMemoryMode mode);
 
   void VisitExternalResources(v8::ExternalResourceVisitor* visitor);
@@ -604,8 +605,9 @@ class Heap final {
   void IncrementDeferredCounts(
       base::Vector<const v8::Isolate::UseCounterFeature> features);
 
-  inline int NextScriptId();
-  inline int NextDebuggingId();
+  int NextScriptId();
+  int NextDebuggingId();
+  int NextStackTraceId();
   inline int GetNextTemplateSerialNumber();
 
   void SetSerializedObjects(Tagged<HeapObject> objects);
@@ -616,15 +618,15 @@ class Heap final {
   // For post mortem debugging.
   void RememberUnmappedPage(Address page, bool compacted);
 
-  int64_t external_memory_hard_limit() {
+  uint64_t external_memory_hard_limit() {
     return external_memory_.low_since_mark_compact() +
            max_old_generation_size() / 2;
   }
 
-  V8_INLINE int64_t external_memory() const;
-  V8_EXPORT_PRIVATE int64_t external_memory_limit_for_interrupt();
-  V8_EXPORT_PRIVATE int64_t external_memory_soft_limit();
-  int64_t UpdateExternalMemory(int64_t delta);
+  V8_INLINE uint64_t external_memory() const;
+  V8_EXPORT_PRIVATE uint64_t external_memory_limit_for_interrupt();
+  V8_EXPORT_PRIVATE uint64_t external_memory_soft_limit();
+  uint64_t UpdateExternalMemory(int64_t delta);
 
   V8_EXPORT_PRIVATE size_t YoungArrayBufferBytes();
   V8_EXPORT_PRIVATE size_t OldArrayBufferBytes();
@@ -899,7 +901,7 @@ class Heap final {
   void RemoveDirtyFinalizationRegistriesOnContext(
       Tagged<NativeContext> context);
 
-  inline bool HasDirtyJSFinalizationRegistries();
+  bool HasDirtyJSFinalizationRegistries();
 
   void PostFinalizationRegistryCleanupTaskIfNeeded();
 
@@ -1098,6 +1100,7 @@ class Heap final {
   // Setters for code offsets of well-known deoptimization targets.
   void SetConstructStubCreateDeoptPCOffset(int pc_offset);
   void SetConstructStubInvokeDeoptPCOffset(int pc_offset);
+  void SetDeoptPCOffsetAfterAdaptShadowStack(int pc_offset);
   void SetInterpreterEntryReturnPCOffset(int pc_offset);
 
   void DeoptMarkedAllocationSites();
@@ -1154,9 +1157,6 @@ class Heap final {
   // ===========================================================================
 
   // Returns whether the object resides in new space.
-  static inline bool InYoungGeneration(Tagged<Object> object);
-  static inline bool InYoungGeneration(Tagged<MaybeObject> object);
-  static inline bool InYoungGeneration(Tagged<HeapObject> heap_object);
   static inline bool InFromPage(Tagged<Object> object);
   static inline bool InFromPage(Tagged<MaybeObject> object);
   static inline bool InFromPage(Tagged<HeapObject> heap_object);
@@ -1340,8 +1340,6 @@ class Heap final {
   void UpdateOldGenerationAllocationCounter() {
     old_generation_allocation_counter_at_last_gc_ =
         OldGenerationAllocationCounter();
-    old_generation_size_at_last_gc_ = 0;
-    old_generation_wasted_at_last_gc_ = 0;
   }
 
   size_t OldGenerationAllocationCounter() {
@@ -1739,9 +1737,13 @@ class Heap final {
   // Make all LABs of all threads iterable.
   void MakeLinearAllocationAreasIterable();
 
-  // Enables/Disables black allocation in shared LABs.
+  // Enables/Disables black allocation in shared LABs when not using black
+  // allocated pages.
   void MarkSharedLinearAllocationAreasBlack();
   void UnmarkSharedLinearAllocationAreas();
+
+  // Free shared LABs and reset freelists.
+  void FreeSharedLinearAllocationAreasAndResetFreeLists();
 
   // Performs garbage collection in a safepoint.
   void PerformGarbageCollection(GarbageCollector collector,
@@ -1904,8 +1906,8 @@ class Heap final {
 
   MemoryReducer* memory_reducer() { return memory_reducer_.get(); }
 
-  // For some webpages RAIL mode does not switch from PERFORMANCE_LOAD.
-  // This constant limits the effect of load RAIL mode on GC.
+  // For some webpages NotifyLoadingEnded() is never called.
+  // This constant limits the effect of load time on GC.
   // The value is arbitrary and chosen as the largest load time observed in
   // v8 browsing benchmarks.
   static const int kMaxLoadTimeMs = 7000;
@@ -1923,14 +1925,12 @@ class Heap final {
     return global_allocation_limit_.load(std::memory_order_relaxed);
   }
 
-  bool old_generation_allocation_limit_configured() const {
-    return old_generation_allocation_limit_configured_.load(
-        std::memory_order_relaxed);
+  bool using_initial_limit() const {
+    return using_initial_limit_.load(std::memory_order_relaxed);
   }
 
-  void set_old_generation_allocation_limit_configured(bool value) {
-    old_generation_allocation_limit_configured_.store(
-        value, std::memory_order_relaxed);
+  void set_using_initial_limit(bool value) {
+    using_initial_limit_.store(value, std::memory_order_relaxed);
   }
 
   size_t max_old_generation_size() const {
@@ -2097,13 +2097,16 @@ class Heap final {
 
   // Before the first full GC the old generation allocation limit is considered
   // to be *not* configured (unless initial limits were provided by the
-  // embedder). In this mode V8 starts with a very large old generation
-  // allocation limit initially. Minor GCs may then shrink this initial limit
-  // down until the first full GC computes a proper old generation allocation
-  // limit in Heap::RecomputeLimits. The old generation allocation limit is then
-  // considered to be configured for all subsequent GCs. After the first full GC
-  // this field is only ever reset for top context disposals.
-  std::atomic<bool> old_generation_allocation_limit_configured_ = false;
+  // embedder, see below). In this mode V8 starts with a very large old
+  // generation allocation limit initially. Minor GCs may then shrink this
+  // initial limit down until the first full GC computes a proper old generation
+  // allocation limit in Heap::RecomputeLimits. The old generation allocation
+  // limit is then considered to be configured for all subsequent GCs. After the
+  // first full GC this field is only ever reset for top context disposals.
+  std::atomic<bool> using_initial_limit_ = true;
+
+  // True if initial limits were provided by the embedder.
+  bool initial_limit_overwritten_ = false;
 
   size_t maximum_committed_ = 0;
   size_t old_generation_capacity_after_bootstrap_ = 0;
@@ -2396,7 +2399,9 @@ class Heap final {
 
   std::unique_ptr<MemoryBalancer> mb_;
 
+  // Time that the embedder started loading resources.
   std::atomic<double> load_start_time_ms_{0};
+
   bool update_allocation_limits_after_loading_ = false;
   // Full GC may trigger during loading due to overshooting allocation limits.
   // In such cases we may want to update the limits again once loading is
@@ -2672,11 +2677,9 @@ class StrongRootAllocator<Address> : public StrongRootAllocatorBase {
  public:
   using value_type = Address;
 
-  explicit StrongRootAllocator(Heap* heap) : StrongRootAllocatorBase(heap) {}
-  explicit StrongRootAllocator(Isolate* isolate)
-      : StrongRootAllocatorBase(isolate) {}
-  explicit StrongRootAllocator(v8::Isolate* isolate)
-      : StrongRootAllocatorBase(reinterpret_cast<Isolate*>(isolate)) {}
+  template <typename HeapOrIsolateT>
+  explicit StrongRootAllocator(HeapOrIsolateT* heap_or_isolate)
+      : StrongRootAllocatorBase(heap_or_isolate) {}
   template <typename U>
   StrongRootAllocator(const StrongRootAllocator<U>& other) V8_NOEXCEPT
       : StrongRootAllocatorBase(other) {}

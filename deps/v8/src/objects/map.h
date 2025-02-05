@@ -48,7 +48,7 @@ enum InstanceType : uint16_t;
   V(Cell)                            \
   V(CodeWrapper)                     \
   V(ConsString)                      \
-  V(ConstTrackingLetCell)            \
+  V(ContextSidePropertyCell)         \
   V(DataHandler)                     \
   V(DebugInfo)                       \
   V(EmbedderDataArray)               \
@@ -101,6 +101,7 @@ enum InstanceType : uint16_t;
   IF_WASM(V, WasmFuncRef)            \
   IF_WASM(V, WasmGlobalObject)       \
   IF_WASM(V, WasmInstanceObject)     \
+  IF_WASM(V, WasmMemoryObject)       \
   IF_WASM(V, WasmResumeData)         \
   IF_WASM(V, WasmStruct)             \
   IF_WASM(V, WasmSuspenderObject)    \
@@ -482,12 +483,15 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   // [raw_transitions]: Provides access to the transitions storage field.
   // Don't call set_raw_transitions() directly to overwrite transitions, use
   // the TransitionArray::ReplaceTransitions() wrapper instead!
-  DECL_ACCESSORS(raw_transitions, Tagged<MaybeObject>)
-  DECL_RELEASE_ACQUIRE_WEAK_ACCESSORS(raw_transitions)
+  DECL_ACCESSORS(raw_transitions,
+                 Tagged<UnionOf<Smi, MaybeWeak<Map>, TransitionArray>>)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(
+      raw_transitions, Tagged<UnionOf<Smi, MaybeWeak<Map>, TransitionArray>>)
   // [prototype_info]: Per-prototype metadata. Aliased with transitions
   // (which prototype maps don't have).
-  DECL_GETTER(prototype_info, Tagged<Object>)
-  DECL_RELEASE_ACQUIRE_ACCESSORS(prototype_info, Tagged<Object>)
+  DECL_GETTER(prototype_info, Tagged<UnionOf<Smi, PrototypeInfo>>)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(prototype_info,
+                                 Tagged<UnionOf<Smi, PrototypeInfo>>)
   // PrototypeInfo is created lazily using this helper (which installs it on
   // the given prototype's map).
   static Handle<PrototypeInfo> GetOrCreatePrototypeInfo(
@@ -503,11 +507,12 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   // object are currently valid. The cell will be invalidated and replaced when
   // the prototype chain changes. When there's nothing to guard (for example,
   // when direct prototype is null or Proxy) this function returns Smi with
-  // |kPrototypeChainValid| sentinel value.
+  // |kPrototypeChainValid| sentinel value, which is zero.
   static Handle<UnionOf<Smi, Cell>> GetOrCreatePrototypeChainValidityCell(
       DirectHandle<Map> map, Isolate* isolate);
-  static const int kPrototypeChainValid = 0;
-  static const int kPrototypeChainInvalid = 1;
+  static constexpr int kPrototypeChainValid = 0;
+  static constexpr int kPrototypeChainInvalid = 1;
+  static constexpr Tagged<Smi> kPrototypeChainValidSmi = Smi::zero();
 
   static bool IsPrototypeChainInvalidated(Tagged<Map> map);
 
@@ -566,11 +571,11 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
 
   V8_EXPORT_PRIVATE static Handle<Map> Normalize(
       Isolate* isolate, Handle<Map> map, ElementsKind new_elements_kind,
-      Handle<HeapObject> new_prototype, PropertyNormalizationMode mode,
+      Handle<JSPrototype> new_prototype, PropertyNormalizationMode mode,
       bool use_cache, const char* reason);
   V8_EXPORT_PRIVATE static Handle<Map> Normalize(
       Isolate* isolate, Handle<Map> map, ElementsKind new_elements_kind,
-      Handle<HeapObject> new_prototype, PropertyNormalizationMode mode,
+      Handle<JSPrototype> new_prototype, PropertyNormalizationMode mode,
       const char* reason) {
     const bool kUseCache = true;
     return Normalize(isolate, map, new_elements_kind, new_prototype, mode,
@@ -592,10 +597,10 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   DECL_BOOLEAN_ACCESSORS(is_access_check_needed)
 
   // [prototype]: implicit prototype object.
-  DECL_ACCESSORS(prototype, Tagged<HeapObject>)
+  DECL_ACCESSORS(prototype, Tagged<JSPrototype>)
   // TODO(jkummerow): make set_prototype private.
   V8_EXPORT_PRIVATE static void SetPrototype(
-      Isolate* isolate, DirectHandle<Map> map, Handle<HeapObject> prototype,
+      Isolate* isolate, DirectHandle<Map> map, Handle<JSPrototype> prototype,
       bool enable_prototype_setup_mode = true);
 
   // Sets prototype and constructor fields to null. Can be called during
@@ -679,7 +684,7 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   // For non-prototype maps which are used as transitioning store handlers this
   // field contains the validity cell which guards modifications of this map's
   // prototype.
-  DECL_RELAXED_ACCESSORS(prototype_validity_cell, Tagged<Object>)
+  DECL_RELAXED_ACCESSORS(prototype_validity_cell, Tagged<UnionOf<Smi, Cell>>)
 
   // Returns true if prototype validity cell value represents "valid" prototype
   // chain state.
@@ -822,7 +827,7 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   // tree as a prototype transition.
   static Handle<Map> CopyForPrototypeTransition(Isolate* isolate,
                                                 Handle<Map> map,
-                                                Handle<HeapObject> prototype);
+                                                Handle<JSPrototype> prototype);
 
   // Returns a copy of the map, with all transitions dropped from the
   // instance descriptors.
@@ -846,17 +851,18 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   // Returns the map to be used for instances when the given {prototype} is
   // passed to an Object.create call. Might transition the given {prototype}.
   static Handle<Map> GetObjectCreateMap(Isolate* isolate,
-                                        Handle<HeapObject> prototype);
+                                        Handle<JSPrototype> prototype);
 
   // Returns the map to be used for instances when the given {prototype} is
   // passed to Reflect.construct or proxy constructors.
   static Handle<Map> GetDerivedMap(Isolate* isolate, Handle<Map> from,
                                    Handle<JSReceiver> prototype);
 
-  // Computes a hash value for this map, to be used in HashTables and such.
-  int Hash();
-  // Compute the hash assuming another prototype.
-  int Hash(Tagged<HeapObject> prototype);
+  // Computes a hash value for this map, to be used e.g. in HashTables. The
+  // prototype value should be either the Map's prototype or another prototype
+  // in case the hash is supposed to be computed for a copy of this map with a
+  // changed prototype value.
+  int Hash(Isolate* isolate, Tagged<HeapObject> prototype);
 
   // Returns the transitioned map for this map with the most generic
   // elements_kind that's found in |candidates|, or |nullptr| if no match is
@@ -901,9 +907,9 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   }
 
   V8_EXPORT_PRIVATE static Handle<Map> TransitionRootMapToPrototypeForNewObject(
-      Isolate* isolate, Handle<Map> map, Handle<HeapObject> prototype);
+      Isolate* isolate, Handle<Map> map, Handle<JSPrototype> prototype);
   V8_EXPORT_PRIVATE static Handle<Map> TransitionToUpdatePrototype(
-      Isolate* isolate, Handle<Map> map, Handle<HeapObject> prototype);
+      Isolate* isolate, Handle<Map> map, Handle<JSPrototype> prototype);
 
   static Handle<Map> TransitionToImmutableProto(Isolate* isolate,
                                                 Handle<Map> map);
@@ -1056,11 +1062,13 @@ class NormalizedMapCache : public WeakFixedArray {
   NEVER_READ_ONLY_SPACE
   static Handle<NormalizedMapCache> New(Isolate* isolate);
 
-  V8_WARN_UNUSED_RESULT MaybeHandle<Map> Get(DirectHandle<Map> fast_map,
+  V8_WARN_UNUSED_RESULT MaybeHandle<Map> Get(Isolate* isolate,
+                                             DirectHandle<Map> fast_map,
                                              ElementsKind elements_kind,
                                              Tagged<HeapObject> prototype,
                                              PropertyNormalizationMode mode);
-  void Set(DirectHandle<Map> fast_map, DirectHandle<Map> normalized_map);
+  void Set(Isolate* isolate, DirectHandle<Map> fast_map,
+           DirectHandle<Map> normalized_map);
 
   DECL_VERIFIER(NormalizedMapCache)
 
@@ -1070,13 +1078,12 @@ class NormalizedMapCache : public WeakFixedArray {
 
   static const int kEntries = 64;
 
-  static inline int GetIndex(Tagged<Map> map, Tagged<HeapObject> prototype);
+  static inline int GetIndex(Isolate* isolate, Tagged<Map> map,
+                             Tagged<HeapObject> prototype);
 
   // The following declarations hide base class methods.
   Tagged<Object> get(int index);
   void set(int index, Tagged<Object> value);
-
-  OBJECT_CONSTRUCTORS(NormalizedMapCache, WeakFixedArray);
 };
 
 #define DECL_TESTER(Type, ...) inline bool Is##Type##Map(Tagged<Map> map);

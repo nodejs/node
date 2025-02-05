@@ -66,9 +66,10 @@ TEST_F(WasmCapiTest, Traps) {
 
   // Use internal machinery to parse the module to find the function offsets.
   // This makes the test more robust than hardcoding them.
+  WasmDetectedFeatures unused_detected_features;
   ModuleResult result =
       DecodeWasmModule(WasmEnabledFeatures::All(), wire_bytes(), false,
-                       ModuleOrigin::kWasmOrigin);
+                       ModuleOrigin::kWasmOrigin, &unused_detected_features);
   ASSERT_TRUE(result.ok());
   const WasmFunction* func1 = &result.value()->functions[1];
   const WasmFunction* func2 = &result.value()->functions[2];

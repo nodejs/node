@@ -49,7 +49,7 @@ describe('Regression tests', () => {
       MUTATE_FUNCTION_CALLS: 0.0,
       MUTATE_NUMBERS: 0.0,
       MUTATE_VARIABLES: 0.0,
-      engine: 'V8',
+      engine: 'v8',
       testing: true,
     }
   });

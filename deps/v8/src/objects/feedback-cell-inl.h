@@ -82,9 +82,9 @@ void FeedbackCell::set_dispatch_handle(JSDispatchHandle new_handle) {
 void FeedbackCell::IncrementClosureCount(Isolate* isolate) {
   ReadOnlyRoots r(isolate);
   if (map() == r.no_closures_cell_map()) {
-    set_map(r.one_closure_cell_map());
+    set_map(isolate, r.one_closure_cell_map());
   } else if (map() == r.one_closure_cell_map()) {
-    set_map(r.many_closures_cell_map());
+    set_map(isolate, r.many_closures_cell_map());
   } else {
     DCHECK(map() == r.many_closures_cell_map());
   }

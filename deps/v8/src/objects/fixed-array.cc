@@ -139,7 +139,7 @@ Handle<ArrayList> ArrayList::EnsureSpace(Isolate* isolate,
 // static
 Handle<WeakArrayList> WeakArrayList::AddToEnd(Isolate* isolate,
                                               Handle<WeakArrayList> array,
-                                              MaybeObjectHandle value) {
+                                              MaybeObjectDirectHandle value) {
   int length = array->length();
   array = EnsureSpace(isolate, array, length + 1);
   {
@@ -155,7 +155,7 @@ Handle<WeakArrayList> WeakArrayList::AddToEnd(Isolate* isolate,
 
 Handle<WeakArrayList> WeakArrayList::AddToEnd(Isolate* isolate,
                                               Handle<WeakArrayList> array,
-                                              MaybeObjectHandle value1,
+                                              MaybeObjectDirectHandle value1,
                                               Tagged<Smi> value2) {
   int length = array->length();
   array = EnsureSpace(isolate, array, length + 2);
@@ -174,7 +174,7 @@ Handle<WeakArrayList> WeakArrayList::AddToEnd(Isolate* isolate,
 // static
 Handle<WeakArrayList> WeakArrayList::Append(Isolate* isolate,
                                             Handle<WeakArrayList> array,
-                                            MaybeObjectHandle value,
+                                            MaybeObjectDirectHandle value,
                                             AllocationType allocation) {
   int length = 0;
   int new_length = 0;
@@ -277,7 +277,7 @@ int WeakArrayList::CountLiveElements() const {
   return non_cleared_objects;
 }
 
-bool WeakArrayList::RemoveOne(MaybeObjectHandle value) {
+bool WeakArrayList::RemoveOne(MaybeObjectDirectHandle value) {
   int last_index = length() - 1;
   // Optimize for the most recently added element to be removed again.
   for (int i = last_index; i >= 0; --i) {

@@ -142,7 +142,7 @@ class BytecodeGraphTester {
     Zone zone(isolate_->allocator(), ZONE_NAME);
     Handle<SharedFunctionInfo> shared(function->shared(), isolate_);
     OptimizedCompilationInfo compilation_info(&zone, isolate_, shared, function,
-                                              CodeKind::TURBOFAN);
+                                              CodeKind::TURBOFAN_JS);
 
     DirectHandle<Code> code =
         Pipeline::GenerateCodeForTesting(&compilation_info, isolate_)

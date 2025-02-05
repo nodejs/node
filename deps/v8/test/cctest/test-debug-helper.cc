@@ -448,7 +448,7 @@ static void FrameIterationCheck(
     i::StackFrame* frame = iter.frame();
     CHECK(i != 0 || (frame->type() == i::StackFrame::EXIT));
     d::StackFrameResultPtr props = d::GetStackFrame(frame->fp(), &ReadMemory);
-    if (frame->is_java_script()) {
+    if (frame->is_javascript()) {
       JavaScriptFrame* js_frame = JavaScriptFrame::cast(frame);
       CHECK_EQ(props->num_properties, 5);
       auto js_function = js_frame->function();

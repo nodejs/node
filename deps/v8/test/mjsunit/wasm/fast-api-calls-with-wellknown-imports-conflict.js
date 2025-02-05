@@ -4,7 +4,7 @@
 
 // Flags: --turbo-fast-api-calls --expose-fast-api --no-liftoff --wasm-fast-api
 // Flags: --turboshaft-wasm --wasm-lazy-compilation
-// Flags: --no-wasm-native-module-cache-enabled
+// Flags: --no-wasm-native-module-cache
 // Flags: --fast-api-allow-float-in-sim
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');

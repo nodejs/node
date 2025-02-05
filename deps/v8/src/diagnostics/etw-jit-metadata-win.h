@@ -23,6 +23,10 @@ const uint8_t kManifestFreeChannel = 11;
 // descriptors in the descriptors_array
 const uint8_t kMetaDescriptorsCount = 2;
 
+// ETW control code for capturing state
+// https://learn.microsoft.com/en-us/windows/win32/api/evntprov/nc-evntprov-penablecallback
+constexpr uint32_t kEtwControlCaptureState = 2;
+
 // Filtering keyword to find JScript stack-walking events
 constexpr uint64_t kJScriptRuntimeKeyword = 1;
 

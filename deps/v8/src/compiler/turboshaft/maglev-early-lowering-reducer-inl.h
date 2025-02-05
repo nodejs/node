@@ -147,6 +147,81 @@ class MaglevEarlyLoweringReducer : public Next {
     return result;
   }
 
+  V<Object> LoadScriptContextSideData(V<Context> script_context, int index) {
+    V<FixedArray> side_table = __ template LoadTaggedField<FixedArray>(
+        script_context,
+        Context::OffsetOfElementAt(Context::CONTEXT_SIDE_TABLE_PROPERTY_INDEX));
+    return __ LoadTaggedField(side_table,
+                              FixedArray::OffsetOfElementAt(
+                                  index - Context::MIN_CONTEXT_EXTENDED_SLOTS));
+  }
+
+  V<Object> LoadScriptContextPropertyFromSideData(V<Object> side_data) {
+    ScopedVar<Object> property(this, side_data);
+    IF_NOT (__ IsSmi(side_data)) {
+      property = __ LoadTaggedField(
+          side_data, ContextSidePropertyCell::kPropertyDetailsRawOffset);
+    }
+    return property;
+  }
+
+  V<Object> LoadHeapNumberFromScriptContext(V<Context> script_context,
+                                            int index,
+                                            V<HeapNumber> heap_number) {
+    V<Object> data = __ LoadScriptContextSideData(script_context, index);
+    V<Object> property = __ LoadScriptContextPropertyFromSideData(data);
+    ScopedVar<HeapNumber> result(this, heap_number);
+    IF (__ TaggedEqual(
+            property,
+            __ SmiConstant(ContextSidePropertyCell::kMutableHeapNumber))) {
+      result = __ AllocateHeapNumberWithValue(
+          __ LoadHeapNumberValue(heap_number), isolate_->factory());
+    }
+    return result;
+  }
+
+  void StoreScriptContextSlowPath(V<Context> script_context,
+                                  V<Object> old_value, V<Object> new_value,
+                                  V<Object> side_data,
+                                  V<FrameState> frame_state,
+                                  const FeedbackSource& feedback,
+                                  Label<>& done) {
+    // Check if Undefined.
+    __ DeoptimizeIf(
+        __ RootEqual(side_data, RootIndex::kUndefinedValue, isolate_),
+        frame_state, DeoptimizeReason::kWrongValue, feedback);
+    V<Object> property = __ LoadScriptContextPropertyFromSideData(side_data);
+    // Check for const case.
+    __ DeoptimizeIf(
+        __ TaggedEqual(property,
+                       __ SmiConstant(ContextSidePropertyCell::kConst)),
+        frame_state, DeoptimizeReason::kWrongValue, feedback);
+    if (v8_flags.script_context_mutable_heap_number) {
+      // Check for smi case
+      IF (__ TaggedEqual(property,
+                         __ SmiConstant(ContextSidePropertyCell::kSmi))) {
+        __ DeoptimizeIfNot(__ IsSmi(new_value), frame_state,
+                           DeoptimizeReason::kWrongValue, feedback);
+      } ELSE {
+        // Check mutable heap number case.
+        ScopedVar<Float64> number_value(this);
+        IF (__ IsSmi(new_value)) {
+          number_value =
+              __ ChangeInt32ToFloat64(__ UntagSmi(V<Smi>::Cast(new_value)));
+        } ELSE {
+          V<i::Map> map = __ LoadMapField(new_value);
+          __ DeoptimizeIfNot(
+              __ TaggedEqual(map, __ HeapConstant(factory_->heap_number_map())),
+              frame_state, DeoptimizeReason::kWrongValue, feedback);
+          number_value = __ LoadHeapNumberValue(V<HeapNumber>::Cast(new_value));
+        }
+        __ StoreField(old_value, AccessBuilder::ForHeapNumberValue(),
+                      number_value);
+        GOTO(done);
+      }
+    }
+  }
+
   void CheckDerivedConstructResult(V<Object> construct_result,
                                    V<FrameState> frame_state,
                                    V<NativeContext> native_context,
@@ -167,36 +242,6 @@ class MaglevEarlyLoweringReducer : public Next {
       // ThrowConstructorReturnedNonObject should not return.
       __ Unreachable();
     }
-  }
-
-  void CheckConstTrackingLetCellTagged(V<Context> context, V<Object> value,
-                                       int index, V<FrameState> frame_state,
-                                       const FeedbackSource& feedback) {
-    V<Object> old_value =
-        __ LoadTaggedField(context, Context::OffsetOfElementAt(index));
-    IF_NOT (__ TaggedEqual(old_value, value)) {
-      CheckConstTrackingLetCell(context, index, frame_state, feedback);
-    }
-  }
-
-  void CheckConstTrackingLetCell(V<Context> context, int index,
-                                 V<FrameState> frame_state,
-                                 const FeedbackSource& feedback) {
-    // Load the const tracking let side data.
-    V<Object> side_data = __ LoadTaggedField(
-        context, Context::OffsetOfElementAt(
-                     Context::CONST_TRACKING_LET_SIDE_DATA_INDEX));
-    V<Object> index_data = __ LoadTaggedField(
-        side_data, FixedArray::OffsetOfElementAt(
-                       index - Context::MIN_CONTEXT_EXTENDED_SLOTS));
-    // If the field is already marked as "not a constant", storing a
-    // different value is fine. But if it's anything else (including the hole,
-    // which means no value was stored yet), deopt this code. The lower tier
-    // code will update the side data and invalidate DependentCode if needed.
-    V<Word32> is_const = __ TaggedEqual(
-        index_data, __ SmiConstant(ConstTrackingLetCell::kNonConstMarker));
-    __ DeoptimizeIfNot(is_const, frame_state,
-                       DeoptimizeReason::kConstTrackingLet, feedback);
   }
 
   V<Smi> UpdateJSArrayLength(V<Word32> length_raw, V<JSArray> object,

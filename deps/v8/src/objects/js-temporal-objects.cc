@@ -4590,12 +4590,12 @@ bool IsBuiltinCalendar(Isolate* isolate, Handle<String> id) {
 
 int32_t CalendarIndex(Isolate* isolate, Handle<String> id) { return 0; }
 // #sec-isvalidtimezonename
-bool IsValidTimeZoneName(Isolate* isolate, Handle<String> time_zone) {
-  return IsUTC(isolate, time_zone);
+bool IsValidTimeZoneName(Isolate* isolate, DirectHandle<String> time_zone) {
+  return IsUTC(isolate, indirect_handle(time_zone, isolate));
 }
 // #sec-canonicalizetimezonename
 Handle<String> CanonicalizeTimeZoneName(Isolate* isolate,
-                                        Handle<String> identifier) {
+                                        DirectHandle<String> identifier) {
   return isolate->factory()->UTC_string();
 }
 #endif  // V8_INTL_SUPPORT
@@ -4845,7 +4845,7 @@ MaybeHandle<JSReceiver> MergeLargestUnitOption(Isolate* isolate,
   // b. Perform ! CreateDataPropertyOrThrow(merged, nextKey, propValue).
   JSReceiver::SetOrCopyDataProperties(
       isolate, merged, options, PropertiesEnumerationMode::kEnumerationOrder,
-      nullptr, false)
+      {}, false)
       .Check();
 
   // 4. Perform ! CreateDataPropertyOrThrow(merged, "largestUnit", largestUnit).
@@ -14084,7 +14084,7 @@ AddDurationToOrSubtractDurationFromPlainYearMonth(
       isolate, set,
       JSReceiver::SetOrCopyDataProperties(
           isolate, options_copy, options,
-          PropertiesEnumerationMode::kEnumerationOrder, nullptr, false),
+          PropertiesEnumerationMode::kEnumerationOrder, {}, false),
       Handle<JSTemporalPlainYearMonth>());
 
   // 17. Let addedDate be ? CalendarDateAdd(calendar, date, durationToAdd,

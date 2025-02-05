@@ -101,7 +101,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   // churn when new flags are added.
   JSHeapBroker(Isolate* isolate, Zone* broker_zone)
       : JSHeapBroker(isolate, broker_zone, v8_flags.trace_heap_broker,
-                     CodeKind::TURBOFAN) {}
+                     CodeKind::TURBOFAN_JS) {}
 
   ~JSHeapBroker();
 
@@ -309,7 +309,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
           local_isolate()->heap()->NewPersistentHandle(obj).location();
     } else {
       DCHECK(PersistentHandlesScope::IsActive(isolate()));
-      *find_result.entry = Handle<T>(object, isolate()).location();
+      *find_result.entry = IndirectHandle<T>(object, isolate()).location();
     }
     return Handle<T>(*find_result.entry);
   }
@@ -461,8 +461,8 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   OptionalNativeContextRef target_native_context_;
   RefsMap* refs_;
   RootIndexMap root_index_map_;
-  ZoneUnorderedSet<Handle<JSObject>, Handle<JSObject>::hash,
-                   Handle<JSObject>::equal_to>
+  ZoneUnorderedSet<IndirectHandle<JSObject>, IndirectHandle<JSObject>::hash,
+                   IndirectHandle<JSObject>::equal_to>
       array_and_object_prototypes_;
   BrokerMode mode_ = kDisabled;
   bool const tracing_enabled_;

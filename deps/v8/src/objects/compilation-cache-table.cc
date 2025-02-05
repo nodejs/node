@@ -182,7 +182,7 @@ class EvalCacheKey : public HashTableKey {
     array->set(1, *source_);
     array->set(2, Smi::FromEnum(language_mode_));
     array->set(3, Smi::FromInt(position_));
-    array->set_map(ReadOnlyRoots(isolate).fixed_cow_array_map());
+    array->set_map(isolate, ReadOnlyRoots(isolate).fixed_cow_array_map());
     return array;
   }
 
@@ -461,8 +461,9 @@ CompilationCacheScriptLookupResult CompilationCacheTable::LookupScript(
 
 InfoCellPair CompilationCacheTable::LookupEval(
     DirectHandle<CompilationCacheTable> table, Handle<String> src,
-    Handle<SharedFunctionInfo> outer_info, DirectHandle<Context> native_context,
-    LanguageMode language_mode, int position) {
+    Handle<SharedFunctionInfo> outer_info,
+    DirectHandle<NativeContext> native_context, LanguageMode language_mode,
+    int position) {
   InfoCellPair empty_result;
   Isolate* isolate = native_context->GetIsolate();
   src = String::Flatten(isolate, src);
@@ -562,7 +563,7 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutEval(
     Handle<CompilationCacheTable> cache, Handle<String> src,
     Handle<SharedFunctionInfo> outer_info,
     DirectHandle<SharedFunctionInfo> value,
-    DirectHandle<Context> native_context,
+    DirectHandle<NativeContext> native_context,
     DirectHandle<FeedbackCell> feedback_cell, int position) {
   Isolate* isolate = native_context->GetIsolate();
   src = String::Flatten(isolate, src);

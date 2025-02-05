@@ -29,9 +29,8 @@ namespace v8 {
 namespace internal {
 
 namespace {
-static MaybeHandle<SharedFunctionInfo> GetFunctionInfo(Isolate* isolate,
-                                                       Handle<String> source,
-                                                       REPLMode repl_mode) {
+static MaybeDirectHandle<SharedFunctionInfo> GetFunctionInfo(
+    Isolate* isolate, Handle<String> source, REPLMode repl_mode) {
   ScriptDetails script_details(isolate->factory()->empty_string(),
                                ScriptOriginOptions(true, true));
   script_details.repl_mode = repl_mode;
@@ -46,7 +45,7 @@ MaybeHandle<Object> DebugEvaluate::Global(Isolate* isolate,
                                           Handle<String> source,
                                           debug::EvaluateGlobalMode mode,
                                           REPLMode repl_mode) {
-  Handle<SharedFunctionInfo> shared_info;
+  DirectHandle<SharedFunctionInfo> shared_info;
   if (!GetFunctionInfo(isolate, source, repl_mode).ToHandle(&shared_info)) {
     return MaybeHandle<Object>();
   }
@@ -801,7 +800,6 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kStringPrototypeIsWellFormed:
     case Builtin::kStringPrototypeItalics:
     case Builtin::kStringPrototypeLastIndexOf:
-    case Builtin::kStringPrototypeLocaleCompare:
     case Builtin::kStringPrototypeLink:
     case Builtin::kStringPrototypeMatch:
     case Builtin::kStringPrototypeMatchAll:
@@ -827,10 +825,12 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kStringPrototypeToLocaleUpperCase:
 #ifdef V8_INTL_SUPPORT
     case Builtin::kStringToLowerCaseIntl:
+    case Builtin::kStringPrototypeLocaleCompareIntl:
     case Builtin::kStringPrototypeToLowerCaseIntl:
     case Builtin::kStringPrototypeToUpperCaseIntl:
     case Builtin::kStringPrototypeNormalizeIntl:
 #else
+    case Builtin::kStringPrototypeLocaleCompare:
     case Builtin::kStringPrototypeToLowerCase:
     case Builtin::kStringPrototypeToUpperCase:
     case Builtin::kStringPrototypeNormalize:
@@ -1138,7 +1138,12 @@ static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtin caller,
       // Transitively called Builtins:
     case Builtin::kAbort:
     case Builtin::kAbortCSADcheck:
-    case Builtin::kAdaptorWithBuiltinExitFrame:
+    case Builtin::kAdaptorWithBuiltinExitFrame0:
+    case Builtin::kAdaptorWithBuiltinExitFrame1:
+    case Builtin::kAdaptorWithBuiltinExitFrame2:
+    case Builtin::kAdaptorWithBuiltinExitFrame3:
+    case Builtin::kAdaptorWithBuiltinExitFrame4:
+    case Builtin::kAdaptorWithBuiltinExitFrame5:
     case Builtin::kArrayConstructorImpl:
     case Builtin::kArrayEveryLoopContinuation:
     case Builtin::kArrayFilterLoopContinuation:

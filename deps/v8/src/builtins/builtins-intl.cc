@@ -57,6 +57,30 @@ BUILTIN(StringPrototypeNormalizeIntl) {
                            Intl::Normalize(isolate, string, form_input));
 }
 
+// ecma402 #sup-properties-of-the-string-prototype-object
+// ecma402 section 19.1.1.
+//   String.prototype.localeCompare ( that [ , locales [ , options ] ] )
+// This implementation supersedes the definition provided in ES6.
+BUILTIN(StringPrototypeLocaleCompareIntl) {
+  HandleScope handle_scope(isolate);
+
+  isolate->CountUsage(v8::Isolate::UseCounterFeature::kStringLocaleCompare);
+  static const char* const kMethod = "String.prototype.localeCompare";
+
+  TO_THIS_STRING(str1, kMethod);
+  Handle<String> str2;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, str2, Object::ToString(isolate, args.atOrUndefined(isolate, 1)));
+  std::optional<int> result = Intl::StringLocaleCompare(
+      isolate, str1, str2, args.atOrUndefined(isolate, 2),
+      args.atOrUndefined(isolate, 3), kMethod);
+  if (!result.has_value()) {
+    DCHECK(isolate->has_exception());
+    return ReadOnlyRoots(isolate).exception();
+  }
+  return Smi::FromInt(result.value());
+}
+
 BUILTIN(V8BreakIteratorSupportedLocalesOf) {
   HandleScope scope(isolate);
   Handle<Object> locales = args.atOrUndefined(isolate, 1);
@@ -198,10 +222,7 @@ Handle<JSFunction> CreateBoundFunction(Isolate* isolate,
 
   Handle<SharedFunctionInfo> info =
       isolate->factory()->NewSharedFunctionInfoForBuiltin(
-          isolate->factory()->empty_string(), builtin,
-          FunctionKind::kNormalFunction);
-  info->set_internal_formal_parameter_count(JSParameterCount(len));
-  info->set_length(len);
+          isolate->factory()->empty_string(), builtin, len, kAdapt);
 
   return Factory::JSFunctionBuilder{isolate, info, context}
       .set_map(isolate->strict_function_without_prototype_map())
@@ -215,7 +236,7 @@ Handle<JSFunction> CreateBoundFunction(Isolate* isolate,
 template <class T>
 Tagged<Object> LegacyFormatConstructor(BuiltinArguments args, Isolate* isolate,
                                        v8::Isolate::UseCounterFeature feature,
-                                       Handle<Object> constructor,
+                                       Handle<JSAny> constructor,
                                        const char* method_name) {
   isolate->CountUsage(feature);
   Handle<JSReceiver> new_target;
@@ -244,7 +265,7 @@ Tagged<Object> LegacyFormatConstructor(BuiltinArguments args, Isolate* isolate,
       isolate, format, T::New(isolate, map, locales, options, method_name));
   // 4. Let this be the this value.
   if (IsUndefined(*args.new_target(), isolate)) {
-    Handle<Object> receiver = args.receiver();
+    Handle<JSAny> receiver = args.receiver();
     // 5. If NewTarget is undefined and ? OrdinaryHasInstance(%<T>%, this)
     // is true, then Look up the intrinsic value that has been stored on
     // the context.

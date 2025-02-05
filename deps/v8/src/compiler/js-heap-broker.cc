@@ -160,10 +160,9 @@ bool JSHeapBroker::IsArrayOrObjectPrototype(JSObjectRef object) const {
 
 bool JSHeapBroker::IsArrayOrObjectPrototype(Handle<JSObject> object) const {
   if (mode() == kDisabled) {
-    return isolate()->IsInAnyContext(*object,
-                                     Context::INITIAL_ARRAY_PROTOTYPE_INDEX) ||
-           isolate()->IsInAnyContext(*object,
-                                     Context::INITIAL_OBJECT_PROTOTYPE_INDEX);
+    return isolate()->IsInCreationContext(
+               *object, Context::INITIAL_ARRAY_PROTOTYPE_INDEX) ||
+           object->map(isolate_)->instance_type() == JS_OBJECT_PROTOTYPE_TYPE;
   }
   CHECK(!array_and_object_prototypes_.empty());
   return array_and_object_prototypes_.find(object) !=
@@ -238,6 +237,15 @@ ElementAccessFeedback const& ElementAccessFeedback::Refine(
   ZoneRefSet<Map> inferred(inferred_maps.begin(), inferred_maps.end(),
                            broker->zone());
   return Refine(broker, inferred, false);
+}
+
+NamedAccessFeedback const& ElementAccessFeedback::Refine(JSHeapBroker* broker,
+                                                         NameRef name) const {
+  // Allow swapping megamorphic elements accesses for named accesses when the
+  // key is know to be a known name.
+  CHECK(transition_groups_.empty());
+  ZoneVector<MapRef> maps(broker->zone());
+  return *broker->zone()->New<NamedAccessFeedback>(name, maps, slot_kind());
 }
 
 ElementAccessFeedback const& ElementAccessFeedback::Refine(
@@ -492,29 +500,24 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
   if (nexus.IsUninitialized()) return NewInsufficientFeedback(kind);
 
   ZoneVector<MapRef> maps(zone());
-  {
-    std::vector<MapAndHandler> maps_and_handlers_unfiltered;
-    nexus.ExtractMapsAndFeedback(&maps_and_handlers_unfiltered);
-
-    for (const MapAndHandler& map_and_handler : maps_and_handlers_unfiltered) {
-      MapRef map = MakeRefAssumeMemoryFence(this, *map_and_handler.first);
-      // May change concurrently at any time - must be guarded by a dependency
-      // if non-deprecation is important.
-      if (map.is_deprecated()) {
-        // TODO(ishell): support fast map updating if we enable it.
-        CHECK(!v8_flags.fast_map_update);
-        std::optional<Tagged<Map>> maybe_map = MapUpdater::TryUpdateNoLock(
-            isolate(), *map.object(), ConcurrencyMode::kConcurrent);
-        if (maybe_map.has_value()) {
-          map = MakeRefAssumeMemoryFence(this, maybe_map.value());
-        } else {
-          continue;  // Couldn't update the deprecated map.
-        }
+  nexus.IterateMapsWithUnclearedHandler([this, &maps](Handle<Map> map_handle) {
+    MapRef map = MakeRefAssumeMemoryFence(this, *map_handle);
+    // May change concurrently at any time - must be guarded by a
+    // dependency if non-deprecation is important.
+    if (map.is_deprecated()) {
+      // TODO(ishell): support fast map updating if we enable it.
+      CHECK(!v8_flags.fast_map_update);
+      std::optional<Tagged<Map>> maybe_map = MapUpdater::TryUpdateNoLock(
+          isolate(), *map.object(), ConcurrencyMode::kConcurrent);
+      if (maybe_map.has_value()) {
+        map = MakeRefAssumeMemoryFence(this, maybe_map.value());
+      } else {
+        return;  // Couldn't update the deprecated map.
       }
-      if (map.is_abandoned_prototype_map()) continue;
-      maps.push_back(map);
     }
-  }
+    if (map.is_abandoned_prototype_map()) return;
+    maps.push_back(map);
+  });
 
   OptionalNameRef name =
       static_name.has_value() ? static_name : GetNameFeedback(nexus);
@@ -861,7 +864,7 @@ ElementAccessFeedback const& JSHeapBroker::ProcessFeedbackMapsForElementAccess(
     Tagged<Map> transition_target;
 
     // Don't generate elements kind transitions from stable maps.
-    if (!map.is_stable() && possible_transition_targets.begin() != possible_transition_targets.end()) {
+    if (!map.is_stable()) {
       // The lock is needed for UnusedPropertyFields (called deep inside
       // FindElementsKindTransitionedMap).
       MapUpdaterGuardIfNeeded mumd_scope(this);

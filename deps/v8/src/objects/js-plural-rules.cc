@@ -279,8 +279,10 @@ Handle<JSObject> JSPluralRules::ResolvedOptions(
                                  "maximumFractionDigits");
   }
 
-  // 6. Let pluralCategories be a List of Strings representing the
-  // possible results of PluralRuleSelect for the selected locale pr.
+  // 6. Let pluralCategories be a List of Strings containing all possible
+  // results of PluralRuleSelect for the selected locale pr.[[Locale]], sorted
+  // according to the following order: "zero", "one", "two", "few", "many",
+  // "other".
   icu::PluralRules* icu_plural_rules = plural_rules->icu_plural_rules()->raw();
   DCHECK_NOT_NULL(icu_plural_rules);
 
@@ -292,16 +294,26 @@ Handle<JSObject> JSPluralRules::ResolvedOptions(
 
   Factory* factory = isolate->factory();
   DirectHandle<FixedArray> plural_categories = factory->NewFixedArray(count);
-  for (int32_t i = 0; i < count; i++) {
-    const icu::UnicodeString* category = categories->snext(status);
+  const std::vector<const char*> kCategories = {"zero", "one",  "two",
+                                                "few",  "many", "other"};
+  int32_t index = 0;
+  std::for_each(kCategories.cbegin(), kCategories.cend(), [&](const char* val) {
+    categories->reset(status);
     DCHECK(U_SUCCESS(status));
-    if (category == nullptr) break;
-
-    std::string keyword;
-    DirectHandle<String> value = factory->NewStringFromAsciiChecked(
-        category->toUTF8String(keyword).data());
-    plural_categories->set(i, *value);
-  }
+    for (int32_t i = 0; i < count; i++) {
+      int32_t len;
+      const char* cat = categories->next(&len, status);
+      DCHECK(U_SUCCESS(status));
+      if (cat == nullptr) break;
+      if (std::strcmp(val, cat) == 0) {
+        DirectHandle<String> value_string =
+            factory->NewStringFromAsciiChecked(val);
+        plural_categories->set(index++, *value_string);
+        break;
+      }
+    }
+  });
+  DCHECK(count == index);
 
   // 7. Perform ! CreateDataProperty(options, "pluralCategories",
   // CreateArrayFromList(pluralCategories)).

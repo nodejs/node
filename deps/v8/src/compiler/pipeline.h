@@ -33,7 +33,6 @@ struct CompilationEnv;
 struct FunctionBody;
 struct WasmCompilationResult;
 class WasmDetectedFeatures;
-struct WasmModule;
 }  // namespace wasm
 
 namespace compiler::turboshaft {
@@ -90,9 +89,8 @@ class Pipeline : public AllStatic {
 
   static wasm::WasmCompilationResult
   GenerateCodeForWasmNativeStubFromTurboshaft(
-      const wasm::WasmModule* module, const wasm::FunctionSig* sig,
-      wasm::WrapperCompilationInfo wrapper_info, const char* debug_name,
-      const AssemblerOptions& assembler_options,
+      const wasm::CanonicalSig* sig, wasm::WrapperCompilationInfo wrapper_info,
+      const char* debug_name, const AssemblerOptions& assembler_options,
       SourcePositionTable* source_positions);
 
   static bool GenerateWasmCodeFromTurboshaftGraph(
@@ -108,8 +106,8 @@ class Pipeline : public AllStatic {
 
   static std::unique_ptr<compiler::turboshaft::TurboshaftCompilationJob>
   NewWasmTurboshaftWrapperCompilationJob(
-      Isolate* isolate, const wasm::FunctionSig* sig,
-      wasm::WrapperCompilationInfo wrapper_info, const wasm::WasmModule* module,
+      Isolate* isolate, const wasm::CanonicalSig* sig,
+      wasm::WrapperCompilationInfo wrapper_info,
       std::unique_ptr<char[]> debug_name, const AssemblerOptions& options);
 #endif
 

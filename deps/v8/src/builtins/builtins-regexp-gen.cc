@@ -185,7 +185,7 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
   Label named_captures(this), maybe_build_indices(this), out(this);
 
   TNode<IntPtrT> num_indices = PositiveSmiUntag(CAST(LoadObjectField(
-      match_info, RegExpMatchInfo::kNumberOfCaptureRegistersOffset)));
+      match_info, offsetof(RegExpMatchInfo, number_of_capture_registers_))));
   TNode<Smi> num_results = SmiTag(WordShr(num_indices, 1));
   TNode<Smi> start = LoadArrayElement(match_info, IntPtrConstant(0));
   TNode<Smi> end = LoadArrayElement(match_info, IntPtrConstant(1));
@@ -396,6 +396,48 @@ void RegExpBuiltinsAssembler::GetStringPointers(
   *var_string_end = ReinterpretCast<RawPtrT>(IntPtrAdd(string_data, to_offset));
 }
 
+TNode<RawPtrT> RegExpBuiltinsAssembler::TryLoadStaticRegExpResultVector(
+    TNode<Smi> capture_count, Label* if_failure) {
+  // Check (number_of_captures + 1) * 2 <= offsets vector size
+  // Or              number_of_captures <= offsets vector size / 2 - 1
+  const int kOffsetsSize = Isolate::kJSRegexpStaticOffsetsVectorSize;
+  static_assert(kOffsetsSize >= 2);
+  GotoIf(SmiAbove(capture_count, SmiConstant(kOffsetsSize / 2 - 1)),
+         if_failure);
+
+  auto address_of_regexp_static_result_offsets_vector = ExternalConstant(
+      ExternalReference::address_of_regexp_static_result_offsets_vector(
+          isolate()));
+  auto result_vector_or_null = UncheckedCast<RawPtrT>(Load(
+      MachineType::Pointer(), address_of_regexp_static_result_offsets_vector));
+  GotoIf(WordEqual(result_vector_or_null, IntPtrConstant(0)), if_failure);
+
+  // Take ownership of the static vector. See also:
+  // RegExpResultVectorScope::Initialize.
+  StoreNoWriteBarrier(MachineType::PointerRepresentation(),
+                      address_of_regexp_static_result_offsets_vector,
+                      IntPtrConstant(0));
+
+  return result_vector_or_null;
+}
+
+void RegExpBuiltinsAssembler::ReturnStaticRegExpResultVectorIfNeeded(
+    TNode<RawPtrT> maybe_result_vector) {
+  Label out(this);
+  GotoIf(WordEqual(maybe_result_vector, IntPtrConstant(0)), &out);
+
+  // Return ownership of the static vector.
+  auto address_of_regexp_static_result_offsets_vector = ExternalConstant(
+      ExternalReference::address_of_regexp_static_result_offsets_vector(
+          isolate()));
+  StoreNoWriteBarrier(MachineType::PointerRepresentation(),
+                      address_of_regexp_static_result_offsets_vector,
+                      maybe_result_vector);
+  Goto(&out);
+
+  BIND(&out);
+}
+
 TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
     TNode<Context> context, TNode<JSRegExp> regexp, TNode<String> string,
     TNode<Number> last_index, TNode<RegExpMatchInfo> match_info,
@@ -403,14 +445,14 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
   ToDirectStringAssembler to_direct(state(), string);
 
   TVARIABLE(HeapObject, var_result);
+  TVARIABLE(RawPtrT, var_result_offsets_vector,
+            UncheckedCast<RawPtrT>(IntPtrConstant(0)));
   Label out(this), atom(this), runtime(this, Label::kDeferred),
       retry_experimental(this, Label::kDeferred);
 
   // External constants.
   TNode<ExternalReference> isolate_address =
       ExternalConstant(ExternalReference::isolate_address());
-  TNode<ExternalReference> static_offsets_vector_address = ExternalConstant(
-      ExternalReference::address_of_static_offsets_vector(isolate()));
 
   // At this point, last_index is definitely a canonicalized non-negative
   // number, which implies that any non-Smi last_index is greater than
@@ -431,41 +473,30 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
   // Since the RegExp has been compiled, data contains a fixed array.
   TNode<RegExpData> data = CAST(LoadTrustedPointerFromObject(
       regexp, JSRegExp::kDataOffset, kRegExpDataIndirectPointerTag));
+
+  // Dispatch on the type of the RegExp.
+  // Since the type tag is in trusted space, it is safe to interpret
+  // RegExpData as IrRegExpData/AtomRegExpData in the respective branches
+  // without checks.
   {
-    // Dispatch on the type of the RegExp.
-    // Since the type tag is in trusted space, it is safe to interpret
-    // RegExpData as IrRegExpData/AtomRegExpData in the respective branches
-    // without checks.
-    {
-      Label next(this), unreachable(this, Label::kDeferred);
-      TNode<Int32T> tag =
-          SmiToInt32(LoadObjectField<Smi>(data, RegExpData::kTypeTagOffset));
+    Label next(this), unreachable(this, Label::kDeferred);
+    TNode<Int32T> tag =
+        SmiToInt32(LoadObjectField<Smi>(data, RegExpData::kTypeTagOffset));
 
-      int32_t values[] = {
-          static_cast<uint8_t>(RegExpData::Type::IRREGEXP),
-          static_cast<uint8_t>(RegExpData::Type::ATOM),
-          static_cast<uint8_t>(RegExpData::Type::EXPERIMENTAL),
-      };
-      Label* labels[] = {&next, &atom, &next};
+    int32_t values[] = {
+        static_cast<uint8_t>(RegExpData::Type::IRREGEXP),
+        static_cast<uint8_t>(RegExpData::Type::ATOM),
+        static_cast<uint8_t>(RegExpData::Type::EXPERIMENTAL),
+    };
+    Label* labels[] = {&next, &atom, &next};
 
-      static_assert(arraysize(values) == arraysize(labels));
-      Switch(tag, &unreachable, values, labels, arraysize(values));
+    static_assert(arraysize(values) == arraysize(labels));
+    Switch(tag, &unreachable, values, labels, arraysize(values));
 
-      BIND(&unreachable);
-      Unreachable();
+    BIND(&unreachable);
+    Unreachable();
 
-      BIND(&next);
-    }
-
-    // Check (number_of_captures + 1) * 2 <= offsets vector size
-    // Or              number_of_captures <= offsets vector size / 2 - 1
-    TNode<Smi> capture_count =
-        LoadObjectField<Smi>(data, IrRegExpData::kCaptureCountOffset);
-
-    const int kOffsetsSize = Isolate::kJSRegexpStaticOffsetsVectorSize;
-    static_assert(kOffsetsSize >= 2);
-    GotoIf(SmiAbove(capture_count, SmiConstant(kOffsetsSize / 2 - 1)),
-           &runtime);
+    BIND(&next);
   }
 
   // Unpack the string if possible.
@@ -527,6 +558,12 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
   GotoIf(TaggedIsSmi(var_code.value()), &runtime);
 #endif
 
+  // Do this last to avoid jumping to runtime while holding the static vector.
+  TNode<Smi> capture_count =
+      LoadObjectField<Smi>(data, IrRegExpData::kCaptureCountOffset);
+  var_result_offsets_vector =
+      TryLoadStaticRegExpResultVector(capture_count, &runtime);
+
   Label if_success(this), if_exception(this, Label::kDeferred);
   {
     IncrementCounter(isolate()->counters()->regexp_entry_native(), 1);
@@ -560,7 +597,7 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
 
     // Argument 4: static offsets vector buffer.
     MachineType arg4_type = type_ptr;
-    TNode<ExternalReference> arg4 = static_offsets_vector_address;
+    TNode<RawPtrT> arg4 = var_result_offsets_vector.value();
 
     // Argument 5: Number of capture registers.
     // Setting this to the number of registers required to store all captures
@@ -638,13 +675,13 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
     if (exec_quirks == RegExp::ExecQuirks::kTreatMatchAtEndAsFailure) {
       static constexpr int kMatchStartOffset = 0;
       TNode<IntPtrT> value = ChangeInt32ToIntPtr(UncheckedCast<Int32T>(
-          Load(MachineType::Int32(), static_offsets_vector_address,
+          Load(MachineType::Int32(), var_result_offsets_vector.value(),
                IntPtrConstant(kMatchStartOffset))));
       GotoIf(UintPtrGreaterThanOrEqual(value, int_string_length), &if_failure);
     }
 
     // Check that the last match info has space for the capture registers.
-    TNode<Smi> available_slots = LoadArrayCapacity(match_info);
+    TNode<Smi> available_slots = LoadSmiArrayLength(match_info);
     TNode<Smi> capture_count =
         LoadObjectField<Smi>(data, IrRegExpData::kCaptureCountOffset);
     // Calculate number of register_count = (capture_count + 1) * 2.
@@ -654,10 +691,12 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
 
     // Fill match_info.
     StoreObjectField(match_info,
-                     RegExpMatchInfo::kNumberOfCaptureRegistersOffset,
+                     offsetof(RegExpMatchInfo, number_of_capture_registers_),
                      register_count);
-    StoreObjectField(match_info, RegExpMatchInfo::kLastSubjectOffset, string);
-    StoreObjectField(match_info, RegExpMatchInfo::kLastInputOffset, string);
+    StoreObjectField(match_info, offsetof(RegExpMatchInfo, last_subject_),
+                     string);
+    StoreObjectField(match_info, offsetof(RegExpMatchInfo, last_input_),
+                     string);
 
     // Fill match and capture offsets in match_info.
     {
@@ -673,8 +712,9 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
       BuildFastLoop<IntPtrT>(
           vars, IntPtrZero(), limit_offset,
           [&](TNode<IntPtrT> offset) {
-            TNode<Int32T> value = UncheckedCast<Int32T>(Load(
-                MachineType::Int32(), static_offsets_vector_address, offset));
+            TNode<Int32T> value = UncheckedCast<Int32T>(
+                Load(MachineType::Int32(), var_result_offsets_vector.value(),
+                     offset));
             TNode<Smi> smi_value = SmiFromInt32(value);
             StoreNoWriteBarrier(MachineRepresentation::kTagged, match_info,
                                 var_to_offset.value(), smi_value);
@@ -739,6 +779,7 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
   }
 
   BIND(&out);
+  ReturnStaticRegExpResultVectorIfNeeded(var_result_offsets_vector.value());
   return var_result.value();
 }
 
@@ -945,11 +986,11 @@ TF_BUILTIN(RegExpExecAtom, RegExpBuiltinsAssembler) {
         SmiAdd(match_from, LoadStringLengthAsSmi(needle_string));
 
     StoreObjectField(match_info,
-                     RegExpMatchInfo::kNumberOfCaptureRegistersOffset,
+                     offsetof(RegExpMatchInfo, number_of_capture_registers_),
                      SmiConstant(kNumRegisters));
-    StoreObjectField(match_info, RegExpMatchInfo::kLastSubjectOffset,
+    StoreObjectField(match_info, offsetof(RegExpMatchInfo, last_subject_),
                      subject_string);
-    StoreObjectField(match_info, RegExpMatchInfo::kLastInputOffset,
+    StoreObjectField(match_info, offsetof(RegExpMatchInfo, last_input_),
                      subject_string);
     UnsafeStoreArrayElement(match_info, 0, match_from,
                             UNSAFE_SKIP_WRITE_BARRIER);
@@ -1620,7 +1661,7 @@ TNode<JSArray> RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(
     // Add all captures to the array.
     {
       const TNode<Smi> num_registers = CAST(LoadObjectField(
-          match_info, RegExpMatchInfo::kNumberOfCaptureRegistersOffset));
+          match_info, offsetof(RegExpMatchInfo, number_of_capture_registers_)));
       const TNode<IntPtrT> int_num_registers = PositiveSmiUntag(num_registers);
 
       TVARIABLE(IntPtrT, var_reg, IntPtrConstant(2));

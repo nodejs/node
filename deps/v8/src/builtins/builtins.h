@@ -79,13 +79,12 @@ class Builtins {
   // Disassembler support.
   const char* Lookup(Address pc);
 
-#if !defined(V8_SHORT_BUILTIN_CALLS) || \
-    defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE)
+#if !defined(V8_SHORT_BUILTIN_CALLS) || defined(V8_COMPRESS_POINTERS)
   static constexpr bool kCodeObjectsAreInROSpace = true;
 #else
   static constexpr bool kCodeObjectsAreInROSpace = false;
 #endif  // !defined(V8_SHORT_BUILTIN_CALLS) || \
-        // defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE)
+        // defined(V8_COMPRESS_POINTERS)
 
 #define ADD_ONE(Name, ...) +1
   static constexpr int kBuiltinCount =
@@ -115,7 +114,6 @@ class Builtins {
   // The list of builtins that can be called indirectly from Wasm and need an
   // entry in the WasmCodePointerTable.
   static constexpr Builtin kWasmIndirectlyCallableBuiltins[] = {
-      Builtin::kWasmToOnHeapWasmToJsTrampoline,
       Builtin::kWasmToJsWrapperInvalidSig, Builtin::kWasmToJsWrapperAsm};
   static constexpr size_t kNumWasmIndirectlyCallableBuiltins =
       arraysize(kWasmIndirectlyCallableBuiltins);
@@ -161,10 +159,15 @@ class Builtins {
       SaveFPRegsMode fp_mode);
   static inline constexpr Builtin EphemeronKeyBarrier(SaveFPRegsMode fp_mode);
 
+  static inline constexpr Builtin AdaptorWithBuiltinExitFrame(
+      int formal_parameter_count);
+
   static inline constexpr Builtin CallFunction(
       ConvertReceiverMode = ConvertReceiverMode::kAny);
   static inline constexpr Builtin Call(
       ConvertReceiverMode = ConvertReceiverMode::kAny);
+  // Whether the given builtin is one of the JS function call builtins.
+  static inline constexpr bool IsAnyCall(Builtin builtin);
 
   static inline constexpr Builtin NonPrimitiveToPrimitive(
       ToPrimitiveHint hint = ToPrimitiveHint::kDefault);
@@ -200,9 +203,25 @@ class Builtins {
   static CallInterfaceDescriptor CallInterfaceDescriptorFor(Builtin builtin);
   V8_EXPORT_PRIVATE static Callable CallableFor(Isolate* isolate,
                                                 Builtin builtin);
-  static bool HasJSLinkage(Builtin builtin);
+  V8_EXPORT_PRIVATE static bool HasJSLinkage(Builtin builtin);
 
+  // Returns the number builtin's parameters passed on the stack.
   V8_EXPORT_PRIVATE static int GetStackParameterCount(Builtin builtin);
+
+  // Formal parameter count is the minimum number of JS arguments that's
+  // expected to be present on the stack when a builtin is called. When
+  // a JavaScript function is called with less arguments than expected by
+  // a builtin the stack is "adapted" - i.e. the required number of undefined
+  // values is pushed to the stack to match the target builtin expectations.
+  // In case the builtin does not require arguments adaptation it returns
+  // kDontAdaptArgumentsSentinel.
+  static constexpr inline int GetFormalParameterCount(Builtin builtin);
+
+  // Checks that the formal parameter count specified in CPP macro matches
+  // the value set in SharedFunctionInfo.
+  static bool CheckFormalParameterCount(
+      Builtin builtin, int function_length,
+      int formal_parameter_count_with_receiver);
 
   V8_EXPORT_PRIVATE static const char* name(Builtin builtin);
   V8_EXPORT_PRIVATE static const char* NameForStackTrace(Isolate* isolate,
@@ -233,7 +252,7 @@ class Builtins {
   // The tag for the builtins entrypoint.
   V8_EXPORT_PRIVATE static CodeEntrypointTag EntrypointTagFor(Builtin builtin);
 
-  static bool IsCpp(Builtin builtin);
+  V8_EXPORT_PRIVATE static bool IsCpp(Builtin builtin);
 
   // True, iff the given code object is a builtin. Note that this does not
   // necessarily mean that its kind is InstructionStream::BUILTIN.
@@ -275,7 +294,8 @@ class Builtins {
       Handle<FunctionTemplateInfo> function, Handle<Object> receiver, int argc,
       Handle<Object> args[], Handle<HeapObject> new_target);
 
-  static void Generate_Adaptor(MacroAssembler* masm, Address builtin_address);
+  static void Generate_Adaptor(MacroAssembler* masm, int formal_parameter_count,
+                               Address builtin_address);
 
   static void Generate_CEntry(MacroAssembler* masm, int result_size,
                               ArgvMode argv_mode, bool builtin_exit_frame,

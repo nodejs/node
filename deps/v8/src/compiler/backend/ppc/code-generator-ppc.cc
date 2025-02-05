@@ -901,7 +901,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ CmpS64(cp, kScratchReg);
         __ Assert(eq, AbortReason::kWrongFunctionContext);
       }
-      __ CallJSFunction(func, kScratchReg);
+      uint32_t num_arguments =
+          i.InputUint32(instr->JSCallArgumentCountInputIndex());
+      __ CallJSFunction(func, num_arguments, kScratchReg);
       RecordCallPosition(instr);
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       frame_access_state()->ClearSPDelta();
@@ -2988,11 +2990,11 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
   PPCOperandConverter i(this, instr);
   Register input = i.InputRegister(0);
   int32_t const case_count = static_cast<int32_t>(instr->InputCount() - 2);
-  Label** cases = zone()->AllocateArray<Label*>(case_count);
+  base::Vector<Label*> cases = zone()->AllocateVector<Label*>(case_count);
   for (int32_t index = 0; index < case_count; ++index) {
     cases[index] = GetLabel(i.InputRpo(index + 2));
   }
-  Label* const table = AddJumpTable(cases, case_count);
+  Label* const table = AddJumpTable(cases);
   __ CmpU64(input, Operand(case_count), r0);
   __ bge(GetLabel(i.InputRpo(1)));
   __ mov_label_addr(kScratchReg, table);
@@ -3620,9 +3622,9 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
   return;
 }
 
-void CodeGenerator::AssembleJumpTable(Label** targets, size_t target_count) {
-  for (size_t index = 0; index < target_count; ++index) {
-    __ emit_label_addr(targets[index]);
+void CodeGenerator::AssembleJumpTable(base::Vector<Label*> targets) {
+  for (auto target : targets) {
+    __ emit_label_addr(target);
   }
 }
 

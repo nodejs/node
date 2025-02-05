@@ -21,12 +21,8 @@
 namespace v8::internal {
 
 template <typename Derived, typename Shape>
-Dictionary<Derived, Shape>::Dictionary(Address ptr)
-    : HashTable<Derived, Shape>(ptr) {}
-
-template <typename Derived, typename Shape>
 Tagged<Object> Dictionary<Derived, Shape>::ValueAt(InternalIndex entry) {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  PtrComprCageBase cage_base = GetPtrComprCageBase();
   return ValueAt(cage_base, entry);
 }
 
@@ -40,7 +36,7 @@ Tagged<Object> Dictionary<Derived, Shape>::ValueAt(PtrComprCageBase cage_base,
 template <typename Derived, typename Shape>
 Tagged<Object> Dictionary<Derived, Shape>::ValueAt(InternalIndex entry,
                                                    SeqCstAccessTag tag) {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  PtrComprCageBase cage_base = GetPtrComprCageBase();
   return ValueAt(cage_base, entry, tag);
 }
 
@@ -57,9 +53,9 @@ std::optional<Tagged<Object>> Dictionary<Derived, Shape>::TryValueAt(
     InternalIndex entry) {
 #if DEBUG
   Isolate* isolate;
-  GetIsolateFromHeapObject(*this, &isolate);
+  GetIsolateFromHeapObject(this, &isolate);
   DCHECK_NE(isolate, nullptr);
-  SLOW_DCHECK(!isolate->heap()->IsPendingAllocation(Tagged(*this)));
+  SLOW_DCHECK(!isolate->heap()->IsPendingAllocation(Tagged(this)));
 #endif  // DEBUG
   // We can read length() in a non-atomic way since we are reading an
   // initialized object which is not pending allocation.
@@ -105,18 +101,14 @@ Tagged<Object> Dictionary<Derived, Shape>::ValueAtCompareAndSwap(
 
 template <typename Derived, typename Shape>
 PropertyDetails Dictionary<Derived, Shape>::DetailsAt(InternalIndex entry) {
-  return Shape::DetailsAt(Cast<Derived>(*this), entry);
+  return Shape::DetailsAt(Cast<Derived>(this), entry);
 }
 
 template <typename Derived, typename Shape>
 void Dictionary<Derived, Shape>::DetailsAtPut(InternalIndex entry,
                                               PropertyDetails value) {
-  Shape::DetailsAtPut(Cast<Derived>(*this), entry, value);
+  Shape::DetailsAtPut(Cast<Derived>(this), entry, value);
 }
-
-template <typename Derived, typename Shape>
-BaseNameDictionary<Derived, Shape>::BaseNameDictionary(Address ptr)
-    : Dictionary<Derived, Shape>(ptr) {}
 
 template <typename Derived, typename Shape>
 void BaseNameDictionary<Derived, Shape>::set_next_enumeration_index(int index) {
@@ -143,26 +135,6 @@ int BaseNameDictionary<Derived, Shape>::Hash() const {
   return hash;
 }
 
-GlobalDictionary::GlobalDictionary(Address ptr)
-    : BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape>(ptr) {
-  SLOW_DCHECK(IsGlobalDictionary(*this));
-}
-
-NameDictionary::NameDictionary(Address ptr)
-    : BaseNameDictionary<NameDictionary, NameDictionaryShape>(ptr) {
-  SLOW_DCHECK(IsNameDictionary(*this));
-}
-
-NumberDictionary::NumberDictionary(Address ptr)
-    : Dictionary<NumberDictionary, NumberDictionaryShape>(ptr) {
-  SLOW_DCHECK(IsNumberDictionary(*this));
-}
-
-SimpleNumberDictionary::SimpleNumberDictionary(Address ptr)
-    : Dictionary<SimpleNumberDictionary, SimpleNumberDictionaryShape>(ptr) {
-  SLOW_DCHECK(IsSimpleNumberDictionary(*this));
-}
-
 bool NumberDictionary::requires_slow_elements() {
   Tagged<Object> max_index_object = get(kMaxNumberKeyIndex);
   if (!IsSmi(max_index_object)) return false;
@@ -185,7 +157,7 @@ template <typename Derived, typename Shape>
 void Dictionary<Derived, Shape>::ClearEntry(InternalIndex entry) {
   Tagged<Object> the_hole = this->GetReadOnlyRoots().the_hole_value();
   PropertyDetails details = PropertyDetails::Empty();
-  Cast<Derived>(*this)->SetEntry(entry, the_hole, the_hole, details);
+  Cast<Derived>(this)->SetEntry(entry, the_hole, the_hole, details);
 }
 
 template <typename Derived, typename Shape>
@@ -238,7 +210,7 @@ Handle<Map> GlobalDictionary::GetMap(ReadOnlyRoots roots) {
 }
 
 Tagged<Name> NameDictionary::NameAt(InternalIndex entry) {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  PtrComprCageBase cage_base = GetPtrComprCageBase();
   return NameAt(cage_base, entry);
 }
 
@@ -263,7 +235,7 @@ BIT_FIELD_ACCESSORS(NameDictionary, flags, may_have_interesting_properties,
                     NameDictionary::MayHaveInterestingPropertiesBit)
 
 Tagged<PropertyCell> GlobalDictionary::CellAt(InternalIndex entry) {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  PtrComprCageBase cage_base = GetPtrComprCageBase();
   return CellAt(cage_base, entry);
 }
 
@@ -274,7 +246,7 @@ Tagged<PropertyCell> GlobalDictionary::CellAt(PtrComprCageBase cage_base,
 }
 
 Tagged<Name> GlobalDictionary::NameAt(InternalIndex entry) {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  PtrComprCageBase cage_base = GetPtrComprCageBase();
   return NameAt(cage_base, entry);
 }
 
@@ -284,7 +256,7 @@ Tagged<Name> GlobalDictionary::NameAt(PtrComprCageBase cage_base,
 }
 
 Tagged<Object> GlobalDictionary::ValueAt(InternalIndex entry) {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  PtrComprCageBase cage_base = GetPtrComprCageBase();
   return ValueAt(cage_base, entry);
 }
 

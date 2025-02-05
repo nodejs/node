@@ -53,13 +53,8 @@ struct pass_value_or_ref {
                                          decay_t, const decay_t&>::type;
 };
 
-// Uses expression SFINAE to detect whether using operator<< would work.
-template <typename T, typename TStream = std::ostream, typename = void>
-struct has_output_operator : std::false_type {};
-template <typename T, typename TStream>
-struct has_output_operator<
-    T, TStream, decltype(void(std::declval<TStream&>() << std::declval<T>()))>
-    : std::true_type {};
+template <typename T, typename TStream = std::ostream>
+concept has_output_operator = requires(T t, TStream stream) { stream << t; };
 
 // Turn std::tuple<A...> into std::tuple<A..., T>.
 template <class Tuple, class T>

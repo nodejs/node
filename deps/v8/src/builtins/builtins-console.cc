@@ -76,7 +76,8 @@ bool Formatter(Isolate* isolate, BuiltinArguments& args, int index) {
   while (!states.empty() && index < args.length()) {
     State& state = states.top();
     state.off = String::IndexOf(isolate, state.str, percent, state.off);
-    if (state.off < 0 || state.off == state.str->length() - 1) {
+    if (state.off < 0 ||
+        state.off == static_cast<int>(state.str->length()) - 1) {
       states.pop();
       continue;
     }
@@ -245,12 +246,10 @@ void InstallContextFunction(Isolate* isolate, Handle<JSObject> target,
 
   Handle<String> name_string = factory->InternalizeUtf8String(name);
 
-  Handle<SharedFunctionInfo> info =
-      factory->NewSharedFunctionInfoForBuiltin(name_string, builtin);
+  Handle<SharedFunctionInfo> info = factory->NewSharedFunctionInfoForBuiltin(
+      name_string, builtin, 1, kDontAdapt);
   info->set_language_mode(LanguageMode::kSloppy);
   info->set_native(true);
-  info->DontAdaptArguments();
-  info->set_length(1);
 
   DirectHandle<JSFunction> fun =
       Factory::JSFunctionBuilder{isolate, info, context}.set_map(map).Build();
@@ -278,7 +277,8 @@ BUILTIN(ConsoleContext) {
   isolate->set_last_console_context_id(context_id);
 
   Handle<SharedFunctionInfo> info = factory->NewSharedFunctionInfoForBuiltin(
-      factory->InternalizeUtf8String("Context"), Builtin::kIllegal);
+      factory->InternalizeUtf8String("Context"), Builtin::kIllegal, 0,
+      kDontAdapt);
   info->set_language_mode(LanguageMode::kSloppy);
 
   Handle<JSFunction> cons =

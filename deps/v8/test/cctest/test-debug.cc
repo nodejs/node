@@ -6933,3 +6933,43 @@ TEST(CatchPredictionWithContext) {
     }
   )javascript");
 }
+
+namespace {
+class FailedScriptCompiledDelegate : public v8::debug::DebugDelegate {
+ public:
+  FailedScriptCompiledDelegate(v8::Isolate* isolate) : isolate(isolate) {}
+  void ScriptCompiled(v8::Local<v8::debug::Script> script, bool,
+                      bool) override {
+    script_.Reset(isolate, script);
+    script_.SetWeak();
+  }
+
+  v8::Local<v8::debug::Script> script() { return script_.Get(isolate); }
+
+  v8::Isolate* isolate;
+  v8::Global<v8::debug::Script> script_;
+};
+
+TEST(DebugSetBreakpointWrappedScriptFailCompile) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::internal::Isolate* i_isolate =
+      reinterpret_cast<v8::internal::Isolate*>(isolate);
+  v8::HandleScope scope(isolate);
+
+  FailedScriptCompiledDelegate delegate(isolate);
+  v8::debug::SetDebugDelegate(isolate, &delegate);
+
+  static const char* source = "await new Promise(() => {})";
+  v8::ScriptCompiler::Source script_source(v8_str(source));
+  v8::MaybeLocal<v8::Function> fn =
+      v8::ScriptCompiler::CompileFunction(env.local(), &script_source);
+  CHECK(fn.IsEmpty());
+
+  v8::Local<v8::String> condition =
+      v8::Utils::ToLocal(i_isolate->factory()->empty_string());
+  int id;
+  v8::debug::Location location(0, 0);
+  delegate.script()->SetBreakpoint(condition, &location, &id);
+}
+}  // namespace

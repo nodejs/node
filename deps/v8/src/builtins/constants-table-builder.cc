@@ -6,6 +6,7 @@
 
 #include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/objects/oddball-inl.h"
 #include "src/roots/roots-inl.h"
 
@@ -30,7 +31,8 @@ uint32_t BuiltinsConstantsTableBuilder::AddObject(Handle<Object> object) {
   // accessibly from the root list.
   RootIndex root_list_index;
   DCHECK(!isolate_->roots_table().IsRootHandle(object, &root_list_index));
-  DCHECK_IMPLIES(IsMap(*object), !InReadOnlySpace(Cast<HeapObject>(*object)));
+  DCHECK_IMPLIES(IsMap(*object),
+                 !HeapLayout::InReadOnlySpace(Cast<HeapObject>(*object)));
 
   // Not yet finalized.
   DCHECK_EQ(ReadOnlyRoots(isolate_).empty_fixed_array(),

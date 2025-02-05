@@ -21,7 +21,7 @@ class CanonicalHandles {
     CHECK_NOT_NULL(canonical_handles_);
     auto find_result = canonical_handles_->FindOrInsert(object);
     if (!find_result.already_exists) {
-      *find_result.entry = Handle<T>(object, isolate_).location();
+      *find_result.entry = IndirectHandle<T>(object, isolate_).location();
     }
     return Handle<T>(*find_result.entry);
   }
@@ -55,14 +55,8 @@ class JSHeapBrokerTestBase {
                       std::make_unique<CanonicalHandlesMap>(
                           isolate->heap(), ZoneAllocationPolicy(zone))),
         current_broker_(&broker_) {
-    // PersistentHandlesScope currently requires an active handle before it can
-    // be opened and they can't be nested.
-    // TODO(v8:13897): Remove once PersistentHandlesScopes can be opened
-    // uncontionally.
     if (!PersistentHandlesScope::IsActive(isolate)) {
-      IndirectHandle<Object> dummy(
-          ReadOnlyRoots(isolate->heap()).empty_string(), isolate);
-      persistent_scope_ = std::make_unique<PersistentHandlesScope>(isolate);
+      persistent_scope_.emplace(isolate);
     }
   }
 
@@ -70,19 +64,13 @@ class JSHeapBrokerTestBase {
       : broker_(isolate, zone),
         broker_scope_(&broker_, handles.Detach()),
         current_broker_(&broker_) {
-    // PersistentHandlesScope currently requires an active handle before it can
-    // be opened and they can't be nested.
-    // TODO(v8:13897): Remove once PersistentHandlesScopes can be opened
-    // uncontionally.
     if (!PersistentHandlesScope::IsActive(isolate)) {
-      IndirectHandle<Object> dummy(
-          ReadOnlyRoots(isolate->heap()).empty_string(), isolate);
-      persistent_scope_ = std::make_unique<PersistentHandlesScope>(isolate);
+      persistent_scope_.emplace(isolate);
     }
   }
 
   ~JSHeapBrokerTestBase() {
-    if (persistent_scope_ != nullptr) {
+    if (persistent_scope_) {
       persistent_scope_->Detach();
     }
   }
@@ -107,7 +95,7 @@ class JSHeapBrokerTestBase {
   JSHeapBroker broker_;
   JSHeapBrokerScopeForTesting broker_scope_;
   CurrentHeapBrokerScope current_broker_;
-  std::unique_ptr<PersistentHandlesScope> persistent_scope_;
+  std::optional<PersistentHandlesScope> persistent_scope_;
 };
 
 }  // namespace compiler

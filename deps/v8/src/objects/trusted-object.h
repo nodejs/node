@@ -66,6 +66,11 @@ class TrustedObject : public HeapObject {
   OBJECT_CONSTRUCTORS(TrustedObject, HeapObject);
 };
 
+V8_OBJECT class TrustedObjectLayout : public HeapObjectLayout {
+ public:
+  DECL_VERIFIER(TrustedObject)
+} V8_OBJECT_END;
+
 // A trusted object that can safely be referenced from untrusted objects.
 //
 // These objects live in trusted space but are "exposed" to untrusted objects

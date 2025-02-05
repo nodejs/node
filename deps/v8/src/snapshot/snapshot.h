@@ -82,7 +82,7 @@ class Snapshot : public AllStatic {
   static bool Initialize(Isolate* isolate);
 
   // Create a new context using the internal context snapshot.
-  static MaybeHandle<Context> NewContextFromSnapshot(
+  static MaybeDirectHandle<Context> NewContextFromSnapshot(
       Isolate* isolate, Handle<JSGlobalProxy> global_proxy,
       size_t context_index,
       DeserializeEmbedderFieldsCallback embedder_fields_deserializer);

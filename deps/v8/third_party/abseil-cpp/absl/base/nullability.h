@@ -135,17 +135,9 @@
 //   ...
 // };
 //
-// Note: For the time being, nullability-compatible classes should additionally
-// be marked with an `absl_nullability_compatible` nested type (this will soon
-// be deprecated). The actual definition of this inner type is not relevant as
-// it is used merely as a marker. It is common to use a using declaration of
-// `absl_nullability_compatible` set to void.
-//
-// // Example:
-// struct MyPtr {
-//   using absl_nullability_compatible = void;
-//   ...
-// };
+// Note: Compilers that don't support the `nullability_on_classes` feature will
+// allow nullability annotations to be applied to any type, not just ones
+// marked with `ABSL_NULLABILITY_COMPATIBLE`.
 //
 // DISCLAIMER:
 // ===========================================================================
@@ -279,6 +271,10 @@ ABSL_NAMESPACE_END
 // struct ABSL_NULLABILITY_COMPATIBLE MyPtr {
 //   ...
 // };
+//
+// Note: Compilers that don't support the `nullability_on_classes` feature will
+// allow nullability annotations to be applied to any type, not just ones marked
+// with `ABSL_NULLABILITY_COMPATIBLE`.
 #if ABSL_HAVE_FEATURE(nullability_on_classes)
 #define ABSL_NULLABILITY_COMPATIBLE _Nullable
 #else

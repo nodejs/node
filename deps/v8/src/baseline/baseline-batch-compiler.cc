@@ -87,9 +87,9 @@ class BaselineCompilerTask {
   }
 
  private:
-  Handle<SharedFunctionInfo> shared_function_info_;
-  Handle<BytecodeArray> bytecode_;
-  MaybeHandle<Code> maybe_code_;
+  IndirectHandle<SharedFunctionInfo> shared_function_info_;
+  IndirectHandle<BytecodeArray> bytecode_;
+  MaybeIndirectHandle<Code> maybe_code_;
   base::TimeDelta time_taken_;
 };
 

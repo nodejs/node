@@ -20,7 +20,7 @@ LoadWithHoleCheck<FixedDoubleArray>(
     implicit context: Context)(elements: FixedArrayBase, index: Smi): JSAny
     labels IfHole {
   const elements: FixedDoubleArray = UnsafeCast<FixedDoubleArray>(elements);
-  const element: float64 = elements.floats[index].Value() otherwise IfHole;
+  const element: float64 = elements.values[index].Value() otherwise IfHole;
   return AllocateHeapNumberWithValue(element);
 }
 

@@ -262,8 +262,6 @@ class OrderedHashTable : public FixedArray {
     return set(RemovedHolesIndex() + index, Smi::FromInt(removed_index));
   }
 
-  OBJECT_CONSTRUCTORS(OrderedHashTable, FixedArray);
-
  private:
   friend class OrderedNameDictionaryHandler;
 };
@@ -298,8 +296,6 @@ class V8_EXPORT_PRIVATE OrderedHashSet
   static inline Handle<Map> GetMap(ReadOnlyRoots roots);
   static inline bool Is(DirectHandle<HeapObject> table);
   static const int kPrefixSize = 0;
-
-  OBJECT_CONSTRUCTORS(OrderedHashSet, OrderedHashTable<OrderedHashSet, 1>);
 };
 
 class V8_EXPORT_PRIVATE OrderedHashMap
@@ -344,8 +340,6 @@ class V8_EXPORT_PRIVATE OrderedHashMap
 
   static const int kValueOffset = 1;
   static const int kPrefixSize = 0;
-
-  OBJECT_CONSTRUCTORS(OrderedHashMap, OrderedHashTable<OrderedHashMap, 2>);
 };
 
 // This is similar to the OrderedHashTable, except for the memory
@@ -826,9 +820,6 @@ class V8_EXPORT_PRIVATE OrderedNameDictionary
   static constexpr int HashIndex() { return PrefixIndex(); }
 
   static const bool kIsOrderedDictionaryType = true;
-
-  OBJECT_CONSTRUCTORS(OrderedNameDictionary,
-                      OrderedHashTable<OrderedNameDictionary, 3>);
 };
 
 extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)

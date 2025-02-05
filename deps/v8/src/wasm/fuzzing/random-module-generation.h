@@ -37,7 +37,7 @@ constexpr bool ShouldGenerateWasmGC(WasmModuleGenerationOptions options) {
   return options & kGenerateWasmGC;
 }
 
-#if !OFFICIAL_BUILD
+#ifdef V8_WASM_RANDOM_FUZZERS
 // Generate a valid Wasm module based on the given input bytes.
 // Returns an empty buffer on failure, valid module wire bytes otherwise.
 // The bytes will be allocated in the zone.

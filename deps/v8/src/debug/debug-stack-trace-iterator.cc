@@ -122,7 +122,7 @@ v8::Local<v8::Value> DebugStackTraceIterator::GetReturnValue() const {
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   CHECK_NOT_NULL(iterator_.frame());
-  bool is_optimized = iterator_.frame()->is_optimized();
+  bool is_optimized = iterator_.frame()->is_optimized_js();
   if (is_optimized || !is_top_frame_ ||
       !isolate_->debug()->IsBreakAtReturn(iterator_.javascript_frame())) {
     return v8::Local<v8::Value>();
@@ -243,7 +243,7 @@ void DebugStackTraceIterator::UpdateInlineFrameIndexAndResumableFnOnStack() {
   if (resumable_fn_on_stack_) return;
 
   StackFrame* frame = iterator_.frame();
-  if (!frame->is_java_script()) return;
+  if (!frame->is_javascript()) return;
 
   std::vector<Handle<SharedFunctionInfo>> shareds;
   JavaScriptFrame::cast(frame)->GetFunctions(&shareds);

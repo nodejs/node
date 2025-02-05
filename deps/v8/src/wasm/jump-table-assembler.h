@@ -112,22 +112,24 @@ class V8_EXPORT_PRIVATE JumpTableAssembler : public MacroAssembler {
     return slot_count * kLazyCompileTableSlotSize;
   }
 
-  static void GenerateLazyCompileTable(Address base, uint32_t num_slots,
+  static void GenerateLazyCompileTable(AccountingAllocator* allocator,
+                                       Address base, uint32_t num_slots,
                                        uint32_t num_imported_functions,
                                        Address wasm_compile_lazy_target);
 
   // Initializes the jump table starting at {base} with jumps to the lazy
   // compile table starting at {lazy_compile_table_start}.
   static void InitializeJumpsToLazyCompileTable(
-      Address base, uint32_t num_slots, Address lazy_compile_table_start);
+      AccountingAllocator* allocator, Address base, uint32_t num_slots,
+      Address lazy_compile_table_start);
 
-  static void GenerateFarJumpTable(Address base, Address* stub_targets,
-                                   int num_runtime_slots,
+  static void GenerateFarJumpTable(AccountingAllocator* allocator, Address base,
+                                   Address* stub_targets, int num_runtime_slots,
                                    int num_function_slots) {
     uint32_t table_size =
         SizeForNumberOfFarJumpSlots(num_runtime_slots, num_function_slots);
     // Assume enough space, so the Assembler does not try to grow the buffer.
-    JumpTableAssembler jtasm(base, table_size + 256);
+    JumpTableAssembler jtasm(allocator, base, table_size + 256);
     int offset = 0;
     for (int index = 0; index < num_runtime_slots + num_function_slots;
          ++index) {
@@ -143,10 +145,11 @@ class V8_EXPORT_PRIVATE JumpTableAssembler : public MacroAssembler {
     FlushInstructionCache(base, table_size);
   }
 
-  static void PatchJumpTableSlot(Address jump_table_slot,
+  static void PatchJumpTableSlot(AccountingAllocator* allocator,
+                                 Address jump_table_slot,
                                  Address far_jump_table_slot, Address target) {
     // First, try to patch the jump table slot.
-    JumpTableAssembler jtasm(jump_table_slot);
+    JumpTableAssembler jtasm(allocator, jump_table_slot);
     if (!jtasm.EmitJumpSlot(target)) {
       // If that fails, we need to patch the far jump table slot, and then
       // update the jump table slot to jump to this far jump table slot.
@@ -163,23 +166,25 @@ class V8_EXPORT_PRIVATE JumpTableAssembler : public MacroAssembler {
 
  private:
   // Instantiate a {JumpTableAssembler} for patching.
-  explicit JumpTableAssembler(Address slot_addr, int size = 256)
-      : MacroAssembler(nullptr, JumpTableAssemblerOptions(),
+  JumpTableAssembler(AccountingAllocator* allocator, Address slot_addr,
+                     int size = 256)
+      : MacroAssembler(allocator, JumpTableAssemblerOptions(),
                        CodeObjectRequired::kNo,
                        ExternalAssemblerBuffer(
                            reinterpret_cast<uint8_t*>(slot_addr), size)) {}
 
-// To allow concurrent patching of the jump table entries, we need to ensure
-// that the instruction containing the call target does not cross cache-line
-// boundaries. The jump table line size has been chosen to satisfy this.
+  // To allow concurrent patching of the jump table entries, we need to ensure
+  // atomicity of the jump table updates. On most architectures, unaligned
+  // writes are atomic if they don't cross a cache line. The AMD manual however
+  // only guarantees atomicity if the write happens inside a naturally aligned
+  // qword. The jump table line size has been chosen to satisfy this.
 #if V8_TARGET_ARCH_X64
 #ifdef V8_ENABLE_CET_IBT
-  static constexpr int kEndbrSize = 4;
+  static constexpr int kJumpTableSlotSize = 16;
 #else  // V8_ENABLE_CET_IBT
-  static constexpr int kEndbrSize = 0;
+  static constexpr int kJumpTableSlotSize = 8;
 #endif
-  static constexpr int kJumpTableLineSize = 64;
-  static constexpr int kJumpTableSlotSize = 5 + kEndbrSize;
+  static constexpr int kJumpTableLineSize = kJumpTableSlotSize;
   static constexpr int kFarJumpTableSlotSize = 16;
   static constexpr int kLazyCompileTableSlotSize = 10;
 #elif V8_TARGET_ARCH_IA32
@@ -188,20 +193,20 @@ class V8_EXPORT_PRIVATE JumpTableAssembler : public MacroAssembler {
   static constexpr int kFarJumpTableSlotSize = 5;
   static constexpr int kLazyCompileTableSlotSize = 10;
 #elif V8_TARGET_ARCH_ARM
-  static constexpr int kJumpTableLineSize = 3 * kInstrSize;
-  static constexpr int kJumpTableSlotSize = 3 * kInstrSize;
-  static constexpr int kFarJumpTableSlotSize = 2 * kInstrSize;
-  static constexpr int kLazyCompileTableSlotSize = 5 * kInstrSize;
-#elif V8_TARGET_ARCH_ARM64 && V8_ENABLE_CONTROL_FLOW_INTEGRITY
   static constexpr int kJumpTableLineSize = 2 * kInstrSize;
   static constexpr int kJumpTableSlotSize = 2 * kInstrSize;
-  static constexpr int kFarJumpTableSlotSize = 6 * kInstrSize;
+  static constexpr int kFarJumpTableSlotSize = 2 * kInstrSize;
   static constexpr int kLazyCompileTableSlotSize = 4 * kInstrSize;
-#elif V8_TARGET_ARCH_ARM64 && !V8_ENABLE_CONTROL_FLOW_INTEGRITY
+#elif V8_TARGET_ARCH_ARM64
+#if V8_ENABLE_CONTROL_FLOW_INTEGRITY
+  static constexpr int kJumpTableLineSize = 2 * kInstrSize;
+  static constexpr int kJumpTableSlotSize = 2 * kInstrSize;
+#else
   static constexpr int kJumpTableLineSize = 1 * kInstrSize;
   static constexpr int kJumpTableSlotSize = 1 * kInstrSize;
+#endif
   static constexpr int kFarJumpTableSlotSize = 4 * kInstrSize;
-  static constexpr int kLazyCompileTableSlotSize = 3 * kInstrSize;
+  static constexpr int kLazyCompileTableSlotSize = 4 * kInstrSize;
 #elif V8_TARGET_ARCH_S390X
   static constexpr int kJumpTableLineSize = 128;
   static constexpr int kJumpTableSlotSize = 8;
@@ -266,6 +271,12 @@ class V8_EXPORT_PRIVATE JumpTableAssembler : public MacroAssembler {
   void NopBytes(int bytes);
 
   void SkipUntil(int offset);
+
+  template <typename V>
+  void emit(V value);
+
+  template <typename V>
+  void emit(V value, RelaxedStoreTag);
 };
 
 }  // namespace wasm

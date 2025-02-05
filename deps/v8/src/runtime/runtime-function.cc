@@ -76,7 +76,10 @@ RUNTIME_FUNCTION(Runtime_Call) {
   int const argc = args.length() - 2;
   Handle<Object> target = args.at(0);
   Handle<Object> receiver = args.at(1);
-  base::ScopedVector<Handle<Object>> argv(argc);
+  // TODO(42203211): This vector ends up in InvokeParams which is potentially
+  // used by generated code. It will be replaced, when generated code starts
+  // using direct handles.
+  base::ScopedVector<IndirectHandle<Object>> argv(argc);
   for (int i = 0; i < argc; ++i) {
     argv[i] = args.at(2 + i);
   }

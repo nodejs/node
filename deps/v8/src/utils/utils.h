@@ -41,7 +41,7 @@
 #endif
 
 #ifdef __SSE3__
-#include <immintrin.h>
+#include <pmmintrin.h>
 #endif
 
 #if defined(V8_TARGET_ARCH_ARM64) && \

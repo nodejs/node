@@ -317,11 +317,9 @@ base::Vector<const char> GetScriptName(Tagged<Object> maybeScript,
       return {reinterpret_cast<char*>(str->GetChars(no_gc)),
               static_cast<size_t>(str->length())};
     } else if (IsString(name_or_url)) {
-      int length;
-      *storage =
-          Cast<String>(name_or_url)
-              ->ToCString(DISALLOW_NULLS, FAST_STRING_TRAVERSAL, &length);
-      return {storage->get(), static_cast<size_t>(length)};
+      uint32_t length;
+      *storage = Cast<String>(name_or_url)->ToCString(&length);
+      return {storage->get(), length};
     }
   }
   return {kUnknownScriptNameString, kUnknownScriptNameStringLen};

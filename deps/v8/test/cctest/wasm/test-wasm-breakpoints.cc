@@ -555,7 +555,7 @@ WASM_COMPILED_EXEC_TEST(WasmBreakInPostMVP) {
   // [] -> [i32, i32]
   ValueType sig_types[] = {kWasmI32, kWasmI32};
   FunctionSig sig{2, 0, sig_types};
-  uint8_t sig_idx = runner.builder().AddSignature(&sig);
+  ModuleTypeIndex sig_idx = runner.builder().AddSignature(&sig);
 
   constexpr int kReturn = 13;
   constexpr int kIgnored = 23;

@@ -53,7 +53,6 @@ Handle<Name> Factory::InternalizeName(Handle<T> name) {
       isolate());
 }
 
-#ifdef V8_ENABLE_DIRECT_HANDLE
 template <typename T, typename>
 DirectHandle<String> Factory::InternalizeString(DirectHandle<T> string) {
   // T should be a subtype of String, which is enforced by the second template
@@ -69,7 +68,6 @@ DirectHandle<Name> Factory::InternalizeName(DirectHandle<T> name) {
   if (IsUniqueName(*name)) return name;
   return isolate()->string_table()->LookupString(isolate(), Cast<String>(name));
 }
-#endif
 
 template <size_t N>
 Handle<String> Factory::NewStringFromStaticChars(const char (&str)[N],
@@ -85,7 +83,8 @@ Handle<String> Factory::NewStringFromAsciiChecked(const char* str,
       .ToHandleChecked();
 }
 
-Handle<String> Factory::NewSubString(Handle<String> str, int begin, int end) {
+Handle<String> Factory::NewSubString(Handle<String> str, uint32_t begin,
+                                     uint32_t end) {
   if (begin == 0 && end == str->length()) return str;
   return NewProperSubString(str, begin, end);
 }

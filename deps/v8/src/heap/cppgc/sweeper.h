@@ -17,7 +17,7 @@ namespace cppgc::internal {
 
 class HeapBase;
 class ConcurrentSweeperTest;
-class NormalPageSpace;
+class BaseSpace;
 
 class V8_EXPORT_PRIVATE Sweeper final {
  public:
@@ -55,8 +55,7 @@ class V8_EXPORT_PRIVATE Sweeper final {
   // SweepForAllocationIfRunning sweeps the given `space` until a slot that can
   // fit an allocation of `min_wanted_size` bytes is found. Returns true if a
   // slot was found. Aborts after `max_duration`.
-  bool SweepForAllocationIfRunning(NormalPageSpace* space,
-                                   size_t min_wanted_size,
+  bool SweepForAllocationIfRunning(BaseSpace* space, size_t min_wanted_size,
                                    v8::base::TimeDelta max_duration);
 
   bool IsSweepingOnMutatorThread() const;

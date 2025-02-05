@@ -30,6 +30,11 @@ namespace internal {
     }                                                               \
   } while (0);
 
+enum class ExpectedResult {
+  kFail,
+  kPass,
+};
+
 class TSSimd256VerifyScope {
  public:
   static bool VerifyHaveAnySimd256Op(const compiler::turboshaft::Graph& graph) {
@@ -73,7 +78,9 @@ class TSSimd256VerifyScope {
   explicit TSSimd256VerifyScope(
       Zone* zone,
       std::function<bool(const compiler::turboshaft::Graph&)> raw_handler =
-          TSSimd256VerifyScope::VerifyHaveAnySimd256Op) {
+          TSSimd256VerifyScope::VerifyHaveAnySimd256Op,
+      ExpectedResult expected = ExpectedResult::kPass)
+      : expected_(expected) {
     SKIP_TEST_IF_NO_TURBOSHAFT;
 
     std::function<void(const compiler::turboshaft::Graph&)> handler;
@@ -92,10 +99,15 @@ class TSSimd256VerifyScope {
   ~TSSimd256VerifyScope() {
     SKIP_TEST_IF_NO_TURBOSHAFT;
     isolate_->set_wasm_revec_verifier_for_test(nullptr);
-    CHECK(check_pass_);
+    if (expected_ == ExpectedResult::kPass) {
+      CHECK(check_pass_);
+    } else {
+      CHECK(!check_pass_);
+    }
   }
 
   bool check_pass_ = false;
+  ExpectedResult expected_ = ExpectedResult::kPass;
   Isolate* isolate_ = nullptr;
   std::unique_ptr<compiler::turboshaft::WasmRevecVerifier> verifier_;
 };
@@ -377,9 +389,19 @@ void RunI32x8ShiftOpRevecTest(WasmOpcode opcode, Int32ShiftOp expected_op,
 void RunI64x4ShiftOpRevecTest(WasmOpcode opcode, Int64ShiftOp expected_op,
                               compiler::IrOpcode::Value revec_opcode);
 
-template <typename T>
+template <typename IntType>
 void RunI32x8ConvertF32x8RevecTest(WasmOpcode opcode,
                                    ConvertToIntOp expected_op,
+                                   compiler::IrOpcode::Value revec_opcode);
+template <typename IntType>
+void RunF32x8ConvertI32x8RevecTest(WasmOpcode opcode,
+                                   compiler::IrOpcode::Value revec_opcode);
+template <typename NarrowIntType, typename WideIntType>
+void RunIntSignExtensionRevecTest(WasmOpcode opcode_low, WasmOpcode opcode_high,
+                                  WasmOpcode splat_op,
+                                  compiler::IrOpcode::Value revec_opcode);
+template <typename S, typename T>
+void RunIntToIntNarrowingRevecTest(WasmOpcode opcode,
                                    compiler::IrOpcode::Value revec_opcode);
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 

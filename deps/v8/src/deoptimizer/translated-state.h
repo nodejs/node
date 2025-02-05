@@ -34,6 +34,7 @@ class TranslatedState;
 void DeoptimizationFrameTranslationPrintSingleOpcode(
     std::ostream& os, TranslationOpcode opcode,
     DeoptimizationFrameTranslation::Iterator& iterator,
+    Tagged<ProtectedDeoptimizationLiteralArray> protected_literal_array,
     Tagged<DeoptimizationLiteralArray> literal_array);
 
 // The Translated{Value,Frame,State} class hierarchy are a set of utility
@@ -217,7 +218,14 @@ class TranslatedFrame {
 
   Kind kind() const { return kind_; }
   BytecodeOffset bytecode_offset() const { return bytecode_offset_; }
-  Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
+  Handle<SharedFunctionInfo> shared_info() const {
+    CHECK_EQ(handle_state_, kHandles);
+    return shared_info_;
+  }
+  Handle<BytecodeArray> bytecode_array() const {
+    CHECK_EQ(handle_state_, kHandles);
+    return bytecode_array_;
+  }
 
   // TODO(jgruber): Simplify/clarify the semantics of this field. The name
   // `height` is slightly misleading. Yes, this value is related to stack frame
@@ -230,8 +238,15 @@ class TranslatedFrame {
   int return_value_count() const { return return_value_count_; }
 
   Tagged<SharedFunctionInfo> raw_shared_info() const {
+    CHECK_EQ(handle_state_, kRawPointers);
     CHECK(!raw_shared_info_.is_null());
     return raw_shared_info_;
+  }
+
+  Tagged<BytecodeArray> raw_bytecode_array() const {
+    CHECK_EQ(handle_state_, kRawPointers);
+    CHECK(!raw_bytecode_array_.is_null());
+    return raw_bytecode_array_;
   }
 
   class iterator {
@@ -300,9 +315,10 @@ class TranslatedFrame {
   friend class Deoptimizer;
 
   // Constructor static methods.
-  static TranslatedFrame UnoptimizedFrame(
+  static TranslatedFrame UnoptimizedJSFrame(
       BytecodeOffset bytecode_offset, Tagged<SharedFunctionInfo> shared_info,
-      int height, int return_value_offset, int return_value_count);
+      Tagged<BytecodeArray> bytecode_array, int height, int return_value_offset,
+      int return_value_count);
   static TranslatedFrame AccessorFrame(Kind kind,
                                        Tagged<SharedFunctionInfo> shared_info);
   static TranslatedFrame InlinedExtraArguments(
@@ -336,15 +352,19 @@ class TranslatedFrame {
 
   static void AdvanceIterator(std::deque<TranslatedValue>::iterator* iter);
 
-  explicit TranslatedFrame(
-      Kind kind, Tagged<SharedFunctionInfo> shared_info = SharedFunctionInfo(),
-      int height = 0, int return_value_offset = 0, int return_value_count = 0)
+  explicit TranslatedFrame(Kind kind,
+                           Tagged<SharedFunctionInfo> raw_shared_info = {},
+                           Tagged<BytecodeArray> raw_bytecode_array = {},
+                           int height = 0, int return_value_offset = 0,
+                           int return_value_count = 0)
       : kind_(kind),
         bytecode_offset_(BytecodeOffset::None()),
-        raw_shared_info_(shared_info),
+        raw_shared_info_(raw_shared_info),
+        raw_bytecode_array_(raw_bytecode_array),
         height_(height),
         return_value_offset_(return_value_offset),
-        return_value_count_(return_value_count) {}
+        return_value_count_(return_value_count),
+        handle_state_(kRawPointers) {}
 
   void Add(const TranslatedValue& value) { values_.push_back(value); }
   TranslatedValue* ValueAt(int index) { return &(values_[index]); }
@@ -352,11 +372,23 @@ class TranslatedFrame {
 
   Kind kind_;
   BytecodeOffset bytecode_offset_;
-  Tagged<SharedFunctionInfo> raw_shared_info_;
-  Handle<SharedFunctionInfo> shared_info_;
+
+  // Object references are stored as either raw pointers (before Handlify is
+  // called) or handles (afterward).
+  union {
+    Tagged<SharedFunctionInfo> raw_shared_info_;
+    IndirectHandle<SharedFunctionInfo> shared_info_;
+  };
+  union {
+    Tagged<BytecodeArray> raw_bytecode_array_;
+    IndirectHandle<BytecodeArray> bytecode_array_;
+  };
+
   int height_;
   int return_value_offset_;
   int return_value_count_;
+
+  enum HandleState { kRawPointers, kHandles } handle_state_;
 
   using ValuesContainer = std::deque<TranslatedValue>;
 
@@ -446,6 +478,7 @@ class TranslatedState {
 
   void Init(Isolate* isolate, Address input_frame_pointer,
             Address stack_frame_pointer, DeoptTranslationIterator* iterator,
+            Tagged<ProtectedDeoptimizationLiteralArray> protected_literal_array,
             const DeoptimizationLiteralProvider& literal_array,
             RegisterValues* registers, FILE* trace_file, int parameter_count,
             int actual_argument_count);
@@ -464,6 +497,7 @@ class TranslatedState {
 
   TranslatedFrame CreateNextTranslatedFrame(
       DeoptTranslationIterator* iterator,
+      Tagged<ProtectedDeoptimizationLiteralArray> protected_literal_array,
       const DeoptimizationLiteralProvider& literal_array, Address fp,
       FILE* trace_file);
   int CreateNextTranslatedValue(

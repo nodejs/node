@@ -36,12 +36,12 @@ class CWasmEntryArgTester {
       : runner_(TestExecutionTier::kTurbofan),
         isolate_(runner_.main_isolate()),
         expected_fn_(expected_fn),
-        sig_(runner_.template CreateSig<ReturnType, Args...>()) {
+        sig_(WasmRunnerBase::CanonicalizeSig(
+            runner_.template CreateSig<ReturnType, Args...>())) {
     std::vector<uint8_t> code{wasm_function_bytes};
     runner_.Build(code.data(), code.data() + code.size());
     wasm_code_ = runner_.builder().GetFunctionCode(0);
-    c_wasm_entry_ = compiler::CompileCWasmEntry(
-        isolate_, sig_, wasm_code_->native_module()->module());
+    c_wasm_entry_ = compiler::CompileCWasmEntry(isolate_, sig_);
   }
 
   template <typename... Rest>
@@ -58,7 +58,7 @@ class CWasmEntryArgTester {
   void CheckCall(Args... args) {
     CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(sig_));
     WriteToBuffer(&packer, args...);
-    Address wasm_call_target = wasm_code_->instruction_start();
+    WasmCodePointer wasm_call_target = wasm_code_->code_pointer();
     DirectHandle<Object> object_ref = runner_.builder().instance_object();
     Execution::CallWasm(isolate_, c_wasm_entry_, wasm_call_target, object_ref,
                         packer.argv());
@@ -79,7 +79,7 @@ class CWasmEntryArgTester {
   WasmRunner<ReturnType, Args...> runner_;
   Isolate* isolate_;
   std::function<ReturnType(Args...)> expected_fn_;
-  const FunctionSig* sig_;
+  const CanonicalSig* sig_;
   Handle<Code> c_wasm_entry_;
   WasmCode* wasm_code_;
 };

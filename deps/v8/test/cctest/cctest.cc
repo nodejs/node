@@ -300,7 +300,7 @@ i::Handle<i::JSFunction> Optimize(i::Handle<i::JSFunction> function,
   CHECK_NOT_NULL(zone);
 
   i::OptimizedCompilationInfo info(zone, isolate, shared, function,
-                                   i::CodeKind::TURBOFAN);
+                                   i::CodeKind::TURBOFAN_JS);
 
   if (flags & ~i::OptimizedCompilationInfo::kInlining) UNIMPLEMENTED();
   if (flags & i::OptimizedCompilationInfo::kInlining) {

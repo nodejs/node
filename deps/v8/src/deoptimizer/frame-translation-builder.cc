@@ -311,7 +311,7 @@ void FrameTranslationBuilder::BeginLiftoffFrame(BytecodeOffset bailout_id,
 
 void FrameTranslationBuilder::BeginJavaScriptBuiltinContinuationFrame(
     BytecodeOffset bytecode_offset, int literal_id, unsigned height) {
-  auto opcode = TranslationOpcode::JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME;
+  auto opcode = TranslationOpcode::JAVASCRIPT_BUILTIN_CONTINUATION_FRAME;
   Add(opcode, SignedOperand(bytecode_offset.ToInt()), SignedOperand(literal_id),
       SignedOperand(height));
 }
@@ -319,7 +319,7 @@ void FrameTranslationBuilder::BeginJavaScriptBuiltinContinuationFrame(
 void FrameTranslationBuilder::BeginJavaScriptBuiltinContinuationWithCatchFrame(
     BytecodeOffset bytecode_offset, int literal_id, unsigned height) {
   auto opcode =
-      TranslationOpcode::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH_FRAME;
+      TranslationOpcode::JAVASCRIPT_BUILTIN_CONTINUATION_WITH_CATCH_FRAME;
   Add(opcode, SignedOperand(bytecode_offset.ToInt()), SignedOperand(literal_id),
       SignedOperand(height));
 }
@@ -342,17 +342,19 @@ void FrameTranslationBuilder::BeginInlinedExtraArguments(int literal_id,
 }
 
 void FrameTranslationBuilder::BeginInterpretedFrame(
-    BytecodeOffset bytecode_offset, int literal_id, unsigned height,
-    int return_value_offset, int return_value_count) {
+    BytecodeOffset bytecode_offset, int literal_id, int bytecode_array_id,
+    unsigned height, int return_value_offset, int return_value_count) {
   if (return_value_count == 0) {
     auto opcode = TranslationOpcode::INTERPRETED_FRAME_WITHOUT_RETURN;
     Add(opcode, SignedOperand(bytecode_offset.ToInt()),
-        SignedOperand(literal_id), SignedOperand(height));
+        SignedOperand(literal_id), SignedOperand(bytecode_array_id),
+        SignedOperand(height));
   } else {
     auto opcode = TranslationOpcode::INTERPRETED_FRAME_WITH_RETURN;
     Add(opcode, SignedOperand(bytecode_offset.ToInt()),
-        SignedOperand(literal_id), SignedOperand(height),
-        SignedOperand(return_value_offset), SignedOperand(return_value_count));
+        SignedOperand(literal_id), SignedOperand(bytecode_array_id),
+        SignedOperand(height), SignedOperand(return_value_offset),
+        SignedOperand(return_value_count));
   }
 }
 

@@ -55,7 +55,7 @@ static inline constexpr bool needs_fp_reg_pair(ValueKind kind) {
 
 static inline constexpr RegClass reg_class_for(ValueKind kind) {
   // Statically generate an array that we use for lookup at runtime.
-  constexpr size_t kNumValueKinds = static_cast<size_t>(kBottom);
+  constexpr size_t kNumValueKinds = static_cast<size_t>(kTop);
   constexpr auto kRegClasses =
       base::make_array<kNumValueKinds>([](std::size_t kind) {
         switch (kind) {

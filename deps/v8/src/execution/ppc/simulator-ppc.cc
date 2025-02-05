@@ -882,7 +882,7 @@ uintptr_t Simulator::StackLimit(uintptr_t c_limit) const {
   return reinterpret_cast<uintptr_t>(stack_) + kStackProtectionSize;
 }
 
-base::Vector<uint8_t> Simulator::GetCurrentStackView() const {
+base::Vector<uint8_t> Simulator::GetCentralStackView() const {
   // We do not add an additional safety margin as above in
   // Simulator::StackLimit, as this is currently only used in wasm::StackMemory,
   // which adds its own margin.
@@ -5145,32 +5145,32 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       set_simd_register_by_lane<uint16_t>(t, 3, result_bits);
       break;
     }
-#define VECTOR_FP_QF(type, sign)                             \
-  DECODE_VX_INSTRUCTION(t, a, b, T)                          \
-  FOR_EACH_LANE(i, type) {                                   \
-    type a_val = get_simd_register_by_lane<type>(a, i);      \
-    type b_val = get_simd_register_by_lane<type>(b, i);      \
-    type t_val = get_simd_register_by_lane<type>(t, i);      \
-    type reuslt = sign * ((sign * b_val) + (a_val * t_val)); \
-    if (isinf(a_val)) reuslt = a_val;                        \
-    if (isinf(b_val)) reuslt = b_val;                        \
-    if (isinf(t_val)) reuslt = t_val;                        \
-    set_simd_register_by_lane<type>(t, i, reuslt);           \
+#define VECTOR_FP_QF(type, sign, function)                       \
+  DECODE_VX_INSTRUCTION(t, a, b, T)                              \
+  FOR_EACH_LANE(i, type) {                                       \
+    type a_val = get_simd_register_by_lane<type>(a, i);          \
+    type b_val = get_simd_register_by_lane<type>(b, i);          \
+    type t_val = get_simd_register_by_lane<type>(t, i);          \
+    type reuslt = sign * function(a_val, t_val, (sign * b_val)); \
+    if (isinf(a_val)) reuslt = a_val;                            \
+    if (isinf(b_val)) reuslt = b_val;                            \
+    if (isinf(t_val)) reuslt = t_val;                            \
+    set_simd_register_by_lane<type>(t, i, reuslt);               \
   }
     case XVMADDMDP: {
-      VECTOR_FP_QF(double, +1)
+      VECTOR_FP_QF(double, +1, fma)
       break;
     }
     case XVNMSUBMDP: {
-      VECTOR_FP_QF(double, -1)
+      VECTOR_FP_QF(double, -1, fma)
       break;
     }
     case XVMADDMSP: {
-      VECTOR_FP_QF(float, +1)
+      VECTOR_FP_QF(float, +1, fmaf)
       break;
     }
     case XVNMSUBMSP: {
-      VECTOR_FP_QF(float, -1)
+      VECTOR_FP_QF(float, -1, fmaf)
       break;
     }
 #undef VECTOR_FP_QF

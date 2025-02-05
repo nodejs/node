@@ -19,10 +19,10 @@ class JSOperatorBuilder;
 // Pair of a context and its distance from some point of reference.
 struct OuterContext {
   OuterContext() = default;
-  OuterContext(Handle<Context> context_, size_t distance_)
+  OuterContext(IndirectHandle<Context> context_, size_t distance_)
       : context(context_), distance(distance_) {}
 
-  Handle<Context> context;
+  IndirectHandle<Context> context;
   size_t distance = 0;
 };
 
@@ -56,6 +56,7 @@ class V8_EXPORT_PRIVATE JSContextSpecialization final : public AdvancedReducer {
  private:
   Reduction ReduceParameter(Node* node);
   Reduction ReduceJSLoadContext(Node* node);
+  Reduction ReduceJSLoadScriptContext(Node* node);
   Reduction ReduceJSStoreContext(Node* node);
   Reduction ReduceJSStoreScriptContext(Node* node);
   Reduction ReduceJSGetImportMeta(Node* node);
@@ -64,6 +65,8 @@ class V8_EXPORT_PRIVATE JSContextSpecialization final : public AdvancedReducer {
                                    size_t new_depth);
   Reduction SimplifyJSLoadContext(Node* node, Node* new_context,
                                   size_t new_depth);
+  Reduction SimplifyJSLoadScriptContext(Node* node, Node* new_context,
+                                        size_t new_depth);
 
   Isolate* isolate() const;
   JSGraph* jsgraph() const { return jsgraph_; }

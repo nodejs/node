@@ -73,7 +73,7 @@ class V8_EXPORT_PRIVATE MapUpdater {
   //     bar {} -- bar {a}
   //
   // and JSObject::UpdatePrototype performs a map update and instance migration.
-  Handle<Map> ApplyPrototypeTransition(Handle<HeapObject> prototype);
+  Handle<Map> ApplyPrototypeTransition(Handle<JSPrototype> prototype);
 
   // Prepares for updating deprecated map to most up-to-date non-deprecated
   // version and performs the steps 1-6.
@@ -238,7 +238,7 @@ class V8_EXPORT_PRIVATE MapUpdater {
   ElementsKind new_elements_kind_;
   bool is_transitionable_fast_elements_kind_;
 
-  Handle<HeapObject> new_prototype_;
+  Handle<JSPrototype> new_prototype_;
 
   // If |modified_descriptor_.is_found()|, then the fields below form
   // an "update" of the |old_map_|'s descriptors.

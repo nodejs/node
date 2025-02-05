@@ -12,13 +12,13 @@
 #include "src/codegen/machine-type.h"
 #include "src/codegen/tnode.h"
 #include "src/compiler/backend/instruction-selector.h"
-#include "src/compiler/graph.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/raw-machine-assembler.h"
 #include "src/compiler/schedule.h"
+#include "src/compiler/turbofan-graph.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory-inl.h"
 #include "src/numbers/conversions-inl.h"
@@ -87,7 +87,7 @@ CodeAssemblerState::CodeAssemblerState(Isolate* isolate, Zone* zone,
 CodeAssemblerState::~CodeAssemblerState() = default;
 
 int CodeAssemblerState::parameter_count() const {
-  return static_cast<int>(raw_assembler_->call_descriptor()->ParameterCount());
+  return static_cast<int>(raw_assembler_->parameter_count());
 }
 
 CodeAssembler::~CodeAssembler() = default;
@@ -433,6 +433,29 @@ TNode<Context> CodeAssembler::GetJSContextParameter() {
       static_cast<int>(call_descriptor->JSParameterCount())));
 }
 
+bool CodeAssembler::HasDynamicJSParameterCount() {
+  return raw_assembler()->dynamic_js_parameter_count() != nullptr;
+}
+
+TNode<Uint16T> CodeAssembler::DynamicJSParameterCount() {
+  DCHECK(HasDynamicJSParameterCount());
+  return UncheckedCast<Uint16T>(raw_assembler()->dynamic_js_parameter_count());
+}
+
+void CodeAssembler::SetDynamicJSParameterCount(TNode<Uint16T> parameter_count) {
+  DCHECK(!HasDynamicJSParameterCount());
+  // For code to support a dynamic parameter count, it's static parameter count
+  // must currently be zero, i.e. varargs. Otherwise we'd also need to ensure
+  // that the dynamic parameter count is not smaller than the static one.
+  //
+  // TODO(saelo): it would probably be a bit nicer if we could assert here that
+  // IsJSFunctionCall() is true and then use the JSParameterCount() of the
+  // descriptor instead, but that doesn't work because not all users of this
+  // feature are TFJ builtins (some are TFC builtins).
+  DCHECK_EQ(raw_assembler()->call_descriptor()->ParameterSlotCount(), 0);
+  raw_assembler()->set_dynamic_js_parameter_count(parameter_count);
+}
+
 void CodeAssembler::Return(TNode<Object> value) {
   DCHECK_EQ(1, raw_assembler()->call_descriptor()->ReturnCount());
   DCHECK(raw_assembler()->call_descriptor()->GetReturnType(0).IsTagged());
@@ -517,6 +540,15 @@ void CodeAssembler::Return(TNode<WordT> value1, TNode<Object> value2) {
   DCHECK_EQ(2, raw_assembler()->call_descriptor()->ReturnCount());
   DCHECK_EQ(
       MachineType::PointerRepresentation(),
+      raw_assembler()->call_descriptor()->GetReturnType(0).representation());
+  DCHECK(raw_assembler()->call_descriptor()->GetReturnType(1).IsTagged());
+  return raw_assembler()->Return(value1, value2);
+}
+
+void CodeAssembler::Return(TNode<Word32T> value1, TNode<Object> value2) {
+  DCHECK_EQ(2, raw_assembler()->call_descriptor()->ReturnCount());
+  DCHECK_EQ(
+      MachineRepresentation::kWord32,
       raw_assembler()->call_descriptor()->GetReturnType(0).representation());
   DCHECK(raw_assembler()->call_descriptor()->GetReturnType(1).IsTagged());
   return raw_assembler()->Return(value1, value2);
@@ -1105,6 +1137,17 @@ class NodeArray {
   Node** ptr_ = arr_;
 };
 
+#ifdef DEBUG
+bool IsValidArgumentCountFor(const CallInterfaceDescriptor& descriptor,
+                             size_t argument_count) {
+  size_t parameter_count = descriptor.GetParameterCount();
+  if (descriptor.AllowVarArgs()) {
+    return argument_count >= parameter_count;
+  } else {
+    return argument_count == parameter_count;
+  }
+}
+#endif  // DEBUG
 }  // namespace
 
 Node* CodeAssembler::CallRuntimeImpl(
@@ -1250,13 +1293,7 @@ Node* CodeAssembler::CallStubN(StubCallMode call_mode,
   int implicit_nodes = descriptor.HasContextParameter() ? 2 : 1;
   DCHECK_LE(implicit_nodes, input_count);
   int argc = input_count - implicit_nodes;
-#ifdef DEBUG
-  if (descriptor.AllowVarArgs()) {
-    DCHECK_LE(descriptor.GetParameterCount(), argc);
-  } else {
-    DCHECK_EQ(descriptor.GetParameterCount(), argc);
-  }
-#endif
+  DCHECK(IsValidArgumentCountFor(descriptor, argc));
   // Extra arguments not mentioned in the descriptor are passed on the stack.
   int stack_parameter_count = argc - descriptor.GetRegisterParameterCount();
   DCHECK_LE(descriptor.GetStackParameterCount(), stack_parameter_count);
@@ -1278,7 +1315,7 @@ void CodeAssembler::TailCallStubImpl(const CallInterfaceDescriptor& descriptor,
                                      std::initializer_list<Node*> args) {
   constexpr size_t kMaxNumArgs = 11;
   DCHECK_GE(kMaxNumArgs, args.size());
-  DCHECK_EQ(descriptor.GetParameterCount(), args.size());
+  DCHECK(IsValidArgumentCountFor(descriptor, args.size()));
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       zone(), descriptor, descriptor.GetStackParameterCount(),
       CallDescriptor::kNoFlags, Operator::kNoProperties);
@@ -1299,6 +1336,7 @@ Node* CodeAssembler::CallStubRImpl(StubCallMode call_mode,
                                    std::initializer_list<Node*> args) {
   DCHECK(call_mode == StubCallMode::kCallCodeObject ||
          call_mode == StubCallMode::kCallBuiltinPointer);
+  DCHECK(IsValidArgumentCountFor(descriptor, args.size()));
 
   constexpr size_t kMaxNumArgs = 10;
   DCHECK_GE(kMaxNumArgs, args.size());
@@ -1313,25 +1351,34 @@ Node* CodeAssembler::CallStubRImpl(StubCallMode call_mode,
   return CallStubN(call_mode, descriptor, inputs.size(), inputs.data());
 }
 
-Node* CodeAssembler::CallJSStubImpl(const CallInterfaceDescriptor& descriptor,
-                                    TNode<Object> target, TNode<Object> context,
-                                    TNode<Object> function,
-                                    std::optional<TNode<Object>> new_target,
-                                    TNode<Int32T> arity,
-                                    std::initializer_list<Node*> args) {
+Node* CodeAssembler::CallJSStubImpl(
+    const CallInterfaceDescriptor& descriptor, TNode<Object> target,
+    TNode<Object> context, TNode<Object> function,
+    std::optional<TNode<Object>> new_target, TNode<Int32T> arity,
+    std::optional<TNode<JSDispatchHandleT>> dispatch_handle,
+    std::initializer_list<Node*> args) {
   constexpr size_t kMaxNumArgs = 10;
   DCHECK_GE(kMaxNumArgs, args.size());
-  NodeArray<kMaxNumArgs + 5> inputs;
+  NodeArray<kMaxNumArgs + 6> inputs;
+
   inputs.Add(target);
   inputs.Add(function);
   if (new_target) {
     inputs.Add(*new_target);
   }
   inputs.Add(arity);
+#ifdef V8_ENABLE_LEAPTIERING
+  if (dispatch_handle) {
+    inputs.Add(*dispatch_handle);
+  }
+#endif
   for (auto arg : args) inputs.Add(arg);
+  // Context argument is implicit so isn't counted.
+  DCHECK(IsValidArgumentCountFor(descriptor, inputs.size()));
   if (descriptor.HasContextParameter()) {
     inputs.Add(context);
   }
+
   return CallStubN(StubCallMode::kCallCodeObject, descriptor, inputs.size(),
                    inputs.data());
 }
@@ -1341,8 +1388,8 @@ void CodeAssembler::TailCallStubThenBytecodeDispatchImpl(
     std::initializer_list<Node*> args) {
   constexpr size_t kMaxNumArgs = 6;
   DCHECK_GE(kMaxNumArgs, args.size());
+  DCHECK(IsValidArgumentCountFor(descriptor, args.size()));
 
-  DCHECK_LE(descriptor.GetParameterCount(), args.size());
   int argc = static_cast<int>(args.size());
   // Extra arguments not mentioned in the descriptor are passed on the stack.
   int stack_parameter_count = argc - descriptor.GetRegisterParameterCount();
@@ -1382,13 +1429,21 @@ template V8_EXPORT_PRIVATE void CodeAssembler::TailCallBytecodeDispatch(
 void CodeAssembler::TailCallJSCode(TNode<Code> code, TNode<Context> context,
                                    TNode<JSFunction> function,
                                    TNode<Object> new_target,
-                                   TNode<Int32T> arg_count) {
+                                   TNode<Int32T> arg_count,
+                                   TNode<JSDispatchHandleT> dispatch_handle) {
   JSTrampolineDescriptor descriptor;
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       zone(), descriptor, descriptor.GetStackParameterCount(),
-      CallDescriptor::kFixedTargetRegister, Operator::kNoProperties);
+      CallDescriptor::kFixedTargetRegister, Operator::kNoProperties,
+      StubCallMode::kCallCodeObject);
 
+#ifdef V8_ENABLE_LEAPTIERING
+  Node* nodes[] = {code,      function,        new_target,
+                   arg_count, dispatch_handle, context};
+#else
   Node* nodes[] = {code, function, new_target, arg_count, context};
+#endif
+  // + 2 for code and context.
   CHECK_EQ(descriptor.GetParameterCount() + 2, arraysize(nodes));
   raw_assembler()->TailCallN(call_descriptor, arraysize(nodes), nodes);
 }

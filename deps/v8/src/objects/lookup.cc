@@ -131,6 +131,36 @@ void LookupIterator::RestartInternal(InterceptorState interceptor_state) {
 template void LookupIterator::RestartInternal<true>(InterceptorState);
 template void LookupIterator::RestartInternal<false>(InterceptorState);
 
+void LookupIterator::RecheckTypedArrayBounds() {
+  DCHECK(IsJSTypedArray(*holder_, isolate_));
+  DCHECK_EQ(state_, TYPED_ARRAY_INDEX_NOT_FOUND);
+
+  if (!IsElement(*holder_)) {
+    // This happens when the index is not an allowed index.
+    return;
+  }
+
+  Tagged<JSObject> js_object = Cast<JSObject>(*holder_);
+  ElementsAccessor* accessor = js_object->GetElementsAccessor(isolate_);
+  Tagged<FixedArrayBase> backing_store = js_object->elements(isolate_);
+  number_ =
+      accessor->GetEntryForIndex(isolate_, js_object, backing_store, index_);
+
+  if (number_.is_not_found()) {
+    // The state is already TYPED_ARRAY_INDEX_NOT_FOUND.
+    return;
+  }
+  property_details_ = accessor->GetDetails(js_object, number_);
+#ifdef DEBUG
+  Tagged<Map> map = holder_->map(isolate_);
+  DCHECK(!map->has_frozen_elements());
+  DCHECK(!map->has_sealed_elements());
+#endif  // DEBUG
+  has_property_ = true;
+  DCHECK_EQ(property_details_.kind(), v8::internal::PropertyKind::kData);
+  state_ = DATA;
+}
+
 // static
 MaybeHandle<JSReceiver> LookupIterator::GetRootForNonJSReceiver(
     Isolate* isolate, DirectHandle<JSPrimitive> lookup_start_object,
@@ -186,11 +216,11 @@ void LookupIterator::ReloadPropertyInformation() {
 
 // static
 void LookupIterator::InternalUpdateProtector(Isolate* isolate,
-                                             Handle<Object> receiver_generic,
+                                             Handle<JSAny> receiver_generic,
                                              DirectHandle<Name> name) {
   if (isolate->bootstrapper()->IsActive()) return;
-  if (!IsHeapObject(*receiver_generic)) return;
-  auto receiver = Cast<HeapObject>(receiver_generic);
+  if (!IsJSObject(*receiver_generic)) return;
+  auto receiver = Cast<JSObject>(receiver_generic);
 
   ReadOnlyRoots roots(isolate);
   if (*name == roots.constructor_string()) {
@@ -218,8 +248,9 @@ void LookupIterator::InternalUpdateProtector(Isolate* isolate,
       DisallowGarbageCollection no_gc;
       // Setting the constructor of any prototype with the @@species protector
       // (of any realm) also needs to invalidate the protector.
-      if (isolate->IsInAnyContext(*receiver,
-                                  Context::INITIAL_ARRAY_PROTOTYPE_INDEX)) {
+      if (isolate->IsInCreationContext(
+              Cast<JSObject>(*receiver),
+              Context::INITIAL_ARRAY_PROTOTYPE_INDEX)) {
         if (!Protectors::IsArraySpeciesLookupChainIntact(isolate)) return;
         isolate->CountUsage(
             v8::Isolate::UseCounterFeature::kArrayPrototypeConstructorModified);
@@ -299,7 +330,7 @@ void LookupIterator::InternalUpdateProtector(Isolate* isolate,
       if (Protectors::IsSetIteratorLookupChainIntact(isolate)) {
         Protectors::InvalidateSetIteratorLookupChain(isolate);
       }
-    } else if (isolate->IsInAnyContext(
+    } else if (isolate->IsInCreationContext(
                    *receiver, Context::INITIAL_STRING_PROTOTYPE_INDEX)) {
       // Setting the Symbol.iterator property of String.prototype invalidates
       // the string iterator protector. Symbol.iterator can also be set on a
@@ -343,17 +374,17 @@ void LookupIterator::InternalUpdateProtector(Isolate* isolate,
     }
   } else if (*name == roots.to_primitive_symbol()) {
     if (!Protectors::IsStringWrapperToPrimitiveIntact(isolate)) return;
-    if (isolate->IsInAnyContext(*receiver,
-                                Context::INITIAL_STRING_PROTOTYPE_INDEX) ||
-        isolate->IsInAnyContext(*receiver,
-                                Context::INITIAL_OBJECT_PROTOTYPE_INDEX) ||
+    if (isolate->IsInCreationContext(*receiver,
+                                     Context::INITIAL_STRING_PROTOTYPE_INDEX) ||
+        isolate->IsInCreationContext(*receiver,
+                                     Context::INITIAL_OBJECT_PROTOTYPE_INDEX) ||
         IsStringWrapper(*receiver)) {
       Protectors::InvalidateStringWrapperToPrimitive(isolate);
     }
   } else if (*name == roots.valueOf_string()) {
     if (!Protectors::IsStringWrapperToPrimitiveIntact(isolate)) return;
-    if (isolate->IsInAnyContext(*receiver,
-                                Context::INITIAL_STRING_PROTOTYPE_INDEX) ||
+    if (isolate->IsInCreationContext(*receiver,
+                                     Context::INITIAL_STRING_PROTOTYPE_INDEX) ||
         IsStringWrapper(*receiver)) {
       Protectors::InvalidateStringWrapperToPrimitive(isolate);
     }
@@ -684,7 +715,7 @@ void LookupIterator::ApplyTransitionToDataProperty(
       !transition->IsPrototypeValidityCellValid()) {
     // Only LookupIterator instances with DEFAULT (full prototype chain)
     // configuration can produce valid transition handler maps.
-    DirectHandle<Object> validity_cell =
+    DirectHandle<UnionOf<Smi, Cell>> validity_cell =
         Map::GetOrCreatePrototypeChainValidityCell(transition, isolate());
     transition->set_prototype_validity_cell(*validity_cell, kRelaxedStore);
   }

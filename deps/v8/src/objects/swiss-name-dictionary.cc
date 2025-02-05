@@ -48,8 +48,9 @@ Handle<SwissNameDictionary> SwissNameDictionary::Rehash(
 
   Handle<SwissNameDictionary> new_table =
       isolate->factory()->NewSwissNameDictionaryWithCapacity(
-          new_capacity, Heap::InYoungGeneration(*table) ? AllocationType::kYoung
-                                                        : AllocationType::kOld);
+          new_capacity, HeapLayout::InYoungGeneration(*table)
+                            ? AllocationType::kYoung
+                            : AllocationType::kOld);
 
   DisallowHeapAllocation no_gc;
 
@@ -124,8 +125,9 @@ Handle<SwissNameDictionary> SwissNameDictionary::ShallowCopy(
 
   Handle<SwissNameDictionary> new_table =
       isolate->factory()->NewSwissNameDictionaryWithCapacity(
-          capacity, Heap::InYoungGeneration(*table) ? AllocationType::kYoung
-                                                    : AllocationType::kOld);
+          capacity, HeapLayout::InYoungGeneration(*table)
+                        ? AllocationType::kYoung
+                        : AllocationType::kOld);
 
   new_table->SetHash(table->Hash());
 

@@ -505,6 +505,9 @@ class Builtin : public Callable {
   bool IsStub() const { return kind_ == kStub; }
   bool IsVarArgsJavaScript() const { return kind_ == kVarArgsJavaScript; }
   bool IsFixedArgsJavaScript() const { return kind_ == kFixedArgsJavaScript; }
+  bool IsJavaScript() const {
+    return IsVarArgsJavaScript() || IsFixedArgsJavaScript();
+  }
   bool HasCustomInterfaceDescriptor() const {
     return flags_ & Flag::kCustomInterfaceDescriptor;
   }

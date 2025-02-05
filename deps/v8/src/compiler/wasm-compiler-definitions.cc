@@ -49,7 +49,8 @@ base::Vector<const char> GetDebugName(Zone* zone,
 }
 
 // General code uses the above configuration data.
-CallDescriptor* GetWasmCallDescriptor(Zone* zone, const wasm::FunctionSig* fsig,
+template <typename T>
+CallDescriptor* GetWasmCallDescriptor(Zone* zone, const Signature<T>* fsig,
                                       WasmCallKind call_kind,
                                       bool need_frame_state) {
   // The extra here is to accomodate the instance object as first parameter
@@ -98,6 +99,13 @@ CallDescriptor* GetWasmCallDescriptor(Zone* zone, const wasm::FunctionSig* fsig,
       RegList{},                          // allocatable registers
       return_slots);                      // return slot count
 }
+
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    CallDescriptor* GetWasmCallDescriptor(Zone*,
+                                          const Signature<wasm::ValueType>*,
+                                          WasmCallKind, bool);
+template CallDescriptor* GetWasmCallDescriptor(
+    Zone*, const Signature<wasm::CanonicalValueType>*, WasmCallKind, bool);
 
 std::ostream& operator<<(std::ostream& os, CheckForNull null_check) {
   return os << (null_check == kWithoutNullCheck ? "no null check"

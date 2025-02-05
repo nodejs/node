@@ -111,7 +111,7 @@ Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
   // result indices.
   DirectHandle<FixedArrayBase> elements =
       isolate->factory()->empty_fixed_array();
-  Handle<HeapObject> null = Cast<HeapObject>(isolate->factory()->null_value());
+  Handle<Null> null = isolate->factory()->null_value();
   DirectHandle<JSObject> js_group_names =
       isolate->factory()->NewSlowJSObjectWithPropertiesAndElements(
           null, group_names, elements);

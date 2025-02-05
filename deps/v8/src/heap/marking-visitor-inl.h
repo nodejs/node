@@ -7,17 +7,19 @@
 
 #include "src/common/globals.h"
 #include "src/heap/ephemeron-remembered-set.h"
+#include "src/heap/heap-layout-inl.h"
+#include "src/heap/heap-visitor-inl.h"
+#include "src/heap/heap-visitor.h"
 #include "src/heap/marking-state-inl.h"
 #include "src/heap/marking-visitor.h"
 #include "src/heap/marking-worklist-inl.h"
 #include "src/heap/marking.h"
-#include "src/heap/objects-visiting-inl.h"
-#include "src/heap/objects-visiting.h"
 #include "src/heap/pretenuring-handler-inl.h"
 #include "src/heap/progress-bar.h"
 #include "src/heap/spaces.h"
 #include "src/objects/compressed-slots.h"
 #include "src/objects/descriptor-array.h"
+#include "src/objects/heap-object.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/objects.h"
 #include "src/objects/property-details.h"
@@ -25,6 +27,7 @@
 #include "src/objects/smi.h"
 #include "src/objects/string.h"
 #include "src/sandbox/external-pointer-inl.h"
+#include "src/sandbox/indirect-pointer-tag.h"
 #include "src/sandbox/js-dispatch-table-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -220,7 +223,7 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitExternalPointer(
       table = external_pointer_table_;
       if (v8_flags.sticky_mark_bits) {
         // Everything is considered old during major GC.
-        DCHECK(!Heap::InYoungGeneration(host));
+        DCHECK(!HeapLayout::InYoungGeneration(host));
         if (handle == kNullExternalPointerHandle) return;
         // The object may either be in young or old EPT.
         if (table->Contains(heap_->young_external_pointer_space(), handle)) {
@@ -230,7 +233,7 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitExternalPointer(
           space = heap_->old_external_pointer_space();
         }
       } else {
-        space = Heap::InYoungGeneration(host)
+        space = HeapLayout::InYoungGeneration(host)
                     ? heap_->young_external_pointer_space()
                     : heap_->old_external_pointer_space();
       }
@@ -316,12 +319,15 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitJSDispatchTableEntry(
 // ===========================================================================
 
 template <typename ConcreteVisitor>
-int MarkingVisitorBase<ConcreteVisitor>::VisitJSFunction(
-    Tagged<Map> map, Tagged<JSFunction> js_function) {
+size_t MarkingVisitorBase<ConcreteVisitor>::VisitJSFunction(
+    Tagged<Map> map, Tagged<JSFunction> js_function,
+    MaybeObjectSize maybe_object_size) {
   if (ShouldFlushBaselineCode(js_function)) {
     DCHECK(IsBaselineCodeFlushingEnabled(code_flush_mode_));
+#ifndef V8_ENABLE_LEAPTIERING
     local_weak_objects_->baseline_flushing_candidates_local.Push(js_function);
-    return Base::VisitJSFunction(map, js_function);
+#endif  // !V8_ENABLE_LEAPTIERING
+    return Base::VisitJSFunction(map, js_function, maybe_object_size);
   }
 
   // We're not flushing the Code, so mark it as alive.
@@ -341,6 +347,7 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitJSFunction(
     }
   }
 #else
+
 #ifdef V8_ENABLE_SANDBOX
   VisitIndirectPointer(js_function,
                        js_function->RawIndirectPointerField(
@@ -349,6 +356,7 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitJSFunction(
 #else
   VisitPointer(js_function, js_function->RawField(JSFunction::kCodeOffset));
 #endif  // V8_ENABLE_SANDBOX
+
 #endif  // V8_ENABLE_LEAPTIERING
 
   // TODO(mythria): Consider updating the check for ShouldFlushBaselineCode to
@@ -359,12 +367,13 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitJSFunction(
     local_weak_objects_->flushed_js_functions_local.Push(js_function);
   }
 
-  return Base::VisitJSFunction(map, js_function);
+  return Base::VisitJSFunction(map, js_function, maybe_object_size);
 }
 
 template <typename ConcreteVisitor>
-int MarkingVisitorBase<ConcreteVisitor>::VisitSharedFunctionInfo(
-    Tagged<Map> map, Tagged<SharedFunctionInfo> shared_info) {
+size_t MarkingVisitorBase<ConcreteVisitor>::VisitSharedFunctionInfo(
+    Tagged<Map> map, Tagged<SharedFunctionInfo> shared_info,
+    MaybeObjectSize maybe_object_size) {
   const bool can_flush_bytecode = HasBytecodeArrayForFlushing(shared_info);
 
   // We found a BytecodeArray that can be flushed. Increment the age of the SFI.
@@ -404,7 +413,7 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitSharedFunctionInfo(
     // bytecode.
     local_weak_objects_->code_flushing_candidates_local.Push(shared_info);
   }
-  return Base::VisitSharedFunctionInfo(map, shared_info);
+  return Base::VisitSharedFunctionInfo(map, shared_info, maybe_object_size);
 }
 
 template <typename ConcreteVisitor>
@@ -525,7 +534,7 @@ bool MarkingVisitorBase<ConcreteVisitor>::ShouldFlushBaselineCode(
 // ===========================================================================
 
 template <typename ConcreteVisitor>
-int MarkingVisitorBase<ConcreteVisitor>::VisitFixedArrayWithProgressBar(
+size_t MarkingVisitorBase<ConcreteVisitor>::VisitFixedArrayWithProgressBar(
     Tagged<Map> map, Tagged<FixedArray> object, ProgressBar& progress_bar) {
   const int kProgressBarScanningChunk = kMaxRegularHeapObjectSize;
   static_assert(kMaxRegularHeapObjectSize % kTaggedSize == 0);
@@ -540,33 +549,34 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitFixedArrayWithProgressBar(
   }
   const int end = std::min(size, start + kProgressBarScanningChunk);
   if (start < end) {
-    VisitPointers(object, object->RawField(start), object->RawField(end));
+    VisitPointers(object, Cast<HeapObject>(object)->RawField(start),
+                  Cast<HeapObject>(object)->RawField(end));
     const bool success = progress_bar.TrySetNewValue(current_progress_bar, end);
     CHECK(success);
     if (end < size) {
       // The object can be pushed back onto the marking worklist only after
       // progress bar was updated.
-#ifdef DEBUG
       const auto target_worklist =
           MarkingHelper::ShouldMarkObject(heap_, object);
-      DCHECK(target_worklist);
-      DCHECK_EQ(target_worklist.value(),
-                MarkingHelper::WorklistTarget::kRegular);
-#endif  // DEBUG
-      local_marking_worklists_->Push(object);
+      if (target_worklist) {
+        DCHECK_EQ(target_worklist.value(),
+                  MarkingHelper::WorklistTarget::kRegular);
+        local_marking_worklists_->Push(object);
+      }
     }
   }
   return end - start;
 }
 
 template <typename ConcreteVisitor>
-int MarkingVisitorBase<ConcreteVisitor>::VisitFixedArray(
-    Tagged<Map> map, Tagged<FixedArray> object) {
+size_t MarkingVisitorBase<ConcreteVisitor>::VisitFixedArray(
+    Tagged<Map> map, Tagged<FixedArray> object,
+    MaybeObjectSize maybe_object_size) {
   ProgressBar& progress_bar =
       MutablePageMetadata::FromHeapObject(object)->ProgressBar();
   return concrete_visitor()->CanUpdateValuesInHeap() && progress_bar.IsEnabled()
              ? VisitFixedArrayWithProgressBar(map, object, progress_bar)
-             : Base::VisitFixedArray(map, object);
+             : Base::VisitFixedArray(map, object, maybe_object_size);
 }
 
 // ===========================================================================
@@ -574,10 +584,11 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitFixedArray(
 // ===========================================================================
 
 template <typename ConcreteVisitor>
-int MarkingVisitorBase<ConcreteVisitor>::VisitJSArrayBuffer(
-    Tagged<Map> map, Tagged<JSArrayBuffer> object) {
+size_t MarkingVisitorBase<ConcreteVisitor>::VisitJSArrayBuffer(
+    Tagged<Map> map, Tagged<JSArrayBuffer> object,
+    MaybeObjectSize maybe_object_size) {
   object->MarkExtension();
-  return Base::VisitJSArrayBuffer(map, object);
+  return Base::VisitJSArrayBuffer(map, object, maybe_object_size);
 }
 
 // ===========================================================================
@@ -585,14 +596,14 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitJSArrayBuffer(
 // ===========================================================================
 
 template <typename ConcreteVisitor>
-int MarkingVisitorBase<ConcreteVisitor>::VisitEphemeronHashTable(
-    Tagged<Map> map, Tagged<EphemeronHashTable> table) {
+size_t MarkingVisitorBase<ConcreteVisitor>::VisitEphemeronHashTable(
+    Tagged<Map> map, Tagged<EphemeronHashTable> table, MaybeObjectSize) {
   local_weak_objects_->ephemeron_hash_tables_local.Push(table);
 
   for (InternalIndex i : table->IterateEntries()) {
     ObjectSlot key_slot =
         table->RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i));
-    Tagged<HeapObject> key = Cast<HeapObject>(table->KeyAt(i));
+    Tagged<HeapObject> key = Cast<HeapObject>(table->KeyAt(i, kRelaxedLoad));
 
     SynchronizePageAccess(key);
     concrete_visitor()->RecordSlot(table, key_slot, key);
@@ -604,7 +615,7 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitEphemeronHashTable(
     // Objects in the shared heap are prohibited from being used as keys in
     // WeakMaps and WeakSets and therefore cannot be ephemeron keys. See also
     // MarkCompactCollector::ProcessEphemeron.
-    DCHECK(!InWritableSharedSpace(key));
+    DCHECK(!HeapLayout::InWritableSharedSpace(key));
     if (MarkingHelper::IsMarkedOrAlwaysLive(
             heap_, concrete_visitor()->marking_state(), key)) {
       VisitPointer(table, value_slot);
@@ -637,8 +648,9 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitEphemeronHashTable(
 }
 
 template <typename ConcreteVisitor>
-int MarkingVisitorBase<ConcreteVisitor>::VisitJSWeakRef(
-    Tagged<Map> map, Tagged<JSWeakRef> weak_ref) {
+size_t MarkingVisitorBase<ConcreteVisitor>::VisitJSWeakRef(
+    Tagged<Map> map, Tagged<JSWeakRef> weak_ref,
+    MaybeObjectSize maybe_object_size) {
   if (IsHeapObject(weak_ref->target())) {
     Tagged<HeapObject> target = Cast<HeapObject>(weak_ref->target());
     SynchronizePageAccess(target);
@@ -656,12 +668,13 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitJSWeakRef(
       local_weak_objects_->js_weak_refs_local.Push(weak_ref);
     }
   }
-  return Base::VisitJSWeakRef(map, weak_ref);
+  return Base::VisitJSWeakRef(map, weak_ref, maybe_object_size);
 }
 
 template <typename ConcreteVisitor>
-int MarkingVisitorBase<ConcreteVisitor>::VisitWeakCell(
-    Tagged<Map> map, Tagged<WeakCell> weak_cell) {
+size_t MarkingVisitorBase<ConcreteVisitor>::VisitWeakCell(
+    Tagged<Map> map, Tagged<WeakCell> weak_cell,
+    MaybeObjectSize maybe_object_size) {
   Tagged<HeapObject> target = weak_cell->relaxed_target();
   Tagged<HeapObject> unregister_token = weak_cell->relaxed_unregister_token();
   SynchronizePageAccess(target);
@@ -686,7 +699,7 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitWeakCell(
     concrete_visitor()->AddWeakReferenceForReferenceSummarizer(
         weak_cell, unregister_token);
   }
-  return Base::VisitWeakCell(map, weak_cell);
+  return Base::VisitWeakCell(map, weak_cell, maybe_object_size);
 }
 
 // ===========================================================================
@@ -694,8 +707,8 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitWeakCell(
 // ===========================================================================
 
 template <typename ConcreteVisitor>
-int MarkingVisitorBase<ConcreteVisitor>::VisitDescriptorArrayStrongly(
-    Tagged<Map> map, Tagged<DescriptorArray> array) {
+size_t MarkingVisitorBase<ConcreteVisitor>::VisitDescriptorArrayStrongly(
+    Tagged<Map> map, Tagged<DescriptorArray> array, MaybeObjectSize) {
   this->template VisitMapPointerIfNeeded<VisitorId::kVisitDescriptorArray>(
       array);
   const int size = DescriptorArray::BodyDescriptor::SizeOf(map, array);
@@ -708,12 +721,13 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitDescriptorArrayStrongly(
 }
 
 template <typename ConcreteVisitor>
-int MarkingVisitorBase<ConcreteVisitor>::VisitDescriptorArray(
-    Tagged<Map> map, Tagged<DescriptorArray> array) {
+size_t MarkingVisitorBase<ConcreteVisitor>::VisitDescriptorArray(
+    Tagged<Map> map, Tagged<DescriptorArray> array,
+    MaybeObjectSize maybe_object_size) {
   if (!concrete_visitor()->CanUpdateValuesInHeap()) {
     // If we cannot update the values in the heap, we just treat the array
     // strongly.
-    return VisitDescriptorArrayStrongly(map, array);
+    return VisitDescriptorArrayStrongly(map, array, maybe_object_size);
   }
 
   // The markbit is not used anymore. This is different from a checked
@@ -730,7 +744,7 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitDescriptorArray(
     if (start == 0) {
       // We are processing the object the first time. Visit the header and
       // return a size for accounting.
-      int size = DescriptorArray::BodyDescriptor::SizeOf(map, array);
+      size_t size = DescriptorArray::BodyDescriptor::SizeOf(map, array);
       VisitPointers(array, array->GetFirstPointerSlot(),
                     array->GetDescriptorSlot(0));
       concrete_visitor()
@@ -773,8 +787,15 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitDescriptorsForMap(
   // Normal processing of descriptor arrays through the pointers iteration that
   // follows this call:
   // - Array in read only space;
+  // - Array in a black allocated page;
   // - StrongDescriptor array;
-  if (InReadOnlySpace(descriptors) || IsStrongDescriptorArray(descriptors)) {
+  if (HeapLayout::InReadOnlySpace(descriptors) ||
+      IsStrongDescriptorArray(descriptors)) {
+    return;
+  }
+
+  if (v8_flags.black_allocated_pages &&
+      HeapLayout::InBlackAllocatedPage(descriptors)) {
     return;
   }
 
@@ -804,27 +825,29 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitDescriptorsForMap(
 }
 
 template <typename ConcreteVisitor>
-int MarkingVisitorBase<ConcreteVisitor>::VisitMap(Tagged<Map> meta_map,
-                                                  Tagged<Map> map) {
+size_t MarkingVisitorBase<ConcreteVisitor>::VisitMap(
+    Tagged<Map> meta_map, Tagged<Map> map, MaybeObjectSize maybe_object_size) {
   VisitDescriptorsForMap(map);
   // Mark the pointer fields of the Map. If there is a transitions array, it has
   // been marked already, so it is fine that one of these fields contains a
   // pointer to it.
-  return Base::VisitMap(meta_map, map);
+  return Base::VisitMap(meta_map, map, maybe_object_size);
 }
 
 template <typename ConcreteVisitor>
-int MarkingVisitorBase<ConcreteVisitor>::VisitTransitionArray(
-    Tagged<Map> map, Tagged<TransitionArray> array) {
+size_t MarkingVisitorBase<ConcreteVisitor>::VisitTransitionArray(
+    Tagged<Map> map, Tagged<TransitionArray> array,
+    MaybeObjectSize maybe_object_size) {
   local_weak_objects_->transition_arrays_local.Push(array);
-  return Base::VisitTransitionArray(map, array);
+  return Base::VisitTransitionArray(map, array, maybe_object_size);
 }
 
 template <typename ConcreteVisitor>
 void FullMarkingVisitorBase<ConcreteVisitor>::MarkPointerTableEntry(
     Tagged<HeapObject> host, IndirectPointerSlot slot) {
 #ifdef V8_ENABLE_SANDBOX
-  DCHECK_NE(slot.tag(), kUnknownIndirectPointerTag);
+  IndirectPointerTag tag = slot.tag();
+  DCHECK_NE(tag, kUnknownIndirectPointerTag);
 
   IndirectPointerHandle handle = slot.Relaxed_LoadHandle();
 
@@ -832,13 +855,20 @@ void FullMarkingVisitorBase<ConcreteVisitor>::MarkPointerTableEntry(
   // otherwise fail to mark the table entry as alive.
   DCHECK_NE(handle, kNullIndirectPointerHandle);
 
-  if (slot.tag() == kCodeIndirectPointerTag) {
-    CodePointerTable* table = GetProcessWideCodePointerTable();
+  if (tag == kCodeIndirectPointerTag) {
+    CodePointerTable* table = IsolateGroup::current()->code_pointer_table();
     CodePointerTable::Space* space = this->heap_->code_pointer_space();
     table->Mark(space, handle);
   } else {
-    TrustedPointerTable* table = this->trusted_pointer_table_;
-    TrustedPointerTable::Space* space = this->heap_->trusted_pointer_space();
+    bool use_shared_table = IsSharedTrustedPointerType(tag);
+    DCHECK_EQ(use_shared_table, HeapLayout::InWritableSharedSpace(host));
+    TrustedPointerTable* table = use_shared_table
+                                     ? this->shared_trusted_pointer_table_
+                                     : this->trusted_pointer_table_;
+    TrustedPointerTable::Space* space =
+        use_shared_table
+            ? this->heap_->isolate()->shared_trusted_pointer_space()
+            : this->heap_->trusted_pointer_space();
     table->Mark(space, handle);
   }
 #else

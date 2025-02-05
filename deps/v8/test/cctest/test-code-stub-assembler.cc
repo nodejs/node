@@ -1306,7 +1306,7 @@ TEST(TryHasOwnProperty) {
                                   "test");
 
     JSObject::AddProperty(isolate, object, deleted_property_name, object, NONE);
-    CHECK(JSObject::DeleteProperty(object, deleted_property_name,
+    CHECK(JSObject::DeleteProperty(isolate, object, deleted_property_name,
                                    LanguageMode::kSloppy)
               .FromJust());
 
@@ -1332,7 +1332,7 @@ TEST(TryHasOwnProperty) {
     AddProperties(object, names, arraysize(names));
 
     JSObject::AddProperty(isolate, object, deleted_property_name, object, NONE);
-    CHECK(JSObject::DeleteProperty(object, deleted_property_name,
+    CHECK(JSObject::DeleteProperty(isolate, object, deleted_property_name,
                                    LanguageMode::kSloppy)
               .FromJust());
 
@@ -1518,7 +1518,7 @@ TEST(TryGetOwnProperty) {
                                   "test");
 
     JSObject::AddProperty(isolate, object, deleted_property_name, object, NONE);
-    CHECK(JSObject::DeleteProperty(object, deleted_property_name,
+    CHECK(JSObject::DeleteProperty(isolate, object, deleted_property_name,
                                    LanguageMode::kSloppy)
               .FromJust());
 
@@ -1534,7 +1534,7 @@ TEST(TryGetOwnProperty) {
                   rand_gen.NextInt());
 
     JSObject::AddProperty(isolate, object, deleted_property_name, object, NONE);
-    CHECK(JSObject::DeleteProperty(object, deleted_property_name,
+    CHECK(JSObject::DeleteProperty(isolate, object, deleted_property_name,
                                    LanguageMode::kSloppy)
               .FromJust());
 
@@ -3616,7 +3616,7 @@ TEST(CloneFixedArrayCOW) {
 
   Handle<FixedArray> source(isolate->factory()->NewFixedArrayWithHoles(5));
   source->set(1, Smi::FromInt(1234));
-  source->set_map(ReadOnlyRoots(isolate).fixed_cow_array_map());
+  source->set_map(isolate, ReadOnlyRoots(isolate).fixed_cow_array_map());
   DirectHandle<Object> result_raw = ft.Call(source).ToHandleChecked();
   Tagged<FixedArray> result(Cast<FixedArray>(*result_raw));
   CHECK_EQ(*source, result);
@@ -3640,7 +3640,7 @@ TEST(ExtractFixedArrayCOWForceCopy) {
 
   Handle<FixedArray> source(isolate->factory()->NewFixedArrayWithHoles(5));
   source->set(1, Smi::FromInt(1234));
-  source->set_map(ReadOnlyRoots(isolate).fixed_cow_array_map());
+  source->set_map(isolate, ReadOnlyRoots(isolate).fixed_cow_array_map());
   DirectHandle<Object> result_raw = ft.Call(source).ToHandleChecked();
   Tagged<FixedArray> result(Cast<FixedArray>(*result_raw));
   CHECK_NE(*source, result);
@@ -3949,8 +3949,6 @@ TEST(IsDoubleElementsKind) {
 }
 
 namespace {
-
-enum CallJumpMode { kCall, kTailCall };
 
 void TestCallJumpBuiltin(CallJumpMode mode,
                          BuiltinCallJumpMode builtin_call_jump_mode) {

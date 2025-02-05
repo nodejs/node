@@ -45,6 +45,11 @@ void WasmCodePointerTable::SetEntrypointWithWriteScope(
   at(index).MakeCodePointerEntry(value);
 }
 
+void WasmCodePointerTable::SetEntrypointWithRwxWriteScope(
+    uint32_t index, Address value, RwxMemoryWriteScope& write_scope) {
+  at(index).MakeCodePointerEntry(value);
+}
+
 uint32_t WasmCodePointerTable::AllocateAndInitializeEntry(Address entrypoint) {
   uint32_t index = AllocateUninitializedEntry();
   WriteScope write_scope("WasmCodePointerTable write");

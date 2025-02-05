@@ -52,29 +52,30 @@ CollectionEpoch next_epoch() {
 
 using BytesAndDuration = ::heap::base::BytesAndDuration;
 
-double BoundedAverageSpeed(
-    const base::RingBuffer<BytesAndDuration>& buffer,
-    std::optional<v8::base::TimeDelta> selected_duration) {
+double BoundedAverageSpeed(const base::RingBuffer<BytesAndDuration>& buffer) {
   constexpr size_t kMinNonEmptySpeedInBytesPerMs = 1;
   constexpr size_t kMaxSpeedInBytesPerMs = GB;
-  return ::heap::base::AverageSpeed(
-      buffer, BytesAndDuration(), selected_duration,
-      kMinNonEmptySpeedInBytesPerMs, kMaxSpeedInBytesPerMs);
+  return ::heap::base::AverageSpeed(buffer, BytesAndDuration(), std::nullopt,
+                                    kMinNonEmptySpeedInBytesPerMs,
+                                    kMaxSpeedInBytesPerMs);
 }
 
-double BoundedAverageSpeed(const base::RingBuffer<BytesAndDuration>& buffer) {
-  return BoundedAverageSpeed(buffer, std::nullopt);
+double BoundedThroughput(const ::heap::base::SmoothedBytesAndDuration& buffer) {
+  constexpr double kMaxSpeedInBytesPerMs = static_cast<double>(GB);
+  return std::min(buffer.GetThroughput(), kMaxSpeedInBytesPerMs);
 }
 
 }  // namespace
 
 GCTracer::Event::Event(Type type, State state,
                        GarbageCollectionReason gc_reason,
-                       const char* collector_reason)
+                       const char* collector_reason,
+                       GCTracer::Priority priority)
     : type(type),
       state(state),
       gc_reason(gc_reason),
-      collector_reason(collector_reason) {}
+      collector_reason(collector_reason),
+      priority(priority) {}
 
 const char* ToString(GCTracer::Event::Type type, bool short_name) {
   switch (type) {
@@ -173,7 +174,7 @@ GCTracer::GCTracer(Heap* heap, base::TimeTicks startup_time,
                    GarbageCollectionReason initial_gc_reason)
     : heap_(heap),
       current_(Event::Type::START, Event::State::NOT_RUNNING, initial_gc_reason,
-               nullptr),
+               nullptr, heap_->isolate()->priority()),
       previous_(current_),
       allocation_time_(startup_time),
       previous_mark_compact_end_time_(startup_time) {
@@ -264,7 +265,8 @@ void GCTracer::StartCycle(GarbageCollector collector,
   DCHECK_EQ(Event::State::NOT_RUNNING, previous_.state);
 
   previous_ = current_;
-  current_ = Event(type, Event::State::MARKING, gc_reason, collector_reason);
+  current_ = Event(type, Event::State::MARKING, gc_reason, collector_reason,
+                   heap_->isolate()->priority());
 
   switch (marking) {
     case MarkingType::kAtomic:
@@ -618,14 +620,13 @@ void GCTracer::SampleAllocation(base::TimeTicks current,
                                 size_t new_space_counter_bytes,
                                 size_t old_generation_counter_bytes,
                                 size_t embedder_counter_bytes) {
-  // This assumes that counters are unsigned integers so that the subtraction
-  // below works even if the new counter is less than the old counter.
-  size_t new_space_allocated_bytes =
-      new_space_counter_bytes - new_space_allocation_counter_bytes_;
-  size_t old_generation_allocated_bytes =
-      old_generation_counter_bytes - old_generation_allocation_counter_bytes_;
-  size_t embedder_allocated_bytes =
-      embedder_counter_bytes - embedder_allocation_counter_bytes_;
+  int64_t new_space_allocated_bytes = std::max<int64_t>(
+      new_space_counter_bytes - new_space_allocation_counter_bytes_, 0);
+  int64_t old_generation_allocated_bytes = std::max<int64_t>(
+      old_generation_counter_bytes - old_generation_allocation_counter_bytes_,
+      0);
+  int64_t embedder_allocated_bytes = std::max<int64_t>(
+      embedder_counter_bytes - embedder_allocation_counter_bytes_, 0);
   const base::TimeDelta allocation_duration = current - allocation_time_;
   allocation_time_ = current;
 
@@ -633,11 +634,11 @@ void GCTracer::SampleAllocation(base::TimeTicks current,
   old_generation_allocation_counter_bytes_ = old_generation_counter_bytes;
   embedder_allocation_counter_bytes_ = embedder_counter_bytes;
 
-  recorded_new_generation_allocations_.Push(
+  new_generation_allocations_.Update(
       BytesAndDuration(new_space_allocated_bytes, allocation_duration));
-  recorded_old_generation_allocations_.Push(
+  old_generation_allocations_.Update(
       BytesAndDuration(old_generation_allocated_bytes, allocation_duration));
-  recorded_embedder_generation_allocations_.Push(
+  embedder_generation_allocations_.Update(
       BytesAndDuration(embedder_allocated_bytes, allocation_duration));
 
   if (v8_flags.memory_balancer) {
@@ -814,7 +815,6 @@ void GCTracer::PrintNVP() const {
           "time_to_safepoint=%.2f "
           "heap.prologue=%.2f "
           "heap.epilogue=%.2f "
-          "heap.epilogue.reduce_new_space=%.2f "
           "heap.external.prologue=%.2f "
           "heap.external.epilogue=%.2f "
           "heap.external_weak_global_handles=%.2f "
@@ -854,7 +854,6 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::TIME_TO_SAFEPOINT].InMillisecondsF(),
           current_scope(Scope::HEAP_PROLOGUE),
           current_scope(Scope::HEAP_EPILOGUE),
-          current_scope(Scope::HEAP_EPILOGUE_REDUCE_NEW_SPACE),
           current_scope(Scope::HEAP_EXTERNAL_PROLOGUE),
           current_scope(Scope::HEAP_EXTERNAL_EPILOGUE),
           current_scope(Scope::HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES),
@@ -986,7 +985,6 @@ void GCTracer::PrintNVP() const {
           "heap.prologue=%.2f "
           "heap.embedder_tracing_epilogue=%.2f "
           "heap.epilogue=%.2f "
-          "heap.epilogue.reduce_new_space=%.2f "
           "heap.external.prologue=%.1f "
           "heap.external.epilogue=%.1f "
           "heap.external.weak_global_handles=%.1f "
@@ -1080,7 +1078,6 @@ void GCTracer::PrintNVP() const {
           current_scope(Scope::HEAP_PROLOGUE),
           current_scope(Scope::HEAP_EMBEDDER_TRACING_EPILOGUE),
           current_scope(Scope::HEAP_EPILOGUE),
-          current_scope(Scope::HEAP_EPILOGUE_REDUCE_NEW_SPACE),
           current_scope(Scope::HEAP_EXTERNAL_PROLOGUE),
           current_scope(Scope::HEAP_EXTERNAL_EPILOGUE),
           current_scope(Scope::HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES),
@@ -1197,14 +1194,9 @@ std::optional<base::TimeDelta> GCTracer::AverageTimeToIncrementalMarkingTask()
   return average_time_to_incremental_marking_task_;
 }
 
-void GCTracer::RecordEmbedderSpeed(size_t bytes, double duration) {
-  if (duration == 0 || bytes == 0) return;
-  double current_speed = bytes / duration;
-  if (recorded_embedder_speed_ == 0.0) {
-    recorded_embedder_speed_ = current_speed;
-  } else {
-    recorded_embedder_speed_ = (recorded_embedder_speed_ + current_speed) / 2;
-  }
+void GCTracer::RecordEmbedderMarkingSpeed(size_t bytes,
+                                          base::TimeDelta duration) {
+  recorded_embedder_marking_.Push(BytesAndDuration(bytes, duration));
 }
 
 void GCTracer::RecordMutatorUtilization(base::TimeTicks mark_compact_end_time,
@@ -1257,9 +1249,7 @@ double GCTracer::IncrementalMarkingSpeedInBytesPerMillisecond() const {
 }
 
 double GCTracer::EmbedderSpeedInBytesPerMillisecond() const {
-  // Note: Returning 0 is ok here as callers check for whether embedder speeds
-  // have been recorded at all.
-  return recorded_embedder_speed_;
+  return BoundedAverageSpeed(recorded_embedder_marking_);
 }
 
 double GCTracer::YoungGenerationSpeedInBytesPerMillisecond(
@@ -1285,7 +1275,11 @@ double GCTracer::FinalIncrementalMarkCompactSpeedInBytesPerMillisecond() const {
   return BoundedAverageSpeed(recorded_incremental_mark_compacts_);
 }
 
-double GCTracer::CombinedMarkCompactSpeedInBytesPerMillisecond() {
+double GCTracer::OldGenerationSpeedInBytesPerMillisecond() {
+  if (v8_flags.gc_speed_uses_counters) {
+    return BoundedAverageSpeed(recorded_major_totals_);
+  }
+
   const double kMinimumMarkingSpeed = 0.5;
   if (combined_mark_compact_speed_cache_ > 0)
     return combined_mark_compact_speed_cache_;
@@ -1310,54 +1304,22 @@ double GCTracer::CombinedMarkCompactSpeedInBytesPerMillisecond() {
   return combined_mark_compact_speed_cache_;
 }
 
-double GCTracer::CombineSpeedsInBytesPerMillisecond(double default_speed,
-                                                    double optional_speed) {
-  constexpr double kMinimumSpeed = 0.5;
-  if (optional_speed < kMinimumSpeed) {
-    return default_speed;
-  }
-  return default_speed * optional_speed / (default_speed + optional_speed);
+double GCTracer::NewSpaceAllocationThroughputInBytesPerMillisecond() const {
+  return BoundedThroughput(new_generation_allocations_);
 }
 
-double GCTracer::NewSpaceAllocationThroughputInBytesPerMillisecond(
-    std::optional<base::TimeDelta> selected_duration) const {
-  return BoundedAverageSpeed(recorded_new_generation_allocations_,
-                             selected_duration);
-}
-
-double GCTracer::OldGenerationAllocationThroughputInBytesPerMillisecond(
-    std::optional<base::TimeDelta> selected_duration) const {
-  return BoundedAverageSpeed(recorded_old_generation_allocations_,
-                             selected_duration);
-}
-
-double GCTracer::EmbedderAllocationThroughputInBytesPerMillisecond(
-    std::optional<base::TimeDelta> selected_duration) const {
-  return BoundedAverageSpeed(recorded_embedder_generation_allocations_,
-                             selected_duration);
-}
-
-double GCTracer::AllocationThroughputInBytesPerMillisecond(
-    std::optional<base::TimeDelta> selected_duration) const {
-  return NewSpaceAllocationThroughputInBytesPerMillisecond(selected_duration) +
-         OldGenerationAllocationThroughputInBytesPerMillisecond(
-             selected_duration);
-}
-
-double GCTracer::CurrentAllocationThroughputInBytesPerMillisecond() const {
-  return AllocationThroughputInBytesPerMillisecond(kThroughputTimeFrame);
-}
-
-double GCTracer::CurrentOldGenerationAllocationThroughputInBytesPerMillisecond()
+double GCTracer::OldGenerationAllocationThroughputInBytesPerMillisecond()
     const {
-  return OldGenerationAllocationThroughputInBytesPerMillisecond(
-      kThroughputTimeFrame);
+  return BoundedThroughput(old_generation_allocations_);
 }
 
-double GCTracer::CurrentEmbedderAllocationThroughputInBytesPerMillisecond()
-    const {
-  return EmbedderAllocationThroughputInBytesPerMillisecond(
-      kThroughputTimeFrame);
+double GCTracer::EmbedderAllocationThroughputInBytesPerMillisecond() const {
+  return BoundedThroughput(embedder_generation_allocations_);
+}
+
+double GCTracer::AllocationThroughputInBytesPerMillisecond() const {
+  return NewSpaceAllocationThroughputInBytesPerMillisecond() +
+         OldGenerationAllocationThroughputInBytesPerMillisecond();
 }
 
 double GCTracer::AverageSurvivalRatio() const {
@@ -1453,6 +1415,9 @@ void GCTracer::RecordGCSumCounters() {
     marking_background_duration =
         background_scopes_[Scope::MC_BACKGROUND_MARKING];
   }
+
+  recorded_major_totals_.Push(
+      BytesAndDuration(current_.end_object_size, overall_duration));
 
   // Emit trace event counters.
   TRACE_EVENT_INSTANT2(
@@ -1561,6 +1526,7 @@ void GCTracer::ReportFullCycleToRecorder() {
 
   v8::metrics::GarbageCollectionFullCycle event;
   event.reason = static_cast<int>(current_.gc_reason);
+  event.priority = current_.priority;
 
   // Managed C++ heap statistics:
   if (cpp_heap) {
@@ -1793,6 +1759,7 @@ void GCTracer::ReportYoungCycleToRecorder() {
   v8::metrics::GarbageCollectionYoungCycle event;
   // Reason:
   event.reason = static_cast<int>(current_.gc_reason);
+  event.priority = current_.priority;
 #if defined(CPPGC_YOUNG_GENERATION)
   // Managed C++ heap statistics:
   auto* cpp_heap = v8::internal::CppHeap::From(heap_->cpp_heap());
@@ -1876,6 +1843,15 @@ GarbageCollector GCTracer::GetCurrentCollector() const {
     case Event::Type::START:
       UNREACHABLE();
   }
+}
+
+void GCTracer::UpdateCurrentEventPriority(GCTracer::Priority priority) {
+  // If the priority is changed, reset the priority field to denote a mixed
+  // priority cycle.
+  if (!current_.priority.has_value() || (current_.priority == priority)) {
+    return;
+  }
+  current_.priority = std::nullopt;
 }
 
 #ifdef DEBUG

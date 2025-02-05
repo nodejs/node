@@ -871,7 +871,7 @@ class StringToBigIntHelper : public StringToIntHelper {
     base::SmallVector<bigint::digit_t, 8> digit_storage(num_digits);
     bigint::RWDigits digits(digit_storage.data(), num_digits);
     processor->FromString(digits, &accumulator_);
-    int num_chars = bigint::ToStringResultLength(digits, 10, false);
+    uint32_t num_chars = bigint::ToStringResultLength(digits, 10, false);
     std::unique_ptr<char[]> out(new char[num_chars + 1]);
     processor->ToString(out.get(), &num_chars, digits, 10, false);
     out[num_chars] = '\0';
@@ -1337,9 +1337,9 @@ double FlatStringToDouble(Tagged<String> string, ConversionFlag flag,
 
 std::optional<double> TryStringToDouble(LocalIsolate* isolate,
                                         DirectHandle<String> object,
-                                        int max_length_for_conversion) {
+                                        uint32_t max_length_for_conversion) {
   DisallowGarbageCollection no_gc;
-  int length = object->length();
+  uint32_t length = object->length();
   if (length > max_length_for_conversion) {
     return std::nullopt;
   }
@@ -1354,8 +1354,8 @@ std::optional<double> TryStringToDouble(LocalIsolate* isolate,
 std::optional<double> TryStringToInt(LocalIsolate* isolate,
                                      DirectHandle<String> object, int radix) {
   DisallowGarbageCollection no_gc;
-  const int kMaxLengthForConversion = 20;
-  int length = object->length();
+  const uint32_t kMaxLengthForConversion = 20;
+  uint32_t length = object->length();
   if (length > kMaxLengthForConversion) {
     return std::nullopt;
   }
@@ -1385,14 +1385,14 @@ bool IsSpecialIndex(Tagged<String> string) {
 bool IsSpecialIndex(Tagged<String> string,
                     SharedStringAccessGuardIfNeeded& access_guard) {
   // Max length of canonical double: -X.XXXXXXXXXXXXXXXXX-eXXX
-  const int kBufferSize = 24;
-  const int length = string->length();
+  const uint32_t kBufferSize = 24;
+  const uint32_t length = string->length();
   if (length == 0 || length > kBufferSize) return false;
   uint16_t buffer[kBufferSize];
   String::WriteToFlat(string, buffer, 0, length, access_guard);
   // If the first char is not a digit or a '-' or we can't match 'NaN' or
   // '(-)Infinity', bailout immediately.
-  int offset = 0;
+  uint32_t offset = 0;
   if (!IsDecimalDigit(buffer[0])) {
     if (buffer[0] == '-') {
       if (length == 1) return false;  // Just '-' is bad.
@@ -1414,9 +1414,9 @@ bool IsSpecialIndex(Tagged<String> string,
     }
   }
   // Expected fast path: key is an integer.
-  static const int kRepresentableIntegerLength = 15;  // (-)XXXXXXXXXXXXXXX
+  static const uint32_t kRepresentableIntegerLength = 15;  // (-)XXXXXXXXXXXXXXX
   if (length - offset <= kRepresentableIntegerLength) {
-    const int initial_offset = offset;
+    const uint32_t initial_offset = offset;
     bool matches = true;
     for (; offset < length; offset++) {
       matches &= IsDecimalDigit(buffer[offset]);
@@ -1435,7 +1435,7 @@ bool IsSpecialIndex(Tagged<String> string,
   char reverse_buffer[kBufferSize + 1];  // Result will be /0 terminated.
   base::Vector<char> reverse_vector(reverse_buffer, arraysize(reverse_buffer));
   const char* reverse_string = DoubleToCString(d, reverse_vector);
-  for (int i = 0; i < length; ++i) {
+  for (uint32_t i = 0; i < length; ++i) {
     if (static_cast<uint16_t>(reverse_string[i]) != buffer[i]) return false;
   }
   return true;

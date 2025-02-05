@@ -432,14 +432,17 @@ void CallPrinter::VisitProperty(Property* node) {
 void CallPrinter::VisitCall(Call* node) {
   bool was_found = false;
   if (node->position() == position_) {
-    if (error_in_spread_args_ == SpreadErrorInArgsHint::kErrorInArgs) {
-      found_ = true;
-      spread_arg_ = node->arguments()->last()->AsSpread()->expression();
-      Find(spread_arg_, true);
+    if (error_in_spread_args_ == SpreadErrorInArgsHint::kErrorInArgs &&
+        !node->arguments()->is_empty()) {
+      if (const Spread* spread = node->arguments()->last()->AsSpread()) {
+        found_ = true;
+        spread_arg_ = spread->expression();
+        Find(spread_arg_, true);
 
-      done_ = true;
-      found_ = false;
-      return;
+        done_ = true;
+        found_ = false;
+        return;
+      }
     }
 
     is_call_error_ = true;
@@ -468,14 +471,17 @@ void CallPrinter::VisitCall(Call* node) {
 void CallPrinter::VisitCallNew(CallNew* node) {
   bool was_found = false;
   if (node->position() == position_) {
-    if (error_in_spread_args_ == SpreadErrorInArgsHint::kErrorInArgs) {
-      found_ = true;
-      spread_arg_ = node->arguments()->last()->AsSpread()->expression();
-      Find(spread_arg_, true);
+    if (error_in_spread_args_ == SpreadErrorInArgsHint::kErrorInArgs &&
+        !node->arguments()->is_empty()) {
+      if (const Spread* spread = node->arguments()->last()->AsSpread()) {
+        found_ = true;
+        spread_arg_ = spread->expression();
+        Find(spread_arg_, true);
 
-      done_ = true;
-      found_ = false;
-      return;
+        done_ = true;
+        found_ = false;
+        return;
+      }
     }
 
     is_call_error_ = true;
@@ -695,6 +701,9 @@ void AstPrinter::PrintLiteral(Literal* literal, bool quote) {
   switch (literal->type()) {
     case Literal::kString:
       PrintLiteral(literal->AsRawString(), quote);
+      break;
+    case Literal::kConsString:
+      PrintLiteral(literal->AsConsString(), quote);
       break;
     case Literal::kSmi:
       Print("%d", Smi::ToInt(literal->AsSmiLiteral()));

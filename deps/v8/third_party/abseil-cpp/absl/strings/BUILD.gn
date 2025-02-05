@@ -237,7 +237,7 @@ absl_source_set("charset") {
   public = [ "charset.h" ]
   deps = [
     ":string_view",
-    "//third_party/abseil-cpp/absl/base:core_headers",
+    "//third_party/abseil-cpp/absl/base:config",
   ]
 }
 

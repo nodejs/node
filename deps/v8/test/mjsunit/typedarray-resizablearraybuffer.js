@@ -8369,3 +8369,24 @@ SortCallbackGrows(ArraySortHelper);
     new ctor(rab);
   }
 })();
+
+
+(function SetValueToNumberResizesToInBounds() {
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(0,
+                                           1 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab, 0);
+
+    const evil = { valueOf: () => {
+      // Resize so that `lengthTracking` is no longer OOB.
+      rab.resize(1 * ctor.BYTES_PER_ELEMENT);
+      if (IsBigIntTypedArray(lengthTracking)) {
+        return 2n;
+      }
+      return 2;
+    }};
+
+    lengthTracking[0] = evil;
+    assertEquals([2], ToNumbers(lengthTracking));
+  }
+})();

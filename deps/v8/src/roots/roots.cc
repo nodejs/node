@@ -90,16 +90,16 @@ READ_ONLY_ROOT_LIST(ROOT_TYPE_CHECK)
 #undef ROOT_TYPE_CHECK
 #endif
 
-Handle<HeapNumber> ReadOnlyRoots::FindHeapNumber(double value) {
+IndirectHandle<HeapNumber> ReadOnlyRoots::FindHeapNumber(double value) {
   auto bits = base::bit_cast<uint64_t>(value);
   for (auto pos = RootIndex::kFirstHeapNumberRoot;
        pos <= RootIndex::kLastHeapNumberRoot; ++pos) {
     auto root = Cast<HeapNumber>(object_at(pos));
     if (base::bit_cast<uint64_t>(root->value()) == bits) {
-      return Handle<HeapNumber>(GetLocation(pos));
+      return IndirectHandle<HeapNumber>(GetLocation(pos));
     }
   }
-  return Handle<HeapNumber>();
+  return {};
 }
 
 void ReadOnlyRoots::InitFromStaticRootsTable(Address cage_base) {

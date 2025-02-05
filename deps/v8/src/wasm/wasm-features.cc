@@ -46,9 +46,6 @@ WasmEnabledFeatures WasmEnabledFeatures::FromContext(
     if (isolate->IsWasmStringRefEnabled(context)) {
       features.Add(WasmEnabledFeature::stringref);
     }
-    if (isolate->IsWasmInliningEnabled(context)) {
-      features.Add(WasmEnabledFeature::inlining);
-    }
     if (isolate->IsWasmImportedStringsEnabled(context)) {
       features.Add(WasmEnabledFeature::imported_strings);
     }

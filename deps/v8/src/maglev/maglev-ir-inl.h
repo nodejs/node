@@ -132,10 +132,9 @@ void DeepForVirtualObject(VirtualObject* vobject,
 template <DeoptFrameVisitMode mode, typename Function>
 void DeepForEachInputAndVirtualObject(
     const_if_default<mode, DeoptFrame>& frame, InputLocation*& input_location,
-    Function&& f,
+    const VirtualObject::List& virtual_objects, Function&& f,
     std::function<bool(interpreter::Register)> is_result_register =
         [](interpreter::Register) { return false; }) {
-  const VirtualObject::List& virtual_objects = GetVirtualObjects(frame);
   auto update_node = [&f, &virtual_objects](ValueNodeT<mode> node,
                                             InputLocation*& input_location) {
     DCHECK(!node->template Is<VirtualObject>());
@@ -166,19 +165,25 @@ void DeepForEachInputAndVirtualObject(
 
 template <DeoptFrameVisitMode mode, typename Function>
 void DeepForEachInputImpl(const_if_default<mode, DeoptFrame>& frame,
-                          InputLocation*& input_location, Function&& f) {
+                          InputLocation*& input_location,
+                          const VirtualObject::List& virtual_objects,
+                          Function&& f) {
   if (frame.parent()) {
-    DeepForEachInputImpl<mode>(*frame.parent(), input_location, f);
+    DeepForEachInputImpl<mode>(*frame.parent(), input_location, virtual_objects,
+                               f);
   }
-  DeepForEachInputAndVirtualObject<mode>(frame, input_location, f);
+  DeepForEachInputAndVirtualObject<mode>(frame, input_location, virtual_objects,
+                                         f);
 }
 
 template <DeoptFrameVisitMode mode, typename Function>
 void DeepForEachInputForEager(
     const_if_default<mode, EagerDeoptInfo>* deopt_info, Function&& f) {
   InputLocation* input_location = deopt_info->input_locations();
+  const VirtualObject::List& virtual_objects =
+      GetVirtualObjects(deopt_info->top_frame());
   DeepForEachInputImpl<mode>(deopt_info->top_frame(), input_location,
-                             std::forward<Function>(f));
+                             virtual_objects, std::forward<Function>(f));
 }
 
 template <DeoptFrameVisitMode mode, typename Function>
@@ -186,11 +191,14 @@ void DeepForEachInputForLazy(const_if_default<mode, LazyDeoptInfo>* deopt_info,
                              Function&& f) {
   InputLocation* input_location = deopt_info->input_locations();
   auto& top_frame = deopt_info->top_frame();
+  const VirtualObject::List& virtual_objects = GetVirtualObjects(top_frame);
   if (top_frame.parent()) {
-    DeepForEachInputImpl<mode>(*top_frame.parent(), input_location, f);
+    DeepForEachInputImpl<mode>(*top_frame.parent(), input_location,
+                               virtual_objects, f);
   }
   DeepForEachInputAndVirtualObject<mode>(
-      top_frame, input_location, f, [deopt_info](interpreter::Register reg) {
+      top_frame, input_location, virtual_objects, f,
+      [deopt_info](interpreter::Register reg) {
         return deopt_info->IsResultRegister(reg);
       });
 }

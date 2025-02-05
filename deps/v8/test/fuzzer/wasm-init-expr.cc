@@ -175,7 +175,7 @@ void CheckEquivalent(const WasmValue& lhs, const WasmValue& rhs,
           default:
             CHECK(lhs.type().heap_type().is_index());
             if (IsWasmNull(lhs_ref)) break;
-            uint32_t type_index = lhs.type().ref_index();
+            ModuleTypeIndex type_index = lhs.type().ref_index();
             if (module.has_signature(type_index)) {
               CHECK_EQ(lhs_ref, rhs_ref);
             } else if (module.has_struct(type_index)) {
@@ -350,7 +350,8 @@ void FuzzIt(base::Vector<const uint8_t> data) {
             WasmValue global_value =
                 instance->trusted_data(i_isolate)->GetGlobalValue(
                     i_isolate, instance->module()->globals[i]);
-            WasmValue func_value(function_result, global_value.type());
+            WasmValue func_value(function_result, global_value.type(),
+                                 global_value.module());
             CheckEquivalent(global_value, func_value, *module_object->module());
           }
         }

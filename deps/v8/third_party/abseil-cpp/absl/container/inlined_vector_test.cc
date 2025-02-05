@@ -1190,6 +1190,7 @@ TYPED_TEST_P(InstanceTest, CountConstructorsDestructorsOnCopyConstruction) {
     tracker.ResetCopiesMovesSwaps();
     {  // Copy constructor should create 'len' more instances.
       InstanceVec v_copy(v);
+      EXPECT_EQ(v_copy.size(), v.size());
       EXPECT_EQ(tracker.instances(), len + len);
       EXPECT_EQ(tracker.copies(), len);
       EXPECT_EQ(tracker.moves(), 0);
@@ -1217,6 +1218,7 @@ TYPED_TEST_P(InstanceTest, CountConstructorsDestructorsOnMoveConstruction) {
     tracker.ResetCopiesMovesSwaps();
     {
       InstanceVec v_copy(std::move(v));
+      EXPECT_EQ(v_copy.size(), len);
       if (static_cast<size_t>(len) > inlined_capacity) {
         // Allocation is moved as a whole.
         EXPECT_EQ(tracker.instances(), len);
@@ -1765,12 +1767,12 @@ TEST(AllocatorSupportTest, CountAllocations) {
 
     int64_t allocated2 = 0;
     MyAlloc alloc2(&allocated2);
-    AllocVec v2(v, alloc2);
+    ABSL_ATTRIBUTE_UNUSED AllocVec v2(v, alloc2);
     EXPECT_THAT(allocated2, Eq(0));
 
     int64_t allocated3 = 0;
     MyAlloc alloc3(&allocated3);
-    AllocVec v3(std::move(v), alloc3);
+    ABSL_ATTRIBUTE_UNUSED AllocVec v3(std::move(v), alloc3);
     EXPECT_THAT(allocated3, Eq(0));
   }
   EXPECT_THAT(allocated, 0);

@@ -852,7 +852,7 @@ void ReduceNode(const Operator* op, EscapeAnalysisTracker::Scope* current,
       FrameState frame_state{current->CurrentNode()};
       FrameStateType type = frame_state.frame_state_info().type();
       // This needs to be kept in sync with the frame types supported in
-      // `OptimizedFrame::Summarize`.
+      // `OptimizedJSFrame::Summarize`.
       if (type != FrameStateType::kUnoptimizedFunction &&
           type != FrameStateType::kJavaScriptBuiltinContinuation &&
           type != FrameStateType::kJavaScriptBuiltinContinuationWithCatch) {

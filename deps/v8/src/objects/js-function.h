@@ -91,7 +91,8 @@ class JSFunction : public TorqueGeneratedJSFunction<
                        JSFunction, JSFunctionOrBoundFunctionOrWrappedFunction> {
  public:
   // [prototype_or_initial_map]:
-  DECL_RELEASE_ACQUIRE_ACCESSORS(prototype_or_initial_map, Tagged<HeapObject>)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(prototype_or_initial_map,
+                                 Tagged<UnionOf<JSPrototype, Map, Hole>>)
 
   // [shared]: The information about the function that can be shared by
   // instances.
@@ -151,8 +152,7 @@ class JSFunction : public TorqueGeneratedJSFunction<
   inline Tagged<AbstractCode> abstract_code(IsolateT* isolate);
 
 #ifdef V8_ENABLE_LEAPTIERING
-  // TODO(olivf): This ShouldBeCamelCase.
-  inline void allocate_dispatch_handle(
+  inline void AllocateDispatchHandle(
       IsolateForSandbox isolate, uint16_t parameter_count, Tagged<Code> code,
       WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
   inline void clear_dispatch_handle();
@@ -162,7 +162,7 @@ class JSFunction : public TorqueGeneratedJSFunction<
       JSDispatchHandle handle,
       WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
   // Updates the Code in this function's dispatch table entry.
-  inline void set_code(
+  inline void UpdateDispatchEntry(
       Tagged<Code> new_code,
       WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
 #endif  // V8_ENABLE_LEAPTIERING
@@ -308,9 +308,9 @@ class JSFunction : public TorqueGeneratedJSFunction<
   DECL_GETTER(initial_map, Tagged<Map>)
 
   static void SetInitialMap(Isolate* isolate, DirectHandle<JSFunction> function,
-                            Handle<Map> map, Handle<HeapObject> prototype);
+                            Handle<Map> map, Handle<JSPrototype> prototype);
   static void SetInitialMap(Isolate* isolate, DirectHandle<JSFunction> function,
-                            Handle<Map> map, Handle<HeapObject> prototype,
+                            Handle<Map> map, Handle<JSPrototype> prototype,
                             DirectHandle<JSFunction> constructor);
 
   DECL_GETTER(has_initial_map, bool)
@@ -341,7 +341,7 @@ class JSFunction : public TorqueGeneratedJSFunction<
   DECL_GETTER(has_prototype, bool)
   DECL_GETTER(has_instance_prototype, bool)
   DECL_GETTER(prototype, Tagged<Object>)
-  DECL_GETTER(instance_prototype, Tagged<HeapObject>)
+  DECL_GETTER(instance_prototype, Tagged<JSPrototype>)
   DECL_GETTER(has_prototype_property, bool)
   DECL_GETTER(PrototypeRequiresRuntimeLookup, bool)
   static void SetPrototype(DirectHandle<JSFunction> function,

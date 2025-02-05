@@ -524,7 +524,7 @@ class V8_EXPORT Isolate {
     kDurationFormat = 117,
     kInvalidatedNumberStringNotRegexpLikeProtector = 118,
     kOBSOLETE_RegExpUnicodeSetIncompatibilitiesWithUnicodeMode = 119,
-    kImportAssertionDeprecatedSyntax = 120,
+    kOBSOLETE_ImportAssertionDeprecatedSyntax = 120,
     kLocaleInfoObsoletedGetters = 121,
     kLocaleInfoFunctions = 122,
     kCompileHintsMagicAll = 123,
@@ -549,6 +549,8 @@ class V8_EXPORT Isolate {
     kDocumentAllLegacyConstruct = 142,
     kConsoleContext = 143,
     kWasmImportedStringsUtf8 = 144,
+    kResizableArrayBuffer = 145,
+    kGrowableSharedArrayBuffer = 146,
 
     // If you add new values here, you'll also need to update Chromium's:
     // web_feature.mojom, use_counter_callback.cc, and enums.xml. V8 changes to
@@ -671,6 +673,18 @@ class V8_EXPORT Isolate {
    */
   void SetHostImportModuleDynamicallyCallback(
       HostImportModuleDynamicallyCallback callback);
+
+  /**
+   * This specifies the callback called by the upcoming dynamic
+   * import() and import.source() language feature to load modules.
+   *
+   * This API is experimental and is expected to be changed or removed in the
+   * future. The callback is currently only called when for source-phase
+   * imports. Evaluation-phase imports use the existing
+   * HostImportModuleDynamicallyCallback callback.
+   */
+  void SetHostImportModuleWithPhaseDynamicallyCallback(
+      HostImportModuleWithPhaseDynamicallyCallback callback);
 
   /**
    * This specifies the callback called by the upcoming import.meta
@@ -962,6 +976,14 @@ class V8_EXPORT Isolate {
    * has been handled does it become legal to invoke JavaScript operations.
    */
   Local<Value> ThrowException(Local<Value> exception);
+
+  /**
+   * Returns true if an exception was thrown but not processed yet by an
+   * exception handler on JavaScript side or by v8::TryCatch handler.
+   *
+   * This is an experimental feature and may still change significantly.
+   */
+  bool HasPendingException();
 
   using GCCallback = void (*)(Isolate* isolate, GCType type,
                               GCCallbackFlags flags);
@@ -1427,12 +1449,28 @@ class V8_EXPORT Isolate {
    * This is an unfinished experimental feature. Semantics and implementation
    * may change frequently.
    */
+  V8_DEPRECATED("Use SetIsLoading instead")
   void SetRAILMode(RAILMode rail_mode);
 
   /**
    * Update load start time of the RAIL mode
    */
+  V8_DEPRECATED("Use SetIsLoading instead")
   void UpdateLoadStartTime();
+
+  /**
+   * Optional notification to tell V8 whether the embedder is currently loading
+   * resources. If the embedder uses this notification, it should call
+   * SetIsLoading(true) when loading starts and SetIsLoading(false) when it
+   * ends.
+   * It's valid to call SetIsLoading(true) again while loading, which will
+   * update the timestamp when V8 considers the load started. Calling
+   * SetIsLoading(false) while not loading does nothing.
+   * V8 uses these notifications to guide heuristics.
+   * This is an unfinished experimental feature. Semantics and implementation
+   * may change frequently.
+   */
+  void SetIsLoading(bool is_loading);
 
   /**
    * Optional notification to tell V8 the current isolate is used for debugging
@@ -1746,7 +1784,8 @@ class V8_EXPORT Isolate {
   template <class K, class V, class Traits>
   friend class PersistentValueMapBase;
 
-  internal::Address* GetDataFromSnapshotOnce(size_t index);
+  internal::ValueHelper::InternalRepresentationType GetDataFromSnapshotOnce(
+      size_t index);
   void HandleExternalMemoryInterrupt();
 };
 
@@ -1767,10 +1806,10 @@ uint32_t Isolate::GetNumberOfDataSlots() {
 
 template <class T>
 MaybeLocal<T> Isolate::GetDataFromSnapshotOnce(size_t index) {
-  if (auto slot = GetDataFromSnapshotOnce(index); slot) {
-    internal::PerformCastCheck(
-        internal::ValueHelper::SlotAsValue<T, false>(slot));
-    return Local<T>::FromSlot(slot);
+  if (auto repr = GetDataFromSnapshotOnce(index);
+      repr != internal::ValueHelper::kEmpty) {
+    internal::PerformCastCheck(internal::ValueHelper::ReprAsValue<T>(repr));
+    return Local<T>::FromRepr(repr);
   }
   return {};
 }

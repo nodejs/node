@@ -193,7 +193,7 @@ Handle<JSFunction> CreateCsaTransitionArrayLookup(Isolate* isolate) {
                                       TransitionArray::kEntryKeyIndex) *
                                      kTaggedSize;
       TNode<Map> transition_map = m.CAST(m.GetHeapObjectAssumeWeak(
-          m.LoadArrayElement(transitions, WeakFixedArray::kHeaderSize,
+          m.LoadArrayElement(transitions, OFFSET_OF_DATA_START(WeakFixedArray),
                              var_name_index.value(), kKeyToTargetOffset)));
       m.Return(transition_map);
     }

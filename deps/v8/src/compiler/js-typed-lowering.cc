@@ -11,6 +11,8 @@
 #include "src/codegen/code-factory.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/compiler/access-builder.h"
+#include "src/compiler/allocation-builder-inl.h"
+#include "src/compiler/allocation-builder.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/graph-assembler.h"
@@ -22,12 +24,15 @@
 #include "src/compiler/node.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
+#include "src/compiler/turbofan-types.h"
 #include "src/compiler/type-cache.h"
-#include "src/compiler/types.h"
 #include "src/execution/protectors.h"
+#include "src/objects/heap-number.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/objects.h"
+#include "src/objects/property-cell.h"
 
 namespace v8 {
 namespace internal {
@@ -1579,6 +1584,83 @@ Reduction JSTypedLowering::ReduceJSLoadContext(Node* node) {
   return Changed(node);
 }
 
+Reduction JSTypedLowering::ReduceJSLoadScriptContext(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSLoadScriptContext, node->opcode());
+  ContextAccess const& access = ContextAccessOf(node->op());
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  JSGraphAssembler gasm(broker(), jsgraph(), jsgraph()->zone(),
+                        BranchSemantics::kJS);
+  gasm.InitializeEffectControl(effect, control);
+
+  TNode<Context> context =
+      TNode<Context>::UncheckedCast(NodeProperties::GetContextInput(node));
+  for (size_t i = 0; i < access.depth(); ++i) {
+    context = gasm.LoadField<Context>(
+        AccessBuilder::ForContextSlotKnownPointer(Context::PREVIOUS_INDEX),
+        context);
+  }
+
+  TNode<Object> value = gasm.LoadField<Object>(
+      AccessBuilder::ForContextSlot(access.index()), context);
+  TNode<Object> result =
+      gasm.SelectIf<Object>(gasm.ObjectIsSmi(value))
+          .Then([&] { return value; })
+          .Else([&] {
+            TNode<Map> value_map =
+                gasm.LoadMap(TNode<HeapObject>::UncheckedCast(value));
+            return gasm.SelectIf<Object>(gasm.IsHeapNumberMap(value_map))
+                .Then([&] {
+                  size_t side_data_index =
+                      access.index() - Context::MIN_CONTEXT_EXTENDED_SLOTS;
+                  TNode<FixedArray> side_data = gasm.LoadField<FixedArray>(
+                      AccessBuilder::ForContextSlot(
+                          Context::CONTEXT_SIDE_TABLE_PROPERTY_INDEX),
+                      context);
+                  TNode<Object> data = gasm.LoadField<Object>(
+                      AccessBuilder::ForFixedArraySlot(side_data_index),
+                      side_data);
+                  TNode<Object> property =
+                      gasm.SelectIf<Object>(gasm.ObjectIsSmi(data))
+                          .Then([&] { return data; })
+                          .Else([&] {
+                            return gasm.LoadField<Object>(
+                                AccessBuilder::ForContextSideProperty(),
+                                TNode<HeapObject>::UncheckedCast(data));
+                          })
+                          .Value();
+                  return gasm
+                      .SelectIf<Object>(gasm.ReferenceEqual(
+                          property,
+                          TNode<Object>::UncheckedCast(gasm.SmiConstant(
+                              ContextSidePropertyCell::kMutableHeapNumber))))
+                      .Then([&] {
+                        Node* number = gasm.LoadHeapNumberValue(value);
+                        // Allocate a new HeapNumber.
+                        AllocationBuilder a(jsgraph(), broker(), gasm.effect(),
+                                            gasm.control());
+                        a.Allocate(sizeof(HeapNumber), AllocationType::kYoung,
+                                   Type::OtherInternal());
+                        a.Store(AccessBuilder::ForMap(),
+                                broker()->heap_number_map());
+                        a.Store(AccessBuilder::ForHeapNumberValue(), number);
+                        Node* new_heap_number = a.Finish();
+                        gasm.UpdateEffectControlWith(new_heap_number);
+                        return TNode<Object>::UncheckedCast(new_heap_number);
+                      })
+                      .Else([&] { return value; })
+                      .Value();
+                })
+                .Else([&] { return value; })
+                .ExpectFalse()
+                .Value();
+          })
+          .Value();
+
+  ReplaceWithValue(node, result, gasm.effect(), gasm.control());
+  return Changed(node);
+}
+
 Reduction JSTypedLowering::ReduceJSStoreContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSStoreContext, node->opcode());
   ContextAccess const& access = ContextAccessOf(node->op());
@@ -1726,12 +1808,16 @@ void ReduceBuiltin(JSGraph* jsgraph, Node* node, Builtin builtin, int arity,
   const int argc = arity + BuiltinArguments::kNumExtraArgsWithReceiver;
   Node* argc_node = jsgraph->ConstantNoHole(argc);
 
-  static const int kStubAndReceiver = 2;
+  static const int kStub = 1;
+  static_assert(BuiltinArguments::kNewTargetIndex == 0);
+  static_assert(BuiltinArguments::kTargetIndex == 1);
+  static_assert(BuiltinArguments::kArgcIndex == 2);
+  static_assert(BuiltinArguments::kPaddingIndex == 3);
   node->InsertInput(zone, 1, new_target);
   node->InsertInput(zone, 2, target);
   node->InsertInput(zone, 3, argc_node);
   node->InsertInput(zone, 4, jsgraph->PaddingConstant());
-  int cursor = arity + kStubAndReceiver + BuiltinArguments::kNumExtraArgs;
+  int cursor = arity + kStub + BuiltinArguments::kNumExtraArgsWithReceiver;
 
   Address entry = Builtins::CppEntryOf(builtin);
   ExternalReference entry_ref = ExternalReference::Create(entry);
@@ -1949,6 +2035,10 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
       node->InsertInput(graph()->zone(), formal_count + 2, new_target);
       node->InsertInput(graph()->zone(), formal_count + 3,
                         jsgraph()->ConstantNoHole(JSParameterCount(arity)));
+#ifdef V8_ENABLE_LEAPTIERING
+      node->InsertInput(graph()->zone(), formal_count + 4,
+                        jsgraph()->ConstantNoHole(kPlaceholderDispatchHandle));
+#endif
       NodeProperties::ChangeOp(node,
                                common()->Call(Linkage::GetJSCallDescriptor(
                                    graph()->zone(), false, 1 + formal_count,
@@ -1972,6 +2062,10 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
       node->InsertInput(graph()->zone(), 2, new_target);
       node->InsertInput(graph()->zone(), 3,
                         jsgraph()->ConstantNoHole(JSParameterCount(arity)));
+#ifdef V8_ENABLE_LEAPTIERING
+      node->InsertInput(graph()->zone(), 4,
+                        jsgraph()->ConstantNoHole(kPlaceholderDispatchHandle));
+#endif
       NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
     } else {
       // Patch {node} to a direct call.
@@ -1979,6 +2073,10 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
       node->InsertInput(graph()->zone(), arity + 2, new_target);
       node->InsertInput(graph()->zone(), arity + 3,
                         jsgraph()->ConstantNoHole(JSParameterCount(arity)));
+#ifdef V8_ENABLE_LEAPTIERING
+      node->InsertInput(graph()->zone(), arity + 4,
+                        jsgraph()->ConstantNoHole(kPlaceholderDispatchHandle));
+#endif
       NodeProperties::ChangeOp(node,
                                common()->Call(Linkage::GetJSCallDescriptor(
                                    graph()->zone(), false, 1 + arity,
@@ -2605,6 +2703,8 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSLoadNamed(node);
     case IrOpcode::kJSLoadContext:
       return ReduceJSLoadContext(node);
+    case IrOpcode::kJSLoadScriptContext:
+      return ReduceJSLoadScriptContext(node);
     case IrOpcode::kJSStoreContext:
       return ReduceJSStoreContext(node);
     case IrOpcode::kJSLoadModule:

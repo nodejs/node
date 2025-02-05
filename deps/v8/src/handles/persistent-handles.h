@@ -33,20 +33,20 @@ class PersistentHandles {
   V8_EXPORT_PRIVATE void Iterate(RootVisitor* visitor);
 
   template <typename T>
-  Handle<T> NewHandle(Tagged<T> obj) {
+  IndirectHandle<T> NewHandle(Tagged<T> obj) {
 #ifdef DEBUG
     CheckOwnerIsNotParked();
 #endif
-    return Handle<T>(GetHandle(obj.ptr()));
+    return IndirectHandle<T>(GetHandle(obj.ptr()));
   }
 
   template <typename T>
-  Handle<T> NewHandle(Handle<T> obj) {
+  IndirectHandle<T> NewHandle(Handle<T> obj) {
     return NewHandle(*obj);
   }
 
   template <typename T>
-  Handle<T> NewHandle(T obj) {
+  IndirectHandle<T> NewHandle(T obj) {
     static_assert(kTaggedCanConvertToRawObjects);
     return NewHandle(Tagged<T>(obj));
   }

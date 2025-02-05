@@ -19,6 +19,10 @@
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/heap-layout-inl.h"
+#include "src/heap/heap-utils-inl.h"
+#include "src/heap/heap-visitor-inl.h"
+#include "src/heap/heap-visitor.h"
 #include "src/heap/heap.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/mark-compact.h"
@@ -27,14 +31,13 @@
 #include "src/heap/marking-visitor.h"
 #include "src/heap/marking.h"
 #include "src/heap/memory-chunk-metadata.h"
+#include "src/heap/memory-chunk.h"
 #include "src/heap/memory-measurement-inl.h"
 #include "src/heap/memory-measurement.h"
 #include "src/heap/minor-mark-sweep-inl.h"
 #include "src/heap/minor-mark-sweep.h"
 #include "src/heap/mutable-page-metadata.h"
 #include "src/heap/object-lock.h"
-#include "src/heap/objects-visiting-inl.h"
-#include "src/heap/objects-visiting.h"
 #include "src/heap/pretenuring-handler.h"
 #include "src/heap/weak-object-worklists.h"
 #include "src/heap/young-generation-marking-visitor.h"
@@ -315,8 +318,8 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
           done = true;
           break;
         }
-        DCHECK(!InReadOnlySpace(object));
-        DCHECK_EQ(GetIsolateFromWritableObject(object), isolate);
+        DCHECK(!HeapLayout::InReadOnlySpace(object));
+        DCHECK_EQ(HeapUtils::GetOwnerHeap(object), heap_);
         objects_processed++;
 
         Address new_space_top = kNullAddress;

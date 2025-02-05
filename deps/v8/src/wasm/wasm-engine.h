@@ -125,7 +125,7 @@ class NativeModuleCache {
       std::shared_ptr<NativeModule> native_module, bool error);
   void Erase(NativeModule* native_module);
 
-  bool empty() { return map_.empty(); }
+  bool empty() const { return map_.empty(); }
 
   // Hash the wire bytes up to the code section header. Used as a heuristic to
   // avoid streaming compilation of modules that are likely already in the
@@ -275,12 +275,6 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // for tearing down an isolate, or to clean it up to be reused.
   void DeleteCompileJobsOnIsolate(Isolate* isolate);
 
-  // Get a token for compiling wrappers for an Isolate. The token is used to
-  // synchronize background tasks on isolate shutdown. The caller should only
-  // hold the token while compiling export wrappers. If the isolate is already
-  // shutting down, this method will return an invalid token.
-  OperationsBarrier::Token StartWrapperCompilation(Isolate*);
-
   // Manage the set of Isolates that use this WasmEngine.
   void AddIsolate(Isolate* isolate);
   void RemoveIsolate(Isolate* isolate);
@@ -289,10 +283,11 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // access to the NativeModule containing this code. This method can be called
   // from background threads.
   void LogCode(base::Vector<WasmCode*>);
-  // Trigger code logging for the given code objects, which must be wrappers
-  // that are shared engine-wide. This method can be called from background
+  // Trigger code logging for the given code object, which must be a wrapper
+  // that is shared engine-wide. This method can be called from background
   // threads.
-  void LogWrapperCode(base::Vector<WasmCode*>);
+  // Returns whether code logging was triggered in any isolate.
+  bool LogWrapperCode(WasmCode*);
 
   // Enable code logging for the given Isolate. Initially, code logging is
   // enabled if {WasmCode::ShouldBeLogged(Isolate*)} returns true during
@@ -311,6 +306,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // TODO(wasm): isolate is only required here for CompilationState.
   std::shared_ptr<NativeModule> NewNativeModule(
       Isolate* isolate, WasmEnabledFeatures enabled_features,
+      WasmDetectedFeatures detected_features,
       CompileTimeImports compile_imports,
       std::shared_ptr<const WasmModule> module, size_t code_size_estimate);
 
@@ -437,6 +433,11 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // calling this method.
   void PotentiallyFinishCurrentGC();
 
+  // Enable/disable code logging on the NativeModule, updating
+  // {num_modules_with_code_logging_} accordingly.
+  void EnableCodeLogging(NativeModule*);
+  void DisableCodeLogging(NativeModule*);
+
   AccountingAllocator allocator_;
 
 #ifdef V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
@@ -477,6 +478,11 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   std::shared_ptr<OperationsBarrier> operations_barrier_{
       std::make_shared<OperationsBarrier>()};
+
+  // Store the number of modules which have code logging enabled. This is then
+  // used for a fast-path to avoid taking the mutex and iterating Isolates or
+  // NativeModules.
+  std::atomic<size_t> num_modules_with_code_logging_{0};
 
   // Size of code that became dead since the last GC. If this exceeds a certain
   // threshold, a new GC is triggered.

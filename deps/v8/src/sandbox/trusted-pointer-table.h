@@ -83,6 +83,7 @@ struct TrustedPointerTableEntry {
     static constexpr uint64_t kTagMask = kIndirectPointerTagMask;
     static constexpr TagType kFreeEntryTag = kFreeTrustedPointerTableEntryTag;
     static constexpr bool kSupportsEvacuation = false;
+    static constexpr bool kSupportsZapping = false;
   };
 
   struct Payload : TaggedPayload<TrustedPointerTaggingScheme> {

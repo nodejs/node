@@ -337,7 +337,7 @@ Handle<JSModuleNamespace> Module::GetModuleNamespace(Isolate* isolate,
   }
 
   DirectHandle<ObjectHashTable> exports(module->exports(), isolate);
-  ZoneVector<Handle<String>> names(&zone);
+  ZoneVector<IndirectHandle<String>> names(&zone);
   names.reserve(exports->NumberOfElements());
   for (InternalIndex i : exports->IterateEntries()) {
     Tagged<Object> key;
@@ -348,7 +348,7 @@ Handle<JSModuleNamespace> Module::GetModuleNamespace(Isolate* isolate,
 
   // Sort them alphabetically.
   std::sort(names.begin(), names.end(),
-            [&isolate](Handle<String> a, Handle<String> b) {
+            [&isolate](IndirectHandle<String> a, IndirectHandle<String> b) {
               return String::Compare(isolate, a, b) ==
                      ComparisonResult::kLessThan;
             });

@@ -52,6 +52,7 @@ namespace v8::internal::wasm {
   V(WasmAllocateFixedArray)                                                    \
   V(WasmThrow)                                                                 \
   V(WasmRethrow)                                                               \
+  V(WasmThrowRef)                                                              \
   V(WasmRethrowExplicitContext)                                                \
   V(WasmHandleStackOverflow)                                                   \
   V(WasmTraceEnter)                                                            \
@@ -144,7 +145,10 @@ namespace v8::internal::wasm {
   V(WasmFastApiCallTypeCheckAndUpdateIC)                                       \
   V(DeoptimizationEntry_Eager)                                                 \
   V(WasmLiftoffDeoptFinish)                                                    \
-  V(WasmPropagateException)
+  V(WasmPropagateException)                                                    \
+  V(WasmToJsWrapperInvalidSig)                                                 \
+  V(WasmTrapHandlerThrowTrap)                                                  \
+  IF_SHADOW_STACK(V, AdaptShadowStackForDeopt)
 
 namespace detail {
 constexpr std::array<uint8_t, static_cast<int>(Builtin::kFirstBytecodeHandler)>

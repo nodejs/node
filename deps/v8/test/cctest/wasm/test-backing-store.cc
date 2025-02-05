@@ -9,9 +9,7 @@
 #include "test/cctest/heap/heap-utils.h"
 #include "test/cctest/manually-externalized-buffer.h"
 
-namespace v8 {
-namespace internal {
-namespace wasm {
+namespace v8::internal::wasm {
 
 using testing::ManuallyExternalizedBuffer;
 
@@ -47,7 +45,7 @@ TEST(Run_WasmModule_Buffer_Externalized_Regression_UseAfterFree) {
     Isolate* isolate = CcTest::InitIsolateOnce();
     HandleScope scope(isolate);
     MaybeHandle<WasmMemoryObject> result = WasmMemoryObject::New(
-        isolate, 1, 1, SharedFlag::kNotShared, WasmMemoryFlag::kWasmMemory32);
+        isolate, 1, 1, SharedFlag::kNotShared, wasm::AddressType::kI32);
     Handle<WasmMemoryObject> memory_object = result.ToHandleChecked();
     Handle<JSArrayBuffer> buffer(memory_object->array_buffer(), isolate);
 
@@ -82,6 +80,4 @@ TEST(BackingStore_Reclaim) {
 }
 #endif
 
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::wasm

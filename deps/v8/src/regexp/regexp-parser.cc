@@ -3047,7 +3047,8 @@ RegExpTree* RegExpParserImpl<CharT>::ParseCharacterClass(
         if (Next() == '-') {
           if (operand == nullptr) {
             if (operand_type == ClassSetOperandType::kClassSetCharacter) {
-              ranges->Add(CharacterRange::Singleton(character), zone());
+              AddMaybeSimpleCaseFoldedRange(
+                  ranges, CharacterRange::Singleton(character));
             }
             operand =
                 zone()->template New<RegExpClassSetOperand>(ranges, strings);
@@ -3061,7 +3062,8 @@ RegExpTree* RegExpParserImpl<CharT>::ParseCharacterClass(
         if (Next() == '&') {
           if (operand == nullptr) {
             if (operand_type == ClassSetOperandType::kClassSetCharacter) {
-              ranges->Add(CharacterRange::Singleton(character), zone());
+              AddMaybeSimpleCaseFoldedRange(
+                  ranges, CharacterRange::Singleton(character));
             }
             operand =
                 zone()->template New<RegExpClassSetOperand>(ranges, strings);

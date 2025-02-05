@@ -16,6 +16,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/container/flat_hash_map.h"
 #include "src/base/address-region.h"
 #include "src/base/bit-field.h"
 #include "src/base/macros.h"
@@ -82,6 +83,25 @@ class V8_EXPORT_PRIVATE DisjointAllocationPool final {
  private:
   std::set<base::AddressRegion, base::AddressRegion::StartAddressLess> regions_;
 };
+
+#if V8_ENABLE_WASM_CODE_POINTER_TABLE
+constexpr WasmCodePointer kInvalidWasmCodePointer =
+    WasmCodePointerTable::kInvalidHandle;
+#else
+constexpr WasmCodePointer kInvalidWasmCodePointer = kNullAddress;
+#endif
+
+// Resolve the entry address of a WasmCodePointer
+Address WasmCodePointerAddress(WasmCodePointer pointer);
+
+template <Builtin builtin>
+WasmCodePointer GetBuiltinCodePointer(Isolate* isolate) {
+#if V8_ENABLE_WASM_CODE_POINTER_TABLE
+  return Builtins::WasmBuiltinHandleOf<builtin>(isolate);
+#else
+  return Builtins::EntryOf(builtin, isolate);
+#endif
+}
 
 class V8_EXPORT_PRIVATE WasmCode final {
  public:
@@ -169,6 +189,13 @@ class V8_EXPORT_PRIVATE WasmCode final {
   }
   Address instruction_start() const {
     return reinterpret_cast<Address>(instructions_);
+  }
+  WasmCodePointer code_pointer() const {
+#ifdef V8_ENABLE_WASM_CODE_POINTER_TABLE
+    return code_pointer_handle_;
+#else
+    return instruction_start();
+#endif
   }
   size_t instructions_size() const {
     return static_cast<size_t>(instructions_size_);
@@ -337,7 +364,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
 
   static bool ShouldAllocateCodePointerHandle(int index, Kind kind);
   static WasmCodePointerTable::Handle MaybeAllocateCodePointerHandle(
-      NativeModule* native_module, int index, Kind kind);
+      NativeModule* native_module, int index, Kind kind, Address entry);
 
   WasmCode(NativeModule* native_module, int index,
            base::Vector<uint8_t> instructions, int stack_slots, int ool_spills,
@@ -353,8 +380,9 @@ class V8_EXPORT_PRIVATE WasmCode final {
            bool frame_has_feedback_slot = false)
       : native_module_(native_module),
         instructions_(instructions.begin()),
-        code_pointer_handle_(
-            MaybeAllocateCodePointerHandle(native_module, index, kind)),
+        code_pointer_handle_(MaybeAllocateCodePointerHandle(
+            native_module, index, kind,
+            reinterpret_cast<Address>(instructions.begin()))),
         meta_data_(ConcatenateBytes({protected_instructions_data, reloc_info,
                                      source_position_table, inlining_positions,
                                      deopt_data})),
@@ -572,6 +600,10 @@ class V8_EXPORT_PRIVATE NativeModule final {
                         AssumptionsJournal* = nullptr);
   std::vector<WasmCode*> PublishCode(base::Vector<std::unique_ptr<WasmCode>>);
 
+  // Clears outdated code as necessary when a new instantiation's imports
+  // conflict with previously seen well-known imports.
+  void UpdateWellKnownImports(base::Vector<WellKnownImport> entries);
+
   // ReinstallDebugCode does a subset of PublishCode: It installs the code in
   // the code table and patches the jump table. The given code must be debug
   // code (with breakpoints) and must be owned by this {NativeModule} already.
@@ -651,6 +683,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // Reverse lookup from a given call target (which must be a jump table slot)
   // to a function index.
   uint32_t GetFunctionIndexFromJumpTableSlot(Address slot_address) const;
+
+  using CallIndirectTargetMap = absl::flat_hash_map<WasmCodePointer, uint32_t>;
+  CallIndirectTargetMap CreateIndirectCallTargetToFunctionIndexMap() const;
 
   // For cctests, where we build both WasmModule and the runtime objects
   // on the fly, and bypass the instance builder pipeline.
@@ -869,6 +904,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
   }
 
   WasmCodePointerTable::Handle GetCodePointerHandle(int index) const;
+  // Get a stable entry point for function at `function_index` that can be used
+  // for indirect calls.
+  WasmCodePointer GetIndirectCallTarget(int func_index) const;
 
  private:
   friend class WasmCode;
@@ -884,6 +922,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   // Private constructor, called via {WasmCodeManager::NewNativeModule()}.
   NativeModule(WasmEnabledFeatures enabled_features,
+               WasmDetectedFeatures detected_features,
                CompileTimeImports compile_imports,
                DynamicTiering dynamic_tiering, VirtualMemory code_space,
                std::shared_ptr<const WasmModule> module,
@@ -920,7 +959,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // minus the number of imported functions.
   void PatchJumpTablesLocked(uint32_t slot_index, Address target);
   void PatchJumpTableLocked(const CodeSpaceData&, uint32_t slot_index,
-                            Address target);
+                            Address target, RwxMemoryWriteScope& write_scope);
 
   // Called by the {WasmCodeAllocator} to register a new code space.
   void AddCodeSpaceLocked(base::AddressRegion);
@@ -1127,6 +1166,7 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
 
   std::shared_ptr<NativeModule> NewNativeModule(
       Isolate* isolate, WasmEnabledFeatures enabled_features,
+      WasmDetectedFeatures detected_features,
       CompileTimeImports compile_imports, size_t code_size_estimate,
       std::shared_ptr<const WasmModule> module);
 
@@ -1186,31 +1226,6 @@ class V8_EXPORT_PRIVATE V8_NODISCARD WasmCodeRefScope {
  private:
   WasmCodeRefScope* const previous_scope_;
   std::vector<WasmCode*> code_ptrs_;
-};
-
-// Similarly to a global handle, a {GlobalWasmCodeRef} stores a single
-// ref-counted pointer to a {WasmCode} object.
-class GlobalWasmCodeRef {
- public:
-  explicit GlobalWasmCodeRef(WasmCode* code,
-                             std::shared_ptr<NativeModule> native_module)
-      : code_(code), native_module_(std::move(native_module)) {
-    code_->IncRef();
-  }
-
-  GlobalWasmCodeRef(const GlobalWasmCodeRef&) = delete;
-  GlobalWasmCodeRef& operator=(const GlobalWasmCodeRef&) = delete;
-
-  ~GlobalWasmCodeRef() { WasmCode::DecrementRefCount({&code_, 1}); }
-
-  // Get a pointer to the contained {WasmCode} object. This is only guaranteed
-  // to exist as long as this {GlobalWasmCodeRef} exists.
-  WasmCode* code() const { return code_; }
-
- private:
-  WasmCode* const code_;
-  // Also keep the {NativeModule} alive.
-  const std::shared_ptr<NativeModule> native_module_;
 };
 
 class WasmCodeLookupCache final {

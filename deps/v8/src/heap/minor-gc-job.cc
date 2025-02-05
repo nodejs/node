@@ -89,9 +89,9 @@ void MinorGCJob::Task::RunInternal() {
   job_->current_task_id_ = CancelableTaskManager::kInvalidTaskId;
 
   Heap* heap = isolate()->heap();
-  if (v8_flags.minor_ms &&
+  if (v8_flags.separate_gc_phases &&
       isolate()->heap()->incremental_marking()->IsMajorMarking()) {
-    // Don't trigger a MinorMS cycle while major incremental marking is active.
+    // Don't trigger a minor GC while major incremental marking is active.
     return;
   }
 

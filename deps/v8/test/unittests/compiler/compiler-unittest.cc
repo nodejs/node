@@ -52,7 +52,7 @@ static Handle<JSFunction> Compile(const char* source) {
                                    ->NewStringFromUtf8(base::CStrVector(source))
                                    .ToHandleChecked();
   ScriptCompiler::CompilationDetails compilation_details;
-  Handle<SharedFunctionInfo> shared =
+  DirectHandle<SharedFunctionInfo> shared =
       Compiler::GetSharedFunctionInfoForScript(
           isolate, source_code, ScriptDetails(),
           v8::ScriptCompiler::kNoCompileOptions,
@@ -974,7 +974,7 @@ TEST_F(BackgroundMergeTest, GCDuringMerge) {
     // script can die while select inner functions stay alive.
     HandleScope scope(isolate());
     ScriptCompiler::CompilationDetails compilation_details;
-    Handle<SharedFunctionInfo> top_level_sfi =
+    DirectHandle<SharedFunctionInfo> top_level_sfi =
         Compiler::GetSharedFunctionInfoForScript(
             isolate(), source_string, ScriptDetails(),
             v8::ScriptCompiler::kNoCompileOptions,

@@ -87,12 +87,12 @@ class ValueSerializer;
 // Most code should be using BigInts instead.
 V8_OBJECT class BigIntBase : public PrimitiveHeapObject {
  public:
-  inline int length() const {
+  inline uint32_t length() const {
     return LengthBits::decode(bitfield_.load(std::memory_order_relaxed));
   }
 
   // For use by the GC.
-  inline int length(AcquireLoadTag) const {
+  inline uint32_t length(AcquireLoadTag) const {
     return LengthBits::decode(bitfield_.load(std::memory_order_acquire));
   }
 
@@ -102,16 +102,16 @@ V8_OBJECT class BigIntBase : public PrimitiveHeapObject {
   // would be kMaxInt - kSystemPointerSize * kBitsPerByte - 1.
   // Since we want a platform independent limit, choose a nice round number
   // somewhere below that maximum.
-  static const int kMaxLengthBits = 1 << 30;  // ~1 billion.
-  static const int kMaxLength =
+  static const uint32_t kMaxLengthBits = 1 << 30;  // ~1 billion.
+  static const uint32_t kMaxLength =
       kMaxLengthBits / (kSystemPointerSize * kBitsPerByte);
 
   // Sign and length are stored in the same bitfield.  Since the GC needs to be
   // able to read the length concurrently, the getters and setters are atomic.
-  static const int kLengthFieldBits = 30;
+  static const uint32_t kLengthFieldBits = 30;
   static_assert(kMaxLength <= ((1 << kLengthFieldBits) - 1));
   using SignBits = base::BitField<bool, 0, 1>;
-  using LengthBits = SignBits::Next<int, kLengthFieldBits>;
+  using LengthBits = SignBits::Next<uint32_t, kLengthFieldBits>;
   static_assert(LengthBits::kLastUsedBit < 32);
 
   DECL_VERIFIER(BigIntBase)
@@ -129,12 +129,12 @@ V8_OBJECT class BigIntBase : public PrimitiveHeapObject {
 
   using digit_t = uintptr_t;
 
-  static const int kDigitSize = sizeof(digit_t);
+  static const uint32_t kDigitSize = sizeof(digit_t);
   // kMaxLength definition assumes this:
   static_assert(kDigitSize == kSystemPointerSize);
 
-  static const int kDigitBits = kDigitSize * kBitsPerByte;
-  static const int kHalfDigitBits = kDigitBits / 2;
+  static const uint32_t kDigitBits = kDigitSize * kBitsPerByte;
+  static const uint32_t kHalfDigitBits = kDigitBits / 2;
   static const digit_t kHalfDigitMask = (1ull << kHalfDigitBits) - 1;
 
   // sign() == true means negative.
@@ -142,8 +142,8 @@ V8_OBJECT class BigIntBase : public PrimitiveHeapObject {
     return SignBits::decode(bitfield_.load(std::memory_order_relaxed));
   }
 
-  inline digit_t digit(int n) const {
-    SLOW_DCHECK(0 <= n && n < length());
+  inline digit_t digit(uint32_t n) const {
+    SLOW_DCHECK(n < length());
     return raw_digits()[n].value();
   }
 
@@ -238,16 +238,16 @@ V8_OBJECT class BigInt : public BigIntBase {
   V8_EXPORT_PRIVATE static Handle<BigInt> FromUint64(Isolate* isolate,
                                                      uint64_t n);
   static MaybeHandle<BigInt> FromWords64(Isolate* isolate, int sign_bit,
-                                         int words64_count,
+                                         uint32_t words64_count,
                                          const uint64_t* words);
   V8_EXPORT_PRIVATE int64_t AsInt64(bool* lossless = nullptr);
   uint64_t AsUint64(bool* lossless = nullptr);
-  int Words64Count();
-  void ToWordsArray64(int* sign_bit, int* words64_count, uint64_t* words);
+  uint32_t Words64Count();
+  void ToWordsArray64(int* sign_bit, uint32_t* words64_count, uint64_t* words);
 
   void BigIntShortPrint(std::ostream& os);
 
-  inline static int SizeFor(int length) {
+  inline static uint32_t SizeFor(uint32_t length) {
     return sizeof(BigInt) + length * kDigitSize;
   }
 
@@ -293,10 +293,10 @@ V8_OBJECT class BigInt : public BigIntBase {
 
   // Special functions for ValueSerializer/ValueDeserializer:
   uint32_t GetBitfieldForSerialization() const;
-  static int DigitsByteLengthForBitfield(uint32_t bitfield);
-  // Expects {storage} to have a length of at least
+  static size_t DigitsByteLengthForBitfield(uint32_t bitfield);
+  // Serialize the raw digits. {storage_length} is expected to be
   // {DigitsByteLengthForBitfield(GetBitfieldForSerialization())}.
-  void SerializeDigits(uint8_t* storage);
+  void SerializeDigits(uint8_t* storage, size_t storage_length);
   V8_WARN_UNUSED_RESULT static MaybeHandle<BigInt> FromSerializedDigits(
       Isolate* isolate, uint32_t bitfield,
       base::Vector<const uint8_t> digits_storage);

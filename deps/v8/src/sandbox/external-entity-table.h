@@ -111,6 +111,12 @@ class V8_EXPORT_PRIVATE ExternalEntityTable
     bool BelongsTo(const void* table) const { return owning_table_ == table; }
 #endif  // DEBUG
 
+    // Similar to `num_segments()` but also locks the mutex.
+    uint32_t NumSegmentsForTesting() {
+      base::MutexGuard guard(&mutex_);
+      return num_segments();
+    }
+
    protected:
     friend class ExternalEntityTable<Entry, size>;
 
@@ -198,6 +204,10 @@ class V8_EXPORT_PRIVATE ExternalEntityTable
   //
   // Returns the number of live entries after sweeping.
   uint32_t GenericSweep(Space* space);
+
+  // Variant of the above that invokes a callback for every live entry.
+  template <typename Callback>
+  uint32_t GenericSweep(Space* space, Callback marked);
 
   // Iterate over all entries in the given space.
   //

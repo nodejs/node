@@ -114,6 +114,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Like Assert(), but always enabled.
   void Check(Condition cc, AbortReason reason, Register rj, Operand rk);
 
+  // Same as Check() but expresses that the check is needed for the sandbox.
+  void SbxCheck(Condition cc, AbortReason reason, Register rj, Operand rk);
+
   // Print a message to stdout and abort execution.
   void Abort(AbortReason msg);
 
@@ -232,7 +235,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                       JumpMode jump_mode = JumpMode::kJump);
 
   // Convenience functions to call/jmp to the code of a JSFunction object.
-  void CallJSFunction(Register function_object);
+  // TODO(42204201): These don't work properly with leaptiering as we need to
+  // validate the parameter count at runtime. Instead, we should replace them
+  // with CallJSDispatchEntry that generates a call to a given (compile-time
+  // constant) JSDispatchHandle.
+  void CallJSFunction(Register function_object, uint16_t argument_count);
   void JumpJSFunction(Register function_object,
                       JumpMode jump_mode = JumpMode::kJump);
 
@@ -902,9 +909,15 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 #endif
 
 #ifdef V8_ENABLE_LEAPTIERING
-  // Load the entrypoint pointer of a JSDispatchTable entry.
-  void LoadCodeEntrypointFromJSDispatchTable(Register destination,
-                                             MemOperand field_operand);
+  void LoadEntrypointFromJSDispatchTable(Register destination,
+                                         Register dispatch_handle,
+                                         Register scratch);
+  void LoadParameterCountFromJSDispatchTable(Register destination,
+                                             Register dispatch_handle,
+                                             Register scratch);
+  void LoadEntrypointAndParameterCountFromJSDispatchTable(
+      Register entrypoint, Register parameter_count, Register dispatch_handle,
+      Register scratch);
 #endif  // V8_ENABLE_LEAPTIERING
 
   // Load a protected pointer field.
@@ -1044,23 +1057,47 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // -------------------------------------------------------------------------
   // JavaScript invokes.
 
+  // On function call, call into the debugger.
+  void CallDebugOnFunctionCall(
+      Register fun, Register new_target,
+      Register expected_parameter_count_or_dispatch_handle,
+      Register actual_parameter_count);
+
+  // The way we invoke JSFunctions differs depending on whether leaptiering is
+  // enabled. As such, these functions exist in two variants. In the future,
+  // leaptiering will be used on all platforms. At that point, the
+  // non-leaptiering variants will disappear.
+
+#ifdef V8_ENABLE_LEAPTIERING
+  // Invoke the JavaScript function in the given register. Changes the
+  // current context to the context in the function before invoking.
+  void InvokeFunction(Register function, Register actual_parameter_count,
+                      InvokeType type,
+                      ArgumentAdaptionMode argument_adaption_mode =
+                          ArgumentAdaptionMode::kAdapt);
+  // Invoke the JavaScript function in the given register.
+  // Changes the current context to the context in the function before invoking.
+  void InvokeFunctionWithNewTarget(Register function, Register new_target,
+                                   Register actual_parameter_count,
+                                   InvokeType type);
   // Invoke the JavaScript function code by either calling or jumping.
   void InvokeFunctionCode(Register function, Register new_target,
-                          Register expected_parameter_count,
-                          Register actual_parameter_count, InvokeType type);
-
-  // On function call, call into the debugger.
-  void CallDebugOnFunctionCall(Register fun, Register new_target,
-                               Register expected_parameter_count,
-                               Register actual_parameter_count);
-
+                          Register actual_parameter_count, InvokeType type,
+                          ArgumentAdaptionMode argument_adaption_mode =
+                              ArgumentAdaptionMode::kAdapt);
+#else
+  void InvokeFunction(Register function, Register expected_parameter_count,
+                      Register actual_parameter_count, InvokeType type);
   // Invoke the JavaScript function in the given register. Changes the
   // current context to the context in the function before invoking.
   void InvokeFunctionWithNewTarget(Register function, Register new_target,
                                    Register actual_parameter_count,
                                    InvokeType type);
-  void InvokeFunction(Register function, Register expected_parameter_count,
-                      Register actual_parameter_count, InvokeType type);
+  // Invoke the JavaScript function code by either calling or jumping.
+  void InvokeFunctionCode(Register function, Register new_target,
+                          Register expected_parameter_count,
+                          Register actual_parameter_count, InvokeType type);
+#endif
 
   // Exception handling.
 
@@ -1205,8 +1242,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // Helper functions for generating invokes.
   void InvokePrologue(Register expected_parameter_count,
-                      Register actual_parameter_count, Label* done,
-                      InvokeType type);
+                      Register actual_parameter_count, InvokeType type);
 
   // Performs a truncating conversion of a floating point number as used by
   // the JS bitwise operations. See ECMA-262 9.5: ToInt32. Goes to 'done' if it

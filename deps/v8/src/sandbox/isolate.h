@@ -9,6 +9,7 @@
 #include "src/sandbox/cppheap-pointer-table.h"
 #include "src/sandbox/external-buffer-table.h"
 #include "src/sandbox/external-pointer-table.h"
+#include "src/sandbox/indirect-pointer-tag.h"
 #include "src/sandbox/js-dispatch-table.h"
 #include "src/sandbox/trusted-pointer-table.h"
 
@@ -24,6 +25,10 @@ class V8_EXPORT_PRIVATE IsolateForSandbox final {
  public:
   template <typename IsolateT>
   IsolateForSandbox(IsolateT* isolate);  // NOLINT(runtime/explicit)
+
+#ifndef V8_ENABLE_SANDBOX
+  IsolateForSandbox() {}
+#endif
 
 #ifdef V8_ENABLE_SANDBOX
   inline ExternalPointerTable& GetExternalPointerTableFor(
@@ -41,9 +46,14 @@ class V8_EXPORT_PRIVATE IsolateForSandbox final {
   inline JSDispatchTable::Space* GetJSDispatchTableSpaceFor(
       Address owning_slot);
 
-  inline TrustedPointerTable& GetTrustedPointerTable();
-  inline TrustedPointerTable::Space* GetTrustedPointerTableSpace();
+  inline TrustedPointerTable& GetTrustedPointerTableFor(IndirectPointerTag tag);
+  inline TrustedPointerTable::Space* GetTrustedPointerTableSpaceFor(
+      IndirectPointerTag tag);
 
+  // Object is needed as a witness that this handle does not come from the
+  // shared space.
+  inline ExternalPointerTag GetExternalPointerTableTagFor(
+      Tagged<HeapObject> witness, ExternalPointerHandle handle);
 #endif  // V8_ENABLE_SANDBOX
 
  private:

@@ -946,7 +946,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   }
 
   // Convenience functions to call/jmp to the code of a JSFunction object.
-  void CallJSFunction(Register function_object, Register scratch);
+  void CallJSFunction(Register function_object, uint16_t argument_count,
+                      Register scratch);
   void JumpJSFunction(Register function_object, Register scratch,
                       JumpMode jump_mode = JumpMode::kJump);
 

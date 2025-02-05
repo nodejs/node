@@ -25,9 +25,9 @@
 }],  # no_simd_hardware == True
 
 ##############################################################################
-['official_build', {
+['wasm_random_fuzzers == False', {
   # Random Wasm module generation is not available on official builds.
   'wasm_compile/*': [FAIL],
-}],  # 'official_build'
+}],  # 'wasm_random_fuzzers == False'
 
 ]

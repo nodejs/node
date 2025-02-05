@@ -130,8 +130,7 @@ void Report(Handle<Script> script, int position, base::Vector<const char> text,
   DirectHandle<String> text_object =
       isolate->factory()->InternalizeUtf8String(text);
   DirectHandle<JSMessageObject> message = MessageHandler::MakeMessageObject(
-      isolate, message_template, &location, text_object,
-      Handle<FixedArray>::null());
+      isolate, message_template, &location, text_object);
   message->set_error_level(level);
   MessageHandler::ReportMessage(isolate, &location, message);
 }
@@ -251,6 +250,14 @@ UnoptimizedCompilationJob::Status AsmJsCompilationJob::ExecuteJobImpl() {
   }
   module_ = compile_zone->New<wasm::ZoneBuffer>(compile_zone);
   parser.module_builder()->WriteTo(module_);
+  if (module_->size() > v8_flags.wasm_max_module_size) {
+    if (!v8_flags.suppress_asm_messages) {
+      ReportCompilationFailure(
+          parse_info(), parser.failure_location(),
+          "Module size exceeds engine's supported maximum");
+    }
+    return FAILED;
+  }
   asm_offsets_ = compile_zone->New<wasm::ZoneBuffer>(compile_zone);
   parser.module_builder()->WriteAsmJsOffsetTable(asm_offsets_);
   stdlib_uses_ = *parser.stdlib_uses();

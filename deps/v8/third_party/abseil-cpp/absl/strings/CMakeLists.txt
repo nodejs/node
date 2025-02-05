@@ -100,7 +100,7 @@ absl_cc_library(
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
-    absl::core_headers
+    absl::config
     absl::string_view
   PUBLIC
 )

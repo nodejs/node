@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --wasm-deopt --allow-natives-syntax --turboshaft-wasm
-// Flags: --experimental-wasm-inlining --liftoff
+// Flags: --wasm-inlining --liftoff
 // Flags: --turboshaft-wasm-instruction-selection-staged
 // Flags: --wasm-tiering-budget=1000 --wasm-dynamic-tiering
 // Flags: --no-predictable

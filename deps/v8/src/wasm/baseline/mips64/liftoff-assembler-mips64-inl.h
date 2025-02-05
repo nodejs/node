@@ -3834,11 +3834,6 @@ bool LiftoffAssembler::emit_f16x8_qfms(LiftoffRegister dst,
 
 bool LiftoffAssembler::supports_f16_mem_access() { return false; }
 
-void LiftoffAssembler::set_trap_on_oob_mem64(Register index, uint64_t oob_size,
-                                             uint64_t oob_index) {
-  UNREACHABLE();
-}
-
 void LiftoffAssembler::StackCheck(Label* ool_code) {
   Register limit_address = kScratchReg;
   LoadStackLimit(limit_address, StackLimitKind::kInterruptStackLimit);

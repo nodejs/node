@@ -191,9 +191,36 @@ class V8_EXPORT_PRIVATE LoopUnrollingAnalyzer {
 
   bool ShouldPartiallyUnrollLoop(const Block* loop_header) const {
     DCHECK(loop_header->IsLoop());
-    auto info = loop_finder_.GetLoopInfo(loop_header);
+    LoopFinder::LoopInfo info = loop_finder_.GetLoopInfo(loop_header);
     return !info.has_inner_loops &&
            info.op_count < kMaxLoopSizeForPartialUnrolling;
+  }
+
+  // The returned unroll count is the total number of copies of the loop body
+  // in the resulting graph, i.e., an unroll count of N means N-1 copies of the
+  // body which were partially unrolled, and 1 for the original/remaining body.
+  size_t GetPartialUnrollCount(const Block* loop_header) const {
+    // Don't unroll if the function is already huge.
+    // Otherwise we have run into pathological runtimes or large memory usage,
+    // e.g., in register allocation in the past, see https://crbug.com/383661627
+    // for an example / reproducer.
+    // Even though we return an unroll count of one (i.e., don't unroll at all
+    // really), running this phase can speed up subsequent optimizations,
+    // probably because it produces loops in a "compact"/good block order for
+    // analyses, namely <loop header>, <loop body>, <loop exit>, <rest of code>.
+    // In principle, we should fix complexity problems in analyses, make sure
+    // loops are already produced in this order, and not rely on the "unrolling"
+    // here for the order alone, but this is a longer standing issue.
+    if (input_graph_->op_id_count() > kMaxFunctionSizeForPartialUnrolling) {
+      return 1;
+    }
+    if (is_wasm_) {
+      LoopFinder::LoopInfo info = loop_finder_.GetLoopInfo(loop_header);
+      return std::min(
+          LoopUnrollingAnalyzer::kMaxPartialUnrollingCount,
+          LoopUnrollingAnalyzer::kWasmMaxUnrolledLoopSize / info.op_count);
+    }
+    return LoopUnrollingAnalyzer::kMaxPartialUnrollingCount;
   }
 
   bool ShouldRemoveLoop(const Block* loop_header) const {
@@ -223,10 +250,16 @@ class V8_EXPORT_PRIVATE LoopUnrollingAnalyzer {
   // trade-off. In particular, having the number of iterations to unroll be a
   // function of the loop's size and a MaxLoopSize could make sense.
   static constexpr size_t kMaxLoopSizeForFullUnrolling = 150;
+  // This function size limit is quite arbitrary. It is large enough that we
+  // probably never hit it in JavaScript and it is lower than the operation
+  // count we have seen in some huge Wasm functions in the past, e.g., function
+  // #21937 of https://crbug.com/383661627 (1.7M operations, 2.7MB wire bytes).
+  static constexpr size_t kMaxFunctionSizeForPartialUnrolling = 1'000'000;
   static constexpr size_t kJSMaxLoopSizeForPartialUnrolling = 50;
   static constexpr size_t kWasmMaxLoopSizeForPartialUnrolling = 80;
+  static constexpr size_t kWasmMaxUnrolledLoopSize = 240;
   static constexpr size_t kMaxLoopIterationsForFullUnrolling = 4;
-  static constexpr size_t kPartialUnrollingCount = 4;
+  static constexpr size_t kMaxPartialUnrollingCount = 4;
   static constexpr size_t kMaxIterForStackCheckRemoval = 5000;
 
  private:
@@ -502,7 +535,8 @@ void LoopUnrollingReducer<Next>::PartiallyUnrollLoop(const Block* header) {
   auto loop_body = analyzer_.GetLoopBody(header);
   current_loop_header_ = header;
 
-  int unroll_count = LoopUnrollingAnalyzer::kPartialUnrollingCount;
+  size_t unroll_count = analyzer_.GetPartialUnrollCount(header);
+  DCHECK_GT(unroll_count, 0);
 
   ScopedModification<bool> set_true(__ turn_loop_without_backedge_into_merge(),
                                     false);
@@ -518,7 +552,7 @@ void LoopUnrollingReducer<Next>::PartiallyUnrollLoop(const Block* header) {
   // Emitting the subsequent folded iterations. We set `unrolling_` to
   // kUnrolling so that stack checks are skipped.
   unrolling_ = UnrollingStatus::kUnrolling;
-  for (int i = 0; i < unroll_count - 1; i++) {
+  for (size_t i = 0; i < unroll_count - 1; i++) {
     // We remove the stack check of all iterations but the last one.
     bool is_last_iteration = i == unroll_count - 2;
     ScopedModification<bool> skip_stack_checks(&skip_next_stack_check_,

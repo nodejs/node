@@ -90,7 +90,7 @@ void MaglevAssembler::LoadSingleCharacterString(Register result,
   Register table = scratch;
   LoadRoot(table, RootIndex::kSingleCharacterStringTable);
   LoadTaggedFieldByIndex(result, table, char_code, kTaggedSize,
-                         FixedArray::kHeaderSize);
+                         OFFSET_OF_DATA_START(FixedArray));
 }
 
 void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
@@ -520,7 +520,8 @@ void MaglevAssembler::Prologue(Graph* graph) {
     Register feedback_vector = D::GetRegisterParameter(D::kFeedbackVector);
     DCHECK(!AreAliased(feedback_vector, kJavaScriptCallArgCountRegister,
                        kJSFunctionRegister, kContextRegister,
-                       kJavaScriptCallNewTargetRegister));
+                       kJavaScriptCallNewTargetRegister,
+                       kJavaScriptCallDispatchHandleRegister));
     Move(feedback_vector,
          compilation_info()->toplevel_compilation_unit()->feedback().object());
     TailCallBuiltin(Builtin::kMaglevOptimizeCodeOrTailCallOptimizedCodeSlot,

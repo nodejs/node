@@ -138,13 +138,12 @@ size_t MemoryController<Trait>::MinimumAllocationLimitGrowingStep(
 
 template <typename Trait>
 size_t MemoryController<Trait>::BoundAllocationLimit(
-    Heap* heap, size_t current_size, size_t limit, size_t min_size,
+    Heap* heap, size_t current_size, uint64_t limit, size_t min_size,
     size_t max_size, size_t new_space_capacity,
     Heap::HeapGrowingMode growing_mode) {
   CHECK_LT(0, current_size);
-  limit = std::max(static_cast<uint64_t>(limit),
-                   static_cast<uint64_t>(current_size) +
-                       MinimumAllocationLimitGrowingStep(growing_mode)) +
+  limit = std::max(limit, static_cast<uint64_t>(current_size) +
+                              MinimumAllocationLimitGrowingStep(growing_mode)) +
           new_space_capacity;
   const uint64_t halfway_to_the_max =
       (static_cast<uint64_t>(current_size) + max_size) / 2;

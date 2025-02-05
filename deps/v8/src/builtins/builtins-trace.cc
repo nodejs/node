@@ -131,7 +131,7 @@ BUILTIN(Trace) {
   Handle<Object> category = args.atOrUndefined(isolate, 2);
   Handle<Object> name_arg = args.atOrUndefined(isolate, 3);
   DirectHandle<Object> id_arg = args.atOrUndefined(isolate, 4);
-  Handle<Object> data_arg = args.atOrUndefined(isolate, 5);
+  Handle<JSAny> data_arg = Cast<JSAny>(args.atOrUndefined(isolate, 5));
 
   if (v8_flags.fuzzing) {
     // Category handling has many CHECKs we don't want to hit.

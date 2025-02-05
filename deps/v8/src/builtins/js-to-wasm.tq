@@ -18,6 +18,8 @@ extern builtin JSToWasmWrapperAsm(
     RawPtr<intptr>, WasmImportData|WasmTrustedInstanceData, JSAny): JSAny;
 extern builtin WasmReturnPromiseOnSuspendAsm(
     RawPtr<intptr>, WasmImportData|WasmTrustedInstanceData, JSAny): JSAny;
+extern builtin JSToWasmStressSwitchStacksAsm(
+    RawPtr<intptr>, WasmImportData|WasmTrustedInstanceData, JSAny): JSAny;
 
 extern macro UniqueIntPtrConstant(constexpr intptr): intptr;
 
@@ -73,7 +75,8 @@ extern enum ValueKind extends int32 constexpr 'wasm::ValueKind' {
 
 extern enum Promise extends int32 constexpr 'wasm::Promise' {
   kPromise,
-  kNoPromise
+  kNoPromise,
+  kStressSwitch
 }
 
 extern enum HeapType extends int32
@@ -178,8 +181,6 @@ struct Int64AsInt32Pair {
 
 // This is only safe to use on 32-bit platforms.
 extern macro BigIntToRawBytes(BigInt): Int64AsInt32Pair;
-
-extern macro PopAndReturn(intptr, JSAny): never;
 
 // The ReturnSlotAllocator calculates the size of the space needed on the stack
 // for return values.
@@ -482,11 +483,12 @@ macro HandleF32Params(
 
 macro JSToWasmWrapperHelper(
     context: NativeContext, _receiver: JSAny, target: JSFunction,
-    arguments: Arguments, promise: constexpr Promise): never {
+    arguments: Arguments, promise: constexpr Promise): JSAny {
   const functionData = target.shared_function_info.wasm_exported_function_data;
 
   // Trigger a wrapper tier-up when this function got called often enough.
-  const switchStack = promise != Promise::kNoPromise;
+  const switchStack =
+      promise == Promise::kPromise || promise == Promise::kStressSwitch;
   if constexpr (!switchStack) {
     const budget: Smi =
         UnsafeCast<Smi>(functionData.wrapper_budget.value) - SmiConstant(1);
@@ -606,7 +608,7 @@ macro JSToWasmWrapperHelper(
             Convert<intptr>(torque_internal::SizeOf<intptr>()) +
         UniqueIntPtrConstant(kNumFPRegisterParameters) * kSlotSize +
         Convert<intptr>(paramCount) * kSlotSize;
-    const slice = &AllocateByteArray(Convert<uintptr>(bufferSize)).bytes;
+    const slice = &AllocateByteArray(Convert<uintptr>(bufferSize)).values;
     paramBuffer = torque_internal::unsafe::NewReference<intptr>(
         slice.object, slice.offset);
   }
@@ -684,6 +686,12 @@ macro JSToWasmWrapperHelper(
   let suspender: JSAny = Undefined;
   if constexpr (switchStack) {
     suspender = runtime::WasmAllocateSuspender(context);
+    if (promise == Promise::kStressSwitch) {
+      // In case we have a non-JSPI test where an import returns a Promise,
+      // we don't want the import to try and suspend the wasm stack. Clear the
+      // "resume" field as a way to signal this to the import.
+      UnsafeCast<WasmSuspenderObject>(suspender).resume = Undefined;
+    }
   }
   if (hasRefParam) {
     // Iterate over all parameters again and handle all those with ref types.
@@ -728,7 +736,8 @@ macro JSToWasmWrapperHelper(
   *GetRefAt<RawPtr>(wrapperBuffer, kWrapperBufferSigRepresentationArray) = reps;
   *GetRefAt<intptr>(wrapperBuffer, kWrapperBufferStackReturnBufferSize) =
       returnSize;
-  *GetRefAt<RawPtr>(wrapperBuffer, kWrapperBufferCallTarget) = callTarget;
+  *GetRefAt<WasmCodePointer>(wrapperBuffer, kWrapperBufferCallTarget) =
+      callTarget;
   *GetRefAt<RawPtr<intptr>>(wrapperBuffer, kWrapperBufferParamStart) =
       paramStart;
   *GetRefAt<RawPtr>(wrapperBuffer, kWrapperBufferParamEnd) = paramEnd;
@@ -738,43 +747,51 @@ macro JSToWasmWrapperHelper(
   // they get scanned by the GC as part of the outgoing parameters of this
   // Torque builtin.
   let result: JSAny;
-  if constexpr (switchStack) {
+  if constexpr (promise == Promise::kPromise) {
     result =
         WasmReturnPromiseOnSuspendAsm(wrapperBuffer, implicitArg, resultArray);
-  } else {
+  } else if (promise == Promise::kNoPromise) {
     result = JSToWasmWrapperAsm(wrapperBuffer, implicitArg, resultArray);
+  } else if (promise == Promise::kStressSwitch) {
+    result =
+        JSToWasmStressSwitchStacksAsm(wrapperBuffer, implicitArg, resultArray);
+  } else {
+    unreachable;
   }
-
-  // The normal return sequence of Torque-generated JavaScript builtins does not
-  // consider the case where the caller may push additional "undefined"
-  // parameters on the stack, and therefore does not generate code to pop these
-  // additional parameters. Here we calculate the actual number of parameters on
-  // the stack. This number is the number of actual parameters provided by the
-  // caller, which is `arguments.length`, or the number of declared arguments,
-  // if not enough actual parameters were provided, i.e.
-  // `SharedFunctionInfo::length`.
-  let popCount = arguments.length;
-  const declaredArgCount =
-      Convert<intptr>(Convert<int32>(target.shared_function_info.length));
-  if (declaredArgCount > popCount) {
-    popCount = declaredArgCount;
-  }
-  // Also pop the receiver.
-  PopAndReturn(popCount + 1, result);
+  return result;
 }
 
 transitioning javascript builtin JSToWasmWrapper(
-    js-implicit context: NativeContext, receiver: JSAny, target: JSFunction)(
-    ...arguments): JSAny {
-  JSToWasmWrapperHelper(
+    js-implicit context: NativeContext, receiver: JSAny, target: JSFunction,
+    dispatchHandle: DispatchHandle)(...arguments): JSAny {
+  // This is a generic builtin that can be installed on functions with different
+  // parameter counts, so we need to support that.
+  SetSupportsDynamicParameterCount(target, dispatchHandle);
+
+  return JSToWasmWrapperHelper(
       context, receiver, target, arguments, Promise::kNoPromise);
 }
 
 transitioning javascript builtin WasmPromising(
-    js-implicit context: NativeContext, receiver: JSAny, target: JSFunction)(
-    ...arguments): JSAny {
-  JSToWasmWrapperHelper(
+    js-implicit context: NativeContext, receiver: JSAny, target: JSFunction,
+    dispatchHandle: DispatchHandle)(...arguments): JSAny {
+  // This is a generic builtin that can be installed on functions with different
+  // parameter counts, so we need to support that.
+  SetSupportsDynamicParameterCount(target, dispatchHandle);
+
+  return JSToWasmWrapperHelper(
       context, receiver, target, arguments, Promise::kPromise);
+}
+
+transitioning javascript builtin WasmStressSwitch(
+    js-implicit context: NativeContext, receiver: JSAny, target: JSFunction,
+    dispatchHandle: DispatchHandle)(...arguments): JSAny {
+  // This is a generic builtin that can be installed on functions with different
+  // parameter counts, so we need to support that.
+  SetSupportsDynamicParameterCount(target, dispatchHandle);
+
+  return JSToWasmWrapperHelper(
+      context, receiver, target, arguments, Promise::kStressSwitch);
 }
 
 macro WasmToJSObject(context: NativeContext, value: Object, retType: int32):

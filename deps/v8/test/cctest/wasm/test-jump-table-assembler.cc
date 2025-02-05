@@ -90,7 +90,8 @@ Address AllocateJumpTableThunk(
 }
 
 void CompileJumpTableThunk(Address thunk, Address jump_target) {
-  MacroAssembler masm(nullptr, AssemblerOptions{}, CodeObjectRequired::kNo,
+  MacroAssembler masm(CcTest::i_isolate()->allocator(), AssemblerOptions{},
+                      CodeObjectRequired::kNo,
                       ExternalAssemblerBuffer(reinterpret_cast<void*>(thunk),
                                               kThunkBufferSize));
 
@@ -219,6 +220,7 @@ class JumpTablePatcher : public v8::base::Thread {
             this, slot_address, i % 2, thunks_[i % 2]);
       base::MutexGuard jump_table_guard(jump_table_mutex_);
       JumpTableAssembler::PatchJumpTableSlot(
+          CcTest::i_isolate()->allocator(),
           slot_start_ + JumpTableAssembler::JumpSlotIndexToOffset(slot_index_),
           kNullAddress, thunks_[i % 2]);
     }
@@ -270,8 +272,8 @@ TEST(JumpTablePatchingStress) {
       // by the patchers.
       Address slot_addr =
           slot_start + JumpTableAssembler::JumpSlotIndexToOffset(slot);
-      JumpTableAssembler::PatchJumpTableSlot(slot_addr, kNullAddress,
-                                             slot_addr);
+      JumpTableAssembler::PatchJumpTableSlot(
+          CcTest::i_isolate()->allocator(), slot_addr, kNullAddress, slot_addr);
       // For each patcher, generate two thunks where this patcher can emit code
       // which finally jumps back to {slot} in the jump table.
       for (int i = 0; i < 2 * kNumberOfPatcherThreads; ++i) {

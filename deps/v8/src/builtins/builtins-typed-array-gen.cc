@@ -449,8 +449,9 @@ void TypedArrayBuiltinsAssembler::DispatchTypedArrayByElementsKind(
 
 void TypedArrayBuiltinsAssembler::SetJSTypedArrayOnHeapDataPtr(
     TNode<JSTypedArray> holder, TNode<ByteArray> base, TNode<UintPtrT> offset) {
-  offset = UintPtrAdd(UintPtrConstant(ByteArray::kHeaderSize - kHeapObjectTag),
-                      offset);
+  offset = UintPtrAdd(
+      UintPtrConstant(OFFSET_OF_DATA_START(ByteArray) - kHeapObjectTag),
+      offset);
   if (COMPRESS_POINTERS_BOOL) {
     TNode<IntPtrT> full_base = Signed(BitcastTaggedToWord(base));
     TNode<Int32T> compressed_base = TruncateIntPtrToInt32(full_base);
@@ -523,7 +524,7 @@ void TypedArrayBuiltinsAssembler::StoreJSTypedArrayElementFromPreparedValue(
     TNode<UintPtrT> index, TNode<TValue> prepared_value,
     ElementsKind elements_kind, Label* if_detached_or_out_of_bounds) {
   static_assert(std::is_same<TValue, Word32T>::value ||
-                    std::is_same<TValue, Float16T>::value ||
+                    std::is_same<TValue, Float16RawBitsT>::value ||
                     std::is_same<TValue, Float32T>::value ||
                     std::is_same<TValue, Float64T>::value ||
                     std::is_same<TValue, BigInt>::value,
@@ -561,7 +562,7 @@ void TypedArrayBuiltinsAssembler::StoreJSTypedArrayElementFromTagged(
       break;
     }
     case FLOAT16_ELEMENTS: {
-      auto prepared_value = PrepareValueForWriteToTypedArray<Float16T>(
+      auto prepared_value = PrepareValueForWriteToTypedArray<Float16RawBitsT>(
           value, elements_kind, context);
       StoreJSTypedArrayElementFromPreparedValue(context, typed_array, index,
                                                 prepared_value, elements_kind,

@@ -3800,7 +3800,7 @@ bool LiftoffAssembler::emit_f32x4_nearest_int(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_f32x4_add(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  liftoff::EmitSimdCommutativeBinOp<&Assembler::vaddps, &Assembler::addps>(
+  liftoff::EmitSimdNonCommutativeBinOp<&Assembler::vaddps, &Assembler::addps>(
       this, dst, lhs, rhs);
 }
 
@@ -4702,14 +4702,15 @@ bool LiftoffAssembler::supports_f16_mem_access() {
   return CpuFeatures::IsSupported(F16C) && CpuFeatures::IsSupported(AVX2);
 }
 
-void LiftoffAssembler::set_trap_on_oob_mem64(Register index, uint64_t oob_size,
-                                             uint64_t oob_index) {
-  Label done;
-  movq(kScratchRegister, Immediate64(oob_size));
-  cmpq(index, kScratchRegister);
-  j(below, &done);
-  movq(index, Immediate64(oob_index));
-  bind(&done);
+void LiftoffAssembler::set_trap_on_oob_mem64(Register index, uint64_t max_index,
+                                             Label* trap_label) {
+  if (is_uint31(max_index)) {
+    cmpq(index, Immediate(static_cast<int32_t>(max_index)));
+  } else {
+    movq(kScratchRegister, Immediate64(max_index));
+    cmpq(index, kScratchRegister);
+  }
+  j(above_equal, trap_label);
 }
 
 void LiftoffAssembler::StackCheck(Label* ool_code) {
@@ -4875,7 +4876,7 @@ void LiftoffAssembler::CallIndirect(const ValueKindSig* sig,
     popq(kScratchRegister);
     target = kScratchRegister;
   }
-  call(target);
+  CallWasmCodePointer(target);
 }
 
 void LiftoffAssembler::TailCallIndirect(Register target) {
@@ -4883,7 +4884,7 @@ void LiftoffAssembler::TailCallIndirect(Register target) {
     popq(kScratchRegister);
     target = kScratchRegister;
   }
-  jmp(target);
+  CallWasmCodePointer(target, CallJumpMode::kTailCall);
 }
 
 void LiftoffAssembler::CallBuiltin(Builtin builtin) {

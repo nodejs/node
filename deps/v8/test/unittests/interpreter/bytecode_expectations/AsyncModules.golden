@@ -69,9 +69,9 @@ handlers: [
 snippet: "
   await import(\"foo\");
 "
-frame size: 4
+frame size: 5
 parameter count: 1
-bytecode array length: 105
+bytecode array length: 108
 bytecodes: [
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(2),
                 B(Mov), R(closure), R(1),
@@ -91,8 +91,10 @@ bytecodes: [
                 B(Return),
   /*    0 S> */ B(LdaConstant), U8(4),
                 B(Star3),
+                B(LdaSmi), I8(1),
+                B(Star4),
                 B(Mov), R(closure), R(2),
-                B(CallRuntime), U16(Runtime::kDynamicImportCall), R(2), U8(2),
+                B(CallRuntime), U16(Runtime::kDynamicImportCall), R(2), U8(3),
                 B(Star3),
                 B(Mov), R(0), R(2),
                 B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionAwait), R(2), U8(2),
@@ -118,13 +120,13 @@ bytecodes: [
 ]
 constant pool: [
   Smi [25],
-  Smi [68],
+  Smi [71],
   Smi [10],
   Smi [7],
   INTERNALIZED_ONE_BYTE_STRING_TYPE ["foo"],
 ]
 handlers: [
-  [18, 96, 96],
+  [18, 99, 99],
 ]
 
 ---
@@ -198,9 +200,9 @@ snippet: "
   import * as foo from \"bar\";
   await import(\"goo\");
 "
-frame size: 5
+frame size: 6
 parameter count: 1
-bytecode array length: 113
+bytecode array length: 116
 bytecodes: [
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(2),
                 B(Mov), R(closure), R(2),
@@ -224,8 +226,10 @@ bytecodes: [
                 B(Return),
   /*   28 S> */ B(LdaConstant), U8(4),
                 B(Star4),
+                B(LdaSmi), I8(1),
+                B(Star5),
                 B(Mov), R(closure), R(3),
-                B(CallRuntime), U16(Runtime::kDynamicImportCall), R(3), U8(2),
+                B(CallRuntime), U16(Runtime::kDynamicImportCall), R(3), U8(3),
                 B(Star4),
                 B(Mov), R(0), R(3),
                 B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionAwait), R(3), U8(2),
@@ -251,12 +255,12 @@ bytecodes: [
 ]
 constant pool: [
   Smi [33],
-  Smi [76],
+  Smi [79],
   Smi [10],
   Smi [7],
   INTERNALIZED_ONE_BYTE_STRING_TYPE ["goo"],
 ]
 handlers: [
-  [26, 104, 104],
+  [26, 107, 107],
 ]
 

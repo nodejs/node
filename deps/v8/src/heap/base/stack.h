@@ -19,12 +19,6 @@ class StackVisitor {
   virtual void VisitPointer(const void* address) = 0;
 };
 
-#if defined(__has_feature)
-#if __has_feature(safe_stack)
-#define V8_USE_SAFE_STACK 1
-#endif  // __has_feature(safe_stack)
-#endif  // defined(__has_feature)
-
 // Abstraction over the stack. Supports handling of:
 // - native stack;
 // - ASAN/MSAN;

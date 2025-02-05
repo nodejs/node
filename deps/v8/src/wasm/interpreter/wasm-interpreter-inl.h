@@ -596,7 +596,7 @@ inline ValueKind WasmBytecodeGenerator::GetGlobalType(uint32_t index) const {
 }
 
 inline bool WasmBytecodeGenerator::IsMemory64() const {
-  return !module_->memories.empty() && module_->memories[0].is_memory64;
+  return !module_->memories.empty() && module_->memories[0].is_memory64();
 }
 
 inline bool WasmBytecodeGenerator::IsMultiMemory() const {

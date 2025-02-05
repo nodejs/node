@@ -125,8 +125,8 @@ RegExpMacroAssemblerLOONG64::~RegExpMacroAssemblerLOONG64() {
   fallback_label_.Unuse();
 }
 
-int RegExpMacroAssemblerLOONG64::stack_limit_slack() {
-  return RegExpStack::kStackLimitSlack;
+int RegExpMacroAssemblerLOONG64::stack_limit_slack_slot_count() {
+  return RegExpStack::kStackLimitSlackSlotCount;
 }
 
 void RegExpMacroAssemblerLOONG64::AdvanceCurrentPosition(int by) {
@@ -491,7 +491,7 @@ void RegExpMacroAssemblerLOONG64::CheckBitInTable(Handle<ByteArray> table,
     __ Add_d(a0, a0, current_character());
   }
 
-  __ Ld_bu(a0, FieldMemOperand(a0, ByteArray::kHeaderSize));
+  __ Ld_bu(a0, FieldMemOperand(a0, OFFSET_OF_DATA_START(ByteArray)));
   BranchOrBacktrack(on_bit_set, ne, a0, Operand(zero_reg));
 }
 
@@ -653,7 +653,8 @@ void RegExpMacroAssemblerLOONG64::PopRegExpBasePointer(
   StoreRegExpStackPointerToMemory(stack_pointer_out, scratch);
 }
 
-Handle<HeapObject> RegExpMacroAssemblerLOONG64::GetCode(Handle<String> source) {
+Handle<HeapObject> RegExpMacroAssemblerLOONG64::GetCode(Handle<String> source,
+                                                        RegExpFlags flags) {
   Label return_v0;
   if (0 /* todo masm_->has_exception()*/) {
     // If the code gets corrupted due to long regular expressions and lack of
@@ -1000,7 +1001,7 @@ Handle<HeapObject> RegExpMacroAssemblerLOONG64::GetCode(Handle<String> source) {
           .set_empty_source_position_table()
           .Build();
   LOG(masm_->isolate(),
-      RegExpCodeCreateEvent(Cast<AbstractCode>(code), source));
+      RegExpCodeCreateEvent(Cast<AbstractCode>(code), source, flags));
   return Cast<HeapObject>(code);
 }
 

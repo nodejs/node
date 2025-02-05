@@ -211,6 +211,9 @@ void TransitionsAccessor::InsertHelper(Isolate* isolate, DirectHandle<Map> map,
   if (array->HasPrototypeTransitions()) {
     result->SetPrototypeTransitions(array->GetPrototypeTransitions());
   }
+  if (array->HasSideStepTransitions()) {
+    result->SetSideStepTransitions(array->GetSideStepTransitions());
+  }
 
   DCHECK_NE(kNotFound, insertion_index);
   for (int i = 0; i < insertion_index; ++i) {
@@ -548,7 +551,7 @@ Tagged<Map> TransitionsAccessor::GetMigrationTarget() {
 // static
 void TransitionsAccessor::ReplaceTransitions(
     Isolate* isolate, DirectHandle<Map> map,
-    Tagged<MaybeObject> new_transitions) {
+    Tagged<UnionOf<TransitionArray, MaybeWeak<Map>>> new_transitions) {
 #if DEBUG
   if (GetEncoding(isolate, map) == kFullTransitionArray) {
     CheckNewTransitionsAreConsistent(
@@ -859,7 +862,7 @@ void TransitionArray::CreateSideStepTransitions(
   DirectHandle<WeakFixedArray> result = WeakFixedArray::New(
       isolate, SideStepTransition::kSize, AllocationType::kYoung,
       handle(SideStepTransition::Empty, isolate));
-  transitions->set(kSideStepTransitionsIndex, *result);
+  transitions->SetSideStepTransitions(*result);
 }
 
 std::ostream& operator<<(std::ostream& os, SideStepTransition::Kind sidestep) {

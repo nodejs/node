@@ -1323,9 +1323,23 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
                    .scale(icu::number::Scale::powerOfTen(2));
   }
 
-  // 16. If style is "currency", then
+  Notation notation = Notation::STANDARD;
+  // xx. Let notation be ? GetOption(options, "notation", "string", «
+  // "standard", "scientific",  "engineering", "compact" », "standard").
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, notation,
+      GetStringOption<Notation>(
+          isolate, options, "notation", service,
+          {"standard", "scientific", "engineering", "compact"},
+          {Notation::STANDARD, Notation::SCIENTIFIC, Notation::ENGINEERING,
+           Notation::COMPACT},
+          Notation::STANDARD),
+      Handle<JSNumberFormat>());
+  // xx. Set numberFormat.[[Notation]] to notation.
+
+  // xx. If style is *"currency"* and *"notation"* is *"standard"*, then
   int mnfd_default, mxfd_default;
-  if (style == Style::CURRENCY) {
+  if (style == Style::CURRENCY && notation == Notation::STANDARD) {
     // b. Let cDigits be CurrencyDigits(currency).
     int c_digits = CurrencyDigits(currency_ustr);
     // c. Let mnfdDefault be cDigits.
@@ -1346,20 +1360,6 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
       mxfd_default = 3;
     }
   }
-
-  Notation notation = Notation::STANDARD;
-  // 21. Let notation be ? GetOption(options, "notation", "string", «
-  // "standard", "scientific",  "engineering", "compact" », "standard").
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, notation,
-      GetStringOption<Notation>(
-          isolate, options, "notation", service,
-          {"standard", "scientific", "engineering", "compact"},
-          {Notation::STANDARD, Notation::SCIENTIFIC, Notation::ENGINEERING,
-           Notation::COMPACT},
-          Notation::STANDARD),
-      Handle<JSNumberFormat>());
-  // 22. Set numberFormat.[[Notation]] to notation.
 
   // 23. Perform ? SetNumberFormatDigitOptions(numberFormat, options,
   // mnfdDefault, mxfdDefault).
@@ -1486,7 +1486,7 @@ icu::number::FormattedNumber FormatDecimalString(
   string = String::Flatten(isolate, string);
   DisallowGarbageCollection no_gc;
   const String::FlatContent& flat = string->GetFlatContent(no_gc);
-  int32_t length = string->length();
+  int32_t length = static_cast<int32_t>(string->length());
   if (flat.IsOneByte()) {
     const char* char_buffer =
         reinterpret_cast<const char*>(flat.ToOneByteVector().begin());
@@ -1529,7 +1529,7 @@ Maybe<icu::number::FormattedNumber> IcuFormatNumber(
     big_int_string = String::Flatten(isolate, big_int_string);
     DisallowGarbageCollection no_gc;
     const String::FlatContent& flat = big_int_string->GetFlatContent(no_gc);
-    int32_t length = big_int_string->length();
+    int32_t length = static_cast<int32_t>(big_int_string->length());
     DCHECK(flat.IsOneByte());
     const char* char_buffer =
         reinterpret_cast<const char*>(flat.ToOneByteVector().begin());
@@ -1542,7 +1542,7 @@ Maybe<icu::number::FormattedNumber> IcuFormatNumber(
           String::Flatten(isolate, Cast<String>(numeric_obj));
       DisallowGarbageCollection no_gc;
       const String::FlatContent& flat = string->GetFlatContent(no_gc);
-      int32_t length = string->length();
+      int32_t length = static_cast<int32_t>(string->length());
       if (flat.IsOneByte()) {
         const char* char_buffer =
             reinterpret_cast<const char*>(flat.ToOneByteVector().begin());
@@ -1553,8 +1553,9 @@ Maybe<icu::number::FormattedNumber> IcuFormatNumber(
         // in two bytes string.
         // ICU accepts UTF8 string, so if the source is two-byte encoded,
         // copy into a UTF8 string via ToCString.
+        int32_t length = static_cast<int32_t>(string->length());
         formatted = number_format.formatDecimal(
-            {string->ToCString().get(), string->length()}, status);
+            {string->ToCString().get(), length}, status);
       }
     } else {
       double number = IsNaN(*numeric_obj)
@@ -1651,7 +1652,7 @@ std::pair<int, int> FindLeadingAndTrailingWhiteSpaceOrLineTerminator(
 Handle<String> TrimWhiteSpaceOrLineTerminator(Isolate* isolate,
                                               Handle<String> string) {
   string = String::Flatten(isolate, string);
-  std::pair<int, int> whitespace_offsets;
+  std::pair<int, uint32_t> whitespace_offsets;
   {
     DisallowGarbageCollection no_gc;
     String::FlatContent flat = string->GetFlatContent(no_gc);
@@ -1779,7 +1780,7 @@ Maybe<icu::Formattable> IntlMathematicalValue::ToFormattable(
   {
     DisallowGarbageCollection no_gc;
     const String::FlatContent& flat = string->GetFlatContent(no_gc);
-    int length = string->length();
+    int32_t length = static_cast<int32_t>(string->length());
     if (flat.IsOneByte()) {
       icu::Formattable result(
           {reinterpret_cast<const char*>(flat.ToOneByteVector().begin()),

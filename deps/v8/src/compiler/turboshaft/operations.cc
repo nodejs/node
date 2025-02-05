@@ -16,9 +16,9 @@
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/frame-states.h"
-#include "src/compiler/graph-visualizer.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/machine-operator.h"
+#include "src/compiler/turbofan-graph-visualizer.h"
 #include "src/compiler/turboshaft/deopt-data.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/handles/handles-inl.h"
@@ -179,6 +179,15 @@ std::ostream& operator<<(std::ostream& os, GenericUnopOp::Kind kind) {
     return os << #Name;
     GENERIC_UNOP_LIST(PRINT_KIND)
 #undef PRINT_KIND
+  }
+}
+
+std::ostream& operator<<(std::ostream& os, Word32SignHintOp::Sign sign) {
+  switch (sign) {
+    case Word32SignHintOp::Sign::kSigned:
+      return os << "Signed";
+    case Word32SignHintOp::Sign::kUnsigned:
+      return os << "Unsigned";
   }
 }
 
@@ -573,6 +582,10 @@ void ConstantOp::PrintOptions(std::ostream& os) const {
     case Kind::kRelocatableWasmCanonicalSignatureId:
       os << "relocatable wasm canonical signature ID: "
          << static_cast<int32_t>(storage.integral);
+      break;
+    case Kind::kRelocatableWasmIndirectCallTarget:
+      os << "relocatable wasm indirect call target: "
+         << static_cast<uint32_t>(storage.integral);
       break;
   }
   os << ']';
@@ -1437,6 +1450,33 @@ std::ostream& operator<<(std::ostream& os,
   }
 }
 
+void PrintMapSet(std::ostream& os, const ZoneRefSet<Map>& maps) {
+  os << "{";
+  for (size_t i = 0; i < maps.size(); ++i) {
+    if (i != 0) os << ",";
+    os << JSONEscaped(maps[i].object());
+  }
+  os << "}";
+}
+
+void CompareMapsOp::PrintOptions(std::ostream& os) const {
+  os << "[";
+  PrintMapSet(os, maps);
+  os << "]";
+}
+
+void CheckMapsOp::PrintOptions(std::ostream& os) const {
+  os << "[";
+  PrintMapSet(os, maps);
+  os << ", " << flags << ", " << feedback << "]";
+}
+
+void AssumeMapOp::PrintOptions(std::ostream& os) const {
+  os << "[";
+  PrintMapSet(os, maps);
+  os << "]";
+}
+
 std::ostream& operator<<(std::ostream& os, SameValueOp::Mode mode) {
   switch (mode) {
     case SameValueOp::Mode::kSameValue:
@@ -1511,6 +1551,7 @@ const RegisterRepresentation& RepresentationFor(wasm::ValueType type) {
       return kSimd128;
     case wasm::kVoid:
     case wasm::kRtt:
+    case wasm::kTop:
     case wasm::kBottom:
       UNREACHABLE();
   }

@@ -33,7 +33,6 @@ namespace {
 
 #if V8_ENABLE_WEBASSEMBLY && V8_TARGET_ARCH_64_BIT
 constexpr size_t kFullGuardSize32 = uint64_t{8} * GB;
-constexpr size_t kFullGuardSize64 = uint64_t{32} * GB;
 #endif
 
 std::atomic<uint32_t> next_backing_store_id_{1};
@@ -52,55 +51,29 @@ enum class AllocationStatus {
   kOtherFailure  // Failed for an unknown reason
 };
 
-base::AddressRegion GetReservedRegion(bool has_guard_regions,
-                                      bool is_wasm_memory64, void* buffer_start,
-                                      size_t byte_capacity) {
-#if V8_ENABLE_WEBASSEMBLY && V8_TARGET_ARCH_64_BIT
-  if (has_guard_regions) {
-    Address start = reinterpret_cast<Address>(buffer_start);
-    DCHECK_EQ(8, sizeof(size_t));  // only use on 64-bit
-    DCHECK_EQ(0, start % AllocatePageSize());
-    size_t guard_size = kFullGuardSize32;
-    if (is_wasm_memory64) {
-      DCHECK(v8_flags.wasm_memory64_trap_handling);
-      static_assert(kFullGuardSize64 ==
-                    2 * wasm::kV8MaxWasmMemory64Pages * wasm::kWasmPageSize);
-      DCHECK_LE(byte_capacity,
-                wasm::kV8MaxWasmMemory64Pages * wasm::kWasmPageSize);
-      guard_size =
-          1ULL << wasm::WasmMemory::GetMemory64GuardsShift(byte_capacity);
-    }
-    return base::AddressRegion(start, guard_size);
-  }
-#endif
-
-  DCHECK(!has_guard_regions);
-  return base::AddressRegion(reinterpret_cast<Address>(buffer_start),
-                             byte_capacity);
-}
-
 size_t GetReservationSize(bool has_guard_regions, size_t byte_capacity,
                           bool is_wasm_memory64) {
 #if V8_TARGET_ARCH_64_BIT && V8_ENABLE_WEBASSEMBLY
-  if (has_guard_regions) {
-    if (is_wasm_memory64) {
-      DCHECK(v8_flags.wasm_memory64_trap_handling);
-      static_assert(kFullGuardSize64 ==
-                    2 * wasm::kV8MaxWasmMemory64Pages * wasm::kWasmPageSize);
-      DCHECK_LE(byte_capacity,
-                wasm::kV8MaxWasmMemory64Pages * wasm::kWasmPageSize);
-      return 1ULL << wasm::WasmMemory::GetMemory64GuardsShift(byte_capacity);
-    } else {
-      static_assert(kFullGuardSize32 >= size_t{4} * GB);
-      DCHECK_LE(byte_capacity, size_t{4} * GB);
-      return kFullGuardSize32;
-    }
+  DCHECK_IMPLIES(is_wasm_memory64 && has_guard_regions,
+                 v8_flags.wasm_memory64_trap_handling);
+  if (has_guard_regions && !is_wasm_memory64) {
+    static_assert(kFullGuardSize32 >= size_t{4} * GB);
+    DCHECK_LE(byte_capacity, size_t{4} * GB);
+    return kFullGuardSize32;
   }
 #else
   DCHECK(!has_guard_regions);
 #endif
 
   return byte_capacity;
+}
+
+base::AddressRegion GetReservedRegion(bool has_guard_regions,
+                                      bool is_wasm_memory64, void* buffer_start,
+                                      size_t byte_capacity) {
+  return base::AddressRegion(
+      reinterpret_cast<Address>(buffer_start),
+      GetReservationSize(has_guard_regions, byte_capacity, is_wasm_memory64));
 }
 
 void RecordStatus(Isolate* isolate, AllocationStatus status) {
@@ -396,7 +369,6 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
                                  guards,            // has_guard_regions
                                  false,             // custom_deleter
                                  false);            // empty_deleter
-
   TRACE_BS(
       "BSw:alloc bs=%p mem=%p (length=%zu, capacity=%zu, reservation=%zu)\n",
       result, result->buffer_start(), byte_length, byte_capacity,
@@ -536,11 +508,6 @@ std::optional<size_t> BackingStore::GrowWasmMemoryInPlace(Isolate* isolate,
     }
   }
 
-  if (!is_shared_) {
-    // Only do per-isolate accounting for non-shared backing stores.
-    reinterpret_cast<v8::Isolate*>(isolate)
-        ->AdjustAmountOfExternalAllocatedMemory(new_length - old_length);
-  }
   return {old_length / wasm::kWasmPageSize};
 }
 
@@ -627,9 +594,6 @@ BackingStore::ResizeOrGrowResult BackingStore::ResizeInPlace(
     return kFailure;
   }
 
-  // Do per-isolate accounting for non-shared backing stores.
-  reinterpret_cast<v8::Isolate*>(isolate)
-      ->AdjustAmountOfExternalAllocatedMemory(new_byte_length - byte_length_);
   byte_length_ = new_byte_length;
   return kSuccess;
 }

@@ -319,9 +319,11 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
 
 }  // namespace
 
-void Builtins::Generate_Adaptor(MacroAssembler* masm, Address address) {
+void Builtins::Generate_Adaptor(MacroAssembler* masm,
+                                int formal_parameter_count, Address address) {
   __ Move(kJavaScriptCallExtraArg1Register, ExternalReference::Create(address));
-  __ TailCallBuiltin(Builtin::kAdaptorWithBuiltinExitFrame);
+  __ TailCallBuiltin(
+      Builtins::AdaptorWithBuiltinExitFrame(formal_parameter_count));
 }
 
 namespace {
@@ -746,8 +748,9 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ blt(&done_loop);
     __ ShiftLeftU64(r10, r6, Operand(kTaggedSizeLog2));
     __ add(scratch, r5, r10);
-    __ LoadTaggedField(scratch,
-                       FieldMemOperand(scratch, FixedArray::kHeaderSize), r0);
+    __ LoadTaggedField(
+        scratch, FieldMemOperand(scratch, OFFSET_OF_DATA_START(FixedArray)),
+        r0);
     __ Push(scratch);
     __ b(&loop);
     __ bind(&done_loop);
@@ -2151,13 +2154,13 @@ void Builtins::Generate_InterpreterEnterAtBytecode(MacroAssembler* masm) {
 
 namespace {
 void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
-                                      bool java_script_builtin,
+                                      bool javascript_builtin,
                                       bool with_result) {
   const RegisterConfiguration* config(RegisterConfiguration::Default());
   int allocatable_register_count = config->num_allocatable_general_registers();
   Register scratch = ip;
   if (with_result) {
-    if (java_script_builtin) {
+    if (javascript_builtin) {
       __ mr(scratch, r3);
     } else {
       // Overwrite the hole inserted by the deoptimizer with the return value
@@ -2172,11 +2175,11 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
   for (int i = allocatable_register_count - 1; i >= 0; --i) {
     int code = config->GetAllocatableGeneralCode(i);
     __ Pop(Register::from_code(code));
-    if (java_script_builtin && code == kJavaScriptCallArgCountRegister.code()) {
+    if (javascript_builtin && code == kJavaScriptCallArgCountRegister.code()) {
       __ SmiUntag(Register::from_code(code));
     }
   }
-  if (java_script_builtin && with_result) {
+  if (javascript_builtin && with_result) {
     // Overwrite the hole inserted by the deoptimizer with the return value from
     // the LAZY deopt point. r0 contains the arguments count, the return value
     // from LAZY is always the last argument.
@@ -2518,7 +2521,8 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     __ cmpi(r7, Operand::Zero());
     __ beq(&no_args);
     __ addi(r5, r5,
-            Operand(FixedArray::kHeaderSize - kHeapObjectTag - kTaggedSize));
+            Operand(OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag -
+                    kTaggedSize));
     __ mtctr(r7);
     __ bind(&loop);
     __ LoadTaggedField(scratch, MemOperand(r5, kTaggedSize), r0);
@@ -2731,7 +2735,8 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
   Label no_bound_arguments;
   __ LoadTaggedField(
       r5, FieldMemOperand(r4, JSBoundFunction::kBoundArgumentsOffset), r0);
-  __ SmiUntag(r7, FieldMemOperand(r5, FixedArray::kLengthOffset), SetRC, r0);
+  __ SmiUntag(r7, FieldMemOperand(r5, offsetof(FixedArray, length_)), SetRC,
+              r0);
   __ beq(&no_bound_arguments, cr0);
   {
     // ----------- S t a t e -------------
@@ -2771,7 +2776,8 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
     {
       Label loop, done;
       __ add(r3, r3, r7);  // Adjust effective number of arguments.
-      __ addi(r5, r5, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+      __ addi(r5, r5,
+              Operand(OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag));
       __ mtctr(r7);
 
       __ bind(&loop);
@@ -3053,7 +3059,8 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
       scratch);
   __ ShiftLeftU64(scratch, func_index, Operand(kTaggedSizeLog2));
   __ AddS64(vector, vector, scratch);
-  __ LoadTaggedField(vector, FieldMemOperand(vector, FixedArray::kHeaderSize),
+  __ LoadTaggedField(vector,
+                     FieldMemOperand(vector, OFFSET_OF_DATA_START(FixedArray)),
                      scratch);
   __ JumpIfSmi(vector, &allocate_vector);
   __ bind(&done);
@@ -3163,6 +3170,10 @@ void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_WasmReturnPromiseOnSuspendAsm(MacroAssembler* masm) {
+  __ Trap();
+}
+
+void Builtins::Generate_JSToWasmStressSwitchStacksAsm(MacroAssembler* masm) {
   __ Trap();
 }
 
@@ -3408,16 +3419,6 @@ void Builtins::Generate_JSToWasmWrapperAsm(MacroAssembler* masm) {
   __ blr();
 }
 
-void Builtins::Generate_WasmToOnHeapWasmToJsTrampoline(MacroAssembler* masm) {
-  // Load the code pointer from the WasmImportData and tail-call there.
-  Register import_data = wasm::kGpParamRegisters[0];
-  Register scratch = ip;
-  __ LoadTaggedField(
-      scratch, FieldMemOperand(import_data, WasmImportData::kCodeOffset), r0);
-  __ LoadU64(scratch, FieldMemOperand(scratch, Code::kInstructionStartOffset),
-             r0);
-  __ Jump(scratch);
-}
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
@@ -4204,9 +4205,11 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
     UseScratchRegisterScope temps(masm);
     Register is_iterable = temps.Acquire();
     Register one = r7;
+    __ push(one);  // Save the value from the output FrameDescription.
     __ LoadIsolateField(is_iterable, IsolateFieldId::kStackIsIterable);
     __ li(one, Operand(1));
     __ stb(one, MemOperand(is_iterable));
+    __ pop(one);  // Restore the value from the output FrameDescription.
   }
 
   {
@@ -4215,7 +4218,12 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
     __ pop(scratch);  // get continuation, leave pc on stack
     __ pop(r0);
     __ mtlr(r0);
+    Label end;
+    __ CmpU64(scratch, Operand::Zero(), r0);
+    __ beq(&end);
     __ Jump(scratch);
+    __ bind(&end);
+    __ Ret();
   }
 
   __ stop();

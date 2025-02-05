@@ -14,14 +14,18 @@
 namespace v8 {
 namespace internal {
 
-void ExternalPointerTableEntry::MakeExternalPointerEntry(
-    Address value, ExternalPointerTag tag) {
+void ExternalPointerTableEntry::MakeExternalPointerEntry(Address value,
+                                                         ExternalPointerTag tag,
+                                                         bool mark_as_alive) {
   DCHECK_EQ(0, value & kExternalPointerTagMask);
   DCHECK(tag & kExternalPointerMarkBit);
   DCHECK_NE(tag, kExternalPointerFreeEntryTag);
   DCHECK_NE(tag, kExternalPointerEvacuationEntryTag);
 
   Payload new_payload(value, tag);
+  if (V8_LIKELY(!mark_as_alive)) {
+    new_payload.ClearMarkBit();
+  }
   payload_.store(new_payload, std::memory_order_relaxed);
   MaybeUpdateRawPointerForLSan(value);
 }
@@ -214,7 +218,8 @@ ExternalPointerHandle ExternalPointerTable::AllocateAndInitializeEntry(
     Space* space, Address initial_value, ExternalPointerTag tag) {
   DCHECK(space->BelongsTo(this));
   uint32_t index = AllocateEntry(space);
-  at(index).MakeExternalPointerEntry(initial_value, tag);
+  at(index).MakeExternalPointerEntry(initial_value, tag,
+                                     space->allocate_black());
   ExternalPointerHandle handle = IndexToHandle(index);
   TakeOwnershipOfManagedResourceIfNecessary(initial_value, handle, tag);
   return handle;

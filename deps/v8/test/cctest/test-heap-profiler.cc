@@ -4221,7 +4221,7 @@ TEST(WeakReference) {
       handle(i::Cast<i::JSFunction>(*obj)->raw_feedback_cell(), i_isolate));
 
   // Create a Code object.
-  i::Assembler assm(i::AssemblerOptions{});
+  i::Assembler assm(i_isolate->allocator(), i::AssemblerOptions{});
   assm.nop();  // supported on all architectures
   i::CodeDesc desc;
   assm.GetCode(i_isolate, &desc);
@@ -4230,12 +4230,16 @@ TEST(WeakReference) {
           .Build();
   CHECK(IsCode(*code));
 
+#ifdef V8_ENABLE_LEAPTIERING
+  USE(fv);
+#else
   // Manually inlined version of FeedbackVector::SetOptimizedCode (needed due
   // to the FOR_TESTING code kind).
   fv->set_maybe_optimized_code(i::MakeWeak(code->wrapper()));
   fv->set_flags(
       i::FeedbackVector::MaybeHasTurbofanCodeBit::encode(true) |
       i::FeedbackVector::TieringStateBits::encode(i::TieringState::kNone));
+#endif  // V8_ENABLE_LEAPTIERING
 
   v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();

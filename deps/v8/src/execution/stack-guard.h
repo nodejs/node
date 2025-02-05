@@ -34,10 +34,9 @@ class V8_EXPORT_PRIVATE V8_NODISCARD StackGuard final {
   // the simulator's stack instead of using {limit}.
   void SetStackLimit(uintptr_t limit);
 
-  // Similar to the method above, with one important difference: With Wasm
-  // stack switching, we always want to switch to {limit}, even when running on
-  // the simulator, since we might be switching to a Wasm continuation that's
-  // not on the main stack.
+  // Try to compare and swap the given jslimit without the ExecutionAccess lock.
+  // Expects potential concurrent writes of the interrupt limit, and of the
+  // interrupt limit only.
   void SetStackLimitForStackSwitching(uintptr_t limit);
 
   // The simulator uses a separate JS stack. Limits on the JS stack might have
@@ -201,7 +200,8 @@ class V8_EXPORT_PRIVATE V8_NODISCARD StackGuard final {
     uintptr_t real_climit_ = kIllegalLimit;
 
     // jslimit_ and climit_ can be read without any lock.
-    // Writing requires the ExecutionAccess lock.
+    // Writing requires the ExecutionAccess lock, or may be updated with a
+    // strong compare-and-swap (e.g. for stack-switching).
     base::AtomicWord jslimit_ = kIllegalLimit;
     base::AtomicWord climit_ = kIllegalLimit;
 

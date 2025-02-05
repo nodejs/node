@@ -349,13 +349,13 @@ template <typename Char>
 MaybeHandle<String> UnescapeSlow(Isolate* isolate, Handle<String> string,
                                  int start_index) {
   bool one_byte = true;
-  int length = string->length();
+  uint32_t length = string->length();
 
   int unescaped_length = 0;
   {
     DisallowGarbageCollection no_gc;
     base::Vector<const Char> vector = string->GetCharVector<Char>(no_gc);
-    for (int i = start_index; i < length; unescaped_length++) {
+    for (uint32_t i = start_index; i < length; unescaped_length++) {
       int step;
       if (UnescapeChar(vector, i, length, &step) >
           String::kMaxOneByteCharCode) {
@@ -365,7 +365,7 @@ MaybeHandle<String> UnescapeSlow(Isolate* isolate, Handle<String> string,
     }
   }
 
-  DCHECK(start_index < length);
+  DCHECK_LT(start_index, length);
   Handle<String> first_part =
       isolate->factory()->NewProperSubString(string, 0, start_index);
 
@@ -378,7 +378,7 @@ MaybeHandle<String> UnescapeSlow(Isolate* isolate, Handle<String> string,
                                         .ToHandleChecked();
     DisallowGarbageCollection no_gc;
     base::Vector<const Char> vector = string->GetCharVector<Char>(no_gc);
-    for (int i = start_index; i < length; dest_position++) {
+    for (uint32_t i = start_index; i < length; dest_position++) {
       int step;
       dest->SeqOneByteStringSet(dest_position,
                                 UnescapeChar(vector, i, length, &step));
@@ -391,7 +391,7 @@ MaybeHandle<String> UnescapeSlow(Isolate* isolate, Handle<String> string,
                                         .ToHandleChecked();
     DisallowGarbageCollection no_gc;
     base::Vector<const Char> vector = string->GetCharVector<Char>(no_gc);
-    for (int i = start_index; i < length; dest_position++) {
+    for (uint32_t i = start_index; i < length; dest_position++) {
       int step;
       dest->SeqTwoByteStringSet(dest_position,
                                 UnescapeChar(vector, i, length, &step));
@@ -438,13 +438,13 @@ template <typename Char>
 static MaybeHandle<String> EscapePrivate(Isolate* isolate,
                                          Handle<String> string) {
   DCHECK(string->IsFlat());
-  int escaped_length = 0;
-  int length = string->length();
+  uint32_t escaped_length = 0;
+  uint32_t length = string->length();
 
   {
     DisallowGarbageCollection no_gc;
     base::Vector<const Char> vector = string->GetCharVector<Char>(no_gc);
-    for (int i = 0; i < length; i++) {
+    for (uint32_t i = 0; i < length; i++) {
       uint16_t c = vector[i];
       if (c >= 256) {
         escaped_length += 6;
@@ -471,7 +471,7 @@ static MaybeHandle<String> EscapePrivate(Isolate* isolate,
   {
     DisallowGarbageCollection no_gc;
     base::Vector<const Char> vector = string->GetCharVector<Char>(no_gc);
-    for (int i = 0; i < length; i++) {
+    for (uint32_t i = 0; i < length; i++) {
       uint16_t c = vector[i];
       if (c >= 256) {
         dest->SeqOneByteStringSet(dest_position, '%');

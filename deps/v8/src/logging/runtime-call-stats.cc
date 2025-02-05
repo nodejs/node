@@ -141,7 +141,7 @@ RuntimeCallStats::RuntimeCallStats(ThreadType thread_type)
 #define CALL_RUNTIME_COUNTER(name, nargs, ressize) #name,
       FOR_EACH_INTRINSIC(CALL_RUNTIME_COUNTER)  //
 #undef CALL_RUNTIME_COUNTER
-#define CALL_BUILTIN_COUNTER(name) #name,
+#define CALL_BUILTIN_COUNTER(name, Argc) #name,
       BUILTIN_LIST_C(CALL_BUILTIN_COUNTER)  //
 #undef CALL_BUILTIN_COUNTER
 #define CALL_BUILTIN_COUNTER(name) "API_" #name,

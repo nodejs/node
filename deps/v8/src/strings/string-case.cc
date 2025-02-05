@@ -22,10 +22,10 @@ const word_t kOneInEveryByte = kWordTAllBitsSet / 0xFF;
 const word_t kAsciiMask = kOneInEveryByte << 7;
 
 #ifdef DEBUG
-bool CheckFastAsciiConvert(char* dst, const char* src, int length, bool changed,
-                           bool is_to_lower) {
+bool CheckFastAsciiConvert(char* dst, const char* src, uint32_t length,
+                           bool changed, bool is_to_lower) {
   bool expected_changed = false;
-  for (int i = 0; i < length; i++) {
+  for (uint32_t i = 0; i < length; i++) {
     if (dst[i] == src[i]) continue;
     expected_changed = true;
     if (is_to_lower) {
@@ -59,8 +59,8 @@ static inline word_t AsciiRangeMask(word_t w, char m, char n) {
 }
 
 template <bool is_lower>
-int FastAsciiConvert(char* dst, const char* src, int length,
-                     bool* changed_out) {
+uint32_t FastAsciiConvert(char* dst, const char* src, uint32_t length,
+                          bool* changed_out) {
 #ifdef DEBUG
   char* saved_dst = dst;
 #endif
@@ -127,10 +127,10 @@ int FastAsciiConvert(char* dst, const char* src, int length,
   return length;
 }
 
-template int FastAsciiConvert<false>(char* dst, const char* src, int length,
-                                     bool* changed_out);
-template int FastAsciiConvert<true>(char* dst, const char* src, int length,
-                                    bool* changed_out);
+template uint32_t FastAsciiConvert<false>(char* dst, const char* src,
+                                          uint32_t length, bool* changed_out);
+template uint32_t FastAsciiConvert<true>(char* dst, const char* src,
+                                         uint32_t length, bool* changed_out);
 
 }  // namespace internal
 }  // namespace v8

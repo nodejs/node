@@ -770,7 +770,6 @@ static void RunWasmModuleGlobalInitTest(ValueType type, CType expected) {
   {
     v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
-    TestSignatures sigs;
 
     ValueType types[] = {type};
     FunctionSig sig(1, 0, types);

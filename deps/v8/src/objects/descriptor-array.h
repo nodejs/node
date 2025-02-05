@@ -232,6 +232,11 @@ class DescriptorArray
   inline void SetDetails(InternalIndex descriptor_number,
                          PropertyDetails details);
 
+  V8_INLINE InternalIndex BinarySearch(Tagged<Name> name,
+                                       int number_of_own_descriptors);
+  V8_INLINE InternalIndex LinearSearch(Tagged<Name> name,
+                                       int number_of_own_descriptors);
+
   // Transfer a complete descriptor from the src descriptor array to this
   // descriptor array.
   void CopyFrom(InternalIndex index, Tagged<DescriptorArray> src);

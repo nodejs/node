@@ -442,22 +442,34 @@ class V8_EXPORT_PRIVATE Linkage : public NON_EXPORTED_BASE(ZoneObject) {
 
   // A special {Parameter} index for Stub Calls that represents context.
   static int GetStubCallContextParamIndex(int parameter_count) {
-    return parameter_count + 0;  // Parameter (arity + 0) is special.
+    return parameter_count + 0;
   }
 
   // A special {Parameter} index for JSCalls that represents the new target.
   static constexpr int GetJSCallNewTargetParamIndex(int parameter_count) {
-    return parameter_count + 0;  // Parameter (arity + 0) is special.
+    return parameter_count + 0;
   }
 
   // A special {Parameter} index for JSCalls that represents the argument count.
   static constexpr int GetJSCallArgCountParamIndex(int parameter_count) {
-    return parameter_count + 1;  // Parameter (arity + 1) is special.
+    return GetJSCallNewTargetParamIndex(parameter_count) + 1;
   }
+
+#ifdef V8_ENABLE_LEAPTIERING
+  // A special {Parameter} index for JSCalls that represents the dispatch
+  // handle.
+  static constexpr int GetJSCallDispatchHandleParamIndex(int parameter_count) {
+    return GetJSCallArgCountParamIndex(parameter_count) + 1;
+  }
+#endif
 
   // A special {Parameter} index for JSCalls that represents the context.
   static constexpr int GetJSCallContextParamIndex(int parameter_count) {
-    return parameter_count + 2;  // Parameter (arity + 2) is special.
+#ifdef V8_ENABLE_LEAPTIERING
+    return GetJSCallDispatchHandleParamIndex(parameter_count) + 1;
+#else
+    return GetJSCallArgCountParamIndex(parameter_count) + 1;
+#endif
   }
 
   // A special {Parameter} index for JSCalls that represents the closure.

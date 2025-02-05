@@ -63,6 +63,7 @@ namespace internal {
   V(NotAnArrayIndex, "not an array index")                                     \
   V(NotASmi, "not a Smi")                                                      \
   V(NotAString, "not a String")                                                \
+  V(NotAStringWrapper, "not a string wrapper")                                 \
   V(NotAStringOrStringWrapper, "not a String or a string wrapper")             \
   V(NotASymbol, "not a Symbol")                                                \
   V(NotDetectableReceiver, "not a detectable receiver")                        \

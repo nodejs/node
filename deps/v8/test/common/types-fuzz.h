@@ -42,7 +42,8 @@ namespace compiler {
 class Types {
  public:
   Types(Zone* zone, Isolate* isolate, v8::base::RandomNumberGenerator* rng)
-      : zone_(zone),
+      : integers(isolate),
+        zone_(zone),
         js_heap_broker_(isolate, zone),
         js_heap_broker_scope_(&js_heap_broker_, isolate, zone),
         current_broker_(&js_heap_broker_),
@@ -53,14 +54,8 @@ class Types {
     PROPER_BITSET_TYPE_LIST(DECLARE_TYPE)
 #undef DECLARE_TYPE
 
-    // PersistentHandlesScope currently requires an active handle before it can
-    // be opened and they can't be nested.
-    // TODO(v8:13897): Remove once PersistentHandlesScopes can be opened
-    // uncontionally.
     if (!PersistentHandlesScope::IsActive(isolate)) {
-      DirectHandle<i::Object> dummy(
-          ReadOnlyRoots(isolate->heap()).empty_string(), isolate);
-      persistent_scope_ = std::make_unique<PersistentHandlesScope>(isolate);
+      persistent_scope_.emplace(isolate);
     }
 
     SignedSmall = Type::SignedSmall();
@@ -121,8 +116,8 @@ class Types {
     values.push_back(
         CanonicalHandle(isolate->factory()->NewStringFromStaticChars(
             "Ask not for whom the typer types; it types for thee.")));
-    for (ValueVector::iterator it = values.begin(); it != values.end(); ++it) {
-      types.push_back(Type::Constant(js_heap_broker(), *it, zone));
+    for (IndirectHandle<i::Object> obj : values) {
+      types.push_back(Type::Constant(js_heap_broker(), obj, zone));
     }
 
     integers.push_back(isolate->factory()->NewNumber(-V8_INFINITY));
@@ -144,7 +139,7 @@ class Types {
   }
 
   ~Types() {
-    if (persistent_scope_ != nullptr) {
+    if (persistent_scope_) {
       persistent_scope_->Detach();
     }
   }
@@ -165,12 +160,10 @@ class Types {
 
   Type Integer;
 
-  using TypeVector = std::vector<Type>;
-  using ValueVector = std::vector<Handle<i::Object> >;
-
-  TypeVector types;
-  ValueVector values;
-  ValueVector integers;  // "Integer" values used for range limits.
+  std::vector<Type> types;
+  std::vector<IndirectHandle<i::Object>> values;
+  DirectHandleVector<i::Object>
+      integers;  // "Integer" values used for range limits.
 
   Type Constant(Handle<i::Object> value) {
     return Type::Constant(js_heap_broker(), value, zone_);
@@ -259,7 +252,7 @@ class Types {
   Zone* zone_;
   JSHeapBroker js_heap_broker_;
   JSHeapBrokerScopeForTesting js_heap_broker_scope_;
-  std::unique_ptr<PersistentHandlesScope> persistent_scope_;
+  std::optional<PersistentHandlesScope> persistent_scope_;
   CurrentHeapBrokerScope current_broker_;
   v8::base::RandomNumberGenerator* rng_;
 };

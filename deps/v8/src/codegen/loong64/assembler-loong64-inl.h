@@ -9,6 +9,8 @@
 #include "src/codegen/flush-instruction-cache.h"
 #include "src/codegen/loong64/assembler-loong64.h"
 #include "src/debug/debug.h"
+#include "src/heap/heap-layout-inl.h"
+#include "src/heap/heap-layout.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8 {
@@ -33,10 +35,12 @@ int64_t Operand::immediate() const {
 void WritableRelocInfo::apply(intptr_t delta) {
   if (IsInternalReference(rmode_)) {
     // Absolute code pointer inside code object moves with the code object.
-    Assembler::RelocateInternalReference(rmode_, pc_, delta);
+    intptr_t internal_ref = ReadUnalignedValue<intptr_t>(pc_);
+    internal_ref += delta;  // Relocate entry.
+    jit_allocation_.WriteUnalignedValue<intptr_t>(pc_, internal_ref);
   } else {
     DCHECK(IsRelativeCodeTarget(rmode_) || IsNearBuiltinEntry(rmode_));
-    Assembler::RelocateRelativeReference(rmode_, pc_, delta);
+    Assembler::RelocateRelativeReference(rmode_, pc_, delta, &jit_allocation_);
   }
 }
 
@@ -68,13 +72,6 @@ Address RelocInfo::target_address_address() {
 Address RelocInfo::constant_pool_entry_address() { UNREACHABLE(); }
 
 int RelocInfo::target_address_size() { return Assembler::kSpecialTargetSize; }
-
-void Assembler::deserialization_set_special_target_at(
-    Address instruction_payload, Tagged<Code> code, Address target) {
-  set_target_address_at(instruction_payload,
-                        !code.is_null() ? code->constant_pool() : kNullAddress,
-                        target);
-}
 
 int Assembler::deserialization_special_target_size(
     Address instruction_payload) {
@@ -145,15 +142,16 @@ void WritableRelocInfo::set_target_object(Tagged<HeapObject> target,
     // We must not compress pointers to objects outside of the main pointer
     // compression cage as we wouldn't be able to decompress them with the
     // correct cage base.
-    DCHECK_IMPLIES(V8_ENABLE_SANDBOX_BOOL, !IsTrustedSpaceObject(target));
-    DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !IsCodeSpaceObject(target));
+    DCHECK_IMPLIES(V8_ENABLE_SANDBOX_BOOL, !HeapLayout::InTrustedSpace(target));
+    DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
+                   !HeapLayout::InCodeSpace(target));
     Assembler::set_target_compressed_address_at(
         pc_, constant_pool_,
-        V8HeapCompressionScheme::CompressObject(target.ptr()),
+        V8HeapCompressionScheme::CompressObject(target.ptr()), &jit_allocation_,
         icache_flush_mode);
   } else {
     Assembler::set_target_address_at(pc_, constant_pool_, target.ptr(),
-                                     icache_flush_mode);
+                                     &jit_allocation_, icache_flush_mode);
   }
 }
 
@@ -166,7 +164,19 @@ void WritableRelocInfo::set_target_external_reference(
     Address target, ICacheFlushMode icache_flush_mode) {
   DCHECK(rmode_ == RelocInfo::EXTERNAL_REFERENCE);
   Assembler::set_target_address_at(pc_, constant_pool_, target,
-                                   icache_flush_mode);
+                                   &jit_allocation_, icache_flush_mode);
+}
+
+Address RelocInfo::wasm_indirect_call_target() const {
+  DCHECK(rmode_ == WASM_INDIRECT_CALL_TARGET);
+  return Assembler::target_address_at(pc_, constant_pool_);
+}
+
+void WritableRelocInfo::set_wasm_indirect_call_target(
+    Address target, ICacheFlushMode icache_flush_mode) {
+  DCHECK(rmode_ == RelocInfo::WASM_INDIRECT_CALL_TARGET);
+  Assembler::set_target_address_at(pc_, constant_pool_, target,
+                                   &jit_allocation_, icache_flush_mode);
 }
 
 Address RelocInfo::target_internal_reference() {
@@ -209,10 +219,11 @@ uint32_t Assembler::uint32_constant_at(Address pc, Address constant_pool) {
 
 void Assembler::set_uint32_constant_at(Address pc, Address constant_pool,
                                        uint32_t new_constant,
+                                       WritableJitAllocation* jit_allocation,
                                        ICacheFlushMode icache_flush_mode) {
   // set_target_compressed_value_at function could update 32-bit value loaded
   // by lu12i.w and ori instructions.
-  Assembler::set_target_compressed_value_at(pc, new_constant,
+  Assembler::set_target_compressed_value_at(pc, new_constant, jit_allocation,
                                             icache_flush_mode);
 }
 

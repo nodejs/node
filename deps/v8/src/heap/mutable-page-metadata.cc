@@ -20,19 +20,6 @@
 namespace v8 {
 namespace internal {
 
-void MutablePageMetadata::DiscardUnusedMemory(Address addr, size_t size) {
-  base::AddressRegion memory_area =
-      MemoryAllocator::ComputeDiscardMemoryArea(addr, size);
-  if (memory_area.size() != 0) {
-    MemoryAllocator* memory_allocator = heap_->memory_allocator();
-    v8::PageAllocator* page_allocator =
-        memory_allocator->page_allocator(owner_identity());
-    DiscardSealedMemoryScope discard_scope("Discard unused memory");
-    CHECK(page_allocator->DiscardSystemPages(
-        reinterpret_cast<void*>(memory_area.begin()), memory_area.size()));
-  }
-}
-
 MutablePageMetadata::MutablePageMetadata(Heap* heap, BaseSpace* space,
                                          size_t chunk_size, Address area_start,
                                          Address area_end,
@@ -54,6 +41,8 @@ MutablePageMetadata::MutablePageMetadata(Heap* heap, BaseSpace* space,
     // We do not track active system pages for large pages.
     active_system_pages_ = nullptr;
   }
+
+  DCHECK_EQ(page_size == PageSize::kLarge, IsLargePage());
 
 #ifdef DEBUG
   ValidateOffsets(this);

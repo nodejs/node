@@ -40,6 +40,7 @@
 #include "src/compiler/turboshaft/variable-reducer.h"
 #include "src/flags/flags.h"
 #include "src/heap/factory-inl.h"
+#include "src/objects/js-objects.h"
 #include "src/objects/map.h"
 #include "src/zone/zone-containers.h"
 
@@ -173,31 +174,7 @@ struct GraphBuilder {
     ProcessDeoptInput(builder, frame_state.context(), MachineType::AnyTagged());
     ProcessStateValues(builder, frame_state.locals());
     Node* stack = frame_state.stack();
-    if (v8_flags.turboshaft_frontend) {
-      // If we run graph building before Turbofan's SimplifiedLowering, the
-      // `stack` input of frame states is still a single deopt input, rather
-      // than a StateValues node.
-      if (stack->opcode() == IrOpcode::kHeapConstant &&
-          *HeapConstantOf(stack->op()) ==
-              ReadOnlyRoots(isolate->heap()).optimized_out()) {
-        builder->AddUnusedRegister();
-      } else {
-        const Operation& accumulator_op = __ output_graph().Get(Map(stack));
-        const RegisterRepresentation accumulator_rep =
-            accumulator_op.outputs_rep()[0];
-        MachineType type;
-        switch (accumulator_rep.value()) {
-          case RegisterRepresentation::Tagged():
-            type = MachineType::AnyTagged();
-            break;
-          default:
-            UNIMPLEMENTED();
-        }
-        ProcessDeoptInput(builder, stack, type);
-      }
-    } else {
-      ProcessStateValues(builder, stack);
-    }
+    ProcessStateValues(builder, stack);
   }
 
   Block::Kind BlockKind(BasicBlock* block) {
@@ -1789,6 +1766,13 @@ OpIndex GraphBuilder::Process(
     case IrOpcode::kStringLength:
       return __ StringLength(Map(node->InputAt(0)));
 
+    case IrOpcode::kStringWrapperLength: {
+      V<String> str =
+          __ LoadField<String>(Map<JSPrimitiveWrapper>(node->InputAt(0)),
+                               AccessBuilder::ForJSPrimitiveWrapperValue());
+      return __ StringLength(str);
+    }
+
     case IrOpcode::kStringIndexOf:
       return __ StringIndexOf(Map(node->InputAt(0)), Map(node->InputAt(1)),
                               Map(node->InputAt(2)));
@@ -2000,6 +1984,156 @@ OpIndex GraphBuilder::Process(
         slow_call_arguments.push_back(Map(n.SlowCallArgument(i)));
       }
 
+      auto convert_fallback_return = [this](Variable value,
+                                            CFunctionInfo::Int64Representation
+                                                int64_rep,
+                                            CTypeInfo::Type return_type,
+                                            V<Object> result) {
+#define ELSE_UNREACHABLE                                    \
+  ELSE {                                                    \
+    __ RuntimeAbort(AbortReason::kFastCallFallbackInvalid); \
+    __ Unreachable();                                       \
+  }
+        switch (return_type) {
+          case CTypeInfo::Type::kVoid:
+            __ SetVariable(value, __ UndefinedConstant());
+            return;
+          case CTypeInfo::Type::kBool:
+            // Check that the return value is actually a boolean.
+            IF (LIKELY(__ Word32BitwiseOr(
+                    __ TaggedEqual(result, __ TrueConstant()),
+                    __ TaggedEqual(result, __ FalseConstant())))) {
+              __ SetVariable(
+                  value, __ ConvertJSPrimitiveToUntagged(
+                             V<Boolean>::Cast(result),
+                             ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kBit,
+                             ConvertJSPrimitiveToUntaggedOp::InputAssumptions::
+                                 kBoolean));
+            }
+            ELSE_UNREACHABLE
+            return;
+          case CTypeInfo::Type::kInt32:
+            IF (LIKELY(__ ObjectIsNumber(result))) {
+              __ SetVariable(
+                  value,
+                  __ ConvertJSPrimitiveToUntagged(
+                      V<Number>::Cast(result),
+                      ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kInt32,
+                      ConvertJSPrimitiveToUntaggedOp::InputAssumptions::
+                          kNumberOrOddball));
+            }
+            ELSE_UNREACHABLE
+            return;
+          case CTypeInfo::Type::kUint32:
+            IF (LIKELY(__ ObjectIsNumber(result))) {
+              __ SetVariable(
+                  value,
+                  __ ConvertJSPrimitiveToUntagged(
+                      V<Number>::Cast(result),
+                      ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kUint32,
+                      ConvertJSPrimitiveToUntaggedOp::InputAssumptions::
+                          kNumberOrOddball));
+            }
+            ELSE_UNREACHABLE
+            return;
+          case CTypeInfo::Type::kInt64:
+            if (int64_rep == CFunctionInfo::Int64Representation::kBigInt) {
+              IF (LIKELY(__ ObjectIsBigInt(result))) {
+                __ SetVariable(
+                    value,
+                    __ TruncateJSPrimitiveToUntagged(
+                        V<BigInt>::Cast(result),
+                        TruncateJSPrimitiveToUntaggedOp::UntaggedKind::kInt64,
+                        TruncateJSPrimitiveToUntaggedOp::InputAssumptions::
+                            kBigInt));
+              }
+              ELSE_UNREACHABLE
+            } else {
+              DCHECK_EQ(int64_rep, CFunctionInfo::Int64Representation::kNumber);
+              IF (LIKELY(__ ObjectIsNumber(result))) {
+                V<turboshaft::Tuple<Word64, Word32>> tuple =
+                    __ TryTruncateFloat64ToInt64(
+                        V<Float64>::Cast(__ ConvertJSPrimitiveToUntagged(
+                            V<Number>::Cast(result),
+                            ConvertJSPrimitiveToUntaggedOp::UntaggedKind::
+                                kFloat64,
+                            ConvertJSPrimitiveToUntaggedOp::InputAssumptions::
+                                kNumberOrOddball)));
+                IF (__ Word32Equal(__ template Projection<1>(tuple),
+                                   TryChangeOp::kSuccessValue)) {
+                  __ SetVariable(value, __ ChangeInt64ToFloat64(
+                                            __ template Projection<0>(tuple)));
+                }
+                ELSE_UNREACHABLE
+              }
+              ELSE_UNREACHABLE
+            }
+            return;
+          case CTypeInfo::Type::kUint64:
+            if (int64_rep == CFunctionInfo::Int64Representation::kBigInt) {
+              IF (LIKELY(__ ObjectIsBigInt(result))) {
+                __ SetVariable(
+                    value,
+                    __ TruncateJSPrimitiveToUntagged(
+                        V<BigInt>::Cast(result),
+                        // Truncation from BigInt to int64 and uint64 is the
+                        // same.
+                        TruncateJSPrimitiveToUntaggedOp::UntaggedKind::kInt64,
+                        TruncateJSPrimitiveToUntaggedOp::InputAssumptions::
+                            kBigInt));
+              }
+              ELSE_UNREACHABLE
+            } else {
+              DCHECK_EQ(int64_rep, CFunctionInfo::Int64Representation::kNumber);
+              IF (LIKELY(__ ObjectIsNumber(result))) {
+                V<turboshaft::Tuple<Word64, Word32>> tuple =
+                    __ TryTruncateFloat64ToUint64(
+                        V<Float64>::Cast(__ ConvertJSPrimitiveToUntagged(
+                            V<Number>::Cast(result),
+                            ConvertJSPrimitiveToUntaggedOp::UntaggedKind::
+                                kFloat64,
+                            ConvertJSPrimitiveToUntaggedOp::InputAssumptions::
+                                kNumberOrOddball)));
+                IF (__ Word32Equal(__ template Projection<1>(tuple),
+                                   TryChangeOp::kSuccessValue)) {
+                  __ SetVariable(value, __ ChangeUint64ToFloat64(
+                                            __ template Projection<0>(tuple)));
+                }
+                ELSE_UNREACHABLE
+              }
+              ELSE_UNREACHABLE
+            }
+            return;
+          case CTypeInfo::Type::kFloat32:
+          case CTypeInfo::Type::kFloat64:
+            IF (LIKELY(__ ObjectIsNumber(result))) {
+              V<Float64> f = V<Float64>::Cast(__ ConvertJSPrimitiveToUntagged(
+                  V<Number>::Cast(result),
+                  ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kFloat64,
+                  ConvertJSPrimitiveToUntaggedOp::InputAssumptions::
+                      kNumberOrOddball));
+              if (return_type == CTypeInfo::Type::kFloat32) {
+                __ SetVariable(value, __ TruncateFloat64ToFloat32(f));
+              } else {
+                __ SetVariable(value, f);
+              }
+            }
+            ELSE_UNREACHABLE
+            return;
+          case CTypeInfo::Type::kPointer:
+            __ SetVariable(value, result);
+            return;
+          case CTypeInfo::Type::kAny:
+          case CTypeInfo::Type::kSeqOneByteString:
+          case CTypeInfo::Type::kV8Value:
+          case CTypeInfo::Type::kApiObject:
+          case CTypeInfo::Type::kUint8:
+            UNREACHABLE();
+        }
+
+#undef ELSE_UNREACHABLE
+      };
+
       std::optional<decltype(assembler)::CatchScope> catch_scope;
       if (is_final_control) {
         Block* catch_block = Map(block->SuccessorAt(1));
@@ -2013,13 +2147,29 @@ OpIndex GraphBuilder::Process(
         resolution_result =
             fast_api_call::ResolveOverloads(c_functions, c_arg_count);
         if (!resolution_result.is_valid()) {
-          auto result = __ Call(
+          V<Object> fallback_result = V<Object>::Cast(__ Call(
               slow_call_callee, dominating_frame_state,
               base::VectorOf(slow_call_arguments),
               TSCallDescriptor::Create(params.descriptor(), CanThrow::kYes,
-                                       LazyDeoptOnThrow::kNo, __ graph_zone()));
-          __ Unreachable();
-          return result;
+                                       LazyDeoptOnThrow::kNo,
+                                       __ graph_zone())));
+          Variable result =
+              __ NewVariable(RegisterRepresentation::FromCTypeInfo(
+                  c_functions[0].signature->ReturnInfo(),
+                  c_functions[0].signature->GetInt64Representation()));
+          convert_fallback_return(
+              result, c_functions[0].signature->GetInt64Representation(),
+              c_functions[0].signature->ReturnInfo().GetType(),
+              fallback_result);
+          V<Any> value = __ GetVariable(result);
+          if (is_final_control) {
+            // The `__ Call()` before has already created exceptional
+            // control flow and bound a new block for the success case. So we
+            // can just `Goto` the block that Turbofan designated as the
+            // `IfSuccess` successor.
+            __ Goto(Map(block->SuccessorAt(0)));
+          }
+          return value;
         }
       }
 
@@ -2037,36 +2187,17 @@ OpIndex GraphBuilder::Process(
 
       // There is one return in addition to the return value of the C function,
       // which indicates if a fast API call actually happened.
-      CTypeInfo return_type = params.c_functions()[0].signature->ReturnInfo();
-      bool return_is_void = return_type.GetType() == CTypeInfo::Type::kVoid;
+      CTypeInfo return_type = parameters->c_signature()->ReturnInfo();
       int return_count = 2;
-
-      const base::Vector<RegisterRepresentation> out_reps =
-          graph_zone->AllocateVector<RegisterRepresentation>(return_count);
-      out_reps[0] = RegisterRepresentation::Word32();
-
-      if (return_is_void ||
-          return_type.GetType() == CTypeInfo::Type::kPointer) {
-        out_reps[1] = RegisterRepresentation::Tagged();
-      } else if (return_type.GetType() == CTypeInfo::Type::kInt64 ||
-                 return_type.GetType() == CTypeInfo::Type::kUint64) {
-        if (params.c_functions()[0].signature->GetInt64Representation() ==
-            CFunctionInfo::Int64Representation::kBigInt) {
-          out_reps[1] = RegisterRepresentation::Word64();
-        } else {
-          DCHECK_EQ(params.c_functions()[0].signature->GetInt64Representation(),
-                    CFunctionInfo::Int64Representation::kNumber);
-          out_reps[1] = RegisterRepresentation::Float64();
-        }
-      } else {
-        out_reps[1] = RegisterRepresentation::FromMachineType(
-            MachineType::TypeForCType(return_type));
-      }
-
-      Label<Object> done(this);
 
       // Allocate the out_reps vector in the zone, so that it lives through the
       // whole compilation.
+      const base::Vector<RegisterRepresentation> out_reps =
+          graph_zone->AllocateVector<RegisterRepresentation>(return_count);
+      out_reps[0] = RegisterRepresentation::Word32();
+      out_reps[1] = RegisterRepresentation::FromCTypeInfo(
+          return_type, parameters->c_signature()->GetInt64Representation());
+
       V<Tuple<Word32, Any>> fast_call_result =
           __ FastApiCall(dominating_frame_state, data_argument, context,
                          base::VectorOf(arguments), parameters, out_reps);
@@ -2074,37 +2205,28 @@ OpIndex GraphBuilder::Process(
       V<Word32> result_state = __ template Projection<0>(fast_call_result);
       V<Any> result_value =
           __ template Projection<1>(fast_call_result, out_reps[1]);
+      Variable result = __ NewVariable(out_reps[1]);
+      __ SetVariable(result, result_value);
 
       IF (UNLIKELY(
               __ Word32Equal(result_state, FastApiCallOp::kFailureValue))) {
-        // We need to generate a fallback (both fast and slow call) in case:
-        // 1) the generated code might fail, in case e.g. a Smi was passed where
-        // a JSObject was expected and an error must be thrown or
-        // 2) the embedder requested fallback possibility via providing options
-        // arg. None of the above usually holds true for Wasm functions with
+        // We need to generate a fallback (both fast and slow call) in case
+        // the generated code might fail, in case e.g. a Smi was passed where
+        // a JSObject was expected and an error must be thrown.
+        // None of this usually holds true for Wasm functions with
         // primitive types only, so we avoid generating an extra branch here.
 
-        __ Call(
+        V<Object> fallback_result = V<Object>::Cast(__ Call(
             slow_call_callee, dominating_frame_state,
             base::VectorOf(slow_call_arguments),
             TSCallDescriptor::Create(params.descriptor(), CanThrow::kYes,
-                                     LazyDeoptOnThrow::kNo, __ graph_zone()));
+                                     LazyDeoptOnThrow::kNo, __ graph_zone())));
 
-        // Currently we cannot handle return values of regular API calls here.
-        // Typically, regular API calls are only used when a parameter is
-        // invalid, so that the correct exception can be thrown by the regular
-        // API call. However, when a string is passed in the wrong format, the
-        // string is still a valid value, and the regular API call will succeed,
-        // even though a fast API call was not possible.
-        // TODO(ahaas): This issue could be solved by converting the return
-        // value of `__ CALL()` from Tagged to the correct type, and by
-        // introducing a `Variable` of the correct type to use the result of the
-        // regular API call and not unconditionally the return value of the fast
-        // API call.
-        if (!return_is_void) {
-          __ Unreachable();
-        }
+        convert_fallback_return(
+            result, parameters->c_signature()->GetInt64Representation(),
+            return_type.GetType(), fallback_result);
       }
+      V<Any> value = __ GetVariable(result);
       if (is_final_control) {
         // The `__ FastApiCall()` before has already created exceptional control
         // flow and bound a new block for the success case. So we can just
@@ -2112,7 +2234,7 @@ OpIndex GraphBuilder::Process(
         // successor.
         __ Goto(Map(block->SuccessorAt(0)));
       }
-      return result_value;
+      return value;
     }
 
     case IrOpcode::kRuntimeAbort:

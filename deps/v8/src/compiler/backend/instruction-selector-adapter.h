@@ -104,9 +104,9 @@ struct TurbofanAdapter {
     bool is_compressed_heap_object() const {
       return node_->opcode() == IrOpcode::kCompressedHeapConstant;
     }
-    Handle<HeapObject> heap_object_value() const {
+    IndirectHandle<HeapObject> heap_object_value() const {
       DCHECK(is_heap_object() || is_compressed_heap_object());
-      return OpParameter<Handle<HeapObject>>(node_->op());
+      return OpParameter<IndirectHandle<HeapObject>>(node_->op());
     }
     bool is_number() const {
       return node_->opcode() == IrOpcode::kNumberConstant;
@@ -713,7 +713,7 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
     bool is_compressed_heap_object() const {
       return op_->kind == Kind::kCompressedHeapObject;
     }
-    Handle<HeapObject> heap_object_value() const {
+    IndirectHandle<HeapObject> heap_object_value() const {
       DCHECK(is_heap_object() || is_compressed_heap_object());
       return op_->handle();
     }

@@ -60,7 +60,8 @@ bool RootsTable::IsRootHandleLocation(Address* handle_location,
 }
 
 template <typename T>
-bool RootsTable::IsRootHandle(Handle<T> handle, RootIndex* index) const {
+bool RootsTable::IsRootHandle(IndirectHandle<T> handle,
+                              RootIndex* index) const {
   // This can't use handle.location() because it is called from places
   // where handle dereferencing is disallowed. Comparing the handle's
   // location against the root handle list is safe though.
@@ -90,10 +91,10 @@ ReadOnlyRoots::ReadOnlyRoots(LocalIsolate* isolate)
   Tagged<Type> ReadOnlyRoots::unchecked_##name() const {            \
     return UncheckedCast<Type>(object_at(RootIndex::k##CamelName)); \
   }                                                                 \
-  Handle<Type> ReadOnlyRoots::name##_handle() const {               \
+  IndirectHandle<Type> ReadOnlyRoots::name##_handle() const {       \
     DCHECK(CheckType_##name());                                     \
     Address* location = GetLocation(RootIndex::k##CamelName);       \
-    return Handle<Type>(location);                                  \
+    return IndirectHandle<Type>(location);                          \
   }
 
 READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
@@ -102,9 +103,9 @@ READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
 Tagged<Boolean> ReadOnlyRoots::boolean_value(bool value) const {
   return value ? Tagged<Boolean>(true_value()) : Tagged<Boolean>(false_value());
 }
-Handle<Boolean> ReadOnlyRoots::boolean_value_handle(bool value) const {
-  return value ? Handle<Boolean>(true_value_handle())
-               : Handle<Boolean>(false_value_handle());
+IndirectHandle<Boolean> ReadOnlyRoots::boolean_value_handle(bool value) const {
+  return value ? IndirectHandle<Boolean>(true_value_handle())
+               : IndirectHandle<Boolean>(false_value_handle());
 }
 
 Address* ReadOnlyRoots::GetLocation(RootIndex root_index) const {
@@ -138,8 +139,8 @@ void ReadOnlyRoots::VerifyNameForProtectorsPages() const {
            PageMetadata::FromAddress(last_name_for_protector()));
 }
 
-Handle<Object> ReadOnlyRoots::handle_at(RootIndex root_index) const {
-  return Handle<Object>(GetLocation(root_index));
+IndirectHandle<Object> ReadOnlyRoots::handle_at(RootIndex root_index) const {
+  return IndirectHandle<Object>(GetLocation(root_index));
 }
 
 Tagged<Object> ReadOnlyRoots::object_at(RootIndex root_index) const {

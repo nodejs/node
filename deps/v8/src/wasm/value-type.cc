@@ -10,12 +10,24 @@
 namespace v8::internal::wasm {
 
 std::optional<wasm::ValueKind> WasmReturnTypeFromSignature(
-    const FunctionSig* wasm_signature) {
+    const CanonicalSig* wasm_signature) {
   if (wasm_signature->return_count() == 0) return {};
 
   DCHECK_EQ(wasm_signature->return_count(), 1);
-  ValueType return_type = wasm_signature->GetReturn(0);
+  CanonicalValueType return_type = wasm_signature->GetReturn(0);
   return {return_type.kind()};
+}
+
+bool EquivalentNumericSig(const CanonicalSig* a, const FunctionSig* b) {
+  if (a->parameter_count() != b->parameter_count()) return false;
+  if (a->return_count() != b->return_count()) return false;
+  base::Vector<const CanonicalValueType> a_types = a->all();
+  base::Vector<const ValueType> b_types = b->all();
+  for (size_t i = 0; i < a_types.size(); i++) {
+    if (!a_types[i].is_numeric()) return false;
+    if (a_types[i].kind() != b_types[i].kind()) return false;
+  }
+  return true;
 }
 
 #if DEBUG
@@ -65,7 +77,7 @@ const wasm::FunctionSig* ReplaceTypeInSig(Zone* zone,
     }
   }
 
-  return builder.Build();
+  return builder.Get();
 }
 }  // namespace
 

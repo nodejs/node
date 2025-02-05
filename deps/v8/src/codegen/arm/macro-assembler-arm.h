@@ -345,9 +345,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                       JumpMode jump_mode = JumpMode::kJump);
 
   // Convenience functions to call/jmp to the code of a JSFunction object.
-  void CallJSFunction(Register function_object);
+  void CallJSFunction(Register function_object, uint16_t argument_count);
   void JumpJSFunction(Register function_object,
                       JumpMode jump_mode = JumpMode::kJump);
+  void ResolveWasmCodePointer(Register target);
+  void CallWasmCodePointer(Register target,
+                           CallJumpMode call_jump_mode = CallJumpMode::kCall);
 
   // Generates an instruction sequence s.t. the return address points to the
   // instruction following the call.

@@ -668,7 +668,7 @@ int SwissNameDictionary::Hash() { return ReadField<int32_t>(PrefixOffset()); }
 // static
 constexpr int SwissNameDictionary::MaxCapacity() {
   int const_size =
-      DataTableStartOffset() + ByteArray::kHeaderSize +
+      DataTableStartOffset() + sizeof(ByteArray::Header) +
       // Size for present and deleted element count at max capacity:
       2 * sizeof(uint32_t);
   int per_entry_size =

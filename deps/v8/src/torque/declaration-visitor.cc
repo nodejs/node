@@ -85,14 +85,29 @@ Builtin* DeclarationVisitor::CreateBuiltin(BuiltinDeclaration* decl,
       Error("Return type of JavaScript-linkage builtins has to be JSAny.")
           .Position(decl->return_type->pos);
     }
-    for (size_t i = signature.implicit_count;
-         i < signature.parameter_types.types.size(); ++i) {
-      const Type* parameter_type = signature.parameter_types.types[i];
-      if (!TypeOracle::GetJSAnyType()->IsSubtypeOf(parameter_type)) {
-        Error(
-            "Parameters of JavaScript-linkage builtins have to be a supertype "
-            "of JSAny.")
-            .Position(decl->parameters.types[i]->pos);
+    // Validate the parameter types. In general, for JS builtins the parameters
+    // must all be tagged values (JSAny). However, we currently allow declaring
+    // "extern javascript" builtins with any parameter types. The reason is
+    // that those are typically used for tailcalls, in which case we typically
+    // need to supply the implicit parameters of the JS calling convention
+    // (target, receiver, argc, etc.). It would probablu be nicer if we could
+    // instead declare these parameters as js-implicit (like we do for
+    // torque-defined javascript builtins) and then allow explicitly supplying
+    // the implicit arguments during tailscalls. It's unclear though if that's
+    // worth the effort. In particular, calls and tailcalls to javascript
+    // builtins will emit CSA::CallJSBuiltin and CSA::TailCallJSBuiltin calls
+    // which will validate the parameter types at C++ compile time.
+    if (decl->kind != AstNode::Kind::kExternalBuiltinDeclaration) {
+      for (size_t i = signature.implicit_count;
+           i < signature.parameter_types.types.size(); ++i) {
+        const Type* parameter_type = signature.parameter_types.types[i];
+        if (!TypeOracle::GetJSAnyType()->IsSubtypeOf(parameter_type)) {
+          Error(
+              "Parameters of JavaScript-linkage builtins have to be a "
+              "supertype "
+              "of JSAny.")
+              .Position(decl->parameters.types[i]->pos);
+        }
       }
     }
   }

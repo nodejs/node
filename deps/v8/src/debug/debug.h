@@ -621,7 +621,7 @@ class V8_EXPORT_PRIVATE Debug {
   class TemporaryObjectsTracker;
   std::unique_ptr<TemporaryObjectsTracker> temporary_objects_;
 
-  Handle<RegExpMatchInfo> regexp_match_info_;
+  IndirectHandle<RegExpMatchInfo> regexp_match_info_;
 
   // Per-thread data.
   class ThreadLocal {
@@ -702,14 +702,15 @@ class V8_EXPORT_PRIVATE Debug {
 
 #if V8_ENABLE_WEBASSEMBLY
   // This is a global handle, lazily initialized.
-  Handle<WeakArrayList> wasm_scripts_with_break_points_;
+  IndirectHandle<WeakArrayList> wasm_scripts_with_break_points_;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   // This is a part of machinery for allowing to ignore side effects for one
   // call to this API function. See Function::NewInstanceWithSideEffectType().
   // Since the FunctionTemplateInfo is allowlisted right before the call to
   // constructor there must be never more than one such object at a time.
-  Handle<FunctionTemplateInfo> ignore_side_effects_for_function_template_info_;
+  IndirectHandle<FunctionTemplateInfo>
+      ignore_side_effects_for_function_template_info_;
 
   Isolate* isolate_;
 

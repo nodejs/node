@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --wasm-deopt --allow-natives-syntax --turboshaft-wasm
-// Flags: --experimental-wasm-inlining --liftoff
+// Flags: --wasm-inlining --liftoff
 // Flags: --trace-deopt --trace-deopt-verbose
 
 d8.file.execute("test/mjsunit/mjsunit.js");

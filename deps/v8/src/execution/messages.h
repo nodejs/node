@@ -30,6 +30,7 @@ class LookupIterator;
 class PrimitiveHeapObject;
 class SharedFunctionInfo;
 class SourceInfo;
+class StackTraceInfo;
 class WasmInstanceObject;
 
 class V8_EXPORT_PRIVATE MessageLocation {
@@ -168,7 +169,9 @@ class MessageHandler {
   // Returns a message object for the API to use.
   V8_EXPORT_PRIVATE static Handle<JSMessageObject> MakeMessageObject(
       Isolate* isolate, MessageTemplate type, const MessageLocation* location,
-      DirectHandle<Object> argument, DirectHandle<FixedArray> stack_frames);
+      DirectHandle<Object> argument,
+      DirectHandle<StackTraceInfo> stack_trace =
+          DirectHandle<StackTraceInfo>::null());
 
   // Report a formatted message (needs JS allocation).
   V8_EXPORT_PRIVATE static void ReportMessage(

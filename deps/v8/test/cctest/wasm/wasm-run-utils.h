@@ -58,8 +58,6 @@ static_assert(
                  std::underlying_type<TestExecutionTier>::type>::value,
     "enum types match");
 
-enum TestingModuleMemoryType { kMemory32, kMemory64 };
-
 using base::ReadLittleEndianValue;
 using base::WriteLittleEndianValue;
 
@@ -113,15 +111,15 @@ class TestingModuleBuilder {
   ~TestingModuleBuilder();
 
   uint8_t* AddMemory(uint32_t size, SharedFlag shared = SharedFlag::kNotShared,
-                     TestingModuleMemoryType = kMemory32,
+                     AddressType address_type = wasm::AddressType::kI32,
                      std::optional<size_t> max_size = {});
 
   size_t CodeTableLength() const { return native_module_->num_functions(); }
 
   template <typename T>
   T* AddMemoryElems(uint32_t count,
-                    TestingModuleMemoryType mem_type = kMemory32) {
-    AddMemory(count * sizeof(T), SharedFlag::kNotShared, mem_type);
+                    AddressType address_type = wasm::AddressType::kI32) {
+    AddMemory(count * sizeof(T), SharedFlag::kNotShared, address_type);
     return raw_mem_start<T>();
   }
 
@@ -132,15 +130,18 @@ class TestingModuleBuilder {
   }
 
   // TODO(14034): Allow selecting type finality.
-  uint8_t AddSignature(const FunctionSig* sig) {
+  ModuleTypeIndex AddSignature(const FunctionSig* sig) {
     const bool is_final = true;
     const bool is_shared = false;
     test_module_->AddSignatureForTesting(sig, kNoSuperType, is_final,
                                          is_shared);
     GetTypeCanonicalizer()->AddRecursiveGroup(test_module_.get(), 1);
     size_t size = test_module_->types.size();
+    // The {ModuleTypeIndex} can handle more, but users of this class
+    // often assume that each generated index fits into a byte, so
+    // ensure that here.
     CHECK_GT(127, size);
-    return static_cast<uint8_t>(size - 1);
+    return ModuleTypeIndex{static_cast<uint32_t>(size - 1)};
   }
 
   uint32_t mem_size() const {
@@ -306,11 +307,6 @@ class TestingModuleBuilder {
   Handle<WasmInstanceObject> InitInstanceObject();
 };
 
-void TestBuildingGraph(Zone* zone, compiler::JSGraph* jsgraph,
-                       CompilationEnv* env, const FunctionSig* sig,
-                       compiler::SourcePositionTable* source_position_table,
-                       const uint8_t* start, const uint8_t* end);
-
 // A helper for compiling wasm functions for testing.
 // It contains the internal state for compilation (i.e. TurboFan graph).
 class WasmFunctionCompiler {
@@ -319,7 +315,7 @@ class WasmFunctionCompiler {
 
   Isolate* isolate() { return builder_->isolate(); }
   uint32_t function_index() { return function_->func_index; }
-  uint32_t sig_index() { return function_->sig_index; }
+  ModuleTypeIndex sig_index() { return function_->sig_index; }
 
   void Build(std::initializer_list<const uint8_t> bytes) {
     Build(base::VectorOf(bytes));
@@ -333,7 +329,9 @@ class WasmFunctionCompiler {
     return result;
   }
 
-  void SetSigIndex(int sig_index) { function_->sig_index = sig_index; }
+  void SetSigIndex(ModuleTypeIndex sig_index) {
+    function_->sig_index = sig_index;
+  }
 
  private:
   friend class WasmRunnerBase;
@@ -387,7 +385,7 @@ class WasmRunnerBase : public InitializedHandleScope {
                                     const char* name = nullptr) {
     functions_.emplace_back(
         new WasmFunctionCompiler(&zone_, sig, &builder_, name));
-    uint8_t sig_index = builder().AddSignature(sig);
+    ModuleTypeIndex sig_index = builder().AddSignature(sig);
     functions_.back()->SetSigIndex(sig_index);
     return *functions_.back();
   }
@@ -405,8 +403,14 @@ class WasmRunnerBase : public InitializedHandleScope {
   void SwitchToDebug() { builder_.SwitchToDebug(); }
 
   template <typename ReturnType, typename... ParamTypes>
-  FunctionSig* CreateSig() {
+  const FunctionSig* CreateSig() {
     return WasmRunnerBase::CreateSig<ReturnType, ParamTypes...>(&zone_);
+  }
+
+  static const CanonicalSig* CanonicalizeSig(const FunctionSig* sig) {
+    // TODO(clemensb): Make this a single function call.
+    CanonicalTypeIndex sig_id = GetTypeCanonicalizer()->AddRecursiveGroup(sig);
+    return GetTypeCanonicalizer()->LookupFunctionSignature(sig_id);
   }
 
   template <typename ReturnType, typename... ParamTypes>

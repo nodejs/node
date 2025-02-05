@@ -377,11 +377,11 @@ void ValueSerializer::WriteTwoByteString(base::Vector<const base::uc16> chars) {
 
 void ValueSerializer::WriteBigIntContents(Tagged<BigInt> bigint) {
   uint32_t bitfield = bigint->GetBitfieldForSerialization();
-  int bytelength = BigInt::DigitsByteLengthForBitfield(bitfield);
+  size_t bytelength = BigInt::DigitsByteLengthForBitfield(bitfield);
   WriteVarint<uint32_t>(bitfield);
   uint8_t* dest;
   if (ReserveRawBytes(bytelength).To(&dest)) {
-    bigint->SerializeDigits(dest);
+    bigint->SerializeDigits(dest, bytelength);
   }
 }
 
@@ -1695,7 +1695,7 @@ MaybeHandle<String> ValueDeserializer::ReadString() {
 MaybeHandle<BigInt> ValueDeserializer::ReadBigInt() {
   uint32_t bitfield;
   if (!ReadVarint<uint32_t>().To(&bitfield)) return MaybeHandle<BigInt>();
-  int bytelength = BigInt::DigitsByteLengthForBitfield(bitfield);
+  size_t bytelength = BigInt::DigitsByteLengthForBitfield(bitfield);
   base::Vector<const uint8_t> digits_storage;
   if (!ReadRawBytes(bytelength).To(&digits_storage)) {
     return MaybeHandle<BigInt>();
@@ -2333,7 +2333,8 @@ MaybeHandle<WasmMemoryObject> ValueDeserializer::ReadWasmMemory() {
   uint8_t memory64_byte;
   if (!ReadByte(&memory64_byte)) return {};
   if (memory64_byte > 1) return {};
-  bool is_memory64 = memory64_byte;
+  wasm::AddressType address_type =
+      memory64_byte ? wasm::AddressType::kI64 : wasm::AddressType::kI32;
 
   Handle<Object> buffer_object;
   if (!ReadObject().ToHandle(&buffer_object)) return {};
@@ -2343,9 +2344,7 @@ MaybeHandle<WasmMemoryObject> ValueDeserializer::ReadWasmMemory() {
   if (!buffer->is_shared()) return {};
 
   Handle<WasmMemoryObject> result =
-      WasmMemoryObject::New(isolate_, buffer, maximum_pages,
-                            is_memory64 ? WasmMemoryFlag::kWasmMemory64
-                                        : WasmMemoryFlag::kWasmMemory32);
+      WasmMemoryObject::New(isolate_, buffer, maximum_pages, address_type);
 
   AddObjectWithID(id, result);
   return result;

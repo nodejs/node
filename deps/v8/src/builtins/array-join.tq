@@ -48,7 +48,7 @@ LoadJoinElement<array::FastDoubleElements>(
   const fixedDoubleArray: FixedDoubleArray =
       UnsafeCast<FixedDoubleArray>(array.elements);
   const element: float64 =
-      fixedDoubleArray.floats[k].Value() otherwise return kEmptyString;
+      fixedDoubleArray.values[k].Value() otherwise return kEmptyString;
   return AllocateHeapNumberWithValue(element);
 }
 

@@ -86,6 +86,8 @@
 !/third_party/inspector_protocol
 !/third_party/jsoncpp
 /third_party/jsoncpp/source
+!/third_party/llvm-libc
+/third_party/llvm-libc/src
 !/third_party/re2
 /third_party/re2/src
 !/third_party/test262-harness

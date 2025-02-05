@@ -185,7 +185,7 @@ void WriteJsCode(const CodeTraceContext& ctx,
     case CodeKind::MAGLEV:
       tier = V8JsCode::TIER_MAGLEV;
       break;
-    case CodeKind::TURBOFAN:
+    case CodeKind::TURBOFAN_JS:
       tier = V8JsCode::TIER_TURBOFAN;
       break;
 
@@ -259,7 +259,7 @@ void PerfettoLogger::CodeCreateEvent(CodeTag tag,
   V8InternalCode::Type type = V8InternalCode::TYPE_UNKNOWN;
   switch (code->kind()) {
     case CodeKind::REGEXP:
-      RegExpCodeCreateEvent(abstract_code, Handle<String>());
+      RegExpCodeCreateEvent(abstract_code, Handle<String>(), {});
       break;
     case CodeKind::BYTECODE_HANDLER:
       type = V8InternalCode::TYPE_BYTECODE_HANDLER;
@@ -289,7 +289,7 @@ void PerfettoLogger::CodeCreateEvent(CodeTag tag,
     case CodeKind::INTERPRETED_FUNCTION:
     case CodeKind::BASELINE:
     case CodeKind::MAGLEV:
-    case CodeKind::TURBOFAN:
+    case CodeKind::TURBOFAN_JS:
       UNREACHABLE();
   }
 
@@ -384,7 +384,8 @@ void PerfettoLogger::GetterCallbackEvent(Handle<Name> name,
 void PerfettoLogger::SetterCallbackEvent(Handle<Name> name,
                                          Address entry_point) {}
 void PerfettoLogger::RegExpCodeCreateEvent(Handle<AbstractCode> abstract_code,
-                                           Handle<String> pattern) {
+                                           Handle<String> pattern,
+                                           RegExpFlags flags) {
   DisallowGarbageCollection no_gc;
   DCHECK(IsCode(*abstract_code));
   Tagged<Code> code = abstract_code->GetCode();

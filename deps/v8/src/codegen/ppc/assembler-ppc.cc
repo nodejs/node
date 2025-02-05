@@ -201,7 +201,7 @@ void Assembler::AllocateAndInstallRequestedHeapNumbers(LocalIsolate* isolate) {
             request.heap_number());
     Address pc = reinterpret_cast<Address>(buffer_start_) + request.offset();
     Address constant_pool = kNullAddress;
-    set_target_address_at(pc, constant_pool, object.address(),
+    set_target_address_at(pc, constant_pool, object.address(), nullptr,
                           SKIP_ICACHE_FLUSH);
   }
 }
@@ -2157,7 +2157,7 @@ void Assembler::EmitRelocations() {
       intptr_t pos = static_cast<intptr_t>(target_address_at(pc, kNullAddress));
       set_target_address_at(pc, 0,
                             reinterpret_cast<Address>(buffer_start_) + pos,
-                            SKIP_ICACHE_FLUSH);
+                            nullptr, SKIP_ICACHE_FLUSH);
     }
 
     reloc_info_writer.Write(&rinfo);

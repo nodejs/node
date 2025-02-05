@@ -10,18 +10,19 @@
 #include "src/heap/base/active-system-pages.h"
 #include "src/heap/list.h"
 #include "src/heap/marking.h"
+#include "src/heap/memory-chunk.h"
 #include "src/heap/progress-bar.h"
 #include "src/heap/slot-set.h"
+#include "src/objects/instruction-stream.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
-class MarkingBitmap;
 class FreeListCategory;
 class Heap;
-class TypedSlotsSet;
-class SlotSet;
+class MarkingBitmap;
 class MemoryChunkMetadata;
+class SlotSet;
+class TypedSlotsSet;
 
 enum RememberedSetType {
   OLD_TO_NEW,
@@ -104,21 +105,59 @@ class V8_EXPORT_PRIVATE MemoryChunkLayout {
 
   // Code pages have padding on the first page for code alignment, so the
   // ObjectStartOffset will not be page aligned.
-  static intptr_t ObjectStartOffsetInCodePage();
-  static size_t AllocatableMemoryInCodePage();
-  static size_t ObjectStartOffsetInDataPage();
-  static size_t AllocatableMemoryInDataPage();
-  static intptr_t ObjectStartOffsetInReadOnlyPage();
-  static size_t AllocatableMemoryInReadOnlyPage();
-  static size_t ObjectStartOffsetInMemoryChunk(AllocationSpace space);
-  static size_t AllocatableMemoryInMemoryChunk(AllocationSpace space);
+  static constexpr intptr_t ObjectStartOffsetInCodePage() {
+    // The instruction stream data (so after the header) should be aligned to
+    // kCodeAlignment.
+    return RoundUp(sizeof(MemoryChunk) + InstructionStream::kHeaderSize,
+                   kCodeAlignment) -
+           InstructionStream::kHeaderSize;
+  }
 
-  static int MaxRegularCodeObjectSize();
+  static constexpr size_t AllocatableMemoryInCodePage() {
+    return kRegularPageSize - ObjectStartOffsetInCodePage();
+  }
+
+  static constexpr size_t ObjectStartOffsetInDataPage() {
+    return RoundUp(int{kMemoryChunkHeaderSize},
+                   ALIGN_TO_ALLOCATION_ALIGNMENT(kDoubleSize));
+  }
+
+  static constexpr size_t AllocatableMemoryInDataPage() {
+    constexpr size_t kAllocatableMemoryInDataPage =
+        kRegularPageSize - ObjectStartOffsetInDataPage();
+    static_assert(kMaxRegularHeapObjectSize <= kAllocatableMemoryInDataPage);
+    return kAllocatableMemoryInDataPage;
+  }
+
+  static constexpr size_t ObjectStartOffsetInMemoryChunk(
+      AllocationSpace space) {
+    if (IsAnyCodeSpace(space)) {
+      return ObjectStartOffsetInCodePage();
+    }
+    // Read-only pages use the same layout as regular pages.
+    return ObjectStartOffsetInDataPage();
+  }
+
+  static constexpr size_t AllocatableMemoryInMemoryChunk(
+      AllocationSpace space) {
+    DCHECK_NE(space, CODE_LO_SPACE);
+    if (space == CODE_SPACE) {
+      return AllocatableMemoryInCodePage();
+    }
+    // Read-only pages use the same layout as regular pages.
+    return AllocatableMemoryInDataPage();
+  }
+
+  static constexpr int MaxRegularCodeObjectSize() {
+    constexpr int kMaxRegularCodeObjectSize = static_cast<int>(
+        RoundDown(AllocatableMemoryInCodePage() / 2, kTaggedSize));
+    static_assert(kMaxRegularCodeObjectSize <= kMaxRegularHeapObjectSize);
+    return kMaxRegularCodeObjectSize;
+  }
 
   static_assert(kMemoryChunkHeaderSize % alignof(size_t) == 0);
 };
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #endif  // V8_HEAP_MEMORY_CHUNK_LAYOUT_H_

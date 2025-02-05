@@ -139,11 +139,9 @@ RegExpMacroAssemblerPPC::~RegExpMacroAssemblerPPC() {
   fallback_label_.Unuse();
 }
 
-
-int RegExpMacroAssemblerPPC::stack_limit_slack() {
-  return RegExpStack::kStackLimitSlack;
+int RegExpMacroAssemblerPPC::stack_limit_slack_slot_count() {
+  return RegExpStack::kStackLimitSlackSlotCount;
 }
-
 
 void RegExpMacroAssemblerPPC::AdvanceCurrentPosition(int by) {
   if (by != 0) {
@@ -554,10 +552,10 @@ void RegExpMacroAssemblerPPC::CheckBitInTable(Handle<ByteArray> table,
   __ mov(r3, Operand(table));
   if (mode_ != LATIN1 || kTableMask != String::kMaxOneByteCharCode) {
     __ andi(r4, current_character(), Operand(kTableSize - 1));
-    __ addi(r4, r4, Operand(ByteArray::kHeaderSize - kHeapObjectTag));
+    __ addi(r4, r4, Operand(OFFSET_OF_DATA_START(ByteArray) - kHeapObjectTag));
   } else {
     __ addi(r4, current_character(),
-            Operand(ByteArray::kHeaderSize - kHeapObjectTag));
+            Operand(OFFSET_OF_DATA_START(ByteArray) - kHeapObjectTag));
   }
   __ lbzx(r3, MemOperand(r3, r4));
   __ cmpi(r3, Operand::Zero());
@@ -733,7 +731,8 @@ void RegExpMacroAssemblerPPC::PopRegExpBasePointer(Register stack_pointer_out,
   StoreRegExpStackPointerToMemory(stack_pointer_out, scratch);
 }
 
-Handle<HeapObject> RegExpMacroAssemblerPPC::GetCode(Handle<String> source) {
+Handle<HeapObject> RegExpMacroAssemblerPPC::GetCode(Handle<String> source,
+                                                    RegExpFlags flags) {
   Label return_r3;
 
   if (masm_->has_exception()) {
@@ -1087,10 +1086,9 @@ Handle<HeapObject> RegExpMacroAssemblerPPC::GetCode(Handle<String> source) {
           .set_empty_source_position_table()
           .Build();
   PROFILE(masm_->isolate(),
-          RegExpCodeCreateEvent(Cast<AbstractCode>(code), source));
+          RegExpCodeCreateEvent(Cast<AbstractCode>(code), source, flags));
   return Cast<HeapObject>(code);
 }
-
 
 void RegExpMacroAssemblerPPC::GoTo(Label* to) { BranchOrBacktrack(al, to); }
 

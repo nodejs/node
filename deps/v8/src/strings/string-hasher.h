@@ -22,13 +22,13 @@ class V8_EXPORT_PRIVATE StringHasher final {
  public:
   StringHasher() = delete;
   template <typename char_t>
-  static inline uint32_t HashSequentialString(const char_t* chars, int length,
-                                              uint64_t seed);
+  static inline uint32_t HashSequentialString(const char_t* chars,
+                                              uint32_t length, uint64_t seed);
 
   // Calculated hash value for a string consisting of 1 to
   // String::kMaxArrayIndexSize digits with no leading zeros (except "0").
   // value is represented decimal value.
-  static uint32_t MakeArrayIndexHash(uint32_t value, int length);
+  static uint32_t MakeArrayIndexHash(uint32_t value, uint32_t length);
 
   // No string is allowed to have a hash of zero.  That value is reserved
   // for internal properties.  If the hash calculation yields zero then we
@@ -39,7 +39,7 @@ class V8_EXPORT_PRIVATE StringHasher final {
   V8_INLINE static uint32_t AddCharacterCore(uint32_t running_hash, uint16_t c);
   V8_INLINE static uint32_t GetHashCore(uint32_t running_hash);
 
-  static inline uint32_t GetTrivialHash(int length);
+  static inline uint32_t GetTrivialHash(uint32_t length);
 };
 
 // Useful for std containers that require something ()'able.

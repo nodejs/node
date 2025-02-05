@@ -63,16 +63,22 @@ void JSDispatchTable::InitializePreAllocatedEntry(Space* space,
                                 parameter_count, space->allocate_black());
 }
 
-uint32_t JSDispatchTable::Sweep(Space* space, Counters* counters) {
-  uint32_t num_live_entries = GenericSweep(space);
-  counters->js_dispatch_table_entries_count()->AddSample(num_live_entries);
-  return num_live_entries;
+#ifdef DEBUG
+bool JSDispatchTable::IsMarked(JSDispatchHandle handle) {
+  return at(HandleToIndex(handle)).IsMarked();
 }
 
-#ifdef DEBUG
 // Static
 std::atomic<bool> JSDispatchTable::initialized_ = false;
 #endif  // DEBUG
+
+void JSDispatchTable::PrintEntry(JSDispatchHandle handle) {
+  uint32_t index = HandleToIndex(handle);
+  i::PrintF("JSDispatchEntry @ %p\n", &at(index));
+  i::PrintF("* code 0x%lx\n", GetCode(handle).address());
+  i::PrintF("* params %d\n", at(HandleToIndex(handle)).GetParameterCount());
+  i::PrintF("* entrypoint 0x%lx\n", GetEntrypoint(handle));
+}
 
 // Static
 base::LeakyObject<JSDispatchTable> JSDispatchTable::instance_;

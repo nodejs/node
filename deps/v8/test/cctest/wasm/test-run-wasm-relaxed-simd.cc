@@ -855,6 +855,59 @@ TEST(RunWasmTurbofan_F64x4RelaxedMax) {
                          compiler::IrOpcode::kF64x4RelaxedMax);
 }
 
+template <typename IntType>
+void I32x8RelaxedTruncF32x8RevecTest(WasmOpcode trunc_op,
+                                     compiler::IrOpcode::Value revec_opcode) {
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+
+  WasmRunner<int32_t, float> r(TestExecutionTier::kTurbofan);
+  IntType* memory = r.builder().AddMemoryElems<IntType>(8);
+  uint8_t param1 = 0;
+
+  TSSimd256VerifyScope ts_scope(
+      r.zone(), TSSimd256VerifyScope::VerifyHaveOpcode<
+                    compiler::turboshaft::Opcode::kSimd256Unary>);
+  BUILD_AND_CHECK_REVEC_NODE(
+      r, revec_opcode,
+      WASM_SIMD_STORE_MEM(
+          WASM_ZERO,
+          WASM_SIMD_UNOP(trunc_op, WASM_SIMD_UNOP(kExprF32x4Splat,
+                                                  WASM_LOCAL_GET(param1)))),
+      WASM_SIMD_STORE_MEM_OFFSET(
+          16, WASM_ZERO,
+          WASM_SIMD_UNOP(trunc_op, WASM_SIMD_UNOP(kExprF32x4Splat,
+                                                  WASM_LOCAL_GET(param1)))),
+      WASM_ONE);
+
+  for (float x : compiler::ValueHelper::GetVector<float>()) {
+    if (ShouldSkipTestingConstant<IntType>(x)) continue;
+    CHECK_EQ(1, r.Call(x));
+    IntType expected = base::checked_cast<IntType>(x);
+    for (int i = 0; i < 8; i++) {
+      CHECK_EQ(expected, memory[i]);
+    }
+  }
+}
+
+TEST(RunWasmTurbofan_I32x8RelaxedTruncF32x8U) {
+  if (!v8_flags.turboshaft_wasm ||
+      !v8_flags.turboshaft_wasm_instruction_selection_staged)
+    return;
+  I32x8RelaxedTruncF32x8RevecTest<uint32_t>(
+      kExprI32x4RelaxedTruncF32x4U,
+      compiler::IrOpcode::kI32x8RelaxedTruncF32x8U);
+}
+
+TEST(RunWasmTurbofan_I32x8RelaxedTruncF32x8S) {
+  if (!v8_flags.turboshaft_wasm ||
+      !v8_flags.turboshaft_wasm_instruction_selection_staged)
+    return;
+  I32x8RelaxedTruncF32x8RevecTest<int32_t>(
+      kExprI32x4RelaxedTruncF32x4S,
+      compiler::IrOpcode::kI32x8RelaxedTruncF32x8S);
+}
+
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 }  // namespace v8::internal::wasm

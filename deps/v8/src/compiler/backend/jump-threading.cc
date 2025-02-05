@@ -266,11 +266,14 @@ void JumpThreading::ApplyForwarding(Zone* local_zone,
     bool skip = block_rpo != RpoNumber::FromInt(0) && result_rpo != block_rpo;
 
     if (result_rpo != block_rpo) {
-      // We need the handler information to be propagated, so that branch
-      // targets are annotated as necessary for control flow integrity
-      // checks (when enabled).
+      // We need the handler and switch target information to be propagated, so
+      // that branch targets are annotated as necessary for control flow
+      // integrity checks (when enabled).
       if (code->InstructionBlockAt(block_rpo)->IsHandler()) {
         code->InstructionBlockAt(result_rpo)->MarkHandler();
+      }
+      if (code->InstructionBlockAt(block_rpo)->IsSwitchTarget()) {
+        code->InstructionBlockAt(result_rpo)->set_switch_target(true);
       }
     }
 

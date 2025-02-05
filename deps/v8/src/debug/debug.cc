@@ -258,7 +258,7 @@ Tagged<JSGeneratorObject> BreakLocation::GetGeneratorObjectForSuspendedFrame(
   DCHECK_GE(generator_obj_reg_index_, 0);
 
   Tagged<Object> generator_obj =
-      UnoptimizedFrame::cast(frame)->ReadInterpreterRegister(
+      UnoptimizedJSFrame::cast(frame)->ReadInterpreterRegister(
           generator_obj_reg_index_);
 
   return Cast<JSGeneratorObject>(generator_obj);
@@ -1195,8 +1195,9 @@ void Debug::RecordWasmScriptWithBreakpoints(Handle<Script> script) {
       }
     }
   }
-  DirectHandle<WeakArrayList> new_list = WeakArrayList::Append(
-      isolate_, wasm_scripts_with_break_points_, MaybeObjectHandle{script});
+  DirectHandle<WeakArrayList> new_list =
+      WeakArrayList::Append(isolate_, wasm_scripts_with_break_points_,
+                            MaybeObjectDirectHandle{script});
   if (*new_list != *wasm_scripts_with_break_points_) {
     isolate_->global_handles()->Destroy(
         wasm_scripts_with_break_points_.location());
@@ -1443,7 +1444,7 @@ void Debug::PrepareStep(StepAction step_action) {
   Handle<SharedFunctionInfo> shared;
   int current_frame_count = CurrentFrameCount();
 
-  if (frame->is_java_script()) {
+  if (frame->is_javascript()) {
     JavaScriptFrame* js_frame = JavaScriptFrame::cast(frame);
     DCHECK(IsJSFunction(js_frame->function()));
 
@@ -1971,7 +1972,8 @@ void FindBreakablePositions(Handle<DebugInfo> debug_info, int start_position,
 
 bool CompileTopLevel(Isolate* isolate, Handle<Script> script,
                      MaybeHandle<SharedFunctionInfo>* result = nullptr) {
-  if (script->compilation_type() == Script::CompilationType::kEval) {
+  if (script->compilation_type() == Script::CompilationType::kEval ||
+      script->is_wrapped()) {
     return false;
   }
   UnoptimizedCompileState compile_state;
@@ -2547,7 +2549,7 @@ void Debug::OnException(Handle<Object> exception,
   {
     StackFrameIterator it(isolate_);
     for (; !it.done(); it.Advance()) {
-      if (it.frame()->is_java_script()) {
+      if (it.frame()->is_javascript()) {
         JavaScriptFrame* frame = JavaScriptFrame::cast(it.frame());
         FrameSummary summary = FrameSummary::GetTop(frame);
         DirectHandle<SharedFunctionInfo> shared{
@@ -2717,9 +2719,11 @@ bool Debug::ShouldBeSkipped() {
 bool Debug::AllFramesOnStackAreBlackboxed() {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
 
-  for (StackFrameIterator it(isolate_); !it.done(); it.Advance()) {
+  HandleScope scope(isolate_);
+  for (StackFrameIterator it(isolate_, isolate_->thread_local_top());
+       !it.done(); it.Advance()) {
     StackFrame* frame = it.frame();
-    if (frame->is_java_script() &&
+    if (frame->is_javascript() &&
         !IsFrameBlackboxed(JavaScriptFrame::cast(frame))) {
       return false;
     }
@@ -2847,7 +2851,7 @@ void Debug::HandleDebugBreak(IgnoreBreakMode ignore_break_mode,
   {
     DebuggableStackFrameIterator it(isolate_);
     DCHECK(!it.done());
-    JavaScriptFrame* frame = it.frame()->is_java_script()
+    JavaScriptFrame* frame = it.frame()->is_javascript()
                                  ? JavaScriptFrame::cast(it.frame())
                                  : nullptr;
     if (frame && IsJSFunction(frame->function())) {

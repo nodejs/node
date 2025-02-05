@@ -21,7 +21,13 @@ void LazyBuiltinsAssembler::GenerateTailCallToJSCode(
   auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
   auto context = Parameter<Context>(Descriptor::kContext);
   auto new_target = Parameter<Object>(Descriptor::kNewTarget);
-  TailCallJSCode(code, context, function, new_target, argc);
+#ifdef V8_ENABLE_LEAPTIERING
+  auto dispatch_handle =
+      UncheckedParameter<JSDispatchHandleT>(Descriptor::kDispatchHandle);
+#else
+  auto dispatch_handle = InvalidDispatchHandleConstant();
+#endif
+  TailCallJSCode(code, context, function, new_target, argc, dispatch_handle);
 }
 
 void LazyBuiltinsAssembler::GenerateTailCallToReturnedCode(

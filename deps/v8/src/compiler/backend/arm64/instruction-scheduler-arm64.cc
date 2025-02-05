@@ -128,6 +128,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64Float32RoundUp:
     case kArm64Float32ToFloat64:
     case kArm64Float64ToFloat32:
+    case kArm64Float64ToFloat16:
     case kArm64Float32ToInt32:
     case kArm64Float64ToInt32:
     case kArm64Float32ToUint32:
@@ -539,6 +540,7 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
 
     case kArm64Float32ToFloat64:
     case kArm64Float64ToFloat32:
+    case kArm64Float64ToFloat16:
     case kArm64Float64ToInt32:
     case kArm64Float64ToUint32:
     case kArm64Float32ToInt64:

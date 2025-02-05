@@ -530,17 +530,20 @@ MaybeHandle<Object> Execution::CallBuiltin(Isolate* isolate,
 }
 
 // static
-MaybeHandle<Object> Execution::New(Isolate* isolate, Handle<Object> constructor,
-                                   int argc, Handle<Object> argv[]) {
+MaybeHandle<JSReceiver> Execution::New(Isolate* isolate,
+                                       Handle<Object> constructor, int argc,
+                                       Handle<Object> argv[]) {
   return New(isolate, constructor, constructor, argc, argv);
 }
 
 // static
-MaybeHandle<Object> Execution::New(Isolate* isolate, Handle<Object> constructor,
-                                   Handle<Object> new_target, int argc,
-                                   Handle<Object> argv[]) {
-  return Invoke(isolate, InvokeParams::SetUpForNew(isolate, constructor,
-                                                   new_target, argc, argv));
+MaybeHandle<JSReceiver> Execution::New(Isolate* isolate,
+                                       Handle<Object> constructor,
+                                       Handle<Object> new_target, int argc,
+                                       Handle<Object> argv[]) {
+  return Cast<JSReceiver>(Invoke(
+      isolate,
+      InvokeParams::SetUpForNew(isolate, constructor, new_target, argc, argv)));
 }
 
 // static
@@ -591,7 +594,7 @@ static_assert(sizeof(StackHandlerMarker) == StackHandlerConstants::kSize);
 
 #if V8_ENABLE_WEBASSEMBLY
 void Execution::CallWasm(Isolate* isolate, DirectHandle<Code> wrapper_code,
-                         Address wasm_call_target,
+                         WasmCodePointer wasm_call_target,
                          DirectHandle<Object> object_ref, Address packed_args) {
   using WasmEntryStub = GeneratedCode<Address(
       Address target, Address object_ref, Address argv, Address c_entry_fp)>;

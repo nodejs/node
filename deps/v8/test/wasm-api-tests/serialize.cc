@@ -39,6 +39,7 @@ TEST_F(WasmCapiTest, Serialize) {
   {
     Isolate* isolate =
         reinterpret_cast<::wasm::StoreImpl*>(store())->i_isolate();
+    v8::Isolate::Scope isolate_scope(reinterpret_cast<v8::Isolate*>(isolate));
     // This method might be called on a thread that's not bound to any Isolate
     // and thus pointer compression schemes might have cage base value unset.
     // Ensure cage bases are initialized so that the V8 heap can be accessed.

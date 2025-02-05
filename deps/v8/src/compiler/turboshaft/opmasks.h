@@ -352,6 +352,21 @@ using Simd128LoadTransformMask =
 FOREACH_SIMD_128_LOAD_TRANSFORM_OPCODE(SIMD_LOAD_TRANSFORM_MASK)
 #undef SIMD_LOAD_TRANSFORM_MASK
 
+using Simd128ReplaceLaneMask =
+    MaskBuilder<Simd128ReplaceLaneOp, FIELD(Simd128ReplaceLaneOp, kind)>;
+using kSimd128ReplaceLaneF32x4 =
+    Simd128ReplaceLaneMask::For<Simd128ReplaceLaneOp::Kind::kF32x4>;
+
+#if V8_ENABLE_WASM_SIMD256_REVEC
+using Simd256UnaryMask =
+    MaskBuilder<Simd256UnaryOp, FIELD(Simd256UnaryOp, kind)>;
+#define SIMD256_UNARY_MASK(kind) \
+  using kSimd256##kind = Simd256UnaryMask::For<Simd256UnaryOp::Kind::k##kind>;
+FOREACH_SIMD_256_UNARY_OPCODE(SIMD256_UNARY_MASK)
+#undef SIMD256_UNARY_MASK
+
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 #undef FIELD

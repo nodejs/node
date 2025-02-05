@@ -64,7 +64,7 @@ int64_t Operand::immediate() const {
 void WritableRelocInfo::apply(intptr_t delta) {
   if (IsInternalReference(rmode_) || IsInternalReferenceEncoded(rmode_)) {
     // Absolute code pointer inside code object moves with the code object.
-    Assembler::RelocateInternalReference(rmode_, pc_, delta);
+    Assembler::RelocateInternalReference(rmode_, pc_, delta, &jit_allocation_);
   }
 }
 
@@ -95,13 +95,6 @@ Address RelocInfo::target_address_address() {
 Address RelocInfo::constant_pool_entry_address() { UNREACHABLE(); }
 
 int RelocInfo::target_address_size() { return Assembler::kSpecialTargetSize; }
-
-void Assembler::deserialization_set_special_target_at(
-    Address instruction_payload, Tagged<Code> code, Address target) {
-  set_target_address_at(instruction_payload,
-                        !code.is_null() ? code->constant_pool() : kNullAddress,
-                        target);
-}
 
 int Assembler::deserialization_special_target_size(
     Address instruction_payload) {
@@ -151,7 +144,7 @@ void WritableRelocInfo::set_target_object(Tagged<HeapObject> target,
                                           ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || IsFullEmbeddedObject(rmode_));
   Assembler::set_target_address_at(pc_, constant_pool_, target.ptr(),
-                                   icache_flush_mode);
+                                   &jit_allocation_, icache_flush_mode);
 }
 
 Address RelocInfo::target_external_reference() {
@@ -163,7 +156,19 @@ void WritableRelocInfo::set_target_external_reference(
     Address target, ICacheFlushMode icache_flush_mode) {
   DCHECK(rmode_ == RelocInfo::EXTERNAL_REFERENCE);
   Assembler::set_target_address_at(pc_, constant_pool_, target,
-                                   icache_flush_mode);
+                                   &jit_allocation_, icache_flush_mode);
+}
+
+Address RelocInfo::wasm_indirect_call_target() const {
+  DCHECK(rmode_ == WASM_INDIRECT_CALL_TARGET);
+  return Assembler::target_address_at(pc_, constant_pool_);
+}
+
+void WritableRelocInfo::set_wasm_indirect_call_target(
+    Address target, ICacheFlushMode icache_flush_mode) {
+  DCHECK(rmode_ == RelocInfo::WASM_INDIRECT_CALL_TARGET);
+  Assembler::set_target_address_at(pc_, constant_pool_, target,
+                                   &jit_allocation_, icache_flush_mode);
 }
 
 Address RelocInfo::target_internal_reference() {
@@ -208,10 +213,10 @@ uint32_t Assembler::uint32_constant_at(Address pc, Address constant_pool) {
 
 void Assembler::set_uint32_constant_at(Address pc, Address constant_pool,
                                        uint32_t new_constant,
+                                       WritableJitAllocation* jit_allocation,
                                        ICacheFlushMode icache_flush_mode) {
   Instr instr1 = instr_at(pc + kInstrSize);
   uint32_t rt_code = GetRt(instr1);
-  uint32_t* p = reinterpret_cast<uint32_t*>(pc);
 
 #ifdef DEBUG
   // Check we have the result from a li macro-instruction.
@@ -223,9 +228,12 @@ void Assembler::set_uint32_constant_at(Address pc, Address constant_pool,
   // Must use 2 instructions to insure patchable 32-bit value.
   // lui rt, upper-16.
   // ori rt, rt, lower-16.
-  *p = LUI | (rt_code << kRtShift) | ((new_constant >> 16) & kImm16Mask);
-  *(p + 1) = ORI | (rt_code << kRtShift) | (rt_code << kRsShift) |
-             (new_constant & kImm16Mask);
+  Instr new_instr0 =
+      LUI | (rt_code << kRtShift) | ((new_constant >> 16) & kImm16Mask);
+  Instr new_instr1 = ORI | (rt_code << kRtShift) | (rt_code << kRsShift) |
+                     (new_constant & kImm16Mask);
+  instr_at_put(pc, new_instr0, jit_allocation);
+  instr_at_put(pc + kInstrSize, new_instr1, jit_allocation);
 
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     FlushInstructionCache(pc, 2 * kInstrSize);

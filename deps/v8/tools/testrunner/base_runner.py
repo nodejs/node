@@ -333,9 +333,6 @@ class BaseTestRunner(object):
       raise TestRunnerError
 
     print('Build found: %s' % self.outdir)
-    if str(self.build_config):
-      print('>>> Autodetected:')
-      print(self.build_config)
 
     # Represents the OS where tests are run on. Same as host OS except for
     # Android and iOS, which are determined by build output.
@@ -535,7 +532,9 @@ class BaseTestRunner(object):
 
   def _load_testsuite_generators(self, ctx, names):
     test_config = self._create_test_config()
-    variables = self._get_statusfile_variables()
+    variables = self._get_statusfile_variables(ctx)
+    print('>>> Statusfile variables:')
+    print(', '.join(f'{k}={v}' for k, v in sorted(variables.items())))
 
     # Head generator with no elements
     test_chain = testsuite.TestGenerator(0, [], [], [])
@@ -588,7 +587,7 @@ class BaseTestRunner(object):
 
     return False
 
-  def _get_statusfile_variables(self):
+  def _get_statusfile_variables(self, context):
     """Returns all attributes accessible in status files.
 
     All build-time flags from V8's BUILD.gn file as defined by the action
@@ -598,6 +597,7 @@ class BaseTestRunner(object):
     variables.update({
         "byteorder": sys.byteorder,
         "deopt_fuzzer": False,
+        "device_type": context.device_type,
         "endurance_fuzzer": False,
         "gc_fuzzer": False,
         "gc_stress": False,

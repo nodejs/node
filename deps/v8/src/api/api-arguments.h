@@ -264,7 +264,7 @@ class FunctionCallbackArguments
   static constexpr int kTargetIndex = T::kTargetIndex;
   static constexpr int kNewTargetIndex = T::kNewTargetIndex;
 
-  static_assert(T::kThisValuesIndex == BuiltinArguments::kReceiverArgsOffset);
+  static_assert(T::kThisValuesIndex == BuiltinArguments::kReceiverArgsIndex);
 
   static constexpr int kSize = T::kSize;
   static constexpr int kImplicitArgsOffset = T::kImplicitArgsOffset;
@@ -309,7 +309,7 @@ class FunctionCallbackArguments
 };
 
 static_assert(BuiltinArguments::kNumExtraArgs ==
-              BuiltinExitFrameConstants::kNumExtraArgsWithoutReceiver);
+              BuiltinExitFrameConstants::kNumExtraArgs);
 static_assert(BuiltinArguments::kNumExtraArgsWithReceiver ==
               BuiltinExitFrameConstants::kNumExtraArgsWithReceiver);
 

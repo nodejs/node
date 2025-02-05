@@ -410,7 +410,7 @@ class BytecodeGraphBuilder {
     return frame_state_function_info_;
   }
   SourcePositionTableIterator& source_position_iterator() {
-    return *source_position_iterator_;
+    return source_position_iterator_;
   }
   interpreter::BytecodeArrayIterator const& bytecode_iterator() const {
     return bytecode_iterator_;
@@ -462,7 +462,7 @@ class BytecodeGraphBuilder {
   CallFrequency const invocation_frequency_;
   JSTypeHintLowering const type_hint_lowering_;
   const FrameStateFunctionInfo* const frame_state_function_info_;
-  std::unique_ptr<SourcePositionTableIterator> source_position_iterator_;
+  SourcePositionTableIterator source_position_iterator_;
   interpreter::BytecodeArrayIterator bytecode_iterator_;
   BytecodeAnalysis const bytecode_analysis_;
   Environment* environment_;
@@ -1069,9 +1069,9 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
       frame_state_function_info_(common()->CreateFrameStateFunctionInfo(
           FrameStateType::kUnoptimizedFunction,
           bytecode_array().parameter_count(), bytecode_array().max_arguments(),
-          bytecode_array().register_count(), shared_info.object())),
-      source_position_iterator_(std::make_unique<SourcePositionTableIterator>(
-          bytecode_array().SourcePositionTable(broker))),
+          bytecode_array().register_count(), shared_info.object(),
+          bytecode_array().object())),
+      source_position_iterator_(bytecode_array().SourcePositionTable(broker)),
       bytecode_iterator_(bytecode_array().object()),
       bytecode_analysis_(
           bytecode_array().object(), local_zone, osr_offset,
@@ -1687,6 +1687,17 @@ void BytecodeGraphBuilder::VisitLdaContextSlot() {
   environment()->BindAccumulator(node);
 }
 
+void BytecodeGraphBuilder::VisitLdaScriptContextSlot() {
+  const Operator* op = javascript()->LoadScriptContext(
+      bytecode_iterator().GetUnsignedImmediateOperand(2),
+      bytecode_iterator().GetIndexOperand(1));
+  Node* node = NewNode(op);
+  Node* context =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
+  NodeProperties::ReplaceContextInput(node, context);
+  environment()->BindAccumulator(node);
+}
+
 void BytecodeGraphBuilder::VisitLdaImmutableContextSlot() {
   const Operator* op = javascript()->LoadContext(
       bytecode_iterator().GetUnsignedImmediateOperand(2),
@@ -1701,6 +1712,13 @@ void BytecodeGraphBuilder::VisitLdaImmutableContextSlot() {
 void BytecodeGraphBuilder::VisitLdaCurrentContextSlot() {
   const Operator* op = javascript()->LoadContext(
       0, bytecode_iterator().GetIndexOperand(0), false);
+  Node* node = NewNode(op);
+  environment()->BindAccumulator(node);
+}
+
+void BytecodeGraphBuilder::VisitLdaCurrentScriptContextSlot() {
+  const Operator* op = javascript()->LoadScriptContext(
+      0, bytecode_iterator().GetIndexOperand(0));
   Node* node = NewNode(op);
   environment()->BindAccumulator(node);
 }
@@ -1896,6 +1914,7 @@ void BytecodeGraphBuilder::BuildLdaLookupContextSlot(TypeofMode typeof_mode) {
   {
     uint32_t slot_index = bytecode_iterator().GetIndexOperand(1);
 
+    // TODO(victorgomes): Emit LoadScriptContext if ContextKind::kScriptContext.
     const Operator* op = javascript()->LoadContext(depth, slot_index, false);
     environment()->BindAccumulator(NewNode(op));
   }
@@ -1929,7 +1948,15 @@ void BytecodeGraphBuilder::VisitLdaLookupContextSlot() {
   BuildLdaLookupContextSlot(TypeofMode::kNotInside);
 }
 
+void BytecodeGraphBuilder::VisitLdaLookupScriptContextSlot() {
+  BuildLdaLookupContextSlot(TypeofMode::kNotInside);
+}
+
 void BytecodeGraphBuilder::VisitLdaLookupContextSlotInsideTypeof() {
+  BuildLdaLookupContextSlot(TypeofMode::kInside);
+}
+
+void BytecodeGraphBuilder::VisitLdaLookupScriptContextSlotInsideTypeof() {
   BuildLdaLookupContextSlot(TypeofMode::kInside);
 }
 

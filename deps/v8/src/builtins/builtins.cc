@@ -6,6 +6,7 @@
 
 #include "src/api/api-inl.h"
 #include "src/builtins/builtins-descriptors.h"
+#include "src/builtins/builtins-inl.h"
 #include "src/builtins/data-view-ops.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/callable.h"
@@ -26,7 +27,7 @@ namespace v8 {
 namespace internal {
 
 // Forward declarations for C++ builtins.
-#define FORWARD_DECLARE(Name) \
+#define FORWARD_DECLARE(Name, Argc) \
   Address Builtin_##Name(int argc, Address* args, Isolate* isolate);
 BUILTIN_LIST_C(FORWARD_DECLARE)
 #undef FORWARD_DECLARE
@@ -68,7 +69,7 @@ struct BuiltinMetadata {
   } data;
 };
 
-#define DECL_CPP(Name, ...) \
+#define DECL_CPP(Name, Argc) \
   {#Name, Builtins::CPP, {FUNCTION_ADDR(Builtin_##Name)}},
 #define DECL_TSJ(Name, Count, ...) {#Name, Builtins::TSJ, {Count, 0}},
 #define DECL_TFJ(Name, Count, ...) {#Name, Builtins::TFJ, {Count, 0}},
@@ -159,6 +160,55 @@ Handle<Code> Builtins::code_handle(Builtin builtin) {
 int Builtins::GetStackParameterCount(Builtin builtin) {
   DCHECK(Builtins::KindOf(builtin) == TSJ || Builtins::KindOf(builtin) == TFJ);
   return builtin_metadata[ToInt(builtin)].data.parameter_count;
+}
+
+namespace {
+
+void ParameterCountToString(char* buffer, size_t buffer_size,
+                            int parameter_count) {
+  if (parameter_count == kDontAdaptArgumentsSentinel) {
+    snprintf(buffer, buffer_size, "kDontAdaptArgumentsSentinel");
+  } else {
+    snprintf(buffer, buffer_size, "JSParameterCount(%d)", parameter_count - 1);
+  }
+}
+
+}  // namespace
+
+// static
+bool Builtins::CheckFormalParameterCount(
+    Builtin builtin, int function_length,
+    int formal_parameter_count_with_receiver) {
+  DCHECK_LE(0, function_length);
+  if (!Builtins::IsBuiltinId(builtin)) {
+    return true;
+  }
+
+  Kind kind = KindOf(builtin);
+  // TODO(ishell): enable the check for TFJ/TSJ.
+  if (kind == CPP) {
+    int parameter_count = Builtins::GetFormalParameterCount(builtin);
+    if (parameter_count != formal_parameter_count_with_receiver) {
+      if ((false)) {
+        // Enable this block to print a command line that should fix the
+        // mismatch.
+        const size_t kBufSize = 32;
+        char actual_count[kBufSize];
+        char expected_count[kBufSize];
+        ParameterCountToString(actual_count, kBufSize, parameter_count);
+        ParameterCountToString(expected_count, kBufSize,
+                               formal_parameter_count_with_receiver);
+        PrintF(
+            "\n##### "
+            "sed -i -z -r 's/%s\\(%s,[\\\\\\n[:space:]]+%s\\)/%s(%s, %s)/g' "
+            "src/builtins/builtins-definitions.h\n",
+            KindNameOf(builtin), name(builtin), actual_count,
+            KindNameOf(builtin), name(builtin), expected_count);
+      }
+      return false;
+    }
+  }
+  return true;
 }
 
 // static

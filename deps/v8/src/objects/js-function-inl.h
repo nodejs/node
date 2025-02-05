@@ -107,9 +107,9 @@ void JSFunction::UpdateContextSpecializedCode(Isolate* isolate,
   DCHECK(value->is_optimized_code());
   bool has_context_specialized_dispatch_entry = handle != canonical_handle;
   if (has_context_specialized_dispatch_entry) {
-    set_code(value, mode);
+    UpdateDispatchEntry(value, mode);
   } else {
-    allocate_dispatch_handle(isolate, value->parameter_count(), value, mode);
+    AllocateDispatchHandle(isolate, value->parameter_count(), value, mode);
   }
 #else
   WriteCodePointerField(kCodeOffset, value);
@@ -145,7 +145,7 @@ void JSFunction::UpdateCode(Tagged<Code> value, WriteBarrierMode mode) {
     // function was specialized before).
     set_dispatch_handle(canonical_handle, mode);
   }
-  set_code(value, mode);
+  UpdateDispatchEntry(value, mode);
 
 #else
   WriteCodePointerField(kCodeOffset, value);
@@ -202,10 +202,10 @@ Tagged<Object> JSFunction::raw_code(IsolateForSandbox isolate,
 }
 
 #ifdef V8_ENABLE_LEAPTIERING
-void JSFunction::allocate_dispatch_handle(IsolateForSandbox isolate,
-                                          uint16_t parameter_count,
-                                          Tagged<Code> code,
-                                          WriteBarrierMode mode) {
+void JSFunction::AllocateDispatchHandle(IsolateForSandbox isolate,
+                                        uint16_t parameter_count,
+                                        Tagged<Code> code,
+                                        WriteBarrierMode mode) {
   AllocateAndInstallJSDispatchHandle(kDispatchHandleOffset, isolate,
                                      parameter_count, code, mode);
 }
@@ -218,9 +218,10 @@ void JSFunction::set_dispatch_handle(JSDispatchHandle handle,
   Relaxed_WriteField<JSDispatchHandle>(kDispatchHandleOffset, handle);
   CONDITIONAL_JS_DISPATCH_HANDLE_WRITE_BARRIER(*this, handle, mode);
 }
-void JSFunction::set_code(Tagged<Code> new_code, WriteBarrierMode mode) {
+void JSFunction::UpdateDispatchEntry(Tagged<Code> new_code,
+                                     WriteBarrierMode mode) {
   JSDispatchHandle handle = dispatch_handle();
-  GetProcessWideJSDispatchTable()->SetCode(handle, new_code);
+  GetProcessWideJSDispatchTable()->SetCodeNoWriteBarrier(handle, new_code);
   CONDITIONAL_JS_DISPATCH_HANDLE_WRITE_BARRIER(*this, handle, mode);
 }
 JSDispatchHandle JSFunction::dispatch_handle() const {
@@ -309,7 +310,7 @@ Tagged<NativeContext> JSFunction::native_context() {
 }
 
 RELEASE_ACQUIRE_ACCESSORS_CHECKED(JSFunction, prototype_or_initial_map,
-                                  Tagged<HeapObject>,
+                                  (Tagged<UnionOf<JSPrototype, Map, Hole>>),
                                   kPrototypeOrInitialMapOffset,
                                   map()->has_prototype_slot())
 
@@ -349,14 +350,14 @@ DEF_GETTER(JSFunction, PrototypeRequiresRuntimeLookup, bool) {
          map(cage_base)->has_non_instance_prototype();
 }
 
-DEF_GETTER(JSFunction, instance_prototype, Tagged<HeapObject>) {
+DEF_GETTER(JSFunction, instance_prototype, Tagged<JSPrototype>) {
   DCHECK(has_instance_prototype(cage_base));
   if (has_initial_map(cage_base)) {
     return initial_map(cage_base)->prototype(cage_base);
   }
   // When there is no initial map and the prototype is a JSReceiver, the
   // initial map field is used for the prototype field.
-  return Cast<HeapObject>(prototype_or_initial_map(cage_base, kAcquireLoad));
+  return Cast<JSPrototype>(prototype_or_initial_map(cage_base, kAcquireLoad));
 }
 
 DEF_GETTER(JSFunction, prototype, Tagged<Object>) {

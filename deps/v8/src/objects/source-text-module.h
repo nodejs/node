@@ -275,8 +275,6 @@ class SourceTextModuleInfo : public FixedArray {
     kRegularExportExportNamesOffset,
     kRegularExportLength
   };
-
-  OBJECT_CONSTRUCTORS(SourceTextModuleInfo, FixedArray);
 };
 
 class ModuleRequest

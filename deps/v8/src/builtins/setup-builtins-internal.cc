@@ -35,7 +35,7 @@ namespace v8 {
 namespace internal {
 
 // Forward declarations for C++ builtins.
-#define FORWARD_DECLARE(Name) \
+#define FORWARD_DECLARE(Name, Argc) \
   Address Builtin_##Name(int argc, Address* args, Isolate* isolate);
 BUILTIN_LIST_C(FORWARD_DECLARE)
 #undef FORWARD_DECLARE
@@ -183,13 +183,15 @@ Tagged<Code> BuildAdaptor(Isolate* isolate, Builtin builtin,
                       ExternalAssemblerBuffer(buffer, kBufferSize));
   masm.set_builtin(builtin);
   DCHECK(!masm.has_frame());
-  Builtins::Generate_Adaptor(&masm, builtin_address);
+  int formal_parameter_count = Builtins::GetFormalParameterCount(builtin);
+  Builtins::Generate_Adaptor(&masm, formal_parameter_count, builtin_address);
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
   DirectHandle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::BUILTIN)
           .set_self_reference(masm.CodeObject())
           .set_builtin(builtin)
+          .set_parameter_count(formal_parameter_count)
           .Build();
   return *code;
 }
@@ -312,7 +314,7 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
     Tagged<InstructionStream> istream = code->instruction_stream();
     WritableJitAllocation jit_allocation = ThreadIsolation::LookupJitAllocation(
         istream.address(), istream->Size(),
-        ThreadIsolation::JitAllocationType::kInstructionStream);
+        ThreadIsolation::JitAllocationType::kInstructionStream, true);
     bool flush_icache = false;
     for (WritableRelocIterator it(jit_allocation, istream,
                                   code->constant_pool(), kRelocMask);
@@ -378,7 +380,7 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
 
   int index = 0;
   Tagged<Code> code;
-#define BUILD_CPP(Name)                                      \
+#define BUILD_CPP(Name, Argc)                                \
   code = BuildAdaptor(isolate, Builtin::k##Name,             \
                       FUNCTION_ADDR(Builtin_##Name), #Name); \
   AddBuiltin(builtins, Builtin::k##Name, code);              \

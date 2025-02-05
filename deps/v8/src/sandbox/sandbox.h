@@ -98,6 +98,18 @@ class V8_EXPORT_PRIVATE Sandbox {
   bool is_partially_reserved() const { return reservation_size_ < size_; }
 
   /**
+   * Returns true if the first four GB of the address space are inaccessible.
+   *
+   * During initialization, the sandbox will also attempt to create an
+   * inaccessible mapping in the first four GB of the address space. This is
+   * useful to mitigate Smi<->HeapObject confusion issues, in which a (32-bit)
+   * Smi is treated as a pointer and dereferenced.
+   */
+  bool smi_address_range_is_inaccessible() const {
+    return first_four_gb_of_address_space_are_reserved_;
+  }
+
+  /**
    * The base address of the sandbox.
    *
    * This is the start of the address space region that is directly addressable
@@ -252,6 +264,12 @@ class V8_EXPORT_PRIVATE Sandbox {
 
   // Constant objects inside this sandbox.
   SandboxedPointerConstants constants_;
+
+  // Besides the address space reservation for the sandbox, we also try to
+  // reserve the first four gigabytes of the virtual address space (with an
+  // inaccessible mapping). This for example mitigates Smi<->HeapObject
+  // confusion bugs in which we treat a Smi value as a pointer and access it.
+  static bool first_four_gb_of_address_space_are_reserved_;
 };
 
 V8_EXPORT_PRIVATE Sandbox* GetProcessWideSandbox();

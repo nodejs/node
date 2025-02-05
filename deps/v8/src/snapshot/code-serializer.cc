@@ -320,7 +320,7 @@ class StressOffThreadDeserializeThread final : public base::Thread {
         CodeSerializer::StartDeserializeOffThread(&local_isolate, cached_data_);
   }
 
-  MaybeHandle<SharedFunctionInfo> Finalize(
+  MaybeDirectHandle<SharedFunctionInfo> Finalize(
       Isolate* isolate, DirectHandle<String> source,
       const ScriptDetails& script_details) {
     return CodeSerializer::FinishOffThreadDeserialize(
@@ -442,7 +442,7 @@ const char* ToString(SerializedCodeSanityCheckResult result) {
 }
 }  // namespace
 
-MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
+MaybeDirectHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
     Isolate* isolate, AlignedCachedData* cached_data, Handle<String> source,
     const ScriptDetails& script_details,
     MaybeHandle<Script> maybe_cached_script) {
@@ -478,14 +478,14 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
   }
 
   // Deserialize.
-  MaybeHandle<SharedFunctionInfo> maybe_result =
+  MaybeDirectHandle<SharedFunctionInfo> maybe_result =
       ObjectDeserializer::DeserializeSharedFunctionInfo(isolate, &scd, source);
 
-  Handle<SharedFunctionInfo> result;
+  DirectHandle<SharedFunctionInfo> result;
   if (!maybe_result.ToHandle(&result)) {
     // Deserializing may fail if the reservations cannot be fulfilled.
     if (v8_flags.profile_deserialization) PrintF("[Deserializing failed]\n");
-    return MaybeHandle<SharedFunctionInfo>();
+    return MaybeDirectHandle<SharedFunctionInfo>();
   }
 
   // Check whether the newly deserialized data should be merged into an
@@ -553,7 +553,7 @@ CodeSerializer::StartDeserializeOffThread(LocalIsolate* local_isolate,
     return result;
   }
 
-  MaybeHandle<SharedFunctionInfo> local_maybe_result =
+  MaybeDirectHandle<SharedFunctionInfo> local_maybe_result =
       OffThreadObjectDeserializer::DeserializeSharedFunctionInfo(
           local_isolate, &scd, &result.scripts);
 
@@ -647,7 +647,7 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::FinishOffThreadDeserialize(
       BaselineBatchCompileIfSparkplugCompiled(isolate, *script);
       DCHECK(data.persistent_handles->Contains(script.location()));
       list = WeakArrayList::AddToEnd(isolate, list,
-                                     MaybeObjectHandle::Weak(script));
+                                     MaybeObjectDirectHandle::Weak(script));
     }
     isolate->heap()->SetRootScriptList(*list);
   }

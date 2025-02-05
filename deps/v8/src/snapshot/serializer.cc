@@ -11,6 +11,7 @@
 #include "src/heap/heap-inl.h"  // For Space::identity().
 #include "src/heap/mutable-page-metadata-inl.h"
 #include "src/heap/read-only-heap.h"
+#include "src/heap/visit-object.h"
 #include "src/objects/code.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/instance-type-checker.h"
@@ -288,7 +289,7 @@ void Serializer::PutRoot(RootIndex root) {
 
   // TODO(ulan): Check that it works with young large objects.
   if (root_index < kRootArrayConstantsCount &&
-      !Heap::InYoungGeneration(object)) {
+      !HeapLayout::InYoungGeneration(object)) {
     sink_.Put(RootArrayConstant::Encode(root), "RootConstant");
   } else {
     sink_.Put(kRootArray, "RootSerialization");
@@ -706,7 +707,7 @@ void Serializer::ObjectSerializer::SerializeExternalStringAsSequentialString() {
   PtrComprCageBase cage_base(isolate());
   DCHECK(IsExternalString(*object_, cage_base));
   Handle<ExternalString> string = Cast<ExternalString>(object_);
-  int length = string->length();
+  uint32_t length = string->length();
   Tagged<Map> map;
   int content_size;
   int allocation_size;
@@ -950,7 +951,7 @@ void Serializer::ObjectSerializer::SerializeContent(Tagged<Map> map, int size) {
   Tagged<HeapObject> raw = *object_;
   UnlinkWeakNextScope unlink_weak_next(isolate()->heap(), raw);
   // Iterate references first.
-  raw->IterateBody(map, size, this);
+  VisitObjectBody(isolate(), map, raw, this);
   // Then output data payload, if any.
   OutputRawData(raw.address() + size);
 }
@@ -1014,7 +1015,7 @@ void Serializer::ObjectSerializer::VisitPointers(Tagged<HeapObject> host,
           static_cast<uint32_t>(root_index) <= UINT8_MAX &&
           current.load(cage_base) == repeat_end.load(cage_base) &&
           reference_type == HeapObjectReferenceType::STRONG) {
-        DCHECK(!Heap::InYoungGeneration(*obj));
+        DCHECK(!HeapLayout::InYoungGeneration(*obj));
         while (repeat_end < end &&
                repeat_end.load(cage_base) == current.load(cage_base)) {
           repeat_end++;

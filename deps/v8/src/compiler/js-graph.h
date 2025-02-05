@@ -7,9 +7,9 @@
 
 #include "src/common/globals.h"
 #include "src/compiler/common-operator.h"
-#include "src/compiler/graph.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/machine-graph.h"
+#include "src/compiler/turbofan-graph.h"
 #include "src/execution/isolate.h"
 #include "src/objects/oddball.h"
 

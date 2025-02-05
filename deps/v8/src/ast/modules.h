@@ -5,7 +5,7 @@
 #ifndef V8_AST_MODULES_H_
 #define V8_AST_MODULES_H_
 
-#include "src/parsing/import-assertions.h"
+#include "src/parsing/import-attributes.h"
 #include "src/parsing/scanner.h"  // Only for Scanner::Location.
 #include "src/zone/zone-containers.h"
 

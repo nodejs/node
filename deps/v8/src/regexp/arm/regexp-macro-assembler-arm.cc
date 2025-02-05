@@ -128,10 +128,9 @@ void RegExpMacroAssemblerARM::AbortedCodeGeneration() {
   fallback_label_.Unuse();
 }
 
-int RegExpMacroAssemblerARM::stack_limit_slack()  {
-  return RegExpStack::kStackLimitSlack;
+int RegExpMacroAssemblerARM::stack_limit_slack_slot_count() {
+  return RegExpStack::kStackLimitSlackSlotCount;
 }
-
 
 void RegExpMacroAssemblerARM::AdvanceCurrentPosition(int by) {
   if (by != 0) {
@@ -519,11 +518,10 @@ void RegExpMacroAssemblerARM::CheckBitInTable(
   __ mov(r0, Operand(table));
   if (mode_ != LATIN1 || kTableMask != String::kMaxOneByteCharCode) {
     __ and_(r1, current_character(), Operand(kTableSize - 1));
-    __ add(r1, r1, Operand(ByteArray::kHeaderSize - kHeapObjectTag));
+    __ add(r1, r1, Operand(OFFSET_OF_DATA_START(ByteArray) - kHeapObjectTag));
   } else {
-    __ add(r1,
-           current_character(),
-           Operand(ByteArray::kHeaderSize - kHeapObjectTag));
+    __ add(r1, current_character(),
+           Operand(OFFSET_OF_DATA_START(ByteArray) - kHeapObjectTag));
   }
   __ ldrb(r0, MemOperand(r0, r1));
   __ cmp(r0, Operand::Zero());
@@ -698,7 +696,8 @@ void RegExpMacroAssemblerARM::PopRegExpBasePointer(Register stack_pointer_out,
   StoreRegExpStackPointerToMemory(stack_pointer_out, scratch);
 }
 
-Handle<HeapObject> RegExpMacroAssemblerARM::GetCode(Handle<String> source) {
+Handle<HeapObject> RegExpMacroAssemblerARM::GetCode(Handle<String> source,
+                                                    RegExpFlags flags) {
   Label return_r0;
   // Finalize code - write the entry point code now we know how many
   // registers we need.
@@ -1030,10 +1029,9 @@ Handle<HeapObject> RegExpMacroAssemblerARM::GetCode(Handle<String> source) {
           .set_empty_source_position_table()
           .Build();
   PROFILE(masm_->isolate(),
-          RegExpCodeCreateEvent(Cast<AbstractCode>(code), source));
+          RegExpCodeCreateEvent(Cast<AbstractCode>(code), source, flags));
   return Cast<HeapObject>(code);
 }
-
 
 void RegExpMacroAssemblerARM::GoTo(Label* to) {
   BranchOrBacktrack(al, to);

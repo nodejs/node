@@ -168,13 +168,13 @@ namespace {
 // Identifies the sort of regexps where the regexp engine is faster
 // than the code used for atom matches.
 bool HasFewDifferentCharacters(DirectHandle<String> pattern) {
-  int length = std::min(kMaxLookaheadForBoyerMoore, pattern->length());
+  uint32_t length = std::min(kMaxLookaheadForBoyerMoore, pattern->length());
   if (length <= kPatternTooShortForBoyerMoore) return false;
   const int kMod = 128;
   bool character_found[kMod];
-  int different = 0;
+  uint32_t different = 0;
   memset(&character_found[0], 0, sizeof(character_found));
-  for (int i = 0; i < length; i++) {
+  for (uint32_t i = 0; i < length; i++) {
     int ch = (pattern->Get(i) & (kMod - 1));
     if (!character_found[ch]) {
       character_found[ch] = true;
@@ -368,66 +368,81 @@ void SetAtomLastCapture(Isolate* isolate,
   last_match_info->set_capture(1, to);
 }
 
+template <typename SChar, typename PChar>
+int AtomExecRawImpl(Isolate* isolate, base::Vector<const SChar> subject,
+                    base::Vector<const PChar> pattern, int index,
+                    int32_t* output, int output_size,
+                    const DisallowGarbageCollection& no_gc) {
+  const int pattern_length = pattern.length();
+  DCHECK_GT(pattern_length, 0);
+
+  StringSearch<PChar, SChar> search(isolate, pattern);
+  for (int i = 0; i < output_size; i += JSRegExp::kAtomRegisterCount) {
+    index = search.Search(subject, index);
+    if (index == -1) {
+      static_assert(RegExp::RE_FAILURE == 0);
+      return i / JSRegExp::kAtomRegisterCount;  // Return number of matches.
+    } else {
+      output[i] = index;  // match start
+      index += pattern_length;
+      output[i + 1] = index;  // match end
+    }
+  }
+
+  return output_size / JSRegExp::kAtomRegisterCount;
+}
+
 }  // namespace
 
+// static
 int RegExpImpl::AtomExecRaw(Isolate* isolate,
                             DirectHandle<AtomRegExpData> regexp_data,
                             Handle<String> subject, int index, int32_t* output,
                             int output_size) {
   DCHECK_LE(0, index);
   DCHECK_LE(index, subject->length());
+  CHECK_EQ(output_size % JSRegExp::kAtomRegisterCount, 0);
 
   subject = String::Flatten(isolate, subject);
   DisallowGarbageCollection no_gc;  // ensure vectors stay valid
 
   Tagged<String> needle = regexp_data->pattern(isolate);
-  int needle_len = needle->length();
   DCHECK(needle->IsFlat());
-  DCHECK_LT(0, needle_len);
 
-  if (index + needle_len > subject->length()) {
-    return RegExp::RE_FAILURE;
-  }
+  String::FlatContent needle_content = needle->GetFlatContent(no_gc);
+  String::FlatContent subject_content = subject->GetFlatContent(no_gc);
+  DCHECK(needle_content.IsFlat());
+  DCHECK(subject_content.IsFlat());
 
-  for (int i = 0; i < output_size; i += 2) {
-    String::FlatContent needle_content = needle->GetFlatContent(no_gc);
-    String::FlatContent subject_content = subject->GetFlatContent(no_gc);
-    DCHECK(needle_content.IsFlat());
-    DCHECK(subject_content.IsFlat());
-    // dispatch on type of strings
-    index =
-        (needle_content.IsOneByte()
+  return needle_content.IsOneByte()
              ? (subject_content.IsOneByte()
-                    ? SearchString(isolate, subject_content.ToOneByteVector(),
-                                   needle_content.ToOneByteVector(), index)
-                    : SearchString(isolate, subject_content.ToUC16Vector(),
-                                   needle_content.ToOneByteVector(), index))
+                    ? AtomExecRawImpl(isolate,
+                                      subject_content.ToOneByteVector(),
+                                      needle_content.ToOneByteVector(), index,
+                                      output, output_size, no_gc)
+                    : AtomExecRawImpl(isolate, subject_content.ToUC16Vector(),
+                                      needle_content.ToOneByteVector(), index,
+                                      output, output_size, no_gc))
              : (subject_content.IsOneByte()
-                    ? SearchString(isolate, subject_content.ToOneByteVector(),
-                                   needle_content.ToUC16Vector(), index)
-                    : SearchString(isolate, subject_content.ToUC16Vector(),
-                                   needle_content.ToUC16Vector(), index)));
-    if (index == -1) {
-      return i / 2;  // Return number of matches.
-    } else {
-      output[i] = index;
-      output[i + 1] = index + needle_len;
-      index += needle_len;
-    }
-  }
-  return output_size / 2;
+                    ? AtomExecRawImpl(isolate,
+                                      subject_content.ToOneByteVector(),
+                                      needle_content.ToUC16Vector(), index,
+                                      output, output_size, no_gc)
+                    : AtomExecRawImpl(isolate, subject_content.ToUC16Vector(),
+                                      needle_content.ToUC16Vector(), index,
+                                      output, output_size, no_gc));
 }
 
 Handle<Object> RegExpImpl::AtomExec(Isolate* isolate,
                                     DirectHandle<AtomRegExpData> re_data,
                                     Handle<String> subject, int index,
                                     Handle<RegExpMatchInfo> last_match_info) {
-  static const int kNumRegisters = 2;
-  static_assert(kNumRegisters <= Isolate::kJSRegexpStaticOffsetsVectorSize);
-  int32_t* output_registers = isolate->jsregexp_static_offsets_vector();
+  RegExpResultVectorScope result_vector_scope(isolate,
+                                              JSRegExp::kAtomRegisterCount);
+  int32_t* output_registers = result_vector_scope.value();
 
   int res = AtomExecRaw(isolate, re_data, subject, index, output_registers,
-                        kNumRegisters);
+                        JSRegExp::kAtomRegisterCount);
 
   if (res == RegExp::RE_FAILURE) return isolate->factory()->null_value();
 
@@ -751,14 +766,8 @@ MaybeHandle<Object> RegExpImpl::IrregexpExec(
     return MaybeHandle<Object>();
   }
 
-  int32_t* output_registers = nullptr;
-  if (required_registers > Isolate::kJSRegexpStaticOffsetsVectorSize) {
-    output_registers = NewArray<int32_t>(required_registers);
-  }
-  std::unique_ptr<int32_t[]> auto_release(output_registers);
-  if (output_registers == nullptr) {
-    output_registers = isolate->jsregexp_static_offsets_vector();
-  }
+  RegExpResultVectorScope result_vector_scope(isolate, required_registers);
+  int32_t* output_registers = result_vector_scope.value();
 
   int res =
       RegExpImpl::IrregexpExecRaw(isolate, regexp_data, subject, previous_index,
@@ -766,7 +775,7 @@ MaybeHandle<Object> RegExpImpl::IrregexpExec(
 
   if (res == RegExp::RE_SUCCESS) {
     if (exec_quirks == RegExp::ExecQuirks::kTreatMatchAtEndAsFailure) {
-      if (output_registers[0] >= subject->length()) {
+      if (static_cast<uint32_t>(output_registers[0]) >= subject->length()) {
         return isolate->factory()->null_value();
       }
     }
@@ -877,11 +886,15 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
   static const int kSampleSize = 128;
 
   sample_subject = String::Flatten(isolate, sample_subject);
-  int chars_sampled = 0;
-  int half_way = (sample_subject->length() - kSampleSize) / 2;
-  for (int i = std::max(0, half_way);
-       i < sample_subject->length() && chars_sampled < kSampleSize;
-       i++, chars_sampled++) {
+  uint32_t start, end;
+  if (sample_subject->length() > kSampleSize) {
+    start = (sample_subject->length() - kSampleSize) / 2;
+    end = start + kSampleSize;
+  } else {
+    start = 0;
+    end = sample_subject->length();
+  }
+  for (uint32_t i = start; i < end; i++) {
     compiler.frequency_collator()->CountCharacter(sample_subject->Get(i));
   }
 
@@ -917,7 +930,7 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
 #elif V8_TARGET_ARCH_ARM64
     macro_assembler.reset(new RegExpMacroAssemblerARM64(isolate, zone, mode,
                                                         output_register_count));
-#elif V8_TARGET_ARCH_S390
+#elif V8_TARGET_ARCH_S390X
     macro_assembler.reset(new RegExpMacroAssemblerS390(isolate, zone, mode,
                                                        output_register_count));
 #elif V8_TARGET_ARCH_PPC64
@@ -1032,7 +1045,8 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
 
 RegExpGlobalCache::RegExpGlobalCache(Handle<RegExpData> regexp_data,
                                      Handle<String> subject, Isolate* isolate)
-    : register_array_(nullptr),
+    : result_vector_scope_(isolate),
+      register_array_(nullptr),
       register_array_size_(0),
       regexp_data_(regexp_data),
       subject_(subject),
@@ -1041,11 +1055,8 @@ RegExpGlobalCache::RegExpGlobalCache(Handle<RegExpData> regexp_data,
 
   switch (regexp_data_->type_tag()) {
     case RegExpData::Type::ATOM: {
-      // ATOM regexps do not have a global loop, so we search for one match at
-      // a time.
-      static const int kAtomRegistersPerMatch = 2;
-      registers_per_match_ = kAtomRegistersPerMatch;
-      register_array_size_ = registers_per_match_;
+      registers_per_match_ = JSRegExp::kAtomRegisterCount;
+      register_array_size_ = Isolate::kJSRegexpStaticOffsetsVectorSize;
       break;
     }
     case RegExpData::Type::IRREGEXP: {
@@ -1085,11 +1096,9 @@ RegExpGlobalCache::RegExpGlobalCache(Handle<RegExpData> regexp_data,
 
   max_matches_ = register_array_size_ / registers_per_match_;
 
-  if (register_array_size_ > Isolate::kJSRegexpStaticOffsetsVectorSize) {
-    register_array_ = NewArray<int32_t>(register_array_size_);
-  } else {
-    register_array_ = isolate->jsregexp_static_offsets_vector();
-  }
+  // Cache the result vector location.
+
+  register_array_ = result_vector_scope_.Initialize(register_array_size_);
 
   // Set state so that fetching the results the first time triggers a call
   // to the compiled regexp.
@@ -1103,17 +1112,9 @@ RegExpGlobalCache::RegExpGlobalCache(Handle<RegExpData> regexp_data,
   last_match[1] = 0;
 }
 
-RegExpGlobalCache::~RegExpGlobalCache() {
-  // Deallocate the register array if we allocated it in the constructor
-  // (as opposed to using the existing jsregexp_static_offsets_vector).
-  if (register_array_size_ > Isolate::kJSRegexpStaticOffsetsVectorSize) {
-    DeleteArray(register_array_);
-  }
-}
-
 int RegExpGlobalCache::AdvanceZeroLength(int last_index) {
   if (IsEitherUnicode(JSRegExp::AsRegExpFlags(regexp_data_->flags())) &&
-      last_index + 1 < subject_->length() &&
+      static_cast<uint32_t>(last_index + 1) < subject_->length() &&
       unibrow::Utf16::IsLeadSurrogate(subject_->Get(last_index)) &&
       unibrow::Utf16::IsTrailSurrogate(subject_->Get(last_index + 1))) {
     // Advance over the surrogate pair.
@@ -1158,7 +1159,7 @@ int32_t* RegExpGlobalCache::FetchNext() {
           // Zero-length match. Advance by one code point.
           last_end_index = AdvanceZeroLength(last_end_index);
         }
-        if (last_end_index > subject_->length()) {
+        if (static_cast<uint32_t>(last_end_index) > subject_->length()) {
           num_matches_ = 0;  // Signal failed match.
           return nullptr;
         }
@@ -1208,6 +1209,7 @@ Tagged<Object> RegExpResultsCache::Lookup(Heap* heap, Tagged<String> key_string,
                                           Tagged<Object> key_pattern,
                                           Tagged<FixedArray>* last_match_cache,
                                           ResultsCacheType type) {
+  if (V8_UNLIKELY(!v8_flags.regexp_results_cache)) return Smi::zero();
   Tagged<FixedArray> cache;
   if (!IsInternalizedString(key_string)) return Smi::zero();
   if (type == STRING_SPLIT_SUBSTRINGS) {
@@ -1243,6 +1245,7 @@ void RegExpResultsCache::Enter(Isolate* isolate,
                                DirectHandle<FixedArray> value_array,
                                DirectHandle<FixedArray> last_match_cache,
                                ResultsCacheType type) {
+  if (V8_UNLIKELY(!v8_flags.regexp_results_cache)) return;
   Factory* factory = isolate->factory();
   DirectHandle<FixedArray> cache;
   if (!IsInternalizedString(*key_string)) return;
@@ -1294,13 +1297,69 @@ void RegExpResultsCache::Enter(Isolate* isolate,
   }
   // Convert backing store to a copy-on-write array.
   value_array->set_map_no_write_barrier(
-      ReadOnlyRoots(isolate).fixed_cow_array_map());
+      isolate, ReadOnlyRoots(isolate).fixed_cow_array_map());
 }
 
 void RegExpResultsCache::Clear(Tagged<FixedArray> cache) {
   for (int i = 0; i < kRegExpResultsCacheSize; i++) {
     cache->set(i, Smi::zero());
   }
+}
+
+// static
+void RegExpResultsCache_MatchGlobalAtom::TryInsert(Isolate* isolate,
+                                                   Tagged<String> subject,
+                                                   Tagged<String> pattern,
+                                                   int number_of_matches,
+                                                   int last_match_index) {
+  DisallowGarbageCollection no_gc;
+  DCHECK(Smi::IsValid(number_of_matches));
+  DCHECK(Smi::IsValid(last_match_index));
+  if (!IsSlicedString(subject)) return;
+  Tagged<FixedArray> cache = isolate->heap()->regexp_match_global_atom_cache();
+  DCHECK_EQ(cache->length(), kSize);
+  cache->set(kSubjectIndex, subject);
+  cache->set(kPatternIndex, pattern);
+  cache->set(kNumberOfMatchesIndex, Smi::FromInt(number_of_matches));
+  cache->set(kLastMatchIndexIndex, Smi::FromInt(last_match_index));
+}
+
+// static
+bool RegExpResultsCache_MatchGlobalAtom::TryGet(Isolate* isolate,
+                                                Tagged<String> subject,
+                                                Tagged<String> pattern,
+                                                int* number_of_matches_out,
+                                                int* last_match_index_out) {
+  DisallowGarbageCollection no_gc;
+  Tagged<FixedArray> cache = isolate->heap()->regexp_match_global_atom_cache();
+  DCHECK_EQ(cache->length(), kSize);
+
+  if (!IsSlicedString(subject)) return false;
+  if (pattern != cache->get(kPatternIndex)) return false;
+
+  // Here we are looking for a subject slice that 1. starts at the same point
+  // and 2. is of equal length or longer than the cached subject slice.
+  Tagged<SlicedString> sliced_subject = Cast<SlicedString>(subject);
+  Tagged<Object> cached_subject_object = cache->get(kSubjectIndex);
+  if (!Is<SlicedString>(cached_subject_object)) {
+    // Note while we insert only sliced strings, they may be converted into
+    // other kinds, e.g. during GC or internalization.
+    Clear(isolate->heap());
+    return false;
+  }
+  auto cached_subject = Cast<SlicedString>(cached_subject_object);
+  if (cached_subject->parent() != sliced_subject->parent()) return false;
+  if (cached_subject->offset() != sliced_subject->offset()) return false;
+  if (cached_subject->length() > sliced_subject->length()) return false;
+
+  *number_of_matches_out = Smi::ToInt(cache->get(kNumberOfMatchesIndex));
+  *last_match_index_out = Smi::ToInt(cache->get(kLastMatchIndexIndex));
+  return true;
+}
+
+void RegExpResultsCache_MatchGlobalAtom::Clear(Heap* heap) {
+  MemsetTagged(heap->regexp_match_global_atom_cache()->RawFieldOfFirstElement(),
+               Smi::zero(), kSize);
 }
 
 std::ostream& operator<<(std::ostream& os, RegExpFlags flags) {

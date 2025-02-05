@@ -918,7 +918,8 @@ void Builtins::Generate_GenericJSToWasmInterpreterWrapper(
 
   // Store result in JSArray
   DEFINE_REG(array_items);
-  __ Add(array_items, fixed_array, FixedArray::kHeaderSize - kHeapObjectTag);
+  __ Add(array_items, fixed_array,
+         OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag);
   __ StoreTaggedField(return_value, MemOperand(array_items, result_index, LSL,
                                                kTaggedSizeLog2));
 
@@ -1500,12 +1501,11 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   // x0: number of arguments + 1 (receiver)
   // x1: target (JSFunction|JSBoundFunction|...)
 
-  // We are calling Call_ReceiverIsAny which can call
-  // AdaptorWithBuiltinExitFrame, which adds
-  // BuiltinExitFrameConstants::kNumExtraArgsWithoutReceiver additional tagged
-  // arguments to the stack. We must also scan these additional args in case of
-  // GC. We store the current stack pointer to be able to detect when this
-  // happens.
+  // The process of calling a JS function might increase the number of tagged
+  // values on the stack (arguments adaptation, BuiltinExitFrame arguments,
+  // v8::FunctionCallbackInfo implicit arguments, etc.). In any case these
+  // additional values must be visited by GC too.
+  // We store the current stack pointer to be able to detect when this happens.
   __ Mov(scratch, sp);
   __ Str(scratch,
          MemOperand(fp, WasmToJSInterpreterFrameConstants::kGCSPOffset));
@@ -1591,7 +1591,8 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   __ Mov(result_index, xzr);
   __ Mov(current_result_offset, xzr);
 
-  __ Add(scratch, fixed_array, FixedArray::kHeaderSize - kHeapObjectTag);
+  __ Add(scratch, fixed_array,
+         OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag);
   __ LoadTaggedField(return_reg,
                      MemOperand(scratch, result_index, LSL, kTaggedSizeLog2));
 
@@ -1710,7 +1711,8 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   __ cmp(result_index, scratch);  // result_index == return_count?
   __ B(&loop_copy_return_refs, ge);
 
-  __ Add(scratch, fixed_array, FixedArray::kHeaderSize - kHeapObjectTag);
+  __ Add(scratch, fixed_array,
+         OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag);
   __ LoadTaggedField(return_reg,
                      MemOperand(scratch, result_index, LSL, kTaggedSizeLog2));
   __ jmp(&convert_return);
@@ -1775,7 +1777,8 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   __ jmp(&done_copy_return_ref);
 
   __ bind(&copy_return_ref);
-  __ Add(scratch, fixed_array, FixedArray::kHeaderSize - kHeapObjectTag);
+  __ Add(scratch, fixed_array,
+         OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag);
   __ LoadTaggedField(return_reg,
                      MemOperand(scratch, result_index, LSL, kTaggedSizeLog2));
   __ Str(return_reg, MemOperand(packed_args, current_result_offset));

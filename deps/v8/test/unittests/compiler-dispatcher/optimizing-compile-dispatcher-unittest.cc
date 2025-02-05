@@ -32,7 +32,7 @@ class BlockingCompilationJob : public TurbofanCompilationJob {
       : TurbofanCompilationJob(&info_, State::kReadyToExecute),
         shared_(function->shared(), isolate),
         zone_(isolate->allocator(), ZONE_NAME),
-        info_(&zone_, isolate, shared_, function, CodeKind::TURBOFAN),
+        info_(&zone_, isolate, shared_, function, CodeKind::TURBOFAN_JS),
         blocking_(false),
         semaphore_(0) {}
   ~BlockingCompilationJob() override = default;

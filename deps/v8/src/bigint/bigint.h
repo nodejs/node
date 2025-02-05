@@ -306,7 +306,8 @@ class Processor {
 
   // {out_length} initially contains the allocated capacity of {out}, and
   // upon return will be set to the actual length of the result string.
-  Status ToString(char* out, int* out_length, Digits X, int radix, bool sign);
+  Status ToString(char* out, uint32_t* out_length, Digits X, int radix,
+                  bool sign);
 
   // Z := the contents of {accumulator}.
   // Assume that this leaves {accumulator} in unusable state.
@@ -349,7 +350,7 @@ inline int DivideResultLength(Digits A, Digits B) {
 }
 inline int ModuloResultLength(Digits B) { return B.len(); }
 
-int ToStringResultLength(Digits X, int radix, bool sign);
+uint32_t ToStringResultLength(Digits X, int radix, bool sign);
 // In DEBUG builds, the result of {ToString} will be initialized to this value.
 constexpr char kStringZapValue = '?';
 

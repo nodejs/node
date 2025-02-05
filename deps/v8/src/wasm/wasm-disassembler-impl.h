@@ -78,6 +78,10 @@ inline StringBuilder& operator<<(StringBuilder& sb, uint64_t n) {
   return sb;
 }
 
+inline StringBuilder& operator<<(StringBuilder& sb, ModuleTypeIndex index) {
+  return sb << index.index;
+}
+
 V8_EXPORT_PRIVATE void PrintSignatureOneLine(
     StringBuilder& out, const FunctionSig* sig, uint32_t func_index,
     NamesProvider* names, bool param_names,

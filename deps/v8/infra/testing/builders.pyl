@@ -44,22 +44,16 @@
       {'name': 'v8testing', 'variant': 'default', 'shards': 4},
     ],
   },
-  ##############################################################################
-  # Fuchsia
-  'v8_fuchsia_rel': {
+  'v8_android_arm64_p7_rel': {
     'swarming_dimensions' : {
-      'os': 'Ubuntu-22.04',
+      'device_os': 'AP2A.240705.004',
+      'device_type': 'panther',
+      'os': 'Android',
     },
     'tests': [
-      {'name': 'fuchsia-unittests'},
-    ],
-  },
-  'V8 Fuchsia': {
-    'swarming_dimensions' : {
-      'os': 'Ubuntu-22.04',
-    },
-    'tests': [
-      {'name': 'fuchsia-unittests'},
+      {'name': 'mozilla', 'variant': 'default'},
+      {'name': 'test262', 'variant': 'default', 'shards': 12},
+      {'name': 'v8testing', 'variant': 'default', 'shards': 4},
     ],
   },
   ##############################################################################
@@ -444,7 +438,7 @@
       {'name': 'benchmarks', 'variant': 'code_serializer', 'shards': 1},
       {'name': 'd8testing', 'variant': 'code_serializer', 'shards': 1},
       {'name': 'mozilla', 'variant': 'code_serializer', 'shards': 1},
-      {'name': 'test262', 'variant': 'code_serializer', 'shards': 3},
+      {'name': 'test262', 'variant': 'code_serializer', 'shards': 5},
       # GC stress
       {
         'name': 'd8testing',
@@ -515,7 +509,7 @@
       {
         'name': 'mjsunit',
         'test_args': ['--gc-stress', '--no-harness'],
-        'shards': 3,
+        'shards': 5,
       },
     ],
   },
@@ -626,7 +620,7 @@
       'os': 'Ubuntu-22.04',
     },
     'tests': [
-      {'name': 'v8testing', 'shards': 3},
+      {'name': 'v8testing', 'shards': 5},
     ],
   },
   'v8_linux64_no_shared_cage_dbg': {
@@ -661,6 +655,16 @@
     },
     'tests': [
       {'name': 'v8testing', 'shards': 2},
+    ],
+  },
+  'v8_linux64_pku_dbg': {
+    'swarming_dimensions' : {
+      'os': 'Ubuntu-22.04',
+      'cpu': 'x86-64-avx2',
+      'pool': 'v8.tests',
+    },
+    'tests': [
+      {'name': 'v8testing', 'variant': 'default'},
     ],
   },
   'v8_linux64_pku_rel': {
@@ -708,8 +712,8 @@
       {'name': 'benchmarks', 'shards': 1},
       {'name': 'mozilla', 'shards': 1},
       {'name': 'optimize_for_size'},
-      {'name': 'test262', 'shards': 4},
-      {'name': 'test262', 'variant': 'extra', 'shards': 4},
+      {'name': 'test262', 'shards': 6},
+      {'name': 'test262', 'variant': 'extra', 'shards': 6},
       {'name': 'v8initializers'},
       {'name': 'v8testing', 'shards': 2},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 2},
@@ -1530,7 +1534,7 @@
       {'name': 'benchmarks', 'variant': 'code_serializer', 'shards': 1},
       {'name': 'd8testing', 'variant': 'code_serializer', 'shards': 1},
       {'name': 'mozilla', 'variant': 'code_serializer', 'shards': 1},
-      {'name': 'test262', 'variant': 'code_serializer', 'shards': 2},
+      {'name': 'test262', 'variant': 'code_serializer', 'shards': 3},
     ],
   },
   'V8 Linux64 - minor mc - debug': {
@@ -1647,6 +1651,16 @@
       {'name': 'v8testing', 'variant': 'default'},
     ],
   },
+  'V8 Linux64 - PKU - debug': {
+    'swarming_dimensions' : {
+      'os': 'Ubuntu-22.04',
+      'cpu': 'x86-64-avx2',
+      'pool': 'v8.tests',
+    },
+    'tests': [
+      {'name': 'v8testing', 'variant': 'default'},
+    ],
+  },
   'V8 Linux64 gcc': {
     'swarming_dimensions' : {
       'os': 'Ubuntu-20.04',
@@ -1707,7 +1721,7 @@
       'os': 'Ubuntu-22.04',
     },
     'tests': [
-      {'name': 'v8testing', 'shards': 2},
+      {'name': 'v8testing', 'shards': 5},
     ],
   },
   'V8 Linux64 - no shared cage - debug': {
@@ -1815,7 +1829,7 @@
       {
         'name': 'mjsunit',
         'test_args': ['--gc-stress', '--no-harness'],
-        'shards': 3,
+        'shards': 5,
       },
     ],
   },
@@ -2122,6 +2136,18 @@
     'swarming_dimensions': {
       'device_os': 'OPR4.170623.020',
       'device_type': 'bullhead',
+      'os': 'Android',
+    },
+    'tests': [
+      {'name': 'mozilla', 'variant': 'default'},
+      {'name': 'test262', 'variant': 'default', 'shards': 12},
+      {'name': 'v8testing', 'variant': 'default', 'shards': 4},
+    ],
+  },
+  'V8 Android Arm64 - P7': {
+    'swarming_dimensions': {
+      'device_os': 'AP2A.240705.004',
+      'device_type': 'panther',
       'os': 'Android',
     },
     'tests': [
@@ -2442,6 +2468,66 @@
       },
     ],
   },
+  'V8 NumFuzz - ASAN': {
+    'swarming_dimensions': {
+      'os': 'Ubuntu-22.04',
+    },
+    'swarming_task_attrs': {
+      'expiration': 13800,
+      'hard_timeout': 4200,
+      'priority': 35,
+    },
+    'tests': [
+      {'name': 'd8testing_random_gc', 'shards': 2},
+      {
+        'name': 'numfuzz',
+        'suffix': 'marking',
+        'test_args': ['--total-timeout-sec=2100', '--stress-marking=1']
+      },
+      {
+        'name': 'numfuzz',
+        'suffix': 'delay',
+        'test_args': ['--total-timeout-sec=2100', '--stress-delay-tasks=1']
+      },
+      {
+        'name': 'numfuzz',
+        'suffix': 'interrupt',
+        'test_args': ['--total-timeout-sec=2100', '--stress-interrupt-budget=1']
+      },
+      {
+        'name': 'numfuzz',
+        'suffix': 'threads',
+        'test_args': ['--total-timeout-sec=2100', '--stress-thread-pool-size=1']
+      },
+      {
+        'name': 'numfuzz',
+        'suffix': 'stack',
+        'test_args': ['--total-timeout-sec=2100', '--stress-stack-size=1']
+      },
+      {
+        'name': 'numfuzz',
+        'suffix': 'combined',
+        'test_args': [
+          '--total-timeout-sec=2100',
+          '--stress-delay-tasks=4',
+          '--stress-deopt=2',
+          '--stress-compaction=2',
+          '--stress-gc=4',
+          '--stress-marking=4',
+          '--stress-scavenge=4',
+          '--stress-thread-pool-size=2',
+          '--stress-stack-size=1',
+          '--stress-interrupt-budget=1',
+        ],
+        'shards': 4
+      },
+      {
+        'name': 'numfuzz',
+        'suffix': 'scavenge',
+        'test_args': ['--total-timeout-sec=2100', '--stress-scavenge=1']
+      },
+    ],
+  },
   'V8 NumFuzz - TSAN': {
     'swarming_dimensions': {
       'os': 'Ubuntu-22.04',
@@ -2583,6 +2669,59 @@
         'name': 'numfuzz',
         'suffix': 'interrupt',
         'test_args': ['--total-timeout-sec=900', '--stress-interrupt-budget=1']
+      },
+    ],
+  },
+  'v8_numfuzz_asan_rel': {
+    'swarming_dimensions': {
+      'os': 'Ubuntu-22.04',
+    },
+    'tests': [
+      {
+        'name': 'numfuzz',
+        'suffix': 'marking',
+        'test_args': ['--total-timeout-sec=900', '--stress-marking=1']
+      },
+      {
+        'name': 'numfuzz',
+        'suffix': 'delay',
+        'test_args': ['--total-timeout-sec=900', '--stress-delay-tasks=1']
+      },
+      {
+        'name': 'numfuzz',
+        'suffix': 'interrupt',
+        'test_args': ['--total-timeout-sec=900', '--stress-interrupt-budget=1']
+      },
+      {
+        'name': 'numfuzz',
+        'suffix': 'threads',
+        'test_args': ['--total-timeout-sec=900', '--stress-thread-pool-size=1']
+      },
+      {
+        'name': 'numfuzz',
+        'suffix': 'stack',
+        'test_args': ['--total-timeout-sec=900', '--stress-stack-size=1']
+      },
+      {
+        'name': 'numfuzz',
+        'suffix': 'combined',
+        'test_args': [
+          '--total-timeout-sec=900',
+          '--stress-delay-tasks=4',
+          '--stress-deopt=2',
+          '--stress-compaction=2',
+          '--stress-gc=4',
+          '--stress-marking=4',
+          '--stress-scavenge=4',
+          '--stress-thread-pool-size=2',
+          '--stress-stack-size=1',
+          '--stress-interrupt-budget=1',
+        ],
+      },
+      {
+        'name': 'numfuzz',
+        'suffix': 'scavenge',
+        'test_args': ['--total-timeout-sec=900', '--stress-scavenge=1']
       },
     ],
   },

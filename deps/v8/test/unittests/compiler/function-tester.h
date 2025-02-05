@@ -5,8 +5,8 @@
 #ifndef V8_UNITTESTS_COMPILER_FUNCTION_TESTER_H_
 #define V8_UNITTESTS_COMPILER_FUNCTION_TESTER_H_
 
-#include "src/compiler/graph.h"
 #include "src/compiler/js-heap-broker.h"
+#include "src/compiler/turbofan-graph.h"
 #include "src/execution/execution.h"
 #include "src/handles/handles.h"
 #include "test/unittests/test-utils.h"

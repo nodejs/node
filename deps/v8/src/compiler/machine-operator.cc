@@ -141,6 +141,8 @@ std::ostream& operator<<(std::ostream& os, LoadTransformation rep) {
       return os << "kS256Load8x16S";
     case LoadTransformation::kS256Load8x16U:
       return os << "kS256Load8x16U";
+    case LoadTransformation::kS256Load8x8U:
+      return os << "kS256Load8x8U";
     case LoadTransformation::kS256Load16x8S:
       return os << "kS256Load16x8S";
     case LoadTransformation::kS256Load16x8U:
@@ -616,6 +618,8 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   IF_WASM(V, F64x4Max, Operator::kAssociative | Operator::kCommutative, 2, 0,  \
           1)                                                                   \
   IF_WASM(V, F64x4Add, Operator::kCommutative, 2, 0, 1)                        \
+  IF_WASM(V, F64x4Abs, Operator::kNoProperties, 1, 0, 1)                       \
+  IF_WASM(V, F64x4Neg, Operator::kNoProperties, 1, 0, 1)                       \
   IF_WASM(V, F64x4Sqrt, Operator::kNoProperties, 1, 0, 1)                      \
   IF_WASM(V, F32x8Abs, Operator::kNoProperties, 1, 0, 1)                       \
   IF_WASM(V, F32x8Neg, Operator::kNoProperties, 1, 0, 1)                       \
@@ -757,7 +761,9 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   IF_WASM(V, I16x16RelaxedLaneSelect, Operator::kNoProperties, 3, 0, 1)        \
   IF_WASM(V, I8x32RelaxedLaneSelect, Operator::kNoProperties, 3, 0, 1)         \
   IF_WASM(V, I32x8DotI8x32I7x32AddS, Operator::kNoProperties, 3, 0, 1)         \
-  IF_WASM(V, I16x16DotI8x32I7x32S, Operator::kNoProperties, 2, 0, 1)
+  IF_WASM(V, I16x16DotI8x32I7x32S, Operator::kNoProperties, 2, 0, 1)           \
+  IF_WASM(V, I32x8RelaxedTruncF32x8S, Operator::kNoProperties, 1, 0, 1)        \
+  IF_WASM(V, I32x8RelaxedTruncF32x8U, Operator::kNoProperties, 1, 0, 1)
 
 // The format is:
 // V(Name, properties, value_input_count, control_input_count, output_count)
@@ -899,7 +905,8 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(Word32Select, Operator::kNoProperties, 3, 0, 1)         \
   V(Word64Select, Operator::kNoProperties, 3, 0, 1)         \
   V(Float32Select, Operator::kNoProperties, 3, 0, 1)        \
-  V(Float64Select, Operator::kNoProperties, 3, 0, 1)
+  V(Float64Select, Operator::kNoProperties, 3, 0, 1)        \
+  V(TruncateFloat64ToFloat16, Operator::kNoProperties, 1, 0, 1)
 
 // The format is:
 // V(Name, properties, value_input_count, control_input_count, output_count)

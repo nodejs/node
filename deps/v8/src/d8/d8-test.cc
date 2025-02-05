@@ -94,6 +94,17 @@ class FastCApiObject {
     self->fast_call_count_++;
 
     HandleScope handle_scope(options.isolate);
+    if (!out->IsUint8Array()) {
+      options.isolate->ThrowError(
+          "Invalid parameter, the second parameter has to be a a Uint8Array.");
+      return;
+    }
+    Local<Uint8Array> array = out.As<Uint8Array>();
+    if (array->Length() < source.length) {
+      options.isolate->ThrowError(
+          "Invalid parameter, destination array is too small.");
+      return;
+    }
     uint8_t* memory =
         reinterpret_cast<uint8_t*>(out.As<Uint8Array>()->Buffer()->Data());
     memcpy(memory, source.data, source.length);
@@ -364,9 +375,9 @@ class FastCApiObject {
     T* memory = reinterpret_cast<T*>(
         typed_array_arg.As<TypedArray>()->Buffer()->Data());
     size_t length = typed_array_arg.As<TypedArray>()->ByteLength() / sizeof(T);
-    T sum = 0;
+    double sum = 0;
     for (size_t i = 0; i < length; ++i) {
-      sum += memory[i];
+      sum += static_cast<double>(memory[i]);
     }
     return static_cast<Type>(sum);
   }
@@ -734,10 +745,6 @@ class FastCApiObject {
 
     HandleScope handle_scope(isolate);
 
-    if (i::v8_flags.fuzzing) {
-      info.GetReturnValue().Set(false);
-      return;
-    }
     double real_arg = 0;
     if (info.Length() > 1 && info[1]->IsNumber()) {
       real_arg = info[1]->NumberValue(isolate->GetCurrentContext()).FromJust();
@@ -1362,6 +1369,7 @@ class FastCApiObject {
 
  private:
   static bool IsValidApiObject(Local<Object> object) {
+    if (object->IsInt32()) return false;
     auto instance_type = i::Internals::GetInstanceType(
         internal::ValueHelper::ValueAsAddress(*object));
     return (base::IsInRange(instance_type, i::Internals::kFirstJSApiObjectType,
@@ -1370,6 +1378,9 @@ class FastCApiObject {
   }
   static FastCApiObject* UnwrapObject(Local<Object> object) {
     if (!IsValidApiObject(object)) {
+      return nullptr;
+    }
+    if (object->InternalFieldCount() <= kV8WrapperObjectIndex) {
       return nullptr;
     }
     FastCApiObject* wrapped = reinterpret_cast<FastCApiObject*>(
@@ -1412,7 +1423,8 @@ void CreateFastCAPIObject(const FunctionCallbackInfo<Value>& info) {
   api_object->SetAccessorProperty(
       String::NewFromUtf8Literal(info.GetIsolate(), "supports_fp_params"),
       FunctionTemplate::New(info.GetIsolate(), FastCApiObject::SupportsFPParams)
-          ->GetFunction(api_object->GetCreationContext().ToLocalChecked())
+          ->GetFunction(api_object->GetCreationContext(info.GetIsolate())
+                            .ToLocalChecked())
           .ToLocalChecked());
 }
 

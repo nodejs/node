@@ -7,7 +7,7 @@
 
 #include "src/base/flags.h"
 #include "src/compiler/opcodes.h"
-#include "src/compiler/types.h"
+#include "src/compiler/turbofan-types.h"
 
 #define TYPER_SUPPORTED_MACHINE_BINOP_LIST(V) \
   V(Int32Add)                                 \

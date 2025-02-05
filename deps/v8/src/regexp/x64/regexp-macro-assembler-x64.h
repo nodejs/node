@@ -18,7 +18,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerX64
   RegExpMacroAssemblerX64(Isolate* isolate, Zone* zone, Mode mode,
                           int registers_to_save);
   ~RegExpMacroAssemblerX64() override;
-  int stack_limit_slack() override;
+  int stack_limit_slack_slot_count() override;
   void AdvanceCurrentPosition(int by) override;
   void AdvanceRegister(int reg, int by) override;
   void Backtrack() override;
@@ -67,7 +67,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerX64
   void BindJumpTarget(Label* label) override;
 
   void Fail() override;
-  Handle<HeapObject> GetCode(Handle<String> source) override;
+  Handle<HeapObject> GetCode(Handle<String> source, RegExpFlags flags) override;
   void GoTo(Label* label) override;
   void IfRegisterGE(int reg, int comparand, Label* if_ge) override;
   void IfRegisterLT(int reg, int comparand, Label* if_lt) override;

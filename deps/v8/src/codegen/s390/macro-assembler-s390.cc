@@ -5,7 +5,7 @@
 #include <assert.h>  // For assert
 #include <limits.h>  // For LONG_MIN, LONG_MAX.
 
-#if V8_TARGET_ARCH_S390
+#if V8_TARGET_ARCH_S390X
 
 #include "src/base/bits.h"
 #include "src/base/division-by-constant.h"
@@ -335,7 +335,7 @@ void MacroAssembler::LoadFromConstantsTable(Register destination,
                                             int constant_index) {
   DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kBuiltinsConstantsTable));
 
-  const uint32_t offset = FixedArray::kHeaderSize +
+  const uint32_t offset = OFFSET_OF_DATA_START(FixedArray) +
                           constant_index * kSystemPointerSize - kHeapObjectTag;
 
   CHECK(is_uint19(offset));
@@ -472,11 +472,7 @@ int MacroAssembler::CallSizeNotPredictableCodeSize(Address target,
                                                    Condition cond) {
   // S390 Assembler::move sequence is IILF / IIHF
   int size;
-#if V8_TARGET_ARCH_S390X
   size = 14;  // IILF + IIHF + BASR
-#else
-  size = 8;  // IILF + BASR
-#endif
   return size;
 }
 
@@ -701,11 +697,7 @@ void MacroAssembler::RotateInsertSelectBits(Register dst, Register src,
 
 void MacroAssembler::BranchRelativeOnIdxHighP(Register dst, Register inc,
                                               Label* L) {
-#if V8_TARGET_ARCH_S390X
   brxhg(dst, inc, L);
-#else
-  brxh(dst, inc, L);
-#endif  // V8_TARGET_ARCH_S390X
 }
 
 void MacroAssembler::PushArray(Register array, Register size, Register scratch,
@@ -948,11 +940,12 @@ void MacroAssembler::LoadTaggedField(const Register& destination,
   }
 }
 void MacroAssembler::LoadTaggedFieldWithoutDecompressing(
-    const Register& destination, const MemOperand& field_operand) {
+    const Register& destination, const MemOperand& field_operand,
+    const Register& scratch) {
   if (COMPRESS_POINTERS_BOOL) {
-    llgf(destination, field_operand);
+    LoadU32(destination, field_operand, scratch);
   } else {
-    LoadU64(destination, field_operand);
+    LoadU64(destination, field_operand, scratch);
   }
 }
 void MacroAssembler::SmiUntag(Register dst, const MemOperand& src) {
@@ -1193,7 +1186,6 @@ void MacroAssembler::RecordWrite(Register object, Register slot_address,
 void MacroAssembler::PushCommonFrame(Register marker_reg) {
   ASM_CODE_COMMENT(this);
   int fp_delta = 0;
-  CleanseP(r14);
   if (marker_reg.is_valid()) {
     Push(r14, fp, marker_reg);
     fp_delta = 1;
@@ -1214,7 +1206,6 @@ void MacroAssembler::PopCommonFrame(Register marker_reg) {
 
 void MacroAssembler::PushStandardFrame(Register function_reg) {
   int fp_delta = 0;
-  CleanseP(r14);
   if (function_reg.is_valid()) {
     Push(r14, fp, cp, function_reg);
     fp_delta = 2;
@@ -1354,9 +1345,7 @@ void MacroAssembler::ConvertDoubleToInt32(const Register dst,
     default:
       UNIMPLEMENTED();
   }
-#ifdef V8_TARGET_ARCH_S390X
   lghi(dst, Operand::Zero());
-#endif
   cfdbr(m, dst, double_input);
 }
 
@@ -1380,9 +1369,7 @@ void MacroAssembler::ConvertFloat32ToInt32(const Register result,
     default:
       UNIMPLEMENTED();
   }
-#ifdef V8_TARGET_ARCH_S390X
   lghi(result, Operand::Zero());
-#endif
   cfebr(m, result, double_input);
 }
 
@@ -1405,9 +1392,7 @@ void MacroAssembler::ConvertFloat32ToUnsignedInt32(
     default:
       UNIMPLEMENTED();
   }
-#ifdef V8_TARGET_ARCH_S390X
   lghi(result, Operand::Zero());
-#endif
   clfebr(m, Condition(0), result, double_input);
 }
 
@@ -1474,9 +1459,7 @@ void MacroAssembler::ConvertDoubleToUnsignedInt32(
     default:
       UNIMPLEMENTED();
   }
-#ifdef V8_TARGET_ARCH_S390X
   lghi(dst, Operand::Zero());
-#endif
   clfdbr(m, Condition(0), dst, double_input);
 }
 
@@ -1592,7 +1575,6 @@ void MacroAssembler::EnterExitFrame(Register scratch, int stack_space,
   // This is an opportunity to build a frame to wrap
   // all of the pushes that have happened inside of V8
   // since we were called from C code
-  CleanseP(r14);
   mov(r1, Operand(StackFrame::TypeToMarker(frame_type)));
   PushCommonFrame(r1);
   // Reserve room for saved entry sp.
@@ -1838,9 +1820,10 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
   // We call indirectly through the code field in the function to
   // allow recompilation to take effect without changing any of the
   // call sites.
+  constexpr int unused_argument_count = 0;
   switch (type) {
     case InvokeType::kCall:
-      CallJSFunction(function);
+      CallJSFunction(function, unused_argument_count);
       break;
     case InvokeType::kJump:
       JumpJSFunction(function);
@@ -2225,11 +2208,7 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
   // smarter.
   mov(r2, Operand(num_arguments));
   Move(r3, ExternalReference::Create(f));
-#if V8_TARGET_ARCH_S390X
   CallBuiltin(Builtins::RuntimeCEntry(f->result_size));
-#else
-  CallBuiltin(Builtins::RuntimeCEntry(1));
-#endif
 }
 
 void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid) {
@@ -3472,11 +3451,7 @@ void MacroAssembler::SubS32(Register dst, const MemOperand& opnd) {
 
 // Subtract Pointer Sized (Register - Memory)
 void MacroAssembler::SubS64(Register dst, const MemOperand& opnd) {
-#if V8_TARGET_ARCH_S390X
   sg(dst, opnd);
-#else
-  SubS32(dst, opnd);
-#endif
 }
 
 void MacroAssembler::MovIntToFloat(DoubleRegister dst, Register src) {
@@ -3518,11 +3493,7 @@ void MacroAssembler::SubU32(Register dst, const MemOperand& opnd) {
 // Subtract Logical Pointer Sized (Register - Memory)
 void MacroAssembler::SubU64(Register dst, const MemOperand& opnd) {
   DCHECK(is_int20(opnd.offset()));
-#if V8_TARGET_ARCH_S390X
   slgf(dst, opnd);
-#else
-  SubU32(dst, opnd);
-#endif
 }
 
 //----------------------------------------------------------------------------
@@ -3581,11 +3552,7 @@ void MacroAssembler::And(Register dst, const MemOperand& opnd) {
 // AND Pointer Size (Reg - Mem)
 void MacroAssembler::AndP(Register dst, const MemOperand& opnd) {
   DCHECK(is_int20(opnd.offset()));
-#if V8_TARGET_ARCH_S390X
   ng(dst, opnd);
-#else
-  And(dst, opnd);
-#endif
 }
 
 // AND 32-bit - dst = dst & imm
@@ -3593,16 +3560,12 @@ void MacroAssembler::And(Register dst, const Operand& opnd) { nilf(dst, opnd); }
 
 // AND Pointer Size - dst = dst & imm
 void MacroAssembler::AndP(Register dst, const Operand& opnd) {
-#if V8_TARGET_ARCH_S390X
   intptr_t value = opnd.immediate();
   if (value >> 32 != -1) {
     // this may not work b/c condition code won't be set correctly
     nihf(dst, Operand(value >> 32));
   }
   nilf(dst, Operand(value & 0xFFFFFFFF));
-#else
-  And(dst, opnd);
-#endif
 }
 
 // AND 32-bit - dst = src & imm
@@ -3704,11 +3667,7 @@ void MacroAssembler::Or(Register dst, const MemOperand& opnd) {
 // OR Pointer Size (Reg - Mem)
 void MacroAssembler::OrP(Register dst, const MemOperand& opnd) {
   DCHECK(is_int20(opnd.offset()));
-#if V8_TARGET_ARCH_S390X
   og(dst, opnd);
-#else
-  Or(dst, opnd);
-#endif
 }
 
 // OR 32-bit - dst = dst & imm
@@ -3716,16 +3675,12 @@ void MacroAssembler::Or(Register dst, const Operand& opnd) { oilf(dst, opnd); }
 
 // OR Pointer Size - dst = dst & imm
 void MacroAssembler::OrP(Register dst, const Operand& opnd) {
-#if V8_TARGET_ARCH_S390X
   intptr_t value = opnd.immediate();
   if (value >> 32 != 0) {
     // this may not work b/c condition code won't be set correctly
     oihf(dst, Operand(value >> 32));
   }
   oilf(dst, Operand(value & 0xFFFFFFFF));
-#else
-  Or(dst, opnd);
-#endif
 }
 
 // OR 32-bit - dst = src & imm
@@ -3792,11 +3747,7 @@ void MacroAssembler::Xor(Register dst, const MemOperand& opnd) {
 // XOR Pointer Size (Reg - Mem)
 void MacroAssembler::XorP(Register dst, const MemOperand& opnd) {
   DCHECK(is_int20(opnd.offset()));
-#if V8_TARGET_ARCH_S390X
   xg(dst, opnd);
-#else
-  Xor(dst, opnd);
-#endif
 }
 
 // XOR 32-bit - dst = dst & imm
@@ -3804,13 +3755,9 @@ void MacroAssembler::Xor(Register dst, const Operand& opnd) { xilf(dst, opnd); }
 
 // XOR Pointer Size - dst = dst & imm
 void MacroAssembler::XorP(Register dst, const Operand& opnd) {
-#if V8_TARGET_ARCH_S390X
   intptr_t value = opnd.immediate();
   xihf(dst, Operand(value >> 32));
   xilf(dst, Operand(value & 0xFFFFFFFF));
-#else
-  Xor(dst, opnd);
-#endif
 }
 
 // XOR 32-bit - dst = src & imm
@@ -3837,19 +3784,11 @@ void MacroAssembler::Not64(Register dst, Register src) {
 }
 
 void MacroAssembler::NotP(Register dst, Register src) {
-#if V8_TARGET_ARCH_S390X
   Not64(dst, src);
-#else
-  Not32(dst, src);
-#endif
 }
 
 void MacroAssembler::LoadPositiveP(Register result, Register input) {
-#if V8_TARGET_ARCH_S390X
   lpgr(result, input);
-#else
-  lpr(result, input);
-#endif
 }
 
 void MacroAssembler::LoadPositive32(Register result, Register input) {
@@ -3954,11 +3893,7 @@ void MacroAssembler::CmpU32(Register dst, Register src) { clr(dst, src); }
 
 // Compare Logical Pointer Sized Register vs Register
 void MacroAssembler::CmpU64(Register dst, Register src) {
-#ifdef V8_TARGET_ARCH_S390X
   clgr(dst, src);
-#else
-  CmpU32(dst, src);
-#endif
 }
 
 // Compare Logical 32-bit Register vs Immediate
@@ -3968,12 +3903,8 @@ void MacroAssembler::CmpU32(Register dst, const Operand& opnd) {
 
 // Compare Logical Pointer Sized Register vs Immediate
 void MacroAssembler::CmpU64(Register dst, const Operand& opnd) {
-#if V8_TARGET_ARCH_S390X
   DCHECK_EQ(static_cast<uint32_t>(opnd.immediate() >> 32), 0);
   clgfi(dst, opnd);
-#else
-  CmpU32(dst, opnd);
-#endif
 }
 
 // Compare Logical 32-bit Register vs Memory
@@ -3990,11 +3921,7 @@ void MacroAssembler::CmpU32(Register dst, const MemOperand& opnd) {
 void MacroAssembler::CmpU64(Register dst, const MemOperand& opnd) {
   // make sure offset is within 20 bit range
   DCHECK(is_int20(opnd.offset()));
-#if V8_TARGET_ARCH_S390X
   clg(dst, opnd);
-#else
-  CmpU32(dst, opnd);
-#endif
 }
 
 void MacroAssembler::Branch(Condition c, const Operand& opnd) {
@@ -4009,11 +3936,7 @@ void MacroAssembler::Branch(Condition c, const Operand& opnd) {
 void MacroAssembler::BranchOnCount(Register r1, Label* l) {
   int32_t offset = branch_offset(l);
   if (is_int16(offset)) {
-#if V8_TARGET_ARCH_S390X
     brctg(r1, Operand(offset));
-#else
-    brct(r1, Operand(offset));
-#endif
   } else {
     AddS64(r1, Operand(-1));
     Branch(ne, Operand(offset));
@@ -4091,32 +4014,14 @@ void MacroAssembler::StoreU64(const MemOperand& mem, const Operand& opnd,
 
 void MacroAssembler::LoadMultipleP(Register dst1, Register dst2,
                                    const MemOperand& mem) {
-#if V8_TARGET_ARCH_S390X
   DCHECK(is_int20(mem.offset()));
   lmg(dst1, dst2, mem);
-#else
-  if (is_uint12(mem.offset())) {
-    lm(dst1, dst2, mem);
-  } else {
-    DCHECK(is_int20(mem.offset()));
-    lmy(dst1, dst2, mem);
-  }
-#endif
 }
 
 void MacroAssembler::StoreMultipleP(Register src1, Register src2,
                                     const MemOperand& mem) {
-#if V8_TARGET_ARCH_S390X
   DCHECK(is_int20(mem.offset()));
   stmg(src1, src2, mem);
-#else
-  if (is_uint12(mem.offset())) {
-    stm(src1, src2, mem);
-  } else {
-    DCHECK(is_int20(mem.offset()));
-    stmy(src1, src2, mem);
-  }
-#endif
 }
 
 void MacroAssembler::LoadMultipleW(Register dst1, Register dst2,
@@ -4141,11 +4046,7 @@ void MacroAssembler::StoreMultipleW(Register src1, Register src2,
 
 // Load 32-bits and sign extend if necessary.
 void MacroAssembler::LoadS32(Register dst, Register src) {
-#if V8_TARGET_ARCH_S390X
   lgfr(dst, src);
-#else
-  if (dst != src) lr(dst, src);
-#endif
 }
 
 // Load 32-bits and sign extend if necessary.
@@ -4156,31 +4057,15 @@ void MacroAssembler::LoadS32(Register dst, const MemOperand& mem,
   if (!is_int20(offset)) {
     DCHECK(scratch != no_reg);
     mov(scratch, Operand(offset));
-#if V8_TARGET_ARCH_S390X
     lgf(dst, MemOperand(mem.rb(), scratch));
-#else
-    l(dst, MemOperand(mem.rb(), scratch));
-#endif
   } else {
-#if V8_TARGET_ARCH_S390X
     lgf(dst, mem);
-#else
-    if (is_uint12(offset)) {
-      l(dst, mem);
-    } else {
-      ly(dst, mem);
-    }
-#endif
   }
 }
 
 // Load 32-bits and zero extend if necessary.
 void MacroAssembler::LoadU32(Register dst, Register src) {
-#if V8_TARGET_ARCH_S390X
   llgfr(dst, src);
-#else
-  if (dst != src) lr(dst, src);
-#endif
 }
 
 // Variable length depending on whether offset fits into immediate field
@@ -4190,7 +4075,6 @@ void MacroAssembler::LoadU32(Register dst, const MemOperand& mem,
   Register base = mem.rb();
   int offset = mem.offset();
 
-#if V8_TARGET_ARCH_S390X
   if (is_int20(offset)) {
     llgf(dst, mem);
   } else if (scratch != no_reg) {
@@ -4200,81 +4084,33 @@ void MacroAssembler::LoadU32(Register dst, const MemOperand& mem,
   } else {
     DCHECK(false);
   }
-#else
-  bool use_RXform = false;
-  bool use_RXYform = false;
-  if (is_uint12(offset)) {
-    // RX-format supports unsigned 12-bits offset.
-    use_RXform = true;
-  } else if (is_int20(offset)) {
-    // RXY-format supports signed 20-bits offset.
-    use_RXYform = true;
-  } else if (scratch != no_reg) {
-    // Materialize offset into scratch register.
-    mov(scratch, Operand(offset));
-  } else {
-    DCHECK(false);
-  }
-
-  if (use_RXform) {
-    l(dst, mem);
-  } else if (use_RXYform) {
-    ly(dst, mem);
-  } else {
-    ly(dst, MemOperand(base, scratch));
-  }
-#endif
 }
 
 void MacroAssembler::LoadU16(Register dst, const MemOperand& mem) {
   // TODO(s390x): Add scratch reg
-#if V8_TARGET_ARCH_S390X
   llgh(dst, mem);
-#else
-  llh(dst, mem);
-#endif
 }
 
 void MacroAssembler::LoadU16(Register dst, Register src) {
-#if V8_TARGET_ARCH_S390X
   llghr(dst, src);
-#else
-  llhr(dst, src);
-#endif
 }
 
 void MacroAssembler::LoadS8(Register dst, const MemOperand& mem) {
   // TODO(s390x): Add scratch reg
-#if V8_TARGET_ARCH_S390X
   lgb(dst, mem);
-#else
-  lb(dst, mem);
-#endif
 }
 
 void MacroAssembler::LoadS8(Register dst, Register src) {
-#if V8_TARGET_ARCH_S390X
   lgbr(dst, src);
-#else
-  lbr(dst, src);
-#endif
 }
 
 void MacroAssembler::LoadU8(Register dst, const MemOperand& mem) {
   // TODO(s390x): Add scratch reg
-#if V8_TARGET_ARCH_S390X
   llgc(dst, mem);
-#else
-  llc(dst, mem);
-#endif
 }
 
 void MacroAssembler::LoadU8(Register dst, Register src) {
-#if V8_TARGET_ARCH_S390X
   llgcr(dst, src);
-#else
-  llcr(dst, src);
-#endif
 }
 
 #ifdef V8_TARGET_BIG_ENDIAN
@@ -4479,11 +4315,7 @@ void MacroAssembler::LoadAndTest32(Register dst, Register src) {
 
 // Load And Test Pointer Sized (Reg <- Reg)
 void MacroAssembler::LoadAndTestP(Register dst, Register src) {
-#if V8_TARGET_ARCH_S390X
   ltgr(dst, src);
-#else
-  ltr(dst, src);
-#endif
 }
 
 // Load And Test 32-bit (Reg <- Mem)
@@ -4493,21 +4325,13 @@ void MacroAssembler::LoadAndTest32(Register dst, const MemOperand& mem) {
 
 // Load And Test Pointer Sized (Reg <- Mem)
 void MacroAssembler::LoadAndTestP(Register dst, const MemOperand& mem) {
-#if V8_TARGET_ARCH_S390X
   ltg(dst, mem);
-#else
-  lt_z(dst, mem);
-#endif
 }
 
 // Load On Condition Pointer Sized (Reg <- Reg)
 void MacroAssembler::LoadOnConditionP(Condition cond, Register dst,
                                       Register src) {
-#if V8_TARGET_ARCH_S390X
   locgr(cond, dst, src);
-#else
-  locr(cond, dst, src);
-#endif
 }
 
 // Load Double Precision (64-bit) Floating Point number from memory
@@ -4801,11 +4625,7 @@ void MacroAssembler::StoreU32(Register src, const MemOperand& mem,
 }
 
 void MacroAssembler::LoadS16(Register dst, Register src) {
-#if V8_TARGET_ARCH_S390X
   lghr(dst, src);
-#else
-  lhr(dst, src);
-#endif
 }
 
 // Loads 16-bits half-word value from memory and sign extends to pointer
@@ -4818,21 +4638,9 @@ void MacroAssembler::LoadS16(Register dst, const MemOperand& mem,
   if (!is_int20(offset)) {
     DCHECK(scratch != no_reg);
     mov(scratch, Operand(offset));
-#if V8_TARGET_ARCH_S390X
     lgh(dst, MemOperand(base, scratch));
-#else
-    lh(dst, MemOperand(base, scratch));
-#endif
   } else {
-#if V8_TARGET_ARCH_S390X
     lgh(dst, mem);
-#else
-    if (is_uint12(offset)) {
-      lh(dst, mem);
-    } else {
-      lhy(dst, mem);
-    }
-#endif
   }
 }
 
@@ -5007,7 +4815,6 @@ void MacroAssembler::Popcnt32(Register dst, Register src) {
   llgcr(dst, dst);
 }
 
-#ifdef V8_TARGET_ARCH_S390X
 void MacroAssembler::Popcnt64(Register dst, Register src) {
   DCHECK(src != r0);
   DCHECK(dst != r0);
@@ -5021,7 +4828,6 @@ void MacroAssembler::Popcnt64(Register dst, Register src) {
   AddS64(dst, r0);
   LoadU8(dst, dst);
 }
-#endif
 
 void MacroAssembler::SwapP(Register src, Register dst, Register scratch) {
   if (src == dst) return;
@@ -5223,7 +5029,10 @@ void MacroAssembler::JumpCodeObject(Register code_object, JumpMode jump_mode) {
   Jump(code_object);
 }
 
-void MacroAssembler::CallJSFunction(Register function_object) {
+void MacroAssembler::CallJSFunction(Register function_object,
+                                    uint16_t argument_count) {
+  DCHECK_WITH_MSG(!V8_ENABLE_LEAPTIERING_BOOL,
+                  "argument_count is only used with Leaptiering");
   Register code = kJavaScriptCallCodeStartRegister;
   LoadTaggedField(code,
                   FieldMemOperand(function_object, JSFunction::kCodeOffset));
@@ -6706,7 +6515,7 @@ void MacroAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,
     UseScratchRegisterScope temps(this);
     Register temp = temps.Acquire();
     JumpIfCodeIsMarkedForDeoptimization(scratch_and_result, temp, &clear_slot);
-    if (min_opt_level == CodeKind::TURBOFAN) {
+    if (min_opt_level == CodeKind::TURBOFAN_JS) {
       JumpIfCodeIsTurbofanned(scratch_and_result, temp, on_result);
       b(&fallthrough);
     } else {
@@ -6917,4 +6726,4 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
 
 #undef __
 
-#endif  // V8_TARGET_ARCH_S390
+#endif  // V8_TARGET_ARCH_S390X

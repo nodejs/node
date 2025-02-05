@@ -141,9 +141,10 @@ struct JSBuiltinDispatchHandleRoot {
 #endif  // V8_COMPRESS_POINTERS
 
 #ifdef V8_ENABLE_SANDBOX
-#define ISOLATE_DATA_FIELDS_SANDBOX(V)                      \
-  V(TrustedCageBase, kSystemPointerSize, trusted_cage_base) \
-  V(TrustedPointerTable, TrustedPointerTable::kSize, trusted_pointer_table)
+#define ISOLATE_DATA_FIELDS_SANDBOX(V)                                      \
+  V(TrustedCageBase, kSystemPointerSize, trusted_cage_base)                 \
+  V(TrustedPointerTable, TrustedPointerTable::kSize, trusted_pointer_table) \
+  V(SharedTrustedPointerTable, kSystemPointerSize, shared_trusted_pointer_table)
 #else
 #define ISOLATE_DATA_FIELDS_SANDBOX(V)
 #endif  // V8_ENABLE_SANDBOX
@@ -285,7 +286,7 @@ class IsolateData final {
 
 // Offset of a ThreadLocalTop member from {isolate_root()}.
 #define THREAD_LOCAL_TOP_MEMBER_OFFSET(Name)                              \
-  static uint32_t Name##_offset() {                                       \
+  static constexpr uint32_t Name##_offset() {                             \
     return static_cast<uint32_t>(IsolateData::thread_local_top_offset() + \
                                  OFFSET_OF(ThreadLocalTop, Name##_));     \
   }
@@ -412,7 +413,7 @@ class IsolateData final {
   // Tables containing pointers to objects outside of the V8 sandbox.
 #ifdef V8_COMPRESS_POINTERS
   ExternalPointerTable external_pointer_table_;
-  ExternalPointerTable* shared_external_pointer_table_;
+  ExternalPointerTable* shared_external_pointer_table_ = nullptr;
   CppHeapPointerTable cpp_heap_pointer_table_;
 #endif  // V8_COMPRESS_POINTERS
 
@@ -420,6 +421,7 @@ class IsolateData final {
   const Address trusted_cage_base_;
 
   TrustedPointerTable trusted_pointer_table_;
+  TrustedPointerTable* shared_trusted_pointer_table_ = nullptr;
 #endif  // V8_ENABLE_SANDBOX
 
   // This is a storage for an additional argument for the Api callback thunk

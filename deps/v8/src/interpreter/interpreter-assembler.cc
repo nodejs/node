@@ -679,7 +679,8 @@ TNode<Uint32T> InterpreterAssembler::BytecodeOperandIntrinsicId(
 TNode<Object> InterpreterAssembler::LoadConstantPoolEntry(TNode<WordT> index) {
   TNode<TrustedFixedArray> constant_pool = CAST(LoadProtectedPointerField(
       BytecodeArrayTaggedPointer(), BytecodeArray::kConstantPoolOffset));
-  return CAST(LoadArrayElement(constant_pool, TrustedFixedArray::kHeaderSize,
+  return CAST(LoadArrayElement(constant_pool,
+                               OFFSET_OF_DATA_START(TrustedFixedArray),
                                UncheckedCast<IntPtrT>(index), 0));
 }
 
@@ -1514,8 +1515,8 @@ void InterpreterAssembler::TraceBytecodeDispatch(TNode<WordT> target_bytecode) {
 bool InterpreterAssembler::TargetSupportsUnalignedAccess() {
 #if V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_RISCV32
   return false;
-#elif V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_S390 || \
-    V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_PPC64 || \
+#elif V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_S390X || \
+    V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_PPC64 ||  \
     V8_TARGET_ARCH_LOONG64
   return true;
 #else

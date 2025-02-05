@@ -42,7 +42,8 @@ struct ExternalPointerTableEntry {
 
   // Make this entry an external pointer entry containing the given pointer
   // tagged with the given tag.
-  inline void MakeExternalPointerEntry(Address value, ExternalPointerTag tag);
+  inline void MakeExternalPointerEntry(Address value, ExternalPointerTag tag,
+                                       bool mark_as_alive);
 
   // Load and untag the external pointer stored in this entry.
   // This entry must be an external pointer entry.
@@ -112,7 +113,9 @@ struct ExternalPointerTableEntry {
     static constexpr TagType kFreeEntryTag = kExternalPointerFreeEntryTag;
     static constexpr TagType kEvacuationEntryTag =
         kExternalPointerEvacuationEntryTag;
+    static constexpr TagType kZappedEntryTag = kExternalPointerZappedEntryTag;
     static constexpr bool kSupportsEvacuation = true;
+    static constexpr bool kSupportsZapping = true;
   };
 
   using Payload = TaggedPayload<ExternalPointerTaggingScheme>;
@@ -269,6 +272,14 @@ class V8_EXPORT_PRIVATE ExternalPointerTable
 
     // Not atomic.  Mutators and concurrent marking must be paused.
     void AssertEmpty() { CHECK(segments_.empty()); }
+
+    bool allocate_black() { return allocate_black_; }
+    void set_allocate_black(bool allocate_black) {
+      allocate_black_ = allocate_black;
+    }
+
+   private:
+    bool allocate_black_ = false;
   };
 
   // Initializes all slots in the RO space from pre-existing artifacts.

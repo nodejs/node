@@ -324,7 +324,7 @@ TEST(ArrayBuffer_SemiSpaceCopyThenPagePromotion) {
       root->set(0, *buf);  // Buffer that should be promoted as live.
       MemoryChunk::FromHeapObject(*buf)->MarkNeverEvacuate();
     }
-    std::vector<Handle<FixedArray>> handles;
+    DirectHandleVector<FixedArray> handles(isolate);
     // Make the whole page transition from new->old, getting the buffers
     // processed in the sweeper (relying on marking information) instead of
     // processing during newspace evacuation.
@@ -362,7 +362,7 @@ TEST(ArrayBuffer_PagePromotion) {
       extension = buf->extension();
       root->set(0, *buf);  // Buffer that should be promoted as live.
     }
-    std::vector<Handle<FixedArray>> handles;
+    DirectHandleVector<FixedArray> handles(isolate);
     // Create live objects on page such that the whole page gets promoted
     heap::FillCurrentPage(heap->new_space(), &handles);
     CHECK(IsTrackedYoung(heap, extension));

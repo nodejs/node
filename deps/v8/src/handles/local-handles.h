@@ -49,8 +49,15 @@ class V8_NODISCARD LocalHandleScope {
   LocalHandleScope(const LocalHandleScope&) = delete;
   LocalHandleScope& operator=(const LocalHandleScope&) = delete;
 
-  template <typename T>
-  Handle<T> CloseAndEscape(Handle<T> handle_value);
+  // TODO(42203211): When direct handles are enabled, the version with
+  // HandleType = DirectHandle does not need to be called, as it simply
+  // closes the scope (which is done by the scope's destructor anyway)
+  // and returns its parameter. This will be cleaned up after direct
+  // handles ship.
+  template <typename T, template <typename> typename HandleType,
+            typename = std::enable_if_t<
+                std::is_convertible_v<HandleType<T>, DirectHandle<T>>>>
+  HandleType<T> CloseAndEscape(HandleType<T> handle_value);
 
   V8_INLINE static Address* GetHandle(LocalHeap* local_heap, Address value);
 

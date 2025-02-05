@@ -4,6 +4,7 @@
 
 #include "src/compiler/linkage.h"
 
+#include "src/builtins/builtins-descriptors.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/optimized-compilation-info.h"
@@ -481,7 +482,7 @@ CallDescriptor* Linkage::GetCEntryStubCallDescriptor(
       kDefaultCodeEntrypointTag,        // tag
       target_type,                      // target MachineType
       target_loc,                       // target location
-      locations.Build(),                // location_sig
+      locations.Get(),                  // location_sig
       js_parameter_count,               // stack_parameter_count
       properties,                       // properties
       kNoCalleeSaved,                   // callee-saved
@@ -499,8 +500,17 @@ CallDescriptor* Linkage::GetJSCallDescriptor(Zone* zone, bool is_osr,
   const size_t context_count = 1;
   const size_t new_target_count = 1;
   const size_t num_args_count = 1;
-  const size_t parameter_count =
-      js_parameter_count + new_target_count + num_args_count + context_count;
+  const size_t dispatch_handle_count = V8_ENABLE_LEAPTIERING_BOOL ? 1 : 0;
+  const size_t parameter_count = js_parameter_count + new_target_count +
+                                 num_args_count + dispatch_handle_count +
+                                 context_count;
+
+  // The JSCallDescriptor must be compatible both with the interface descriptor
+  // of JS builtins and with the general JS calling convention (as defined by
+  // the JSTrampolineDescriptor). The JS builtin descriptors are already
+  // statically asserted to be compatible with the JS calling convention, so
+  // here we just ensure compatibility with the JS builtin descriptors.
+  DCHECK_EQ(parameter_count, kJSBuiltinBaseParameterCount + js_parameter_count);
 
   LocationSignature::Builder locations(zone, return_count, parameter_count);
 
@@ -522,6 +532,12 @@ CallDescriptor* Linkage::GetJSCallDescriptor(Zone* zone, bool is_osr,
   locations.AddParam(
       regloc(kJavaScriptCallArgCountRegister, MachineType::Int32()));
 
+#ifdef V8_ENABLE_LEAPTIERING
+  // Add dispatch handle.
+  locations.AddParam(
+      regloc(kJavaScriptCallDispatchHandleRegister, MachineType::Int32()));
+#endif
+
   // Add context.
   locations.AddParam(regloc(kContextRegister, MachineType::AnyTagged()));
 
@@ -540,7 +556,7 @@ CallDescriptor* Linkage::GetJSCallDescriptor(Zone* zone, bool is_osr,
       kJSEntrypointTag,              // tag
       target_type,                   // target MachineType
       target_loc,                    // target location
-      locations.Build(),             // location_sig
+      locations.Get(),               // location_sig
       js_parameter_count,            // stack_parameter_count
       properties,                    // properties
       kNoCalleeSaved,                // callee-saved
@@ -604,6 +620,7 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
                           : MachineType::AnyTagged()));
     }
   }
+
   // Add context.
   if (context_count) {
     locations.AddParam(regloc(kContextRegister, MachineType::AnyTagged()));
@@ -620,7 +637,7 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
 #if V8_ENABLE_WEBASSEMBLY
     case StubCallMode::kCallWasmRuntimeStub:
       kind = CallDescriptor::kCallWasmFunction;
-      target_type = MachineType::Pointer();
+      target_type = MachineType::WasmCodePointer();
       break;
 #endif  // V8_ENABLE_WEBASSEMBLY
     case StubCallMode::kCallBuiltinPointer:
@@ -641,7 +658,7 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
       descriptor.tag(),                      // tag
       target_type,                           // target MachineType
       target_loc,                            // target location
-      locations.Build(),                     // location_sig
+      locations.Get(),                       // location_sig
       stack_parameter_count,                 // stack_parameter_count
       properties,                            // properties
       callee_saved_registers,                // callee-saved registers
@@ -689,7 +706,7 @@ CallDescriptor* Linkage::GetBytecodeDispatchCallDescriptor(
       kBytecodeHandlerEntrypointTag,  // tag
       target_type,                    // target MachineType
       target_loc,                     // target location
-      locations.Build(),              // location_sig
+      locations.Get(),                // location_sig
       stack_parameter_count,          // stack_parameter_count
       Operator::kNoProperties,        // properties
       kNoCalleeSaved,                 // callee-saved registers
@@ -700,15 +717,15 @@ CallDescriptor* Linkage::GetBytecodeDispatchCallDescriptor(
 
 LinkageLocation Linkage::GetOsrValueLocation(int index) const {
   CHECK(incoming_->IsJSFunctionCall());
-  int parameter_count = static_cast<int>(incoming_->JSParameterCount() - 1);
-  int first_stack_slot = OsrHelper::FirstStackSlotIndex(parameter_count);
+  int parameter_count_with_receiver =
+      static_cast<int>(incoming_->JSParameterCount());
+  int first_stack_slot =
+      OsrHelper::FirstStackSlotIndex(parameter_count_with_receiver - 1);
 
   if (index == kOsrContextSpillSlotIndex) {
-    // Context. Use the parameter location of the context spill slot.
-    // Parameter (arity + 2) is special for the context of the function frame.
-    // >> context_index = target + receiver + params + new_target + #args
-    int context_index = 1 + 1 + parameter_count + 1 + 1;
-    return incoming_->GetInputLocation(context_index);
+    int context_index =
+        Linkage::GetJSCallContextParamIndex(parameter_count_with_receiver);
+    return GetParameterLocation(context_index);
   } else if (index >= first_stack_slot) {
     // Local variable stored in this (callee) stack.
     int spill_index =
@@ -717,8 +734,7 @@ LinkageLocation Linkage::GetOsrValueLocation(int index) const {
                                                MachineType::AnyTagged());
   } else {
     // Parameter. Use the assigned location from the incoming call descriptor.
-    int parameter_index = 1 + index;  // skip index 0, which is the target.
-    return incoming_->GetInputLocation(parameter_index);
+    return GetParameterLocation(index);
   }
 }
 

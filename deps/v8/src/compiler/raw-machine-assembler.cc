@@ -28,6 +28,7 @@ RawMachineAssembler::RawMachineAssembler(
       common_(zone()),
       simplified_(zone()),
       call_descriptor_(call_descriptor),
+      dynamic_js_parameter_count_(nullptr),
       target_parameter_(nullptr),
       parameters_(parameter_count(), zone()),
       current_block_(schedule()->start()) {
@@ -628,7 +629,7 @@ void RawMachineAssembler::Return(int count, Node* vs[]) {
 }
 
 void RawMachineAssembler::PopAndReturn(Node* pop, Node* value) {
-  // PopAndReturn is supposed to be using ONLY in CSA/Torque builtins for
+  // PopAndReturn is supposed to be used ONLY in CSA/Torque builtins for
   // dropping ALL JS arguments that are currently located on the stack.
   // The check below ensures that there are no directly accessible stack
   // parameters from current builtin, which implies that the builtin with
@@ -748,7 +749,7 @@ Node* CallCFunctionImpl(
   if (caller_saved_fp_regs) flags |= CallDescriptor::kCallerSavedFPRegisters;
   if (no_function_descriptor) flags |= CallDescriptor::kNoFunctionDescriptor;
   auto call_descriptor =
-      Linkage::GetSimplifiedCDescriptor(rasm->zone(), builder.Build(), flags);
+      Linkage::GetSimplifiedCDescriptor(rasm->zone(), builder.Get(), flags);
 
   base::SmallVector<Node*, kNumCArgs> nodes(args.size() + 1);
   nodes[0] = function;

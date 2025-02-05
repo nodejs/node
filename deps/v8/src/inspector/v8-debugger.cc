@@ -4,6 +4,8 @@
 
 #include "src/inspector/v8-debugger.h"
 
+#include <algorithm>
+
 #include "include/v8-container.h"
 #include "include/v8-context.h"
 #include "include/v8-function.h"
@@ -26,6 +28,7 @@ namespace v8_inspector {
 namespace {
 
 static const size_t kMaxAsyncTaskStacks = 8 * 1024;
+static const size_t kMaxExternalParents = 1 * 1024;
 static const int kNoBreakpointId = 0;
 
 template <typename Map>
@@ -775,10 +778,12 @@ void V8Debugger::AsyncEventOccurred(v8::debug::DebugAsyncActionType type,
       asyncTaskFinishedForStack(task);
       asyncTaskFinishedForStepping(task);
       break;
-    case v8::debug::kDebugAwait: {
+    case v8::debug::kDebugAwait:
       asyncTaskScheduledForStack(toStringView("await"), task, false, true);
       break;
-    }
+    case v8::debug::kDebugStackTraceCaptured:
+      asyncStackTraceCaptured(id);
+      break;
   }
 }
 
@@ -1082,6 +1087,27 @@ void V8Debugger::setMaxCallStackSizeToCapture(V8RuntimeAgentImpl* agent,
   }
 }
 
+void V8Debugger::asyncParentFor(int stackTraceId,
+                                std::shared_ptr<AsyncStackTrace>* asyncParent,
+                                V8StackTraceId* externalParent) const {
+  auto it = m_asyncParents.find(stackTraceId);
+  if (it != m_asyncParents.end()) {
+    *asyncParent = it->second.lock();
+    if (*asyncParent && (*asyncParent)->isEmpty()) {
+      *asyncParent = (*asyncParent)->parent().lock();
+    }
+  } else {
+    auto externalIt = std::find_if(
+        m_externalParents.begin(), m_externalParents.end(),
+        [stackTraceId](const auto& p) { return p.first == stackTraceId; });
+    if (externalIt != m_externalParents.end()) {
+      *externalParent = externalIt->second;
+    }
+  }
+  DCHECK_IMPLIES(!externalParent->IsInvalid(), !*asyncParent);
+  DCHECK_IMPLIES(*asyncParent, externalParent->IsInvalid());
+}
+
 std::shared_ptr<AsyncStackTrace> V8Debugger::stackTraceFor(
     int contextGroupId, const V8StackTraceId& id) {
   if (debuggerIdFor(contextGroupId).pair() != id.debugger_id) return nullptr;
@@ -1259,12 +1285,25 @@ void V8Debugger::asyncTaskCanceledForStepping(void* task) {
   asyncTaskFinishedForStepping(task);
 }
 
+void V8Debugger::asyncStackTraceCaptured(int id) {
+  auto async_stack = currentAsyncParent();
+  if (async_stack) {
+    m_asyncParents.emplace(id, async_stack);
+  }
+  auto externalParent = currentExternalParent();
+  if (!externalParent.IsInvalid()) {
+    m_externalParents.push_back(std::make_pair(id, externalParent));
+  }
+}
+
 void V8Debugger::allAsyncTasksCanceled() {
   m_asyncTaskStacks.clear();
   m_recurringTasks.clear();
   m_currentAsyncParent.clear();
   m_currentExternalParent.clear();
   m_currentTasks.clear();
+  m_currentAsyncParent.clear();
+  m_externalParents.clear();
 
   m_allAsyncStacks.clear();
 }
@@ -1311,12 +1350,19 @@ void V8Debugger::collectOldAsyncStacksIfNeeded() {
   }
   cleanupExpiredWeakPointers(m_asyncTaskStacks);
   cleanupExpiredWeakPointers(m_cachedStackFrames);
+  cleanupExpiredWeakPointers(m_asyncParents);
   cleanupExpiredWeakPointers(m_storedStackTraces);
   for (auto it = m_recurringTasks.begin(); it != m_recurringTasks.end();) {
     if (m_asyncTaskStacks.find(*it) == m_asyncTaskStacks.end()) {
       it = m_recurringTasks.erase(it);
     } else {
       ++it;
+    }
+  }
+  if (m_externalParents.size() > kMaxExternalParents) {
+    size_t halfOfExternalParents = (m_externalParents.size() + 1) / 2;
+    while (m_externalParents.size() > halfOfExternalParents) {
+      m_externalParents.pop_front();
     }
   }
 }

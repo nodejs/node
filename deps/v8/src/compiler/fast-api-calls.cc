@@ -83,6 +83,7 @@ OverloadsResolutionResult ResolveOverloads(
           candidates[i].signature->ArgumentInfo(arg_index);
       CTypeInfo::SequenceType sequence_type = type_info.GetSequenceType();
 
+      START_ALLOW_USE_DEPRECATED()
       if (sequence_type == CTypeInfo::SequenceType::kIsSequence) {
         DCHECK_LT(index_of_func_with_js_array_arg, 0);
         index_of_func_with_js_array_arg = static_cast<int>(i);
@@ -94,6 +95,7 @@ OverloadsResolutionResult ResolveOverloads(
         DCHECK_LT(index_of_func_with_js_array_arg, 0);
         DCHECK_LT(index_of_func_with_typed_array_arg, 0);
       }
+      END_ALLOW_USE_DEPRECATED()
     }
 
     if (index_of_func_with_js_array_arg >= 0 &&
@@ -139,16 +141,8 @@ bool CanOptimizeFastSignature(const CFunctionInfo* c_signature) {
 #endif
 
   for (unsigned int i = 0; i < c_signature->ArgumentCount(); ++i) {
-    // So far we do not support string parameters for API functions with return
-    // values. The reason is that with string parameters it is possible that the
-    // backup regular API call is used but does not throw an exception. However,
-    // return values of regular API calls cannot be handled correctly at the
-    // moment.
-    if (c_signature->ArgumentInfo(i).GetType() ==
-            CTypeInfo::Type::kSeqOneByteString &&
-        c_signature->ReturnInfo().GetType() != CTypeInfo::Type::kVoid) {
-      return false;
-    }
+    USE(i);
+
 #ifdef V8_TARGET_ARCH_X64
     // Clamp lowering in EffectControlLinearizer uses rounding.
     uint8_t flags = uint8_t(c_signature->ArgumentInfo(i).GetFlags());
@@ -395,7 +389,7 @@ Node* FastApiCallBuilder::Build(const FastApiCallFunctionVector& c_functions,
   }
 
   CallDescriptor* call_descriptor =
-      Linkage::GetSimplifiedCDescriptor(graph()->zone(), builder.Build());
+      Linkage::GetSimplifiedCDescriptor(graph()->zone(), builder.Get());
 
   Node* c_call_result =
       WrapFastCall(call_descriptor, c_arg_count + extra_input_count + 1, inputs,

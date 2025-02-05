@@ -45,9 +45,11 @@ class WasmResumeData;
 
 #if V8_ENABLE_WEBASSEMBLY
 namespace wasm {
+class CanonicalValueType;
 struct WasmModule;
 class ValueType;
 using FunctionSig = Signature<ValueType>;
+using CanonicalSig = Signature<CanonicalValueType>;
 }  // namespace wasm
 #endif
 
@@ -425,16 +427,15 @@ class SharedFunctionInfo
   inline bool HasWasmResumeData() const;
   DECL_ACCESSORS(asm_wasm_data, Tagged<AsmWasmData>)
 
+  // Note: The accessors below will read a trusted pointer; when accessing it
+  // again, you must assume that it might have been swapped out e.g. by a
+  // concurrently running worker.
   DECL_GETTER(wasm_function_data, Tagged<WasmFunctionData>)
   DECL_GETTER(wasm_exported_function_data, Tagged<WasmExportedFunctionData>)
   DECL_GETTER(wasm_js_function_data, Tagged<WasmJSFunctionData>)
   DECL_GETTER(wasm_capi_function_data, Tagged<WasmCapiFunctionData>)
-  DECL_GETTER(wasm_resume_data, Tagged<WasmResumeData>)
 
-  inline const wasm::WasmModule* wasm_module() const;
-  inline const wasm::FunctionSig* wasm_function_signature() const;
-  inline int wasm_function_index() const;
-  inline bool is_promising_wasm_export() const;
+  DECL_GETTER(wasm_resume_data, Tagged<WasmResumeData>)
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   // builtin corresponds to the auto-generated Builtin enum.

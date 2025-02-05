@@ -25,15 +25,18 @@
 #include "src/execution/protectors-inl.h"
 #include "src/execution/tiering-manager.h"
 #include "src/flags/flags.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/pretenuring-handler-inl.h"
 #include "src/ic/stub-cache.h"
 #include "src/objects/bytecode-array.h"
 #include "src/objects/js-collection-inl.h"
+#include "src/profiler/heap-profiler.h"
 #include "src/utils/utils.h"
 #ifdef V8_ENABLE_MAGLEV
 #include "src/maglev/maglev-concurrent-dispatcher.h"
 #endif  // V8_ENABLE_MAGLEV
+#include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-atomics-synchronization-inl.h"
 #include "src/objects/js-function-inl.h"
 #include "src/objects/js-regexp-inl.h"
@@ -159,7 +162,6 @@ RUNTIME_FUNCTION(Runtime_ConstructSlicedString) {
   Handle<String> string = args.at<String>(0);
   int index = args.smi_value_at(1);
 
-  CHECK(string->IsOneByteRepresentation());
   CHECK_LT(index, string->length());
 
   DirectHandle<String> sliced_string =
@@ -185,12 +187,12 @@ RUNTIME_FUNCTION(Runtime_ConstructThinString) {
   // This isn't exposed to fuzzers so doesn't need to handle invalid arguments.
   DCHECK_EQ(args.length(), 1);
   Handle<String> string = args.at<String>(0);
-  CHECK(string->IsOneByteRepresentation());
   if (!IsConsString(*string)) {
-    const bool kIsOneByte = true;
-    string =
-        isolate->factory()->NewConsString(isolate->factory()->empty_string(),
-                                          string, string->length(), kIsOneByte);
+    string = isolate->factory()->NewConsString(
+        isolate->factory()->empty_string(), string, string->length(),
+        string->IsOneByteRepresentation(),
+        // Pretenure to ensure it stays thin.
+        AllocationType::kOld);
   }
   CHECK(IsConsString(*string));
   DirectHandle<String> internalized =
@@ -298,7 +300,7 @@ bool CanOptimizeFunction(CodeKind target_kind, Handle<JSFunction> function,
     return CrashUnlessFuzzingReturnFalse(isolate);
   }
 
-  if (target_kind == CodeKind::TURBOFAN && !v8_flags.turbofan) return false;
+  if (target_kind == CodeKind::TURBOFAN_JS && !v8_flags.turbofan) return false;
   if (target_kind == CodeKind::MAGLEV && !maglev::IsMaglevEnabled()) {
     return false;
   }
@@ -483,10 +485,10 @@ RUNTIME_FUNCTION(Runtime_BenchTurbofan) {
   base::ElapsedTimer timer;
   timer.Start();
   Compiler::CompileOptimized(isolate, function, ConcurrencyMode::kSynchronous,
-                             CodeKind::TURBOFAN);
+                             CodeKind::TURBOFAN_JS);
   for (int i = 1; i < count; ++i) {
     Compiler::CompileOptimized(isolate, function, ConcurrencyMode::kSynchronous,
-                               CodeKind::TURBOFAN);
+                               CodeKind::TURBOFAN_JS);
   }
 
   double compile_time = timer.Elapsed().InMillisecondsF() / count;
@@ -565,8 +567,9 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
   HandleScope scope(isolate);
   return OptimizeFunctionOnNextCall(
       args, isolate,
-      v8_flags.optimize_on_next_call_optimizes_to_maglev ? CodeKind::MAGLEV
-                                                         : CodeKind::TURBOFAN);
+      v8_flags.optimize_on_next_call_optimizes_to_maglev
+          ? CodeKind::MAGLEV
+          : CodeKind::TURBOFAN_JS);
 }
 
 RUNTIME_FUNCTION(Runtime_EnsureFeedbackVectorForFunction) {
@@ -755,7 +758,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   if (it.frame()->is_maglev() || concurrent_osr) {
     BytecodeOffset osr_offset = BytecodeOffset::None();
     if (it.frame()->is_unoptimized()) {
-      UnoptimizedFrame* frame = UnoptimizedFrame::cast(it.frame());
+      UnoptimizedJSFrame* frame = UnoptimizedJSFrame::cast(it.frame());
       Handle<BytecodeArray> bytecode_array(frame->GetBytecodeArray(), isolate);
       const int current_offset = frame->GetBytecodeOffset();
       osr_offset =
@@ -791,7 +794,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
                        : ConcurrencyMode::kSynchronous,
         (maglev::IsMaglevOsrEnabled() && !it.frame()->is_maglev())
             ? CodeKind::MAGLEV
-            : CodeKind::TURBOFAN);
+            : CodeKind::TURBOFAN_JS);
     USE(unused_result);
 
     // Finalize again to finish the queued job. The next call into
@@ -851,7 +854,7 @@ RUNTIME_FUNCTION(Runtime_NeverOptimizeFunction) {
     case CodeKind::INTERPRETED_FUNCTION:
       break;
     case CodeKind::BUILTIN:
-      if (InReadOnlySpace(*sfi)) {
+      if (HeapLayout::InReadOnlySpace(*sfi)) {
         // SFIs for builtin functions are in RO space and thus we cannot set
         // the never-optimize bit. But such SFIs cannot be optimized anyways.
         return CrashUnlessFuzzing(isolate);
@@ -976,6 +979,7 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
 
 RUNTIME_FUNCTION(Runtime_GetFunctionForCurrentFrame) {
   HandleScope scope(isolate);
+  // This isn't exposed to fuzzers so doesn't need to handle invalid arguments.
   DCHECK_EQ(args.length(), 0);
 
   JavaScriptStackFrameIterator it(isolate);
@@ -1165,7 +1169,7 @@ RUNTIME_FUNCTION(Runtime_SetAllocationTimeout) {
 namespace {
 
 int FixedArrayLenFromSize(int size) {
-  return std::min({(size - FixedArray::kHeaderSize) / kTaggedSize,
+  return std::min({(size - OFFSET_OF_DATA_START(FixedArray)) / kTaggedSize,
                    FixedArray::kMaxRegularLength});
 }
 
@@ -1525,9 +1529,11 @@ RUNTIME_FUNCTION(Runtime_DisassembleFunction) {
   // Get the function and make sure it is compiled.
   Handle<JSFunction> func = args.at<JSFunction>(0);
   IsCompiledScope is_compiled_scope;
+#ifndef V8_ENABLE_LEAPTIERING
   if (!func->is_compiled(isolate) && func->HasAvailableOptimizedCode(isolate)) {
     func->UpdateCode(func->feedback_vector()->optimized_code(isolate));
   }
+#endif  // !V8_ENABLE_LEAPTIERING
   CHECK(func->shared()->is_compiled() ||
         Compiler::Compile(isolate, func, Compiler::KEEP_EXCEPTION,
                           &is_compiled_scope));
@@ -1605,7 +1611,7 @@ RUNTIME_FUNCTION(Runtime_InLargeObjectSpace) {
 
 RUNTIME_FUNCTION(Runtime_HasElementsInALargeObjectSpace) {
   SealHandleScope shs(isolate);
-  if (args.length() != 1) {
+  if (args.length() != 1 || !IsJSArray(args[0])) {
     return CrashUnlessFuzzing(isolate);
   }
   auto array = Cast<JSArray>(args[0]);
@@ -1617,7 +1623,7 @@ RUNTIME_FUNCTION(Runtime_HasElementsInALargeObjectSpace) {
 
 RUNTIME_FUNCTION(Runtime_HasCowElements) {
   SealHandleScope shs(isolate);
-  if (args.length() != 1) {
+  if (args.length() != 1 || !IsJSArray(args[0])) {
     return CrashUnlessFuzzing(isolate);
   }
   auto array = Cast<JSArray>(args[0]);
@@ -1631,7 +1637,7 @@ RUNTIME_FUNCTION(Runtime_InYoungGeneration) {
     return CrashUnlessFuzzing(isolate);
   }
   Tagged<Object> obj = args[0];
-  return isolate->heap()->ToBoolean(ObjectInYoungGeneration(obj));
+  return isolate->heap()->ToBoolean(HeapLayout::InYoungGeneration(obj));
 }
 
 // Force pretenuring for the allocation site the passed object belongs to.
@@ -1644,16 +1650,14 @@ RUNTIME_FUNCTION(Runtime_PretenureAllocationSite) {
   Tagged<JSObject> object = Cast<JSObject>(arg);
 
   Heap* heap = object->GetHeap();
-  if (!v8_flags.sticky_mark_bits && !heap->InYoungGeneration(object)) {
+  if (!v8_flags.sticky_mark_bits && !HeapLayout::InYoungGeneration(object)) {
     // Object is not in new space, thus there is no memento and nothing to do.
     return ReturnFuzzSafe(ReadOnlyRoots(isolate).false_value(), isolate);
   }
 
   PretenuringHandler* pretenuring_handler = heap->pretenuring_handler();
-  Tagged<AllocationMemento> memento =
-      pretenuring_handler
-          ->FindAllocationMemento<PretenuringHandler::kForRuntime>(
-              object->map(), object);
+  Tagged<AllocationMemento> memento = PretenuringHandler::FindAllocationMemento<
+      PretenuringHandler::kForRuntime>(heap, object->map(), object);
   if (memento.is_null())
     return ReturnFuzzSafe(ReadOnlyRoots(isolate).false_value(), isolate);
   Tagged<AllocationSite> site = memento->GetAllocationSite();
@@ -1948,8 +1952,8 @@ RUNTIME_FUNCTION(Runtime_EnableCodeLoggingForTesting) {
     void CallbackEvent(Handle<Name> name, Address entry_point) final {}
     void GetterCallbackEvent(Handle<Name> name, Address entry_point) final {}
     void SetterCallbackEvent(Handle<Name> name, Address entry_point) final {}
-    void RegExpCodeCreateEvent(Handle<AbstractCode> code,
-                               Handle<String> source) final {}
+    void RegExpCodeCreateEvent(Handle<AbstractCode> code, Handle<String> source,
+                               RegExpFlags flags) final {}
     void CodeMoveEvent(Tagged<InstructionStream> from,
                        Tagged<InstructionStream> to) final {}
     void BytecodeMoveEvent(Tagged<BytecodeArray> from,
@@ -2066,6 +2070,25 @@ RUNTIME_FUNCTION(Runtime_IsInternalizedString) {
   return isolate->heap()->ToBoolean(IsInternalizedString(*obj));
 }
 
+RUNTIME_FUNCTION(Runtime_StringToCString) {
+  HandleScope scope(isolate);
+  if (args.length() != 1 || !IsString(args[0])) {
+    return CrashUnlessFuzzing(isolate);
+  }
+  Handle<String> string = args.at<String>(0);
+
+  uint32_t output_length;
+  auto bytes = string->ToCString(&output_length);
+
+  Handle<JSArrayBuffer> result =
+      isolate->factory()
+          ->NewJSArrayBufferAndBackingStore(output_length,
+                                            InitializedFlag::kUninitialized)
+          .ToHandleChecked();
+  memcpy(result->backing_store(), bytes.get(), output_length);
+  return *result;
+}
+
 RUNTIME_FUNCTION(Runtime_SharedGC) {
   SealHandleScope scope(isolate);
   if (!isolate->has_shared_space()) {
@@ -2164,6 +2187,11 @@ RUNTIME_FUNCTION(Runtime_GetFeedback) {
     return CrashUnlessFuzzing(isolate);
   }
 
+#ifdef V8_JITLESS
+  // No feedback is collected in jitless mode, so tests calling %GetFeedback
+  // don't make sense.
+  return ReadOnlyRoots(isolate).undefined_value();
+#else
 #ifdef OBJECT_PRINT
   Handle<FeedbackVector> feedback_vector =
       handle(function->feedback_vector(), isolate);
@@ -2204,6 +2232,28 @@ RUNTIME_FUNCTION(Runtime_GetFeedback) {
 #else
   return ReadOnlyRoots(isolate).undefined_value();
 #endif  // OBJECT_PRINT
+#endif  // not V8_JITLESS
+}
+
+RUNTIME_FUNCTION(Runtime_IsNoWriteBarrierNeeded) {
+  HandleScope scope(isolate);
+  DisallowGarbageCollection no_gc;
+  if (args.length() != 1) {
+    return CrashUnlessFuzzing(isolate);
+  }
+  DirectHandle<Object> object = args.at(0);
+  if (!(*object).IsHeapObject()) {
+    return CrashUnlessFuzzing(isolate);
+  }
+  auto heap_object = Cast<HeapObject>(object);
+  if (HeapLayout::InReadOnlySpace(*heap_object)) {
+    return ReadOnlyRoots(isolate).true_value();
+  }
+  if (WriteBarrier::GetWriteBarrierModeForObject(*heap_object, no_gc) !=
+      WriteBarrierMode::SKIP_WRITE_BARRIER) {
+    return ReadOnlyRoots(isolate).false_value();
+  }
+  return ReadOnlyRoots(isolate).true_value();
 }
 
 }  // namespace internal

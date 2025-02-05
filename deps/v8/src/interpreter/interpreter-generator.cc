@@ -266,6 +266,20 @@ IGNITION_HANDLER(LdaContextSlot, InterpreterAssembler) {
   Dispatch();
 }
 
+// LdaScriptContextSlot <context> <slot_index> <depth>
+//
+// Load the object in |slot_index| of the context at |depth| in the context
+// chain starting at |context| into the accumulator.
+IGNITION_HANDLER(LdaScriptContextSlot, InterpreterAssembler) {
+  TNode<Context> context = CAST(LoadRegisterAtOperandIndex(0));
+  TNode<IntPtrT> slot_index = Signed(BytecodeOperandIdx(1));
+  TNode<Uint32T> depth = BytecodeOperandUImm(2);
+  TNode<Context> slot_context = GetContextAtDepth(context, depth);
+  TNode<Object> result = LoadScriptContextElement(slot_context, slot_index);
+  SetAccumulator(result);
+  Dispatch();
+}
+
 // LdaImmutableContextSlot <context> <slot_index> <depth>
 //
 // Load the object in |slot_index| of the context at |depth| in the context
@@ -287,6 +301,17 @@ IGNITION_HANDLER(LdaCurrentContextSlot, InterpreterAssembler) {
   TNode<IntPtrT> slot_index = Signed(BytecodeOperandIdx(0));
   TNode<Context> slot_context = GetContext();
   TNode<Object> result = LoadContextElement(slot_context, slot_index);
+  SetAccumulator(result);
+  Dispatch();
+}
+
+// LdaCurrentScriptContextSlot <slot_index>
+//
+// Load the object in |slot_index| of the current context into the accumulator.
+IGNITION_HANDLER(LdaCurrentScriptContextSlot, InterpreterAssembler) {
+  TNode<IntPtrT> slot_index = Signed(BytecodeOperandIdx(0));
+  TNode<Context> slot_context = GetContext();
+  TNode<Object> result = LoadScriptContextElement(slot_context, slot_index);
   SetAccumulator(result);
   Dispatch();
 }
@@ -386,7 +411,7 @@ class InterpreterLookupContextSlotAssembler : public InterpreterAssembler {
                                         OperandScale operand_scale)
       : InterpreterAssembler(state, bytecode, operand_scale) {}
 
-  void LookupContextSlot(Runtime::FunctionId function_id) {
+  void LookupContextSlot(Runtime::FunctionId function_id, ContextKind kind) {
     TNode<Context> context = GetContext();
     TNode<IntPtrT> slot_index = Signed(BytecodeOperandIdx(1));
     TNode<Uint32T> depth = BytecodeOperandUImm(2);
@@ -399,7 +424,10 @@ class InterpreterLookupContextSlotAssembler : public InterpreterAssembler {
 
     // Fast path does a normal load context.
     {
-      TNode<Object> result = LoadContextElement(slot_context, slot_index);
+      TNode<Object> result =
+          (kind == ContextKind::kScriptContext)
+              ? LoadScriptContextElement(slot_context, slot_index)
+              : LoadContextElement(slot_context, slot_index);
       SetAccumulator(result);
       Dispatch();
     }
@@ -420,7 +448,16 @@ class InterpreterLookupContextSlotAssembler : public InterpreterAssembler {
 // Lookup the object with the name in constant pool entry |name_index|
 // dynamically.
 IGNITION_HANDLER(LdaLookupContextSlot, InterpreterLookupContextSlotAssembler) {
-  LookupContextSlot(Runtime::kLoadLookupSlot);
+  LookupContextSlot(Runtime::kLoadLookupSlot, ContextKind::kDefault);
+}
+
+// LdaLookupScriptContextSlot <name_index>
+//
+// Lookup the object with the name in constant pool entry |name_index|
+// dynamically.
+IGNITION_HANDLER(LdaLookupScriptContextSlot,
+                 InterpreterLookupContextSlotAssembler) {
+  LookupContextSlot(Runtime::kLoadLookupSlot, ContextKind::kScriptContext);
 }
 
 // LdaLookupContextSlotInsideTypeof <name_index>
@@ -429,7 +466,18 @@ IGNITION_HANDLER(LdaLookupContextSlot, InterpreterLookupContextSlotAssembler) {
 // dynamically without causing a NoReferenceError.
 IGNITION_HANDLER(LdaLookupContextSlotInsideTypeof,
                  InterpreterLookupContextSlotAssembler) {
-  LookupContextSlot(Runtime::kLoadLookupSlotInsideTypeof);
+  LookupContextSlot(Runtime::kLoadLookupSlotInsideTypeof,
+                    ContextKind::kDefault);
+}
+
+// LdaLookupScriptContextSlotInsideTypeof <name_index>
+//
+// Lookup the object with the name in constant pool entry |name_index|
+// dynamically without causing a NoReferenceError.
+IGNITION_HANDLER(LdaLookupScriptContextSlotInsideTypeof,
+                 InterpreterLookupContextSlotAssembler) {
+  LookupContextSlot(Runtime::kLoadLookupSlotInsideTypeof,
+                    ContextKind::kScriptContext);
 }
 
 class InterpreterLookupGlobalAssembler : public InterpreterLoadGlobalAssembler {

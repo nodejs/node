@@ -751,7 +751,6 @@ EXPORTS
     ?InMillisecondsFromNow@KernelTimeout@synchronization_internal@absl@@QEBAKXZ
     ?InNanosecondsFromNow@KernelTimeout@synchronization_internal@absl@@AEBA_JXZ
     ?IncrementSynchSem@Mutex@absl@@CAXPEAV12@PEAUPerThreadSynch@base_internal@2@@Z
-    ?Init@CordRepBtreeReader@cord_internal@absl@@QEAA?AV?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@PEAVCordRepBtree@23@@Z
     ?Init@FlagImpl@flags_internal@absl@@AEAAXXZ
     ?InitControlBytesAfterSoo@HashSetResizeHelper@container_internal@absl@@AEAAXPEAW4ctrl_t@23@W4423@_K@Z
     ?InitDiscreteDistribution@random_internal@absl@@YA?AV?$vector@U?$pair@N_K@__Cr@std@@V?$allocator@U?$pair@N_K@__Cr@std@@@23@@__Cr@std@@PEAV?$vector@NV?$allocator@N@__Cr@std@@@45@@Z
@@ -1311,7 +1310,6 @@ EXPORTS
     ?n_sec@impl@detail@cctz@time_internal@absl@@YA?AUfields@2345@_J00000@Z
     ?name@time_zone@cctz@time_internal@absl@@QEBA?AV?$basic_string@DU?$char_traits@D@__Cr@std@@V?$allocator@D@23@@__Cr@std@@XZ
     ?next_transition@time_zone@cctz@time_internal@absl@@QEBA_NAEBV?$time_point@Vsystem_clock@chrono@__Cr@std@@V?$duration@_JV?$ratio@$00$00@__Cr@std@@@234@@chrono@__Cr@std@@PEAUcivil_transition@1234@@Z
-    ?non_temporal_store_memcpy_avx@crc_internal@absl@@YAPEAXPEIAXPEIBX_K@Z
     ?overflow@Streambuf@OStringStream@strings_internal@absl@@MEAAHH@Z
     ?parse@detail@cctz@time_internal@absl@@YA_NAEBV?$basic_string@DU?$char_traits@D@__Cr@std@@V?$allocator@D@23@@__Cr@std@@0AEBVtime_zone@234@PEAV?$time_point@Vsystem_clock@chrono@__Cr@std@@V?$duration@_JV?$ratio@$00$00@__Cr@std@@@234@@chrono@67@PEAV?$duration@_JV?$ratio@$00$0DINHOKEMGIAAA@@__Cr@std@@@chrono@67@PEAV567@@Z
     ?prev_transition@time_zone@cctz@time_internal@absl@@QEBA_NAEBV?$time_point@Vsystem_clock@chrono@__Cr@std@@V?$duration@_JV?$ratio@$00$00@__Cr@std@@@234@@chrono@__Cr@std@@PEAUcivil_transition@1234@@Z

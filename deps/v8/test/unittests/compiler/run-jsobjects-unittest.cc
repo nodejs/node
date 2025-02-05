@@ -17,9 +17,9 @@ using RunJSObjectsTest = TestWithContext;
 TEST_F(RunJSObjectsTest, ArgumentsMapped) {
   FunctionTester T(i_isolate(), "(function(a) { return arguments; })");
 
-  Handle<Object> arguments =
+  Handle<JSAny> arguments = Cast<JSAny>(
       T.Call(T.NewNumber(19), T.NewNumber(23), T.NewNumber(42), T.NewNumber(65))
-          .ToHandleChecked();
+          .ToHandleChecked());
   CHECK(IsJSObject(*arguments) && !IsJSArray(*arguments));
   CHECK(Cast<JSObject>(*arguments)->HasSloppyArgumentsElements());
   Handle<String> l = T.isolate->factory()->length_string();
@@ -32,9 +32,9 @@ TEST_F(RunJSObjectsTest, ArgumentsUnmapped) {
   FunctionTester T(i_isolate(),
                    "(function(a) { 'use strict'; return arguments; })");
 
-  Handle<Object> arguments =
+  Handle<JSAny> arguments = Cast<JSAny>(
       T.Call(T.NewNumber(19), T.NewNumber(23), T.NewNumber(42), T.NewNumber(65))
-          .ToHandleChecked();
+          .ToHandleChecked());
   CHECK(IsJSObject(*arguments) && !IsJSArray(*arguments));
   CHECK(!Cast<JSObject>(*arguments)->HasSloppyArgumentsElements());
   Handle<String> l = T.isolate->factory()->length_string();
@@ -46,9 +46,9 @@ TEST_F(RunJSObjectsTest, ArgumentsUnmapped) {
 TEST_F(RunJSObjectsTest, ArgumentsRest) {
   FunctionTester T(i_isolate(), "(function(a, ...args) { return args; })");
 
-  Handle<Object> arguments =
+  Handle<JSAny> arguments = Cast<JSAny>(
       T.Call(T.NewNumber(19), T.NewNumber(23), T.NewNumber(42), T.NewNumber(65))
-          .ToHandleChecked();
+          .ToHandleChecked());
   CHECK(IsJSObject(*arguments) && IsJSArray(*arguments));
   CHECK(!Cast<JSObject>(*arguments)->HasSloppyArgumentsElements());
   Handle<String> l = T.isolate->factory()->length_string();

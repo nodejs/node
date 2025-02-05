@@ -22,44 +22,44 @@
 namespace v8 {
 namespace internal {
 
-LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,
+LookupIterator::LookupIterator(Isolate* isolate, Handle<JSAny> receiver,
                                Handle<Name> name, Configuration configuration)
-    : LookupIterator(isolate, Cast<JSAny>(receiver), name, kInvalidIndex,
-                     Cast<JSAny>(receiver), configuration) {}
+    : LookupIterator(isolate, receiver, name, kInvalidIndex, receiver,
+                     configuration) {}
 
-LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,
+LookupIterator::LookupIterator(Isolate* isolate, Handle<JSAny> receiver,
                                Handle<Name> name,
-                               Handle<Object> lookup_start_object,
+                               Handle<JSAny> lookup_start_object,
                                Configuration configuration)
-    : LookupIterator(isolate, Cast<JSAny>(receiver), name, kInvalidIndex,
+    : LookupIterator(isolate, receiver, name, kInvalidIndex,
                      Cast<JSAny>(lookup_start_object), configuration) {}
 
-LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,
+LookupIterator::LookupIterator(Isolate* isolate, Handle<JSAny> receiver,
                                size_t index, Configuration configuration)
-    : LookupIterator(isolate, Cast<JSAny>(receiver), Handle<Name>(), index,
-                     Cast<JSAny>(receiver), configuration) {
+    : LookupIterator(isolate, receiver, Handle<Name>(), index, receiver,
+                     configuration) {
   DCHECK_NE(index, kInvalidIndex);
 }
 
-LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,
-                               size_t index, Handle<Object> lookup_start_object,
+LookupIterator::LookupIterator(Isolate* isolate, Handle<JSAny> receiver,
+                               size_t index, Handle<JSAny> lookup_start_object,
                                Configuration configuration)
-    : LookupIterator(isolate, Cast<JSAny>(receiver), Handle<Name>(), index,
+    : LookupIterator(isolate, receiver, Handle<Name>(), index,
                      Cast<JSAny>(lookup_start_object), configuration) {
   DCHECK_NE(index, kInvalidIndex);
 }
 
-LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,
+LookupIterator::LookupIterator(Isolate* isolate, Handle<JSAny> receiver,
                                const PropertyKey& key,
                                Configuration configuration)
-    : LookupIterator(isolate, Cast<JSAny>(receiver), key.name(), key.index(),
-                     Cast<JSAny>(receiver), configuration) {}
+    : LookupIterator(isolate, receiver, key.name(), key.index(), receiver,
+                     configuration) {}
 
-LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,
+LookupIterator::LookupIterator(Isolate* isolate, Handle<JSAny> receiver,
                                const PropertyKey& key,
-                               Handle<Object> lookup_start_object,
+                               Handle<JSAny> lookup_start_object,
                                Configuration configuration)
-    : LookupIterator(isolate, Cast<JSAny>(receiver), key.name(), key.index(),
+    : LookupIterator(isolate, receiver, key.name(), key.index(),
                      Cast<JSAny>(lookup_start_object), configuration) {}
 
 // This private constructor is the central bottleneck that all the other
@@ -113,12 +113,12 @@ LookupIterator::LookupIterator(Isolate* isolate, Handle<JSAny> receiver,
 }
 
 LookupIterator::LookupIterator(Isolate* isolate, Configuration configuration,
-                               Handle<Object> receiver, Handle<Symbol> name)
+                               Handle<JSAny> receiver, Handle<Symbol> name)
     : configuration_(configuration),
       isolate_(isolate),
       name_(name),
-      receiver_(Cast<JSAny>(receiver)),
-      lookup_start_object_(Cast<JSAny>(receiver)),
+      receiver_(receiver),
+      lookup_start_object_(receiver),
       index_(kInvalidIndex) {
   // This is the only lookup configuration allowed by this constructor because
   // it's special case allowing lookup of the private symbols on the prototype
@@ -271,7 +271,7 @@ bool LookupIterator::IsCacheableTransition() {
 }
 
 // static
-void LookupIterator::UpdateProtector(Isolate* isolate, Handle<Object> receiver,
+void LookupIterator::UpdateProtector(Isolate* isolate, Handle<JSAny> receiver,
                                      DirectHandle<Name> name) {
   RCS_SCOPE(isolate, RuntimeCallCounterId::kUpdateProtector);
   DCHECK(IsInternalizedString(*name) || IsSymbol(*name));

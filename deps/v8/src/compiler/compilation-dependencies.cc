@@ -10,11 +10,13 @@
 #include "src/common/assert-scope.h"
 #include "src/execution/protectors.h"
 #include "src/handles/handles-inl.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/internal-index.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-function-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/property-cell.h"
 
 namespace v8 {
 namespace internal {
@@ -38,10 +40,10 @@ namespace compiler {
   V(PretenureMode)                      \
   V(Protector)                          \
   V(PrototypeProperty)                  \
+  V(ScriptContextSlotProperty)          \
   V(StableMap)                          \
   V(Transition)                         \
-  V(ObjectSlotValue)                    \
-  V(ConstTrackingLet)
+  V(ObjectSlotValue)
 
 CompilationDependencies::CompilationDependencies(JSHeapBroker* broker,
                                                  Zone* zone)
@@ -128,7 +130,9 @@ class PendingDependencies final {
     // to never invalidate assumptions. E.g., maps for shared structs do not
     // have transitions or change the shape of their fields. See
     // DependentCode::DeoptimizeDependencyGroups for corresponding DCHECK.
-    if (InWritableSharedSpace(*object) || InReadOnlySpace(*object)) return;
+    if (HeapLayout::InWritableSharedSpace(*object) ||
+        HeapLayout::InReadOnlySpace(*object))
+      return;
     deps_.LookupOrInsert(object, HandleValueHash(object))->value |= group;
   }
 
@@ -900,26 +904,32 @@ class GlobalPropertyDependency final : public CompilationDependency {
   const bool read_only_;
 };
 
-class ConstTrackingLetDependency final : public CompilationDependency {
+class ScriptContextSlotPropertyDependency final : public CompilationDependency {
  public:
-  ConstTrackingLetDependency(ContextRef script_context, size_t index)
-      : CompilationDependency(kConstTrackingLet),
+  ScriptContextSlotPropertyDependency(
+      ContextRef script_context, size_t index,
+      ContextSidePropertyCell::Property property)
+      : CompilationDependency(kScriptContextSlotProperty),
         script_context_(script_context),
-        index_(index) {
-    DCHECK(v8_flags.const_tracking_let);
+        index_(index),
+        property_(property) {
+    DCHECK(v8_flags.script_context_mutable_heap_number ||
+           v8_flags.const_tracking_let);
   }
 
   bool IsValid(JSHeapBroker* broker) const override {
-    return script_context_.object()->ConstTrackingLetSideDataIsConst(index_);
+    return script_context_.object()->GetScriptContextSideProperty(index_) ==
+           property_;
   }
 
   void Install(JSHeapBroker* broker, PendingDependencies* deps) const override {
     SLOW_DCHECK(IsValid(broker));
     Isolate* isolate = broker->isolate();
-    deps->Register(handle(Context::GetOrCreateConstTrackingLetCell(
-                              script_context_.object(), index_, isolate),
-                          isolate),
-                   DependentCode::kConstTrackingLetChangedGroup);
+    deps->Register(
+        handle(Context::GetOrCreateContextSidePropertyCell(
+                   script_context_.object(), index_, property_, isolate),
+               isolate),
+        DependentCode::kScriptContextSlotPropertyChangedGroup);
   }
 
  private:
@@ -929,13 +939,15 @@ class ConstTrackingLetDependency final : public CompilationDependency {
   }
 
   bool Equals(const CompilationDependency* that) const override {
-    const ConstTrackingLetDependency* const zat = that->AsConstTrackingLet();
+    const ScriptContextSlotPropertyDependency* const zat =
+        that->AsScriptContextSlotProperty();
     return script_context_.equals(zat->script_context_) &&
-           index_ == zat->index_;
+           index_ == zat->index_ && property_ == zat->property_;
   }
 
   const ContextRef script_context_;
   size_t index_;
+  ContextSidePropertyCell::Property property_;
 };
 
 class ProtectorDependency final : public CompilationDependency {
@@ -1234,31 +1246,17 @@ void CompilationDependencies::DependOnGlobalProperty(PropertyCellRef cell) {
   RecordDependency(zone_->New<GlobalPropertyDependency>(cell, type, read_only));
 }
 
-bool CompilationDependencies::DependOnConstTrackingLet(
-    ContextRef script_context, size_t index, JSHeapBroker* broker) {
-  if (v8_flags.const_tracking_let) {
-    OptionalObjectRef maybe_side_data =
-        script_context.TryGetSideData(broker, static_cast<int>(index));
-    // The side data element is either
-    // - kConstMarker (the value is a constant thus far but no code depends on
-    //   it yet)
-    // - a ConstTrackingLetCell pointing to a DependentCode (the value is a
-    //   constant thus far and some code depends on it)
-    // - kNonConstMarker (the value is no longer a constant)
-    // - undefined (we're reading an uninitialized value (this will throw but we
-    // might still optimize the code which does that))
-    // In the first 2 cases we can embed the value as a constant in the code.
-    if (maybe_side_data.has_value()) {
-      ObjectRef side_data = maybe_side_data.value();
-      if ((side_data.IsSmi() &&
-           side_data.AsSmi() ==
-               Smi::ToInt(ConstTrackingLetCell::kConstMarker)) ||
-          (!side_data.IsSmi() && !side_data.IsUndefined())) {
-        RecordDependency(
-            zone_->New<ConstTrackingLetDependency>(script_context, index));
-        return true;
-      }
-    }
+bool CompilationDependencies::DependOnScriptContextSlotProperty(
+    ContextRef script_context, size_t index,
+    ContextSidePropertyCell::Property property, JSHeapBroker* broker) {
+  if ((v8_flags.const_tracking_let ||
+       v8_flags.script_context_mutable_heap_number) &&
+      script_context.object()->IsScriptContext() &&
+      script_context.object()->GetScriptContextSideProperty(index) ==
+          property) {
+    RecordDependency(zone_->New<ScriptContextSlotPropertyDependency>(
+        script_context, index, property));
+    return true;
   }
   return false;
 }
@@ -1326,6 +1324,12 @@ bool CompilationDependencies::DependOnPromiseSpeciesProtector() {
 bool CompilationDependencies::DependOnPromiseThenProtector() {
   return DependOnProtector(MakeRef(
       broker_, broker_->isolate()->factory()->promise_then_protector()));
+}
+
+bool CompilationDependencies::DependOnStringWrapperToPrimitiveProtector() {
+  return DependOnProtector(MakeRef(
+      broker_,
+      broker_->isolate()->factory()->string_wrapper_to_primitive_protector()));
 }
 
 void CompilationDependencies::DependOnElementsKind(AllocationSiteRef site) {

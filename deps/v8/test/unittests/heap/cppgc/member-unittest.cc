@@ -107,7 +107,20 @@ using MemberWithCustomBarrier =
 struct CustomCheckingPolicy {
   static std::vector<GCed*> Cached;
   static size_t ChecksTriggered;
-  void CheckPointer(const void* ptr) {
+  template <typename T>
+  void CheckPointer(RawPointer raw_pointer) {
+    const void* ptr = raw_pointer.Load();
+    CheckPointer(static_cast<const T*>(ptr));
+  }
+#if defined(CPPGC_POINTER_COMPRESSION)
+  template <typename T>
+  void CheckPointer(CompressedPointer compressed_pointer) {
+    const void* ptr = compressed_pointer.Load();
+    CheckPointer(static_cast<const T*>(ptr));
+  }
+#endif
+  template <typename T>
+  void CheckPointer(const T* ptr) {
     EXPECT_NE(Cached.cend(), std::find(Cached.cbegin(), Cached.cend(), ptr));
     ++ChecksTriggered;
   }
@@ -623,7 +636,7 @@ class LinkedNode final : public GarbageCollected<LinkedNode> {
 
 // The following tests create multiple heaps per thread, which is not supported
 // with pointer compression enabled.
-#if !defined(CPPGC_POINTER_COMPRESSION)
+#if !defined(CPPGC_POINTER_COMPRESSION) && defined(ENABLE_SLOW_DCHECKS)
 TEST_F(MemberHeapDeathTest, CheckForOffHeapMemberCrashesOnReassignment) {
   std::vector<Member<LinkedNode>> off_heap_member;
   // Verification state is constructed on first assignment.
@@ -661,7 +674,7 @@ TEST_F(MemberHeapDeathTest, CheckForOnHeapMemberCrashesOnInitialAssignment) {
         "");
   }
 }
-#endif  // defined(CPPGC_POINTER_COMPRESSION)
+#endif  // defined(CPPGC_POINTER_COMPRESSION) && defined(ENABLE_SLOW_DCHECKS)
 
 #if defined(CPPGC_POINTER_COMPRESSION)
 TEST_F(MemberTest, CompressDecompress) {

@@ -6,13 +6,13 @@
 #define V8_HEAP_MARK_COMPACT_INL_H_
 
 #include "src/common/globals.h"
+#include "src/heap/heap-visitor-inl.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/marking-state-inl.h"
 #include "src/heap/marking-visitor-inl.h"
 #include "src/heap/marking-worklist-inl.h"
 #include "src/heap/marking-worklist.h"
 #include "src/heap/marking.h"
-#include "src/heap/objects-visiting-inl.h"
 #include "src/heap/remembered-set-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/transitions.h"

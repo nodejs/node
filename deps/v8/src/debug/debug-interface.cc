@@ -359,7 +359,9 @@ MaybeLocal<Context> GetCreationContext(Local<Object> value) {
   if (IsJSGlobalProxy(*Utils::OpenDirectHandle(*value))) {
     return MaybeLocal<Context>();
   }
+  START_ALLOW_USE_DEPRECATED();
   return value->GetCreationContext();
+  END_ALLOW_USE_DEPRECATED();
 }
 
 void ChangeBreakOnException(Isolate* isolate, ExceptionBreakState type) {
@@ -801,34 +803,40 @@ WasmScript* WasmScript::Cast(Script* script) {
   return static_cast<WasmScript*>(script);
 }
 
-WasmScript::DebugSymbolsType WasmScript::GetDebugSymbolType() const {
-  auto script = Utils::OpenDirectHandle(this);
-  DCHECK_EQ(i::Script::Type::kWasm, script->type());
-  switch (script->wasm_native_module()->module()->debug_symbols.type) {
-    case i::wasm::WasmDebugSymbols::Type::None:
-      return WasmScript::DebugSymbolsType::None;
+Maybe<WasmScript::DebugSymbols::Type> GetDebugSymbolType(
+    i::wasm::WasmDebugSymbols::Type type) {
+  switch (type) {
     case i::wasm::WasmDebugSymbols::Type::EmbeddedDWARF:
-      return WasmScript::DebugSymbolsType::EmbeddedDWARF;
+      return Just(WasmScript::DebugSymbols::Type::EmbeddedDWARF);
     case i::wasm::WasmDebugSymbols::Type::ExternalDWARF:
-      return WasmScript::DebugSymbolsType::ExternalDWARF;
+      return Just(WasmScript::DebugSymbols::Type::ExternalDWARF);
     case i::wasm::WasmDebugSymbols::Type::SourceMap:
-      return WasmScript::DebugSymbolsType::SourceMap;
+      return Just(WasmScript::DebugSymbols::Type::SourceMap);
+    case i::wasm::WasmDebugSymbols::Type::None:
+      return Nothing<WasmScript::DebugSymbols::Type>();
   }
 }
 
-MemorySpan<const char> WasmScript::ExternalSymbolsURL() const {
+std::vector<WasmScript::DebugSymbols> WasmScript::GetDebugSymbols() const {
   auto script = Utils::OpenDirectHandle(this);
   DCHECK_EQ(i::Script::Type::kWasm, script->type());
 
-  const i::wasm::WasmDebugSymbols& symbols =
-      script->wasm_native_module()->module()->debug_symbols;
-  if (symbols.external_url.is_empty()) return {};
+  std::vector<WasmScript::DebugSymbols> debug_symbols;
+  auto symbols = script->wasm_native_module()->module()->debug_symbols;
+  for (size_t i = 0; i < symbols.size(); ++i) {
+    const i::wasm::WasmDebugSymbols& symbol = symbols[i];
+    Maybe<WasmScript::DebugSymbols::Type> type =
+        GetDebugSymbolType(symbol.type);
+    if (type.IsNothing()) continue;
 
-  internal::wasm::ModuleWireBytes wire_bytes(
-      script->wasm_native_module()->wire_bytes());
-  i::wasm::WasmName external_url =
-      wire_bytes.GetNameOrNull(symbols.external_url);
-  return {external_url.data(), external_url.size()};
+    internal::wasm::ModuleWireBytes wire_bytes(
+        script->wasm_native_module()->wire_bytes());
+    i::wasm::WasmName external_url =
+        wire_bytes.GetNameOrNull(symbol.external_url);
+    MemorySpan<const char> span = {external_url.data(), external_url.size()};
+    debug_symbols.push_back({type.FromJust(), span});
+  }
+  return debug_symbols;
 }
 
 int WasmScript::NumFunctions() const {
@@ -980,11 +988,11 @@ MaybeLocal<UnboundScript> CompileInspectorScript(Isolate* v8_isolate,
   PREPARE_FOR_DEBUG_INTERFACE_EXECUTION_WITH_ISOLATE(isolate, context,
                                                      UnboundScript);
   i::Handle<i::String> str = Utils::OpenHandle(*source);
-  i::Handle<i::SharedFunctionInfo> result;
+  i::DirectHandle<i::SharedFunctionInfo> result;
   {
     i::AlignedCachedData* cached_data = nullptr;
     ScriptCompiler::CompilationDetails compilation_details;
-    i::MaybeHandle<i::SharedFunctionInfo> maybe_function_info =
+    i::MaybeDirectHandle<i::SharedFunctionInfo> maybe_function_info =
         i::Compiler::GetSharedFunctionInfoForScriptWithCachedData(
             isolate, str, i::ScriptDetails(), cached_data,
             ScriptCompiler::kNoCompileOptions,
@@ -1081,15 +1089,13 @@ Local<Function> GetBuiltin(Isolate* v8_isolate, Builtin requested_builtin) {
   i::Handle<i::String> name = isolate->factory()->empty_string();
   i::Handle<i::NativeContext> context(isolate->native_context());
   i::Handle<i::SharedFunctionInfo> info =
-      factory->NewSharedFunctionInfoForBuiltin(name, builtin);
+      factory->NewSharedFunctionInfoForBuiltin(name, builtin, 0, i::kAdapt);
   info->set_language_mode(i::LanguageMode::kStrict);
   i::Handle<i::JSFunction> fun =
       i::Factory::JSFunctionBuilder{isolate, info, context}
           .set_map(isolate->strict_function_without_prototype_map())
           .Build();
 
-  fun->shared()->set_internal_formal_parameter_count(i::JSParameterCount(0));
-  fun->shared()->set_length(0);
   return Utils::ToLocal(handle_scope.CloseAndEscape(fun));
 }
 

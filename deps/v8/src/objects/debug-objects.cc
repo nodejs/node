@@ -346,7 +346,7 @@ MaybeHandle<BreakPoint> BreakPointInfo::GetBreakPointById(
     Tagged<BreakPoint> breakpoint =
         Cast<BreakPoint>(break_point_info->break_points());
     if (breakpoint->id() == breakpoint_id) {
-          return handle(breakpoint, isolate);
+      return handle(breakpoint, isolate);
     }
   } else {
     // Multiple break points.
@@ -419,49 +419,10 @@ int StackFrameInfo::GetSourcePosition(DirectHandle<StackFrameInfo> info) {
   return source_position;
 }
 
-// static
-void ErrorStackData::EnsureStackFrameInfos(
-    Isolate* isolate, DirectHandle<ErrorStackData> error_stack) {
-  if (!IsSmi(error_stack->limit_or_stack_frame_infos())) {
-    return;
-  }
-  int limit = Cast<Smi>(error_stack->limit_or_stack_frame_infos()).value();
-  Handle<FixedArray> call_site_infos(error_stack->call_site_infos(), isolate);
-  Handle<FixedArray> stack_frame_infos =
-      isolate->factory()->NewFixedArray(call_site_infos->length());
-  int index = 0;
-  for (int i = 0; i < call_site_infos->length(); ++i) {
-    DirectHandle<CallSiteInfo> call_site_info(
-        Cast<CallSiteInfo>(call_site_infos->get(i)), isolate);
-    if (call_site_info->IsAsync()) {
-          break;
-    }
-    Handle<Script> script;
-    if (!CallSiteInfo::GetScript(isolate, call_site_info).ToHandle(&script) ||
-        !script->IsSubjectToDebugging()) {
-      continue;
-    }
-    DirectHandle<StackFrameInfo> stack_frame_info =
-        isolate->factory()->NewStackFrameInfo(
-            script, CallSiteInfo::GetSourcePosition(call_site_info),
-            CallSiteInfo::GetFunctionDebugName(call_site_info),
-            IsConstructor(*call_site_info));
-    stack_frame_infos->set(index++, *stack_frame_info);
-  }
-  stack_frame_infos =
-      FixedArray::RightTrimOrEmpty(isolate, stack_frame_infos, index);
-  if (limit < 0 && -limit < index) {
-    // Negative limit encodes cap to be applied to |stack_frame_infos|.
-    stack_frame_infos =
-        FixedArray::RightTrimOrEmpty(isolate, stack_frame_infos, -limit);
-  } else if (limit >= 0 && limit < call_site_infos->length()) {
-    // Positive limit means we need to cap the |call_site_infos|
-    // to that number before exposing them to the world.
-    call_site_infos =
-        FixedArray::RightTrimOrEmpty(isolate, call_site_infos, limit);
-    error_stack->set_call_site_infos(*call_site_infos);
-  }
-  error_stack->set_limit_or_stack_frame_infos(*stack_frame_infos);
+int StackTraceInfo::length() const { return frames()->length(); }
+
+Tagged<StackFrameInfo> StackTraceInfo::get(int index) const {
+  return Cast<StackFrameInfo>(frames()->get(index));
 }
 
 }  // namespace internal

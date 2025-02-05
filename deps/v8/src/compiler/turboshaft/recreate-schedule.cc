@@ -16,7 +16,6 @@
 #include "src/compiler/common-operator.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/feedback-source.h"
-#include "src/compiler/graph.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
@@ -25,6 +24,7 @@
 #include "src/compiler/pipeline-data-inl.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/scheduler.h"
+#include "src/compiler/turbofan-graph.h"
 #include "src/compiler/turboshaft/deopt-data.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/operations.h"
@@ -1091,6 +1091,16 @@ Node* ScheduleBuilder::ProcessOperation(const ConstantOp& op) {
                          base::checked_cast<int32_t>(op.integral()),
                          RelocInfo::WASM_CANONICAL_SIG_ID),
                      {});
+    case ConstantOp::Kind::kRelocatableWasmIndirectCallTarget:
+      if constexpr (V8_ENABLE_WASM_CODE_POINTER_TABLE_BOOL) {
+        return AddNode(common.RelocatableInt32Constant(
+                           base::checked_cast<int32_t>(op.integral()),
+                           RelocInfo::WASM_INDIRECT_CALL_TARGET),
+                       {});
+      } else {
+        return RelocatableIntPtrConstant(op.integral(),
+                                         RelocInfo::WASM_INDIRECT_CALL_TARGET);
+      }
   }
 }
 

@@ -16,9 +16,9 @@
 #include "src/compiler/backend/instruction-codes.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/frame-states.h"
-#include "src/compiler/graph.h"
 #include "src/compiler/node.h"
 #include "src/compiler/schedule.h"
+#include "src/compiler/turbofan-graph.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/loop-finder.h"
 #include "src/compiler/turboshaft/operations.h"
@@ -604,16 +604,17 @@ Constant::Constant(RelocatablePtrConstantInfo info) {
   rmode_ = info.rmode();
 }
 
-Handle<HeapObject> Constant::ToHeapObject() const {
+IndirectHandle<HeapObject> Constant::ToHeapObject() const {
   DCHECK(kHeapObject == type() || kCompressedHeapObject == type());
-  Handle<HeapObject> value(
+  IndirectHandle<HeapObject> value(
       reinterpret_cast<Address*>(static_cast<intptr_t>(value_)));
   return value;
 }
 
-Handle<Code> Constant::ToCode() const {
+IndirectHandle<Code> Constant::ToCode() const {
   DCHECK_EQ(kHeapObject, type());
-  Handle<Code> value(reinterpret_cast<Address*>(static_cast<intptr_t>(value_)));
+  IndirectHandle<Code> value(
+      reinterpret_cast<Address*>(static_cast<intptr_t>(value_)));
   DCHECK(IsCode(*value));
   return value;
 }
@@ -1224,7 +1225,8 @@ FrameStateDescriptor::FrameStateDescriptor(
     Zone* zone, FrameStateType type, BytecodeOffset bailout_id,
     OutputFrameStateCombine state_combine, uint16_t parameters_count,
     uint16_t max_arguments, size_t locals_count, size_t stack_count,
-    MaybeHandle<SharedFunctionInfo> shared_info,
+    MaybeIndirectHandle<SharedFunctionInfo> shared_info,
+    MaybeIndirectHandle<BytecodeArray> bytecode_aray,
     FrameStateDescriptor* outer_state, uint32_t wasm_liftoff_frame_size,
     uint32_t wasm_function_index)
     : type_(type),
@@ -1240,6 +1242,7 @@ FrameStateDescriptor::FrameStateDescriptor(
               wasm_liftoff_frame_size, outer_state)),
       values_(zone),
       shared_info_(shared_info),
+      bytecode_array_(bytecode_aray),
       outer_state_(outer_state),
       wasm_function_index_(wasm_function_index) {}
 
@@ -1313,11 +1316,11 @@ JSToWasmFrameStateDescriptor::JSToWasmFrameStateDescriptor(
     Zone* zone, FrameStateType type, BytecodeOffset bailout_id,
     OutputFrameStateCombine state_combine, uint16_t parameters_count,
     size_t locals_count, size_t stack_count,
-    MaybeHandle<SharedFunctionInfo> shared_info,
-    FrameStateDescriptor* outer_state, const wasm::FunctionSig* wasm_signature)
+    MaybeIndirectHandle<SharedFunctionInfo> shared_info,
+    FrameStateDescriptor* outer_state, const wasm::CanonicalSig* wasm_signature)
     : FrameStateDescriptor(zone, type, bailout_id, state_combine,
                            parameters_count, 0, locals_count, stack_count,
-                           shared_info, outer_state),
+                           shared_info, {}, outer_state),
       return_kind_(wasm::WasmReturnTypeFromSignature(wasm_signature)) {}
 #endif  // V8_ENABLE_WEBASSEMBLY
 

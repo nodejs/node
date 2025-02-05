@@ -7,6 +7,7 @@
 
 #include "src/baseline/bytecode-offset-iterator.h"
 #include "src/codegen/code-desc.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/code.h"
 #include "src/objects/deoptimization-data-inl.h"
@@ -104,7 +105,7 @@ inline Tagged<ProtectedFixedArray> Code::deoptimization_data() const {
 inline void Code::set_deoptimization_data(Tagged<ProtectedFixedArray> value,
                                           WriteBarrierMode mode) {
   DCHECK(uses_deoptimization_data());
-  DCHECK(!ObjectInYoungGeneration(value));
+  DCHECK(!HeapLayout::InYoungGeneration(value));
 
   WriteProtectedPointerField(kDeoptimizationDataOrInterpreterDataOffset, value);
   CONDITIONAL_PROTECTED_POINTER_WRITE_BARRIER(
@@ -661,7 +662,7 @@ bool Code::has_instruction_stream() const {
 #else
   const uint64_t value = ReadField<uint64_t>(kInstructionStreamOffset);
 #endif
-  SLOW_DCHECK(value == 0 || !InReadOnlySpace(*this));
+  SLOW_DCHECK(value == 0 || !HeapLayout::InReadOnlySpace(*this));
   return value != 0;
 }
 
@@ -673,7 +674,7 @@ bool Code::has_instruction_stream(RelaxedLoadTag tag) const {
   const uint64_t value =
       RELAXED_READ_INT64_FIELD(*this, kInstructionStreamOffset);
 #endif
-  SLOW_DCHECK(value == 0 || !InReadOnlySpace(*this));
+  SLOW_DCHECK(value == 0 || !HeapLayout::InReadOnlySpace(*this));
   return value != 0;
 }
 

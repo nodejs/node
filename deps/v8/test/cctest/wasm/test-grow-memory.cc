@@ -25,11 +25,6 @@ namespace {
 void ExportAsMain(WasmFunctionBuilder* f) {
   f->builder()->AddExport(base::CStrVector("main"), f);
 }
-#define EMIT_CODE_WITH_END(f, code)  \
-  do {                               \
-    f->EmitCode(code, sizeof(code)); \
-    f->Emit(kExprEnd);               \
-  } while (false)
 
 void Cleanup(Isolate* isolate = CcTest::InitIsolateOnce()) {
   // By sending a low memory notifications, we will try hard to collect all
@@ -45,7 +40,7 @@ TEST(GrowMemDetaches) {
     HandleScope scope(isolate);
     Handle<WasmMemoryObject> memory_object =
         WasmMemoryObject::New(isolate, 16, 100, SharedFlag::kNotShared,
-                              WasmMemoryFlag::kWasmMemory32)
+                              wasm::AddressType::kI32)
             .ToHandleChecked();
     DirectHandle<JSArrayBuffer> buffer(memory_object->array_buffer(), isolate);
     int32_t result = WasmMemoryObject::Grow(isolate, memory_object, 0);
@@ -62,7 +57,7 @@ TEST(Externalized_GrowMemMemSize) {
     HandleScope scope(isolate);
     Handle<WasmMemoryObject> memory_object =
         WasmMemoryObject::New(isolate, 16, 100, SharedFlag::kNotShared,
-                              WasmMemoryFlag::kWasmMemory32)
+                              wasm::AddressType::kI32)
             .ToHandleChecked();
     ManuallyExternalizedBuffer external(
         handle(memory_object->array_buffer(), isolate));
@@ -86,9 +81,8 @@ TEST(Run_WasmModule_Buffer_Externalized_GrowMem) {
     builder->AddMemory(16);
     WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
     ExportAsMain(f);
-    uint8_t code[] = {WASM_MEMORY_GROW(WASM_I32V_1(6)), WASM_DROP,
-                      WASM_MEMORY_SIZE};
-    EMIT_CODE_WITH_END(f, code);
+    f->EmitCode({WASM_MEMORY_GROW(WASM_I32V_1(6)), WASM_DROP, WASM_MEMORY_SIZE,
+                 WASM_END});
 
     ZoneBuffer buffer(&zone);
     builder->WriteTo(&buffer);
@@ -131,5 +125,3 @@ TEST(Run_WasmModule_Buffer_Externalized_GrowMem) {
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
-
-#undef EMIT_CODE_WITH_END

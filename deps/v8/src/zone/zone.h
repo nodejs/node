@@ -218,7 +218,7 @@ class V8_EXPORT_PRIVATE Zone final {
 #endif
 
 #ifdef DEBUG
-  bool Contains(void* ptr);
+  bool Contains(const void* ptr) const;
 #endif
 
  private:

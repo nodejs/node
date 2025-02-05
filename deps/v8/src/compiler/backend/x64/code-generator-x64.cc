@@ -1412,6 +1412,30 @@ void CodeGenerator::AssembleCodeStartRegisterCheck() {
   __ Assert(equal, AbortReason::kWrongFunctionCodeStart);
 }
 
+#ifdef V8_ENABLE_LEAPTIERING
+// Check that {kJavaScriptCallDispatchHandleRegister} is correct.
+void CodeGenerator::AssembleDispatchHandleRegisterCheck() {
+  DCHECK(linkage()->GetIncomingDescriptor()->IsJSFunctionCall());
+
+  // We currently don't check this for JS builtins as those are sometimes
+  // called directly (e.g. from other builtins) and not through the dispatch
+  // table. This is fine as builtin functions don't use the dispatch handle,
+  // but we could enable this check in the future if we make sure to pass the
+  // kInvalidDispatchHandle whenever we do a direct call to a JS builtin.
+  if (Builtins::IsBuiltinId(info()->builtin())) {
+    return;
+  }
+
+  // For now, we only ensure that the register references a valid dispatch
+  // entry with the correct parameter count. In the future, we may also be able
+  // to check that the entry points back to this code.
+  __ LoadParameterCountFromJSDispatchTable(
+      rbx, kJavaScriptCallDispatchHandleRegister);
+  __ cmpl(rbx, Immediate(parameter_count_));
+  __ Assert(equal, AbortReason::kWrongFunctionDispatchHandle);
+}
+#endif  // V8_ENABLE_LEAPTIERING
+
 void CodeGenerator::BailoutIfDeoptimized() { __ BailoutIfDeoptimized(rbx); }
 
 bool ShouldClearOutputRegisterBeforeInstruction(CodeGenerator* g,
@@ -1561,7 +1585,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Assert(equal, AbortReason::kWrongFunctionContext);
       }
       static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
-      __ CallJSFunction(func);
+      uint32_t num_arguments =
+          i.InputUint32(instr->JSCallArgumentCountInputIndex());
+      __ CallJSFunction(func, num_arguments);
       frame_access_state()->ClearSPDelta();
       RecordCallPosition(instr);
       AssemblePlaceHolderForLazyDeopt(instr);
@@ -2368,6 +2394,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Roundsd(i.OutputDoubleRegister(), i.InputDoubleRegister(0), mode);
       break;
     }
+    case kSSEFloat64ToFloat16: {
+      __ Cvtpd2ph(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                  i.TempRegister(0));
+      break;
+    }
     case kSSEFloat64ToFloat32:
       ASSEMBLE_SSE_UNOP(Cvtsd2ss);
       break;
@@ -2798,7 +2829,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           }
           case kL64: {
             // F64x4Abs
-            UNIMPLEMENTED();
+            YMMRegister dst = i.OutputSimd256Register();
+            YMMRegister src = i.InputSimd256Register(0);
+            CpuFeatureScope avx_scope(masm(), AVX2);
+            if (dst == src) {
+              __ vpcmpeqq(kScratchSimd256Reg, kScratchSimd256Reg,
+                          kScratchSimd256Reg);
+              __ vpsrlq(kScratchSimd256Reg, kScratchSimd256Reg, uint8_t{1});
+              __ vpand(dst, dst, kScratchSimd256Reg);
+            } else {
+              __ vpcmpeqq(dst, dst, dst);
+              __ vpsrlq(dst, dst, uint8_t{1});
+              __ vpand(dst, dst, src);
+            }
+            break;
           }
           default:
             UNREACHABLE();
@@ -2861,7 +2905,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           }
           case kL64: {
             // F64x4Neg
-            UNIMPLEMENTED();
+            YMMRegister dst = i.OutputSimd256Register();
+            YMMRegister src = i.InputSimd256Register(0);
+            CpuFeatureScope avx_scope(masm(), AVX2);
+            if (dst == src) {
+              __ vpcmpeqq(kScratchSimd256Reg, kScratchSimd256Reg,
+                          kScratchSimd256Reg);
+              __ vpsllq(kScratchSimd256Reg, kScratchSimd256Reg, uint8_t{63});
+              __ vpxor(dst, dst, kScratchSimd256Reg);
+            } else {
+              __ vpcmpeqq(dst, dst, dst);
+              __ vpsllq(dst, dst, uint8_t{31});
+              __ vxorpd(dst, dst, src);
+            }
+            break;
           }
           default:
             UNREACHABLE();
@@ -6803,8 +6860,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                           kScratchDoubleReg, i.TempSimd128Register(0));
       break;
     }
+    case kX64I32x8TruncF32x8U: {
+      __ I32x8TruncF32x8U(i.OutputSimd256Register(), i.InputSimd256Register(0),
+                          kScratchSimd256Reg, i.TempSimd256Register(0));
+      break;
+    }
     case kX64Cvttps2dq: {
-      __ Cvttps2dq(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {
+        __ Cvttps2dq(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      } else {
+        DCHECK_EQ(vec_len, kV256);
+        CpuFeatureScope avx_scope(masm(), AVX);
+        __ vcvttps2dq(i.OutputSimd256Register(), i.InputSimd256Register(0));
+      }
       break;
     }
     case kX64Cvttpd2dq: {
@@ -7043,28 +7112,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope avx_scope(masm(), AVX2);
       YMMRegister dst = i.OutputSimd256Register();
       __ vpackssdw(dst, i.InputSimd256Register(0), i.InputSimd256Register(1));
-      __ vpermq(dst, dst, 0xD8);  // 0b11011000
       break;
     }
     case kX64I16x16UConvertI32x8: {
       CpuFeatureScope avx_scope(masm(), AVX2);
       YMMRegister dst = i.OutputSimd256Register();
       __ vpackusdw(dst, i.InputSimd256Register(0), i.InputSimd256Register(1));
-      __ vpermq(dst, dst, 0xD8);  // 0b11011000
       break;
     }
     case kX64I8x32SConvertI16x16: {
       CpuFeatureScope avx_scope(masm(), AVX2);
       YMMRegister dst = i.OutputSimd256Register();
       __ vpacksswb(dst, i.InputSimd256Register(0), i.InputSimd256Register(1));
-      __ vpermq(dst, dst, 0xD8);  // 0b11011000
       break;
     }
     case kX64I8x32UConvertI16x16: {
       CpuFeatureScope avx_scope(masm(), AVX2);
       YMMRegister dst = i.OutputSimd256Register();
       __ vpackuswb(dst, i.InputSimd256Register(0), i.InputSimd256Register(1));
-      __ vpermq(dst, dst, 0xD8);  // 0b11011000
       break;
     }
     case kX64I64x4ExtMulI32x4S: {
@@ -7113,6 +7178,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope avx_scope(masm(), AVX2);
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ vpmovzxbw(i.OutputSimd256Register(), i.MemoryOperand());
+      break;
+    }
+    case kX64S256Load8x8U: {
+      CpuFeatureScope avx_scope(masm(), AVX2);
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      __ vpmovzxbd(i.OutputSimd256Register(), i.MemoryOperand());
       break;
     }
     case kX64S256Load16x8S: {
@@ -7461,11 +7532,11 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
   X64OperandConverter i(this, instr);
   Register input = i.InputRegister(0);
   int32_t const case_count = static_cast<int32_t>(instr->InputCount() - 2);
-  Label** cases = zone()->AllocateArray<Label*>(case_count);
+  base::Vector<Label*> cases = zone()->AllocateVector<Label*>(case_count);
   for (int32_t index = 0; index < case_count; ++index) {
     cases[index] = GetLabel(i.InputRpo(index + 2));
   }
-  Label* const table = AddJumpTable(cases, case_count);
+  Label* const table = AddJumpTable(cases);
   __ cmpl(input, Immediate(case_count));
   __ j(above_equal, GetLabel(i.InputRpo(1)));
   __ leaq(kScratchRegister, Operand(table));
@@ -7479,20 +7550,13 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
     // target = table + (target - table)
     __ addq(input, kScratchRegister);
     // Jump to the target.
-#ifdef V8_ENABLE_CET_IBT
+
     // Add the notrack prefix to disable landing pad enforcement.
     __ jmp(input, /*notrack=*/true);
-#else
-    __ jmp(input);
-#endif
   } else {
     // For non builtins, the value in the table is 'target_address' (8 bytes)
     // jmp [table + index*8]
-#ifdef V8_ENABLE_CET_IBT
     __ jmp(Operand(kScratchRegister, input, times_8, 0), /*notrack=*/true);
-#else
-    __ jmp(Operand(kScratchRegister, input, times_8, 0));
-#endif
   }
 }
 
@@ -8089,9 +8153,6 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
   if (v8_flags.trace_turbo_stack_accesses) {
     IncrementStackAccessCounter(source, destination);
   }
-  // Whether the ymm source should be used as a xmm.
-  const bool src_simd256_as_simd128 =
-      source->IsSimd256Register() && destination->IsSimd128Register();
 
   // Dispatch on the source and destination operand kinds.
   switch (MoveType::InferMove(source, destination)) {
@@ -8109,10 +8170,10 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
             LocationOperand::cast(source)->representation();
         if (rep == MachineRepresentation::kSimd256) {
           CpuFeatureScope avx_scope(masm(), AVX);
-          if (src_simd256_as_simd128) {
+          // Whether the ymm source should be used as a xmm.
+          if (source->IsSimd256Register() && destination->IsSimd128Register()) {
             __ vmovapd(g.ToSimd128Register(destination),
                        g.ToSimd128Register(source));
-
           } else {
             __ vmovapd(g.ToSimd256Register(destination),
                        g.ToSimd256Register(source));
@@ -8136,7 +8197,9 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           __ Movups(dst, src);
         } else if (rep == MachineRepresentation::kSimd256) {
           CpuFeatureScope avx_scope(masm(), AVX);
-          if (src_simd256_as_simd128) {
+          // Whether the ymm source should be used as a xmm.
+          if (source->IsSimd256Register() &&
+              destination->IsSimd128StackSlot()) {
             __ vmovups(dst, g.ToSimd128Register(source));
           } else {
             __ vmovups(dst, g.ToSimd256Register(source));
@@ -8164,7 +8227,8 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           __ Movups(dst, src);
         } else if (rep == MachineRepresentation::kSimd256) {
           CpuFeatureScope avx_scope(masm(), AVX);
-          if (src_simd256_as_simd128) {
+          if (source->IsSimd256StackSlot() &&
+              destination->IsSimd128Register()) {
             __ vmovups(g.ToSimd128Register(destination), src);
           } else {
             __ vmovups(g.ToSimd256Register(destination), src);
@@ -8197,7 +8261,8 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           __ Movups(dst, kScratchDoubleReg);
         } else if (rep == MachineRepresentation::kSimd256) {
           CpuFeatureScope avx_scope(masm(), AVX);
-          if (src_simd256_as_simd128) {
+          if (source->IsSimd256StackSlot() &&
+              destination->IsSimd128StackSlot()) {
             __ vmovups(kScratchDoubleReg, src);
             __ vmovups(dst, kScratchDoubleReg);
           } else {
@@ -8383,7 +8448,7 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
   }
 }
 
-void CodeGenerator::AssembleJumpTable(Label** targets, size_t target_count) {
+void CodeGenerator::AssembleJumpTable(base::Vector<Label*> targets) {
 #ifdef V8_ENABLE_BUILTIN_JUMP_TABLE_SWITCH
   // For builtins, the value in table is `target_address - table_address`.
   // The reason is that the builtins code position may be changed so the table
@@ -8391,8 +8456,8 @@ void CodeGenerator::AssembleJumpTable(Label** targets, size_t target_count) {
   if (V8_UNLIKELY(Builtins::IsBuiltinId(masm_.builtin()))) {
     int table_pos = __ pc_offset();
 
-    for (size_t index = 0; index < target_count; ++index) {
-      __ WriteBuiltinJumpTableEntry(targets[index], table_pos);
+    for (auto* target : targets) {
+      __ WriteBuiltinJumpTableEntry(target, table_pos);
     }
     return;
   }
@@ -8401,7 +8466,7 @@ void CodeGenerator::AssembleJumpTable(Label** targets, size_t target_count) {
 
   // For non-builtins, the value in table is just the target absolute address,
   // it's position dependent.
-  for (size_t index = 0; index < target_count; ++index) {
+  for (size_t index = 0; index < targets.size(); ++index) {
     __ dq(targets[index]);
   }
 }

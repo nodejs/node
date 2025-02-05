@@ -1240,7 +1240,7 @@ class LocalBlocklistsCollector {
   DeclarationScope* closure_scope_;
 
   Handle<StringSet> context_blocklist_;
-  std::map<Scope*, Handle<StringSet>> function_blocklists_;
+  std::map<Scope*, IndirectHandle<StringSet>> function_blocklists_;
 };
 
 LocalBlocklistsCollector::LocalBlocklistsCollector(

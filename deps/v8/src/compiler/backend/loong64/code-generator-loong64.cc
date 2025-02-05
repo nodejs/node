@@ -4,6 +4,7 @@
 
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/callable.h"
+#include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/loong64/constants-loong64.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/macro-assembler.h"
@@ -623,6 +624,33 @@ void CodeGenerator::AssembleCodeStartRegisterCheck() {
             kJavaScriptCallCodeStartRegister, Operand(scratch));
 }
 
+#ifdef V8_ENABLE_LEAPTIERING
+// Check that {kJavaScriptCallDispatchHandleRegister} is correct.
+void CodeGenerator::AssembleDispatchHandleRegisterCheck() {
+  DCHECK(linkage()->GetIncomingDescriptor()->IsJSFunctionCall());
+
+  // We currently don't check this for JS builtins as those are sometimes
+  // called directly (e.g. from other builtins) and not through the dispatch
+  // table. This is fine as builtin functions don't use the dispatch handle,
+  // but we could enable this check in the future if we make sure to pass the
+  // kInvalidDispatchHandle whenever we do a direct call to a JS builtin.
+  if (Builtins::IsBuiltinId(info()->builtin())) {
+    return;
+  }
+
+  // For now, we only ensure that the register references a valid dispatch
+  // entry with the correct parameter count. In the future, we may also be able
+  // to check that the entry points back to this code.
+  UseScratchRegisterScope temps(masm());
+  Register actual_parameter_count = temps.Acquire();
+  Register scratch = temps.Acquire();
+  __ LoadParameterCountFromJSDispatchTable(
+      actual_parameter_count, kJavaScriptCallDispatchHandleRegister, scratch);
+  __ Assert(eq, AbortReason::kWrongFunctionDispatchHandle,
+            actual_parameter_count, Operand(parameter_count_));
+}
+#endif  // V8_ENABLE_LEAPTIERING
+
 // Check if the code object is marked for deoptimization. If it is, then it
 // jumps to the CompileLazyDeoptimizedCode builtin. In order to do this we need
 // to:
@@ -740,7 +768,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                            FieldMemOperand(func, JSFunction::kContextOffset));
         __ Assert(eq, AbortReason::kWrongFunctionContext, cp, Operand(scratch));
       }
-      __ CallJSFunction(func);
+      uint32_t num_arguments =
+          i.InputUint32(instr->JSCallArgumentCountInputIndex());
+      __ CallJSFunction(func, num_arguments);
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
       break;
@@ -2499,14 +2529,32 @@ void CodeGenerator::AssembleConstructFrame() {
         __ Branch(&done, uge, sp, Operand(stack_limit));
       }
 
-      __ Call(static_cast<intptr_t>(Builtin::kWasmStackOverflow),
-              RelocInfo::WASM_STUB_CALL);
-      // The call does not return, hence we can ignore any references and just
-      // define an empty safepoint.
-      ReferenceMap* reference_map = zone()->New<ReferenceMap>(zone());
-      RecordSafepoint(reference_map);
-      if (v8_flags.debug_code) {
-        __ stop();
+      if (v8_flags.experimental_wasm_growable_stacks) {
+        RegList regs_to_save;
+        regs_to_save.set(WasmHandleStackOverflowDescriptor::GapRegister());
+        regs_to_save.set(
+            WasmHandleStackOverflowDescriptor::FrameBaseRegister());
+
+        for (auto reg : wasm::kGpParamRegisters) regs_to_save.set(reg);
+        __ MultiPush(regs_to_save);
+        __ li(WasmHandleStackOverflowDescriptor::GapRegister(),
+              required_slots * kSystemPointerSize);
+        __ Add_d(
+            WasmHandleStackOverflowDescriptor::FrameBaseRegister(), fp,
+            Operand(call_descriptor->ParameterSlotCount() * kSystemPointerSize +
+                    CommonFrameConstants::kFixedFrameSizeAboveFp));
+        __ CallBuiltin(Builtin::kWasmHandleStackOverflow);
+        __ MultiPop(regs_to_save);
+      } else {
+        __ Call(static_cast<intptr_t>(Builtin::kWasmStackOverflow),
+                RelocInfo::WASM_STUB_CALL);
+        // The call does not return, hence we can ignore any references and just
+        // define an empty safepoint.
+        ReferenceMap* reference_map = zone()->New<ReferenceMap>(zone());
+        RecordSafepoint(reference_map);
+        if (v8_flags.debug_code) {
+          __ stop();
+        }
       }
 
       __ bind(&done);
@@ -2583,6 +2631,34 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
                 Operand(static_cast<int64_t>(0)));
     }
   }
+
+#if V8_ENABLE_WEBASSEMBLY
+  if (call_descriptor->IsWasmFunctionCall() &&
+      v8_flags.experimental_wasm_growable_stacks) {
+    Label done;
+    {
+      UseScratchRegisterScope temps{masm()};
+      Register scratch = temps.Acquire();
+      __ Ld_d(scratch, MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
+      __ BranchShort(
+          &done, ne, scratch,
+          Operand(StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START)));
+    }
+    RegList regs_to_save;
+    for (auto reg : wasm::kGpReturnRegisters) regs_to_save.set(reg);
+    __ MultiPush(regs_to_save);
+    __ li(kCArgRegs[0], ExternalReference::isolate_address());
+    {
+      UseScratchRegisterScope temps{masm()};
+      Register scratch = temps.Acquire();
+      __ PrepareCallCFunction(1, scratch);
+    }
+    __ CallCFunction(ExternalReference::wasm_shrink_stack(), 1);
+    __ mov(fp, kReturnRegister0);
+    __ MultiPop(regs_to_save);
+    __ bind(&done);
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   // Functions with JS linkage have at least one parameter (the receiver).
   // If {parameter_slots} == 0, it means it is a builtin with
@@ -3044,7 +3120,7 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
   }
 }
 
-void CodeGenerator::AssembleJumpTable(Label** targets, size_t target_count) {
+void CodeGenerator::AssembleJumpTable(base::Vector<Label*> targets) {
   // On 64-bit LOONG64 we emit the jump tables inline.
   UNREACHABLE();
 }

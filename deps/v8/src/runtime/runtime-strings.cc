@@ -153,7 +153,7 @@ RUNTIME_FUNCTION(Runtime_StringSubstring) {
 }
 
 RUNTIME_FUNCTION(Runtime_StringAdd) {
-  // This is used by Wasm stringrefs.
+  // This is used by Wasm.
   SaveAndClearThreadInWasmFlag non_wasm_scope(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
@@ -172,6 +172,7 @@ RUNTIME_FUNCTION(Runtime_InternalizeString) {
 }
 
 RUNTIME_FUNCTION(Runtime_StringCharCodeAt) {
+  SaveAndClearThreadInWasmFlag non_wasm_scope(isolate);
   HandleScope handle_scope(isolate);
   DCHECK_EQ(2, args.length());
 
@@ -382,6 +383,7 @@ RUNTIME_FUNCTION(Runtime_StringGreaterThanOrEqual) {
 }
 
 RUNTIME_FUNCTION(Runtime_StringEqual) {
+  SaveAndClearThreadInWasmFlag non_wasm_scope(isolate);
   HandleScope handle_scope(isolate);
   DCHECK_EQ(2, args.length());
   Handle<String> x = args.at<String>(0);

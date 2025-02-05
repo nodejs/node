@@ -119,12 +119,6 @@ class MemoryAllocator {
     return commit_page_size_bits_;
   }
 
-  // Computes the memory area of discardable memory within a given memory area
-  // [addr, addr+size) and returns the result as base::AddressRegion. If the
-  // memory is not discardable base::AddressRegion is an empty region.
-  V8_EXPORT_PRIVATE static base::AddressRegion ComputeDiscardMemoryArea(
-      Address addr, size_t size);
-
   V8_EXPORT_PRIVATE MemoryAllocator(Isolate* isolate,
                                     v8::PageAllocator* code_page_allocator,
                                     v8::PageAllocator* trusted_page_allocator,

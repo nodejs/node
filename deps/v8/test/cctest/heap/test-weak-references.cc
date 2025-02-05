@@ -38,19 +38,19 @@ TEST(WeakReferencesBasic) {
 
   IndirectHandle<LoadHandler> lh = CreateLoadHandlerForTest(factory);
 
-  if (!v8_flags.single_generation) CHECK(Heap::InYoungGeneration(*lh));
+  if (!v8_flags.single_generation) CHECK(HeapLayout::InYoungGeneration(*lh));
 
   Tagged<MaybeObject> code_object = lh->data1();
   CHECK(IsSmi(code_object));
   heap::InvokeMajorGC(CcTest::heap());
-  CHECK(!Heap::InYoungGeneration(*lh));
+  CHECK(!HeapLayout::InYoungGeneration(*lh));
   CHECK_EQ(code_object, lh->data1());
 
   {
     HandleScope inner_scope(isolate);
 
     // Create a new Code.
-    Assembler assm(AssemblerOptions{});
+    Assembler assm(isolate->allocator(), AssemblerOptions{});
     assm.nop();  // supported on all architectures
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
@@ -125,7 +125,7 @@ TEST(WeakReferencesOldToNew) {
 
   // Create a new FixedArray which the LoadHandler will point to.
   DirectHandle<FixedArray> fixed_array = factory->NewFixedArray(1);
-  CHECK(Heap::InYoungGeneration(*fixed_array));
+  CHECK(HeapLayout::InYoungGeneration(*fixed_array));
   lh->set_data1(MakeWeak(*fixed_array));
 
   heap::InvokeMajorGC(heap);
@@ -152,7 +152,7 @@ TEST(WeakReferencesOldToNewScavenged) {
 
   // Create a new FixedArray which the LoadHandler will point to.
   DirectHandle<FixedArray> fixed_array = factory->NewFixedArray(1);
-  CHECK(Heap::InYoungGeneration(*fixed_array));
+  CHECK(HeapLayout::InYoungGeneration(*fixed_array));
   lh->set_data1(MakeWeak(*fixed_array));
 
   heap::InvokeMinorGC(heap);
@@ -203,7 +203,7 @@ TEST(ObjectMovesBeforeClearingWeakField) {
     HandleScope inner_scope(isolate);
     // Create a new FixedArray which the LoadHandler will point to.
     IndirectHandle<FixedArray> fixed_array = factory->NewFixedArray(1);
-    CHECK(Heap::InYoungGeneration(*fixed_array));
+    CHECK(HeapLayout::InYoungGeneration(*fixed_array));
     lh->set_data1(MakeWeak(*fixed_array));
     // inner_scope will go out of scope, so when marking the next time,
     // *fixed_array will stay white.
@@ -269,11 +269,11 @@ TEST(ObjectWithWeakReferencePromoted) {
 
   HandleScope outer_scope(isolate);
   DirectHandle<LoadHandler> lh = CreateLoadHandlerForTest(factory);
-  CHECK(Heap::InYoungGeneration(*lh));
+  CHECK(HeapLayout::InYoungGeneration(*lh));
 
   // Create a new FixedArray which the LoadHandler will point to.
   DirectHandle<FixedArray> fixed_array = factory->NewFixedArray(1);
-  CHECK(Heap::InYoungGeneration(*fixed_array));
+  CHECK(HeapLayout::InYoungGeneration(*fixed_array));
   lh->set_data1(MakeWeak(*fixed_array));
 
   heap::EmptyNewSpaceUsingGC(heap);
@@ -295,7 +295,7 @@ TEST(ObjectWithClearedWeakReferencePromoted) {
 
   HandleScope outer_scope(isolate);
   DirectHandle<LoadHandler> lh = CreateLoadHandlerForTest(factory);
-  CHECK(Heap::InYoungGeneration(*lh));
+  CHECK(HeapLayout::InYoungGeneration(*lh));
 
   lh->set_data1(ClearedValue(isolate));
 
@@ -375,7 +375,7 @@ TEST(WeakArraysBasic) {
   CHECK(!IsFixedArray(*array));
   CHECK_EQ(array->length(), length);
 
-  CHECK(Heap::InYoungGeneration(*array));
+  CHECK(HeapLayout::InYoungGeneration(*array));
 
   for (int i = 0; i < length; ++i) {
     Tagged<HeapObject> heap_object;
@@ -461,27 +461,27 @@ TEST(WeakArrayListBasic) {
     index6->set(0, Smi::FromInt(2019));
 
     array = WeakArrayList::AddToEnd(isolate, array,
-                                    MaybeObjectHandle::Weak(index0));
+                                    MaybeObjectDirectHandle::Weak(index0));
     array = WeakArrayList::AddToEnd(
-        isolate, array, MaybeObjectHandle(Smi::FromInt(1), isolate));
+        isolate, array, MaybeObjectDirectHandle(Smi::FromInt(1), isolate));
     CHECK_EQ(array->length(), 2);
 
     array = WeakArrayList::AddToEnd(isolate, array,
-                                    MaybeObjectHandle::Weak(index2));
+                                    MaybeObjectDirectHandle::Weak(index2));
     array = WeakArrayList::AddToEnd(
-        isolate, array, MaybeObjectHandle(Smi::FromInt(3), isolate));
+        isolate, array, MaybeObjectDirectHandle(Smi::FromInt(3), isolate));
     CHECK_EQ(array->length(), 4);
 
     array = WeakArrayList::AddToEnd(isolate, array,
-                                    MaybeObjectHandle::Weak(index4));
+                                    MaybeObjectDirectHandle::Weak(index4));
     array = WeakArrayList::AddToEnd(
-        isolate, array, MaybeObjectHandle(Smi::FromInt(5), isolate));
+        isolate, array, MaybeObjectDirectHandle(Smi::FromInt(5), isolate));
     CHECK_EQ(array->length(), 6);
 
     array = WeakArrayList::AddToEnd(isolate, array,
-                                    MaybeObjectHandle::Weak(index6));
+                                    MaybeObjectDirectHandle::Weak(index6));
     array = WeakArrayList::AddToEnd(
-        isolate, array, MaybeObjectHandle(Smi::FromInt(7), isolate));
+        isolate, array, MaybeObjectDirectHandle(Smi::FromInt(7), isolate));
     CHECK_EQ(array->length(), 8);
 
     CHECK(InCorrectGeneration(*array));
@@ -556,36 +556,36 @@ TEST(WeakArrayListRemove) {
   Handle<FixedArray> elem1 = factory->NewFixedArray(1);
   Handle<FixedArray> elem2 = factory->NewFixedArray(1);
 
-  array =
-      WeakArrayList::AddToEnd(isolate, array, MaybeObjectHandle::Weak(elem0));
-  array =
-      WeakArrayList::AddToEnd(isolate, array, MaybeObjectHandle::Weak(elem1));
-  array =
-      WeakArrayList::AddToEnd(isolate, array, MaybeObjectHandle::Weak(elem2));
+  array = WeakArrayList::AddToEnd(isolate, array,
+                                  MaybeObjectDirectHandle::Weak(elem0));
+  array = WeakArrayList::AddToEnd(isolate, array,
+                                  MaybeObjectDirectHandle::Weak(elem1));
+  array = WeakArrayList::AddToEnd(isolate, array,
+                                  MaybeObjectDirectHandle::Weak(elem2));
 
   CHECK_EQ(array->length(), 3);
   CHECK_EQ(array->get(0), MakeWeak(*elem0));
   CHECK_EQ(array->get(1), MakeWeak(*elem1));
   CHECK_EQ(array->get(2), MakeWeak(*elem2));
 
-  CHECK(array->RemoveOne(MaybeObjectHandle::Weak(elem1)));
+  CHECK(array->RemoveOne(MaybeObjectDirectHandle::Weak(elem1)));
 
   CHECK_EQ(array->length(), 2);
   CHECK_EQ(array->get(0), MakeWeak(*elem0));
   CHECK_EQ(array->get(1), MakeWeak(*elem2));
 
-  CHECK(!array->RemoveOne(MaybeObjectHandle::Weak(elem1)));
+  CHECK(!array->RemoveOne(MaybeObjectDirectHandle::Weak(elem1)));
 
   CHECK_EQ(array->length(), 2);
   CHECK_EQ(array->get(0), MakeWeak(*elem0));
   CHECK_EQ(array->get(1), MakeWeak(*elem2));
 
-  CHECK(array->RemoveOne(MaybeObjectHandle::Weak(elem0)));
+  CHECK(array->RemoveOne(MaybeObjectDirectHandle::Weak(elem0)));
 
   CHECK_EQ(array->length(), 1);
   CHECK_EQ(array->get(0), MakeWeak(*elem2));
 
-  CHECK(array->RemoveOne(MaybeObjectHandle::Weak(elem2)));
+  CHECK(array->RemoveOne(MaybeObjectDirectHandle::Weak(elem2)));
 
   CHECK_EQ(array->length(), 0);
 }

@@ -224,7 +224,6 @@ ArchOpcode SelectLoadOpcode(turboshaft::MemoryRepresentation loaded_rep,
     case MemoryRepresentation::Int16():
       DCHECK_EQ(result_rep, RegisterRepresentation::Word32());
       return kPPC_LoadWordS16;
-      break;
     case MemoryRepresentation::Uint16():
       DCHECK_EQ(result_rep, RegisterRepresentation::Word32());
       return kPPC_LoadWordU16;
@@ -237,7 +236,6 @@ ArchOpcode SelectLoadOpcode(turboshaft::MemoryRepresentation loaded_rep,
       DCHECK_EQ(result_rep, RegisterRepresentation::Word64());
       if (*mode != kInt34Imm) *mode = kInt16Imm_4ByteAligned;
       return kPPC_LoadWord64;
-      break;
     case MemoryRepresentation::Float16():
       UNIMPLEMENTED();
     case MemoryRepresentation::Float32():
@@ -270,7 +268,6 @@ ArchOpcode SelectLoadOpcode(turboshaft::MemoryRepresentation loaded_rep,
       DCHECK_EQ(result_rep, RegisterRepresentation::Tagged());
       if (*mode != kInt34Imm) *mode = kInt16Imm_4ByteAligned;
       return kPPC_LoadWord64;
-      break;
 #endif
     case MemoryRepresentation::AnyUncompressedTagged():
     case MemoryRepresentation::UncompressedTaggedPointer():
@@ -699,10 +696,10 @@ void VisitStoreCommon(InstructionSelectorT<TurbofanAdapter>* selector,
 #ifdef V8_COMPRESS_POINTERS
         if (mode != kInt34Imm) mode = kInt16Imm;
         opcode = kPPC_StoreCompressTagged;
+        break;
 #else
         UNREACHABLE();
 #endif
-        break;
       case MachineRepresentation::kIndirectPointer:
         if (mode != kInt34Imm) mode = kInt16Imm_4ByteAligned;
         opcode = kPPC_StoreIndirectPointer;
@@ -2117,6 +2114,11 @@ template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitChangeUint32ToUint64(node_t node) {
     // TODO(mbrandy): inspect input to see if nop is appropriate.
     VisitRR(this, kPPC_Uint32ToUint64, node);
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitTruncateFloat64ToFloat16(node_t node) {
+  UNIMPLEMENTED();
 }
 
 template <typename Adapter>

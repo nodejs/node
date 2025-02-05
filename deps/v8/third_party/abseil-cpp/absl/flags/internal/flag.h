@@ -373,8 +373,12 @@ class MaskedPointer {
 
   static constexpr int RequiredAlignment() { return 4; }
 
+  constexpr MaskedPointer() : ptr_(nullptr) {}
   constexpr explicit MaskedPointer(ptr_t rhs) : ptr_(rhs) {}
   MaskedPointer(ptr_t rhs, bool is_candidate);
+
+  MaskedPointer(const MaskedPointer& rhs) = default;
+  MaskedPointer& operator=(const MaskedPointer& rhs) = default;
 
   void* Ptr() const {
     return reinterpret_cast<void*>(reinterpret_cast<mask_t>(ptr_) &

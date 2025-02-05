@@ -41,6 +41,7 @@
 
 #include "include/v8-locker.h"
 #include "src/handles/global-handles.h"
+#include "src/heap/live-object-range-inl.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/marking-inl.h"
@@ -85,7 +86,7 @@ AllocationResult HeapTester::AllocateMapForTest(Isolate* isolate) {
   AllocationResult alloc = heap->AllocateRaw(Map::kSize, AllocationType::kMap);
   if (!alloc.To(&obj)) return alloc;
   ReadOnlyRoots roots(isolate);
-  obj->set_map_after_allocation(*isolate->meta_map());
+  obj->set_map_after_allocation(isolate, *isolate->meta_map());
   return AllocationResult::FromObject(isolate->factory()->InitializeMap(
       Cast<Map>(obj), JS_OBJECT_TYPE, JSObject::kHeaderSize,
       TERMINAL_FAST_ELEMENTS_KIND, 0, roots));
@@ -102,7 +103,8 @@ AllocationResult HeapTester::AllocateFixedArrayForTest(
     AllocationResult result = heap->AllocateRaw(size, allocation);
     if (!result.To(&obj)) return result;
   }
-  obj->set_map_after_allocation(ReadOnlyRoots(heap).fixed_array_map(),
+  obj->set_map_after_allocation(heap->isolate(),
+                                ReadOnlyRoots(heap).fixed_array_map(),
                                 SKIP_WRITE_BARRIER);
   Tagged<FixedArray> array = Cast<FixedArray>(obj);
   array->set_length(length);
@@ -181,7 +183,8 @@ HEAP_TEST(MarkCompactCollector) {
         Object::GetProperty(isolate, global, obj_name).ToHandleChecked();
     CHECK(IsJSObject(*object));
     Handle<String> prop_name = factory->InternalizeUtf8String("theSlot");
-    CHECK_EQ(*Object::GetProperty(isolate, object, prop_name).ToHandleChecked(),
+    CHECK_EQ(*Object::GetProperty(isolate, Cast<JSObject>(object), prop_name)
+                  .ToHandleChecked(),
              Smi::FromInt(23));
   }
 }
@@ -199,9 +202,10 @@ HEAP_TEST(DoNotEvacuatePinnedPages) {
 
   heap::SealCurrentObjects(heap);
 
-  auto handles = heap::CreatePadding(
+  DirectHandleVector<FixedArray> handles(isolate);
+  heap::CreatePadding(
       heap, static_cast<int>(MemoryChunkLayout::AllocatableMemoryInDataPage()),
-      AllocationType::kOld);
+      AllocationType::kOld, &handles);
 
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(*handles.front());
 

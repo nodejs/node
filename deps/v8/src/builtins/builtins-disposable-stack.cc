@@ -57,7 +57,7 @@ BUILTIN(DisposableStackPrototypeUse) {
   // 1. Let disposableStack be the this value.
   // 2. Perform ? RequireInternalSlot(disposableStack, [[DisposableState]]).
   CHECK_RECEIVER(JSSyncDisposableStack, disposable_stack, kMethodName);
-  Handle<Object> value = args.at(1);
+  Handle<JSAny> value = args.at<JSAny>(1);
 
   // use(value) does nothing when the value is null or undefined, so return
   // early.

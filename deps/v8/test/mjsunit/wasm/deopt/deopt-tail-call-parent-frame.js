@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --wasm-deopt --allow-natives-syntax --turboshaft-wasm
-// Flags: --experimental-wasm-inlining --liftoff --no-jit-fuzzing
+// Flags: --wasm-inlining --liftoff --no-jit-fuzzing
 // Flags: --turboshaft-wasm-instruction-selection-staged
 // Flags: --wasm-inlining-ignore-call-counts --wasm-inlining-factor=15
 

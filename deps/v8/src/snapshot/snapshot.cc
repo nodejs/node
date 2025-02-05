@@ -200,7 +200,7 @@ bool Snapshot::Initialize(Isolate* isolate) {
       &shared_heap_snapshot_data, ExtractRehashability(blob));
 }
 
-MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
+MaybeDirectHandle<Context> Snapshot::NewContextFromSnapshot(
     Isolate* isolate, Handle<JSGlobalProxy> global_proxy, size_t context_index,
     DeserializeEmbedderFieldsCallback embedder_fields_deserializer) {
   if (!isolate->snapshot_available()) return Handle<Context>();
@@ -257,9 +257,8 @@ void Snapshot::ClearReconstructableDataForSerialization(
     // Clear the cached js-to-wasm wrappers.
     DirectHandle<WeakFixedArray> wrappers(
         isolate->heap()->js_to_wasm_wrappers(), isolate);
-    for (int i = 0, e = wrappers->length(); i < e; ++i) {
-      wrappers->set(i, Tagged<MaybeObject>{});
-    }
+    MemsetTagged(wrappers->RawFieldOfFirstElement(), ClearedValue(isolate),
+                 wrappers->length());
 #endif  // V8_ENABLE_WEBASSEMBLY
 
     // Must happen after heap iteration since SFI::DiscardCompiled may allocate.

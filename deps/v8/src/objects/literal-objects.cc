@@ -18,6 +18,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
 #include "src/objects/struct-inl.h"
+#include "src/sandbox/isolate.h"
 
 namespace v8 {
 namespace internal {
@@ -162,7 +163,7 @@ Handle<NumberDictionary> DictionaryAddNoUpdateNextEnumerationIndex(
 
 // TODO(42203211): The first parameter should be just DirectHandle<Dictionary>
 // but now it does not compile with implicit Handle to DirectHandle conversions.
-template <template <typename T> typename HandleType, typename Dictionary,
+template <template <typename> typename HandleType, typename Dictionary,
           typename = std::enable_if_t<std::is_convertible_v<
               HandleType<Dictionary>, DirectHandle<Dictionary>>>>
 void DictionaryUpdateMaxNumberKey(HandleType<Dictionary> dictionary,
@@ -838,7 +839,7 @@ void RegExpBoilerplateDescription::BriefPrintDetails(std::ostream& os) {
   static_assert(JSRegExp::kFlagsOffset ==
                 JSRegExp::kSourceOffset + kTaggedSize);
   static_assert(JSRegExp::kHeaderSize == JSRegExp::kFlagsOffset + kTaggedSize);
-  Isolate* isolate = GetIsolateForSandbox(*this);
+  IsolateForSandbox isolate = GetIsolateForSandbox(*this);
   os << " " << Brief(data(isolate)) << ", " << Brief(source()) << ", "
      << flags();
 }

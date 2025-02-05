@@ -138,7 +138,7 @@ TEST(StressJS) {
 
   Handle<NativeContext> context(isolate->native_context());
   Handle<SharedFunctionInfo> info = factory->NewSharedFunctionInfoForBuiltin(
-      factory->function_string(), Builtin::kEmptyFunction);
+      factory->function_string(), Builtin::kEmptyFunction, 0, kDontAdapt);
   info->set_language_mode(LanguageMode::kStrict);
   Handle<JSFunction> function =
       Factory::JSFunctionBuilder{isolate, info, context}.Build();

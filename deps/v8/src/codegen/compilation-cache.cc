@@ -193,11 +193,10 @@ void CompilationCacheScript::Put(
                                              function_info, isolate());
 }
 
-InfoCellPair CompilationCacheEval::Lookup(Handle<String> source,
-                                          Handle<SharedFunctionInfo> outer_info,
-                                          DirectHandle<Context> native_context,
-                                          LanguageMode language_mode,
-                                          int position) {
+InfoCellPair CompilationCacheEval::Lookup(
+    Handle<String> source, Handle<SharedFunctionInfo> outer_info,
+    DirectHandle<NativeContext> native_context, LanguageMode language_mode,
+    int position) {
   HandleScope scope(isolate());
   // Make sure not to leak the table into the surrounding handle
   // scope. Otherwise, we risk keeping old tables around even after
@@ -217,7 +216,7 @@ InfoCellPair CompilationCacheEval::Lookup(Handle<String> source,
 void CompilationCacheEval::Put(Handle<String> source,
                                Handle<SharedFunctionInfo> outer_info,
                                DirectHandle<SharedFunctionInfo> function_info,
-                               DirectHandle<Context> native_context,
+                               DirectHandle<NativeContext> native_context,
                                DirectHandle<FeedbackCell> feedback_cell,
                                int position) {
   HandleScope scope(isolate());
@@ -287,14 +286,16 @@ InfoCellPair CompilationCache::LookupEval(Handle<String> source,
 
   const char* cache_type;
 
-  if (IsNativeContext(*context)) {
-    result = eval_global_.Lookup(source, outer_info, context, language_mode,
-                                 position);
+  DirectHandle<NativeContext> native_context;
+  if (TryCast<NativeContext>(context, &native_context)) {
+    result = eval_global_.Lookup(source, outer_info, native_context,
+                                 language_mode, position);
     cache_type = "eval-global";
 
   } else {
     DCHECK_NE(position, kNoSourcePosition);
-    DirectHandle<Context> native_context(context->native_context(), isolate());
+    DirectHandle<NativeContext> native_context(context->native_context(),
+                                               isolate());
     result = eval_contextual_.Lookup(source, outer_info, native_context,
                                      language_mode, position);
     cache_type = "eval-contextual";
@@ -331,13 +332,15 @@ void CompilationCache::PutEval(Handle<String> source,
 
   const char* cache_type;
   HandleScope scope(isolate());
-  if (IsNativeContext(*context)) {
-    eval_global_.Put(source, outer_info, function_info, context, feedback_cell,
-                     position);
+  DirectHandle<NativeContext> native_context;
+  if (TryCast<NativeContext>(context, &native_context)) {
+    eval_global_.Put(source, outer_info, function_info, native_context,
+                     feedback_cell, position);
     cache_type = "eval-global";
   } else {
     DCHECK_NE(position, kNoSourcePosition);
-    DirectHandle<Context> native_context(context->native_context(), isolate());
+    DirectHandle<NativeContext> native_context(context->native_context(),
+                                               isolate());
     eval_contextual_.Put(source, outer_info, function_info, native_context,
                          feedback_cell, position);
     cache_type = "eval-contextual";

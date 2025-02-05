@@ -1624,6 +1624,9 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitSimd256LoadTransform(
     case Simd256LoadTransformOp::TransformKind::k8x16U:
       opcode = kX64S256Load8x16U;
       break;
+    case Simd256LoadTransformOp::TransformKind::k8x8U:
+      opcode = kX64S256Load8x8U;
+      break;
     case Simd256LoadTransformOp::TransformKind::k16x8S:
       opcode = kX64S256Load16x8S;
       break;
@@ -3817,6 +3820,14 @@ RR_OP_T_LIST(RR_VISITOR)
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitTruncateFloat64ToWord32(node_t node) {
   VisitRR(this, node, kArchTruncateDoubleToI);
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitTruncateFloat64ToFloat16(node_t node) {
+  X64OperandGeneratorT<Adapter> g(this);
+  InstructionOperand temps[] = {g.TempRegister()};
+  Emit(kSSEFloat64ToFloat16, g.DefineAsRegister(node),
+       g.UseUniqueRegister(this->input_at(node, 0)), arraysize(temps), temps);
 }
 
 template <typename Adapter>
@@ -6034,10 +6045,12 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I16x8AllTrue, IAllTrue, kL16, kV128)          \
   V(I8x16AllTrue, IAllTrue, kL8, kV128)           \
   V(S128Not, SNot, kL8, kV128)                    \
+  V(F64x4Abs, FAbs, kL64, kV256)                  \
   V(F32x8Abs, FAbs, kL32, kV256)                  \
   V(I32x8Abs, IAbs, kL32, kV256)                  \
   V(I16x16Abs, IAbs, kL16, kV256)                 \
   V(I8x32Abs, IAbs, kL8, kV256)                   \
+  V(F64x4Neg, FNeg, kL64, kV256)                  \
   V(F32x8Neg, FNeg, kL32, kV256)                  \
   V(I32x8Neg, INeg, kL32, kV256)                  \
   V(I16x16Neg, INeg, kL16, kV256)                 \
@@ -6640,16 +6653,36 @@ template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitF32x4UConvertI32x4(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
   DCHECK_EQ(this->value_input_count(node), 1);
-  Emit(kX64F32x4UConvertI32x4, g.DefineSameAsFirst(node),
-       g.UseRegister(this->input_at(node, 0)));
-}
+  node_t value = this->input_at(node, 0);
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitF32x8UConvertI32x8(node_t node) {
-  X64OperandGeneratorT<Adapter> g(this);
-  DCHECK_EQ(this->value_input_count(node), 1);
-  Emit(kX64F32x8UConvertI32x8, g.DefineSameAsFirst(node),
-       g.UseRegister(this->input_at(node, 0)));
+  // F32x4SConvertI32x4 is more efficient than F32x4UConvertI32x4 on x64,
+  // if the u32x4 input can fit into i32x4, we can use F32x4SConvertI32x4
+  // instead. Input node with I32x4UConvertI16x8Low/I32x4UConvertI16x8High
+  // opcode is one of this kinds.
+  bool can_use_sign_convert = false;
+  if constexpr (Adapter::IsTurboshaft) {
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    if (const Simd128UnaryOp* unop =
+            this->Get(value).template TryCast<Simd128UnaryOp>()) {
+      if (unop->kind == Simd128UnaryOp::Kind::kI32x4UConvertI16x8Low ||
+          unop->kind == Simd128UnaryOp::Kind::kI32x4UConvertI16x8High) {
+        can_use_sign_convert = true;
+      }
+    }
+  } else {
+    if (value->opcode() == IrOpcode::kI32x4UConvertI16x8Low ||
+        value->opcode() == IrOpcode::kI32x4UConvertI16x8High) {
+      can_use_sign_convert = true;
+    }
+  }
+
+  if (can_use_sign_convert) {
+    Emit(kX64F32x4SConvertI32x4, g.DefineAsRegister(node),
+         g.UseRegister(this->input_at(node, 0)));
+  } else {
+    Emit(kX64F32x4UConvertI32x4, g.DefineSameAsFirst(node),
+         g.UseRegister(this->input_at(node, 0)));
+  }
 }
 
 #define VISIT_SIMD_QFMOP(Opcode)                                   \
@@ -6798,6 +6831,35 @@ void InstructionSelectorT<TurbofanAdapter>::VisitExtractF128(node_t node) {
 }
 
 #if V8_ENABLE_WASM_SIMD256_REVEC
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF32x8UConvertI32x8(node_t node) {
+  X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 1);
+
+  node_t value = this->input_at(node, 0);
+
+  // F32x8SConvertI32x8 is more efficient than F32x8UConvertI32x8 on x64.
+  bool can_use_sign_convert = false;
+  if constexpr (Adapter::IsTurboshaft) {
+    if (this->Get(value)
+            .template Is<turboshaft::Opmask::kSimd256I32x8UConvertI16x8>()) {
+      can_use_sign_convert = true;
+    }
+  } else {
+    if (value->opcode() == IrOpcode::kI32x8UConvertI16x8) {
+      can_use_sign_convert = true;
+    }
+  }
+
+  if (can_use_sign_convert) {
+    Emit(kX64F32x8SConvertI32x8, g.DefineAsRegister(node),
+         g.UseRegister(this->input_at(node, 0)));
+  } else {
+    Emit(kX64F32x8UConvertI32x8, g.DefineSameAsFirst(node),
+         g.UseRegister(this->input_at(node, 0)));
+  }
+}
+
 template <>
 void InstructionSelectorT<TurboshaftAdapter>::VisitExtractF128(node_t node) {
   X64OperandGeneratorT<TurboshaftAdapter> g(this);
@@ -7469,6 +7531,24 @@ void InstructionSelectorT<Adapter>::VisitI32x4RelaxedTruncF32x4U(node_t node) {
 }
 
 template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI32x8RelaxedTruncF32x8S(node_t node) {
+  DCHECK_EQ(this->value_input_count(node), 1);
+  VisitFloatUnop(this, node, this->input_at(node, 0),
+                 kX64Cvttps2dq | VectorLengthField::encode(kV256));
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI32x8RelaxedTruncF32x8U(node_t node) {
+  DCHECK_EQ(this->value_input_count(node), 1);
+  DCHECK(CpuFeatures::IsSupported(AVX) && CpuFeatures::IsSupported(AVX2));
+  X64OperandGeneratorT<Adapter> g(this);
+  node_t input = this->input_at(node, 0);
+  InstructionOperand temps[] = {g.TempSimd256Register()};
+  Emit(kX64I32x8TruncF32x8U, g.DefineAsRegister(node), g.UseRegister(input),
+       arraysize(temps), temps);
+}
+
+template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI64x2GtS(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
   DCHECK_EQ(this->value_input_count(node), 2);
@@ -7696,7 +7776,7 @@ InstructionSelector::SupportedMachineOperatorFlags() {
   }
   if (CpuFeatures::IsSupported(F16C)) {
     flags |= MachineOperatorBuilder::kFloat16 |
-             MachineOperatorBuilder::kFloat64ToFloat16;
+             MachineOperatorBuilder::kTruncateFloat64ToFloat16;
   }
   return flags;
 }

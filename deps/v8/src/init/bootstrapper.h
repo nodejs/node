@@ -31,7 +31,7 @@ class SourceCodeCache final {
   void Iterate(RootVisitor* v);
 
   bool Lookup(Isolate* isolate, base::Vector<const char> name,
-              Handle<SharedFunctionInfo>* handle);
+              DirectHandle<SharedFunctionInfo>* handle);
 
   void Add(Isolate* isolate, base::Vector<const char> name,
            DirectHandle<SharedFunctionInfo> shared);
@@ -56,7 +56,7 @@ class Bootstrapper final {
 
   // Creates a JavaScript Global Context with initial object graph.
   // The returned value is a global handle casted to V8Environment*.
-  Handle<NativeContext> CreateEnvironment(
+  DirectHandle<NativeContext> CreateEnvironment(
       MaybeHandle<JSGlobalProxy> maybe_global_proxy,
       v8::Local<v8::ObjectTemplate> global_object_template,
       v8::ExtensionConfiguration* extensions, size_t context_snapshot_index,
@@ -65,7 +65,7 @@ class Bootstrapper final {
 
   // Used for testing context deserialization. No code runs in the generated
   // context. It only needs to pass heap verification.
-  Handle<NativeContext> CreateEnvironmentForTesting() {
+  DirectHandle<NativeContext> CreateEnvironmentForTesting() {
     MaybeHandle<JSGlobalProxy> no_global_proxy;
     v8::Local<v8::ObjectTemplate> no_global_object_template;
     ExtensionConfiguration no_extensions;
@@ -77,7 +77,7 @@ class Bootstrapper final {
                              no_microtask_queue);
   }
 
-  Handle<JSGlobalProxy> NewRemoteContext(
+  DirectHandle<JSGlobalProxy> NewRemoteContext(
       MaybeHandle<JSGlobalProxy> maybe_global_proxy,
       v8::Local<v8::ObjectTemplate> global_object_template);
 
@@ -94,7 +94,7 @@ class Bootstrapper final {
   void FreeThreadResources();
 
   // Used for new context creation.
-  bool InstallExtensions(Handle<NativeContext> native_context,
+  bool InstallExtensions(DirectHandle<NativeContext> native_context,
                          v8::ExtensionConfiguration* extensions);
 
   SourceCodeCache* extensions_cache() { return &extensions_cache_; }
@@ -132,7 +132,7 @@ class BootstrapperActive final {
 
 V8_NOINLINE Handle<JSFunction> SimpleInstallFunction(
     Isolate* isolate, Handle<JSObject> base, const char* name, Builtin call,
-    int len, bool adapt, PropertyAttributes attrs = DONT_ENUM);
+    int len, AdaptArguments adapt, PropertyAttributes attrs = DONT_ENUM);
 
 }  // namespace internal
 }  // namespace v8

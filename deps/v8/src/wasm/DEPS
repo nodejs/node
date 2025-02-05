@@ -4,6 +4,7 @@ specific_include_rules = {
     # The only allowed include is 'src/codegen' for assembler headers.
     "-src",
     "+src/codegen",
+    "+src/base/sanitizer/ubsan.h",
     "+src/wasm/jump-table-assembler.h",
   ],
   "c-api\.cc": [

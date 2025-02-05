@@ -71,6 +71,7 @@ V8_OBJECT class Name : public PrimitiveHeapObject {
                             Handle<Name> two);
 
   // Conversion.
+  inline bool IsArrayIndex();
   inline bool AsArrayIndex(uint32_t* index);
   inline bool AsIntegerIndex(size_t* index);
 

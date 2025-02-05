@@ -113,6 +113,20 @@ void WritableRelocInfo::set_target_external_reference(
   }
 }
 
+WasmCodePointer RelocInfo::wasm_indirect_call_target() const {
+  DCHECK(rmode_ == RelocInfo::WASM_INDIRECT_CALL_TARGET);
+  return ReadUnalignedValue<WasmCodePointer>(pc_);
+}
+
+void WritableRelocInfo::set_wasm_indirect_call_target(
+    WasmCodePointer target, ICacheFlushMode icache_flush_mode) {
+  DCHECK(rmode_ == RelocInfo::WASM_INDIRECT_CALL_TARGET);
+  WriteUnalignedValue(pc_, target);
+  if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
+    FlushInstructionCache(pc_, sizeof(Address));
+  }
+}
+
 Address RelocInfo::target_internal_reference() {
   DCHECK(rmode_ == INTERNAL_REFERENCE);
   return ReadUnalignedValue<Address>(pc_);
@@ -136,8 +150,13 @@ uint32_t Assembler::uint32_constant_at(Address pc, Address constant_pool) {
 
 void Assembler::set_uint32_constant_at(Address pc, Address constant_pool,
                                        uint32_t new_constant,
+                                       WritableJitAllocation* jit_allocation,
                                        ICacheFlushMode icache_flush_mode) {
-  WriteUnalignedValue<uint32_t>(pc, new_constant);
+  if (jit_allocation) {
+    jit_allocation->WriteUnalignedValue<uint32_t>(pc, new_constant);
+  } else {
+    WriteUnalignedValue<uint32_t>(pc, new_constant);
+  }
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     FlushInstructionCache(pc, sizeof(uint32_t));
   }
@@ -212,18 +231,16 @@ Address Assembler::target_address_at(Address pc, Address constant_pool) {
 
 void Assembler::set_target_address_at(Address pc, Address constant_pool,
                                       Address target,
+                                      WritableJitAllocation* jit_allocation,
                                       ICacheFlushMode icache_flush_mode) {
-  WriteUnalignedValue(pc, target - (pc + sizeof(int32_t)));
+  if (jit_allocation) {
+    jit_allocation->WriteUnalignedValue(pc, target - (pc + sizeof(int32_t)));
+  } else {
+    WriteUnalignedValue(pc, target - (pc + sizeof(int32_t)));
+  }
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     FlushInstructionCache(pc, sizeof(int32_t));
   }
-}
-
-void Assembler::deserialization_set_special_target_at(
-    Address instruction_payload, Tagged<Code> code, Address target) {
-  set_target_address_at(instruction_payload,
-                        !code.is_null() ? code->constant_pool() : kNullAddress,
-                        target);
 }
 
 int Assembler::deserialization_special_target_size(

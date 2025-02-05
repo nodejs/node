@@ -142,8 +142,17 @@ class Vector {
     return *this;
   }
 
-  // Implicit conversion from Vector<T> to Vector<const T>.
-  operator Vector<const T>() const { return {start_, length_}; }
+  // Implicit conversion from Vector<T> to Vector<const U> if
+  // - T* is convertible to const U*, and
+  // - U and T have the same size.
+  // Note that this conversion is only safe for `*const* U`; writes would
+  // violate covariance.
+  template <typename U,
+            typename = std::enable_if_t<std::is_convertible_v<T*, const U*> &&
+                                        sizeof(U) == sizeof(T)>>
+  operator Vector<const U>() const {
+    return {start_, length_};
+  }
 
   template <typename S>
   static Vector<T> cast(Vector<S> input) {

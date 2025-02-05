@@ -197,8 +197,8 @@ class LoadIC : public IC {
 
   // If receiver is empty, use object as the receiver.
   V8_WARN_UNUSED_RESULT MaybeHandle<Object> Load(
-      Handle<Object> object, Handle<Name> name, bool update_feedback = true,
-      Handle<Object> receiver = Handle<Object>());
+      Handle<JSAny> object, Handle<Name> name, bool update_feedback = true,
+      Handle<JSAny> receiver = Handle<JSAny>());
 
  protected:
   // Update the inline cache and the global stub cache based on the
@@ -228,14 +228,14 @@ class KeyedLoadIC : public LoadIC {
               FeedbackSlot slot, FeedbackSlotKind kind)
       : LoadIC(isolate, vector, slot, kind) {}
 
-  V8_WARN_UNUSED_RESULT MaybeHandle<Object> Load(Handle<Object> object,
+  V8_WARN_UNUSED_RESULT MaybeHandle<Object> Load(Handle<JSAny> object,
                                                  Handle<Object> key);
 
  protected:
   V8_WARN_UNUSED_RESULT MaybeHandle<Object> RuntimeLoad(
-      Handle<Object> object, Handle<Object> key, bool* is_found = nullptr);
+      Handle<JSAny> object, Handle<Object> key, bool* is_found = nullptr);
 
-  V8_WARN_UNUSED_RESULT MaybeHandle<Object> LoadName(Handle<Object> object,
+  V8_WARN_UNUSED_RESULT MaybeHandle<Object> LoadName(Handle<JSAny> object,
                                                      DirectHandle<Object> key,
                                                      Handle<Name> name);
 
@@ -266,7 +266,7 @@ class StoreIC : public IC {
   }
 
   V8_WARN_UNUSED_RESULT MaybeHandle<Object> Store(
-      Handle<Object> object, Handle<Name> name, Handle<Object> value,
+      Handle<JSAny> object, Handle<Name> name, Handle<Object> value,
       StoreOrigin store_origin = StoreOrigin::kNamed);
 
   bool LookupForWrite(LookupIterator* it, DirectHandle<Object> value,
@@ -315,7 +315,7 @@ class KeyedStoreIC : public StoreIC {
                FeedbackSlot slot, FeedbackSlotKind kind)
       : StoreIC(isolate, vector, slot, kind) {}
 
-  V8_WARN_UNUSED_RESULT MaybeHandle<Object> Store(Handle<Object> object,
+  V8_WARN_UNUSED_RESULT MaybeHandle<Object> Store(Handle<JSAny> object,
                                                   Handle<Object> name,
                                                   Handle<Object> value);
 

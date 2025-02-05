@@ -97,17 +97,25 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
  public:
   class TemporaryRegisterScope;
 
-  explicit MaglevAssembler(Isolate* isolate, MaglevCodeGenState* code_gen_state)
-      : MacroAssembler(isolate, CodeObjectRequired::kNo),
+  MaglevAssembler(Isolate* isolate, Zone* zone,
+                  MaglevCodeGenState* code_gen_state)
+      : MacroAssembler(isolate, zone, CodeObjectRequired::kNo),
         code_gen_state_(code_gen_state) {}
 
   static constexpr RegList GetAllocatableRegisters() {
-#ifdef V8_TARGET_ARCH_ARM
+#if defined(V8_TARGET_ARCH_ARM)
     return kAllocatableGeneralRegisters - kMaglevExtraScratchRegister;
+#elif defined(V8_TARGET_ARCH_RISCV64)
+    return kAllocatableGeneralRegisters - kMaglevExtraScratchRegister -
+           kMaglevFlagsRegister;
 #else
     return kAllocatableGeneralRegisters;
-#endif  // V8_TARGET_ARCH_ARM
+#endif
   }
+
+#if defined(V8_TARGET_ARCH_RISCV64)
+  static constexpr Register GetFlagsRegister() { return kMaglevFlagsRegister; }
+#endif  // V8_TARGET_ARCH_RISCV64
 
   static constexpr DoubleRegList GetAllocatableDoubleRegisters() {
     return kAllocatableDoubleRegisters;
@@ -339,6 +347,22 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
 
   inline void MoveHeapNumber(Register dst, double value);
 
+#ifdef V8_TARGET_ARCH_RISCV64
+  inline Condition CheckSmi(Register src);
+  // Abort execution if argument is not a Map, enabled via
+  // --debug-code.
+  void AssertMap(Register object) NOOP_UNLESS_DEBUG_CODE;
+
+  void CompareRoot(const Register& obj, RootIndex index,
+                   ComparisonMode mode = ComparisonMode::kDefault);
+  void CmpTagged(const Register& rs1, const Register& rs2);
+  void CompareTaggedRoot(const Register& obj, RootIndex index);
+  void Cmp(const Register& rn, int imm);
+  void Assert(Condition cond, AbortReason reason);
+  void IsObjectType(Register heap_object, Register scratch1, Register scratch2,
+                    InstanceType type);
+#endif
+
   void TruncateDoubleToInt32(Register dst, DoubleRegister src);
   void TryTruncateDoubleToInt32(Register dst, DoubleRegister src, Label* fail);
   void TryTruncateDoubleToUint32(Register dst, DoubleRegister src, Label* fail);
@@ -516,13 +540,41 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
   inline void CompareMapWithRoot(Register object, RootIndex index,
                                  Register scratch);
 
+  inline void CompareInstanceTypeAndJumpIf(Register map, InstanceType type,
+                                           Condition cond, Label* target,
+                                           Label::Distance distance);
+
   inline void CompareInstanceType(Register map, InstanceType instance_type);
   inline void CompareInstanceTypeRange(Register map, InstanceType lower_limit,
                                        InstanceType higher_limit);
-  inline void CompareInstanceTypeRange(Register map, Register instance_type_out,
-                                       InstanceType lower_limit,
-                                       InstanceType higher_limit);
+  inline Condition CompareInstanceTypeRange(Register map,
+                                            Register instance_type_out,
+                                            InstanceType lower_limit,
+                                            InstanceType higher_limit);
 
+  template <typename NodeT>
+  inline void CompareInstanceTypeRangeAndEagerDeoptIf(
+      Register map, Register instance_type_out, InstanceType lower_limit,
+      InstanceType higher_limit, Condition cond, DeoptimizeReason reason,
+      NodeT* node);
+
+  template <typename NodeT>
+  void CompareRootAndEmitEagerDeoptIf(Register reg, RootIndex index,
+                                      Condition cond, DeoptimizeReason reason,
+                                      NodeT* node);
+  template <typename NodeT>
+  void CompareMapWithRootAndEmitEagerDeoptIf(Register reg, RootIndex index,
+                                             Register scratch, Condition cond,
+                                             DeoptimizeReason reason,
+                                             NodeT* node);
+  template <typename NodeT>
+  void CompareTaggedRootAndEmitEagerDeoptIf(Register reg, RootIndex index,
+                                            Condition cond,
+                                            DeoptimizeReason reason,
+                                            NodeT* node);
+  template <typename NodeT>
+  void CompareUInt32AndEmitEagerDeoptIf(Register reg, int imm, Condition cond,
+                                        DeoptimizeReason reason, NodeT* node);
   inline void CompareTaggedAndJumpIf(Register reg, Tagged<Smi> smi,
                                      Condition cond, Label* target,
                                      Label::Distance distance = Label::kFar);

@@ -22,7 +22,7 @@ import testrunner.base_runner as base_runner
 from testrunner.local.variants import ALL_VARIANTS
 from testrunner.objects import predictable
 from testrunner.testproc.execution import ExecutionProc
-from testrunner.testproc.filter import StatusFileFilterProc, NameFilterProc
+from testrunner.testproc.filter import NameFilterProc, StatusFileFilterProc
 from testrunner.testproc.loader import LoadProc
 from testrunner.testproc.seed import SeedProc
 from testrunner.testproc.sequence import SequenceProc
@@ -266,8 +266,9 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         'allow_user_segv_handler=1',
       ])
 
-  def _get_statusfile_variables(self):
-    variables = super(StandardTestRunner, self)._get_statusfile_variables()
+  def _get_statusfile_variables(self, context):
+    variables = super(
+        StandardTestRunner, self)._get_statusfile_variables(context)
     variables.update({
       'gc_stress': self.options.gc_stress or self.options.random_gc_stress,
       'gc_fuzzer': self.options.random_gc_stress,

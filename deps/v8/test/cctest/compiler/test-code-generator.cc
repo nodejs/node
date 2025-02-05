@@ -465,12 +465,12 @@ class TestEnvironment : public HandleAndZoneScope {
               GetRegConfig()->num_allocatable_general_registers() - 2);
 
     GenerateLayout(setup_layout_, allocated_slots_in_, &test_signature);
-    test_descriptor_ = MakeCallDescriptor(test_signature.Build());
+    test_descriptor_ = MakeCallDescriptor(test_signature.Get());
 
     if (layout_mode_ == kChangeLayout) {
       GenerateLayout(teardown_layout_, allocated_slots_out_,
                      &teardown_signature);
-      teardown_descriptor_ = MakeCallDescriptor(teardown_signature.Build());
+      teardown_descriptor_ = MakeCallDescriptor(teardown_signature.Get());
     }
     // Else, we just reuse the layout and signature of the setup function for
     // the teardown function since they are the same.
@@ -1228,7 +1228,7 @@ class CodeGeneratorTester {
                                  int first_unused_stack_slot,
                                  CodeGeneratorTester::PushTypeFlag push_type) {
     generator_->AssembleTailCallBeforeGap(instr, first_unused_stack_slot);
-#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_S390) || \
+#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_S390X) || \
     defined(V8_TARGET_ARCH_PPC64)
     // Only folding register pushes is supported on ARM.
     bool supported =
@@ -1632,8 +1632,8 @@ std::shared_ptr<wasm::NativeModule> AllocateNativeModule(Isolate* isolate,
   // WasmCallDescriptor assumes that code is on the native heap and not
   // within a code object.
   auto native_module = wasm::GetWasmEngine()->NewNativeModule(
-      isolate, wasm::WasmEnabledFeatures::All(), wasm::CompileTimeImports{},
-      std::move(module), code_size);
+      isolate, wasm::WasmEnabledFeatures::All(), wasm::WasmDetectedFeatures{},
+      wasm::CompileTimeImports{}, std::move(module), code_size);
   native_module->SetWireBytes({});
   return native_module;
 }
@@ -1664,8 +1664,7 @@ TEST(Regress_1171759) {
 
   builder.AddReturn(wasm::ValueType::For(MachineType::Int32()));
 
-  CallDescriptor* desc =
-      compiler::GetWasmCallDescriptor(&zone, builder.Build());
+  CallDescriptor* desc = compiler::GetWasmCallDescriptor(&zone, builder.Get());
 
   HandleAndZoneScope handles(kCompressGraphZone);
   RawMachineAssembler m(handles.main_isolate(),
@@ -1686,11 +1685,12 @@ TEST(Regress_1171759) {
   std::shared_ptr<wasm::NativeModule> module =
       AllocateNativeModule(handles.main_isolate(), code->instruction_size());
   wasm::WasmCodeRefScope wasm_code_ref_scope;
-  uint8_t* code_start = module->AddCodeForTesting(code)->instructions().begin();
+  wasm::WasmCode* wasm_code = module->AddCodeForTesting(code);
+  WasmCodePointer code_pointer = wasm_code->code_pointer();
 
   // Generate a minimal calling function, to push stack arguments.
   RawMachineAssemblerTester<int32_t> mt;
-  Node* function = mt.PointerConstant(code_start);
+  Node* function = mt.IntPtrConstant(code_pointer);
   Node* dummy_context = mt.PointerConstant(nullptr);
   Node* double_slot = mt.Float64Constant(0);
   Node* single_slot_that_creates_gap = mt.Float32Constant(0);

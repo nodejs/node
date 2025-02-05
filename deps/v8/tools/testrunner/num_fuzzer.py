@@ -125,9 +125,9 @@ class NumFuzzer(base_runner.BaseTestRunner):
         '--exit-on-contradictory-flags', '--testing-d8-test-runner', '--no-fail'
     ]
 
-  def _get_statusfile_variables(self):
+  def _get_statusfile_variables(self, context):
     variables = (
-        super(NumFuzzer, self)._get_statusfile_variables())
+        super(NumFuzzer, self)._get_statusfile_variables(context))
     variables.update({
         'deopt_fuzzer':
             bool(self.options.stress_deopt),

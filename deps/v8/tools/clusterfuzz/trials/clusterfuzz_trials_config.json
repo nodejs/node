@@ -9,7 +9,7 @@
     {"app_args": "--maglev-future", "app_name": "d8", "probability": 0.05, "contradicts": ["--jitless"]},
     {"app_args": "--minor-ms", "app_name": "d8", "probability": 0.25},
     {"app_args": "--random-gc-interval=2000", "app_name": "d8", "probability": 0.05},
-    {"app_args": "--optimize-on-next-call-optimizes-to-maglev", "app_name": "d8", "probability": 0.1},
+    {"app_args": "--optimize-on-next-call-optimizes-to-maglev", "app_name": "d8", "probability": 0.5},
     {"app_args": "--noanalyze-environment-liveness", "app_name": "d8", "probability": 0.1},
     {"app_args": "--no-enable-avx", "app_name": "d8", "probability": 0.1},
     {"app_args": "--no-enable-bmi1", "app_name": "d8", "probability": 0.1},

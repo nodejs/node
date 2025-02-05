@@ -56,13 +56,17 @@ namespace internal {
   V(MarkVisitRememberedSets)                \
   V(WeakContainerCallbacksProcessing)       \
   V(CustomCallbacksProcessing)              \
+  V(SweepEmptyPages)                        \
+  V(SweepFinish)                            \
+  V(SweepFinalizeEmptyPages)                \
+  V(SweepFinalizeSweptPages)                \
   V(SweepFinishIfOutOfWork)                 \
   V(SweepInvokePreFinalizers)               \
-  V(SweepInIdleTask)                        \
+  V(SweepInLowPriorityTask)                 \
   V(SweepInTask)                            \
   V(SweepInTaskForStatistics)               \
   V(SweepOnAllocation)                      \
-  V(SweepFinalize)
+  V(SweepPages)
 
 #define CPPGC_FOR_ALL_HISTOGRAM_CONCURRENT_SCOPES(V) \
   V(ConcurrentMark)                                  \
@@ -430,16 +434,14 @@ void StatsCollector::InternalScope<trace_category, scope_category>::StartTrace(
                           ? static_cast<int>(kNumHistogramScopeIds)
                           : static_cast<int>(kNumHistogramConcurrentScopeIds)),
                  trace_category == StatsCollector::TraceCategory::kEnabled);
-  if (trace_category == StatsCollector::TraceCategory::kEnabled)
-    StartTraceImpl(args...);
+  StartTraceImpl(args...);
 }
 
 template <StatsCollector::TraceCategory trace_category,
           StatsCollector::ScopeContext scope_category>
 void StatsCollector::InternalScope<trace_category,
                                    scope_category>::StopTrace() {
-  if (trace_category == StatsCollector::TraceCategory::kEnabled)
-    StopTraceImpl();
+  StopTraceImpl();
 }
 
 template <StatsCollector::TraceCategory trace_category,

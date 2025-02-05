@@ -639,9 +639,9 @@ Response InjectedScript::wrapObjectMirror(
   if (!response.IsSuccess()) return response;
   if (customPreviewEnabled && value->IsObject()) {
     std::unique_ptr<protocol::Runtime::CustomPreview> customPreview;
-    generateCustomPreview(sessionId, groupName, value.As<v8::Object>(),
-                          customPreviewConfig, maxCustomPreviewDepth,
-                          &customPreview);
+    generateCustomPreview(m_context->isolate(), sessionId, groupName,
+                          value.As<v8::Object>(), customPreviewConfig,
+                          maxCustomPreviewDepth, &customPreview);
     if (customPreview) (*result)->setCustomPreview(std::move(customPreview));
   }
   if (wrapOptions.mode == WrapMode::kDeep) {

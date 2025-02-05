@@ -141,6 +141,10 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
   }
   LocalIsolate* AsLocalIsolate() { return this; }
 
+  LocalIsolate* shared_space_isolate() const {
+    return isolate_->shared_space_isolate()->main_thread_local_isolate();
+  }
+
   // TODO(victorgomes): Remove this when/if MacroAssembler supports LocalIsolate
   // only constructor.
   Isolate* GetMainThreadIsolateUnsafe() const { return isolate_; }

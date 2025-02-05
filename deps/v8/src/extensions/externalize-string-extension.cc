@@ -9,6 +9,7 @@
 #include "src/base/strings.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/objects-inl.h"
 
@@ -50,7 +51,7 @@ static constexpr int kMinTwoByteCachedLength =
 
 // static
 const char* ExternalizeStringExtension::BuildSource(char* buf, size_t size) {
-  base::SNPrintF(base::Vector<char>(buf, static_cast<int>(size)),
+  base::SNPrintF(base::VectorOf(buf, size),
                  "native function externalizeString();"
                  "native function createExternalizableString();"
                  "native function isOneByteString();"
@@ -119,14 +120,14 @@ void ExternalizeStringExtension::Externalize(
     String::WriteToFlat(*string, data, 0, string->length());
     SimpleOneByteStringResource* resource = new SimpleOneByteStringResource(
         reinterpret_cast<char*>(data), string->length());
-    result = Utils::ToLocal(string)->MakeExternal(resource);
+    result = Utils::ToLocal(string)->MakeExternal(info.GetIsolate(), resource);
     if (!result) delete resource;
   } else {
     base::uc16* data = new base::uc16[string->length()];
     String::WriteToFlat(*string, data, 0, string->length());
     SimpleTwoByteStringResource* resource = new SimpleTwoByteStringResource(
         data, string->length());
-    result = Utils::ToLocal(string)->MakeExternal(resource);
+    result = Utils::ToLocal(string)->MakeExternal(info.GetIsolate(), resource);
     if (!result) delete resource;
   }
   // If the string is shared, testing with the combination of
@@ -177,7 +178,7 @@ void ExternalizeStringExtension::CreateExternalizableString(
   // Read-only strings are never externalizable. Don't try to copy them as
   // some parts of the code might rely on some strings being in RO space (i.e.
   // empty string).
-  if (IsReadOnlyHeapObject(*string)) {
+  if (HeapLayout::InReadOnlySpace(*string)) {
     info.GetIsolate()->ThrowError("Read-only strings cannot be externalized.");
     return;
   }

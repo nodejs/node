@@ -1154,7 +1154,7 @@ uintptr_t Simulator::StackLimit(uintptr_t c_limit) const {
   return reinterpret_cast<uintptr_t>(stack_) + kAdditionalStackMargin;
 }
 
-base::Vector<uint8_t> Simulator::GetCurrentStackView() const {
+base::Vector<uint8_t> Simulator::GetCentralStackView() const {
   // We do not add an additional safety margin as above in
   // Simulator::StackLimit, as this is currently only used in wasm::StackMemory,
   // which adds its own margin.

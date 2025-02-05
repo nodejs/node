@@ -134,7 +134,7 @@ struct Vector {
         typeswitch (
             UnsafeCast<(Number | TheHole)>(this.fixedArray.objects[i])) {
           case (n: Number): {
-            elements.floats[i] = Convert<float64_or_hole>(n);
+            elements.values[i] = Convert<float64_or_hole>(n);
           }
           case (TheHole): {
           }

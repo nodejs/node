@@ -1523,9 +1523,10 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
   // We call indirectly through the code field in the function to
   // allow recompilation to take effect without changing any of the
   // call sites.
+  constexpr int unused_argument_count = 0;
   switch (type) {
     case InvokeType::kCall:
-      CallJSFunction(function);
+      CallJSFunction(function, unused_argument_count);
       break;
     case InvokeType::kJump:
       JumpJSFunction(function);
@@ -2121,8 +2122,11 @@ void MacroAssembler::JumpCodeObject(Register code_object, JumpMode jump_mode) {
   }
 }
 
-void MacroAssembler::CallJSFunction(Register function_object) {
+void MacroAssembler::CallJSFunction(Register function_object,
+                                    uint16_t argument_count) {
   static_assert(kJavaScriptCallCodeStartRegister == ecx, "ABI mismatch");
+  DCHECK_WITH_MSG(!V8_ENABLE_LEAPTIERING_BOOL,
+                  "argument_count is only used with Leaptiering");
   mov(ecx, FieldOperand(function_object, JSFunction::kCodeOffset));
   CallCodeObject(ecx);
 }
@@ -2132,6 +2136,29 @@ void MacroAssembler::JumpJSFunction(Register function_object,
   static_assert(kJavaScriptCallCodeStartRegister == ecx, "ABI mismatch");
   mov(ecx, FieldOperand(function_object, JSFunction::kCodeOffset));
   JumpCodeObject(ecx, jump_mode);
+}
+
+void MacroAssembler::ResolveWasmCodePointer(Register target) {
+#ifdef V8_ENABLE_WASM_CODE_POINTER_TABLE
+  Register scratch = target == eax ? ebx : eax;
+  // TODO(sroettger): the load from table[target] is possible with a single
+  // instruction.
+  push(scratch);
+  Move(scratch, Immediate(ExternalReference::wasm_code_pointer_table()));
+  static_assert(sizeof(wasm::WasmCodePointerTableEntry) == 4);
+  mov(target, Operand(scratch, target, ScaleFactor::times_4, 0));
+  pop(scratch);
+#endif
+}
+
+void MacroAssembler::CallWasmCodePointer(Register target,
+                                         CallJumpMode call_jump_mode) {
+  ResolveWasmCodePointer(target);
+  if (call_jump_mode == CallJumpMode::kTailCall) {
+    jmp(target);
+  } else {
+    call(target);
+  }
 }
 
 void MacroAssembler::Jump(const ExternalReference& reference) {

@@ -131,7 +131,10 @@ function caller() {
 }
 caller();
 
-// Neutralized serializer API.
+// Neutralized APIs.
 let object = {'foo': 42}
 assertEquals(d8.serializer.serialize(object), object)
 assertEquals(d8.serializer.deserialize(object), object)
+assertEquals(d8.profiler.setOnProfileEndListener(object), object)
+assertEquals(d8.profiler.triggerSample(object), object)
+assertEquals(d8.log.getAndStop(object), object)

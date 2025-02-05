@@ -289,6 +289,13 @@ void ExternalEntityTable<Entry, size>::Extend(Space* space, Segment segment,
 
 template <typename Entry, size_t size>
 uint32_t ExternalEntityTable<Entry, size>::GenericSweep(Space* space) {
+  return GenericSweep(space, [](Entry&) {});
+}
+
+template <typename Entry, size_t size>
+template <typename Callback>
+uint32_t ExternalEntityTable<Entry, size>::GenericSweep(Space* space,
+                                                        Callback callback) {
   DCHECK(space->BelongsTo(this));
 
   // Lock the space. Technically this is not necessary since no other thread can
@@ -322,6 +329,7 @@ uint32_t ExternalEntityTable<Entry, size>::GenericSweep(Space* space) {
         current_freelist_head = it.index();
         current_freelist_length++;
       } else {
+        callback(*it);
         it->Unmark();
       }
     }

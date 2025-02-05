@@ -750,7 +750,6 @@ EXPORTS
     ?InMillisecondsFromNow@KernelTimeout@synchronization_internal@absl@@QEBAKXZ
     ?InNanosecondsFromNow@KernelTimeout@synchronization_internal@absl@@AEBA_JXZ
     ?IncrementSynchSem@Mutex@absl@@CAXPEAV12@PEAUPerThreadSynch@base_internal@2@@Z
-    ?Init@CordRepBtreeReader@cord_internal@absl@@QEAA?AV?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@PEAVCordRepBtree@23@@Z
     ?Init@FlagImpl@flags_internal@absl@@AEAAXXZ
     ?InitControlBytesAfterSoo@HashSetResizeHelper@container_internal@absl@@AEAAXPEAW4ctrl_t@23@W4423@_K@Z
     ?InitDiscreteDistribution@random_internal@absl@@YA?AV?$vector@U?$pair@N_K@__Cr@std@@V?$allocator@U?$pair@N_K@__Cr@std@@@23@@__Cr@std@@PEAV?$vector@NV?$allocator@N@__Cr@std@@@45@@Z

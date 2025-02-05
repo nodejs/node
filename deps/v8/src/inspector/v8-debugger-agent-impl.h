@@ -139,7 +139,10 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
       std::unique_ptr<protocol::Runtime::CallArgument> newValue) override;
   Response setAsyncCallStackDepth(int depth) override;
   Response setBlackboxPatterns(
-      std::unique_ptr<protocol::Array<String16>> patterns) override;
+      std::unique_ptr<protocol::Array<String16>> patterns,
+      Maybe<bool> skipAnonymous) override;
+  Response setBlackboxExecutionContexts(
+      std::unique_ptr<protocol::Array<String16>> uniqueIds) override;
   Response setBlackboxedRanges(
       const String16& scriptId,
       std::unique_ptr<protocol::Array<protocol::Debugger::ScriptPosition>>
@@ -270,11 +273,13 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   bool m_skipAllPauses = false;
   bool m_breakpointsActive = false;
   bool m_instrumentationFinished = true;
+  bool m_skipAnonymousScripts = false;
 
   std::unique_ptr<V8Regex> m_blackboxPattern;
   std::unordered_map<String16, std::vector<std::pair<int, int>>>
       m_blackboxedPositions;
   std::unordered_map<String16, std::vector<std::pair<int, int>>> m_skipList;
+  std::unordered_set<String16> m_blackboxedExecutionContexts;
 };
 
 }  // namespace v8_inspector

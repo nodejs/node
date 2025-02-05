@@ -1869,7 +1869,7 @@ bool WasmInterpreterRuntime::CheckIndirectCallSignature(
       Tagged<Map> rtt = Tagged<Map>::cast(isolate_->heap()
                                               ->wasm_canonical_rtts()
                                               ->Get(real_sig_id)
-                                              .GetHeapObject());
+                                              .GetHeapObjectAssumeWeak());
       Handle<Map> formal_rtt = RttCanon(sig_index);
       return SubtypeCheck(rtt, *formal_rtt, sig_index);
     } else {

@@ -718,13 +718,12 @@ struct DisplayUnit {
   int prec;
   double pow10;
 };
-ABSL_CONST_INIT const DisplayUnit kDisplayNano = {"ns", 2, 1e2};
-ABSL_CONST_INIT const DisplayUnit kDisplayMicro = {"us", 5, 1e5};
-ABSL_CONST_INIT const DisplayUnit kDisplayMilli = {"ms", 8, 1e8};
-ABSL_CONST_INIT const DisplayUnit kDisplaySec = {"s", 11, 1e11};
-ABSL_CONST_INIT const DisplayUnit kDisplayMin = {"m", -1, 0.0};  // prec ignored
-ABSL_CONST_INIT const DisplayUnit kDisplayHour = {"h", -1,
-                                                  0.0};  // prec ignored
+constexpr DisplayUnit kDisplayNano = {"ns", 2, 1e2};
+constexpr DisplayUnit kDisplayMicro = {"us", 5, 1e5};
+constexpr DisplayUnit kDisplayMilli = {"ms", 8, 1e8};
+constexpr DisplayUnit kDisplaySec = {"s", 11, 1e11};
+constexpr DisplayUnit kDisplayMin = {"m", -1, 0.0};   // prec ignored
+constexpr DisplayUnit kDisplayHour = {"h", -1, 0.0};  // prec ignored
 
 void AppendNumberUnit(std::string* out, int64_t n, DisplayUnit unit) {
   char buf[sizeof("2562047788015216")];  // hours in max duration

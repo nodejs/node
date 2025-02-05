@@ -91,12 +91,12 @@ std::vector<wasm_addr_t> WasmModuleDebug::GetCallStack(
        frame_it.Advance()) {
     StackFrame* const frame = frame_it.frame();
     switch (frame->type()) {
-      case StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION:
-      case StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH:
+      case StackFrame::JAVASCRIPT_BUILTIN_CONTINUATION:
+      case StackFrame::JAVASCRIPT_BUILTIN_CONTINUATION_WITH_CATCH:
       case StackFrame::INTERPRETED:
       case StackFrame::BASELINE:
       case StackFrame::MAGLEV:
-      case StackFrame::TURBOFAN:
+      case StackFrame::TURBOFAN_JS:
       case StackFrame::BUILTIN:
       case StackFrame::WASM: {
         // A standard frame may include many summarized frames, due to inlining.
@@ -108,10 +108,10 @@ std::vector<wasm_addr_t> WasmModuleDebug::GetCallStack(
 
           auto& summary = frames[i];
           if (summary.IsJavaScript()) {
-            FrameSummary::JavaScriptFrameSummary const& java_script =
+            FrameSummary::JavaScriptFrameSummary const& javascript =
                 summary.AsJavaScript();
-            offset = java_script.code_offset();
-            script = Cast<Script>(java_script.script());
+            offset = javascript.code_offset();
+            script = Cast<Script>(javascript.script());
           } else if (summary.IsWasm()) {
             FrameSummary::WasmFrameSummary const& wasm = summary.AsWasm();
             offset = GetWasmFunctionOffset(wasm.wasm_instance()->module(),
@@ -151,12 +151,12 @@ std::vector<FrameSummary> WasmModuleDebug::FindWasmFrame(
   while (!frame_it->done()) {
     StackFrame* const frame = frame_it->frame();
     switch (frame->type()) {
-      case StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION:
-      case StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH:
+      case StackFrame::JAVASCRIPT_BUILTIN_CONTINUATION:
+      case StackFrame::JAVASCRIPT_BUILTIN_CONTINUATION_WITH_CATCH:
       case StackFrame::INTERPRETED:
       case StackFrame::BASELINE:
       case StackFrame::MAGLEV:
-      case StackFrame::TURBOFAN:
+      case StackFrame::TURBOFAN_JS:
       case StackFrame::BUILTIN:
       case StackFrame::WASM: {
         // A standard frame may include many summarized frames, due to inlining.

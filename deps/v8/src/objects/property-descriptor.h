@@ -83,7 +83,7 @@ class PropertyDescriptor {
   bool has_configurable() const { return has_configurable_; }
 
   Handle<JSAny> value() const { return value_; }
-  void set_value(Handle<JSAny> value) { value_ = value; }
+  void set_value(DirectHandle<JSAny> value) { value_ = indirect_handle(value); }
   bool has_value() const { return !value_.is_null(); }
 
   bool writable() const { return writable_; }
@@ -94,15 +94,19 @@ class PropertyDescriptor {
   bool has_writable() const { return has_writable_; }
 
   Handle<UnionOf<JSAny, FunctionTemplateInfo>> get() const { return get_; }
-  void set_get(Handle<UnionOf<JSAny, FunctionTemplateInfo>> get) { get_ = get; }
+  void set_get(DirectHandle<UnionOf<JSAny, FunctionTemplateInfo>> get) {
+    get_ = indirect_handle(get);
+  }
   bool has_get() const { return !get_.is_null(); }
 
   Handle<UnionOf<JSAny, FunctionTemplateInfo>> set() const { return set_; }
-  void set_set(Handle<UnionOf<JSAny, FunctionTemplateInfo>> set) { set_ = set; }
+  void set_set(DirectHandle<UnionOf<JSAny, FunctionTemplateInfo>> set) {
+    set_ = indirect_handle(set);
+  }
   bool has_set() const { return !set_.is_null(); }
 
   Handle<JSAny> name() const { return name_; }
-  void set_name(Handle<JSAny> name) { name_ = name; }
+  void set_name(DirectHandle<JSAny> name) { name_ = indirect_handle(name); }
 
   PropertyAttributes ToAttributes() {
     return static_cast<PropertyAttributes>(
@@ -118,10 +122,13 @@ class PropertyDescriptor {
   bool has_configurable_ : 1;
   bool writable_ : 1;
   bool has_writable_ : 1;
-  Handle<JSAny> value_;
-  Handle<UnionOf<JSAny, FunctionTemplateInfo>> get_;
-  Handle<UnionOf<JSAny, FunctionTemplateInfo>> set_;
-  Handle<JSAny> name_;
+  // TODO(42203211): When this class is only stack-allocated, the following
+  // fields can change to DirectHandle. So far, there is one vector of property
+  // descriptors used in JSReceiver::DefineProperties.
+  IndirectHandle<JSAny> value_;
+  IndirectHandle<UnionOf<JSAny, FunctionTemplateInfo>> get_;
+  IndirectHandle<UnionOf<JSAny, FunctionTemplateInfo>> set_;
+  IndirectHandle<JSAny> name_;
 };
 
 }  // namespace internal

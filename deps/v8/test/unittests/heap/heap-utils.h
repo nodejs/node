@@ -150,7 +150,7 @@ bool InYoungGeneration(v8::Isolate* isolate, const GlobalOrPersistent& global) {
   CHECK(!v8_flags.single_generation);
   v8::HandleScope scope(isolate);
   auto tmp = global.Get(isolate);
-  return Heap::InYoungGeneration(*v8::Utils::OpenDirectHandle(*tmp));
+  return HeapLayout::InYoungGeneration(*v8::Utils::OpenDirectHandle(*tmp));
 }
 
 bool IsNewObjectInCorrectGeneration(Tagged<HeapObject> object);

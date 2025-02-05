@@ -128,6 +128,12 @@ declare_args() {
 
   cppgc_is_standalone = false
 
+  # Enables certain checks on API level functionality.
+  cppgc_enable_api_checks = is_debug || dcheck_always_on
+
+  # Enable slow checks on API level functionality.
+  cppgc_enable_slow_api_checks = false
+
   # Enable object names in cppgc for profiling purposes.
   cppgc_enable_object_names = is_chrome_for_testing
 
@@ -218,7 +224,8 @@ assert(!(v8_enable_webassembly && v8_enable_lite_mode),
 
 if (v8_enable_pointer_compression == "") {
   v8_enable_pointer_compression =
-      v8_current_cpu == "arm64" || v8_current_cpu == "x64"
+      v8_current_cpu == "arm64" || v8_current_cpu == "x64" ||
+      v8_current_cpu == "loong64"
 }
 
 # The Wasm interpreter is currently supported only on arm64 and x64, on

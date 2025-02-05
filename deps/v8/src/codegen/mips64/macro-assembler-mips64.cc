@@ -4226,8 +4226,8 @@ void MacroAssembler::LoadFromConstantsTable(Register destination,
   DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kBuiltinsConstantsTable));
   LoadRoot(destination, RootIndex::kBuiltinsConstantsTable);
   Ld(destination,
-     FieldMemOperand(destination,
-                     FixedArray::kHeaderSize + constant_index * kPointerSize));
+     FieldMemOperand(destination, OFFSET_OF_DATA_START(FixedArray) +
+                                      constant_index * kPointerSize));
 }
 
 void MacroAssembler::LoadRootRelative(Register destination, int32_t offset) {

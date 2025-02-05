@@ -51,6 +51,7 @@ CodeKinds JSFunction::GetAvailableCodeKinds(IsolateForSandbox isolate) const {
     }
   }
 
+#ifndef V8_ENABLE_LEAPTIERING
   // Check the optimized code cache.
   if (has_feedback_vector() && feedback_vector()->has_optimized_code() &&
       !feedback_vector()
@@ -60,6 +61,7 @@ CodeKinds JSFunction::GetAvailableCodeKinds(IsolateForSandbox isolate) const {
     DCHECK(CodeKindIsOptimizedJSFunction(code->kind()));
     result |= CodeKindToCodeKindFlag(code->kind());
   }
+#endif  // !V8_ENABLE_LEAPTIERING
 
   DCHECK_EQ((result & ~kJSFunctionCodeKindsMask), 0);
   return result;
@@ -112,7 +114,7 @@ V8_WARN_UNUSED_RESULT bool HighestTierOf(CodeKinds kinds,
                                          CodeKind* highest_tier) {
   DCHECK_EQ((kinds & ~kJSFunctionCodeKindsMask), 0);
   // Higher tiers > lower tiers.
-  static_assert(CodeKind::TURBOFAN > CodeKind::INTERPRETED_FUNCTION);
+  static_assert(CodeKind::TURBOFAN_JS > CodeKind::INTERPRETED_FUNCTION);
   if (kinds == 0) return false;
   const int highest_tier_log2 =
       31 - base::bits::CountLeadingZeros(static_cast<uint32_t>(kinds));
@@ -139,7 +141,7 @@ std::optional<CodeKind> JSFunction::GetActiveTier(
   if (!HighestTierOf(GetAvailableCodeKinds(isolate), &highest_tier)) return {};
 
 #ifdef DEBUG
-  CHECK(highest_tier == CodeKind::TURBOFAN ||
+  CHECK(highest_tier == CodeKind::TURBOFAN_JS ||
         highest_tier == CodeKind::BASELINE ||
         highest_tier == CodeKind::MAGLEV ||
         highest_tier == CodeKind::INTERPRETED_FUNCTION);
@@ -169,7 +171,7 @@ bool JSFunction::ActiveTierIsMaglev(IsolateForSandbox isolate) const {
 }
 
 bool JSFunction::ActiveTierIsTurbofan(IsolateForSandbox isolate) const {
-  return GetActiveTier(isolate) == CodeKind::TURBOFAN;
+  return GetActiveTier(isolate) == CodeKind::TURBOFAN_JS;
 }
 
 bool JSFunction::CanDiscardCompiled(IsolateForSandbox isolate) const {
@@ -191,7 +193,8 @@ namespace {
 
 constexpr TieringState TieringStateFor(CodeKind target_kind,
                                        ConcurrencyMode mode) {
-  DCHECK(target_kind == CodeKind::MAGLEV || target_kind == CodeKind::TURBOFAN);
+  DCHECK(target_kind == CodeKind::MAGLEV ||
+         target_kind == CodeKind::TURBOFAN_JS);
   return target_kind == CodeKind::MAGLEV
              ? (IsConcurrent(mode) ? TieringState::kRequestMaglev_Concurrent
                                    : TieringState::kRequestMaglev_Synchronous)
@@ -630,7 +633,7 @@ void JSFunction::CreateAndAttachFeedbackVector(
                                     ConcurrencyMode::kConcurrent);
     } else if (function->shared()->cached_tiering_decision() ==
                CachedTieringDecision::kEarlyTurbofan) {
-      function->MarkForOptimization(isolate, CodeKind::TURBOFAN,
+      function->MarkForOptimization(isolate, CodeKind::TURBOFAN_JS,
                                     ConcurrencyMode::kConcurrent);
     }
   }
@@ -794,13 +797,13 @@ void JSFunction::SetPrototype(DirectHandle<JSFunction> function,
 
 void JSFunction::SetInitialMap(Isolate* isolate,
                                DirectHandle<JSFunction> function,
-                               Handle<Map> map, Handle<HeapObject> prototype) {
+                               Handle<Map> map, Handle<JSPrototype> prototype) {
   SetInitialMap(isolate, function, map, prototype, function);
 }
 
 void JSFunction::SetInitialMap(Isolate* isolate,
                                DirectHandle<JSFunction> function,
-                               Handle<Map> map, Handle<HeapObject> prototype,
+                               Handle<Map> map, Handle<JSPrototype> prototype,
                                DirectHandle<JSFunction> constructor) {
   if (map->prototype() != *prototype) {
     Map::SetPrototype(isolate, map, prototype);
@@ -851,7 +854,7 @@ void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
       TERMINAL_FAST_ELEMENTS_KIND, inobject_properties);
 
   // Fetch or allocate prototype.
-  Handle<HeapObject> prototype;
+  Handle<JSPrototype> prototype;
   if (function->has_instance_prototype()) {
     prototype = handle(function->instance_prototype(), isolate);
     map->set_prototype(*prototype);
@@ -862,7 +865,10 @@ void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
   DCHECK(map->has_fast_object_elements());
 
   // Finally link initial map and constructor function.
-  DCHECK(IsJSReceiver(*prototype));
+  // This is a CHECK since the prototype could be Null according to the type
+  // system.
+  // TODO(leszeks): Figure out if this CHECK is needed.
+  CHECK(IsJSReceiver(*prototype));
   JSFunction::SetInitialMap(isolate, function, map, prototype);
   map->StartInobjectSlackTracking();
 }
@@ -887,6 +893,8 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_PROMISE_CONSTRUCTOR_TYPE:
     case JS_REG_EXP_CONSTRUCTOR_TYPE:
     case JS_ARRAY_CONSTRUCTOR_TYPE:
+    case JS_ASYNC_DISPOSABLE_STACK_TYPE:
+    case JS_SYNC_DISPOSABLE_STACK_TYPE:
 #define TYPED_ARRAY_CONSTRUCTORS_SWITCH(Type, type, TYPE, Ctype) \
   case TYPE##_TYPED_ARRAY_CONSTRUCTOR_TYPE:
       TYPED_ARRAYS(TYPED_ARRAY_CONSTRUCTORS_SWITCH)
@@ -983,7 +991,7 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case MAP_TYPE:
     case ODDBALL_TYPE:
     case PROPERTY_CELL_TYPE:
-    case CONST_TRACKING_LET_CELL_TYPE:
+    case CONTEXT_SIDE_PROPERTY_CELL_TYPE:
     case SHARED_FUNCTION_INFO_TYPE:
     case SYMBOL_TYPE:
     case ALLOCATION_SITE_TYPE:
@@ -1052,7 +1060,7 @@ bool FastInitializeDerivedMap(Isolate* isolate, Handle<JSFunction> new_target,
       Map::CopyInitialMap(isolate, constructor_initial_map, instance_size,
                           in_object_properties, unused_property_fields);
   map->set_new_target_is_base(false);
-  Handle<HeapObject> prototype(new_target->instance_prototype(), isolate);
+  Handle<JSPrototype> prototype(new_target->instance_prototype(), isolate);
   JSFunction::SetInitialMap(isolate, new_target, map, prototype, constructor);
   DCHECK(IsJSReceiver(new_target->instance_prototype()));
   map->set_construction_counter(Map::kNoSlackTracking);

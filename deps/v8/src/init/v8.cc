@@ -200,7 +200,7 @@ void V8::Initialize() {
   GetProcessWideSandbox()->Initialize(GetPlatformVirtualAddressSpace());
   CHECK_EQ(kSandboxSize, GetProcessWideSandbox()->size());
 
-  GetProcessWideCodePointerTable()->Initialize();
+  IsolateGroup::current()->code_pointer_table()->Initialize();
   JSDispatchTable::Initialize();
 
   // Enable sandbox testing mode if requested.

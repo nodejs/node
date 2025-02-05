@@ -7,12 +7,12 @@
 #include <optional>
 
 #include "src/compiler/common-operator.h"
-#include "src/compiler/graph.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/map-inference.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
+#include "src/compiler/turbofan-graph.h"
 #include "src/compiler/verifier.h"
 
 namespace v8 {

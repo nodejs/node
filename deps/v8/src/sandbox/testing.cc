@@ -856,7 +856,11 @@ SandboxTesting::InstanceTypeMap& SandboxTesting::GetInstanceTypeMap() {
     types["JS_OBJECT_TYPE"] = JS_OBJECT_TYPE;
     types["JS_FUNCTION_TYPE"] = JS_FUNCTION_TYPE;
     types["JS_ARRAY_TYPE"] = JS_ARRAY_TYPE;
+    types["SEQ_ONE_BYTE_STRING_TYPE"] = SEQ_ONE_BYTE_STRING_TYPE;
+    types["INTERNALIZED_ONE_BYTE_STRING_TYPE"] =
+        INTERNALIZED_ONE_BYTE_STRING_TYPE;
     types["SLICED_ONE_BYTE_STRING_TYPE"] = SLICED_ONE_BYTE_STRING_TYPE;
+    types["CONS_ONE_BYTE_STRING_TYPE"] = CONS_ONE_BYTE_STRING_TYPE;
     types["SHARED_FUNCTION_INFO_TYPE"] = SHARED_FUNCTION_INFO_TYPE;
     types["SCRIPT_TYPE"] = SCRIPT_TYPE;
 #ifdef V8_ENABLE_WEBASSEMBLY
@@ -885,10 +889,21 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
     fields[JS_FUNCTION_TYPE]["shared_function_info"] =
         JSFunction::kSharedFunctionInfoOffset;
     fields[JS_ARRAY_TYPE]["length"] = JSArray::kLengthOffset;
+    fields[SEQ_ONE_BYTE_STRING_TYPE]["length"] =
+        offsetof(SeqOneByteString, length_);
+    fields[INTERNALIZED_ONE_BYTE_STRING_TYPE]["length"] =
+        offsetof(InternalizedString, length_);
     fields[SLICED_ONE_BYTE_STRING_TYPE]["parent"] =
         offsetof(SlicedString, parent_);
+    fields[CONS_ONE_BYTE_STRING_TYPE]["length"] = offsetof(ConsString, length_);
+    fields[CONS_ONE_BYTE_STRING_TYPE]["first"] = offsetof(ConsString, first_);
+    fields[CONS_ONE_BYTE_STRING_TYPE]["second"] = offsetof(ConsString, second_);
     fields[SHARED_FUNCTION_INFO_TYPE]["trusted_function_data"] =
         SharedFunctionInfo::kTrustedFunctionDataOffset;
+    fields[SHARED_FUNCTION_INFO_TYPE]["length"] =
+        SharedFunctionInfo::kLengthOffset;
+    fields[SHARED_FUNCTION_INFO_TYPE]["formal_parameter_count"] =
+        SharedFunctionInfo::kFormalParameterCountOffset;
     fields[SCRIPT_TYPE]["wasm_managed_native_module"] =
         Script::kEvalFromPositionOffset;
 #ifdef V8_ENABLE_WEBASSEMBLY

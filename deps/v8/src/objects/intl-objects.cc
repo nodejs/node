@@ -225,7 +225,6 @@ icu::UnicodeString Intl::ToICUUnicodeString(Isolate* isolate,
   // We read the length from the heap, so it may be untrusted (in the sandbox
   // attacker model) and we therefore need to use an unsigned int here when
   // comparing it against the kShortStringSize.
-  // TODO(saelo): consider using uint32_t for the size in String objects.
   uint32_t length = string->length();
   DCHECK_LE(offset, length);
   if (flat.IsOneByte() && length <= kShortStringSize) {
@@ -260,8 +259,8 @@ icu::StringPiece ToICUStringPiece(Isolate* isolate, DirectHandle<String> string,
 MaybeHandle<String> LocaleConvertCase(Isolate* isolate, DirectHandle<String> s,
                                       bool is_to_upper, const char* lang) {
   auto case_converter = is_to_upper ? u_strToUpper : u_strToLower;
-  int32_t src_length = s->length();
-  int32_t dest_length = src_length;
+  uint32_t src_length = s->length();
+  uint32_t dest_length = src_length;
   UErrorCode status;
   Handle<SeqTwoByteString> result;
   std::unique_ptr<base::uc16[]> sap;
@@ -2632,7 +2631,7 @@ MaybeHandle<String> Intl::Normalize(Isolate* isolate, Handle<String> string,
     }
   }
 
-  int length = string->length();
+  uint32_t length = string->length();
   string = String::Flatten(isolate, string);
   icu::UnicodeString result;
   std::unique_ptr<base::uc16[]> sap;
@@ -2643,7 +2642,7 @@ MaybeHandle<String> Intl::Normalize(Isolate* isolate, Handle<String> string,
       icu::Normalizer2::getInstance(nullptr, form_name, form_mode, status);
   DCHECK(U_SUCCESS(status));
   DCHECK_NOT_NULL(normalizer);
-  int32_t normalized_prefix_length =
+  uint32_t normalized_prefix_length =
       normalizer->spanQuickCheckYes(input, status);
   // Quick return if the input is already normalized.
   if (length == normalized_prefix_length) return string;

@@ -253,11 +253,23 @@ class StandardRunnerTest(TestRunnerTest):
             use_sanitizer=True,
             v8_target_cpu='x86',
         ))
-    result.stdout_includes('>>> Autodetected:')
+    result.stdout_includes('>>> Statusfile variables:')
     result.stdout_includes(
-        'arch="ia32", asan, cfi, dcheck_always_on, has_webassembly, i18n, '
-        'msan, target_cpu="x86", tsan, ubsan, use_sanitizer, '
-        'v8_target_cpu="x86"')
+        "DEBUG_defined=False, arch=ia32, asan=True, byteorder=little, "
+        "cfi=True, code_comments=False, component_build=False, "
+        "dcheck_always_on=True, debug_code=False, debugging_features=False, "
+        "deopt_fuzzer=False, device_type=None, "
+        "dict_property_const_tracking=False, disassembler=False, "
+        "endurance_fuzzer=False, full_debug=False, gc_fuzzer=False, "
+        "gc_stress=False, gdbjit=False, has_jitless=False, has_maglev=False, "
+        "has_turbofan=False, has_webassembly=True, i18n=True, "
+        "interrupt_fuzzer=False, is_android=False, is_ios=False, "
+        "isolates=False, lite_mode=False, mode=debug, msan=True, "
+        "no_harness=False, no_simd_hardware=False, novfp3=False, "
+        "optimize_for_size=False, simulator_run=False, slow_dchecks=False, "
+        "system=linux, target_cpu=x86, tsan=True, ubsan=True, "
+        "use_sanitizer=True, v8_target_cpu=x86, verify_heap=False, "
+        "verify_predictable=False")
     result.stdout_includes('>>> Running tests for ia32.release')
     result.has_returncode(0)
     # TODO(machenbach): Test some more implications of the auto-detected
@@ -282,8 +294,8 @@ class StandardRunnerTest(TestRunnerTest):
           '--progress=verbose',
           'sweet',
       )
-      result.stdout_includes('===>Starting stuff\n'
-                             '>>> Running tests for x64.release\n'
+      result.stdout_includes('===>Starting stuff')
+      result.stdout_includes('>>> Running tests for x64.release\n'
                              '>>> Running with test processors\n')
       result.stdout_includes('--- stdout ---\nfake stdout 1')
       result.stdout_includes('--- stderr ---\nfake stderr 1')
@@ -608,7 +620,7 @@ class NumFuzzerTest(TestRunnerTest):
               'sweet/bananas',
             )
             result.has_returncode(0)
-            result.stdout_includes('>>> Autodetected')
+            result.stdout_includes('>>> Statusfile variables:')
             result.stdout_includes('11 tests ran')
 
 

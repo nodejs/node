@@ -21,9 +21,9 @@ namespace {
 // Helper function for ToPropertyDescriptor. Comments describe steps for
 // "enumerable", other properties are handled the same way.
 // Returns false if an exception was thrown.
-bool GetPropertyIfPresent(Handle<JSReceiver> receiver, Handle<String> name,
-                          Handle<JSAny>* value) {
-  LookupIterator it(receiver->GetIsolate(), receiver, name, receiver);
+bool GetPropertyIfPresent(Isolate* isolate, Handle<JSReceiver> receiver,
+                          Handle<String> name, Handle<JSAny>* value) {
+  LookupIterator it(isolate, receiver, name, receiver);
   // 4. Let hasEnumerable be HasProperty(Obj, "enumerable").
   Maybe<bool> has_property = JSReceiver::HasProperty(&it);
   // 5. ReturnIfAbrupt(hasEnumerable).
@@ -119,9 +119,8 @@ bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<JSReceiver> obj,
   return true;
 }
 
-void CreateDataProperty(Handle<JSObject> object, Handle<String> name,
-                        Handle<Object> value) {
-  Isolate* isolate = object->GetIsolate();
+void CreateDataProperty(Isolate* isolate, Handle<JSObject> object,
+                        Handle<String> name, Handle<Object> value) {
   Maybe<bool> result = JSObject::CreateDataProperty(
       isolate, object, PropertyKey(isolate, Cast<Name>(name)), value);
   CHECK(result.IsJust() && result.FromJust());
@@ -166,24 +165,24 @@ Handle<JSObject> PropertyDescriptor::ToObject(Isolate* isolate) {
   }
   Handle<JSObject> result = factory->NewJSObject(isolate->object_function());
   if (has_value()) {
-    CreateDataProperty(result, factory->value_string(), value());
+    CreateDataProperty(isolate, result, factory->value_string(), value());
   }
   if (has_writable()) {
-    CreateDataProperty(result, factory->writable_string(),
+    CreateDataProperty(isolate, result, factory->writable_string(),
                        factory->ToBoolean(writable()));
   }
   if (has_get()) {
-    CreateDataProperty(result, factory->get_string(), get());
+    CreateDataProperty(isolate, result, factory->get_string(), get());
   }
   if (has_set()) {
-    CreateDataProperty(result, factory->set_string(), set());
+    CreateDataProperty(isolate, result, factory->set_string(), set());
   }
   if (has_enumerable()) {
-    CreateDataProperty(result, factory->enumerable_string(),
+    CreateDataProperty(isolate, result, factory->enumerable_string(),
                        factory->ToBoolean(enumerable()));
   }
   if (has_configurable()) {
-    CreateDataProperty(result, factory->configurable_string(),
+    CreateDataProperty(isolate, result, factory->configurable_string(),
                        factory->ToBoolean(configurable()));
   }
   return result;
@@ -213,7 +212,8 @@ bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
   // enumerable?
   Handle<JSAny> enumerable;
   // 4 through 6b.
-  if (!GetPropertyIfPresent(receiver, isolate->factory()->enumerable_string(),
+  if (!GetPropertyIfPresent(isolate, receiver,
+                            isolate->factory()->enumerable_string(),
                             &enumerable)) {
     return false;
   }
@@ -225,7 +225,8 @@ bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
   // configurable?
   Handle<JSAny> configurable;
   // 7 through 9b.
-  if (!GetPropertyIfPresent(receiver, isolate->factory()->configurable_string(),
+  if (!GetPropertyIfPresent(isolate, receiver,
+                            isolate->factory()->configurable_string(),
                             &configurable)) {
     return false;
   }
@@ -237,8 +238,8 @@ bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
   // value?
   Handle<JSAny> value;
   // 10 through 12b.
-  if (!GetPropertyIfPresent(receiver, isolate->factory()->value_string(),
-                            &value)) {
+  if (!GetPropertyIfPresent(isolate, receiver,
+                            isolate->factory()->value_string(), &value)) {
     return false;
   }
   // 12c. Set the [[Value]] field of desc to value.
@@ -247,8 +248,8 @@ bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
   // writable?
   Handle<JSAny> writable;
   // 13 through 15b.
-  if (!GetPropertyIfPresent(receiver, isolate->factory()->writable_string(),
-                            &writable)) {
+  if (!GetPropertyIfPresent(isolate, receiver,
+                            isolate->factory()->writable_string(), &writable)) {
     return false;
   }
   // 15c. Set the [[Writable]] field of desc to writable.
@@ -258,7 +259,7 @@ bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
   // getter?
   Handle<JSAny> getter;
   // 16 through 18b.
-  if (!GetPropertyIfPresent(receiver, isolate->factory()->get_string(),
+  if (!GetPropertyIfPresent(isolate, receiver, isolate->factory()->get_string(),
                             &getter)) {
     return false;
   }
@@ -276,7 +277,7 @@ bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
   // setter?
   Handle<JSAny> setter;
   // 19 through 21b.
-  if (!GetPropertyIfPresent(receiver, isolate->factory()->set_string(),
+  if (!GetPropertyIfPresent(isolate, receiver, isolate->factory()->set_string(),
                             &setter)) {
     return false;
   }

@@ -80,7 +80,7 @@ inline uint64_t WasmInterpreterRuntime::MemorySize() const {
 }
 
 inline bool WasmInterpreterRuntime::IsMemory64() const {
-  return !module_->memories.empty() && module_->memories[0].is_memory64;
+  return !module_->memories.empty() && module_->memories[0].is_memory64();
 }
 
 inline size_t WasmInterpreterRuntime::GetMemorySize() const {
@@ -140,7 +140,7 @@ inline Handle<Object> WasmInterpreterRuntime::GetFunctionRef(
 
 inline const ArrayType* WasmInterpreterRuntime::GetArrayType(
     uint32_t array_index) const {
-  return module_->array_type(array_index);
+  return module_->array_type(ModuleTypeIndex{array_index});
 }
 
 inline WasmRef WasmInterpreterRuntime::GetWasmArrayRefElement(

@@ -74,21 +74,23 @@ BUILTIN(ReflectSet) {
   Handle<Object> target = args.atOrUndefined(isolate, 1);
   Handle<Object> key = args.atOrUndefined(isolate, 2);
   Handle<Object> value = args.atOrUndefined(isolate, 3);
-  Handle<Object> receiver = args.length() > 4 ? args.at(4) : target;
 
-  if (!IsJSReceiver(*target)) {
+  Handle<JSReceiver> target_recv;
+  if (!TryCast<JSReceiver>(target, &target_recv)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kCalledOnNonObject,
                               isolate->factory()->NewStringFromAsciiChecked(
                                   "Reflect.set")));
   }
 
+  Handle<JSAny> receiver = args.length() > 4 ? args.at<JSAny>(4) : target_recv;
+
   Handle<Name> name;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, name,
                                      Object::ToName(isolate, key));
 
   PropertyKey lookup_key(isolate, name);
-  LookupIterator it(isolate, receiver, lookup_key, Cast<JSReceiver>(target));
+  LookupIterator it(isolate, receiver, lookup_key, target_recv);
   Maybe<bool> result = Object::SetSuperProperty(
       &it, value, StoreOrigin::kMaybeKeyed, Just(ShouldThrow::kDontThrow));
   MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());

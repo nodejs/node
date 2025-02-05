@@ -9,6 +9,8 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/flush-instruction-cache.h"
 #include "src/common/code-memory-access-inl.h"
+#include "src/compiler/wasm-compiler.h"
+#include "src/wasm/compilation-environment-inl.h"
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/std-object-sizes.h"
 #include "src/wasm/wasm-code-manager.h"
@@ -76,7 +78,7 @@ WasmCode* WasmImportWrapperCache::ModificationScope::AddWrapper(
     WritableJitAllocation jit_allocation =
         ThreadIsolation::RegisterJitAllocation(
             reinterpret_cast<Address>(code_space.begin()), code_space.size(),
-            ThreadIsolation::JitAllocationType::kWasmCode);
+            ThreadIsolation::JitAllocationType::kWasmCode, true);
     jit_allocation.CopyCode(0, desc.buffer, desc.instr_size);
 
     intptr_t delta = code_space.begin() - desc.buffer;
@@ -134,6 +136,39 @@ WasmCode* WasmImportWrapperCache::ModificationScope::AddWrapper(
   return code;
 }
 
+WasmCode* WasmImportWrapperCache::CompileWasmImportCallWrapper(
+    Isolate* isolate, ImportCallKind kind, const CanonicalSig* sig,
+    CanonicalTypeIndex sig_index, bool source_positions, int expected_arity,
+    Suspend suspend) {
+  WasmCompilationResult result = compiler::CompileWasmImportCallWrapper(
+      kind, sig, source_positions, expected_arity, suspend);
+  WasmCode* wasm_code;
+  {
+    ModificationScope cache_scope(this);
+    CacheKey key(kind, sig_index, expected_arity, suspend);
+    // Now that we have the lock (in the form of the cache_scope), check
+    // again whether another thread has just created the wrapper.
+    wasm_code = cache_scope[key];
+    if (wasm_code) return wasm_code;
+
+    wasm_code = cache_scope.AddWrapper(key, std::move(result),
+                                       WasmCode::Kind::kWasmToJsWrapper);
+  }
+
+  // To avoid lock order inversion, code printing must happen after the
+  // end of the {cache_scope}.
+  wasm_code->MaybePrint();
+  isolate->counters()->wasm_generated_code_size()->Increment(
+      wasm_code->instructions().length());
+  isolate->counters()->wasm_reloc_size()->Increment(
+      wasm_code->reloc_info().length());
+  if (GetWasmEngine()->LogWrapperCode(wasm_code)) {
+    // Log the code immediately in the current isolate.
+    GetWasmEngine()->LogOutstandingCodesForIsolate(isolate);
+  }
+  return wasm_code;
+}
+
 void WasmImportWrapperCache::LogForIsolate(Isolate* isolate) {
   for (const auto& entry : codes_) {
     entry.second->LogCode(isolate, "", -1);  // No source URL, no ScriptId.
@@ -142,7 +177,7 @@ void WasmImportWrapperCache::LogForIsolate(Isolate* isolate) {
 
 void WasmImportWrapperCache::Free(std::vector<WasmCode*>& wrappers) {
   base::MutexGuard lock(&mutex_);
-  if (entry_map_.empty() || wrappers.empty()) return;
+  if (codes_.empty() || wrappers.empty()) return;
   // {WasmCodeAllocator::FreeCode()} wants code objects to be sorted.
   std::sort(wrappers.begin(), wrappers.end(), [](WasmCode* a, WasmCode* b) {
     return a->instruction_start() < b->instruction_start();
@@ -170,13 +205,12 @@ void WasmImportWrapperCache::Free(std::vector<WasmCode*>& wrappers) {
 }
 
 WasmCode* WasmImportWrapperCache::MaybeGet(ImportCallKind kind,
-                                           uint32_t canonical_type_index,
+                                           CanonicalTypeIndex type_index,
                                            int expected_arity,
                                            Suspend suspend) const {
   base::MutexGuard lock(&mutex_);
 
-  auto it =
-      entry_map_.find({kind, canonical_type_index, expected_arity, suspend});
+  auto it = entry_map_.find({kind, type_index, expected_arity, suspend});
   if (it == entry_map_.end()) return nullptr;
   WasmCodeRefScope::AddRef(it->second);
   return it->second;

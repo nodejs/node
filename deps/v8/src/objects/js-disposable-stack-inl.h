@@ -58,8 +58,7 @@ inline void JSDisposableStackBase::Add(
 // part of
 // https://arai-a.github.io/ecma262-compare/?pr=3000&id=sec-createdisposableresource
 inline MaybeHandle<Object> JSDisposableStackBase::CheckValueAndGetDisposeMethod(
-    Isolate* isolate, Handle<Object> value, DisposeMethodHint hint) {
-
+    Isolate* isolate, Handle<JSAny> value, DisposeMethodHint hint) {
   Handle<Object> method;
   if (hint == DisposeMethodHint::kSyncDispose) {
     // 1. If method is not present, then

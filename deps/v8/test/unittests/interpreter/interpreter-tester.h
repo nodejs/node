@@ -113,7 +113,7 @@ class InterpreterTester {
 
   Local<Message> CheckThrowsReturnMessage();
 
-  static Handle<Object> NewObject(const char* script);
+  static Handle<JSAny> NewObject(const char* script);
 
   static DirectHandle<String> GetName(Isolate* isolate, const char* name);
 

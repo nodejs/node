@@ -29,6 +29,7 @@
 #include "include/v8-locker.h"
 #include "src/api/api-inl.h"
 #include "src/base/platform/platform.h"
+#include "src/debug/debug-interface.h"
 #include "src/execution/interrupts-scope.h"
 #include "src/execution/isolate.h"
 #include "src/init/v8.h"

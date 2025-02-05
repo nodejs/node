@@ -70,53 +70,57 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
     // allocations. Such chunks can never contain any young objects.
     CONTAINS_ONLY_OLD = 1u << 8,
 
+    // Page was allocated during major incremental marking. May only contain old
+    // objects.
+    BLACK_ALLOCATED = 1u << 9,
+
     // ----------------------------------------------------------------
     // Values below here are not critical for the heap write barrier.
 
-    LARGE_PAGE = 1u << 9,
-    EVACUATION_CANDIDATE = 1u << 10,
-    NEVER_EVACUATE = 1u << 11,
+    LARGE_PAGE = 1u << 10,
+    EVACUATION_CANDIDATE = 1u << 11,
+    NEVER_EVACUATE = 1u << 12,
 
     // |PAGE_NEW_OLD_PROMOTION|: A page tagged with this flag has been promoted
     // from new to old space during evacuation.
-    PAGE_NEW_OLD_PROMOTION = 1u << 12,
+    PAGE_NEW_OLD_PROMOTION = 1u << 13,
 
     // This flag is intended to be used for testing. Works only when both
     // v8_flags.stress_compaction and
     // v8_flags.manual_evacuation_candidates_selection are set. It forces the
     // page to become an evacuation candidate at next candidates selection
     // cycle.
-    FORCE_EVACUATION_CANDIDATE_FOR_TESTING = 1u << 13,
+    FORCE_EVACUATION_CANDIDATE_FOR_TESTING = 1u << 14,
 
     // This flag is intended to be used for testing.
-    NEVER_ALLOCATE_ON_PAGE = 1u << 14,
+    NEVER_ALLOCATE_ON_PAGE = 1u << 15,
 
     // The memory chunk is already logically freed, however the actual freeing
     // still has to be performed.
-    PRE_FREED = 1u << 15,
+    PRE_FREED = 1u << 16,
 
     // |COMPACTION_WAS_ABORTED|: Indicates that the compaction in this page
     //   has been aborted and needs special handling by the sweeper.
-    COMPACTION_WAS_ABORTED = 1u << 16,
+    COMPACTION_WAS_ABORTED = 1u << 17,
 
-    NEW_SPACE_BELOW_AGE_MARK = 1u << 17,
+    NEW_SPACE_BELOW_AGE_MARK = 1u << 18,
 
     // The memory chunk freeing bookkeeping has been performed but the chunk has
     // not yet been freed.
-    UNREGISTERED = 1u << 18,
+    UNREGISTERED = 1u << 19,
 
     // The memory chunk is pinned in memory and can't be moved. This is likely
     // because there exists a potential pointer to somewhere in the chunk which
     // can't be updated.
-    PINNED = 1u << 19,
+    PINNED = 1u << 20,
 
     // A Page with code objects.
-    IS_EXECUTABLE = 1u << 20,
+    IS_EXECUTABLE = 1u << 21,
 
     // The memory chunk belongs to the trusted space. When the sandbox is
     // enabled, the trusted space is located outside of the sandbox and so its
     // content cannot be corrupted by an attacker.
-    IS_TRUSTED = 1u << 21,
+    IS_TRUSTED = 1u << 22,
   };
 
   using MainThreadFlags = base::Flags<Flag, uintptr_t>;

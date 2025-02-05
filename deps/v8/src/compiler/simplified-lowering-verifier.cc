@@ -653,6 +653,7 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
       CASE(ChangeInt64ToFloat64)
       CASE(ChangeUint32ToFloat64)
       CASE(TruncateFloat64ToFloat32)
+      CASE(TruncateFloat64ToFloat16)
       CASE(TruncateInt64ToInt32)
       CASE(RoundFloat64ToInt32)
       CASE(RoundInt32ToFloat32)

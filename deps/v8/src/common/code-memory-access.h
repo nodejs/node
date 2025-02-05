@@ -162,12 +162,13 @@ class V8_EXPORT ThreadIsolation {
   // Register a new JIT allocation for tracking and return a writable reference
   // to it. All writes should go through the returned WritableJitAllocation
   // object since it will perform additional validation required for CFI.
-  static WritableJitAllocation RegisterJitAllocation(Address addr, size_t size,
-                                                     JitAllocationType type);
+  static WritableJitAllocation RegisterJitAllocation(
+      Address addr, size_t size, JitAllocationType type,
+      bool enforce_write_api = false);
   // TODO(sroettger): remove this overwrite and use RegisterJitAllocation
   // instead.
-  static WritableJitAllocation RegisterInstructionStreamAllocation(Address addr,
-                                                                   size_t size);
+  static WritableJitAllocation RegisterInstructionStreamAllocation(
+      Address addr, size_t size, bool enforce_write_api = false);
   // Register multiple consecutive allocations together.
   static void RegisterJitAllocations(Address start,
                                      const std::vector<size_t>& sizes,
@@ -176,8 +177,11 @@ class V8_EXPORT ThreadIsolation {
   // Get writable reference to a previously registered allocation. All writes to
   // executable memory need to go through one of these Writable* objects since
   // this is where we perform CFI validation.
-  static WritableJitAllocation LookupJitAllocation(Address addr, size_t size,
-                                                   JitAllocationType type);
+  // If enforce_write_api is set, all writes to JIT memory need to go through
+  // this object.
+  static WritableJitAllocation LookupJitAllocation(
+      Address addr, size_t size, JitAllocationType type,
+      bool enforce_write_api = false);
   // A special case of LookupJitAllocation since in Wasm, we sometimes have to
   // unlock two allocations (jump tables) together.
   static WritableJumpTablePair LookupJumpTableAllocations(
@@ -407,6 +411,9 @@ class WritableJitAllocation {
   V8_INLINE void WriteHeaderSlot(Tagged<T> value, RelaxedStoreTag);
   template <typename T, size_t offset>
   V8_INLINE void WriteProtectedPointerHeaderSlot(Tagged<T> value,
+                                                 ReleaseStoreTag);
+  template <typename T, size_t offset>
+  V8_INLINE void WriteProtectedPointerHeaderSlot(Tagged<T> value,
                                                  RelaxedStoreTag);
   template <typename T>
   V8_INLINE void WriteHeaderSlot(Address address, T value, RelaxedStoreTag);
@@ -417,6 +424,11 @@ class WritableJitAllocation {
                           size_t num_bytes);
   V8_INLINE void CopyData(size_t dst_offset, const uint8_t* src,
                           size_t num_bytes);
+
+  template <typename T>
+  V8_INLINE void WriteUnalignedValue(Address address, T value);
+  template <typename T>
+  V8_INLINE void WriteValue(Address address, T value);
 
   V8_INLINE void ClearBytes(size_t offset, size_t len);
 
@@ -430,12 +442,19 @@ class WritableJitAllocation {
   };
   V8_INLINE WritableJitAllocation(Address addr, size_t size,
                                   ThreadIsolation::JitAllocationType type,
-                                  JitAllocationSource source);
+                                  JitAllocationSource source,
+                                  bool enforce_write_api = false);
   // Used for non-executable memory.
   V8_INLINE WritableJitAllocation(Address addr, size_t size,
                                   ThreadIsolation::JitAllocationType type);
 
   ThreadIsolation::JitPageReference& page_ref() { return page_ref_.value(); }
+
+  // In DEBUG mode, we only make RWX memory writable during the write operations
+  // themselves to ensure that all writes go through this object.
+  // This function returns a write scope that can be used for these writes.
+  V8_INLINE std::optional<RwxMemoryWriteScope> WriteScopeForApiEnforcement()
+      const;
 
   const Address address_;
   // TODO(sroettger): we can move the memory write scopes into the Write*
@@ -447,6 +466,7 @@ class WritableJitAllocation {
   std::optional<RwxMemoryWriteScope> write_scope_;
   std::optional<ThreadIsolation::JitPageReference> page_ref_;
   const ThreadIsolation::JitAllocation allocation_;
+  bool enforce_write_api_ = false;
 
   friend class ThreadIsolation;
   friend class WritableJitPage;
@@ -517,6 +537,8 @@ class WritableJitPage {
 class WritableJumpTablePair {
  public:
   // TODO(sroettger): add functions to write to the jump tables.
+  RwxMemoryWriteScope& write_scope() { return write_scope_; }
+
  private:
   V8_INLINE WritableJumpTablePair(Address jump_table_address,
                                   size_t jump_table_size,

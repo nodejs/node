@@ -19,6 +19,7 @@
 
 // Features that are always enabled and do not have a flag.
 #define FOREACH_WASM_NON_FLAG_FEATURE(V) \
+  V(shared_memory)                       \
   V(reftypes)                            \
   V(simd)                                \
   V(threads)                             \
@@ -86,6 +87,9 @@ class WasmEnabledFeatures : public base::EnumSet<WasmEnabledFeature> {
 class WasmDetectedFeatures : public base::EnumSet<WasmDetectedFeature> {
  public:
   constexpr WasmDetectedFeatures() = default;
+  // Construct from an enum set.
+  constexpr WasmDetectedFeatures(base::EnumSet<WasmDetectedFeature> features)
+      : base::EnumSet<WasmDetectedFeature>(features) {}
 
   // Simplified getters and setters. Use {add_foo()} and {has_foo()} instead of
   // {Add(WasmDetectedFeature::foo)} or {contains(WasmDetectedFeature::foo)}.

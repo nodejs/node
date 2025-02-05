@@ -345,7 +345,7 @@ MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
   ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
                              ConfigureInstance(isolate, object, info));
   if (info->immutable_proto()) {
-    JSObject::SetImmutableProto(object);
+    JSObject::SetImmutableProto(isolate, object);
   }
   if (!is_prototype) {
     // Keep prototypes in slow-mode. Let them be lazily turned fast later on.
@@ -422,17 +422,19 @@ MaybeHandle<JSFunction> InstantiateFunction(
       Handle<Object> parent_prototype;
       ASSIGN_RETURN_ON_EXCEPTION(isolate, parent_prototype,
                                  GetInstancePrototype(isolate, parent));
-      CHECK(IsHeapObject(*parent_prototype));
+      Handle<JSPrototype> checked_parent_prototype;
+      CHECK(TryCast(parent_prototype, &checked_parent_prototype));
       JSObject::ForceSetPrototype(isolate, Cast<JSObject>(prototype),
-                                  Cast<HeapObject>(parent_prototype));
+                                  checked_parent_prototype);
     }
   }
   InstanceType function_type = JS_SPECIAL_API_OBJECT_TYPE;
   if (!data->needs_access_check() &&
       IsUndefined(data->GetNamedPropertyHandler(), isolate) &&
       IsUndefined(data->GetIndexedPropertyHandler(), isolate)) {
-    function_type = v8_flags.embedder_instance_types ? data->GetInstanceType()
-                                                     : JS_API_OBJECT_TYPE;
+    function_type = v8_flags.experimental_embedder_instance_types
+                        ? data->GetInstanceType()
+                        : JS_API_OBJECT_TYPE;
     DCHECK(InstanceTypeChecker::IsJSApiObject(function_type));
   }
 
@@ -617,7 +619,8 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
   DCHECK(result->has_prototype_slot());
 
   if (obj->read_only_prototype()) {
-    result->set_map(*isolate->sloppy_function_with_readonly_prototype_map());
+    result->set_map(isolate,
+                    *isolate->sloppy_function_with_readonly_prototype_map());
   }
 
   if (IsTheHole(*prototype, isolate)) {

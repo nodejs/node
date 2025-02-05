@@ -19,11 +19,6 @@
 
 namespace v8::internal {
 
-CompilationCacheTable::CompilationCacheTable(Address ptr)
-    : HashTable<CompilationCacheTable, CompilationCacheShape>(ptr) {
-  SLOW_DCHECK(IsCompilationCacheTable(*this));
-}
-
 NEVER_READ_ONLY_SPACE_IMPL(CompilationCacheTable)
 
 Tagged<Object> CompilationCacheTable::PrimaryValueAt(InternalIndex entry) {

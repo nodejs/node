@@ -16,12 +16,12 @@
 #include "src/base/overflowing-math.h"
 #include "src/builtins/builtins.h"
 #include "src/compiler/diamond.h"
-#include "src/compiler/graph.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/machine-graph.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/opcodes.h"
+#include "src/compiler/turbofan-graph.h"
 #include "src/numbers/conversions-inl.h"
 
 namespace v8 {

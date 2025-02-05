@@ -495,7 +495,7 @@ void RunPickerTest(TestExecutionTier tier, bool indirect) {
   WasmFunctionCompiler& rc_fn = r.NewFunction(sigs.i_i(), "rc");
 
   if (indirect) {
-    uint8_t sig_index = r.builder().AddSignature(sigs.i_iii());
+    ModuleTypeIndex sig_index = r.builder().AddSignature(sigs.i_iii());
     uint16_t indirect_function_table[] = {static_cast<uint16_t>(js_index)};
 
     r.builder().AddIndirectFunctionTable(indirect_function_table,

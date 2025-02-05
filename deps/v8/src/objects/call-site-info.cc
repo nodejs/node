@@ -717,7 +717,8 @@ bool StringEndsWithMethodName(Isolate* isolate, Handle<String> subject,
 
   int pattern_index = pattern_reader.length() - 1;
   int subject_index = subject_reader.length() - 1;
-  for (int i = 0; i <= pattern_reader.length(); i++) {  // Iterate over len + 1.
+  // Iterate over len + 1.
+  for (uint32_t i = 0; i <= pattern_reader.length(); i++) {
     if (subject_index < 0) {
       return false;
     }

@@ -93,4 +93,40 @@ TEST(BytesAndDurationTest, RingBufferAverage) {
       AverageSpeed(buffer, BytesAndDuration(), std::nullopt));
 }
 
+TEST(SmoothedBytesAndDuration, ZeroDelta) {
+  SmoothedBytesAndDuration smoothed_throughput(
+      v8::base::TimeDelta::FromSeconds(1));
+
+  EXPECT_EQ(smoothed_throughput.GetThroughput(), 0);
+
+  // NaN rate is ignored.
+  smoothed_throughput.Update(BytesAndDuration(10, v8::base::TimeDelta()));
+  EXPECT_EQ(smoothed_throughput.GetThroughput(), 0);
+}
+
+TEST(SmoothedBytesAndDuration, Update) {
+  SmoothedBytesAndDuration smoothed_throughput(
+      v8::base::TimeDelta::FromMilliseconds(1));
+
+  EXPECT_EQ(smoothed_throughput.GetThroughput(), 0);
+
+  // Smoothed update from the original throughput, with 1ms half-life.
+  smoothed_throughput.Update(
+      BytesAndDuration(10, v8::base::TimeDelta::FromMilliseconds(1)));
+  EXPECT_EQ(smoothed_throughput.GetThroughput(), 5.0);
+
+  // After long enough, the throughput will converge.
+  smoothed_throughput.Update(
+      BytesAndDuration(1000, v8::base::TimeDelta::FromMilliseconds(1000)));
+  EXPECT_EQ(smoothed_throughput.GetThroughput(), 1.0);
+
+  // The throughput decays with a half-life of 1ms.
+  EXPECT_EQ(smoothed_throughput.GetThroughput(
+                v8::base::TimeDelta::FromMilliseconds(1)),
+            0.5);
+  smoothed_throughput.Update(
+      BytesAndDuration(0, v8::base::TimeDelta::FromMilliseconds(1)));
+  EXPECT_EQ(smoothed_throughput.GetThroughput(), 0.5);
+}
+
 }  // namespace heap::base

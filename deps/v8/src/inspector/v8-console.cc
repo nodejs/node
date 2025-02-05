@@ -107,12 +107,6 @@ class ConsoleHelper {
     // the stack trace, or no stack trace at all.
     std::unique_ptr<V8StackTraceImpl> stackTrace;
     switch (type) {
-      case ConsoleAPIType::kClear:
-        // The `console.clear()` API doesn't leave a trace in the DevTools'
-        // front-end and therefore doesn't need to have a stack trace attached
-        // to it.
-        break;
-
       case ConsoleAPIType::kTrace:
         // The purpose of `console.trace()` is to output a stack trace to the
         // developer tools console, therefore we should always strive to

@@ -66,10 +66,8 @@ class MaybeHandle final {
     }
   }
 
-#ifdef V8_ENABLE_DIRECT_HANDLE
   template <typename S>
   V8_WARN_UNUSED_RESULT V8_INLINE bool ToHandle(DirectHandle<S>* out) const;
-#endif
 
   // Location equality.
   bool equals(MaybeHandle<T> other) const {
@@ -99,8 +97,7 @@ class MaybeHandle final {
 #endif
   // Casts are allowed to access location_.
   template <typename To, typename From>
-  friend inline MaybeHandle<To> Cast(MaybeHandle<From> value,
-                                     const v8::SourceLocation& loc);
+  friend inline MaybeHandle<To> UncheckedCast(MaybeHandle<From> value);
 };
 
 template <typename T>
@@ -222,9 +219,70 @@ class MaybeDirectHandle final {
   friend class MaybeHandle;
   // Casts are allowed to access location_.
   template <typename To, typename From>
-  friend inline MaybeDirectHandle<To> Cast(MaybeDirectHandle<From> value,
-                                           const v8::SourceLocation& loc);
+  friend inline MaybeDirectHandle<To> UncheckedCast(
+      MaybeDirectHandle<From> value);
 };
+
+#else
+
+template <typename T>
+class MaybeDirectHandle {
+ public:
+  V8_INLINE MaybeDirectHandle() = default;
+  V8_INLINE MaybeDirectHandle(NullMaybeHandleType) {}
+
+  V8_INLINE MaybeDirectHandle(Tagged<T> object, Isolate* isolate)
+      : handle_(object, isolate) {}
+  V8_INLINE MaybeDirectHandle(Tagged<T> object, LocalIsolate* isolate)
+      : handle_(object, isolate) {}
+  V8_INLINE MaybeDirectHandle(Tagged<T> object, LocalHeap* local_heap)
+      : handle_(object, local_heap) {}
+
+  template <typename S, typename = std::enable_if_t<is_subtype_v<S, T>>>
+  V8_INLINE MaybeDirectHandle(DirectHandle<S> handle)
+      : handle_(handle.handle_) {}
+  template <typename S, typename = std::enable_if_t<is_subtype_v<S, T>>>
+  V8_INLINE MaybeDirectHandle(IndirectHandle<S> handle) : handle_(handle) {}
+  template <typename S, typename = std::enable_if_t<is_subtype_v<S, T>>>
+  V8_INLINE MaybeDirectHandle(MaybeDirectHandle<S> handle)
+      : handle_(handle.handle_) {}
+  template <typename S, typename = std::enable_if_t<is_subtype_v<S, T>>>
+  V8_INLINE MaybeDirectHandle(MaybeIndirectHandle<S> handle)
+      : handle_(handle) {}
+
+  V8_INLINE DirectHandle<T> ToHandleChecked() const {
+    return handle_.ToHandleChecked();
+  }
+  template <typename S>
+  V8_WARN_UNUSED_RESULT V8_INLINE bool ToHandle(DirectHandle<S>* out) const {
+    return handle_.ToHandle(out);
+  }
+
+  V8_INLINE bool is_null() const { return handle_.is_null(); }
+
+ private:
+  // DirectHandle is allowed to access handle_.
+  template <typename>
+  friend class DirectHandle;
+  // MaybeDirectHandle of different classes are allowed to access each other's
+  // handle_.
+  template <typename>
+  friend class MaybeDirectHandle;
+  // Casts are allowed to access handle_.
+  template <typename To, typename From>
+  friend inline MaybeDirectHandle<To> UncheckedCast(
+      MaybeDirectHandle<From> value);
+  template <typename U>
+  friend inline MaybeIndirectHandle<U> indirect_handle(MaybeDirectHandle<U>,
+                                                       Isolate*);
+  template <typename U>
+  friend inline MaybeIndirectHandle<U> indirect_handle(MaybeDirectHandle<U>,
+                                                       LocalIsolate*);
+
+  MaybeIndirectHandle<T> handle_;
+};
+
+#endif  // V8_ENABLE_DIRECT_HANDLE
 
 class MaybeObjectDirectHandle {
  public:
@@ -232,9 +290,11 @@ class MaybeObjectDirectHandle {
       : reference_type_(HeapObjectReferenceType::STRONG) {}
   inline MaybeObjectDirectHandle(Tagged<MaybeObject> object, Isolate* isolate);
   inline MaybeObjectDirectHandle(Tagged<Object> object, Isolate* isolate);
+  inline MaybeObjectDirectHandle(Tagged<Smi> object, Isolate* isolate);
   inline MaybeObjectDirectHandle(Tagged<MaybeObject> object,
                                  LocalHeap* local_heap);
   inline MaybeObjectDirectHandle(Tagged<Object> object, LocalHeap* local_heap);
+  inline MaybeObjectDirectHandle(Tagged<Smi> object, LocalHeap* local_heap);
   inline explicit MaybeObjectDirectHandle(DirectHandle<Object> object);
 
   static inline MaybeObjectDirectHandle Weak(Tagged<Object> object,
@@ -258,8 +318,6 @@ class MaybeObjectDirectHandle {
   HeapObjectReferenceType reference_type_;
   MaybeDirectHandle<Object> handle_;
 };
-
-#endif  // V8_ENABLE_DIRECT_HANDLE
 
 }  // namespace internal
 }  // namespace v8

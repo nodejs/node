@@ -20,11 +20,11 @@ static_assert(kMaxJSStructFields <= kMaxNumberOfDescriptors);
 namespace {
 
 struct NameHandleHasher {
-  size_t operator()(DirectHandle<Name> name) const { return name->hash(); }
+  size_t operator()(IndirectHandle<Name> name) const { return name->hash(); }
 };
 
 struct UniqueNameHandleEqual {
-  bool operator()(DirectHandle<Name> x, DirectHandle<Name> y) const {
+  bool operator()(IndirectHandle<Name> x, IndirectHandle<Name> y) const {
     DCHECK(IsUniqueName(*x));
     DCHECK(IsUniqueName(*y));
     return *x == *y;
@@ -32,7 +32,8 @@ struct UniqueNameHandleEqual {
 };
 
 using UniqueNameHandleSet =
-    std::unordered_set<Handle<Name>, NameHandleHasher, UniqueNameHandleEqual>;
+    std::unordered_set<IndirectHandle<Name>, NameHandleHasher,
+                       UniqueNameHandleEqual>;
 
 }  // namespace
 
@@ -168,9 +169,7 @@ BUILTIN(SharedStructTypeConstructor) {
   Handle<SharedFunctionInfo> info =
       isolate->factory()->NewSharedFunctionInfoForBuiltin(
           isolate->factory()->empty_string(), Builtin::kSharedStructConstructor,
-          FunctionKind::kNormalFunction);
-  info->set_internal_formal_parameter_count(JSParameterCount(0));
-  info->set_length(0);
+          0, kAdapt);
 
   Handle<JSFunction> constructor =
       Factory::JSFunctionBuilder{isolate, info, isolate->native_context()}

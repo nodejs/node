@@ -12,7 +12,6 @@
 
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/common-operator.h"
-#include "src/compiler/graph.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
@@ -21,6 +20,7 @@
 #include "src/compiler/operator.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/state-values-utils.h"
+#include "src/compiler/turbofan-graph.h"
 #include "src/compiler/type-cache.h"
 #include "src/utils/bit-vector.h"
 
@@ -134,6 +134,17 @@ void Verifier::Visitor::CheckSwitch(Node* node, const AllNodes& all) {
   CheckNotTyped(node);
 }
 
+#ifdef DEBUG
+namespace {
+// Print more debug information just before a DCHECK failure.
+bool FailSoon(Node* node) {
+  v8::base::OS::PrintError("#\n# Verification failure for node:\n#\n");
+  node->Print(std::cerr);
+  return false;
+}
+}  // namespace
+#endif  // DEBUG
+
 void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
   int value_count = node->op()->ValueInputCount();
   int context_count = OperatorProperties::GetContextInputCount(node->op());
@@ -158,6 +169,9 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       if (all.IsLive(edge.from()) && NodeProperties::IsEffectEdge(edge)) {
         effect_edges++;
       }
+    }
+    if (effect_edges == 0) {
+      FailSoon(node);
     }
     DCHECK_GT(effect_edges, 0);
 #endif
@@ -829,6 +843,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckTypeIs(node, Type::Boolean());
       break;
     case IrOpcode::kJSLoadContext:
+    case IrOpcode::kJSLoadScriptContext:
       CheckTypeIs(node, Type::Any());
       break;
     case IrOpcode::kJSStoreContext:
@@ -1221,6 +1236,10 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       break;
     case IrOpcode::kStringLength:
       CheckValueInputIs(node, 0, Type::String());
+      CheckTypeIs(node, TypeCache::Get()->kStringLengthType);
+      break;
+    case IrOpcode::kStringWrapperLength:
+      CheckValueInputIs(node, 0, Type::StringWrapper());
       CheckTypeIs(node, TypeCache::Get()->kStringLengthType);
       break;
     case IrOpcode::kStringToLowerCaseIntl:
@@ -1902,6 +1921,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kRoundUint64ToFloat64:
     case IrOpcode::kRoundUint64ToFloat32:
     case IrOpcode::kTruncateFloat64ToFloat32:
+    case IrOpcode::kTruncateFloat64ToFloat16:
     case IrOpcode::kTruncateFloat64ToWord32:
     case IrOpcode::kBitcastFloat32ToInt32:
     case IrOpcode::kBitcastFloat64ToInt64:
@@ -2259,15 +2279,6 @@ void ScheduleVerifier::Run(Schedule* schedule) {
 
 
 #ifdef DEBUG
-
-namespace {
-// Print more debug information just before a DCHECK failure.
-bool FailSoon(Node* node) {
-  v8::base::OS::PrintError("#\n# Verification failure for node:\n#\n");
-  node->Print(std::cerr);
-  return false;
-}
-}  // namespace
 
 // static
 void Verifier::VerifyNode(Node* node) {

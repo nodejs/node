@@ -59,13 +59,13 @@ String Binary::toBase64() const {
 Binary Binary::fromBase64(const String& base64, bool* success) {
   if (base64.isEmpty()) {
     *success = true;
-    return Binary::fromSpan(nullptr, 0);
+    return {};
   }
 
   *success = false;
   // Fail if the length is invalid or decoding would overflow.
   if (base64.length() % 4 != 0 || base64.length() + 4 < base64.length()) {
-    return Binary::fromSpan(nullptr, 0);
+    return {};
   }
 
   std::vector<uint8_t> result;
@@ -74,19 +74,19 @@ Binary Binary::fromBase64(const String& base64, bool* success) {
   // Iterate groups of four
   for (size_t i = 0; i < base64.length(); i += 4) {
     uint8_t a = 0, b = 0, c = 0, d = 0;
-    if (!DecodeByte(base64[i + 0]).To(&a)) return Binary::fromSpan(nullptr, 0);
-    if (!DecodeByte(base64[i + 1]).To(&b)) return Binary::fromSpan(nullptr, 0);
+    if (!DecodeByte(base64[i + 0]).To(&a)) return {};
+    if (!DecodeByte(base64[i + 1]).To(&b)) return {};
     if (!DecodeByte(base64[i + 2]).To(&c)) {
       // Padding is allowed only in the group on the last two positions
       if (i + 4 < base64.length() || base64[i + 2] != pad ||
           base64[i + 3] != pad) {
-        return Binary::fromSpan(nullptr, 0);
+        return {};
       }
     }
     if (!DecodeByte(base64[i + 3]).To(&d)) {
       // Padding is allowed only in the group on the last two positions
       if (i + 4 < base64.length() || base64[i + 3] != pad) {
-        return Binary::fromSpan(nullptr, 0);
+        return {};
       }
     }
 
@@ -284,8 +284,7 @@ bool ProtocolTypeTraits<Binary>::Deserialize(DeserializerState* state,
                                              Binary* value) {
   auto* tokenizer = state->tokenizer();
   if (tokenizer->TokenTag() == cbor::CBORTokenTag::BINARY) {
-    const span<uint8_t> bin = tokenizer->GetBinary();
-    *value = Binary::fromSpan(bin.data(), bin.size());
+    *value = Binary::fromSpan(tokenizer->GetBinary());
     return true;
   }
   if (tokenizer->TokenTag() == cbor::CBORTokenTag::STRING8) {

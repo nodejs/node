@@ -12,6 +12,7 @@
 #include "src/execution/isolate-utils.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/numbers/hash-seed-inl.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/name-inl.h"
@@ -21,6 +22,7 @@
 #include "src/objects/string.h"
 #include "src/sandbox/external-pointer-inl.h"
 #include "src/sandbox/external-pointer.h"
+#include "src/sandbox/isolate.h"
 #include "src/strings/string-hasher-inl.h"
 #include "src/strings/unicode-inl.h"
 #include "src/torque/runtime-macro-shims.h"
@@ -116,15 +118,15 @@ class V8_NODISCARD SharedStringAccessGuardIfNeeded {
   std::optional<base::SharedMutexGuard<base::kShared>> mutex_guard;
 };
 
-int32_t String::length() const { return length_; }
+uint32_t String::length() const { return length_; }
 
-int32_t String::length(AcquireLoadTag) const {
+uint32_t String::length(AcquireLoadTag) const {
   return base::AsAtomic32::Acquire_Load(&length_);
 }
 
-void String::set_length(int32_t value) { length_ = value; }
+void String::set_length(uint32_t value) { length_ = value; }
 
-void String::set_length(int32_t value, ReleaseStoreTag) {
+void String::set_length(uint32_t value, ReleaseStoreTag) {
   base::AsAtomic32::Release_Store(&length_, value);
 }
 
@@ -333,7 +335,7 @@ bool String::IsOneByteRepresentationUnderneath(Tagged<String> string) {
   }
 }
 
-base::uc32 FlatStringReader::Get(int index) const {
+base::uc32 FlatStringReader::Get(uint32_t index) const {
   if (is_one_byte_) {
     return Get<uint8_t>(index);
   } else {
@@ -342,9 +344,9 @@ base::uc32 FlatStringReader::Get(int index) const {
 }
 
 template <typename Char>
-Char FlatStringReader::Get(int index) const {
+Char FlatStringReader::Get(uint32_t index) const {
   DCHECK_EQ(is_one_byte_, sizeof(Char) == 1);
-  DCHECK(0 <= index && index < length_);
+  DCHECK_LT(index, length_);
   if (sizeof(Char) == 1) {
     return static_cast<Char>(static_cast<const uint8_t*>(start_)[index]);
   } else {
@@ -387,7 +389,7 @@ class SequentialStringKey final : public StringTableKey {
     }
   }
 
-  Handle<String> GetHandleForInsertion() {
+  Handle<String> GetHandleForInsertion(Isolate* isolate) {
     DCHECK(!internalized_string_.is_null());
     return internalized_string_;
   }
@@ -463,7 +465,7 @@ class SeqSubStringKey final : public StringTableKey {
     }
   }
 
-  Handle<String> GetHandleForInsertion() {
+  Handle<String> GetHandleForInsertion(Isolate* isolate) {
     DCHECK(!internalized_string_.is_null());
     return internalized_string_;
   }
@@ -659,7 +661,7 @@ Handle<String> String::Flatten(Isolate* isolate, Handle<String> string,
   if (V8_LIKELY(shape.IsDirect())) return string;
 
   if (shape.IsCons()) {
-    DCHECK(!InAnySharedSpace(s));
+    DCHECK(!HeapLayout::InAnySharedSpace(s));
     Tagged<ConsString> cons = Cast<ConsString>(s);
     if (!cons->IsFlat()) {
       AllowGarbageCollection yes_gc;
@@ -687,10 +689,9 @@ Handle<String> String::Flatten(LocalIsolate* isolate, Handle<String> string,
 
 // static
 std::optional<String::FlatContent> String::TryGetFlatContentFromDirectString(
-    const DisallowGarbageCollection& no_gc, Tagged<String> string, int offset,
-    int length, const SharedStringAccessGuardIfNeeded& access_guard) {
-  DCHECK_GE(offset, 0);
-  DCHECK_GE(length, 0);
+    const DisallowGarbageCollection& no_gc, Tagged<String> string,
+    uint32_t offset, uint32_t length,
+    const SharedStringAccessGuardIfNeeded& access_guard) {
   DCHECK_LE(offset + length, string->length());
   switch (StringShape{string}.representation_and_encoding_tag()) {
     case kSeqOneByteStringTag:
@@ -722,7 +723,7 @@ String::FlatContent String::GetFlatContent(
   return GetFlatContent(no_gc, SharedStringAccessGuardIfNeeded::NotNeeded());
 }
 
-String::FlatContent::FlatContent(const uint8_t* start, int length,
+String::FlatContent::FlatContent(const uint8_t* start, uint32_t length,
                                  const DisallowGarbageCollection& no_gc)
     : onebyte_start(start), length_(length), state_(ONE_BYTE), no_gc_(no_gc) {
 #ifdef ENABLE_SLOW_DCHECKS
@@ -730,7 +731,7 @@ String::FlatContent::FlatContent(const uint8_t* start, int length,
 #endif
 }
 
-String::FlatContent::FlatContent(const base::uc16* start, int length,
+String::FlatContent::FlatContent(const base::uc16* start, uint32_t length,
                                  const DisallowGarbageCollection& no_gc)
     : twobyte_start(start), length_(length), state_(TWO_BYTE), no_gc_(no_gc) {
 #ifdef ENABLE_SLOW_DCHECKS
@@ -786,36 +787,36 @@ Handle<String> String::Share(Isolate* isolate, Handle<String> string) {
     case StringTransitionStrategy::kInPlace:
       // A relaxed write is sufficient here, because at this point the string
       // has not yet escaped the current thread.
-      DCHECK(InAnySharedSpace(*string));
-      string->set_map_no_write_barrier(*new_map.ToHandleChecked());
+      DCHECK(HeapLayout::InAnySharedSpace(*string));
+      string->set_map_no_write_barrier(isolate, *new_map.ToHandleChecked());
       return string;
     case StringTransitionStrategy::kAlreadyTransitioned:
       return string;
   }
 }
 
-uint16_t String::Get(int index) const {
+uint16_t String::Get(uint32_t index) const {
   DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(this));
   return GetImpl(index, SharedStringAccessGuardIfNeeded::NotNeeded());
 }
 
-uint16_t String::Get(int index, Isolate* isolate) const {
+uint16_t String::Get(uint32_t index, Isolate* isolate) const {
   SharedStringAccessGuardIfNeeded scope(isolate);
   return GetImpl(index, scope);
 }
 
-uint16_t String::Get(int index, LocalIsolate* local_isolate) const {
+uint16_t String::Get(uint32_t index, LocalIsolate* local_isolate) const {
   SharedStringAccessGuardIfNeeded scope(local_isolate);
   return GetImpl(index, scope);
 }
 
 uint16_t String::Get(
-    int index, const SharedStringAccessGuardIfNeeded& access_guard) const {
+    uint32_t index, const SharedStringAccessGuardIfNeeded& access_guard) const {
   return GetImpl(index, access_guard);
 }
 
 uint16_t String::GetImpl(
-    int index, const SharedStringAccessGuardIfNeeded& access_guard) const {
+    uint32_t index, const SharedStringAccessGuardIfNeeded& access_guard) const {
   DCHECK(index >= 0 && index < length());
 
   class StringGetDispatcher : public AllStatic {
@@ -840,7 +841,7 @@ uint16_t String::GetImpl(
                                                              access_guard);
 }
 
-void String::Set(int index, uint16_t value) {
+void String::Set(uint32_t index, uint16_t value) {
   DCHECK(index >= 0 && index < length());
   DCHECK(StringShape(this).IsSequential());
 
@@ -856,7 +857,7 @@ bool String::IsFlat() const {
 
 bool String::IsShared() const {
   const bool result = StringShape(this).IsShared();
-  DCHECK_IMPLIES(result, InAnySharedSpace(this));
+  DCHECK_IMPLIES(result, HeapLayout::InAnySharedSpace(this));
   return result;
 }
 
@@ -886,8 +887,8 @@ Tagged<ConsString> String::VisitFlat(
     const SharedStringAccessGuardIfNeeded& access_guard) {
   DisallowGarbageCollection no_gc;
   int slice_offset = offset;
-  const int length = string->length();
-  DCHECK(offset <= length);
+  const uint32_t length = string->length();
+  DCHECK_LE(offset, length);
   while (true) {
     int32_t tag = StringShape(string).representation_and_encoding_tag();
     switch (tag) {
@@ -973,19 +974,19 @@ inline base::Vector<const base::uc16> String::GetCharVector(
   return flat.ToUC16Vector();
 }
 
-uint8_t SeqOneByteString::Get(int index) const {
+uint8_t SeqOneByteString::Get(uint32_t index) const {
   DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(this));
   return Get(index, SharedStringAccessGuardIfNeeded::NotNeeded());
 }
 
 uint8_t SeqOneByteString::Get(
-    int index, const SharedStringAccessGuardIfNeeded& access_guard) const {
+    uint32_t index, const SharedStringAccessGuardIfNeeded& access_guard) const {
   USE(access_guard);
   DCHECK(index >= 0 && index < length());
   return chars()[index];
 }
 
-void SeqOneByteString::SeqOneByteStringSet(int index, uint16_t value) {
+void SeqOneByteString::SeqOneByteStringSet(uint32_t index, uint16_t value) {
   DisallowGarbageCollection no_gc;
   DCHECK_GE(index, 0);
   DCHECK_LT(index, length());
@@ -993,11 +994,10 @@ void SeqOneByteString::SeqOneByteStringSet(int index, uint16_t value) {
   chars()[index] = value;
 }
 
-void SeqOneByteString::SeqOneByteStringSetChars(int index,
+void SeqOneByteString::SeqOneByteStringSetChars(uint32_t index,
                                                 const uint8_t* string,
-                                                int string_length) {
+                                                uint32_t string_length) {
   DisallowGarbageCollection no_gc;
-  DCHECK_LE(0, index);
   DCHECK_LT(index + string_length, length());
   void* address = static_cast<void*>(&chars()[index]);
   memcpy(address, string, string_length);
@@ -1040,13 +1040,13 @@ base::uc16* SeqTwoByteString::GetChars(
 }
 
 uint16_t SeqTwoByteString::Get(
-    int index, const SharedStringAccessGuardIfNeeded& access_guard) const {
+    uint32_t index, const SharedStringAccessGuardIfNeeded& access_guard) const {
   USE(access_guard);
   DCHECK(index >= 0 && index < length());
   return chars()[index];
 }
 
-void SeqTwoByteString::SeqTwoByteStringSet(int index, uint16_t value) {
+void SeqTwoByteString::SeqTwoByteStringSet(uint32_t index, uint16_t value) {
   DisallowGarbageCollection no_gc;
   DCHECK(index >= 0 && index < length());
   chars()[index] = value;
@@ -1153,7 +1153,7 @@ void ExternalString::VisitExternalPointers(ObjectVisitor* visitor) {
 }
 
 Address ExternalString::resource_as_address() const {
-  Isolate* isolate = GetIsolateForSandbox(this);
+  IsolateForSandbox isolate = GetIsolateForSandbox(this);
   return resource_.load(isolate);
 }
 
@@ -1183,6 +1183,9 @@ void ExternalString::DisposeResource(Isolate* isolate) {
 
   // Dispose of the C++ object if it has not already been disposed.
   if (resource != nullptr) {
+    if (!IsShared() && !HeapLayout::InWritableSharedSpace(this)) {
+      resource->Unaccount(reinterpret_cast<v8::Isolate*>(isolate));
+    }
     resource->Dispose();
     resource_.store(isolate, kNullAddress);
   }
@@ -1245,7 +1248,7 @@ const uint8_t* ExternalOneByteString::GetChars() const {
 }
 
 uint8_t ExternalOneByteString::Get(
-    int index, const SharedStringAccessGuardIfNeeded& access_guard) const {
+    uint32_t index, const SharedStringAccessGuardIfNeeded& access_guard) const {
   USE(access_guard);
   DCHECK(index >= 0 && index < length());
   return GetChars()[index];
@@ -1308,14 +1311,14 @@ const uint16_t* ExternalTwoByteString::GetChars() const {
 }
 
 uint16_t ExternalTwoByteString::Get(
-    int index, const SharedStringAccessGuardIfNeeded& access_guard) const {
+    uint32_t index, const SharedStringAccessGuardIfNeeded& access_guard) const {
   USE(access_guard);
   DCHECK(index >= 0 && index < length());
   return GetChars()[index];
 }
 
 const uint16_t* ExternalTwoByteString::ExternalTwoByteStringGetData(
-    unsigned start) {
+    uint32_t start) {
   return GetChars() + start;
 }
 
@@ -1491,7 +1494,7 @@ SubStringRange::iterator SubStringRange::end() {
   return SubStringRange::iterator(string_, first_ + length_, no_gc_);
 }
 
-void SeqOneByteString::clear_padding_destructively(int length) {
+void SeqOneByteString::clear_padding_destructively(uint32_t length) {
   // Ensure we are not killing the map word, which is already set at this point
   static_assert(SizeFor(0) >= kObjectAlignment + kTaggedSize);
   memset(reinterpret_cast<void*>(reinterpret_cast<char*>(this) +
@@ -1499,7 +1502,7 @@ void SeqOneByteString::clear_padding_destructively(int length) {
          0, kObjectAlignment);
 }
 
-void SeqTwoByteString::clear_padding_destructively(int length) {
+void SeqTwoByteString::clear_padding_destructively(uint32_t length) {
   // Ensure we are not killing the map word, which is already set at this point
   static_assert(SizeFor(0) >= kObjectAlignment + kTaggedSize);
   memset(reinterpret_cast<void*>(reinterpret_cast<char*>(this) +

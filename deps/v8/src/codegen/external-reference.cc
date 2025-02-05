@@ -322,9 +322,18 @@ ExternalReference ExternalReference::trusted_pointer_table_base_address(
   return ExternalReference(isolate->trusted_pointer_table_base_address());
 }
 
+ExternalReference ExternalReference::shared_trusted_pointer_table_base_address(
+    Isolate* isolate) {
+  // TODO(saelo): maybe the external pointer table external references should
+  // also directly return the table base address?
+  return ExternalReference(
+      isolate->shared_trusted_pointer_table_base_address());
+}
+
 ExternalReference ExternalReference::code_pointer_table_address() {
   // TODO(saelo): maybe rename to code_pointer_table_base_address?
-  return ExternalReference(GetProcessWideCodePointerTable()->base_address());
+  return ExternalReference(
+      IsolateGroup::current()->code_pointer_table()->base_address());
 }
 
 ExternalReference ExternalReference::memory_chunk_metadata_table_address() {
@@ -538,6 +547,11 @@ FUNCTION_REFERENCE(new_deoptimizer_function, Deoptimizer::New)
 FUNCTION_REFERENCE(compute_output_frames_function,
                    Deoptimizer::ComputeOutputFrames)
 
+#ifdef V8_ENABLE_CET_SHADOW_STACK
+FUNCTION_REFERENCE(ensure_valid_return_address,
+                   Deoptimizer::EnsureValidReturnAddress)
+#endif  // V8_ENABLE_CET_SHADOW_STACK
+
 #ifdef V8_ENABLE_WEBASSEMBLY
 FUNCTION_REFERENCE(wasm_sync_stack_limit, wasm::sync_stack_limit)
 FUNCTION_REFERENCE(wasm_return_switch, wasm::return_switch)
@@ -648,6 +662,8 @@ FUNCTION_REFERENCE(wasm_atomic_notify, futex_emulation_wake)
 void WasmSignatureCheckFail(Address raw_internal_function,
                             uintptr_t expected_hash) {
   // WasmInternalFunction::signature_hash doesn't exist in non-sandbox builds.
+  // TODO(saelo): Consider using Abort instead, as we do for JavaScript
+  // signature mismatches (See AbortReason::kJSSignatureMismatch).
 #if V8_ENABLE_SANDBOX
   Tagged<WasmInternalFunction> internal_function =
       Cast<WasmInternalFunction>(Tagged<Object>(raw_internal_function));
@@ -661,6 +677,11 @@ FUNCTION_REFERENCE(wasm_signature_check_fail, WasmSignatureCheckFail)
 #define V(Name) RAW_FUNCTION_REFERENCE(wasm_##Name, wasm::Name)
 WASM_JS_EXTERNAL_REFERENCE_LIST(V)
 #undef V
+
+ExternalReference ExternalReference::wasm_code_pointer_table() {
+  return ExternalReference(wasm::GetProcessWideWasmCodePointerTable()->base());
+}
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 static void f64_acos_wrapper(Address data) {
@@ -810,6 +831,16 @@ ExternalReference ExternalReference::address_of_runtime_stats_flag() {
 
 ExternalReference ExternalReference::address_of_shared_string_table_flag() {
   return ExternalReference(&v8_flags.shared_string_table);
+}
+
+#ifdef V8_ENABLE_CET_SHADOW_STACK
+ExternalReference ExternalReference::address_of_cet_compatible_flag() {
+  return ExternalReference(&v8_flags.cet_compatible);
+}
+#endif  // V8_ENABLE_CET_SHADOW_STACK
+
+ExternalReference ExternalReference::script_context_mutable_heap_number_flag() {
+  return ExternalReference(&v8_flags.script_context_mutable_heap_number);
 }
 
 ExternalReference ExternalReference::address_of_load_from_stack_count(
@@ -1019,7 +1050,7 @@ ExternalReference ExternalReference::invoke_accessor_getter_callback() {
 #define re_stack_check_func RegExpMacroAssemblerMIPS::CheckStackGuardState
 #elif V8_TARGET_ARCH_LOONG64
 #define re_stack_check_func RegExpMacroAssemblerLOONG64::CheckStackGuardState
-#elif V8_TARGET_ARCH_S390
+#elif V8_TARGET_ARCH_S390X
 #define re_stack_check_func RegExpMacroAssemblerS390::CheckStackGuardState
 #elif V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64
 #define re_stack_check_func RegExpMacroAssemblerRISCV::CheckStackGuardState
@@ -1052,10 +1083,11 @@ ExternalReference ExternalReference::re_word_character_map() {
       NativeRegExpMacroAssembler::word_character_map_address());
 }
 
-ExternalReference ExternalReference::address_of_static_offsets_vector(
+ExternalReference
+ExternalReference::address_of_regexp_static_result_offsets_vector(
     Isolate* isolate) {
   return ExternalReference(
-      reinterpret_cast<Address>(isolate->jsregexp_static_offsets_vector()));
+      isolate->address_of_regexp_static_result_offsets_vector());
 }
 
 ExternalReference ExternalReference::address_of_regexp_stack_limit_address(
@@ -1839,13 +1871,13 @@ static constexpr const char* GetNameOfIsolateFieldId(IsolateFieldId id) {
 std::ostream& operator<<(std::ostream& os, ExternalReference reference) {
   os << reinterpret_cast<const void*>(reference.raw());
   if (reference.IsIsolateFieldId()) {
-    os << "<"
+    os << " <"
        << GetNameOfIsolateFieldId(static_cast<IsolateFieldId>(reference.raw()))
        << ">";
   } else {
     const Runtime::Function* fn =
         Runtime::FunctionForEntry(reference.address());
-    if (fn) os << "<" << fn->name << ".entry>";
+    if (fn) os << " <" << fn->name << ".entry>";
   }
   return os;
 }

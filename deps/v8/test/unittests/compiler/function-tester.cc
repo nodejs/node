@@ -8,10 +8,10 @@
 #include "src/codegen/assembler.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/optimized-compilation-info.h"
-#include "src/compiler/graph.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/pipeline.h"
+#include "src/compiler/turbofan-graph.h"
 #include "src/execution/execution.h"
 #include "src/handles/handles.h"
 #include "src/objects/objects-inl.h"
@@ -150,7 +150,7 @@ Handle<JSFunction> FunctionTester::CompileGraph(Graph* graph) {
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);
   Zone zone(isolate->allocator(), ZONE_NAME);
   OptimizedCompilationInfo info(&zone, isolate, shared, function,
-                                CodeKind::TURBOFAN);
+                                CodeKind::TURBOFAN_JS);
 
   auto call_descriptor = Linkage::ComputeIncoming(&zone, &info);
   DirectHandle<Code> code =
@@ -172,7 +172,7 @@ Handle<JSFunction> FunctionTester::Optimize(Handle<JSFunction> function,
   CHECK_NOT_NULL(zone);
 
   OptimizedCompilationInfo info(zone, isolate, shared, function,
-                                CodeKind::TURBOFAN);
+                                CodeKind::TURBOFAN_JS);
 
   if (flags & ~OptimizedCompilationInfo::kInlining) UNIMPLEMENTED();
   if (flags & OptimizedCompilationInfo::kInlining) {

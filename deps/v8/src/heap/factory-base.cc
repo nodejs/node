@@ -222,7 +222,7 @@ Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithFiller(
   DisallowGarbageCollection no_gc;
   DCHECK(ReadOnlyHeap::Contains(*map));
   DCHECK(ReadOnlyHeap::Contains(*filler));
-  result->set_map_after_allocation(*map, SKIP_WRITE_BARRIER);
+  result->set_map_after_allocation(isolate(), *map, SKIP_WRITE_BARRIER);
   Tagged<FixedArray> array = Cast<FixedArray>(result);
   array->set_length(length);
   MemsetTagged(array->RawFieldOfFirstElement(), *filler, length);
@@ -239,8 +239,8 @@ Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithZeroes(
   }
   Tagged<HeapObject> result = AllocateRawFixedArray(length, allocation);
   DisallowGarbageCollection no_gc;
-  result->set_map_after_allocation(read_only_roots().fixed_array_map(),
-                                   SKIP_WRITE_BARRIER);
+  result->set_map_after_allocation(
+      isolate(), read_only_roots().fixed_array_map(), SKIP_WRITE_BARRIER);
   Tagged<FixedArray> array = Cast<FixedArray>(result);
   array->set_length(length);
   MemsetTagged(array->RawFieldOfFirstElement(), Smi::zero(), length);
@@ -262,7 +262,7 @@ Handle<WeakFixedArray> FactoryBase<Impl>::NewWeakFixedArrayWithMap(
 
   Tagged<HeapObject> result =
       AllocateRawArray(WeakFixedArray::SizeFor(length), allocation);
-  result->set_map_after_allocation(map, SKIP_WRITE_BARRIER);
+  result->set_map_after_allocation(isolate(), map, SKIP_WRITE_BARRIER);
   DisallowGarbageCollection no_gc;
   Tagged<WeakFixedArray> array = Cast<WeakFixedArray>(result);
   array->set_length(length);
@@ -441,8 +441,9 @@ template <typename Impl>
 Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfoForLiteral(
     FunctionLiteral* literal, DirectHandle<Script> script, bool is_toplevel) {
   FunctionKind kind = literal->kind();
-  Handle<SharedFunctionInfo> shared = NewSharedFunctionInfo(
-      literal->GetName(isolate()), {}, Builtin::kCompileLazy, kind);
+  Handle<SharedFunctionInfo> shared =
+      NewSharedFunctionInfo(literal->GetName(isolate()), {},
+                            Builtin::kCompileLazy, 0, kDontAdapt, kind);
   shared->set_function_literal_id(literal->function_literal_id());
   literal->set_shared_function_info(shared);
   SharedFunctionInfo::InitFromFunctionLiteral(isolate(), literal, is_toplevel);
@@ -537,8 +538,8 @@ FactoryBase<Impl>::NewUncompiledDataWithPreparseDataAndJob(
 template <typename Impl>
 Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
     MaybeDirectHandle<String> maybe_name,
-    MaybeDirectHandle<HeapObject> maybe_function_data, Builtin builtin,
-    FunctionKind kind) {
+    MaybeDirectHandle<HeapObject> maybe_function_data, Builtin builtin, int len,
+    AdaptArguments adapt, FunctionKind kind) {
   Handle<SharedFunctionInfo> shared =
       NewSharedFunctionInfo(AllocationType::kOld);
   DisallowGarbageCollection no_gc;
@@ -576,6 +577,20 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
   raw->CalculateConstructAsBuiltin();
   raw->set_kind(kind);
 
+  switch (adapt) {
+    case AdaptArguments::kYes:
+      raw->set_formal_parameter_count(JSParameterCount(len));
+      break;
+    case AdaptArguments::kNo:
+      raw->DontAdaptArguments();
+      break;
+  }
+  raw->set_length(len);
+
+  DCHECK_IMPLIES(raw->HasBuiltinId(),
+                 Builtins::CheckFormalParameterCount(
+                     raw->builtin_id(), raw->length(),
+                     raw->internal_formal_parameter_count_with_receiver()));
 #ifdef VERIFY_HEAP
   if (v8_flags.verify_heap) raw->SharedFunctionInfoVerify(isolate());
 #endif  // VERIFY_HEAP
@@ -783,7 +798,7 @@ MaybeHandle<SeqStringT> FactoryBase<Impl>::NewRawStringWithMap(
   DCHECK_IMPLIES(!StringShape(map).IsShared(),
                  RefineAllocationTypeForInPlaceInternalizableString(
                      allocation, map) == allocation);
-  if (length > String::kMaxLength || length < 0) {
+  if (length < 0 || static_cast<uint32_t>(length) > String::kMaxLength) {
     THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError());
   }
   DCHECK_GT(length, 0);  // Use Factory::empty_string() instead.
@@ -843,12 +858,12 @@ MaybeHandle<String> FactoryBase<Impl>::NewConsString(
   if (IsThinString(*right)) {
     right = handle(Cast<ThinString>(*right)->actual(), isolate());
   }
-  int left_length = left->length();
+  uint32_t left_length = left->length();
   if (left_length == 0) return right;
-  int right_length = right->length();
+  uint32_t right_length = right->length();
   if (right_length == 0) return left;
 
-  int length = left_length + right_length;
+  uint32_t length = left_length + right_length;
 
   if (length == 2) {
     uint16_t c1 = left->Get(0, isolate());
@@ -1072,8 +1087,8 @@ inline Handle<String> FactoryBase<Impl>::SmiToString(Tagged<Smi> number,
 
 template <typename Impl>
 Handle<FreshlyAllocatedBigInt> FactoryBase<Impl>::NewBigInt(
-    int length, AllocationType allocation) {
-  if (length < 0 || length > BigInt::kMaxLength) {
+    uint32_t length, AllocationType allocation) {
+  if (length > BigInt::kMaxLength) {
     FATAL("Fatal JavaScript invalid size error %d", length);
     UNREACHABLE();
   }
@@ -1117,10 +1132,6 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
 
   DisallowGarbageCollection no_gc;
   shared->Init(read_only_roots(), isolate()->GetAndIncNextUniqueSfiId());
-#ifdef VERIFY_HEAP
-  if (v8_flags.verify_heap) shared->SharedFunctionInfoVerify(isolate());
-#endif  // VERIFY_HEAP
-
   return handle(shared, isolate());
 }
 
@@ -1138,9 +1149,10 @@ Handle<DescriptorArray> FactoryBase<Impl>::NewDescriptorArray(
   auto raw_gc_state = DescriptorArrayMarkingState::kInitialGCState;
   if (allocation != AllocationType::kYoung &&
       allocation != AllocationType::kReadOnly) {
-    auto* heap = allocation == AllocationType::kSharedOld
-                     ? isolate()->AsIsolate()->shared_space_isolate()->heap()
-                     : isolate()->heap()->AsHeap();
+    auto* local_heap = allocation == AllocationType::kSharedOld
+                           ? isolate()->shared_space_isolate()->heap()
+                           : isolate()->heap();
+    Heap* heap = local_heap->AsHeap();
     if (heap->incremental_marking()->IsMajorMarking()) {
       // Black allocation: We must create a full marked state.
       raw_gc_state = DescriptorArrayMarkingState::GetFullyMarkedState(
@@ -1259,7 +1271,7 @@ Tagged<HeapObject> FactoryBase<Impl>::AllocateRawWithImmortalMap(
   DCHECK(ReadOnlyHeap::Contains(map));
   Tagged<HeapObject> result = AllocateRaw(size, allocation, alignment);
   DisallowGarbageCollection no_gc;
-  result->set_map_after_allocation(map, SKIP_WRITE_BARRIER);
+  result->set_map_after_allocation(isolate(), map, SKIP_WRITE_BARRIER);
   return result;
 }
 

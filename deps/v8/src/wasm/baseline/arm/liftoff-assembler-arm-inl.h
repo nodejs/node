@@ -9,6 +9,7 @@
 
 #include "src/codegen/arm/assembler-arm-inl.h"
 #include "src/codegen/arm/register-arm.h"
+#include "src/codegen/interface-descriptors-inl.h"
 #include "src/common/globals.h"
 #include "src/heap/mutable-page-metadata.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
@@ -579,11 +580,25 @@ void LiftoffAssembler::PatchPrepareStackFrame(
     b(cs /* higher or same */, &continuation);
   }
 
-  Call(static_cast<Address>(Builtin::kWasmStackOverflow),
-       RelocInfo::WASM_STUB_CALL);
-  // The call will not return; just define an empty safepoint.
-  safepoint_table_builder->DefineSafepoint(this);
-  if (v8_flags.debug_code) stop();
+  if (v8_flags.experimental_wasm_growable_stacks) {
+    LiftoffRegList regs_to_save;
+    regs_to_save.set(WasmHandleStackOverflowDescriptor::GapRegister());
+    regs_to_save.set(WasmHandleStackOverflowDescriptor::FrameBaseRegister());
+    for (auto reg : kGpParamRegisters) regs_to_save.set(reg);
+    PushRegisters(regs_to_save);
+    mov(WasmHandleStackOverflowDescriptor::GapRegister(), Operand(frame_size));
+    add(WasmHandleStackOverflowDescriptor::FrameBaseRegister(), fp,
+        Operand(stack_param_slots * kStackSlotSize +
+                CommonFrameConstants::kFixedFrameSizeAboveFp));
+    CallBuiltin(Builtin::kWasmHandleStackOverflow);
+    PopRegisters(regs_to_save);
+  } else {
+    Call(static_cast<Address>(Builtin::kWasmStackOverflow),
+         RelocInfo::WASM_STUB_CALL);
+    // The call will not return; just define an empty safepoint.
+    safepoint_table_builder->DefineSafepoint(this);
+    if (v8_flags.debug_code) stop();
+  }
 
   bind(&continuation);
 
@@ -655,11 +670,55 @@ void LiftoffAssembler::CheckTierUp(int declared_func_index, int budget_used,
   b(ool_label, mi);
 }
 
-Register LiftoffAssembler::LoadOldFramePointer() { return fp; }
+Register LiftoffAssembler::LoadOldFramePointer() {
+  if (!v8_flags.experimental_wasm_growable_stacks) {
+    return fp;
+  }
+  LiftoffRegister old_fp = GetUnusedRegister(RegClass::kGpReg, {});
+  Label done, call_runtime;
+  ldr(old_fp.gp(), MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
+  cmp(old_fp.gp(),
+      Operand(StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START)));
+  b(&call_runtime, eq);
+  mov(old_fp.gp(), fp);
+  jmp(&done);
+
+  bind(&call_runtime);
+  LiftoffRegList regs_to_save = cache_state()->used_registers;
+  PushRegisters(regs_to_save);
+  MacroAssembler::Move(kCArgRegs[0], ExternalReference::isolate_address());
+  PrepareCallCFunction(1);
+  CallCFunction(ExternalReference::wasm_load_old_fp(), 1);
+  if (old_fp.gp() != kReturnRegister0) {
+    mov(old_fp.gp(), kReturnRegister0);
+  }
+  PopRegisters(regs_to_save);
+
+  bind(&done);
+  return old_fp.gp();
+}
 
 void LiftoffAssembler::CheckStackShrink() {
-  // TODO(irezvov): 42202153
-  UNIMPLEMENTED();
+  {
+    UseScratchRegisterScope temps{this};
+    Register scratch = temps.Acquire();
+    ldr(scratch, MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
+    cmp(scratch,
+        Operand(StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START)));
+  }
+  Label done;
+  b(&done, ne);
+  LiftoffRegList regs_to_save;
+  for (auto reg : kGpReturnRegisters) regs_to_save.set(reg);
+  PushRegisters(regs_to_save);
+  MacroAssembler::Move(kCArgRegs[0], ExternalReference::isolate_address());
+  PrepareCallCFunction(1);
+  CallCFunction(ExternalReference::wasm_shrink_stack(), 1);
+  // Restore old FP. We don't need to restore old SP explicitly, because
+  // it will be restored from FP in LeaveFrame before return.
+  mov(fp, kReturnRegister0);
+  PopRegisters(regs_to_save);
+  bind(&done);
 }
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value) {
@@ -4602,11 +4661,6 @@ bool LiftoffAssembler::emit_f16x8_qfms(LiftoffRegister dst,
 
 bool LiftoffAssembler::supports_f16_mem_access() { return false; }
 
-void LiftoffAssembler::set_trap_on_oob_mem64(Register index, uint64_t oob_size,
-                                             uint64_t oob_index) {
-  UNREACHABLE();
-}
-
 void LiftoffAssembler::StackCheck(Label* ool_code) {
   UseScratchRegisterScope temps(this);
   Register limit_address = temps.Acquire();
@@ -4817,12 +4871,12 @@ void LiftoffAssembler::CallIndirect(const ValueKindSig* sig,
                                     compiler::CallDescriptor* call_descriptor,
                                     Register target) {
   DCHECK(target != no_reg);
-  Call(target);
+  CallWasmCodePointer(target);
 }
 
 void LiftoffAssembler::TailCallIndirect(Register target) {
   DCHECK(target != no_reg);
-  Jump(target);
+  CallWasmCodePointer(target, CallJumpMode::kTailCall);
 }
 
 void LiftoffAssembler::CallBuiltin(Builtin builtin) {

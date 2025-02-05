@@ -369,6 +369,14 @@ domain Debugger
       # call stacks (default).
       integer maxDepth
 
+  # Replace previous blackbox execution contexts with passed ones. Forces backend to skip
+  # stepping/pausing in scripts in these execution contexts. VM will try to leave blackboxed script by
+  # performing 'step in' several times, finally resorting to 'step out' if unsuccessful.
+  experimental command setBlackboxExecutionContexts
+    parameters
+      # Array of execution context unique ids for the debugger to ignore.
+      array of string uniqueIds
+
   # Replace previous blackbox patterns with passed ones. Forces backend to skip stepping/pausing in
   # scripts with url matching one of the patterns. VM will try to leave blackboxed script by
   # performing 'step in' several times, finally resorting to 'step out' if unsuccessful.
@@ -376,6 +384,8 @@ domain Debugger
     parameters
       # Array of regexps that will be used to check script url for blackbox state.
       array of string patterns
+      # If true, also ignore scripts with no source url.
+      optional boolean skipAnonymous
 
   # Makes backend skip steps in the script in blackboxed ranges. VM will try leave blacklisted
   # scripts by performing 'step in' several times, finally resorting to 'step out' if unsuccessful.
@@ -606,7 +616,6 @@ domain Debugger
     properties
       # Type of the debug symbols.
       enum type
-        None
         SourceMap
         EmbeddedDWARF
         ExternalDWARF
@@ -689,8 +698,8 @@ domain Debugger
       experimental optional integer codeOffset
       # The language of the script.
       experimental optional Debugger.ScriptLanguage scriptLanguage
-      # If the scriptLanguage is WebASsembly, the source of debug symbols for the module.
-      experimental optional Debugger.DebugSymbols debugSymbols
+      # If the scriptLanguage is WebAssembly, the source of debug symbols for the module.
+      experimental optional array of Debugger.DebugSymbols debugSymbols
       # The name the embedder supplied for this script.
       experimental optional string embedderName
 

@@ -59,6 +59,7 @@
 #include "src/codegen/riscv/extension-riscv-zicsr.h"
 #include "src/codegen/riscv/extension-riscv-zifencei.h"
 #include "src/codegen/riscv/register-riscv.h"
+#include "src/common/code-memory-access.h"
 #include "src/objects/contexts.h"
 #include "src/objects/smi.h"
 
@@ -186,6 +187,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   // own buffer. Otherwise it takes ownership of the provided buffer.
   explicit Assembler(const AssemblerOptions&,
                      std::unique_ptr<AssemblerBuffer> = {});
+  // For compatibility with assemblers that require a zone.
+  Assembler(const MaybeAssemblerZone&, const AssemblerOptions& options,
+            std::unique_ptr<AssemblerBuffer> buffer = {})
+      : Assembler(options, std::move(buffer)) {}
 
   virtual ~Assembler();
 
@@ -195,9 +200,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   void AbortedCodeGeneration();
   // GetCode emits any pending (non-emitted) code and fills the descriptor desc.
   static constexpr int kNoHandlerTable = 0;
-  static constexpr SafepointTableBuilder* kNoSafepointTable = nullptr;
+  static constexpr SafepointTableBuilderBase* kNoSafepointTable = nullptr;
   void GetCode(LocalIsolate* isolate, CodeDesc* desc,
-               SafepointTableBuilder* safepoint_table_builder,
+               SafepointTableBuilderBase* safepoint_table_builder,
                int handler_table_offset);
 
   // Convenience wrapper for allocating with an Isolate.
@@ -235,8 +240,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   // Get offset from instr.
   int BranchOffset(Instr instr);
   static int BrachlongOffset(Instr auipc, Instr jalr);
-  static int PatchBranchlongOffset(Address pc, Instr auipc, Instr instr_I,
-                                   int32_t offset);
+  static int PatchBranchlongOffset(
+      Address pc, Instr auipc, Instr instr_I, int32_t offset,
+      WritableJitAllocation* jit_allocation = nullptr);
 
   // Returns the branch offset to the given label from the current code
   // position. Links the label to the current position if it is still unbound.
@@ -259,14 +265,16 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   static Address target_address_at(Address pc);
   V8_INLINE static void set_target_address_at(
       Address pc, Address target,
+      WritableJitAllocation* jit_allocation = nullptr,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED) {
-    set_target_value_at(pc, target, icache_flush_mode);
+    set_target_value_at(pc, target, jit_allocation, icache_flush_mode);
   }
 
   static Address target_address_at(Address pc, Address constant_pool);
 
   static void set_target_address_at(
       Address pc, Address constant_pool, Address target,
+      WritableJitAllocation* jit_allocation = nullptr,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   // Read/Modify the code target address in the branch/call instruction at pc.
@@ -274,6 +282,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
                                                       Address constant_pool);
   inline static void set_target_compressed_address_at(
       Address pc, Address constant_pool, Tagged_t target,
+      WritableJitAllocation* jit_allocation = nullptr,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   inline Handle<Object> code_target_object_handle_at(Address pc,
@@ -289,16 +298,19 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
 #if defined(V8_TARGET_ARCH_RISCV64)
   static void set_target_value_at(
       Address pc, uint64_t target,
+      WritableJitAllocation* jit_allocation = nullptr,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 #elif defined(V8_TARGET_ARCH_RISCV32)
   static void set_target_value_at(
       Address pc, uint32_t target,
+      WritableJitAllocation* jit_allocation = nullptr,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 #endif
 
   static inline int32_t target_constant32_at(Address pc);
   static inline void set_target_constant32_at(
-      Address pc, uint32_t target, ICacheFlushMode icache_flush_mode);
+      Address pc, uint32_t target, WritableJitAllocation* jit_allocation,
+      ICacheFlushMode icache_flush_mode);
 
   static void JumpLabelToJumpRegister(Address pc);
 
@@ -322,6 +334,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   static inline uint32_t uint32_constant_at(Address pc, Address constant_pool);
   static inline void set_uint32_constant_at(
       Address pc, Address constant_pool, uint32_t new_constant,
+      WritableJitAllocation* jit_allocation,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   // Here we are patching the address in the LUI/ADDI instruction pair.
@@ -533,19 +546,16 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
 
   // Read/patch instructions.
   static Instr instr_at(Address pc) { return *reinterpret_cast<Instr*>(pc); }
-  static void instr_at_put(Address pc, Instr instr) {
-    *reinterpret_cast<Instr*>(pc) = instr;
-  }
+  static void instr_at_put(Address pc, Instr instr,
+                           WritableJitAllocation* jit_allocation = nullptr);
   Instr instr_at(int pos) {
     return *reinterpret_cast<Instr*>(buffer_start_ + pos);
   }
-  void instr_at_put(int pos, Instr instr) {
-    *reinterpret_cast<Instr*>(buffer_start_ + pos) = instr;
-  }
+  void instr_at_put(int pos, Instr instr,
+                    WritableJitAllocation* jit_allocation = nullptr);
 
-  void instr_at_put(int pos, ShortInstr instr) {
-    *reinterpret_cast<ShortInstr*>(buffer_start_ + pos) = instr;
-  }
+  void instr_at_put(int pos, ShortInstr instr,
+                    WritableJitAllocation* jit_allocation = nullptr);
 
   Address toAddress(int pos) {
     return reinterpret_cast<Address>(buffer_start_ + pos);

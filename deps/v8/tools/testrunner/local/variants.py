@@ -41,7 +41,6 @@ ALL_VARIANT_FLAGS = {
         "--turboshaft-future",
         "--turboshaft-wasm",
         "--no-wasm-generic-wrapper",
-        "--no-wasm-to-js-generic-wrapper",
         "--no-liftoff",
     ]],
     "concurrent_sparkplug": [["--concurrent-sparkplug", "--sparkplug"]],
@@ -71,15 +70,17 @@ ALL_VARIANT_FLAGS = {
     "rehash_snapshot": [["--rehash-snapshot"]],
     "slow_path": [["--force-slow-path"]],
     "stress": [[
-        "--no-liftoff", "--stress-lazy-source-positions",
-        "--no-wasm-generic-wrapper", "--no-wasm-lazy-compilation",
-        "--no-wasm-to-js-generic-wrapper"
+        "--no-liftoff",
+        "--stress-lazy-source-positions",
+        "--no-wasm-generic-wrapper",
+        "--no-wasm-lazy-compilation",
     ]],
     "stress_concurrent_allocation": [["--stress-concurrent-allocation"]],
     "stress_concurrent_inlining": [["--stress-concurrent-inlining"]],
     "stress_js_bg_compile_wasm_code_gc": [[
         "--stress-background-compile", "--stress-wasm-code-gc"
     ]],
+    "stress_wasm_stack_switching": [["--stress-wasm-stack-switching"]],
     "stress_incremental_marking": [["--stress-incremental-marking"]],
     "stress_snapshot": [["--stress-snapshot"]],
     # Trigger stress sampling allocation profiler with sample interval = 2^14
@@ -175,6 +176,7 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
         "--concurrent-recompilation", "--stress_concurrent_inlining",
         "--no-assert-types"
     ],
+    "stress_wasm_stack_switching": ["--no-stress-wasm-stack-switching"],
     "--turboshaft-assert-types": [
         "--concurrent-recompilation", "--stress_concurrent_inlining",
         "--no-turboshaft-assert-types"

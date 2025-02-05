@@ -2768,7 +2768,7 @@ TEST_F(ValueSerializerTestWithSharedArrayBufferClone,
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
     i::Handle<i::JSArrayBuffer> obj = Utils::OpenHandle(*input_buffer());
     input = Utils::Convert<i::WasmMemoryObject, Value>(i::WasmMemoryObject::New(
-        i_isolate, obj, kMaxPages, i::WasmMemoryFlag::kWasmMemory32));
+        i_isolate, obj, kMaxPages, i::wasm::AddressType::kI32));
   }
   RoundTripTest(input);
   ExpectScriptTrue("result instanceof WebAssembly.Memory");
@@ -2802,7 +2802,7 @@ TEST_F(ValueSerializerTestWithSharedArrayBufferClone,
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
     i::Handle<i::JSArrayBuffer> buffer = Utils::OpenHandle(*input_buffer());
     i::DirectHandle<i::WasmMemoryObject> wasm_memory = i::WasmMemoryObject::New(
-        i_isolate, buffer, kMaxPages, i::WasmMemoryFlag::kWasmMemory32);
+        i_isolate, buffer, kMaxPages, i::wasm::AddressType::kI32);
     i::DirectHandle<i::FixedArray> fixed_array =
         i_isolate->factory()->NewFixedArray(2);
     fixed_array->set(0, *buffer);
@@ -3213,15 +3213,11 @@ class ValueSerializerTestWithWasm : public ValueSerializerTest {
 
  protected:
   static void SetUpTestSuite() {
-    g_saved_flag = i::v8_flags.expose_wasm;
-    i::v8_flags.expose_wasm = true;
     ValueSerializerTest::SetUpTestSuite();
   }
 
   static void TearDownTestSuite() {
     ValueSerializerTest::TearDownTestSuite();
-    i::v8_flags.expose_wasm = g_saved_flag;
-    g_saved_flag = false;
   }
 
   class ThrowingSerializer : public ValueSerializer::Delegate {
@@ -3351,7 +3347,6 @@ class ValueSerializerTestWithWasm : public ValueSerializerTest {
   }
 
  private:
-  static bool g_saved_flag;
   std::vector<CompiledWasmModule> transfer_modules_;
   SerializeToTransfer serialize_delegate_;
   DeserializeFromTransfer deserialize_delegate_;
@@ -3361,7 +3356,6 @@ class ValueSerializerTestWithWasm : public ValueSerializerTest {
   ValueDeserializer::Delegate default_deserializer_;
 };
 
-bool ValueSerializerTestWithWasm::g_saved_flag = false;
 const char* ValueSerializerTestWithWasm::kUnsupportedSerialization =
     "Wasm Serialization Not Supported";
 

@@ -340,6 +340,14 @@ struct is_uniquely_represented<
 template <>
 struct is_uniquely_represented<bool> : std::false_type {};
 
+#if ABSL_HAVE_INTRINSIC_INT128
+// Specialize the trait for GNU extension types.
+template <>
+struct is_uniquely_represented<__int128> : std::true_type {};
+template <>
+struct is_uniquely_represented<unsigned __int128> : std::true_type {};
+#endif  // ABSL_HAVE_INTRINSIC_INT128
+
 // hash_bytes()
 //
 // Convenience function that combines `hash_state` with the byte representation
@@ -1016,8 +1024,12 @@ class ABSL_DLL MixingHashState : public HashStateBase<MixingHashState> {
                       : uint64_t{0x9ddfea08eb382d69};
 
   template <typename T>
+  struct FitsIn64Bits : std::integral_constant<bool, sizeof(T) <= 8> {};
+
+  template <typename T>
   using IntegralFastPath =
-      conjunction<std::is_integral<T>, is_uniquely_represented<T>>;
+      conjunction<std::is_integral<T>, is_uniquely_represented<T>,
+                  FitsIn64Bits<T>>;
 
  public:
   // Move only

@@ -159,6 +159,7 @@ source_set("absl_full") {
       # part of Chrome.
       "//components/optimization_guide/internal/*",
       "//third_party/fuzztest:*",
+      "//third_party/webrtc/*",
 
       # GoogleTest doesn't actually need absl_full, but this makes gn check
       # happier.
@@ -230,18 +231,6 @@ config("absl_default_cflags_cc") {
     if (!is_nacl) {
       cflags_cc += [ "-Wbitfield-enum-conversion" ]
     }
-  }
-}
-
-config("absl_public_cflags_cc") {
-  # Non-chromium users of abseil have more lax style guides and use additional features in
-  # abseil, Remove a few extra warnings for that use case.
-  if (!build_with_chromium && is_clang) {
-    cflags = [
-      # Allow the use of enable_if()
-      "-Wno-gcc-compat",
-      "-Wno-unreachable-code-break",
-    ]
   }
 }
 

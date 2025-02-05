@@ -112,7 +112,7 @@ void JSArrayBuffer::Attach(std::shared_ptr<BackingStore> backing_store) {
   if (backing_store->is_wasm_memory()) set_is_detachable(false);
   ArrayBufferExtension* extension = EnsureExtension();
   size_t bytes = backing_store->PerIsolateAccountingLength();
-  extension->set_accounting_length(bytes);
+  extension->set_accounting_state(bytes, ArrayBufferExtension::Age::kYoung);
   extension->set_backing_store(std::move(backing_store));
   isolate->heap()->AppendArrayBufferExtension(*this, extension);
 }

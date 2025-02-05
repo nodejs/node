@@ -27,11 +27,10 @@ Handle<Managed<CppType>> Managed<CppType>::From(
     std::shared_ptr<CppType> shared_ptr, AllocationType allocation_type) {
   static constexpr ExternalPointerTag kTag = TagForManaged<CppType>::value;
   static_assert(IsManagedExternalPointerType(kTag));
-  reinterpret_cast<v8::Isolate*>(isolate)
-      ->AdjustAmountOfExternalAllocatedMemory(estimated_size);
   auto destructor = new ManagedPtrDestructor(
       estimated_size, new std::shared_ptr<CppType>{std::move(shared_ptr)},
       detail::Destructor<CppType>);
+  destructor->external_memory_accounter_.Increase(isolate, estimated_size);
   Handle<Managed<CppType>> handle =
       Cast<Managed<CppType>>(isolate->factory()->NewForeign<kTag>(
           reinterpret_cast<Address>(destructor), allocation_type));
@@ -49,11 +48,10 @@ template <class CppType>
 Handle<TrustedManaged<CppType>> TrustedManaged<CppType>::From(
     Isolate* isolate, size_t estimated_size,
     std::shared_ptr<CppType> shared_ptr) {
-  reinterpret_cast<v8::Isolate*>(isolate)
-      ->AdjustAmountOfExternalAllocatedMemory(estimated_size);
   auto destructor = new ManagedPtrDestructor(
       estimated_size, new std::shared_ptr<CppType>{std::move(shared_ptr)},
       detail::Destructor<CppType>);
+  destructor->external_memory_accounter_.Increase(isolate, estimated_size);
   Handle<TrustedManaged<CppType>> handle =
       Cast<TrustedManaged<CppType>>(isolate->factory()->NewTrustedForeign(
           reinterpret_cast<Address>(destructor)));

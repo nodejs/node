@@ -17,7 +17,7 @@
 
 namespace v8::internal::wasm {
 
-inline MachineRepresentation GetMachineRepresentation(ValueType type) {
+inline MachineRepresentation GetMachineRepresentation(ValueTypeBase type) {
   return type.machine_representation();
 }
 

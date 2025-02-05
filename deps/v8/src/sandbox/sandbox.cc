@@ -25,6 +25,8 @@ namespace internal {
 
 #ifdef V8_ENABLE_SANDBOX
 
+bool Sandbox::first_four_gb_of_address_space_are_reserved_ = false;
+
 // Best-effort function to determine the approximate size of the virtual
 // address space that can be addressed by this process. Used to determine
 // appropriate sandbox size and placement.
@@ -187,6 +189,20 @@ bool Sandbox::Initialize(v8::VirtualAddressSpace* vas, size_t size,
     // These must succeed since nothing was allocated in the subspace yet.
     CHECK(address_space_->AllocateGuardRegion(front, kSandboxGuardRegionSize));
     CHECK(address_space_->AllocateGuardRegion(back, kSandboxGuardRegionSize));
+  }
+
+  // Also try to reserve the first 4GB of the process' address space. This
+  // mitigates Smi<->HeapObject confusion bugs in which we end up treating a
+  // Smi value as a pointer.
+  if (!first_four_gb_of_address_space_are_reserved_) {
+    Address end = 4UL * GB;
+    size_t step = address_space_->allocation_granularity();
+    for (Address start = 0; start <= 1 * MB; start += step) {
+      if (vas->AllocateGuardRegion(start, end - start)) {
+        first_four_gb_of_address_space_are_reserved_ = true;
+        break;
+      }
+    }
   }
 
   initialized_ = true;

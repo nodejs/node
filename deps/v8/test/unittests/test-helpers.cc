@@ -39,7 +39,7 @@ Handle<SharedFunctionInfo> CreateSharedFunctionInfo(
   Handle<SharedFunctionInfo> shared =
       isolate->factory()->NewSharedFunctionInfoForBuiltin(
           isolate->factory()->NewStringFromAsciiChecked("f"),
-          Builtin::kCompileLazy);
+          Builtin::kCompileLazy, 0, kAdapt);
   int function_literal_id = 1;
   shared->set_function_literal_id(function_literal_id);
   shared->set_internal_formal_parameter_count(resource->parameter_count());

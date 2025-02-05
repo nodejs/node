@@ -29,7 +29,7 @@ class JSProxy : public TorqueGeneratedJSProxy<JSProxy, JSReceiver> {
   static void Revoke(DirectHandle<JSProxy> proxy);
 
   // ES6 9.5.1
-  static MaybeHandle<HeapObject> GetPrototype(DirectHandle<JSProxy> receiver);
+  static MaybeHandle<JSPrototype> GetPrototype(DirectHandle<JSProxy> receiver);
 
   // ES6 9.5.2
   V8_WARN_UNUSED_RESULT static Maybe<bool> SetPrototype(
@@ -72,7 +72,7 @@ class JSProxy : public TorqueGeneratedJSProxy<JSProxy, JSReceiver> {
   // ES6 9.5.8
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSAny> GetProperty(
       Isolate* isolate, DirectHandle<JSProxy> proxy, Handle<Name> name,
-      Handle<Object> receiver, bool* was_found);
+      Handle<JSAny> receiver, bool* was_found);
 
   enum AccessKind { kGet, kSet };
 
@@ -85,7 +85,7 @@ class JSProxy : public TorqueGeneratedJSProxy<JSProxy, JSReceiver> {
   // ES6 9.5.9
   V8_WARN_UNUSED_RESULT static Maybe<bool> SetProperty(
       DirectHandle<JSProxy> proxy, Handle<Name> name, Handle<Object> value,
-      Handle<Object> receiver, Maybe<ShouldThrow> should_throw);
+      Handle<JSAny> receiver, Maybe<ShouldThrow> should_throw);
 
   // ES6 9.5.10 (when passed LanguageMode::kSloppy)
   V8_WARN_UNUSED_RESULT static Maybe<bool> DeletePropertyOrElement(

@@ -10,6 +10,7 @@
 #include "src/api/api-natives.h"
 #include "src/base/strings.h"
 #include "src/common/globals.h"
+#include "src/debug/debug-interface.h"
 #include "src/debug/debug-wasm-objects-inl.h"
 #include "src/execution/frames-inl.h"
 #include "src/objects/allocation-site.h"
@@ -587,10 +588,10 @@ class ContextProxyPrototype {
       const char* kDelegateNames[] = {"memories", "locals", "tables",
                                       "functions", "globals"};
       for (auto delegate_name : kDelegateNames) {
-        Handle<Object> delegate;
-        ASSIGN_RETURN_ON_EXCEPTION(
-            isolate, delegate,
-            JSObject::GetProperty(isolate, receiver, delegate_name));
+        Handle<JSAny> delegate;
+        ASSIGN_RETURN_ON_EXCEPTION(isolate, delegate,
+                                   Cast<JSAny>(JSObject::GetProperty(
+                                       isolate, receiver, delegate_name)));
         if (!IsUndefined(*delegate, isolate)) {
           Handle<Object> value;
           ASSIGN_RETURN_ON_EXCEPTION(
@@ -928,7 +929,7 @@ struct StructProxy : NamedDebugProxy<StructProxy, kStructProxy, FixedArray> {
     Handle<FixedArray> data = isolate->factory()->NewFixedArray(kLength);
     data->set(kObjectIndex, *value);
     data->set(kModuleIndex, *module);
-    int struct_type_index = value->map()->wasm_type_info()->type_index();
+    int struct_type_index = value->map()->wasm_type_info()->module_type_index();
     data->set(kTypeIndexIndex, Smi::FromInt(struct_type_index));
     return NamedDebugProxy::Create(isolate, data);
   }
@@ -1068,8 +1069,7 @@ Handle<WasmValueObject> WasmValueObject::New(
       } else if (IsWasmStruct(*ref)) {
         Tagged<WasmTypeInfo> type_info =
             Cast<HeapObject>(*ref)->map()->wasm_type_info();
-        wasm::ValueType type = wasm::ValueType::FromIndex(
-            wasm::ValueKind::kRef, type_info->type_index());
+        wasm::ValueType type = wasm::ValueType::Ref(type_info->type_index());
         // Getting the trusted data is safe; structs always have the instance
         // data defined.
         DirectHandle<WasmTrustedInstanceData> wtid(
@@ -1080,8 +1080,7 @@ Handle<WasmValueObject> WasmValueObject::New(
       } else if (IsWasmArray(*ref)) {
         Tagged<WasmTypeInfo> type_info =
             Cast<HeapObject>(*ref)->map()->wasm_type_info();
-        wasm::ValueType type = wasm::ValueType::FromIndex(
-            wasm::ValueKind::kRef, type_info->type_index());
+        wasm::ValueType type = wasm::ValueType::Ref(type_info->type_index());
         // Getting the trusted data is safe; arrays always have the instance
         // data defined.
         DirectHandle<WasmTrustedInstanceData> wtid(
@@ -1127,6 +1126,7 @@ Handle<WasmValueObject> WasmValueObject::New(
     }
     case wasm::kRtt:
     case wasm::kVoid:
+    case wasm::kTop:
     case wasm::kBottom:
       UNREACHABLE();
   }
@@ -1222,12 +1222,13 @@ Handle<ArrayList> AddWasmTableObjectInternalProperties(
   DirectHandle<FixedArray> entries = isolate->factory()->NewFixedArray(length);
   for (int i = 0; i < length; ++i) {
     Handle<Object> entry = WasmTableObject::Get(isolate, table, i);
-    wasm::WasmValue wasm_value(entry, table->type());
     Handle<WasmModuleObject> module;
     if (table->has_trusted_data()) {
       module = Handle<WasmModuleObject>(
           table->trusted_data(isolate)->module_object(), isolate);
     }
+    wasm::WasmValue wasm_value(entry, table->type(),
+                               !module.is_null() ? module->module() : nullptr);
     DirectHandle<Object> debug_value =
         WasmValueObject::New(isolate, wasm_value, module);
     entries->set(i, *debug_value);

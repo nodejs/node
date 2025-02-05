@@ -6,6 +6,7 @@
 
 #include "src/codegen/flush-instruction-cache.h"
 #include "src/codegen/macro-assembler.h"
+#include "src/common/code-memory-access-inl.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/isolate-data.h"
 
@@ -30,6 +31,12 @@ const int Deoptimizer::kLazyDeoptExitSize = 8;
 const int Deoptimizer::kLazyDeoptExitSize = 4;
 #endif
 
+#if V8_ENABLE_CET_SHADOW_STACK
+const int Deoptimizer::kAdaptShadowStackOffsetToSubtract = 7;
+#else
+const int Deoptimizer::kAdaptShadowStackOffsetToSubtract = 0;
+#endif
+
 // static
 void Deoptimizer::PatchJumpToTrampoline(Address pc, Address new_pc) {
   if (!Assembler::IsNop(pc)) {
@@ -38,6 +45,7 @@ void Deoptimizer::PatchJumpToTrampoline(Address pc, Address new_pc) {
     return;
   }
 
+  RwxMemoryWriteScope rwx_write_scope("Patch jump to deopt trampoline");
   // We'll overwrite only one instruction of 5-bytes. Give enough
   // space not to try to grow the buffer.
   constexpr int kSize = 32;
@@ -67,6 +75,7 @@ void RegisterValues::SetDoubleRegister(unsigned n, Float64 value) {
 
 void FrameDescription::SetCallerPc(unsigned offset, intptr_t value) {
   SetFrameSlot(offset, value);
+  caller_pc_ = value;
 }
 
 void FrameDescription::SetCallerFp(unsigned offset, intptr_t value) {

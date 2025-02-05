@@ -71,11 +71,17 @@ class V8_EXPORT CageBaseGlobal final {
 
 class V8_TRIVIAL_ABI CompressedPointer final {
  public:
+  struct AtomicInitializerTag {};
+
   using IntegralType = uint32_t;
   static constexpr auto kWriteBarrierSlotType =
       WriteBarrierSlotType::kCompressed;
 
   V8_INLINE CompressedPointer() : value_(0u) {}
+  V8_INLINE explicit CompressedPointer(const void* value,
+                                       AtomicInitializerTag) {
+    StoreAtomic(value);
+  }
   V8_INLINE explicit CompressedPointer(const void* ptr)
       : value_(Compress(ptr)) {}
   V8_INLINE explicit CompressedPointer(std::nullptr_t) : value_(0u) {}
@@ -196,11 +202,16 @@ class V8_TRIVIAL_ABI CompressedPointer final {
 
 class V8_TRIVIAL_ABI RawPointer final {
  public:
+  struct AtomicInitializerTag {};
+
   using IntegralType = uintptr_t;
   static constexpr auto kWriteBarrierSlotType =
       WriteBarrierSlotType::kUncompressed;
 
   V8_INLINE RawPointer() : ptr_(nullptr) {}
+  V8_INLINE explicit RawPointer(const void* ptr, AtomicInitializerTag) {
+    StoreAtomic(ptr);
+  }
   V8_INLINE explicit RawPointer(const void* ptr) : ptr_(ptr) {}
 
   V8_INLINE const void* Load() const { return ptr_; }

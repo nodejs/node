@@ -121,7 +121,7 @@ struct CppHeapPointerT : UntaggedT {
 };
 #endif  // !V8_COMPRESS_POINTERS
 
-struct Float16T : Word32T {
+struct Float16RawBitsT : Word32T {
   static constexpr MachineType kMachineType = MachineType::Uint16();
 };
 
@@ -297,6 +297,10 @@ using BuiltinPtr = Smi;
 
 template <>
 struct is_subtype<ExternalReference, RawPtrT> {
+  static const bool value = true;
+};
+template <>
+struct is_subtype<IntPtrT, RawPtrT> {
   static const bool value = true;
 };
 

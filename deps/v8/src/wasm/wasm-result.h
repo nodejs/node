@@ -151,6 +151,8 @@ class V8_EXPORT_PRIVATE ErrorThrower {
 
   Isolate* isolate() const { return isolate_; }
 
+  constexpr const char* context_name() const { return context_; }
+
  private:
   enum ErrorType {
     kNone,
@@ -168,8 +170,8 @@ class V8_EXPORT_PRIVATE ErrorThrower {
 
   void Format(ErrorType error_type_, const char* fmt, va_list);
 
-  Isolate* isolate_;
-  const char* context_;
+  Isolate* const isolate_;
+  const char* const context_;
   ErrorType error_type_ = kNone;
   std::string error_msg_;
 

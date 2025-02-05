@@ -386,7 +386,7 @@ class V8_EXPORT_PRIVATE ObjectRef {
     CHECK_NOT_NULL(data_);
   }
 
-  Handle<Object> object() const;
+  IndirectHandle<Object> object() const;
 
   bool equals(ObjectRef other) const;
 
@@ -521,7 +521,7 @@ class HeapObjectRef : public ObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(HeapObject, ObjectRef)
 
-  Handle<HeapObject> object() const;
+  IndirectHandle<HeapObject> object() const;
 
   MapRef map(JSHeapBroker* broker) const;
 
@@ -537,7 +537,7 @@ class PropertyCellRef : public HeapObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(PropertyCell, HeapObjectRef)
 
-  Handle<PropertyCell> object() const;
+  IndirectHandle<PropertyCell> object() const;
 
   V8_WARN_UNUSED_RESULT bool Cache(JSHeapBroker* broker) const;
   void CacheAsProtector(JSHeapBroker* broker) const {
@@ -555,14 +555,14 @@ class JSReceiverRef : public HeapObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(JSReceiver, HeapObjectRef)
 
-  Handle<JSReceiver> object() const;
+  IndirectHandle<JSReceiver> object() const;
 };
 
 class JSObjectRef : public JSReceiverRef {
  public:
   DEFINE_REF_CONSTRUCTOR(JSObject, JSReceiverRef)
 
-  Handle<JSObject> object() const;
+  IndirectHandle<JSObject> object() const;
 
   OptionalObjectRef raw_properties_or_hash(JSHeapBroker* broker) const;
 
@@ -627,7 +627,7 @@ class JSDataViewRef : public JSObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(JSDataView, JSObjectRef)
 
-  Handle<JSDataView> object() const;
+  IndirectHandle<JSDataView> object() const;
 
   size_t byte_length() const;
 };
@@ -636,7 +636,7 @@ class JSBoundFunctionRef : public JSObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(JSBoundFunction, JSObjectRef)
 
-  Handle<JSBoundFunction> object() const;
+  IndirectHandle<JSBoundFunction> object() const;
 
   JSReceiverRef bound_target_function(JSHeapBroker* broker) const;
   ObjectRef bound_this(JSHeapBroker* broker) const;
@@ -647,7 +647,7 @@ class V8_EXPORT_PRIVATE JSFunctionRef : public JSObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(JSFunction, JSObjectRef)
 
-  Handle<JSFunction> object() const;
+  IndirectHandle<JSFunction> object() const;
 
   // Returns true, iff the serialized JSFunctionData contents are consistent
   // with the state of the underlying JSFunction object. Must be called from
@@ -673,7 +673,7 @@ class RegExpBoilerplateDescriptionRef : public HeapObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(RegExpBoilerplateDescription, HeapObjectRef)
 
-  Handle<RegExpBoilerplateDescription> object() const;
+  IndirectHandle<RegExpBoilerplateDescription> object() const;
 
   HeapObjectRef data(JSHeapBroker* broker) const;
   StringRef source(JSHeapBroker* broker) const;
@@ -689,7 +689,7 @@ class HeapNumberRef : public HeapObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(HeapNumber, HeapObjectRef)
 
-  Handle<HeapNumber> object() const;
+  IndirectHandle<HeapNumber> object() const;
 
   double value() const;
   uint64_t value_as_bits() const;
@@ -699,7 +699,7 @@ class ContextRef : public HeapObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(Context, HeapObjectRef)
 
-  Handle<Context> object() const;
+  IndirectHandle<Context> object() const;
 
   // {previous} decrements {depth} by 1 for each previous link successfully
   // followed. If {depth} != 0 on function return, then it only got partway to
@@ -765,7 +765,7 @@ class NativeContextRef : public ContextRef {
  public:
   DEFINE_REF_CONSTRUCTOR(NativeContext, ContextRef)
 
-  Handle<NativeContext> object() const;
+  IndirectHandle<NativeContext> object() const;
 
 #define DECL_ACCESSOR(type, name) type##Ref name(JSHeapBroker* broker) const;
   BROKER_NATIVE_CONTEXT_FIELDS(DECL_ACCESSOR)
@@ -782,7 +782,7 @@ class NameRef : public HeapObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(Name, HeapObjectRef)
 
-  Handle<Name> object() const;
+  IndirectHandle<Name> object() const;
 
   bool IsUniqueName() const;
 };
@@ -791,7 +791,7 @@ class DescriptorArrayRef : public HeapObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(DescriptorArray, HeapObjectRef)
 
-  Handle<DescriptorArray> object() const;
+  IndirectHandle<DescriptorArray> object() const;
 
   PropertyDetails GetPropertyDetails(InternalIndex descriptor_index) const;
   NameRef GetPropertyKey(JSHeapBroker* broker,
@@ -804,7 +804,7 @@ class FeedbackCellRef : public HeapObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(FeedbackCell, HeapObjectRef)
 
-  Handle<FeedbackCell> object() const;
+  IndirectHandle<FeedbackCell> object() const;
 
   ObjectRef value(JSHeapBroker* broker) const;
 
@@ -818,7 +818,7 @@ class FeedbackVectorRef : public HeapObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(FeedbackVector, HeapObjectRef)
 
-  Handle<FeedbackVector> object() const;
+  IndirectHandle<FeedbackVector> object() const;
 
   SharedFunctionInfoRef shared_function_info(JSHeapBroker* broker) const;
 
@@ -831,14 +831,14 @@ class AccessorInfoRef : public HeapObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(AccessorInfo, HeapObjectRef)
 
-  Handle<AccessorInfo> object() const;
+  IndirectHandle<AccessorInfo> object() const;
 };
 
 class AllocationSiteRef : public HeapObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(AllocationSite, HeapObjectRef)
 
-  Handle<AllocationSite> object() const;
+  IndirectHandle<AllocationSite> object() const;
 
   bool PointsToLiteral() const;
   AllocationType GetAllocationType() const;
@@ -853,7 +853,7 @@ class BigIntRef : public HeapObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(BigInt, HeapObjectRef)
 
-  Handle<BigInt> object() const;
+  IndirectHandle<BigInt> object() const;
 
   uint64_t AsUint64() const;
   int64_t AsInt64(bool* lossless) const;
@@ -863,7 +863,7 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(Map, HeapObjectRef)
 
-  Handle<Map> object() const;
+  IndirectHandle<Map> object() const;
 
   int instance_size() const;
   InstanceType instance_type() const;
@@ -945,7 +945,7 @@ class FunctionTemplateInfoRef : public HeapObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(FunctionTemplateInfo, HeapObjectRef)
 
-  Handle<FunctionTemplateInfo> object() const;
+  IndirectHandle<FunctionTemplateInfo> object() const;
 
   bool is_signature_undefined(JSHeapBroker* broker) const;
   bool accept_any_receiver() const;
@@ -967,15 +967,15 @@ class FixedArrayBaseRef : public HeapObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(FixedArrayBase, HeapObjectRef)
 
-  Handle<FixedArrayBase> object() const;
+  IndirectHandle<FixedArrayBase> object() const;
 
-  int length() const;
+  uint32_t length() const;
 };
 
 class ArrayBoilerplateDescriptionRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
-  Handle<ArrayBoilerplateDescription> object() const;
+  IndirectHandle<ArrayBoilerplateDescription> object() const;
 
   int constants_elements_length() const;
 };
@@ -984,7 +984,7 @@ class FixedArrayRef : public FixedArrayBaseRef {
  public:
   DEFINE_REF_CONSTRUCTOR(FixedArray, FixedArrayBaseRef)
 
-  Handle<FixedArray> object() const;
+  IndirectHandle<FixedArray> object() const;
 
   OptionalObjectRef TryGet(JSHeapBroker* broker, int i) const;
 };
@@ -993,7 +993,7 @@ class FixedDoubleArrayRef : public FixedArrayBaseRef {
  public:
   DEFINE_REF_CONSTRUCTOR(FixedDoubleArray, FixedArrayBaseRef)
 
-  Handle<FixedDoubleArray> object() const;
+  IndirectHandle<FixedDoubleArray> object() const;
 
   // Due to 64-bit unaligned reads, only usable for
   // immutable-after-initialization FixedDoubleArrays protected by
@@ -1005,7 +1005,7 @@ class BytecodeArrayRef : public HeapObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(BytecodeArray, HeapObjectRef)
 
-  Handle<BytecodeArray> object() const;
+  IndirectHandle<BytecodeArray> object() const;
 
   // NOTE: Concurrent reads of the actual bytecodes as well as the constant pool
   // (both immutable) do not go through BytecodeArrayRef but are performed
@@ -1015,10 +1015,12 @@ class BytecodeArrayRef : public HeapObjectRef {
 
   int register_count() const;
   uint16_t parameter_count() const;
+  uint16_t parameter_count_without_receiver() const;
   uint16_t max_arguments() const;
   interpreter::Register incoming_new_target_or_generator_register() const;
 
-  Handle<TrustedByteArray> SourcePositionTable(JSHeapBroker* broker) const;
+  IndirectHandle<TrustedByteArray> SourcePositionTable(
+      JSHeapBroker* broker) const;
 
   // Exception handler table.
   Address handler_table_address() const;
@@ -1029,14 +1031,14 @@ class ScriptContextTableRef : public FixedArrayBaseRef {
  public:
   DEFINE_REF_CONSTRUCTOR(ScriptContextTable, FixedArrayBaseRef)
 
-  Handle<ScriptContextTable> object() const;
+  IndirectHandle<ScriptContextTable> object() const;
 };
 
 class ObjectBoilerplateDescriptionRef : public FixedArrayRef {
  public:
   DEFINE_REF_CONSTRUCTOR(ObjectBoilerplateDescription, FixedArrayRef)
 
-  Handle<ObjectBoilerplateDescription> object() const;
+  IndirectHandle<ObjectBoilerplateDescription> object() const;
 
   int boilerplate_properties_count() const;
 };
@@ -1045,7 +1047,7 @@ class JSArrayRef : public JSObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(JSArray, JSObjectRef)
 
-  Handle<JSArray> object() const;
+  IndirectHandle<JSArray> object() const;
 
   // The `length` property of boilerplate JSArray objects. Boilerplates are
   // immutable after initialization. Must not be used for non-boilerplate
@@ -1071,7 +1073,7 @@ class ScopeInfoRef : public HeapObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(ScopeInfo, HeapObjectRef)
 
-  Handle<ScopeInfo> object() const;
+  IndirectHandle<ScopeInfo> object() const;
 
   int ContextLength() const;
   bool HasContext() const;
@@ -1083,33 +1085,29 @@ class ScopeInfoRef : public HeapObjectRef {
   ScopeInfoRef OuterScopeInfo(JSHeapBroker* broker) const;
 };
 
-#define BROKER_SFI_FIELDS(V)                                    \
-  V(int, internal_formal_parameter_count_with_receiver)         \
-  V(int, internal_formal_parameter_count_without_receiver)      \
-  V(bool, IsDontAdaptArguments)                                 \
-  V(bool, has_simple_parameters)                                \
-  V(bool, has_duplicate_parameters)                             \
-  V(int, function_map_index)                                    \
-  V(FunctionKind, kind)                                         \
-  V(LanguageMode, language_mode)                                \
-  V(bool, native)                                               \
-  V(bool, HasBuiltinId)                                         \
-  V(bool, construct_as_builtin)                                 \
-  V(bool, HasBytecodeArray)                                     \
-  V(int, StartPosition)                                         \
-  V(bool, is_compiled)                                          \
-  V(bool, IsUserJavaScript)                                     \
-  V(bool, requires_instance_members_initializer)                \
-  IF_WASM(V, const wasm::WasmModule*, wasm_module)              \
-  IF_WASM(V, const wasm::FunctionSig*, wasm_function_signature) \
-  IF_WASM(V, int, wasm_function_index)                          \
-  IF_WASM(V, bool, is_promising_wasm_export)
+#define BROKER_SFI_FIELDS(V)                               \
+  V(int, internal_formal_parameter_count_with_receiver)    \
+  V(int, internal_formal_parameter_count_without_receiver) \
+  V(bool, IsDontAdaptArguments)                            \
+  V(bool, has_simple_parameters)                           \
+  V(bool, has_duplicate_parameters)                        \
+  V(int, function_map_index)                               \
+  V(FunctionKind, kind)                                    \
+  V(LanguageMode, language_mode)                           \
+  V(bool, native)                                          \
+  V(bool, HasBuiltinId)                                    \
+  V(bool, construct_as_builtin)                            \
+  V(bool, HasBytecodeArray)                                \
+  V(int, StartPosition)                                    \
+  V(bool, is_compiled)                                     \
+  V(bool, IsUserJavaScript)                                \
+  V(bool, requires_instance_members_initializer)
 
 class V8_EXPORT_PRIVATE SharedFunctionInfoRef : public HeapObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(SharedFunctionInfo, HeapObjectRef)
 
-  Handle<SharedFunctionInfo> object() const;
+  IndirectHandle<SharedFunctionInfo> object() const;
 
   Builtin builtin_id() const;
   int context_header_size() const;
@@ -1135,7 +1133,7 @@ class StringRef : public NameRef {
  public:
   DEFINE_REF_CONSTRUCTOR(String, NameRef)
 
-  Handle<String> object() const;
+  IndirectHandle<String> object() const;
 
   // With concurrent inlining on, we return std::nullopt due to not being able
   // to use LookupIterator in a thread-safe way.
@@ -1145,9 +1143,9 @@ class StringRef : public NameRef {
   // When concurrently accessing non-read-only non-supported strings, we return
   // std::nullopt for these methods.
   std::optional<Handle<String>> ObjectIfContentAccessible(JSHeapBroker* broker);
-  int length() const;
+  uint32_t length() const;
   std::optional<uint16_t> GetFirstChar(JSHeapBroker* broker) const;
-  std::optional<uint16_t> GetChar(JSHeapBroker* broker, int index) const;
+  std::optional<uint16_t> GetChar(JSHeapBroker* broker, uint32_t index) const;
   std::optional<double> ToNumber(JSHeapBroker* broker);
   std::optional<double> ToInt(JSHeapBroker* broker, int radix);
 
@@ -1168,14 +1166,14 @@ class SymbolRef : public NameRef {
  public:
   DEFINE_REF_CONSTRUCTOR(Symbol, NameRef)
 
-  Handle<Symbol> object() const;
+  IndirectHandle<Symbol> object() const;
 };
 
 class JSTypedArrayRef : public JSObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(JSTypedArray, JSObjectRef)
 
-  Handle<JSTypedArray> object() const;
+  IndirectHandle<JSTypedArray> object() const;
 
   bool is_on_heap() const;
   size_t length() const;
@@ -1189,14 +1187,14 @@ class JSPrimitiveWrapperRef : public JSObjectRef {
 
   bool IsStringWrapper(JSHeapBroker* broker) const;
 
-  Handle<JSPrimitiveWrapper> object() const;
+  IndirectHandle<JSPrimitiveWrapper> object() const;
 };
 
 class SourceTextModuleRef : public HeapObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(SourceTextModule, HeapObjectRef)
 
-  Handle<SourceTextModule> object() const;
+  IndirectHandle<SourceTextModule> object() const;
 
   OptionalCellRef GetCell(JSHeapBroker* broker, int cell_index) const;
   OptionalObjectRef import_meta(JSHeapBroker* broker) const;
@@ -1206,21 +1204,21 @@ class TemplateObjectDescriptionRef : public HeapObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(TemplateObjectDescription, HeapObjectRef)
 
-  Handle<TemplateObjectDescription> object() const;
+  IndirectHandle<TemplateObjectDescription> object() const;
 };
 
 class CellRef : public HeapObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(Cell, HeapObjectRef)
 
-  Handle<Cell> object() const;
+  IndirectHandle<Cell> object() const;
 };
 
 class JSGlobalObjectRef : public JSObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(JSGlobalObject, JSObjectRef)
 
-  Handle<JSGlobalObject> object() const;
+  IndirectHandle<JSGlobalObject> object() const;
 
   bool IsDetachedFrom(JSGlobalProxyRef proxy) const;
 
@@ -1233,14 +1231,14 @@ class JSGlobalProxyRef : public JSObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(JSGlobalProxy, JSObjectRef)
 
-  Handle<JSGlobalProxy> object() const;
+  IndirectHandle<JSGlobalProxy> object() const;
 };
 
 class CodeRef : public HeapObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(Code, HeapObjectRef)
 
-  Handle<Code> object() const;
+  IndirectHandle<Code> object() const;
 
   unsigned GetInlinedBytecodeSize() const;
 };
@@ -1249,7 +1247,7 @@ class InternalizedStringRef : public StringRef {
  public:
   DEFINE_REF_CONSTRUCTOR(InternalizedString, StringRef)
 
-  Handle<InternalizedString> object() const;
+  IndirectHandle<InternalizedString> object() const;
 };
 
 #undef DEFINE_REF_CONSTRUCTOR

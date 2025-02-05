@@ -99,6 +99,8 @@ JSSynchronizationPrimitive::SetWaiterQueueHead(Isolate* requester,
       // threads may access an uninitialized table entry and crash.
       base::AsAtomic32::Release_Store(waiter_queue_head_handle_location(),
                                       handle);
+      EXTERNAL_POINTER_WRITE_BARRIER(*this, kWaiterQueueHeadOffset,
+                                     kWaiterQueueNodeTag);
       return new_state;
     }
     if (DEBUG_BOOL) {

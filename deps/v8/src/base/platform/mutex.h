@@ -70,6 +70,7 @@ class V8_BASE_EXPORT Mutex final {
 
   // Tries to lock the given mutex. Returns whether the mutex was
   // successfully locked.
+  // Note: Instead of `DCHECK(!mutex.TryLock())` use `mutex.AssertHeld()`.
   bool TryLock() V8_WARN_UNUSED_RESULT;
 
   // The implementation-defined native handle type.
@@ -88,17 +89,24 @@ class V8_BASE_EXPORT Mutex final {
     return native_handle_;
   }
 
-  V8_INLINE void AssertHeld() const { DCHECK_EQ(1, level_); }
-  V8_INLINE void AssertUnheld() const { DCHECK_EQ(0, level_); }
+  V8_INLINE void AssertHeld() const {
+    // If this access results in a race condition being detected by TSan, this
+    // means that you in fact did *not* hold the mutex.
+    DCHECK_EQ(1, level_);
+  }
 
  private:
   NativeHandle native_handle_;
 #ifdef DEBUG
+  // This is being used for Assert* methods. Accesses are only allowed if you
+  // actually hold the mutex, otherwise you would get race conditions.
   int level_;
 #endif
 
   V8_INLINE void AssertHeldAndUnmark() {
 #ifdef DEBUG
+    // If this access results in a race condition being detected by TSan, this
+    // means that you in fact did *not* hold the mutex.
     DCHECK_EQ(1, level_);
     level_--;
 #endif
@@ -106,6 +114,8 @@ class V8_BASE_EXPORT Mutex final {
 
   V8_INLINE void AssertUnheldAndMark() {
 #ifdef DEBUG
+    // This is only invoked *after* actually getting the mutex, so should not
+    // result in race conditions.
     DCHECK_EQ(0, level_);
     level_++;
 #endif
@@ -172,9 +182,14 @@ class V8_BASE_EXPORT RecursiveMutex final {
 
   // Tries to lock the given mutex. Returns whether the mutex was
   // successfully locked.
+  // Note: Instead of `DCHECK(!mutex.TryLock())` use `mutex.AssertHeld()`.
   bool TryLock() V8_WARN_UNUSED_RESULT;
 
-  V8_INLINE void AssertHeld() const { DCHECK_LT(0, level_); }
+  V8_INLINE void AssertHeld() const {
+    // If this access results in a race condition being detected by TSan, this
+    // mean that you in fact did *not* hold the mutex.
+    DCHECK_LT(0, level_);
+  }
 
  private:
   // The implementation-defined native handle type.
@@ -188,6 +203,8 @@ class V8_BASE_EXPORT RecursiveMutex final {
 
   NativeHandle native_handle_;
 #ifdef DEBUG
+  // This is being used for Assert* methods. Accesses are only allowed if you
+  // actually hold the mutex, otherwise you would get race conditions.
   int level_;
 #endif
 };

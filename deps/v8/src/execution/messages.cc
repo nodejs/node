@@ -68,8 +68,7 @@ void MessageHandler::DefaultMessageReport(Isolate* isolate,
     HandleScope scope(isolate);
     DirectHandle<Object> data(loc->script()->name(), isolate);
     std::unique_ptr<char[]> data_str;
-    if (IsString(*data))
-      data_str = Cast<String>(data)->ToCString(DISALLOW_NULLS);
+    if (IsString(*data)) data_str = Cast<String>(data)->ToCString();
     PrintF("%s:%i: %s\n", data_str ? data_str.get() : "<unknown>",
            loc->start_pos(), str.get());
   }
@@ -77,9 +76,7 @@ void MessageHandler::DefaultMessageReport(Isolate* isolate,
 
 Handle<JSMessageObject> MessageHandler::MakeMessageObject(
     Isolate* isolate, MessageTemplate message, const MessageLocation* location,
-    DirectHandle<Object> argument, DirectHandle<FixedArray> stack_frames) {
-  Factory* factory = isolate->factory();
-
+    DirectHandle<Object> argument, DirectHandle<StackTraceInfo> stack_trace) {
   int start = -1;
   int end = -1;
   int bytecode_offset = -1;
@@ -93,15 +90,9 @@ Handle<JSMessageObject> MessageHandler::MakeMessageObject(
     shared_info = location->shared();
   }
 
-  DirectHandle<Object> stack_frames_handle =
-      stack_frames.is_null() ? Cast<Object>(factory->undefined_value())
-                             : Cast<Object>(stack_frames);
-
-  Handle<JSMessageObject> message_obj = factory->NewJSMessageObject(
-      message, argument, start, end, shared_info, bytecode_offset,
-      script_handle, stack_frames_handle);
-
-  return message_obj;
+  return isolate->factory()->NewJSMessageObject(message, argument, start, end,
+                                                shared_info, bytecode_offset,
+                                                script_handle, stack_trace);
 }
 
 void MessageHandler::ReportMessage(Isolate* isolate, const MessageLocation* loc,
@@ -203,7 +194,7 @@ Handle<String> MessageHandler::GetMessage(Isolate* isolate,
 std::unique_ptr<char[]> MessageHandler::GetLocalizedMessage(
     Isolate* isolate, DirectHandle<Object> data) {
   HandleScope scope(isolate);
-  return GetMessage(isolate, data)->ToCString(DISALLOW_NULLS);
+  return GetMessage(isolate, data)->ToCString();
 }
 
 namespace {
@@ -337,8 +328,8 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(
         ASSIGN_RETURN_ON_EXCEPTION(isolate, sites,
                                    GetStackFrames(isolate, elems));
 
-        const int argc = 2;
-        base::ScopedVector<Handle<Object>> argv(argc);
+        constexpr int argc = 2;
+        std::array<Handle<Object>, argc> argv;
         if (V8_UNLIKELY(IsJSGlobalObject(*error))) {
           // Pass global proxy instead of global object.
           argv[0] =
@@ -353,8 +344,7 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(
         ASSIGN_RETURN_ON_EXCEPTION(
             isolate, result,
             Execution::Call(isolate, prepare_stack_trace, global_error, argc,
-                            argv.begin()));
-
+                            argv.data()));
         return result;
       }
     }
@@ -667,15 +657,14 @@ MaybeHandle<String> ErrorUtils::ToString(Isolate* isolate,
                                          ToStringMessageSource message_source) {
   // 1. Let O be the this value.
   // 2. If Type(O) is not Object, throw a TypeError exception.
-  if (!IsJSReceiver(*receiver)) {
+  Handle<JSReceiver> recv;
+  if (!TryCast<JSReceiver>(receiver, &recv)) {
     THROW_NEW_ERROR(isolate,
                     NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
                                  isolate->factory()->NewStringFromAsciiChecked(
                                      "Error.prototype.toString"),
                                  receiver));
   }
-  Handle<JSReceiver> recv = Cast<JSReceiver>(receiver);
-
   // 3. Let name be ? Get(O, "name").
   // 4. If name is undefined, let name be "Error"; otherwise let name be
   // ? ToString(name).
@@ -699,7 +688,7 @@ MaybeHandle<String> ErrorUtils::ToString(Isolate* isolate,
     //
     // If |recv| was not constructed with %Error%, use the "message" property.
     LookupIterator it(isolate, LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR,
-                      receiver, isolate->factory()->error_message_symbol());
+                      recv, isolate->factory()->error_message_symbol());
     Handle<Object> result = JSReceiver::GetDataProperty(&it);
     if (it.IsFound() && IsUndefined(*result, isolate)) {
       msg = msg_default;
@@ -1152,7 +1141,6 @@ MaybeHandle<Object> ErrorUtils::GetFormattedStack(
     if (error_stack_data->HasFormattedStack()) {
       return handle(error_stack_data->formatted_stack(), isolate);
     }
-    ErrorStackData::EnsureStackFrameInfos(isolate, error_stack_data);
 
     Handle<JSObject> error_object =
         lookup.error_stack_symbol_holder.ToHandleChecked();
@@ -1198,7 +1186,6 @@ void ErrorUtils::SetFormattedStack(Isolate* isolate,
 
   if (IsErrorStackData(*lookup.error_stack)) {
     auto error_stack_data = Cast<ErrorStackData>(lookup.error_stack);
-    ErrorStackData::EnsureStackFrameInfos(isolate, error_stack_data);
     error_stack_data->set_formatted_stack(*formatted_stack);
   } else {
     Object::SetProperty(isolate, error_object,

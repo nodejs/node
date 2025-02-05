@@ -245,7 +245,7 @@ RUNTIME_FUNCTION(Runtime_InitializeDisposableStack) {
 
 Tagged<Object> AddToDisposableStack(Isolate* isolate,
                                     DirectHandle<JSDisposableStackBase> stack,
-                                    Handle<Object> value,
+                                    Handle<JSAny> value,
                                     DisposeMethodCallType type,
                                     DisposeMethodHint hint) {
   // a. If V is either null or undefined and hint is sync-dispose, return
@@ -274,7 +274,7 @@ RUNTIME_FUNCTION(Runtime_AddDisposableValue) {
   DCHECK_EQ(2, args.length());
 
   DirectHandle<JSDisposableStackBase> stack = args.at<JSDisposableStackBase>(0);
-  Handle<Object> value = args.at<Object>(1);
+  Handle<JSAny> value = args.at<JSAny>(1);
 
   // Return the DisposableResource Record { [[ResourceValue]]: V, [[Hint]]:
   // hint, [[DisposeMethod]]: method }.
@@ -288,7 +288,7 @@ RUNTIME_FUNCTION(Runtime_AddAsyncDisposableValue) {
   DCHECK_EQ(2, args.length());
 
   DirectHandle<JSDisposableStackBase> stack = args.at<JSDisposableStackBase>(0);
-  Handle<Object> value = args.at<Object>(1);
+  Handle<JSAny> value = args.at<JSAny>(1);
 
   // Return the DisposableResource Record { [[ResourceValue]]: V, [[Hint]]:
   // hint, [[DisposeMethod]]: method }.
@@ -460,8 +460,7 @@ namespace {
 
 // Find the arguments of the JavaScript function invocation that called
 // into C++ code. Collect these in a newly allocated array of handles.
-std::unique_ptr<Handle<Object>[]> GetCallerArguments(Isolate* isolate,
-                                                     int* total_argc) {
+DirectHandleVector<Object> GetCallerArguments(Isolate* isolate) {
   // Find frame containing arguments passed to the caller.
   JavaScriptStackFrameIterator it(isolate);
   JavaScriptFrame* frame = it.frame();
@@ -485,9 +484,7 @@ std::unique_ptr<Handle<Object>[]> GetCallerArguments(Isolate* isolate,
     iter++;
     argument_count--;
 
-    *total_argc = argument_count;
-    std::unique_ptr<Handle<Object>[]> param_data(
-        NewArray<Handle<Object>>(*total_argc));
+    DirectHandleVector<Object> param_data(isolate, argument_count);
     bool should_deoptimize = false;
     for (int i = 0; i < argument_count; i++) {
       // If we materialize any object, we should deoptimize the frame because we
@@ -505,9 +502,7 @@ std::unique_ptr<Handle<Object>[]> GetCallerArguments(Isolate* isolate,
     return param_data;
   } else {
     int args_count = frame->GetActualArgumentCount();
-    *total_argc = args_count;
-    std::unique_ptr<Handle<Object>[]> param_data(
-        NewArray<Handle<Object>>(*total_argc));
+    DirectHandleVector<Object> param_data(isolate, args_count);
     for (int i = 0; i < args_count; i++) {
       Handle<Object> val = Handle<Object>(frame->GetParameter(i), isolate);
       param_data[i] = val;
@@ -541,7 +536,8 @@ Handle<JSObject> NewSloppyArguments(Isolate* isolate, Handle<JSFunction> callee,
           isolate->factory()->NewSloppyArgumentsElements(
               mapped_count, context, arguments, AllocationType::kYoung);
 
-      result->set_map(isolate->native_context()->fast_aliased_arguments_map());
+      result->set_map(isolate,
+                      isolate->native_context()->fast_aliased_arguments_map());
       result->set_elements(*parameter_map);
 
       // Loop over the actual parameters backwards.
@@ -591,11 +587,15 @@ Handle<JSObject> NewSloppyArguments(Isolate* isolate, Handle<JSFunction> callee,
 
 class HandleArguments {
  public:
-  explicit HandleArguments(Handle<Object>* array) : array_(array) {}
+  // If direct handles are enabled, it is the responsibility of the caller to
+  // ensure that the memory pointed to by `array` is scanned during CSS, e.g.,
+  // it comes from a `DirectHandleVector<Object>`.
+  explicit HandleArguments(base::Vector<const DirectHandle<Object>> array)
+      : array_(array) {}
   Tagged<Object> operator[](int index) { return *array_[index]; }
 
  private:
-  Handle<Object>* array_;
+  base::Vector<const DirectHandle<Object>> array_;
 };
 
 class ParameterArguments {
@@ -617,11 +617,10 @@ RUNTIME_FUNCTION(Runtime_NewSloppyArguments) {
   Handle<JSFunction> callee = args.at<JSFunction>(0);
   // This generic runtime function can also be used when the caller has been
   // inlined, we use the slow but accurate {GetCallerArguments}.
-  int argument_count = 0;
-  std::unique_ptr<Handle<Object>[]> arguments =
-      GetCallerArguments(isolate, &argument_count);
-  HandleArguments argument_getter(arguments.get());
-  return *NewSloppyArguments(isolate, callee, argument_getter, argument_count);
+  auto arguments = GetCallerArguments(isolate);
+  HandleArguments argument_getter({arguments.data(), arguments.size()});
+  return *NewSloppyArguments(isolate, callee, argument_getter,
+                             static_cast<int>(arguments.size()));
 }
 
 RUNTIME_FUNCTION(Runtime_NewStrictArguments) {
@@ -630,9 +629,8 @@ RUNTIME_FUNCTION(Runtime_NewStrictArguments) {
   Handle<JSFunction> callee = args.at<JSFunction>(0);
   // This generic runtime function can also be used when the caller has been
   // inlined, we use the slow but accurate {GetCallerArguments}.
-  int argument_count = 0;
-  std::unique_ptr<Handle<Object>[]> arguments =
-      GetCallerArguments(isolate, &argument_count);
+  auto arguments = GetCallerArguments(isolate);
+  int argument_count = static_cast<int>(arguments.size());
   DirectHandle<JSObject> result =
       isolate->factory()->NewArgumentsObject(callee, argument_count);
   if (argument_count) {
@@ -648,7 +646,6 @@ RUNTIME_FUNCTION(Runtime_NewStrictArguments) {
   return *result;
 }
 
-
 RUNTIME_FUNCTION(Runtime_NewRestParameter) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -657,9 +654,8 @@ RUNTIME_FUNCTION(Runtime_NewRestParameter) {
       callee->shared()->internal_formal_parameter_count_without_receiver();
   // This generic runtime function can also be used when the caller has been
   // inlined, we use the slow but accurate {GetCallerArguments}.
-  int argument_count = 0;
-  std::unique_ptr<Handle<Object>[]> arguments =
-      GetCallerArguments(isolate, &argument_count);
+  auto arguments = GetCallerArguments(isolate);
+  int argument_count = static_cast<int>(arguments.size());
   int num_elements = std::max(0, argument_count - start_index);
   DirectHandle<JSObject> result = isolate->factory()->NewJSArray(
       PACKED_ELEMENTS, num_elements, num_elements,
@@ -774,7 +770,7 @@ RUNTIME_FUNCTION(Runtime_DeleteLookupSlot) {
   // the global object, or the subject of a with.  Try to delete it
   // (respecting DONT_DELETE).
   Handle<JSReceiver> object = Cast<JSReceiver>(holder);
-  Maybe<bool> result = JSReceiver::DeleteProperty(object, name);
+  Maybe<bool> result = JSReceiver::DeleteProperty(isolate, object, name);
   MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());
   return isolate->heap()->ToBoolean(result.FromJust());
 }
@@ -802,10 +798,11 @@ MaybeHandle<Object> LoadLookupSlot(Isolate* isolate, Handle<String> name,
   }
   if (index != Context::kNotFound) {
     DCHECK(IsContext(*holder));
+    Handle<Context> holder_context = Cast<Context>(holder);
     // If the "property" we were looking for is a local variable, the
     // receiver is the global object; see ECMA-262, 3rd., 10.1.6 and 10.2.3.
     Handle<Object> receiver = isolate->factory()->undefined_value();
-    Handle<Object> value = handle(Cast<Context>(*holder)->get(index), isolate);
+    Handle<Object> value = handle(holder_context->get(index), isolate);
     // Check for uninitialized bindings.
     if (flag == kNeedsInitialization && IsTheHole(*value, isolate)) {
       THROW_NEW_ERROR(isolate,
@@ -813,6 +810,12 @@ MaybeHandle<Object> LoadLookupSlot(Isolate* isolate, Handle<String> name,
     }
     DCHECK(!IsTheHole(*value, isolate));
     if (receiver_return) *receiver_return = receiver;
+    if (v8_flags.script_context_mutable_heap_number &&
+        holder_context->IsScriptContext()) {
+      return handle(*Context::LoadScriptContextElement(holder_context, index,
+                                                       value, isolate),
+                    isolate);
+    }
     return value;
   }
 
@@ -823,8 +826,9 @@ MaybeHandle<Object> LoadLookupSlot(Isolate* isolate, Handle<String> name,
     // No need to unhole the value here.  This is taken care of by the
     // GetProperty function.
     Handle<Object> value;
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
-                               Object::GetProperty(isolate, holder, name));
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, value,
+        Object::GetProperty(isolate, Cast<JSAny>(holder), name));
     if (receiver_return) {
       *receiver_return =
           (IsJSGlobalObject(*holder) || IsJSContextExtensionObject(*holder))
@@ -934,11 +938,14 @@ MaybeHandle<Object> StoreLookupSlot(
                       NewReferenceError(MessageTemplate::kNotDefined, name));
     }
     if ((attributes & READ_ONLY) == 0) {
-      if (v8_flags.const_tracking_let && holder_context->IsScriptContext()) {
-        Context::UpdateConstTrackingLetSideData(holder_context, index, value,
-                                                isolate);
+      if ((v8_flags.script_context_mutable_heap_number ||
+           v8_flags.const_tracking_let) &&
+          holder_context->IsScriptContext()) {
+        Context::StoreScriptContextAndUpdateSlotProperty(holder_context, index,
+                                                         value, isolate);
+      } else {
+        Cast<Context>(holder)->set(index, *value);
       }
-      Cast<Context>(holder)->set(index, *value);
     } else if (!is_sloppy_function_name || is_strict(language_mode)) {
       THROW_NEW_ERROR(isolate,
                       NewTypeError(MessageTemplate::kConstAssign, name));
@@ -1028,11 +1035,11 @@ RUNTIME_FUNCTION(Runtime_StoreGlobalNoHoleCheckForReplLetOrConst) {
   // by functions using the LdaContextSlot bytecode, and such accesses are not
   // regarded as "immutable" when optimizing.
   if (v8_flags.const_tracking_let) {
-    Context::UpdateConstTrackingLetSideData(
+    Context::StoreScriptContextAndUpdateSlotProperty(
         script_context, lookup_result.slot_index, value, isolate);
+  } else {
+    script_context->set(lookup_result.slot_index, *value);
   }
-
-  script_context->set(lookup_result.slot_index, *value);
   return *value;
 }
 

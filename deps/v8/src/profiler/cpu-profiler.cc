@@ -163,7 +163,8 @@ void ProfilerEventsProcessor::AddDeoptStack(Address from, int fp_to_sp_delta) {
 void ProfilerEventsProcessor::AddCurrentStack(bool update_stats) {
   TickSampleEventRecord record(last_code_event_id_);
   RegisterState regs;
-  StackFrameIterator it(isolate_);
+  StackFrameIterator it(isolate_, isolate_->thread_local_top(),
+                        StackFrameIterator::NoHandles{});
   if (!it.done()) {
     StackFrame* frame = it.frame();
     regs.sp = reinterpret_cast<void*>(frame->sp());

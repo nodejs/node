@@ -16,10 +16,8 @@ own<Trap> DummyCallback(const Val args[], Val results[]) { return nullptr; }
 
 TEST_F(WasmCapiTest, StartupErrors) {
   FunctionSig sig(0, 0, nullptr);
-  uint8_t code[] = {WASM_UNREACHABLE};
   WasmFunctionBuilder* start_func = builder()->AddFunction(&sig);
-  start_func->EmitCode(code, static_cast<uint32_t>(sizeof(code)));
-  start_func->Emit(kExprEnd);
+  start_func->EmitCode({WASM_UNREACHABLE, WASM_END});
   builder()->MarkStartFunction(start_func);
   builder()->AddImport(base::CStrVector("dummy"), &sig);
   Compile();

@@ -1055,7 +1055,7 @@ struct WasmInstruction {
       uint32_t labels_index;
     } br_table;
     struct Block {
-      uint32_t sig_index;
+      ModuleTypeIndex sig_index;
       uint32_t value_type_bitfield;  // return type or kVoid if no return type
                                      // or kBottom if sig_index is valid.
       constexpr ValueType value_type() const {

@@ -40,7 +40,7 @@ EXTRA_FLAGS = [
     (0.1, '--no-liftoff'),
     (0.1, '--no-turbofan'),
     (0.1, '--no-wasm-tier-up'),
-    (0.1, '--optimize-on-next-call-optimizes-to-maglev'),
+    (0.5, '--optimize-on-next-call-optimizes-to-maglev'),
     (0.1, '--regexp-interpret-all'),
     (0.1, '--regexp-tier-up-ticks=0'),
     (0.1, '--regexp-tier-up-ticks=10'),

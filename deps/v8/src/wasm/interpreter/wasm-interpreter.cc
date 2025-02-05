@@ -6925,18 +6925,18 @@ WasmInstruction WasmBytecodeGenerator::DecodeInstruction(pc_t pc,
     case kExprTry: {
       BlockTypeImmediate imm(WasmEnabledFeatures::All(), &decoder,
                              wasm_code_->at(pc + 1), Decoder::kNoValidation);
-      if (imm.sig_index != kInlineSignatureSentinel) {
+      if (imm.sig_index.valid()) {
         // The block has at least one argument or at least two results, its
         // signature is identified by sig_index.
         optional.block.sig_index = imm.sig_index;
         optional.block.value_type_bitfield = kWasmBottom.raw_bit_field();
       } else if (imm.sig.return_count() + imm.sig.parameter_count() == 0) {
         // Void signature: no arguments and no results.
-        optional.block.sig_index = kInlineSignatureSentinel;
+        optional.block.sig_index = ModuleTypeIndex::Invalid();
         optional.block.value_type_bitfield = kWasmVoid.raw_bit_field();
       } else {
         // No arguments and one result.
-        optional.block.sig_index = kInlineSignatureSentinel;
+        optional.block.sig_index = ModuleTypeIndex::Invalid();
         std::optional<wasm::ValueType> wasm_return_type =
             GetWasmReturnTypeFromSignature(&imm.sig);
         DCHECK(wasm_return_type.has_value());

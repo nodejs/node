@@ -15,6 +15,7 @@
 #include "absl/strings/escaping.h"
 
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -24,6 +25,7 @@
 #include <utility>
 
 #include "absl/base/config.h"
+#include "absl/base/internal/endian.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/internal/unaligned_access.h"
 #include "absl/base/nullability.h"
@@ -388,6 +390,40 @@ constexpr unsigned char kCEscapedLen[256] = {
 };
 /* clang-format on */
 
+constexpr uint32_t MakeCEscapedLittleEndianUint32(size_t c) {
+  size_t char_len = kCEscapedLen[c];
+  if (char_len == 1) {
+    return static_cast<uint32_t>(c);
+  }
+  if (char_len == 2) {
+    switch (c) {
+      case '\n':
+        return '\\' | (static_cast<uint32_t>('n') << 8);
+      case '\r':
+        return '\\' | (static_cast<uint32_t>('r') << 8);
+      case '\t':
+        return '\\' | (static_cast<uint32_t>('t') << 8);
+      case '\"':
+        return '\\' | (static_cast<uint32_t>('\"') << 8);
+      case '\'':
+        return '\\' | (static_cast<uint32_t>('\'') << 8);
+      case '\\':
+        return '\\' | (static_cast<uint32_t>('\\') << 8);
+    }
+  }
+  return static_cast<uint32_t>('\\' | (('0' + (c / 64)) << 8) |
+                               (('0' + ((c % 64) / 8)) << 16) |
+                               (('0' + (c % 8)) << 24));
+}
+
+template <size_t... indexes>
+inline constexpr std::array<uint32_t, sizeof...(indexes)>
+MakeCEscapedLittleEndianUint32Array(std::index_sequence<indexes...>) {
+  return {MakeCEscapedLittleEndianUint32(indexes)...};
+}
+constexpr std::array<uint32_t, 256> kCEscapedLittleEndianUint32Array =
+    MakeCEscapedLittleEndianUint32Array(std::make_index_sequence<256>());
+
 // Calculates the length of the C-style escaped version of 'src'.
 // Assumes that non-printable characters are escaped using octal sequences, and
 // that UTF-8 bytes are not handled specially.
@@ -421,52 +457,24 @@ void CEscapeAndAppendInternal(absl::string_view src,
     return;
   }
 
+  // We keep 3 slop bytes so that we can call `little_endian::Store32`
+  // invariably regardless of the length of the escaped character.
+  constexpr size_t slop_bytes = 3;
   size_t cur_dest_len = dest->size();
-  ABSL_INTERNAL_CHECK(
-      cur_dest_len <= std::numeric_limits<size_t>::max() - escaped_len,
-      "std::string size overflow");
-  strings_internal::STLStringResizeUninitialized(dest,
-                                                 cur_dest_len + escaped_len);
+  size_t new_dest_len = cur_dest_len + escaped_len + slop_bytes;
+  ABSL_INTERNAL_CHECK(new_dest_len > cur_dest_len, "std::string size overflow");
+  strings_internal::AppendUninitializedTraits<std::string>::Append(
+      dest, escaped_len + slop_bytes);
   char* append_ptr = &(*dest)[cur_dest_len];
 
   for (char c : src) {
-    size_t char_len = kCEscapedLen[static_cast<unsigned char>(c)];
-    if (char_len == 1) {
-      *append_ptr++ = c;
-    } else if (char_len == 2) {
-      switch (c) {
-        case '\n':
-          *append_ptr++ = '\\';
-          *append_ptr++ = 'n';
-          break;
-        case '\r':
-          *append_ptr++ = '\\';
-          *append_ptr++ = 'r';
-          break;
-        case '\t':
-          *append_ptr++ = '\\';
-          *append_ptr++ = 't';
-          break;
-        case '\"':
-          *append_ptr++ = '\\';
-          *append_ptr++ = '\"';
-          break;
-        case '\'':
-          *append_ptr++ = '\\';
-          *append_ptr++ = '\'';
-          break;
-        case '\\':
-          *append_ptr++ = '\\';
-          *append_ptr++ = '\\';
-          break;
-      }
-    } else {
-      *append_ptr++ = '\\';
-      *append_ptr++ = '0' + static_cast<unsigned char>(c) / 64;
-      *append_ptr++ = '0' + (static_cast<unsigned char>(c) % 64) / 8;
-      *append_ptr++ = '0' + static_cast<unsigned char>(c) % 8;
-    }
+    unsigned char uc = static_cast<unsigned char>(c);
+    size_t char_len = kCEscapedLen[uc];
+    uint32_t little_endian_uint32 = kCEscapedLittleEndianUint32Array[uc];
+    little_endian::Store32(append_ptr, little_endian_uint32);
+    append_ptr += char_len;
   }
+  dest->resize(new_dest_len - slop_bytes);
 }
 
 // Reverses the mapping in Base64EscapeInternal; see that method's

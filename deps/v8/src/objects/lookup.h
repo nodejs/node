@@ -106,37 +106,41 @@ class V8_EXPORT_PRIVATE LookupIterator final {
 
   // {name} is guaranteed to be a property name (and not e.g. "123").
   // TODO(leszeks): Port these constructors to use JSAny.
-  inline LookupIterator(Isolate* isolate, Handle<Object> receiver,
+  inline LookupIterator(Isolate* isolate, Handle<JSAny> receiver,
                         Handle<Name> name,
                         Configuration configuration = DEFAULT);
-  inline LookupIterator(Isolate* isolate, Handle<Object> receiver,
-                        Handle<Name> name, Handle<Object> lookup_start_object,
+  inline LookupIterator(Isolate* isolate, Handle<JSAny> receiver,
+                        Handle<Name> name, Handle<JSAny> lookup_start_object,
                         Configuration configuration = DEFAULT);
 
-  inline LookupIterator(Isolate* isolate, Handle<Object> receiver, size_t index,
+  inline LookupIterator(Isolate* isolate, Handle<JSAny> receiver, size_t index,
                         Configuration configuration = DEFAULT);
-  inline LookupIterator(Isolate* isolate, Handle<Object> receiver, size_t index,
-                        Handle<Object> lookup_start_object,
+  inline LookupIterator(Isolate* isolate, Handle<JSAny> receiver, size_t index,
+                        Handle<JSAny> lookup_start_object,
                         Configuration configuration = DEFAULT);
 
-  inline LookupIterator(Isolate* isolate, Handle<Object> receiver,
+  inline LookupIterator(Isolate* isolate, Handle<JSAny> receiver,
                         const PropertyKey& key,
                         Configuration configuration = DEFAULT);
-  inline LookupIterator(Isolate* isolate, Handle<Object> receiver,
+  inline LookupIterator(Isolate* isolate, Handle<JSAny> receiver,
                         const PropertyKey& key,
-                        Handle<Object> lookup_start_object,
+                        Handle<JSAny> lookup_start_object,
                         Configuration configuration = DEFAULT);
 
   // Special case for lookup of the |error_stack_trace| private symbol in
   // prototype chain (usually private symbols are limited to
   // OWN_SKIP_INTERCEPTOR lookups).
   inline LookupIterator(Isolate* isolate, Configuration configuration,
-                        Handle<Object> receiver, Handle<Symbol> name);
+                        Handle<JSAny> receiver, Handle<Symbol> name);
 
   void Restart() {
     InterceptorState state = InterceptorState::kUninitialized;
     IsElement() ? RestartInternal<true>(state) : RestartInternal<false>(state);
   }
+
+  // Checks index validity in a TypedArray again, but doesn't do the whole
+  // lookup anew (holder doesn't change).
+  void RecheckTypedArrayBounds();
 
   Isolate* isolate() const { return isolate_; }
   State state() const { return state_; }
@@ -242,7 +246,7 @@ class V8_EXPORT_PRIVATE LookupIterator final {
                                          DirectHandle<Object> value,
                                          SeqCstAccessTag tag);
   inline void UpdateProtector();
-  static inline void UpdateProtector(Isolate* isolate, Handle<Object> receiver,
+  static inline void UpdateProtector(Isolate* isolate, Handle<JSAny> receiver,
                                      DirectHandle<Name> name);
 
   // Lookup a 'cached' private property for an accessor.
@@ -272,7 +276,7 @@ class V8_EXPORT_PRIVATE LookupIterator final {
                         Handle<JSAny> receiver, Handle<Symbol> name,
                         Handle<JSAny> lookup_start_object);
 
-  static void InternalUpdateProtector(Isolate* isolate, Handle<Object> receiver,
+  static void InternalUpdateProtector(Isolate* isolate, Handle<JSAny> receiver,
                                       DirectHandle<Name> name);
 
   enum class InterceptorState {
@@ -353,7 +357,7 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   PropertyDetails property_details_ = PropertyDetails::Empty();
   Isolate* const isolate_;
   Handle<Name> name_;
-  Handle<Object> transition_;
+  Handle<UnionOf<Map, PropertyCell>> transition_;
   const Handle<JSAny> receiver_;
   Handle<JSReceiver> holder_;
   const Handle<JSAny> lookup_start_object_;

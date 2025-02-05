@@ -770,13 +770,15 @@ class HeapSnapshotJSONSerializer {
   void SerializeLocations();
 
   static const int kEdgeFieldsCount;
-  static const int kNodeFieldsCount;
+  static const int kNodeFieldsCountWithTraceNodeId;
+  static const int kNodeFieldsCountWithoutTraceNodeId;
 
   HeapSnapshot* snapshot_;
   base::CustomMatcherHashMap strings_;
   int next_node_id_;
   int next_string_id_;
   OutputStreamWriter* writer_;
+  uint32_t trace_function_count_ = 0;
 
   friend class HeapSnapshotJSONSerializerEnumerator;
   friend class HeapSnapshotJSONSerializerIterator;

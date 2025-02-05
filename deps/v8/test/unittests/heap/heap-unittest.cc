@@ -7,6 +7,7 @@
 #include <cmath>
 #include <iostream>
 #include <limits>
+#include <utility>
 
 #include "include/v8-isolate.h"
 #include "include/v8-object.h"
@@ -15,6 +16,8 @@
 #include "src/handles/handles-inl.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
+#include "src/heap/heap-layout-inl.h"
+#include "src/heap/heap-layout.h"
 #include "src/heap/marking-state-inl.h"
 #include "src/heap/minor-mark-sweep.h"
 #include "src/heap/mutable-page-metadata.h"
@@ -22,8 +25,9 @@
 #include "src/heap/safepoint.h"
 #include "src/heap/spaces-inl.h"
 #include "src/heap/trusted-range.h"
+#include "src/objects/free-space-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
-#include "src/objects/objects-inl.h"
+#include "src/sandbox/external-pointer-table.h"
 #include "test/unittests/heap/heap-utils.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -404,7 +408,7 @@ TEST_F(HeapTest, OptimizedAllocationAlwaysInNewSpace) {
   i::DirectHandle<JSReceiver> o =
       v8::Utils::OpenDirectHandle(*v8::Local<v8::Object>::Cast(res));
 
-  CHECK(Heap::InYoungGeneration(*o));
+  CHECK(HeapLayout::InYoungGeneration(*o));
 }
 
 namespace {
@@ -446,7 +450,7 @@ TEST_F(HeapTest, RememberedSet_InsertOnPromotingObjectToOld) {
     CHECK(new_space->EnsureCurrentCapacity());
   }
   InvokeMinorGC();
-  CHECK(Heap::InYoungGeneration(*arr));
+  CHECK(HeapLayout::InYoungGeneration(*arr));
 
   // Add into 'arr' a reference to an object one generation younger.
   {
@@ -461,7 +465,7 @@ TEST_F(HeapTest, RememberedSet_InsertOnPromotingObjectToOld) {
   heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only);
 
   CHECK(heap->InOldSpace(*arr));
-  CHECK(heap->InYoungGeneration(arr->get(0)));
+  CHECK(HeapLayout::InYoungGeneration(arr->get(0)));
   if (v8_flags.minor_ms) {
     CHECK_EQ(1, GetRememberedSetSize<OLD_TO_NEW_BACKGROUND>(*arr));
   } else {
@@ -630,9 +634,9 @@ TEST_F(HeapTest, Regress341769455) {
     heap->AppendArrayBufferExtension(*ab, ab->extension());
   }
   // Trigger a 2nd minor GC to promote the JSArrayBuffer to old space.
-  CHECK(Heap::InYoungGeneration(*ab));
+  CHECK(HeapLayout::InYoungGeneration(*ab));
   InvokeAtomicMinorGC();
-  CHECK(!Heap::InYoungGeneration(*ab));
+  CHECK(!HeapLayout::InYoungGeneration(*ab));
   // If the EPT entry for the JSArrayBuffer wasn't promoted to the old table, a
   // 3rd minor GC will observe it as unmarked (since the owning object is old)
   // and free it. The major GC after it will then crash when trying to access
@@ -641,6 +645,189 @@ TEST_F(HeapTest, Regress341769455) {
   InvokeAtomicMajorGC();
 #endif  // V8_COMPRESS_POINTERS
 }
+
+namespace {
+struct CompactionDisabler {
+  CompactionDisabler() : was_enabled_(v8_flags.compact) {
+    v8_flags.compact = false;
+  }
+  ~CompactionDisabler() {
+    if (was_enabled_) {
+      v8_flags.compact = true;
+    }
+  }
+  const bool was_enabled_;
+};
+}  // namespace
+
+TEST_F(HeapTest, BlackAllocatedPages) {
+  if (!v8_flags.black_allocated_pages) return;
+  if (!v8_flags.incremental_marking) return;
+
+  // Disable compaction to test that the FreeListCategories of black allocated
+  // pages are not reset.
+  CompactionDisabler disable_compaction;
+
+  Isolate* iso = isolate();
+  ManualGCScope manual_gc_scope(iso);
+
+  auto in_free_list = [](PageMetadata* page, Address address) {
+    bool found = false;
+    page->ForAllFreeListCategories(
+        [address, &found](FreeListCategory* category) {
+          category->IterateNodesForTesting(
+              [address, &found](Tagged<FreeSpace> node) {
+                if (!found) found = node.address() == address;
+              });
+        });
+    return found;
+  };
+
+  Heap* heap = iso->heap();
+  SimulateFullSpace(heap->old_space());
+
+  // Allocate an object on a new page.
+  HandleScope scope(iso);
+  DirectHandle<FixedArray> arr =
+      iso->factory()->NewFixedArray(1, AllocationType::kOld);
+  Address next = arr->address() + arr->Size();
+
+  // Assert that the next address is in the lab.
+  const Address lab_top = heap->allocator()->old_space_allocator()->top();
+  ASSERT_EQ(lab_top, next);
+
+  auto* page = PageMetadata::FromAddress(next);
+  const size_t wasted_before_incremental_marking_start = page->wasted_memory();
+
+  heap->StartIncrementalMarking(
+      GCFlag::kNoFlags, GarbageCollectionReason::kTesting,
+      GCCallbackFlags::kNoGCCallbackFlags, GarbageCollector::MARK_COMPACTOR);
+
+  // Expect the free-space object is created.
+  auto freed = HeapObject::FromAddress(next);
+  EXPECT_TRUE(IsFreeSpaceOrFiller(freed));
+
+  // The free-space object must be accounted as wasted.
+  EXPECT_EQ(wasted_before_incremental_marking_start + freed->Size(),
+            page->wasted_memory());
+
+  // Check that the free-space object is not in freelist.
+  EXPECT_FALSE(in_free_list(page, next));
+
+  // The page allocated before incremental marking is not black.
+  EXPECT_FALSE(page->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
+
+  // Allocate a new object on a BLACK_ALLOCATED page.
+  arr = iso->factory()->NewFixedArray(1, AllocationType::kOld);
+  next = arr->address() + arr->Size();
+
+  // Expect the page to be black.
+  page = PageMetadata::FromHeapObject(*arr);
+  EXPECT_TRUE(page->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
+
+  // Invoke GC.
+  InvokeMajorGC();
+
+  // The page is not black now.
+  EXPECT_FALSE(page->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
+  // After the GC the next free-space object must be in freelist.
+  EXPECT_TRUE(in_free_list(page, next));
+}
+
+TEST_F(HeapTest, ContainsSlow) {
+  Isolate* iso = isolate();
+  ManualGCScope manual_gc_scope(iso);
+
+  Heap* heap = iso->heap();
+  SimulateFullSpace(heap->old_space());
+
+  // Allocate an object on a new page.
+  HandleScope scope(iso);
+  DirectHandle<FixedArray> arr =
+      iso->factory()->NewFixedArray(1, AllocationType::kOld);
+  CHECK(heap->old_space()->ContainsSlow(arr->address()));
+  CHECK(heap->old_space()->ContainsSlow(
+      MemoryChunk::FromAddress(arr->address())->address()));
+  CHECK(!heap->old_space()->ContainsSlow(0));
+
+  DirectHandle<FixedArray> large_arr = iso->factory()->NewFixedArray(
+      kMaxRegularHeapObjectSize + 1, AllocationType::kOld);
+  CHECK(heap->lo_space()->ContainsSlow(large_arr->address()));
+  CHECK(heap->lo_space()->ContainsSlow(
+      MemoryChunk::FromAddress(large_arr->address())->address()));
+  CHECK(!heap->lo_space()->ContainsSlow(0));
+}
+
+#if defined(V8_COMPRESS_POINTERS) && defined(V8_ENABLE_SANDBOX)
+TEST_F(HeapTest, Regress364396306) {
+  if (v8_flags.single_generation) return;
+  if (v8_flags.separate_gc_phases) return;
+  if (v8_flags.minor_ms) return;
+
+  auto* iso = i_isolate();
+  auto* heap = iso->heap();
+  auto* space = heap->young_external_pointer_space();
+  ManualGCScope manual_gc_scope(iso);
+
+  int* external_int = new int;
+
+  {
+    {
+      // Almost fill a segment with unreachable entries. Leave behind one unused
+      // entry.
+      v8::HandleScope scope(reinterpret_cast<v8::Isolate*>(iso));
+      do {
+        iso->factory()->NewExternal(external_int);
+      } while (space->freelist_length() > 1);
+    }
+    {
+      v8::HandleScope scope(reinterpret_cast<v8::Isolate*>(iso));
+      // Allocate one reachable entry on the same segment to prevent discarding
+      // the segment.
+      iso->factory()->NewExternal(external_int);
+      CHECK_EQ(1, space->NumSegmentsForTesting());
+      // Allocate an entry on a new segment that will later be evacuated.
+      Handle<JSObject> to_be_evacuated =
+          iso->factory()->NewExternal(external_int);
+      CHECK_EQ(2, space->NumSegmentsForTesting());
+      CHECK(HeapLayout::InYoungGeneration(*to_be_evacuated));
+      // Unmark to-be-evacuated entry and populate the freelist.
+      InvokeMinorGC();
+      CHECK(HeapLayout::InYoungGeneration(*to_be_evacuated));
+      // Set up a global to make sure `to_be_evacuated` is visited before the
+      // atomic pause.
+      Global<JSObject> global_to_be_evacuated(
+          v8_isolate(), Utils::Convert<JSObject, JSObject>(to_be_evacuated));
+      // Make sure compaction is enabled for the space so that an evacuation
+      // entry is created for `to_be_evacuated`.
+      bool old_stress_compaction_flag =
+          std::exchange(v8_flags.stress_compaction, true);
+      heap->StartIncrementalMarking(GCFlag::kNoFlags,
+                                    GarbageCollectionReason::kTesting);
+      // Finish all available marking work to make sure the to-be-evacuated
+      // entry is already marked.
+      heap->incremental_marking()->AdvanceForTesting(
+          v8::base::TimeDelta::Max());
+      // Reset the `stress_compaction` flag. If it remains enabled, the minor
+      // GCs below will be overriden with full GCs.
+      v8_flags.stress_compaction = old_stress_compaction_flag;
+    }
+
+    // The to-be-evacuated entry is no longer reachable. Scavenger will override
+    // the evacuation entry with a null address.
+    InvokeMinorGC();
+    // Iterating over segments again should not crash because of the null
+    // address set by the previous Scavenger.
+    InvokeMinorGC();
+  }
+
+  // Finalize the incremental GC so there are no references to `external_int`
+  // before we free it.
+  InvokeMajorGC();
+
+  delete external_int;
+}
+#endif  // defined(V8_COMPRESS_POINTERS) && defined(V8_ENABLE_SANDBOX)
 
 }  // namespace internal
 }  // namespace v8

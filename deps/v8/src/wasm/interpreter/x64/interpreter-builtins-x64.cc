@@ -848,7 +848,7 @@ void Builtins::Generate_GenericJSToWasmInterpreterWrapper(
   // Store result in JSArray
   __ StoreTaggedField(FieldOperand(fixed_array, result_index,
                                    static_cast<ScaleFactor>(kTaggedSizeLog2),
-                                   FixedArray::kHeaderSize),
+                                   OFFSET_OF_DATA_START(FixedArray)),
                       return_value);
   __ jmp(&next_return_value);
 }
@@ -1352,12 +1352,11 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   __ incq(MemOperand(
       rbp, WasmToJSInterpreterFrameConstants::kGCScanSlotCountOffset));
 
-  // We are calling Call_ReceiverIsAny which can call
-  // AdaptorWithBuiltinExitFrame, which adds
-  // BuiltinExitFrameConstants::kNumExtraArgsWithoutReceiver additional tagged
-  // arguments to the stack. We must also scan these additional args in case of
-  // GC. We store the current stack pointer to be able to detect when this
-  // happens.
+  // The process of calling a JS function might increase the number of tagged
+  // values on the stack (arguments adaptation, BuiltinExitFrame arguments,
+  // v8::FunctionCallbackInfo implicit arguments, etc.). In any case these
+  // additional values must be visited by GC too.
+  // We store the current stack pointer to be able to detect when this happens.
   __ movq(MemOperand(rbp, WasmToJSInterpreterFrameConstants::kGCSPOffset), rsp);
 
   __ movq(rax, MemOperand(rbp, kParamCountOffset));
@@ -1428,7 +1427,7 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   __ LoadTaggedField(return_reg,
                      FieldOperand(fixed_array, result_index,
                                   static_cast<ScaleFactor>(kTaggedSizeLog2),
-                                  FixedArray::kHeaderSize));
+                                  OFFSET_OF_DATA_START(FixedArray)));
   __ jmp(&convert_return);
 
   // A result converted.
@@ -1448,7 +1447,7 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   __ LoadTaggedField(return_reg,
                      FieldOperand(fixed_array, result_index,
                                   static_cast<ScaleFactor>(kTaggedSizeLog2),
-                                  FixedArray::kHeaderSize));
+                                  OFFSET_OF_DATA_START(FixedArray)));
   __ jmp(&convert_return);
 
   // -------------------------------------------
@@ -1511,7 +1510,7 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   __ LoadTaggedField(return_reg,
                      FieldOperand(fixed_array, result_index,
                                   static_cast<ScaleFactor>(kTaggedSizeLog2),
-                                  FixedArray::kHeaderSize));
+                                  OFFSET_OF_DATA_START(FixedArray)));
   __ movq(MemOperand(packed_args, 0), return_reg);
   __ addq(packed_args, Immediate(kSystemPointerSize));
 

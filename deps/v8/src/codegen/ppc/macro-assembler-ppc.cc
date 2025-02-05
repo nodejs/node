@@ -293,7 +293,7 @@ void MacroAssembler::CallBuiltin(Builtin builtin, Condition cond) {
       UNREACHABLE();
     case BuiltinCallJumpMode::kIndirect: {
       Label skip;
-      LoadU64(ip, EntryFromBuiltinAsOperand(builtin));
+      LoadU64(ip, EntryFromBuiltinAsOperand(builtin), r0);
       if (cond != al) b(NegateCondition(cond), &skip);
       Call(ip);
       bind(&skip);
@@ -1755,9 +1755,10 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
   // We call indirectly through the code field in the function to
   // allow recompilation to take effect without changing any of the
   // call sites.
+  constexpr int unused_argument_count = 0;
   switch (type) {
     case InvokeType::kCall:
-      CallJSFunction(function, r0);
+      CallJSFunction(function, unused_argument_count, r0);
       break;
     case InvokeType::kJump:
       JumpJSFunction(function, r0);
@@ -5153,7 +5154,9 @@ void MacroAssembler::JumpCodeObject(Register code_object, JumpMode jump_mode) {
 }
 
 void MacroAssembler::CallJSFunction(Register function_object,
-                                    Register scratch) {
+                                    uint16_t argument_count, Register scratch) {
+  DCHECK_WITH_MSG(!V8_ENABLE_LEAPTIERING_BOOL,
+                  "argument_count is only used with Leaptiering");
   Register code = kJavaScriptCallCodeStartRegister;
 #ifdef V8_ENABLE_SANDBOX
   // When the sandbox is enabled, we can directly fetch the entrypoint pointer

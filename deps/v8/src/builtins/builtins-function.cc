@@ -196,7 +196,7 @@ Tagged<Object> DoFunctionBind(Isolate* isolate, BuiltinArguments args,
   // Allocate the bound function with the given {this_arg} and {args}.
   Handle<JSReceiver> target = args.at<JSReceiver>(0);
   DirectHandle<JSAny> this_arg = isolate->factory()->undefined_value();
-  base::ScopedVector<Handle<Object>> argv(std::max(0, args.length() - 2));
+  DirectHandleVector<Object> argv(isolate, std::max(0, args.length() - 2));
   if (args.length() > 1) {
     this_arg = args.at<JSAny>(1);
     for (int i = 2; i < args.length(); ++i) {
@@ -204,7 +204,7 @@ Tagged<Object> DoFunctionBind(Isolate* isolate, BuiltinArguments args,
     }
   }
 
-  Handle<HeapObject> proto;
+  Handle<JSPrototype> proto;
   if (proto_source == ProtoSource::kUseTargetPrototype) {
     // Determine the prototype of the {target_function}.
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
@@ -212,8 +212,8 @@ Tagged<Object> DoFunctionBind(Isolate* isolate, BuiltinArguments args,
   } else if (proto_source == ProtoSource::kNormalFunction) {
     DirectHandle<NativeContext> native_context(
         isolate->global_object()->native_context(), isolate);
-    auto function_proto = native_context->function_function()->prototype();
-    proto = handle(Cast<HeapObject>(function_proto), isolate);
+    auto function_proto = native_context->function_prototype();
+    proto = handle(function_proto, isolate);
   } else {
     UNREACHABLE();
   }
@@ -221,11 +221,12 @@ Tagged<Object> DoFunctionBind(Isolate* isolate, BuiltinArguments args,
   Handle<JSBoundFunction> function;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, function,
-      isolate->factory()->NewJSBoundFunction(target, this_arg, argv, proto));
+      isolate->factory()->NewJSBoundFunction(
+          target, this_arg, {argv.data(), argv.size()}, proto));
   Maybe<bool> result =
       JSFunctionOrBoundFunctionOrWrappedFunction::CopyNameAndLength(
           isolate, function, target, isolate->factory()->bound__string(),
-          argv.length());
+          static_cast<int>(argv.size()));
   if (result.IsNothing()) {
     DCHECK(isolate->has_exception());
     return ReadOnlyRoots(isolate).exception();

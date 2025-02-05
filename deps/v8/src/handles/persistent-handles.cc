@@ -132,13 +132,10 @@ void PersistentHandlesList::Iterate(RootVisitor* visitor, Isolate* isolate) {
 
 PersistentHandlesScope::PersistentHandlesScope(Isolate* isolate)
     : impl_(isolate->handle_scope_implementer()) {
-  impl_->BeginDeferredScope();
+  impl_->BeginPersistentScope();
   HandleScopeData* data = impl_->isolate()->handle_scope_data();
   Address* new_next = impl_->GetSpareOrNewBlock();
   Address* new_limit = &new_next[kHandleBlockSize];
-  // Check that at least one HandleScope with at least one Handle in it exists,
-  // see the class description.
-  DCHECK(!impl_->blocks()->empty());
   impl_->blocks()->push_back(new_next);
 
 #ifdef DEBUG
@@ -171,8 +168,7 @@ std::unique_ptr<PersistentHandles> PersistentHandlesScope::Detach() {
 
 // static
 bool PersistentHandlesScope::IsActive(Isolate* isolate) {
-  return isolate->handle_scope_implementer()
-             ->last_handle_before_deferred_block_ != nullptr;
+  return isolate->handle_scope_implementer()->HasPersistentScope();
 }
 
 }  // namespace internal

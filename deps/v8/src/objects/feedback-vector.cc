@@ -263,10 +263,12 @@ Handle<FeedbackVector> FeedbackVector::New(
 
   DCHECK_EQ(vector->shared_function_info(), *shared);
   DCHECK_EQ(vector->tiering_state(), TieringState::kNone);
+  DCHECK_EQ(vector->invocation_count(), 0);
+#ifndef V8_ENABLE_LEAPTIERING
   DCHECK(!vector->maybe_has_maglev_code());
   DCHECK(!vector->maybe_has_turbofan_code());
-  DCHECK_EQ(vector->invocation_count(), 0);
   DCHECK(vector->maybe_optimized_code().IsCleared());
+#endif  // !V8_ENABLE_LEAPTIERING
 
   // Ensure we can skip the write barrier
   DirectHandle<Symbol> uninitialized_sentinel = UninitializedSentinel(isolate);
@@ -338,7 +340,7 @@ Handle<FeedbackVector> FeedbackVector::NewForTesting(
       FeedbackMetadata::New(isolate, spec);
   DirectHandle<SharedFunctionInfo> shared =
       isolate->factory()->NewSharedFunctionInfoForBuiltin(
-          isolate->factory()->empty_string(), Builtin::kIllegal);
+          isolate->factory()->empty_string(), Builtin::kIllegal, 0, kDontAdapt);
   // Set the raw feedback metadata to circumvent checks that we are not
   // overwriting existing metadata.
   shared->set_raw_outer_scope_info_or_feedback_metadata(*metadata);
@@ -378,6 +380,8 @@ void FeedbackVector::AddToVectorsForProfilingTools(
   list = ArrayList::Add(isolate, list, vector);
   isolate->SetFeedbackVectorsForProfilingTools(*list);
 }
+
+#ifndef V8_ENABLE_LEAPTIERING
 
 void FeedbackVector::SetOptimizedCode(IsolateForSandbox isolate,
                                       Tagged<Code> code) {
@@ -425,6 +429,24 @@ void FeedbackVector::ClearOptimizedCode() {
   set_maybe_has_turbofan_code(false);
 }
 
+void FeedbackVector::EvictOptimizedCodeMarkedForDeoptimization(
+    Isolate* isolate, Tagged<SharedFunctionInfo> shared, const char* reason) {
+  Tagged<MaybeObject> slot = maybe_optimized_code();
+  if (slot.IsCleared()) {
+    set_maybe_has_maglev_code(false);
+    set_maybe_has_turbofan_code(false);
+    return;
+  }
+
+  Tagged<Code> code = Cast<CodeWrapper>(slot.GetHeapObject())->code(isolate);
+  if (code->marked_for_deoptimization()) {
+    Deoptimizer::TraceEvictFromOptimizedCodeCache(isolate, shared, reason);
+    ClearOptimizedCode();
+  }
+}
+
+#endif  // !V8_ENABLE_LEAPTIERING
+
 void FeedbackVector::SetOptimizedOsrCode(Isolate* isolate, FeedbackSlot slot,
                                          Tagged<Code> code) {
   DCHECK(CodeKindIsOptimizedJSFunction(code->kind()));
@@ -450,8 +472,10 @@ void FeedbackVector::set_tiering_state(TieringState state) {
 void FeedbackVector::reset_flags() {
   set_flags(TieringStateBits::encode(TieringState::kNone) |
             LogNextExecutionBit::encode(false) |
+#ifndef V8_ENABLE_LEAPTIERING
             MaybeHasMaglevCodeBit::encode(false) |
             MaybeHasTurbofanCodeBit::encode(false) |
+#endif  // !V8_ENABLE_LEAPTIERING
             OsrTieringInProgressBit::encode(false) |
             MaybeHasMaglevOsrCodeBit::encode(false) |
             MaybeHasTurbofanOsrCodeBit::encode(false));
@@ -463,22 +487,6 @@ bool FeedbackVector::osr_tiering_in_progress() {
 
 void FeedbackVector::set_osr_tiering_in_progress(bool osr_in_progress) {
   set_flags(OsrTieringInProgressBit::update(flags(), osr_in_progress));
-}
-
-void FeedbackVector::EvictOptimizedCodeMarkedForDeoptimization(
-    Isolate* isolate, Tagged<SharedFunctionInfo> shared, const char* reason) {
-  Tagged<MaybeObject> slot = maybe_optimized_code();
-  if (slot.IsCleared()) {
-    set_maybe_has_maglev_code(false);
-    set_maybe_has_turbofan_code(false);
-    return;
-  }
-
-  Tagged<Code> code = Cast<CodeWrapper>(slot.GetHeapObject())->code(isolate);
-  if (code->marked_for_deoptimization()) {
-    Deoptimizer::TraceEvictFromOptimizedCodeCache(isolate, shared, reason);
-    ClearOptimizedCode();
-  }
 }
 
 bool FeedbackVector::ClearSlots(Isolate* isolate, ClearBehavior behavior) {
@@ -531,15 +539,6 @@ void FeedbackVector::TraceFeedbackChange(Isolate* isolate,
 #endif
 
 MaybeObjectHandle NexusConfig::NewHandle(Tagged<MaybeObject> object) const {
-  if (mode() == Mode::MainThread) {
-    return handle(object, isolate_);
-  }
-  DCHECK_EQ(mode(), Mode::BackgroundThread);
-  return handle(object, local_heap_);
-}
-
-template <typename T>
-Handle<T> NexusConfig::NewHandle(Tagged<T> object) const {
   if (mode() == Mode::MainThread) {
     return handle(object, isolate_);
   }
@@ -1149,26 +1148,6 @@ int FeedbackNexus::ExtractMaps(MapHandles* maps) const {
   for (FeedbackIterator it(this); !it.done(); it.Advance()) {
     maps->push_back(config()->NewHandle(it.map()));
     found++;
-  }
-
-  return found;
-}
-
-int FeedbackNexus::ExtractMapsAndFeedback(
-    std::vector<MapAndFeedback>* maps_and_feedback) const {
-  DisallowGarbageCollection no_gc;
-  int found = 0;
-
-  for (FeedbackIterator it(this); !it.done(); it.Advance()) {
-    Handle<Map> map = config()->NewHandle(it.map());
-    Tagged<MaybeObject> maybe_handler = it.handler();
-    if (!maybe_handler.IsCleared()) {
-      DCHECK(IC::IsHandler(maybe_handler) ||
-             IsDefineKeyedOwnPropertyInLiteralKind(kind()));
-      MaybeObjectHandle handler = config()->NewHandle(maybe_handler);
-      maps_and_feedback->push_back(MapAndHandler(map, handler));
-      found++;
-    }
   }
 
   return found;

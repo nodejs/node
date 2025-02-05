@@ -157,7 +157,7 @@ BUILTIN(AsyncDisposableStackPrototypeUse) {
   // 2. Perform ? RequireInternalSlot(asyncDisposableStack,
   // [[AsyncDisposableState]]).
   CHECK_RECEIVER(JSAsyncDisposableStack, async_disposable_stack, kMethodName);
-  Handle<Object> value = args.at(1);
+  Handle<JSAny> value = args.at<JSAny>(1);
 
   // 3. If asyncDisposableStack.[[AsyncDisposableState]] is disposed, throw a
   //    ReferenceError exception.

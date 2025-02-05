@@ -30,8 +30,8 @@ RUNTIME_FUNCTION(Runtime_ShadowRealmImportValue) {
   MaybeHandle<Script> referrer;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, inner_capability,
-      isolate->RunHostImportModuleDynamicallyCallback(referrer, specifier,
-                                                      import_options));
+      isolate->RunHostImportModuleDynamicallyCallback(
+          referrer, specifier, ModuleImportPhase::kEvaluation, import_options));
   // Check that the promise is created in the eval_context.
   DCHECK_EQ(inner_capability->GetCreationContext().value(),
             isolate->raw_native_context());

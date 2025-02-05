@@ -374,7 +374,7 @@ bool AddDescriptorsByTemplate(
   }
 
   // Atomically commit the changes.
-  receiver->set_map(*map, kReleaseStore);
+  receiver->set_map(isolate, *map, kReleaseStore);
   if (elements_dictionary->NumberOfElements() > 0) {
     receiver->set_elements(*elements_dictionary);
   }
@@ -463,7 +463,7 @@ bool AddDescriptorsByTemplate(
   }
 
   // Atomically commit the changes.
-  receiver->set_map(*map, kReleaseStore);
+  receiver->set_map(isolate, *map, kReleaseStore);
   receiver->set_raw_properties_or_hash(*properties_dictionary, kRelaxedStore);
   if (elements_dictionary->NumberOfElements() > 0) {
     receiver->set_elements(*elements_dictionary);
@@ -485,7 +485,7 @@ Handle<JSObject> CreateClassPrototype(Isolate* isolate) {
 bool InitClassPrototype(Isolate* isolate,
                         DirectHandle<ClassBoilerplate> class_boilerplate,
                         Handle<JSObject> prototype,
-                        Handle<HeapObject> prototype_parent,
+                        Handle<JSPrototype> prototype_parent,
                         DirectHandle<JSFunction> constructor,
                         RuntimeArguments& args) {
   Handle<Map> map(prototype->map(), isolate);
@@ -529,7 +529,7 @@ bool InitClassPrototype(Isolate* isolate,
 
 bool InitClassConstructor(Isolate* isolate,
                           DirectHandle<ClassBoilerplate> class_boilerplate,
-                          Handle<HeapObject> constructor_parent,
+                          Handle<JSPrototype> constructor_parent,
                           Handle<JSFunction> constructor,
                           RuntimeArguments& args) {
   Handle<Map> map(constructor->map(), isolate);
@@ -588,8 +588,8 @@ MaybeHandle<Object> DefineClass(
     Isolate* isolate, DirectHandle<ClassBoilerplate> class_boilerplate,
     Handle<Object> super_class, Handle<JSFunction> constructor,
     RuntimeArguments& args) {
-  Handle<Object> prototype_parent;
-  Handle<HeapObject> constructor_parent;
+  Handle<JSPrototype> prototype_parent;
+  Handle<JSPrototype> constructor_parent;
 
   if (IsTheHole(*super_class, isolate)) {
     prototype_parent = isolate->initial_object_prototype();
@@ -600,20 +600,20 @@ MaybeHandle<Object> DefineClass(
       DCHECK(!IsJSFunction(*super_class) ||
              !IsResumableFunction(
                  Cast<JSFunction>(super_class)->shared()->kind()));
+      Handle<Object> maybe_prototype_parent;
       ASSIGN_RETURN_ON_EXCEPTION(
-          isolate, prototype_parent,
-          Runtime::GetObjectProperty(isolate, super_class,
+          isolate, maybe_prototype_parent,
+          Runtime::GetObjectProperty(isolate, Cast<JSAny>(super_class),
                                      isolate->factory()->prototype_string()));
-      if (!IsNull(*prototype_parent, isolate) &&
-          !IsJSReceiver(*prototype_parent)) {
+      if (!TryCast(maybe_prototype_parent, &prototype_parent)) {
         THROW_NEW_ERROR(
             isolate, NewTypeError(MessageTemplate::kPrototypeParentNotAnObject,
-                                  prototype_parent));
+                                  maybe_prototype_parent));
       }
       // Create new handle to avoid |constructor_parent| corruption because of
       // |super_class| handle value overwriting via storing to
       // args[ClassBoilerplate::kPrototypeArgumentIndex] below.
-      constructor_parent = handle(Cast<HeapObject>(*super_class), isolate);
+      constructor_parent = handle(Cast<JSPrototype>(*super_class), isolate);
     } else {
       THROW_NEW_ERROR(isolate,
                       NewTypeError(MessageTemplate::kExtendsValueNotConstructor,
@@ -633,8 +633,7 @@ MaybeHandle<Object> DefineClass(
   if (!InitClassConstructor(isolate, class_boilerplate, constructor_parent,
                             constructor, args) ||
       !InitClassPrototype(isolate, class_boilerplate, prototype,
-                          Cast<HeapObject>(prototype_parent), constructor,
-                          args)) {
+                          prototype_parent, constructor, args)) {
     DCHECK(isolate->has_exception());
     return MaybeHandle<Object>();
   }
@@ -695,7 +694,7 @@ MaybeHandle<JSReceiver> GetSuperHolder(Isolate* isolate,
   return Cast<JSReceiver>(proto);
 }
 
-MaybeHandle<Object> LoadFromSuper(Isolate* isolate, Handle<Object> receiver,
+MaybeHandle<Object> LoadFromSuper(Isolate* isolate, Handle<JSAny> receiver,
                                   Handle<JSObject> home_object,
                                   PropertyKey* key) {
   Handle<JSReceiver> holder;
@@ -713,7 +712,7 @@ MaybeHandle<Object> LoadFromSuper(Isolate* isolate, Handle<Object> receiver,
 RUNTIME_FUNCTION(Runtime_LoadFromSuper) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-  Handle<Object> receiver = args.at(0);
+  Handle<JSAny> receiver = args.at<JSAny>(0);
   Handle<JSObject> home_object = args.at<JSObject>(1);
   Handle<Name> name = args.at<Name>(2);
 
@@ -727,7 +726,7 @@ RUNTIME_FUNCTION(Runtime_LoadFromSuper) {
 RUNTIME_FUNCTION(Runtime_LoadKeyedFromSuper) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-  Handle<Object> receiver = args.at(0);
+  Handle<JSAny> receiver = args.at<JSAny>(0);
   Handle<JSObject> home_object = args.at<JSObject>(1);
   // TODO(ishell): To improve performance, consider performing the to-string
   // conversion of {key} before calling into the runtime.
@@ -744,7 +743,7 @@ RUNTIME_FUNCTION(Runtime_LoadKeyedFromSuper) {
 namespace {
 
 MaybeHandle<Object> StoreToSuper(Isolate* isolate, Handle<JSObject> home_object,
-                                 Handle<Object> receiver, PropertyKey* key,
+                                 Handle<JSAny> receiver, PropertyKey* key,
                                  Handle<Object> value,
                                  StoreOrigin store_origin) {
   Handle<JSReceiver> holder;
@@ -762,7 +761,7 @@ MaybeHandle<Object> StoreToSuper(Isolate* isolate, Handle<JSObject> home_object,
 RUNTIME_FUNCTION(Runtime_StoreToSuper) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
-  Handle<Object> receiver = args.at(0);
+  Handle<JSAny> receiver = args.at<JSAny>(0);
   Handle<JSObject> home_object = args.at<JSObject>(1);
   Handle<Name> name = args.at<Name>(2);
   Handle<Object> value = args.at(3);
@@ -777,7 +776,7 @@ RUNTIME_FUNCTION(Runtime_StoreToSuper) {
 RUNTIME_FUNCTION(Runtime_StoreKeyedToSuper) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
-  Handle<Object> receiver = args.at(0);
+  Handle<JSAny> receiver = args.at<JSAny>(0);
   Handle<JSObject> home_object = args.at<JSObject>(1);
   // TODO(ishell): To improve performance, consider performing the to-string
   // conversion of {key} before calling into the runtime.

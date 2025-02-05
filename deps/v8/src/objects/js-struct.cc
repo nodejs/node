@@ -4,6 +4,7 @@
 
 #include "src/objects/js-struct.h"
 
+#include "src/heap/heap-layout-inl.h"
 #include "src/objects/lookup-inl.h"
 #include "src/objects/map-inl.h"
 #include "src/objects/off-heap-hash-table-inl.h"
@@ -23,8 +24,8 @@ void PrepareMapCommon(Tagged<Map> map) {
   map->set_is_extensible(false);
   // Shared space objects are not optimizable as prototypes because it is
   // not threadsafe.
-  map->set_prototype_validity_cell(Smi::FromInt(Map::kPrototypeChainValid),
-                                   kRelaxedStore, SKIP_WRITE_BARRIER);
+  map->set_prototype_validity_cell(Map::kPrototypeChainValidSmi, kRelaxedStore,
+                                   SKIP_WRITE_BARRIER);
 }
 
 }  // namespace
@@ -213,7 +214,7 @@ Handle<Map> JSSharedStruct::CreateInstanceMap(
             ReadOnlyRoots(isolate).undefined_value_handle(), details);
       }
       elements_template->SetInitialNumberOfElements(num_elements);
-      DCHECK(InAnySharedSpace(*elements_template));
+      DCHECK(HeapLayout::InAnySharedSpace(*elements_template));
 
       Descriptor d = Descriptor::DataConstant(
           factory->shared_struct_map_elements_template_symbol(),

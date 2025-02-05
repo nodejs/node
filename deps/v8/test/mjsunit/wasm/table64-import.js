@@ -42,7 +42,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertThrows(
       () => builder2.instantiate({imports: {table: table64}}),
       WebAssembly.LinkError,
-      'WebAssembly.Instance(): cannot import table64 as table32');
+      'WebAssembly.Instance(): cannot import i64 table as i32');
 })();
 
 (function TestImportTable32AsTable64() {
@@ -57,5 +57,5 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertThrows(
       () => builder2.instantiate({imports: {table: table32}}),
       WebAssembly.LinkError,
-      'WebAssembly.Instance(): cannot import table32 as table64');
+      'WebAssembly.Instance(): cannot import i32 table as i64');
 })();

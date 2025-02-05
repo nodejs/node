@@ -10,7 +10,6 @@
 #include <type_traits>
 
 #include "src/base/logging.h"
-#include "src/base/template-meta-programming/algorithm.h"
 #include "src/codegen/tnode.h"
 #include "src/compiler/turboshaft/fast-hash.h"
 #include "src/compiler/turboshaft/representations.h"
@@ -41,7 +40,7 @@ class OpIndex {
   // convertible to OpIndex. FromOffset should be used instead to create an
   // OpIndex from an offset.
   explicit constexpr OpIndex(uint32_t offset) : offset_(offset) {
-    DCHECK(CheckInvariants());
+    SLOW_DCHECK(CheckInvariants());
   }
   friend class OperationBuffer;
 
@@ -63,18 +62,18 @@ class OpIndex {
     // least `kSlotsPerId` many `OperationSlot`s. Therefore, we can assign id's
     // by dividing by `kSlotsPerId`. A compact id space is important, because it
     // makes side-tables smaller.
-    DCHECK(CheckInvariants());
+    SLOW_DCHECK(CheckInvariants());
     return offset_ / sizeof(OperationStorageSlot) / kSlotsPerId;
   }
   uint32_t hash() const {
     // It can be useful to hash OpIndex::Invalid(), so we have this `hash`
     // function, which returns the id, but without DCHECKing that Invalid is
     // valid.
-    DCHECK_IMPLIES(valid(), CheckInvariants());
+    SLOW_DCHECK_IMPLIES(valid(), CheckInvariants());
     return offset_ / sizeof(OperationStorageSlot) / kSlotsPerId;
   }
   uint32_t offset() const {
-    DCHECK(CheckInvariants());
+    SLOW_DCHECK(CheckInvariants());
 #ifdef DEBUG
     return offset_ & kUnmaskGenerationMask;
 #else
@@ -532,10 +531,11 @@ using NumberOrUndefined = UnionOf<Number, Undefined>;
 
 using NonBigIntPrimitive = UnionOf<Symbol, PlainPrimitive>;
 using Primitive = UnionOf<BigInt, NonBigIntPrimitive>;
-using CallTarget = UntaggedUnion<WordPtr, Code, JSFunction>;
+using WasmCodePtr =
+    std::conditional_t<V8_ENABLE_WASM_CODE_POINTER_TABLE_BOOL, Word32, WordPtr>;
+using CallTarget = UntaggedUnion<WordPtr, Code, JSFunction, WasmCodePtr>;
 using AnyOrNone = UntaggedUnion<Any, None>;
 
-#ifdef HAS_CPP_CONCEPTS
 template <typename T>
 concept IsUntagged =
     !std::is_same_v<T, Any> &&
@@ -544,7 +544,6 @@ concept IsUntagged =
 template <typename T>
 concept IsTagged = !std::is_same_v<T, Any> &&
                    v_traits<Object>::implicitly_constructible_from<T>::value;
-#endif
 
 #if V8_ENABLE_WEBASSEMBLY
 using WasmArrayNullable = Union<WasmArray, WasmNull>;
@@ -799,8 +798,7 @@ class ShadowyOpIndexVectorWrapper {
   }
   template <typename U>
   operator base::Vector<const V<U>>() const {  // NOLINT(runtime/explicit)
-    return base::Vector<const V<U>>{static_cast<const V<U>*>(indices_.data()),
-                                    indices_.size()};
+    return {static_cast<const V<U>*>(indices_.data()), indices_.size()};
   }
 
   size_t size() const noexcept { return indices_.size(); }

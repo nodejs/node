@@ -85,6 +85,8 @@ class V8_EXPORT_PRIVATE WasmCodePointerTable
   inline void SetEntrypoint(uint32_t index, Address value);
   inline void SetEntrypointWithWriteScope(uint32_t index, Address value,
                                           WriteScope& write_scope);
+  inline void SetEntrypointWithRwxWriteScope(uint32_t index, Address value,
+                                             RwxMemoryWriteScope& write_scope);
 
   // Allocates a new entry in the table and optionally initialize it.
   inline uint32_t AllocateAndInitializeEntry(Address entrypoint);
@@ -97,7 +99,13 @@ class V8_EXPORT_PRIVATE WasmCodePointerTable
   // early if there's less than `threshold` many elements in the freelist.
   void SweepSegments(size_t threshold = 2 * kEntriesPerSegment);
 
+  // Add an entry for a native function address, used by the C API.
+  uint32_t GetOrCreateHandleForNativeFunction(Address addr);
+
  private:
+  // Allow the ExternalReference to access the table base.
+  friend class ::v8::internal::ExternalReference;
+
   // This marker is used to temporarily unlink the freelist to get exclusive
   // access.
   static constexpr FreelistHead kRetryMarker = FreelistHead(0xffffffff, 0);
@@ -133,10 +141,16 @@ class V8_EXPORT_PRIVATE WasmCodePointerTable
   V8_INLINE uint32_t
   AllocateEntryFromFreelistNonAtomic(FreelistHead* freelist_head);
 
+  // Free all handles in the `native_function_map_`.
+  void FreeNativeFunctionHandles();
+
   std::atomic<FreelistHead> freelist_head_ = FreelistHead();
   // The mutex is used to avoid two threads from concurrently allocating
   // segments and using more memory than needed.
   base::Mutex segment_allocation_mutex_;
+
+  base::Mutex native_function_map_mutex_;
+  std::map<Address, uint32_t> native_function_map_;
 
   friend class WasmCodePointerTableTest;
 };

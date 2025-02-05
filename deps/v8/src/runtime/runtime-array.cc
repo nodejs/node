@@ -214,7 +214,7 @@ RUNTIME_FUNCTION(Runtime_IsArray) {
 RUNTIME_FUNCTION(Runtime_ArraySpeciesConstructor) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<Object> original_array = args.at(0);
+  Handle<JSAny> original_array = args.at<JSAny>(0);
   RETURN_RESULT_OR_FAILURE(
       isolate, Object::ArraySpeciesConstructor(isolate, original_array));
 }

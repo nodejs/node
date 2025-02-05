@@ -20,6 +20,12 @@ package(features = [
 
 licenses(["notice"])
 
+filegroup(
+    name = "zoneinfo",
+    srcs = glob(["testdata/zoneinfo/**"]),
+    visibility = ["//absl/time:__subpackages__"],
+)
+
 ### libraries
 
 cc_library(
@@ -154,12 +160,6 @@ cc_test(
         "//absl/base:config",
         "@com_github_google_benchmark//:benchmark_main",
     ],
-)
-
-filegroup(
-    name = "zoneinfo",
-    srcs = glob(["testdata/zoneinfo/**"]),
-    visibility = ["//absl/time:__subpackages__"],
 )
 
 ### examples

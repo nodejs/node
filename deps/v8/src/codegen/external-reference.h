@@ -74,7 +74,8 @@ enum class IsolateFieldId : uint8_t;
     "RegExpStack::memory_top_address_address()")                               \
   V(address_of_regexp_stack_stack_pointer,                                     \
     "RegExpStack::stack_pointer_address()")                                    \
-  V(address_of_static_offsets_vector, "OffsetsVector::static_offsets_vector")  \
+  V(address_of_regexp_static_result_offsets_vector,                            \
+    "Isolate::address_of_regexp_static_result_offsets_vector")                 \
   V(thread_in_wasm_flag_address_address,                                       \
     "Isolate::thread_in_wasm_flag_address_address")                            \
   EXTERNAL_REFERENCE_LIST_WITH_ISOLATE_SANDBOX(V)
@@ -86,7 +87,9 @@ enum class IsolateFieldId : uint8_t;
   V(shared_external_pointer_table_address_address,              \
     "Isolate::shared_external_pointer_table_address_address()") \
   V(trusted_pointer_table_base_address,                         \
-    "Isolate::trusted_pointer_table_base_address()")
+    "Isolate::trusted_pointer_table_base_address()")            \
+  V(shared_trusted_pointer_table_base_address,                  \
+    "Isolate::shared_trusted_pointer_table_base_address()")
 #else
 #define EXTERNAL_REFERENCE_LIST_WITH_ISOLATE_SANDBOX(V)
 #endif  // V8_ENABLE_SANDBOX
@@ -220,6 +223,8 @@ enum class IsolateFieldId : uint8_t;
   V(search_string_raw_two_two, "search_string_raw_two_two")                    \
   V(string_write_to_flat_one_byte, "string_write_to_flat_one_byte")            \
   V(string_write_to_flat_two_byte, "string_write_to_flat_two_byte")            \
+  V(script_context_mutable_heap_number_flag,                                   \
+    "v8_flags.script_context_mutable_heap_number")                             \
   V(external_one_byte_string_get_chars, "external_one_byte_string_get_chars")  \
   V(external_two_byte_string_get_chars, "external_two_byte_string_get_chars")  \
   V(smi_lexicographic_compare_function, "smi_lexicographic_compare_function")  \
@@ -255,6 +260,7 @@ enum class IsolateFieldId : uint8_t;
           "wasm::switch_to_the_central_stack_for_js")                          \
   IF_WASM(V, wasm_switch_from_the_central_stack_for_js,                        \
           "wasm::switch_from_the_central_stack_for_js")                        \
+  IF_WASM(V, wasm_code_pointer_table, "GetProcessWideWasmCodePointerTable()")  \
   IF_WASM(V, wasm_grow_stack, "wasm::grow_stack")                              \
   IF_WASM(V, wasm_shrink_stack, "wasm::shrink_stack")                          \
   IF_WASM(V, wasm_load_old_fp, "wasm::load_old_fp")                            \
@@ -451,7 +457,9 @@ enum class IsolateFieldId : uint8_t;
   V(typed_array_and_rab_gsab_typed_array_elements_kind_sizes,                  \
     "TypedArrayAndRabGsabTypedArrayElementsKindSizes")                         \
   EXTERNAL_REFERENCE_LIST_INTL(V)                                              \
-  EXTERNAL_REFERENCE_LIST_SANDBOX(V)
+  EXTERNAL_REFERENCE_LIST_SANDBOX(V)                                           \
+  EXTERNAL_REFERENCE_LIST_CET_SHADOW_STACK(V)
+
 #ifdef V8_INTL_SUPPORT
 #define EXTERNAL_REFERENCE_LIST_INTL(V)                               \
   V(intl_convert_one_byte_to_lower, "intl_convert_one_byte_to_lower") \
@@ -463,16 +471,25 @@ enum class IsolateFieldId : uint8_t;
 #endif  // V8_INTL_SUPPORT
 
 #ifdef V8_ENABLE_SANDBOX
-#define EXTERNAL_REFERENCE_LIST_SANDBOX(V)                          \
-  V(sandbox_base_address, "Sandbox::base()")                        \
-  V(sandbox_end_address, "Sandbox::end()")                          \
-  V(empty_backing_store_buffer, "EmptyBackingStoreBuffer()")        \
-  V(code_pointer_table_address, "GetProcessWideCodePointerTable()") \
-  V(js_dispatch_table_address, "GetProcessWideJSDispatchTable()")   \
+#define EXTERNAL_REFERENCE_LIST_SANDBOX(V)                        \
+  V(sandbox_base_address, "Sandbox::base()")                      \
+  V(sandbox_end_address, "Sandbox::end()")                        \
+  V(empty_backing_store_buffer, "EmptyBackingStoreBuffer()")      \
+  V(code_pointer_table_address,                                   \
+    "IsolateGroup::current()->code_pointer_table()")              \
+  V(js_dispatch_table_address, "GetProcessWideJSDispatchTable()") \
   V(memory_chunk_metadata_table_address, "MemoryChunkMetadata::Table()")
 #else
 #define EXTERNAL_REFERENCE_LIST_SANDBOX(V)
 #endif  // V8_ENABLE_SANDBOX
+
+#ifdef V8_ENABLE_CET_SHADOW_STACK
+#define EXTERNAL_REFERENCE_LIST_CET_SHADOW_STACK(V)            \
+  V(address_of_cet_compatible_flag, "v8_flags.cet_compatible") \
+  V(ensure_valid_return_address, "Deoptimizer::EnsureValidReturnAddress()")
+#else
+#define EXTERNAL_REFERENCE_LIST_CET_SHADOW_STACK(V)
+#endif  // V8_ENABLE_CET_SHADOW_STACK
 
 // An ExternalReference represents a C++ address used in the generated
 // code. All references to C++ functions and variables must be encapsulated

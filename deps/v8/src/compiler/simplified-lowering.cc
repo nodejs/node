@@ -16,7 +16,6 @@
 #include "src/compiler/common-operator.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/diamond.h"
-#include "src/compiler/graph-visualizer.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
@@ -27,6 +26,7 @@
 #include "src/compiler/representation-change.h"
 #include "src/compiler/simplified-lowering-verifier.h"
 #include "src/compiler/simplified-operator.h"
+#include "src/compiler/turbofan-graph-visualizer.h"
 #include "src/compiler/type-cache.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/objects/objects.h"
@@ -1993,9 +1993,11 @@ class RepresentationSelector {
         CHECK_EQ(type.GetType(), CTypeInfo::Type::kVoid);
         return UseInfo::AnyTagged();
       }
+        START_ALLOW_USE_DEPRECATED()
       case CTypeInfo::SequenceType::kIsTypedArray: {
         return UseInfo::AnyTagged();
       }
+        END_ALLOW_USE_DEPRECATED()
       default: {
         UNREACHABLE();  // TODO(mslekova): Implement array buffers.
       }
@@ -2208,7 +2210,8 @@ class RepresentationSelector {
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-  static MachineType MachineTypeForWasmReturnType(wasm::ValueType type) {
+  static MachineType MachineTypeForWasmReturnType(
+      wasm::CanonicalValueType type) {
     switch (type.kind()) {
       case wasm::kI32:
         return MachineType::Int32();
@@ -2226,7 +2229,8 @@ class RepresentationSelector {
     }
   }
 
-  UseInfo UseInfoForJSWasmCallArgument(Node* input, wasm::ValueType type,
+  UseInfo UseInfoForJSWasmCallArgument(Node* input,
+                                       wasm::CanonicalValueType type,
                                        FeedbackSource const& feedback) {
     // If the input type is a Number or Oddball, we can directly convert the
     // input into the Wasm native type of the argument. If not, we return
@@ -2260,7 +2264,7 @@ class RepresentationSelector {
     JSWasmCallNode n(node);
 
     JSWasmCallParameters const& params = n.Parameters();
-    const wasm::FunctionSig* wasm_signature = params.signature();
+    const wasm::CanonicalSig* wasm_signature = params.signature();
     int wasm_arg_count = static_cast<int>(wasm_signature->parameter_count());
     DCHECK_EQ(wasm_arg_count, n.ArgumentCount());
 
@@ -3717,7 +3721,8 @@ class RepresentationSelector {
         SetOutput<T>(node, MachineRepresentation::kTaggedSigned);
         return;
       }
-      case IrOpcode::kStringLength: {
+      case IrOpcode::kStringLength:
+      case IrOpcode::kStringWrapperLength: {
         // TODO(bmeurer): The input representation should be TaggedPointer.
         // Fix this once we have a dedicated StringConcat/JSStringAdd
         // operator, which marks it's output as TaggedPointer properly.

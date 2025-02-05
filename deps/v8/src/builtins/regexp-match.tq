@@ -17,6 +17,11 @@ extern transitioning macro RegExpBuiltinsAssembler::FlagGetter(
 extern macro LoadTrustedPointerFromObject(
     HeapObject, constexpr int31, constexpr uint64): TrustedObject;
 
+namespace runtime {
+extern runtime RegExpMatchGlobalAtom(
+    implicit context: Context)(JSRegExp, String, RegExpData): JSAny;
+}
+
 transitioning macro RegExpPrototypeMatchBody(
     implicit context: Context)(regexp: JSReceiver, string: String,
     isFastPath: constexpr bool): JSAny {
@@ -32,19 +37,8 @@ transitioning macro RegExpPrototypeMatchBody(
   }
 
   dcheck(isGlobal);
-  const isUnicode: bool = FlagGetter(regexp, Flag::kUnicode, isFastPath) ||
-      FlagGetter(regexp, Flag::kUnicodeSets, isFastPath);
 
-  StoreLastIndex(regexp, 0, isFastPath);
-
-  // Allocate an array to store the resulting match strings.
-
-  let array = growable_fixed_array::NewGrowableFixedArray();
-
-  // Check if the regexp is an ATOM type. If so, then keep the literal string
-  // to search for so that we can avoid calling substring in the loop below.
-  let atom: bool = false;
-  let searchString: String = EmptyStringConstant();
+  // Check if the regexp is an ATOM type. If so, take the runtime fast path.
   if constexpr (isFastPath) {
     const maybeAtomRegexp = UnsafeCast<JSRegExp>(regexp);
     const data: RegExpData =
@@ -52,11 +46,15 @@ transitioning macro RegExpPrototypeMatchBody(
             maybeAtomRegexp, kJSRegExpRegExpDataOffset,
             kRegExpDataIndirectPointerTag));
     if (data.type_tag == kATOM) {
-      searchString = UnsafeCast<AtomRegExpData>(data).pattern;
-      atom = true;
+      return runtime::RegExpMatchGlobalAtom(maybeAtomRegexp, string, data);
     }
   }
 
+  const isUnicode: bool = FlagGetter(regexp, Flag::kUnicode, isFastPath) ||
+      FlagGetter(regexp, Flag::kUnicodeSets, isFastPath);
+  StoreLastIndex(regexp, 0, isFastPath);
+
+  let array = growable_fixed_array::NewGrowableFixedArray();
   while (true) {
     let match: String = EmptyStringConstant();
     try {
@@ -66,14 +64,10 @@ transitioning macro RegExpPrototypeMatchBody(
         const matchIndices: RegExpMatchInfo =
             RegExpPrototypeExecBodyWithoutResultFast(
                 UnsafeCast<JSRegExp>(regexp), string) otherwise IfDidNotMatch;
-        if (atom) {
-          match = searchString;
-        } else {
-          const matchFrom = matchIndices.GetStartOfCapture(0);
-          const matchTo = matchIndices.GetEndOfCapture(0);
-          match = SubString(
-              string, UnsafeCast<Smi>(matchFrom), UnsafeCast<Smi>(matchTo));
-        }
+        const matchFrom = matchIndices.GetStartOfCapture(0);
+        const matchTo = matchIndices.GetEndOfCapture(0);
+        match = SubString(
+            string, UnsafeCast<Smi>(matchFrom), UnsafeCast<Smi>(matchTo));
       } else {
         dcheck(!isFastPath);
         const resultTemp = RegExpExec(regexp, string);

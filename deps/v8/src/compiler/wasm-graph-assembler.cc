@@ -294,16 +294,16 @@ Node* WasmGraphAssembler::LoadWasmTypeInfo(Node* map) {
 Node* WasmGraphAssembler::LoadFixedArrayLengthAsSmi(Node* fixed_array) {
   return LoadImmutableFromObject(
       MachineType::TaggedSigned(), fixed_array,
-      wasm::ObjectAccess::ToTagged(FixedArray::kLengthOffset));
+      wasm::ObjectAccess::ToTagged(offsetof(FixedArray, length_)));
 }
 
 Node* WasmGraphAssembler::LoadFixedArrayElement(Node* fixed_array,
                                                 Node* index_intptr,
                                                 MachineType type) {
   DCHECK(IsSubtype(type.representation(), MachineRepresentation::kTagged));
-  Node* offset = IntAdd(
-      IntMul(index_intptr, IntPtrConstant(kTaggedSize)),
-      IntPtrConstant(wasm::ObjectAccess::ToTagged(FixedArray::kHeaderSize)));
+  Node* offset = IntAdd(IntMul(index_intptr, IntPtrConstant(kTaggedSize)),
+                        IntPtrConstant(wasm::ObjectAccess::ToTagged(
+                            OFFSET_OF_DATA_START(FixedArray))));
   return LoadFromObject(type, fixed_array, offset);
 }
 
@@ -311,16 +311,16 @@ Node* WasmGraphAssembler::LoadWeakFixedArrayElement(Node* fixed_array,
                                                     Node* index_intptr) {
   Node* offset = IntAdd(IntMul(index_intptr, IntPtrConstant(kTaggedSize)),
                         IntPtrConstant(wasm::ObjectAccess::ToTagged(
-                            WeakFixedArray::kHeaderSize)));
+                            OFFSET_OF_DATA_START(WeakFixedArray))));
   return LoadFromObject(MachineType::AnyTagged(), fixed_array, offset);
 }
 
 Node* WasmGraphAssembler::LoadImmutableFixedArrayElement(Node* fixed_array,
                                                          Node* index_intptr,
                                                          MachineType type) {
-  Node* offset = IntAdd(
-      IntMul(index_intptr, IntPtrConstant(kTaggedSize)),
-      IntPtrConstant(wasm::ObjectAccess::ToTagged(FixedArray::kHeaderSize)));
+  Node* offset = IntAdd(IntMul(index_intptr, IntPtrConstant(kTaggedSize)),
+                        IntPtrConstant(wasm::ObjectAccess::ToTagged(
+                            OFFSET_OF_DATA_START(FixedArray))));
   return LoadImmutableFromObject(type, fixed_array, offset);
 }
 
@@ -340,7 +340,7 @@ Node* WasmGraphAssembler::LoadProtectedFixedArrayElement(Node* array,
                                                          Node* index_intptr) {
   Node* offset = IntAdd(WordShl(index_intptr, IntPtrConstant(kTaggedSizeLog2)),
                         IntPtrConstant(wasm::ObjectAccess::ToTagged(
-                            ProtectedFixedArray::kHeaderSize)));
+                            OFFSET_OF_DATA_START(ProtectedFixedArray))));
   return LoadProtectedPointerFromObject(array, offset);
 }
 
@@ -348,9 +348,9 @@ Node* WasmGraphAssembler::LoadByteArrayElement(Node* byte_array,
                                                Node* index_intptr,
                                                MachineType type) {
   int element_size = ElementSizeInBytes(type.representation());
-  Node* offset = IntAdd(
-      IntMul(index_intptr, IntPtrConstant(element_size)),
-      IntPtrConstant(wasm::ObjectAccess::ToTagged(ByteArray::kHeaderSize)));
+  Node* offset = IntAdd(IntMul(index_intptr, IntPtrConstant(element_size)),
+                        IntPtrConstant(wasm::ObjectAccess::ToTagged(
+                            OFFSET_OF_DATA_START(ByteArray))));
   return LoadFromObject(type, byte_array, offset);
 }
 
@@ -401,7 +401,7 @@ Node* WasmGraphAssembler::StoreFixedArrayElement(Node* array, int index,
 // Functions, SharedFunctionInfos, FunctionData.
 
 Node* WasmGraphAssembler::LoadSharedFunctionInfo(Node* js_function) {
-  return LoadFromObject(
+  return LoadImmutableFromObject(
       MachineType::TaggedPointer(), js_function,
       wasm::ObjectAccess::SharedFunctionInfoOffsetInTaggedJSFunction());
 }
@@ -412,7 +412,7 @@ Node* WasmGraphAssembler::LoadContextFromJSFunction(Node* js_function) {
 
 Node* WasmGraphAssembler::LoadFunctionDataFromJSFunction(Node* js_function) {
   Node* shared = LoadSharedFunctionInfo(js_function);
-  return LoadTrustedPointerFromObject(
+  return LoadImmutableTrustedPointerFromObject(
       shared,
       wasm::ObjectAccess::ToTagged(
           SharedFunctionInfo::kTrustedFunctionDataOffset),

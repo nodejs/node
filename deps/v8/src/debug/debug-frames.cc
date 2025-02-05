@@ -35,12 +35,12 @@ FrameInspector::FrameInspector(CommonFrame* frame, int inlined_frame_index,
 
 #if V8_ENABLE_WEBASSEMBLY
   JavaScriptFrame* js_frame =
-      frame->is_java_script() ? javascript_frame() : nullptr;
+      frame->is_javascript() ? javascript_frame() : nullptr;
   DCHECK(js_frame || frame->is_wasm());
 #else
   JavaScriptFrame* js_frame = javascript_frame();
 #endif  // V8_ENABLE_WEBASSEMBLY
-  is_optimized_ = frame_->is_optimized();
+  is_optimized_ = js_frame && js_frame->is_optimized();
 
   // Calculate the deoptimized frame.
   if (is_optimized_) {
@@ -105,7 +105,7 @@ bool FrameInspector::IsWasmInterpreter() {
 #endif  // V8_ENABLE_DRUMBRAKE
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-bool FrameInspector::IsJavaScript() { return frame_->is_java_script(); }
+bool FrameInspector::IsJavaScript() { return frame_->is_javascript(); }
 
 bool FrameInspector::ParameterIsShadowedByContextLocal(
     DirectHandle<ScopeInfo> info, Handle<String> parameter_name) {

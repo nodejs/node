@@ -20,8 +20,9 @@ namespace v8::internal::wasm {
 
 // These constants limit the amount of *declared* memory. At runtime, memory can
 // only grow up to kV8MaxWasmMemory{32,64}Pages.
+// The spec limits are defined in
+// https://webassembly.github.io/spec/js-api/index.html#limits.
 constexpr size_t kSpecMaxMemory32Pages = 65'536;  // 4GB
-// TODO(clemensb): Adapt once the spec defines a limit here. For now, use 16GB.
 constexpr size_t kSpecMaxMemory64Pages = 262'144;  // 16GB
 
 // The following limits are imposed by V8 on WebAssembly modules.
@@ -71,6 +72,11 @@ static_assert(kV8MaxWasmTableSize <= 4294967295,  // 2^32 - 1
               "v8 should not exceed WebAssembly's non-web embedding limits");
 static_assert(kV8MaxWasmTableInitEntries <= kV8MaxWasmTableSize,
               "JS-API should not exceed v8's limit");
+
+// 64-bit platforms support the full spec'ed memory limits.
+static_assert(kSystemPointerSize == 4 ||
+              (kV8MaxWasmMemory32Pages == kSpecMaxMemory32Pages &&
+               kV8MaxWasmMemory64Pages == kSpecMaxMemory64Pages));
 
 constexpr uint64_t kWasmMaxHeapOffset =
     static_cast<uint64_t>(

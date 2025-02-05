@@ -64,8 +64,7 @@ struct WordOperationTyper {
       return type_t::Set(elements, zone);
     }
 
-    auto range =
-        MakeRange(base::Vector<const word_t>{elements.data(), elements.size()});
+    auto range = MakeRange(base::VectorOf(elements));
     auto result = type_t::Range(range.first, range.second, zone);
     DCHECK(
         base::all_of(elements, [&](word_t e) { return result.Contains(e); }));

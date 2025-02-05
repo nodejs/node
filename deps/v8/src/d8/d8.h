@@ -529,6 +529,9 @@ class Shell : public i::AllStatic {
   };
   enum class CodeType { kFileName, kString, kFunction, kInvalid, kNone };
 
+  // Boolean return values (for any method below) typically denote "success".
+  // We return `false` on uncaught exceptions, except for termination
+  // exceptions.
   static bool ExecuteString(Isolate* isolate, Local<String> source,
                             Local<String> name,
                             ReportExceptions report_exceptions,
@@ -718,6 +721,10 @@ class Shell : public i::AllStatic {
       Local<Context> context, Local<Data> host_defined_options,
       Local<Value> resource_name, Local<String> specifier,
       Local<FixedArray> import_attributes);
+  static MaybeLocal<Promise> HostImportModuleWithPhaseDynamically(
+      Local<Context> context, Local<Data> host_defined_options,
+      Local<Value> resource_name, Local<String> specifier,
+      ModuleImportPhase phase, Local<FixedArray> import_attributes);
 
   static void ModuleResolutionSuccessCallback(
       const v8::FunctionCallbackInfo<v8::Value>& info);

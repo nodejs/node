@@ -178,9 +178,10 @@ constexpr bool AsciiInAZRange(unsigned char c) {
 }
 
 // Force-inline so the compiler won't merge the short and long implementations.
+// `src` may be null iff `size` is zero.
 template <bool ToUpper>
 ABSL_ATTRIBUTE_ALWAYS_INLINE inline constexpr void AsciiStrCaseFoldImpl(
-    absl::Nonnull<char*> dst, absl::Nonnull<const char*> src, size_t size) {
+    absl::Nonnull<char*> dst, absl::Nullable<const char*> src, size_t size) {
   // The upper- and lowercase versions of ASCII characters differ by only 1 bit.
   // When we need to flip the case, we can xor with this bit to achieve the
   // desired result. Note that the choice of 'a' and 'A' here is arbitrary. We
@@ -199,28 +200,30 @@ ABSL_ATTRIBUTE_ALWAYS_INLINE inline constexpr void AsciiStrCaseFoldImpl(
 constexpr size_t kCaseFoldThreshold = 16;
 
 // No-inline so the compiler won't merge the short and long implementations.
+// `src` may be null iff `size` is zero.
 template <bool ToUpper>
 ABSL_ATTRIBUTE_NOINLINE constexpr void AsciiStrCaseFoldLong(
-    absl::Nonnull<char*> dst, absl::Nonnull<const char*> src, size_t size) {
+    absl::Nonnull<char*> dst, absl::Nullable<const char*> src, size_t size) {
   ABSL_ASSUME(size >= kCaseFoldThreshold);
   AsciiStrCaseFoldImpl<ToUpper>(dst, src, size);
 }
 
 // Splitting to short and long strings to allow vectorization decisions
 // to be made separately in the long and short cases.
+// `src` may be null iff `size` is zero.
 template <bool ToUpper>
 constexpr void AsciiStrCaseFold(absl::Nonnull<char*> dst,
-                                absl::Nonnull<const char*> src, size_t size) {
+                                absl::Nullable<const char*> src, size_t size) {
   size < kCaseFoldThreshold ? AsciiStrCaseFoldImpl<ToUpper>(dst, src, size)
                             : AsciiStrCaseFoldLong<ToUpper>(dst, src, size);
 }
 
-void AsciiStrToLower(absl::Nonnull<char*> dst, absl::Nonnull<const char*> src,
+void AsciiStrToLower(absl::Nonnull<char*> dst, absl::Nullable<const char*> src,
                      size_t n) {
   return AsciiStrCaseFold<false>(dst, src, n);
 }
 
-void AsciiStrToUpper(absl::Nonnull<char*> dst, absl::Nonnull<const char*> src,
+void AsciiStrToUpper(absl::Nonnull<char*> dst, absl::Nullable<const char*> src,
                      size_t n) {
   return AsciiStrCaseFold<true>(dst, src, n);
 }

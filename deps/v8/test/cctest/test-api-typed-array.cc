@@ -17,7 +17,7 @@ using ::v8::Value;
 namespace {
 
 void CheckElementValue(i::Isolate* isolate, int expected,
-                       i::Handle<i::Object> obj, int offset) {
+                       i::Handle<i::JSAny> obj, int offset) {
   i::Tagged<i::Object> element =
       *i::Object::GetElement(isolate, obj, offset).ToHandleChecked();
   CHECK_EQ(expected, i::Smi::ToInt(element));

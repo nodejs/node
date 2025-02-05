@@ -48,6 +48,10 @@ class V8_EXPORT_PRIVATE NamesProvider {
                       uint32_t label_index, uint32_t fallback_index);
   void PrintTypeName(StringBuilder& out, uint32_t type_index,
                      IndexAsComment index_as_comment = kDontPrintIndex);
+  void PrintTypeName(StringBuilder& out, ModuleTypeIndex type_index,
+                     IndexAsComment index_as_comment = kDontPrintIndex) {
+    PrintTypeName(out, type_index.index, index_as_comment);
+  }
   void PrintTableName(StringBuilder& out, uint32_t table_index,
                       IndexAsComment index_as_comment = kDontPrintIndex);
   void PrintMemoryName(StringBuilder& out, uint32_t memory_index,

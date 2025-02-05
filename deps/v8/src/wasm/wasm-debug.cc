@@ -207,7 +207,7 @@ class DebugInfoImpl {
   WasmCode* RecompileLiftoffWithBreakpoints(int func_index,
                                             base::Vector<const int> offsets,
                                             int dead_breakpoint) {
-    DCHECK(!mutex_.TryLock());  // Mutex is held externally.
+    mutex_.AssertHeld();  // Mutex is held externally.
 
     ForDebugging for_debugging = offsets.size() == 1 && offsets[0] == 0
                                      ? kForStepping
@@ -235,7 +235,7 @@ class DebugInfoImpl {
     CompilationEnv env = CompilationEnv::ForModule(native_module_);
     const WasmFunction* function = &env.module->functions[func_index];
     base::Vector<const uint8_t> wire_bytes = native_module_->wire_bytes();
-    bool is_shared = env.module->types[function->sig_index].is_shared;
+    bool is_shared = env.module->type(function->sig_index).is_shared;
     FunctionBody body{function->sig, function->code.offset(),
                       wire_bytes.begin() + function->code.offset(),
                       wire_bytes.begin() + function->code.end_offset(),
@@ -351,7 +351,7 @@ class DebugInfoImpl {
   }
 
   std::vector<int> FindAllBreakpoints(int func_index) {
-    DCHECK(!mutex_.TryLock());  // Mutex must be held externally.
+    mutex_.AssertHeld();  // Mutex must be held externally.
     std::set<int> breakpoints;
     for (auto& data : per_isolate_data_) {
       auto it = data.second.breakpoints_per_function.find(func_index);
@@ -364,7 +364,7 @@ class DebugInfoImpl {
   void UpdateBreakpoints(int func_index, base::Vector<int> breakpoints,
                          Isolate* isolate, StackFrameId stepping_frame,
                          int dead_breakpoint) {
-    DCHECK(!mutex_.TryLock());  // Mutex is held externally.
+    mutex_.AssertHeld();  // Mutex is held externally.
     WasmCode* new_code = RecompileLiftoffWithBreakpoints(
         func_index, breakpoints, dead_breakpoint);
     UpdateReturnAddresses(isolate, new_code, stepping_frame);
@@ -609,7 +609,7 @@ class DebugInfoImpl {
                      const DebugSideTable::Entry* debug_side_table_entry,
                      int index, Address stack_frame_base,
                      Address debug_break_fp, Isolate* isolate) const {
-    const auto* value =
+    const DebugSideTable::Entry::Value* value =
         debug_side_table->FindValue(debug_side_table_entry, index);
     if (value->is_constant()) {
       DCHECK(value->type == kWasmI32 || value->type == kWasmI64);
@@ -640,7 +640,7 @@ class DebugInfoImpl {
           Handle<Object> obj(
               Tagged<Object>(ReadUnalignedValue<Address>(gp_addr(reg.gp()))),
               isolate);
-          return WasmValue(obj, value->type);
+          return WasmValue(obj, value->type, value->module);
         } else {
           UNREACHABLE();
         }
@@ -686,12 +686,13 @@ class DebugInfoImpl {
         Handle<Object> obj(
             Tagged<Object>(ReadUnalignedValue<Address>(stack_address)),
             isolate);
-        return WasmValue(obj, value->type);
+        return WasmValue(obj, value->type, value->module);
       }
       case kI8:
       case kI16:
       case kF16:
       case kVoid:
+      case kTop:
       case kBottom:
         UNREACHABLE();
     }

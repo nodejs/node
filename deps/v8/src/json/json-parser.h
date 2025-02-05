@@ -333,6 +333,7 @@ class JsonParser final {
   MaybeHandle<Object> ParseJsonArray();
   MaybeHandle<Object> ParseJsonObject(Handle<Map> feedback);
 
+  template <bool should_track_json_source>
   Handle<JSObject> BuildJsonObject(const JsonContinuation& cont,
                                    Handle<Map> feedback);
   Handle<Object> BuildJsonArray(size_t start);

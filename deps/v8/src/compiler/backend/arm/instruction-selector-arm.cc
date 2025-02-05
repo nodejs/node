@@ -2450,6 +2450,11 @@ RRR_OP_T_LIST(RRR_VISITOR)
 #undef RRR_OP_T_LIST
 
 template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitTruncateFloat64ToFloat16(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat32Add(node_t node) {
   ArmOperandGeneratorT<Adapter> g(this);
   if constexpr (Adapter::IsTurboshaft) {

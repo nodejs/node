@@ -243,7 +243,7 @@ double FlatStringToDouble(Tagged<String> string, ConversionFlag flags,
 // can be represented using a string of length 23.
 V8_EXPORT_PRIVATE std::optional<double> TryStringToDouble(
     LocalIsolate* isolate, DirectHandle<String> object,
-    int max_length_for_conversion = 23);
+    uint32_t max_length_for_conversion = 23);
 
 // Return std::nullopt if the string is longer than 20.
 V8_EXPORT_PRIVATE std::optional<double> TryStringToInt(

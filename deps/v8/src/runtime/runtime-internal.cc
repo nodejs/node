@@ -638,8 +638,8 @@ RUNTIME_FUNCTION(Runtime_GetAndResetRuntimeCallStats) {
 RUNTIME_FUNCTION(Runtime_OrdinaryHasInstance) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<Object> callable = args.at(0);
-  Handle<Object> object = args.at(1);
+  Handle<JSAny> callable = args.at<JSAny>(0);
+  Handle<JSAny> object = args.at<JSAny>(1);
   RETURN_RESULT_OR_FAILURE(
       isolate, Object::OrdinaryHasInstance(isolate, callable, object));
 }
@@ -664,9 +664,9 @@ RUNTIME_FUNCTION(Runtime_CreateAsyncFromSyncIterator) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
 
-  Handle<Object> sync_iterator = args.at(0);
-
-  if (!IsJSReceiver(*sync_iterator)) {
+  Handle<JSAny> sync_iterator_any = args.at<JSAny>(0);
+  Handle<JSReceiver> sync_iterator;
+  if (!TryCast<JSReceiver>(sync_iterator_any, &sync_iterator)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kSymbolIteratorInvalid));
   }
@@ -677,8 +677,7 @@ RUNTIME_FUNCTION(Runtime_CreateAsyncFromSyncIterator) {
       Object::GetProperty(isolate, sync_iterator,
                           isolate->factory()->next_string()));
 
-  return *isolate->factory()->NewJSAsyncFromSyncIterator(
-      Cast<JSReceiver>(sync_iterator), next);
+  return *isolate->factory()->NewJSAsyncFromSyncIterator(sync_iterator, next);
 }
 
 RUNTIME_FUNCTION(Runtime_GetTemplateObject) {
@@ -749,14 +748,14 @@ RUNTIME_FUNCTION(Runtime_SharedValueBarrierSlow) {
   return *shared_value;
 }
 
-RUNTIME_FUNCTION(Runtime_InvalidateDependentCodeForConstTrackingLet) {
+RUNTIME_FUNCTION(Runtime_InvalidateDependentCodeForScriptContextSlot) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   auto const_tracking_let_cell =
-      Cast<ConstTrackingLetCell>(args.at<HeapObject>(0));
+      Cast<ContextSidePropertyCell>(args.at<HeapObject>(0));
   DependentCode::DeoptimizeDependencyGroups(
       isolate, *const_tracking_let_cell,
-      DependentCode::kConstTrackingLetChangedGroup);
+      DependentCode::kScriptContextSlotPropertyChangedGroup);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

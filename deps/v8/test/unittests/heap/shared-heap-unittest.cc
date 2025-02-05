@@ -14,7 +14,9 @@
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if V8_CAN_CREATE_SHARED_HEAP_BOOL
+// In multi-cage mode we create one cage per isolate
+// and we don't share objects between cages.
+#if V8_CAN_CREATE_SHARED_HEAP_BOOL && !COMPRESS_POINTERS_IN_MULTIPLE_CAGES_BOOL
 
 namespace v8 {
 namespace internal {
@@ -535,6 +537,8 @@ class ConcurrentThread final : public ParkingThread {
     IsolateWrapper isolate_wrapper(kNoCounters);
     i_client_isolate_ = isolate_wrapper.i_isolate();
 
+    v8::Isolate::Scope isolate_scope(isolate_wrapper.isolate());
+
     // Allocate the state on the stack, so that handles, direct handles or raw
     // pointers are stack-allocated.
     State state;
@@ -838,6 +842,9 @@ TEST_ALL_SCENARIA(SharedHeapTestStateWithRawPointerUnparked, ToEachTheirOwn,
 #undef TEST_SCENARIO
 #undef TEST_ALL_SCENARIA
 
+// TODO(358918874): Re-enable this test once allocation paths are using the
+// right tag for trusted pointers in shared objects.
+#if false
 TEST_F(SharedHeapTest, SharedUntrustedToSharedTrustedPointer) {
   Isolate* isolate = i_isolate();
   Factory* factory = isolate->factory();
@@ -882,6 +889,7 @@ TEST_F(SharedHeapTest, SharedUntrustedToSharedTrustedPointer) {
   bytecode_array->wrapper()->clear_bytecode();
   bytecode_array->set_wrapper(*bytecode_wrapper);
 }
+#endif  // false
 
 }  // namespace internal
 }  // namespace v8

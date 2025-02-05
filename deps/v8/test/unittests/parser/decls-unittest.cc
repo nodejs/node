@@ -1071,6 +1071,7 @@ TEST_F(DeclsTest, TestUsing) {
   {
     SimpleContext context;
     context.Check("using x = 42;", EXPECT_ERROR);
+    context.Check("{ using = 42;}", EXPECT_ERROR);
     context.Check("{ using await x = 1;}", EXPECT_ERROR);
     context.Check("{ using \n x = 1;}", EXPECT_EXCEPTION);
     context.Check("{using {x} = {x:5};}", EXPECT_ERROR);
@@ -1088,6 +1089,8 @@ TEST_F(DeclsTest, TestAwaitUsing) {
   {
     SimpleContext context;
     context.Check("await using x = 42;", EXPECT_ERROR);
+    context.Check("async function f() {await using = 1;} \n f();",
+                  EXPECT_ERROR);
     context.Check("async function f() {await using await x = 1;} \n f();",
                   EXPECT_ERROR);
     context.Check("async function f() {await using {x} = {x:5};} \n f();",

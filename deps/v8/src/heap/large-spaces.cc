@@ -266,8 +266,9 @@ bool LargeObjectSpace::Contains(Tagged<HeapObject> object) const {
 }
 
 bool LargeObjectSpace::ContainsSlow(Address addr) const {
+  MemoryChunk* chunk = MemoryChunk::FromAddress(addr);
   for (const LargePageMetadata* page : *this) {
-    if (page->Contains(addr)) return true;
+    if (page->Chunk() == chunk) return true;
   }
   return false;
 }

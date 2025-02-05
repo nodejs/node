@@ -171,7 +171,7 @@ TEST_P(MacroAssemblerTestMoveObjectAndSlot, MoveObjectAndSlot) {
   const MoveObjectAndSlotTestCase test_case = GetParam();
   TRACED_FOREACH(int32_t, offset, kOffsets) {
     auto buffer = AllocateAssemblerBuffer();
-    MacroAssembler masm(nullptr, AssemblerOptions{}, CodeObjectRequired::kNo,
+    MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
                         buffer->CreateView());
 
     {

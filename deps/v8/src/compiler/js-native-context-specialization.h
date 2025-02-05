@@ -286,8 +286,8 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   Zone* const zone_;
   Zone* const shared_zone_;
   TypeCache const* type_cache_;
-  ZoneUnorderedSet<Handle<String>, Handle<String>::hash,
-                   Handle<String>::equal_to>
+  ZoneUnorderedSet<IndirectHandle<String>, IndirectHandle<String>::hash,
+                   IndirectHandle<String>::equal_to>
       created_strings_;
 };
 

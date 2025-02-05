@@ -110,19 +110,11 @@ bool SemiSpace::EnsureCurrentCapacity() {
 // -----------------------------------------------------------------------------
 // SemiSpace implementation
 
-void SemiSpace::SetUp(size_t initial_capacity, size_t maximum_capacity) {
-  DCHECK_GE(maximum_capacity, static_cast<size_t>(PageMetadata::kPageSize));
-  minimum_capacity_ = RoundDown(initial_capacity, PageMetadata::kPageSize);
-  target_capacity_ = minimum_capacity_;
-  maximum_capacity_ = RoundDown(maximum_capacity, PageMetadata::kPageSize);
-}
-
-void SemiSpace::TearDown() {
+SemiSpace::~SemiSpace() {
   // Properly uncommit memory to keep the allocator counters in sync.
   if (IsCommitted()) {
     Uncommit();
   }
-  target_capacity_ = maximum_capacity_ = 0;
 }
 
 bool SemiSpace::Commit() {
@@ -286,7 +278,8 @@ void SemiSpace::PrependPage(PageMetadata* page) {
   page->Chunk()->SetFlagsNonExecutable(current_page()->Chunk()->GetFlags());
   page->set_owner(this);
   memory_chunk_list_.PushFront(page);
-  current_capacity_ += PageMetadata::kPageSize;
+  base::AsAtomicWord::Relaxed_Store(
+      &current_capacity_, current_capacity_ + PageMetadata::kPageSize);
   AccountCommitted(PageMetadata::kPageSize);
   IncrementCommittedPhysicalMemory(page->CommittedPhysicalMemory());
   ForAll<ExternalBackingStoreType>(
@@ -307,10 +300,10 @@ void SemiSpace::Swap(SemiSpace* from, SemiSpace* to) {
   // We won't be swapping semispaces without data in them.
   DCHECK(from->first_page());
   DCHECK(to->first_page());
+  DCHECK_EQ(from->maximum_capacity_, to->maximum_capacity_);
+  DCHECK_EQ(from->minimum_capacity_, to->minimum_capacity_);
   // We swap all properties but id_.
   std::swap(from->target_capacity_, to->target_capacity_);
-  std::swap(from->maximum_capacity_, to->maximum_capacity_);
-  std::swap(from->minimum_capacity_, to->minimum_capacity_);
   std::swap(from->age_mark_, to->age_mark_);
   std::swap(from->memory_chunk_list_, to->memory_chunk_list_);
   std::swap(from->current_page_, to->current_page_);
@@ -483,21 +476,17 @@ void NewSpace::PromotePageToOldSpace(PageMetadata* page) {
 SemiSpaceNewSpace::SemiSpaceNewSpace(Heap* heap,
                                      size_t initial_semispace_capacity,
                                      size_t max_semispace_capacity)
-    : NewSpace(heap), to_space_(heap, kToSpace), from_space_(heap, kFromSpace) {
+    : NewSpace(heap),
+      to_space_(heap, kToSpace, initial_semispace_capacity,
+                max_semispace_capacity),
+      from_space_(heap, kFromSpace, initial_semispace_capacity,
+                  max_semispace_capacity) {
   DCHECK(initial_semispace_capacity <= max_semispace_capacity);
-
-  to_space_.SetUp(initial_semispace_capacity, max_semispace_capacity);
-  from_space_.SetUp(initial_semispace_capacity, max_semispace_capacity);
   if (!to_space_.Commit()) {
     V8::FatalProcessOutOfMemory(heap->isolate(), "New space setup");
   }
   DCHECK(!from_space_.IsCommitted());  // No need to use memory yet.
   ResetCurrentSpace();
-}
-
-SemiSpaceNewSpace::~SemiSpaceNewSpace() {
-  to_space_.TearDown();
-  from_space_.TearDown();
 }
 
 void SemiSpaceNewSpace::Grow() {

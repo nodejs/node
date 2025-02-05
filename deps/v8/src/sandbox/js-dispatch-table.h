@@ -39,6 +39,7 @@ struct JSDispatchEntry {
 
   inline Address GetEntrypoint() const;
   inline Address GetCodePointer() const;
+  inline Tagged<Code> GetCode() const;
   inline uint16_t GetParameterCount() const;
 
   inline void SetCodeAndEntrypointPointer(Address new_object,
@@ -163,7 +164,9 @@ class V8_EXPORT_PRIVATE JSDispatchTable
   // Updates the entry referenced by the given handle to the given Code and its
   // entrypoint. The code must be compatible with the specified entry. In
   // particular, the two must use the same parameter count.
-  inline void SetCode(JSDispatchHandle handle, Tagged<Code> new_code);
+  // NB: Callee must emit JS_DISPATCH_HANDLE_WRITE_BARRIER if needed!
+  inline void SetCodeNoWriteBarrier(JSDispatchHandle handle,
+                                    Tagged<Code> new_code);
 
   // Allocates a new entry in the table and initialize it.
   //
@@ -204,7 +207,8 @@ class V8_EXPORT_PRIVATE JSDispatchTable
   // not safe to allocate table entries while a space is being swept.
   //
   // Returns the number of live entries after sweeping.
-  uint32_t Sweep(Space* space, Counters* counters);
+  template <typename Callback>
+  uint32_t Sweep(Space* space, Counters* counters, Callback callback);
 
   // Iterate over all active entries in the given space.
   //
@@ -230,9 +234,14 @@ class V8_EXPORT_PRIVATE JSDispatchTable
   }
 
 #ifdef DEBUG
+  bool IsMarked(JSDispatchHandle handle);
   inline void VerifyEntry(JSDispatchHandle handle, Space* space,
                           Space* ro_space);
 #endif  // DEBUG
+
+  void PrintEntry(JSDispatchHandle handle);
+
+  static constexpr bool kWriteBarrierSetsEntryMarkBit = true;
 
  private:
 #ifdef DEBUG
@@ -245,6 +254,9 @@ class V8_EXPORT_PRIVATE JSDispatchTable
     initialized_.store(true);
 #endif  // DEBUG
   }
+
+  static inline bool IsCompatibleCode(Tagged<Code> code,
+                                      uint16_t parameter_count);
 
   static base::LeakyObject<JSDispatchTable> instance_;
   static JSDispatchTable* instance_nocheck() { return instance_.get(); }

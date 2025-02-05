@@ -32,6 +32,8 @@ LargePageMetadata::LargePageMetadata(Heap* heap, BaseSpace* space,
   static_assert(LargePageMetadata::kMaxCodePageSize <=
                 TypedSlotSet::kMaxOffset);
 
+  DCHECK(IsLargePage());
+
   if (executable && chunk_size > LargePageMetadata::kMaxCodePageSize) {
     FATAL("Code page is too large.");
   }

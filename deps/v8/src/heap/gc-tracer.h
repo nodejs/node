@@ -104,6 +104,8 @@ using CollectionEpoch = uint32_t;
 // GCTracer collects and prints ONE line after each garbage collector
 // invocation IFF --trace_gc is used.
 class V8_EXPORT_PRIVATE GCTracer {
+  using Priority = v8::Isolate::Priority;
+
  public:
   struct IncrementalInfos final {
     constexpr V8_INLINE IncrementalInfos& operator+=(base::TimeDelta delta);
@@ -174,7 +176,7 @@ class V8_EXPORT_PRIVATE GCTracer {
     enum class State { NOT_RUNNING, MARKING, ATOMIC, SWEEPING };
 
     Event(Type type, State state, GarbageCollectionReason gc_reason,
-          const char* collector_reason);
+          const char* collector_reason, Priority priority);
 
     // Type of the event.
     Type type;
@@ -184,6 +186,11 @@ class V8_EXPORT_PRIVATE GCTracer {
 
     GarbageCollectionReason gc_reason;
     const char* collector_reason;
+
+    // The Isolate's priority during the current GC cycle. The priority is set
+    // when the cycle starts. If the priority changes before the cycle is
+    // finished, the priority will be reset to denote a mixed priority.
+    std::optional<Priority> priority;
 
     // Timestamp set in the constructor.
     base::TimeTicks start_time;
@@ -267,9 +274,6 @@ class V8_EXPORT_PRIVATE GCTracer {
   static constexpr base::TimeDelta kThroughputTimeFrame =
       base::TimeDelta::FromSeconds(5);
   static constexpr double kConservativeSpeedInBytesPerMillisecond = 128 * KB;
-
-  static double CombineSpeedsInBytesPerMillisecond(double default_speed,
-                                                   double optional_speed);
 
 #ifdef V8_RUNTIME_CALL_STATS
   V8_INLINE static RuntimeCallCounterId RCSCounterFromScope(Scope::ScopeId id);
@@ -375,47 +379,28 @@ class V8_EXPORT_PRIVATE GCTracer {
   // Returns 0 if no events have been recorded.
   double FinalIncrementalMarkCompactSpeedInBytesPerMillisecond() const;
 
-  // Compute the overall mark compact speed including incremental steps
-  // and the final mark-compact step.
-  double CombinedMarkCompactSpeedInBytesPerMillisecond();
+  // Compute the overall old generation mark compact speed including incremental
+  // steps and the final mark-compact step.
+  double OldGenerationSpeedInBytesPerMillisecond();
 
   // Allocation throughput in the new space in bytes/millisecond.
   // Returns 0 if no allocation events have been recorded.
-  double NewSpaceAllocationThroughputInBytesPerMillisecond(
-      std::optional<base::TimeDelta> selected_duration = std::nullopt) const;
+  double NewSpaceAllocationThroughputInBytesPerMillisecond() const;
 
   // Allocation throughput in the old generation in bytes/millisecond in the
   // last time_ms milliseconds.
   // Returns 0 if no allocation events have been recorded.
-  double OldGenerationAllocationThroughputInBytesPerMillisecond(
-      std::optional<base::TimeDelta> selected_duration = std::nullopt) const;
+  double OldGenerationAllocationThroughputInBytesPerMillisecond() const;
 
   // Allocation throughput in the embedder in bytes/millisecond in the
   // last time_ms milliseconds.
   // Returns 0 if no allocation events have been recorded.
-  double EmbedderAllocationThroughputInBytesPerMillisecond(
-      std::optional<base::TimeDelta> selected_duration = std::nullopt) const;
+  double EmbedderAllocationThroughputInBytesPerMillisecond() const;
 
   // Allocation throughput in heap in bytes/millisecond in the last time_ms
   // milliseconds.
   // Returns 0 if no allocation events have been recorded.
-  double AllocationThroughputInBytesPerMillisecond(
-      std::optional<base::TimeDelta> selected_duration) const;
-
-  // Allocation throughput in heap in bytes/milliseconds in the last
-  // kThroughputTimeFrameMs seconds.
-  // Returns 0 if no allocation events have been recorded.
-  double CurrentAllocationThroughputInBytesPerMillisecond() const;
-
-  // Allocation throughput in old generation in bytes/milliseconds in the last
-  // kThroughputTimeFrameMs seconds.
-  // Returns 0 if no allocation events have been recorded.
-  double CurrentOldGenerationAllocationThroughputInBytesPerMillisecond() const;
-
-  // Allocation throughput in the embedder in bytes/milliseconds in the last
-  // kThroughputTimeFrameMs seconds.
-  // Returns 0 if no allocation events have been recorded.
-  double CurrentEmbedderAllocationThroughputInBytesPerMillisecond() const;
+  double AllocationThroughputInBytesPerMillisecond() const;
 
   // Computes the average survival ratio based on the last recorded survival
   // events.
@@ -446,7 +431,7 @@ class V8_EXPORT_PRIVATE GCTracer {
 
   void RecordGCPhasesHistograms(RecordGCPhasesInfo::Mode mode);
 
-  void RecordEmbedderSpeed(size_t bytes, double duration);
+  void RecordEmbedderMarkingSpeed(size_t bytes, base::TimeDelta duration);
 
   // Returns the average time between scheduling and invocation of an
   // incremental marking task.
@@ -459,8 +444,11 @@ class V8_EXPORT_PRIVATE GCTracer {
 
   GarbageCollector GetCurrentCollector() const;
 
+  void UpdateCurrentEventPriority(Priority priority);
+
  private:
   using BytesAndDurationBuffer = ::heap::base::BytesAndDurationBuffer;
+  using SmoothedBytesAndDuration = ::heap::base::SmoothedBytesAndDuration;
 
   struct BackgroundCounter {
     double total_duration_ms;
@@ -529,8 +517,6 @@ class V8_EXPORT_PRIVATE GCTracer {
 
   std::optional<base::TimeDelta> average_time_to_incremental_marking_task_;
 
-  double recorded_embedder_speed_ = 0.0;
-
   // This is not the general last marking start time as it's only updated when
   // we reach the minimum threshold for code flushing which is 1 sec.
   std::optional<base::TimeTicks> last_marking_start_time_for_code_flushing_;
@@ -558,13 +544,22 @@ class V8_EXPORT_PRIVATE GCTracer {
   base::TimeTicks previous_mark_compact_end_time_;
   base::TimeDelta total_duration_since_last_mark_compact_;
 
-  BytesAndDurationBuffer recorded_minor_gcs_total_;
   BytesAndDurationBuffer recorded_compactions_;
   BytesAndDurationBuffer recorded_incremental_mark_compacts_;
   BytesAndDurationBuffer recorded_mark_compacts_;
-  BytesAndDurationBuffer recorded_new_generation_allocations_;
-  BytesAndDurationBuffer recorded_old_generation_allocations_;
-  BytesAndDurationBuffer recorded_embedder_generation_allocations_;
+  BytesAndDurationBuffer recorded_major_totals_;
+  BytesAndDurationBuffer recorded_embedder_marking_;
+
+  static constexpr base::TimeDelta kSmoothedAllocationSpeedDecayRate =
+      v8::base::TimeDelta::FromMilliseconds(100);
+
+  SmoothedBytesAndDuration new_generation_allocations_{
+      kSmoothedAllocationSpeedDecayRate};
+  SmoothedBytesAndDuration old_generation_allocations_{
+      kSmoothedAllocationSpeedDecayRate};
+  SmoothedBytesAndDuration embedder_generation_allocations_{
+      kSmoothedAllocationSpeedDecayRate};
+
   // Estimate for young generation speed. Based on walltime and concurrency
   // estimates.
   BytesAndDurationBuffer recorded_minor_gc_per_thread_;
@@ -602,6 +597,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   FRIEND_TEST(GCTracerTest, BackgroundScavengerScope);
   FRIEND_TEST(GCTracerTest, BackgroundMinorMSScope);
   FRIEND_TEST(GCTracerTest, BackgroundMajorMCScope);
+  FRIEND_TEST(GCTracerTest, CyclePriorities);
   FRIEND_TEST(GCTracerTest, EmbedderAllocationThroughput);
   FRIEND_TEST(GCTracerTest, MultithreadedBackgroundScope);
   FRIEND_TEST(GCTracerTest, NewSpaceAllocationThroughput);

@@ -232,7 +232,6 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_WasmError) {
   for (int pos_shift = 0; pos_shift < 3; ++pos_shift) {
     // Test a position with 1, 2 or 3 bytes needed to represent it.
     int unreachable_pos = 1 << (8 * pos_shift);
-    TestSignatures sigs;
     // Create a WasmRunner with stack checks and traps enabled.
     WasmRunner<int> r(execution_tier, kWasmOrigin, nullptr, "main");
 

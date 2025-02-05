@@ -3997,11 +3997,31 @@ SortCallbackGrows(ArraySortHelper);
 
 (function ArrayBufferSizeNotMultipleOfElementSize() {
   // The buffer size is a prime, not multiple of anything.
-  const rab = CreateGrowableSharedArrayBuffer(11, 20);
+  const gsab = CreateGrowableSharedArrayBuffer(11, 20);
   for (let ctor of ctors) {
     if (ctor.BYTES_PER_ELEMENT == 1) continue;
 
     // This should not throw.
-    new ctor(rab);
+    new ctor(gsab);
+  }
+})();
+
+(function SetValueToNumberResizesToInBounds() {
+  for (let ctor of ctors) {
+    const gsab = CreateGrowableSharedArrayBuffer(0,
+                                                 1 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(gsab, 0);
+
+    const evil = { valueOf: () => {
+      // Grow so that `lengthTracking` is no longer OOB.
+      gsab.grow(1 * ctor.BYTES_PER_ELEMENT);
+      if (IsBigIntTypedArray(lengthTracking)) {
+        return 2n;
+      }
+      return 2;
+    }};
+
+    lengthTracking[0] = evil;
+    assertEquals([2], ToNumbers(lengthTracking));
   }
 })();

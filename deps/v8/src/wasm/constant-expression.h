@@ -133,7 +133,8 @@ V8_INLINE WasmValue to_value(ValueOrError result) {
 // {MessageTemplate} if it fails.
 // Resets {zone} so make sure it contains no useful data.
 ValueOrError EvaluateConstantExpression(
-    Zone* zone, ConstantExpression expr, ValueType expected, Isolate* isolate,
+    Zone* zone, ConstantExpression expr, ValueType expected,
+    const WasmModule* module, Isolate* isolate,
     Handle<WasmTrustedInstanceData> trusted_instance_data,
     Handle<WasmTrustedInstanceData> shared_trusted_instance_data);
 

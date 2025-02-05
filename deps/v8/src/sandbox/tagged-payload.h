@@ -70,6 +70,14 @@ struct TaggedPayload {
     }
   }
 
+  bool IsZapped() const {
+    if constexpr (PayloadTaggingScheme::kSupportsZapping) {
+      return IsTaggedWith(PayloadTaggingScheme::kZappedEntryTag);
+    } else {
+      return false;
+    }
+  }
+
   Address ExtractEvacuationEntryHandleLocation() const {
     if constexpr (PayloadTaggingScheme::kSupportsEvacuation) {
       return Untag(PayloadTaggingScheme::kEvacuationEntryTag);
@@ -79,7 +87,7 @@ struct TaggedPayload {
   }
 
   bool ContainsPointer() const {
-    return !ContainsFreelistLink() && !ContainsEvacuationEntry();
+    return !ContainsFreelistLink() && !ContainsEvacuationEntry() && !IsZapped();
   }
 
   bool operator==(TaggedPayload other) const {

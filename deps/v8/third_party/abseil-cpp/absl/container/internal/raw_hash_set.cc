@@ -338,7 +338,7 @@ void ClearBackingArray(CommonFields& c, const PolicyFunctions& policy,
     c.infoz().RecordClearedReservation();
     c.infoz().RecordStorageChanged(0, soo_enabled ? SooCapacity() : 0);
     (*policy.dealloc)(c, policy);
-    c = soo_enabled ? CommonFields{soo_tag_t{}} : CommonFields{};
+    c = soo_enabled ? CommonFields{soo_tag_t{}} : CommonFields{non_soo_tag_t{}};
   }
 }
 

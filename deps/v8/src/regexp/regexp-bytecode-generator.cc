@@ -391,7 +391,8 @@ void RegExpBytecodeGenerator::IfRegisterEqPos(int register_index,
   EmitOrLink(on_eq);
 }
 
-Handle<HeapObject> RegExpBytecodeGenerator::GetCode(Handle<String> source) {
+Handle<HeapObject> RegExpBytecodeGenerator::GetCode(Handle<String> source,
+                                                    RegExpFlags flags) {
   Bind(&backtrack_);
   Backtrack();
 

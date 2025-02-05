@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#if V8_TARGET_ARCH_S390
+#if V8_TARGET_ARCH_S390X
 
 #include "src/api/api-arguments.h"
 #include "src/builtins/builtins-inl.h"
@@ -364,9 +364,11 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
 
 }  // namespace
 
-void Builtins::Generate_Adaptor(MacroAssembler* masm, Address address) {
+void Builtins::Generate_Adaptor(MacroAssembler* masm,
+                                int formal_parameter_count, Address address) {
   __ Move(kJavaScriptCallExtraArg1Register, ExternalReference::Create(address));
-  __ TailCallBuiltin(Builtin::kAdaptorWithBuiltinExitFrame);
+  __ TailCallBuiltin(
+      Builtins::AdaptorWithBuiltinExitFrame(formal_parameter_count));
 }
 
 namespace {
@@ -696,8 +698,8 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ blt(&done_loop);
     __ ShiftLeftU64(r1, r5, Operand(kTaggedSizeLog2));
     __ la(scratch, MemOperand(r4, r1));
-    __ LoadTaggedField(scratch,
-                       FieldMemOperand(scratch, FixedArray::kHeaderSize));
+    __ LoadTaggedField(
+        scratch, FieldMemOperand(scratch, OFFSET_OF_DATA_START(FixedArray)));
     __ Push(scratch);
     __ b(&loop);
     __ bind(&done_loop);
@@ -1022,8 +1024,6 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ LoadMultipleP(r6, sp, MemOperand(sp, 0));
   __ la(sp, MemOperand(sp, 10 * kSystemPointerSize));
 
-// saving floating point registers
-#if V8_TARGET_ARCH_S390X
   // 64bit ABI requires f8 to f15 be saved
   __ ld(d8, MemOperand(sp));
   __ ld(d9, MemOperand(sp, 1 * kDoubleSize));
@@ -1034,13 +1034,6 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ ld(d14, MemOperand(sp, 6 * kDoubleSize));
   __ ld(d15, MemOperand(sp, 7 * kDoubleSize));
   __ la(sp, MemOperand(sp, 8 * kDoubleSize));
-#else
-  // 31bit ABI requires you to store f4 and f6:
-  // http://refspecs.linuxbase.org/ELF/zSeries/lzsabi0_s390.html#AEN417
-  __ ld(d4, MemOperand(sp));
-  __ ld(d6, MemOperand(sp, kDoubleSize));
-  __ la(sp, MemOperand(sp, 2 * kDoubleSize));
-#endif
 
 #if V8_OS_ZOS
   // On z/OS, the return register is r3
@@ -2173,13 +2166,13 @@ void Builtins::Generate_InterpreterEnterAtBytecode(MacroAssembler* masm) {
 
 namespace {
 void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
-                                      bool java_script_builtin,
+                                      bool javascript_builtin,
                                       bool with_result) {
   const RegisterConfiguration* config(RegisterConfiguration::Default());
   int allocatable_register_count = config->num_allocatable_general_registers();
   Register scratch = ip;
   if (with_result) {
-    if (java_script_builtin) {
+    if (javascript_builtin) {
       __ mov(scratch, r2);
     } else {
       // Overwrite the hole inserted by the deoptimizer with the return value
@@ -2194,11 +2187,11 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
   for (int i = allocatable_register_count - 1; i >= 0; --i) {
     int code = config->GetAllocatableGeneralCode(i);
     __ Pop(Register::from_code(code));
-    if (java_script_builtin && code == kJavaScriptCallArgCountRegister.code()) {
+    if (javascript_builtin && code == kJavaScriptCallArgCountRegister.code()) {
       __ SmiUntag(Register::from_code(code));
     }
   }
-  if (java_script_builtin && with_result) {
+  if (javascript_builtin && with_result) {
     // Overwrite the hole inserted by the deoptimizer with the return value from
     // the LAZY deopt point. r0 contains the arguments count, the return value
     // from LAZY is always the last argument.
@@ -2526,7 +2519,8 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     __ CmpS64(r6, Operand::Zero());
     __ beq(&no_args);
     __ AddS64(r4, r4,
-              Operand(FixedArray::kHeaderSize - kHeapObjectTag - kTaggedSize));
+              Operand(OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag -
+                      kTaggedSize));
     __ mov(r1, r6);
     __ bind(&loop);
     __ LoadTaggedField(scratch, MemOperand(r4, kTaggedSize), r0);
@@ -2739,7 +2733,7 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
   Label no_bound_arguments;
   __ LoadTaggedField(
       r4, FieldMemOperand(r3, JSBoundFunction::kBoundArgumentsOffset));
-  __ SmiUntagField(r6, FieldMemOperand(r4, FixedArray::kLengthOffset));
+  __ SmiUntagField(r6, FieldMemOperand(r4, offsetof(FixedArray, length_)));
   __ LoadAndTestP(r6, r6);
   __ beq(&no_bound_arguments);
   {
@@ -2778,7 +2772,8 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
     {
       Label loop, done;
       __ AddS64(r2, r2, r6);  // Adjust effective number of arguments.
-      __ AddS64(r4, r4, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+      __ AddS64(r4, r4,
+                Operand(OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag));
 
       __ bind(&loop);
       __ SubS64(r1, r6, Operand(1));
@@ -3076,7 +3071,8 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
                               WasmTrustedInstanceData::kFeedbackVectorsOffset));
   __ ShiftLeftU64(scratch, func_index, Operand(kTaggedSizeLog2));
   __ AddS64(vector, vector, scratch);
-  __ LoadTaggedField(vector, FieldMemOperand(vector, FixedArray::kHeaderSize));
+  __ LoadTaggedField(vector,
+                     FieldMemOperand(vector, OFFSET_OF_DATA_START(FixedArray)));
   __ JumpIfSmi(vector, &allocate_vector);
   __ bind(&done);
   __ push(kWasmImplicitArgRegister);
@@ -3178,6 +3174,10 @@ void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_WasmReturnPromiseOnSuspendAsm(MacroAssembler* masm) {
+  __ Trap();
+}
+
+void Builtins::Generate_JSToWasmStressSwitchStacksAsm(MacroAssembler* masm) {
   __ Trap();
 }
 
@@ -3414,15 +3414,6 @@ void Builtins::Generate_JSToWasmWrapperAsm(MacroAssembler* masm) {
   __ b(r14);
 }
 
-void Builtins::Generate_WasmToOnHeapWasmToJsTrampoline(MacroAssembler* masm) {
-  // Load the code pointer from the WasmImportData and tail-call there.
-  Register import_data = wasm::kGpParamRegisters[0];
-  Register scratch = ip;
-  __ LoadTaggedField(scratch,
-                     FieldMemOperand(import_data, WasmImportData::kCodeOffset));
-  __ LoadU64(scratch, FieldMemOperand(scratch, Code::kInstructionStartOffset));
-  __ Jump(scratch);
-}
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
@@ -3474,10 +3465,8 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     arg_stack_space += result_size;
   }
 
-#if V8_TARGET_ARCH_S390X
   // 64-bit linux pass Argument object by reference not value
   arg_stack_space += 2;
-#endif
 
   __ EnterExitFrame(
       scratch, arg_stack_space,
@@ -3744,10 +3733,8 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   // Input_high ASR 31 equals 0xFFFFFFFF and scratch_high LSR 31 equals 1.
   // New result = (result eor 0xFFFFFFFF) + 1 = 0 - result.
   __ ShiftRightS32(r0, scratch_high, Operand(31));
-#if V8_TARGET_ARCH_S390X
   __ lgfr(r0, r0);
   __ ShiftRightU64(r0, r0, Operand(32));
-#endif
   __ XorP(result_reg, r0);
   __ ShiftRightU32(r0, scratch_high, Operand(31));
   __ AddS64(result_reg, r0);
@@ -4060,8 +4047,6 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   static constexpr int kSavedRegistersAreaSize =
       (kNumberOfRegisters * kSystemPointerSize) + kDoubleRegsSize;
 
-  // Cleanse the Return address for 31-bit
-  __ CleanseP(r14);
   // Get the address of the location in the code object (r5)(return
   // address for lazy deoptimization) and compute the fp-to-sp delta in
   // register r6.
@@ -4231,14 +4216,23 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
     UseScratchRegisterScope temps(masm);
     Register is_iterable = temps.Acquire();
     Register one = r6;
+    __ push(one);  // Save the value from the output FrameDescription.
     __ LoadIsolateField(is_iterable, IsolateFieldId::kStackIsIterable);
     __ lhi(one, Operand(1));
     __ StoreU8(one, MemOperand(is_iterable));
+    __ pop(one);  // Restore the value from the output FrameDescription.
   }
 
-  __ pop(ip);  // get continuation, leave pc on stack
-  __ pop(r14);
-  __ Jump(ip);
+  {
+    __ pop(ip);  // get continuation, leave pc on stack
+    __ pop(r14);
+    Label end;
+    __ CmpU64(ip, Operand::Zero());
+    __ beq(&end);
+    __ Jump(ip);
+    __ bind(&end);
+    __ Ret();
+  }
 
   __ stop();
 }
@@ -4306,4 +4300,4 @@ void Builtins::Generate_RestartFrameTrampoline(MacroAssembler* masm) {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_TARGET_ARCH_S390
+#endif  // V8_TARGET_ARCH_S390X

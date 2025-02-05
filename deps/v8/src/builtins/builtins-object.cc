@@ -59,7 +59,7 @@ BUILTIN(ObjectDefineProperty) {
 namespace {
 
 template <AccessorComponent which_accessor>
-Tagged<Object> ObjectDefineAccessor(Isolate* isolate, Handle<Object> object,
+Tagged<Object> ObjectDefineAccessor(Isolate* isolate, Handle<JSAny> object,
                                     Handle<Object> name,
                                     Handle<Object> accessor) {
   // 1. Let O be ? ToObject(this value).
@@ -101,7 +101,7 @@ Tagged<Object> ObjectDefineAccessor(Isolate* isolate, Handle<Object> object,
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-Tagged<Object> ObjectLookupAccessor(Isolate* isolate, Handle<Object> object,
+Tagged<Object> ObjectLookupAccessor(Isolate* isolate, Handle<JSAny> object,
                                     Handle<Object> key,
                                     AccessorComponent component) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, object,
@@ -141,7 +141,7 @@ Tagged<Object> ObjectLookupAccessor(Isolate* isolate, Handle<Object> object,
           }
           return ReadOnlyRoots(isolate).undefined_value();
         }
-        Handle<Object> prototype;
+        Handle<JSPrototype> prototype;
         ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
             isolate, prototype, JSProxy::GetPrototype(it.GetHolder<JSProxy>()));
         if (IsNull(*prototype, isolate)) {
@@ -177,7 +177,7 @@ Tagged<Object> ObjectLookupAccessor(Isolate* isolate, Handle<Object> object,
 // https://tc39.github.io/ecma262/#sec-object.prototype.__defineGetter__
 BUILTIN(ObjectDefineGetter) {
   HandleScope scope(isolate);
-  Handle<Object> object = args.at(0);  // Receiver.
+  Handle<JSAny> object = args.at<JSAny>(0);  // Receiver.
   Handle<Object> name = args.at(1);
   Handle<Object> getter = args.at(2);
   return ObjectDefineAccessor<ACCESSOR_GETTER>(isolate, object, name, getter);
@@ -187,7 +187,7 @@ BUILTIN(ObjectDefineGetter) {
 // https://tc39.github.io/ecma262/#sec-object.prototype.__defineSetter__
 BUILTIN(ObjectDefineSetter) {
   HandleScope scope(isolate);
-  Handle<Object> object = args.at(0);  // Receiver.
+  Handle<JSAny> object = args.at<JSAny>(0);  // Receiver.
   Handle<Object> name = args.at(1);
   Handle<Object> setter = args.at(2);
   return ObjectDefineAccessor<ACCESSOR_SETTER>(isolate, object, name, setter);
@@ -197,7 +197,7 @@ BUILTIN(ObjectDefineSetter) {
 // https://tc39.github.io/ecma262/#sec-object.prototype.__lookupGetter__
 BUILTIN(ObjectLookupGetter) {
   HandleScope scope(isolate);
-  Handle<Object> object = args.at(0);
+  Handle<JSAny> object = args.at<JSAny>(0);
   Handle<Object> name = args.at(1);
   return ObjectLookupAccessor(isolate, object, name, ACCESSOR_GETTER);
 }
@@ -206,7 +206,7 @@ BUILTIN(ObjectLookupGetter) {
 // https://tc39.github.io/ecma262/#sec-object.prototype.__lookupSetter__
 BUILTIN(ObjectLookupSetter) {
   HandleScope scope(isolate);
-  Handle<Object> object = args.at(0);
+  Handle<JSAny> object = args.at<JSAny>(0);
   Handle<Object> name = args.at(1);
   return ObjectLookupAccessor(isolate, object, name, ACCESSOR_SETTER);
 }
