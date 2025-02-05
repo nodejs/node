@@ -29,8 +29,9 @@ std::unique_ptr<Network::Response> createResponse(
       .build();
 }
 
-NetworkAgent::NetworkAgent(NetworkInspector* inspector)
-    : inspector_(inspector) {
+NetworkAgent::NetworkAgent(NetworkInspector* inspector,
+                           v8_inspector::V8Inspector* v8_inspector)
+    : inspector_(inspector), v8_inspector_(v8_inspector) {
   event_notifier_map_["requestWillBeSent"] = &NetworkAgent::requestWillBeSent;
   event_notifier_map_["responseReceived"] = &NetworkAgent::responseReceived;
   event_notifier_map_["loadingFailed"] = &NetworkAgent::loadingFailed;
@@ -75,6 +76,13 @@ void NetworkAgent::requestWillBeSent(
   String method;
   request->getString("method", &method);
 
+  std::unique_ptr<Network::Initiator> initiator =
+      Network::Initiator::create()
+          .setType(Network::Initiator::TypeEnum::Script)
+          .setStack(
+              v8_inspector_->captureStackTrace(true)->buildInspectorObject(0))
+          .build();
+
   ErrorSupport errors;
   errors.Push();
   errors.SetName("headers");
@@ -86,6 +94,7 @@ void NetworkAgent::requestWillBeSent(
 
   frontend_->requestWillBeSent(request_id,
                                createRequest(url, method, std::move(headers)),
+                               std::move(initiator),
                                timestamp,
                                wall_time);
 }
