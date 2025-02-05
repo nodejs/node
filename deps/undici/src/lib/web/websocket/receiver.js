@@ -7,13 +7,13 @@ const { channels } = require('../../core/diagnostics')
 const {
   isValidStatusCode,
   isValidOpcode,
-  failWebsocketConnection,
   websocketMessageReceived,
   utf8Decode,
   isControlFrame,
   isTextBinaryFrame,
   isContinuationFrame
 } = require('./util')
+const { failWebsocketConnection } = require('./connection')
 const { WebsocketFrameSend } = require('./frame')
 const { PerMessageDeflate } = require('./permessage-deflate')
 
