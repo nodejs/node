@@ -43,6 +43,7 @@ class DatabaseOpenConfiguration {
 };
 
 class StatementSync;
+class BackupJob;
 
 class DatabaseSync : public BaseObject {
  public:
@@ -67,6 +68,9 @@ class DatabaseSync : public BaseObject {
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void LoadExtension(const v8::FunctionCallbackInfo<v8::Value>& args);
   void FinalizeStatements();
+  void RemoveBackup(BackupJob* backup);
+  void AddBackup(BackupJob* backup);
+  void FinalizeBackups();
   void UntrackStatement(StatementSync* statement);
   bool IsOpen();
   sqlite3* Connection();
@@ -92,6 +96,7 @@ class DatabaseSync : public BaseObject {
   sqlite3* connection_;
   bool ignore_next_sqlite_error_;
 
+  std::set<BackupJob*> backups_;
   std::set<sqlite3_session*> sessions_;
   std::unordered_set<StatementSync*> statements_;
 

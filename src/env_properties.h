@@ -77,6 +77,7 @@
   V(asn1curve_string, "asn1Curve")                                             \
   V(async_ids_stack_string, "async_ids_stack")                                 \
   V(attributes_string, "attributes")                                           \
+  V(backup_string, "backup")                                                   \
   V(base_string, "base")                                                       \
   V(bits_string, "bits")                                                       \
   V(block_list_string, "blockList")                                            \
@@ -300,6 +301,7 @@
   V(primordials_string, "primordials")                                         \
   V(priority_string, "priority")                                               \
   V(process_string, "process")                                                 \
+  V(progress_string, "progress")                                               \
   V(promise_string, "promise")                                                 \
   V(protocol_string, "protocol")                                               \
   V(prototype_string, "prototype")                                             \
@@ -314,6 +316,7 @@
   V(reason_string, "reason")                                                   \
   V(refresh_string, "refresh")                                                 \
   V(regexp_string, "regexp")                                                   \
+  V(remaining_pages_string, "remainingPages")                                  \
   V(rename_string, "rename")                                                   \
   V(replacement_string, "replacement")                                         \
   V(required_module_facade_url_string,                                         \
@@ -367,6 +370,7 @@
   V(time_to_first_byte_sent_string, "timeToFirstByteSent")                     \
   V(time_to_first_header_string, "timeToFirstHeader")                          \
   V(tls_ticket_string, "tlsTicket")                                            \
+  V(total_pages_string, "totalPages")                                          \
   V(transfer_string, "transfer")                                               \
   V(transfer_unsupported_type_str,                                             \
     "Cannot transfer object of unsupported type.")                             \
