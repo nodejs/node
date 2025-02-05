@@ -535,7 +535,8 @@ void DatabaseSync::Prepare(const FunctionCallbackInfo<Value>& args) {
   sqlite3_stmt* s = nullptr;
   int r = sqlite3_prepare_v2(db->connection_, *sql, -1, &s, 0);
   CHECK_ERROR_OR_THROW(env->isolate(), db, r, SQLITE_OK, void());
-  BaseObjectPtr<StatementSync> stmt = StatementSync::Create(env, db, s);
+  BaseObjectPtr<StatementSync> stmt =
+      StatementSync::Create(env, BaseObjectPtr<DatabaseSync>(db), s);
   db->statements_.insert(stmt.get());
   args.GetReturnValue().Set(stmt->object());
 }
@@ -946,11 +947,10 @@ void DatabaseSync::LoadExtension(const FunctionCallbackInfo<Value>& args) {
 
 StatementSync::StatementSync(Environment* env,
                              Local<Object> object,
-                             DatabaseSync* db,
+                             BaseObjectPtr<DatabaseSync> db,
                              sqlite3_stmt* stmt)
-    : BaseObject(env, object) {
+    : BaseObject(env, object), db_(std::move(db)) {
   MakeWeak();
-  db_ = db;
   statement_ = stmt;
   // In the future, some of these options could be set at the database
   // connection level and inherited by statements to reduce boilerplate.
@@ -977,7 +977,7 @@ inline bool StatementSync::IsFinalized() {
 
 bool StatementSync::BindParams(const FunctionCallbackInfo<Value>& args) {
   int r = sqlite3_clear_bindings(statement_);
-  CHECK_ERROR_OR_THROW(env()->isolate(), db_, r, SQLITE_OK, false);
+  CHECK_ERROR_OR_THROW(env()->isolate(), db_.get(), r, SQLITE_OK, false);
 
   int anon_idx = 1;
   int anon_start = 0;
@@ -1107,7 +1107,7 @@ bool StatementSync::BindValue(const Local<Value>& value, const int index) {
     return false;
   }
 
-  CHECK_ERROR_OR_THROW(env()->isolate(), db_, r, SQLITE_OK, false);
+  CHECK_ERROR_OR_THROW(env()->isolate(), db_.get(), r, SQLITE_OK, false);
   return true;
 }
 
@@ -1173,7 +1173,7 @@ void StatementSync::All(const FunctionCallbackInfo<Value>& args) {
       env, stmt->IsFinalized(), "statement has been finalized");
   Isolate* isolate = env->isolate();
   int r = sqlite3_reset(stmt->statement_);
-  CHECK_ERROR_OR_THROW(isolate, stmt->db_, r, SQLITE_OK, void());
+  CHECK_ERROR_OR_THROW(isolate, stmt->db_.get(), r, SQLITE_OK, void());
 
   if (!stmt->BindParams(args)) {
     return;
@@ -1202,7 +1202,7 @@ void StatementSync::All(const FunctionCallbackInfo<Value>& args) {
     rows.emplace_back(row);
   }
 
-  CHECK_ERROR_OR_THROW(isolate, stmt->db_, r, SQLITE_DONE, void());
+  CHECK_ERROR_OR_THROW(isolate, stmt->db_.get(), r, SQLITE_DONE, void());
   args.GetReturnValue().Set(Array::New(isolate, rows.data(), rows.size()));
 }
 
@@ -1270,7 +1270,8 @@ void StatementSync::IterateNextCallback(
 
   int r = sqlite3_step(stmt->statement_);
   if (r != SQLITE_ROW) {
-    CHECK_ERROR_OR_THROW(env->isolate(), stmt->db_, r, SQLITE_DONE, void());
+    CHECK_ERROR_OR_THROW(
+        env->isolate(), stmt->db_.get(), r, SQLITE_DONE, void());
 
     // cleanup when no more rows to fetch
     sqlite3_reset(stmt->statement_);
@@ -1322,7 +1323,7 @@ void StatementSync::Iterate(const FunctionCallbackInfo<Value>& args) {
   auto isolate = env->isolate();
   auto context = env->context();
   int r = sqlite3_reset(stmt->statement_);
-  CHECK_ERROR_OR_THROW(env->isolate(), stmt->db_, r, SQLITE_OK, void());
+  CHECK_ERROR_OR_THROW(env->isolate(), stmt->db_.get(), r, SQLITE_OK, void());
 
   if (!stmt->BindParams(args)) {
     return;
@@ -1386,7 +1387,7 @@ void StatementSync::Get(const FunctionCallbackInfo<Value>& args) {
       env, stmt->IsFinalized(), "statement has been finalized");
   Isolate* isolate = env->isolate();
   int r = sqlite3_reset(stmt->statement_);
-  CHECK_ERROR_OR_THROW(isolate, stmt->db_, r, SQLITE_OK, void());
+  CHECK_ERROR_OR_THROW(isolate, stmt->db_.get(), r, SQLITE_OK, void());
 
   if (!stmt->BindParams(args)) {
     return;
@@ -1396,7 +1397,7 @@ void StatementSync::Get(const FunctionCallbackInfo<Value>& args) {
   r = sqlite3_step(stmt->statement_);
   if (r == SQLITE_DONE) return;
   if (r != SQLITE_ROW) {
-    THROW_ERR_SQLITE_ERROR(isolate, stmt->db_);
+    THROW_ERR_SQLITE_ERROR(isolate, stmt->db_.get());
     return;
   }
 
@@ -1432,7 +1433,7 @@ void StatementSync::Run(const FunctionCallbackInfo<Value>& args) {
   THROW_AND_RETURN_ON_BAD_STATE(
       env, stmt->IsFinalized(), "statement has been finalized");
   int r = sqlite3_reset(stmt->statement_);
-  CHECK_ERROR_OR_THROW(env->isolate(), stmt->db_, r, SQLITE_OK, void());
+  CHECK_ERROR_OR_THROW(env->isolate(), stmt->db_.get(), r, SQLITE_OK, void());
 
   if (!stmt->BindParams(args)) {
     return;
@@ -1441,7 +1442,7 @@ void StatementSync::Run(const FunctionCallbackInfo<Value>& args) {
   auto reset = OnScopeLeave([&]() { sqlite3_reset(stmt->statement_); });
   r = sqlite3_step(stmt->statement_);
   if (r != SQLITE_ROW && r != SQLITE_DONE) {
-    THROW_ERR_SQLITE_ERROR(env->isolate(), stmt->db_);
+    THROW_ERR_SQLITE_ERROR(env->isolate(), stmt->db_.get());
     return;
   }
 
@@ -1597,9 +1598,8 @@ Local<FunctionTemplate> StatementSync::GetConstructorTemplate(
   return tmpl;
 }
 
-BaseObjectPtr<StatementSync> StatementSync::Create(Environment* env,
-                                                   DatabaseSync* db,
-                                                   sqlite3_stmt* stmt) {
+BaseObjectPtr<StatementSync> StatementSync::Create(
+    Environment* env, BaseObjectPtr<DatabaseSync> db, sqlite3_stmt* stmt) {
   Local<Object> obj;
   if (!GetConstructorTemplate(env)
            ->InstanceTemplate()
@@ -1608,7 +1608,7 @@ BaseObjectPtr<StatementSync> StatementSync::Create(Environment* env,
     return BaseObjectPtr<StatementSync>();
   }
 
-  return MakeBaseObject<StatementSync>(env, obj, db, stmt);
+  return MakeBaseObject<StatementSync>(env, obj, std::move(db), stmt);
 }
 
 Session::Session(Environment* env,
@@ -1675,7 +1675,7 @@ void Session::Changeset(const FunctionCallbackInfo<Value>& args) {
   void* pChangeset;
   int r = sqliteChangesetFunc(session->session_, &nChangeset, &pChangeset);
   CHECK_ERROR_OR_THROW(
-      env->isolate(), session->database_, r, SQLITE_OK, void());
+      env->isolate(), session->database_.get(), r, SQLITE_OK, void());
 
   auto freeChangeset = OnScopeLeave([&] { sqlite3_free(pChangeset); });
 
