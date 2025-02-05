@@ -68,7 +68,7 @@ const testCases = [
     nodeFlags: ['--perf-basic-prof-only-functions', '--no-turbo-inlining', '--no-opt'],
     matches: [
       'JS:~functionOne .+/linux-perf-logger.js',
-      '~functionTwo .+/linux-perf-logger.js',
+      'JS:~functionTwo .+/linux-perf-logger.js',
     ],
     noMatches: ['\\*functionOne', '\\*functionTwo', 'test-regex'],
   },
