@@ -256,6 +256,7 @@ class BackupJob : public ThreadPoolWork {
       return;
     }
 
+    Finalize();
     resolver
         ->Resolve(env()->context(), Integer::New(env()->isolate(), total_pages))
         .ToChecked();
@@ -477,9 +478,10 @@ void DatabaseSync::DeleteSessions() {
 }
 
 DatabaseSync::~DatabaseSync() {
+  FinalizeBackups();
+
   if (IsOpen()) {
     FinalizeStatements();
-    FinalizeBackups();
     DeleteSessions();
     sqlite3_close_v2(connection_);
     connection_ = nullptr;
