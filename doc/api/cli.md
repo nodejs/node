@@ -800,6 +800,8 @@ node --entry-url 'data:text/javascript,console.log("Hello")'
 
 ### `--env-file-if-exists=config`
 
+> Stability: 1.1 - Active development
+
 <!-- YAML
 added: v22.9.0
 -->
