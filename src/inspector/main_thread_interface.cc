@@ -243,7 +243,11 @@ void MainThreadInterface::DispatchMessages() {
   bool expected = false;
   // compare_exchange_strong returns true if the value was successfully changed
   // from false to true.
-  if (dispatching_messages_.compare_exchange_strong(expected, true, std::memory_order_acquire, std::memory_order_relaxed)) {
+  if (dispatching_messages_.compare_exchange_strong(
+          expected,
+          true,
+          std::memory_order_acquire,
+          std::memory_order_relaxed)) {
     bool had_messages = false;
     do {
       if (dispatching_message_queue_.empty()) {
