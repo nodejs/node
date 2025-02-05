@@ -240,26 +240,29 @@ void MainThreadInterface::StopWaitingForFrontendEvent() {
 }
 
 void MainThreadInterface::DispatchMessages() {
-  if (dispatching_messages_)
-    return;
-  dispatching_messages_ = true;
-  bool had_messages = false;
-  do {
-    if (dispatching_message_queue_.empty()) {
-      Mutex::ScopedLock scoped_lock(requests_lock_);
-      requests_.swap(dispatching_message_queue_);
-    }
-    had_messages = !dispatching_message_queue_.empty();
-    while (!dispatching_message_queue_.empty()) {
-      MessageQueue::value_type task;
-      std::swap(dispatching_message_queue_.front(), task);
-      dispatching_message_queue_.pop_front();
+  // std::memory_order_acquire ensures that all writes made before this atomic exchange
+  // (by other threads) are visible to the current thread.
+  // If another thread set dispatching_messages_ to false and then performed some other actions, 
+  // the current thread is guaranteed to see those other actions before it proceeds.
+  if (!dispatching_messages_.exchange(true, std::memory_order_acquire)) {
+    bool had_messages = false;
+    do {
+      if (dispatching_message_queue_.empty()) {
+        Mutex::ScopedLock scoped_lock(requests_lock_);
+        requests_.swap(dispatching_message_queue_);
+      }
+      had_messages = !dispatching_message_queue_.empty();
+      while (!dispatching_message_queue_.empty()) {
+        MessageQueue::value_type task;
+        std::swap(dispatching_message_queue_.front(), task);
+        dispatching_message_queue_.pop_front();
 
-      v8::SealHandleScope seal_handle_scope(agent_->env()->isolate());
-      task->Call(this);
-    }
-  } while (had_messages);
-  dispatching_messages_ = false;
+        v8::SealHandleScope seal_handle_scope(agent_->env()->isolate());
+        task->Call(this);
+      }
+    } while (had_messages);
+    dispatching_messages_ = false;
+  }
 }
 
 std::shared_ptr<MainThreadHandle> MainThreadInterface::GetHandle() {
