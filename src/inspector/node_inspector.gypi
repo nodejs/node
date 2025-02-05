@@ -97,6 +97,7 @@
       'action_name': 'node_protocol_generated_sources',
       'inputs': [
         'node_protocol_config.json',
+        'node_protocol.pdl',
         '<(SHARED_INTERMEDIATE_DIR)/src/node_protocol.json',
         '<@(node_protocol_files)',
         '<(protocol_tool_path)/code_generator.py',
