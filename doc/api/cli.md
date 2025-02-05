@@ -1689,6 +1689,8 @@ Node.js which is `nodejs_conf` and is default when this option is not used.
 added: REPLACEME
 -->
 
+> Stability: 1.1 - Active development
+
 Behavior is the same as [`--env-file`][], but an error is not thrown if the file
 does not exist.
 
