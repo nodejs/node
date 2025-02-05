@@ -102,13 +102,13 @@ class StatementSync : public BaseObject {
  public:
   StatementSync(Environment* env,
                 v8::Local<v8::Object> object,
-                DatabaseSync* db,
+                BaseObjectPtr<DatabaseSync> db,
                 sqlite3_stmt* stmt);
   void MemoryInfo(MemoryTracker* tracker) const override;
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
   static BaseObjectPtr<StatementSync> Create(Environment* env,
-                                             DatabaseSync* db,
+                                             BaseObjectPtr<DatabaseSync> db,
                                              sqlite3_stmt* stmt);
   static void All(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Iterate(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -130,7 +130,7 @@ class StatementSync : public BaseObject {
 
  private:
   ~StatementSync() override;
-  DatabaseSync* db_;
+  BaseObjectPtr<DatabaseSync> db_;
   sqlite3_stmt* statement_;
   bool use_big_ints_;
   bool allow_bare_named_params_;
