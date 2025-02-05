@@ -712,14 +712,14 @@ into a new instance of `library.wasm`:
 <!-- eslint-skip -->
 
 ```js
-import source libraryModule from './library.wasm`;
+import source libraryModule from './library.wasm';
 
 const instance1 = await WebAssembly.instantiate(libraryModule, {
-  custom: import1
+  custom: import1,
 });
 
 const instance2 = await WebAssembly.instantiate(libraryModule, {
-  custom: import2
+  custom: import2,
 });
 ```
 

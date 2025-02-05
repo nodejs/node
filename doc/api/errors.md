@@ -2740,6 +2740,10 @@ A file imported from a source map was not found.
 
 ### `ERR_SOURCE_PHASE_NOT_DEFINED`
 
+<!-- YAML
+added: REPLACEME
+-->
+
 The provided module import does not provide a source phase imports representation for source phase
 import syntax `import source x from 'x'` or `import.source(x)`.
 

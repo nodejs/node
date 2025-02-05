@@ -419,7 +419,7 @@ ModulePhase to_phase_constant(ModuleImportPhase phase) {
     case ModuleImportPhase::kSource:
       return kSourcePhase;
   }
-  CHECK(false);
+  UNREACHABLE();
 }
 
 static Local<Object> createImportAttributesContainer(
@@ -467,7 +467,7 @@ static Local<Array> createModuleRequestsContainer(
     Local<Value> values[] = {
         specifier,
         attributes,
-        v8::Integer::New(isolate, to_phase_constant(phase)),
+        Integer::New(isolate, to_phase_constant(phase)),
     };
     DCHECK_EQ(arraysize(names), arraysize(values));
 
@@ -981,7 +981,7 @@ static MaybeLocal<Promise> ImportModuleDynamicallyWithPhase(
   Local<Value> import_args[] = {
       id,
       Local<Value>(specifier),
-      v8::Integer::New(isolate, to_phase_constant(phase)),
+      Integer::New(isolate, to_phase_constant(phase)),
       attributes,
       resource_name,
   };
