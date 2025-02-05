@@ -240,7 +240,8 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
     }
     runtime_agent_ = std::make_unique<protocol::RuntimeAgent>();
     runtime_agent_->Wire(node_dispatcher_.get());
-    network_inspector_ = std::make_unique<NetworkInspector>(env);
+    network_inspector_ =
+        std::make_unique<NetworkInspector>(env, inspector.get());
     network_inspector_->Wire(node_dispatcher_.get());
   }
 

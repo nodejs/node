@@ -65,6 +65,13 @@ const terminate = () => {
   inspector.close();
 };
 
+function findFrameInInitiator(scriptName, initiator) {
+  const frame = initiator.stack.callFrames.find((it) => {
+    return it.url === scriptName;
+  });
+  return frame;
+}
+
 const testHttpGet = () => new Promise((resolve, reject) => {
   session.on('Network.requestWillBeSent', common.mustCall(({ params }) => {
     assert.ok(params.requestId.startsWith('node-network-event-'));
@@ -77,6 +84,10 @@ const testHttpGet = () => new Promise((resolve, reject) => {
     assert.strictEqual(params.request.headers['x-header1'], 'value1, value2');
     assert.strictEqual(typeof params.timestamp, 'number');
     assert.strictEqual(typeof params.wallTime, 'number');
+
+    assert.strictEqual(typeof params.initiator, 'object');
+    assert.strictEqual(params.initiator.type, 'script');
+    assert.ok(findFrameInInitiator(__filename, params.initiator));
   }));
   session.on('Network.responseReceived', common.mustCall(({ params }) => {
     assert.ok(params.requestId.startsWith('node-network-event-'));

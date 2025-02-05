@@ -14,7 +14,8 @@ namespace protocol {
 
 class NetworkAgent : public Network::Backend {
  public:
-  explicit NetworkAgent(NetworkInspector* inspector);
+  explicit NetworkAgent(NetworkInspector* inspector,
+                        v8_inspector::V8Inspector* v8_inspector);
 
   void Wire(UberDispatcher* dispatcher);
 
@@ -35,6 +36,7 @@ class NetworkAgent : public Network::Backend {
 
  private:
   NetworkInspector* inspector_;
+  v8_inspector::V8Inspector* v8_inspector_;
   std::shared_ptr<Network::Frontend> frontend_;
   using EventNotifier =
       void (NetworkAgent::*)(std::unique_ptr<protocol::DictionaryValue>);
