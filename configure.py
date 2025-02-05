@@ -1392,6 +1392,11 @@ def gcc_version_ge(version_checked):
 def configure_node_lib_files(o):
   o['variables']['node_library_files'] = SearchFiles('lib', 'js')
 
+def configure_node_cctest_sources(o):
+  o['variables']['node_cctest_sources'] = [ 'src/node_snapshot_stub.cc' ] + \
+    SearchFiles('test/cctest', 'cc') + \
+    SearchFiles('test/cctest', 'h')
+
 def configure_node(o):
   if options.dest_os == 'android':
     o['variables']['OS'] = 'android'
@@ -2204,6 +2209,7 @@ flavor = GetFlavor(flavor_params)
 
 configure_node(output)
 configure_node_lib_files(output)
+configure_node_cctest_sources(output)
 configure_napi(output)
 configure_library('zlib', output)
 configure_library('http_parser', output)
