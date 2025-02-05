@@ -39,6 +39,11 @@ Node.js *
 [stdin]:1
 const foo;
       ^^^
+  x 'const' declarations must be initialized
+   ,----
+ 1 | const foo;
+   :       ^^^
+   `----
 
 SyntaxError: Missing initializer in const declaration
 
@@ -46,6 +51,11 @@ Node.js *
 [stdin]:1
 const foo;
       ^^^
+  x 'const' declarations must be initialized
+   ,----
+ 1 | const foo;
+   :       ^^^
+   `----
 
 SyntaxError: Missing initializer in const declaration
 
@@ -57,17 +67,27 @@ undefined
 false
 false
 [stdin]:1
-               ;const foo;
-                      ^^^
+interface Foo{};const foo;
+          ^^^
+  x 'const' declarations must be initialized
+   ,----
+ 1 | interface Foo{};const foo;
+   :                       ^^^
+   `----
 
-SyntaxError: Missing initializer in const declaration
+SyntaxError: Unexpected identifier 'Foo'
 
 Node.js *
 [stdin]:1
-               ;const foo;
-                      ^^^
+interface Foo{};const foo;
+^^^^^^^^^
+  x 'const' declarations must be initialized
+   ,----
+ 1 | interface Foo{};const foo;
+   :                       ^^^
+   `----
 
-SyntaxError: Missing initializer in const declaration
+SyntaxError: Unexpected strict mode reserved word
 
 Node.js *
 [stdin]:1
