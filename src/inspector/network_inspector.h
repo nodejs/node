@@ -11,7 +11,8 @@ namespace inspector {
 
 class NetworkInspector {
  public:
-  explicit NetworkInspector(Environment* env);
+  explicit NetworkInspector(Environment* env,
+                            v8_inspector::V8Inspector* v8_inspector);
   ~NetworkInspector();
 
   void Wire(protocol::UberDispatcher* dispatcher);

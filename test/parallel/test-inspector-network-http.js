@@ -64,6 +64,13 @@ const terminate = () => {
   inspector.close();
 };
 
+function findFrameInInitiator(scriptName, initiator) {
+  const frame = initiator.stack.callFrames.find((it) => {
+    return it.url === scriptName;
+  });
+  return frame;
+}
+
 function verifyRequestWillBeSent({ method, params }, expect) {
   assert.strictEqual(method, 'Network.requestWillBeSent');
 
@@ -77,6 +84,10 @@ function verifyRequestWillBeSent({ method, params }, expect) {
   assert.strictEqual(params.request.headers['x-header1'], 'value1, value2');
   assert.strictEqual(typeof params.timestamp, 'number');
   assert.strictEqual(typeof params.wallTime, 'number');
+
+  assert.strictEqual(typeof params.initiator, 'object');
+  assert.strictEqual(params.initiator.type, 'script');
+  assert.ok(findFrameInInitiator(__filename, params.initiator));
 
   return params;
 }
