@@ -240,11 +240,10 @@ void MainThreadInterface::StopWaitingForFrontendEvent() {
 }
 
 void MainThreadInterface::DispatchMessages() {
-  // std::memory_order_acquire ensures that all writes made before this atomic exchange
-  // (by other threads) are visible to the current thread.
-  // If another thread set dispatching_messages_ to false and then performed some other actions, 
-  // the current thread is guaranteed to see those other actions before it proceeds.
-  if (!dispatching_messages_.exchange(true, std::memory_order_acquire)) {
+  bool expected = false;
+  // compare_exchange_strong returns true if the value was successfully changed
+  // from false to true.
+  if (dispatching_messages_.compare_exchange_strong(expected, true, std::memory_order_acquire, std::memory_order_relaxed)) {
     bool had_messages = false;
     do {
       if (dispatching_message_queue_.empty()) {
@@ -261,7 +260,7 @@ void MainThreadInterface::DispatchMessages() {
         task->Call(this);
       }
     } while (had_messages);
-    dispatching_messages_ = false;
+    dispatching_messages_.store(false, std::memory_order_release);
   }
 }
 
