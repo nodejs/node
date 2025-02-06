@@ -1,9 +1,11 @@
+// Flags: --expose-internals
+
 'use strict';
 
 require('../common');
 const assert = require('node:assert');
 const { describe, it } = require('node:test');
-const ci = require('code_integrity');
+const ci = require('internal/code_integrity');
 
 describe('cjs loader code integrity integration tests', () => {
   it('should throw an error if a .js file does not pass code integrity policy',

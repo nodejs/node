@@ -20,20 +20,29 @@ If you find a potential security vulnerability, please refer to our
 
 ## Code Integrity on Windows
 
+Code integrity is an opt-in feature that leverages Window Defender Application Control
+to verify the code executing conforms to system policy and has not been modified since
+signing time. 
+
 There are three audiences that are involved when using Node.js in an
-environment enforcing code integrity. The application developers,
+environment enforcing code integrity: the application developers,
 those administrating the system enforcing code integrity, and
-the end user.
+the end user. The following sections describe how each audience
+can interact with code integrity enforcement.
 
 ### Windows Code Integrity and Application Developers
 
-Application developers are responsible for generating and
-distributing the signature information for their application.
+Windows Defender Application Control uses digital signatures to verify
+a file's integrity. Application developers are responsible for generating and
+distributing the signature information for their Node.js application.
 Application developers are also expected to design their application
-in robust ways to avoid unintended code execution.
+in robust ways to avoid unintended code execution. This includes
+use of ```eval``` and loading modules outside of standard methods.
 
-Application developers can generate a Windows catalog file to
-store the hash of all files Node.js is expected to execute.
+Signature information for files which Node.js is intended to execute
+can be stored in a catalog file. Application developers can generate
+a Windows catalog file to store the hash of all files Node.js
+is expected to execute.
 
 A catalog can be generated using the `New-FileCatalog` Powershell
 cmdlet. For example
@@ -45,8 +54,13 @@ New-FileCatalog -Version 2 -CatalogFilePath MyApplicationCatalog.cat -Path \my\a
 The `Path` argument should point to the root folder containing your application's code. If
 your application's code is fully contained in one file, `Path` can point to that single file.
 
-Be sure that the catalog is generated for the final version of the files that you intend to ship
+Be sure that the catalog is generated using the final version of the files that you intend to ship
 (i.e. after minifying).
+
+The application developer should then sign the generated catalog with their Code Signing certificate
+to ensure the catalog is not tampered with between distribution and execution.
+
+This can be done with the [Set-AuthenticodeSignature](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.security/set-authenticodesignature) commandlet.
 
 ### Windows Code Integrity and System Administrators
 

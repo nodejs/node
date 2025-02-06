@@ -20,7 +20,7 @@ namespace per_process {
   pfnWldpQuerySecurityPolicy WldpQuerySecurityPolicy;
 }
 
-namespace codeintegrity {
+namespace code_integrity {
 
 static PCWSTR NODEJS = L"Node.js";
 static PCWSTR ENFORCE_CODE_INTEGRITY_SETTING_NAME = L"EnforceCodeIntegrity";
@@ -254,10 +254,10 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(IsSystemEnforcingCodeIntegrity);
 }
 
-}  // namespace codeintegrity
+}  // namespace code_integrity
 }  // namespace node
 
 NODE_BINDING_CONTEXT_AWARE_INTERNAL(code_integrity,
-                                    node::codeintegrity::Initialize)
+                                    node::code_integrity::Initialize)
 NODE_BINDING_EXTERNAL_REFERENCE(code_integrity,
-                            node::codeintegrity::RegisterExternalReferences)
+                            node::code_integrity::RegisterExternalReferences)
