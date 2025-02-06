@@ -103,7 +103,9 @@ if (isMainThread) {
 ## `worker.isInternalThread`
 
 <!-- YAML
-added: v23.7.0
+added:
+  - v23.7.0
+  - v22.14.0
 -->
 
 * {boolean}

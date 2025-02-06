@@ -3251,7 +3251,9 @@ console.log(`The parent process is pid ${ppid}`);
 ## `process.ref(maybeRefable)`
 
 <!-- YAML
-added: v23.6.0
+added:
+  - v23.6.0
+  - v22.14.0
 -->
 
 > Stability: 1 - Experimental
@@ -4315,7 +4317,9 @@ In [`Worker`][] threads, `process.umask(mask)` will throw an exception.
 ## `process.unref(maybeRefable)`
 
 <!-- YAML
-added: v23.6.0
+added:
+  - v23.6.0
+  - v22.14.0
 -->
 
 > Stability: 1 - Experimental

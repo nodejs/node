@@ -580,7 +580,9 @@ property throw an exception with the code `ERR_PROTO_ACCESS`.
 ### `--disable-sigusr1`
 
 <!-- YAML
-added: v23.7.0
+added:
+  - v23.7.0
+  - v22.14.0
 -->
 
 > Stability: 1.2 - Release candidate
