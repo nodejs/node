@@ -121,6 +121,10 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors,
     }
   }
 
+  if (!experimental_policy.empty() || experimental_https_modules) {
+    require_module = false;
+  }
+
   if (!type.empty()) {
     if (type != "commonjs" && type != "module") {
       errors->push_back("--experimental-default-type must be "
