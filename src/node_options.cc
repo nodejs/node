@@ -442,7 +442,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar,
             true);
   AddOption("--experimental-quic",
-            "experimental QUIC API",
+            "" /* undocumented until its development */,
             &EnvironmentOptions::experimental_quic,
             kAllowedInEnvvar);
   AddOption("--experimental-webstorage",
