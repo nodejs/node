@@ -69,7 +69,9 @@ const siblingModule = require('./sibling-module');
 ### `module.findPackageJSON(specifier[, base])`
 
 <!-- YAML
-added: v23.2.0
+added:
+  - v23.2.0
+  - v22.14.0
 -->
 
 > Stability: 1.1 - Active Development
@@ -1599,7 +1601,9 @@ const { findSourceMap, SourceMap } = require('node:module');
 ### `module.getSourceMapsSupport()`
 
 <!-- YAML
-added: v23.7.0
+added:
+  - v23.7.0
+  - v22.14.0
 -->
 
 * Returns: {Object}
@@ -1632,7 +1636,9 @@ should be fetched.
 ### `module.setSourceMapsSupport(enabled[, options])`
 
 <!-- YAML
-added: v23.7.0
+added:
+  - v23.7.0
+  - v22.14.0
 -->
 
 * `enabled` {boolean} Enable the source map support.

@@ -371,10 +371,14 @@ util.formatWithOptions({ colors: true }, 'See object %O', { foo: 42 });
 <!-- YAML
 added: v22.9.0
 changes:
-  - version: v23.7.0
+  - version:
+    - v23.7.0
+    - v22.14.0
     pr-url: https://github.com/nodejs/node/pull/56584
     description: Property `column` is deprecated in favor of `columnNumber`.
-  - version: v23.7.0
+  - version:
+    - v23.7.0
+    - v22.14.0
     pr-url: https://github.com/nodejs/node/pull/56551
     description: Property `CallSite.scriptId` is exposed.
   - version:
