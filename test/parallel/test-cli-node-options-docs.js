@@ -101,7 +101,8 @@ for (const [, envVar, config] of nodeOptionsCC.matchAll(addOptionRE)) {
   }
 
   // NODE_OPTIONS
-  if (isInNodeOption && !hasTrueAsDefaultValue && new RegExp(`\`${envVar}\``).test(nodeOptionsText) === false) {
+  if (isInNodeOption && !hasTrueAsDefaultValue &&
+    new RegExp(`\`${envVar}\``).test(nodeOptionsText) === false) {
     assert(false, `Should have option ${envVar} in NODE_OPTIONS documented`);
   }
 

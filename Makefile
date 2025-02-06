@@ -780,7 +780,9 @@ test-v8 test-v8-intl test-v8-benchmarks test-v8-all:
 endif
 
 apidoc_dirs = out/doc out/doc/api out/doc/api/assets
-apidoc_sources = $(wildcard doc/api/*.md)
+skip_apidoc_files = doc/api/quic.md
+
+apidoc_sources = $(filter-out $(skip_apidoc_files), $(wildcard doc/api/*.md))
 apidocs_html = $(addprefix out/,$(apidoc_sources:.md=.html))
 apidocs_json = $(addprefix out/,$(apidoc_sources:.md=.json))
 
