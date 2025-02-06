@@ -709,8 +709,6 @@ resolving and loading it through the ES module integration.
 For example, to create multiple instances of a module, or to pass custom imports
 into a new instance of `library.wasm`:
 
-<!-- eslint-skip -->
-
 ```js
 import source libraryModule from './library.wasm';
 
