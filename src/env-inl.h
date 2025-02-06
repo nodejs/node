@@ -44,16 +44,6 @@
 
 namespace node {
 
-NoArrayBufferZeroFillScope::NoArrayBufferZeroFillScope(
-    IsolateData* isolate_data)
-    : node_allocator_(isolate_data->node_allocator()) {
-  if (node_allocator_ != nullptr) node_allocator_->zero_fill_field()[0] = 0;
-}
-
-NoArrayBufferZeroFillScope::~NoArrayBufferZeroFillScope() {
-  if (node_allocator_ != nullptr) node_allocator_->zero_fill_field()[0] = 1;
-}
-
 inline v8::Isolate* IsolateData::isolate() const {
   return isolate_;
 }

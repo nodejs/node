@@ -112,19 +112,6 @@ class ModuleWrap;
 class Environment;
 class Realm;
 
-// Disables zero-filling for ArrayBuffer allocations in this scope. This is
-// similar to how we implement Buffer.allocUnsafe() in JS land.
-class NoArrayBufferZeroFillScope {
- public:
-  inline explicit NoArrayBufferZeroFillScope(IsolateData* isolate_data);
-  inline ~NoArrayBufferZeroFillScope();
-
- private:
-  NodeArrayBufferAllocator* node_allocator_;
-
-  friend class Environment;
-};
-
 struct IsolateDataSerializeInfo {
   std::vector<SnapshotIndex> primitive_values;
   std::vector<PropInfo> template_values;
