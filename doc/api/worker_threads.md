@@ -103,7 +103,7 @@ if (isMainThread) {
 ## `worker.isInternalThread`
 
 <!-- YAML
-added: REPLACEME
+added: v22.14.0
 -->
 
 * {boolean}

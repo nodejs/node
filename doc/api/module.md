@@ -220,7 +220,7 @@ added: v22.8.0
 ### `module.findPackageJSON(specifier[, base])`
 
 <!-- YAML
-added: REPLACEME
+added: v22.14.0
 -->
 
 > Stability: 1.1 - Active Development
@@ -1449,7 +1449,7 @@ const { findSourceMap, SourceMap } = require('node:module');
 ### `module.getSourceMapsSupport()`
 
 <!-- YAML
-added: REPLACEME
+added: v22.14.0
 -->
 
 * Returns: {Object}
@@ -1482,7 +1482,7 @@ should be fetched.
 ### `module.setSourceMapsSupport(enabled[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v22.14.0
 -->
 
 * `enabled` {boolean} Enable the source map support.
