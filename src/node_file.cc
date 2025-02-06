@@ -1614,6 +1614,142 @@ static void RMDir(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+#ifdef _WIN32
+#define BufferValueToPath(str)                                                 \
+  std::filesystem::path(ConvertToWideString(str.ToString(), CP_UTF8))
+
+std::string ConvertWideToUTF8(const std::wstring& wstr) {
+  if (wstr.empty()) return std::string();
+
+  int size_needed = WideCharToMultiByte(CP_UTF8,
+                                        0,
+                                        &wstr[0],
+                                        static_cast<int>(wstr.size()),
+                                        nullptr,
+                                        0,
+                                        nullptr,
+                                        nullptr);
+  std::string strTo(size_needed, 0);
+  WideCharToMultiByte(CP_UTF8,
+                      0,
+                      &wstr[0],
+                      static_cast<int>(wstr.size()),
+                      &strTo[0],
+                      size_needed,
+                      nullptr,
+                      nullptr);
+  return strTo;
+}
+
+#define PathToString(path) ConvertWideToUTF8(path.wstring());
+
+#else  // _WIN32
+
+#define BufferValueToPath(str) std::filesystem::path(str.ToStringView());
+#define PathToString(path) path.native();
+
+#endif  // _WIN32
+
+static void RmSync(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  CHECK_EQ(args.Length(), 4);  // path, maxRetries, recursive, retryDelay
+
+  BufferValue path(isolate, args[0]);
+  CHECK_NOT_NULL(*path);
+  ToNamespacedPath(env, &path);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kFileSystemWrite, path.ToStringView());
+  auto file_path = BufferValueToPath(path);
+  std::error_code error;
+  auto file_status = std::filesystem::status(file_path, error);
+
+  if (file_status.type() == std::filesystem::file_type::not_found) {
+    return;
+  }
+
+  int maxRetries = args[1].As<Int32>()->Value();
+  int recursive = args[2]->IsTrue();
+  int retryDelay = args[3].As<Int32>()->Value();
+
+  // File is a directory and recursive is false
+  if (file_status.type() == std::filesystem::file_type::directory &&
+      !recursive) {
+    auto file_path_as_str = PathToString(file_path);
+    return THROW_ERR_FS_EISDIR(
+        isolate, "Path is a directory: %s", file_path_as_str);
+  }
+
+  // Allowed errors are:
+  // - EBUSY: std::errc::device_or_resource_busy
+  // - EMFILE: std::errc::too_many_files_open
+  // - ENFILE: std::errc::too_many_files_open_in_system
+  // - ENOTEMPTY: std::errc::directory_not_empty
+  // - EPERM: std::errc::operation_not_permitted
+  auto can_omit_error = [](std::error_code error) -> bool {
+    return (error == std::errc::device_or_resource_busy ||
+            error == std::errc::too_many_files_open ||
+            error == std::errc::too_many_files_open_in_system ||
+            error == std::errc::directory_not_empty ||
+            error == std::errc::operation_not_permitted);
+  };
+
+  int i = 1;
+
+  while (maxRetries >= 0) {
+    if (recursive) {
+      std::filesystem::remove_all(file_path, error);
+    } else {
+      std::filesystem::remove(file_path, error);
+    }
+
+    if (!error || error == std::errc::no_such_file_or_directory) {
+      return;
+    } else if (!can_omit_error(error)) {
+      break;
+    }
+
+    if (retryDelay > 0) {
+#ifdef _WIN32
+      Sleep(i * retryDelay / 1000);
+#else
+      sleep(i * retryDelay / 1000);
+#endif
+    }
+    maxRetries--;
+    i++;
+  }
+
+  // On Windows path::c_str() returns wide char, convert to std::string first.
+  std::string file_path_str = PathToString(file_path);
+  const char* path_c_str = file_path_str.c_str();
+#ifdef _WIN32
+  int permission_denied_error = EPERM;
+#else
+  int permission_denied_error = EACCES;
+#endif  // !_WIN32
+
+  if (error == std::errc::operation_not_permitted) {
+    std::string message = "Operation not permitted: ";
+    return env->ThrowErrnoException(EPERM, "rm", message.c_str(), path_c_str);
+  } else if (error == std::errc::directory_not_empty) {
+    std::string message = "Directory not empty: ";
+    return env->ThrowErrnoException(EACCES, "rm", message.c_str(), path_c_str);
+  } else if (error == std::errc::not_a_directory) {
+    std::string message = "Not a directory: ";
+    return env->ThrowErrnoException(ENOTDIR, "rm", message.c_str(), path_c_str);
+  } else if (error == std::errc::permission_denied) {
+    std::string message = "Permission denied: ";
+    return env->ThrowErrnoException(
+        permission_denied_error, "rm", message.c_str(), path_c_str);
+  }
+
+  std::string message = "Unknown error: " + error.message();
+  return env->ThrowErrnoException(
+      UV_UNKNOWN, "rm", message.c_str(), path_c_str);
+}
+
 int MKDirpSync(uv_loop_t* loop,
                uv_fs_t* req,
                const std::string& path,
@@ -3044,142 +3180,6 @@ static void GetFormatOfExtensionlessFile(
   }
 
   return args.GetReturnValue().Set(EXTENSIONLESS_FORMAT_JAVASCRIPT);
-}
-
-#ifdef _WIN32
-#define BufferValueToPath(str)                                                 \
-  std::filesystem::path(ConvertToWideString(str.ToString(), CP_UTF8))
-
-std::string ConvertWideToUTF8(const std::wstring& wstr) {
-  if (wstr.empty()) return std::string();
-
-  int size_needed = WideCharToMultiByte(CP_UTF8,
-                                        0,
-                                        &wstr[0],
-                                        static_cast<int>(wstr.size()),
-                                        nullptr,
-                                        0,
-                                        nullptr,
-                                        nullptr);
-  std::string strTo(size_needed, 0);
-  WideCharToMultiByte(CP_UTF8,
-                      0,
-                      &wstr[0],
-                      static_cast<int>(wstr.size()),
-                      &strTo[0],
-                      size_needed,
-                      nullptr,
-                      nullptr);
-  return strTo;
-}
-
-#define PathToString(path) ConvertWideToUTF8(path.wstring());
-
-#else  // _WIN32
-
-#define BufferValueToPath(str) std::filesystem::path(str.ToStringView());
-#define PathToString(path) path.native();
-
-#endif  // _WIN32
-
-static void RmSync(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
-
-  CHECK_EQ(args.Length(), 4);  // path, maxRetries, recursive, retryDelay
-
-  BufferValue path(isolate, args[0]);
-  CHECK_NOT_NULL(*path);
-  ToNamespacedPath(env, &path);
-  THROW_IF_INSUFFICIENT_PERMISSIONS(
-      env, permission::PermissionScope::kFileSystemWrite, path.ToStringView());
-  auto file_path = BufferValueToPath(path);
-  std::error_code error;
-  auto file_status = std::filesystem::status(file_path, error);
-
-  if (file_status.type() == std::filesystem::file_type::not_found) {
-    return;
-  }
-
-  int maxRetries = args[1].As<Int32>()->Value();
-  int recursive = args[2]->IsTrue();
-  int retryDelay = args[3].As<Int32>()->Value();
-
-  // File is a directory and recursive is false
-  if (file_status.type() == std::filesystem::file_type::directory &&
-      !recursive) {
-    auto file_path_as_str = PathToString(file_path);
-    return THROW_ERR_FS_EISDIR(
-        isolate, "Path is a directory: %s", file_path_as_str);
-  }
-
-  // Allowed errors are:
-  // - EBUSY: std::errc::device_or_resource_busy
-  // - EMFILE: std::errc::too_many_files_open
-  // - ENFILE: std::errc::too_many_files_open_in_system
-  // - ENOTEMPTY: std::errc::directory_not_empty
-  // - EPERM: std::errc::operation_not_permitted
-  auto can_omit_error = [](std::error_code error) -> bool {
-    return (error == std::errc::device_or_resource_busy ||
-            error == std::errc::too_many_files_open ||
-            error == std::errc::too_many_files_open_in_system ||
-            error == std::errc::directory_not_empty ||
-            error == std::errc::operation_not_permitted);
-  };
-
-  int i = 1;
-
-  while (maxRetries >= 0) {
-    if (recursive) {
-      std::filesystem::remove_all(file_path, error);
-    } else {
-      std::filesystem::remove(file_path, error);
-    }
-
-    if (!error || error == std::errc::no_such_file_or_directory) {
-      return;
-    } else if (!can_omit_error(error)) {
-      break;
-    }
-
-    if (retryDelay > 0) {
-#ifdef _WIN32
-      Sleep(i * retryDelay / 1000);
-#else
-      sleep(i * retryDelay / 1000);
-#endif
-    }
-    maxRetries--;
-    i++;
-  }
-
-  // On Windows path::c_str() returns wide char, convert to std::string first.
-  std::string file_path_str = PathToString(file_path);
-  const char* path_c_str = file_path_str.c_str();
-#ifdef _WIN32
-  int permission_denied_error = EPERM;
-#else
-  int permission_denied_error = EACCES;
-#endif  // !_WIN32
-
-  if (error == std::errc::operation_not_permitted) {
-    std::string message = "Operation not permitted: ";
-    return env->ThrowErrnoException(EPERM, "rm", message.c_str(), path_c_str);
-  } else if (error == std::errc::directory_not_empty) {
-    std::string message = "Directory not empty: ";
-    return env->ThrowErrnoException(EACCES, "rm", message.c_str(), path_c_str);
-  } else if (error == std::errc::not_a_directory) {
-    std::string message = "Not a directory: ";
-    return env->ThrowErrnoException(ENOTDIR, "rm", message.c_str(), path_c_str);
-  } else if (error == std::errc::permission_denied) {
-    std::string message = "Permission denied: ";
-    return env->ThrowErrnoException(
-        permission_denied_error, "rm", message.c_str(), path_c_str);
-  }
-
-  std::string message = "Unknown error: " + error.message();
-  return env->ThrowErrnoException(
-      UV_UNKNOWN, "rm", message.c_str(), path_c_str);
 }
 
 static void CpSyncCheckPaths(const FunctionCallbackInfo<Value>& args) {
