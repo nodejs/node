@@ -51,6 +51,7 @@ using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
 using v8::Message;
+using v8::Name;
 using v8::Object;
 using v8::Value;
 using v8_inspector::StringBuffer;
@@ -410,12 +411,12 @@ class SameThreadInspectorSession : public InspectorSession {
 void NotifyClusterWorkersDebugEnabled(Environment* env) {
   Isolate* isolate = env->isolate();
   HandleScope handle_scope(isolate);
-  Local<Context> context = env->context();
 
   // Send message to enable debug in cluster workers
-  Local<Object> message = Object::New(isolate);
-  message->Set(context, FIXED_ONE_BYTE_STRING(isolate, "cmd"),
-               FIXED_ONE_BYTE_STRING(isolate, "NODE_DEBUG_ENABLED")).Check();
+  Local<Name> name = FIXED_ONE_BYTE_STRING(isolate, "cmd");
+  Local<Value> value = FIXED_ONE_BYTE_STRING(isolate, "NODE_DEBUG_ENABLED");
+  Local<Object> message =
+      Object::New(isolate, Object::New(isolate), &name, &value, 1);
   ProcessEmit(env, "internalMessage", message);
 }
 
@@ -440,11 +441,13 @@ bool IsFilePath(const std::string& path) {
 void ThrowUninitializedInspectorError(Environment* env) {
   HandleScope scope(env->isolate());
 
-  const char* msg = "This Environment was initialized without a V8::Inspector";
-  Local<Value> exception =
-    v8::String::NewFromUtf8(env->isolate(), msg).ToLocalChecked();
-
-  env->isolate()->ThrowException(exception);
+  std::string_view msg =
+      "This Environment was initialized without a V8::Inspector";
+  Local<Value> exception;
+  if (ToV8Value(env->context(), msg, env->isolate()).ToLocal(&exception)) {
+    env->isolate()->ThrowException(exception);
+  }
+  // V8 will have scheduled a superseding error here.
 }
 
 }  // namespace
