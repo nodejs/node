@@ -1153,8 +1153,8 @@ Creates and returns a new [`Unzip`][] object.
 
 <!--type=misc-->
 
-All of these take a [`Buffer`][], [`TypedArray`][], [`DataView`][],
-[`ArrayBuffer`][] or string as the first argument, an optional second argument
+All of these take a {Buffer}, {TypedArray}, {DataView}, {ArrayBuffer}, or string
+as the first argument, an optional second argument
 to supply options to the `zlib` classes and will call the supplied callback
 with `callback(error, result)`.
 
@@ -1502,19 +1502,15 @@ Decompress a chunk of data with [`Unzip`][].
 [Streams API]: stream.md
 [`.flush()`]: #zlibflushkind-callback
 [`Accept-Encoding`]: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.3
-[`ArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
 [`BrotliCompress`]: #class-zlibbrotlicompress
 [`BrotliDecompress`]: #class-zlibbrotlidecompress
-[`Buffer`]: buffer.md#class-buffer
 [`Content-Encoding`]: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.11
-[`DataView`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DataView
 [`DeflateRaw`]: #class-zlibdeflateraw
 [`Deflate`]: #class-zlibdeflate
 [`Gunzip`]: #class-zlibgunzip
 [`Gzip`]: #class-zlibgzip
 [`InflateRaw`]: #class-zlibinflateraw
 [`Inflate`]: #class-zlibinflate
-[`TypedArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray
 [`Unzip`]: #class-zlibunzip
 [`buffer.kMaxLength`]: buffer.md#bufferkmaxlength
 [`deflateInit2` and `inflateInit2`]: https://zlib.net/manual.html#Advanced
