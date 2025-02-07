@@ -22,6 +22,11 @@
 #include <Security/Security.h>
 #endif
 
+#ifdef _WIN32
+#include <Windows.h>
+#include <wincrypt.h>
+#endif
+
 namespace node {
 
 using ncrypto::BignumPointer;
@@ -285,13 +290,15 @@ void X509VectorToPEMVector(const std::vector<X509Pointer>& src,
   }
 }
 
-#ifdef __APPLE__
-// This code is loosely based on
+// The following code is loosely based on
 // https://github.com/chromium/chromium/blob/54bd8e3/net/cert/internal/trust_store_mac.cc
+// and
+// https://github.com/chromium/chromium/blob/0192587/net/cert/internal/trust_store_win.cc
 // Copyright 2015 The Chromium Authors
 // Licensed under a BSD-style license
 // See https://chromium.googlesource.com/chromium/src/+/HEAD/LICENSE for
 // details.
+#ifdef __APPLE__
 TrustStatus IsTrustDictionaryTrustedForPolicy(CFDictionaryRef trust_dict,
                                               bool is_self_issued) {
   // Trust settings may be scoped to a single application
@@ -524,10 +531,159 @@ void ReadMacOSKeychainCertificates(
 }
 #endif  // __APPLE__
 
+#ifdef _WIN32
+
+// Returns true if the cert can be used for server authentication, based on
+// certificate properties.
+//
+// While there are a variety of certificate properties that can affect how
+// trust is computed, the main property is CERT_ENHKEY_USAGE_PROP_ID, which
+// is intersected with the certificate's EKU extension (if present).
+// The intersection is documented in the Remarks section of
+// CertGetEnhancedKeyUsage, and is as follows:
+// - No EKU property, and no EKU extension = Trusted for all purpose
+// - Either an EKU property, or EKU extension, but not both = Trusted only
+//   for the listed purposes
+// - Both an EKU property and an EKU extension = Trusted for the set
+//   intersection of the listed purposes
+// CertGetEnhancedKeyUsage handles this logic, and if an empty set is
+// returned, the distinction between the first and third case can be
+// determined by GetLastError() returning CRYPT_E_NOT_FOUND.
+//
+// See:
+// https://docs.microsoft.com/en-us/windows/win32/api/wincrypt/nf-wincrypt-certgetenhancedkeyusage
+//
+// If we run into any errors reading the certificate properties, we fail
+// closed.
+bool IsCertTrustedForServerAuth(PCCERT_CONTEXT cert) {
+  DWORD usage_size = 0;
+
+  if (!CertGetEnhancedKeyUsage(cert, 0, nullptr, &usage_size)) {
+    return false;
+  }
+
+  std::vector<BYTE> usage_bytes(usage_size);
+  CERT_ENHKEY_USAGE* usage =
+      reinterpret_cast<CERT_ENHKEY_USAGE*>(usage_bytes.data());
+  if (!CertGetEnhancedKeyUsage(cert, 0, usage, &usage_size)) {
+    return false;
+  }
+
+  if (usage->cUsageIdentifier == 0) {
+    // check GetLastError
+    HRESULT error_code = GetLastError();
+
+    switch (error_code) {
+      case CRYPT_E_NOT_FOUND:
+        return true;
+      case S_OK:
+        return false;
+      default:
+        return false;
+    }
+  }
+
+  // SAFETY: `usage->rgpszUsageIdentifier` is an array of LPSTR (pointer to null
+  // terminated string) of length `usage->cUsageIdentifier`.
+  for (DWORD i = 0; i < usage->cUsageIdentifier; ++i) {
+    std::string_view eku(usage->rgpszUsageIdentifier[i]);
+    if ((eku == szOID_PKIX_KP_SERVER_AUTH) ||
+        (eku == szOID_ANY_ENHANCED_KEY_USAGE)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+void GatherCertsForLocation(std::vector<X509Pointer>* vector,
+                            DWORD location,
+                            LPCWSTR store_name) {
+  if (!(location == CERT_SYSTEM_STORE_LOCAL_MACHINE ||
+        location == CERT_SYSTEM_STORE_LOCAL_MACHINE_GROUP_POLICY ||
+        location == CERT_SYSTEM_STORE_LOCAL_MACHINE_ENTERPRISE ||
+        location == CERT_SYSTEM_STORE_CURRENT_USER ||
+        location == CERT_SYSTEM_STORE_CURRENT_USER_GROUP_POLICY)) {
+    return;
+  }
+
+  DWORD flags =
+      location | CERT_STORE_OPEN_EXISTING_FLAG | CERT_STORE_READONLY_FLAG;
+
+  HCERTSTORE opened_store(
+      CertOpenStore(CERT_STORE_PROV_SYSTEM,
+                    0,
+                    // The Windows API only accepts NULL for hCryptProv.
+                    NULL, /* NOLINT (readability/null_usage) */
+                    flags,
+                    store_name));
+  if (!opened_store) {
+    return;
+  }
+
+  auto cleanup = OnScopeLeave(
+      [opened_store]() { CHECK_EQ(CertCloseStore(opened_store, 0), TRUE); });
+
+  PCCERT_CONTEXT cert_from_store = nullptr;
+  while ((cert_from_store = CertEnumCertificatesInStore(
+              opened_store, cert_from_store)) != nullptr) {
+    if (!IsCertTrustedForServerAuth(cert_from_store)) {
+      continue;
+    }
+    const unsigned char* cert_data =
+        reinterpret_cast<const unsigned char*>(cert_from_store->pbCertEncoded);
+    const size_t cert_size = cert_from_store->cbCertEncoded;
+
+    vector->emplace_back(d2i_X509(nullptr, &cert_data, cert_size));
+  }
+}
+
+void ReadWindowsCertificates(
+    std::vector<std::string>* system_root_certificates) {
+  std::vector<X509Pointer> system_root_certificates_X509;
+  // TODO(joyeecheung): match Chromium's policy, collect more certificates
+  // from user-added CAs and support disallowed (revoked) certificates.
+
+  // Grab the user-added roots.
+  GatherCertsForLocation(
+      &system_root_certificates_X509, CERT_SYSTEM_STORE_LOCAL_MACHINE, L"ROOT");
+  GatherCertsForLocation(&system_root_certificates_X509,
+                         CERT_SYSTEM_STORE_LOCAL_MACHINE_GROUP_POLICY,
+                         L"ROOT");
+  GatherCertsForLocation(&system_root_certificates_X509,
+                         CERT_SYSTEM_STORE_LOCAL_MACHINE_ENTERPRISE,
+                         L"ROOT");
+  GatherCertsForLocation(
+      &system_root_certificates_X509, CERT_SYSTEM_STORE_CURRENT_USER, L"ROOT");
+  GatherCertsForLocation(&system_root_certificates_X509,
+                         CERT_SYSTEM_STORE_CURRENT_USER_GROUP_POLICY,
+                         L"ROOT");
+
+  // Grab the user-added trusted server certs. Trusted end-entity certs are
+  // only allowed for server auth in the "local machine" store, but not in the
+  // "current user" store.
+  GatherCertsForLocation(&system_root_certificates_X509,
+                         CERT_SYSTEM_STORE_LOCAL_MACHINE,
+                         L"TrustedPeople");
+  GatherCertsForLocation(&system_root_certificates_X509,
+                         CERT_SYSTEM_STORE_LOCAL_MACHINE_GROUP_POLICY,
+                         L"TrustedPeople");
+  GatherCertsForLocation(&system_root_certificates_X509,
+                         CERT_SYSTEM_STORE_LOCAL_MACHINE_ENTERPRISE,
+                         L"TrustedPeople");
+
+  X509VectorToPEMVector(system_root_certificates_X509,
+                        system_root_certificates);
+}
+#endif
+
 void ReadSystemStoreCertificates(
     std::vector<std::string>* system_root_certificates) {
 #ifdef __APPLE__
   ReadMacOSKeychainCertificates(system_root_certificates);
+#endif
+#ifdef _WIN32
+  ReadWindowsCertificates(system_root_certificates);
 #endif
 }
 
