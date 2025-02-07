@@ -3138,6 +3138,11 @@ Returns whether the stream is readable.
 
 <!-- YAML
 added: v17.0.0
+changes:
+  - version:
+    - v18.7.0
+    pr-url: https://github.com/nodejs/node/pull/43515
+    description: include strategy options on Readable.
 -->
 
 > Stability: 1 - Experimental
