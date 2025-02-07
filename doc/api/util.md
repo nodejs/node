@@ -691,8 +691,8 @@ changes:
 * `object` {any} Any JavaScript primitive or `Object`.
 * `options` {Object}
   * `showHidden` {boolean} If `true`, `object`'s non-enumerable symbols and
-    properties are included in the formatted result. [`WeakMap`][] and
-    [`WeakSet`][] entries are also included as well as user defined prototype
+    properties are included in the formatted result. {WeakMap} and
+    {WeakSet} entries are also included as well as user defined prototype
     properties (excluding method properties). **Default:** `false`.
   * `depth` {number} Specifies the number of times to recurse while formatting
     `object`. This is useful for inspecting large objects. To recurse up to
@@ -707,8 +707,7 @@ changes:
   * `showProxy` {boolean} If `true`, `Proxy` inspection includes
     the [`target` and `handler`][] objects. **Default:** `false`.
   * `maxArrayLength` {integer} Specifies the maximum number of `Array`,
-    [`TypedArray`][], [`Map`][], [`Set`][], [`WeakMap`][],
-    and [`WeakSet`][] elements to include when formatting.
+    {TypedArray}, {Map}, {WeakMap}, and {WeakSet} elements to include when formatting.
     Set to `null` or `Infinity` to show all elements. Set to `0` or
     negative to show no elements. **Default:** `100`.
   * `maxStringLength` {integer} Specifies the maximum number of characters to
@@ -839,10 +838,10 @@ console.log(util.inspect(o, { compact: false, depth: 5, breakLength: 80 }));
 // single line.
 ```
 
-The `showHidden` option allows [`WeakMap`][] and [`WeakSet`][] entries to be
+The `showHidden` option allows {WeakMap} and {WeakSet} entries to be
 inspected. If there are more entries than `maxArrayLength`, there is no
 guarantee which entries are displayed. That means retrieving the same
-[`WeakSet`][] entries twice may result in different output. Furthermore, entries
+{WeakSet} entries twice may result in different output. Furthermore, entries
 with no remaining strong references may be garbage collected at any time.
 
 ```js
@@ -2337,8 +2336,8 @@ added: v10.0.0
 * `value` {any}
 * Returns: {boolean}
 
-Returns `true` if the value is a built-in [`ArrayBuffer`][] or
-[`SharedArrayBuffer`][] instance.
+Returns `true` if the value is a built-in {ArrayBuffer} or
+{SharedArrayBuffer} instance.
 
 See also [`util.types.isArrayBuffer()`][] and
 [`util.types.isSharedArrayBuffer()`][].
@@ -2357,8 +2356,8 @@ added: v10.0.0
 * `value` {any}
 * Returns: {boolean}
 
-Returns `true` if the value is an instance of one of the [`ArrayBuffer`][]
-views, such as typed array objects or [`DataView`][]. Equivalent to
+Returns `true` if the value is an instance of one of the {ArrayBuffer}
+views, such as typed array objects or {DataView}. Equivalent to
 [`ArrayBuffer.isView()`][].
 
 ```js
@@ -2396,8 +2395,8 @@ added: v10.0.0
 * `value` {any}
 * Returns: {boolean}
 
-Returns `true` if the value is a built-in [`ArrayBuffer`][] instance.
-This does _not_ include [`SharedArrayBuffer`][] instances. Usually, it is
+Returns `true` if the value is a built-in {ArrayBuffer} instance.
+This does _not_ include {SharedArrayBuffer} instances. Usually, it is
 desirable to test for both; See [`util.types.isAnyArrayBuffer()`][] for that.
 
 ```js
@@ -2537,7 +2536,7 @@ added: v10.0.0
 * `value` {any}
 * Returns: {boolean}
 
-Returns `true` if the value is a built-in [`DataView`][] instance.
+Returns `true` if the value is a built-in {DataView} instance.
 
 ```js
 const ab = new ArrayBuffer(20);
@@ -2556,7 +2555,7 @@ added: v10.0.0
 * `value` {any}
 * Returns: {boolean}
 
-Returns `true` if the value is a built-in [`Date`][] instance.
+Returns `true` if the value is a built-in {Date} instance.
 
 ```js
 util.types.isDate(new Date());  // Returns true
@@ -2617,7 +2616,7 @@ added: v10.0.0
 * `value` {any}
 * Returns: {boolean}
 
-Returns `true` if the value is a built-in [`Float32Array`][] instance.
+Returns `true` if the value is a built-in {Float32Array} instance.
 
 ```js
 util.types.isFloat32Array(new ArrayBuffer());  // Returns false
@@ -2634,7 +2633,7 @@ added: v10.0.0
 * `value` {any}
 * Returns: {boolean}
 
-Returns `true` if the value is a built-in [`Float64Array`][] instance.
+Returns `true` if the value is a built-in {Float64Array} instance.
 
 ```js
 util.types.isFloat64Array(new ArrayBuffer());  // Returns false
@@ -2691,7 +2690,7 @@ added: v10.0.0
 * `value` {any}
 * Returns: {boolean}
 
-Returns `true` if the value is a built-in [`Int8Array`][] instance.
+Returns `true` if the value is a built-in {Int8Array} instance.
 
 ```js
 util.types.isInt8Array(new ArrayBuffer());  // Returns false
@@ -2708,7 +2707,7 @@ added: v10.0.0
 * `value` {any}
 * Returns: {boolean}
 
-Returns `true` if the value is a built-in [`Int16Array`][] instance.
+Returns `true` if the value is a built-in {Int16Array} instance.
 
 ```js
 util.types.isInt16Array(new ArrayBuffer());  // Returns false
@@ -2725,7 +2724,7 @@ added: v10.0.0
 * `value` {any}
 * Returns: {boolean}
 
-Returns `true` if the value is a built-in [`Int32Array`][] instance.
+Returns `true` if the value is a built-in {Int32Array} instance.
 
 ```js
 util.types.isInt32Array(new ArrayBuffer());  // Returns false
@@ -2753,7 +2752,7 @@ added: v10.0.0
 * `value` {any}
 * Returns: {boolean}
 
-Returns `true` if the value is a built-in [`Map`][] instance.
+Returns `true` if the value is a built-in {Map} instance.
 
 ```js
 util.types.isMap(new Map());  // Returns true
@@ -2769,7 +2768,7 @@ added: v10.0.0
 * Returns: {boolean}
 
 Returns `true` if the value is an iterator returned for a built-in
-[`Map`][] instance.
+{Map} instance.
 
 ```js
 const map = new Map();
@@ -2870,7 +2869,7 @@ added: v10.0.0
 * `value` {any}
 * Returns: {boolean}
 
-Returns `true` if the value is a built-in [`Promise`][].
+Returns `true` if the value is a built-in {Promise}.
 
 ```js
 util.types.isPromise(Promise.resolve(42));  // Returns true
@@ -2885,7 +2884,7 @@ added: v10.0.0
 * `value` {any}
 * Returns: {boolean}
 
-Returns `true` if the value is a [`Proxy`][] instance.
+Returns `true` if the value is a {Proxy} instance.
 
 ```js
 const target = {};
@@ -2919,7 +2918,7 @@ added: v10.0.0
 * `value` {any}
 * Returns: {boolean}
 
-Returns `true` if the value is a built-in [`Set`][] instance.
+Returns `true` if the value is a built-in {Set} instance.
 
 ```js
 util.types.isSet(new Set());  // Returns true
@@ -2935,7 +2934,7 @@ added: v10.0.0
 * Returns: {boolean}
 
 Returns `true` if the value is an iterator returned for a built-in
-[`Set`][] instance.
+{Set} instance.
 
 ```js
 const set = new Set();
@@ -2954,8 +2953,8 @@ added: v10.0.0
 * `value` {any}
 * Returns: {boolean}
 
-Returns `true` if the value is a built-in [`SharedArrayBuffer`][] instance.
-This does _not_ include [`ArrayBuffer`][] instances. Usually, it is
+Returns `true` if the value is a built-in {SharedArrayBuffer} instance.
+This does _not_ include {ArrayBuffer} instances. Usually, it is
 desirable to test for both; See [`util.types.isAnyArrayBuffer()`][] for that.
 
 ```js
@@ -3007,7 +3006,7 @@ added: v10.0.0
 * `value` {any}
 * Returns: {boolean}
 
-Returns `true` if the value is a built-in [`TypedArray`][] instance.
+Returns `true` if the value is a built-in {TypedArray} instance.
 
 ```js
 util.types.isTypedArray(new ArrayBuffer());  // Returns false
@@ -3026,7 +3025,7 @@ added: v10.0.0
 * `value` {any}
 * Returns: {boolean}
 
-Returns `true` if the value is a built-in [`Uint8Array`][] instance.
+Returns `true` if the value is a built-in {Uint8Array} instance.
 
 ```js
 util.types.isUint8Array(new ArrayBuffer());  // Returns false
@@ -3043,7 +3042,7 @@ added: v10.0.0
 * `value` {any}
 * Returns: {boolean}
 
-Returns `true` if the value is a built-in [`Uint8ClampedArray`][] instance.
+Returns `true` if the value is a built-in {Uint8ClampedArray} instance.
 
 ```js
 util.types.isUint8ClampedArray(new ArrayBuffer());  // Returns false
@@ -3060,7 +3059,7 @@ added: v10.0.0
 * `value` {any}
 * Returns: {boolean}
 
-Returns `true` if the value is a built-in [`Uint16Array`][] instance.
+Returns `true` if the value is a built-in {Uint16Array} instance.
 
 ```js
 util.types.isUint16Array(new ArrayBuffer());  // Returns false
@@ -3077,7 +3076,7 @@ added: v10.0.0
 * `value` {any}
 * Returns: {boolean}
 
-Returns `true` if the value is a built-in [`Uint32Array`][] instance.
+Returns `true` if the value is a built-in {Uint32Array} instance.
 
 ```js
 util.types.isUint32Array(new ArrayBuffer());  // Returns false
@@ -3094,7 +3093,7 @@ added: v10.0.0
 * `value` {any}
 * Returns: {boolean}
 
-Returns `true` if the value is a built-in [`WeakMap`][] instance.
+Returns `true` if the value is a built-in {WeakMap} instance.
 
 ```js
 util.types.isWeakMap(new WeakMap());  // Returns true
@@ -3109,7 +3108,7 @@ added: v10.0.0
 * `value` {any}
 * Returns: {boolean}
 
-Returns `true` if the value is a built-in [`WeakSet`][] instance.
+Returns `true` if the value is a built-in {WeakSet} instance.
 
 ```js
 util.types.isWeakSet(new WeakSet());  // Returns true
@@ -3176,31 +3175,11 @@ util.isArray({});
 [`'warning'`]: process.md#event-warning
 [`Array.isArray()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/isArray
 [`ArrayBuffer.isView()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer/isView
-[`ArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
-[`DataView`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DataView
-[`Date`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date
-[`Float32Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Float32Array
-[`Float64Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Float64Array
-[`Int16Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Int16Array
-[`Int32Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Int32Array
-[`Int8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Int8Array
 [`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
 [`MIMEparams`]: #class-utilmimeparams
-[`Map`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map
 [`Object.assign()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
 [`Object.freeze()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/freeze
-[`Promise`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise
-[`Proxy`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy
 [`Runtime.ScriptId`]: https://chromedevtools.github.io/devtools-protocol/1-3/Runtime/#type-ScriptId
-[`Set`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Set
-[`SharedArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer
-[`TypedArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray
-[`Uint16Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint16Array
-[`Uint32Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint32Array
-[`Uint8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array
-[`Uint8ClampedArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8ClampedArray
-[`WeakMap`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WeakMap
-[`WeakSet`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WeakSet
 [`assert.deepStrictEqual()`]: assert.md#assertdeepstrictequalactual-expected-message
 [`console.error()`]: console.md#consoleerrordata-args
 [`mime.toString()`]: #mimetostring
