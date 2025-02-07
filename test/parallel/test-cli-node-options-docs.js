@@ -25,6 +25,8 @@ const v8OptionsText = cliText.match(/<!-- v8-options start -->(.*)<!-- v8-option
 const manPage = path.join(rootDir, 'doc', 'node.1');
 const manPageText = fs.readFileSync(manPage, { encoding: 'utf8' });
 
+const ignoredDocs = ['--experimental-quic'];
+
 // Documented in /doc/api/deprecations.md
 const deprecated = [
   '--debug',
@@ -80,7 +82,7 @@ for (const [, envVar, config] of nodeOptionsCC.matchAll(addOptionRE)) {
   }
 
   // CLI options
-  if (!isV8Option && !hasTrueAsDefaultValue) {
+  if (!isV8Option && !hasTrueAsDefaultValue && !ignoredDocs.includes(envVar)) {
     if (new RegExp(`###.*\`${envVar}[[=\\s\\b\`]`).test(cliText) === false) {
       assert(false, `Should have option ${envVar} documented`);
     } else {
@@ -101,7 +103,10 @@ for (const [, envVar, config] of nodeOptionsCC.matchAll(addOptionRE)) {
   }
 
   // NODE_OPTIONS
-  if (isInNodeOption && !hasTrueAsDefaultValue && new RegExp(`\`${envVar}\``).test(nodeOptionsText) === false) {
+  if (isInNodeOption && !hasTrueAsDefaultValue &&
+    new RegExp(`\`${envVar}\``).test(nodeOptionsText) === false &&
+    !ignoredDocs.includes(envVar)
+  ) {
     assert(false, `Should have option ${envVar} in NODE_OPTIONS documented`);
   }
 
@@ -120,6 +125,10 @@ for (const [, envVar, config] of nodeOptionsCC.matchAll(addOptionRE)) {
     } else {
       manPagesOptions.delete(envVar.slice(1));
     }
+  }
+
+  if (ignoredDocs.includes(envVar)) {
+    manPagesOptions.delete(envVar.slice(1));
   }
 }
 
