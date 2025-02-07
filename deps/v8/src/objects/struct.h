@@ -65,7 +65,7 @@ class AccessorPair : public TorqueGeneratedAccessorPair<AccessorPair, Struct> {
 
   // Note: Returns undefined if the component is not set.
   static Handle<JSAny> GetComponent(Isolate* isolate,
-                                    Handle<NativeContext> native_context,
+                                    DirectHandle<NativeContext> native_context,
                                     DirectHandle<AccessorPair> accessor_pair,
                                     AccessorComponent component);
 

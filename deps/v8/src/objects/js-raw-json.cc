@@ -20,7 +20,7 @@ MaybeHandle<JSRawJson> JSRawJson::Create(Isolate* isolate,
   ASSIGN_RETURN_ON_EXCEPTION(isolate, json_string,
                              Object::ToString(isolate, text));
   Handle<String> flat = String::Flatten(isolate, json_string);
-  if (String::IsOneByteRepresentationUnderneath(*flat)) {
+  if (flat->IsOneByteRepresentation()) {
     if (!JsonParser<uint8_t>::CheckRawJson(isolate, flat)) {
       DCHECK(isolate->has_exception());
       return MaybeHandle<JSRawJson>();

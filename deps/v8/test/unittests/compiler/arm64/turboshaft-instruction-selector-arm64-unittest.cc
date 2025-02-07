@@ -5631,7 +5631,7 @@ void TestPokePair(TurboshaftInstructionSelectorTest::StreamBuilder* m,
                   base::Vector<const OpIndex> args, int expected_poke_pair,
                   int expected_poke) {
   auto call_descriptor = TurboshaftInstructionSelectorTest::StreamBuilder::
-      MakeSimpleTSCallDescriptor(zone, builder->Build());
+      MakeSimpleTSCallDescriptor(zone, builder->Get());
 
   OpIndex callee = m->Int64Constant(0);
   m->Call(callee, OpIndex::Invalid(), args, call_descriptor);

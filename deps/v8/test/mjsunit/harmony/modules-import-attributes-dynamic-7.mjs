@@ -48,8 +48,8 @@ import('modules-skip-1.json', { with: { a: 7 }}).then(
 %PerformMicrotaskCheckpoint();
 
 const argumentNotObjectError = 'The second argument to import() must be an object';
-const attributesOptionNotObjectError = 'The \'assert\' option must be an object';
-const attributeValueNotStringError = 'Import assertion value must be a string';
+const attributesOptionNotObjectError = 'The \'with\' option must be an object';
+const attributeValueNotStringError = 'Import attribute value must be a string';
 
 assertEquals(argumentNotObjectError, result1);
 assertEquals(argumentNotObjectError, result2);

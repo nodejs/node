@@ -11,6 +11,7 @@
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/platform.h"
 #include "src/base/utils/random-number-generator.h"
+#include "test/unittests/fuzztest.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
@@ -261,26 +262,27 @@ TEST(Mutex, SharedMutexThreads) {
   mutex.UnlockExclusive();
 }
 
-TEST(Mutex, SharedMutexThreadsFuzz) {
-  // This test creates a lot of threads, each of which tries to take shared or
-  // exclusive lock on a single SharedMutex.
+void SharedMutexThreadsP(
+    const std::pair<int, std::vector<std::vector<bool>>>& instructions) {
+  // This is a parameterized test, shared between the actual test below, which
+  // executes a single instance, and a fuzz test below that, which executes it
+  // through the fuzz-test engine.
   SharedMutex mutex;
   std::atomic<int> reader_count = 0;
   std::atomic<int> writer_count = 0;
 
-  static constexpr int kThreadCount = 50;
-  static constexpr int kActionPerWorker = 10;
-  static constexpr int kReadToWriteRatio = 5;
+  int kThreadCount = instructions.first;
 
-  SharedMutexTestWorker* workers[kThreadCount];
+  std::vector<SharedMutexTestWorker*> workers;
   for (int i = 0; i < kThreadCount; i++) {
-    workers[i] = new SharedMutexTestWorker(mutex, reader_count, writer_count);
+    workers.push_back(
+        new SharedMutexTestWorker(mutex, reader_count, writer_count));
   }
 
   base::RandomNumberGenerator rand_gen(GTEST_FLAG_GET(random_seed));
-  for (int i = 0; i < kActionPerWorker; i++) {
-    for (int j = 0; j < kThreadCount; j++) {
-      if (rand_gen.NextInt() % kReadToWriteRatio == 0) {
+  for (const auto& instructions_per_thread : instructions.second) {
+    for (int j = 0; const bool instr : instructions_per_thread) {
+      if (instr) {
         workers[j]->Do(SharedMutexTestWorker::Action::kLockExclusive);
         workers[j]->Do(SharedMutexTestWorker::Action::kSleep);
         workers[j]->Do(SharedMutexTestWorker::Action::kUnlockExclusive);
@@ -289,6 +291,7 @@ TEST(Mutex, SharedMutexThreadsFuzz) {
         workers[j]->Do(SharedMutexTestWorker::Action::kSleep);
         workers[j]->Do(SharedMutexTestWorker::Action::kUnlockShared);
       }
+      ++j;
     }
   }
   for (int i = 0; i < kThreadCount; i++) {
@@ -306,6 +309,48 @@ TEST(Mutex, SharedMutexThreadsFuzz) {
   EXPECT_TRUE(mutex.TryLockExclusive());
   mutex.UnlockExclusive();
 }
+
+TEST(Mutex, SharedMutexThreadsFuzz) {
+  // This test creates a lot of threads, each of which tries to take shared or
+  // exclusive lock on a single SharedMutex.
+  static constexpr int kThreadCount = 50;
+  static constexpr int kActionPerWorker = 10;
+  static constexpr int kReadToWriteRatio = 5;
+
+  std::vector<std::vector<bool>> instructions;
+
+  base::RandomNumberGenerator rand_gen(GTEST_FLAG_GET(random_seed));
+  for (int i = 0; i < kActionPerWorker; i++) {
+    std::vector<bool> instructions_per_thread;
+    for (int j = 0; j < kThreadCount; j++) {
+      instructions_per_thread.emplace_back(
+          rand_gen.NextInt() % kReadToWriteRatio == 0);
+    }
+    instructions.emplace_back(std::move(instructions_per_thread));
+  }
+
+  SharedMutexThreadsP(std::make_pair(kThreadCount, instructions));
+}
+
+#ifdef V8_ENABLE_FUZZTEST
+auto SharedMutexTestInstructions() {
+  // Returns a domain that fuzzes over a certain thread count and a number of
+  // workers with the associated instructions per thread. The thread count
+  // varies between [2, 70], the worker count between [2, 15].
+  auto count_with_vector = [](const int& count) {
+    return fuzztest::PairOf(
+        fuzztest::Just(count),
+        fuzztest::VectorOf(
+            fuzztest::VectorOf(fuzztest::Arbitrary<bool>()).WithSize(count))
+            .WithMinSize(2)
+            .WithMaxSize(15));
+  };
+  return fuzztest::FlatMap(count_with_vector, fuzztest::InRange(2, 70));
+}
+
+V8_FUZZ_TEST(MutexFuzzTest, SharedMutexThreadsP)
+    .WithDomains(SharedMutexTestInstructions());
+#endif  // V8_ENABLE_FUZZTEST
 
 }  // namespace base
 }  // namespace v8

@@ -52,6 +52,7 @@
 #include <elf.h>
 #include <fcntl.h>
 #include <link.h>  // For ElfW() macro.
+#include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -376,6 +377,40 @@ class Symbolizer {
   SymbolCacheLine symbol_cache_[SYMBOL_CACHE_LINES];
 };
 
+// Protect against client code closing low-valued file descriptors it doesn't
+// actually own, as has happened in b/384213477.
+int SaferOpen(const char *fname, int flags) {
+  static int high_fd = [] {
+    struct rlimit rlim{};
+    const int rc = getrlimit(RLIMIT_NOFILE, &rlim);
+    if (rc == 0 && rlim.rlim_cur >= 2000) {
+      const int max_fd = static_cast<int>(rlim.rlim_cur);
+
+      // This will return 2000 on reasonably-configured systems.
+      return std::min<int>(2000, max_fd - 1000);
+    }
+    ABSL_RAW_LOG(WARNING, "Unable to get high fd: rc=%d, limit=%ld",  //
+                 rc, static_cast<long>(rlim.rlim_cur));
+    return -1;
+  }();
+  if (high_fd >= 1000) {
+    const int fd = open(fname, flags);
+    if (fd != -1 && fd < high_fd) {
+      // Try to relocate fd to high range.
+      const int fd2 = fcntl(fd, F_DUPFD, high_fd);
+      if (fd2 != -1) {
+        // Successfully obtained high fd. Use it.
+        close(fd);
+        return fd2;
+      }
+    }
+    // Either open failed and fd==-1, or fd is already above high_fd, or fcntl
+    // failed and fd is valid (but low).
+    return fd;
+  }
+  return open(fname, flags);
+}
+
 static std::atomic<Symbolizer *> g_cached_symbolizer;
 
 }  // namespace
@@ -541,11 +576,9 @@ static ABSL_ATTRIBUTE_NOINLINE bool GetSectionHeaderByType(
         (buf_bytes > num_bytes_left) ? num_bytes_left : buf_bytes;
     const off_t offset = sh_offset + static_cast<off_t>(i * sizeof(buf[0]));
     const ssize_t len = file->ReadFromOffset(buf, num_bytes_to_read, offset);
-    if (len < 0) {
-      ABSL_RAW_LOG(
-          WARNING,
-          "Reading %zu bytes from offset %ju returned %zd which is negative.",
-          num_bytes_to_read, static_cast<intmax_t>(offset), len);
+    if (len <= 0) {
+      ABSL_RAW_LOG(WARNING, "Reading %zu bytes from offset %ju returned %zd.",
+                   num_bytes_to_read, static_cast<intmax_t>(offset), len);
       return false;
     }
     if (static_cast<size_t>(len) % sizeof(buf[0]) != 0) {
@@ -1066,7 +1099,7 @@ static ABSL_ATTRIBUTE_NOINLINE bool ReadAddrMap(
   snprintf(maps_path, sizeof(maps_path), "/proc/self/task/%d/maps", getpid());
 
   int maps_fd;
-  NO_INTR(maps_fd = open(maps_path, O_RDONLY));
+  NO_INTR(maps_fd = SaferOpen(maps_path, O_RDONLY));
   FileDescriptor wrapped_maps_fd(maps_fd);
   if (wrapped_maps_fd.get() < 0) {
     ABSL_RAW_LOG(WARNING, "%s: errno=%d", maps_path, errno);
@@ -1340,7 +1373,7 @@ static void MaybeOpenFdFromSelfExe(ObjFile *obj) {
   if (memcmp(obj->start_addr, ELFMAG, SELFMAG) != 0) {
     return;
   }
-  int fd = open("/proc/self/exe", O_RDONLY);
+  int fd = SaferOpen("/proc/self/exe", O_RDONLY);
   if (fd == -1) {
     return;
   }
@@ -1364,7 +1397,7 @@ static void MaybeOpenFdFromSelfExe(ObjFile *obj) {
 
 static bool MaybeInitializeObjFile(ObjFile *obj) {
   if (obj->fd < 0) {
-    obj->fd = open(obj->filename, O_RDONLY);
+    obj->fd = SaferOpen(obj->filename, O_RDONLY);
 
     if (obj->fd < 0) {
       // Getting /proc/self/exe here means that we were hinted.
@@ -1372,7 +1405,7 @@ static bool MaybeInitializeObjFile(ObjFile *obj) {
         // /proc/self/exe may be inaccessible (due to setuid, etc.), so try
         // accessing the binary via argv0.
         if (argv0_value != nullptr) {
-          obj->fd = open(argv0_value, O_RDONLY);
+          obj->fd = SaferOpen(argv0_value, O_RDONLY);
         }
       } else {
         MaybeOpenFdFromSelfExe(obj);

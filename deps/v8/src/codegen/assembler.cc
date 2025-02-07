@@ -234,6 +234,7 @@ void Assembler::RecordDeoptReason(DeoptimizeReason reason, uint32_t node_id,
   static_assert(RelocInfoWriter::kMaxSize * 2 <= kGap);
   {
     EnsureSpace space(this);
+    DCHECK(position.IsKnown());
     RecordRelocInfo(RelocInfo::DEOPT_SCRIPT_OFFSET, position.ScriptOffset());
     RecordRelocInfo(RelocInfo::DEOPT_INLINING_ID, position.InliningId());
   }
@@ -263,7 +264,7 @@ void AssemblerBase::RequestHeapNumber(HeapNumberRequest request) {
   heap_number_requests_.push_front(request);
 }
 
-int AssemblerBase::AddCodeTarget(Handle<Code> target) {
+int AssemblerBase::AddCodeTarget(IndirectHandle<Code> target) {
   int current = static_cast<int>(code_targets_.size());
   if (current > 0 && !target.is_null() &&
       code_targets_.back().address() == target.address()) {
@@ -275,13 +276,14 @@ int AssemblerBase::AddCodeTarget(Handle<Code> target) {
   }
 }
 
-Handle<Code> AssemblerBase::GetCodeTarget(intptr_t code_target_index) const {
+IndirectHandle<Code> AssemblerBase::GetCodeTarget(
+    intptr_t code_target_index) const {
   DCHECK_LT(static_cast<size_t>(code_target_index), code_targets_.size());
   return code_targets_[code_target_index];
 }
 
 AssemblerBase::EmbeddedObjectIndex AssemblerBase::AddEmbeddedObject(
-    Handle<HeapObject> object) {
+    IndirectHandle<HeapObject> object) {
   EmbeddedObjectIndex current = embedded_objects_.size();
   // Do not deduplicate invalid handles, they are to heap object requests.
   if (!object.is_null()) {
@@ -295,12 +297,11 @@ AssemblerBase::EmbeddedObjectIndex AssemblerBase::AddEmbeddedObject(
   return current;
 }
 
-Handle<HeapObject> AssemblerBase::GetEmbeddedObject(
+IndirectHandle<HeapObject> AssemblerBase::GetEmbeddedObject(
     EmbeddedObjectIndex index) const {
   DCHECK_LT(index, embedded_objects_.size());
   return embedded_objects_[index];
 }
-
 
 int Assembler::WriteCodeComments() {
   if (!v8_flags.code_comments) return 0;

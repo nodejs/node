@@ -37,8 +37,8 @@ class JSListFormat
   // Creates relative time format object with properties derived from input
   // locales and options.
   static MaybeHandle<JSListFormat> New(Isolate* isolate, DirectHandle<Map> map,
-                                       Handle<Object> locales,
-                                       Handle<Object> options);
+                                       DirectHandle<Object> locales,
+                                       DirectHandle<Object> options);
 
   static Handle<JSObject> ResolvedOptions(
       Isolate* isolate, DirectHandle<JSListFormat> format_holder);
@@ -55,8 +55,8 @@ class JSListFormat
 
   V8_EXPORT_PRIVATE static const std::set<std::string>& GetAvailableLocales();
 
-  Handle<String> StyleAsString() const;
-  Handle<String> TypeAsString() const;
+  Handle<String> StyleAsString(Isolate* isolate) const;
+  Handle<String> TypeAsString(Isolate* isolate) const;
 
   // ListFormat accessors.
   DECL_ACCESSORS(icu_formatter, Tagged<Managed<icu::ListFormatter>>)

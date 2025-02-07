@@ -858,7 +858,7 @@ class BytecodeGenerator::TopLevelDeclarationsBuilder final : public ZoneObject {
 #endif
         if (decl->IsFunctionDeclaration()) {
           FunctionLiteral* f = static_cast<FunctionDeclaration*>(decl)->fun();
-          Handle<SharedFunctionInfo> sfi(
+          DirectHandle<SharedFunctionInfo> sfi(
               Compiler::GetSharedFunctionInfo(f, script, isolate));
           // Return a null handle if any initial values can't be created. Caller
           // will set stack overflow.
@@ -887,7 +887,7 @@ class BytecodeGenerator::TopLevelDeclarationsBuilder final : public ZoneObject {
           DCHECK_EQ(start + kGlobalVariableDeclarationSize, array_index);
         } else {
           FunctionLiteral* f = static_cast<FunctionDeclaration*>(decl)->fun();
-          Handle<SharedFunctionInfo> sfi(
+          DirectHandle<SharedFunctionInfo> sfi(
               Compiler::GetSharedFunctionInfo(f, script, isolate));
           // Return a null handle if any initial values can't be created. Caller
           // will set stack overflow.
@@ -1544,10 +1544,11 @@ void BytecodeGenerator::AllocateDeferredConstants(IsolateT* isolate,
   // Find or build shared function infos.
   for (std::pair<FunctionLiteral*, size_t> literal : function_literals_) {
     FunctionLiteral* expr = literal.first;
-    Handle<SharedFunctionInfo> shared_info =
+    DirectHandle<SharedFunctionInfo> shared_info =
         Compiler::GetSharedFunctionInfo(expr, script, isolate);
     if (shared_info.is_null()) return SetStackOverflow();
-    builder()->SetDeferredConstantPoolEntry(literal.second, shared_info);
+    builder()->SetDeferredConstantPoolEntry(
+        literal.second, indirect_handle(shared_info, isolate));
   }
 
   // Find or build shared function infos for the native function templates.
@@ -1567,7 +1568,7 @@ void BytecodeGenerator::AllocateDeferredConstants(IsolateT* isolate,
 
     Handle<SharedFunctionInfo> shared_info =
         FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(
-            isolate, Utils::OpenHandle(*info), expr->name());
+            isolate, Utils::OpenDirectHandle(*info), expr->name());
     DCHECK(!shared_info.is_null());
     builder()->SetDeferredConstantPoolEntry(literal.second, shared_info);
   }
@@ -1627,7 +1628,8 @@ bool NeedsContextInitialization(DeclarationScope* scope) {
 
 void BytecodeGenerator::GenerateBytecode(uintptr_t stack_limit) {
   InitializeAstVisitor(stack_limit);
-  if (v8_flags.stress_lazy_compilation && local_isolate_->is_main_thread()) {
+  if (v8_flags.stress_lazy_compilation && local_isolate_->is_main_thread() &&
+      !local_isolate_->AsIsolate()->bootstrapper()->IsActive()) {
     // Trigger stack overflow with 1/stress_lazy_compilation probability.
     // Do this only for the main thread compilations because querying random
     // numbers from background threads will make the random values dependent
@@ -1680,10 +1682,13 @@ void BytecodeGenerator::GenerateBytecodeBody() {
     GenerateBaseConstructorBody();
   } else if (function_kind() == FunctionKind::kDerivedConstructor) {
     GenerateDerivedConstructorBody();
-  } else if ((IsAsyncFunction(function_kind()) &&
-              !IsAsyncGeneratorFunction(function_kind())) ||
+  } else if (IsAsyncFunction(function_kind()) ||
              IsModuleWithTopLevelAwait(function_kind())) {
-    GenerateAsyncFunctionBody();
+    if (IsAsyncGeneratorFunction(function_kind())) {
+      GenerateAsyncGeneratorFunctionBody();
+    } else {
+      GenerateAsyncFunctionBody();
+    }
   } else {
     GenerateBodyStatements();
   }
@@ -1834,7 +1839,7 @@ void BytecodeGenerator::GenerateAsyncFunctionBody() {
 
   HandlerTable::CatchPrediction outer_catch_prediction = catch_prediction();
   // When compiling a REPL script, use UNCAUGHT_ASYNC_AWAIT to preserve the
-  // exception so DevTools can inspect it.
+  // pending message so DevTools can inspect it.
   set_catch_prediction(literal->scope()->is_repl_mode_scope()
                            ? HandlerTable::UNCAUGHT_ASYNC_AWAIT
                            : HandlerTable::ASYNC_AWAIT);
@@ -1848,8 +1853,11 @@ void BytecodeGenerator::GenerateAsyncFunctionBody() {
         RegisterList args = register_allocator()->NewRegisterList(2);
         builder()
             ->MoveRegister(generator_object(), args[0])
-            .StoreAccumulatorInRegister(args[1])  // exception
-            .CallRuntime(Runtime::kInlineAsyncFunctionReject, args);
+            .StoreAccumulatorInRegister(args[1]);  // exception
+        if (!literal->scope()->is_repl_mode_scope()) {
+          builder()->LoadTheHole().SetPendingMessage();
+        }
+        builder()->CallRuntime(Runtime::kInlineAsyncFunctionReject, args);
         // TODO(358404372): Should this return have a statement position?
         // Without one it is not possible to apply a debugger breakpoint.
         BuildReturn(kNoSourcePosition);
@@ -1857,8 +1865,75 @@ void BytecodeGenerator::GenerateAsyncFunctionBody() {
       catch_prediction());
 }
 
-void BytecodeGenerator::GenerateBodyStatements() {
-  GenerateBodyStatementsWithoutImplicitFinalReturn();
+void BytecodeGenerator::GenerateAsyncGeneratorFunctionBody() {
+  DCHECK(IsAsyncGeneratorFunction(function_kind()));
+  set_catch_prediction(HandlerTable::ASYNC_AWAIT);
+
+  // For ES2017 Async Generators, we produce:
+  //
+  // try {
+  //   InitialYield;
+  //   ...body...;
+  // } catch (.catch) {
+  //   %AsyncGeneratorReject(generator, .catch);
+  // } finally {
+  //   %_GeneratorClose(generator);
+  // }
+  //
+  // - InitialYield yields the actual generator object.
+  // - Any return statement inside the body will have its argument wrapped
+  //   in an iterator result object with a "done" property set to `true`.
+  // - If the generator terminates for whatever reason, we must close it.
+  //   Hence the finally clause.
+  // - BytecodeGenerator performs special handling for ReturnStatements in
+  //   async generator functions, resolving the appropriate Promise with an
+  //   "done" iterator result object containing a Promise-unwrapped value.
+
+  // In async generator functions, when parameters are not simple,
+  // a parameter initialization block will be added as the first block to the
+  // AST. Since this block can throw synchronously, it should not be wrapped
+  // in the following try-finally. We visit this block outside the try-finally
+  // and remove it from the AST.
+  int start = 0;
+  ZonePtrList<Statement>* statements = info()->literal()->body();
+  Statement* stmt = statements->at(0);
+  if (stmt->IsBlock()) {
+    Block* block = static_cast<Block*>(statements->at(0));
+    if (block->is_initialization_block_for_parameters()) {
+      VisitBlockDeclarationsAndStatements(block);
+      start = 1;
+    }
+  }
+
+  BuildTryFinally(
+      [&]() {
+        BuildTryCatch(
+            [&]() { GenerateBodyStatements(start); },
+            [&](Register context) {
+              RegisterAllocationScope register_scope(this);
+              RegisterList args = register_allocator()->NewRegisterList(2);
+              builder()
+                  ->MoveRegister(generator_object(), args[0])
+                  .StoreAccumulatorInRegister(args[1])  // exception
+                  .LoadTheHole()
+                  .SetPendingMessage()
+                  .CallRuntime(Runtime::kInlineAsyncGeneratorReject, args);
+              execution_control()->ReturnAccumulator(kNoSourcePosition);
+            },
+            catch_prediction());
+      },
+      [&](Register body_continuation_token, Register body_continuation_result) {
+        RegisterAllocationScope register_scope(this);
+        Register arg = register_allocator()->NewRegister();
+        builder()
+            ->MoveRegister(generator_object(), arg)
+            .CallRuntime(Runtime::kInlineGeneratorClose, arg);
+      },
+      catch_prediction());
+}
+
+void BytecodeGenerator::GenerateBodyStatements(int start) {
+  GenerateBodyStatementsWithoutImplicitFinalReturn(start);
 
   // Emit an implicit return instruction in case control flow can fall off the
   // end of the function without an explicit return being present on all paths.
@@ -1868,10 +1943,7 @@ void BytecodeGenerator::GenerateBodyStatements() {
   if (!builder()->RemainderOfBlockIsDead()) {
     builder()->LoadUndefined();
     const int pos = info()->literal()->return_position();
-    // TODO(358404372): Handle AsyncGeneratorFunction as well once its AST
-    // rewrite is removed from the parser.
-    if ((IsAsyncFunction(function_kind()) &&
-         !IsAsyncGeneratorFunction(function_kind())) ||
+    if (IsAsyncFunction(function_kind()) ||
         IsModuleWithTopLevelAwait(function_kind())) {
       execution_control()->AsyncReturnAccumulator(pos);
     } else {
@@ -1880,15 +1952,16 @@ void BytecodeGenerator::GenerateBodyStatements() {
   }
 }
 
-void BytecodeGenerator::GenerateBodyStatementsWithoutImplicitFinalReturn() {
+void BytecodeGenerator::GenerateBodyStatementsWithoutImplicitFinalReturn(
+    int start) {
   ZonePtrList<Statement>* body = info()->literal()->body();
   if (v8_flags.js_explicit_resource_management && closure_scope() != nullptr &&
       (closure_scope()->has_using_declaration() ||
        closure_scope()->has_await_using_declaration())) {
-    BuildDisposeScope([&]() { VisitStatements(body); },
+    BuildDisposeScope([&]() { VisitStatements(body, start); },
                       closure_scope()->has_await_using_declaration());
   } else {
-    VisitStatements(body);
+    VisitStatements(body, start);
   }
 }
 
@@ -2155,8 +2228,8 @@ void BytecodeGenerator::VisitDeclarations(Declaration::List* declarations) {
 }
 
 void BytecodeGenerator::VisitStatements(
-    const ZonePtrList<Statement>* statements) {
-  for (int i = 0; i < statements->length(); i++) {
+    const ZonePtrList<Statement>* statements, int start) {
+  for (int i = start; i < statements->length(); i++) {
     // Allocate an outer register allocations scope for the statement.
     RegisterAllocationScope allocation_scope(this);
     Statement* stmt = statements->at(i);
@@ -2458,6 +2531,9 @@ void BytecodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
   // Are we still using any if-else bytecodes to evaluate the switch?
   bool use_jumps = n_comp_cases != 0;
 
+  // Does the comparison for non-jump table jumps need an elision scope?
+  bool jump_comparison_needs_hole_check_elision_scope = false;
+
   SwitchBuilder switch_builder(builder(), block_coverage_builder_, stmt,
                                n_comp_cases, jump_table);
   ControlScopeForBreakable scope(this, stmt, &switch_builder);
@@ -2515,6 +2591,10 @@ void BytecodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
                                          info.covered_cases);
 
     if (use_jumps) {
+      // When using a jump table, the first jump comparison is conditionally
+      // executed if the discriminant wasn't matched by anything in the jump
+      // table, and so needs its own elision scope.
+      jump_comparison_needs_hole_check_elision_scope = true;
       builder()->LoadAccumulatorWithRegister(r1);
     }
   }
@@ -2535,16 +2615,14 @@ void BytecodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
       // The comparisons linearly dominate, so no need to open a new elision
       // scope for each one.
       std::optional<HoleCheckElisionScope> elider;
-      bool first_jump_emitted = false;
       for (int i = 0; i < clauses->length(); ++i) {
         CaseClause* clause = clauses->at(i);
         if (clause->is_default()) {
           info.default_case = i;
         } else if (!info.CaseExists(clause->label())) {
-          // The first non-default label is
-          // unconditionally executed, so we only need to emplace it before
-          // visiting the second non-default label.
-          if (first_jump_emitted) elider.emplace(this);
+          if (jump_comparison_needs_hole_check_elision_scope && !elider) {
+            elider.emplace(this);
+          }
 
           // Perform label comparison as if via '===' with tag.
           VisitForAccumulatorValue(clause->label());
@@ -2555,7 +2633,9 @@ void BytecodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
 #endif
           switch_builder.JumpToCaseIfTrue(ToBooleanMode::kAlreadyBoolean,
                                           case_compare_ctr++);
-          first_jump_emitted = true;
+          // The second and subsequent non-default comparisons are always
+          // conditionally executed, and need an elision scope.
+          jump_comparison_needs_hole_check_elision_scope = true;
         }
       }
     }
@@ -2735,7 +2815,9 @@ void BytecodeGenerator::BuildDisposeScope(WrappedFunc wrapped_func,
   RegisterAllocationScope allocation_scope(this);
   DisposablesStackScope disposables_stack_scope(this);
   if (has_await_using) {
-    set_catch_prediction(HandlerTable::ASYNC_AWAIT);
+    set_catch_prediction(info()->scope()->is_repl_mode_scope()
+                             ? HandlerTable::UNCAUGHT_ASYNC_AWAIT
+                             : HandlerTable::ASYNC_AWAIT);
   }
 
   BuildTryFinally(
@@ -2777,10 +2859,13 @@ void BytecodeGenerator::BuildDisposeScope(WrappedFunc wrapped_func,
           BuildTryCatch(
               [&]() { BuildAwait(); },
               [&](Register context) {
-                RegisterList args = register_allocator()->NewRegisterList(2);
+                RegisterList args = register_allocator()->NewRegisterList(3);
                 builder()
                     ->MoveRegister(current_disposables_stack_, args[0])
                     .StoreAccumulatorInRegister(args[1])  // exception
+                    .LoadTheHole()
+                    .SetPendingMessage()
+                    .StoreAccumulatorInRegister(args[2])
                     .CallRuntime(
                         Runtime::kHandleExceptionsInDisposeDisposableStack,
                         args);
@@ -3162,11 +3247,12 @@ void BytecodeGenerator::AddToEagerLiteralsIfEager(FunctionLiteral* literal) {
     // then create one and enqueue it. Otherwise, we're reparsing (e.g. for the
     // debugger, source position collection, call printing, recompile after
     // flushing, etc.) and don't want to over-compile.
-    Handle<SharedFunctionInfo> shared_info =
+    DirectHandle<SharedFunctionInfo> shared_info =
         Compiler::GetSharedFunctionInfo(literal, script_, local_isolate_);
     if (!shared_info->is_compiled()) {
-      info()->dispatcher()->Enqueue(local_isolate_, shared_info,
-                                    info()->character_stream()->Clone());
+      info()->dispatcher()->Enqueue(
+          local_isolate_, indirect_handle(shared_info, local_isolate_),
+          info()->character_stream()->Clone());
     }
   } else if (eager_inner_literals_ && literal->ShouldEagerCompile()) {
     DCHECK(!IsInEagerLiterals(literal, *eager_inner_literals_));
@@ -3805,6 +3891,9 @@ void BytecodeGenerator::VisitLiteral(Literal* expr) {
       builder()->LoadLiteral(expr->AsRawString());
       execution_result()->SetResultIsInternalizedString();
       break;
+    case Literal::kConsString:
+      builder()->LoadLiteral(expr->AsConsString());
+      break;
     case Literal::kBigInt:
       builder()->LoadLiteral(expr->AsBigInt());
       break;
@@ -4405,8 +4494,7 @@ void BytecodeGenerator::BuildVariableLoad(Variable* variable,
         return;
       }
 
-      builder()->LoadContextSlot(context_reg, variable->index(), depth,
-                                 immutable);
+      builder()->LoadContextSlot(context_reg, variable, depth, immutable);
       if (VariableNeedsHoleCheckInCurrentBlock(variable, hole_check_mode)) {
         BuildThrowIfHole(variable);
       }
@@ -4421,7 +4509,11 @@ void BytecodeGenerator::BuildVariableLoad(Variable* variable,
           Variable* local_variable = variable->local_if_not_shadowed();
           int depth =
               execution_context()->ContextChainDepth(local_variable->scope());
+          ContextKind context_kind = (local_variable->scope()->is_script_scope()
+                                          ? ContextKind::kScriptContext
+                                          : ContextKind::kDefault);
           builder()->LoadLookupContextSlot(variable->raw_name(), typeof_mode,
+                                           context_kind,
                                            local_variable->index(), depth);
           if (VariableNeedsHoleCheckInCurrentBlock(local_variable,
                                                    hole_check_mode)) {
@@ -4667,7 +4759,7 @@ void BytecodeGenerator::BuildVariableAssignment(
         Register value_temp = register_allocator()->NewRegister();
         builder()
             ->StoreAccumulatorInRegister(value_temp)
-            .LoadContextSlot(context_reg, variable->index(), depth,
+            .LoadContextSlot(context_reg, variable, depth,
                              BytecodeArrayBuilder::kMutableSlot);
 
         BuildHoleCheckForVariableAssignment(variable, op);
@@ -7461,15 +7553,21 @@ void BytecodeGenerator::VisitEmptyParentheses(EmptyParentheses* expr) {
 }
 
 void BytecodeGenerator::VisitImportCallExpression(ImportCallExpression* expr) {
-  const int register_count = expr->import_options() ? 3 : 2;
+  const int register_count = expr->import_options() ? 4 : 3;
+  // args is a list of [ function_closure, specifier, phase, import_options ].
   RegisterList args = register_allocator()->NewRegisterList(register_count);
+
+  builder()->MoveRegister(Register::function_closure(), args[0]);
   VisitForRegisterValue(expr->specifier(), args[1]);
-  if (expr->import_options()) {
-    VisitForRegisterValue(expr->import_options(), args[2]);
-  }
   builder()
-      ->MoveRegister(Register::function_closure(), args[0])
-      .CallRuntime(Runtime::kDynamicImportCall, args);
+      ->LoadLiteral(Smi::FromInt(static_cast<int>(expr->phase())))
+      .StoreAccumulatorInRegister(args[2]);
+
+  if (expr->import_options()) {
+    VisitForRegisterValue(expr->import_options(), args[3]);
+  }
+
+  builder()->CallRuntime(Runtime::kDynamicImportCall, args);
 }
 
 void BytecodeGenerator::BuildGetIterator(IteratorType hint) {

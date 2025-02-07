@@ -243,7 +243,7 @@ class ObjectHashTableTest {
   }
 
   int lookup(int key, Isolate* isolate) {
-    Handle<Object> key_obj(Smi::FromInt(key), isolate);
+    DirectHandle<Object> key_obj(Smi::FromInt(key), isolate);
     return Smi::ToInt(table_->Lookup(key_obj));
   }
 

@@ -19,6 +19,7 @@ absl_source_set("distribution_caller") {
   deps = [
     "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/base:fast_type_id",
+    "//third_party/abseil-cpp/absl/meta:type_traits",
     "//third_party/abseil-cpp/absl/utility",
   ]
   visibility = [ "//third_party/abseil-cpp/absl/random/*" ]

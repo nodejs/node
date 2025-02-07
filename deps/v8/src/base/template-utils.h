@@ -5,6 +5,8 @@
 #ifndef V8_BASE_TEMPLATE_UTILS_H_
 #define V8_BASE_TEMPLATE_UTILS_H_
 
+#include <stddef.h>
+
 #include <array>
 #include <functional>
 #include <iosfwd>
@@ -53,13 +55,8 @@ struct pass_value_or_ref {
                                          decay_t, const decay_t&>::type;
 };
 
-// Uses expression SFINAE to detect whether using operator<< would work.
-template <typename T, typename TStream = std::ostream, typename = void>
-struct has_output_operator : std::false_type {};
-template <typename T, typename TStream>
-struct has_output_operator<
-    T, TStream, decltype(void(std::declval<TStream&>() << std::declval<T>()))>
-    : std::true_type {};
+template <typename T, typename TStream = std::ostream>
+concept has_output_operator = requires(T t, TStream stream) { stream << t; };
 
 // Turn std::tuple<A...> into std::tuple<A..., T>.
 template <class Tuple, class T>
@@ -134,13 +131,12 @@ constexpr auto tuple_head(Tuple&& tpl) {
 }
 
 // Drop the first N elements from a tuple.
-template <
-    size_t N, typename Tuple,
-    // If the user accidentally passes in an N that is larger than the tuple
-    // size, the unsigned subtraction will create a giant index sequence and
-    // crash the compiler. To avoid this and fail early, disable this function
-    // for invalid N.
-    typename = std::enable_if_t<detail::NIsNotGreaterThanTupleSize<N, Tuple>>>
+template <size_t N, typename Tuple>
+// If the user accidentally passes in an N that is larger than the tuple
+// size, the unsigned subtraction will create a giant index sequence and
+// crash the compiler. To avoid this and fail early, disable this function
+// for invalid N.
+  requires(detail::NIsNotGreaterThanTupleSize<N, Tuple>)
 constexpr auto tuple_drop(Tuple&& tpl) {
   constexpr size_t total_size = std::tuple_size_v<std::decay_t<Tuple>>;
   static_assert(N <= total_size);

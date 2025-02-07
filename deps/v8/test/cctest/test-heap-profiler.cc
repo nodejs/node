@@ -246,9 +246,10 @@ static void EnsureNoUninstrumentedInternals(v8::Isolate* isolate,
                                             const v8::HeapGraphNode* node) {
   for (int i = 0; i < 20; ++i) {
     v8::base::ScopedVector<char> buffer(10);
-    const v8::HeapGraphNode* internal =
-        GetProperty(isolate, node, v8::HeapGraphEdge::kInternal,
-                    i::IntToCString(i, buffer));
+    std::string_view str = i::IntToStringView(i, buffer);
+    // GetProperty requires a null-terminated string.
+    const v8::HeapGraphNode* internal = GetProperty(
+        isolate, node, v8::HeapGraphEdge::kInternal, std::string(str).c_str());
     CHECK(!internal);
   }
 }
@@ -3332,7 +3333,7 @@ TEST(EmbedderGraph) {
   v8::HandleScope scope(env->GetIsolate());
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(env->GetIsolate());
   v8::Local<v8::Value> global_object =
-      v8::Utils::ToLocal(i::Handle<i::JSObject>(
+      v8::Utils::ToLocal(i::DirectHandle<i::JSObject>(
           (isolate->context()->native_context()->global_object()), isolate));
   global_object_pointer = &global_object;
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
@@ -3396,7 +3397,7 @@ TEST(EmbedderGraphWithNamedEdges) {
   v8::HandleScope scope(env->GetIsolate());
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(env->GetIsolate());
   v8::Local<v8::Value> global_object =
-      v8::Utils::ToLocal(i::Handle<i::JSObject>(
+      v8::Utils::ToLocal(i::DirectHandle<i::JSObject>(
           (isolate->context()->native_context()->global_object()), isolate));
   global_object_pointer = &global_object;
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
@@ -3462,7 +3463,7 @@ TEST(EmbedderGraphMultipleCallbacks) {
   v8::HandleScope scope(env->GetIsolate());
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(env->GetIsolate());
   v8::Local<v8::Value> global_object =
-      v8::Utils::ToLocal(i::Handle<i::JSObject>(
+      v8::Utils::ToLocal(i::DirectHandle<i::JSObject>(
           (isolate->context()->native_context()->global_object()), isolate));
   global_object_pointer = &global_object;
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
@@ -3539,7 +3540,7 @@ TEST(EmbedderGraphWithWrapperNode) {
   v8::HandleScope scope(env->GetIsolate());
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(env->GetIsolate());
   v8::Local<v8::Value> global_object =
-      v8::Utils::ToLocal(i::Handle<i::JSObject>(
+      v8::Utils::ToLocal(i::DirectHandle<i::JSObject>(
           (isolate->context()->native_context()->global_object()), isolate));
   global_object_pointer = &global_object;
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
@@ -3596,7 +3597,7 @@ TEST(EmbedderGraphWithPrefix) {
   v8::HandleScope scope(env->GetIsolate());
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(env->GetIsolate());
   v8::Local<v8::Value> global_object =
-      v8::Utils::ToLocal(i::Handle<i::JSObject>(
+      v8::Utils::ToLocal(i::DirectHandle<i::JSObject>(
           (isolate->context()->native_context()->global_object()), isolate));
   global_object_pointer = &global_object;
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
@@ -4218,10 +4219,11 @@ TEST(WeakReference) {
       i::ClosureFeedbackCellArray::New(i_isolate, shared_function);
   i::DirectHandle<i::FeedbackVector> fv = factory->NewFeedbackVector(
       shared_function, feedback_cell_array,
-      handle(i::Cast<i::JSFunction>(*obj)->raw_feedback_cell(), i_isolate));
+      direct_handle(i::Cast<i::JSFunction>(*obj)->raw_feedback_cell(),
+                    i_isolate));
 
   // Create a Code object.
-  i::Assembler assm(i::AssemblerOptions{});
+  i::Assembler assm(i_isolate->allocator(), i::AssemblerOptions{});
   assm.nop();  // supported on all architectures
   i::CodeDesc desc;
   assm.GetCode(i_isolate, &desc);
@@ -4230,12 +4232,16 @@ TEST(WeakReference) {
           .Build();
   CHECK(IsCode(*code));
 
+#ifdef V8_ENABLE_LEAPTIERING
+  USE(fv);
+#else
   // Manually inlined version of FeedbackVector::SetOptimizedCode (needed due
   // to the FOR_TESTING code kind).
   fv->set_maybe_optimized_code(i::MakeWeak(code->wrapper()));
   fv->set_flags(
       i::FeedbackVector::MaybeHasTurbofanCodeBit::encode(true) |
       i::FeedbackVector::TieringStateBits::encode(i::TieringState::kNone));
+#endif  // V8_ENABLE_LEAPTIERING
 
   v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
@@ -4338,7 +4344,8 @@ TEST(ObjectRetainedInHandle) {
   v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
 
   // Allocate an array and keep a handle to it.
-  i::Handle<i::FixedArray> handle = i_isolate->factory()->NewFixedArray(1024);
+  i::DirectHandle<i::FixedArray> handle =
+      i_isolate->factory()->NewFixedArray(1024);
 
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));

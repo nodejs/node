@@ -88,18 +88,16 @@ void* BoundedPageAllocator::AllocatePages(void* hint, size_t size,
 
 bool BoundedPageAllocator::AllocatePagesAt(Address address, size_t size,
                                            PageAllocator::Permission access) {
+  MutexGuard guard(&mutex_);
+
   DCHECK(IsAligned(address, allocate_page_size_));
   DCHECK(IsAligned(size, allocate_page_size_));
 
-  {
-    MutexGuard guard(&mutex_);
+  DCHECK(region_allocator_.contains(address, size));
 
-    DCHECK(region_allocator_.contains(address, size));
-
-    if (!region_allocator_.AllocateRegionAt(address, size)) {
-      allocation_status_ = AllocationStatus::kHintedAddressTakenOrNotFound;
-      return false;
-    }
+  if (!region_allocator_.AllocateRegionAt(address, size)) {
+    allocation_status_ = AllocationStatus::kHintedAddressTakenOrNotFound;
+    return false;
   }
 
   void* ptr = reinterpret_cast<void*>(address);
@@ -116,22 +114,21 @@ bool BoundedPageAllocator::AllocatePagesAt(Address address, size_t size,
 
 bool BoundedPageAllocator::ReserveForSharedMemoryMapping(void* ptr,
                                                          size_t size) {
+  MutexGuard guard(&mutex_);
+
   Address address = reinterpret_cast<Address>(ptr);
   DCHECK(IsAligned(address, allocate_page_size_));
   DCHECK(IsAligned(size, commit_page_size_));
 
-  {
-    MutexGuard guard(&mutex_);
-    DCHECK(region_allocator_.contains(address, size));
+  DCHECK(region_allocator_.contains(address, size));
 
-    // Region allocator requires page size rather than commit size so just over-
-    // allocate there since any extra space couldn't be used anyway.
-    size_t region_size = RoundUp(size, allocate_page_size_);
-    if (!region_allocator_.AllocateRegionAt(
-            address, region_size, RegionAllocator::RegionState::kExcluded)) {
-      allocation_status_ = AllocationStatus::kHintedAddressTakenOrNotFound;
-      return false;
-    }
+  // Region allocator requires page size rather than commit size so just over-
+  // allocate there since any extra space couldn't be used anyway.
+  size_t region_size = RoundUp(size, allocate_page_size_);
+  if (!region_allocator_.AllocateRegionAt(
+          address, region_size, RegionAllocator::RegionState::kExcluded)) {
+    allocation_status_ = AllocationStatus::kHintedAddressTakenOrNotFound;
+    return false;
   }
 
   const bool success = page_allocator_->SetPermissions(

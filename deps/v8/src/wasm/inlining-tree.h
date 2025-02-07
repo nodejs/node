@@ -281,6 +281,12 @@ void InliningTree::FullyExpand() {
       }
       continue;
     }
+    if (is_asmjs_module(data_->module)) {
+      if (v8_flags.trace_wasm_inlining) {
+        PrintF("cannot inline asm.js function]\n");
+      }
+      continue;
+    }
 
     // Key idea: inlining hot calls is good, inlining big functions is bad,
     // so inline when a candidate is "hotter than it is big". Exception:

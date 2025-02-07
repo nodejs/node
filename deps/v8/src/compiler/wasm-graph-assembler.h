@@ -145,6 +145,8 @@ class WasmGraphAssembler : public GraphAssembler {
     return LoadImmutable(rep, base, IntPtrConstant(offset));
   }
 
+  Node* LoadWasmCodePointer(Node* code_pointer);
+
   Node* StoreToObject(ObjectAccess access, Node* base, Node* offset,
                       Node* value);
 

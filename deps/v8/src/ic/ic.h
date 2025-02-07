@@ -40,7 +40,7 @@ class IC {
   // Compute the current IC state based on the target stub, lookup_start_object
   // and name.
   void UpdateState(DirectHandle<Object> lookup_start_object,
-                   Handle<Object> name);
+                   DirectHandle<Object> name);
 
   bool RecomputeHandlerForName(DirectHandle<Object> name);
   void MarkRecomputeHandler(DirectHandle<Object> name) {
@@ -83,15 +83,15 @@ class IC {
   // Configure for most states.
   bool ConfigureVectorState(IC::State new_state, DirectHandle<Object> key);
   // Configure the vector for MONOMORPHIC.
-  void ConfigureVectorState(Handle<Name> name, DirectHandle<Map> map,
+  void ConfigureVectorState(DirectHandle<Name> name, DirectHandle<Map> map,
                             Handle<Object> handler);
-  void ConfigureVectorState(Handle<Name> name, DirectHandle<Map> map,
+  void ConfigureVectorState(DirectHandle<Name> name, DirectHandle<Map> map,
                             const MaybeObjectHandle& handler);
   // Configure the vector for POLYMORPHIC.
-  void ConfigureVectorState(Handle<Name> name, MapHandlesSpan maps,
+  void ConfigureVectorState(DirectHandle<Name> name, MapHandlesSpan maps,
                             MaybeObjectHandles* handlers);
-  void ConfigureVectorState(
-      Handle<Name> name, std::vector<MapAndHandler> const& maps_and_handlers);
+  void ConfigureVectorState(DirectHandle<Name> name,
+                            MapsAndHandlers const& maps_and_handlers);
 
   char TransitionMarkFromState(IC::State state);
   void TraceIC(const char* type, DirectHandle<Object> name);
@@ -102,10 +102,12 @@ class IC {
                                 Handle<Object> key);
   MaybeHandle<Object> ReferenceError(Handle<Name> name);
 
-  void UpdateMonomorphicIC(const MaybeObjectHandle& handler, Handle<Name> name);
+  void UpdateMonomorphicIC(const MaybeObjectHandle& handler,
+                           DirectHandle<Name> name);
   bool UpdateMegaDOMIC(const MaybeObjectHandle& handler,
                        DirectHandle<Name> name);
-  bool UpdatePolymorphicIC(Handle<Name> name, const MaybeObjectHandle& handler);
+  bool UpdatePolymorphicIC(DirectHandle<Name> name,
+                           const MaybeObjectHandle& handler);
   void UpdateMegamorphicCache(DirectHandle<Map> map, DirectHandle<Name> name,
                               const MaybeObjectHandle& handler);
 
@@ -114,8 +116,8 @@ class IC {
   void CopyICToMegamorphicCache(DirectHandle<Name> name);
   bool IsTransitionOfMonomorphicTarget(Tagged<Map> source_map,
                                        Tagged<Map> target_map);
-  void SetCache(Handle<Name> name, Handle<Object> handler);
-  void SetCache(Handle<Name> name, const MaybeObjectHandle& handler);
+  void SetCache(DirectHandle<Name> name, Handle<Object> handler);
+  void SetCache(DirectHandle<Name> name, const MaybeObjectHandle& handler);
   FeedbackSlotKind kind() const { return kind_; }
   bool IsGlobalIC() const { return IsLoadGlobalIC() || IsStoreGlobalIC(); }
   bool IsLoadIC() const { return IsLoadICKind(kind_); }
@@ -197,8 +199,8 @@ class LoadIC : public IC {
 
   // If receiver is empty, use object as the receiver.
   V8_WARN_UNUSED_RESULT MaybeHandle<Object> Load(
-      Handle<Object> object, Handle<Name> name, bool update_feedback = true,
-      Handle<Object> receiver = Handle<Object>());
+      Handle<JSAny> object, Handle<Name> name, bool update_feedback = true,
+      DirectHandle<JSAny> receiver = DirectHandle<JSAny>());
 
  protected:
   // Update the inline cache and the global stub cache based on the
@@ -228,19 +230,20 @@ class KeyedLoadIC : public LoadIC {
               FeedbackSlot slot, FeedbackSlotKind kind)
       : LoadIC(isolate, vector, slot, kind) {}
 
-  V8_WARN_UNUSED_RESULT MaybeHandle<Object> Load(Handle<Object> object,
+  V8_WARN_UNUSED_RESULT MaybeHandle<Object> Load(Handle<JSAny> object,
                                                  Handle<Object> key);
 
  protected:
   V8_WARN_UNUSED_RESULT MaybeHandle<Object> RuntimeLoad(
-      Handle<Object> object, Handle<Object> key, bool* is_found = nullptr);
+      DirectHandle<JSAny> object, DirectHandle<Object> key,
+      bool* is_found = nullptr);
 
-  V8_WARN_UNUSED_RESULT MaybeHandle<Object> LoadName(Handle<Object> object,
+  V8_WARN_UNUSED_RESULT MaybeHandle<Object> LoadName(Handle<JSAny> object,
                                                      DirectHandle<Object> key,
                                                      Handle<Name> name);
 
   // receiver is HeapObject because it could be a String or a JSObject
-  void UpdateLoadElement(Handle<HeapObject> receiver,
+  void UpdateLoadElement(DirectHandle<HeapObject> receiver,
                          KeyedAccessLoadMode new_load_mode);
 
  private:
@@ -266,7 +269,7 @@ class StoreIC : public IC {
   }
 
   V8_WARN_UNUSED_RESULT MaybeHandle<Object> Store(
-      Handle<Object> object, Handle<Name> name, Handle<Object> value,
+      Handle<JSAny> object, Handle<Name> name, Handle<Object> value,
       StoreOrigin store_origin = StoreOrigin::kNamed);
 
   bool LookupForWrite(LookupIterator* it, DirectHandle<Object> value,
@@ -315,7 +318,7 @@ class KeyedStoreIC : public StoreIC {
                FeedbackSlot slot, FeedbackSlotKind kind)
       : StoreIC(isolate, vector, slot, kind) {}
 
-  V8_WARN_UNUSED_RESULT MaybeHandle<Object> Store(Handle<Object> object,
+  V8_WARN_UNUSED_RESULT MaybeHandle<Object> Store(Handle<JSAny> object,
                                                   Handle<Object> name,
                                                   Handle<Object> value);
 
@@ -328,12 +331,13 @@ class KeyedStoreIC : public StoreIC {
   Handle<Map> ComputeTransitionedMap(Handle<Map> map,
                                      TransitionMode transition_mode);
 
-  Handle<Object> StoreElementHandler(
-      DirectHandle<Map> receiver_map, KeyedAccessStoreMode store_mode,
-      MaybeHandle<UnionOf<Smi, Cell>> prev_validity_cell = kNullMaybeHandle);
+  Handle<Object> StoreElementHandler(DirectHandle<Map> receiver_map,
+                                     KeyedAccessStoreMode store_mode,
+                                     MaybeDirectHandle<UnionOf<Smi, Cell>>
+                                         prev_validity_cell = kNullMaybeHandle);
 
   void StoreElementPolymorphicHandlers(
-      std::vector<MapAndHandler>* receiver_maps_and_handlers,
+      MapsAndHandlers* receiver_maps_and_handlers,
       KeyedAccessStoreMode store_mode);
 
   friend class IC;
@@ -348,7 +352,7 @@ class StoreInArrayLiteralIC : public KeyedStoreIC {
     DCHECK(IsStoreInArrayLiteralICKind(kind()));
   }
 
-  MaybeHandle<Object> Store(Handle<JSArray> array, Handle<Object> index,
+  MaybeHandle<Object> Store(DirectHandle<JSArray> array, Handle<Object> index,
                             Handle<Object> value);
 };
 

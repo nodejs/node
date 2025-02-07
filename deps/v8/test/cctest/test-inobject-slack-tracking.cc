@@ -40,7 +40,7 @@ Handle<T> GetLexical(const char* name) {
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
 
-  Handle<String> str_name = factory->InternalizeUtf8String(name);
+  DirectHandle<String> str_name = factory->InternalizeUtf8String(name);
   DirectHandle<ScriptContextTable> script_contexts(
       isolate->native_context()->script_context_table(), isolate);
 

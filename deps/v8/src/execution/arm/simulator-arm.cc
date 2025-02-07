@@ -1154,7 +1154,7 @@ uintptr_t Simulator::StackLimit(uintptr_t c_limit) const {
   return reinterpret_cast<uintptr_t>(stack_) + kAdditionalStackMargin;
 }
 
-base::Vector<uint8_t> Simulator::GetCurrentStackView() const {
+base::Vector<uint8_t> Simulator::GetCentralStackView() const {
   // We do not add an additional safety margin as above in
   // Simulator::StackLimit, as this is currently only used in wasm::StackMemory,
   // which adds its own margin.
@@ -4151,7 +4151,7 @@ template <typename T, int SIZE>
 void ShiftRight(Simulator* simulator, int Vd, int Vm, int shift,
                 bool is_unsigned) {
   if (is_unsigned) {
-    using unsigned_T = typename std::make_unsigned<T>::type;
+    using unsigned_T = std::make_unsigned_t<T>;
     LogicalShiftRight<unsigned_T, SIZE>(simulator, Vd, Vm, shift);
   } else {
     ArithmeticShiftRight<T, SIZE>(simulator, Vd, Vm, shift);
@@ -4220,7 +4220,7 @@ void ShiftByRegister(Simulator* simulator, int Vd, int Vm, int Vn) {
       if (shift_value >= size) {
         src[i] = 0;
       } else {
-        using unsignedT = typename std::make_unsigned<T>::type;
+        using unsignedT = std::make_unsigned_t<T>;
         src[i] = static_cast<unsignedT>(src[i]) << shift_value;
       }
     } else {

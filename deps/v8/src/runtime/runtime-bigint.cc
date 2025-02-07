@@ -25,7 +25,7 @@ RUNTIME_FUNCTION(Runtime_BigIntCompareToString) {
   DCHECK_EQ(3, args.length());
   int mode = args.smi_value_at(0);
   DirectHandle<BigInt> lhs = args.at<BigInt>(1);
-  Handle<String> rhs = args.at<String>(2);
+  DirectHandle<String> rhs = args.at<String>(2);
   Maybe<ComparisonResult> maybe_result =
       BigInt::CompareToString(isolate, lhs, rhs);
   MAYBE_RETURN(maybe_result, ReadOnlyRoots(isolate).exception());
@@ -47,7 +47,7 @@ RUNTIME_FUNCTION(Runtime_BigIntEqualToNumber) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(2, args.length());
   DirectHandle<BigInt> lhs = args.at<BigInt>(0);
-  Handle<Object> rhs = args.at(1);
+  DirectHandle<Object> rhs = args.at(1);
   bool result = BigInt::EqualToNumber(lhs, rhs);
   return *isolate->factory()->ToBoolean(result);
 }
@@ -56,7 +56,7 @@ RUNTIME_FUNCTION(Runtime_BigIntEqualToString) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   DirectHandle<BigInt> lhs = args.at<BigInt>(0);
-  Handle<String> rhs = args.at<String>(1);
+  DirectHandle<String> rhs = args.at<String>(1);
   Maybe<bool> maybe_result = BigInt::EqualToString(isolate, lhs, rhs);
   MAYBE_RETURN(maybe_result, ReadOnlyRoots(isolate).exception());
   return *isolate->factory()->ToBoolean(maybe_result.FromJust());
@@ -113,11 +113,11 @@ RUNTIME_FUNCTION(Runtime_BigIntExponentiate) {
 RUNTIME_FUNCTION(Runtime_BigIntUnaryOp) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<BigInt> x = args.at<BigInt>(0);
+  DirectHandle<BigInt> x = args.at<BigInt>(0);
   int opcode = args.smi_value_at(1);
   Operation op = static_cast<Operation>(opcode);
 
-  MaybeHandle<BigInt> result;
+  MaybeDirectHandle<BigInt> result;
   switch (op) {
     case Operation::kBitwiseNot:
       result = BigInt::BitwiseNot(isolate, x);

@@ -12,20 +12,22 @@
 #include "src/codegen/machine-type.h"
 #include "src/codegen/tick-counter.h"
 #include "src/common/globals.h"
+#include "src/compiler/backend/instruction-selector-adapter.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/globals.h"
-#include "src/compiler/graph.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/state-values-utils.h"
+#include "src/compiler/turbofan-graph.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/opmasks.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "src/numbers/conversions-inl.h"
+#include "src/zone/zone-containers.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/simd-shuffle.h"
@@ -105,7 +107,8 @@ InstructionSelectorT<Adapter>::InstructionSelectorT(
       max_pushed_argument_count_(max_pushed_argument_count)
 #if V8_TARGET_ARCH_64_BIT
       ,
-      phi_states_(node_count, Upper32BitsState::kNotYetChecked, zone)
+      node_count_(node_count),
+      phi_states_(zone)
 #endif
 {
   if constexpr (Adapter::IsTurboshaft) {
@@ -879,33 +882,43 @@ class TurbofanStateObjectDeduplicator {
   ZoneVector<Node*> objects_;
 };
 
+enum class ObjectType { kRegularObject, kStringConcat };
+
 class TurboshaftStateObjectDeduplicator {
  public:
-  explicit TurboshaftStateObjectDeduplicator(Zone* zone) : object_ids_(zone) {}
-  static constexpr uint32_t kArgumentsElementsDummy =
-      std::numeric_limits<uint32_t>::max();
+  explicit TurboshaftStateObjectDeduplicator(Zone* zone)
+      : objects_ids_mapping_(zone), string_ids_mapping_(zone) {}
   static constexpr size_t kNotDuplicated = std::numeric_limits<size_t>::max();
 
-  size_t GetObjectId(uint32_t object) {
-    for (size_t i = 0; i < object_ids_.size(); ++i) {
-      if (object_ids_[i] == object) return i;
-    }
-    return kNotDuplicated;
+  size_t GetObjectId(uint32_t old_id, ObjectType type) {
+    auto& ids_map = GetMapForType(type);
+    auto it = ids_map.find(old_id);
+    if (it == ids_map.end()) return kNotDuplicated;
+    return it->second;
   }
 
-  size_t InsertObject(uint32_t object) {
-    object_ids_.push_back(object);
-    return object_ids_.size() - 1;
+  size_t InsertObject(uint32_t old_id, ObjectType type) {
+    auto& ids_map = GetMapForType(type);
+    uint32_t new_id = next_id_++;
+    ids_map.insert({old_id, new_id});
+    return new_id;
   }
 
-  void InsertDummyForArgumentsElements() {
-    object_ids_.push_back(kArgumentsElementsDummy);
-  }
-
-  size_t size() const { return object_ids_.size(); }
+  void InsertDummyForArgumentsElements() { next_id_++; }
 
  private:
-  ZoneVector<uint32_t> object_ids_;
+  ZoneAbslFlatHashMap<uint32_t, uint32_t>& GetMapForType(ObjectType type) {
+    switch (type) {
+      case ObjectType::kRegularObject:
+        return objects_ids_mapping_;
+      case ObjectType::kStringConcat:
+        return string_ids_mapping_;
+    }
+  }
+  uint32_t next_id_ = 0;
+
+  ZoneAbslFlatHashMap<uint32_t, uint32_t> objects_ids_mapping_;
+  ZoneAbslFlatHashMap<uint32_t, uint32_t> string_ids_mapping_;
 };
 
 // Returns the number of instruction operands added to inputs.
@@ -991,8 +1004,8 @@ struct InstructionSelectorT<Adapter>::CachedStateValues : public ZoneObject {
   StateValueList::Slice values_;
 };
 
-template <typename Adapter>
-class InstructionSelectorT<Adapter>::CachedStateValuesBuilder {
+template <>
+class InstructionSelectorT<TurbofanAdapter>::CachedStateValuesBuilder {
  public:
   explicit CachedStateValuesBuilder(StateValueList* values,
                                     InstructionOperandVector* inputs,
@@ -1009,10 +1022,10 @@ class InstructionSelectorT<Adapter>::CachedStateValuesBuilder {
   // any of the ids in the deduplicator.
   bool CanCache() const { return deduplicator_->size() == deduplicator_start_; }
 
-  InstructionSelectorT<Adapter>::CachedStateValues* Build(Zone* zone) {
+  InstructionSelectorT<TurbofanAdapter>::CachedStateValues* Build(Zone* zone) {
     DCHECK(CanCache());
     DCHECK(values_->nested_count() == nested_start_);
-    return zone->New<InstructionSelectorT<Adapter>::CachedStateValues>(
+    return zone->New<InstructionSelectorT<TurbofanAdapter>::CachedStateValues>(
         zone, values_, values_start_, inputs_, inputs_start_);
   }
 
@@ -1105,9 +1118,9 @@ size_t AddOperandToStateValueDescriptor(
       uint32_t obj_id;
       uint32_t field_count;
       it->ConsumeDematerializedObject(&obj_id, &field_count);
-      size_t id = deduplicator->GetObjectId(obj_id);
+      size_t id = deduplicator->GetObjectId(obj_id, ObjectType::kRegularObject);
       if (id == TurboshaftStateObjectDeduplicator::kNotDuplicated) {
-        id = deduplicator->InsertObject(obj_id);
+        id = deduplicator->InsertObject(obj_id, ObjectType::kRegularObject);
         size_t entries = 0;
         StateValueList* nested = values->PushRecursiveField(zone, id);
         for (uint32_t i = 0; i < field_count; ++i) {
@@ -1118,7 +1131,7 @@ size_t AddOperandToStateValueDescriptor(
       } else {
         // Deoptimizer counts duplicate objects for the running id, so we have
         // to push the input again.
-        deduplicator->InsertObject(obj_id);
+        deduplicator->InsertObject(obj_id, ObjectType::kRegularObject);
         values->PushDuplicate(id);
         return 0;
       }
@@ -1126,11 +1139,47 @@ size_t AddOperandToStateValueDescriptor(
     case FrameStateData::Instr::kDematerializedObjectReference: {
       uint32_t obj_id;
       it->ConsumeDematerializedObjectReference(&obj_id);
-      size_t id = deduplicator->GetObjectId(obj_id);
+      size_t id = deduplicator->GetObjectId(obj_id, ObjectType::kRegularObject);
       DCHECK_NE(id, TurboshaftStateObjectDeduplicator::kNotDuplicated);
       // Deoptimizer counts duplicate objects for the running id, so we have
       // to push the input again.
-      deduplicator->InsertObject(obj_id);
+      deduplicator->InsertObject(obj_id, ObjectType::kRegularObject);
+      values->PushDuplicate(id);
+      return 0;
+    }
+    case FrameStateData::Instr::kDematerializedStringConcat: {
+      DCHECK(v8_flags.turboshaft_string_concat_escape_analysis);
+      uint32_t obj_id;
+      it->ConsumeDematerializedStringConcat(&obj_id);
+      size_t id = deduplicator->GetObjectId(obj_id, ObjectType::kStringConcat);
+      if (id == TurboshaftStateObjectDeduplicator::kNotDuplicated) {
+        id = deduplicator->InsertObject(obj_id, ObjectType::kStringConcat);
+        StateValueList* nested = values->PushStringConcat(zone, id);
+        static constexpr int kLeft = 1, kRight = 1;
+        static constexpr int kInputCount = kLeft + kRight;
+        size_t entries = 0;
+        for (uint32_t i = 0; i < kInputCount; i++) {
+          entries += AddOperandToStateValueDescriptor(
+              selector, nested, inputs, g, deduplicator, it, kind, zone);
+        }
+        return entries;
+      } else {
+        // Deoptimizer counts duplicate objects for the running id, so we have
+        // to push the input again.
+        deduplicator->InsertObject(obj_id, ObjectType::kStringConcat);
+        values->PushDuplicate(id);
+        return 0;
+      }
+    }
+    case FrameStateData::Instr::kDematerializedStringConcatReference: {
+      DCHECK(v8_flags.turboshaft_string_concat_escape_analysis);
+      uint32_t obj_id;
+      it->ConsumeDematerializedStringConcatReference(&obj_id);
+      size_t id = deduplicator->GetObjectId(obj_id, ObjectType::kStringConcat);
+      DCHECK_NE(id, TurboshaftStateObjectDeduplicator::kNotDuplicated);
+      // Deoptimizer counts duplicate objects for the running id, so we have
+      // to push the input again.
+      deduplicator->InsertObject(obj_id, ObjectType::kStringConcat);
       values->PushDuplicate(id);
       return 0;
     }
@@ -1545,6 +1594,7 @@ void InstructionSelectorT<Adapter>::InitializeCallBuffer(
 #if V8_ENABLE_WEBASSEMBLY
     case CallDescriptor::kCallWasmCapiFunction:
     case CallDescriptor::kCallWasmFunction:
+    case CallDescriptor::kCallWasmFunctionIndirect:
     case CallDescriptor::kCallWasmImportWrapper:
       buffer->instruction_args.push_back(
           (call_address_immediate && this->IsRelocatableWasmConstant(callee))
@@ -1622,7 +1672,7 @@ void InstructionSelectorT<Adapter>::InitializeCallBuffer(
     DCHECK_EQ(1 + frame_state_entries, buffer->instruction_args.size());
   }
 
-  size_t input_count = static_cast<size_t>(buffer->input_count());
+  size_t input_count = buffer->input_count();
 
   // Split the arguments into pushed_nodes and instruction_args. Pushed
   // arguments require an explicit push instruction before the call and do
@@ -1630,7 +1680,6 @@ void InstructionSelectorT<Adapter>::InitializeCallBuffer(
   // as an InstructionOperand argument to the call.
   auto arguments = call.arguments();
   auto iter(arguments.begin());
-  // call->inputs().begin());
   size_t pushed_count = 0;
   for (size_t index = 1; index < input_count; ++iter, ++index) {
     DCHECK_NE(iter, arguments.end());
@@ -1708,7 +1757,8 @@ bool InstructionSelectorT<Adapter>::IsSourcePositionUsed(node_t node) {
 #if V8_ENABLE_WEBASSEMBLY
     if (operation.Is<TrapIfOp>()) return true;
     if (const AtomicRMWOp* rmw = operation.TryCast<AtomicRMWOp>()) {
-      return rmw->memory_access_kind == MemoryAccessKind::kProtected;
+      return rmw->memory_access_kind ==
+             MemoryAccessKind::kProtectedByTrapHandler;
     }
     if (const Simd128LoadTransformOp* lt =
             operation.TryCast<Simd128LoadTransformOp>()) {
@@ -2357,7 +2407,7 @@ void InstructionSelectorT<Adapter>::VisitWord32AtomicPairCompareExchange(
         // && !V8_TARGET_ARCH_RISCV32
 
 #if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_MIPS64 && \
-    !V8_TARGET_ARCH_S390 && !V8_TARGET_ARCH_PPC64 &&                          \
+    !V8_TARGET_ARCH_S390X && !V8_TARGET_ARCH_PPC64 &&                         \
     !V8_TARGET_ARCH_RISCV64 && !V8_TARGET_ARCH_LOONG64
 
 VISIT_UNSUPPORTED_OP(Word64AtomicLoad)
@@ -2371,7 +2421,7 @@ VISIT_UNSUPPORTED_OP(Word64AtomicExchange)
 VISIT_UNSUPPORTED_OP(Word64AtomicCompareExchange)
 
 #endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_PPC64
-        // !V8_TARGET_ARCH_MIPS64 && !V8_TARGET_ARCH_S390 &&
+        // !V8_TARGET_ARCH_MIPS64 && !V8_TARGET_ARCH_S390X &&
         // !V8_TARGET_ARCH_RISCV64 && !V8_TARGET_ARCH_LOONG64
 
 #if !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_RISCV32
@@ -2605,9 +2655,25 @@ void InstructionSelectorT<Adapter>::VisitCall(node_t node, block_t handler) {
   EmitPrepareArguments(&buffer.pushed_nodes, call_descriptor, node);
   UpdateMaxPushedArgumentCount(buffer.pushed_nodes.size());
 
+  InstructionOperandVector temps(zone());
+
+#if V8_ENABLE_WEBASSEMBLY
+  if (call_descriptor->IsIndirectWasmFunctionCall()) {
+    buffer.instruction_args.push_back(
+        g.UseImmediate64(call_descriptor->signature_hash()));
+  }
+#endif
+
   if (call_descriptor->RequiresEntrypointTagForCall()) {
+    DCHECK(!call_descriptor->IsJSFunctionCall());
     buffer.instruction_args.push_back(
         g.TempImmediate(call_descriptor->shifted_tag()));
+  } else if (call_descriptor->IsJSFunctionCall()) {
+    // For JSFunctions we need to know the number of pushed parameters during
+    // code generation.
+    uint32_t parameter_count =
+        static_cast<uint32_t>(buffer.pushed_nodes.size());
+    buffer.instruction_args.push_back(g.TempImmediate(parameter_count));
   }
 
   // Pass label of exception handler block.
@@ -2660,7 +2726,12 @@ void InstructionSelectorT<Adapter>::VisitCall(node_t node, block_t handler) {
     case CallDescriptor::kCallWasmCapiFunction:
     case CallDescriptor::kCallWasmFunction:
     case CallDescriptor::kCallWasmImportWrapper:
+      DCHECK(this->IsRelocatableWasmConstant(call.callee()));
       opcode = EncodeCallDescriptorFlags(kArchCallWasmFunction, flags);
+      break;
+    case CallDescriptor::kCallWasmFunctionIndirect:
+      DCHECK(!this->IsRelocatableWasmConstant(call.callee()));
+      opcode = EncodeCallDescriptorFlags(kArchCallWasmFunctionIndirect, flags);
       break;
 #endif  // V8_ENABLE_WEBASSEMBLY
     case CallDescriptor::kCallBuiltinPointer:
@@ -2722,7 +2793,13 @@ void InstructionSelectorT<Adapter>::VisitTailCall(node_t node) {
 #if V8_ENABLE_WEBASSEMBLY
     case CallDescriptor::kCallWasmFunction:
       DCHECK(!caller->IsJSFunctionCall());
+      DCHECK(this->IsRelocatableWasmConstant(call.callee()));
       opcode = kArchTailCallWasm;
+      break;
+    case CallDescriptor::kCallWasmFunctionIndirect:
+      DCHECK(!caller->IsJSFunctionCall());
+      DCHECK(!this->IsRelocatableWasmConstant(call.callee()));
+      opcode = kArchTailCallWasmIndirect;
       break;
 #endif  // V8_ENABLE_WEBASSEMBLY
     default:
@@ -2731,6 +2808,13 @@ void InstructionSelectorT<Adapter>::VisitTailCall(node_t node) {
   opcode = EncodeCallDescriptorFlags(opcode, callee->flags());
 
   Emit(kArchPrepareTailCall, g.NoOutput());
+
+#if V8_ENABLE_WEBASSEMBLY
+  if (callee->IsIndirectWasmFunctionCall()) {
+    buffer.instruction_args.push_back(
+        g.UseImmediate64(callee->signature_hash()));
+  }
+#endif
 
   if (callee->RequiresEntrypointTagForCall()) {
     buffer.instruction_args.push_back(g.TempImmediate(callee->shifted_tag()));
@@ -2767,10 +2851,10 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitReturn(node_t node) {
   const ReturnOp& ret = schedule()->Get(node).Cast<ReturnOp>();
 
   OperandGenerator g(this);
+  const size_t return_count = linkage()->GetIncomingDescriptor()->ReturnCount();
   const int input_count =
-      linkage()->GetIncomingDescriptor()->ReturnCount() == 0
-          ? 1
-          : (1 + static_cast<int>(ret.return_values().size()));
+      return_count == 0 ? 1
+                        : (1 + static_cast<int>(ret.return_values().size()));
   DCHECK_GE(input_count, 1);
 
   auto value_locations =
@@ -2782,9 +2866,16 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitReturn(node_t node) {
   } else {
     value_locations[0] = g.UseRegister(ret.pop_count());
   }
-  for (int i = 0; i < input_count - 1; ++i) {
-    value_locations[i + 1] =
-        g.UseLocation(ret.return_values()[i], linkage()->GetReturnLocation(i));
+  for (size_t i = 0, return_value_idx = 0; i < return_count; ++i) {
+    LinkageLocation loc = linkage()->GetReturnLocation(i);
+    // Return values passed via frame slots have already been stored
+    // on the stack by the GrowableStacksReducer.
+    if (loc.IsCallerFrameSlot() && ret.spill_caller_frame_slots) {
+      continue;
+    }
+    value_locations[return_value_idx + 1] =
+        g.UseLocation(ret.return_values()[return_value_idx], loc);
+    return_value_idx++;
   }
   Emit(kArchRet, 0, nullptr, input_count, value_locations);
 }
@@ -3069,7 +3160,7 @@ void InstructionSelectorT<Adapter>::VisitComment(node_t node) {
             ->Get(node)
             .template Cast<turboshaft::CommentOp>();
     using ptrsize_int_t =
-        std::conditional<kSystemPointerSize == 8, int64_t, int32_t>::type;
+        std::conditional_t<kSystemPointerSize == 8, int64_t, int32_t>;
     InstructionOperand operand = sequence()->AddImmediate(
         Constant{reinterpret_cast<ptrsize_int_t>(comment.message)});
     Emit(kArchComment, 0, nullptr, 1, &operand);
@@ -4514,8 +4605,12 @@ void InstructionSelectorT<TurbofanAdapter>::VisitNode(Node* node) {
       return MarkAsSimd256(node), VisitI8x32UConvertI16x16(node);
     case IrOpcode::kF32x8Abs:
       return MarkAsSimd256(node), VisitF32x8Abs(node);
+    case IrOpcode::kF64x4Abs:
+      return MarkAsSimd256(node), VisitF64x4Abs(node);
     case IrOpcode::kF32x8Neg:
       return MarkAsSimd256(node), VisitF32x8Neg(node);
+    case IrOpcode::kF64x4Neg:
+      return MarkAsSimd256(node), VisitF64x4Neg(node);
     case IrOpcode::kF32x8Sqrt:
       return MarkAsSimd256(node), VisitF32x8Sqrt(node);
     case IrOpcode::kF64x4Sqrt:
@@ -4698,6 +4793,10 @@ void InstructionSelectorT<TurbofanAdapter>::VisitNode(Node* node) {
       return MarkAsSimd256(node), VisitF64x4RelaxedMin(node);
     case IrOpcode::kF64x4RelaxedMax:
       return MarkAsSimd256(node), VisitF64x4RelaxedMax(node);
+    case IrOpcode::kI32x8RelaxedTruncF32x8S:
+      return MarkAsSimd256(node), VisitI32x8RelaxedTruncF32x8S(node);
+    case IrOpcode::kI32x8RelaxedTruncF32x8U:
+      return MarkAsSimd256(node), VisitI32x8RelaxedTruncF32x8U(node);
 #endif  // V8_TARGET_ARCH_X64 && V8_ENABLE_WASM_SIMD256_REVEC
 #endif  // V8_ENABLE_WEBASSEMBLY
     default:
@@ -4786,6 +4885,10 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
           DCHECK_EQ(change.from, Rep::Float64());
           DCHECK_EQ(change.to, Rep::Word32());
           return VisitTruncateFloat64ToWord32(node);
+        case ChangeOp::Kind::kJSFloat16TruncateWithBitcast:
+          DCHECK_EQ(Rep::Float64(), change.from);
+          DCHECK_EQ(Rep::Word32(), change.to);
+          return VisitTruncateFloat64ToFloat16RawBits(node);
         case ChangeOp::Kind::kSignedToFloat:
           if (change.from == Rep::Word32()) {
             if (change.to == Rep::Float32()) {
@@ -4917,6 +5020,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
         case ConstantOp::Kind::kRelocatableWasmCall:
         case ConstantOp::Kind::kRelocatableWasmStubCall:
         case ConstantOp::Kind::kRelocatableWasmCanonicalSignatureId:
+        case ConstantOp::Kind::kRelocatableWasmIndirectCallTarget:
           break;
       }
       VisitConstant(node);
@@ -5876,17 +5980,18 @@ bool InstructionSelectorT<Adapter>::ZeroExtendsWord32ToWord64(
   const int kMaxRecursionDepth = 100;
 
   if (this->IsPhi(node)) {
-    // Intermediate results from previous calls are not necessarily correct.
     if (recursion_depth == 0) {
-      static_assert(sizeof(Upper32BitsState) == 1);
-      memset(phi_states_.data(),
-             static_cast<int>(Upper32BitsState::kNotYetChecked),
-             phi_states_.size());
+      if (phi_states_.empty()) {
+        // This vector is lazily allocated because the majority of compilations
+        // never use it.
+        phi_states_ = ZoneVector<Upper32BitsState>(
+            node_count_, Upper32BitsState::kNotYetChecked, zone());
+      }
     }
 
     Upper32BitsState current = phi_states_[this->id(node)];
     if (current != Upper32BitsState::kNotYetChecked) {
-      return current == Upper32BitsState::kUpperBitsGuaranteedZero;
+      return current == Upper32BitsState::kZero;
     }
 
     // If further recursion is prevented, we can't make any assumptions about
@@ -5895,16 +6000,16 @@ bool InstructionSelectorT<Adapter>::ZeroExtendsWord32ToWord64(
       return false;
     }
 
-    // Mark the current node so that we skip it if we recursively visit it
-    // again. Or, said differently, we compute a largest fixed-point so we can
-    // be optimistic when we hit cycles.
-    phi_states_[this->id(node)] = Upper32BitsState::kUpperBitsGuaranteedZero;
+    // Optimistically mark the current node as zero-extended so that we skip it
+    // if we recursively visit it again due to a cycle. If this optimistic guess
+    // is wrong, it will be corrected in MarkNodeAsNotZeroExtended.
+    phi_states_[this->id(node)] = Upper32BitsState::kZero;
 
     int input_count = this->value_input_count(node);
     for (int i = 0; i < input_count; ++i) {
       node_t input = this->input_at(node, i);
       if (!ZeroExtendsWord32ToWord64(input, recursion_depth + 1)) {
-        phi_states_[this->id(node)] = Upper32BitsState::kNoGuarantee;
+        MarkNodeAsNotZeroExtended(node);
         return false;
       }
     }
@@ -5912,6 +6017,36 @@ bool InstructionSelectorT<Adapter>::ZeroExtendsWord32ToWord64(
     return true;
   }
   return ZeroExtendsWord32ToWord64NoPhis(node);
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::MarkNodeAsNotZeroExtended(node_t node) {
+  if (phi_states_[this->id(node)] == Upper32BitsState::kMayBeNonZero) return;
+  phi_states_[this->id(node)] = Upper32BitsState::kMayBeNonZero;
+  ZoneVector<node_t> worklist(zone_);
+  worklist.push_back(node);
+  while (!worklist.empty()) {
+    node = worklist.back();
+    worklist.pop_back();
+    // We may have previously marked some uses of this node as zero-extended,
+    // but that optimistic guess was proven incorrect.
+    if constexpr (Adapter::IsTurboshaft) {
+      for (turboshaft::OpIndex use : turboshaft_uses(node)) {
+        if (phi_states_[this->id(use)] == Upper32BitsState::kZero) {
+          phi_states_[this->id(use)] = Upper32BitsState::kMayBeNonZero;
+          worklist.push_back(use);
+        }
+      }
+    } else {
+      for (Edge edge : node->use_edges()) {
+        Node* use = edge.from();
+        if (phi_states_[this->id(use)] == Upper32BitsState::kZero) {
+          phi_states_[this->id(use)] = Upper32BitsState::kMayBeNonZero;
+          worklist.push_back(use);
+        }
+      }
+    }
+  }
 }
 #endif  // V8_TARGET_ARCH_64_BIT
 
@@ -5948,7 +6083,7 @@ FrameStateDescriptor* GetFrameStateDescriptorInternal(
   return zone->New<FrameStateDescriptor>(
       zone, state_info.type(), state_info.bailout_id(),
       state_info.state_combine(), parameters, max_arguments, locals, stack,
-      state_info.shared_info(), outer_state,
+      state_info.shared_info(), state_info.bytecode_array(), outer_state,
       state_info.function_info()->wasm_liftoff_frame_size(),
       state_info.function_info()->wasm_function_index());
 }
@@ -5983,7 +6118,7 @@ FrameStateDescriptor* GetFrameStateDescriptorInternal(Zone* zone,
   return zone->New<FrameStateDescriptor>(
       zone, state_info.type(), state_info.bailout_id(),
       state_info.state_combine(), parameters, max_arguments, locals, stack,
-      state_info.shared_info(), outer_state,
+      state_info.shared_info(), state_info.bytecode_array(), outer_state,
       state_info.function_info()->wasm_liftoff_frame_size(),
       state_info.function_info()->wasm_function_index());
 }

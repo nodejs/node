@@ -791,6 +791,12 @@ void CodeGenerator::AssembleCodeStartRegisterCheck() {
   __ Assert(eq, AbortReason::kWrongFunctionCodeStart);
 }
 
+#ifdef V8_ENABLE_LEAPTIERING
+void CodeGenerator::AssembleDispatchHandleRegisterCheck() {
+  CHECK(!V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL);
+}
+#endif  // V8_ENABLE_LEAPTIERING
+
 void CodeGenerator::BailoutIfDeoptimized() { __ BailoutIfDeoptimized(); }
 
 // Assembles an instruction after register allocation, producing machine code.
@@ -830,13 +836,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
 #if V8_ENABLE_WEBASSEMBLY
-    case kArchCallWasmFunction: {
+    case kArchCallWasmFunction:
+    case kArchCallWasmFunctionIndirect: {
       // We must not share code targets for calls to builtins for wasm code, as
       // they might need to be patched individually.
       if (instr->InputAt(0)->IsImmediate()) {
+        DCHECK_EQ(opcode, kArchCallWasmFunction);
         Constant constant = i.ToConstant(instr->InputAt(0));
         Address wasm_code = static_cast<Address>(constant.ToInt64());
         __ Call(wasm_code, constant.rmode());
+      } else if (opcode == kArchCallWasmFunctionIndirect) {
+        __ CallWasmCodePointer(i.InputRegister(0));
       } else {
         __ Call(i.InputRegister(0));
       }
@@ -845,13 +855,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       frame_access_state()->ClearSPDelta();
       break;
     }
-    case kArchTailCallWasm: {
+    case kArchTailCallWasm:
+    case kArchTailCallWasmIndirect: {
       // We must not share code targets for calls to builtins for wasm code, as
       // they might need to be patched individually.
       if (instr->InputAt(0)->IsImmediate()) {
+        DCHECK_EQ(opcode, kArchTailCallWasm);
         Constant constant = i.ToConstant(instr->InputAt(0));
         Address wasm_code = static_cast<Address>(constant.ToInt64());
         __ Jump(wasm_code, constant.rmode());
+      } else if (opcode == kArchTailCallWasmIndirect) {
+        __ CallWasmCodePointer(i.InputRegister(0), CallJumpMode::kTailCall);
       } else {
         __ Jump(i.InputRegister(0));
       }
@@ -901,7 +915,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ CmpS64(cp, kScratchReg);
         __ Assert(eq, AbortReason::kWrongFunctionContext);
       }
-      __ CallJSFunction(func, kScratchReg);
+      uint32_t num_arguments =
+          i.InputUint32(instr->JSCallArgumentCountInputIndex());
+      __ CallJSFunction(func, num_arguments, kScratchReg);
       RecordCallPosition(instr);
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       frame_access_state()->ClearSPDelta();
@@ -2434,30 +2450,46 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #undef EMIT_SIMD_LOAD_SPLAT
 #undef SIMD_LOAD_SPLAT
 
-    case kPPC_F64x2Splat: {
-      __ F64x2Splat(i.OutputSimd128Register(), i.InputDoubleRegister(0),
-                    kScratchReg);
+    case kPPC_FSplat: {
+      int lane_size = LaneSizeField::decode(instr->opcode());
+      switch (lane_size) {
+        case 32: {
+          __ F32x4Splat(i.OutputSimd128Register(), i.InputDoubleRegister(0),
+                        kScratchDoubleReg, kScratchReg);
+          break;
+        }
+        case 64: {
+          __ F64x2Splat(i.OutputSimd128Register(), i.InputDoubleRegister(0),
+                        kScratchReg);
+          break;
+        }
+        default:
+          UNREACHABLE();
+      }
       break;
     }
-    case kPPC_F32x4Splat: {
-      __ F32x4Splat(i.OutputSimd128Register(), i.InputDoubleRegister(0),
-                    kScratchDoubleReg, kScratchReg);
-      break;
-    }
-    case kPPC_I64x2Splat: {
-      __ I64x2Splat(i.OutputSimd128Register(), i.InputRegister(0));
-      break;
-    }
-    case kPPC_I32x4Splat: {
-      __ I32x4Splat(i.OutputSimd128Register(), i.InputRegister(0));
-      break;
-    }
-    case kPPC_I16x8Splat: {
-      __ I16x8Splat(i.OutputSimd128Register(), i.InputRegister(0));
-      break;
-    }
-    case kPPC_I8x16Splat: {
-      __ I8x16Splat(i.OutputSimd128Register(), i.InputRegister(0));
+    case kPPC_ISplat: {
+      int lane_size = LaneSizeField::decode(instr->opcode());
+      switch (lane_size) {
+        case 8: {
+          __ I8x16Splat(i.OutputSimd128Register(), i.InputRegister(0));
+          break;
+        }
+        case 16: {
+          __ I16x8Splat(i.OutputSimd128Register(), i.InputRegister(0));
+          break;
+        }
+        case 32: {
+          __ I32x4Splat(i.OutputSimd128Register(), i.InputRegister(0));
+          break;
+        }
+        case 64: {
+          __ I64x2Splat(i.OutputSimd128Register(), i.InputRegister(0));
+          break;
+        }
+        default:
+          UNREACHABLE();
+      }
       break;
     }
     case kPPC_FExtractLane: {
@@ -2988,11 +3020,11 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
   PPCOperandConverter i(this, instr);
   Register input = i.InputRegister(0);
   int32_t const case_count = static_cast<int32_t>(instr->InputCount() - 2);
-  Label** cases = zone()->AllocateArray<Label*>(case_count);
+  base::Vector<Label*> cases = zone()->AllocateVector<Label*>(case_count);
   for (int32_t index = 0; index < case_count; ++index) {
     cases[index] = GetLabel(i.InputRpo(index + 2));
   }
-  Label* const table = AddJumpTable(cases, case_count);
+  Label* const table = AddJumpTable(cases);
   __ CmpU64(input, Operand(case_count), r0);
   __ bge(GetLabel(i.InputRpo(1)));
   __ mov_label_addr(kScratchReg, table);
@@ -3063,7 +3095,7 @@ void CodeGenerator::AssembleConstructFrame() {
       // efficient initialization of the constant pool pointer register).
       __ StubPrologue(type);
 #if V8_ENABLE_WEBASSEMBLY
-      if (call_descriptor->IsWasmFunctionCall() ||
+      if (call_descriptor->IsAnyWasmFunctionCall() ||
           call_descriptor->IsWasmImportWrapper() ||
           call_descriptor->IsWasmCapiFunction()) {
         // For import wrappers and C-API functions, this stack slot is only used
@@ -3620,9 +3652,9 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
   return;
 }
 
-void CodeGenerator::AssembleJumpTable(Label** targets, size_t target_count) {
-  for (size_t index = 0; index < target_count; ++index) {
-    __ emit_label_addr(targets[index]);
+void CodeGenerator::AssembleJumpTable(base::Vector<Label*> targets) {
+  for (auto target : targets) {
+    __ emit_label_addr(target);
   }
 }
 

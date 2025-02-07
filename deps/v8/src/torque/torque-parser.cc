@@ -74,11 +74,15 @@ class BuildFlags : public base::ContextualClass<BuildFlags> {
 #endif
 #ifdef V8_ENABLE_WEBASSEMBLY
     build_flags_["V8_ENABLE_WEBASSEMBLY"] = true;
+    build_flags_["WASM_CODE_POINTER_NEEDS_PADDING"] =
+        TargetArchitecture::TaggedSize() == 8;
 #else
     build_flags_["V8_ENABLE_WEBASSEMBLY"] = false;
 #endif
     build_flags_["V8_ENABLE_SANDBOX"] = V8_ENABLE_SANDBOX_BOOL;
     build_flags_["V8_ENABLE_LEAPTIERING"] = V8_ENABLE_LEAPTIERING_BOOL;
+    build_flags_["V8_ENABLE_LEAPTIERING_TAGGED_SIZE_8_BYTES"] =
+        V8_ENABLE_LEAPTIERING_BOOL && build_flags_["TAGGED_SIZE_8_BYTES"];
     build_flags_["DEBUG"] = DEBUG_BOOL;
 #ifdef V8_ENABLE_DRUMBRAKE
     build_flags_["V8_ENABLE_DRUMBRAKE"] = true;
@@ -338,7 +342,7 @@ std::optional<ParseResult> ConcatList(ParseResultIterator* child_results) {
   for (auto& list : list_of_lists) {
     result.insert(result.end(), list.begin(), list.end());
   }
-  return ParseResult{result};
+  return ParseResult{std::move(result)};
 }
 
 void CheckNotDeferredStatement(Statement* statement) {
@@ -396,9 +400,11 @@ Expression* MakeCall(IdentifierExpression* callee,
   // were created.
   Expression* result = nullptr;
   if (target) {
-    result = MakeNode<CallMethodExpression>(*target, callee, arguments, labels);
+    result = MakeNode<CallMethodExpression>(
+        *target, callee, std::move(arguments), std::move(labels));
   } else {
-    result = MakeNode<CallExpression>(callee, arguments, labels);
+    result = MakeNode<CallExpression>(callee, std::move(arguments),
+                                      std::move(labels));
   }
 
   for (auto* label : temp_labels) {
@@ -420,7 +426,8 @@ std::optional<ParseResult> MakeCall(ParseResultIterator* child_results) {
   auto args = child_results->NextAs<std::vector<Expression*>>();
   auto otherwise = child_results->NextAs<std::vector<Statement*>>();
   IdentifierExpression* target = IdentifierExpression::cast(callee);
-  return ParseResult{MakeCall(target, std::nullopt, args, otherwise)};
+  return ParseResult{
+      MakeCall(target, std::nullopt, std::move(args), otherwise)};
 }
 
 std::optional<ParseResult> MakeMethodCall(ParseResultIterator* child_results) {
@@ -429,7 +436,7 @@ std::optional<ParseResult> MakeMethodCall(ParseResultIterator* child_results) {
   auto args = child_results->NextAs<std::vector<Expression*>>();
   auto otherwise = child_results->NextAs<std::vector<Statement*>>();
   return ParseResult{MakeCall(MakeNode<IdentifierExpression>(callee), this_arg,
-                              args, otherwise)};
+                              std::move(args), otherwise)};
 }
 
 std::optional<ParseResult> MakeNewExpression(
@@ -461,8 +468,8 @@ std::optional<ParseResult> MakeIntrinsicCallExpression(
   auto generic_arguments =
       child_results->NextAs<std::vector<TypeExpression*>>();
   auto args = child_results->NextAs<std::vector<Expression*>>();
-  Expression* result =
-      MakeNode<IntrinsicCallExpression>(callee, generic_arguments, args);
+  Expression* result = MakeNode<IntrinsicCallExpression>(
+      callee, std::move(generic_arguments), std::move(args));
   return ParseResult{result};
 }
 
@@ -485,7 +492,7 @@ std::optional<ParseResult> MakeImplicitParameterList(
     ParseResultIterator* child_results) {
   auto kind = child_results->NextAs<Identifier*>();
   auto parameters = child_results->NextAs<std::vector<NameAndTypeExpression>>();
-  return ParseResult{ImplicitParameters{kind, parameters}};
+  return ParseResult{ImplicitParameters{kind, std::move(parameters)}};
 }
 
 void AddParameter(ParameterList* parameter_list,
@@ -600,7 +607,7 @@ std::optional<ParseResult> MakeExternalMacro(
   Declaration* result = MakeNode<ExternalMacroDeclaration>(
       transitioning,
       external_assembler_name ? *external_assembler_name : "CodeStubAssembler",
-      name, operator_name, args, return_type, labels);
+      name, operator_name, args, return_type, std::move(labels));
   if (!generic_parameters.empty()) {
     Error("External builtins cannot be generic.");
   }
@@ -616,19 +623,18 @@ std::optional<ParseResult> MakeIntrinsicDeclaration(
   auto args = child_results->NextAs<ParameterList>();
   auto return_type = child_results->NextAs<TypeExpression*>();
   auto body = child_results->NextAs<std::optional<Statement*>>();
-  LabelAndTypesVector labels;
   CallableDeclaration* declaration;
   if (body) {
     declaration = MakeNode<TorqueMacroDeclaration>(
-        false, name, std::optional<std::string>{}, args, return_type, labels,
-        false, body);
+        false, name, std::optional<std::string>{}, args, return_type,
+        LabelAndTypesVector{}, false, body);
   } else {
     declaration = MakeNode<IntrinsicDeclaration>(name, args, return_type);
   }
   Declaration* result = declaration;
   if (!generic_parameters.empty()) {
-    result =
-        MakeNode<GenericCallableDeclaration>(generic_parameters, declaration);
+    result = MakeNode<GenericCallableDeclaration>(std::move(generic_parameters),
+                                                  declaration);
   }
   return ParseResult{result};
 }
@@ -671,15 +677,15 @@ std::optional<ParseResult> MakeTorqueMacroDeclaration(
   auto labels = child_results->NextAs<LabelAndTypesVector>();
   auto body = child_results->NextAs<std::optional<Statement*>>();
   CallableDeclaration* declaration = MakeNode<TorqueMacroDeclaration>(
-      transitioning, name, operator_name, args, return_type, labels,
+      transitioning, name, operator_name, args, return_type, std::move(labels),
       export_to_csa, body);
   Declaration* result = declaration;
   if (generic_parameters.empty()) {
     if (!body) ReportError("A non-generic declaration needs a body.");
   } else {
     if (export_to_csa) ReportError("Cannot export generics to CSA.");
-    result =
-        MakeNode<GenericCallableDeclaration>(generic_parameters, declaration);
+    result = MakeNode<GenericCallableDeclaration>(std::move(generic_parameters),
+                                                  declaration);
   }
   return ParseResult{result};
 }
@@ -714,7 +720,7 @@ std::optional<ParseResult> MakeTypeAliasDeclaration(
   auto type = child_results->NextAs<TypeExpression*>();
   std::vector<Declaration*> result = {};
   if (enabled) result = {MakeNode<TypeAliasDeclaration>(name, type)};
-  return ParseResult{result};
+  return ParseResult{std::move(result)};
 }
 
 std::optional<ParseResult> MakeAbstractTypeDeclaration(
@@ -759,13 +765,13 @@ std::optional<ParseResult> MakeAbstractTypeDeclaration(
     constexpr_decl->pos = name->pos;
     decl = constexpr_decl;
     if (!generic_parameters.empty()) {
-      decl =
-          MakeNode<GenericTypeDeclaration>(generic_parameters, constexpr_decl);
+      decl = MakeNode<GenericTypeDeclaration>(std::move(generic_parameters),
+                                              constexpr_decl);
     }
     result.push_back(decl);
   }
 
-  return ParseResult{result};
+  return ParseResult{std::move(result)};
 }
 
 std::optional<ParseResult> MakeMethodDeclaration(
@@ -781,9 +787,9 @@ std::optional<ParseResult> MakeMethodDeclaration(
   auto return_type = child_results->NextAs<TypeExpression*>();
   auto labels = child_results->NextAs<LabelAndTypesVector>();
   auto body = child_results->NextAs<Statement*>();
-  Declaration* result =
-      MakeNode<TorqueMacroDeclaration>(transitioning, name, operator_name, args,
-                                       return_type, labels, false, body);
+  Declaration* result = MakeNode<TorqueMacroDeclaration>(
+      transitioning, name, operator_name, args, return_type, std::move(labels),
+      false, body);
   return ParseResult{result};
 }
 
@@ -947,10 +953,13 @@ int GetAnnotationValue(const AnnotationSet& annotations, const char* name,
 
 std::optional<ParseResult> MakeTorqueBuiltinDeclaration(
     ParseResultIterator* child_results) {
-  AnnotationSet annotations(
-      child_results, {ANNOTATION_CUSTOM_INTERFACE_DESCRIPTOR}, {ANNOTATION_IF});
+  AnnotationSet annotations(child_results,
+                            {ANNOTATION_CUSTOM_INTERFACE_DESCRIPTOR},
+                            {ANNOTATION_IF, ANNOTATION_INCREMENT_USE_COUNTER});
   const bool has_custom_interface_descriptor =
       annotations.Contains(ANNOTATION_CUSTOM_INTERFACE_DESCRIPTOR);
+  std::optional<std::string> use_counter_name =
+      annotations.GetStringParam(ANNOTATION_INCREMENT_USE_COUNTER);
   auto transitioning = child_results->NextAs<bool>();
   auto javascript_linkage = child_results->NextAs<bool>();
   auto name = child_results->NextAs<Identifier*>();
@@ -966,13 +975,16 @@ std::optional<ParseResult> MakeTorqueBuiltinDeclaration(
   auto body = child_results->NextAs<std::optional<Statement*>>();
   CallableDeclaration* declaration = MakeNode<TorqueBuiltinDeclaration>(
       transitioning, javascript_linkage, name, args, return_type,
-      has_custom_interface_descriptor, body);
+      has_custom_interface_descriptor, use_counter_name, body);
   Declaration* result = declaration;
   if (generic_parameters.empty()) {
     if (!body) ReportError("A non-generic declaration needs a body.");
   } else {
-    result =
-        MakeNode<GenericCallableDeclaration>(generic_parameters, declaration);
+    result = MakeNode<GenericCallableDeclaration>(std::move(generic_parameters),
+                                                  declaration);
+  }
+  if (use_counter_name && !body) {
+    ReportError("@incrementUseCounter needs a body.");
   }
   std::vector<Declaration*> results;
   if (std::optional<std::string> condition =
@@ -1126,7 +1138,7 @@ std::optional<ParseResult> MakeClassDeclaration(
   std::vector<Declaration*> result;
 
   result.push_back(MakeNode<ClassDeclaration>(
-      name, flags, extends, generates, std::move(methods), fields,
+      name, flags, extends, generates, std::move(methods), std::move(fields),
       MakeInstanceTypeConstraints(annotations)));
 
   Identifier* constexpr_name =
@@ -1160,7 +1172,7 @@ std::optional<ParseResult> MakeClassDeclaration(
 
     IdentifierExpression* internal_downcast_target =
         MakeNode<IdentifierExpression>(
-            namespace_qualification,
+            std::move(namespace_qualification),
             MakeNode<Identifier>("DownCastForTorqueClass"),
             std::vector<TypeExpression*>{class_type});
     IdentifierExpression* internal_downcast_otherwise =
@@ -1182,12 +1194,12 @@ std::optional<ParseResult> MakeClassDeclaration(
         std::vector<std::string>{}, name, std::vector<TypeExpression*>{}));
 
     Declaration* specialization = MakeNode<SpecializationDeclaration>(
-        false, MakeNode<Identifier>("Cast"), generic_parameters,
+        false, MakeNode<Identifier>("Cast"), std::move(generic_parameters),
         std::move(parameters), class_type, std::move(labels), cast_body);
     result.push_back(specialization);
   }
 
-  return ParseResult{result};
+  return ParseResult{std::move(result)};
 }
 
 std::optional<ParseResult> MakeNamespaceDeclaration(
@@ -1238,7 +1250,8 @@ std::optional<ParseResult> MakeStructDeclaration(
       flags, name, std::move(methods), std::move(fields));
   Declaration* result = struct_decl;
   if (!generic_parameters.empty()) {
-    result = MakeNode<GenericTypeDeclaration>(generic_parameters, struct_decl);
+    result = MakeNode<GenericTypeDeclaration>(std::move(generic_parameters),
+                                              struct_decl);
   }
   return ParseResult{result};
 }
@@ -1351,10 +1364,10 @@ std::optional<ParseResult> MakeReferenceTypeExpression(
       TORQUE_INTERNAL_NAMESPACE_STRING};
   std::vector<TypeExpression*> generic_arguments{referenced_type};
   TypeExpression* result = MakeNode<BasicTypeExpression>(
-      namespace_qualification,
+      std::move(namespace_qualification),
       MakeNode<Identifier>(is_const ? CONST_REFERENCE_TYPE_STRING
                                     : MUTABLE_REFERENCE_TYPE_STRING),
-      generic_arguments);
+      std::move(generic_arguments));
   return ParseResult{result};
 }
 
@@ -2121,17 +2134,22 @@ std::optional<ParseResult> MakeClassField(ParseResultIterator* child_results) {
        ANNOTATION_CPP_RELEASE_STORE, ANNOTATION_CPP_ACQUIRE_LOAD,
        ANNOTATION_CUSTOM_WEAK_MARKING},
       {ANNOTATION_IF, ANNOTATION_IFNOT});
-  FieldSynchronization write_synchronization = FieldSynchronization::kNone;
+  FieldSynchronization synchronization = FieldSynchronization::kNone;
   if (annotations.Contains(ANNOTATION_CPP_RELEASE_STORE)) {
-    write_synchronization = FieldSynchronization::kAcquireRelease;
+    synchronization = FieldSynchronization::kAcquireRelease;
   } else if (annotations.Contains(ANNOTATION_CPP_RELAXED_STORE)) {
-    write_synchronization = FieldSynchronization::kRelaxed;
+    synchronization = FieldSynchronization::kRelaxed;
   }
-  FieldSynchronization read_synchronization = FieldSynchronization::kNone;
-  if (annotations.Contains(ANNOTATION_CPP_ACQUIRE_LOAD)) {
-    read_synchronization = FieldSynchronization::kAcquireRelease;
-  } else if (annotations.Contains(ANNOTATION_CPP_RELAXED_LOAD)) {
-    read_synchronization = FieldSynchronization::kRelaxed;
+  {
+    FieldSynchronization read_synchronization = FieldSynchronization::kNone;
+    if (annotations.Contains(ANNOTATION_CPP_ACQUIRE_LOAD)) {
+      read_synchronization = FieldSynchronization::kAcquireRelease;
+    } else if (annotations.Contains(ANNOTATION_CPP_RELAXED_LOAD)) {
+      read_synchronization = FieldSynchronization::kRelaxed;
+    }
+    if (read_synchronization != synchronization) {
+      Error("Incompatible read/write synchronization annotations for a field.");
+    }
   }
   std::vector<ConditionalAnnotation> conditions;
   std::optional<std::string> if_condition =
@@ -2192,8 +2210,7 @@ std::optional<ParseResult> MakeClassField(ParseResultIterator* child_results) {
                                           std::move(conditions),
                                           custom_weak_marking,
                                           const_qualified,
-                                          read_synchronization,
-                                          write_synchronization}};
+                                          synchronization}};
 }
 
 std::optional<ParseResult> MakeStructField(ParseResultIterator* child_results) {

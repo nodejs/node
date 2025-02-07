@@ -18,6 +18,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
 #include "src/objects/struct-inl.h"
+#include "src/sandbox/isolate.h"
 
 namespace v8 {
 namespace internal {
@@ -80,8 +81,8 @@ void SetAccessorPlaceholderIndices(Tagged<AccessorPair> pair,
 template <typename IsolateT>
 void AddToDescriptorArrayTemplate(
     IsolateT* isolate, DirectHandle<DescriptorArray> descriptor_array_template,
-    Handle<Name> name, ClassBoilerplate::ValueKind value_kind,
-    Handle<Object> value) {
+    DirectHandle<Name> name, ClassBoilerplate::ValueKind value_kind,
+    DirectHandle<Object> value) {
   InternalIndex entry = descriptor_array_template->Search(
       *name, descriptor_array_template->number_of_descriptors());
   // TODO(ishell): deduplicate properties at AST level, this will allow us to
@@ -95,7 +96,7 @@ void AddToDescriptorArrayTemplate(
       DCHECK(value_kind == ClassBoilerplate::kGetter ||
              value_kind == ClassBoilerplate::kSetter ||
              value_kind == ClassBoilerplate::kAutoAccessor);
-      Handle<AccessorPair> pair = isolate->factory()->NewAccessorPair();
+      DirectHandle<AccessorPair> pair = isolate->factory()->NewAccessorPair();
       SetAccessorPlaceholderIndices(*pair, value_kind, Cast<Smi>(*value));
       d = Descriptor::AccessorConstant(name, pair, DONT_ENUM);
     }
@@ -118,7 +119,8 @@ void AddToDescriptorArrayTemplate(
       if (IsAccessorPair(raw_accessor)) {
         pair = Cast<AccessorPair>(raw_accessor);
       } else {
-        Handle<AccessorPair> new_pair = isolate->factory()->NewAccessorPair();
+        DirectHandle<AccessorPair> new_pair =
+            isolate->factory()->NewAccessorPair();
         Descriptor d = Descriptor::AccessorConstant(name, new_pair, DONT_ENUM);
         d.SetSortedKeyIndex(sorted_index);
         descriptor_array_template->Set(entry, &d);
@@ -162,19 +164,20 @@ Handle<NumberDictionary> DictionaryAddNoUpdateNextEnumerationIndex(
 
 // TODO(42203211): The first parameter should be just DirectHandle<Dictionary>
 // but now it does not compile with implicit Handle to DirectHandle conversions.
-template <template <typename T> typename HandleType, typename Dictionary,
-          typename = std::enable_if_t<std::is_convertible_v<
-              HandleType<Dictionary>, DirectHandle<Dictionary>>>>
+template <template <typename> typename HandleType, typename Dictionary>
 void DictionaryUpdateMaxNumberKey(HandleType<Dictionary> dictionary,
-                                  DirectHandle<Name> name) {
-  static_assert((std::is_same<Dictionary, SwissNameDictionary>::value ||
-                 std::is_same<Dictionary, NameDictionary>::value));
+                                  DirectHandle<Name> name)
+  requires(
+      std::is_convertible_v<HandleType<Dictionary>, DirectHandle<Dictionary>>)
+{
+  static_assert((std::is_same_v<Dictionary, SwissNameDictionary> ||
+                 std::is_same_v<Dictionary, NameDictionary>));
   // No-op for (ordered) name dictionaries.
 }
 
 void DictionaryUpdateMaxNumberKey(DirectHandle<NumberDictionary> dictionary,
                                   uint32_t element) {
-  dictionary->UpdateMaxNumberKey(element, Handle<JSObject>());
+  dictionary->UpdateMaxNumberKey(element, DirectHandle<JSObject>());
   dictionary->set_requires_slow_elements();
 }
 
@@ -201,10 +204,10 @@ void AddToDictionaryTemplate(IsolateT* isolate, Handle<Dictionary> dictionary,
   InternalIndex entry = dictionary->FindEntry(isolate, key);
 
   const bool is_elements_dictionary =
-      std::is_same<Dictionary, NumberDictionary>::value;
+      std::is_same_v<Dictionary, NumberDictionary>;
   static_assert(is_elements_dictionary !=
-                (std::is_same<Dictionary, NameDictionary>::value ||
-                 std::is_same<Dictionary, SwissNameDictionary>::value));
+                (std::is_same_v<Dictionary, NameDictionary> ||
+                 std::is_same_v<Dictionary, SwissNameDictionary>));
 
   if (entry.is_not_found()) {
     // Entry not found, add new one.
@@ -838,7 +841,7 @@ void RegExpBoilerplateDescription::BriefPrintDetails(std::ostream& os) {
   static_assert(JSRegExp::kFlagsOffset ==
                 JSRegExp::kSourceOffset + kTaggedSize);
   static_assert(JSRegExp::kHeaderSize == JSRegExp::kFlagsOffset + kTaggedSize);
-  Isolate* isolate = GetIsolateForSandbox(*this);
+  IsolateForSandbox isolate = GetIsolateForSandbox(*this);
   os << " " << Brief(data(isolate)) << ", " << Brief(source()) << ", "
      << flags();
 }

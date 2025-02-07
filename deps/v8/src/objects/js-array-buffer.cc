@@ -24,10 +24,10 @@ bool CanonicalNumericIndexString(Isolate* isolate,
   *is_minus_zero = false;
   if (lookup_key.is_element()) return true;
 
-  Handle<String> key = Cast<String>(lookup_key.name());
+  DirectHandle<String> key = Cast<String>(lookup_key.name());
 
   // 3. Let n be ! ToNumber(argument).
-  Handle<Object> result = String::ToNumber(isolate, key);
+  DirectHandle<Object> result = String::ToNumber(isolate, key);
   if (IsMinusZero(*result)) {
     // 2. If argument is "-0", return -0𝔽.
     // We are not performing SaveValue check for -0 because it'll be rejected
@@ -87,13 +87,13 @@ void JSArrayBuffer::Attach(std::shared_ptr<BackingStore> backing_store) {
   // at least one page for the BackingStore (so {IsEmpty()} is always false).
   CHECK_IMPLIES(backing_store->is_wasm_memory(), !backing_store->IsEmpty());
   // Non-empty backing stores must start at a non-null pointer.
-  DCHECK_IMPLIES(backing_store_buffer == nullptr, backing_store->IsEmpty());
-  // Empty backing stores can be backed by a null pointer or an externally
-  // provided pointer: Either is acceptable. If pointers are sandboxed then
-  // null pointers must be replaced by a special null entry.
-  if (V8_ENABLE_SANDBOX_BOOL && !backing_store_buffer) {
-    backing_store_buffer = EmptyBackingStoreBuffer();
-  }
+  DCHECK_IMPLIES(backing_store_buffer == EmptyBackingStoreBuffer(),
+                 backing_store->IsEmpty());
+  // Empty backing stores can be backed by an empty buffer pointer or by an
+  // externally provided pointer: Either is acceptable. However, the pointer
+  // must always point into the sandbox, so nullptr is not acceptable if the
+  // sandbox is enabled.
+  DCHECK_IMPLIES(V8_ENABLE_SANDBOX_BOOL, backing_store_buffer != nullptr);
   set_backing_store(isolate, backing_store_buffer);
 
   // GSABs need to read their byte_length from the BackingStore. Maintain the
@@ -112,14 +112,14 @@ void JSArrayBuffer::Attach(std::shared_ptr<BackingStore> backing_store) {
   if (backing_store->is_wasm_memory()) set_is_detachable(false);
   ArrayBufferExtension* extension = EnsureExtension();
   size_t bytes = backing_store->PerIsolateAccountingLength();
-  extension->set_accounting_length(bytes);
+  extension->set_accounting_state(bytes, ArrayBufferExtension::Age::kYoung);
   extension->set_backing_store(std::move(backing_store));
   isolate->heap()->AppendArrayBufferExtension(*this, extension);
 }
 
 Maybe<bool> JSArrayBuffer::Detach(DirectHandle<JSArrayBuffer> buffer,
                                   bool force_for_wasm_memory,
-                                  Handle<Object> maybe_key) {
+                                  DirectHandle<Object> maybe_key) {
   Isolate* const isolate = buffer->GetIsolate();
 
   DirectHandle<Object> detach_key(buffer->detach_key(), isolate);
@@ -305,8 +305,8 @@ Handle<JSArrayBuffer> JSTypedArray::GetBuffer() {
 // ES#sec-integer-indexed-exotic-objects-defineownproperty-p-desc
 // static
 Maybe<bool> JSTypedArray::DefineOwnProperty(Isolate* isolate,
-                                            Handle<JSTypedArray> o,
-                                            Handle<Object> key,
+                                            DirectHandle<JSTypedArray> o,
+                                            DirectHandle<Object> key,
                                             PropertyDescriptor* desc,
                                             Maybe<ShouldThrow> should_throw) {
   DCHECK(IsName(*key) || IsNumber(*key));
@@ -359,7 +359,7 @@ Maybe<bool> JSTypedArray::DefineOwnProperty(Isolate* isolate,
         if (!desc->has_configurable()) desc->set_configurable(true);
         if (!desc->has_enumerable()) desc->set_enumerable(true);
         if (!desc->has_writable()) desc->set_writable(true);
-        Handle<Object> value = desc->value();
+        DirectHandle<Object> value = desc->value();
         LookupIterator it(isolate, o, index, LookupIterator::OWN);
         RETURN_ON_EXCEPTION_VALUE(
             isolate,

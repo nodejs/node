@@ -27,14 +27,29 @@ class V8_EXPORT_PRIVATE MacroAssemblerBase : public Assembler {
                      std::unique_ptr<AssemblerBuffer> buffer = {})
       : MacroAssemblerBase(isolate, AssemblerOptions::Default(isolate),
                            create_code_object, std::move(buffer)) {}
+  MacroAssemblerBase(Isolate* isolate, MaybeAssemblerZone zone,
+                     CodeObjectRequired create_code_object,
+                     std::unique_ptr<AssemblerBuffer> buffer = {})
+      : MacroAssemblerBase(isolate, zone, AssemblerOptions::Default(isolate),
+                           create_code_object, std::move(buffer)) {}
 
   MacroAssemblerBase(Isolate* isolate, const AssemblerOptions& options,
                      CodeObjectRequired create_code_object,
                      std::unique_ptr<AssemblerBuffer> buffer = {});
+  MacroAssemblerBase(Isolate* isolate, MaybeAssemblerZone zone,
+                     AssemblerOptions options,
+                     CodeObjectRequired create_code_object,
+                     std::unique_ptr<AssemblerBuffer> buffer = {});
+  // For isolate-less users.
+  MacroAssemblerBase(MaybeAssemblerZone zone, AssemblerOptions options,
+                     CodeObjectRequired create_code_object,
+                     std::unique_ptr<AssemblerBuffer> buffer = {})
+      : MacroAssemblerBase(nullptr, zone, options, create_code_object,
+                           std::move(buffer)) {}
 
   Isolate* isolate() const { return isolate_; }
 
-  Handle<HeapObject> CodeObject() const {
+  IndirectHandle<HeapObject> CodeObject() const {
     DCHECK(!code_object_.is_null());
     return code_object_;
   }
@@ -117,7 +132,7 @@ class V8_EXPORT_PRIVATE MacroAssemblerBase : public Assembler {
   Isolate* const isolate_ = nullptr;
 
   // This handle will be patched with the code object on installation.
-  Handle<HeapObject> code_object_;
+  IndirectHandle<HeapObject> code_object_;
 
   // Whether kRootRegister has been initialized.
   bool root_array_available_ = true;

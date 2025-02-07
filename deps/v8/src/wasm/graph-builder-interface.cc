@@ -279,7 +279,7 @@ class WasmGraphBuildingInterface {
   void StartFunctionBody(FullDecoder* decoder, Control* block) {}
 
   void FinishFunction(FullDecoder* decoder) {
-    if (inlining_enabled(decoder)) {
+    if (v8_flags.wasm_inlining) {
       DCHECK_EQ(feedback_instruction_index_, type_feedback_.size());
     }
     if (inlined_status_ == kRegularFunction) {
@@ -957,6 +957,17 @@ class WasmGraphBuildingInterface {
       case WKI::kDataViewSetUint32:
       case WKI::kDataViewByteLength:
       case WKI::kFastAPICall:
+      case WKI::kMathF64Acos:
+      case WKI::kMathF64Asin:
+      case WKI::kMathF64Atan:
+      case WKI::kMathF64Atan2:
+      case WKI::kMathF64Cos:
+      case WKI::kMathF64Sin:
+      case WKI::kMathF64Tan:
+      case WKI::kMathF64Exp:
+      case WKI::kMathF64Log:
+      case WKI::kMathF64Pow:
+      case WKI::kMathF64Sqrt:
         return false;
     }
     if (v8_flags.trace_wasm_inlining) {
@@ -1001,7 +1012,7 @@ class WasmGraphBuildingInterface {
   void CallDirect(FullDecoder* decoder, const CallFunctionImmediate& imm,
                   const Value args[], Value returns[]) {
     int maybe_call_count = -1;
-    if (inlining_enabled(decoder) && !type_feedback_.empty()) {
+    if (v8_flags.wasm_inlining && !type_feedback_.empty()) {
       const CallSiteFeedback& feedback = next_call_feedback();
       DCHECK_EQ(feedback.num_cases(), 1);
       maybe_call_count = feedback.call_count(0);
@@ -1016,7 +1027,7 @@ class WasmGraphBuildingInterface {
   void ReturnCall(FullDecoder* decoder, const CallFunctionImmediate& imm,
                   const Value args[]) {
     int maybe_call_count = -1;
-    if (inlining_enabled(decoder) && !type_feedback_.empty()) {
+    if (v8_flags.wasm_inlining && !type_feedback_.empty()) {
       const CallSiteFeedback& feedback = next_call_feedback();
       DCHECK_EQ(feedback.num_cases(), 1);
       maybe_call_count = feedback.call_count(0);
@@ -1046,7 +1057,7 @@ class WasmGraphBuildingInterface {
   void CallRef(FullDecoder* decoder, const Value& func_ref,
                const FunctionSig* sig, const Value args[], Value returns[]) {
     const CallSiteFeedback* feedback = nullptr;
-    if (inlining_enabled(decoder) && !type_feedback_.empty()) {
+    if (v8_flags.wasm_inlining && !type_feedback_.empty()) {
       feedback = &next_call_feedback();
     }
     if (feedback == nullptr || feedback->num_cases() == 0) {
@@ -1140,7 +1151,7 @@ class WasmGraphBuildingInterface {
   void ReturnCallRef(FullDecoder* decoder, const Value& func_ref,
                      const FunctionSig* sig, const Value args[]) {
     const CallSiteFeedback* feedback = nullptr;
-    if (inlining_enabled(decoder) && !type_feedback_.empty()) {
+    if (v8_flags.wasm_inlining && !type_feedback_.empty()) {
       feedback = &next_call_feedback();
     }
     if (feedback == nullptr || feedback->num_cases() == 0) {
@@ -1406,7 +1417,7 @@ class WasmGraphBuildingInterface {
 
     if (catch_case.kind == kCatchAll || catch_case.kind == kCatchAllRef) {
       if (catch_case.kind == kCatchAllRef) {
-        DCHECK_EQ(values[0].type, kWasmExnRef);
+        DCHECK_EQ(values[0].type, ValueType::Ref(HeapType::kExn));
         values[0].node = block->try_info->exception;
       }
       BrOrRet(decoder, catch_case.br_imm.depth);
@@ -1473,7 +1484,7 @@ class WasmGraphBuildingInterface {
     }
 
     if (catch_case.kind == kCatchRef) {
-      DCHECK_EQ(values.last().type, kWasmExnRef);
+      DCHECK_EQ(values.last().type, ValueType::Ref(HeapType::kExn));
       values.last().node = block->try_info->exception;
     }
     BrOrRet(decoder, catch_case.br_imm.depth);
@@ -1715,8 +1726,8 @@ class WasmGraphBuildingInterface {
 
   using WasmTypeCheckConfig = v8::internal::compiler::WasmTypeCheckConfig;
 
-  void RefTest(FullDecoder* decoder, uint32_t ref_index, const Value& object,
-               Value* result, bool null_succeeds) {
+  void RefTest(FullDecoder* decoder, ModuleTypeIndex ref_index,
+               const Value& object, Value* result, bool null_succeeds) {
     TFNode* rtt = builder_->RttCanon(ref_index);
     WasmTypeCheckConfig config{
         object.type, ValueType::RefMaybeNull(
@@ -1732,8 +1743,8 @@ class WasmGraphBuildingInterface {
     SetAndTypeNode(result, builder_->RefTestAbstract(object.node, config));
   }
 
-  void RefCast(FullDecoder* decoder, uint32_t ref_index, const Value& object,
-               Value* result, bool null_succeeds) {
+  void RefCast(FullDecoder* decoder, ModuleTypeIndex ref_index,
+               const Value& object, Value* result, bool null_succeeds) {
     TFNode* node = object.node;
     if (v8_flags.experimental_wasm_assume_ref_cast_succeeds) {
       node = builder_->TypeGuard(node, result->type);
@@ -1770,9 +1781,10 @@ class WasmGraphBuildingInterface {
     // If the type is bottom (used for abstract types), set HeapType to None.
     // The heap type is not read but the null information is needed for the
     // cast.
-    ValueType to_type = ValueType::RefMaybeNull(
-        type.is_bottom() ? HeapType::kNone : type.ref_index(),
-        null_succeeds ? kNullable : kNonNullable);
+    Nullability nullable = null_succeeds ? kNullable : kNonNullable;
+    ValueType to_type =
+        type.is_bottom() ? ValueType::RefMaybeNull(HeapType::kNone, nullable)
+                         : ValueType::RefMaybeNull(type.ref_index(), nullable);
     WasmTypeCheckConfig config{object.type, to_type};
     SsaEnv* branch_env = Split(decoder->zone(), ssa_env_);
     // TODO(choongwoo): Clear locals of `no_branch_env` after use.
@@ -1816,14 +1828,15 @@ class WasmGraphBuildingInterface {
     }
   }
 
-  void BrOnCast(FullDecoder* decoder, uint32_t ref_index, const Value& object,
-                Value* value_on_branch, uint32_t br_depth, bool null_succeeds) {
+  void BrOnCast(FullDecoder* decoder, ModuleTypeIndex ref_index,
+                const Value& object, Value* value_on_branch, uint32_t br_depth,
+                bool null_succeeds) {
     BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnCast>(
         decoder, HeapType{ref_index}, object, value_on_branch, br_depth, true,
         null_succeeds);
   }
 
-  void BrOnCastFail(FullDecoder* decoder, uint32_t ref_index,
+  void BrOnCastFail(FullDecoder* decoder, ModuleTypeIndex ref_index,
                     const Value& object, Value* value_on_fallthrough,
                     uint32_t br_depth, bool null_succeeds) {
     BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnCast>(
@@ -1919,8 +1932,8 @@ class WasmGraphBuildingInterface {
   void BrOnEq(FullDecoder* decoder, const Value& object, Value* value_on_branch,
               uint32_t br_depth, bool null_succeeds) {
     BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnEq>(
-        decoder, HeapType{kBottom}, object, value_on_branch, br_depth, true,
-        null_succeeds);
+        decoder, HeapType{HeapType::kBottom}, object, value_on_branch, br_depth,
+        true, null_succeeds);
   }
 
   void BrOnNonEq(FullDecoder* decoder, const Value& object,
@@ -1930,71 +1943,71 @@ class WasmGraphBuildingInterface {
     // difference is a boolean flag passed to BrOnCastAbs. This could also be
     // leveraged to merge BrOnCastFailAbstract and BrOnCastAbstract.
     BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnEq>(
-        decoder, HeapType{kBottom}, object, value_on_fallthrough, br_depth,
-        false, null_succeeds);
+        decoder, HeapType{HeapType::kBottom}, object, value_on_fallthrough,
+        br_depth, false, null_succeeds);
   }
 
   void BrOnStruct(FullDecoder* decoder, const Value& object,
                   Value* value_on_branch, uint32_t br_depth,
                   bool null_succeeds) {
     BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnStruct>(
-        decoder, HeapType{kBottom}, object, value_on_branch, br_depth, true,
-        null_succeeds);
+        decoder, HeapType{HeapType::kBottom}, object, value_on_branch, br_depth,
+        true, null_succeeds);
   }
 
   void BrOnNonStruct(FullDecoder* decoder, const Value& object,
                      Value* value_on_fallthrough, uint32_t br_depth,
                      bool null_succeeds) {
     BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnStruct>(
-        decoder, HeapType{kBottom}, object, value_on_fallthrough, br_depth,
-        false, null_succeeds);
+        decoder, HeapType{HeapType::kBottom}, object, value_on_fallthrough,
+        br_depth, false, null_succeeds);
   }
 
   void BrOnArray(FullDecoder* decoder, const Value& object,
                  Value* value_on_branch, uint32_t br_depth,
                  bool null_succeeds) {
     BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnArray>(
-        decoder, HeapType{kBottom}, object, value_on_branch, br_depth, true,
-        null_succeeds);
+        decoder, HeapType{HeapType::kBottom}, object, value_on_branch, br_depth,
+        true, null_succeeds);
   }
 
   void BrOnNonArray(FullDecoder* decoder, const Value& object,
                     Value* value_on_fallthrough, uint32_t br_depth,
                     bool null_succeeds) {
     BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnArray>(
-        decoder, HeapType{kBottom}, object, value_on_fallthrough, br_depth,
-        false, null_succeeds);
+        decoder, HeapType{HeapType::kBottom}, object, value_on_fallthrough,
+        br_depth, false, null_succeeds);
   }
 
   void BrOnI31(FullDecoder* decoder, const Value& object,
                Value* value_on_branch, uint32_t br_depth, bool null_succeeds) {
     BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnI31>(
-        decoder, HeapType{kBottom}, object, value_on_branch, br_depth, true,
-        null_succeeds);
+        decoder, HeapType{HeapType::kBottom}, object, value_on_branch, br_depth,
+        true, null_succeeds);
   }
 
   void BrOnNonI31(FullDecoder* decoder, const Value& object,
                   Value* value_on_fallthrough, uint32_t br_depth,
                   bool null_succeeds) {
     BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnI31>(
-        decoder, HeapType{kBottom}, object, value_on_fallthrough, br_depth,
-        false, null_succeeds);
+        decoder, HeapType{HeapType::kBottom}, object, value_on_fallthrough,
+        br_depth, false, null_succeeds);
   }
 
   void BrOnString(FullDecoder* decoder, const Value& object,
                   Value* value_on_branch, uint32_t br_depth,
                   bool null_succeeds) {
     BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnString>(
-        decoder, HeapType{kBottom}, object, value_on_branch, br_depth, true,
-        null_succeeds);
+        decoder, HeapType{HeapType::kBottom}, object, value_on_branch, br_depth,
+        true, null_succeeds);
   }
 
   void BrOnNonString(FullDecoder* decoder, const Value& object,
                      Value* value_on_fallthrough, uint32_t br_depth,
                      bool null_succeeds) {
     BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnString>(
-        decoder, HeapType{kBottom}, object, value_on_fallthrough, br_depth,
-        false, null_succeeds);
+        decoder, HeapType{HeapType::kBottom}, object, value_on_fallthrough,
+        br_depth, false, null_succeeds);
   }
 
   void StringNewWtf8(FullDecoder* decoder, const MemoryIndexImmediate& memory,
@@ -2308,10 +2321,6 @@ class WasmGraphBuildingInterface {
     return v8_flags.wasm_loop_unrolling || v8_flags.wasm_loop_peeling;
   }
 
-  bool inlining_enabled(FullDecoder* decoder) {
-    return decoder->enabled_.has_inlining() || decoder->module_->is_wasm_gc;
-  }
-
   void GetNodes(TFNode** nodes, const Value* values, size_t count) {
     for (size_t i = 0; i < count; ++i) {
       nodes[i] = values[i].node;
@@ -2557,8 +2566,8 @@ class WasmGraphBuildingInterface {
     }
 
     static CallInfo CallIndirect(const Value& index_value, uint32_t table_index,
-                                 uint32_t sig_index) {
-      return {kCallIndirect, sig_index, &index_value, table_index,
+                                 ModuleTypeIndex sig_index) {
+      return {kCallIndirect, sig_index.index, &index_value, table_index,
               CheckForNull::kWithoutNullCheck};
     }
 
@@ -2569,9 +2578,9 @@ class WasmGraphBuildingInterface {
 
     CallMode call_mode() { return call_mode_; }
 
-    uint32_t sig_index() {
+    ModuleTypeIndex sig_index() {
       DCHECK_EQ(call_mode_, kCallIndirect);
-      return callee_or_sig_index_;
+      return ModuleTypeIndex{callee_or_sig_index_};
     }
 
     uint32_t callee_index() {
@@ -2808,7 +2817,7 @@ class WasmGraphBuildingInterface {
 
   void ThrowRef(FullDecoder* decoder, TFNode* exception) {
     DCHECK_NOT_NULL(exception);
-    CheckForException(decoder, builder_->Rethrow(exception), false);
+    CheckForException(decoder, builder_->ThrowRef(exception), false);
     builder_->TerminateThrow(effect(), control());
   }
 };

@@ -14,8 +14,10 @@
 #include "src/execution/isolate.h"
 #include "src/heap/combined-heap.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/marking-state-inl.h"
+#include "src/heap/visit-object.h"
 #include "src/logging/counters.h"
 #include "src/objects/compilation-cache-table-inl.h"
 #include "src/objects/heap-object.h"
@@ -42,6 +44,7 @@ class FieldStatsCollector : public ObjectVisitorWithCageBases {
                       size_t* boxed_double_fields_count,
                       size_t* string_data_count, size_t* raw_fields_count)
       : ObjectVisitorWithCageBases(heap),
+        heap_(heap),
         tagged_fields_count_(tagged_fields_count),
         embedder_fields_count_(embedder_fields_count),
         inobject_smi_fields_count_(inobject_smi_fields_count),
@@ -51,7 +54,7 @@ class FieldStatsCollector : public ObjectVisitorWithCageBases {
 
   void RecordStats(Tagged<HeapObject> host) {
     size_t old_pointer_fields_count = *tagged_fields_count_;
-    host->Iterate(cage_base(), this);
+    VisitObject(heap_->isolate(), host, this);
     size_t tagged_fields_count_in_object =
         *tagged_fields_count_ - old_pointer_fields_count;
 
@@ -129,6 +132,7 @@ class FieldStatsCollector : public ObjectVisitorWithCageBases {
 
   JSObjectFieldStats GetInobjectFieldStats(Tagged<Map> map);
 
+  Heap* const heap_;
   size_t* const tagged_fields_count_;
   size_t* const embedder_fields_count_;
   size_t* const inobject_smi_fields_count_;
@@ -849,16 +853,16 @@ bool ObjectStatsCollectorImpl::CanRecordFixedArray(
 }
 
 bool ObjectStatsCollectorImpl::IsCowArray(Tagged<FixedArrayBase> array) {
-  return array->map(cage_base()) == ReadOnlyRoots(heap_).fixed_cow_array_map();
+  return array->map() == ReadOnlyRoots(heap_).fixed_cow_array_map();
 }
 
 bool ObjectStatsCollectorImpl::SameLiveness(Tagged<HeapObject> obj1,
                                             Tagged<HeapObject> obj2) {
   if (obj1.is_null() || obj2.is_null()) return true;
   const auto obj1_marked =
-      InReadOnlySpace(obj1) || marking_state_->IsMarked(obj1);
+      MarkingHelper::IsMarkedOrAlwaysLive(heap_, marking_state_, obj1);
   const auto obj2_marked =
-      InReadOnlySpace(obj2) || marking_state_->IsMarked(obj2);
+      MarkingHelper::IsMarkedOrAlwaysLive(heap_, marking_state_, obj2);
   return obj1_marked == obj2_marked;
 }
 
@@ -1104,11 +1108,12 @@ class ObjectStatsVisitor {
                      ObjectStatsCollectorImpl::Phase phase)
       : live_collector_(live_collector),
         dead_collector_(dead_collector),
+        heap_(heap),
         marking_state_(heap->non_atomic_marking_state()),
         phase_(phase) {}
 
   void Visit(Tagged<HeapObject> obj) {
-    if (InReadOnlySpace(obj) || marking_state_->IsMarked(obj)) {
+    if (MarkingHelper::IsMarkedOrAlwaysLive(heap_, marking_state_, obj)) {
       live_collector_->CollectStatistics(
           obj, phase_, ObjectStatsCollectorImpl::CollectFieldStats::kYes);
     } else {
@@ -1120,6 +1125,7 @@ class ObjectStatsVisitor {
  private:
   ObjectStatsCollectorImpl* const live_collector_;
   ObjectStatsCollectorImpl* const dead_collector_;
+  Heap* const heap_;
   NonAtomicMarkingState* const marking_state_;
   ObjectStatsCollectorImpl::Phase phase_;
 };

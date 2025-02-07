@@ -122,7 +122,8 @@ void TestSetter(v8::Local<v8::Name> name, v8::Local<v8::Value> value,
 
 Handle<AccessorInfo> TestAccessorInfo(
       Isolate* isolate, PropertyAttributes attributes) {
-  Handle<String> name = isolate->factory()->NewStringFromStaticChars("get");
+  DirectHandle<String> name =
+      isolate->factory()->NewStringFromStaticChars("get");
   return Accessors::MakeAccessor(isolate, name, &TestGetter, &TestSetter);
 }
 
@@ -136,11 +137,12 @@ TEST(StressJS) {
   v8::Local<v8::Context> env = v8::Context::New(CcTest::isolate());
   env->Enter();
 
-  Handle<NativeContext> context(isolate->native_context());
-  Handle<SharedFunctionInfo> info = factory->NewSharedFunctionInfoForBuiltin(
-      factory->function_string(), Builtin::kEmptyFunction);
+  DirectHandle<NativeContext> context(isolate->native_context());
+  DirectHandle<SharedFunctionInfo> info =
+      factory->NewSharedFunctionInfoForBuiltin(
+          factory->function_string(), Builtin::kEmptyFunction, 0, kDontAdapt);
   info->set_language_mode(LanguageMode::kStrict);
-  Handle<JSFunction> function =
+  DirectHandle<JSFunction> function =
       Factory::JSFunctionBuilder{isolate, info, context}.Build();
   CHECK(!function->shared()->construct_as_builtin());
 
@@ -154,11 +156,11 @@ TEST(StressJS) {
   CHECK_EQ(0, instance_descriptors->number_of_descriptors());
 
   PropertyAttributes attrs = NONE;
-  Handle<AccessorInfo> foreign = TestAccessorInfo(isolate, attrs);
+  DirectHandle<AccessorInfo> foreign = TestAccessorInfo(isolate, attrs);
   Map::EnsureDescriptorSlack(isolate, map, 1);
 
   Descriptor d = Descriptor::AccessorConstant(
-      Handle<Name>(Cast<Name>(foreign->name()), isolate), foreign, attrs);
+      DirectHandle<Name>(Cast<Name>(foreign->name()), isolate), foreign, attrs);
   map->AppendDescriptor(isolate, &d);
 
   // Add the Foo constructor the global object.

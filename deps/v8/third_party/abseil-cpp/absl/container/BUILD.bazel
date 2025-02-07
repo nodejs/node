@@ -305,6 +305,7 @@ cc_test(
     deps = [
         ":container_memory",
         ":flat_hash_set",
+        ":hash_container_defaults",
         ":hash_generator_testing",
         ":test_allocator",
         ":unordered_set_constructor_test",
@@ -312,6 +313,7 @@ cc_test(
         ":unordered_set_members_test",
         ":unordered_set_modifiers_test",
         "//absl/base:config",
+        "//absl/hash",
         "//absl/log:check",
         "//absl/memory",
         "//absl/strings",

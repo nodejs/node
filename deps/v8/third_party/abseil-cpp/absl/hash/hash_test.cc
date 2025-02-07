@@ -35,6 +35,7 @@
 #include <utility>
 #include <vector>
 
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/base/config.h"
 #include "absl/container/flat_hash_set.h"
@@ -61,6 +62,7 @@ namespace {
 using ::absl::hash_test_internal::is_hashable;
 using ::absl::hash_test_internal::TypeErasedContainer;
 using ::absl::hash_test_internal::TypeErasedValue;
+using ::testing::SizeIs;
 
 template <typename T>
 using TypeErasedVector = TypeErasedContainer<std::vector<T>>;
@@ -380,6 +382,36 @@ absl::Cord FragmentedCord(absl::string_view sv) {
                                           sv.substr(halfway)};
   return absl::MakeFragmentedCord(parts);
 }
+
+#if ABSL_HAVE_INTRINSIC_INT128
+TEST(HashValueTest, TestIntrinsicInt128) {
+  EXPECT_TRUE((is_hashable<__int128_t>::value));
+  EXPECT_TRUE((is_hashable<__uint128_t>::value));
+
+  absl::flat_hash_set<size_t> hashes;
+  std::vector<__uint128_t> values;
+  for (int i = 0; i < 128; ++i) {
+    // Some arbitrary pattern to check if changing each bit changes the hash.
+    static constexpr __uint128_t kPattern =
+        __uint128_t{0x0123456789abcdef} |
+        (__uint128_t{0x0123456789abcdef} << 64);
+    const __uint128_t value = kPattern ^ (__uint128_t{1} << i);
+    const __int128_t as_signed = static_cast<__int128_t>(value);
+
+    values.push_back(value);
+    hashes.insert(absl::Hash<__uint128_t>{}(value));
+
+    // Verify that the fast-path for MixingHashState does not break the hash.
+    EXPECT_EQ(absl::HashOf(value), absl::Hash<__uint128_t>{}(value));
+    EXPECT_EQ(absl::HashOf(as_signed), absl::Hash<__int128_t>{}(as_signed));
+  }
+  EXPECT_THAT(hashes, SizeIs(128));
+
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(values));
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(
+      std::vector<__int128_t>(values.begin(), values.end())));
+}
+#endif  // ABSL_HAVE_INTRINSIC_INT128
 
 TEST(HashValueTest, Strings) {
   EXPECT_TRUE((is_hashable<std::string>::value));

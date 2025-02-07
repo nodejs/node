@@ -131,8 +131,7 @@ FunctionTemplateInfo::EnsureFunctionTemplateRareData(
 #define RARE_ACCESSORS(Name, CamelName, Default, ...)                          \
   DEF_GETTER(FunctionTemplateInfo, Get##CamelName, Tagged<__VA_ARGS__>) {      \
     Tagged<HeapObject> extra = rare_data(cage_base, kAcquireLoad);             \
-    Tagged<Undefined> undefined =                                              \
-        GetReadOnlyRoots(cage_base).undefined_value();                         \
+    Tagged<Undefined> undefined = GetReadOnlyRoots().undefined_value();        \
     return extra == undefined ? Default                                        \
                               : Cast<FunctionTemplateRareData>(extra)->Name(); \
   }                                                                            \
@@ -162,7 +161,7 @@ RARE_ACCESSORS(instance_call_handler, InstanceCallHandler, undefined,
 RARE_ACCESSORS(access_check_info, AccessCheckInfo, undefined,
                UnionOf<Undefined, AccessCheckInfo>)
 RARE_ACCESSORS(c_function_overloads, CFunctionOverloads,
-               GetReadOnlyRoots(cage_base).empty_fixed_array(), FixedArray)
+               GetReadOnlyRoots().empty_fixed_array(), FixedArray)
 #undef RARE_ACCESSORS
 
 InstanceType FunctionTemplateInfo::GetInstanceType() const {

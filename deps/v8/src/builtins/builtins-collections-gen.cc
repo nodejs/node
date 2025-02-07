@@ -1038,7 +1038,8 @@ TNode<JSArray> CollectionsBuiltinsAssembler::MapIteratorToList(
   TNode<JSArray> array = AllocateJSArray(kind, array_map, size, size_smi);
   TNode<FixedArray> elements = CAST(LoadElements(array));
 
-  const int first_element_offset = FixedArray::kHeaderSize - kHeapObjectTag;
+  const int first_element_offset =
+      OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag;
   TNode<IntPtrT> first_to_element_offset =
       ElementOffsetFromIndex(IntPtrConstant(0), kind, 0);
   TVARIABLE(
@@ -1119,7 +1120,8 @@ TNode<JSArray> CollectionsBuiltinsAssembler::SetOrSetIteratorToList(
   TNode<JSArray> array = AllocateJSArray(kind, array_map, size, size_smi);
   TNode<FixedArray> elements = CAST(LoadElements(array));
 
-  const int first_element_offset = FixedArray::kHeaderSize - kHeapObjectTag;
+  const int first_element_offset =
+      OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag;
   TNode<IntPtrT> first_to_element_offset =
       ElementOffsetFromIndex(IntPtrConstant(0), kind, 0);
   TVARIABLE(
@@ -2601,7 +2603,7 @@ TNode<HeapObject> WeakCollectionsBuiltinsAssembler::AllocateTable(
   TNode<FixedArray> table = CAST(AllocateFixedArray(HOLEY_ELEMENTS, length));
 
   TNode<Map> map =
-      HeapConstantNoHole(EphemeronHashTable::GetMap(ReadOnlyRoots(isolate())));
+      HeapConstantNoHole(EphemeronHashTable::GetMap(isolate()->roots_table()));
   StoreMapNoWriteBarrier(table, map);
   StoreFixedArrayElement(table, EphemeronHashTable::kNumberOfElementsIndex,
                          SmiConstant(0), SKIP_WRITE_BARRIER);

@@ -63,7 +63,7 @@ void MaglevAssembler::LoadSingleCharacterString(Register result,
   Register table = result;
   LoadRoot(table, RootIndex::kSingleCharacterStringTable);
   LoadTaggedField(result, table,
-                  FixedArray::kHeaderSize + char_code * kTaggedSize);
+                  OFFSET_OF_DATA_START(FixedArray) + char_code * kTaggedSize);
 }
 
 void MaglevAssembler::LoadDataField(const PolymorphicAccessInfo& access_info,
@@ -164,7 +164,6 @@ void MaglevAssembler::ToBoolean(Register value, CheckType check_type,
                                 ZoneLabelRef is_true, ZoneLabelRef is_false,
                                 bool fallthrough_when_true) {
   TemporaryRegisterScope temps(this);
-  Register map = temps.AcquireScratch();
 
   if (check_type == CheckType::kCheckHeapObject) {
     // Check if {{value}} is Smi.
@@ -226,7 +225,7 @@ void MaglevAssembler::ToBoolean(Register value, CheckType check_type,
     JumpIfRoot(value, RootIndex::kNullValue, *is_false);
   }
 #endif
-
+  Register map = temps.AcquireScratch();
   LoadMap(map, value);
 
   if (!compilation_info()
@@ -446,8 +445,8 @@ void MaglevAssembler::TestTypeOf(
       JumpIfRoot(object, RootIndex::kNullValue, is_true, true_distance);
       // Check if the object is a receiver type,
       LoadMap(scratch, object);
-      CompareInstanceType(scratch, FIRST_JS_RECEIVER_TYPE);
-      JumpIf(kLessThan, is_false, false_distance);
+      CompareInstanceTypeAndJumpIf(scratch, FIRST_JS_RECEIVER_TYPE, kLessThan,
+                                   is_false, false_distance);
       // ... and is not undefined (undetectable) nor callable.
       Branch(IsNotCallableNorUndetactable(scratch, scratch), is_true,
              true_distance, fallthrough_when_true, is_false, false_distance,
@@ -658,21 +657,32 @@ void MaglevAssembler::GenerateCheckConstTrackingLetCellFooter(Register context,
                                                               Register data,
                                                               int index,
                                                               Label* done) {
+  Label smi_data, deopt;
+
   // Load the const tracking let side data.
   LoadTaggedField(
       data, context,
-      Context::OffsetOfElementAt(Context::CONST_TRACKING_LET_SIDE_DATA_INDEX));
+      Context::OffsetOfElementAt(Context::CONTEXT_SIDE_TABLE_PROPERTY_INDEX));
 
   LoadTaggedField(data, data,
                   FixedArray::OffsetOfElementAt(
                       index - Context::MIN_CONTEXT_EXTENDED_SLOTS));
 
-  // If the field is already marked as "not a constant", storing a
-  // different value is fine. But if it's anything else (including the hole,
-  // which means no value was stored yet), deopt this code. The lower tier code
-  // will update the side data and invalidate DependentCode if needed.
-  CompareTaggedAndJumpIf(data, ConstTrackingLetCell::kNonConstMarker, kEqual,
+  // Load property.
+  JumpIfSmi(data, &smi_data, Label::kNear);
+  JumpIfRoot(data, RootIndex::kUndefinedValue, &deopt);
+  if (v8_flags.debug_code) {
+    AssertObjectType(data, CONTEXT_SIDE_PROPERTY_CELL_TYPE,
+                     AbortReason::kUnexpectedValue);
+  }
+  LoadTaggedField(data, data,
+                  ContextSidePropertyCell::kPropertyDetailsRawOffset);
+
+  // It must be different than kConst.
+  bind(&smi_data);
+  CompareTaggedAndJumpIf(data, ContextSidePropertyCell::Const(), kNotEqual,
                          done, Label::kNear);
+  bind(&deopt);
 }
 
 void MaglevAssembler::TryMigrateInstance(Register object,
@@ -701,6 +711,15 @@ void MaglevAssembler::TryMigrateInstance(Register object,
 
   // On failure, the returned value is Smi zero.
   CompareTaggedAndJumpIf(return_val, Smi::zero(), kEqual, fail);
+}
+
+void MaglevAssembler::TryMigrateInstanceAndMarkMapAsMigrationTarget(
+    Register object, RegisterSnapshot& register_snapshot) {
+  SaveRegisterStateForCall save_register_state(this, register_snapshot);
+  Push(object);
+  Move(kContextRegister, native_context().object());
+  CallRuntime(Runtime::kTryMigrateInstanceAndMarkMapAsMigrationTarget);
+  save_register_state.DefineSafepoint();
 }
 
 }  // namespace maglev

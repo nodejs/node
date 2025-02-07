@@ -15,8 +15,10 @@
 #include "src/debug/debug.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/combined-heap.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/safepoint.h"
+#include "src/heap/visit-object.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/api-callbacks.h"
@@ -1244,6 +1246,15 @@ class IndexedReferencesExtractor : public ObjectVisitorWithCageBases {
     VisitSlotImpl(unused_cage_base, slot);
   }
 
+  void VisitProtectedPointer(Tagged<TrustedObject> host,
+                             ProtectedMaybeObjectSlot slot) override {
+    // TODO(saelo): the cage base doesn't currently matter as it isn't used,
+    // but technically we should either use the trusted cage base here or
+    // remove the cage_base parameter.
+    const PtrComprCageBase unused_cage_base(kNullAddress);
+    VisitSlotImpl(unused_cage_base, slot);
+  }
+
   void VisitJSDispatchTableEntry(Tagged<HeapObject> host,
                                  JSDispatchHandle handle) override {
 #ifdef V8_ENABLE_LEAPTIERING
@@ -1254,7 +1265,7 @@ class IndexedReferencesExtractor : public ObjectVisitorWithCageBases {
       int field_index = JSFunction::kDispatchHandleOffset / kTaggedSize;
       CHECK(generator_->visited_fields_[field_index]);
       generator_->visited_fields_[field_index] = false;
-    } else if (IsFeedbackCell(host)) {
+    } else if (IsCode(host) || IsFeedbackCell(host)) {
       // Nothing to do: the Code object is tracked as part of the JSFunction.
     } else {
       UNREACHABLE();
@@ -1376,7 +1387,7 @@ void V8HeapExplorer::ExtractReferences(HeapEntry* entry,
   } else if (IsTransitionArray(obj)) {
     ExtractTransitionArrayReferences(entry, Cast<TransitionArray>(obj));
   } else if (IsWeakFixedArray(obj)) {
-    ExtractWeakArrayReferences(WeakFixedArray::kHeaderSize, entry,
+    ExtractWeakArrayReferences(OFFSET_OF_DATA_START(WeakFixedArray), entry,
                                Cast<WeakFixedArray>(obj));
   } else if (IsWeakArrayList(obj)) {
     ExtractWeakArrayReferences(WeakArrayList::kHeaderSize, entry,
@@ -1965,18 +1976,20 @@ void V8HeapExplorer::ExtractNumberReference(HeapEntry* entry,
 
   // Must be large enough to fit any double, int, or size_t.
   char arr[32];
-  base::Vector<char> buffer(arr, arraysize(arr));
+  base::Vector<char> buffer = base::ArrayVector(arr);
 
-  const char* string;
+  std::string_view string;
   if (IsSmi(number)) {
     int int_value = Smi::ToInt(number);
-    string = IntToCString(int_value, buffer);
+    string = IntToStringView(int_value, buffer);
   } else {
     double double_value = Cast<HeapNumber>(number)->value();
-    string = DoubleToCString(double_value, buffer);
+    string = DoubleToStringView(double_value, buffer);
   }
 
-  const char* name = names_->GetCopy(string);
+  // GetCopy() requires a null-terminated C-String, as the underlying hash map
+  // uses strcmp.
+  const char* name = names_->GetCopy(std::string(string).c_str());
 
   SnapshotObjectId id = heap_object_map_->get_next_id();
   HeapEntry* child_entry =
@@ -2004,12 +2017,14 @@ void V8HeapExplorer::ExtractScopeInfoReferences(HeapEntry* entry,
 
 void V8HeapExplorer::ExtractFeedbackVectorReferences(
     HeapEntry* entry, Tagged<FeedbackVector> feedback_vector) {
+#ifndef V8_ENABLE_LEAPTIERING
   Tagged<MaybeObject> code = feedback_vector->maybe_optimized_code();
   Tagged<HeapObject> code_heap_object;
   if (code.GetHeapObjectIfWeak(&code_heap_object)) {
     SetWeakReference(entry, "optimized code", code_heap_object,
                      FeedbackVector::kMaybeOptimizedCodeOffset);
   }
+#endif  // !V8_ENABLE_LEAPTIERING
   for (int i = 0; i < feedback_vector->length(); ++i) {
     Tagged<MaybeObject> maybe_entry = *(feedback_vector->slots_start() + i);
     Tagged<HeapObject> entry;
@@ -2166,7 +2181,7 @@ void V8HeapExplorer::ExtractAccessorPairProperty(HeapEntry* entry,
 
 void V8HeapExplorer::ExtractElementReferences(Tagged<JSObject> js_obj,
                                               HeapEntry* entry) {
-  ReadOnlyRoots roots = js_obj->GetReadOnlyRoots();
+  ReadOnlyRoots roots = GetReadOnlyRoots();
   if (js_obj->HasObjectElements()) {
     Tagged<FixedArray> elements = Cast<FixedArray>(js_obj->elements());
     int length = IsJSArray(js_obj) ? Smi::ToInt(Cast<JSArray>(js_obj)->length())
@@ -2210,7 +2225,7 @@ void V8HeapExplorer::ExtractWasmStructReferences(Tagged<WasmStruct> obj,
   Isolate* isolate = heap_->isolate();
   for (uint32_t i = 0; i < type->field_count(); i++) {
     wasm::StringBuilder sb;
-    names->PrintFieldName(sb, info->type_index(), i);
+    names->PrintFieldName(sb, info->module_type_index(), i);
     sb << '\0';
     const char* field_name = names_->GetCopy(sb.start());
     switch (type->field(i).kind()) {
@@ -2248,6 +2263,7 @@ void V8HeapExplorer::ExtractWasmStructReferences(Tagged<WasmStruct> obj,
       }
       case wasm::kRtt:
       case wasm::kVoid:
+      case wasm::kTop:
       case wasm::kBottom:
         UNREACHABLE();
     }
@@ -2340,8 +2356,8 @@ Tagged<JSFunction> V8HeapExplorer::GetConstructor(Isolate* isolate,
                                                   Tagged<JSReceiver> receiver) {
   DisallowGarbageCollection no_gc;
   HandleScope scope(isolate);
-  MaybeHandle<JSFunction> maybe_constructor =
-      JSReceiver::GetConstructor(isolate, handle(receiver, isolate));
+  MaybeDirectHandle<JSFunction> maybe_constructor =
+      JSReceiver::GetConstructor(isolate, direct_handle(receiver, isolate));
 
   if (maybe_constructor.is_null()) return JSFunction();
 
@@ -2352,7 +2368,8 @@ Tagged<String> V8HeapExplorer::GetConstructorName(Isolate* isolate,
                                                   Tagged<JSObject> object) {
   DisallowGarbageCollection no_gc;
   HandleScope scope(isolate);
-  return *JSReceiver::GetConstructorName(isolate, handle(object, isolate));
+  return *JSReceiver::GetConstructorName(isolate,
+                                         direct_handle(object, isolate));
 }
 
 HeapEntry* V8HeapExplorer::GetEntry(Tagged<Object> obj) {
@@ -2484,7 +2501,7 @@ bool V8HeapExplorer::IterateAndExtractReferences(
     // Extract unvisited fields as hidden references and restore tags
     // of visited fields.
     IndexedReferencesExtractor refs_extractor(this, obj, entry);
-    obj->Iterate(cage_base, &refs_extractor);
+    VisitObject(heap_->isolate(), obj, &refs_extractor);
 
 #if DEBUG
     // Ensure visited_fields_ doesn't leak to the next object.
@@ -2507,8 +2524,8 @@ bool V8HeapExplorer::IsEssentialObject(Tagged<Object> object) {
   if (!IsHeapObject(object)) return false;
   // Avoid comparing objects in other pointer compression cages to objects
   // inside the main cage as the comparison may only look at the lower 32 bits.
-  if (IsCodeSpaceObject(Cast<HeapObject>(object)) ||
-      IsTrustedSpaceObject(Cast<HeapObject>(object))) {
+  if (HeapLayout::InCodeSpace(Cast<HeapObject>(object)) ||
+      HeapLayout::InTrustedSpace(Cast<HeapObject>(object))) {
     return true;
   }
   Isolate* isolate = heap_->isolate();
@@ -2676,14 +2693,11 @@ void V8HeapExplorer::SetPropertyReference(HeapEntry* parent_entry,
       IsSymbol(reference_name) || Cast<String>(reference_name)->length() > 0
           ? HeapGraphEdge::kProperty
           : HeapGraphEdge::kInternal;
-  const char* name =
-      name_format_string != nullptr && IsString(reference_name)
-          ? names_->GetFormatted(
-                name_format_string,
-                Cast<String>(reference_name)
-                    ->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL)
-                    .get())
-          : names_->GetName(reference_name);
+  const char* name = name_format_string != nullptr && IsString(reference_name)
+                         ? names_->GetFormatted(
+                               name_format_string,
+                               Cast<String>(reference_name)->ToCString().get())
+                         : names_->GetName(reference_name);
 
   parent_entry->SetNamedReference(type, name, child_entry, generator_);
   MarkVisitedField(field_offset);
@@ -2848,8 +2862,8 @@ V8HeapExplorer::CollectTemporaryGlobalObjectsTags() {
   TemporaryGlobalObjectTags global_object_tags;
   HandleScope scope(isolate);
   GlobalObjectsEnumerator enumerator(
-      isolate, [this, isolate,
-                &global_object_tags](Handle<JSGlobalObject> global_object) {
+      isolate, [this, isolate, &global_object_tags](
+                   DirectHandle<JSGlobalObject> global_object) {
         if (const char* tag = global_object_name_resolver_->GetName(
                 Utils::ToLocal(Cast<JSObject>(global_object)))) {
           global_object_tags.emplace_back(
@@ -2910,7 +2924,7 @@ class EmbedderGraphImpl : public EmbedderGraph {
   }
 
   Node* V8Node(const v8::Local<v8::Data>& data) final {
-    Handle<Object> object = v8::Utils::OpenHandle(*data);
+    DirectHandle<Object> object = v8::Utils::OpenDirectHandle(*data);
     DCHECK(!object.is_null());
     return AddNode(std::unique_ptr<Node>(new V8NodeImpl(*object)));
   }
@@ -3201,6 +3215,7 @@ bool HeapSnapshotGenerator::GenerateSnapshotAfterGC() {
   v8_heap_explorer_.MakeGlobalObjectTagMap(
       std::move(temporary_global_object_tags));
   snapshot_->AddSyntheticRootEntries();
+  v8_heap_explorer_.PopulateLineEnds();
   if (!FillReferences()) return false;
   snapshot_->FillChildren();
   snapshot_->RememberLastJSObjectId();
@@ -3243,13 +3258,20 @@ bool HeapSnapshotGenerator::FillReferences() {
 }
 
 // type, name, id, self_size, edge_count, trace_node_id, detachedness.
-const int HeapSnapshotJSONSerializer::kNodeFieldsCount = 7;
+const int HeapSnapshotJSONSerializer::kNodeFieldsCountWithTraceNodeId = 7;
+const int HeapSnapshotJSONSerializer::kNodeFieldsCountWithoutTraceNodeId = 6;
 
 void HeapSnapshotJSONSerializer::Serialize(v8::OutputStream* stream) {
   v8::base::ElapsedTimer timer;
   timer.Start();
   DCHECK_NULL(writer_);
   writer_ = new OutputStreamWriter(stream);
+  trace_function_count_ = 0;
+  if (AllocationTracker* tracker =
+          snapshot_->profiler()->allocation_tracker()) {
+    trace_function_count_ =
+        static_cast<uint32_t>(tracker->function_info_list().size());
+  }
   SerializeImpl();
   delete writer_;
   writer_ = nullptr;
@@ -3417,8 +3439,12 @@ void HeapSnapshotJSONSerializer::SerializeNode(const HeapEntry* entry) {
   buffer[buffer_pos++] = ',';
   buffer_pos = utoa(entry->children_count(), buffer, buffer_pos);
   buffer[buffer_pos++] = ',';
-  buffer_pos = utoa(entry->trace_node_id(), buffer, buffer_pos);
-  buffer[buffer_pos++] = ',';
+  if (trace_function_count_) {
+    buffer_pos = utoa(entry->trace_node_id(), buffer, buffer_pos);
+    buffer[buffer_pos++] = ',';
+  } else {
+    CHECK_EQ(0, entry->trace_node_id());
+  }
   buffer_pos = utoa(entry->detachedness(), buffer, buffer_pos);
   buffer[buffer_pos++] = '\n';
   buffer[buffer_pos++] = '\0';
@@ -3440,17 +3466,18 @@ void HeapSnapshotJSONSerializer::SerializeSnapshot() {
 
   // clang-format off
 #define JSON_A(s) "[" s "]"
-#define JSON_O(s) "{" s "}"
 #define JSON_S(s) "\"" s "\""
-  writer_->AddString(JSON_O(
-    JSON_S("node_fields") ":" JSON_A(
+  writer_->AddString("{"
+    JSON_S("node_fields") ":["
         JSON_S("type") ","
         JSON_S("name") ","
         JSON_S("id") ","
         JSON_S("self_size") ","
-        JSON_S("edge_count") ","
-        JSON_S("trace_node_id") ","
-        JSON_S("detachedness")) ","
+        JSON_S("edge_count") ",");
+  if (trace_function_count_) writer_->AddString(JSON_S("trace_node_id") ",");
+  writer_->AddString(
+        JSON_S("detachedness")
+    "],"
     JSON_S("node_types") ":" JSON_A(
         JSON_A(
             JSON_S("hidden") ","
@@ -3509,22 +3536,17 @@ void HeapSnapshotJSONSerializer::SerializeSnapshot() {
         JSON_S("object_index") ","
         JSON_S("script_id") ","
         JSON_S("line") ","
-        JSON_S("column"))));
+        JSON_S("column"))
+  "}");
 // clang-format on
 #undef JSON_S
-#undef JSON_O
 #undef JSON_A
   writer_->AddString(",\"node_count\":");
   writer_->AddNumber(static_cast<unsigned>(snapshot_->entries().size()));
   writer_->AddString(",\"edge_count\":");
   writer_->AddNumber(static_cast<double>(snapshot_->edges().size()));
   writer_->AddString(",\"trace_function_count\":");
-  uint32_t count = 0;
-  AllocationTracker* tracker = snapshot_->profiler()->allocation_tracker();
-  if (tracker) {
-    count = static_cast<uint32_t>(tracker->function_info_list().size());
-  }
-  writer_->AddNumber(count);
+  writer_->AddNumber(trace_function_count_);
 }
 
 static void WriteUChar(OutputStreamWriter* w, unibrow::uchar u) {

@@ -159,6 +159,7 @@ struct AsHexBytes {
 };
 
 template <typename T>
+  requires requires(T t, std::ostream& os) { os << *t; }
 struct PrintIteratorRange {
   T start;
   T end;

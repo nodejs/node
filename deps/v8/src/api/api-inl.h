@@ -60,16 +60,18 @@ inline Local<To> Utils::Convert(v8::internal::DirectHandle<From> obj) {
   if (obj.is_null()) return Local<To>();
   return Local<To>::FromAddress(obj.address());
 #else
-  return Local<To>::FromSlot(obj.location());
+  // This simply uses the location of the indirect handle wrapped inside a
+  // "fake" direct handle.
+  return Local<To>::FromSlot(indirect_handle(obj).location());
 #endif
 }
 
 // Implementations of ToLocal
 
-#define MAKE_TO_LOCAL(Name)                                                  \
-  template <template <typename T> typename HandleType, typename T, typename> \
-  inline auto Utils::Name(HandleType<T> obj) {                               \
-    return Utils::Name##_helper(v8::internal::DirectHandle<T>(obj));         \
+#define MAKE_TO_LOCAL(Name)                                                \
+  template <template <typename> typename HandleType, typename T, typename> \
+  inline auto Utils::Name(HandleType<T> obj) {                             \
+    return Utils::Name##_helper(v8::internal::DirectHandle<T>(obj));       \
   }
 
 TO_LOCAL_NAME_LIST(MAKE_TO_LOCAL)

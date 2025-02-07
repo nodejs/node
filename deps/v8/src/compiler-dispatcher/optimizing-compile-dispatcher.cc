@@ -100,8 +100,8 @@ void OptimizingCompileDispatcher::CompileNext(TurbofanCompilationJob* job,
     // The function may have already been optimized by OSR.  Simply continue.
     // Use a mutex to make sure that functions marked for install
     // are always also queued.
-    base::MutexGuard access_output_queue_(&output_queue_mutex_);
-    output_queue_.push(job);
+    base::SpinningMutexGuard access_output_queue_(&output_queue_mutex_);
+    output_queue_.push_back(job);
   }
 
   if (finalize()) isolate_->stack_guard()->RequestInstallCode();
@@ -111,10 +111,10 @@ void OptimizingCompileDispatcher::FlushOutputQueue() {
   for (;;) {
     std::unique_ptr<TurbofanCompilationJob> job;
     {
-      base::MutexGuard access_output_queue_(&output_queue_mutex_);
+      base::SpinningMutexGuard access_output_queue_(&output_queue_mutex_);
       if (output_queue_.empty()) return;
       job.reset(output_queue_.front());
-      output_queue_.pop();
+      output_queue_.pop_front();
     }
 
     Compiler::DisposeTurbofanCompilationJob(isolate_, job.get());
@@ -122,7 +122,7 @@ void OptimizingCompileDispatcher::FlushOutputQueue() {
 }
 
 void OptimizingCompileDispatcherQueue::Flush(Isolate* isolate) {
-  base::MutexGuard access(&mutex_);
+  base::SpinningMutexGuard access(&mutex_);
   while (length_ > 0) {
     std::unique_ptr<TurbofanCompilationJob> job(queue_[QueueIndex(0)]);
     DCHECK_NOT_NULL(job);
@@ -182,10 +182,10 @@ void OptimizingCompileDispatcher::InstallOptimizedFunctions() {
   for (;;) {
     std::unique_ptr<TurbofanCompilationJob> job;
     {
-      base::MutexGuard access_output_queue_(&output_queue_mutex_);
+      base::SpinningMutexGuard access_output_queue_(&output_queue_mutex_);
       if (output_queue_.empty()) return;
       job.reset(output_queue_.front());
-      output_queue_.pop();
+      output_queue_.pop_front();
     }
     OptimizedCompilationInfo* info = job->compilation_info();
     DirectHandle<JSFunction> function(*info->closure(), isolate_);
@@ -202,9 +202,58 @@ void OptimizingCompileDispatcher::InstallOptimizedFunctions() {
       Compiler::DisposeTurbofanCompilationJob(isolate_, job.get());
       continue;
     }
+    // Discard code compiled for a discarded native context without
+    // finalization.
+    if (function->native_context()->global_object()->IsDetached()) {
+      Compiler::DisposeTurbofanCompilationJob(isolate_, job.get());
+      continue;
+    }
 
     Compiler::FinalizeTurbofanCompilationJob(job.get(), isolate_);
   }
+}
+
+bool OptimizingCompileDispatcher::InstallGeneratedBuiltins(
+    int& installed_count) {
+  // Builtin generation needs to be deterministic, meaning heap allocations must
+  // happen in a deterministic order. To ensure determinism with concurrent
+  // compilation, only finalize contiguous builtins in ascending order of their
+  // finalization order, which is set at job creation time.
+
+  CHECK(isolate_->IsGeneratingEmbeddedBuiltins());
+
+  base::SpinningMutexGuard access_output_queue_(&output_queue_mutex_);
+
+  std::sort(output_queue_.begin(), output_queue_.end(),
+            [](const TurbofanCompilationJob* job1,
+               const TurbofanCompilationJob* job2) {
+              return job1->FinalizeOrder() < job2->FinalizeOrder();
+            });
+
+  bool did_some_work = false;
+  while (!output_queue_.empty()) {
+    int current = output_queue_.front()->FinalizeOrder();
+    if (installed_count != current) {
+      // Not contiguous, need to wait for compilations to finish to be
+      // deterministic.
+      return did_some_work;
+    }
+    std::unique_ptr<TurbofanCompilationJob> job(output_queue_.front());
+    output_queue_.pop_front();
+    CHECK_EQ(CompilationJob::SUCCEEDED, job->FinalizeJob(isolate_));
+    installed_count = current + 1;
+    did_some_work = true;
+  }
+  return true;
+}
+
+size_t OptimizingCompileDispatcher::ComputeOutputQueueTotalZoneSize() {
+  size_t total_size = 0;
+  base::SpinningMutexGuard access_output_queue_(&output_queue_mutex_);
+  for (const TurbofanCompilationJob* job : output_queue_) {
+    total_size += job->compilation_info()->zone()->allocation_size();
+  }
+  return total_size;
 }
 
 bool OptimizingCompileDispatcher::HasJobs() {
@@ -226,7 +275,7 @@ void OptimizingCompileDispatcher::QueueForOptimization(
 
 void OptimizingCompileDispatcherQueue::Prioritize(
     Tagged<SharedFunctionInfo> function) {
-  base::MutexGuard access(&mutex_);
+  base::SpinningMutexGuard access(&mutex_);
   if (length_ > 1) {
     for (int i = length_ - 1; i > 1; --i) {
       if (*queue_[QueueIndex(i)]->compilation_info()->shared_info() ==
@@ -247,7 +296,9 @@ OptimizingCompileDispatcher::OptimizingCompileDispatcher(Isolate* isolate)
     : isolate_(isolate),
       input_queue_(v8_flags.concurrent_recompilation_queue_length),
       recompilation_delay_(v8_flags.concurrent_recompilation_delay) {
-  if (v8_flags.concurrent_recompilation) {
+  if (v8_flags.concurrent_recompilation ||
+      (v8_flags.concurrent_builtin_generation &&
+       isolate->IsGeneratingEmbeddedBuiltins())) {
     job_handle_ = V8::GetCurrentPlatform()->PostJob(
         kTaskPriority, std::make_unique<CompileTask>(isolate, this));
   }

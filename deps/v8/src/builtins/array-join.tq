@@ -48,7 +48,7 @@ LoadJoinElement<array::FastDoubleElements>(
   const fixedDoubleArray: FixedDoubleArray =
       UnsafeCast<FixedDoubleArray>(array.elements);
   const element: float64 =
-      fixedDoubleArray.floats[k].Value() otherwise return kEmptyString;
+      fixedDoubleArray.values[k].Value() otherwise return kEmptyString;
   return AllocateHeapNumberWithValue(element);
 }
 
@@ -187,8 +187,7 @@ struct Buffer {
           StoreAndGrowFixedArray(this.fixedArray, this.index++, str);
       this.lastString = str;
     }
-    this.isOneByte =
-        IsOneByteStringInstanceType(str.instanceType) & this.isOneByte;
+    this.isOneByte = IsOneByteStringMap(str.map) & this.isOneByte;
   }
 
   macro AddSeparators(
@@ -275,7 +274,7 @@ macro NewBuffer(len: uintptr, sep: String): Buffer {
     fixedArray: AllocateZeroedFixedArray(cappedBufferSize),
     index: 0,
     totalStringLength: 0,
-    isOneByte: IsOneByteStringInstanceType(sep.instanceType),
+    isOneByte: IsOneByteStringMap(sep.map),
     lastString: Null
   };
 }

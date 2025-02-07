@@ -76,6 +76,10 @@ bool Expression::IsStringLiteral() const {
   return IsLiteral() && AsLiteral()->type() == Literal::kString;
 }
 
+bool Expression::IsConsStringLiteral() const {
+  return IsLiteral() && AsLiteral()->type() == Literal::kConsString;
+}
+
 bool Expression::IsPropertyName() const {
   return IsLiteral() && AsLiteral()->IsPropertyName();
 }
@@ -250,7 +254,9 @@ std::unique_ptr<char[]> FunctionLiteral::GetDebugName() const {
     }
   }
   std::unique_ptr<char[]> result(new char[result_vec.size() + 1]);
-  memcpy(result.get(), result_vec.data(), result_vec.size());
+  if (result_vec.size()) {
+    memcpy(result.get(), result_vec.data(), result_vec.size());
+  }
   result[result_vec.size()] = '\0';
   return result;
 }
@@ -277,7 +283,7 @@ ObjectLiteralProperty::ObjectLiteralProperty(AstValueFactory* ast_value_factory,
                                              Expression* key, Expression* value,
                                              bool is_computed_name)
     : LiteralProperty(key, value, is_computed_name), emit_store_(true) {
-  if (!is_computed_name && key->AsLiteral()->IsString() &&
+  if (!is_computed_name && key->AsLiteral()->IsRawString() &&
       key->AsLiteral()->AsRawString() == ast_value_factory->proto_string()) {
     kind_ = PROTOTYPE;
   } else if (value_->AsMaterializedLiteral() != nullptr) {
@@ -628,6 +634,7 @@ void ArrayLiteralBoilerplateBuilder::InitDepthAndFlags() {
             break;
           case Literal::kBigInt:
           case Literal::kString:
+          case Literal::kConsString:
           case Literal::kBoolean:
           case Literal::kUndefined:
           case Literal::kNull:
@@ -728,7 +735,7 @@ void ArrayLiteralBoilerplateBuilder::BuildBoilerplateDescription(
   if (is_simple() && depth() == kShallow && array_index > 0 &&
       IsSmiOrObjectElementsKind(kind)) {
     elements->set_map_safe_transition(
-        ReadOnlyRoots(isolate).fixed_cow_array_map());
+        isolate, ReadOnlyRoots(isolate).fixed_cow_array_map(), kReleaseStore);
   }
 
   boilerplate_description_ =
@@ -1049,6 +1056,8 @@ Handle<Object> Literal::BuildValue(IsolateT* isolate) const {
           number_);
     case kString:
       return string_->string();
+    case kConsString:
+      return cons_string_->AllocateFlat(isolate);
     case kBoolean:
       return isolate->factory()->ToBoolean(boolean_);
     case kNull:
@@ -1077,6 +1086,8 @@ bool Literal::ToBooleanIsTrue() const {
       return DoubleToBoolean(number_);
     case kString:
       return !string_->IsEmpty();
+    case kConsString:
+      return !cons_string_->IsEmpty();
     case kNull:
     case kUndefined:
       return false;
@@ -1101,14 +1112,15 @@ bool Literal::ToBooleanIsTrue() const {
 }
 
 uint32_t Literal::Hash() {
+  DCHECK(IsRawString() || IsNumber());
   uint32_t index;
   if (AsArrayIndex(&index)) {
     // Treat array indices as numbers, so that array indices are de-duped
     // correctly even if one of them is a string and the other is a number.
     return ComputeLongHash(index);
   }
-  return IsString() ? AsRawString()->Hash()
-                    : ComputeLongHash(base::double_to_uint64(AsNumber()));
+  return IsRawString() ? AsRawString()->Hash()
+                       : ComputeLongHash(base::double_to_uint64(AsNumber()));
 }
 
 // static
@@ -1120,7 +1132,7 @@ bool Literal::Match(void* a, void* b) {
   if (x->AsArrayIndex(&index_x)) {
     return y->AsArrayIndex(&index_y) && index_x == index_y;
   }
-  return (x->IsString() && y->IsString() &&
+  return (x->IsRawString() && y->IsRawString() &&
           x->AsRawString() == y->AsRawString()) ||
          (x->IsNumber() && y->IsNumber() && x->AsNumber() == y->AsNumber());
 }

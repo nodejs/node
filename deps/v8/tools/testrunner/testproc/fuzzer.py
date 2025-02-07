@@ -21,7 +21,7 @@ EXTRA_FLAGS = [
     (0.1, '--liftoff'),
     (0.1, '--maglev'),
     (0.1, '--maglev-future'),
-    (0.25, '--minor-ms'),
+    (0.1, '--minor-ms'),
     (0.2, '--no-analyze-environment-liveness'),
     # TODO(machenbach): Enable when it doesn't collide with crashing on missing
     # simd features.
@@ -40,12 +40,13 @@ EXTRA_FLAGS = [
     (0.1, '--no-liftoff'),
     (0.1, '--no-turbofan'),
     (0.1, '--no-wasm-tier-up'),
-    (0.1, '--optimize-on-next-call-optimizes-to-maglev'),
+    (0.5, '--optimize-on-next-call-optimizes-to-maglev'),
     (0.1, '--regexp-interpret-all'),
     (0.1, '--regexp-tier-up-ticks=0'),
     (0.1, '--regexp-tier-up-ticks=10'),
     (0.1, '--regexp-tier-up-ticks=100'),
     (0.1, '--shared-string-table'),
+    (0.1, '--shared-heap'),
     (0.1, '--stress-background-compile'),
     (0.1, '--stress-flush-code'),
     (0.1, '--stress-lazy-source-positions'),
@@ -56,6 +57,7 @@ EXTRA_FLAGS = [
     (0.1, '--turbo-instruction-scheduling'),
     (0.1, '--turbo-stress-instruction-scheduling'),
     (0.1, '--stress-wasm-memory-moving'),
+    (0.1, '--stress-scavenger-pinning-objects-random'),
 ]
 
 MIN_DEOPT = 1

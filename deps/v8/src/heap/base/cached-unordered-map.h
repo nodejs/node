@@ -7,7 +7,7 @@
 
 #include <unordered_map>
 
-#include "src/base/functional.h"
+#include "src/base/hashing.h"
 
 namespace heap::base {
 

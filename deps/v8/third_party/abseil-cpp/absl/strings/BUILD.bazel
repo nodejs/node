@@ -392,7 +392,7 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":string_view",
-        "//absl/base:core_headers",
+        "//absl/base:config",
     ],
 )
 
@@ -1118,6 +1118,7 @@ cc_test(
     deps = [
         ":str_format",
         ":strings",
+        "//absl/base:config",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
     ],

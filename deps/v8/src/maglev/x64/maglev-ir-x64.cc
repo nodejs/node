@@ -81,12 +81,11 @@ void LoadTypedArrayLength::GenerateCode(MaglevAssembler* masm,
   }
   __ LoadBoundedSizeFromObject(result_register, object,
                                JSTypedArray::kRawByteLengthOffset);
-  int element_size = ElementsKindSize(elements_kind_);
-  if (element_size > 1) {
+  int shift_size = ElementsKindToShiftSize(elements_kind_);
+  if (shift_size > 0) {
     // TODO(leszeks): Merge this shift with the one in LoadBoundedSize.
-    DCHECK(element_size == 2 || element_size == 4 || element_size == 8);
-    __ shrq(result_register,
-            Immediate(base::bits::CountTrailingZeros(element_size)));
+    DCHECK(shift_size == 1 || shift_size == 2 || shift_size == 3);
+    __ shrq(result_register, Immediate(shift_size));
   }
 }
 

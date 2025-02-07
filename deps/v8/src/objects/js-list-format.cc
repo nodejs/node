@@ -57,10 +57,9 @@ UListFormatterType GetIcuType(JSListFormat::Type type) {
 
 }  // namespace
 
-MaybeHandle<JSListFormat> JSListFormat::New(Isolate* isolate,
-                                            DirectHandle<Map> map,
-                                            Handle<Object> locales,
-                                            Handle<Object> input_options) {
+MaybeHandle<JSListFormat> JSListFormat::New(
+    Isolate* isolate, DirectHandle<Map> map, DirectHandle<Object> locales,
+    DirectHandle<Object> input_options) {
   // 3. Let requestedLocales be ? CanonicalizeLocaleList(locales).
   Maybe<std::vector<std::string>> maybe_requested_locales =
       Intl::CanonicalizeLocaleList(isolate, locales);
@@ -68,7 +67,7 @@ MaybeHandle<JSListFormat> JSListFormat::New(Isolate* isolate,
   std::vector<std::string> requested_locales =
       maybe_requested_locales.FromJust();
 
-  Handle<JSReceiver> options;
+  DirectHandle<JSReceiver> options;
   const char* service = "Intl.ListFormat";
   // 4. Let options be GetOptionsObject(_options_).
   ASSIGN_RETURN_ON_EXCEPTION(isolate, options,
@@ -162,33 +161,33 @@ Handle<JSObject> JSListFormat::ResolvedOptions(
   JSObject::AddProperty(isolate, result, factory->locale_string(), locale,
                         NONE);
   JSObject::AddProperty(isolate, result, factory->type_string(),
-                        format->TypeAsString(), NONE);
+                        format->TypeAsString(isolate), NONE);
   JSObject::AddProperty(isolate, result, factory->style_string(),
-                        format->StyleAsString(), NONE);
+                        format->StyleAsString(isolate), NONE);
   // 6. Return options.
   return result;
 }
 
-Handle<String> JSListFormat::StyleAsString() const {
+Handle<String> JSListFormat::StyleAsString(Isolate* isolate) const {
   switch (style()) {
     case Style::LONG:
-      return GetReadOnlyRoots().long_string_handle();
+      return isolate->factory()->long_string();
     case Style::SHORT:
-      return GetReadOnlyRoots().short_string_handle();
+      return isolate->factory()->short_string();
     case Style::NARROW:
-      return GetReadOnlyRoots().narrow_string_handle();
+      return isolate->factory()->narrow_string();
   }
   UNREACHABLE();
 }
 
-Handle<String> JSListFormat::TypeAsString() const {
+Handle<String> JSListFormat::TypeAsString(Isolate* isolate) const {
   switch (type()) {
     case Type::CONJUNCTION:
-      return GetReadOnlyRoots().conjunction_string_handle();
+      return isolate->factory()->conjunction_string();
     case Type::DISJUNCTION:
-      return GetReadOnlyRoots().disjunction_string_handle();
+      return isolate->factory()->disjunction_string();
     case Type::UNIT:
-      return GetReadOnlyRoots().unit_string_handle();
+      return isolate->factory()->unit_string();
   }
   UNREACHABLE();
 }
@@ -255,7 +254,7 @@ MaybeHandle<JSArray> FormattedListToJSArray(
   int index = 0;
   UErrorCode status = U_ZERO_ERROR;
   icu::UnicodeString string = formatted.toString(status);
-  Handle<String> substring;
+  DirectHandle<String> substring;
   while (formatted.nextPosition(cfpos, status) && U_SUCCESS(status)) {
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, substring,

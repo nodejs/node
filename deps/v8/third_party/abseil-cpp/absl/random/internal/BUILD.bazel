@@ -59,6 +59,7 @@ cc_library(
     deps = [
         "//absl/base:config",
         "//absl/base:fast_type_id",
+        "//absl/meta:type_traits",
         "//absl/utility",
     ],
 )

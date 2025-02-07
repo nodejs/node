@@ -72,7 +72,6 @@
       'V8 Linux64 - debug builder': 'debug_x64',
       'V8 Linux64 - no leaptiering - debug builder': 'debug_x64_no_leaptiering',
       'V8 Linux64 - no shared cage - debug builder': 'debug_x64_no_shared_cage',
-      'V8 Linux64 - external code space - debug - builder': 'debug_x64_external_code_space',
       'V8 Linux64 - custom snapshot - debug builder': 'debug_x64_custom',
       'V8 Linux64 - internal snapshot - builder': 'release_x64_internal',
       'V8 Linux64 - debug - header includes - builder': 'debug_x64_header_includes',
@@ -118,7 +117,6 @@
       # FYI.
       'V8 iOS - sim - builder': 'release_x64_ios_simulator',
       'V8 Linux64 - arm64 - builder': 'release_arm64',
-      'V8 Linux64 - arm64 - no pointer compression - builder': 'release_arm64_no_pointer_compression',
       'V8 Linux64 - arm64 - debug builder': 'debug_arm64',
       'V8 Linux64 - arm64 - sim - no pointer compression - builder':
           'release_simulate_arm64_no_pointer_compression',
@@ -233,6 +231,7 @@
       'V8 Linux - arm64 - sim - builder': 'release_simulate_arm64_gcmole',
       'V8 Linux - arm64 - sim - debug builder': 'debug_simulate_arm64',
       'V8 Linux - arm64 - sim - gc stress - builder': 'debug_simulate_arm64',
+      'V8 Linux64 - arm64 - no pointer compression - builder': 'release_arm64_no_pointer_compression',
       'V8 Linux64 - arm64 - no wasm - debug builder': 'debug_arm64_webassembly_disabled',
       # Mips.
       'V8 Linux - mips64el - sim - builder': 'release_simulate_mips64el',
@@ -250,8 +249,9 @@
       'v8_android_arm_compile_rel': 'release_android_arm',
       'v8_android_arm_verify_deterministic_dbg': 'debug_android_arm_verify_deterministic',
       'v8_android_arm64_compile_dbg': 'debug_android_arm64',
-      'v8_android_arm64_n5x_compile_rel': 'release_android_arm64',
       'v8_android_arm64_d8_compile_rel': 'release_android_arm64',
+      'v8_android_arm64_n5x_compile_rel': 'release_android_arm64',
+      'v8_android_arm64_p7_compile_rel': 'release_android_arm64',
       'v8_fuchsia_compile_rel': 'release_x64_fuchsia_trybot',
       'v8_ios_simulator': 'release_x64_ios_simulator',
       'v8_linux_compile_rel': 'release_x86_gcmole_trybot',
@@ -281,7 +281,6 @@
       'v8_linux64_no_sandbox_compile_dbg': 'debug_x64_no_sandbox',
       'v8_linux64_dict_tracking_compile_dbg': 'debug_x64_dict_tracking_trybot',
       'v8_linux64_disable_runtime_call_stats_compile_rel': 'release_x64_disable_runtime_call_stats',
-      'v8_linux64_external_code_space_compile_dbg': 'debug_x64_external_code_space',
       'v8_linux64_css_compile_dbg': 'debug_x64_conservative_stack_scanning',
       'v8_linux64_gc_stress_custom_snapshot_compile_dbg': 'debug_x64_trybot_custom',
       'v8_linux64_gc_stress_compile_dbg': 'debug_x64_trybot',
@@ -300,6 +299,7 @@
       'v8_linux64_no_sandbox_compile_rel': 'release_x64_no_sandbox',
       'v8_linux64_official_compile_rel': 'official_x64_on_release_branch',
       'v8_linux64_predictable_compile_rel': 'release_x64_predictable',
+      'v8_linux64_pku_compile_dbg': 'debug_x64',
       'v8_linux64_pku_compile_rel': 'release_x64',
       'v8_linux64_shared_compile_rel': 'release_x64_shared_verify_heap',
       'v8_linux64_single_generation_compile_dbg': 'debug_x64_single_generation',
@@ -337,6 +337,7 @@
       'v8_win64_drumbrake_compile_dbg': 'debug_x64_drumbrake',
       'v8_win64_msvc_compile_rel': 'release_x64_msvc',
       'v8_win64_compile_rel': 'release_x64_trybot',
+      'v8_win64_nodcheck_compile_rel': 'release_x64_minimal_symbols',
       'v8_mac_arm64_compile_rel': 'release_arm64',
       'v8_mac_arm64_compile_dbg': 'debug_arm64',
       'v8_mac_arm64_full_compile_dbg': 'full_debug_arm64',
@@ -358,6 +359,7 @@
       'v8_linux_arm64_compile_dbg': 'debug_simulate_arm64',
       'v8_linux_arm64_gc_stress_compile_dbg': 'debug_simulate_arm64',
       'v8_linux_mips64el_compile_rel': 'release_simulate_mips64el',
+      'v8_numfuzz_asan_compile_rel': 'release_x64_asan_symbolized_verify_heap_turboshaft_csa',
       'v8_numfuzz_compile_rel': 'release_x64',
       'v8_numfuzz_compile_dbg': 'debug_x64',
       'v8_numfuzz_tsan_compile_rel': 'release_x64_tsan',
@@ -593,7 +595,7 @@
       'release_bot', 'x64', 'asan', 'dcheck_always_on',
       'v8_enable_slow_dchecks', 'v8_verify_heap', 'v8_enable_turboshaft_csa'],
     'release_x64_sandbox_testing_turboshaft_csa': [
-      'release_bot', 'x64', 'symbolized', 'v8_enable_memory_corruption_api',
+      'release_bot', 'x64', 'symbolized', 'backtrace', 'v8_enable_memory_corruption_api',
       'v8_enable_turboshaft_csa'],
     'release_x64_asan_sandbox_testing_turboshaft_csa': [
       'release_bot', 'x64', 'asan', 'symbolized',
@@ -700,8 +702,6 @@
       'debug_bot', 'x64', 'v8_snapshot_custom'],
     'debug_x64_drumbrake': [
       'debug_bot', 'x64', 'v8_enable_drumbrake'],
-    'debug_x64_external_code_space': [
-      'debug_bot', 'x64', 'external_code_space'],
     'debug_x64_fuchsia': [
       'debug_bot', 'x64', 'fuchsia'],
     'debug_x64_gcc': [
@@ -896,10 +896,6 @@
       'gn_args': 'chrome_pgo_phase=0',
     },
 
-    'external_code_space': {
-      'gn_args': 'v8_enable_external_code_space=true',
-    },
-
     'fuchsia': {
       'gn_args': 'target_os="fuchsia"',
     },
@@ -922,7 +918,8 @@
     },
 
     'ios_simulator': {
-      'gn_args': 'target_cpu="x64" target_os="ios" use_blink=true',
+      'gn_args': 'target_cpu="x64" target_os="ios" '
+                 'target_environment="simulator" use_blink=true',
     },
 
     'lld': {
@@ -978,6 +975,10 @@
 
     'release': {
       'gn_args': 'is_debug=false dcheck_always_on=false',
+    },
+
+    'backtrace': {
+      'gn_args': 'v8_enable_backtrace=true',
     },
 
     'release_bot': {
@@ -1082,7 +1083,7 @@
     },
 
     'v8_disable_leaptiering': {
-      'gn_args': 'v8_disable_leaptiering=true',
+      'gn_args': 'v8_enable_leaptiering=false v8_enable_sandbox=false',
     },
 
     'v8_disable_runtime_call_stats': {

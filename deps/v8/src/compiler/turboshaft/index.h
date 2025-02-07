@@ -10,7 +10,6 @@
 #include <type_traits>
 
 #include "src/base/logging.h"
-#include "src/base/template-meta-programming/algorithm.h"
 #include "src/codegen/tnode.h"
 #include "src/compiler/turboshaft/fast-hash.h"
 #include "src/compiler/turboshaft/representations.h"
@@ -41,7 +40,7 @@ class OpIndex {
   // convertible to OpIndex. FromOffset should be used instead to create an
   // OpIndex from an offset.
   explicit constexpr OpIndex(uint32_t offset) : offset_(offset) {
-    DCHECK(CheckInvariants());
+    SLOW_DCHECK(CheckInvariants());
   }
   friend class OperationBuffer;
 
@@ -63,18 +62,18 @@ class OpIndex {
     // least `kSlotsPerId` many `OperationSlot`s. Therefore, we can assign id's
     // by dividing by `kSlotsPerId`. A compact id space is important, because it
     // makes side-tables smaller.
-    DCHECK(CheckInvariants());
+    SLOW_DCHECK(CheckInvariants());
     return offset_ / sizeof(OperationStorageSlot) / kSlotsPerId;
   }
   uint32_t hash() const {
     // It can be useful to hash OpIndex::Invalid(), so we have this `hash`
     // function, which returns the id, but without DCHECKing that Invalid is
     // valid.
-    DCHECK_IMPLIES(valid(), CheckInvariants());
+    SLOW_DCHECK_IMPLIES(valid(), CheckInvariants());
     return offset_ / sizeof(OperationStorageSlot) / kSlotsPerId;
   }
   uint32_t offset() const {
-    DCHECK(CheckInvariants());
+    SLOW_DCHECK(CheckInvariants());
 #ifdef DEBUG
     return offset_ & kUnmaskGenerationMask;
 #else
@@ -529,13 +528,12 @@ using NumberOrString = UnionOf<Number, String>;
 using PlainPrimitive = UnionOf<NumberOrString, BooleanOrNullOrUndefined>;
 using StringOrNull = UnionOf<String, Null>;
 using NumberOrUndefined = UnionOf<Number, Undefined>;
-
+using AnyFixedArray = UnionOf<FixedArray, FixedDoubleArray>;
 using NonBigIntPrimitive = UnionOf<Symbol, PlainPrimitive>;
 using Primitive = UnionOf<BigInt, NonBigIntPrimitive>;
-using CallTarget = UntaggedUnion<WordPtr, Code, JSFunction>;
+using CallTarget = UntaggedUnion<WordPtr, Code, JSFunction, Word32>;
 using AnyOrNone = UntaggedUnion<Any, None>;
 
-#ifdef HAS_CPP_CONCEPTS
 template <typename T>
 concept IsUntagged =
     !std::is_same_v<T, Any> &&
@@ -544,7 +542,6 @@ concept IsUntagged =
 template <typename T>
 concept IsTagged = !std::is_same_v<T, Any> &&
                    v_traits<Object>::implicitly_constructible_from<T>::value;
-#endif
 
 #if V8_ENABLE_WEBASSEMBLY
 using WasmArrayNullable = Union<WasmArray, WasmNull>;
@@ -560,12 +557,48 @@ constexpr bool IsWord() {
          std::is_same_v<T, Word>;
 }
 
+template <typename T>
+constexpr bool IsValidTypeFor(RegisterRepresentation repr) {
+  if (std::is_same_v<T, Any>) return true;
+
+  switch (repr.value()) {
+    case RegisterRepresentation::Enum::kWord32:
+      return std::is_same_v<T, Word> || std::is_same_v<T, Word32> ||
+             std::is_same_v<T, Untagged>;
+    case RegisterRepresentation::Enum::kWord64:
+      return std::is_same_v<T, Word> || std::is_same_v<T, Word64> ||
+             std::is_same_v<T, Untagged>;
+    case RegisterRepresentation::Enum::kFloat32:
+      return std::is_same_v<T, Float> || std::is_same_v<T, Float32> ||
+             std::is_same_v<T, Untagged>;
+    case RegisterRepresentation::Enum::kFloat64:
+      return std::is_same_v<T, Float> || std::is_same_v<T, Float64> ||
+             std::is_same_v<T, Untagged>;
+    case RegisterRepresentation::Enum::kTagged:
+      return is_subtype_v<T, Object>;
+    case RegisterRepresentation::Enum::kCompressed:
+      return is_subtype_v<T, Object>;
+    case RegisterRepresentation::Enum::kSimd128:
+      return std::is_same_v<T, Simd128>;
+    case RegisterRepresentation::Enum::kSimd256:
+      return std::is_same_v<T, Simd256>;
+  }
+}
+
 // V<> represents an SSA-value that is parameterized with the type of the value.
 // Types from the `Object` hierarchy can be provided as well as the abstract
 // representation classes (`Word32`, ...) defined above.
 // Prefer using V<> instead of a plain OpIndex where possible.
 template <typename T>
 class V : public OpIndex {
+  // V<T> is implicitly constructible from V<U> iff
+  // `v_traits<T>::implicitly_constructible_from<U>::value`. This is typically
+  // the case if T == U or T is a subclass of U. Different types may specify
+  // different conversion rules in the corresponding `v_traits` when necessary.
+  template <typename U>
+  constexpr static bool implicitly_constructible_from =
+      v_traits<T>::template implicitly_constructible_from<U>::value;
+
  public:
   using type = T;
   static constexpr auto rep = v_traits<type>::rep;
@@ -575,9 +608,8 @@ class V : public OpIndex {
   // `v_traits<T>::implicitly_constructible_from<U>::value`. This is typically
   // the case if T == U or T is a subclass of U. Different types may specify
   // different conversion rules in the corresponding `v_traits` when necessary.
-  template <typename U,
-            typename = std::enable_if_t<
-                v_traits<T>::template implicitly_constructible_from<U>::value>>
+  template <typename U>
+    requires implicitly_constructible_from<U>
   V(V<U> index) : OpIndex(index) {}  // NOLINT(runtime/explicit)
 
   static V Invalid() { return V<T>(OpIndex::Invalid()); }
@@ -597,29 +629,32 @@ class V : public OpIndex {
  protected:
 #endif
   // V<T> is implicitly constructible from plain OpIndex.
-  template <typename U, typename = std::enable_if_t<std::is_same_v<U, OpIndex>>>
+  template <typename U>
+    requires(std::is_same_v<U, OpIndex>)
   V(U index) : OpIndex(index) {}  // NOLINT(runtime/explicit)
 };
 
 template <typename T>
 class OptionalV : public OptionalOpIndex {
+  // OptionalV<T> is implicitly constructible from OptionalV<U> iff
+  // `v_traits<T>::implicitly_constructible_from<U>::value`. This is typically
+  // the case if T == U or T is a subclass of U. Different types may specify
+  // different conversion rules in the corresponding `v_traits` when necessary.
+  template <typename U>
+  constexpr static bool implicitly_constructible_from =
+      v_traits<T>::template implicitly_constructible_from<U>::value;
+
  public:
   using type = T;
   static constexpr auto rep = v_traits<type>::rep;
   constexpr OptionalV() : OptionalOpIndex() {}
 
-  // OptionalV<T> is implicitly constructible from OptionalV<U> iff
-  // `v_traits<T>::implicitly_constructible_from<U>::value`. This is typically
-  // the case if T == U or T is a subclass of U. Different types may specify
-  // different conversion rules in the corresponding `v_traits` when necessary.
-  template <typename U,
-            typename = std::enable_if_t<
-                v_traits<T>::template implicitly_constructible_from<U>::value>>
+  template <typename U>
+    requires implicitly_constructible_from<U>
   OptionalV(OptionalV<U> index)  // NOLINT(runtime/explicit)
       : OptionalOpIndex(index) {}
-  template <typename U,
-            typename = std::enable_if_t<
-                v_traits<T>::template implicitly_constructible_from<U>::value>>
+  template <typename U>
+    requires implicitly_constructible_from<U>
   OptionalV(V<U> index) : OptionalOpIndex(index) {}  // NOLINT(runtime/explicit)
 
   static OptionalV Nullopt() { return OptionalV(OptionalOpIndex::Nullopt()); }
@@ -645,9 +680,8 @@ class OptionalV : public OptionalOpIndex {
  protected:
 #endif
   // OptionalV<T> is implicitly constructible from plain OptionalOpIndex.
-  template <typename U,
-            typename = std::enable_if_t<std::is_same_v<U, OptionalOpIndex> ||
-                                        std::is_same_v<U, OpIndex>>>
+  template <typename U>
+    requires(std::is_same_v<U, OptionalOpIndex> || std::is_same_v<U, OpIndex>)
   OptionalV(U index) : OptionalOpIndex(index) {}  // NOLINT(runtime/explicit)
 };
 
@@ -682,9 +716,9 @@ class ConstOrV {
 
   // ConstOrV<T> is implicitly constructible from V<U> iff V<T> is
   // constructible from V<U>.
-  template <typename U,
-            typename = std::enable_if_t<std::is_constructible_v<V<T>, V<U>>>>
+  template <typename U>
   ConstOrV(V<U> index)  // NOLINT(runtime/explicit)
+    requires(std::is_constructible_v<V<T>, V<U>>)
       : constant_value_(std::nullopt), value_(index) {}
 
   bool is_constant() const { return constant_value_.has_value(); }
@@ -702,8 +736,9 @@ class ConstOrV {
  protected:
 #endif
   // ConstOrV<T> is implicitly constructible from plain OpIndex.
-  template <typename U, typename = std::enable_if_t<std::is_same_v<U, OpIndex>>>
+  template <typename U>
   ConstOrV(U index)  // NOLINT(runtime/explicit)
+    requires(std::is_same_v<U, OpIndex>)
       : constant_value_(), value_(index) {}
 
  private:
@@ -799,8 +834,7 @@ class ShadowyOpIndexVectorWrapper {
   }
   template <typename U>
   operator base::Vector<const V<U>>() const {  // NOLINT(runtime/explicit)
-    return base::Vector<const V<U>>{static_cast<const V<U>*>(indices_.data()),
-                                    indices_.size()};
+    return {static_cast<const V<U>*>(indices_.data()), indices_.size()};
   }
 
   size_t size() const noexcept { return indices_.size(); }
@@ -876,5 +910,13 @@ DEFINE_STRONG_ORDERING_COMPARISON(OptionalOpIndex, OpIndex,
 #undef DEFINE_STRONG_ORDERING_COMPARISON
 
 }  // namespace v8::internal::compiler::turboshaft
+
+template <>
+struct std::hash<v8::internal::compiler::turboshaft::OpIndex> {
+  std::size_t operator()(
+      const v8::internal::compiler::turboshaft::OpIndex& index) const {
+    return index.hash();
+  }
+};
 
 #endif  // V8_COMPILER_TURBOSHAFT_INDEX_H_

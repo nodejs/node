@@ -122,7 +122,7 @@ void Module::RecordError(Isolate* isolate, Tagged<Object> error) {
   }
 }
 
-void Module::ResetGraph(Isolate* isolate, Handle<Module> module) {
+void Module::ResetGraph(Isolate* isolate, DirectHandle<Module> module) {
   DCHECK_NE(module->status(), kEvaluating);
   if (module->status() != kPreLinking && module->status() != kLinking) {
     return;
@@ -130,9 +130,9 @@ void Module::ResetGraph(Isolate* isolate, Handle<Module> module) {
 
   DirectHandle<FixedArray> requested_modules =
       IsSourceTextModule(*module)
-          ? Handle<FixedArray>(
+          ? DirectHandle<FixedArray>(
                 Cast<SourceTextModule>(*module)->requested_modules(), isolate)
-          : Handle<FixedArray>();
+          : DirectHandle<FixedArray>();
   Reset(isolate, module);
 
   if (!IsSourceTextModule(*module)) {
@@ -140,7 +140,7 @@ void Module::ResetGraph(Isolate* isolate, Handle<Module> module) {
     return;
   }
   for (int i = 0; i < requested_modules->length(); ++i) {
-    Handle<Object> descendant(requested_modules->get(i), isolate);
+    DirectHandle<Object> descendant(requested_modules->get(i), isolate);
     if (IsModule(*descendant)) {
       ResetGraph(isolate, Cast<Module>(descendant));
     } else {
@@ -155,7 +155,7 @@ void Module::ResetGraph(Isolate* isolate, Handle<Module> module) {
   }
 }
 
-void Module::Reset(Isolate* isolate, Handle<Module> module) {
+void Module::Reset(Isolate* isolate, DirectHandle<Module> module) {
   DCHECK(module->status() == kPreLinking || module->status() == kLinking);
   DCHECK(IsTheHole(module->exception(), isolate));
   // The namespace object cannot exist, because it would have been created
@@ -185,7 +185,7 @@ Tagged<Object> Module::GetException() {
 }
 
 MaybeHandle<Cell> Module::ResolveExport(Isolate* isolate, Handle<Module> module,
-                                        Handle<String> module_specifier,
+                                        DirectHandle<String> module_specifier,
                                         Handle<String> export_name,
                                         MessageLocation loc, bool must_resolve,
                                         Module::ResolveSet* resolve_set) {
@@ -232,7 +232,8 @@ bool Module::Instantiate(Isolate* isolate, Handle<Module> module,
 }
 
 bool Module::PrepareInstantiate(
-    Isolate* isolate, Handle<Module> module, v8::Local<v8::Context> context,
+    Isolate* isolate, DirectHandle<Module> module,
+    v8::Local<v8::Context> context,
     v8::Module::ResolveModuleCallback module_callback,
     v8::Module::ResolveSourceCallback source_callback) {
   DCHECK_NE(module->status(), kEvaluating);
@@ -287,7 +288,7 @@ MaybeHandle<Object> Module::Evaluate(Isolate* isolate, Handle<Module> module) {
       return top_level_capability;
     }
     Handle<JSPromise> capability = isolate->factory()->NewJSPromise();
-    JSPromise::Reject(capability, handle(module->exception(), isolate));
+    JSPromise::Reject(capability, direct_handle(module->exception(), isolate));
     return capability;
   }
 
@@ -337,7 +338,7 @@ Handle<JSModuleNamespace> Module::GetModuleNamespace(Isolate* isolate,
   }
 
   DirectHandle<ObjectHashTable> exports(module->exports(), isolate);
-  ZoneVector<Handle<String>> names(&zone);
+  ZoneVector<IndirectHandle<String>> names(&zone);
   names.reserve(exports->NumberOfElements());
   for (InternalIndex i : exports->IterateEntries()) {
     Tagged<Object> key;
@@ -348,7 +349,7 @@ Handle<JSModuleNamespace> Module::GetModuleNamespace(Isolate* isolate,
 
   // Sort them alphabetically.
   std::sort(names.begin(), names.end(),
-            [&isolate](Handle<String> a, Handle<String> b) {
+            [&isolate](IndirectHandle<String> a, IndirectHandle<String> b) {
               return String::Compare(isolate, a, b) ==
                      ComparisonResult::kLessThan;
             });
@@ -393,13 +394,13 @@ Handle<JSModuleNamespace> Module::GetModuleNamespace(Isolate* isolate,
   return ns;
 }
 
-bool JSModuleNamespace::HasExport(Isolate* isolate, Handle<String> name) {
+bool JSModuleNamespace::HasExport(Isolate* isolate, DirectHandle<String> name) {
   DirectHandle<Object> object(module()->exports()->Lookup(name), isolate);
   return !IsTheHole(*object, isolate);
 }
 
 MaybeHandle<Object> JSModuleNamespace::GetExport(Isolate* isolate,
-                                                 Handle<String> name) {
+                                                 DirectHandle<String> name) {
   DirectHandle<Object> object(module()->exports()->Lookup(name), isolate);
   if (IsTheHole(*object, isolate)) {
     return isolate->factory()->undefined_value();
@@ -424,7 +425,7 @@ MaybeHandle<Object> JSModuleNamespace::GetExport(Isolate* isolate,
 Maybe<PropertyAttributes> JSModuleNamespace::GetPropertyAttributes(
     LookupIterator* it) {
   DirectHandle<JSModuleNamespace> object = it->GetHolder<JSModuleNamespace>();
-  Handle<String> name = Cast<String>(it->GetName());
+  DirectHandle<String> name = Cast<String>(it->GetName());
   DCHECK_EQ(it->state(), LookupIterator::ACCESSOR);
 
   Isolate* isolate = it->isolate();
@@ -447,8 +448,9 @@ Maybe<PropertyAttributes> JSModuleNamespace::GetPropertyAttributes(
 // https://tc39.es/ecma262/#sec-module-namespace-exotic-objects-defineownproperty-p-desc
 // static
 Maybe<bool> JSModuleNamespace::DefineOwnProperty(
-    Isolate* isolate, Handle<JSModuleNamespace> object, Handle<Object> key,
-    PropertyDescriptor* desc, Maybe<ShouldThrow> should_throw) {
+    Isolate* isolate, DirectHandle<JSModuleNamespace> object,
+    DirectHandle<Object> key, PropertyDescriptor* desc,
+    Maybe<ShouldThrow> should_throw) {
   // 1. If Type(P) is Symbol, return OrdinaryDefineOwnProperty(O, P, Desc).
   if (IsSymbol(*key)) {
     return OrdinaryDefineOwnProperty(isolate, object, key, desc, should_throw);

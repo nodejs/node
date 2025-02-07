@@ -43,7 +43,7 @@ BUILTIN(BigIntAsUintN) {
   Handle<Object> bits_obj = args.atOrUndefined(isolate, 1);
   Handle<Object> bigint_obj = args.atOrUndefined(isolate, 2);
 
-  Handle<Object> bits;
+  DirectHandle<Object> bits;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, bits,
       Object::ToIndex(isolate, bits_obj, MessageTemplate::kInvalidIndex));
@@ -61,7 +61,7 @@ BUILTIN(BigIntAsIntN) {
   Handle<Object> bits_obj = args.atOrUndefined(isolate, 1);
   Handle<Object> bigint_obj = args.atOrUndefined(isolate, 2);
 
-  Handle<Object> bits;
+  DirectHandle<Object> bits;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, bits,
       Object::ToIndex(isolate, bits_obj, MessageTemplate::kInvalidIndex));
@@ -97,7 +97,7 @@ MaybeHandle<BigInt> ThisBigIntValue(Isolate* isolate, Handle<Object> value,
 Tagged<Object> BigIntToStringImpl(Handle<Object> receiver, Handle<Object> radix,
                                   Isolate* isolate, const char* builtin_name) {
   // 1. Let x be ? thisBigIntValue(this value).
-  Handle<BigInt> x;
+  DirectHandle<BigInt> x;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, x, ThisBigIntValue(isolate, receiver, builtin_name));
   // 2. If radix is not present, let radixNumber be 10.

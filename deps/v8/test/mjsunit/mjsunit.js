@@ -205,6 +205,8 @@ var V8OptimizationStatus = {
   kIsLazy: 1 << 18,
   kTopmostFrameIsMaglev: 1 << 19,
   kOptimizeOnNextCallOptimizesToMaglev: 1 << 20,
+  kMarkedForMagkevOptimization: 1 << 21,
+  kMarkedForConcurrentMaglevOptimization: 1 << 22,
 };
 
 // Returns true if --lite-mode is on and we can't ever turn on optimization.

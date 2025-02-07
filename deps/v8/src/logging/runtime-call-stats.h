@@ -134,6 +134,7 @@ class RuntimeCallTimer final {
   V(AccessorPair_New)                                      \
   V(ArrayBuffer_Cast)                                      \
   V(ArrayBuffer_Detach)                                    \
+  V(ArrayBuffer_MaybeNew)                                  \
   V(ArrayBuffer_New)                                       \
   V(ArrayBuffer_NewBackingStore)                           \
   V(ArrayBuffer_BackingStore_Reallocate)                   \
@@ -308,6 +309,7 @@ class RuntimeCallTimer final {
   V(Value_Uint32Value)                                     \
   V(WasmCompileError_New)                                  \
   V(WasmLinkError_New)                                     \
+  V(WasmSuspendError_New)                                  \
   V(WasmRuntimeError_New)                                  \
   V(WeakMap_Delete)                                        \
   V(WeakMap_Get)                                           \
@@ -390,6 +392,7 @@ class RuntimeCallTimer final {
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftDebugFeatureLowering)    \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize,                                    \
                               TurboshaftDecompressionOptimization)            \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftGrowableStacks)          \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftInstructionSelection)    \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftInt64Lowering)           \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftLateOptimization)        \
@@ -400,7 +403,6 @@ class RuntimeCallTimer final {
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftOptimize)                \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftProfileApplication)      \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftRecreateSchedule)        \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftSimplifiedLowering)      \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftSpecialRPOScheduling)    \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftStoreStoreElimination)   \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftTagUntagLowering)        \
@@ -602,7 +604,7 @@ enum RuntimeCallCounterId {
 #define CALL_RUNTIME_COUNTER(name, nargs, ressize) kRuntime_##name,
           FOR_EACH_INTRINSIC(CALL_RUNTIME_COUNTER)
 #undef CALL_RUNTIME_COUNTER
-#define CALL_BUILTIN_COUNTER(name) kBuiltin_##name,
+#define CALL_BUILTIN_COUNTER(name, Argc) kBuiltin_##name,
               BUILTIN_LIST_C(CALL_BUILTIN_COUNTER)
 #undef CALL_BUILTIN_COUNTER
 #define CALL_BUILTIN_COUNTER(name) kAPI_##name,

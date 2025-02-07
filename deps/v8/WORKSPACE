@@ -59,6 +59,16 @@ bind(
     actual = "@com_google_absl//absl/container:flat_hash_set"
 )
 
+local_repository(
+  name = "highway",
+  path = "third_party/highway/src",
+)
+
+bind(
+    name = "hwy",
+    actual = "@highway//:hwy"
+)
+
 new_local_repository(
     name = "com_googlesource_chromium_icu",
     build_file = ":bazel/BUILD.icu",

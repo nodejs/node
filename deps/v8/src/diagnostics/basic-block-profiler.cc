@@ -174,7 +174,8 @@ void BasicBlockProfiler::Print(Isolate* isolate, std::ostream& os) {
   std::unordered_set<std::string> builtin_names;
   for (int i = 0; i < list->length(); ++i) {
     BasicBlockProfilerData data(
-        handle(Cast<OnHeapBasicBlockProfilerData>(list->get(i)), isolate),
+        direct_handle(Cast<OnHeapBasicBlockProfilerData>(list->get(i)),
+                      isolate),
         isolate);
     os << data;
     // Ensure that all builtin names are unique; otherwise profile-guided
@@ -191,7 +192,8 @@ void BasicBlockProfiler::Log(Isolate* isolate, std::ostream& os) {
   std::unordered_set<std::string> builtin_names;
   for (int i = 0; i < list->length(); ++i) {
     BasicBlockProfilerData data(
-        handle(Cast<OnHeapBasicBlockProfilerData>(list->get(i)), isolate),
+        direct_handle(Cast<OnHeapBasicBlockProfilerData>(list->get(i)),
+                      isolate),
         isolate);
     data.Log(isolate, os);
     // Ensure that all builtin names are unique; otherwise profile-guided

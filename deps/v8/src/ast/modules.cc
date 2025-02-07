@@ -183,7 +183,7 @@ Handle<FixedArray> SourceTextModuleDescriptor::SerializeRegularExports(
   // local names and for each local name immediately access all its export
   // names.  (Regular exports have neither import name nor module request.)
 
-  ZoneVector<Handle<Object>> data(
+  ZoneVector<IndirectHandle<Object>> data(
       SourceTextModuleInfo::kRegularExportLength * regular_exports_.size(),
       zone);
   int index = 0;

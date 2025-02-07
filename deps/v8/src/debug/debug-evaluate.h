@@ -102,8 +102,8 @@ class DebugEvaluate : public AllStatic {
 
   static MaybeHandle<Object> Evaluate(Isolate* isolate,
                                       Handle<SharedFunctionInfo> outer_info,
-                                      Handle<Context> context,
-                                      Handle<Object> receiver,
+                                      DirectHandle<Context> context,
+                                      DirectHandle<Object> receiver,
                                       Handle<String> source,
                                       bool throw_on_side_effect);
 };

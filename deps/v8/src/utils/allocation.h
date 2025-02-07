@@ -48,9 +48,10 @@ T* NewArray(size_t size) {
   return result;
 }
 
-template <typename T, typename = typename std::enable_if<
-                          base::is_trivially_copyable<T>::value>::type>
-T* NewArray(size_t size, T default_val) {
+template <typename T>
+T* NewArray(size_t size, T default_val)
+  requires base::is_trivially_copyable<T>::value
+{
   T* result = reinterpret_cast<T*>(NewArray<uint8_t>(sizeof(T) * size));
   for (size_t i = 0; i < size; ++i) result[i] = default_val;
   return result;
@@ -283,10 +284,6 @@ class VirtualMemory final {
 
   // Frees all memory.
   V8_EXPORT_PRIVATE void Free();
-
-  // As with Free but does not write to the VirtualMemory object itself so it
-  // can be called on a VirtualMemory that is itself not writable.
-  V8_EXPORT_PRIVATE void FreeReadOnly();
 
   bool InVM(Address address, size_t size) const {
     return region_.contains(address, size);

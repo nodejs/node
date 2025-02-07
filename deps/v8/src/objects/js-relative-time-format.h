@@ -39,13 +39,13 @@ class JSRelativeTimeFormat
   // Creates relative time format object with properties derived from input
   // locales and options.
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSRelativeTimeFormat> New(
-      Isolate* isolate, DirectHandle<Map> map, Handle<Object> locales,
-      Handle<Object> options);
+      Isolate* isolate, DirectHandle<Map> map, DirectHandle<Object> locales,
+      DirectHandle<Object> options);
 
   V8_WARN_UNUSED_RESULT static Handle<JSObject> ResolvedOptions(
       Isolate* isolate, DirectHandle<JSRelativeTimeFormat> format_holder);
 
-  Handle<String> NumericAsString() const;
+  Handle<String> NumericAsString(Isolate* isolate) const;
 
   // ecma402/#sec-Intl.RelativeTimeFormat.prototype.format
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> Format(

@@ -36,31 +36,30 @@ uint32_t StringHasher::GetHashCore(uint32_t running_hash) {
   return running_hash;
 }
 
-uint32_t StringHasher::GetTrivialHash(int length) {
+uint32_t StringHasher::GetTrivialHash(uint32_t length) {
   DCHECK_GT(length, String::kMaxHashCalcLength);
   // The hash of a large string is simply computed from the length.
   // Ensure that the max length is small enough to be encoded without losing
   // information.
   static_assert(String::kMaxLength <= String::HashBits::kMax);
-  uint32_t hash = static_cast<uint32_t>(length);
+  uint32_t hash = length;
   return String::CreateHashFieldValue(hash, String::HashFieldType::kHash);
 }
 
 template <typename char_t>
-uint32_t StringHasher::HashSequentialString(const char_t* chars_raw, int length,
-                                            uint64_t seed) {
+uint32_t StringHasher::HashSequentialString(const char_t* chars_raw,
+                                            uint32_t length, uint64_t seed) {
   static_assert(std::is_integral<char_t>::value);
   static_assert(sizeof(char_t) <= 2);
   using uchar = typename std::make_unsigned<char_t>::type;
   const uchar* chars = reinterpret_cast<const uchar*>(chars_raw);
-  DCHECK_LE(0, length);
-  DCHECK_IMPLIES(0 < length, chars != nullptr);
+  DCHECK_IMPLIES(length > 0, chars != nullptr);
   if (length >= 1) {
     if (IsDecimalDigit(chars[0]) && (length == 1 || chars[0] != '0')) {
       if (length <= String::kMaxArrayIndexSize) {
         // Possible array index; try to compute the array index hash.
         uint32_t index = chars[0] - '0';
-        int i = 1;
+        uint32_t i = 1;
         do {
           if (i == length) {
             return MakeArrayIndexHash(index, length);
@@ -124,7 +123,7 @@ uint32_t StringHasher::HashSequentialString(const char_t* chars_raw, int length,
 
 std::size_t SeededStringHasher::operator()(const char* name) const {
   return StringHasher::HashSequentialString(
-      name, static_cast<int>(strlen(name)), hashseed_);
+      name, static_cast<uint32_t>(strlen(name)), hashseed_);
 }
 
 }  // namespace internal

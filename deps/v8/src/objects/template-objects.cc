@@ -4,7 +4,7 @@
 
 #include "src/objects/template-objects.h"
 
-#include "src/base/functional.h"
+#include "src/base/hashing.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
 #include "src/objects/js-array.h"
@@ -28,7 +28,7 @@ bool CachedTemplateMatches(Isolate* isolate,
            template_object->slot_id() == slot_id;
   }
 
-  Handle<JSArray> entry_handle(entry, isolate);
+  DirectHandle<JSArray> entry_handle(entry, isolate);
   Tagged<Smi> cached_function_literal_id =
       Cast<Smi>(*JSReceiver::GetDataProperty(
           isolate, entry_handle,
@@ -52,7 +52,8 @@ Handle<JSArray> TemplateObjectDescription::GetTemplateObject(
   int function_literal_id = shared_info->function_literal_id();
 
   // Check the template weakmap to see if the template object already exists.
-  Handle<Script> script(Cast<Script>(shared_info->script(isolate)), isolate);
+  DirectHandle<Script> script(Cast<Script>(shared_info->script(isolate)),
+                              isolate);
   int32_t hash =
       EphemeronHashTable::TodoShape::Hash(ReadOnlyRoots(isolate), script);
   MaybeHandle<ArrayList> maybe_cached_templates;
@@ -103,7 +104,7 @@ Handle<JSArray> TemplateObjectDescription::GetTemplateObject(
 
   // Compare the cached_templates to the original maybe_cached_templates loaded
   // from the weakmap -- if it doesn't match, we need to update the weakmap.
-  Handle<ArrayList> old_cached_templates;
+  DirectHandle<ArrayList> old_cached_templates;
   if (!maybe_cached_templates.ToHandle(&old_cached_templates) ||
       *old_cached_templates != *cached_templates) {
     Tagged<HeapObject> maybe_template_weakmap =

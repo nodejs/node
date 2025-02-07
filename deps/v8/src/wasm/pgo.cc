@@ -26,7 +26,7 @@ class ProfileGenerator {
     SerializeTypeFeedback(buffer);
     SerializeTieringInfo(buffer);
 
-    return base::OwnedVector<uint8_t>::Of(buffer);
+    return base::OwnedCopyOf(buffer);
   }
 
  private:

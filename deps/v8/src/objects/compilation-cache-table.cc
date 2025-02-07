@@ -182,7 +182,7 @@ class EvalCacheKey : public HashTableKey {
     array->set(1, *source_);
     array->set(2, Smi::FromEnum(language_mode_));
     array->set(3, Smi::FromInt(position_));
-    array->set_map(ReadOnlyRoots(isolate).fixed_cow_array_map());
+    array->set_map(isolate, ReadOnlyRoots(isolate).fixed_cow_array_map());
     return array;
   }
 
@@ -231,13 +231,14 @@ class CodeKey : public HashTableKey {
   Handle<SharedFunctionInfo> key_;
 };
 
-Tagged<Smi> ScriptHash(Tagged<String> source, MaybeHandle<Object> maybe_name,
-                       int line_offset, int column_offset,
+Tagged<Smi> ScriptHash(Tagged<String> source,
+                       MaybeDirectHandle<Object> maybe_name, int line_offset,
+                       int column_offset,
                        v8::ScriptOriginOptions origin_options,
                        Isolate* isolate) {
   DisallowGarbageCollection no_gc;
   size_t hash = base::hash_combine(source->EnsureHash());
-  if (Handle<Object> name;
+  if (DirectHandle<Object> name;
       maybe_name.ToHandle(&name) && IsString(*name, isolate)) {
     hash =
         base::hash_combine(hash, Cast<String>(*name)->EnsureHash(), line_offset,
@@ -360,7 +361,7 @@ ScriptCacheKey::ScriptCacheKey(Handle<String> source, MaybeHandle<Object> name,
       isolate_(isolate) {
   DCHECK(Smi::IsValid(static_cast<int>(Hash())));
 #ifdef DEBUG
-  Handle<FixedArray> wrapped_arguments;
+  DirectHandle<FixedArray> wrapped_arguments;
   if (maybe_wrapped_arguments.ToHandle(&wrapped_arguments)) {
     int length = wrapped_arguments->length();
     for (int i = 0; i < length; i++) {
@@ -461,8 +462,9 @@ CompilationCacheScriptLookupResult CompilationCacheTable::LookupScript(
 
 InfoCellPair CompilationCacheTable::LookupEval(
     DirectHandle<CompilationCacheTable> table, Handle<String> src,
-    Handle<SharedFunctionInfo> outer_info, DirectHandle<Context> native_context,
-    LanguageMode language_mode, int position) {
+    Handle<SharedFunctionInfo> outer_info,
+    DirectHandle<NativeContext> native_context, LanguageMode language_mode,
+    int position) {
   InfoCellPair empty_result;
   Isolate* isolate = native_context->GetIsolate();
   src = String::Flatten(isolate, src);
@@ -562,7 +564,7 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutEval(
     Handle<CompilationCacheTable> cache, Handle<String> src,
     Handle<SharedFunctionInfo> outer_info,
     DirectHandle<SharedFunctionInfo> value,
-    DirectHandle<Context> native_context,
+    DirectHandle<NativeContext> native_context,
     DirectHandle<FeedbackCell> feedback_cell, int position) {
   Isolate* isolate = native_context->GetIsolate();
   src = String::Flatten(isolate, src);

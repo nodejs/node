@@ -44,8 +44,8 @@ class JSNumberFormat
  public:
   // ecma402/#sec-initializenumberformat
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSNumberFormat> New(
-      Isolate* isolate, DirectHandle<Map> map, Handle<Object> locales,
-      Handle<Object> options, const char* service);
+      Isolate* isolate, DirectHandle<Map> map, DirectHandle<Object> locales,
+      DirectHandle<Object> options, const char* service);
 
   // ecma402/#sec-unwrapnumberformat
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSNumberFormat> UnwrapNumberFormat(

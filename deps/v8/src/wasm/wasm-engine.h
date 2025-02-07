@@ -125,7 +125,7 @@ class NativeModuleCache {
       std::shared_ptr<NativeModule> native_module, bool error);
   void Erase(NativeModule* native_module);
 
-  bool empty() { return map_.empty(); }
+  bool empty() const { return map_.empty(); }
 
   // Hash the wire bytes up to the code section header. Used as a heuristic to
   // avoid streaming compilation of modules that are likely already in the
@@ -169,13 +169,14 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // Synchronously validates the given bytes. Returns whether the bytes
   // represent a valid encoded Wasm module.
   bool SyncValidate(Isolate* isolate, WasmEnabledFeatures enabled,
-                    CompileTimeImports compile_imports, ModuleWireBytes bytes);
+                    CompileTimeImports compile_imports,
+                    base::Vector<const uint8_t> bytes);
 
   // Synchronously compiles the given bytes that represent a translated
   // asm.js module.
   MaybeHandle<AsmWasmData> SyncCompileTranslatedAsmJs(
-      Isolate* isolate, ErrorThrower* thrower, ModuleWireBytes bytes,
-      DirectHandle<Script> script,
+      Isolate* isolate, ErrorThrower* thrower,
+      base::OwnedVector<const uint8_t> bytes, DirectHandle<Script> script,
       base::Vector<const uint8_t> asm_js_offset_table_bytes,
       DirectHandle<HeapNumber> uses_bitset, LanguageMode language_mode);
   Handle<WasmModuleObject> FinalizeTranslatedAsmJs(
@@ -184,11 +185,10 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   // Synchronously compiles the given bytes that represent an encoded Wasm
   // module.
-  MaybeHandle<WasmModuleObject> SyncCompile(Isolate* isolate,
-                                            WasmEnabledFeatures enabled,
-                                            CompileTimeImports compile_imports,
-                                            ErrorThrower* thrower,
-                                            ModuleWireBytes bytes);
+  MaybeHandle<WasmModuleObject> SyncCompile(
+      Isolate* isolate, WasmEnabledFeatures enabled,
+      CompileTimeImports compile_imports, ErrorThrower* thrower,
+      base::OwnedVector<const uint8_t> bytes);
 
   // Synchronously instantiate the given Wasm module with the given imports.
   // If the module represents an asm.js module, then the supplied {memory}
@@ -200,12 +200,10 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   // Begin an asynchronous compilation of the given bytes that represent an
   // encoded Wasm module.
-  // The {is_shared} flag indicates if the bytes backing the module could
-  // be shared across threads, i.e. could be concurrently modified.
   void AsyncCompile(Isolate* isolate, WasmEnabledFeatures enabled,
                     CompileTimeImports compile_imports,
                     std::shared_ptr<CompilationResultResolver> resolver,
-                    ModuleWireBytes bytes, bool is_shared,
+                    base::OwnedVector<const uint8_t> bytes,
                     const char* api_method_name_for_errors);
 
   // Begin an asynchronous instantiation of the given Wasm module.
@@ -275,12 +273,6 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // for tearing down an isolate, or to clean it up to be reused.
   void DeleteCompileJobsOnIsolate(Isolate* isolate);
 
-  // Get a token for compiling wrappers for an Isolate. The token is used to
-  // synchronize background tasks on isolate shutdown. The caller should only
-  // hold the token while compiling export wrappers. If the isolate is already
-  // shutting down, this method will return an invalid token.
-  OperationsBarrier::Token StartWrapperCompilation(Isolate*);
-
   // Manage the set of Isolates that use this WasmEngine.
   void AddIsolate(Isolate* isolate);
   void RemoveIsolate(Isolate* isolate);
@@ -289,10 +281,11 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // access to the NativeModule containing this code. This method can be called
   // from background threads.
   void LogCode(base::Vector<WasmCode*>);
-  // Trigger code logging for the given code objects, which must be wrappers
-  // that are shared engine-wide. This method can be called from background
+  // Trigger code logging for the given code object, which must be a wrapper
+  // that is shared engine-wide. This method can be called from background
   // threads.
-  void LogWrapperCode(base::Vector<WasmCode*>);
+  // Returns whether code logging was triggered in any isolate.
+  bool LogWrapperCode(WasmCode*);
 
   // Enable code logging for the given Isolate. Initially, code logging is
   // enabled if {WasmCode::ShouldBeLogged(Isolate*)} returns true during
@@ -311,6 +304,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // TODO(wasm): isolate is only required here for CompilationState.
   std::shared_ptr<NativeModule> NewNativeModule(
       Isolate* isolate, WasmEnabledFeatures enabled_features,
+      WasmDetectedFeatures detected_features,
       CompileTimeImports compile_imports,
       std::shared_ptr<const WasmModule> module, size_t code_size_estimate);
 
@@ -370,7 +364,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // Called by each Isolate to report its live code for a GC cycle. First
   // version reports an externally determined set of live code (might be empty),
   // second version gets live code from the execution stack of that isolate.
-  void ReportLiveCodeForGC(Isolate*, base::Vector<WasmCode*>);
+  void ReportLiveCodeForGC(Isolate*, std::unordered_set<WasmCode*>& live_code);
   void ReportLiveCodeFromStackForGC(Isolate*);
 
   // Add potentially dead code. The occurrence in the set of potentially dead
@@ -402,6 +396,8 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // Returns an approximation of current off-heap memory used by this engine,
   // excluding code space.
   size_t EstimateCurrentMemoryConsumption() const;
+  // Print the current memory consumption estimate to standard output.
+  void PrintCurrentMemoryConsumptionEstimate() const;
 
   int GetDeoptsExecutedCount() const;
   int IncrementDeoptsExecutedCount();
@@ -437,6 +433,11 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // calling this method.
   void PotentiallyFinishCurrentGC();
 
+  // Enable/disable code logging on the NativeModule, updating
+  // {num_modules_with_code_logging_} accordingly.
+  void EnableCodeLogging(NativeModule*);
+  void DisableCodeLogging(NativeModule*);
+
   AccountingAllocator allocator_;
 
 #ifdef V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
@@ -455,7 +456,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   // This mutex protects all information which is mutated concurrently or
   // fields that are initialized lazily on the first access.
-  mutable base::Mutex mutex_;
+  mutable base::SpinningMutex mutex_;
 
   //////////////////////////////////////////////////////////////////////////////
   // Protected by {mutex_}:
@@ -478,17 +479,18 @@ class V8_EXPORT_PRIVATE WasmEngine {
   std::shared_ptr<OperationsBarrier> operations_barrier_{
       std::make_shared<OperationsBarrier>()};
 
+  // Store the number of modules which have code logging enabled. This is then
+  // used for a fast-path to avoid taking the mutex and iterating Isolates or
+  // NativeModules.
+  std::atomic<size_t> num_modules_with_code_logging_{0};
+
   // Size of code that became dead since the last GC. If this exceeds a certain
   // threshold, a new GC is triggered.
   size_t new_potentially_dead_code_size_ = 0;
   // Set of potentially dead code. This set holds one ref for each code object,
   // until code is detected to be really dead. At that point, the ref count is
-  // decremented and code is moved to the {dead_code} set. If the code is
-  // finally deleted, it is also removed from {dead_code}.
+  // decremented and code is removed from the set.
   std::unordered_set<WasmCode*> potentially_dead_code_;
-  // Code that is not being executed in any isolate any more, but the ref count
-  // did not drop to zero yet.
-  std::unordered_set<WasmCode*> dead_code_;
   int8_t num_code_gcs_triggered_ = 0;
 
   // If an engine-wide GC is currently running, this pointer stores information

@@ -131,7 +131,7 @@ class V8_EXPORT_PRIVATE NormalPageMemoryPool final {
   // actual cost of pooled memory.
   size_t PooledMemory() const;
 
-  void DiscardPooledPages(PageAllocator& allocator);
+  void ReleasePooledPages(PageAllocator& allocator);
 
   auto& get_raw_pool_for_testing() { return pool_; }
 
@@ -171,7 +171,7 @@ class V8_EXPORT_PRIVATE PageBackend final {
 
   // Returns normal page memory back to the backend. Expects the
   // |writeable_base| returned by |AllocateNormalMemory()|.
-  void FreeNormalPageMemory(Address writeable_base, FreeMemoryHandling);
+  void FreeNormalPageMemory(Address writeable_base);
 
   // Allocates a large page from the backend.
   //
@@ -190,7 +190,7 @@ class V8_EXPORT_PRIVATE PageBackend final {
   PageBackend(const PageBackend&) = delete;
   PageBackend& operator=(const PageBackend&) = delete;
 
-  void DiscardPooledPages();
+  void ReleasePooledPages();
 
   PageMemoryRegionTree& get_page_memory_region_tree_for_testing() {
     return page_memory_region_tree_;

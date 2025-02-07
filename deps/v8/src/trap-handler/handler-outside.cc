@@ -40,9 +40,7 @@ constexpr bool kEnableSlowChecks = false;
 #endif
 }  // namespace
 
-namespace v8 {
-namespace internal {
-namespace trap_handler {
+namespace v8::internal::trap_handler {
 
 constexpr size_t kInitialCodeObjectSize = 1024;
 constexpr size_t kCodeObjectGrowthFactor = 2;
@@ -280,6 +278,10 @@ bool EnableTrapHandler(bool use_v8_handler) {
 
 void SetLandingPad(uintptr_t landing_pad) { gLandingPad.store(landing_pad); }
 
-}  // namespace trap_handler
-}  // namespace internal
-}  // namespace v8
+#if defined(BUILDING_V8_SHARED_PRIVATE) || defined(USING_V8_SHARED_PRIVATE)
+void AssertThreadNotInWasm() {
+  TH_DCHECK(!g_is_trap_handler_enabled || !g_thread_in_wasm_code);
+}
+#endif
+
+}  // namespace v8::internal::trap_handler

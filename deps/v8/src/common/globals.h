@@ -18,6 +18,7 @@
 #include "src/base/flags.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
+#include "src/base/strong-alias.h"
 
 #define V8_INFINITY std::numeric_limits<double>::infinity()
 
@@ -52,7 +53,7 @@ namespace internal {
 #if (V8_TARGET_ARCH_MIPS64 && !V8_HOST_ARCH_MIPS64)
 #define USE_SIMULATOR 1
 #endif
-#if (V8_TARGET_ARCH_S390 && !V8_HOST_ARCH_S390)
+#if (V8_TARGET_ARCH_S390X && !V8_HOST_ARCH_S390X)
 #define USE_SIMULATOR 1
 #endif
 #if (V8_TARGET_ARCH_RISCV64 && !V8_HOST_ARCH_RISCV64)
@@ -116,10 +117,7 @@ namespace internal {
 #define COMPRESS_POINTERS_IN_MULTIPLE_CAGES_BOOL false
 #endif
 
-#if defined(V8_SHARED_RO_HEAP) &&                     \
-    (!defined(V8_COMPRESS_POINTERS) ||                \
-     defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE)) && \
-    !defined(V8_DISABLE_WRITE_BARRIERS)
+#ifndef V8_DISABLE_WRITE_BARRIERS
 #define V8_CAN_CREATE_SHARED_HEAP_BOOL true
 #else
 #define V8_CAN_CREATE_SHARED_HEAP_BOOL false
@@ -131,22 +129,30 @@ namespace internal {
 #define V8_STATIC_ROOTS_GENERATION_BOOL false
 #endif
 
-#ifdef V8_ENABLE_SANDBOX
-#define V8_ENABLE_SANDBOX_BOOL true
-#else
-#define V8_ENABLE_SANDBOX_BOOL false
-#endif
-
-#if defined(V8_ENABLE_SANDBOX) && !defined(V8_DISABLE_LEAPTIERING)
-// Initially, Leaptiering is only available on sandbox-enabled builds, and so
-// V8_ENABLE_SANDBOX and V8_ENABLE_LEAPTIERING are effectively equivalent. Once
-// completed there, it will be ported to non-sandbox builds, at which point the
-// two defines will be separated from each other. Finally, once Leaptiering is
-// used on all configurations, the define will be removed completely.
-#define V8_ENABLE_LEAPTIERING 1
+#ifdef V8_ENABLE_LEAPTIERING
 #define V8_ENABLE_LEAPTIERING_BOOL true
+
+// If we have predictable and shared builtin objects, then dispatch handles of
+// builtins are stored in the read only segment of the JSDispatchTable.
+// Otherwise, we need a table of per-isolate dispatch handles of builtins.
+#ifdef V8_STATIC_ROOTS
+#define V8_STATIC_DISPATCH_HANDLES_BOOL true
+#else
+#define V8_STATIC_DISPATCH_HANDLES_BOOL false
+#endif  // !V8_STATIC_ROOTS
+
 #else
 #define V8_ENABLE_LEAPTIERING_BOOL false
+#endif
+
+#ifdef V8_ENABLE_SANDBOX
+#define V8_ENABLE_SANDBOX_BOOL true
+static_assert(V8_ENABLE_LEAPTIERING_BOOL);
+#define V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE 1
+#define V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL true
+#else
+#define V8_ENABLE_SANDBOX_BOOL false
+#define V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL false
 #endif
 
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
@@ -370,8 +376,11 @@ constexpr int kMinUInt16 = 0;
 constexpr int kMaxInt31 = kMaxInt / 2;
 constexpr int kMinInt31 = kMinInt / 2;
 
-constexpr uint32_t kMaxUInt32 = 0xFFFFFFFFu;
-constexpr int kMinUInt32 = 0;
+constexpr uint32_t kMaxUInt32 = 0xFFFF'FFFFu;
+constexpr uint32_t kMinUInt32 = 0;
+
+constexpr uint64_t kMaxUInt64 = 0xFFFF'FFFF'FFFF'FFFFu;
+constexpr uint64_t kMinUInt64 = 0;
 
 constexpr int kInt8Size = sizeof(int8_t);
 constexpr int kUInt8Size = sizeof(uint8_t);
@@ -532,6 +541,41 @@ using AtomicTagged_t = base::AtomicWord;
 
 #endif  // V8_COMPRESS_POINTERS
 
+//
+// JavaScript Dispatch Table
+//
+// A JSDispatchHandle represents a 32-bit index into a JSDispatchTable.
+struct JSDispatchHandleAliasTag {};
+using JSDispatchHandle = base::StrongAlias<JSDispatchHandleAliasTag, uint32_t>;
+
+constexpr JSDispatchHandle kNullJSDispatchHandle(0);
+
+constexpr int kJSDispatchTableEntrySize = 16;
+constexpr int kJSDispatchTableEntrySizeLog2 = 4;
+
+// The size of the virtual memory reservation for the JSDispatchTable.
+// As with the other tables, a maximum table size in combination with shifted
+// indices allows omitting bounds checks.
+constexpr size_t kJSDispatchTableReservationSize = 128 * MB;
+// The maximum number of entries in a JSDispatchTable.
+constexpr size_t kMaxJSDispatchEntries =
+    kJSDispatchTableReservationSize / kJSDispatchTableEntrySize;
+
+#ifdef V8_TARGET_ARCH_64_BIT
+
+constexpr uint32_t kJSDispatchHandleShift = 9;
+static_assert((1 << (32 - kJSDispatchHandleShift)) == kMaxJSDispatchEntries,
+              "kJSDispatchTableReservationSize and kJSDispatchEntryHandleShift "
+              "don't match");
+
+#elif defined(V8_TARGET_ARCH_32_BIT)
+
+// Since the table is not contiguous on 32 bit platforms the indices can become
+// arbitrarily large and we need the full 32 bit range to hold them.
+constexpr uint32_t kJSDispatchHandleShift = 0;
+
+#endif
+
 static_assert(kTaggedSize == (1 << kTaggedSizeLog2));
 static_assert((kTaggedSize == 8) == TAGGED_SIZE_8_BYTES);
 
@@ -591,9 +635,22 @@ constexpr int kCodePointerSize = kTrustedPointerSize;
 // pointers. Either way, they are always kTaggedSize fields.
 constexpr int kProtectedPointerSize = kTaggedSize;
 
-#ifdef V8_ENABLE_LEAPTIERING
 constexpr int kJSDispatchHandleSize = sizeof(JSDispatchHandle);
-#endif
+
+// Dispatch handle constant used as a placeholder. This is currently used by
+// compilers when generating JS calls. In that case, the actual dispatch handle
+// value is only loaded by the low-level MacroAssembler operations, but a
+// placeholder value is necessary prior to that to satisfy linkage constraints.
+// TODO(saelo): instead, we could let the compiler load the dispatch handle
+// from the JSFunction and then use a MacroAssembler operation that uses the
+// dispatch handle directly. We just need to be sure that no GC can happen
+// between the load of the dispatch handle and the use.
+constexpr JSDispatchHandle kPlaceholderDispatchHandle(0x0);
+// Dispatch handle constant that can be used for direct calls when it is known
+// that the callee doesn't use the dispatch handle. This is for example the
+// case when performing direct calls to JS builtins.
+constexpr JSDispatchHandle kInvalidDispatchHandle(0xffffffff
+                                                  << kJSDispatchHandleShift);
 
 constexpr int kEmbedderDataSlotSize = kSystemPointerSize;
 
@@ -601,7 +658,7 @@ constexpr int kEmbedderDataSlotSizeInTaggedSlots =
     kEmbedderDataSlotSize / kTaggedSize;
 static_assert(kEmbedderDataSlotSize >= kSystemPointerSize);
 
-constexpr int kExternalAllocationSoftLimit =
+constexpr size_t kExternalAllocationSoftLimit =
     internal::Internals::kExternalAllocationSoftLimit;
 
 // Maximum object size that gets allocated into regular pages. Objects larger
@@ -735,6 +792,8 @@ inline LanguageMode stricter_language_mode(LanguageMode mode1,
 enum class StoreOrigin { kMaybeKeyed, kNamed };
 
 enum class TypeofMode { kInside, kNotInside };
+
+enum class ContextKind { kDefault, kScriptContext };
 
 // Whether floating point registers should be saved (and restored).
 enum class SaveFPRegsMode { kIgnore, kSave };
@@ -988,9 +1047,9 @@ class Debug;
 class DebugInfo;
 class Descriptor;
 class DescriptorArray;
-#ifdef V8_ENABLE_DIRECT_HANDLE
 template <typename T>
 class DirectHandle;
+#ifdef V8_ENABLE_DIRECT_HANDLE
 template <typename T>
 class DirectHandleVector;
 #endif
@@ -1005,10 +1064,6 @@ class FunctionTemplateInfo;
 class GlobalDictionary;
 template <typename T>
 class Handle;
-#ifndef V8_ENABLE_DIRECT_HANDLE
-template <typename T>
-using DirectHandle = Handle<T>;
-#endif
 class Heap;
 class HeapNumber;
 class Boolean;
@@ -1037,19 +1092,12 @@ class MaybeDirectHandle;
 #endif
 template <typename T>
 class MaybeHandle;
-#ifndef V8_ENABLE_DIRECT_HANDLE
 template <typename T>
-using MaybeDirectHandle = MaybeHandle<T>;
-#endif
+class MaybeDirectHandle;
 template <typename T>
 using MaybeIndirectHandle = MaybeHandle<T>;
-#ifdef V8_ENABLE_DIRECT_HANDLE
-class MaybeObjectDirectHandle;
-#endif
 class MaybeObjectHandle;
-#ifndef V8_ENABLE_DIRECT_HANDLE
-using MaybeObjectDirectHandle = MaybeObjectHandle;
-#endif
+class MaybeObjectDirectHandle;
 using MaybeObjectIndirectHandle = MaybeObjectHandle;
 template <typename T>
 class MaybeWeak;
@@ -1086,6 +1134,8 @@ using TrustedSpaceCompressionScheme = V8HeapCompressionScheme;
 class ExternalCodeCompressionScheme;
 template <typename CompressionScheme>
 class OffHeapCompressedObjectSlot;
+template <typename CompressionScheme>
+class OffHeapCompressedMaybeObjectSlot;
 class FullObjectSlot;
 class FullMaybeObjectSlot;
 class FullHeapObjectSlot;
@@ -1133,6 +1183,10 @@ using JSAnyNotNumber =
     Union<BigInt, String, Symbol, Boolean, Null, Undefined, JSReceiver>;
 using JSCallable =
     Union<JSBoundFunction, JSFunction, JSObject, JSProxy, JSWrappedFunction>;
+// Object prototypes are either JSReceivers or null -- they are not allowed to
+// be any other primitive value.
+using JSPrototype = Union<JSReceiver, Null>;
+
 using MaybeObject = MaybeWeak<Object>;
 using HeapObjectReference = MaybeWeak<HeapObject>;
 
@@ -1163,8 +1217,11 @@ struct SlotTraits {
 #ifdef V8_ENABLE_SANDBOX
   using TProtectedPointerSlot =
       OffHeapCompressedObjectSlot<TrustedSpaceCompressionScheme>;
+  using TProtectedMaybeObjectSlot =
+      OffHeapCompressedMaybeObjectSlot<TrustedSpaceCompressionScheme>;
 #else
   using TProtectedPointerSlot = TObjectSlot;
+  using TProtectedMaybeObjectSlot = TMaybeObjectSlot;
 #endif  // V8_ENABLE_SANDBOX
 };
 
@@ -1200,10 +1257,31 @@ using InstructionStreamSlot = SlotTraits::TInstructionStreamSlot;
 // TrustedObject to another TrustedObject as (only) trusted objects cannot
 // directly be manipulated by an attacker.
 using ProtectedPointerSlot = SlotTraits::TProtectedPointerSlot;
+// Same as a ProtectedPointerSlot, but can be weak.
+using ProtectedMaybeObjectSlot = SlotTraits::TProtectedMaybeObjectSlot;
 
 using WeakSlotCallback = bool (*)(FullObjectSlot pointer);
 
 using WeakSlotCallbackWithHeap = bool (*)(Heap* heap, FullObjectSlot pointer);
+
+template <typename TSlot>
+struct SlotHoldsTrustedPointerImpl {
+  static constexpr bool value = false;
+};
+#ifdef V8_ENABLE_SANDBOX
+template <>
+struct SlotHoldsTrustedPointerImpl<ProtectedPointerSlot> {
+  static constexpr bool value = true;
+};
+template <>
+struct SlotHoldsTrustedPointerImpl<ProtectedMaybeObjectSlot> {
+  static constexpr bool value = true;
+};
+#endif
+
+template <typename TSlot>
+static constexpr bool SlotHoldsTrustedPointerV =
+    SlotHoldsTrustedPointerImpl<TSlot>::value;
 
 // -----------------------------------------------------------------------------
 // Miscellaneous
@@ -1725,6 +1803,13 @@ constexpr int kIeeeDoubleExponentWordOffset = 0;
 
 // Prediction hint for branches.
 enum class BranchHint : uint8_t { kNone, kTrue, kFalse };
+
+// Like BranchHint but for GotoIf/GotoIfNot.
+enum GotoHint : uint8_t {
+  kNone,
+  kLabel,        // Jump to the given label.
+  kFallthrough,  // Don't jump, fall through.
+};
 
 // Defines hints about receiver values based on structural knowledge.
 enum class ConvertReceiverMode : unsigned {
@@ -2318,6 +2403,14 @@ inline std::ostream& operator<<(std::ostream& os,
 
 using FileAndLine = std::pair<const char*, int>;
 
+// The state kInProgress (= an optimization request for this function is
+// currently being serviced) currently means that no other tiering action can
+// happen. Define this constant so we can static_assert it at related code
+// sites.
+static constexpr bool kTieringStateInProgressBlocksTierup = true;
+
+#ifndef V8_ENABLE_LEAPTIERING
+
 #define TIERING_STATE_LIST(V)           \
   V(None, 0b000)                        \
   V(InProgress, 0b001)                  \
@@ -2332,12 +2425,6 @@ enum class TieringState : int32_t {
 #undef V
       kLastTieringState = kRequestTurbofan_Concurrent,
 };
-
-// The state kInProgress (= an optimization request for this function is
-// currently being serviced) currently means that no other tiering action can
-// happen. Define this constant so we can static_assert it at related code
-// sites.
-static constexpr bool kTieringStateInProgressBlocksTierup = true;
 
 // To efficiently check whether a marker is kNone or kInProgress using a single
 // mask, we expect the kNone to be 0 and kInProgress to be 1 so that we can
@@ -2378,6 +2465,8 @@ inline std::ostream& operator<<(std::ostream& os, TieringState marker) {
 }
 
 #undef TIERING_STATE_LIST
+
+#endif  // !V8_ENABLE_LEAPTIERING
 
 // State machine:
 // S(tate)0: kPending
@@ -2605,6 +2694,10 @@ constexpr int kSwissNameDictionaryInitialCapacity = 4;
 constexpr int kSmallOrderedHashSetMinCapacity = 4;
 constexpr int kSmallOrderedHashMapMinCapacity = 4;
 
+enum class AdaptArguments { kYes, kNo };
+constexpr AdaptArguments kAdapt = AdaptArguments::kYes;
+constexpr AdaptArguments kDontAdapt = AdaptArguments::kNo;
+
 constexpr int kJSArgcReceiverSlots = 1;
 constexpr uint16_t kDontAdaptArgumentsSentinel = 0;
 
@@ -2699,6 +2792,31 @@ enum class StringTransitionStrategy {
   // The string is already transitioned to the desired representation.
   kAlreadyTransitioned
 };
+
+class WasmCodePointer {
+ public:
+  WasmCodePointer() = default;
+  explicit constexpr WasmCodePointer(uint32_t value) : value_(value) {}
+
+  uint32_t value() const { return value_; }
+
+  bool operator==(const WasmCodePointer& other) const {
+    return value_ == other.value_;
+  }
+  bool operator!=(const WasmCodePointer& other) const {
+    return value_ != other.value_;
+  }
+
+  template <typename H>
+  friend H AbslHashValue(H h, const WasmCodePointer& code_pointer) {
+    return H::combine(std::move(h), code_pointer.value());
+  }
+
+ private:
+  uint32_t value_ = -1;
+};
+
+enum CallJumpMode { kCall, kTailCall };
 
 }  // namespace internal
 

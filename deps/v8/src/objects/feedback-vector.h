@@ -11,6 +11,7 @@
 #include "src/base/bit-field.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
+#include "src/base/small-vector.h"
 #include "src/common/globals.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/feedback-cell.h"
@@ -82,7 +83,8 @@ static constexpr int kFeedbackSlotKindCount =
     static_cast<int>(FeedbackSlotKind::kLast) + 1;
 
 using MapAndHandler = std::pair<Handle<Map>, MaybeObjectHandle>;
-using MapAndFeedback = std::pair<Handle<Map>, MaybeObjectHandle>;
+using MapsAndHandlers =
+    base::SmallVector<MapAndHandler, DEFAULT_MAX_POLYMORPHIC_MAP_COUNT>;
 
 inline bool IsCallICKind(FeedbackSlotKind kind) {
   return kind == FeedbackSlotKind::kCall;
@@ -176,19 +178,11 @@ class FeedbackMetadata;
 
 class ClosureFeedbackCellArrayShape final : public AllStatic {
  public:
-  static constexpr int kElementSize = kTaggedSize;
   using ElementT = FeedbackCell;
   using CompressionScheme = V8HeapCompressionScheme;
   static constexpr RootIndex kMapRootIndex =
       RootIndex::kClosureFeedbackCellArrayMap;
   static constexpr bool kLengthEqualsCapacity = true;
-
-#define FIELD_LIST(V)                                                   \
-  V(kCapacityOffset, kTaggedSize)                                       \
-  V(kUnalignedHeaderSize, OBJECT_POINTER_PADDING(kUnalignedHeaderSize)) \
-  V(kHeaderSize, 0)
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, FIELD_LIST)
-#undef FIELD_LIST
 };
 
 // ClosureFeedbackCellArray contains feedback cells used when creating closures
@@ -200,7 +194,6 @@ class ClosureFeedbackCellArray
                              ClosureFeedbackCellArrayShape> {
   using Super =
       TaggedArrayBase<ClosureFeedbackCellArray, ClosureFeedbackCellArrayShape>;
-  OBJECT_CONSTRUCTORS(ClosureFeedbackCellArray, Super);
 
  public:
   NEVER_READ_ONLY_SPACE
@@ -226,6 +219,8 @@ class FeedbackVector
   NEVER_READ_ONLY_SPACE
   DEFINE_TORQUE_GENERATED_OSR_STATE()
   DEFINE_TORQUE_GENERATED_FEEDBACK_VECTOR_FLAGS()
+
+#ifndef V8_ENABLE_LEAPTIERING
   static_assert(TieringStateBits::is_valid(TieringState::kLastTieringState));
 
   static constexpr uint32_t kFlagsMaybeHasTurbofanCode =
@@ -242,6 +237,7 @@ class FeedbackVector
 
   static constexpr inline uint32_t FlagMaskForNeedsProcessingCheckFrom(
       CodeKind code_kind);
+#endif  // !V8_ENABLE_LEAPTIERING
 
   inline bool is_empty() const;
 
@@ -283,12 +279,14 @@ class FeedbackVector
   // The `osr_state` contains the osr_urgency and maybe_has_optimized_osr_code.
   inline void reset_osr_state();
 
+#ifndef V8_ENABLE_LEAPTIERING
+  inline bool log_next_execution() const;
+  inline void set_log_next_execution(bool value = true);
+
   inline Tagged<Code> optimized_code(IsolateForSandbox isolate) const;
   // Whether maybe_optimized_code contains a cached Code object.
   inline bool has_optimized_code() const;
 
-  inline bool log_next_execution() const;
-  inline void set_log_next_execution(bool value = true);
   // Similar to above, but represented internally as a bit that can be
   // efficiently checked by generated code. May lag behind the actual state of
   // the world, thus 'maybe'.
@@ -301,6 +299,7 @@ class FeedbackVector
   void EvictOptimizedCodeMarkedForDeoptimization(
       Isolate* isolate, Tagged<SharedFunctionInfo> shared, const char* reason);
   void ClearOptimizedCode();
+#endif  // !V8_ENABLE_LEAPTIERING
 
   // Optimized OSR'd code is cached in JumpLoop feedback vector slots. The
   // slots either contain a Code object or the ClearedValue.
@@ -309,9 +308,14 @@ class FeedbackVector
   void SetOptimizedOsrCode(Isolate* isolate, FeedbackSlot slot,
                            Tagged<Code> code);
 
+#ifdef V8_ENABLE_LEAPTIERING
+  inline bool tiering_in_progress() const;
+  void set_tiering_in_progress(bool);
+#else
   inline TieringState tiering_state() const;
-  void set_tiering_state(TieringState state);
-  void reset_tiering_state();
+  V8_EXPORT_PRIVATE void set_tiering_state(TieringState state);
+  inline void reset_tiering_state();
+#endif  // !V8_ENABLE_LEAPTIERING
 
   bool osr_tiering_in_progress();
   void set_osr_tiering_in_progress(bool osr_in_progress);
@@ -873,15 +877,13 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   // the extra feedback. This is used by ICs when updating the handlers.
   using TryUpdateHandler = std::function<MaybeHandle<Map>(Handle<Map>)>;
   int ExtractMapsAndHandlers(
-      std::vector<MapAndHandler>* maps_and_handlers,
+      MapsAndHandlers* maps_and_handlers,
       TryUpdateHandler map_handler = TryUpdateHandler()) const;
   MaybeObjectHandle FindHandlerForMap(DirectHandle<Map> map) const;
-  // Used to obtain maps and the associated feedback stored in the feedback
-  // vector. The returned feedback need not be always a handler. It could be a
-  // name in the case of StoreDataInPropertyLiteral. This is used by TurboFan to
-  // get all the feedback stored in the vector.
-  int ExtractMapsAndFeedback(
-      std::vector<MapAndFeedback>* maps_and_feedback) const;
+  // Used to obtain maps. This is used by compilers to get all the feedback
+  // stored in the vector.
+  template <typename F>
+  void IterateMapsWithUnclearedHandler(F) const;
 
   bool IsCleared() const {
     InlineCacheState state = ic_state();
@@ -901,11 +903,12 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   inline std::pair<Tagged<MaybeObject>, Tagged<MaybeObject>> GetFeedbackPair()
       const;
 
-  void ConfigureMonomorphic(Handle<Name> name, DirectHandle<Map> receiver_map,
+  void ConfigureMonomorphic(DirectHandle<Name> name,
+                            DirectHandle<Map> receiver_map,
                             const MaybeObjectHandle& handler);
 
-  void ConfigurePolymorphic(
-      Handle<Name> name, std::vector<MapAndHandler> const& maps_and_handlers);
+  void ConfigurePolymorphic(DirectHandle<Name> name,
+                            MapsAndHandlers const& maps_and_handlers);
 
   void ConfigureMegaDOM(const MaybeObjectHandle& handler);
   MaybeObjectHandle ExtractMegaDOMHandler();
@@ -951,7 +954,7 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
 
   // For CloneObject ICs
   static constexpr int kCloneObjectPolymorphicEntrySize = 2;
-  void ConfigureCloneObject(Handle<Map> source_map,
+  void ConfigureCloneObject(DirectHandle<Map> source_map,
                             const MaybeObjectHandle& handler);
 
 // Bit positions in a smi that encodes lexical environment variable access.

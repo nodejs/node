@@ -210,10 +210,10 @@ KeyedAccessStoreMode StoreHandler::GetKeyedAccessStoreMode(
 Handle<Object> StoreHandler::StoreElementTransition(
     Isolate* isolate, DirectHandle<Map> receiver_map,
     DirectHandle<Map> transition, KeyedAccessStoreMode store_mode,
-    MaybeHandle<UnionOf<Smi, Cell>> prev_validity_cell) {
+    MaybeDirectHandle<UnionOf<Smi, Cell>> prev_validity_cell) {
   DirectHandle<Code> code =
       ElementsTransitionAndStoreBuiltin(isolate, store_mode);
-  Handle<UnionOf<Smi, Cell>> validity_cell;
+  DirectHandle<UnionOf<Smi, Cell>> validity_cell;
   if (!prev_validity_cell.ToHandle(&validity_cell)) {
     validity_cell =
         Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate);
@@ -283,7 +283,7 @@ MaybeObjectHandle StoreHandler::StoreTransition(Isolate* isolate,
   DCHECK(!transition_map->is_access_check_needed());
 
   // Get validity cell value if it is necessary for the handler.
-  Handle<UnionOf<Smi, Cell>> validity_cell;
+  DirectHandle<UnionOf<Smi, Cell>> validity_cell;
   if (is_dictionary_map || !transition_map->IsPrototypeValidityCellValid()) {
     validity_cell =
         Map::GetOrCreatePrototypeChainValidityCell(transition_map, isolate);
@@ -344,7 +344,7 @@ MaybeObjectHandle StoreHandler::StoreGlobal(Handle<PropertyCell> cell) {
 Handle<Object> StoreHandler::StoreProxy(Isolate* isolate,
                                         Handle<Map> receiver_map,
                                         Handle<JSProxy> proxy,
-                                        Handle<JSReceiver> receiver) {
+                                        DirectHandle<JSReceiver> receiver) {
   Handle<Smi> smi_handler = StoreProxy(isolate);
   if (receiver.is_identical_to(proxy)) return smi_handler;
   return StoreThroughPrototype(isolate, receiver_map, proxy, *smi_handler,

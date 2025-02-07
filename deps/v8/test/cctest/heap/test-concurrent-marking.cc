@@ -18,7 +18,7 @@ TEST(ConcurrentMarkingMarkedBytes) {
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = CcTest::heap();
   HandleScope sc(isolate);
-  Handle<FixedArray> root = isolate->factory()->NewFixedArray(1000000);
+  DirectHandle<FixedArray> root = isolate->factory()->NewFixedArray(1000000);
   heap::InvokeMajorGC(heap);
   if (!heap->incremental_marking()->IsStopped()) return;
 

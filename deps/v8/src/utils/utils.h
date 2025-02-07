@@ -22,7 +22,7 @@
 #include "src/common/globals.h"
 
 #if defined(V8_USE_SIPHASH)
-#include "src/third_party/siphash/halfsiphash.h"
+#include "third_party/siphash/halfsiphash.h"
 #endif
 
 #if defined(V8_OS_AIX)
@@ -41,7 +41,7 @@
 #endif
 
 #ifdef __SSE3__
-#include <immintrin.h>
+#include <pmmintrin.h>
 #endif
 
 #if defined(V8_TARGET_ARCH_ARM64) && \
@@ -89,9 +89,10 @@ T JSMin(T x, T y) {
 }
 
 // Returns the absolute value of its argument.
-template <typename T,
-          typename = typename std::enable_if<std::is_signed<T>::value>::type>
-typename std::make_unsigned<T>::type Abs(T a) {
+template <typename T>
+typename std::make_unsigned<T>::type Abs(T a)
+  requires std::is_signed<T>::value
+{
   // This is a branch-free implementation of the absolute value function and is
   // described in Warren's "Hacker's Delight", chapter 2. It avoids undefined
   // behavior with the arithmetic negation operation on signed values as well.

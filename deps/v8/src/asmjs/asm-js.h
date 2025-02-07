@@ -30,7 +30,7 @@ class AsmJs {
       AccountingAllocator* allocator);
   static MaybeHandle<Object> InstantiateAsmWasm(
       Isolate* isolate, DirectHandle<SharedFunctionInfo>,
-      DirectHandle<AsmWasmData> wasm_data, Handle<JSReceiver> stdlib,
+      DirectHandle<AsmWasmData> wasm_data, DirectHandle<JSReceiver> stdlib,
       Handle<JSReceiver> foreign, Handle<JSArrayBuffer> memory);
 
   // Special export name used to indicate that the module exports a single

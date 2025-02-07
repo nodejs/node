@@ -278,7 +278,7 @@ Load<FastDoubleElements>(context: Context, sortState: SortState, index: Smi):
   try {
     const object = UnsafeCast<JSObject>(sortState.receiver);
     const elements = UnsafeCast<FixedDoubleArray>(object.elements);
-    const value = elements.floats[index].Value() otherwise IfHole;
+    const value = elements.values[index].Value() otherwise IfHole;
     return AllocateHeapNumberWithValue(value);
   } label IfHole {
     return TheHole;
@@ -351,7 +351,7 @@ Delete<FastDoubleElements>(context: Context, sortState: SortState, index: Smi):
 
   const object = UnsafeCast<JSObject>(sortState.receiver);
   const elements = UnsafeCast<FixedDoubleArray>(object.elements);
-  elements.floats[index] = kDoubleHole;
+  elements.values[index] = kDoubleHole;
   return kSuccess;
 }
 

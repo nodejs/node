@@ -20,6 +20,8 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
+struct WasmModule;
+
 // Macro for defining WasmValue methods for different types.
 // Elements:
 // - name (for to_<name>() method)
@@ -71,7 +73,8 @@ class WasmValue {
     memcpy(bit_pattern_, raw_bytes, type.value_kind_size());
   }
 
-  WasmValue(Handle<Object> ref, ValueType type) : type_(type), bit_pattern_{} {
+  WasmValue(Handle<Object> ref, ValueType type, const WasmModule* module)
+      : type_(type), bit_pattern_{}, module_(module) {
     static_assert(sizeof(Handle<Object>) <= sizeof(bit_pattern_),
                   "bit_pattern_ must be large enough to fit a Handle");
     DCHECK(type.is_reference());
@@ -86,6 +89,8 @@ class WasmValue {
   }
 
   ValueType type() const { return type_; }
+
+  const WasmModule* module() const { return module_; }
 
   // Checks equality of type and bit pattern (also for float and double values).
   bool operator==(const WasmValue& other) const {
@@ -158,6 +163,7 @@ class WasmValue {
       case kRtt:
         return "Handle [" + std::to_string(to_ref().address()) + "]";
       case kVoid:
+      case kTop:
       case kBottom:
         UNREACHABLE();
     }
@@ -173,6 +179,7 @@ class WasmValue {
  private:
   ValueType type_;
   uint8_t bit_pattern_[16];
+  const WasmModule* module_ = nullptr;
 };
 
 #define DECLARE_CAST(name, localtype, ctype, ...) \

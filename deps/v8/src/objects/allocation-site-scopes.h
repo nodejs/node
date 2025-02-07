@@ -52,7 +52,7 @@ class AllocationSiteUsageContext : public AllocationSiteContext {
   inline Handle<AllocationSite> EnterNewScope();
 
   inline void ExitScope(DirectHandle<AllocationSite> scope_site,
-                        Handle<JSObject> object);
+                        DirectHandle<JSObject> object);
 
   inline bool ShouldCreateMemento(DirectHandle<JSObject> object);
 

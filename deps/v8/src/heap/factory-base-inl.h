@@ -21,7 +21,7 @@ namespace internal {
 #define RO_ROOT_ACCESSOR(Type, name, CamelName) \
   template <typename Impl>                      \
   Handle<Type> FactoryBase<Impl>::name() {      \
-    return read_only_roots().name##_handle();   \
+    return isolate()->roots_table().name();     \
   }
 READ_ONLY_ROOT_LIST(RO_ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
@@ -111,6 +111,15 @@ template <typename Impl>
 template <AllocationType allocation>
 Handle<HeapNumber> FactoryBase<Impl>::NewHeapNumberWithHoleNaN() {
   return NewHeapNumberFromBits<allocation>(kHoleNanInt64);
+}
+
+template <typename Impl>
+template <AllocationType allocation>
+Handle<HeapNumber> FactoryBase<Impl>::NewHeapInt32(int32_t value) {
+  Handle<HeapNumber> heap_number = NewHeapNumber<allocation>();
+  heap_number->set_value_as_bits(
+      (static_cast<uint64_t>(kHoleNanUpper32) << 32) | value);
+  return heap_number;
 }
 
 template <typename Impl>

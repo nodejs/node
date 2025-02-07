@@ -3612,8 +3612,8 @@ void SloppyArgsIndexedPropertyEnumerator(
   // Have to populate the handle manually, as it's not Cast-able.
   i::DirectHandle<i::JSReceiver> o =
       v8::Utils::OpenDirectHandle<Object, i::JSReceiver>(result);
-  i::Handle<i::JSArray> array(i::UncheckedCast<i::JSArray>(*o),
-                              o->GetIsolate());
+  i::DirectHandle<i::JSArray> array(i::UncheckedCast<i::JSArray>(*o),
+                                    o->GetIsolate());
   info.GetReturnValue().Set(v8::Utils::ToLocal(array));
 }
 

@@ -280,7 +280,8 @@ void ProfilerListener::SetterCallbackEvent(Handle<Name> name,
 }
 
 void ProfilerListener::RegExpCodeCreateEvent(Handle<AbstractCode> code,
-                                             Handle<String> source) {
+                                             Handle<String> source,
+                                             RegExpFlags flags) {
   CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeCreation);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   PtrComprCageBase cage_base(isolate_);

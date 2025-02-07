@@ -53,8 +53,7 @@ const BasePage* BasePage::FromInnerAddress(const HeapBase* heap,
 }
 
 // static
-void BasePage::Destroy(BasePage* page,
-                       FreeMemoryHandling free_memory_handling) {
+void BasePage::Destroy(BasePage* page) {
   if (page->discarded_memory()) {
     page->space()
         .raw_heap()
@@ -65,7 +64,7 @@ void BasePage::Destroy(BasePage* page,
   if (page->is_large()) {
     LargePage::Destroy(LargePage::From(page));
   } else {
-    NormalPage::Destroy(NormalPage::From(page), free_memory_handling);
+    NormalPage::Destroy(NormalPage::From(page));
   }
 }
 
@@ -140,7 +139,7 @@ void BasePage::AllocateSlotSet() {
 
 void BasePage::SlotSetDeleter::operator()(SlotSet* slot_set) const {
   DCHECK_NOT_NULL(slot_set);
-  SlotSet::Delete(slot_set, SlotSet::BucketsForSize(page_size_));
+  SlotSet::Delete(slot_set);
 }
 
 void BasePage::ResetSlotSet() { slot_set_.reset(); }
@@ -197,8 +196,7 @@ NormalPage* NormalPage::TryCreate(PageBackend& page_backend,
 }
 
 // static
-void NormalPage::Destroy(NormalPage* page,
-                         FreeMemoryHandling free_memory_handling) {
+void NormalPage::Destroy(NormalPage* page) {
   DCHECK(page);
   HeapBase& heap = page->heap();
   const BaseSpace& space = page->space();
@@ -207,8 +205,7 @@ void NormalPage::Destroy(NormalPage* page,
   page->~NormalPage();
   PageBackend* backend = heap.page_backend();
   heap.stats_collector()->NotifyFreedMemory(kPageSize);
-  backend->FreeNormalPageMemory(reinterpret_cast<Address>(page),
-                                free_memory_handling);
+  backend->FreeNormalPageMemory(reinterpret_cast<Address>(page));
 }
 
 NormalPage::NormalPage(HeapBase& heap, BaseSpace& space)

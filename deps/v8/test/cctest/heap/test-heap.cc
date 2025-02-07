@@ -32,6 +32,7 @@
 #include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/base/strings.h"
+#include "src/builtins/builtins-inl.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"
@@ -47,6 +48,7 @@
 #include "src/heap/factory.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-verifier.h"
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking.h"
@@ -211,7 +213,7 @@ static void CheckGcSafeFindCodeForInnerPointer(Isolate* isolate) {
   // Test GcSafeFindCodeForInnerPointer
 #define __ assm.
 
-  Assembler assm(AssemblerOptions{});
+  Assembler assm(isolate->allocator(), AssemblerOptions{});
 
   __ nop();  // supported on all architectures
 
@@ -252,7 +254,7 @@ TEST(HandleNull) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope outer_scope(isolate);
   LocalContext context;
-  Handle<Object> n(Tagged<Object>(kNullAddress), isolate);
+  DirectHandle<Object> n(Tagged<Object>(kNullAddress), isolate);
   CHECK(!n.is_null());
 }
 
@@ -317,9 +319,9 @@ TEST(HeapObjects) {
   CHECK(IsString(*s));
   CHECK_EQ(10, s->length());
 
-  Handle<String> object_string = Cast<String>(factory->Object_string());
-  Handle<JSGlobalObject> global(CcTest::i_isolate()->context()->global_object(),
-                                isolate);
+  DirectHandle<String> object_string = Cast<String>(factory->Object_string());
+  DirectHandle<JSGlobalObject> global(
+      CcTest::i_isolate()->context()->global_object(), isolate);
   CHECK(Just(true) ==
         JSReceiver::HasOwnProperty(isolate, global, object_string));
 
@@ -361,22 +363,22 @@ TEST(GarbageCollection) {
   // Check GC.
   heap::InvokeMinorGC(CcTest::heap());
 
-  Handle<JSGlobalObject> global(CcTest::i_isolate()->context()->global_object(),
-                                isolate);
-  Handle<String> name = factory->InternalizeUtf8String("theFunction");
-  Handle<String> prop_name = factory->InternalizeUtf8String("theSlot");
-  Handle<String> prop_namex = factory->InternalizeUtf8String("theSlotx");
-  Handle<String> obj_name = factory->InternalizeUtf8String("theObject");
-  Handle<Smi> twenty_three(Smi::FromInt(23), isolate);
-  Handle<Smi> twenty_four(Smi::FromInt(24), isolate);
+  DirectHandle<JSGlobalObject> global(
+      CcTest::i_isolate()->context()->global_object(), isolate);
+  DirectHandle<String> name = factory->InternalizeUtf8String("theFunction");
+  DirectHandle<String> prop_name = factory->InternalizeUtf8String("theSlot");
+  DirectHandle<String> prop_namex = factory->InternalizeUtf8String("theSlotx");
+  DirectHandle<String> obj_name = factory->InternalizeUtf8String("theObject");
+  DirectHandle<Smi> twenty_three(Smi::FromInt(23), isolate);
+  DirectHandle<Smi> twenty_four(Smi::FromInt(24), isolate);
 
   {
     HandleScope inner_scope(isolate);
     // Allocate a function and keep it in global object's property.
-    Handle<JSFunction> function = factory->NewFunctionForTesting(name);
+    DirectHandle<JSFunction> function = factory->NewFunctionForTesting(name);
     Object::SetProperty(isolate, global, name, function).Check();
     // Allocate an object.  Unrooted after leaving the scope.
-    Handle<JSObject> obj = factory->NewJSObject(function);
+    DirectHandle<JSObject> obj = factory->NewJSObject(function);
     Object::SetProperty(isolate, obj, prop_name, twenty_three).Check();
     Object::SetProperty(isolate, obj, prop_namex, twenty_four).Check();
 
@@ -391,15 +393,15 @@ TEST(GarbageCollection) {
   // Function should be alive.
   CHECK(Just(true) == JSReceiver::HasOwnProperty(isolate, global, name));
   // Check function is retained.
-  Handle<Object> func_value =
+  DirectHandle<Object> func_value =
       Object::GetProperty(isolate, global, name).ToHandleChecked();
   CHECK(IsJSFunction(*func_value));
-  Handle<JSFunction> function = Cast<JSFunction>(func_value);
+  DirectHandle<JSFunction> function = Cast<JSFunction>(func_value);
 
   {
     HandleScope inner_scope(isolate);
     // Allocate another object, make it reachable from global.
-    Handle<JSObject> obj = factory->NewJSObject(function);
+    DirectHandle<JSObject> obj = factory->NewJSObject(function);
     Object::SetProperty(isolate, global, obj_name, obj).Check();
     Object::SetProperty(isolate, obj, prop_name, twenty_three).Check();
   }
@@ -408,11 +410,12 @@ TEST(GarbageCollection) {
   heap::InvokeMinorGC(CcTest::heap());
 
   CHECK(Just(true) == JSReceiver::HasOwnProperty(isolate, global, obj_name));
-  Handle<Object> obj =
+  DirectHandle<Object> obj =
       Object::GetProperty(isolate, global, obj_name).ToHandleChecked();
   CHECK(IsJSObject(*obj));
   CHECK_EQ(Smi::FromInt(23),
-           *Object::GetProperty(isolate, obj, prop_name).ToHandleChecked());
+           *Object::GetProperty(isolate, Cast<JSObject>(obj), prop_name)
+                .ToHandleChecked());
 }
 
 static void VerifyStringAllocation(Isolate* isolate, const char* string) {
@@ -421,7 +424,7 @@ static void VerifyStringAllocation(Isolate* isolate, const char* string) {
                                ->NewStringFromUtf8(base::CStrVector(string))
                                .ToHandleChecked();
   CHECK_EQ(strlen(string), s->length());
-  for (int index = 0; index < s->length(); index++) {
+  for (uint32_t index = 0; index < s->length(); index++) {
     CHECK_EQ(static_cast<uint16_t>(string[index]), s->Get(index));
   }
 }
@@ -570,7 +573,8 @@ TEST(WeakGlobalHandlesMark) {
 
   // Make sure the objects are promoted.
   heap::EmptyNewSpaceUsingGC(heap);
-  CHECK(!Heap::InYoungGeneration(*h1) && !Heap::InYoungGeneration(*h2));
+  CHECK(!HeapLayout::InYoungGeneration(*h1) &&
+        !HeapLayout::InYoungGeneration(*h2));
 
   std::pair<Handle<Object>*, int> handle_and_id(&h2, 1234);
   GlobalHandles::MakeWeak(
@@ -743,13 +747,13 @@ TEST(FunctionAllocation) {
 
   v8::HandleScope sc(CcTest::isolate());
   DirectHandle<String> name = factory->InternalizeUtf8String("theFunction");
-  Handle<JSFunction> function = factory->NewFunctionForTesting(name);
+  DirectHandle<JSFunction> function = factory->NewFunctionForTesting(name);
 
-  Handle<Smi> twenty_three(Smi::FromInt(23), isolate);
-  Handle<Smi> twenty_four(Smi::FromInt(24), isolate);
+  DirectHandle<Smi> twenty_three(Smi::FromInt(23), isolate);
+  DirectHandle<Smi> twenty_four(Smi::FromInt(24), isolate);
 
-  Handle<String> prop_name = factory->InternalizeUtf8String("theSlot");
-  Handle<JSObject> obj = factory->NewJSObject(function);
+  DirectHandle<String> prop_name = factory->InternalizeUtf8String("theSlot");
+  DirectHandle<JSObject> obj = factory->NewJSObject(function);
   Object::SetProperty(isolate, obj, prop_name, twenty_three).Check();
   CHECK_EQ(Smi::FromInt(23),
            *Object::GetProperty(isolate, obj, prop_name).ToHandleChecked());
@@ -766,19 +770,19 @@ TEST(ObjectProperties) {
   Factory* factory = isolate->factory();
 
   v8::HandleScope sc(CcTest::isolate());
-  Handle<String> object_string(
+  DirectHandle<String> object_string(
       Cast<String>(ReadOnlyRoots(CcTest::heap()).Object_string()), isolate);
-  Handle<Object> object =
+  DirectHandle<Object> object =
       Object::GetProperty(isolate, CcTest::i_isolate()->global_object(),
                           object_string)
           .ToHandleChecked();
-  Handle<JSFunction> constructor = Cast<JSFunction>(object);
-  Handle<JSObject> obj = factory->NewJSObject(constructor);
-  Handle<String> first = factory->InternalizeUtf8String("first");
-  Handle<String> second = factory->InternalizeUtf8String("second");
+  DirectHandle<JSFunction> constructor = Cast<JSFunction>(object);
+  DirectHandle<JSObject> obj = factory->NewJSObject(constructor);
+  DirectHandle<String> first = factory->InternalizeUtf8String("first");
+  DirectHandle<String> second = factory->InternalizeUtf8String("second");
 
-  Handle<Smi> one(Smi::FromInt(1), isolate);
-  Handle<Smi> two(Smi::FromInt(2), isolate);
+  DirectHandle<Smi> one(Smi::FromInt(1), isolate);
+  DirectHandle<Smi> two(Smi::FromInt(2), isolate);
 
   // check for empty
   CHECK(Just(false) == JSReceiver::HasOwnProperty(isolate, obj, first));
@@ -789,7 +793,7 @@ TEST(ObjectProperties) {
 
   // delete first
   CHECK(Just(true) ==
-        JSReceiver::DeleteProperty(obj, first, LanguageMode::kSloppy));
+        JSReceiver::DeleteProperty(isolate, obj, first, LanguageMode::kSloppy));
   CHECK(Just(false) == JSReceiver::HasOwnProperty(isolate, obj, first));
 
   // add first and then second
@@ -800,10 +804,10 @@ TEST(ObjectProperties) {
 
   // delete first and then second
   CHECK(Just(true) ==
-        JSReceiver::DeleteProperty(obj, first, LanguageMode::kSloppy));
+        JSReceiver::DeleteProperty(isolate, obj, first, LanguageMode::kSloppy));
   CHECK(Just(true) == JSReceiver::HasOwnProperty(isolate, obj, second));
-  CHECK(Just(true) ==
-        JSReceiver::DeleteProperty(obj, second, LanguageMode::kSloppy));
+  CHECK(Just(true) == JSReceiver::DeleteProperty(isolate, obj, second,
+                                                 LanguageMode::kSloppy));
   CHECK(Just(false) == JSReceiver::HasOwnProperty(isolate, obj, first));
   CHECK(Just(false) == JSReceiver::HasOwnProperty(isolate, obj, second));
 
@@ -814,26 +818,26 @@ TEST(ObjectProperties) {
   CHECK(Just(true) == JSReceiver::HasOwnProperty(isolate, obj, second));
 
   // delete second and then first
-  CHECK(Just(true) ==
-        JSReceiver::DeleteProperty(obj, second, LanguageMode::kSloppy));
+  CHECK(Just(true) == JSReceiver::DeleteProperty(isolate, obj, second,
+                                                 LanguageMode::kSloppy));
   CHECK(Just(true) == JSReceiver::HasOwnProperty(isolate, obj, first));
   CHECK(Just(true) ==
-        JSReceiver::DeleteProperty(obj, first, LanguageMode::kSloppy));
+        JSReceiver::DeleteProperty(isolate, obj, first, LanguageMode::kSloppy));
   CHECK(Just(false) == JSReceiver::HasOwnProperty(isolate, obj, first));
   CHECK(Just(false) == JSReceiver::HasOwnProperty(isolate, obj, second));
 
   // check string and internalized string match
   const char* string1 = "fisk";
-  Handle<String> s1 = factory->NewStringFromAsciiChecked(string1);
+  DirectHandle<String> s1 = factory->NewStringFromAsciiChecked(string1);
   Object::SetProperty(isolate, obj, s1, one).Check();
-  Handle<String> s1_string = factory->InternalizeUtf8String(string1);
+  DirectHandle<String> s1_string = factory->InternalizeUtf8String(string1);
   CHECK(Just(true) == JSReceiver::HasOwnProperty(isolate, obj, s1_string));
 
   // check internalized string and string match
   const char* string2 = "fugl";
-  Handle<String> s2_string = factory->InternalizeUtf8String(string2);
+  DirectHandle<String> s2_string = factory->InternalizeUtf8String(string2);
   Object::SetProperty(isolate, obj, s2_string, one).Check();
-  Handle<String> s2 = factory->NewStringFromAsciiChecked(string2);
+  DirectHandle<String> s2 = factory->NewStringFromAsciiChecked(string2);
   CHECK(Just(true) == JSReceiver::HasOwnProperty(isolate, obj, s2));
 }
 
@@ -844,14 +848,14 @@ TEST(JSObjectMaps) {
 
   v8::HandleScope sc(CcTest::isolate());
   DirectHandle<String> name = factory->InternalizeUtf8String("theFunction");
-  Handle<JSFunction> function = factory->NewFunctionForTesting(name);
+  DirectHandle<JSFunction> function = factory->NewFunctionForTesting(name);
 
-  Handle<String> prop_name = factory->InternalizeUtf8String("theSlot");
-  Handle<JSObject> obj = factory->NewJSObject(function);
+  DirectHandle<String> prop_name = factory->InternalizeUtf8String("theSlot");
+  DirectHandle<JSObject> obj = factory->NewJSObject(function);
   DirectHandle<Map> initial_map(function->initial_map(), isolate);
 
   // Set a propery
-  Handle<Smi> twenty_three(Smi::FromInt(23), isolate);
+  DirectHandle<Smi> twenty_three(Smi::FromInt(23), isolate);
   Object::SetProperty(isolate, obj, prop_name, twenty_three).Check();
   CHECK_EQ(Smi::FromInt(23),
            *Object::GetProperty(isolate, obj, prop_name).ToHandleChecked());
@@ -867,15 +871,15 @@ TEST(JSArray) {
 
   v8::HandleScope sc(CcTest::isolate());
   Handle<String> name = factory->InternalizeUtf8String("Array");
-  Handle<Object> fun_obj =
+  DirectHandle<Object> fun_obj =
       Object::GetProperty(isolate, CcTest::i_isolate()->global_object(), name)
           .ToHandleChecked();
-  Handle<JSFunction> function = Cast<JSFunction>(fun_obj);
+  DirectHandle<JSFunction> function = Cast<JSFunction>(fun_obj);
 
   // Allocate the object.
   DirectHandle<Object> element;
-  Handle<JSObject> object = factory->NewJSObject(function);
-  Handle<JSArray> array = Cast<JSArray>(object);
+  DirectHandle<JSObject> object = factory->NewJSObject(function);
+  DirectHandle<JSArray> array = Cast<JSArray>(object);
   // We just initialized the VM, no heap allocation failure yet.
   JSArray::Initialize(array, 0);
 
@@ -917,19 +921,19 @@ TEST(JSObjectCopy) {
   Factory* factory = isolate->factory();
 
   v8::HandleScope sc(CcTest::isolate());
-  Handle<String> object_string(
+  DirectHandle<String> object_string(
       Cast<String>(ReadOnlyRoots(CcTest::heap()).Object_string()), isolate);
-  Handle<Object> object =
+  DirectHandle<Object> object =
       Object::GetProperty(isolate, CcTest::i_isolate()->global_object(),
                           object_string)
           .ToHandleChecked();
-  Handle<JSFunction> constructor = Cast<JSFunction>(object);
+  DirectHandle<JSFunction> constructor = Cast<JSFunction>(object);
   Handle<JSObject> obj = factory->NewJSObject(constructor);
   Handle<String> first = factory->InternalizeUtf8String("first");
   Handle<String> second = factory->InternalizeUtf8String("second");
 
-  Handle<Smi> one(Smi::FromInt(1), isolate);
-  Handle<Smi> two(Smi::FromInt(2), isolate);
+  DirectHandle<Smi> one(Smi::FromInt(1), isolate);
+  DirectHandle<Smi> two(Smi::FromInt(2), isolate);
 
   Object::SetProperty(isolate, obj, first, one).Check();
   Object::SetProperty(isolate, obj, second, two).Check();
@@ -939,7 +943,7 @@ TEST(JSObjectCopy) {
 
   // Make the clone.
   DirectHandle<Object> value1, value2;
-  Handle<JSObject> clone = factory->CopyJSObject(obj);
+  DirectHandle<JSObject> clone = factory->CopyJSObject(obj);
   CHECK(!clone.is_identical_to(obj));
 
   value1 = Object::GetElement(isolate, obj, 0).ToHandleChecked();
@@ -1263,11 +1267,11 @@ HEAP_TEST(Regress10560) {
         "  var z = x + y;"
         "};"
         "foo()";
-    Handle<String> foo_name = factory->InternalizeUtf8String("foo");
+    DirectHandle<String> foo_name = factory->InternalizeUtf8String("foo");
     CompileRun(source);
 
     // Check function is compiled.
-    Handle<Object> func_value =
+    DirectHandle<Object> func_value =
         Object::GetProperty(i_isolate, i_isolate->global_object(), foo_name)
             .ToHandleChecked();
     CHECK(IsJSFunction(*func_value));
@@ -1319,6 +1323,7 @@ UNINITIALIZED_TEST(Regress10843) {
       &callback_was_invoked);
 
   {
+    v8::Isolate::Scope isolate_scope(isolate);
     PtrComprCageAccessScope ptr_compr_cage_access_scope(i_isolate);
     HandleScope scope(i_isolate);
     std::vector<Handle<FixedArray>> arrays;
@@ -1481,7 +1486,7 @@ TEST(TestOptimizeAfterBytecodeFlushingCandidate) {
   {
     v8::HandleScope scope(CcTest::isolate());
     CompileRun(
-        "%PrepareFunctionForOptimization(foo);"
+        "%PrepareFunctionForOptimization(foo); foo();"
         "%OptimizeFunctionOnNextCall(foo); foo();");
   }
 
@@ -1516,16 +1521,16 @@ TEST(TestUseOfIncrementalBarrierOnCompileLazy) {
       "var g = make_closure(5);");
 
   // Check f is compiled.
-  Handle<String> f_name = factory->InternalizeUtf8String("f");
-  Handle<Object> f_value =
+  DirectHandle<String> f_name = factory->InternalizeUtf8String("f");
+  DirectHandle<Object> f_value =
       Object::GetProperty(isolate, isolate->global_object(), f_name)
           .ToHandleChecked();
   DirectHandle<JSFunction> f_function = Cast<JSFunction>(f_value);
   CHECK(f_function->is_compiled(isolate));
 
   // Check g is not compiled.
-  Handle<String> g_name = factory->InternalizeUtf8String("g");
-  Handle<Object> g_value =
+  DirectHandle<String> g_name = factory->InternalizeUtf8String("g");
+  DirectHandle<Object> g_value =
       Object::GetProperty(isolate, isolate->global_object(), g_name)
           .ToHandleChecked();
   DirectHandle<JSFunction> g_function = Cast<JSFunction>(g_value);
@@ -2327,7 +2332,7 @@ TEST(HeapNumberAlignment) {
           required_alignment, offset);
       DirectHandle<Object> number_new = factory->NewNumber(1.000123);
       CHECK(IsHeapNumber(*number_new));
-      CHECK(Heap::InYoungGeneration(*number_new));
+      CHECK(HeapLayout::InYoungGeneration(*number_new));
       CHECK_EQ(0, Heap::GetFillToAlign(Cast<HeapObject>(*number_new).address(),
                                        required_alignment));
     }
@@ -2750,7 +2755,7 @@ HEAP_TEST(Regress845060) {
 
   // Preparation: create a string in new space.
   Local<Value> str = CompileRun("var str = (new Array(10000)).join('x'); str");
-  CHECK(Heap::InYoungGeneration(*v8::Utils::OpenDirectHandle(*str)));
+  CHECK(HeapLayout::InYoungGeneration(*v8::Utils::OpenDirectHandle(*str)));
 
   // Use kReduceMemoryFootprintMask to unmap from space after scavenging.
   heap->StartIncrementalMarking(i::GCFlag::kReduceMemoryFootprint,
@@ -2760,7 +2765,7 @@ HEAP_TEST(Regress845060) {
   // promoted to old space. Unmapping of from_space causes accesses to any
   // stale raw pointers to crash.
   CompileRun("while (%InYoungGeneration(str)) { str.split(''); }");
-  CHECK(!Heap::InYoungGeneration(*v8::Utils::OpenDirectHandle(*str)));
+  CHECK(!HeapLayout::InYoungGeneration(*v8::Utils::OpenDirectHandle(*str)));
 }
 
 TEST(OptimizedPretenuringAllocationFolding) {
@@ -2895,7 +2900,7 @@ TEST(OptimizedPretenuringNestedInObjectProperties) {
 
   // Nested literal sites are only pretenured if the top level
   // literal is pretenured
-  CHECK(Heap::InYoungGeneration(*o));
+  CHECK(HeapLayout::InYoungGeneration(*o));
 }
 
 TEST(OptimizedPretenuringMixedInObjectProperties) {
@@ -3287,12 +3292,13 @@ static void AddTransitions(int transitions_count) {
   }
 }
 
-static void AddPropertyTo(int gc_count, Handle<JSObject> object,
+static void AddPropertyTo(int gc_count, DirectHandle<JSObject> object,
                           const char* property_name) {
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
-  Handle<String> prop_name = factory->InternalizeUtf8String(property_name);
-  Handle<Smi> twenty_three(Smi::FromInt(23), isolate);
+  DirectHandle<String> prop_name =
+      factory->InternalizeUtf8String(property_name);
+  DirectHandle<Smi> twenty_three(Smi::FromInt(23), isolate);
   HeapAllocator::SetAllocationGcInterval(gc_count);
   v8_flags.gc_global = true;
   v8_flags.retain_maps_for_n_gc = 0;
@@ -3383,7 +3389,7 @@ TEST(TransitionArrayShrinksDuringAllocToOnePropertyFound) {
   CompileRun("function F() {}");
   AddTransitions(transitions_count);
   CompileRun("var root = new F;");
-  Handle<JSObject> root = GetByName("root");
+  DirectHandle<JSObject> root = GetByName("root");
 
   // Count number of live transitions before marking.
   int transitions_before = CountMapTransitions(i_isolate, root->map());
@@ -3854,7 +3860,8 @@ void DetailedErrorStackTraceTest(const char* src,
   CompileRun(src);
 
   CHECK(try_catch.HasCaught());
-  Handle<Object> exception = v8::Utils::OpenHandle(*try_catch.Exception());
+  DirectHandle<Object> exception =
+      v8::Utils::OpenDirectHandle(*try_catch.Exception());
 
   test(CcTest::i_isolate()->GetSimpleStackTrace(Cast<JSReceiver>(exception)));
 }
@@ -3936,20 +3943,84 @@ TEST(DetailedErrorStackTraceInline) {
 }
 
 // * Test builtin exit error
-TEST(DetailedErrorStackTraceBuiltinExit) {
+TEST(DetailedErrorStackTraceBuiltinExitNoAdaptation) {
+  // The test needs to call CPP builtin that doesn't adapt arguments and might
+  // throw an exception under certain conditions.
+  CHECK(Builtins::IsCpp(Builtin::kNumberPrototypeToFixed));
+  CHECK_EQ(Builtins::GetFormalParameterCount(Builtin::kNumberPrototypeToFixed),
+           kDontAdaptArgumentsSentinel);
+
   static const char* source =
-      "function test(arg1) {           "
-      "  (new Number()).toFixed(arg1); "
-      "}                               "
-      "test(9999);                     ";
+      "function test(arg1) {                     "
+      "  (new Number()).toFixed(arg1, 42, -153); "
+      "}                                         "
+      "test(9999);                               ";
 
   DetailedErrorStackTraceTest(source, [](DirectHandle<FixedArray> stack_trace) {
     Tagged<FixedArray> parameters = ParametersOf(stack_trace, 0);
 
-    CHECK_EQ(parameters->length(), 2);
-    CHECK(IsSmi(parameters->get(1)));
-    CHECK_EQ(Smi::ToInt(parameters->get(1)), 9999);
+    CHECK_EQ(parameters->length(), 3);
+    CHECK_EQ(Smi::ToInt(parameters->get(0)), 9999);
+    CHECK_EQ(Smi::ToInt(parameters->get(1)), 42);
+    CHECK_EQ(Smi::ToInt(parameters->get(2)), -153);
   });
+}
+
+TEST(DetailedErrorStackTraceBuiltinExitWithAdaptation) {
+  // The test needs to call CPP builtin that adapts arguments and might
+  // throw an exception under certain conditions.
+  CHECK(Builtins::IsCpp(Builtin::kObjectDefineProperty));
+  CHECK_EQ(Builtins::GetFormalParameterCount(Builtin::kObjectDefineProperty),
+           JSParameterCount(3));
+
+  static const char* source =
+      "function test() {                  "
+      "  Object.defineProperty(153, -42); "
+      "}                                  "
+      "test();                            ";
+
+  DetailedErrorStackTraceTest(source, [](DirectHandle<FixedArray> stack_trace) {
+    Tagged<FixedArray> parameters = ParametersOf(stack_trace, 0);
+
+    CHECK_EQ(parameters->length(), 3);
+    CHECK_EQ(Smi::ToInt(parameters->get(0)), 153);
+    CHECK_EQ(Smi::ToInt(parameters->get(1)), -42);
+    CHECK(IsUndefined(parameters->get(2)));
+  });
+}
+
+// Ensure that inlined call of CPP builtin works correctly with stack traces.
+// See https://crbug.com/v8/14409.
+TEST(DetailedErrorStackTraceBuiltinExitArrayShift) {
+  v8_flags.allow_natives_syntax = true;
+  CHECK(Builtins::IsCpp(Builtin::kArrayShift));
+  CHECK_EQ(Builtins::GetFormalParameterCount(Builtin::kArrayShift),
+           kDontAdaptArgumentsSentinel);
+
+  constexpr int slow_path_length = JSArray::kMaxCopyElements + 20;
+  base::ScopedVector<char> source(1024);
+  base::SNPrintF(source,
+                 "var length = %d;"
+                 "var array = new Array(length);"
+                 "var ro_array = Object.freeze(new Array(length));"
+                 "function test(a) {"
+                 "  return a.shift(55, 77, 99);"
+                 "};"
+                 "%%PrepareFunctionForOptimization(test);"
+                 "test(array);"
+                 "%%OptimizeFunctionOnNextCall(test);"
+                 "test(ro_array);",
+                 slow_path_length);
+
+  DetailedErrorStackTraceTest(
+      source.begin(), [](DirectHandle<FixedArray> stack_trace) {
+        Tagged<FixedArray> parameters = ParametersOf(stack_trace, 0);
+
+        CHECK_EQ(parameters->length(), 3);
+        CHECK_EQ(Smi::ToInt(parameters->get(0)), 55);
+        CHECK_EQ(Smi::ToInt(parameters->get(1)), 77);
+        CHECK_EQ(Smi::ToInt(parameters->get(2)), 99);
+      });
 }
 
 TEST(Regress169928) {
@@ -4006,7 +4077,7 @@ TEST(Regress169928) {
       SemiSpaceNewSpace::From(CcTest::heap()->new_space()),
       JSArray::kHeaderSize + AllocationMemento::kSize + kTaggedSize);
 
-  Handle<JSArray> array =
+  DirectHandle<JSArray> array =
       factory->NewJSArrayWithElements(array_data, PACKED_SMI_ELEMENTS);
 
   CHECK_EQ(Smi::FromInt(2), array->length());
@@ -4130,7 +4201,7 @@ static void TestFillersFromPersistentHandles(bool promote) {
     // Age the array so it's ready for promotion on next GC.
     heap::InvokeMinorGC(heap);
   }
-  CHECK(Heap::InYoungGeneration(*array));
+  CHECK(HeapLayout::InYoungGeneration(*array));
 
   PersistentHandlesScope persistent_scope(isolate);
 
@@ -4153,7 +4224,7 @@ static void TestFillersFromPersistentHandles(bool promote) {
     if (promote) {
       CHECK(heap->InOldSpace(*tail));
     } else {
-      CHECK(Heap::InYoungGeneration(*tail));
+      CHECK(HeapLayout::InYoungGeneration(*tail));
     }
   }
   CHECK_EQ(n - 6, tail->length());
@@ -4564,9 +4635,9 @@ TEST(NewSpaceObjectsInOptimizedCode) {
                                            ->Get(context.local(), v8_str("foo"))
                                            .ToLocalChecked())));
 
-    CHECK(Heap::InYoungGeneration(*foo));
+    CHECK(HeapLayout::InYoungGeneration(*foo));
     heap::InvokeMajorGC(heap);
-    CHECK(!Heap::InYoungGeneration(*foo));
+    CHECK(!HeapLayout::InYoungGeneration(*foo));
 #ifdef VERIFY_HEAP
     HeapVerifier::VerifyHeap(CcTest::heap());
 #endif
@@ -4612,18 +4683,20 @@ TEST(ObjectsInEagerlyDeoptimizedCodeAreWeak) {
         "bar();"
         "bar();"
         "%OptimizeFunctionOnNextCall(bar);"
-        "bar();"
-        "%DeoptimizeFunction(bar);");
+        "bar();");
 
     DirectHandle<JSFunction> bar = Cast<JSFunction>(v8::Utils::OpenDirectHandle(
         *v8::Local<v8::Function>::Cast(CcTest::global()
                                            ->Get(context.local(), v8_str("bar"))
                                            .ToLocalChecked())));
     code = handle(bar->code(isolate), isolate);
+    CompileRun("%DeoptimizeFunction(bar);");
+    CHECK(code->marked_for_deoptimization());
+    CHECK_IMPLIES(V8_ENABLE_LEAPTIERING_BOOL,
+                  !code->SafeEquals(bar->code(isolate)));
     code = scope.CloseAndEscape(code);
   }
 
-  CHECK(code->marked_for_deoptimization());
 
   // Now make sure that a gc should get rid of the function
   for (int i = 0; i < 4; i++) {
@@ -4654,7 +4727,7 @@ static Handle<InstructionStream> DummyOptimizedCode(Isolate* isolate) {
   masm.Drop(2);
   masm.GetCode(isolate, &desc);
   Handle<InstructionStream> code(
-      Factory::CodeBuilder(isolate, desc, CodeKind::TURBOFAN)
+      Factory::CodeBuilder(isolate, desc, CodeKind::TURBOFAN_JS)
           .set_self_reference(masm.CodeObject())
           .set_empty_source_position_table()
           .set_deoptimization_data(DeoptimizationData::Empty(isolate))
@@ -4933,7 +5006,7 @@ TEST(WeakMapInMonomorphicCompareNilIC) {
 }
 
 Handle<JSFunction> GetFunctionByName(Isolate* isolate, const char* name) {
-  Handle<String> str = isolate->factory()->InternalizeUtf8String(name);
+  DirectHandle<String> str = isolate->factory()->InternalizeUtf8String(name);
   Handle<Object> obj =
       Object::GetProperty(isolate, isolate->global_object(), str)
           .ToHandleChecked();
@@ -5190,7 +5263,7 @@ TEST(Regress388880) {
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
 
-  Handle<Map> map1 = Map::Create(isolate, 1);
+  DirectHandle<Map> map1 = Map::Create(isolate, 1);
   Handle<String> name = factory->NewStringFromStaticChars("foo");
   name = factory->InternalizeString(name);
   DirectHandle<Map> map2 =
@@ -5275,11 +5348,11 @@ TEST(Regress442710) {
   Factory* factory = isolate->factory();
 
   HandleScope sc(isolate);
-  Handle<JSGlobalObject> global(CcTest::i_isolate()->context()->global_object(),
-                                isolate);
-  Handle<JSArray> array = factory->NewJSArray(2);
+  DirectHandle<JSGlobalObject> global(
+      CcTest::i_isolate()->context()->global_object(), isolate);
+  DirectHandle<JSArray> array = factory->NewJSArray(2);
 
-  Handle<String> name = factory->InternalizeUtf8String("testArray");
+  DirectHandle<String> name = factory->InternalizeUtf8String("testArray");
   Object::SetProperty(isolate, global, name, array).Check();
   CompileRun("testArray[0] = 1; testArray[1] = 2; testArray.shift();");
   heap::InvokeMajorGC(CcTest::heap());
@@ -5340,8 +5413,8 @@ Handle<WeakFixedArray> AddRetainedMap(Isolate* isolate,
   DirectHandle<Map> map = Map::Create(isolate, 1);
   v8::Local<v8::Value> result =
       CompileRun("(function () { return {x : 10}; })();");
-  Handle<JSReceiver> proto =
-      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(result));
+  DirectHandle<JSReceiver> proto =
+      v8::Utils::OpenDirectHandle(*v8::Local<v8::Object>::Cast(result));
   Map::SetPrototype(isolate, map, proto);
   GlobalHandleVector<Map> maps(isolate->heap());
   maps.Push(*map);
@@ -5412,7 +5485,7 @@ TEST(RetainedMapsCleanup) {
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
   v8::Local<v8::Context> ctx = v8::Context::New(CcTest::isolate());
-  Handle<Context> context = Utils::OpenHandle(*ctx);
+  DirectHandle<Context> context = Utils::OpenDirectHandle(*ctx);
   CHECK(IsNativeContext(*context));
   DirectHandle<NativeContext> native_context = Cast<NativeContext>(context);
 
@@ -5435,10 +5508,11 @@ TEST(PreprocessStackTrace) {
   CompileRun("throw new Error();");
   CHECK(try_catch.HasCaught());
   Isolate* isolate = CcTest::i_isolate();
-  Handle<Object> exception = v8::Utils::OpenHandle(*try_catch.Exception());
-  Handle<Name> key = isolate->factory()->error_stack_symbol();
-  Handle<Object> stack_trace =
-      Object::GetProperty(isolate, exception, key).ToHandleChecked();
+  DirectHandle<JSAny> exception =
+      Cast<JSAny>(v8::Utils::OpenHandle(*try_catch.Exception()));
+  DirectHandle<Name> key = isolate->factory()->error_stack_symbol();
+  DirectHandle<JSAny> stack_trace = Cast<JSAny>(
+      Object::GetProperty(isolate, exception, key).ToHandleChecked());
   DirectHandle<Object> code =
       Object::GetElement(isolate, stack_trace, 3).ToHandleChecked();
   CHECK(IsInstructionStream(*code));
@@ -5459,17 +5533,17 @@ TEST(PreprocessStackTrace) {
 }
 
 void AllocateInSpace(Isolate* isolate, size_t bytes, AllocationSpace space) {
-  CHECK_LE(FixedArray::kHeaderSize, bytes);
+  CHECK_LE(OFFSET_OF_DATA_START(FixedArray), bytes);
   CHECK(IsAligned(bytes, kTaggedSize));
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
   AlwaysAllocateScopeForTesting always_allocate(isolate->heap());
-  int elements =
-      static_cast<int>((bytes - FixedArray::kHeaderSize) / kTaggedSize);
+  int elements = static_cast<int>((bytes - OFFSET_OF_DATA_START(FixedArray)) /
+                                  kTaggedSize);
   DirectHandle<FixedArray> array = factory->NewFixedArray(
       elements,
       space == NEW_SPACE ? AllocationType::kYoung : AllocationType::kOld);
-  CHECK((space == NEW_SPACE) == Heap::InYoungGeneration(*array));
+  CHECK((space == NEW_SPACE) == HeapLayout::InYoungGeneration(*array));
   CHECK_EQ(bytes, static_cast<size_t>(array->Size()));
 }
 
@@ -5587,8 +5661,8 @@ TEST(MessageObjectLeak) {
 static void CheckEqualSharedFunctionInfos(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
-  Handle<Object> obj1 = v8::Utils::OpenHandle(*info[0]);
-  Handle<Object> obj2 = v8::Utils::OpenHandle(*info[1]);
+  DirectHandle<Object> obj1 = v8::Utils::OpenDirectHandle(*info[0]);
+  DirectHandle<Object> obj2 = v8::Utils::OpenDirectHandle(*info[1]);
   DirectHandle<JSFunction> fun1 = Cast<JSFunction>(obj1);
   DirectHandle<JSFunction> fun2 = Cast<JSFunction>(obj2);
   CHECK(fun1->shared() == fun2->shared());
@@ -5597,10 +5671,11 @@ static void CheckEqualSharedFunctionInfos(
 static void RemoveCodeAndGC(const v8::FunctionCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = CcTest::i_isolate();
-  Handle<Object> obj = v8::Utils::OpenHandle(*info[0]);
+  DirectHandle<Object> obj = v8::Utils::OpenDirectHandle(*info[0]);
   DirectHandle<JSFunction> fun = Cast<JSFunction>(obj);
   // Bytecode is code too.
-  SharedFunctionInfo::DiscardCompiled(isolate, handle(fun->shared(), isolate));
+  SharedFunctionInfo::DiscardCompiled(isolate,
+                                      direct_handle(fun->shared(), isolate));
   fun->UpdateCode(*BUILTIN_CODE(isolate, CompileLazy));
   heap::InvokeMemoryReducingMajorGCs(CcTest::heap());
 }
@@ -5672,7 +5747,8 @@ AllocationResult HeapTester::AllocateByteArrayForTest(
     if (!allocation.To(&result)) return allocation;
   }
 
-  result->set_map_after_allocation(ReadOnlyRoots(heap).byte_array_map(),
+  result->set_map_after_allocation(heap->isolate(),
+                                   ReadOnlyRoots(heap).byte_array_map(),
                                    SKIP_WRITE_BARRIER);
   Cast<ByteArray>(result)->set_length(length);
   return AllocationResult::FromObject(result);
@@ -5696,13 +5772,13 @@ HEAP_TEST(Regress587004) {
   Heap* heap = CcTest::heap();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
-  const int N =
-      (kMaxRegularHeapObjectSize - FixedArray::kHeaderSize) / kTaggedSize;
+  const int N = (kMaxRegularHeapObjectSize - OFFSET_OF_DATA_START(FixedArray)) /
+                kTaggedSize;
   DirectHandle<FixedArray> array =
       factory->NewFixedArray(N, AllocationType::kOld);
   CHECK(heap->old_space()->Contains(*array));
   DirectHandle<Object> number = factory->NewHeapNumber(1.0);
-  CHECK(Heap::InYoungGeneration(*number));
+  CHECK(HeapLayout::InYoungGeneration(*number));
   for (int i = 0; i < N; i++) {
     array->set(i, *number);
   }
@@ -5915,15 +5991,17 @@ TEST(Regress598319) {
   static constexpr size_t kSmallMaxBytesToMark = 100;
   while (!marking->IsMajorMarkingComplete()) {
     marking->AdvanceForTesting(kSmallStepSize, kSmallMaxBytesToMark);
-    ProgressBar& progress_bar = page->ProgressBar();
-    if (progress_bar.IsEnabled() && progress_bar.Value() > 0) {
-      CHECK_NE(progress_bar.Value(), arr.get()->Size());
+    MarkingProgressTracker& progress_tracker = page->marking_progress_tracker();
+    if (progress_tracker.IsEnabled() &&
+        progress_tracker.GetCurrentChunkForTesting() > 0) {
+      CHECK_NE(progress_tracker.GetCurrentChunkForTesting(), arr.get()->Size());
       {
         // Shift by 1, effectively moving one white object across the progress
         // bar, meaning that we will miss marking it.
         v8::HandleScope new_scope(CcTest::isolate());
-        Handle<JSArray> js_array = isolate->factory()->NewJSArrayWithElements(
-            Handle<FixedArray>(arr.get(), isolate));
+        DirectHandle<JSArray> js_array =
+            isolate->factory()->NewJSArrayWithElements(
+                DirectHandle<FixedArray>(arr.get(), isolate));
         js_array->GetElementsAccessor()->Shift(js_array).Check();
       }
       break;
@@ -5945,7 +6023,8 @@ TEST(Regress598319) {
   // progress bar, we would fail here.
   for (int i = 0; i < arr.get()->length(); i++) {
     Tagged<HeapObject> arr_value = Cast<HeapObject>(arr.get()->get(i));
-    CHECK(InReadOnlySpace(arr_value) || marking_state->IsMarked(arr_value));
+    CHECK(HeapLayout::InReadOnlySpace(arr_value) ||
+          marking_state->IsMarked(arr_value));
   }
 }
 
@@ -6072,7 +6151,7 @@ TEST(Regress631969) {
   heap::SimulateIncrementalMarking(heap, false);
 
   // Allocate a cons string and promote it to a fresh page in the old space.
-  Handle<String> s3 = factory->NewConsString(s1, s2).ToHandleChecked();
+  DirectHandle<String> s3 = factory->NewConsString(s1, s2).ToHandleChecked();
   heap::EmptyNewSpaceUsingGC(heap);
 
   heap::SimulateIncrementalMarking(heap, false);
@@ -6086,7 +6165,7 @@ TEST(Regress631969) {
 
   {
     StaticOneByteResource external_string("12345678901234");
-    s3->MakeExternal(&external_string);
+    s3->MakeExternal(isolate, &external_string);
     heap::InvokeMajorGC(heap);
     // This avoids the GC from trying to free stack allocated resources.
     i::Cast<i::ExternalOneByteString>(s3)->SetResource(isolate, nullptr);
@@ -6094,6 +6173,7 @@ TEST(Regress631969) {
 }
 
 TEST(ContinuousRightTrimFixedArrayInBlackArea) {
+  if (v8_flags.black_allocated_pages) return;
   if (!v8_flags.incremental_marking) return;
   v8_flags.stress_concurrent_allocation = false;  // For SimulateFullSpace.
   CcTest::InitializeVM();
@@ -6133,7 +6213,7 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
       MarkingBitmap::LimitAddressToIndex(end_address)));
   CHECK(heap->old_space()->Contains(*array));
 
-  // Trim it once by one word to make checking for white marking color uniform.
+  // Trim it once by one word to check that the trimmed area gets unmarked.
   Address previous = end_address - kTaggedSize;
   isolate->heap()->RightTrimArray(*array, 99, 100);
 
@@ -6156,13 +6236,77 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
   heap::InvokeAtomicMajorGC(heap);
 }
 
+TEST(RightTrimFixedArrayWithBlackAllocatedPages) {
+  if (!v8_flags.black_allocated_pages) return;
+  if (!v8_flags.incremental_marking) return;
+  v8_flags.stress_concurrent_allocation = false;  // For SimulateFullSpace.
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Heap* heap = CcTest::heap();
+  Isolate* isolate = CcTest::i_isolate();
+  heap::InvokeMajorGC(heap);
+
+  i::IncrementalMarking* marking = heap->incremental_marking();
+  if (heap->sweeping_in_progress()) {
+    heap->EnsureSweepingCompleted(
+        Heap::SweepingForcedFinalizationMode::kV8Only);
+  }
+  CHECK(marking->IsMarking() || marking->IsStopped());
+  if (marking->IsStopped()) {
+    heap->StartIncrementalMarking(i::GCFlag::kNoFlags,
+                                  i::GarbageCollectionReason::kTesting);
+  }
+  CHECK(marking->IsMarking());
+  CHECK(marking->black_allocation());
+
+  // Ensure that we allocate a new page, set up a bump pointer area, and
+  // perform the allocation in a black area.
+  heap::SimulateFullSpace(heap->old_space());
+  isolate->factory()->NewFixedArray(10, AllocationType::kOld);
+
+  // Allocate the fixed array that will be trimmed later.
+  DirectHandle<FixedArray> array =
+      isolate->factory()->NewFixedArray(100, AllocationType::kOld);
+  Address start_address = array->address();
+  Address end_address = start_address + array->Size();
+  PageMetadata* page = PageMetadata::FromAddress(start_address);
+  CHECK(page->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
+  CHECK(heap->old_space()->Contains(*array));
+
+  // Trim it once by one word, which shouldn't affect the BLACK_ALLOCATED flag.
+  Address previous = end_address - kTaggedSize;
+  isolate->heap()->RightTrimArray(*array, 99, 100);
+
+  Tagged<HeapObject> filler = HeapObject::FromAddress(previous);
+  CHECK(IsFreeSpaceOrFiller(filler));
+  CHECK(page->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
+
+  heap::InvokeAtomicMajorGC(heap);
+  CHECK(!page->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
+
+  heap->StartIncrementalMarking(i::GCFlag::kNoFlags,
+                                i::GarbageCollectionReason::kTesting);
+
+  // Allocate the large fixed array that will be trimmed later.
+  array = isolate->factory()->NewFixedArray(200000, AllocationType::kOld);
+  start_address = array->address();
+  end_address = start_address + array->Size();
+  CHECK(heap->lo_space()->Contains(*array));
+  page = PageMetadata::FromAddress(start_address);
+  CHECK(!page->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
+
+  heap::InvokeAtomicMajorGC(heap);
+  CHECK(!page->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
+}
+
 TEST(Regress618958) {
   if (!v8_flags.incremental_marking) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   Heap* heap = CcTest::heap();
   bool isolate_is_locked = true;
-  CcTest::isolate()->AdjustAmountOfExternalAllocatedMemory(100 * MB);
+  v8::ExternalMemoryAccounter accounter;
+  accounter.Increase(CcTest::isolate(), 100 * MB);
   int mark_sweep_count_before = heap->ms_count();
   heap->MemoryPressureNotification(MemoryPressureLevel::kCritical,
                                    isolate_is_locked);
@@ -6173,6 +6317,7 @@ TEST(Regress618958) {
   CHECK(mark_sweeps_performed == 2 ||
         (mark_sweeps_performed == 1 &&
          !heap->incremental_marking()->IsStopped()));
+  accounter.Decrease(CcTest::isolate(), 100 * MB);
 }
 
 TEST(YoungGenerationLargeObjectAllocationScavenge) {
@@ -6672,6 +6817,7 @@ UNINITIALIZED_TEST(OutOfMemory) {
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
+  v8::Isolate::Scope isolate_scope(isolate);
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
   oom_isolate = i_isolate;
   isolate->SetOOMErrorHandler(OOMCallback);
@@ -6704,6 +6850,7 @@ UNINITIALIZED_TEST(OutOfMemoryIneffectiveGC) {
   Factory* factory = i_isolate->factory();
   Heap* heap = i_isolate->heap();
   {
+    v8::Isolate::Scope isolate_scope(isolate);
     PtrComprCageAccessScope ptr_compr_cage_access_scope(i_isolate);
     heap::InvokeMajorGC(heap);
 
@@ -6780,7 +6927,7 @@ HEAP_TEST(Regress779503) {
     // from the slot again and interpret it as heap value. Doing so will crash.
     DirectHandle<ByteArray> byte_array =
         isolate->factory()->NewByteArray(kArraySize);
-    CHECK(Heap::InYoungGeneration(*byte_array));
+    CHECK(HeapLayout::InYoungGeneration(*byte_array));
     for (int i = 0; i < kArraySize; i++) {
       byte_array->set(i, kHeapObjectTag);
     }
@@ -6790,7 +6937,7 @@ HEAP_TEST(Regress779503) {
       // The FixedArray in old space serves as space for slots.
       DirectHandle<FixedArray> fixed_array =
           isolate->factory()->NewFixedArray(kArraySize, AllocationType::kOld);
-      CHECK(!Heap::InYoungGeneration(*fixed_array));
+      CHECK(!HeapLayout::InYoungGeneration(*fixed_array));
       for (int i = 0; i < kArraySize; i++) {
         fixed_array->set(i, *byte_array);
       }
@@ -6799,7 +6946,7 @@ HEAP_TEST(Regress779503) {
     // currently scavenging.
     heap->delay_sweeper_tasks_for_testing_ = true;
     heap::InvokeMajorGC(heap);
-    CHECK(!Heap::InYoungGeneration(*byte_array));
+    CHECK(!HeapLayout::InYoungGeneration(*byte_array));
   }
   // Scavenging and sweeping the same page will crash as slots will be
   // overridden.
@@ -6853,18 +7000,19 @@ UNINITIALIZED_TEST(OutOfMemorySmallObjects) {
   v8_flags.max_old_space_size = kOldGenerationLimit / MB;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  Isolate* isolate =
-      reinterpret_cast<Isolate*>(v8::Isolate::New(create_params));
-  Heap* heap = isolate->heap();
-  Factory* factory = isolate->factory();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  Heap* heap = i_isolate->heap();
+  Factory* factory = i_isolate->factory();
   OutOfMemoryState state;
   state.heap = heap;
   state.oom_triggered = false;
   heap->AddNearHeapLimitCallback(NearHeapLimitCallback, &state);
   {
-    PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate);
+    PtrComprCageAccessScope ptr_compr_cage_access_scope(i_isolate);
 
-    HandleScope handle_scope(isolate);
+    v8::Isolate::Scope isolate_scope(isolate);
+    HandleScope handle_scope(i_isolate);
     while (!state.oom_triggered) {
       factory->NewFixedArray(100);
     }
@@ -6877,7 +7025,7 @@ UNINITIALIZED_TEST(OutOfMemorySmallObjects) {
       state.memory_allocator_size_at_oom,
       MemoryAllocatorSizeFromHeapCapacity(state.old_generation_capacity_at_oom +
                                           2 * state.new_space_capacity_at_oom));
-  reinterpret_cast<v8::Isolate*>(isolate)->Dispose();
+  isolate->Dispose();
 }
 
 UNINITIALIZED_TEST(OutOfMemoryLargeObjects) {
@@ -6889,19 +7037,20 @@ UNINITIALIZED_TEST(OutOfMemoryLargeObjects) {
   v8_flags.max_old_space_size = kOldGenerationLimit / MB;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  Isolate* isolate =
-      reinterpret_cast<Isolate*>(v8::Isolate::New(create_params));
-  Heap* heap = isolate->heap();
-  Factory* factory = isolate->factory();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  Heap* heap = i_isolate->heap();
+  Factory* factory = i_isolate->factory();
   OutOfMemoryState state;
   state.heap = heap;
   state.oom_triggered = false;
   heap->AddNearHeapLimitCallback(NearHeapLimitCallback, &state);
   {
-    PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate);
+    v8::Isolate::Scope isolate_scope(isolate);
+    PtrComprCageAccessScope ptr_compr_cage_access_scope(i_isolate);
     const int kFixedArrayLength = 1000000;
     {
-      HandleScope handle_scope(isolate);
+      HandleScope handle_scope(i_isolate);
       while (!state.oom_triggered) {
         factory->NewFixedArray(kFixedArrayLength);
       }
@@ -6920,7 +7069,7 @@ UNINITIALIZED_TEST(OutOfMemoryLargeObjects) {
                  2 * state.new_space_capacity_at_oom +
                  state.new_lo_space_size_at_oom));
   }
-  reinterpret_cast<v8::Isolate*>(isolate)->Dispose();
+  isolate->Dispose();
 }
 
 UNINITIALIZED_TEST(RestoreHeapLimit) {
@@ -6933,13 +7082,14 @@ UNINITIALIZED_TEST(RestoreHeapLimit) {
   v8_flags.max_old_space_size = kOldGenerationLimit / MB;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  Isolate* isolate =
-      reinterpret_cast<Isolate*>(v8::Isolate::New(create_params));
-  Heap* heap = isolate->heap();
-  Factory* factory = isolate->factory();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  Heap* heap = i_isolate->heap();
+  Factory* factory = i_isolate->factory();
 
   {
-    PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate);
+    v8::Isolate::Scope isolate_scope(isolate);
+    PtrComprCageAccessScope ptr_compr_cage_access_scope(i_isolate);
 
     // In this test, we need to invoke GC without stack, otherwise some objects
     // may not be reclaimed because of conservative stack scanning and the heap
@@ -6953,7 +7103,7 @@ UNINITIALIZED_TEST(RestoreHeapLimit) {
     heap->AutomaticallyRestoreInitialHeapLimit(0.5);
     const int kFixedArrayLength = 1000000;
     {
-      HandleScope handle_scope(isolate);
+      HandleScope handle_scope(i_isolate);
       while (!state.oom_triggered) {
         factory->NewFixedArray(kFixedArrayLength);
       }
@@ -6961,7 +7111,7 @@ UNINITIALIZED_TEST(RestoreHeapLimit) {
     heap->MemoryPressureNotification(MemoryPressureLevel::kCritical, true);
     state.oom_triggered = false;
     {
-      HandleScope handle_scope(isolate);
+      HandleScope handle_scope(i_isolate);
       while (!state.oom_triggered) {
         factory->NewFixedArray(kFixedArrayLength);
       }
@@ -6969,7 +7119,7 @@ UNINITIALIZED_TEST(RestoreHeapLimit) {
     CHECK_EQ(state.current_heap_limit, state.initial_heap_limit);
   }
 
-  reinterpret_cast<v8::Isolate*>(isolate)->Dispose();
+  isolate->Dispose();
 }
 
 void HeapTester::UncommitUnusedMemory(Heap* heap) {
@@ -7017,7 +7167,7 @@ TEST(Regress8617) {
   DirectHandle<Object> foo =
       v8::Utils::OpenDirectHandle(*CompileRun("function foo() { return 42; };"
                                               "foo;"));
-  if (heap->InYoungGeneration(*foo)) {
+  if (HeapLayout::InYoungGeneration(*foo)) {
     heap::EmptyNewSpaceUsingGC(heap);
   }
   // Step 2. Create an object with a reference to foo in the descriptor array.
@@ -7182,9 +7332,10 @@ TEST(GarbageCollectionWithLocalHeap) {
 TEST(Regress10698) {
   if (!v8_flags.incremental_marking) return;
   CcTest::InitializeVM();
-  Heap* heap = CcTest::i_isolate()->heap();
-  Factory* factory = CcTest::i_isolate()->factory();
-  HandleScope handle_scope(CcTest::i_isolate());
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  Factory* factory = isolate->factory();
+  HandleScope handle_scope(isolate);
   // This is modeled after the manual allocation folding of heap numbers in
   // JSON parser (See commit ba7b25e).
   // Step 1. Allocate a byte array in the old space.
@@ -7199,7 +7350,7 @@ TEST(Regress10698) {
   // Step 4. Set the filler at the end of the first array.
   // It will have an impossible markbit pattern because the second markbit
   // will be taken from the second array.
-  filler->set_map_after_allocation(*factory->one_pointer_filler_map());
+  filler->set_map_after_allocation(isolate, *factory->one_pointer_filler_map());
 }
 
 class TestAllocationTracker : public HeapObjectAllocationTracker {
@@ -7372,7 +7523,7 @@ TEST(Regress10900) {
                     ReadOnlyRoots(heap).undefined_value().ptr())));
   masm.Push(tmp, tmp);
 #else
-  masm.Push(ReadOnlyRoots(heap).undefined_value_handle());
+  masm.Push(isolate->factory()->undefined_value());
 #endif
   CodeDesc desc;
   masm.GetCode(isolate, &desc);

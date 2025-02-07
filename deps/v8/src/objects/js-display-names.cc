@@ -401,14 +401,13 @@ DisplayNamesInternal* CreateInternal(const icu::Locale& locale,
 }  // anonymous namespace
 
 // ecma402 #sec-Intl.DisplayNames
-MaybeHandle<JSDisplayNames> JSDisplayNames::New(Isolate* isolate,
-                                                DirectHandle<Map> map,
-                                                Handle<Object> locales,
-                                                Handle<Object> input_options) {
+MaybeHandle<JSDisplayNames> JSDisplayNames::New(
+    Isolate* isolate, DirectHandle<Map> map, DirectHandle<Object> locales,
+    DirectHandle<Object> input_options) {
   const char* service = "Intl.DisplayNames";
   Factory* factory = isolate->factory();
 
-  Handle<JSReceiver> options;
+  DirectHandle<JSReceiver> options;
   // 3. Let requestedLocales be ? CanonicalizeLocaleList(locales).
   Maybe<std::vector<std::string>> maybe_requested_locales =
       Intl::CanonicalizeLocaleList(isolate, locales);
@@ -561,12 +560,14 @@ Handle<JSObject> JSDisplayNames::ResolvedOptions(
 
   Maybe<std::string> maybe_locale = Intl::ToLanguageTag(internal->locale());
   DCHECK(maybe_locale.IsJust());
-  Handle<String> locale = isolate->factory()->NewStringFromAsciiChecked(
+  DirectHandle<String> locale = isolate->factory()->NewStringFromAsciiChecked(
       maybe_locale.FromJust().c_str());
-  Handle<String> style = display_names->StyleAsString();
-  Handle<String> type = factory->NewStringFromAsciiChecked(internal->type());
-  Handle<String> fallback = display_names->FallbackAsString();
-  Handle<String> language_display = display_names->LanguageDisplayAsString();
+  DirectHandle<String> style = display_names->StyleAsString(isolate);
+  DirectHandle<String> type =
+      factory->NewStringFromAsciiChecked(internal->type());
+  DirectHandle<String> fallback = display_names->FallbackAsString(isolate);
+  DirectHandle<String> language_display =
+      display_names->LanguageDisplayAsString(isolate);
 
   Maybe<bool> maybe_create_locale = JSReceiver::CreateDataProperty(
       isolate, options, factory->locale_string(), locale, Just(kDontThrow));
@@ -604,7 +605,7 @@ Handle<JSObject> JSDisplayNames::ResolvedOptions(
 MaybeHandle<Object> JSDisplayNames::Of(
     Isolate* isolate, DirectHandle<JSDisplayNames> display_names,
     Handle<Object> code_obj) {
-  Handle<String> code;
+  DirectHandle<String> code;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, code,
                              Object::ToString(isolate, code_obj));
   DisplayNamesInternal* internal = display_names->internal()->raw();
@@ -633,34 +634,34 @@ const std::set<std::string>& JSDisplayNames::GetAvailableLocales() {
   return available_locales.Pointer()->Get();
 }
 
-Handle<String> JSDisplayNames::StyleAsString() const {
+Handle<String> JSDisplayNames::StyleAsString(Isolate* isolate) const {
   switch (style()) {
     case Style::kLong:
-      return GetReadOnlyRoots().long_string_handle();
+      return isolate->factory()->long_string();
     case Style::kShort:
-      return GetReadOnlyRoots().short_string_handle();
+      return isolate->factory()->short_string();
     case Style::kNarrow:
-      return GetReadOnlyRoots().narrow_string_handle();
+      return isolate->factory()->narrow_string();
   }
   UNREACHABLE();
 }
 
-Handle<String> JSDisplayNames::FallbackAsString() const {
+Handle<String> JSDisplayNames::FallbackAsString(Isolate* isolate) const {
   switch (fallback()) {
     case Fallback::kCode:
-      return GetReadOnlyRoots().code_string_handle();
+      return isolate->factory()->code_string();
     case Fallback::kNone:
-      return GetReadOnlyRoots().none_string_handle();
+      return isolate->factory()->none_string();
   }
   UNREACHABLE();
 }
 
-Handle<String> JSDisplayNames::LanguageDisplayAsString() const {
+Handle<String> JSDisplayNames::LanguageDisplayAsString(Isolate* isolate) const {
   switch (language_display()) {
     case LanguageDisplay::kDialect:
-      return GetReadOnlyRoots().dialect_string_handle();
+      return isolate->factory()->dialect_string();
     case LanguageDisplay::kStandard:
-      return GetReadOnlyRoots().standard_string_handle();
+      return isolate->factory()->standard_string();
   }
   UNREACHABLE();
 }

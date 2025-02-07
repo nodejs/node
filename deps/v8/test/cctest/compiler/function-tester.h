@@ -21,23 +21,24 @@ class FunctionTester : public InitializedHandleScope {
  public:
   explicit FunctionTester(const char* source, uint32_t flags = 0);
 
-  FunctionTester(Handle<Code> code, int param_count);
+  FunctionTester(DirectHandle<Code> code, int param_count);
 
   // Assumes VoidDescriptor call interface.
-  explicit FunctionTester(Handle<Code> code);
+  explicit FunctionTester(DirectHandle<Code> code);
 
   Isolate* isolate;
   Handle<JSFunction> function;
 
   MaybeHandle<Object> Call() {
-    return Execution::Call(isolate, function, undefined(), 0, nullptr);
+    return Execution::Call(isolate, function, undefined(), {});
   }
 
   template <typename Arg1, typename... Args>
   MaybeHandle<Object> Call(Arg1 arg1, Args... args) {
     const int nof_args = sizeof...(Args) + 1;
-    Handle<Object> call_args[] = {arg1, args...};
-    return Execution::Call(isolate, function, undefined(), nof_args, call_args);
+    DirectHandle<Object> call_args[] = {arg1, args...};
+    return Execution::Call(isolate, function, undefined(),
+                           {call_args, nof_args});
   }
 
   template <typename T, typename... Args>

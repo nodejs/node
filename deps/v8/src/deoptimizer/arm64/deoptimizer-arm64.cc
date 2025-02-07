@@ -16,6 +16,8 @@ const int Deoptimizer::kLazyDeoptExitSize = 2 * kInstrSize;
 const int Deoptimizer::kLazyDeoptExitSize = 1 * kInstrSize;
 #endif
 
+const int Deoptimizer::kAdaptShadowStackOffsetToSubtract = 0;
+
 // static
 void Deoptimizer::PatchJumpToTrampoline(Address pc, Address new_pc) {
   UNREACHABLE();
@@ -59,8 +61,8 @@ void FrameDescription::SetPc(intptr_t pc) {
   // TODO(v8:10026): We need to sign pointers to the embedded blob, which are
   // stored in the isolate and code range objects.
   if (ENABLE_CONTROL_FLOW_INTEGRITY_BOOL) {
-    CHECK(Deoptimizer::IsValidReturnAddress(PointerAuthentication::StripPAC(pc),
-                                            isolate_));
+    Deoptimizer::EnsureValidReturnAddress(isolate_,
+                                          PointerAuthentication::StripPAC(pc));
   }
   pc_ = pc;
 }

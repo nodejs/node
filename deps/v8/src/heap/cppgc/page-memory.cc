@@ -8,10 +8,15 @@
 #include <cstddef>
 #include <optional>
 
+#include "include/v8config.h"
 #include "src/base/macros.h"
 #include "src/base/sanitizer/asan.h"
 #include "src/heap/cppgc/memory.h"
 #include "src/heap/cppgc/platform.h"
+
+#if V8_OS_POSIX
+#include <errno.h>
+#endif
 
 namespace cppgc {
 namespace internal {
@@ -153,8 +158,20 @@ PageMemoryRegion* NormalPageMemoryPool::Take() {
     // Also need to make the pages accessible.
     CHECK(entry.region->allocator().RecommitPages(
         base, size, v8::PageAllocator::kReadWrite));
-    CHECK(entry.region->allocator().SetPermissions(
-        base, size, v8::PageAllocator::kReadWrite));
+    bool ok = entry.region->allocator().SetPermissions(
+        base, size, v8::PageAllocator::kReadWrite);
+    if (!ok) {
+#if V8_OS_POSIX
+      // Changing permissions can return ENOMEM in several cases, including
+      // (since there is PROT_WRITE) when it would exceed the RLIMIT_DATA
+      // resource limit, at least on Linux. Check errno in this case, and
+      // declare that this is an OOM in this case.
+      if (errno == ENOMEM) {
+        GetGlobalOOMHandler()("Cannot change page permissions");
+      }
+#endif
+      CHECK(false);
+    }
   }
 #if DEBUG
   CheckMemoryIsZero(base, size);
@@ -173,7 +190,7 @@ size_t NormalPageMemoryPool::PooledMemory() const {
   return total_size;
 }
 
-void NormalPageMemoryPool::DiscardPooledPages(PageAllocator& page_allocator) {
+void NormalPageMemoryPool::ReleasePooledPages(PageAllocator& page_allocator) {
   for (auto& entry : pool_) {
     DCHECK_NOT_NULL(entry.region);
     void* base = entry.region->GetPageMemory().writeable_region().base();
@@ -225,19 +242,12 @@ Address PageBackend::TryAllocateNormalPageMemory() {
   return nullptr;
 }
 
-void PageBackend::FreeNormalPageMemory(
-    Address writeable_base, FreeMemoryHandling free_memory_handling) {
+void PageBackend::FreeNormalPageMemory(Address writeable_base) {
   v8::base::MutexGuard guard(&mutex_);
   auto* pmr = page_memory_region_tree_.Lookup(writeable_base);
   DCHECK_NOT_NULL(pmr);
   page_memory_region_tree_.Remove(pmr);
   page_pool_.Add(pmr);
-  if (free_memory_handling == FreeMemoryHandling::kDiscardWherePossible) {
-    // Unpoison the memory before giving back to the OS.
-    ASAN_UNPOISON_MEMORY_REGION(pmr->GetPageMemory().writeable_region().base(),
-                                pmr->GetPageMemory().writeable_region().size());
-    CHECK(TryDiscard(normal_page_allocator_, pmr->GetPageMemory()));
-  }
 }
 
 Address PageBackend::TryAllocateLargePageMemory(size_t size) {
@@ -264,8 +274,8 @@ void PageBackend::FreeLargePageMemory(Address writeable_base) {
   DCHECK_EQ(1u, size);
 }
 
-void PageBackend::DiscardPooledPages() {
-  page_pool_.DiscardPooledPages(normal_page_allocator_);
+void PageBackend::ReleasePooledPages() {
+  page_pool_.ReleasePooledPages(normal_page_allocator_);
 }
 
 }  // namespace internal

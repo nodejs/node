@@ -37,7 +37,7 @@ function exportTable64Setter(builder, table, type) {
   let exports = builder.instantiate().exports;
 
   const offset = 5n;
-  assertEquals(null, exports.table64_get(offset));
+  assertSame(null, exports.table64_get(offset));
   exports.table64_set(offset, exports.f);
   assertSame(exports.f, exports.table64_get(offset));
 })();

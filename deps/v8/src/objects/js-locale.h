@@ -32,8 +32,8 @@ class JSLocale : public TorqueGeneratedJSLocale<JSLocale, JSObject> {
   // Creates locale object with properties derived from input locale string
   // and options.
   static MaybeHandle<JSLocale> New(Isolate* isolate, DirectHandle<Map> map,
-                                   Handle<String> locale,
-                                   Handle<JSReceiver> options);
+                                   DirectHandle<String> locale,
+                                   DirectHandle<JSReceiver> options);
 
   static MaybeHandle<JSLocale> Maximize(Isolate* isolate,
                                         DirectHandle<JSLocale> locale);

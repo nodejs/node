@@ -383,7 +383,7 @@ static inline uint16_t* AsciiToTwoByteString(const char16_t* source,
 template <typename T>
 static inline i::Handle<T> GetGlobal(const char* name) {
   i::Isolate* isolate = CcTest::i_isolate();
-  i::Handle<i::String> str_name =
+  i::DirectHandle<i::String> str_name =
       isolate->factory()->InternalizeUtf8String(name);
 
   i::Handle<i::Object> value =
@@ -783,7 +783,7 @@ class SimulatorHelper {
     state->fp = reinterpret_cast<void*>(
         simulator_->get_register(v8::internal::Simulator::fp));
     state->lr = reinterpret_cast<void*>(simulator_->get_lr());
-#elif V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_S390X
+#elif V8_TARGET_ARCH_S390X
     state->pc = reinterpret_cast<void*>(simulator_->get_pc());
     state->sp = reinterpret_cast<void*>(
         simulator_->get_register(v8::internal::Simulator::sp));

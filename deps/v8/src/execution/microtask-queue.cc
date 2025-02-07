@@ -166,7 +166,7 @@ int MicrotaskQueue::RunMicrotasks(Isolate* isolate) {
 
   intptr_t base_count = finished_microtask_count_;
   HandleScope handle_scope(isolate);
-  MaybeHandle<Object> maybe_result;
+  MaybeDirectHandle<Object> maybe_result;
 
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
   DirectHandle<Object> continuation_preserved_embedder_data(

@@ -116,7 +116,7 @@ MaybeHandle<JSReceiver> JSSegmentIterator::Next(
   // 9. Let segmentData be ! CreateSegmentDataObject(segmenter, string,
   // startIndex, endIndex).
 
-  Handle<JSSegmentDataObject> segment_data;
+  DirectHandle<JSSegmentDataObject> segment_data;
   if (segment_iterator->granularity() == JSSegmenter::Granularity::GRAPHEME &&
       start_index == end_index - 1) {
     // Fast path: use cached segment string and skip avoidable handle creations.
@@ -148,7 +148,7 @@ MaybeHandle<JSReceiver> JSSegmentIterator::Next(
         isolate, segment_data,
         JSSegments::CreateSegmentDataObject(
             isolate, segment_iterator->granularity(), icu_break_iterator,
-            handle(segment_iterator->raw_string(), isolate),
+            direct_handle(segment_iterator->raw_string(), isolate),
             *segment_iterator->unicode_string()->raw(), start_index,
             end_index));
   }

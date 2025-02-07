@@ -185,12 +185,12 @@ class JSAtomicsMutex
     bool locked() const { return locked_; }
 
    protected:
-    inline LockGuardBase(Isolate* isolate, Handle<JSAtomicsMutex> mutex,
+    inline LockGuardBase(Isolate* isolate, DirectHandle<JSAtomicsMutex> mutex,
                          bool locked);
 
    private:
     Isolate* isolate_;
-    Handle<JSAtomicsMutex> mutex_;
+    DirectHandle<JSAtomicsMutex> mutex_;
     bool locked_;
   };
 
@@ -200,7 +200,7 @@ class JSAtomicsMutex
   // is destructed.
   class V8_NODISCARD LockGuard final : public LockGuardBase {
    public:
-    inline LockGuard(Isolate* isolate, Handle<JSAtomicsMutex> mutex,
+    inline LockGuard(Isolate* isolate, DirectHandle<JSAtomicsMutex> mutex,
                      std::optional<base::TimeDelta> timeout = std::nullopt);
   };
 
@@ -209,7 +209,7 @@ class JSAtomicsMutex
   // `TryLockGuard` object is destructed.
   class V8_NODISCARD TryLockGuard final : public LockGuardBase {
    public:
-    inline TryLockGuard(Isolate* isolate, Handle<JSAtomicsMutex> mutex);
+    inline TryLockGuard(Isolate* isolate, DirectHandle<JSAtomicsMutex> mutex);
   };
 
   DECL_PRINTER(JSAtomicsMutex)
@@ -222,7 +222,7 @@ class JSAtomicsMutex
   // Lock the mutex, blocking if it's currently owned by another thread.
   // Returns false if the lock times out, true otherwise.
   static inline bool Lock(
-      Isolate* requester, Handle<JSAtomicsMutex> mutex,
+      Isolate* requester, DirectHandle<JSAtomicsMutex> mutex,
       std::optional<base::TimeDelta> timeout = std::nullopt);
 
   V8_WARN_UNUSED_RESULT inline bool TryLock();
@@ -231,7 +231,7 @@ class JSAtomicsMutex
   // a LockAsyncWaiterQueueNode and enqueue it in the mutex's waiter queue.
   // The `internal_locked_promise` is resolved when the node is notified.
   // Returns true if the lock was acquired, false otherwise.
-  static bool LockAsync(Isolate* requester, Handle<JSAtomicsMutex> mutex,
+  static bool LockAsync(Isolate* requester, DirectHandle<JSAtomicsMutex> mutex,
                         Handle<JSPromise> internal_locked_promise,
                         MaybeHandle<JSPromise> unlocked_promise,
                         AsyncWaiterNodeType** waiter_node,
@@ -241,14 +241,14 @@ class JSAtomicsMutex
   // to the lockAsync callback. It calls `LockAsync` without setting all the
   // logic to run the callback, since the callback is already running.
   static Handle<JSPromise> LockAsyncWrapperForWait(
-      Isolate* requester, Handle<JSAtomicsMutex> mutex);
+      Isolate* requester, DirectHandle<JSAtomicsMutex> mutex);
 
   // Try to take the lock and set up the promise logic to asynchronously run
   // the callback under the lock. Always returns a promise that settles when the
   // promise is unlocked or times out.
   static MaybeHandle<JSPromise> LockOrEnqueuePromise(
-      Isolate* isolate, Handle<JSAtomicsMutex> mutex, Handle<Object> callback,
-      std::optional<base::TimeDelta> timeout);
+      Isolate* isolate, DirectHandle<JSAtomicsMutex> mutex,
+      DirectHandle<Object> callback, std::optional<base::TimeDelta> timeout);
 
   // Try to take the lock or requeue an existing node.
   static bool LockOrEnqueueAsyncNode(Isolate* isolate,
@@ -311,7 +311,8 @@ class JSAtomicsMutex
   V8_EXPORT_PRIVATE static bool LockSlowPath(
       Isolate* requester, DirectHandle<JSAtomicsMutex> mutex,
       std::atomic<StateT>* state, std::optional<base::TimeDelta> timeout);
-  static bool LockAsyncSlowPath(Isolate* isolate, Handle<JSAtomicsMutex> mutex,
+  static bool LockAsyncSlowPath(Isolate* isolate,
+                                DirectHandle<JSAtomicsMutex> mutex,
                                 std::atomic<StateT>* state,
                                 Handle<JSPromise> internal_locked_promise,
                                 MaybeHandle<JSPromise> unlocked_promise,
@@ -332,7 +333,7 @@ class JSAtomicsMutex
   static std::optional<WaiterQueueLockGuard> LockWaiterQueueOrJSMutex(
       std::atomic<StateT>* state, StateT& current_state);
   V8_EXPORT_PRIVATE static bool SpinningMutexTryLock(
-      Isolate* requester, Handle<JSAtomicsMutex> mutex,
+      Isolate* requester, DirectHandle<JSAtomicsMutex> mutex,
       std::atomic<StateT>* state);
   V8_INLINE static bool BackoffTryLock(Isolate* requester,
                                        DirectHandle<JSAtomicsMutex> mutex,
@@ -346,8 +347,9 @@ class JSAtomicsMutex
       Isolate* requester, DirectHandle<JSAtomicsMutex> mutex,
       std::atomic<StateT>* state, WaiterQueueNode* this_waiter);
 
-  using LockSlowPathWrapper = std::function<bool(std::atomic<StateT>* state)>;
-
+  template <typename LockSlowPathWrapper,
+            typename = std::enable_if<std::is_invocable_r_v<
+                bool, LockSlowPathWrapper, std::atomic<StateT>*>>>
   static inline bool LockImpl(Isolate* requester,
                               DirectHandle<JSAtomicsMutex> mutex,
                               std::optional<base::TimeDelta> timeout,
@@ -405,11 +407,11 @@ class JSAtomicsCondition
 
   V8_EXPORT_PRIVATE static bool WaitFor(Isolate* requester,
                                         DirectHandle<JSAtomicsCondition> cv,
-                                        Handle<JSAtomicsMutex> mutex,
+                                        DirectHandle<JSAtomicsMutex> mutex,
                                         std::optional<base::TimeDelta> timeout);
 
   V8_EXPORT_PRIVATE static MaybeHandle<JSReceiver> WaitAsync(
-      Isolate* requester, Handle<JSAtomicsCondition> cv,
+      Isolate* requester, DirectHandle<JSAtomicsCondition> cv,
       DirectHandle<JSAtomicsMutex> mutex,
       std::optional<base::TimeDelta> timeout);
 

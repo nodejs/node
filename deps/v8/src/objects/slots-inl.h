@@ -126,6 +126,8 @@ Tagged<MaybeObject> FullMaybeObjectSlot::operator*() const {
   return Tagged<MaybeObject>(*location());
 }
 
+Tagged<MaybeObject> FullMaybeObjectSlot::load() const { return **this; }
+
 Tagged<MaybeObject> FullMaybeObjectSlot::load(
     PtrComprCageBase cage_base) const {
   return **this;
@@ -427,14 +429,15 @@ Tagged<Object> IndirectPointerSlot::ResolveHandle(
 Tagged<Object> IndirectPointerSlot::ResolveTrustedPointerHandle(
     IndirectPointerHandle handle, IsolateForSandbox isolate) const {
   DCHECK_NE(handle, kNullIndirectPointerHandle);
-  const TrustedPointerTable& table = isolate.GetTrustedPointerTable();
+  const TrustedPointerTable& table = isolate.GetTrustedPointerTableFor(tag_);
   return Tagged<Object>(table.Get(handle, tag_));
 }
 
 Tagged<Object> IndirectPointerSlot::ResolveCodePointerHandle(
     IndirectPointerHandle handle) const {
   DCHECK_NE(handle, kNullIndirectPointerHandle);
-  Address addr = GetProcessWideCodePointerTable()->GetCodeObject(handle);
+  Address addr =
+      IsolateGroup::current()->code_pointer_table()->GetCodeObject(handle);
   return Tagged<Object>(addr);
 }
 #endif  // V8_ENABLE_SANDBOX
@@ -457,7 +460,7 @@ inline void CopyTagged(Address dst, const Address src, size_t num_tagged) {
 }
 
 // Sets |counter| number of kTaggedSize-sized values starting at |start| slot.
-inline void MemsetTagged(Tagged_t* start, Tagged<Object> value,
+inline void MemsetTagged(Tagged_t* start, Tagged<MaybeObject> value,
                          size_t counter) {
 #ifdef V8_COMPRESS_POINTERS
   // CompressAny since many callers pass values which are not valid objects.
@@ -471,7 +474,7 @@ inline void MemsetTagged(Tagged_t* start, Tagged<Object> value,
 
 // Sets |counter| number of kTaggedSize-sized values starting at |start| slot.
 template <typename T>
-inline void MemsetTagged(SlotBase<T, Tagged_t> start, Tagged<Object> value,
+inline void MemsetTagged(SlotBase<T, Tagged_t> start, Tagged<MaybeObject> value,
                          size_t counter) {
   MemsetTagged(start.location(), value, counter);
 }

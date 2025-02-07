@@ -119,7 +119,7 @@ bool SimulatorHelper::FillRegisters(Isolate* isolate,
   state->sp = reinterpret_cast<void*>(simulator->get_register(Simulator::sp));
   state->fp = reinterpret_cast<void*>(simulator->get_register(Simulator::fp));
   state->lr = reinterpret_cast<void*>(simulator->get_lr());
-#elif V8_TARGET_ARCH_S390
+#elif V8_TARGET_ARCH_S390X
   if (!simulator->has_bad_pc()) {
     state->pc = reinterpret_cast<void*>(simulator->get_pc());
   }
@@ -288,7 +288,7 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
   // If there is a handler on top of the external callback scope then
   // we have already entered JavaScript again and the external callback
   // is not the top function.
-  if (scope && scope->scope_address() < handler) {
+  if (scope && scope->JSStackComparableAddress() < handler) {
     i::Address* external_callback_entry_ptr =
         scope->callback_entrypoint_address();
     sample_info->external_callback_entry =

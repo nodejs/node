@@ -36,8 +36,10 @@
 #include <algorithm>
 #include <array>
 #include <bitset>
+#include <cassert>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <deque>
 #include <forward_list>
@@ -56,7 +58,9 @@
 #include <utility>
 #include <vector>
 
+#include "absl/base/attributes.h"
 #include "absl/base/internal/unaligned_access.h"
+#include "absl/base/optimization.h"
 #include "absl/base/port.h"
 #include "absl/container/fixed_array.h"
 #include "absl/hash/internal/city.h"
@@ -69,8 +73,7 @@
 #include "absl/types/variant.h"
 #include "absl/utility/utility.h"
 
-#if defined(__cpp_lib_filesystem) && __cpp_lib_filesystem >= 201703L && \
-    !defined(_LIBCPP_HAS_NO_FILESYSTEM_LIBRARY)
+#if defined(__cpp_lib_filesystem) && __cpp_lib_filesystem >= 201703L
 #include <filesystem>  // NOLINT
 #endif
 
@@ -340,6 +343,14 @@ struct is_uniquely_represented<
 template <>
 struct is_uniquely_represented<bool> : std::false_type {};
 
+#ifdef ABSL_HAVE_INTRINSIC_INT128
+// Specialize the trait for GNU extension types.
+template <>
+struct is_uniquely_represented<__int128> : std::true_type {};
+template <>
+struct is_uniquely_represented<unsigned __int128> : std::true_type {};
+#endif  // ABSL_HAVE_INTRINSIC_INT128
+
 // hash_bytes()
 //
 // Convenience function that combines `hash_state` with the byte representation
@@ -597,7 +608,6 @@ H AbslHashValue(H hash_state, std::basic_string_view<Char> str) {
 #endif  // ABSL_HAVE_STD_STRING_VIEW
 
 #if defined(__cpp_lib_filesystem) && __cpp_lib_filesystem >= 201703L && \
-    !defined(_LIBCPP_HAS_NO_FILESYSTEM_LIBRARY) && \
     (!defined(__ENVIRONMENT_IPHONE_OS_VERSION_MIN_REQUIRED__) ||        \
      __ENVIRONMENT_IPHONE_OS_VERSION_MIN_REQUIRED__ >= 130000) &&       \
     (!defined(__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__) ||         \
@@ -1016,8 +1026,12 @@ class ABSL_DLL MixingHashState : public HashStateBase<MixingHashState> {
                       : uint64_t{0x9ddfea08eb382d69};
 
   template <typename T>
+  struct FitsIn64Bits : std::integral_constant<bool, sizeof(T) <= 8> {};
+
+  template <typename T>
   using IntegralFastPath =
-      conjunction<std::is_integral<T>, is_uniquely_represented<T>>;
+      conjunction<std::is_integral<T>, is_uniquely_represented<T>,
+                  FitsIn64Bits<T>>;
 
  public:
   // Move only

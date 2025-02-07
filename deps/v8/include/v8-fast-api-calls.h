@@ -270,9 +270,10 @@ class CTypeInfo {
 
   enum class SequenceType : uint8_t {
     kScalar,
-    kIsSequence,    // sequence<T>
-    kIsTypedArray,  // TypedArray of T or any ArrayBufferView if T
-                    // is void
+    kIsSequence,  // sequence<T>
+    kIsTypedArray V8_DEPRECATED(
+        "TypedArrays are not supported directly anymore."),
+    // is void
     kIsArrayBuffer  // ArrayBuffer
   };
 
@@ -325,7 +326,9 @@ class CTypeInfo {
   Flags flags_;
 };
 
-struct FastApiTypedArrayBase {
+struct V8_DEPRECATED(
+    "With the removal of FastApiTypedArray this type is not needed "
+    "anymore.") FastApiTypedArrayBase {
  public:
   // Returns the length in number of elements.
   size_t V8_EXPORT length() const { return length_; }
@@ -336,54 +339,12 @@ struct FastApiTypedArrayBase {
   size_t length_ = 0;
 };
 
-template <typename T>
-struct V8_DEPRECATE_SOON(
-    "When an API function expects a TypedArray as a parameter, the type in the "
-    "signature should be `v8::Local<v8::Value>` instead of "
-    "FastApiTypedArray<>. The API function then has to type-check the "
-    "parameter and convert it to a `v8::Local<v8::TypedArray` to access the "
-    "data. In essence, the parameter should be handled the same as for a "
-    "regular API call.") FastApiTypedArray : public FastApiTypedArrayBase {
- public:
-  V8_INLINE T get(size_t index) const {
-#ifdef DEBUG
-    ValidateIndex(index);
-#endif  // DEBUG
-    T tmp;
-    memcpy(&tmp, static_cast<void*>(reinterpret_cast<T*>(data_) + index),
-           sizeof(T));
-    return tmp;
-  }
-
-  bool getStorageIfAligned(T** elements) const {
-    if (reinterpret_cast<uintptr_t>(data_) % alignof(T) != 0) {
-      return false;
-    }
-    *elements = reinterpret_cast<T*>(data_);
-    return true;
-  }
-
- private:
-  // This pointer should include the typed array offset applied.
-  // It's not guaranteed that it's aligned to sizeof(T), it's only
-  // guaranteed that it's 4-byte aligned, so for 8-byte types we need to
-  // provide a special implementation for reading from it, which hides
-  // the possibly unaligned read in the `get` method.
-  void* data_;
-};
-
-// Any TypedArray. It uses kTypedArrayBit with base type void
-// Overloaded args of ArrayBufferView and TypedArray are not supported
-// (for now) because the generic “any” ArrayBufferView doesn’t have its
-// own instance type. It could be supported if we specify that
-// TypedArray<T> always has precedence over the generic ArrayBufferView,
-// but this complicates overload resolution.
-struct FastApiArrayBufferView {
+struct V8_DEPRECATED("This API is dead within V8") FastApiArrayBufferView {
   void* data;
   size_t byte_length;
 };
 
-struct FastApiArrayBuffer {
+struct V8_DEPRECATED("This API is dead within V8") FastApiArrayBuffer {
   void* data;
   size_t byte_length;
 };
@@ -496,6 +457,10 @@ class V8_EXPORT CFunction {
   // Returns whether an overload between this and the given CFunction can
   // be resolved at runtime by the RTTI available for the arguments or at
   // compile time for functions with different number of arguments.
+  V8_DEPRECATED(
+      "Overload resolution is only based on the parameter count. If the "
+      "parameter count is different, overload resolution is possible and "
+      "happens at compile time. Otherwise overload resolution is impossible.")
   OverloadResolution GetOverloadResolution(const CFunction* other) {
     // Runtime overload resolution can only deal with functions with the
     // same number of arguments. Functions with different arity are handled
@@ -699,30 +664,6 @@ PRIMITIVE_C_TYPES(DEFINE_TYPE_INFO_TRAITS)
 #undef PRIMITIVE_C_TYPES
 #undef ALL_C_TYPES
 
-#define SPECIALIZE_GET_TYPE_INFO_HELPER_FOR_TA(T, Enum)                       \
-  template <>                                                                 \
-  struct TypeInfoHelper<const FastApiTypedArray<T>&> {                        \
-    static constexpr CTypeInfo::Flags Flags() {                               \
-      return CTypeInfo::Flags::kNone;                                         \
-    }                                                                         \
-                                                                              \
-    static constexpr CTypeInfo::Type Type() { return CTypeInfo::Type::Enum; } \
-    static constexpr CTypeInfo::SequenceType SequenceType() {                 \
-      return CTypeInfo::SequenceType::kIsTypedArray;                          \
-    }                                                                         \
-  };
-
-#define TYPED_ARRAY_C_TYPES(V) \
-  V(uint8_t, kUint8)           \
-  V(int32_t, kInt32)           \
-  V(uint32_t, kUint32)         \
-  V(int64_t, kInt64)           \
-  V(uint64_t, kUint64)         \
-  V(float, kFloat32)           \
-  V(double, kFloat64)
-
-TYPED_ARRAY_C_TYPES(SPECIALIZE_GET_TYPE_INFO_HELPER_FOR_TA)
-
 #undef TYPED_ARRAY_C_TYPES
 
 template <>
@@ -736,7 +677,9 @@ struct TypeInfoHelper<v8::Local<v8::Array>> {
 };
 
 template <>
-struct TypeInfoHelper<v8::Local<v8::Uint32Array>> {
+struct V8_DEPRECATED(
+    "TypedArrays are not supported directly anymore. Use Local<Value> instead.")
+    TypeInfoHelper<v8::Local<v8::Uint32Array>> {
   static constexpr CTypeInfo::Flags Flags() { return CTypeInfo::Flags::kNone; }
 
   static constexpr CTypeInfo::Type Type() { return CTypeInfo::Type::kUint32; }
@@ -779,6 +722,7 @@ class V8_EXPORT CTypeInfoBuilder {
  public:
   using BaseType = T;
 
+  START_ALLOW_USE_DEPRECATED()
   static constexpr CTypeInfo Build() {
     constexpr CTypeInfo::Flags kFlags =
         MergeFlags(internal::TypeInfoHelper<T>::Flags(), Flags...);
@@ -815,6 +759,7 @@ class V8_EXPORT CTypeInfoBuilder {
     return CTypeInfo(internal::TypeInfoHelper<T>::Type(),
                      internal::TypeInfoHelper<T>::SequenceType(), kFlags);
   }
+  END_ALLOW_USE_DEPRECATED()
 
  private:
   template <typename... Rest>

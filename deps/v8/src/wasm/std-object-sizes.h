@@ -45,8 +45,8 @@ inline size_t ContentSize(const std::unordered_map<Key, T, Hash>& map) {
   return raw * 4 / 3;
 }
 
-template <typename T>
-inline size_t ContentSize(std::unordered_set<T> set) {
+template <typename T, typename Hash>
+inline size_t ContentSize(const std::unordered_set<T, Hash>& set) {
   // Very rough lower bound approximation: two internal pointers per entry.
   size_t raw = set.size() * (sizeof(T) + 2 * sizeof(void*));
   // In the spirit of computing lower bounds of definitely-used memory,

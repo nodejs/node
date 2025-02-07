@@ -109,11 +109,27 @@ V8_INLINE void IncrementalStringBuilder::AppendCString(const SrcChar* s) {
   }
 }
 
+V8_INLINE void IncrementalStringBuilder::AppendString(std::string_view str) {
+  uint32_t length = static_cast<uint32_t>(str.length());
+  if (encoding_ == String::ONE_BYTE_ENCODING && CurrentPartCanFit(length)) {
+    Cast<SeqOneByteString>(*current_part_)
+        ->SeqOneByteStringSetChars(current_index_,
+                                   reinterpret_cast<const uint8_t*>(str.data()),
+                                   length);
+    current_index_ += str.length();
+    if (current_index_ == part_length_) Extend();
+    DCHECK(HasValidCurrentIndex());
+  } else {
+    for (size_t i = 0; i < str.length(); i++) {
+      AppendCharacter(str[i]);
+    }
+  }
+}
+
 V8_INLINE void IncrementalStringBuilder::AppendInt(int i) {
-  char buffer[kIntToCStringBufferSize];
-  const char* str =
-      IntToCString(i, base::Vector<char>(buffer, kIntToCStringBufferSize));
-  AppendCString(str);
+  char buffer[kIntToStringViewBufferSize];
+  std::string_view str = IntToStringView(i, base::ArrayVector(buffer));
+  AppendString(str);
 }
 
 V8_INLINE int IncrementalStringBuilder::EscapedLengthIfCurrentPartFits(

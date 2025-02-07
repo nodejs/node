@@ -15,6 +15,7 @@
 #include "include/v8-context.h"
 #include "include/v8-cppgc.h"
 #include "include/v8-local-handle.h"
+#include "include/v8-locker.h"
 #include "include/v8-object.h"
 #include "include/v8-traced-handle.h"
 #include "src/api/api-inl.h"
@@ -496,8 +497,8 @@ V8_NOINLINE void StackToHeapTest(v8::Isolate* v8_isolate, Operation op,
     if (!v8_flags.single_generation &&
         target_handling == TargetHandling::kInitializedOldGen) {
       InvokeMajorGC(i_isolate);
-      EXPECT_FALSE(
-          i::Heap::InYoungGeneration(*v8::Utils::OpenDirectHandle(*to_object)));
+      EXPECT_FALSE(i::HeapLayout::InYoungGeneration(
+          *v8::Utils::OpenDirectHandle(*to_object)));
     }
     cpp_heap_obj->heap_handle.Reset(v8_isolate, to_object);
   }
@@ -545,8 +546,8 @@ V8_NOINLINE void HeapToStackTest(v8::Isolate* v8_isolate, Operation op,
     if (!v8_flags.single_generation &&
         target_handling == TargetHandling::kInitializedOldGen) {
       InvokeMajorGC(i_isolate);
-      EXPECT_FALSE(
-          i::Heap::InYoungGeneration(*v8::Utils::OpenDirectHandle(*to_object)));
+      EXPECT_FALSE(i::HeapLayout::InYoungGeneration(
+          *v8::Utils::OpenDirectHandle(*to_object)));
     }
     stack_handle.Reset(v8_isolate, to_object);
   }
@@ -591,8 +592,8 @@ V8_NOINLINE void StackToStackTest(v8::Isolate* v8_isolate, Operation op,
     if (!v8_flags.single_generation &&
         target_handling == TargetHandling::kInitializedOldGen) {
       InvokeMajorGC(i_isolate);
-      EXPECT_FALSE(
-          i::Heap::InYoungGeneration(*v8::Utils::OpenDirectHandle(*to_object)));
+      EXPECT_FALSE(i::HeapLayout::InYoungGeneration(
+          *v8::Utils::OpenDirectHandle(*to_object)));
     }
     stack_handle2.Reset(v8_isolate, to_object);
   }
@@ -684,8 +685,8 @@ TEST_F(UnifiedHeapTest, TracingInEphemerons) {
     v8::Local<v8::Object> value = WrapperHelper::CreateWrapper(
         v8_isolate()->GetCurrentContext(), wrappable_object);
     EXPECT_FALSE(value.IsEmpty());
-    Handle<JSObject> js_key =
-        handle(Cast<JSObject>(*v8::Utils::OpenDirectHandle(*key)), i_isolate());
+    DirectHandle<JSObject> js_key = direct_handle(
+        Cast<JSObject>(*v8::Utils::OpenDirectHandle(*key)), i_isolate());
     DirectHandle<JSReceiver> js_value = v8::Utils::OpenDirectHandle(*value);
     int32_t hash = Object::GetOrCreateHash(*js_key, i_isolate()).value();
     JSWeakCollection::Set(weak_map, js_key, js_value, hash);
@@ -828,5 +829,69 @@ TEST_F(UnifiedHeapTestWithRandomGCInterval, AllocationTimeout) {
                                    GCTracer::Scope::MARK_COMPACTOR));
 }
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
+
+namespace {
+using UnifiedHeapMinimalTest = WithIsolateMixin<  //
+    WithDefaultPlatformMixin<                     //
+        ::testing::Test>>;
+
+class ThreadUsingV8Locker final : public v8::base::Thread {
+ public:
+  ThreadUsingV8Locker(v8::Isolate* isolate, CppHeap* heap,
+                      cppgc::Persistent<Wrappable>& holder)
+      : v8::base::Thread(Options("Thread using V8::Locker.")),
+        isolate_(isolate),
+        heap_(heap),
+        holder_(holder) {}
+
+  void Run() final {
+    v8::Locker locker(isolate_);
+    v8::Isolate::Scope isolate_scope(isolate_);
+    // This should not trigger a DCHECK (when allocating a persistent).
+    cppgc::Persistent<Wrappable> obj =
+        cppgc::MakeGarbageCollected<Wrappable>(heap_->object_allocator());
+    // This should not trigger a DCHECK (when invoking prefinalizers).
+    InvokeMajorGC(heap_->isolate());
+    // This should not trigger a DCHECK (upon assignment, due to pointer
+    // policies).
+    holder_ = obj;
+  }
+
+ private:
+  v8::Isolate* isolate_;
+  CppHeap* heap_;
+  cppgc::Persistent<Wrappable>& holder_;
+};
+}  // anonymous namespace
+
+TEST_F(UnifiedHeapMinimalTest, UsingV8Locker) {
+  auto heap =
+      CppHeap::Create(V8::GetCurrentPlatform(), CppHeapCreateParams{{}});
+  Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate());
+  isolate->heap()->AttachCppHeap(heap.get());
+  auto* cpp_heap = CppHeap::From(isolate->heap()->cpp_heap());
+
+  // The use of v8::Locker in this test should suppress DCHECKs and CHECKS
+  // that enforce that the current thread is the creation thread of the heap
+  // or of a persistent.
+  cppgc::Persistent<Wrappable> obj;
+  {
+    v8::Locker locker(v8_isolate());
+    v8::Isolate::Scope isolate_scope(v8_isolate());
+    obj = cppgc::MakeGarbageCollected<Wrappable>(cpp_heap->object_allocator());
+  }
+
+  // Exit and unlock the isolate, allowing the thread to lock and enter.
+  auto thread =
+      std::make_unique<ThreadUsingV8Locker>(v8_isolate(), cpp_heap, obj);
+  CHECK(thread->Start());
+  thread->Join();
+
+  {
+    v8::Locker locker(v8_isolate());
+    v8::Isolate::Scope isolate_scope(v8_isolate());
+    obj.Clear();
+  }
+}
 
 }  // namespace v8::internal

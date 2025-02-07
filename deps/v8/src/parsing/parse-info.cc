@@ -238,7 +238,7 @@ DeclarationScope* ParseInfo::scope() const { return literal()->scope(); }
 template <typename IsolateT>
 Handle<Script> ParseInfo::CreateScript(
     IsolateT* isolate, Handle<String> source,
-    MaybeHandle<FixedArray> maybe_wrapped_arguments,
+    MaybeDirectHandle<FixedArray> maybe_wrapped_arguments,
     ScriptOriginOptions origin_options, NativesFlag natives) {
   // Create a script object describing the script to be compiled.
   DCHECK(flags().script_id() >= 0 ||
@@ -283,12 +283,12 @@ Handle<Script> ParseInfo::CreateScript(
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Handle<Script> ParseInfo::CreateScript(
         Isolate* isolate, Handle<String> source,
-        MaybeHandle<FixedArray> maybe_wrapped_arguments,
+        MaybeDirectHandle<FixedArray> maybe_wrapped_arguments,
         ScriptOriginOptions origin_options, NativesFlag natives);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Handle<Script> ParseInfo::CreateScript(
         LocalIsolate* isolate, Handle<String> source,
-        MaybeHandle<FixedArray> maybe_wrapped_arguments,
+        MaybeDirectHandle<FixedArray> maybe_wrapped_arguments,
         ScriptOriginOptions origin_options, NativesFlag natives);
 
 void ParseInfo::AllocateSourceRangeMap() {

@@ -35,6 +35,10 @@ class DefaultOSContext:
   def platform_shell(self, shell, args, outdir):
     return outdir.resolve() / shell
 
+  @property
+  def device_type(self):
+    return None
+
 
 class DesktopContext(DefaultOSContext):
 
@@ -82,6 +86,10 @@ class AndroidOSContext(DefaultOSContext):
       yield
     finally:
       AndroidCommand.driver.tear_down()
+
+  @property
+  def device_type(self):
+    return AndroidCommand.driver.device_type
 
 
 class IOSContext(DefaultOSContext):

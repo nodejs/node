@@ -80,12 +80,12 @@ void KnownNodeAspects::Merge(const KnownNodeAspects& other, Zone* zone) {
                          merge_loaded_properties);
   DestructivelyIntersect(loaded_context_constants,
                          other.loaded_context_constants);
-  if (may_have_aliasing_contexts != other.may_have_aliasing_contexts) {
-    if (may_have_aliasing_contexts == ContextSlotLoadsAlias::None) {
-      may_have_aliasing_contexts = other.may_have_aliasing_contexts;
-    } else if (other.may_have_aliasing_contexts !=
+  if (may_have_aliasing_contexts() != other.may_have_aliasing_contexts()) {
+    if (may_have_aliasing_contexts() == ContextSlotLoadsAlias::None) {
+      may_have_aliasing_contexts_ = other.may_have_aliasing_contexts_;
+    } else if (other.may_have_aliasing_contexts() !=
                ContextSlotLoadsAlias::None) {
-      may_have_aliasing_contexts = ContextSlotLoadsAlias::Yes;
+      may_have_aliasing_contexts_ = ContextSlotLoadsAlias::Yes;
     }
   }
   DestructivelyIntersect(loaded_context_slots, other.loaded_context_slots);
@@ -116,46 +116,61 @@ void KnownNodeAspects::ClearUnstableNodeAspects() {
   // clear those.
   loaded_properties.clear();
   loaded_context_slots.clear();
-  may_have_aliasing_contexts = KnownNodeAspects::ContextSlotLoadsAlias::None;
+  may_have_aliasing_contexts_ = KnownNodeAspects::ContextSlotLoadsAlias::None;
 }
 
 KnownNodeAspects* KnownNodeAspects::CloneForLoopHeader(
-    Zone* zone, bool optimistic, LoopEffects* loop_effects) const {
-  KnownNodeAspects* clone = zone->New<KnownNodeAspects>(zone);
-  if (!any_map_for_any_node_is_unstable) {
-    clone->node_infos = node_infos;
+    bool optimistic, LoopEffects* loop_effects, Zone* zone) const {
+  return zone->New<KnownNodeAspects>(*this, optimistic, loop_effects, zone);
+}
+
+KnownNodeAspects::KnownNodeAspects(const KnownNodeAspects& other,
+                                   bool optimistic_initial_state,
+                                   LoopEffects* loop_effects, Zone* zone)
+    : any_map_for_any_node_is_unstable(false),
+      loaded_constant_properties(other.loaded_constant_properties),
+      loaded_properties(zone),
+      loaded_context_constants(other.loaded_context_constants),
+      loaded_context_slots(zone),
+      available_expressions(zone),
+      may_have_aliasing_contexts_(
+          KnownNodeAspects::ContextSlotLoadsAlias::None),
+      effect_epoch_(other.effect_epoch_),
+      node_infos(zone) {
+  if (!other.any_map_for_any_node_is_unstable) {
+    node_infos = other.node_infos;
 #ifdef DEBUG
     for (const auto& it : node_infos) {
       DCHECK(!it.second.any_map_is_unstable());
     }
 #endif
-  } else if (optimistic && !loop_effects->unstable_aspects_cleared) {
-    clone->node_infos = node_infos;
-    clone->any_map_for_any_node_is_unstable = any_map_for_any_node_is_unstable;
+  } else if (optimistic_initial_state &&
+             !loop_effects->unstable_aspects_cleared) {
+    node_infos = other.node_infos;
+    any_map_for_any_node_is_unstable = other.any_map_for_any_node_is_unstable;
   } else {
-    for (const auto& it : node_infos) {
-      clone->node_infos.emplace(it.first,
-                                NodeInfo::ClearUnstableMapsOnCopy{it.second});
+    for (const auto& it : other.node_infos) {
+      node_infos.emplace(it.first,
+                         NodeInfo::ClearUnstableMapsOnCopy{it.second});
     }
   }
-  if (optimistic && !loop_effects->unstable_aspects_cleared) {
+  if (optimistic_initial_state && !loop_effects->unstable_aspects_cleared) {
     // IMPORTANT: Whatever we clone here needs to be checked for consistency
     // in when we try to terminate the loop in `IsCompatibleWithLoopHeader`.
     if (loop_effects->objects_written.empty() &&
         loop_effects->keys_cleared.empty()) {
-      clone->loaded_properties = loaded_properties;
+      loaded_properties = other.loaded_properties;
     } else {
       auto cleared_key = loop_effects->keys_cleared.begin();
       auto cleared_keys_end = loop_effects->keys_cleared.end();
       auto cleared_obj = loop_effects->objects_written.begin();
       auto cleared_objs_end = loop_effects->objects_written.end();
-      for (auto loaded_key : loaded_properties) {
+      for (auto loaded_key : other.loaded_properties) {
         if (NextInIgnoreList(cleared_key, cleared_keys_end, loaded_key.first)) {
           continue;
         }
         auto& props_for_key =
-            clone->loaded_properties.try_emplace(loaded_key.first, zone)
-                .first->second;
+            loaded_properties.try_emplace(loaded_key.first, zone).first->second;
         for (auto loaded_obj : loaded_key.second) {
           if (!NextInIgnoreList(cleared_obj, cleared_objs_end,
                                 loaded_obj.first)) {
@@ -165,31 +180,34 @@ KnownNodeAspects* KnownNodeAspects::CloneForLoopHeader(
       }
     }
     if (loop_effects->context_slot_written.empty()) {
-      clone->loaded_context_slots = loaded_context_slots;
+      loaded_context_slots = other.loaded_context_slots;
     } else {
       auto slot_written = loop_effects->context_slot_written.begin();
       auto slot_written_end = loop_effects->context_slot_written.end();
-      for (auto loaded : loaded_context_slots) {
+      for (auto loaded : other.loaded_context_slots) {
         if (!NextInIgnoreList(slot_written, slot_written_end, loaded.first)) {
-          clone->loaded_context_slots.emplace(loaded);
+          loaded_context_slots.emplace(loaded);
         }
       }
     }
+    if (!loaded_context_slots.empty()) {
+      if (loop_effects->may_have_aliasing_contexts) {
+        may_have_aliasing_contexts_ = ContextSlotLoadsAlias::Yes;
+      } else {
+        may_have_aliasing_contexts_ = other.may_have_aliasing_contexts();
+      }
+    }
   }
-  clone->loaded_constant_properties = loaded_constant_properties;
-  clone->loaded_context_constants = loaded_context_constants;
 
-  clone->effect_epoch_ = effect_epoch_;
   // To account for the back-jump we must not allow effects to be reshuffled
   // across loop headers.
   // TODO(olivf): Only do this if the loop contains write effects.
-  clone->increment_effect_epoch();
-  for (const auto& e : available_expressions) {
-    if (e.second.effect_epoch >= clone->effect_epoch()) {
-      clone->available_expressions.emplace(e);
+  increment_effect_epoch();
+  for (const auto& e : other.available_expressions) {
+    if (e.second.effect_epoch >= effect_epoch()) {
+      available_expressions.emplace(e);
     }
   }
-  return clone;
 }
 
 namespace {
@@ -204,7 +222,7 @@ bool AspectIncludes(const As& as, const Bs& bs, const CompareFunction& Compare,
   typename As::const_iterator a = as.begin();
   typename Bs::const_iterator b = bs.begin();
   while (a != as.end()) {
-    if constexpr (!std::is_same<IsEmptyFunction, std::nullptr_t>::value) {
+    if constexpr (!std::is_same_v<IsEmptyFunction, std::nullptr_t>) {
       if (IsEmpty(a->second)) {
         ++a;
         continue;
@@ -232,6 +250,13 @@ bool MaybeEmptyAspectIncludes(const As& as, const Bs& bs,
                               const Function& Compare) {
   return AspectIncludes<As, Bs, Function>(as, bs, Compare,
                                           [](auto x) { return x.empty(); });
+}
+
+template <typename As, typename Bs, typename Function>
+bool MaybeNullAspectIncludes(const As& as, const Bs& bs,
+                             const Function& Compare) {
+  return AspectIncludes<As, Bs, Function>(as, bs, Compare,
+                                          [](auto x) { return x == nullptr; });
 }
 
 bool NodeInfoIncludes(const NodeInfo& before, const NodeInfo& after) {
@@ -264,6 +289,19 @@ bool SameValue(ValueNode* before, ValueNode* after) { return before == after; }
 bool KnownNodeAspects::IsCompatibleWithLoopHeader(
     const KnownNodeAspects& loop_header) const {
   // Needs to be in sync with `CloneForLoopHeader(zone, true)`.
+
+  // Analysis state can change with loads.
+  if (!loop_header.loaded_context_slots.empty() &&
+      loop_header.may_have_aliasing_contexts() != ContextSlotLoadsAlias::Yes &&
+      loop_header.may_have_aliasing_contexts() !=
+          may_have_aliasing_contexts() &&
+      may_have_aliasing_contexts() != ContextSlotLoadsAlias::None) {
+    if (V8_UNLIKELY(v8_flags.trace_maglev_loop_speeling)) {
+      std::cout << "KNA after loop has incompatible "
+                   "loop_header.may_have_aliasing_contexts\n";
+    }
+    return false;
+  }
 
   bool had_effects = effect_epoch() != loop_header.effect_epoch();
 
@@ -300,8 +338,9 @@ bool KnownNodeAspects::IsCompatibleWithLoopHeader(
     DCHECK(had_effects);
     return false;
   }
-  if (!AspectIncludes(loop_header.loaded_context_slots, loaded_context_slots,
-                      SameValue)) {
+
+  if (!MaybeNullAspectIncludes(loop_header.loaded_context_slots,
+                               loaded_context_slots, SameValue)) {
     if (V8_UNLIKELY(v8_flags.trace_maglev_loop_speeling)) {
       std::cout << "KNA after loop has incompatible loaded_context_slots\n";
     }
@@ -637,7 +676,7 @@ void MergePointInterpreterFrameState::InitializeLoop(
   DCHECK(is_unmerged_loop());
   DCHECK_EQ(predecessors_so_far_, 0);
   known_node_aspects_ = unmerged.known_node_aspects()->CloneForLoopHeader(
-      builder->zone(), optimistic_initial_state, loop_effects);
+      optimistic_initial_state, loop_effects, builder->zone());
   unmerged.virtual_objects().Snapshot();
   frame_state_.set_virtual_objects(unmerged.virtual_objects());
   if (v8_flags.trace_maglev_graph_building) {
@@ -1146,7 +1185,7 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
 
   result = Node::New<Phi>(builder->zone(), predecessor_count_, this, owner);
   if (v8_flags.trace_maglev_graph_building) {
-    for (int i = 0; i < predecessor_count_; i++) {
+    for (uint32_t i = 0; i < predecessor_count_; i++) {
       result->initialize_input_null(i);
     }
   }
@@ -1209,7 +1248,7 @@ MergePointInterpreterFrameState::MergeVirtualObjectValue(
                     unmerged_aspects, unmerged);
     unmerged = EnsureTagged(builder, unmerged_aspects, unmerged,
                             predecessors_[predecessors_so_far_]);
-    for (int i = predecessors_so_far_; i < predecessor_count_; i++) {
+    for (uint32_t i = predecessors_so_far_; i < predecessor_count_; i++) {
       result->change_input(i, unmerged);
     }
     DCHECK_GT(predecessors_so_far_, 0);
@@ -1248,7 +1287,7 @@ MergePointInterpreterFrameState::MergeVirtualObjectValue(
   result = Node::New<Phi>(builder->zone(), predecessor_count_, this,
                           interpreter::Register::invalid_value());
   if (v8_flags.trace_maglev_graph_building) {
-    for (int i = 0; i < predecessor_count_; i++) {
+    for (uint32_t i = 0; i < predecessor_count_; i++) {
       result->initialize_input_null(i);
     }
   }
@@ -1258,7 +1297,7 @@ MergePointInterpreterFrameState::MergeVirtualObjectValue(
 
   // We must have seen the same value so far.
   DCHECK_NOT_NULL(known_node_aspects_);
-  for (int i = 0; i < predecessors_so_far_; i++) {
+  for (uint32_t i = 0; i < predecessors_so_far_; i++) {
     ValueNode* tagged_merged =
         EnsureTagged(builder, *known_node_aspects_, merged, predecessors_[i]);
     result->set_input(i, tagged_merged);
@@ -1268,7 +1307,7 @@ MergePointInterpreterFrameState::MergeVirtualObjectValue(
       builder->broker(), builder->local_isolate(), unmerged_aspects, unmerged);
   unmerged = EnsureTagged(builder, unmerged_aspects, unmerged,
                           predecessors_[predecessors_so_far_]);
-  for (int i = predecessors_so_far_; i < predecessor_count_; i++) {
+  for (uint32_t i = predecessors_so_far_; i < predecessor_count_; i++) {
     result->set_input(i, unmerged);
   }
 
@@ -1320,7 +1359,7 @@ ValueNode* MergePointInterpreterFrameState::NewLoopPhi(
   Phi* result = Node::New<Phi>(zone, predecessor_count_, this, reg);
 
   if (v8_flags.trace_maglev_graph_building) {
-    for (int i = 0; i < predecessor_count_; i++) {
+    for (uint32_t i = 0; i < predecessor_count_; i++) {
       result->initialize_input_null(i);
     }
   }
@@ -1336,6 +1375,23 @@ void MergePointInterpreterFrameState::ReducePhiPredecessorCount(unsigned num) {
       phi->promote_post_loop_type();
     }
   }
+}
+
+bool MergePointInterpreterFrameState::IsUnreachable() const {
+  DCHECK_EQ(predecessors_so_far_, predecessor_count_);
+  if (predecessor_count_ > 1) {
+    return false;
+  }
+  // This should actually only support predecessor_count == 1, but we
+  // currently don't eliminate resumable loop headers (and subsequent code
+  // until the next resume) that end up being unreachable from JumpLoop.
+  if (predecessor_count_ == 0) {
+    DCHECK(is_resumable_loop());
+    return true;
+  }
+  DCHECK_EQ(predecessor_count_, 1);
+  DCHECK_IMPLIES(is_loop(), predecessor_at(0)->control_node()->Is<JumpLoop>());
+  return is_loop();
 }
 
 }  // namespace maglev

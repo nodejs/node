@@ -174,6 +174,7 @@ class GlobalSafepoint final {
 
   template <typename Callback>
   void IterateClientIsolates(Callback callback) {
+    AssertActive();
     for (Isolate* current = clients_head_; current;
          current = current->global_safepoint_next_client_isolate_) {
       DCHECK(!current->is_shared_space_isolate());
@@ -219,11 +220,17 @@ class V8_NODISCARD GlobalSafepointScope {
 };
 
 enum class SafepointKind { kIsolate, kGlobal };
+struct GlobalSafepointForSharedSpaceIsolateTag {};
+
+static constexpr GlobalSafepointForSharedSpaceIsolateTag
+    kGlobalSafepointForSharedSpaceIsolate;
 
 class V8_NODISCARD SafepointScope {
  public:
   V8_EXPORT_PRIVATE explicit SafepointScope(Isolate* initiator,
                                             SafepointKind kind);
+  V8_EXPORT_PRIVATE explicit SafepointScope(
+      Isolate* initiator, GlobalSafepointForSharedSpaceIsolateTag);
 
  private:
   std::optional<IsolateSafepointScope> isolate_safepoint_;

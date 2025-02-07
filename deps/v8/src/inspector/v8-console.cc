@@ -107,12 +107,6 @@ class ConsoleHelper {
     // the stack trace, or no stack trace at all.
     std::unique_ptr<V8StackTraceImpl> stackTrace;
     switch (type) {
-      case ConsoleAPIType::kClear:
-        // The `console.clear()` API doesn't leave a trace in the DevTools'
-        // front-end and therefore doesn't need to have a stack trace attached
-        // to it.
-        break;
-
       case ConsoleAPIType::kTrace:
         // The purpose of `console.trace()` is to output a stack trace to the
         // developer tools console, therefore we should always strive to
@@ -539,11 +533,15 @@ void V8Console::runTask(const v8::FunctionCallbackInfo<v8::Value>& info) {
   TaskInfo* taskInfo = reinterpret_cast<TaskInfo*>(taskExternal->Value());
 
   m_inspector->asyncTaskStarted(taskInfo->Id());
-  v8::Local<v8::Value> result;
-  if (function
-          ->Call(isolate->GetCurrentContext(), v8::Undefined(isolate), 0, {})
-          .ToLocal(&result)) {
-    info.GetReturnValue().Set(result);
+  {
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
+                 "V8Console::runTask");
+    v8::Local<v8::Value> result;
+    if (function
+            ->Call(isolate->GetCurrentContext(), v8::Undefined(isolate), 0, {})
+            .ToLocal(&result)) {
+      info.GetReturnValue().Set(result);
+    }
   }
   m_inspector->asyncTaskFinished(taskInfo->Id());
 }

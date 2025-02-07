@@ -162,9 +162,10 @@ Maybe<GCOptions> Parse(v8::Isolate* isolate,
       }
       Local<v8::String> filename;
       if (maybe_filename.ToLocal(&filename)) {
-        std::unique_ptr<char[]> buffer(
-            new char[filename->Utf8Length(isolate) + 1]);
-        filename->WriteUtf8(isolate, buffer.get());
+        size_t buffer_size = filename->Utf8LengthV2(isolate) + 1;
+        std::unique_ptr<char[]> buffer(new char[buffer_size]);
+        filename->WriteUtf8V2(isolate, buffer.get(), buffer_size,
+                              v8::String::WriteFlags::kNullTerminate);
         options.filename = std::string(buffer.get());
         // Not setting found_options_object as the option only makes sense with
         // properly set type anyways.

@@ -4,8 +4,10 @@
 
 #include "src/snapshot/read-only-serializer.h"
 
+#include "src/common/globals.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/read-only-heap.h"
+#include "src/heap/visit-object.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/slots.h"
 #include "src/snapshot/read-only-serializer-deserializer.h"
@@ -77,8 +79,11 @@ class ObjectPreProcessor final {
   }
   void PreProcessCode(Tagged<Code> o) {
     o->ClearInstructionStartForSerialization(isolate_);
-    DCHECK(!o->has_source_position_table_or_bytecode_offset_table());
-    DCHECK(!o->has_deoptimization_data_or_interpreter_data());
+    CHECK(!o->has_source_position_table_or_bytecode_offset_table());
+    CHECK(!o->has_deoptimization_data_or_interpreter_data());
+#ifdef V8_ENABLE_LEAPTIERING
+    CHECK_EQ(o->js_dispatch_handle(), kNullJSDispatchHandle);
+#endif
   }
 
   Isolate* const isolate_;
@@ -269,7 +274,7 @@ void ReadOnlySegmentForSerialization::EncodeTaggedSlots(Isolate* isolate) {
                                 SkipFreeSpaceOrFiller::kNo);
   for (Tagged<HeapObject> o = it.Next(); !o.is_null(); o = it.Next()) {
     if (o.address() >= segment_end) break;
-    o->Iterate(cage_base, &v);
+    VisitObject(isolate, o, &v);
   }
 }
 

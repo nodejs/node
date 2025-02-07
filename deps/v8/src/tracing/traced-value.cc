@@ -96,7 +96,7 @@ void TracedValue::SetDouble(const char* name, double value) {
   DCHECK_CURRENT_CONTAINER_IS(kStackTypeDict);
   WriteName(name);
   base::EmbeddedVector<char, 100> buffer;
-  data_ += internal::DoubleToCString(value, buffer);
+  data_ += internal::DoubleToStringView(value, buffer);
 }
 
 void TracedValue::SetBoolean(const char* name, bool value) {
@@ -145,7 +145,7 @@ void TracedValue::AppendDouble(double value) {
   DCHECK_CURRENT_CONTAINER_IS(kStackTypeArray);
   WriteComma();
   base::EmbeddedVector<char, 100> buffer;
-  data_ += internal::DoubleToCString(value, buffer);
+  data_ += internal::DoubleToStringView(value, buffer);
 }
 
 void TracedValue::AppendBoolean(bool value) {

@@ -738,7 +738,13 @@ TEST_F(IdentityMapTest, GCShortCutting) {
 
     // Do an explicit, real GC, this should short-cut the thin string to point
     // to the internalized string (this is not implemented for MinorMS).
-    InvokeMinorGC();
+    {
+      // If CSS pins a this string, it will not be considered as a candidate
+      // for shortcutting.
+      DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+          isolate()->heap());
+      InvokeMinorGC();
+    }
     DCHECK_IMPLIES(!v8_flags.minor_ms && !v8_flags.optimize_for_size,
                    *thin_string == *internalized_string);
 

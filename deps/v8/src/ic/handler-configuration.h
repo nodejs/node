@@ -335,11 +335,12 @@ class StoreHandler final : public DataHandler {
   static Handle<Object> StoreElementTransition(
       Isolate* isolate, DirectHandle<Map> receiver_map,
       DirectHandle<Map> transition, KeyedAccessStoreMode store_mode,
-      MaybeHandle<UnionOf<Smi, Cell>> prev_validity_cell = kNullMaybeHandle);
+      MaybeDirectHandle<UnionOf<Smi, Cell>> prev_validity_cell =
+          kNullMaybeHandle);
 
   static Handle<Object> StoreProxy(Isolate* isolate, Handle<Map> receiver_map,
                                    Handle<JSProxy> proxy,
-                                   Handle<JSReceiver> receiver);
+                                   DirectHandle<JSReceiver> receiver);
 
   // Creates a handler for storing a property to the property cell of a global
   // object.

@@ -45,10 +45,12 @@ Handle<T> Handle<T>::New(Tagged<T> object, Isolate* isolate) {
   return Handle(HandleScope::CreateHandle(isolate, object.ptr()));
 }
 
+template <typename T, typename U>
+inline bool Is(Handle<U> value) {
+  return value.is_null() || Is<T>(*value);
+}
 template <typename To, typename From>
-inline Handle<To> Cast(Handle<From> value, const v8::SourceLocation& loc) {
-  DCHECK_WITH_MSG_AND_LOC(value.is_null() || Is<To>(*value),
-                          V8_PRETTY_FUNCTION_VALUE_OR("Cast type check"), loc);
+inline Handle<To> UncheckedCast(Handle<From> value) {
   return Handle<To>(value.location());
 }
 
@@ -108,20 +110,32 @@ template <typename T>
 V8_INLINE DirectHandle<T>::DirectHandle(Tagged<T> object)
     : DirectHandle(object.ptr()) {}
 
+template <typename T, typename U>
+inline bool Is(DirectHandle<U> value) {
+  return value.is_null() || Is<T>(*value);
+}
 template <typename To, typename From>
-inline DirectHandle<To> Cast(DirectHandle<From> value,
-                             const v8::SourceLocation& loc) {
-  DCHECK_WITH_MSG_AND_LOC(value.is_null() || Is<To>(*value),
-                          V8_PRETTY_FUNCTION_VALUE_OR("Cast type check"), loc);
+inline DirectHandle<To> UncheckedCast(DirectHandle<From> value) {
   return DirectHandle<To>(value.obj_);
 }
+
+#else
+
+template <typename T, typename U>
+inline bool Is(DirectHandle<U> value) {
+  return value.is_null() || Is<T>(*value);
+}
+template <typename To, typename From>
+inline DirectHandle<To> UncheckedCast(DirectHandle<From> value) {
+  return DirectHandle<To>(UncheckedCast<To>(value.handle_));
+}
+
+#endif  // V8_ENABLE_DIRECT_HANDLE
 
 template <typename T>
 inline std::ostream& operator<<(std::ostream& os, DirectHandle<T> handle) {
   return os << Brief(*handle);
 }
-
-#endif  // V8_ENABLE_DIRECT_HANDLE
 
 template <typename T>
 V8_INLINE DirectHandle<T> direct_handle(Tagged<T> object, Isolate* isolate) {
@@ -236,8 +250,9 @@ void HandleScope::CloseScope(Isolate* isolate, Address* prev_next,
 #endif
 }
 
-template <typename T>
-Handle<T> HandleScope::CloseAndEscape(Handle<T> handle_value) {
+template <typename T, template <typename> typename HandleType>
+  requires(std::is_convertible_v<HandleType<T>, DirectHandle<T>>)
+HandleType<T> HandleScope::CloseAndEscape(HandleType<T> handle_value) {
   HandleScopeData* current = isolate_->handle_scope_data();
   Tagged<T> value = *handle_value;
 #ifdef V8_ENABLE_CHECKS
@@ -247,7 +262,7 @@ Handle<T> HandleScope::CloseAndEscape(Handle<T> handle_value) {
   CloseScope(isolate_, prev_next_, prev_limit_);
   // Allocate one handle in the parent scope.
   DCHECK(current->level > current->sealed_level);
-  Handle<T> result(value, isolate_);
+  HandleType<T> result(value, isolate_);
   // Reinitialize the current scope (so that it's ready
   // to be used or closed again).
   prev_next_ = current->next;
@@ -258,9 +273,14 @@ Handle<T> HandleScope::CloseAndEscape(Handle<T> handle_value) {
 
 Address* HandleScope::CreateHandle(Isolate* isolate, Address value) {
   DCHECK(AllowHandleAllocation::IsAllowed());
-  DCHECK(isolate->main_thread_local_heap()->IsRunning());
-  DCHECK_WITH_MSG(isolate->thread_id() == ThreadId::Current(),
-                  "main-thread handle can only be created on the main thread.");
+#ifdef DEBUG
+  if (!AllowHandleUsageOnAllThreads::IsAllowed()) {
+    DCHECK(isolate->main_thread_local_heap()->IsRunning());
+    DCHECK_WITH_MSG(
+        isolate->thread_id() == ThreadId::Current(),
+        "main-thread handle can only be created on the main thread.");
+  }
+#endif
   HandleScopeData* data = isolate->handle_scope_data();
   Address* result = data->next;
   if (V8_UNLIKELY(result == data->limit)) {
@@ -336,25 +356,6 @@ bool DirectHandleBase::is_identical_to(const DirectHandleBase& that) const {
   return Tagged<Object>(this->address()) == Tagged<Object>(that.address());
 }
 #endif  // V8_ENABLE_DIRECT_HANDLE
-
-template <typename T>
-V8_INLINE Handle<T> indirect_handle(DirectHandle<T> handle, Isolate* isolate) {
-#ifdef V8_ENABLE_DIRECT_HANDLE
-  return Handle<T>(*handle, isolate);
-#else
-  return handle;
-#endif
-}
-
-template <typename T>
-V8_INLINE Handle<T> indirect_handle(DirectHandle<T> handle,
-                                    LocalIsolate* isolate) {
-#ifdef V8_ENABLE_DIRECT_HANDLE
-  return Handle<T>(*handle, isolate);
-#else
-  return handle;
-#endif
-}
 
 }  // namespace internal
 }  // namespace v8

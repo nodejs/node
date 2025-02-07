@@ -71,7 +71,7 @@ constexpr size_t kGuardPageSize = 0;
 #else
 // Guard pages are always put into memory. Whether they are actually protected
 // depends on the allocator provided to the garbage collector.
-constexpr size_t kGuardPageSize = 4096;
+constexpr size_t kGuardPageSize = 0;
 #endif
 
 constexpr size_t kLargeObjectSizeThreshold = kPageSize / 2;

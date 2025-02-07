@@ -82,7 +82,7 @@ const std::initializer_list<JSDurationFormat::FieldStyle>
 
 Maybe<DurationUnitOptions> GetDurationUnitOptions(
     Isolate* isolate, Unit unit, const char* unit_string,
-    const char* display_field, Handle<JSReceiver> options,
+    const char* display_field, DirectHandle<JSReceiver> options,
     JSDurationFormat::Style base_style,
     const std::vector<const char*>& value_strings,
     const std::vector<JSDurationFormat::FieldStyle>& value_enums,
@@ -240,8 +240,8 @@ JSDurationFormat::Separator GetSeparator(const icu::Locale& l) {
 
 }  // namespace
 MaybeHandle<JSDurationFormat> JSDurationFormat::New(
-    Isolate* isolate, DirectHandle<Map> map, Handle<Object> locales,
-    Handle<Object> input_options) {
+    Isolate* isolate, DirectHandle<Map> map, DirectHandle<Object> locales,
+    DirectHandle<Object> input_options) {
   Factory* factory = isolate->factory();
   const char* method_name = "Intl.DurationFormat";
 
@@ -253,7 +253,7 @@ MaybeHandle<JSDurationFormat> JSDurationFormat::New(
       Handle<JSDurationFormat>());
 
   // 4. Let options be ? GetOptionsObject(options).
-  Handle<JSReceiver> options;
+  DirectHandle<JSReceiver> options;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, options, GetOptionsObject(isolate, input_options, method_name));
 
@@ -496,13 +496,13 @@ namespace {
 Handle<String> StyleToString(Isolate* isolate, JSDurationFormat::Style style) {
   switch (style) {
     case JSDurationFormat::Style::kLong:
-      return ReadOnlyRoots(isolate).long_string_handle();
+      return isolate->factory()->long_string();
     case JSDurationFormat::Style::kShort:
-      return ReadOnlyRoots(isolate).short_string_handle();
+      return isolate->factory()->short_string();
     case JSDurationFormat::Style::kNarrow:
-      return ReadOnlyRoots(isolate).narrow_string_handle();
+      return isolate->factory()->narrow_string();
     case JSDurationFormat::Style::kDigital:
-      return ReadOnlyRoots(isolate).digital_string_handle();
+      return isolate->factory()->digital_string();
   }
 }
 
@@ -510,20 +510,20 @@ Handle<String> StyleToString(Isolate* isolate,
                              JSDurationFormat::FieldStyle style) {
   switch (style) {
     case JSDurationFormat::FieldStyle::kLong:
-      return ReadOnlyRoots(isolate).long_string_handle();
+      return isolate->factory()->long_string();
     case JSDurationFormat::FieldStyle::kShort:
-      return ReadOnlyRoots(isolate).short_string_handle();
+      return isolate->factory()->short_string();
     case JSDurationFormat::FieldStyle::kNarrow:
-      return ReadOnlyRoots(isolate).narrow_string_handle();
+      return isolate->factory()->narrow_string();
     case JSDurationFormat::FieldStyle::kNumeric:
-      return ReadOnlyRoots(isolate).numeric_string_handle();
+      return isolate->factory()->numeric_string();
     case JSDurationFormat::FieldStyle::k2Digit:
-      return ReadOnlyRoots(isolate).two_digit_string_handle();
+      return isolate->factory()->two_digit_string();
     case JSDurationFormat::FieldStyle::kFractional:
       // Step 3 in Intl.DurationFormat.prototype.resolvedOptions ( )
       // e. If v is "fractional", then
       // ii. Set v to "numeric".
-      return ReadOnlyRoots(isolate).numeric_string_handle();
+      return isolate->factory()->numeric_string();
     case JSDurationFormat::FieldStyle::kUndefined:
       UNREACHABLE();
   }
@@ -533,9 +533,9 @@ Handle<String> DisplayToString(Isolate* isolate,
                                JSDurationFormat::Display display) {
   switch (display) {
     case JSDurationFormat::Display::kAuto:
-      return ReadOnlyRoots(isolate).auto_string_handle();
+      return isolate->factory()->auto_string();
     case JSDurationFormat::Display::kAlways:
-      return ReadOnlyRoots(isolate).always_string_handle();
+      return isolate->factory()->always_string();
   }
 }
 
@@ -546,14 +546,14 @@ Handle<JSObject> JSDurationFormat::ResolvedOptions(
   Factory* factory = isolate->factory();
   Handle<JSObject> options = factory->NewJSObject(isolate->object_function());
 
-  Handle<String> locale = factory->NewStringFromAsciiChecked(
+  DirectHandle<String> locale = factory->NewStringFromAsciiChecked(
       Intl::ToLanguageTag(*format->icu_locale()->raw()).FromJust().c_str());
   UErrorCode status = U_ZERO_ERROR;
   icu::UnicodeString skeleton =
       format->icu_number_formatter()->raw()->toSkeleton(status);
   DCHECK(U_SUCCESS(status));
 
-  Handle<String> numbering_system;
+  DirectHandle<String> numbering_system;
   CHECK(Intl::ToString(isolate,
                        JSNumberFormat::NumberingSystemFromSkeleton(skeleton))
             .ToHandle(&numbering_system));
@@ -602,8 +602,8 @@ Handle<JSObject> JSDurationFormat::ResolvedOptions(
   int32_t fractional_digits = format->fractional_digits();
   // i. If v is not undefined, set v to 𝔽(v).
   if (kUndefinedFractionalDigits != fractional_digits) {
-    Handle<Smi> fractional_digits_obj =
-        handle(Smi::FromInt(fractional_digits), isolate);
+    DirectHandle<Smi> fractional_digits_obj =
+        direct_handle(Smi::FromInt(fractional_digits), isolate);
     // f. If v is not undefined, then
     // i. Perform ! CreateDataPropertyOrThrow(options, p, v).
     OUTPUT_PROPERTY(fractionalDigits_string, fractional_digits_obj);
@@ -739,8 +739,10 @@ bool OutputLongShortNarrowOrNumeric(
   if (value == 0 && display == JSDurationFormat::Display::kAuto)
     return display_negative_sign;
   if (style == JSDurationFormat::FieldStyle::kNumeric) {
-    return Output(type, value, fmt, addToLast, display_negative_sign,
-                  negative_duration, separator, parts, strings);
+    return Output(type, value,
+                  fmt.grouping(UNumberGroupingStrategy::UNUM_GROUPING_OFF),
+                  addToLast, display_negative_sign, negative_duration,
+                  separator, parts, strings);
   }
   return OutputLongShortOrNarrow(
       type, value, display, fmt.unit(unit).unitWidth(ToUNumberUnitWidth(style)),
@@ -762,7 +764,8 @@ bool OutputLongShortNarrowNumericOr2Digit(
       displayRequired) {
     if (style == JSDurationFormat::FieldStyle::k2Digit) {
       return Output(type, value,
-                    fmt.integerWidth(icu::number::IntegerWidth::zeroFillTo(2)),
+                    fmt.integerWidth(icu::number::IntegerWidth::zeroFillTo(2))
+                        .grouping(UNumberGroupingStrategy::UNUM_GROUPING_OFF),
                     maybeAddToLast, display_negative_sign, negative_duration,
                     separator, parts, strings);
     }
@@ -1069,7 +1072,7 @@ MaybeHandle<JSArray> FormattedListToJSArray(
         switch (it.part_type) {
           case Part::Type::kSeparator: {
             icu::UnicodeString sep(SeparatorToChar(separator));
-            Handle<String> separator_string;
+            DirectHandle<String> separator_string;
             ASSIGN_RETURN_ON_EXCEPTION(isolate, separator_string,
                                        Intl::ToString(isolate, sep));
             Intl::AddElement(isolate, array, index++, factory->literal_string(),
@@ -1086,7 +1089,7 @@ MaybeHandle<JSArray> FormattedListToJSArray(
         }
       }
     } else {
-      Handle<String> substring;
+      DirectHandle<String> substring;
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, substring,
           Intl::ToString(isolate, string, cfpos.getStart(), cfpos.getLimit()));

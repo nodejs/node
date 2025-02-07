@@ -67,8 +67,8 @@ Style fromIcuStyle(UDateRelativeDateTimeFormatterStyle icu_style) {
 }  // namespace
 
 MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
-    Isolate* isolate, DirectHandle<Map> map, Handle<Object> locales,
-    Handle<Object> input_options) {
+    Isolate* isolate, DirectHandle<Map> map, DirectHandle<Object> locales,
+    DirectHandle<Object> input_options) {
   // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
   Maybe<std::vector<std::string>> maybe_requested_locales =
       Intl::CanonicalizeLocaleList(isolate, locales);
@@ -77,7 +77,7 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
       maybe_requested_locales.FromJust();
 
   // 2. Set options to ? CoerceOptionsToObject(options).
-  Handle<JSReceiver> options;
+  DirectHandle<JSReceiver> options;
   const char* service = "Intl.RelativeTimeFormat";
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, options, CoerceOptionsToObject(isolate, input_options, service));
@@ -234,11 +234,11 @@ namespace {
 Handle<String> StyleAsString(Isolate* isolate, Style style) {
   switch (style) {
     case Style::LONG:
-      return ReadOnlyRoots(isolate).long_string_handle();
+      return isolate->factory()->long_string();
     case Style::SHORT:
-      return ReadOnlyRoots(isolate).short_string_handle();
+      return isolate->factory()->short_string();
     case Style::NARROW:
-      return ReadOnlyRoots(isolate).narrow_string_handle();
+      return isolate->factory()->narrow_string();
   }
   UNREACHABLE();
 }
@@ -261,18 +261,18 @@ Handle<JSObject> JSRelativeTimeFormat::ResolvedOptions(
       isolate, result, factory->style_string(),
       StyleAsString(isolate, fromIcuStyle(formatter->getFormatStyle())), NONE);
   JSObject::AddProperty(isolate, result, factory->numeric_string(),
-                        format_holder->NumericAsString(), NONE);
+                        format_holder->NumericAsString(isolate), NONE);
   JSObject::AddProperty(isolate, result, factory->numberingSystem_string(),
                         numberingSystem, NONE);
   return result;
 }
 
-Handle<String> JSRelativeTimeFormat::NumericAsString() const {
+Handle<String> JSRelativeTimeFormat::NumericAsString(Isolate* isolate) const {
   switch (numeric()) {
     case Numeric::ALWAYS:
-      return GetReadOnlyRoots().always_string_handle();
+      return isolate->factory()->always_string();
     case Numeric::AUTO:
-      return GetReadOnlyRoots().auto_string_handle();
+      return isolate->factory()->auto_string();
   }
   UNREACHABLE();
 }
@@ -344,7 +344,7 @@ MaybeHandle<T> FormatCommon(
                                      const icu::FormattedRelativeDateTime&,
                                      DirectHandle<String>, bool)) {
   // 3. Let value be ? ToNumber(value).
-  Handle<Object> value;
+  DirectHandle<Object> value;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
                              Object::ToNumber(isolate, value_obj));
   double number = Object::NumberValue(*value);
@@ -392,10 +392,10 @@ MaybeHandle<String> FormatToString(
   return Intl::ToString(isolate, result);
 }
 
-Maybe<bool> AddLiteral(Isolate* isolate, Handle<JSArray> array,
+Maybe<bool> AddLiteral(Isolate* isolate, DirectHandle<JSArray> array,
                        const icu::UnicodeString& string, int32_t index,
                        int32_t start, int32_t limit) {
-  Handle<String> substring;
+  DirectHandle<String> substring;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, substring, Intl::ToString(isolate, string, start, limit),
       Nothing<bool>());
@@ -404,11 +404,11 @@ Maybe<bool> AddLiteral(Isolate* isolate, Handle<JSArray> array,
   return Just(true);
 }
 
-Maybe<bool> AddUnit(Isolate* isolate, Handle<JSArray> array,
+Maybe<bool> AddUnit(Isolate* isolate, DirectHandle<JSArray> array,
                     const icu::UnicodeString& string, int32_t index,
                     const NumberFormatSpan& part, DirectHandle<String> unit,
                     bool is_nan) {
-  Handle<String> substring;
+  DirectHandle<String> substring;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, substring,
       Intl::ToString(isolate, string, part.begin_pos, part.end_pos),

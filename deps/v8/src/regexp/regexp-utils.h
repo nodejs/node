@@ -30,12 +30,12 @@ class RegExpUtils : public AllStatic {
   static V8_WARN_UNUSED_RESULT MaybeHandle<Object> SetLastIndex(
       Isolate* isolate, Handle<JSReceiver> regexp, uint64_t value);
   static V8_WARN_UNUSED_RESULT MaybeHandle<Object> GetLastIndex(
-      Isolate* isolate, Handle<JSReceiver> recv);
+      Isolate* isolate, DirectHandle<JSReceiver> recv);
 
   // ES#sec-regexpexec Runtime Semantics: RegExpExec ( R, S )
-  static V8_WARN_UNUSED_RESULT MaybeHandle<Object> RegExpExec(
-      Isolate* isolate, Handle<JSReceiver> regexp, Handle<String> string,
-      Handle<Object> exec);
+  static V8_WARN_UNUSED_RESULT MaybeHandle<JSAny> RegExpExec(
+      Isolate* isolate, Handle<JSReceiver> regexp, DirectHandle<String> string,
+      DirectHandle<Object> exec);
 
   // Checks whether the given object is an unmodified JSRegExp instance.
   // Neither the object's map, nor its prototype's map, nor any relevant
@@ -47,8 +47,8 @@ class RegExpUtils : public AllStatic {
 
   // ES#sec-advancestringindex
   // AdvanceStringIndex ( S, index, unicode )
-  static uint64_t AdvanceStringIndex(DirectHandle<String> string,
-                                     uint64_t index, bool unicode);
+  static uint64_t AdvanceStringIndex(Tagged<String> string, uint64_t index,
+                                     bool unicode);
   static V8_WARN_UNUSED_RESULT MaybeHandle<Object> SetAdvancedStringIndex(
       Isolate* isolate, Handle<JSReceiver> regexp, DirectHandle<String> string,
       bool unicode);

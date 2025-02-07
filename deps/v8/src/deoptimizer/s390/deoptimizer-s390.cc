@@ -21,6 +21,8 @@ ASSERT_OFFSET(Builtin::kDeoptimizationEntry_Lazy);
 const int Deoptimizer::kEagerDeoptExitSize = 6 + 2;
 const int Deoptimizer::kLazyDeoptExitSize = 6 + 2;
 
+const int Deoptimizer::kAdaptShadowStackOffsetToSubtract = 0;
+
 // static
 void Deoptimizer::PatchJumpToTrampoline(Address pc, Address new_pc) {
   UNREACHABLE();

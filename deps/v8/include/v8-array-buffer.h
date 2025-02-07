@@ -10,6 +10,7 @@
 #include <memory>
 
 #include "v8-local-handle.h"  // NOLINT(build/include_directory)
+#include "v8-memory-span.h"   // NOLINT(build/include_directory)
 #include "v8-object.h"        // NOLINT(build/include_directory)
 #include "v8config.h"         // NOLINT(build/include_directory)
 
@@ -218,6 +219,18 @@ class V8_EXPORT ArrayBuffer : public Object {
   size_t MaxByteLength() const;
 
   /**
+   * Attempt to create a new ArrayBuffer. Allocate |byte_length| bytes.
+   * Allocated memory will be owned by a created ArrayBuffer and
+   * will be deallocated when it is garbage-collected,
+   * unless the object is externalized. If allocation fails, the Maybe
+   * returned will be empty.
+   */
+  static MaybeLocal<ArrayBuffer> MaybeNew(
+      Isolate* isolate, size_t byte_length,
+      BackingStoreInitializationMode initialization_mode =
+          BackingStoreInitializationMode::kZeroInitialized);
+
+  /**
    * Create a new ArrayBuffer. Allocate |byte_length| bytes, which are either
    * zero-initialized or uninitialized. Allocated memory will be owned by a
    * created ArrayBuffer and will be deallocated when it is garbage-collected,
@@ -393,6 +406,16 @@ class V8_EXPORT ArrayBufferView : public Object {
    * Returns the number of bytes actually written.
    */
   size_t CopyContents(void* dest, size_t byte_length);
+
+  /**
+   * Returns the contents of the ArrayBufferView's buffer as a MemorySpan. If
+   * the contents are on the V8 heap, they get copied into `storage`. Otherwise
+   * a view into the off-heap backing store is returned. The provided storage
+   * should be at least as large as the maximum on-heap size of a TypedArray,
+   * was defined in gn with `typed_array_max_size_in_heap`. The default value is
+   * 64 bytes.
+   */
+  v8::MemorySpan<uint8_t> GetContents(v8::MemorySpan<uint8_t> storage);
 
   /**
    * Returns true if ArrayBufferView's backing ArrayBuffer has already been

@@ -174,7 +174,7 @@ void TrustedPointerTable::Validate(Address pointer, IndirectPointerTag tag) {
     // This CHECK is mostly just here to force tags to be taken out of the
     // IsTrustedSpaceMigrationInProgressForObjectsWithTag function once the
     // objects are fully migrated into trusted space.
-    DCHECK(GetProcessWideSandbox()->Contains(pointer));
+    DCHECK(Sandbox::current()->Contains(pointer));
     return;
   }
 

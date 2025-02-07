@@ -1122,7 +1122,7 @@ bool Signature::HasSameTypesAs(const Signature& other,
 }
 
 namespace {
-bool FirstTypeIsContext(const std::vector<const Type*> parameter_types) {
+bool FirstTypeIsContext(const std::vector<const Type*>& parameter_types) {
   return !parameter_types.empty() &&
          (parameter_types[0] == TypeOracle::GetContextType() ||
           parameter_types[0] == TypeOracle::GetNoContextType());

@@ -80,7 +80,8 @@ class V8_EXPORT_PRIVATE ScopeIterator {
   bool DeclaresLocals(Mode mode) const;
 
   // Set variable value and return true on success.
-  bool SetVariableValue(Handle<String> variable_name, Handle<Object> new_value);
+  bool SetVariableValue(Handle<String> variable_name,
+                        DirectHandle<Object> new_value);
 
   bool ClosureScopeHasThisReference() const;
 
@@ -159,13 +160,13 @@ class V8_EXPORT_PRIVATE ScopeIterator {
 
   Handle<JSObject> WithContextExtension();
 
-  bool SetLocalVariableValue(Handle<String> variable_name,
+  bool SetLocalVariableValue(DirectHandle<String> variable_name,
                              DirectHandle<Object> new_value);
-  bool SetContextVariableValue(Handle<String> variable_name,
+  bool SetContextVariableValue(DirectHandle<String> variable_name,
                                DirectHandle<Object> new_value);
-  bool SetContextExtensionValue(Handle<String> variable_name,
-                                Handle<Object> new_value);
-  bool SetScriptVariableValue(Handle<String> variable_name,
+  bool SetContextExtensionValue(DirectHandle<String> variable_name,
+                                DirectHandle<Object> new_value);
+  bool SetScriptVariableValue(DirectHandle<String> variable_name,
                               DirectHandle<Object> new_value);
   bool SetModuleVariableValue(DirectHandle<String> variable_name,
                               DirectHandle<Object> new_value);

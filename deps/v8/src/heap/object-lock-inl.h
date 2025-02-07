@@ -15,28 +15,26 @@ namespace internal {
 void ExclusiveObjectLock::Lock(Tagged<HeapObject> heap_object) {
   MutablePageMetadata::FromHeapObject(heap_object)
       ->shared_mutex()
-      ->LockExclusive();
+      .LockExclusive();
 }
 
 // static
 void ExclusiveObjectLock::Unlock(Tagged<HeapObject> heap_object) {
   MutablePageMetadata::FromHeapObject(heap_object)
       ->shared_mutex()
-      ->UnlockExclusive();
+      .UnlockExclusive();
 }
 
 // static
 void SharedObjectLock::Lock(Tagged<HeapObject> heap_object) {
-  MutablePageMetadata::FromHeapObject(heap_object)
-      ->shared_mutex()
-      ->LockShared();
+  MutablePageMetadata::FromHeapObject(heap_object)->shared_mutex().LockShared();
 }
 
 // static
 void SharedObjectLock::Unlock(Tagged<HeapObject> heap_object) {
   MutablePageMetadata::FromHeapObject(heap_object)
       ->shared_mutex()
-      ->UnlockShared();
+      .UnlockShared();
 }
 
 }  // namespace internal

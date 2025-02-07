@@ -87,7 +87,7 @@ Handle<Code> FactoryBase<Impl>::NewCode(const NewCodeOptions& options) {
   DisallowGarbageCollection no_gc;
   code->init_self_indirect_pointer(isolate());
   code->initialize_flags(options.kind, options.is_context_specialized,
-                         options.is_turbofanned, options.stack_slots);
+                         options.is_turbofanned);
   code->set_builtin_id(options.builtin);
   code->set_instruction_size(options.instruction_size);
   code->set_metadata_size(options.metadata_size);
@@ -100,6 +100,9 @@ Handle<Code> FactoryBase<Impl>::NewCode(const NewCodeOptions& options) {
       options.builtin_jump_table_info_offset);
   code->set_unwinding_info_offset(options.unwinding_info_offset);
   code->set_parameter_count(options.parameter_count);
+#ifdef V8_ENABLE_LEAPTIERING
+  code->set_js_dispatch_handle(kNullJSDispatchHandle);
+#endif  // V8_ENABLE_LEAPTIERING
 
   // Set bytecode/interpreter data or deoptimization data.
   if (CodeKindUsesBytecodeOrInterpreterData(options.kind)) {
@@ -200,8 +203,7 @@ Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithMap(
   // Zero-length case must be handled outside, where the knowledge about
   // the map is.
   DCHECK_LT(0, length);
-  return NewFixedArrayWithFiller(
-      map, length, read_only_roots().undefined_value_handle(), allocation);
+  return NewFixedArrayWithFiller(map, length, undefined_value(), allocation);
 }
 
 template <typename Impl>
@@ -209,9 +211,8 @@ Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithHoles(
     int length, AllocationType allocation) {
   DCHECK_LE(0, length);
   if (length == 0) return impl()->empty_fixed_array();
-  return NewFixedArrayWithFiller(
-      read_only_roots().fixed_array_map_handle(), length,
-      read_only_roots().the_hole_value_handle(), allocation);
+  return NewFixedArrayWithFiller(fixed_array_map(), length, the_hole_value(),
+                                 allocation);
 }
 
 template <typename Impl>
@@ -222,7 +223,7 @@ Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithFiller(
   DisallowGarbageCollection no_gc;
   DCHECK(ReadOnlyHeap::Contains(*map));
   DCHECK(ReadOnlyHeap::Contains(*filler));
-  result->set_map_after_allocation(*map, SKIP_WRITE_BARRIER);
+  result->set_map_after_allocation(isolate(), *map, SKIP_WRITE_BARRIER);
   Tagged<FixedArray> array = Cast<FixedArray>(result);
   array->set_length(length);
   MemsetTagged(array->RawFieldOfFirstElement(), *filler, length);
@@ -239,8 +240,8 @@ Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithZeroes(
   }
   Tagged<HeapObject> result = AllocateRawFixedArray(length, allocation);
   DisallowGarbageCollection no_gc;
-  result->set_map_after_allocation(read_only_roots().fixed_array_map(),
-                                   SKIP_WRITE_BARRIER);
+  result->set_map_after_allocation(
+      isolate(), read_only_roots().fixed_array_map(), SKIP_WRITE_BARRIER);
   Tagged<FixedArray> array = Cast<FixedArray>(result);
   array->set_length(length);
   MemsetTagged(array->RawFieldOfFirstElement(), Smi::zero(), length);
@@ -262,7 +263,7 @@ Handle<WeakFixedArray> FactoryBase<Impl>::NewWeakFixedArrayWithMap(
 
   Tagged<HeapObject> result =
       AllocateRawArray(WeakFixedArray::SizeFor(length), allocation);
-  result->set_map_after_allocation(map, SKIP_WRITE_BARRIER);
+  result->set_map_after_allocation(isolate(), map, SKIP_WRITE_BARRIER);
   DisallowGarbageCollection no_gc;
   Tagged<WeakFixedArray> array = Cast<WeakFixedArray>(result);
   array->set_length(length);
@@ -285,6 +286,15 @@ Handle<TrustedWeakFixedArray> FactoryBase<Impl>::NewTrustedWeakFixedArray(
   // RO trusted space.
   if (length == 0) return empty_trusted_weak_fixed_array();
   return TrustedWeakFixedArray::New(isolate(), length);
+}
+
+template <typename Impl>
+Handle<ProtectedWeakFixedArray> FactoryBase<Impl>::NewProtectedWeakFixedArray(
+    int length) {
+  // TODO(saelo): Move this check to ProtectedWeakFixedArray::New once we have
+  // a RO trusted space.
+  if (length == 0) return empty_protected_weak_fixed_array();
+  return ProtectedWeakFixedArray::New(isolate(), length);
 }
 
 template <typename Impl>
@@ -441,8 +451,9 @@ template <typename Impl>
 Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfoForLiteral(
     FunctionLiteral* literal, DirectHandle<Script> script, bool is_toplevel) {
   FunctionKind kind = literal->kind();
-  Handle<SharedFunctionInfo> shared = NewSharedFunctionInfo(
-      literal->GetName(isolate()), {}, Builtin::kCompileLazy, kind);
+  Handle<SharedFunctionInfo> shared =
+      NewSharedFunctionInfo(literal->GetName(isolate()), {},
+                            Builtin::kCompileLazy, 0, kDontAdapt, kind);
   shared->set_function_literal_id(literal->function_literal_id());
   literal->set_shared_function_info(shared);
   SharedFunctionInfo::InitFromFunctionLiteral(isolate(), literal, is_toplevel);
@@ -537,8 +548,8 @@ FactoryBase<Impl>::NewUncompiledDataWithPreparseDataAndJob(
 template <typename Impl>
 Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
     MaybeDirectHandle<String> maybe_name,
-    MaybeDirectHandle<HeapObject> maybe_function_data, Builtin builtin,
-    FunctionKind kind) {
+    MaybeDirectHandle<HeapObject> maybe_function_data, Builtin builtin, int len,
+    AdaptArguments adapt, FunctionKind kind) {
   Handle<SharedFunctionInfo> shared =
       NewSharedFunctionInfo(AllocationType::kOld);
   DisallowGarbageCollection no_gc;
@@ -576,6 +587,20 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
   raw->CalculateConstructAsBuiltin();
   raw->set_kind(kind);
 
+  switch (adapt) {
+    case AdaptArguments::kYes:
+      raw->set_formal_parameter_count(JSParameterCount(len));
+      break;
+    case AdaptArguments::kNo:
+      raw->DontAdaptArguments();
+      break;
+  }
+  raw->set_length(len);
+
+  DCHECK_IMPLIES(raw->HasBuiltinId(),
+                 Builtins::CheckFormalParameterCount(
+                     raw->builtin_id(), raw->length(),
+                     raw->internal_formal_parameter_count_with_receiver()));
 #ifdef VERIFY_HEAP
   if (v8_flags.verify_heap) raw->SharedFunctionInfoVerify(isolate());
 #endif  // VERIFY_HEAP
@@ -783,7 +808,7 @@ MaybeHandle<SeqStringT> FactoryBase<Impl>::NewRawStringWithMap(
   DCHECK_IMPLIES(!StringShape(map).IsShared(),
                  RefineAllocationTypeForInPlaceInternalizableString(
                      allocation, map) == allocation);
-  if (length > String::kMaxLength || length < 0) {
+  if (length < 0 || static_cast<uint32_t>(length) > String::kMaxLength) {
     THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError());
   }
   DCHECK_GT(length, 0);  // Use Factory::empty_string() instead.
@@ -843,12 +868,12 @@ MaybeHandle<String> FactoryBase<Impl>::NewConsString(
   if (IsThinString(*right)) {
     right = handle(Cast<ThinString>(*right)->actual(), isolate());
   }
-  int left_length = left->length();
+  uint32_t left_length = left->length();
   if (left_length == 0) return right;
-  int right_length = right->length();
+  uint32_t right_length = right->length();
   if (right_length == 0) return left;
 
-  int length = left_length + right_length;
+  uint32_t length = left_length + right_length;
 
   if (length == 2) {
     uint16_t c1 = left->Get(0, isolate());
@@ -972,9 +997,9 @@ MaybeHandle<String> FactoryBase<Impl>::NewStringFromOneByte(
 namespace {
 
 template <typename Impl>
-V8_INLINE Handle<String> CharToString(FactoryBase<Impl>* factory,
-                                      const char* string,
-                                      NumberCacheMode mode) {
+V8_INLINE Handle<String> StringViewToString(FactoryBase<Impl>* factory,
+                                            std::string_view string,
+                                            NumberCacheMode mode) {
   // We tenure the allocated string since it is referenced from the
   // number-string cache which lives in the old space.
   AllocationType type = mode == NumberCacheMode::kIgnore
@@ -1020,8 +1045,8 @@ Handle<String> FactoryBase<Impl>::HeapNumberToString(
   } else {
     char arr[kNumberToStringBufferSize];
     base::Vector<char> buffer(arr, arraysize(arr));
-    const char* string = DoubleToCString(value, buffer);
-    result = CharToString(this, string, mode);
+    std::string_view string = DoubleToStringView(value, buffer);
+    result = StringViewToString(this, string, mode);
   }
   if (mode != NumberCacheMode::kIgnore) {
     impl()->NumberToStringCacheSet(number, hash, result);
@@ -1047,11 +1072,12 @@ inline Handle<String> FactoryBase<Impl>::SmiToString(Tagged<Smi> number,
   } else {
     char arr[kNumberToStringBufferSize];
     base::Vector<char> buffer(arr, arraysize(arr));
-    const char* string = IntToCString(number.value(), buffer);
-    result = CharToString(this, string, mode);
+    std::string_view string = IntToStringView(number.value(), buffer);
+    result = StringViewToString(this, string, mode);
   }
   if (mode != NumberCacheMode::kIgnore) {
-    impl()->NumberToStringCacheSet(handle(number, isolate()), hash, result);
+    impl()->NumberToStringCacheSet(direct_handle(number, isolate()), hash,
+                                   result);
   }
 
   // Compute the hash here (rather than letting the caller take care of it) so
@@ -1072,8 +1098,8 @@ inline Handle<String> FactoryBase<Impl>::SmiToString(Tagged<Smi> number,
 
 template <typename Impl>
 Handle<FreshlyAllocatedBigInt> FactoryBase<Impl>::NewBigInt(
-    int length, AllocationType allocation) {
-  if (length < 0 || length > BigInt::kMaxLength) {
+    uint32_t length, AllocationType allocation) {
+  if (length > BigInt::kMaxLength) {
     FATAL("Fatal JavaScript invalid size error %d", length);
     UNREACHABLE();
   }
@@ -1104,8 +1130,7 @@ Handle<ScopeInfo> FactoryBase<Impl>::NewScopeInfo(int length,
 template <typename Impl>
 Handle<SourceTextModuleInfo> FactoryBase<Impl>::NewSourceTextModuleInfo() {
   return Cast<SourceTextModuleInfo>(NewFixedArrayWithMap(
-      read_only_roots().module_info_map_handle(), SourceTextModuleInfo::kLength,
-      AllocationType::kOld));
+      module_info_map(), SourceTextModuleInfo::kLength, AllocationType::kOld));
 }
 
 template <typename Impl>
@@ -1117,10 +1142,6 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
 
   DisallowGarbageCollection no_gc;
   shared->Init(read_only_roots(), isolate()->GetAndIncNextUniqueSfiId());
-#ifdef VERIFY_HEAP
-  if (v8_flags.verify_heap) shared->SharedFunctionInfoVerify(isolate());
-#endif  // VERIFY_HEAP
-
   return handle(shared, isolate());
 }
 
@@ -1138,9 +1159,10 @@ Handle<DescriptorArray> FactoryBase<Impl>::NewDescriptorArray(
   auto raw_gc_state = DescriptorArrayMarkingState::kInitialGCState;
   if (allocation != AllocationType::kYoung &&
       allocation != AllocationType::kReadOnly) {
-    auto* heap = allocation == AllocationType::kSharedOld
-                     ? isolate()->AsIsolate()->shared_space_isolate()->heap()
-                     : isolate()->heap()->AsHeap();
+    auto* local_heap = allocation == AllocationType::kSharedOld
+                           ? isolate()->shared_space_isolate()->heap()
+                           : isolate()->heap();
+    Heap* heap = local_heap->AsHeap();
     if (heap->incremental_marking()->IsMajorMarking()) {
       // Black allocation: We must create a full marked state.
       raw_gc_state = DescriptorArrayMarkingState::GetFullyMarkedState(
@@ -1218,7 +1240,9 @@ Tagged<HeapObject> FactoryBase<Impl>::AllocateRawArray(
   if ((size >
        isolate()->heap()->AsHeap()->MaxRegularHeapObjectSize(allocation)) &&
       v8_flags.use_marking_progress_bar) {
-    LargePageMetadata::FromHeapObject(result)->ProgressBar().Enable();
+    LargePageMetadata::FromHeapObject(result)
+        ->marking_progress_tracker()
+        .Enable(size);
   }
   return result;
 }
@@ -1259,7 +1283,7 @@ Tagged<HeapObject> FactoryBase<Impl>::AllocateRawWithImmortalMap(
   DCHECK(ReadOnlyHeap::Contains(map));
   Tagged<HeapObject> result = AllocateRaw(size, allocation, alignment);
   DisallowGarbageCollection no_gc;
-  result->set_map_after_allocation(map, SKIP_WRITE_BARRIER);
+  result->set_map_after_allocation(isolate(), map, SKIP_WRITE_BARRIER);
   return result;
 }
 
@@ -1280,7 +1304,7 @@ FactoryBase<Impl>::NewSwissNameDictionaryWithCapacity(
         read_only_roots().address_at(RootIndex::kEmptySwissPropertyDictionary),
         kNullAddress);
 
-    return read_only_roots().empty_swiss_property_dictionary_handle();
+    return empty_swiss_property_dictionary();
   }
 
   if (capacity < 0 || capacity > SwissNameDictionary::MaxCapacity()) {
@@ -1328,21 +1352,19 @@ MaybeDirectHandle<Map> FactoryBase<Impl>::GetInPlaceInternalizedStringMap(
   switch (instance_type) {
     case SEQ_TWO_BYTE_STRING_TYPE:
     case SHARED_SEQ_TWO_BYTE_STRING_TYPE:
-      map = read_only_roots().internalized_two_byte_string_map_handle();
+      map = internalized_two_byte_string_map();
       break;
     case SEQ_ONE_BYTE_STRING_TYPE:
     case SHARED_SEQ_ONE_BYTE_STRING_TYPE:
-      map = read_only_roots().internalized_one_byte_string_map_handle();
+      map = internalized_one_byte_string_map();
       break;
     case SHARED_EXTERNAL_TWO_BYTE_STRING_TYPE:
     case EXTERNAL_TWO_BYTE_STRING_TYPE:
-      map =
-          read_only_roots().external_internalized_two_byte_string_map_handle();
+      map = external_internalized_two_byte_string_map();
       break;
     case SHARED_EXTERNAL_ONE_BYTE_STRING_TYPE:
     case EXTERNAL_ONE_BYTE_STRING_TYPE:
-      map =
-          read_only_roots().external_internalized_one_byte_string_map_handle();
+      map = external_internalized_one_byte_string_map();
       break;
     default:
       break;

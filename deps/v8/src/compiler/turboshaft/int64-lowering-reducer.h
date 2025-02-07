@@ -32,7 +32,16 @@ class Int64LoweringReducer : public Next {
     wasm::CallOrigin origin = __ data() -> is_js_to_wasm()
                                   ? wasm::kCalledFromJS
                                   : wasm::kCalledFromWasm;
-    sig_ = CreateMachineSignature(zone_, __ data()->wasm_sig(), origin);
+    // To compute the machine signature, it doesn't matter whether types
+    // are canonicalized, just use whichever signature is present (functions
+    // will have one and wrappers the other).
+    if (__ data()->wasm_module_sig()) {
+      sig_ =
+          CreateMachineSignature(zone_, __ data()->wasm_module_sig(), origin);
+    } else {
+      sig_ = CreateMachineSignature(zone_, __ data()->wasm_canonical_sig(),
+                                    origin);
+    }
 
     InitializeIndexMaps();
   }
@@ -182,9 +191,11 @@ class Int64LoweringReducer : public Next {
   }
 
   OpIndex REDUCE(Return)(OpIndex pop_count,
-                         base::Vector<const OpIndex> return_values) {
+                         base::Vector<const OpIndex> return_values,
+                         bool spill_caller_frame_slots) {
     if (!returns_i64_) {
-      return Next::ReduceReturn(pop_count, return_values);
+      return Next::ReduceReturn(pop_count, return_values,
+                                spill_caller_frame_slots);
     }
     base::SmallVector<OpIndex, 8> lowered_values;
     for (size_t i = 0; i < sig_->return_count(); ++i) {
@@ -196,7 +207,8 @@ class Int64LoweringReducer : public Next {
         lowered_values.push_back(return_values[i]);
       }
     }
-    return Next::ReduceReturn(pop_count, base::VectorOf(lowered_values));
+    return Next::ReduceReturn(pop_count, base::VectorOf(lowered_values),
+                              spill_caller_frame_slots);
   }
 
   V<Word> REDUCE(WordUnary)(V<Word> input, WordUnaryOp::Kind kind,
@@ -555,7 +567,8 @@ class Int64LoweringReducer : public Next {
     auto* function_info_lowered = zone->New<compiler::FrameStateFunctionInfo>(
         compiler::FrameStateType::kLiftoffFunction, lowered_parameter_count,
         function_info->max_arguments(), lowered_local_count,
-        function_info->shared_info(), function_info->wasm_liftoff_frame_size(),
+        function_info->shared_info(), kNullMaybeHandle,
+        function_info->wasm_liftoff_frame_size(),
         function_info->wasm_function_index());
     const FrameStateInfo& frame_state_info = data->frame_state_info;
     auto* frame_state_info_lowered = zone->New<compiler::FrameStateInfo>(

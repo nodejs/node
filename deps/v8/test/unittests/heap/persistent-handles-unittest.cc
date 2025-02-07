@@ -29,7 +29,7 @@ TEST_F(PersistentHandlesTest, OrderOfBlocks) {
     PersistentHandlesScope persistent_scope(isolate);
 
     // fill block
-    first_empty = handle(ReadOnlyRoots(heap).empty_string(), isolate);
+    first_empty = direct_handle(ReadOnlyRoots(heap).empty_string(), isolate);
 
     while (data->next < data->limit) {
       handle(ReadOnlyRoots(heap).empty_string(), isolate);
@@ -37,7 +37,7 @@ TEST_F(PersistentHandlesTest, OrderOfBlocks) {
 
     // add second block and two more handles on it
     handle(ReadOnlyRoots(heap).empty_string(), isolate);
-    last_empty = handle(ReadOnlyRoots(heap).empty_string(), isolate);
+    last_empty = direct_handle(ReadOnlyRoots(heap).empty_string(), isolate);
 
     // remember next and limit in second block
     next = data->next;

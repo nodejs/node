@@ -303,6 +303,9 @@ class V8_EXPORT_PRIVATE MacroAssembler
                               YMMRegister src2, YMMRegister src3,
                               YMMRegister scratch, YMMRegister splat_reg);
 
+  void I32x8TruncF32x8U(YMMRegister dst, YMMRegister src, YMMRegister scratch1,
+                        YMMRegister scratch2);
+
   // ---------------------------------------------------------------------------
   // Conversions between tagged smi values and non-tagged integer values.
 
@@ -526,9 +529,25 @@ class V8_EXPORT_PRIVATE MacroAssembler
                       JumpMode jump_mode = JumpMode::kJump);
 
   // Convenience functions to call/jmp to the code of a JSFunction object.
-  void CallJSFunction(Register function_object);
+  // TODO(42204201): These don't work properly with leaptiering as we need to
+  // validate the parameter count at runtime. Instead, we should replace them
+  // with CallJSDispatchEntry that generates a call to a given (compile-time
+  // constant) JSDispatchHandle.
+  void CallJSFunction(Register function_object, uint16_t argument_count);
   void JumpJSFunction(Register function_object,
                       JumpMode jump_mode = JumpMode::kJump);
+#ifdef V8_ENABLE_LEAPTIERING
+  void CallJSDispatchEntry(JSDispatchHandle dispatch_handle,
+                           uint16_t argument_count);
+#endif
+#ifdef V8_ENABLE_WEBASSEMBLY
+  void ResolveWasmCodePointer(Register target, uint64_t signature_hash);
+  void CallWasmCodePointer(Register target, uint64_t signature_hash,
+                           CallJumpMode call_jump_mode = CallJumpMode::kCall);
+  void CallWasmCodePointerNoSignatureCheck(Register target);
+  void LoadWasmCodePointer(Register dst, Operand src);
+#endif
+
   void Jump(Address destination, RelocInfo::Mode rmode);
   void Jump(Address destination, RelocInfo::Mode rmode, Condition cc);
   void Jump(const ExternalReference& reference);
@@ -537,6 +556,8 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void Jump(Handle<Code> code_object, RelocInfo::Mode rmode);
   void Jump(Handle<Code> code_object, RelocInfo::Mode rmode, Condition cc);
 
+  // TODO(olivf, 42204201) Rename this to AssertNotDeoptimized once
+  // non-leaptiering is removed from the codebase.
   void BailoutIfDeoptimized(Register scratch);
   void CallForDeoptimization(Builtin target, int deopt_id, Label* exit,
                              DeoptimizeKind kind, Label* ret,
@@ -580,6 +601,9 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // Like Assert(), but always enabled.
   void Check(Condition cc, AbortReason reason);
 
+  // Same as Check() but expresses that the check is needed for the sandbox.
+  void SbxCheck(Condition cc, AbortReason reason);
+
   // Compare instance type for map.
   // Always use unsigned comparisons: above and below, not less and greater.
   void CmpInstanceType(Register map, InstanceType type);
@@ -592,7 +616,7 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // --debug-code.
   void AssertCode(Register object) NOOP_UNLESS_DEBUG_CODE;
 
-  // Abort execution if argument is not smi nor in the main pointer compresssion
+  // Abort execution if argument is not smi nor in the main pointer compression
   // cage, enabled via --debug-code.
   void AssertSmiOrHeapObjectInMainCompressionCage(Register object)
       NOOP_UNLESS_DEBUG_CODE;
@@ -822,12 +846,14 @@ class V8_EXPORT_PRIVATE MacroAssembler
 #endif  // V8_ENABLE_SANDBOX
 
 #ifdef V8_ENABLE_LEAPTIERING
-  // Load the entrypoint pointer of a JSDispatchTable entry.
-  void LoadCodeEntrypointFromJSDispatchTable(Register destination,
-                                             Register dispatch_handle);
-  // Load the parameter count of a JSDispatchTable entry.
+  void LoadEntrypointFromJSDispatchTable(Register destination,
+                                         Register dispatch_handle);
+  void LoadEntrypointFromJSDispatchTable(Register destination,
+                                         JSDispatchHandle dispatch_handle);
   void LoadParameterCountFromJSDispatchTable(Register destination,
                                              Register dispatch_handle);
+  void LoadEntrypointAndParameterCountFromJSDispatchTable(
+      Register entrypoint, Register parameter_count, Register dispatch_handle);
 #endif  // V8_ENABLE_LEAPTIERING
 
   void LoadProtectedPointerField(Register destination, Operand field_operand);
@@ -1042,6 +1068,7 @@ class V8_EXPORT_PRIVATE MacroAssembler
                                            Register slot_address);
   void GenerateTailCallToReturnedCode(Runtime::FunctionId function_id,
                                       JumpMode jump_mode = JumpMode::kJump);
+#ifndef V8_ENABLE_LEAPTIERING
   Condition CheckFeedbackVectorFlagsNeedsProcessing(Register feedback_vector,
                                                     CodeKind current_code_kind);
   void CheckFeedbackVectorFlagsAndJumpIfNeedsProcessing(
@@ -1056,6 +1083,7 @@ class V8_EXPORT_PRIVATE MacroAssembler
     OptimizeCodeOrTailCallOptimizedCodeSlot(
         feedback_vector, kJSFunctionRegister, JumpMode::kJump);
   }
+#endif  // !V8_ENABLE_LEAPTIERING
 
   // Abort execution if argument is not a Constructor, enabled via --debug-code.
   void AssertConstructor(Register object) NOOP_UNLESS_DEBUG_CODE;

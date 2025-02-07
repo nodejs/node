@@ -42,6 +42,7 @@ absl_cc_library(
   LINKOPTS
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
+    absl::config
     absl::core_headers
     absl::random_internal_distribution_caller
     absl::random_internal_fast_uniform_bits
@@ -549,6 +550,7 @@ absl_cc_library(
     absl::config
     absl::utility
     absl::fast_type_id
+    absl::type_traits
 )
 
 # Internal-only target, do not depend on directly.

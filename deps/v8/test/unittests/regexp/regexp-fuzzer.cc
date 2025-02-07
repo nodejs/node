@@ -103,8 +103,8 @@ void RegExpTest<T>::Test(i::DirectHandle<i::JSRegExp> regexp,
                          i::Handle<i::String> subject) {
   v8::TryCatch try_catch(isolate_);
   // Exceptions will be swallowed by the try/catch above.
-  USE(i::RegExp::Exec(i_isolate_, regexp, subject, 0,
-                      i::RegExpMatchInfo::New(i_isolate_, 2)));
+  USE(i::RegExp::Exec_Single(i_isolate_, regexp, subject, 0,
+                             i::RegExpMatchInfo::New(i_isolate_, 2)));
 }
 
 template <class T>

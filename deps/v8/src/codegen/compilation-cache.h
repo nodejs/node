@@ -83,12 +83,12 @@ class CompilationCacheEval : public CompilationCacheEvalOrScript {
 
   InfoCellPair Lookup(Handle<String> source,
                       Handle<SharedFunctionInfo> outer_info,
-                      DirectHandle<Context> native_context,
+                      DirectHandle<NativeContext> native_context,
                       LanguageMode language_mode, int position);
 
   void Put(Handle<String> source, Handle<SharedFunctionInfo> outer_info,
            DirectHandle<SharedFunctionInfo> function_info,
-           DirectHandle<Context> native_context,
+           DirectHandle<NativeContext> native_context,
            DirectHandle<FeedbackCell> feedback_cell, int position);
 
   void Age();

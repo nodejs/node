@@ -90,7 +90,7 @@ template Handle<JSObject> CallOptimization::LookupHolderOfExpectedType(
     HolderLookup* holder_lookup) const;
 
 bool CallOptimization::IsCompatibleReceiverMap(
-    Handle<JSObject> api_holder, Handle<JSObject> holder,
+    DirectHandle<JSObject> api_holder, Handle<JSObject> holder,
     HolderLookup holder_lookup) const {
   DCHECK(is_simple_api_call());
   switch (holder_lookup) {

@@ -27,8 +27,9 @@ assertOptimized(create);
 // Triggering deopt (before the construction) by changing the target.
 let new_A_called = false;
 A = function() { new_A_called = true; }
-let o3 = create();
 assertUnoptimized(create);
+%DeoptimizeFunction(create);
+let o3 = create();
 assertTrue(new_A_called);
 
 // Falling back to generic Construct call.

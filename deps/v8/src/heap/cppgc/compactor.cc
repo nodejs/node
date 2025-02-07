@@ -287,7 +287,7 @@ class CompactionState final {
     // Return remaining available pages back to the backend.
     for (NormalPage* page : available_pages_) {
       SetMemoryInaccessible(page->PayloadStart(), page->PayloadSize());
-      NormalPage::Destroy(page, FreeMemoryHandling::kDiscardWherePossible);
+      NormalPage::Destroy(page);
     }
   }
 

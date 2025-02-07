@@ -54,7 +54,7 @@ class RuntimeTestRunner {
   // Just for debugging.
   void PrintTable();
 
-  Handle<SwissNameDictionary> table;
+  DirectHandle<SwissNameDictionary> table;
 
  private:
   Isolate* isolate_;
@@ -63,7 +63,7 @@ class RuntimeTestRunner {
 
 void RuntimeTestRunner::Add(DirectHandle<Name> key, DirectHandle<Object> value,
                             PropertyDetails details) {
-  Handle<SwissNameDictionary> updated_table =
+  DirectHandle<SwissNameDictionary> updated_table =
       SwissNameDictionary::Add(isolate_, this->table, key, value, details);
   this->table = updated_table;
 }

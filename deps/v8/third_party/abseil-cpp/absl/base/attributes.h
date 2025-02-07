@@ -31,6 +31,8 @@
 // `__has_attribute()` first. If the check fails, we check if we are on GCC and
 // assume the attribute exists on GCC (which is verified on GCC 4.7).
 
+// SKIP_ABSL_INLINE_NAMESPACE_CHECK
+
 #ifndef ABSL_BASE_ATTRIBUTES_H_
 #define ABSL_BASE_ATTRIBUTES_H_
 

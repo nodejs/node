@@ -46,7 +46,7 @@ void HeapInternalsBase::SimulateIncrementalMarking(Heap* heap,
 namespace {
 
 int FixedArrayLenFromSize(int size) {
-  return std::min({(size - FixedArray::kHeaderSize) / kTaggedSize,
+  return std::min({(size - OFFSET_OF_DATA_START(FixedArray)) / kTaggedSize,
                    FixedArray::kMaxRegularLength});
 }
 
@@ -69,10 +69,10 @@ void FillPageInPagedSpace(PageMetadata* page,
     if (p != page) paged_space->UnlinkFreeListCategories(p);
   }
 
-  // If min_block_size is larger than FixedArray::kHeaderSize, all blocks in the
-  // free list can be used to allocate a fixed array. This guarantees that we
-  // can fill the whole page.
-  DCHECK_LT(FixedArray::kHeaderSize,
+  // If min_block_size is larger than OFFSET_OF_DATA_START(FixedArray), all
+  // blocks in the free list can be used to allocate a fixed array. This
+  // guarantees that we can fill the whole page.
+  DCHECK_LT(OFFSET_OF_DATA_START(FixedArray),
             paged_space->free_list()->min_block_size());
 
   std::vector<int> available_sizes;
@@ -282,8 +282,8 @@ void HeapInternalsBase::FillCurrentPage(
 }
 
 bool IsNewObjectInCorrectGeneration(Tagged<HeapObject> object) {
-  return v8_flags.single_generation ? !i::Heap::InYoungGeneration(object)
-                                    : i::Heap::InYoungGeneration(object);
+  return v8_flags.single_generation ? !i::HeapLayout::InYoungGeneration(object)
+                                    : i::HeapLayout::InYoungGeneration(object);
 }
 
 ManualGCScope::ManualGCScope(Isolate* isolate)

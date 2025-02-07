@@ -35,8 +35,8 @@ class JSDurationFormat
   // Creates duration format object with properties derived from input
   // locales and options.
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSDurationFormat> New(
-      Isolate* isolate, DirectHandle<Map> map, Handle<Object> locales,
-      Handle<Object> options);
+      Isolate* isolate, DirectHandle<Map> map, DirectHandle<Object> locales,
+      DirectHandle<Object> options);
 
   V8_WARN_UNUSED_RESULT static Handle<JSObject> ResolvedOptions(
       Isolate* isolate, DirectHandle<JSDurationFormat> format_holder);

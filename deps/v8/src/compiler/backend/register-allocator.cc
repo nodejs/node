@@ -3271,12 +3271,19 @@ void LinearScanAllocator::ComputeStateFromManyPredecessors(
       used_registers[reg] = 1;
     }
   };
+  struct TopLevelLiveRangeComparator {
+    bool operator()(const TopLevelLiveRange* lhs,
+                    const TopLevelLiveRange* rhs) const {
+      return lhs->vreg() < rhs->vreg();
+    }
+  };
   // Typically this map is very small, e.g., on JetStream2 it has at most 3
   // elements ~80% of the time and at most 8 elements ~94% of the time.
   // Thus use a `SmallZoneMap` to avoid allocations and because linear search
   // in an array is faster than map lookup for such small sizes.
   // We don't want too many inline elements though since `Vote` is pretty large.
-  using RangeVoteMap = SmallZoneMap<TopLevelLiveRange*, Vote, 16>;
+  using RangeVoteMap =
+      SmallZoneMap<TopLevelLiveRange*, Vote, 16, TopLevelLiveRangeComparator>;
   static_assert(sizeof(RangeVoteMap) < 4096, "too large stack allocation");
   RangeVoteMap counts(data()->allocation_zone());
 

@@ -17,6 +17,8 @@
 #include "src/maglev/arm/maglev-assembler-arm-inl.h"
 #elif V8_TARGET_ARCH_ARM64
 #include "src/maglev/arm64/maglev-assembler-arm64-inl.h"
+#elif V8_TARGET_ARCH_RISCV64
+#include "src/maglev/riscv/maglev-assembler-riscv-inl.h"
 #elif V8_TARGET_ARCH_X64
 #include "src/maglev/x64/maglev-assembler-x64-inl.h"
 #elif V8_TARGET_ARCH_S390X
@@ -70,6 +72,9 @@ struct CopyForDeferredHelper<MaglevCompilationInfo*>
 template <>
 struct CopyForDeferredHelper<Register>
     : public CopyForDeferredByValue<Register> {};
+template <>
+struct CopyForDeferredHelper<std::optional<Register>>
+    : public CopyForDeferredByValue<std::optional<Register>> {};
 template <>
 struct CopyForDeferredHelper<DoubleRegister>
     : public CopyForDeferredByValue<DoubleRegister> {};
@@ -277,6 +282,57 @@ inline void MaglevAssembler::SmiToDouble(DoubleRegister result, Register smi) {
   Int32ToDouble(result, smi);
 }
 
+#if !defined(V8_TARGET_ARCH_RISCV64)
+
+inline void MaglevAssembler::CompareInstanceTypeAndJumpIf(
+    Register map, InstanceType type, Condition cond, Label* target,
+    Label::Distance distance) {
+  CompareInstanceType(map, type);
+  JumpIf(cond, target, distance);
+}
+
+template <typename NodeT>
+inline void MaglevAssembler::CompareInstanceTypeRangeAndEagerDeoptIf(
+    Register map, Register instance_type_out, InstanceType lower_limit,
+    InstanceType higher_limit, Condition cond, DeoptimizeReason reason,
+    NodeT* node) {
+  CompareInstanceTypeRange(map, instance_type_out, lower_limit, higher_limit);
+  EmitEagerDeoptIf(cond, reason, node);
+}
+
+template <typename NodeT>
+inline void MaglevAssembler::CompareRootAndEmitEagerDeoptIf(
+    Register reg, RootIndex index, Condition cond, DeoptimizeReason reason,
+    NodeT* node) {
+  CompareRoot(reg, index);
+  EmitEagerDeoptIf(cond, reason, node);
+}
+
+template <typename NodeT>
+inline void MaglevAssembler::CompareMapWithRootAndEmitEagerDeoptIf(
+    Register reg, RootIndex index, Register scratch, Condition cond,
+    DeoptimizeReason reason, NodeT* node) {
+  CompareMapWithRoot(reg, index, scratch);
+  EmitEagerDeoptIf(cond, reason, node);
+}
+
+template <typename NodeT>
+inline void MaglevAssembler::CompareTaggedRootAndEmitEagerDeoptIf(
+    Register reg, RootIndex index, Condition cond, DeoptimizeReason reason,
+    NodeT* node) {
+  CompareTaggedRoot(reg, index);
+  EmitEagerDeoptIf(cond, reason, node);
+}
+
+template <typename NodeT>
+inline void MaglevAssembler::CompareUInt32AndEmitEagerDeoptIf(
+    Register reg, int imm, Condition cond, DeoptimizeReason reason,
+    NodeT* node) {
+  Cmp(reg, imm);
+  EmitEagerDeoptIf(cond, reason, node);
+}
+#endif
+
 inline void MaglevAssembler::CompareInt32AndBranch(Register r1, int32_t value,
                                                    Condition cond,
                                                    BasicBlock* if_true,
@@ -337,12 +393,6 @@ inline void MaglevAssembler::LoadTaggedField(Register result, Register object,
   MacroAssembler::LoadTaggedField(result, FieldMemOperand(object, offset));
 }
 
-inline void MaglevAssembler::LoadTaggedFieldWithoutDecompressing(
-    Register result, Register object, int offset) {
-  MacroAssembler::LoadTaggedFieldWithoutDecompressing(
-      result, FieldMemOperand(object, offset));
-}
-
 inline void MaglevAssembler::LoadTaggedSignedField(Register result,
                                                    MemOperand operand) {
   MacroAssembler::LoadTaggedField(result, operand);
@@ -365,6 +415,12 @@ inline void MaglevAssembler::LoadHeapNumberOrOddballValue(DoubleRegister result,
   static_assert(offsetof(HeapNumber, value_) ==
                 offsetof(Oddball, to_number_raw_));
   LoadHeapNumberValue(result, object);
+}
+
+inline void MaglevAssembler::StoreHeapNumberValue(DoubleRegister value,
+                                                  Register heap_number) {
+  StoreFloat64(FieldMemOperand(heap_number, offsetof(HeapNumber, value_)),
+               value);
 }
 
 namespace detail {
@@ -740,7 +796,9 @@ inline void MaglevAssembler::SmiTagInt32AndJumpIfSuccess(
 
 inline void MaglevAssembler::UncheckedSmiTagInt32(Register dst, Register src) {
   SmiTagInt32AndSetFlags(dst, src);
-  Assert(kNoOverflow, AbortReason::kInputDoesNotFitSmi);
+  if (!SmiValuesAre32Bits()) {
+    Assert(kNoOverflow, AbortReason::kInputDoesNotFitSmi);
+  }
 }
 
 inline void MaglevAssembler::UncheckedSmiTagInt32(Register reg) {
@@ -753,7 +811,9 @@ inline void MaglevAssembler::SmiTagUint32AndJumpIfFail(
   CompareInt32AndJumpIf(src, Smi::kMaxValue, kUnsignedGreaterThan, fail,
                         distance);
   SmiTagInt32AndSetFlags(dst, src);
-  Assert(kNoOverflow, AbortReason::kInputDoesNotFitSmi);
+  if (!SmiValuesAre32Bits()) {
+    Assert(kNoOverflow, AbortReason::kInputDoesNotFitSmi);
+  }
 }
 
 inline void MaglevAssembler::SmiTagUint32AndJumpIfFail(
@@ -781,7 +841,9 @@ inline void MaglevAssembler::UncheckedSmiTagUint32(Register dst, Register src) {
                           AbortReason::kInputDoesNotFitSmi);
   }
   SmiTagInt32AndSetFlags(dst, src);
-  Assert(kNoOverflow, AbortReason::kInputDoesNotFitSmi);
+  if (!SmiValuesAre32Bits()) {
+    Assert(kNoOverflow, AbortReason::kInputDoesNotFitSmi);
+  }
 }
 
 inline void MaglevAssembler::UncheckedSmiTagUint32(Register reg) {
@@ -815,9 +877,10 @@ inline void MaglevAssembler::JumpIfStringMap(Register map, Label* target,
   DecompressTagged(map, map);
 #endif
   static_assert(FIRST_STRING_TYPE == FIRST_TYPE);
-  CompareInstanceType(map, LAST_STRING_TYPE);
-  JumpIf(jump_if_true ? kUnsignedLessThanEqual : kUnsignedGreaterThan, target,
-         distance);
+  CompareInstanceTypeAndJumpIf(
+      map, LAST_STRING_TYPE,
+      jump_if_true ? kUnsignedLessThanEqual : kUnsignedGreaterThan, target,
+      distance);
 #endif
 }
 

@@ -29,10 +29,12 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(JSAsyncDisposableStack)
 
 BIT_FIELD_ACCESSORS(JSDisposableStackBase, status, state,
                     JSDisposableStackBase::StateBit)
-BIT_FIELD_ACCESSORS(JSDisposableStackBase, status, needsAwait,
+BIT_FIELD_ACCESSORS(JSDisposableStackBase, status, needs_await,
                     JSDisposableStackBase::NeedsAwaitBit)
-BIT_FIELD_ACCESSORS(JSDisposableStackBase, status, hasAwaited,
+BIT_FIELD_ACCESSORS(JSDisposableStackBase, status, has_awaited,
                     JSDisposableStackBase::HasAwaitedBit)
+BIT_FIELD_ACCESSORS(JSDisposableStackBase, status, suppressed_error_created,
+                    JSDisposableStackBase::SuppressedErrorCreatedBit)
 BIT_FIELD_ACCESSORS(JSDisposableStackBase, status, length,
                     JSDisposableStackBase::LengthBits)
 
@@ -58,8 +60,7 @@ inline void JSDisposableStackBase::Add(
 // part of
 // https://arai-a.github.io/ecma262-compare/?pr=3000&id=sec-createdisposableresource
 inline MaybeHandle<Object> JSDisposableStackBase::CheckValueAndGetDisposeMethod(
-    Isolate* isolate, Handle<Object> value, DisposeMethodHint hint) {
-
+    Isolate* isolate, DirectHandle<JSAny> value, DisposeMethodHint hint) {
   Handle<Object> method;
   if (hint == DisposeMethodHint::kSyncDispose) {
     // 1. If method is not present, then
@@ -148,7 +149,7 @@ inline MaybeHandle<Object> JSDisposableStackBase::CheckValueAndGetDisposeMethod(
 
         // (TODO:rezvan): Add `kAsyncFromSyncDispose` to the `DisposeMethodHint`
         // enum and remove the following allocation of adapter clousre.
-        Handle<Context> async_dispose_from_sync_dispose_context =
+        DirectHandle<Context> async_dispose_from_sync_dispose_context =
             isolate->factory()->NewBuiltinContext(
                 isolate->native_context(),
                 static_cast<int>(
@@ -179,7 +180,7 @@ inline MaybeHandle<Object> JSDisposableStackBase::CheckValueAndGetDisposeMethod(
 
 inline void JSDisposableStackBase::HandleErrorInDisposal(
     Isolate* isolate, DirectHandle<JSDisposableStackBase> disposable_stack,
-    Handle<Object> current_error) {
+    Handle<Object> current_error, DirectHandle<Object> current_error_message) {
   DCHECK(isolate->is_catchable_by_javascript(*current_error));
 
   Handle<Object> maybe_error(disposable_stack->error(), isolate);
@@ -196,6 +197,7 @@ inline void JSDisposableStackBase::HandleErrorInDisposal(
     //    6. Set completion to ThrowCompletion(error).
     maybe_error = isolate->factory()->NewSuppressedErrorAtDisposal(
         isolate, current_error, maybe_error);
+    disposable_stack->set_suppressed_error_created(true);
 
   } else {
     //   ii. Else,
@@ -204,6 +206,7 @@ inline void JSDisposableStackBase::HandleErrorInDisposal(
   }
 
   disposable_stack->set_error(*maybe_error);
+  disposable_stack->set_error_message(*current_error_message);
 }
 
 }  // namespace internal

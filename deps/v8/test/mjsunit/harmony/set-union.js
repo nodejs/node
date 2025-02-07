@@ -216,7 +216,7 @@
         return otherSet[Symbol.iterator]();
       }
 
-  const resultArray = [42, 43, 46, 47];
+  const resultArray = [42, 46, 47];
 
   const unionArray = Array.from(firstSet.union(otherSet));
 
@@ -245,7 +245,7 @@
         return setLike.arr[Symbol.iterator]();
       }
 
-  const resultArray = [42, 43, 46, 47];
+  const resultArray = [42, 46, 47];
 
   const unionArray = Array.from(firstSet.union(setLike));
 

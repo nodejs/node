@@ -22,6 +22,7 @@
 #include <ostream>
 
 #include "absl/base/config.h"
+#include "absl/base/attributes.h"
 #include "absl/log/internal/log_message.h"
 #include "absl/strings/string_view.h"
 
@@ -31,14 +32,16 @@ namespace log_internal {
 
 class ABSL_MUST_USE_RESULT AsLiteralImpl final {
  public:
-  explicit AsLiteralImpl(absl::string_view str) : str_(str) {}
+  explicit AsLiteralImpl(absl::string_view str ABSL_ATTRIBUTE_LIFETIME_BOUND)
+      : str_(str) {}
   AsLiteralImpl(const AsLiteralImpl&) = default;
   AsLiteralImpl& operator=(const AsLiteralImpl&) = default;
 
  private:
   absl::string_view str_;
 
-  friend std::ostream& operator<<(std::ostream& os, AsLiteralImpl as_literal) {
+  friend std::ostream& operator<<(std::ostream& os,
+                                  AsLiteralImpl&& as_literal) {
     return os << as_literal.str_;
   }
   void AddToMessage(log_internal::LogMessage& m) {

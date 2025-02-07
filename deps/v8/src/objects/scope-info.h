@@ -76,7 +76,14 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   int ContextLength() const;
   int ContextHeaderLength() const;
 
+  // Returns true if the respective contexts have a context extension slot.
   bool HasContextExtensionSlot() const;
+
+  // Returns true if there is a context with created context extension
+  // (meaningful only for contexts that call sloppy eval, see
+  // SloppyEvalCanExtendVars()).
+  bool SomeContextHasExtension() const;
+  void mark_some_context_has_extension();
 
   // Does this scope declare a "this" binding?
   bool HasReceiver() const;
@@ -113,8 +120,6 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
 
   // Does this scope belong to a function?
   bool HasPositionInfo() const;
-
-  bool IsHiddenCatchScope() const;
 
   bool IsWrappedFunctionScope() const;
 
@@ -188,8 +193,8 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   // returns a value < 0. The name must be an internalized string.
   // If the slot is present and mode != nullptr, sets *mode to the corresponding
   // mode for that variable.
-  int ContextSlotIndex(Handle<String> name);
-  int ContextSlotIndex(Handle<String> name,
+  int ContextSlotIndex(DirectHandle<String> name);
+  int ContextSlotIndex(DirectHandle<String> name,
                        VariableLookupResult* lookup_result);
 
   // Lookup metadata of a MODULE-allocated variable.  Return 0 if there is no
@@ -258,9 +263,9 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
 
   template <typename IsolateT>
   static Handle<ScopeInfo> Create(IsolateT* isolate, Zone* zone, Scope* scope,
-                                  MaybeHandle<ScopeInfo> outer_scope);
+                                  MaybeDirectHandle<ScopeInfo> outer_scope);
   V8_EXPORT_PRIVATE static Handle<ScopeInfo> CreateForWithScope(
-      Isolate* isolate, MaybeHandle<ScopeInfo> outer_scope);
+      Isolate* isolate, MaybeDirectHandle<ScopeInfo> outer_scope);
   V8_EXPORT_PRIVATE static Handle<ScopeInfo> CreateForEmptyFunction(
       Isolate* isolate);
   static Handle<ScopeInfo> CreateForNativeContext(Isolate* isolate);
@@ -286,6 +291,8 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   static_assert(LanguageModeSize == 1 << LanguageModeBit::kSize);
   static_assert(FunctionKindBits::is_valid(FunctionKind::kLastFunctionKind));
 
+  inline Tagged<DependentCode> dependent_code() const;
+
   bool IsEmpty() const;
 
   // Returns the size in bytes for a ScopeInfo with |length| slots.
@@ -309,6 +316,7 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   int ModuleInfoIndex() const;
   int ModuleVariableCountIndex() const;
   int ModuleVariablesIndex() const;
+  int DependentCodeIndex() const;
 
   // Raw access by slot index. These functions rely on the fact that everything
   // in ScopeInfo is tagged. Each slot is tagged-pointer sized. Slot 0 is

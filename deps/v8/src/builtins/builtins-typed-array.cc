@@ -47,7 +47,7 @@ int64_t CapRelativeIndex(DirectHandle<Object> num, int64_t minimum,
 BUILTIN(TypedArrayPrototypeCopyWithin) {
   HandleScope scope(isolate);
 
-  Handle<JSTypedArray> array;
+  DirectHandle<JSTypedArray> array;
   const char* method_name = "%TypedArray%.prototype.copyWithin";
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, array,
@@ -59,7 +59,7 @@ BUILTIN(TypedArrayPrototypeCopyWithin) {
   int64_t final = len;
 
   if (V8_LIKELY(args.length() > 1)) {
-    Handle<Object> num;
+    DirectHandle<Object> num;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, num, Object::ToInteger(isolate, args.at<Object>(1)));
     to = CapRelativeIndex(num, 0, len);
@@ -69,7 +69,7 @@ BUILTIN(TypedArrayPrototypeCopyWithin) {
           isolate, num, Object::ToInteger(isolate, args.at<Object>(2)));
       from = CapRelativeIndex(num, 0, len);
 
-      Handle<Object> end = args.atOrUndefined(isolate, 3);
+      DirectHandle<Object> end = args.atOrUndefined(isolate, 3);
       if (!IsUndefined(*end, isolate)) {
         ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, num,
                                            Object::ToInteger(isolate, end));
@@ -95,7 +95,7 @@ BUILTIN(TypedArrayPrototypeCopyWithin) {
     int64_t new_len = array->GetLengthOrOutOfBounds(out_of_bounds);
     if (out_of_bounds) {
       const MessageTemplate message = MessageTemplate::kDetachedOperation;
-      Handle<String> operation =
+      DirectHandle<String> operation =
           isolate->factory()->NewStringFromAsciiChecked(method_name);
       THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewTypeError(message, operation));
     }
@@ -140,14 +140,14 @@ BUILTIN(TypedArrayPrototypeCopyWithin) {
 BUILTIN(TypedArrayPrototypeFill) {
   HandleScope scope(isolate);
 
-  Handle<JSTypedArray> array;
+  DirectHandle<JSTypedArray> array;
   const char* method_name = "%TypedArray%.prototype.fill";
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, array,
       JSTypedArray::Validate(isolate, args.receiver(), method_name));
   ElementsKind kind = array->GetElementsKind();
 
-  Handle<Object> obj_value = args.atOrUndefined(isolate, 1);
+  DirectHandle<Object> obj_value = args.atOrUndefined(isolate, 1);
   if (IsBigIntTypedArrayElementsKind(kind)) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, obj_value,
                                        BigInt::FromObject(isolate, obj_value));
@@ -161,7 +161,7 @@ BUILTIN(TypedArrayPrototypeFill) {
   int64_t end = len;
 
   if (args.length() > 2) {
-    Handle<Object> num = args.atOrUndefined(isolate, 2);
+    DirectHandle<Object> num = args.atOrUndefined(isolate, 2);
     if (!IsUndefined(*num, isolate)) {
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
           isolate, num, Object::ToInteger(isolate, num));
@@ -186,7 +186,7 @@ BUILTIN(TypedArrayPrototypeFill) {
   if (V8_UNLIKELY(array->IsVariableLength())) {
     if (array->IsOutOfBounds()) {
       const MessageTemplate message = MessageTemplate::kDetachedOperation;
-      Handle<String> operation =
+      DirectHandle<String> operation =
           isolate->factory()->NewStringFromAsciiChecked(method_name);
       THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewTypeError(message, operation));
     }
@@ -210,7 +210,7 @@ BUILTIN(TypedArrayPrototypeFill) {
 BUILTIN(TypedArrayPrototypeIncludes) {
   HandleScope scope(isolate);
 
-  Handle<JSTypedArray> array;
+  DirectHandle<JSTypedArray> array;
   const char* method_name = "%TypedArray%.prototype.includes";
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, array,
@@ -223,13 +223,13 @@ BUILTIN(TypedArrayPrototypeIncludes) {
 
   int64_t index = 0;
   if (args.length() > 2) {
-    Handle<Object> num;
+    DirectHandle<Object> num;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, num, Object::ToInteger(isolate, args.at<Object>(2)));
     index = CapRelativeIndex(num, 0, len);
   }
 
-  Handle<Object> search_element = args.atOrUndefined(isolate, 1);
+  DirectHandle<Object> search_element = args.atOrUndefined(isolate, 1);
   ElementsAccessor* elements = array->GetElementsAccessor();
   Maybe<bool> result =
       elements->IncludesValue(isolate, array, search_element, index, len);
@@ -240,7 +240,7 @@ BUILTIN(TypedArrayPrototypeIncludes) {
 BUILTIN(TypedArrayPrototypeIndexOf) {
   HandleScope scope(isolate);
 
-  Handle<JSTypedArray> array;
+  DirectHandle<JSTypedArray> array;
   const char* method_name = "%TypedArray%.prototype.indexOf";
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, array,
@@ -251,7 +251,7 @@ BUILTIN(TypedArrayPrototypeIndexOf) {
 
   int64_t index = 0;
   if (args.length() > 2) {
-    Handle<Object> num;
+    DirectHandle<Object> num;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, num, Object::ToInteger(isolate, args.at<Object>(2)));
     index = CapRelativeIndex(num, 0, len);
@@ -263,7 +263,7 @@ BUILTIN(TypedArrayPrototypeIndexOf) {
     return Smi::FromInt(-1);
   }
 
-  Handle<Object> search_element = args.atOrUndefined(isolate, 1);
+  DirectHandle<Object> search_element = args.atOrUndefined(isolate, 1);
   ElementsAccessor* elements = array->GetElementsAccessor();
   Maybe<int64_t> result =
       elements->IndexOfValue(isolate, array, search_element, index, len);
@@ -274,7 +274,7 @@ BUILTIN(TypedArrayPrototypeIndexOf) {
 BUILTIN(TypedArrayPrototypeLastIndexOf) {
   HandleScope scope(isolate);
 
-  Handle<JSTypedArray> array;
+  DirectHandle<JSTypedArray> array;
   const char* method_name = "%TypedArray%.prototype.lastIndexOf";
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, array,
@@ -285,7 +285,7 @@ BUILTIN(TypedArrayPrototypeLastIndexOf) {
 
   int64_t index = len - 1;
   if (args.length() > 2) {
-    Handle<Object> num;
+    DirectHandle<Object> num;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, num, Object::ToInteger(isolate, args.at<Object>(2)));
     // Set a negative value (-1) for returning -1 if num is negative and
@@ -300,7 +300,7 @@ BUILTIN(TypedArrayPrototypeLastIndexOf) {
     return Smi::FromInt(-1);
   }
 
-  Handle<Object> search_element = args.atOrUndefined(isolate, 1);
+  DirectHandle<Object> search_element = args.atOrUndefined(isolate, 1);
   ElementsAccessor* elements = array->GetElementsAccessor();
   Maybe<int64_t> result =
       elements->LastIndexOfValue(array, search_element, index);
@@ -311,7 +311,7 @@ BUILTIN(TypedArrayPrototypeLastIndexOf) {
 BUILTIN(TypedArrayPrototypeReverse) {
   HandleScope scope(isolate);
 
-  Handle<JSTypedArray> array;
+  DirectHandle<JSTypedArray> array;
   const char* method_name = "%TypedArray%.prototype.reverse";
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, array,

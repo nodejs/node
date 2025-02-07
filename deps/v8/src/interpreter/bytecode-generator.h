@@ -73,7 +73,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitModuleDeclarations(Declaration::List* declarations);
   void VisitGlobalDeclarations(Declaration::List* declarations);
   void VisitDeclarations(Declaration::List* declarations);
-  void VisitStatements(const ZonePtrList<Statement>* statments);
+  void VisitStatements(const ZonePtrList<Statement>* statments, int start = 0);
 
  private:
   class AccumulatorPreservingScope;
@@ -202,10 +202,11 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void GenerateBaseConstructorBody();
   void GenerateDerivedConstructorBody();
   void GenerateAsyncFunctionBody();
+  void GenerateAsyncGeneratorFunctionBody();
 
   void GenerateBodyPrologue();
-  void GenerateBodyStatements();
-  void GenerateBodyStatementsWithoutImplicitFinalReturn();
+  void GenerateBodyStatements(int start = 0);
+  void GenerateBodyStatementsWithoutImplicitFinalReturn(int start = 0);
 
   template <typename IsolateT>
   void AllocateDeferredConstants(IsolateT* isolate, Handle<Script> script);

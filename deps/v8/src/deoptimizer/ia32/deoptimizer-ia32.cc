@@ -12,6 +12,8 @@ namespace internal {
 const int Deoptimizer::kEagerDeoptExitSize = 5;
 const int Deoptimizer::kLazyDeoptExitSize = 5;
 
+const int Deoptimizer::kAdaptShadowStackOffsetToSubtract = 0;
+
 // static
 void Deoptimizer::PatchJumpToTrampoline(Address pc, Address new_pc) {
   UNREACHABLE();

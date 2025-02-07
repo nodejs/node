@@ -41,9 +41,9 @@ class StoreImpl {
         reinterpret_cast<v8::Isolate*>(isolate)->GetData(0));
   }
 
-  void SetHostInfo(i::Handle<i::Object> object, void* info,
+  void SetHostInfo(i::DirectHandle<i::Object> object, void* info,
                    void (*finalizer)(void*));
-  void* GetHostInfo(i::Handle<i::Object> key);
+  void* GetHostInfo(i::DirectHandle<i::Object> key);
 
  private:
   friend own<Store> Store::make(Engine*);

@@ -262,7 +262,8 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
 
   template <bool can_be_invalid = false, typename T>
   V<T> MapToNewGraph(V<T> old_index, int predecessor_index = -1) {
-    return V<T>::Cast(MapToNewGraph(static_cast<OpIndex>(old_index), -1));
+    return V<T>::Cast(MapToNewGraph<can_be_invalid>(
+        static_cast<OpIndex>(old_index), predecessor_index));
   }
 
   Block* MapToNewGraph(const Block* block) const {
@@ -307,17 +308,19 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
     // loop, and we'll instead fall back to the slower code below to compute the
     // inputs of the Phi.
     int predecessor_index = predecessor_count - 1;
+    int old_index = static_cast<int>(old_inputs.size()) - 1;
     for (OpIndex input : base::Reversed(old_inputs)) {
       if (new_pred && new_pred->OriginForBlockEnd() == old_pred) {
         // Phis inputs have to come from predecessors. We thus have to
         // MapToNewGraph with {predecessor_index} so that we get an OpIndex that
         // is from a predecessor rather than one that comes from a Variable
         // merged in the current block.
-        new_inputs.push_back(map(input, predecessor_index));
+        new_inputs.push_back(map(input, predecessor_index, old_index));
         new_pred = new_pred->NeighboringPredecessor();
         predecessor_index--;
       }
       old_pred = old_pred->NeighboringPredecessor();
+      old_index--;
     }
     DCHECK_IMPLIES(new_pred == nullptr, old_pred == nullptr);
 
@@ -363,13 +366,14 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
            new_pred != nullptr; new_pred = new_pred->NeighboringPredecessor()) {
         const Block* origin = new_pred->OriginForBlockEnd();
         DCHECK_NOT_NULL(origin);
-        OpIndex input = old_inputs[origin->get_custom_data(
-            Block::CustomDataKind::kPhiInputIndex)];
+        old_index =
+            origin->get_custom_data(Block::CustomDataKind::kPhiInputIndex);
+        OpIndex input = old_inputs[old_index];
         // Phis inputs have to come from predecessors. We thus have to
         // MapToNewGraph with {predecessor_index} so that we get an OpIndex that
         // is from a predecessor rather than one that comes from a Variable
         // merged in the current block.
-        new_inputs.push_back(map(input, predecessor_index));
+        new_inputs.push_back(map(input, predecessor_index, old_index));
         predecessor_index--;
       }
     }
@@ -495,6 +499,7 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
 
   template <bool trace_reduction>
   void VisitBlock(const Block* input_block) {
+    if (tick_counter_) tick_counter_->TickAndMaybeEnterSafepoint();
     Asm().SetCurrentOrigin(OpIndex::Invalid());
     current_block_needs_variables_ =
         blocks_needing_variables_.Contains(input_block->index().id());
@@ -843,7 +848,7 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
   OpIndex AssembleOutputGraphPhi(const PhiOp& op) {
     return ResolvePhi(
         op,
-        [this](OpIndex ind, int predecessor_index) {
+        [this](OpIndex ind, int predecessor_index, int old_index = 0) {
           return MapToNewGraph(ind, predecessor_index);
         },
         op.rep);
@@ -967,6 +972,8 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
   }
 
   Graph& input_graph_;
+  OptimizedCompilationInfo* info_ = Asm().data()->info();
+  TickCounter* const tick_counter_ = info_ ? &info_->tick_counter() : nullptr;
 
   const Block* current_input_block_;
 

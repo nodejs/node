@@ -8,10 +8,10 @@
 #include "src/codegen/tick-counter.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/compiler-source-position-table.h"
-#include "src/compiler/graph.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/node-origin-table.h"
-#include "src/compiler/typer.h"
+#include "src/compiler/turbofan-graph.h"
+#include "src/compiler/turbofan-typer.h"
 #include "src/handles/handles.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -93,7 +93,7 @@ class GraphTest : public TestWithNativeContextAndZone {
     Graph graph_;
     JSHeapBroker broker_;
     JSHeapBrokerScopeForTesting broker_scope_;
-    std::unique_ptr<PersistentHandlesScope> persistent_scope_;
+    std::optional<PersistentHandlesScope> persistent_scope_;
     CurrentHeapBrokerScope current_broker_;
     SourcePositionTable source_positions_;
     NodeOriginTable node_origins_;

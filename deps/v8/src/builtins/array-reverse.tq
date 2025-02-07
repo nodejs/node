@@ -16,7 +16,7 @@ LoadElement<FixedDoubleArray, float64_or_hole>(
     implicit context: Context)(elements: FixedArrayBase,
     index: Smi): float64_or_hole {
   const elements: FixedDoubleArray = UnsafeCast<FixedDoubleArray>(elements);
-  return elements.floats[index];
+  return elements.values[index];
 }
 
 macro StoreElement<Elements : type extends FixedArrayBase, T: type>(
@@ -34,7 +34,7 @@ StoreElement<FixedDoubleArray, float64_or_hole>(
     implicit context: Context)(elements: FixedArrayBase, index: Smi,
     value: float64_or_hole): void {
   const elems: FixedDoubleArray = UnsafeCast<FixedDoubleArray>(elements);
-  elems.floats[index] = value;
+  elems.values[index] = value;
 }
 
 // Fast-path for all PACKED_* elements kinds. These do not need to check

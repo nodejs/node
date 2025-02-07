@@ -1587,11 +1587,7 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   break_instr_ = 0;
 
 // make sure our register type can hold exactly 4/8 bytes
-#ifdef V8_TARGET_ARCH_S390X
   DCHECK_EQ(sizeof(intptr_t), 8);
-#else
-  DCHECK_EQ(sizeof(intptr_t), 4);
-#endif
   // Set up architecture state.
   // All registers are initialized to zero to start with.
   for (int i = 0; i < kNumGPRs; i++) {
@@ -1734,15 +1730,7 @@ void Simulator::set_high_register(int reg, uint32_t value) {
 
 double Simulator::get_double_from_register_pair(int reg) {
   DCHECK((reg >= 0) && (reg < kNumGPRs) && ((reg % 2) == 0));
-
   double dm_val = 0.0;
-#if 0 && !V8_TARGET_ARCH_S390X  // doesn't make sense in 64bit mode
-  // Read the bits from the unsigned integer register_[] array
-  // into the double precision floating point value and return it.
-  char buffer[sizeof(fp_registers_[0])];
-  memcpy(buffer, &registers_[reg], 2 * sizeof(registers_[0]));
-  memcpy(&dm_val, buffer, 2 * sizeof(registers_[0]));
-#endif
   return (dm_val);
 }
 
@@ -1887,7 +1875,7 @@ uintptr_t Simulator::StackLimit(uintptr_t c_limit) const {
   return reinterpret_cast<uintptr_t>(stack_) + kStackProtectionSize;
 }
 
-base::Vector<uint8_t> Simulator::GetCurrentStackView() const {
+base::Vector<uint8_t> Simulator::GetCentralStackView() const {
   // We do not add an additional safety margin as above in
   // Simulator::StackLimit, as this is currently only used in wasm::StackMemory,
   // which adds its own margin.
@@ -2234,30 +2222,6 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
           }
           set_register(r2, result);
         }
-        // #if !V8_TARGET_ARCH_S390X
-        //         DCHECK(redirection->type() ==
-        //         ExternalReference::BUILTIN_CALL);
-        //         SimulatorRuntimeCall target =
-        //             reinterpret_cast<SimulatorRuntimeCall>(external);
-        //         int64_t result = target(arg[0], arg[1], arg[2], arg[3],
-        //         arg[4],
-        //                                 arg[5]);
-        //         int32_t lo_res = static_cast<int32_t>(result);
-        //         int32_t hi_res = static_cast<int32_t>(result >> 32);
-        // #if !V8_TARGET_LITTLE_ENDIAN
-        //         if (v8_flags.trace_sim) {
-        //           PrintF("Returned %08x\n", hi_res);
-        //         }
-        //         set_register(r2, hi_res);
-        //         set_register(r3, lo_res);
-        // #else
-        //         if (v8_flags.trace_sim) {
-        //           PrintF("Returned %08x\n", lo_res);
-        //         }
-        //         set_register(r2, lo_res);
-        //         set_register(r3, hi_res);
-        // #endif
-        // #else
         //         if (redirection->type() == ExternalReference::BUILTIN_CALL) {
         //           SimulatorRuntimeCall target =
         //             reinterpret_cast<SimulatorRuntimeCall>(external);
@@ -2287,15 +2251,9 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         //                sizeof(ObjectPair));
         // #endif
         //         }
-        // #endif
       }
       int64_t saved_lr = *reinterpret_cast<intptr_t*>(
           get_register(sp) + kStackFrameRASlot * kSystemPointerSize);
-#if (!V8_TARGET_ARCH_S390X && V8_HOST_ARCH_S390)
-      // On zLinux-31, the saved_lr might be tagged with a high bit of 1.
-      // Cleanse it before proceeding with simulation.
-      saved_lr &= 0x7FFFFFFF;
-#endif
       set_pc(saved_lr);
       break;
     }
@@ -2549,18 +2507,6 @@ void Simulator::CallInternal(Address entry, int reg_arg_count) {
   Execute();
 
 // Check that the non-volatile registers have been preserved.
-#ifndef V8_TARGET_ARCH_S390X
-  if (reg_arg_count < 5) {
-    DCHECK_EQ(callee_saved_value + 6, get_low_register<uint32_t>(r6));
-  }
-  DCHECK_EQ(callee_saved_value + 7, get_low_register<uint32_t>(r7));
-  DCHECK_EQ(callee_saved_value + 8, get_low_register<uint32_t>(r8));
-  DCHECK_EQ(callee_saved_value + 9, get_low_register<uint32_t>(r9));
-  DCHECK_EQ(callee_saved_value + 10, get_low_register<uint32_t>(r10));
-  DCHECK_EQ(callee_saved_value + 11, get_low_register<uint32_t>(r11));
-  DCHECK_EQ(callee_saved_value + 12, get_low_register<uint32_t>(r12));
-  DCHECK_EQ(callee_saved_value + 13, get_low_register<uint32_t>(r13));
-#else
   if (reg_arg_count < 5) {
     DCHECK_EQ(callee_saved_value + 6, get_register(r6));
   }
@@ -2571,7 +2517,6 @@ void Simulator::CallInternal(Address entry, int reg_arg_count) {
   DCHECK_EQ(callee_saved_value + 11, get_register(r11));
   DCHECK_EQ(callee_saved_value + 12, get_register(r12));
   DCHECK_EQ(callee_saved_value + 13, get_register(r13));
-#endif
 
   // Restore non-volatile registers with the original value.
   set_register(r6, r6_val);
@@ -2660,18 +2605,6 @@ intptr_t Simulator::CallImpl(Address entry, int argument_count,
   Execute();
 
 // Check that the non-volatile registers have been preserved.
-#ifndef V8_TARGET_ARCH_S390X
-  if (reg_arg_count < 5) {
-    DCHECK_EQ(callee_saved_value + 6, get_low_register<uint32_t>(r6));
-  }
-  DCHECK_EQ(callee_saved_value + 7, get_low_register<uint32_t>(r7));
-  DCHECK_EQ(callee_saved_value + 8, get_low_register<uint32_t>(r8));
-  DCHECK_EQ(callee_saved_value + 9, get_low_register<uint32_t>(r9));
-  DCHECK_EQ(callee_saved_value + 10, get_low_register<uint32_t>(r10));
-  DCHECK_EQ(callee_saved_value + 11, get_low_register<uint32_t>(r11));
-  DCHECK_EQ(callee_saved_value + 12, get_low_register<uint32_t>(r12));
-  DCHECK_EQ(callee_saved_value + 13, get_low_register<uint32_t>(r13));
-#else
   if (reg_arg_count < 5) {
     DCHECK_EQ(callee_saved_value + 6, get_register(r6));
   }
@@ -2682,7 +2615,6 @@ intptr_t Simulator::CallImpl(Address entry, int argument_count,
   DCHECK_EQ(callee_saved_value + 11, get_register(r11));
   DCHECK_EQ(callee_saved_value + 12, get_register(r12));
   DCHECK_EQ(callee_saved_value + 13, get_register(r13));
-#endif
 
   // Restore non-volatile registers with the original value.
   set_register(r6, r6_val);
@@ -2695,11 +2627,7 @@ intptr_t Simulator::CallImpl(Address entry, int argument_count,
   set_register(r13, r13_val);
   // Pop stack passed arguments.
 
-#ifndef V8_TARGET_ARCH_S390X
-  DCHECK_EQ(entry_stack, get_low_register<uint32_t>(sp));
-#else
   DCHECK_EQ(entry_stack, get_register(sp));
-#endif
   set_register(sp, original_stack);
 
   // Return value register
@@ -4261,12 +4189,13 @@ EVALUATE(VFD) {
   return length;
 }
 
-#define VECTOR_FP_MULTIPLY_QFMS_OPERATION(type, op, sign, first_lane_only) \
+#define VECTOR_FP_MULTIPLY_QFMS_OPERATION(type, op, sign, first_lane_only, \
+                                          function)                        \
   for (size_t i = 0, j = 0; j < kSimd128Size; i++, j += sizeof(type)) {    \
     type src0 = get_simd_register_by_lane<type>(r2, i);                    \
     type src1 = get_simd_register_by_lane<type>(r3, i);                    \
     type src2 = get_simd_register_by_lane<type>(r4, i);                    \
-    type result = sign * (src0 * src1 op src2);                            \
+    type result = sign * function(src0, src1, op src2);                    \
     if (isinf(src0)) result = src0;                                        \
     if (isinf(src1)) result = src1;                                        \
     if (isinf(src2)) result = src2;                                        \
@@ -4274,28 +4203,28 @@ EVALUATE(VFD) {
     if (first_lane_only) break;                                            \
   }
 
-#define VECTOR_FP_MULTIPLY_QFMS(op, sign)                          \
-  switch (m6) {                                                    \
-    case 2:                                                        \
-      DCHECK(CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1)); \
-      if (m5 == 8) {                                               \
-        VECTOR_FP_MULTIPLY_QFMS_OPERATION(float, op, sign, true)   \
-      } else {                                                     \
-        DCHECK_EQ(m5, 0);                                          \
-        VECTOR_FP_MULTIPLY_QFMS_OPERATION(float, op, sign, false)  \
-      }                                                            \
-      break;                                                       \
-    case 3:                                                        \
-      if (m5 == 8) {                                               \
-        VECTOR_FP_MULTIPLY_QFMS_OPERATION(double, op, sign, true)  \
-      } else {                                                     \
-        DCHECK_EQ(m5, 0);                                          \
-        VECTOR_FP_MULTIPLY_QFMS_OPERATION(double, op, sign, false) \
-      }                                                            \
-      break;                                                       \
-    default:                                                       \
-      UNREACHABLE();                                               \
-      break;                                                       \
+#define VECTOR_FP_MULTIPLY_QFMS(op, sign)                               \
+  switch (m6) {                                                         \
+    case 2:                                                             \
+      DCHECK(CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1));      \
+      if (m5 == 8) {                                                    \
+        VECTOR_FP_MULTIPLY_QFMS_OPERATION(float, op, sign, true, fmaf)  \
+      } else {                                                          \
+        DCHECK_EQ(m5, 0);                                               \
+        VECTOR_FP_MULTIPLY_QFMS_OPERATION(float, op, sign, false, fmaf) \
+      }                                                                 \
+      break;                                                            \
+    case 3:                                                             \
+      if (m5 == 8) {                                                    \
+        VECTOR_FP_MULTIPLY_QFMS_OPERATION(double, op, sign, true, fma)  \
+      } else {                                                          \
+        DCHECK_EQ(m5, 0);                                               \
+        VECTOR_FP_MULTIPLY_QFMS_OPERATION(double, op, sign, false, fma) \
+      }                                                                 \
+      break;                                                            \
+    default:                                                            \
+      UNREACHABLE();                                                    \
+      break;                                                            \
   }
 
 EVALUATE(VFMA) {
@@ -4985,12 +4914,6 @@ EVALUATE(BCR) {
   DECODE_RR_INSTRUCTION(r1, r2);
   if (TestConditionCode(Condition(r1))) {
     intptr_t r2_val = get_register(r2);
-#if (!V8_TARGET_ARCH_S390X && V8_HOST_ARCH_S390)
-    // On 31-bit, the top most bit may be 0 or 1, but is ignored by the
-    // hardware.  Cleanse the top bit before jumping to it, unless it's one
-    // of the special PCs
-    if (r2_val != bad_lr && r2_val != end_sim_pc) r2_val &= 0x7FFFFFFF;
-#endif
     set_pc(r2_val);
   }
 
@@ -5021,14 +4944,6 @@ EVALUATE(BASR) {
   intptr_t link_addr = get_pc() + 2;
   // If R2 is zero, the BASR does not branch.
   int64_t r2_val = (r2 == 0) ? link_addr : get_register(r2);
-#if (!V8_TARGET_ARCH_S390X && V8_HOST_ARCH_S390)
-  // On 31-bit, the top most bit may be 0 or 1, which can cause issues
-  // for stackwalker.  The top bit should either be cleanse before being
-  // pushed onto the stack, or during stack walking when dereferenced.
-  // For simulator, we'll take the worst case scenario and always tag
-  // the high bit, to flush out more problems.
-  link_addr |= 0x80000000;
-#endif
   set_register(r1, link_addr);
   set_pc(r2_val);
   return length;
@@ -6575,10 +6490,6 @@ EVALUATE(MSFI) {
 
 EVALUATE(SLGFI) {
   DCHECK_OPCODE(SLGFI);
-#ifndef V8_TARGET_ARCH_S390X
-  // should only be called on 64bit
-  DCHECK(false);
-#endif
   DECODE_RIL_A_INSTRUCTION(r1, i2);
   uint64_t r1_val = (uint64_t)(get_register(r1));
   uint64_t alu_out;
@@ -6631,10 +6542,6 @@ EVALUATE(AFI) {
 
 EVALUATE(ALGFI) {
   DCHECK_OPCODE(ALGFI);
-#ifndef V8_TARGET_ARCH_S390X
-  // should only be called on 64bit
-  DCHECK(false);
-#endif
   DECODE_RIL_A_INSTRUCTION(r1, i2);
   uint64_t r1_val = (uint64_t)(get_register(r1));
   uint64_t alu_out;
@@ -8281,11 +8188,7 @@ EVALUATE(LCGR) {
   int64_t r2_val = get_register(r2);
   int64_t result = 0;
   bool isOF = false;
-#ifdef V8_TARGET_ARCH_S390X
   isOF = __builtin_ssubl_overflow(0L, r2_val, &result);
-#else
-  isOF = __builtin_ssubll_overflow(0L, r2_val, &result);
-#endif
   set_register(r1, result);
   SetS390ConditionCode<int64_t>(result, 0);
   if (isOF) {
@@ -8778,7 +8681,6 @@ EVALUATE(MLG) {
 
 EVALUATE(DLGR) {
   DCHECK_OPCODE(DLGR);
-#ifdef V8_TARGET_ARCH_S390X
   DECODE_RRE_INSTRUCTION(r1, r2);
   uint64_t r1_val = get_register(r1);
   uint64_t r2_val = get_register(r2);
@@ -8790,11 +8692,6 @@ EVALUATE(DLGR) {
   set_register(r1, remainder);
   set_register(r1 + 1, quotient);
   return length;
-#else
-  // 32 bit arch doesn't support __int128 type
-  USE(instr);
-  UNREACHABLE();
-#endif
 }
 
 EVALUATE(ALCGR) {
@@ -9308,9 +9205,6 @@ EVALUATE(SG) {
 
 EVALUATE(ALG) {
   DCHECK_OPCODE(ALG);
-#ifndef V8_TARGET_ARCH_S390X
-  DCHECK(false);
-#endif
   DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
   uint64_t r1_val = get_register(r1);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
@@ -9326,9 +9220,6 @@ EVALUATE(ALG) {
 
 EVALUATE(SLG) {
   DCHECK_OPCODE(SLG);
-#ifndef V8_TARGET_ARCH_S390X
-  DCHECK(false);
-#endif
   DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
   uint64_t r1_val = get_register(r1);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
@@ -9985,7 +9876,6 @@ EVALUATE(LGAT) {
 
 EVALUATE(DLG) {
   DCHECK_OPCODE(DLG);
-#ifdef V8_TARGET_ARCH_S390X
   DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
   uint64_t r1_val = get_register(r1);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
@@ -9999,11 +9889,6 @@ EVALUATE(DLG) {
   set_register(r1, remainder);
   set_register(r1 + 1, quotient);
   return length;
-#else
-  // 32 bit arch doesn't support __int128 type
-  USE(instr);
-  UNREACHABLE();
-#endif
 }
 
 EVALUATE(ALCG) {

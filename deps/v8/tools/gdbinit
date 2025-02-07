@@ -108,6 +108,16 @@ Print a v8 Code object from an internal code address
 Usage: jco pc
 end
 
+# Print JSDispatchEntry object in the JSDispatchTable with the given dispatch handle
+define jdh
+  call (void) _v8_internal_Print_Dispatch_Handle((uint32_t)($arg0))
+end
+document jdh
+Print JSDispatchEntry object in the JSDispatchTable with the given dispatch handle
+Usage: jdh dispatch_handle
+end
+
+
 # Print Code objects assembly code surrounding given PC.
 define jca
   if $argc == 0
@@ -309,15 +319,21 @@ def v8_stop_handler(event):
     # walk if we see this frame.
     if frame.type() == gdb.DUMMY_FRAME: break
 
-    if frame.name() == 'V8_Dcheck':
-      frame_message = gdb.lookup_symbol('message', frame.block())[0]
-      if frame_message:
-        message = frame_message.value(frame).string()
+    frame_name = frame.name()
+    if frame_name is None:
+      frame = frame.older()
+      continue
+    if frame_name == 'V8_Dcheck' or frame_name.endswith('::DefaultDcheckHandler'):
+      try:
+        frame_message = gdb.lookup_symbol('message', frame.block())[0]
+        if frame_message:
+          message = frame_message.value(frame).string()
+      except:
+        pass
       select_frame = frame.older()
-      break
-    if frame.name() is not None and frame.name().startswith('V8_Fatal'):
+    if frame_name.startswith('V8_Fatal'):
       select_frame = frame.older()
-    if frame.name() == 'v8::base::OS::DebugBreak':
+    if frame_name == 'v8::base::OS::DebugBreak':
       select_frame = frame.older()
     frame = frame.older()
 
@@ -325,7 +341,7 @@ def v8_stop_handler(event):
     select_frame.select()
     gdb.execute('frame')
     if message:
-      print('DCHECK error: {}'.format(message))
+      print('==> DCHECK error: {}'.format(message))
 
 gdb.events.stop.connect(v8_stop_handler)
 end

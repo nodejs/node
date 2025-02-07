@@ -894,7 +894,11 @@ TEST(StringViewTest, NULLInput) {
   EXPECT_EQ(s.size(), 0u);
 
 #ifdef ABSL_HAVE_STRING_VIEW_FROM_NULLPTR
-  s = absl::string_view(nullptr);
+  // The `str` parameter is annotated nonnull, but we want to test the defensive
+  // null check. Use a variable instead of passing nullptr directly to avoid a
+  // `-Wnonnull` warning.
+  char* null_str = nullptr;
+  s = absl::string_view(null_str);
   EXPECT_EQ(s.data(), nullptr);
   EXPECT_EQ(s.size(), 0u);
 
@@ -1076,8 +1080,21 @@ TEST(StringViewTest, ConstexprNullSafeStringView) {
 
 TEST(StringViewTest, ConstexprCompiles) {
   constexpr absl::string_view sp;
+  // With `-Wnonnull` turned on, there is no way to test the defensive null
+  // check in the `string_view(const char*)` constructor in a constexpr context,
+  // as the argument needs to be constexpr. The compiler will therefore always
+  // know at compile time that the argument is nullptr and complain because the
+  // parameter is annotated nonnull. We hence turn the warning off for this
+  // test.
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wnonnull"
+#endif
 #ifdef ABSL_HAVE_STRING_VIEW_FROM_NULLPTR
   constexpr absl::string_view cstr(nullptr);
+#endif
+#if defined(__clang__)
+#pragma clang diagnostic pop
 #endif
   constexpr absl::string_view cstr_len("cstr", 4);
 

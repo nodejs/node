@@ -26,7 +26,7 @@ let glob_b = 3.35;
 
   %PrepareFunctionForOptimization(write);
   // Write the same value. This won't invalidate the constness.
-  write(0, 2.25);
+  write(0, 2.2);
   glob_b = 3.35;
   assertEquals(3.35, read());
 

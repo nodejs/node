@@ -286,7 +286,7 @@ RegExpCompiler::CompilationResult RegExpCompiler::Assemble(
     return CompilationResult::RegExpTooBig();
   }
 
-  Handle<HeapObject> code = macro_assembler_->GetCode(pattern);
+  Handle<HeapObject> code = macro_assembler_->GetCode(pattern, flags_);
   isolate->IncreaseTotalRegexpCodeGenerated(code);
   work_list_ = nullptr;
 
@@ -400,9 +400,6 @@ void Trace::PerformDeferredActions(RegExpMacroAssembler* assembler,
                                    DynamicBitSet* registers_to_pop,
                                    DynamicBitSet* registers_to_clear,
                                    Zone* zone) {
-  // The "+1" is to avoid a push_limit of zero if stack_limit_slack() is 1.
-  const int push_limit = (assembler->stack_limit_slack() + 1) / 2;
-
   // Count pushes performed to force a stack limit check occasionally.
   int pushes = 0;
 
@@ -496,7 +493,8 @@ void Trace::PerformDeferredActions(RegExpMacroAssembler* assembler,
       pushes++;
       RegExpMacroAssembler::StackCheckFlag stack_check =
           RegExpMacroAssembler::kNoStackLimitCheck;
-      if (pushes == push_limit) {
+      DCHECK_GT(assembler->stack_limit_slack_slot_count(), 0);
+      if (pushes == assembler->stack_limit_slack_slot_count()) {
         stack_check = RegExpMacroAssembler::kCheckStackLimit;
         pushes = 0;
       }
@@ -1442,11 +1440,19 @@ void ActionNode::GetQuickCheckDetails(QuickCheckDetails* details,
     // We don't use the node after a positive submatch success because it
     // rewinds the position.  Since we returned 0 as the eats_at_least value
     // for this node, we don't need to fill in any data.
+    std::optional<RegExpFlags> old_flags;
     if (action_type() == MODIFY_FLAGS) {
+      // It is not guaranteed that we hit the resetting modify flags node, as
+      // GetQuickCheckDetails doesn't travers the whole graph. Therefore we
+      // reset the flags manually to the previous state after recursing.
+      old_flags = compiler->flags();
       compiler->set_flags(flags());
     }
     on_success()->GetQuickCheckDetails(details, compiler, filled_in,
                                        not_at_start);
+    if (old_flags.has_value()) {
+      compiler->set_flags(*old_flags);
+    }
   }
 }
 
@@ -1497,7 +1503,7 @@ bool QuickCheckDetails::Rationalize(bool asc) {
   return found_useful_op;
 }
 
-int RegExpNode::EatsAtLeast(bool not_at_start) {
+uint32_t RegExpNode::EatsAtLeast(bool not_at_start) {
   return not_at_start ? eats_at_least_.eats_at_least_from_not_start
                       : eats_at_least_.eats_at_least_from_possibly_start;
 }
@@ -1536,10 +1542,13 @@ EatsAtLeastInfo LoopChoiceNode::EatsAtLeastFromLoopEntry() {
   // successful match in the loop body must also include the continuation node.
   // However, in some cases involving positive lookaround, the loop body under-
   // reports its appetite, so use saturated math here to avoid negative numbers.
+  // For this to work correctly, we explicitly need to use signed integers here.
   uint8_t loop_body_from_not_start = base::saturated_cast<uint8_t>(
-      loop_node_->EatsAtLeast(true) - continue_node_->EatsAtLeast(true));
+      static_cast<int>(loop_node_->EatsAtLeast(true)) -
+      static_cast<int>(continue_node_->EatsAtLeast(true)));
   uint8_t loop_body_from_possibly_start = base::saturated_cast<uint8_t>(
-      loop_node_->EatsAtLeast(false) - continue_node_->EatsAtLeast(true));
+      static_cast<int>(loop_node_->EatsAtLeast(false)) -
+      static_cast<int>(continue_node_->EatsAtLeast(true)));
 
   // Limit the number of loop iterations to avoid overflow in subsequent steps.
   int loop_iterations = base::saturated_cast<uint8_t>(min_loop_iterations());
@@ -4069,6 +4078,11 @@ RegExpNode* RegExpCompiler::PreprocessRegExp(RegExpCompileData* data,
   }
 
   if (node == nullptr) node = zone()->New<EndNode>(EndNode::BACKTRACK, zone());
+  // We can run out of registers during preprocessing. Indicate an error in case
+  // we do.
+  if (reg_exp_too_big_) {
+    data->error = RegExpError::kTooLarge;
+  }
   return node;
 }
 

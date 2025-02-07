@@ -8,7 +8,7 @@
 #include <optional>
 
 #include "src/compiler/heap-refs.h"
-#include "src/compiler/types.h"
+#include "src/compiler/turbofan-types.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -67,7 +67,8 @@ class PropertyAccessInfo final {
     kFastAccessorConstant,
     kDictionaryProtoAccessorConstant,
     kModuleExport,
-    kStringLength
+    kStringLength,
+    kStringWrapperLength
   };
 
   static PropertyAccessInfo NotFound(Zone* zone, MapRef receiver_map,
@@ -90,6 +91,8 @@ class PropertyAccessInfo final {
   static PropertyAccessInfo ModuleExport(Zone* zone, MapRef receiver_map,
                                          CellRef cell);
   static PropertyAccessInfo StringLength(Zone* zone, MapRef receiver_map);
+  static PropertyAccessInfo StringWrapperLength(Zone* zone,
+                                                MapRef receiver_map);
   static PropertyAccessInfo Invalid(Zone* zone);
   static PropertyAccessInfo DictionaryProtoDataConstant(
       Zone* zone, MapRef receiver_map, JSObjectRef holder,
@@ -112,6 +115,7 @@ class PropertyAccessInfo final {
   }
   bool IsModuleExport() const { return kind() == kModuleExport; }
   bool IsStringLength() const { return kind() == kStringLength; }
+  bool IsStringWrapperLength() const { return kind() == kStringWrapperLength; }
   bool IsDictionaryProtoDataConstant() const {
     return kind() == kDictionaryProtoDataConstant;
   }

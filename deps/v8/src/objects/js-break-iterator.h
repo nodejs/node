@@ -32,8 +32,9 @@ class JSV8BreakIterator
     : public TorqueGeneratedJSV8BreakIterator<JSV8BreakIterator, JSObject> {
  public:
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSV8BreakIterator> New(
-      Isolate* isolate, DirectHandle<Map> map, Handle<Object> input_locales,
-      Handle<Object> input_options, const char* service);
+      Isolate* isolate, DirectHandle<Map> map,
+      DirectHandle<Object> input_locales, DirectHandle<Object> input_options,
+      const char* service);
 
   static Handle<JSObject> ResolvedOptions(
       Isolate* isolate, DirectHandle<JSV8BreakIterator> break_iterator);
@@ -42,7 +43,7 @@ class JSV8BreakIterator
 
   static void AdoptText(Isolate* isolate,
                         DirectHandle<JSV8BreakIterator> break_iterator,
-                        Handle<String> text);
+                        DirectHandle<String> text);
 
   static Handle<Object> Current(Isolate* isolate,
                                 DirectHandle<JSV8BreakIterator> break_iterator);

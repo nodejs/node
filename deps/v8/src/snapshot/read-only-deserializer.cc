@@ -201,7 +201,6 @@ class ObjectPostProcessor final {
 
   void Finalize() {
 #ifdef V8_ENABLE_SANDBOX
-    DCHECK(ReadOnlyHeap::IsReadOnlySpaceShared());
     std::vector<ReadOnlyArtifacts::ExternalPointerRegistryEntry> registry;
     registry.reserve(external_pointer_slots_.size());
     for (auto& slot : external_pointer_slots_) {
@@ -327,9 +326,9 @@ void ReadOnlyDeserializer::PostProcessNewObjects() {
       if (InstanceTypeChecker::IsString(instance_type)) {
         Tagged<String> str = Cast<String>(o);
         str->set_raw_hash_field(Name::kEmptyHashField);
-        PushObjectToRehash(handle(str, isolate()));
+        PushObjectToRehash(direct_handle(str, isolate()));
       } else if (o->NeedsRehashing(instance_type)) {
-        PushObjectToRehash(handle(o, isolate()));
+        PushObjectToRehash(direct_handle(o, isolate()));
       }
     }
 

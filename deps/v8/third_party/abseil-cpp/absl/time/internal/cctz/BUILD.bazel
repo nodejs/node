@@ -156,12 +156,12 @@ cc_test(
     ],
 )
 
+### examples
+
+### binaries
+
 filegroup(
     name = "zoneinfo",
     srcs = glob(["testdata/zoneinfo/**"]),
     visibility = ["//absl/time:__subpackages__"],
 )
-
-### examples
-
-### binaries

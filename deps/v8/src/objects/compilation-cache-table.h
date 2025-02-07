@@ -138,13 +138,13 @@ class CompilationCacheTable
   static InfoCellPair LookupEval(DirectHandle<CompilationCacheTable> table,
                                  Handle<String> src,
                                  Handle<SharedFunctionInfo> shared,
-                                 DirectHandle<Context> native_context,
+                                 DirectHandle<NativeContext> native_context,
                                  LanguageMode language_mode, int position);
   static Handle<CompilationCacheTable> PutEval(
       Handle<CompilationCacheTable> cache, Handle<String> src,
       Handle<SharedFunctionInfo> outer_info,
       DirectHandle<SharedFunctionInfo> value,
-      DirectHandle<Context> native_context,
+      DirectHandle<NativeContext> native_context,
       DirectHandle<FeedbackCell> feedback_cell, int position);
 
   // The RegExp cache contains RegExpData objects.
@@ -170,9 +170,6 @@ class CompilationCacheTable
  private:
   static Handle<CompilationCacheTable> EnsureScriptTableCapacity(
       Isolate* isolate, Handle<CompilationCacheTable> cache);
-
-  OBJECT_CONSTRUCTORS(CompilationCacheTable,
-                      HashTable<CompilationCacheTable, CompilationCacheShape>);
 };
 
 }  // namespace internal

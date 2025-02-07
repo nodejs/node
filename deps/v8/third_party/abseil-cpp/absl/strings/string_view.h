@@ -200,13 +200,12 @@ class ABSL_ATTRIBUTE_VIEW string_view {
       absl::Nonnull<const char*> str)
       : ptr_(str), length_(str ? StrlenInternal(str) : 0) {}
 
-  // Implicit constructor of a `string_view` from a `const char*` and length.
+  // Constructor of a `string_view` from a `const char*` and length.
   constexpr string_view(absl::Nullable<const char*> data, size_type len)
       : ptr_(data), length_(CheckLengthInternal(len)) {}
 
-  // NOTE: Harmlessly omitted to work around gdb bug.
-  //   constexpr string_view(const string_view&) noexcept = default;
-  //   string_view& operator=(const string_view&) noexcept = default;
+  constexpr string_view(const string_view&) noexcept = default;
+  string_view& operator=(const string_view&) noexcept = default;
 
   // Iterators
 
@@ -302,11 +301,10 @@ class ABSL_ATTRIBUTE_VIEW string_view {
   // and an exception of type `std::out_of_range` will be thrown on invalid
   // access.
   constexpr const_reference at(size_type i) const {
-    return ABSL_PREDICT_TRUE(i < size())
-               ? ptr_[i]
-               : ((void)base_internal::ThrowStdOutOfRange(
-                      "absl::string_view::at"),
-                  ptr_[i]);
+    if (ABSL_PREDICT_FALSE(i >= size())) {
+      base_internal::ThrowStdOutOfRange("absl::string_view::at");
+    }
+    return ptr_[i];
   }
 
   // string_view::front()
@@ -394,11 +392,10 @@ class ABSL_ATTRIBUTE_VIEW string_view {
   // `pos > size`.
   // Use absl::ClippedSubstr if you need a truncating substr operation.
   constexpr string_view substr(size_type pos = 0, size_type n = npos) const {
-    return ABSL_PREDICT_FALSE(pos > length_)
-               ? (base_internal::ThrowStdOutOfRange(
-                      "absl::string_view::substr"),
-                  string_view())
-               : string_view(ptr_ + pos, Min(n, length_ - pos));
+    if (ABSL_PREDICT_FALSE(pos > length_)) {
+      base_internal::ThrowStdOutOfRange("absl::string_view::substr");
+    }
+    return string_view(ptr_ + pos, Min(n, length_ - pos));
   }
 
   // string_view::compare()

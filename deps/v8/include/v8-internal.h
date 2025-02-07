@@ -44,7 +44,10 @@ class Isolate;
 namespace internal {
 
 class Heap;
+class LocalHeap;
 class Isolate;
+class IsolateGroup;
+class LocalIsolate;
 
 typedef uintptr_t Address;
 static constexpr Address kNullAddress = 0;
@@ -160,15 +163,15 @@ struct SmiTagging<8> {
                                                std::is_signed_v<T>>* = nullptr>
   V8_INLINE static constexpr bool IsValidSmi(T value) {
     // To be representable as a long smi, the value must be a 32-bit integer.
-    return (value == static_cast<int32_t>(value));
+    return std::numeric_limits<int32_t>::min() <= value &&
+           value <= std::numeric_limits<int32_t>::max();
   }
 
   template <class T,
             typename std::enable_if_t<std::is_integral_v<T> &&
                                       std::is_unsigned_v<T>>* = nullptr>
   V8_INLINE static constexpr bool IsValidSmi(T value) {
-    return (static_cast<uintptr_t>(value) ==
-            static_cast<uintptr_t>(static_cast<int32_t>(value)));
+    return value <= std::numeric_limits<int32_t>::max();
   }
 };
 
@@ -234,10 +237,6 @@ using SandboxedPointer_t = Address;
 // virtual address space for userspace. As such, limit the sandbox to 128GB (a
 // quarter of the total available address space).
 constexpr size_t kSandboxSizeLog2 = 37;  // 128 GB
-#elif defined(V8_TARGET_ARCH_LOONG64)
-// Some Linux distros on LoongArch64 configured with only 40 bits of virtual
-// address space for userspace. Limit the sandbox to 256GB here.
-constexpr size_t kSandboxSizeLog2 = 38;  // 256 GB
 #else
 // Everywhere else use a 1TB sandbox.
 constexpr size_t kSandboxSizeLog2 = 40;  // 1 TB
@@ -258,9 +257,12 @@ constexpr size_t kSandboxAlignment = kPtrComprCageBaseAlignment;
 constexpr uint64_t kSandboxedPointerShift = 64 - kSandboxSizeLog2;
 
 // Size of the guard regions surrounding the sandbox. This assumes a worst-case
-// scenario of a 32-bit unsigned index used to access an array of 64-bit
-// values.
-constexpr size_t kSandboxGuardRegionSize = 32ULL * GB;
+// scenario of a 32-bit unsigned index used to access an array of 64-bit values
+// with an additional 4GB (compressed pointer) offset. In particular, accesses
+// to TypedArrays are effectively computed as
+// `entry_pointer = array->base + array->offset + index * array->element_size`.
+// See also https://crbug.com/40070746 for more details.
+constexpr size_t kSandboxGuardRegionSize = 32ULL * GB + 4ULL * GB;
 
 static_assert((kSandboxGuardRegionSize % kSandboxAlignment) == 0,
               "The size of the guard regions around the sandbox must be a "
@@ -402,48 +404,6 @@ static_assert((1 << (32 - kCppHeapPointerIndexShift)) == kMaxCppHeapPointers,
 constexpr size_t kMaxCppHeapPointers = 0;
 
 #endif  // V8_COMPRESS_POINTERS
-
-// See `ExternalPointerHandle` for the main documentation. The difference to
-// `ExternalPointerHandle` is that the handle always refers to a
-// (external pointer, size) tuple. The handles are used in combination with a
-// dedicated external buffer table (EBT).
-using ExternalBufferHandle = uint32_t;
-
-// ExternalBuffer point to buffer located outside the sandbox. When the V8
-// sandbox is enabled, these are stored on heap as ExternalBufferHandles,
-// otherwise they are simply raw pointers.
-#ifdef V8_ENABLE_SANDBOX
-using ExternalBuffer_t = ExternalBufferHandle;
-#else
-using ExternalBuffer_t = Address;
-#endif
-
-#ifdef V8_TARGET_OS_ANDROID
-// The size of the virtual memory reservation for the external buffer table.
-// As with the external pointer table, a maximum table size in combination with
-// shifted indices allows omitting bounds checks.
-constexpr size_t kExternalBufferTableReservationSize = 64 * MB;
-
-// The external buffer handles are stores shifted to the left by this amount
-// to guarantee that they are smaller than the maximum table size.
-constexpr uint32_t kExternalBufferHandleShift = 10;
-#else
-constexpr size_t kExternalBufferTableReservationSize = 128 * MB;
-constexpr uint32_t kExternalBufferHandleShift = 9;
-#endif  // V8_TARGET_OS_ANDROID
-
-// A null handle always references an entry that contains nullptr.
-constexpr ExternalBufferHandle kNullExternalBufferHandle = 0;
-
-// The maximum number of entries in an external buffer table.
-constexpr int kExternalBufferTableEntrySize = 16;
-constexpr int kExternalBufferTableEntrySizeLog2 = 4;
-constexpr size_t kMaxExternalBufferPointers =
-    kExternalBufferTableReservationSize / kExternalBufferTableEntrySize;
-static_assert((1 << (32 - kExternalBufferHandleShift)) ==
-                  kMaxExternalBufferPointers,
-              "kExternalBufferTableReservationSize and "
-              "kExternalBufferHandleShift don't match");
 
 //
 // External Pointers.
@@ -822,29 +782,6 @@ constexpr bool kAllCodeObjectsLiveInTrustedSpace =
     kRuntimeGeneratedCodeObjectsLiveInTrustedSpace &&
     kBuiltinCodeObjectsLiveInTrustedSpace;
 
-//
-// JavaScript Dispatch Table
-//
-// A JSDispatchHandle represents a 32-bit index into a JSDispatchTable.
-using JSDispatchHandle = uint32_t;
-
-constexpr JSDispatchHandle kNullJSDispatchHandle = 0;
-
-// The size of the virtual memory reservation for the JSDispatchTable.
-// As with the other tables, a maximum table size in combination with shifted
-// indices allows omitting bounds checks.
-constexpr size_t kJSDispatchTableReservationSize = 128 * MB;
-constexpr uint32_t kJSDispatchHandleShift = 9;
-
-// The maximum number of entries in a JSDispatchTable.
-constexpr int kJSDispatchTableEntrySize = 16;
-constexpr int kJSDispatchTableEntrySizeLog2 = 4;
-constexpr size_t kMaxJSDispatchEntries =
-    kJSDispatchTableReservationSize / kJSDispatchTableEntrySize;
-static_assert((1 << (32 - kJSDispatchHandleShift)) == kMaxJSDispatchEntries,
-              "kJSDispatchTableReservationSize and kJSDispatchEntryHandleShift "
-              "don't match");
-
 // {obj} must be the raw tagged pointer representation of a HeapObject
 // that's guaranteed to never be in ReadOnlySpace.
 V8_EXPORT internal::Isolate* IsolateFromNeverReadOnlySpaceObject(Address obj);
@@ -902,6 +839,7 @@ class Internals {
   static const int kNumberOfBooleanFlags = 6;
   static const int kErrorMessageParamSize = 1;
   static const int kTablesAlignmentPaddingSize = 1;
+  static const int kRegExpStaticResultOffsetsVectorSize = kApiSystemPointerSize;
   static const int kBuiltinTier0EntryTableSize = 7 * kApiSystemPointerSize;
   static const int kBuiltinTier0TableSize = 7 * kApiSystemPointerSize;
   static const int kLinearAllocationAreaSize = 3 * kApiSystemPointerSize;
@@ -912,7 +850,6 @@ class Internals {
   // ExternalPointerTable and TrustedPointerTable layout guarantees.
   static const int kExternalPointerTableBasePointerOffset = 0;
   static const int kExternalPointerTableSize = 2 * kApiSystemPointerSize;
-  static const int kExternalBufferTableSize = 2 * kApiSystemPointerSize;
   static const int kTrustedPointerTableSize = 2 * kApiSystemPointerSize;
   static const int kTrustedPointerTableBasePointerOffset = 0;
 
@@ -924,9 +861,9 @@ class Internals {
       kIsolateStackGuardOffset + kStackGuardSize;
   static const int kErrorMessageParamOffset =
       kVariousBooleanFlagsOffset + kNumberOfBooleanFlags;
-  static const int kBuiltinTier0EntryTableOffset = kErrorMessageParamOffset +
-                                                   kErrorMessageParamSize +
-                                                   kTablesAlignmentPaddingSize;
+  static const int kBuiltinTier0EntryTableOffset =
+      kErrorMessageParamOffset + kErrorMessageParamSize +
+      kTablesAlignmentPaddingSize + kRegExpStaticResultOffsetsVectorSize;
   static const int kBuiltinTier0TableOffset =
       kBuiltinTier0EntryTableOffset + kBuiltinTier0EntryTableSize;
   static const int kNewAllocationInfoOffset =
@@ -935,7 +872,8 @@ class Internals {
       kNewAllocationInfoOffset + kLinearAllocationAreaSize;
 
   static const int kFastCCallAlignmentPaddingSize =
-      kApiSystemPointerSize == 8 ? 0 : kApiSystemPointerSize;
+      kApiSystemPointerSize == 8 ? 5 * kApiSystemPointerSize
+                                 : 1 * kApiSystemPointerSize;
   static const int kIsolateFastCCallCallerFpOffset =
       kOldAllocationInfoOffset + kLinearAllocationAreaSize +
       kFastCCallAlignmentPaddingSize;
@@ -963,8 +901,10 @@ class Internals {
       kIsolateCppHeapPointerTableOffset + kExternalPointerTableSize;
   static const int kIsolateTrustedPointerTableOffset =
       kIsolateTrustedCageBaseOffset + kApiSystemPointerSize;
-  static const int kIsolateApiCallbackThunkArgumentOffset =
+  static const int kIsolateSharedTrustedPointerTableAddressOffset =
       kIsolateTrustedPointerTableOffset + kTrustedPointerTableSize;
+  static const int kIsolateApiCallbackThunkArgumentOffset =
+      kIsolateSharedTrustedPointerTableAddressOffset + kApiSystemPointerSize;
 #else
   static const int kIsolateApiCallbackThunkArgumentOffset =
       kIsolateCppHeapPointerTableOffset + kExternalPointerTableSize;
@@ -973,8 +913,10 @@ class Internals {
   static const int kIsolateApiCallbackThunkArgumentOffset =
       kIsolateEmbedderDataOffset + kNumIsolateDataSlots * kApiSystemPointerSize;
 #endif  // V8_COMPRESS_POINTERS
-  static const int kContinuationPreservedEmbedderDataOffset =
+  static const int kIsolateRegexpExecVectorArgumentOffset =
       kIsolateApiCallbackThunkArgumentOffset + kApiSystemPointerSize;
+  static const int kContinuationPreservedEmbedderDataOffset =
+      kIsolateRegexpExecVectorArgumentOffset + kApiSystemPointerSize;
   static const int kIsolateRootsOffset =
       kContinuationPreservedEmbedderDataOffset + kApiSystemPointerSize;
 
@@ -986,12 +928,12 @@ class Internals {
 
 // These constants are copied from static-roots.h and guarded by static asserts.
 #define EXPORTED_STATIC_ROOTS_PTR_LIST(V) \
-  V(UndefinedValue, 0x69)                 \
-  V(NullValue, 0x85)                      \
-  V(TrueValue, 0xc9)                      \
-  V(FalseValue, 0xad)                     \
-  V(EmptyString, 0xa1)                    \
-  V(TheHoleValue, 0x791)
+  V(UndefinedValue, 0x11)                 \
+  V(NullValue, 0x2d)                      \
+  V(TrueValue, 0x71)                      \
+  V(FalseValue, 0x55)                     \
+  V(EmptyString, 0x49)                    \
+  V(TheHoleValue, 0x761)
 
   using Tagged_t = uint32_t;
   struct StaticReadOnlyRoot {
@@ -1001,7 +943,7 @@ class Internals {
 
     // Use 0 for kStringMapLowerBound since string maps are the first maps.
     static constexpr Tagged_t kStringMapLowerBound = 0;
-    static constexpr Tagged_t kStringMapUpperBound = 0x47d;
+    static constexpr Tagged_t kStringMapUpperBound = 0x425;
 
 #define PLUSONE(...) +1
     static constexpr size_t kNumberOfExportedStaticRoots =
@@ -1047,7 +989,7 @@ class Internals {
 
   // Soft limit for AdjustAmountofExternalAllocatedMemory. Trigger an
   // incremental GC once the external memory reaches this limit.
-  static constexpr int kExternalAllocationSoftLimit = 64 * 1024 * 1024;
+  static constexpr size_t kExternalAllocationSoftLimit = 64 * 1024 * 1024;
 
 #ifdef V8_MAP_PACKING
   static const uintptr_t kMapWordMetadataMask = 0xffffULL << 48;
@@ -1377,7 +1319,10 @@ class V8_EXPORT StrongRootAllocatorBase {
 
  protected:
   explicit StrongRootAllocatorBase(Heap* heap) : heap_(heap) {}
+  explicit StrongRootAllocatorBase(LocalHeap* heap);
   explicit StrongRootAllocatorBase(Isolate* isolate);
+  explicit StrongRootAllocatorBase(v8::Isolate* isolate);
+  explicit StrongRootAllocatorBase(LocalIsolate* isolate);
 
   // Allocate/deallocate a range of n elements of type internal::Address.
   Address* allocate_impl(size_t n);
@@ -1397,9 +1342,8 @@ class StrongRootAllocator : private std::allocator<T> {
  public:
   using value_type = T;
 
-  explicit StrongRootAllocator(Heap* heap) {}
-  explicit StrongRootAllocator(Isolate* isolate) {}
-  explicit StrongRootAllocator(v8::Isolate* isolate) {}
+  template <typename HeapOrIsolateT>
+  explicit StrongRootAllocator(HeapOrIsolateT*) {}
   template <typename U>
   StrongRootAllocator(const StrongRootAllocator<U>& other) noexcept {}
 
@@ -1430,7 +1374,7 @@ struct MaybeDefineIteratorConcept {};
 template <typename Iterator>
 struct MaybeDefineIteratorConcept<
     Iterator, std::enable_if_t<kHaveIteratorConcept<Iterator>>> {
-  using iterator_concept = Iterator::iterator_concept;
+  using iterator_concept = typename Iterator::iterator_concept;
 };
 // Otherwise fall back to `std::iterator_traits<Iterator>` if possible.
 template <typename Iterator>
@@ -1443,7 +1387,8 @@ struct MaybeDefineIteratorConcept<
   // TODO(pkasting): Add this unconditionally after dropping support for old
   // libstdc++ versions.
 #if __has_include(<ranges>)
-  using iterator_concept = std::iterator_traits<Iterator>::iterator_concept;
+  using iterator_concept =
+      typename std::iterator_traits<Iterator>::iterator_concept;
 #endif
 };
 
@@ -1623,16 +1568,25 @@ class WrappedIterator : public MaybeDefineIteratorConcept<Iterator> {
 // whether direct local support is enabled.
 class ValueHelper final {
  public:
+  // ValueHelper::InternalRepresentationType is an abstract type that
+  // corresponds to the internal representation of v8::Local and essentially
+  // to what T* really is (these two are always in sync). This type is used in
+  // methods like GetDataFromSnapshotOnce that need access to a handle's
+  // internal representation. In particular, if `x` is a `v8::Local<T>`, then
+  // `v8::Local<T>::FromRepr(x.repr())` gives exactly the same handle as `x`.
 #ifdef V8_ENABLE_DIRECT_HANDLE
   static constexpr Address kTaggedNullAddress = 1;
-  static constexpr Address kEmpty = kTaggedNullAddress;
+
+  using InternalRepresentationType = internal::Address;
+  static constexpr InternalRepresentationType kEmpty = kTaggedNullAddress;
 #else
-  static constexpr Address kEmpty = kNullAddress;
+  using InternalRepresentationType = internal::Address*;
+  static constexpr InternalRepresentationType kEmpty = nullptr;
 #endif  // V8_ENABLE_DIRECT_HANDLE
 
   template <typename T>
   V8_INLINE static bool IsEmpty(T* value) {
-    return reinterpret_cast<Address>(value) == kEmpty;
+    return ValueAsRepr(value) == kEmpty;
   }
 
   // Returns a handle's "value" for all kinds of abstract handles. For Local,
@@ -1659,6 +1613,16 @@ class ValueHelper final {
     return *reinterpret_cast<T**>(slot);
   }
 
+  template <typename T>
+  V8_INLINE static InternalRepresentationType ValueAsRepr(const T* value) {
+    return reinterpret_cast<InternalRepresentationType>(value);
+  }
+
+  template <typename T>
+  V8_INLINE static T* ReprAsValue(InternalRepresentationType repr) {
+    return reinterpret_cast<T*>(repr);
+  }
+
 #else  // !V8_ENABLE_DIRECT_HANDLE
 
   template <typename T>
@@ -1669,6 +1633,17 @@ class ValueHelper final {
   template <typename T, bool check_null = true, typename S>
   V8_INLINE static T* SlotAsValue(S* slot) {
     return reinterpret_cast<T*>(slot);
+  }
+
+  template <typename T>
+  V8_INLINE static InternalRepresentationType ValueAsRepr(const T* value) {
+    return const_cast<InternalRepresentationType>(
+        reinterpret_cast<const Address*>(value));
+  }
+
+  template <typename T>
+  V8_INLINE static T* ReprAsValue(InternalRepresentationType repr) {
+    return reinterpret_cast<T*>(repr);
   }
 
 #endif  // V8_ENABLE_DIRECT_HANDLE

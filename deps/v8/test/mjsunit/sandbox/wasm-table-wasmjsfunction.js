@@ -68,7 +68,7 @@ const kHeapTypeShift = 5;
 // Put a WasmJSFunction into table1 while it still has type $sig1.
 table1.set(0, new WebAssembly.Function(
   {parameters: [], results: ['i64']},
-  () => BigInt(Sandbox.targetPage)));
+  () => 0x414141414141n));
 
 // Now set table1's type to $sig0.
 let t0 = getPtr(table0);

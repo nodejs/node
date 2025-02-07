@@ -39,15 +39,24 @@ void FixedArray::RightTrim(Isolate* isolate, int new_capacity) {
   Super::RightTrim(isolate, new_capacity);
 }
 
-Handle<FixedArray> FixedArray::RightTrimOrEmpty(Isolate* isolate,
-                                                Handle<FixedArray> array,
-                                                int new_length) {
+template <template <typename> typename HandleType>
+  requires(
+      std::is_convertible_v<HandleType<FixedArray>, DirectHandle<FixedArray>>)
+HandleType<FixedArray> FixedArray::RightTrimOrEmpty(
+    Isolate* isolate, HandleType<FixedArray> array, int new_length) {
   if (new_length == 0) {
-    return ReadOnlyRoots{isolate}.empty_fixed_array_handle();
+    return isolate->factory()->empty_fixed_array();
   }
   array->RightTrim(isolate, new_length);
   return array;
 }
+
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    DirectHandle<FixedArray> FixedArray::RightTrimOrEmpty(
+        Isolate* isolate, DirectHandle<FixedArray> array, int new_length);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    IndirectHandle<FixedArray> FixedArray::RightTrimOrEmpty(
+        Isolate* isolate, IndirectHandle<FixedArray> array, int new_length);
 
 // static
 Handle<ArrayList> ArrayList::Add(Isolate* isolate, Handle<ArrayList> array,
@@ -139,7 +148,7 @@ Handle<ArrayList> ArrayList::EnsureSpace(Isolate* isolate,
 // static
 Handle<WeakArrayList> WeakArrayList::AddToEnd(Isolate* isolate,
                                               Handle<WeakArrayList> array,
-                                              MaybeObjectHandle value) {
+                                              MaybeObjectDirectHandle value) {
   int length = array->length();
   array = EnsureSpace(isolate, array, length + 1);
   {
@@ -155,7 +164,7 @@ Handle<WeakArrayList> WeakArrayList::AddToEnd(Isolate* isolate,
 
 Handle<WeakArrayList> WeakArrayList::AddToEnd(Isolate* isolate,
                                               Handle<WeakArrayList> array,
-                                              MaybeObjectHandle value1,
+                                              MaybeObjectDirectHandle value1,
                                               Tagged<Smi> value2) {
   int length = array->length();
   array = EnsureSpace(isolate, array, length + 2);
@@ -174,7 +183,7 @@ Handle<WeakArrayList> WeakArrayList::AddToEnd(Isolate* isolate,
 // static
 Handle<WeakArrayList> WeakArrayList::Append(Isolate* isolate,
                                             Handle<WeakArrayList> array,
-                                            MaybeObjectHandle value,
+                                            MaybeObjectDirectHandle value,
                                             AllocationType allocation) {
   int length = 0;
   int new_length = 0;
@@ -277,7 +286,7 @@ int WeakArrayList::CountLiveElements() const {
   return non_cleared_objects;
 }
 
-bool WeakArrayList::RemoveOne(MaybeObjectHandle value) {
+bool WeakArrayList::RemoveOne(MaybeObjectDirectHandle value) {
   int last_index = length() - 1;
   // Optimize for the most recently added element to be removed again.
   for (int i = last_index; i >= 0; --i) {

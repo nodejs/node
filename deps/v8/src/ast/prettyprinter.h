@@ -73,7 +73,7 @@ class CallPrinter final : public AstVisitor<CallPrinter> {
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
 
  protected:
-  void PrintLiteral(Handle<Object> value, bool quote);
+  void PrintLiteral(DirectHandle<Object> value, bool quote);
   void PrintLiteral(const AstRawString* value, bool quote);
   void FindStatements(const ZonePtrList<Statement>* statements);
   void FindArguments(const ZonePtrList<Expression>* arguments);

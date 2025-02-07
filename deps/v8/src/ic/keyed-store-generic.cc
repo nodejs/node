@@ -424,8 +424,9 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
     GotoIf(IsSetWord32(details, PropertyDetails::kAttributesReadOnlyMask),
            slow);
   }
-  static_assert(FixedArray::kHeaderSize == FixedDoubleArray::kHeaderSize);
-  const int kHeaderSize = FixedArray::kHeaderSize - kHeapObjectTag;
+  static_assert(OFFSET_OF_DATA_START(FixedArray) ==
+                OFFSET_OF_DATA_START(FixedDoubleArray));
+  const int kHeaderSize = OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag;
 
   Label check_double_elements(this), check_cow_elements(this);
   TNode<Map> elements_map = LoadMap(elements);
@@ -851,7 +852,7 @@ TNode<Map> KeyedStoreGenericAssembler::FindCandidateStoreICTransitionMapHandler(
                                       TransitionArray::kEntryKeyIndex) *
                                      kTaggedSize;
       var_transition_map = CAST(GetHeapObjectAssumeWeak(
-          LoadArrayElement(transitions, WeakFixedArray::kHeaderSize,
+          LoadArrayElement(transitions, OFFSET_OF_DATA_START(WeakFixedArray),
                            var_name_index.value(), kKeyToTargetOffset)));
       Goto(&found_handler_candidate);
     }

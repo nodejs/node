@@ -116,38 +116,39 @@ class Intl {
 
   static V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> SupportedLocalesOf(
       Isolate* isolate, const char* method_name,
-      const std::set<std::string>& available_locales, Handle<Object> locales_in,
-      Handle<Object> options_in);
+      const std::set<std::string>& available_locales,
+      DirectHandle<Object> locales_in, DirectHandle<Object> options_in);
 
   // https://tc39.github.io/ecma402/#sec-canonicalizelocalelist
   // {only_return_one_result} is an optimization for callers that only
   // care about the first result.
   static Maybe<std::vector<std::string>> CanonicalizeLocaleList(
-      Isolate* isolate, Handle<Object> locales,
+      Isolate* isolate, DirectHandle<Object> locales,
       bool only_return_one_result = false);
 
   // ecma-402 #sec-intl.getcanonicallocales
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> GetCanonicalLocales(
-      Isolate* isolate, Handle<Object> locales);
+      Isolate* isolate, DirectHandle<Object> locales);
 
   // ecma-402 #sec-intl.supportedvaluesof
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> SupportedValuesOf(
-      Isolate* isolate, Handle<Object> key);
+      Isolate* isolate, DirectHandle<Object> key);
 
   // For locale sensitive functions
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> StringLocaleConvertCase(
-      Isolate* isolate, Handle<String> s, bool is_upper,
-      Handle<Object> locales);
+      Isolate* isolate, DirectHandle<String> s, bool is_upper,
+      DirectHandle<Object> locales);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> ConvertToUpper(
-      Isolate* isolate, Handle<String> s);
+      Isolate* isolate, DirectHandle<String> s);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> ConvertToLower(
-      Isolate* isolate, Handle<String> s);
+      Isolate* isolate, DirectHandle<String> s);
 
   V8_WARN_UNUSED_RESULT static std::optional<int> StringLocaleCompare(
-      Isolate* isolate, Handle<String> s1, Handle<String> s2,
-      Handle<Object> locales, Handle<Object> options, const char* method_name);
+      Isolate* isolate, DirectHandle<String> s1, DirectHandle<String> s2,
+      DirectHandle<Object> locales, DirectHandle<Object> options,
+      const char* method_name);
 
   enum class CompareStringsOptions {
     kNone,
@@ -158,15 +159,15 @@ class Intl {
       IsolateT* isolate, DirectHandle<Object> locales,
       DirectHandle<Object> options);
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static int CompareStrings(
-      Isolate* isolate, const icu::Collator& collator, Handle<String> s1,
-      Handle<String> s2,
+      Isolate* isolate, const icu::Collator& collator, DirectHandle<String> s1,
+      DirectHandle<String> s2,
       CompareStringsOptions compare_strings_options =
           CompareStringsOptions::kNone);
 
   // ecma402/#sup-properties-of-the-number-prototype-object
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> NumberToLocaleString(
-      Isolate* isolate, Handle<Object> num, Handle<Object> locales,
-      Handle<Object> options, const char* method_name);
+      Isolate* isolate, Handle<Object> num, DirectHandle<Object> locales,
+      DirectHandle<Object> options, const char* method_name);
 
   // [[RoundingPriority]] is one of the String values "auto", "morePrecision",
   // or "lessPrecision", specifying the rounding priority for the number.
@@ -220,7 +221,8 @@ class Intl {
     TrailingZeroDisplay trailing_zero_display;
   };
   V8_WARN_UNUSED_RESULT static Maybe<NumberFormatDigitOptions>
-  SetNumberFormatDigitOptions(Isolate* isolate, Handle<JSReceiver> options,
+  SetNumberFormatDigitOptions(Isolate* isolate,
+                              DirectHandle<JSReceiver> options,
                               int mnfd_default, int mxfd_default,
                               bool notation_is_compact, const char* service);
 
@@ -245,8 +247,8 @@ class Intl {
 
   // A helper function to implement formatToParts which add element to array as
   // $array[$index] = { type: $field_type_string, value: $value }
-  static void AddElement(Isolate* isolate, Handle<JSArray> array, int index,
-                         DirectHandle<String> field_type_string,
+  static void AddElement(Isolate* isolate, DirectHandle<JSArray> array,
+                         int index, DirectHandle<String> field_type_string,
                          DirectHandle<String> value);
 
   // A helper function to implement formatToParts which add element to array as
@@ -254,16 +256,17 @@ class Intl {
   //   type: $field_type_string, value: $value,
   //   $additional_property_name: $additional_property_value
   // }
-  static void AddElement(Isolate* isolate, Handle<JSArray> array, int index,
-                         DirectHandle<String> field_type_string,
+  static void AddElement(Isolate* isolate, DirectHandle<JSArray> array,
+                         int index, DirectHandle<String> field_type_string,
                          DirectHandle<String> value,
-                         Handle<String> additional_property_name,
+                         DirectHandle<String> additional_property_name,
                          DirectHandle<String> additional_property_value);
 
   // A helper function to implement formatToParts which add element to array
   static Maybe<int> AddNumberElements(Isolate* isolate,
                                       const icu::FormattedValue& formatted,
-                                      Handle<JSArray> result, int start_index,
+                                      DirectHandle<JSArray> result,
+                                      int start_index,
                                       DirectHandle<String> unit);
 
   // In ECMA 402 v1, Intl constructors supported a mode of operation
@@ -278,19 +281,20 @@ class Intl {
   // See ecma402/#legacy-constructor.
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> LegacyUnwrapReceiver(
       Isolate* isolate, Handle<JSReceiver> receiver,
-      Handle<JSFunction> constructor, bool has_initialized_slot);
+      DirectHandle<JSFunction> constructor, bool has_initialized_slot);
 
   // enum for "localeMatcher" option: shared by many Intl objects.
   enum class MatcherOption { kBestFit, kLookup };
 
   // Shared function to read the "localeMatcher" option.
   V8_WARN_UNUSED_RESULT static Maybe<MatcherOption> GetLocaleMatcher(
-      Isolate* isolate, Handle<JSReceiver> options, const char* method_name);
+      Isolate* isolate, DirectHandle<JSReceiver> options,
+      const char* method_name);
 
   // Shared function to read the "numberingSystem" option.
   V8_WARN_UNUSED_RESULT static Maybe<bool> GetNumberingSystem(
-      Isolate* isolate, Handle<JSReceiver> options, const char* method_name,
-      std::unique_ptr<char[]>* result);
+      Isolate* isolate, DirectHandle<JSReceiver> options,
+      const char* method_name, std::unique_ptr<char[]>* result);
 
   // Check the calendar is valid or not for that locale.
   static bool IsValidCalendar(const icu::Locale& locale,
@@ -363,13 +367,14 @@ class Intl {
   };
 
   // Utility function to set text to BreakIterator.
-  static Handle<Managed<icu::UnicodeString>> SetTextToBreakIterator(
-      Isolate* isolate, Handle<String> text,
+  static DirectHandle<Managed<icu::UnicodeString>> SetTextToBreakIterator(
+      Isolate* isolate, DirectHandle<String> text,
       icu::BreakIterator* break_iterator);
 
   // ecma262 #sec-string.prototype.normalize
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> Normalize(
-      Isolate* isolate, Handle<String> string, Handle<Object> form_input);
+      Isolate* isolate, DirectHandle<String> string,
+      DirectHandle<Object> form_input);
   static base::TimezoneCache* CreateTimeZoneCache();
 
   // Convert a Handle<String> to icu::UnicodeString
@@ -426,13 +431,13 @@ class Intl {
   // transition.
   static Handle<Object> GetTimeZoneOffsetTransitionNanoseconds(
       Isolate* isolate, int32_t time_zone_index,
-      Handle<BigInt> nanosecond_epoch, Transition transition);
+      DirectHandle<BigInt> nanosecond_epoch, Transition transition);
 
   // Return the Time Zone offset, in the unit of nanosecond by int64_t, during
   // the time of the nanosecond_epoch.
-  static int64_t GetTimeZoneOffsetNanoseconds(Isolate* isolate,
-                                              int32_t time_zone_index,
-                                              Handle<BigInt> nanosecond_epoch);
+  static int64_t GetTimeZoneOffsetNanoseconds(
+      Isolate* isolate, int32_t time_zone_index,
+      DirectHandle<BigInt> nanosecond_epoch);
 
   // This function may return the result, the std::vector<int64_t> in one of
   // the following three condictions:
@@ -446,9 +451,9 @@ class Intl {
   // which the clock time roll back one (or two or six, in some Time Zone) hour:
   //    [offset_former, offset_later]
   // The unit of the return values in BigInt is nanosecond.
-  static std::vector<Handle<BigInt>> GetTimeZonePossibleOffsetNanoseconds(
+  static DirectHandleVector<BigInt> GetTimeZonePossibleOffsetNanoseconds(
       Isolate* isolate, int32_t time_zone_index,
-      Handle<BigInt> nanosecond_epoch);
+      DirectHandle<BigInt> nanosecond_epoch);
 
   static Handle<String> DefaultTimeZone(Isolate* isolate);
 
@@ -457,7 +462,7 @@ class Intl {
 
   // ecma402/#sec-coerceoptionstoobject
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> CoerceOptionsToObject(
-      Isolate* isolate, Handle<Object> options, const char* service);
+      Isolate* isolate, DirectHandle<Object> options, const char* service);
 };
 
 }  // namespace v8::internal

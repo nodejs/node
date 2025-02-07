@@ -149,7 +149,7 @@ AllocationResult OldLargeObjectSpace::AllocateRaw(LocalHeap* local_heap,
 
 LargePageMetadata* LargeObjectSpace::AllocateLargePage(
     int object_size, Executability executable) {
-  base::MutexGuard expansion_guard(heap_->heap_expansion_mutex());
+  base::SpinningMutexGuard expansion_guard(heap_->heap_expansion_mutex());
 
   if (identity() != NEW_LO_SPACE &&
       !heap()->IsOldGenerationExpansionAllowed(object_size, expansion_guard)) {
@@ -266,8 +266,9 @@ bool LargeObjectSpace::Contains(Tagged<HeapObject> object) const {
 }
 
 bool LargeObjectSpace::ContainsSlow(Address addr) const {
+  MemoryChunk* chunk = MemoryChunk::FromAddress(addr);
   for (const LargePageMetadata* page : *this) {
-    if (page->Contains(addr)) return true;
+    if (page->Chunk() == chunk) return true;
   }
   return false;
 }

@@ -6,8 +6,8 @@
 
 #include "src/compiler/common-operator.h"
 #include "src/compiler/js-heap-broker.h"
+#include "src/compiler/turbofan-types.h"
 #include "src/compiler/type-cache.h"
-#include "src/compiler/types.h"
 #include "src/objects/oddball.h"
 
 namespace v8 {
@@ -1331,6 +1331,10 @@ Type OperationTyper::CheckFloat64Hole(Type type) {
 
 Type OperationTyper::CheckNumber(Type type) {
   return Type::Intersect(type, Type::Number(), zone());
+}
+
+Type OperationTyper::CheckNumberFitsInt32(Type type) {
+  return Type::Intersect(type, Type::Signed32(), zone());
 }
 
 Type OperationTyper::TypeTypeGuard(const Operator* sigma_op, Type input) {

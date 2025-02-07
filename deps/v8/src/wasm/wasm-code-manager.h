@@ -16,6 +16,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/container/flat_hash_map.h"
 #include "src/base/address-region.h"
 #include "src/base/bit-field.h"
 #include "src/base/macros.h"
@@ -82,6 +83,9 @@ class V8_EXPORT_PRIVATE DisjointAllocationPool final {
  private:
   std::set<base::AddressRegion, base::AddressRegion::StartAddressLess> regions_;
 };
+
+constexpr WasmCodePointer kInvalidWasmCodePointer =
+    WasmCodePointer{WasmCodePointerTable::kInvalidHandle};
 
 class V8_EXPORT_PRIVATE WasmCode final {
  public:
@@ -206,6 +210,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
   int unpadded_binary_size() const { return unpadded_binary_size_; }
   int stack_slots() const { return stack_slots_; }
   int ool_spills() const { return ool_spills_; }
+  uint64_t signature_hash() const { return signature_hash_; }
   uint16_t first_tagged_parameter_slot() const {
     return tagged_parameter_slots_ >> 16;
   }
@@ -316,6 +321,9 @@ class V8_EXPORT_PRIVATE WasmCode final {
     return ForDebuggingField::decode(flags_);
   }
 
+  bool is_dying() const { return dying_; }
+  void mark_as_dying() { dying_ = true; }
+
   // Returns {true} for Liftoff code that sets up a feedback vector slot in its
   // stack frame.
   // TODO(jkummerow): This can be dropped when we ship Wasm inlining.
@@ -335,10 +343,6 @@ class V8_EXPORT_PRIVATE WasmCode final {
   friend class NativeModule;
   friend class WasmImportWrapperCache;
 
-  static bool ShouldAllocateCodePointerHandle(int index, Kind kind);
-  static WasmCodePointerTable::Handle MaybeAllocateCodePointerHandle(
-      NativeModule* native_module, int index, Kind kind);
-
   WasmCode(NativeModule* native_module, int index,
            base::Vector<uint8_t> instructions, int stack_slots, int ool_spills,
            uint32_t tagged_parameter_slots, int safepoint_table_offset,
@@ -350,11 +354,10 @@ class V8_EXPORT_PRIVATE WasmCode final {
            base::Vector<const uint8_t> inlining_positions,
            base::Vector<const uint8_t> deopt_data, Kind kind,
            ExecutionTier tier, ForDebugging for_debugging,
-           bool frame_has_feedback_slot = false)
+           uint64_t signature_hash, bool frame_has_feedback_slot = false)
       : native_module_(native_module),
         instructions_(instructions.begin()),
-        code_pointer_handle_(
-            MaybeAllocateCodePointerHandle(native_module, index, kind)),
+        signature_hash_(signature_hash),
         meta_data_(ConcatenateBytes({protected_instructions_data, reloc_info,
                                      source_position_table, inlining_positions,
                                      deopt_data})),
@@ -408,7 +411,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
 
   NativeModule* const native_module_ = nullptr;
   uint8_t* const instructions_;
-  const WasmCodePointerTable::Handle code_pointer_handle_;
+  const uint64_t signature_hash_;
   // {meta_data_} contains several byte vectors concatenated into one:
   //  - protected instructions data of size {protected_instructions_size_}
   //  - relocation info of size {reloc_info_size_}
@@ -449,6 +452,10 @@ class V8_EXPORT_PRIVATE WasmCode final {
   using ExecutionTierField = KindField::Next<ExecutionTier, 2>;
   using ForDebuggingField = ExecutionTierField::Next<ForDebugging, 2>;
   using FrameHasFeedbackSlotField = ForDebuggingField::Next<bool, 1>;
+
+  // Will be set to {true} the first time this code object is considered
+  // "potentially dead" (to be confirmed by the next Wasm Code GC cycle).
+  std::atomic<bool> dying_{false};
 
   // WasmCode is ref counted. Counters are held by:
   //   1) The jump table / code table.
@@ -572,6 +579,10 @@ class V8_EXPORT_PRIVATE NativeModule final {
                         AssumptionsJournal* = nullptr);
   std::vector<WasmCode*> PublishCode(base::Vector<std::unique_ptr<WasmCode>>);
 
+  // Clears outdated code as necessary when a new instantiation's imports
+  // conflict with previously seen well-known imports.
+  void UpdateWellKnownImports(base::Vector<WellKnownImport> entries);
+
   // ReinstallDebugCode does a subset of PublishCode: It installs the code in
   // the code table and patches the jump table. The given code must be debug
   // code (with breakpoints) and must be owned by this {NativeModule} already.
@@ -603,7 +614,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
       ExecutionTier tier);
 
   // Adds anonymous code for testing purposes.
-  WasmCode* AddCodeForTesting(DirectHandle<Code> code);
+  WasmCode* AddCodeForTesting(DirectHandle<Code> code, uint64_t signature_hash);
 
   // Allocates and initializes the {lazy_compile_table_} and initializes the
   // first jump table with jumps to the {lazy_compile_table_}.
@@ -651,6 +662,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // Reverse lookup from a given call target (which must be a jump table slot)
   // to a function index.
   uint32_t GetFunctionIndexFromJumpTableSlot(Address slot_address) const;
+
+  using CallIndirectTargetMap = absl::flat_hash_map<WasmCodePointer, uint32_t>;
+  CallIndirectTargetMap CreateIndirectCallTargetToFunctionIndexMap() const;
 
   // For cctests, where we build both WasmModule and the runtime objects
   // on the fly, and bypass the instance builder pipeline.
@@ -803,7 +817,10 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   Counters* counters() const { return code_allocator_.counters(); }
 
+  // Returns an approximation of current off-heap memory used by this module.
   size_t EstimateCurrentMemoryConsumption() const;
+  // Print the current memory consumption estimate to standard output.
+  void PrintCurrentMemoryConsumptionEstimate() const;
 
   bool log_code() const { return log_code_.load(std::memory_order_relaxed); }
 
@@ -868,7 +885,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
     return fast_api_signatures_.get();
   }
 
-  WasmCodePointerTable::Handle GetCodePointerHandle(int index) const;
+  WasmCodePointer GetCodePointerHandle(int index) const;
 
  private:
   friend class WasmCode;
@@ -884,6 +901,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   // Private constructor, called via {WasmCodeManager::NewNativeModule()}.
   NativeModule(WasmEnabledFeatures enabled_features,
+               WasmDetectedFeatures detected_features,
                CompileTimeImports compile_imports,
                DynamicTiering dynamic_tiering, VirtualMemory code_space,
                std::shared_ptr<const WasmModule> module,
@@ -918,8 +936,15 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // Hold the {allocation_mutex_} when calling one of these methods.
   // {slot_index} is the index in the declared functions, i.e. function index
   // minus the number of imported functions.
-  void PatchJumpTablesLocked(uint32_t slot_index, Address target);
-  void PatchJumpTableLocked(const CodeSpaceData&, uint32_t slot_index,
+  // The {code_pointer_table_target} will be used to update the code pointer
+  // table. It should usually be the same as target, except for jump to the lazy
+  // compile table which doesn't have the bti instruction on ARM and is thus not
+  // a valid target for indirect branches.
+  void PatchJumpTablesLocked(uint32_t slot_index, Address target,
+                             Address code_pointer_table_target,
+                             uint64_t signature_hash);
+  void PatchJumpTableLocked(WritableJumpTablePair& jump_table_pair,
+                            const CodeSpaceData&, uint32_t slot_index,
                             Address target);
 
   // Called by the {WasmCodeAllocator} to register a new code space.
@@ -1014,7 +1039,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // CodePointerTable handles for all declared functions. The entries are
   // initialized to point to the lazy compile table and will later be updated to
   // point to the compiled code.
-  std::unique_ptr<WasmCodePointerTable::Handle[]> code_pointer_handles_;
+  std::unique_ptr<WasmCodePointer[]> code_pointer_handles_;
   // The size will usually be num_declared_functions, except that we sometimes
   // allocate larger arrays for testing.
   size_t code_pointer_handles_size_ = 0;
@@ -1127,6 +1152,7 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
 
   std::shared_ptr<NativeModule> NewNativeModule(
       Isolate* isolate, WasmEnabledFeatures enabled_features,
+      WasmDetectedFeatures detected_features,
       CompileTimeImports compile_imports, size_t code_size_estimate,
       std::shared_ptr<const WasmModule> module);
 
@@ -1150,7 +1176,7 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   // and updated after each GC.
   std::atomic<size_t> critical_committed_code_space_;
 
-  mutable base::Mutex native_modules_mutex_;
+  mutable base::SpinningMutex native_modules_mutex_;
 
   //////////////////////////////////////////////////////////////////////////////
   // Protected by {native_modules_mutex_}:
@@ -1186,31 +1212,6 @@ class V8_EXPORT_PRIVATE V8_NODISCARD WasmCodeRefScope {
  private:
   WasmCodeRefScope* const previous_scope_;
   std::vector<WasmCode*> code_ptrs_;
-};
-
-// Similarly to a global handle, a {GlobalWasmCodeRef} stores a single
-// ref-counted pointer to a {WasmCode} object.
-class GlobalWasmCodeRef {
- public:
-  explicit GlobalWasmCodeRef(WasmCode* code,
-                             std::shared_ptr<NativeModule> native_module)
-      : code_(code), native_module_(std::move(native_module)) {
-    code_->IncRef();
-  }
-
-  GlobalWasmCodeRef(const GlobalWasmCodeRef&) = delete;
-  GlobalWasmCodeRef& operator=(const GlobalWasmCodeRef&) = delete;
-
-  ~GlobalWasmCodeRef() { WasmCode::DecrementRefCount({&code_, 1}); }
-
-  // Get a pointer to the contained {WasmCode} object. This is only guaranteed
-  // to exist as long as this {GlobalWasmCodeRef} exists.
-  WasmCode* code() const { return code_; }
-
- private:
-  WasmCode* const code_;
-  // Also keep the {NativeModule} alive.
-  const std::shared_ptr<NativeModule> native_module_;
 };
 
 class WasmCodeLookupCache final {

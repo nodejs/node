@@ -581,14 +581,10 @@ path. Add it with -I<path> to the command line
 // functions.
 // Use like:
 //   V8_NOINLINE V8_PRESERVE_MOST void UnlikelyMethod();
-#if V8_OS_WIN
-# define V8_PRESERVE_MOST
-#else
 #if V8_HAS_ATTRIBUTE_PRESERVE_MOST
 # define V8_PRESERVE_MOST __attribute__((preserve_most))
 #else
 # define V8_PRESERVE_MOST /* NOT SUPPORTED */
-#endif
 #endif
 
 
@@ -681,7 +677,7 @@ path. Add it with -I<path> to the command line
 //   V8_NODISCARD Foo() { ... };
 // [[nodiscard]] comes in C++17 but supported in clang with -std >= c++11.
 #if V8_HAS_CPP_ATTRIBUTE_NODISCARD
-#define V8_NODISCARD
+#define V8_NODISCARD [[nodiscard]]
 #else
 #define V8_NODISCARD /* NOT SUPPORTED */
 #endif
@@ -833,13 +829,9 @@ V8 shared library set USING_V8_SHARED.
 #elif defined(__PPC64__) || defined(_ARCH_PPC64)
 #define V8_HOST_ARCH_PPC64 1
 #define V8_HOST_ARCH_64_BIT 1
-#elif defined(__s390__) || defined(__s390x__)
-#define V8_HOST_ARCH_S390 1
-#if defined(__s390x__)
+#elif defined(__s390x__)
+#define V8_HOST_ARCH_S390X 1
 #define V8_HOST_ARCH_64_BIT 1
-#else
-#define V8_HOST_ARCH_32_BIT 1
-#endif
 #elif defined(__riscv) || defined(__riscv__)
 #if __riscv_xlen == 64
 #define V8_HOST_ARCH_RISCV64 1
@@ -861,7 +853,7 @@ V8 shared library set USING_V8_SHARED.
 // compiler.
 #if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM && \
     !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_MIPS64 &&                    \
-    !V8_TARGET_ARCH_PPC64 && !V8_TARGET_ARCH_S390 &&                      \
+    !V8_TARGET_ARCH_PPC64 && !V8_TARGET_ARCH_S390X &&                     \
     !V8_TARGET_ARCH_RISCV64 && !V8_TARGET_ARCH_LOONG64 &&                 \
     !V8_TARGET_ARCH_RISCV32
 #if defined(_M_X64) || defined(__x86_64__)
@@ -878,11 +870,8 @@ V8 shared library set USING_V8_SHARED.
 #define V8_TARGET_ARCH_LOONG64 1
 #elif defined(_ARCH_PPC64)
 #define V8_TARGET_ARCH_PPC64 1
-#elif defined(__s390__)
-#define V8_TARGET_ARCH_S390 1
-#if defined(__s390x__)
+#elif defined(__s390x__)
 #define V8_TARGET_ARCH_S390X 1
-#endif
 #elif defined(__riscv) || defined(__riscv__)
 #if __riscv_xlen == 64
 #define V8_TARGET_ARCH_RISCV64 1
@@ -917,12 +906,8 @@ V8 shared library set USING_V8_SHARED.
 #define V8_TARGET_ARCH_64_BIT 1
 #elif V8_TARGET_ARCH_PPC64
 #define V8_TARGET_ARCH_64_BIT 1
-#elif V8_TARGET_ARCH_S390
-#if V8_TARGET_ARCH_S390X
+#elif V8_TARGET_ARCH_S390X
 #define V8_TARGET_ARCH_64_BIT 1
-#else
-#define V8_TARGET_ARCH_32_BIT 1
-#endif
 #elif V8_TARGET_ARCH_RISCV64
 #define V8_TARGET_ARCH_64_BIT 1
 #elif V8_TARGET_ARCH_RISCV32
@@ -985,8 +970,8 @@ V8 shared library set USING_V8_SHARED.
 #else
 #define V8_TARGET_LITTLE_ENDIAN 1
 #endif
-#elif V8_TARGET_ARCH_S390
-#if V8_TARGET_ARCH_S390_LE_SIM
+#elif V8_TARGET_ARCH_S390X
+#if V8_TARGET_ARCH_S390X_LE_SIM
 #define V8_TARGET_LITTLE_ENDIAN 1
 #else
 #define V8_TARGET_BIG_ENDIAN 1

@@ -16,9 +16,9 @@
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/frame-states.h"
-#include "src/compiler/graph-visualizer.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/machine-operator.h"
+#include "src/compiler/turbofan-graph-visualizer.h"
 #include "src/compiler/turboshaft/deopt-data.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/handles/handles-inl.h"
@@ -179,6 +179,15 @@ std::ostream& operator<<(std::ostream& os, GenericUnopOp::Kind kind) {
     return os << #Name;
     GENERIC_UNOP_LIST(PRINT_KIND)
 #undef PRINT_KIND
+  }
+}
+
+std::ostream& operator<<(std::ostream& os, Word32SignHintOp::Sign sign) {
+  switch (sign) {
+    case Word32SignHintOp::Sign::kSigned:
+      return os << "Signed";
+    case Word32SignHintOp::Sign::kUnsigned:
+      return os << "Unsigned";
   }
 }
 
@@ -354,6 +363,8 @@ std::ostream& operator<<(std::ostream& os, ChangeOp::Kind kind) {
       return os << "FloatConversion";
     case ChangeOp::Kind::kJSFloatTruncate:
       return os << "JSFloatTruncate";
+    case ChangeOp::Kind::kJSFloat16TruncateWithBitcast:
+      return os << "JSFloat16TruncateWithBitcast";
     case ChangeOp::Kind::kSignedFloatTruncateOverflowToMin:
       return os << "SignedFloatTruncateOverflowToMin";
     case ChangeOp::Kind::kUnsignedFloatTruncateOverflowToMin:
@@ -574,6 +585,10 @@ void ConstantOp::PrintOptions(std::ostream& os) const {
       os << "relocatable wasm canonical signature ID: "
          << static_cast<int32_t>(storage.integral);
       break;
+    case Kind::kRelocatableWasmIndirectCallTarget:
+      os << "relocatable wasm indirect call target: "
+         << static_cast<uint32_t>(storage.integral);
+      break;
   }
   os << ']';
 }
@@ -744,6 +759,18 @@ void FrameStateOp::PrintOptions(std::ostream& os) const {
         os << '$' << id;
         break;
       }
+      case FrameStateData::Instr::kDematerializedStringConcat: {
+        uint32_t id;
+        it.ConsumeDematerializedStringConcat(&id);
+        os << "£" << id << "DematerializedStringConcat";
+        break;
+      }
+      case FrameStateData::Instr::kDematerializedStringConcatReference: {
+        uint32_t id;
+        it.ConsumeDematerializedStringConcatReference(&id);
+        os << "£" << id;
+        break;
+      }
       case FrameStateData::Instr::kArgumentsElements: {
         CreateArgumentsType type;
         it.ConsumeArgumentsElements(&type);
@@ -798,6 +825,16 @@ void FrameStateOp::Validate(const Graph& graph) const {
       case FrameStateData::Instr::kDematerializedObjectReference: {
         uint32_t id;
         it.ConsumeDematerializedObjectReference(&id);
+        break;
+      }
+      case FrameStateData::Instr::kDematerializedStringConcat: {
+        uint32_t id;
+        it.ConsumeDematerializedStringConcat(&id);
+        break;
+      }
+      case FrameStateData::Instr::kDematerializedStringConcatReference: {
+        uint32_t id;
+        it.ConsumeDematerializedStringConcatReference(&id);
         break;
       }
       case FrameStateData::Instr::kArgumentsElements: {
@@ -1093,6 +1130,8 @@ std::ostream& operator<<(std::ostream& os, ObjectIsOp::Kind kind) {
       return os << "NonCallable";
     case ObjectIsOp::Kind::kNumber:
       return os << "Number";
+    case ObjectIsOp::Kind::kNumberFitsInt32:
+      return os << "NumberFitsInt32";
     case ObjectIsOp::Kind::kNumberOrBigInt:
       return os << "NumberOrBigInt";
     case ObjectIsOp::Kind::kReceiver:
@@ -1134,6 +1173,8 @@ std::ostream& operator<<(std::ostream& os, NumericKind kind) {
       return os << "Integer";
     case NumericKind::kSafeInteger:
       return os << "SafeInteger";
+    case NumericKind::kInt32:
+      return os << "kInt32";
     case NumericKind::kSmi:
       return os << "kSmi";
     case NumericKind::kMinusZero:
@@ -1437,6 +1478,33 @@ std::ostream& operator<<(std::ostream& os,
   }
 }
 
+void PrintMapSet(std::ostream& os, const ZoneRefSet<Map>& maps) {
+  os << "{";
+  for (size_t i = 0; i < maps.size(); ++i) {
+    if (i != 0) os << ",";
+    os << JSONEscaped(maps[i].object());
+  }
+  os << "}";
+}
+
+void CompareMapsOp::PrintOptions(std::ostream& os) const {
+  os << "[";
+  PrintMapSet(os, maps);
+  os << "]";
+}
+
+void CheckMapsOp::PrintOptions(std::ostream& os) const {
+  os << "[";
+  PrintMapSet(os, maps);
+  os << ", " << flags << ", " << feedback << "]";
+}
+
+void AssumeMapOp::PrintOptions(std::ostream& os) const {
+  os << "[";
+  PrintMapSet(os, maps);
+  os << "]";
+}
+
 std::ostream& operator<<(std::ostream& os, SameValueOp::Mode mode) {
   switch (mode) {
     case SameValueOp::Mode::kSameValue:
@@ -1511,6 +1579,7 @@ const RegisterRepresentation& RepresentationFor(wasm::ValueType type) {
       return kSimd128;
     case wasm::kVoid:
     case wasm::kRtt:
+    case wasm::kTop:
     case wasm::kBottom:
       UNREACHABLE();
   }
@@ -1826,12 +1895,13 @@ std::string Operation::ToString() const {
   return ss.str();
 }
 
-base::LazyMutex SupportedOperations::mutex_ = LAZY_MUTEX_INITIALIZER;
+base::LazySpinningMutex SupportedOperations::mutex_ =
+    LAZY_SELFISH_MUTEX_INITIALIZER;
 SupportedOperations SupportedOperations::instance_;
 bool SupportedOperations::initialized_;
 
 void SupportedOperations::Initialize() {
-  base::MutexGuard lock(mutex_.Pointer());
+  base::SpinningMutexGuard lock(mutex_.Pointer());
   if (initialized_) return;
   initialized_ = true;
 

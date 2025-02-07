@@ -1419,7 +1419,7 @@ void InstructionSelectorT<TurbofanAdapter>::VisitLoadLane(Node* node) {
 
   // x64 supports unaligned loads.
   DCHECK_NE(params.kind, MemoryAccessKind::kUnaligned);
-  if (params.kind == MemoryAccessKind::kProtected) {
+  if (params.kind == MemoryAccessKind::kProtectedByTrapHandler) {
     opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
   Emit(opcode, 1, outputs, input_count, inputs);
@@ -1557,7 +1557,7 @@ void InstructionSelectorT<TurbofanAdapter>::VisitLoadTransform(Node* node) {
   // x64 supports unaligned loads
   DCHECK_NE(params.kind, MemoryAccessKind::kUnaligned);
   InstructionCode code = opcode;
-  if (params.kind == MemoryAccessKind::kProtected) {
+  if (params.kind == MemoryAccessKind::kProtectedByTrapHandler) {
     code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
   VisitLoad(node, node, code);
@@ -1623,6 +1623,9 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitSimd256LoadTransform(
       break;
     case Simd256LoadTransformOp::TransformKind::k8x16U:
       opcode = kX64S256Load8x16U;
+      break;
+    case Simd256LoadTransformOp::TransformKind::k8x8U:
+      opcode = kX64S256Load8x8U;
       break;
     case Simd256LoadTransformOp::TransformKind::k16x8S:
       opcode = kX64S256Load16x8S;
@@ -1868,7 +1871,7 @@ void VisitAtomicExchange(InstructionSelectorT<Adapter>* selector,
   InstructionOperand outputs[] = {g.DefineSameAsFirst(node)};
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
                          AtomicWidthField::encode(width);
-  if (access_kind == MemoryAccessKind::kProtected) {
+  if (access_kind == MemoryAccessKind::kProtectedByTrapHandler) {
     code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
   selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs);
@@ -1900,7 +1903,7 @@ void VisitStoreCommon(InstructionSelectorT<Adapter>* selector,
   }
 
   const auto access_mode =
-      acs_kind == MemoryAccessKind::kProtected
+      acs_kind == MemoryAccessKind::kProtectedByTrapHandler
           ? (store.is_store_trap_on_null()
                  ? kMemoryAccessProtectedNullDereference
                  : MemoryAccessMode::kMemoryAccessProtectedMemOutOfBounds)
@@ -2112,7 +2115,7 @@ void InstructionSelectorT<TurbofanAdapter>::VisitStoreLane(Node* node) {
       g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
   opcode |= AddressingModeField::encode(addressing_mode);
 
-  if (params.kind == MemoryAccessKind::kProtected) {
+  if (params.kind == MemoryAccessKind::kProtectedByTrapHandler) {
     opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
 
@@ -3820,6 +3823,15 @@ void InstructionSelectorT<Adapter>::VisitTruncateFloat64ToWord32(node_t node) {
 }
 
 template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitTruncateFloat64ToFloat16RawBits(
+    node_t node) {
+  X64OperandGeneratorT<Adapter> g(this);
+  InstructionOperand temps[] = {g.TempDoubleRegister(), g.TempRegister()};
+  Emit(kSSEFloat64ToFloat16RawBits, g.DefineAsRegister(node),
+       g.UseUniqueRegister(this->input_at(node, 0)), arraysize(temps), temps);
+}
+
+template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitTruncateInt64ToInt32(node_t node) {
   // We rely on the fact that TruncateInt64ToInt32 zero extends the
   // value (see ZeroExtendsWord32ToWord64). So all code paths here
@@ -4775,7 +4787,7 @@ void VisitAtomicBinop(InstructionSelectorT<Adapter>* selector,
   InstructionOperand temps[] = {g.TempRegister()};
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
                          AtomicWidthField::encode(width);
-  if (access_kind == MemoryAccessKind::kProtected) {
+  if (access_kind == MemoryAccessKind::kProtectedByTrapHandler) {
     code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
   selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
@@ -4799,7 +4811,7 @@ void VisitAtomicCompareExchange(InstructionSelectorT<Adapter>* selector,
   InstructionOperand outputs[] = {g.DefineAsFixed(node, rax)};
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
                          AtomicWidthField::encode(width);
-  if (access_kind == MemoryAccessKind::kProtected) {
+  if (access_kind == MemoryAccessKind::kProtectedByTrapHandler) {
     code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
   selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs);
@@ -6034,10 +6046,12 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I16x8AllTrue, IAllTrue, kL16, kV128)          \
   V(I8x16AllTrue, IAllTrue, kL8, kV128)           \
   V(S128Not, SNot, kL8, kV128)                    \
+  V(F64x4Abs, FAbs, kL64, kV256)                  \
   V(F32x8Abs, FAbs, kL32, kV256)                  \
   V(I32x8Abs, IAbs, kL32, kV256)                  \
   V(I16x16Abs, IAbs, kL16, kV256)                 \
   V(I8x32Abs, IAbs, kL8, kV256)                   \
+  V(F64x4Neg, FNeg, kL64, kV256)                  \
   V(F32x8Neg, FNeg, kL32, kV256)                  \
   V(I32x8Neg, INeg, kL32, kV256)                  \
   V(I16x16Neg, INeg, kL16, kV256)                 \
@@ -6640,16 +6654,36 @@ template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitF32x4UConvertI32x4(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
   DCHECK_EQ(this->value_input_count(node), 1);
-  Emit(kX64F32x4UConvertI32x4, g.DefineSameAsFirst(node),
-       g.UseRegister(this->input_at(node, 0)));
-}
+  node_t value = this->input_at(node, 0);
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitF32x8UConvertI32x8(node_t node) {
-  X64OperandGeneratorT<Adapter> g(this);
-  DCHECK_EQ(this->value_input_count(node), 1);
-  Emit(kX64F32x8UConvertI32x8, g.DefineSameAsFirst(node),
-       g.UseRegister(this->input_at(node, 0)));
+  // F32x4SConvertI32x4 is more efficient than F32x4UConvertI32x4 on x64,
+  // if the u32x4 input can fit into i32x4, we can use F32x4SConvertI32x4
+  // instead. Input node with I32x4UConvertI16x8Low/I32x4UConvertI16x8High
+  // opcode is one of this kinds.
+  bool can_use_sign_convert = false;
+  if constexpr (Adapter::IsTurboshaft) {
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    if (const Simd128UnaryOp* unop =
+            this->Get(value).template TryCast<Simd128UnaryOp>()) {
+      if (unop->kind == Simd128UnaryOp::Kind::kI32x4UConvertI16x8Low ||
+          unop->kind == Simd128UnaryOp::Kind::kI32x4UConvertI16x8High) {
+        can_use_sign_convert = true;
+      }
+    }
+  } else {
+    if (value->opcode() == IrOpcode::kI32x4UConvertI16x8Low ||
+        value->opcode() == IrOpcode::kI32x4UConvertI16x8High) {
+      can_use_sign_convert = true;
+    }
+  }
+
+  if (can_use_sign_convert) {
+    Emit(kX64F32x4SConvertI32x4, g.DefineAsRegister(node),
+         g.UseRegister(this->input_at(node, 0)));
+  } else {
+    Emit(kX64F32x4UConvertI32x4, g.DefineSameAsFirst(node),
+         g.UseRegister(this->input_at(node, 0)));
+  }
 }
 
 #define VISIT_SIMD_QFMOP(Opcode)                                   \
@@ -6697,9 +6731,9 @@ VISIT_SIMD_F16x8_QFMOP(F16x8Qfma) VISIT_SIMD_F16x8_QFMOP(F16x8Qfms)
   X64OperandGeneratorT<Adapter> g(this);
   DCHECK_EQ(this->value_input_count(node), 1);
   // If AVX unsupported, make sure dst != src to avoid a move.
-  InstructionOperand operand0 = IsSupported(AVX)
-                                    ? g.UseRegister(this->input_at(node, 0))
-                                    : g.UseUnique(this->input_at(node, 0));
+  InstructionOperand operand0 =
+      IsSupported(AVX) ? g.UseRegister(this->input_at(node, 0))
+                       : g.UseUniqueRegister(this->input_at(node, 0));
   Emit(
       kX64INeg | LaneSizeField::encode(kL64) | VectorLengthField::encode(kV128),
       g.DefineAsRegister(node), operand0);
@@ -6798,6 +6832,35 @@ void InstructionSelectorT<TurbofanAdapter>::VisitExtractF128(node_t node) {
 }
 
 #if V8_ENABLE_WASM_SIMD256_REVEC
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF32x8UConvertI32x8(node_t node) {
+  X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 1);
+
+  node_t value = this->input_at(node, 0);
+
+  // F32x8SConvertI32x8 is more efficient than F32x8UConvertI32x8 on x64.
+  bool can_use_sign_convert = false;
+  if constexpr (Adapter::IsTurboshaft) {
+    if (this->Get(value)
+            .template Is<turboshaft::Opmask::kSimd256I32x8UConvertI16x8>()) {
+      can_use_sign_convert = true;
+    }
+  } else {
+    if (value->opcode() == IrOpcode::kI32x8UConvertI16x8) {
+      can_use_sign_convert = true;
+    }
+  }
+
+  if (can_use_sign_convert) {
+    Emit(kX64F32x8SConvertI32x8, g.DefineAsRegister(node),
+         g.UseRegister(this->input_at(node, 0)));
+  } else {
+    Emit(kX64F32x8UConvertI32x8, g.DefineSameAsFirst(node),
+         g.UseRegister(this->input_at(node, 0)));
+  }
+}
+
 template <>
 void InstructionSelectorT<TurboshaftAdapter>::VisitExtractF128(node_t node) {
   X64OperandGeneratorT<TurboshaftAdapter> g(this);
@@ -7469,6 +7532,24 @@ void InstructionSelectorT<Adapter>::VisitI32x4RelaxedTruncF32x4U(node_t node) {
 }
 
 template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI32x8RelaxedTruncF32x8S(node_t node) {
+  DCHECK_EQ(this->value_input_count(node), 1);
+  VisitFloatUnop(this, node, this->input_at(node, 0),
+                 kX64Cvttps2dq | VectorLengthField::encode(kV256));
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI32x8RelaxedTruncF32x8U(node_t node) {
+  DCHECK_EQ(this->value_input_count(node), 1);
+  DCHECK(CpuFeatures::IsSupported(AVX) && CpuFeatures::IsSupported(AVX2));
+  X64OperandGeneratorT<Adapter> g(this);
+  node_t input = this->input_at(node, 0);
+  InstructionOperand temps[] = {g.TempSimd256Register()};
+  Emit(kX64I32x8TruncF32x8U, g.DefineAsRegister(node), g.UseRegister(input),
+       arraysize(temps), temps);
+}
+
+template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI64x2GtS(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
   DCHECK_EQ(this->value_input_count(node), 2);
@@ -7574,7 +7655,7 @@ void InstructionSelectorT<Adapter>::VisitF64x2PromoteLowF32x4(node_t node) {
     LoadTransformMatcher m(input);
 
     if (m.Is(LoadTransformation::kS128Load64Zero) && CanCover(node, input)) {
-      if (m.ResolvedValue().kind == MemoryAccessKind::kProtected) {
+      if (m.ResolvedValue().kind == MemoryAccessKind::kProtectedByTrapHandler) {
         code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
       }
       // LoadTransforms cannot be eliminated, so they are visited even if
@@ -7695,8 +7776,10 @@ InstructionSelector::SupportedMachineOperatorFlags() {
              MachineOperatorBuilder::kFloat64RoundTiesEven;
   }
   if (CpuFeatures::IsSupported(F16C)) {
-    flags |= MachineOperatorBuilder::kFloat16 |
-             MachineOperatorBuilder::kFloat64ToFloat16;
+    flags |= MachineOperatorBuilder::kFloat16;
+    if (CpuFeatures::IsSupported(AVX)) {
+      flags |= MachineOperatorBuilder::kTruncateFloat64ToFloat16RawBits;
+    }
   }
   return flags;
 }

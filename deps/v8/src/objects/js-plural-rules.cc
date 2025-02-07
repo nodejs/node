@@ -52,21 +52,20 @@ bool CreateICUPluralRules(Isolate* isolate, const icu::Locale& icu_locale,
 
 }  // namespace
 
-Handle<String> JSPluralRules::TypeAsString() const {
+Handle<String> JSPluralRules::TypeAsString(Isolate* isolate) const {
   switch (type()) {
     case Type::CARDINAL:
-      return GetReadOnlyRoots().cardinal_string_handle();
+      return isolate->factory()->cardinal_string();
     case Type::ORDINAL:
-      return GetReadOnlyRoots().ordinal_string_handle();
+      return isolate->factory()->ordinal_string();
   }
   UNREACHABLE();
 }
 
 // static
-MaybeHandle<JSPluralRules> JSPluralRules::New(Isolate* isolate,
-                                              DirectHandle<Map> map,
-                                              Handle<Object> locales,
-                                              Handle<Object> options_obj) {
+MaybeHandle<JSPluralRules> JSPluralRules::New(
+    Isolate* isolate, DirectHandle<Map> map, DirectHandle<Object> locales,
+    DirectHandle<Object> options_obj) {
   // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
   Maybe<std::vector<std::string>> maybe_requested_locales =
       Intl::CanonicalizeLocaleList(isolate, locales);
@@ -75,7 +74,7 @@ MaybeHandle<JSPluralRules> JSPluralRules::New(Isolate* isolate,
       maybe_requested_locales.FromJust();
 
   // 2. Set options to ? CoerceOptionsToObject(options).
-  Handle<JSReceiver> options;
+  DirectHandle<JSReceiver> options;
   const char* service = "Intl.PluralRules";
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, options, CoerceOptionsToObject(isolate, options_obj, service));
@@ -223,9 +222,11 @@ MaybeHandle<String> JSPluralRules::ResolvePluralRange(
 
 namespace {
 
-void CreateDataPropertyForOptions(Isolate* isolate, Handle<JSObject> options,
-                                  Handle<Object> value, const char* key) {
-  Handle<String> key_str = isolate->factory()->NewStringFromAsciiChecked(key);
+void CreateDataPropertyForOptions(Isolate* isolate,
+                                  DirectHandle<JSObject> options,
+                                  DirectHandle<Object> value, const char* key) {
+  DirectHandle<String> key_str =
+      isolate->factory()->NewStringFromAsciiChecked(key);
 
   // This is a brand new JSObject that shouldn't already have the same
   // key so this shouldn't fail.
@@ -235,9 +236,10 @@ void CreateDataPropertyForOptions(Isolate* isolate, Handle<JSObject> options,
   USE(maybe);
 }
 
-void CreateDataPropertyForOptions(Isolate* isolate, Handle<JSObject> options,
-                                  int value, const char* key) {
-  Handle<Smi> value_smi(Smi::FromInt(value), isolate);
+void CreateDataPropertyForOptions(Isolate* isolate,
+                                  DirectHandle<JSObject> options, int value,
+                                  const char* key) {
+  DirectHandle<Smi> value_smi(Smi::FromInt(value), isolate);
   CreateDataPropertyForOptions(isolate, options, value_smi, key);
 }
 
@@ -248,11 +250,11 @@ Handle<JSObject> JSPluralRules::ResolvedOptions(
   Handle<JSObject> options =
       isolate->factory()->NewJSObject(isolate->object_function());
 
-  Handle<String> locale_value(plural_rules->locale(), isolate);
+  DirectHandle<String> locale_value(plural_rules->locale(), isolate);
   CreateDataPropertyForOptions(isolate, options, locale_value, "locale");
 
-  CreateDataPropertyForOptions(isolate, options, plural_rules->TypeAsString(),
-                               "type");
+  CreateDataPropertyForOptions(isolate, options,
+                               plural_rules->TypeAsString(isolate), "type");
 
   UErrorCode status = U_ZERO_ERROR;
   icu::number::LocalizedNumberFormatter* icu_number_formatter =
@@ -279,8 +281,10 @@ Handle<JSObject> JSPluralRules::ResolvedOptions(
                                  "maximumFractionDigits");
   }
 
-  // 6. Let pluralCategories be a List of Strings representing the
-  // possible results of PluralRuleSelect for the selected locale pr.
+  // 6. Let pluralCategories be a List of Strings containing all possible
+  // results of PluralRuleSelect for the selected locale pr.[[Locale]], sorted
+  // according to the following order: "zero", "one", "two", "few", "many",
+  // "other".
   icu::PluralRules* icu_plural_rules = plural_rules->icu_plural_rules()->raw();
   DCHECK_NOT_NULL(icu_plural_rules);
 
@@ -292,20 +296,30 @@ Handle<JSObject> JSPluralRules::ResolvedOptions(
 
   Factory* factory = isolate->factory();
   DirectHandle<FixedArray> plural_categories = factory->NewFixedArray(count);
-  for (int32_t i = 0; i < count; i++) {
-    const icu::UnicodeString* category = categories->snext(status);
+  const std::vector<const char*> kCategories = {"zero", "one",  "two",
+                                                "few",  "many", "other"};
+  int32_t index = 0;
+  std::for_each(kCategories.cbegin(), kCategories.cend(), [&](const char* val) {
+    categories->reset(status);
     DCHECK(U_SUCCESS(status));
-    if (category == nullptr) break;
-
-    std::string keyword;
-    DirectHandle<String> value = factory->NewStringFromAsciiChecked(
-        category->toUTF8String(keyword).data());
-    plural_categories->set(i, *value);
-  }
+    for (int32_t i = 0; i < count; i++) {
+      int32_t len;
+      const char* cat = categories->next(&len, status);
+      DCHECK(U_SUCCESS(status));
+      if (cat == nullptr) break;
+      if (std::strcmp(val, cat) == 0) {
+        DirectHandle<String> value_string =
+            factory->NewStringFromAsciiChecked(val);
+        plural_categories->set(index++, *value_string);
+        break;
+      }
+    }
+  });
+  DCHECK(count == index);
 
   // 7. Perform ! CreateDataProperty(options, "pluralCategories",
   // CreateArrayFromList(pluralCategories)).
-  Handle<JSArray> plural_categories_value =
+  DirectHandle<JSArray> plural_categories_value =
       factory->NewJSArrayWithElements(plural_categories);
   CreateDataPropertyForOptions(isolate, options, plural_categories_value,
                                "pluralCategories");

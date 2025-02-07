@@ -31,6 +31,8 @@
 #include "src/codegen/arm/register-arm.h"
 #elif V8_TARGET_ARCH_ARM64
 #include "src/codegen/arm64/register-arm64.h"
+#elif V8_TARGET_ARCH_RISCV64
+#include "src/codegen/riscv/register-riscv.h"
 #elif V8_TARGET_ARCH_X64
 #include "src/codegen/x64/register-x64.h"
 #elif V8_TARGET_ARCH_S390X
@@ -155,7 +157,7 @@ bool IsLiveAtTarget(ValueNode* node, ControlNode* source, BasicBlock* target) {
   }
 
   // Drop all values on resumable loop headers.
-  if (target->has_state() && target->state()->is_resumable_loop()) return false;
+  if (target->is_loop() && target->state()->is_resumable_loop()) return false;
 
   // TODO(verwaest): This should be true but isn't because we don't yet
   // eliminate dead code.
@@ -407,13 +409,9 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
       if (block->state()->is_exception_handler()) {
         // Exceptions start from a blank state of register values.
         ClearRegisterValues();
-      } else if (block->state()->is_resumable_loop() &&
-                 block->state()->predecessor_count() <= 1) {
+      } else if (block->state()->IsUnreachable()) {
         // Loops that are only reachable through JumpLoop start from a blank
         // state of register values.
-        // This should actually only support predecessor_count == 1, but we
-        // currently don't eliminate resumable loop headers (and subsequent code
-        // until the next resume) that end up being unreachable from JumpLoop.
         ClearRegisterValues();
       } else {
         InitializeRegisterValues(block->state()->register_state());
@@ -505,7 +503,7 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
           } else if (phi->owner().is_parameter() &&
                      phi->owner().is_receiver()) {
             // The receiver is a special case for a fairly silly reason:
-            // OptimizedFrame::Summarize requires the receiver (and the
+            // OptimizedJSFrame::Summarize requires the receiver (and the
             // function) to be in a stack slot, since its value must be
             // available even though we're not deoptimizing (and thus register
             // states are not available).

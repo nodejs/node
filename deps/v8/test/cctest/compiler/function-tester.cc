@@ -29,7 +29,7 @@ FunctionTester::FunctionTester(const char* source, uint32_t flags)
   CHECK_EQ(0u, flags_ & ~supported_flags);
 }
 
-FunctionTester::FunctionTester(Handle<Code> code, int param_count)
+FunctionTester::FunctionTester(DirectHandle<Code> code, int param_count)
     : isolate(main_isolate()),
       function((v8_flags.allow_natives_syntax = true,
                 NewFunction(BuildFunction(param_count).c_str()))),
@@ -40,11 +40,12 @@ FunctionTester::FunctionTester(Handle<Code> code, int param_count)
   function->UpdateCode(*code);
 }
 
-FunctionTester::FunctionTester(Handle<Code> code) : FunctionTester(code, 0) {}
+FunctionTester::FunctionTester(DirectHandle<Code> code)
+    : FunctionTester(code, 0) {}
 
 void FunctionTester::CheckThrows(Handle<Object> a) {
   TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
-  MaybeHandle<Object> no_result = Call(a);
+  MaybeDirectHandle<Object> no_result = Call(a);
   CHECK(isolate->has_exception());
   CHECK(try_catch.HasCaught());
   CHECK(no_result.is_null());
@@ -52,7 +53,7 @@ void FunctionTester::CheckThrows(Handle<Object> a) {
 
 void FunctionTester::CheckThrows(Handle<Object> a, Handle<Object> b) {
   TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
-  MaybeHandle<Object> no_result = Call(a, b);
+  MaybeDirectHandle<Object> no_result = Call(a, b);
   CHECK(isolate->has_exception());
   CHECK(try_catch.HasCaught());
   CHECK(no_result.is_null());
@@ -61,7 +62,7 @@ void FunctionTester::CheckThrows(Handle<Object> a, Handle<Object> b) {
 v8::Local<v8::Message> FunctionTester::CheckThrowsReturnMessage(
     Handle<Object> a, Handle<Object> b) {
   TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
-  MaybeHandle<Object> no_result = Call(a, b);
+  MaybeDirectHandle<Object> no_result = Call(a, b);
   CHECK(isolate->has_exception());
   CHECK(try_catch.HasCaught());
   CHECK(no_result.is_null());

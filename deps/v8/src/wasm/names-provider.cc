@@ -20,7 +20,7 @@ NamesProvider::NamesProvider(const WasmModule* module,
 NamesProvider::~NamesProvider() = default;
 
 void NamesProvider::DecodeNamesIfNotYetDone() {
-  base::MutexGuard lock(&mutex_);
+  base::SpinningMutexGuard lock(&mutex_);
   if (has_decoded_) return;
   has_decoded_ = true;
   name_section_names_.reset(
@@ -200,7 +200,7 @@ void NamesProvider::PrintFunctionName(StringBuilder& out,
 
   if (behavior == kWasmInternal) return;
   {
-    base::MutexGuard lock(&mutex_);
+    base::SpinningMutexGuard lock(&mutex_);
     if (!has_computed_function_import_names_) {
       ComputeFunctionNamesFromImportsExports();
     }
@@ -426,7 +426,7 @@ size_t StringMapSize(const std::map<uint32_t, std::string>& map) {
 }  // namespace
 
 size_t NamesProvider::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(NamesProvider, 208);
+  UPDATE_WHEN_CLASS_CHANGES(NamesProvider, 160);
   size_t result = sizeof(NamesProvider);
   if (name_section_names_) {
     DecodedNameSection* names = name_section_names_.get();
@@ -442,7 +442,7 @@ size_t NamesProvider::EstimateCurrentMemoryConsumption() const {
     result += names->tag_names_.EstimateCurrentMemoryConsumption();
   }
   {
-    base::MutexGuard lock(&mutex_);
+    base::SpinningMutexGuard lock(&mutex_);
     result += StringMapSize(import_export_function_names_);
     result += StringMapSize(import_export_table_names_);
     result += StringMapSize(import_export_memory_names_);

@@ -165,12 +165,6 @@ void Stack::IteratePointersUntilMarker(StackVisitor* visitor) const {
   SuspendTagCheckingScope s;
   IteratePointersInStack(visitor, current_segment_);
   IteratePointersInUnsafeStackIfNecessary(visitor, current_segment_);
-
-  for (const auto& segment : inactive_stacks_) {
-    IteratePointersInStack(visitor, segment);
-    // TODO(v8:13493): If inactive stacks are used again, consider iterating
-    // pointers in the unsafe stack here.
-  }
 }
 
 void Stack::IterateBackgroundStacks(StackVisitor* visitor) const {
@@ -199,19 +193,6 @@ bool Stack::IsOnCurrentStack(const void* ptr) {
   return ptr <= current_stack_start && ptr >= current_stack_top;
 }
 #endif  // DEBUG
-
-void Stack::AddStackSegment(const void* start, const void* top) {
-  DCHECK_LE(top, start);
-  // TODO(v8:13493): If this method is used again, bear in mind that the
-  // StackSegments constructor implicitly uses the current values (if
-  // applicable) for:
-  // - asan_fake_start
-  // - unsafe stack start
-  // - unsafe stack top
-  inactive_stacks_.emplace_back(start, top);
-}
-
-void Stack::ClearStackSegments() { inactive_stacks_.clear(); }
 
 void Stack::TrampolineCallbackHelper(void* argument,
                                      IterateStackCallback callback) {

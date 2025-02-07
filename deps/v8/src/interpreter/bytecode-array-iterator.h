@@ -82,11 +82,18 @@ class V8_EXPORT_PRIVATE BytecodeArrayIterator {
     cursor_ += current_bytecode_size_without_prefix();
     UpdateOperandScale();
   }
+  // Prefer AdvanceTo over SetOffset if the new offset is greater than the
+  // current offset as it is more efficient.
+  void AdvanceTo(int offset);
   void SetOffset(int offset);
-  void Reset() { SetOffset(0); }
+  void Reset();
 
   // Whether the given offset is reachable in this bytecode array.
   static bool IsValidOffset(Handle<BytecodeArray> bytecode_array, int offset);
+
+  static bool IsValidOSREntryOffset(Handle<BytecodeArray> bytecode_array,
+                                    int offset);
+  bool CurrentBytecodeIsValidOSREntry() const;
 
   void ApplyDebugBreak();
 
@@ -177,6 +184,9 @@ class V8_EXPORT_PRIVATE BytecodeArrayIterator {
   bool operator!=(const BytecodeArrayIterator& other) const {
     return cursor_ != other.cursor_;
   }
+
+ protected:
+  void SetOffsetUnchecked(int offset);
 
  private:
   uint32_t GetUnsignedOperand(int operand_index,

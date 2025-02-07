@@ -58,6 +58,7 @@ cc_library(
         "//absl/base:raw_logging_internal",
         "//absl/base:strerror",
         "//absl/container:inlined_vector",
+        "//absl/debugging:leak_check",
         "//absl/debugging:stacktrace",
         "//absl/debugging:symbolize",
         "//absl/functional:function_ref",

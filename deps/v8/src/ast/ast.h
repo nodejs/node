@@ -239,6 +239,9 @@ class Expression : public AstNode {
   // True iff the expression is a string literal.
   bool IsStringLiteral() const;
 
+  // True iff the expression is a cons string literal.
+  bool IsConsStringLiteral() const;
+
   // True iff the expression is the null literal.
   bool IsNullLiteral() const;
 
@@ -322,6 +325,9 @@ class Block final : public BreakableStatement {
     return IgnoreCompletionField::decode(bit_field_);
   }
   bool is_breakable() const { return IsBreakableField::decode(bit_field_); }
+  bool is_initialization_block_for_parameters() const {
+    return IsInitializationBlockForParametersField::decode(bit_field_);
+  }
 
   Scope* scope() const { return scope_; }
   void set_scope(Scope* scope) { scope_ = scope; }
@@ -341,19 +347,25 @@ class Block final : public BreakableStatement {
 
   using IgnoreCompletionField = BreakableStatement::NextBitField<bool, 1>;
   using IsBreakableField = IgnoreCompletionField::Next<bool, 1>;
+  using IsInitializationBlockForParametersField =
+      IsBreakableField::Next<bool, 1>;
 
  protected:
   Block(Zone* zone, int capacity, bool ignore_completion_value,
-        bool is_breakable)
+        bool is_breakable, bool is_initialization_block_for_parameters)
       : BreakableStatement(kNoSourcePosition, kBlock),
         statements_(capacity, zone),
         scope_(nullptr) {
     bit_field_ |= IgnoreCompletionField::encode(ignore_completion_value) |
-                  IsBreakableField::encode(is_breakable);
+                  IsBreakableField::encode(is_breakable) |
+                  IsInitializationBlockForParametersField::encode(
+                      is_initialization_block_for_parameters);
   }
 
-  Block(bool ignore_completion_value, bool is_breakable)
-      : Block(nullptr, 0, ignore_completion_value, is_breakable) {}
+  Block(bool ignore_completion_value, bool is_breakable,
+        bool is_initialization_block_for_parameters)
+      : Block(nullptr, 0, ignore_completion_value, is_breakable,
+              is_initialization_block_for_parameters) {}
 };
 
 class Declaration : public AstNode {
@@ -934,6 +946,7 @@ class Literal final : public Expression {
     kHeapNumber,
     kBigInt,
     kString,
+    kConsString,
     kBoolean,
     kUndefined,
     kNull,
@@ -987,10 +1000,16 @@ class Literal final : public Expression {
     return bigint_;
   }
 
-  bool IsString() const { return type() == kString; }
+  bool IsRawString() const { return type() == kString; }
   const AstRawString* AsRawString() {
     DCHECK_EQ(type(), kString);
     return string_;
+  }
+
+  bool IsConsString() const { return type() == kConsString; }
+  AstConsString* AsConsString() {
+    DCHECK_EQ(type(), kConsString);
+    return cons_string_;
   }
 
   V8_EXPORT_PRIVATE bool ToBooleanIsTrue() const;
@@ -1012,7 +1031,7 @@ class Literal final : public Expression {
   friend class AstNodeFactory;
   friend Zone;
 
-  using TypeField = Expression::NextBitField<Type, 3>;
+  using TypeField = Expression::NextBitField<Type, 4>;
 
   Literal(int smi, int position) : Expression(position, kLiteral), smi_(smi) {
     bit_field_ = TypeField::update(bit_field_, kSmi);
@@ -1033,6 +1052,11 @@ class Literal final : public Expression {
     bit_field_ = TypeField::update(bit_field_, kString);
   }
 
+  Literal(AstConsString* string, int position)
+      : Expression(position, kLiteral), cons_string_(string) {
+    bit_field_ = TypeField::update(bit_field_, kConsString);
+  }
+
   Literal(bool boolean, int position)
       : Expression(position, kLiteral), boolean_(boolean) {
     bit_field_ = TypeField::update(bit_field_, kBoolean);
@@ -1045,6 +1069,7 @@ class Literal final : public Expression {
 
   union {
     const AstRawString* string_;
+    AstConsString* cons_string_;
     int smi_;
     double number_;
     AstBigInt bigint_;
@@ -1342,7 +1367,7 @@ class ObjectLiteralBoilerplateBuilder final : public LiteralBoilerplateBuilder {
   }
   ZoneList<Property*>* properties_;
   uint32_t boilerplate_properties_;
-  Handle<ObjectBoilerplateDescription> boilerplate_description_;
+  IndirectHandle<ObjectBoilerplateDescription> boilerplate_description_;
 
   using HasElementsField = LiteralBoilerplateBuilder::NextBitField<bool, 1>;
   using HasRestPropertyField = HasElementsField::Next<bool, 1>;
@@ -1434,7 +1459,7 @@ class ArrayLiteralBoilerplateBuilder final : public LiteralBoilerplateBuilder {
 
   const ZonePtrList<Expression>* values_;
   int first_spread_index_;
-  Handle<ArrayBoilerplateDescription> boilerplate_description_;
+  IndirectHandle<ArrayBoilerplateDescription> boilerplate_description_;
 };
 
 // An array literal has a literals object that is used
@@ -2457,7 +2482,7 @@ class FunctionLiteral final : public Expression {
   DeclarationScope* scope_;
   ZonePtrList<Statement> body_;
   AstConsString* raw_inferred_name_;
-  Handle<SharedFunctionInfo> shared_function_info_;
+  IndirectHandle<SharedFunctionInfo> shared_function_info_;
   ProducedPreparseData* produced_preparse_data_;
 };
 
@@ -3015,16 +3040,26 @@ class AstNodeFactory final {
   }
 
   Block* NewBlock(int capacity, bool ignore_completion_value) {
-    return zone_->New<Block>(zone_, capacity, ignore_completion_value, false);
+    return zone_->New<Block>(zone_, capacity, ignore_completion_value, false,
+                             false);
   }
 
   Block* NewBlock(bool ignore_completion_value, bool is_breakable) {
-    return zone_->New<Block>(ignore_completion_value, is_breakable);
+    return zone_->New<Block>(ignore_completion_value, is_breakable, false);
   }
 
   Block* NewBlock(bool ignore_completion_value,
                   const ScopedPtrList<Statement>& statements) {
     Block* result = NewBlock(ignore_completion_value, false);
+    result->InitializeStatements(statements, zone_);
+    return result;
+  }
+
+  Block* NewParameterInitializationBlock(
+      const ScopedPtrList<Statement>& statements) {
+    Block* result = zone_->New<Block>(
+        /* ignore_completion_value */ true, /* is_breakable */ false,
+        /* is_initialization_block_for_parameters */ true);
     result->InitializeStatements(statements, zone_);
     return result;
   }
@@ -3178,6 +3213,11 @@ class AstNodeFactory final {
   }
 
   Literal* NewStringLiteral(const AstRawString* string, int pos) {
+    DCHECK_NOT_NULL(string);
+    return zone_->New<Literal>(string, pos);
+  }
+
+  Literal* NewConsStringLiteral(AstConsString* string, int pos) {
     DCHECK_NOT_NULL(string);
     return zone_->New<Literal>(string, pos);
   }

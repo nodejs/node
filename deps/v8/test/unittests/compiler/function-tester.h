@@ -5,8 +5,8 @@
 #ifndef V8_UNITTESTS_COMPILER_FUNCTION_TESTER_H_
 #define V8_UNITTESTS_COMPILER_FUNCTION_TESTER_H_
 
-#include "src/compiler/graph.h"
 #include "src/compiler/js-heap-broker.h"
+#include "src/compiler/turbofan-graph.h"
 #include "src/execution/execution.h"
 #include "src/handles/handles.h"
 #include "test/unittests/test-utils.h"
@@ -25,7 +25,7 @@ class FunctionTester {
 
   FunctionTester(Isolate* i_isolate, Handle<InstructionStream> code,
                  int param_count);
-  FunctionTester(Isolate* i_isolate, Handle<Code> code, int param_count);
+  FunctionTester(Isolate* i_isolate, DirectHandle<Code> code, int param_count);
 
   // Assumes VoidDescriptor call interface.
   explicit FunctionTester(Isolate* i_isolate, Handle<InstructionStream> code);
@@ -34,14 +34,15 @@ class FunctionTester {
   Handle<JSFunction> function;
 
   MaybeHandle<Object> Call() {
-    return Execution::Call(isolate, function, undefined(), 0, nullptr);
+    return Execution::Call(isolate, function, undefined(), {});
   }
 
   template <typename Arg1, typename... Args>
   MaybeHandle<Object> Call(Arg1 arg1, Args... args) {
     const int nof_args = sizeof...(Args) + 1;
-    Handle<Object> call_args[] = {arg1, args...};
-    return Execution::Call(isolate, function, undefined(), nof_args, call_args);
+    DirectHandle<Object> call_args[] = {arg1, args...};
+    return Execution::Call(isolate, function, undefined(),
+                           {call_args, nof_args});
   }
 
   template <typename T, typename... Args>

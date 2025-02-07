@@ -28,7 +28,7 @@ namespace internal {
 // ecma402 #sec-createsegmentsobject
 MaybeHandle<JSSegments> JSSegments::Create(Isolate* isolate,
                                            DirectHandle<JSSegmenter> segmenter,
-                                           Handle<String> string) {
+                                           DirectHandle<String> string) {
   std::shared_ptr<icu::BreakIterator> break_iterator{
       segmenter->icu_break_iterator()->raw()->clone()};
   DCHECK_NOT_NULL(break_iterator);
@@ -87,7 +87,7 @@ MaybeHandle<Object> JSSegments::Containing(Isolate* isolate,
   // endIndex).
   return CreateSegmentDataObject(
       isolate, segments->granularity(), break_iterator,
-      handle(segments->raw_string(), isolate),
+      direct_handle(segments->raw_string(), isolate),
       *(segments->unicode_string()->raw()), start_index, end_index);
 }
 
@@ -134,7 +134,7 @@ MaybeHandle<JSSegmentDataObject> JSSegments::CreateSegmentDataObject(
   // 6. Let segment be the String value equal to the substring of string
   // consisting of the code units at indices startIndex (inclusive) through
   // endIndex (exclusive).
-  Handle<String> segment;
+  DirectHandle<String> segment;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, segment,
       Intl::ToString(isolate, unicode_string, start_index, end_index));

@@ -18,8 +18,8 @@ namespace v8 {
 namespace internal {
 
 MaybeHandle<JSV8BreakIterator> JSV8BreakIterator::New(
-    Isolate* isolate, DirectHandle<Map> map, Handle<Object> locales,
-    Handle<Object> options_obj, const char* service) {
+    Isolate* isolate, DirectHandle<Map> map, DirectHandle<Object> locales,
+    DirectHandle<Object> options_obj, const char* service) {
   Factory* factory = isolate->factory();
 
   // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
@@ -29,7 +29,7 @@ MaybeHandle<JSV8BreakIterator> JSV8BreakIterator::New(
   std::vector<std::string> requested_locales =
       maybe_requested_locales.FromJust();
 
-  Handle<JSReceiver> options;
+  DirectHandle<JSReceiver> options;
   if (IsUndefined(*options_obj, isolate)) {
     options = factory->NewJSObjectWithNullProto();
   } else {
@@ -139,13 +139,13 @@ Handle<JSObject> JSV8BreakIterator::ResolvedOptions(
     cloned_break_iterator->setText(data);
     switch (cloned_break_iterator->next()) {
       case 1:  // After "H"
-        return ReadOnlyRoots(isolate).character_string_handle();
+        return isolate->factory()->character_string();
       case 2:  // After "He"
-        return ReadOnlyRoots(isolate).word_string_handle();
+        return isolate->factory()->word_string();
       case 3:  // After "He "
-        return ReadOnlyRoots(isolate).line_string_handle();
+        return isolate->factory()->line_string();
       case 6:  // After "He is."
-        return ReadOnlyRoots(isolate).sentence_string_handle();
+        return isolate->factory()->sentence_string();
       default:
         UNREACHABLE();
     }
@@ -164,7 +164,7 @@ Handle<JSObject> JSV8BreakIterator::ResolvedOptions(
 
 void JSV8BreakIterator::AdoptText(
     Isolate* isolate, DirectHandle<JSV8BreakIterator> break_iterator_holder,
-    Handle<String> text) {
+    DirectHandle<String> text) {
   icu::BreakIterator* break_iterator =
       break_iterator_holder->break_iterator()->raw();
   DCHECK_NOT_NULL(break_iterator);

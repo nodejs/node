@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "include/cppgc/heap-consistency.h"
 #include "include/cppgc/internal/name-trait.h"
 #include "include/cppgc/trace-trait.h"
 #include "include/cppgc/visitor.h"
@@ -989,6 +990,8 @@ void CppGraphBuilderImpl::Run() {
   // Sweeping from a previous GC might still be running, in which case not all
   // pages have been returned to spaces yet.
   cpp_heap_.sweeper().FinishIfRunning();
+  cppgc::subtle::DisallowGarbageCollectionScope no_gc(
+      cpp_heap_.GetHeapHandle());
   // First pass: Figure out which objects should be included in the graph -- see
   // class-level comment on CppGraphBuilder.
   LiveObjectsForVisibilityIterator visitor(*this);

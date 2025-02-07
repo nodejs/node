@@ -61,7 +61,7 @@ class CallOptimization {
       IsolateT* isolate, Handle<Map> receiver_map,
       HolderLookup* holder_lookup) const;
 
-  bool IsCompatibleReceiverMap(Handle<JSObject> api_holder,
+  bool IsCompatibleReceiverMap(DirectHandle<JSObject> api_holder,
                                Handle<JSObject> holder, HolderLookup) const;
 
  private:

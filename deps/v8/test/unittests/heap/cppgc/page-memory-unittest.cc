@@ -78,27 +78,6 @@ TEST(PageMemoryDeathTest, ConstructNonContainedRegions) {
 
 #endif  // DEBUG
 
-// See the comment in globals.h when setting |kGuardPageSize| for details.
-#if !(defined(V8_TARGET_ARCH_ARM64) && defined(V8_OS_MACOS))
-TEST(PageMemoryRegionTest, PlatformUsesGuardPages) {
-  // This tests that the testing allocator actually uses protected guard
-  // regions.
-  v8::base::PageAllocator allocator;
-#if defined(V8_HOST_ARCH_PPC64) && !defined(_AIX)
-  EXPECT_FALSE(SupportsCommittingGuardPages(allocator));
-#elif defined(V8_HOST_ARCH_ARM64) || defined(V8_HOST_ARCH_LOONG64)
-  if (allocator.CommitPageSize() == 4096) {
-    EXPECT_TRUE(SupportsCommittingGuardPages(allocator));
-  } else {
-    // Arm64 supports both 16k and 64k OS pages.
-    EXPECT_FALSE(SupportsCommittingGuardPages(allocator));
-  }
-#else  // Regular case.
-  EXPECT_TRUE(SupportsCommittingGuardPages(allocator));
-#endif
-}
-#endif  // !(defined(V8_TARGET_ARCH_ARM64) && defined(V8_OS_MACOS))
-
 namespace {
 
 V8_NOINLINE uint8_t access(volatile const uint8_t& u) { return u; }
@@ -150,8 +129,7 @@ TEST(PageBackendTreeTest, AddNormalLookupRemove) {
                                .base());
   ASSERT_EQ(nullptr, tree.Lookup(reserved_base - 1));
   ASSERT_EQ(nullptr, tree.Lookup(reserved_base + kPageSize));
-  backend.FreeNormalPageMemory(writable_base,
-                               FreeMemoryHandling::kDoNotDiscard);
+  backend.FreeNormalPageMemory(writable_base);
   ASSERT_EQ(nullptr, tree.Lookup(reserved_base));
   ASSERT_EQ(nullptr, tree.Lookup(reserved_base + kPageSize - 1));
 }
@@ -212,8 +190,7 @@ TEST(PageBackendTreeTest, AddLookupRemoveMultiple) {
                 .overall_region()
                 .base());
 
-  backend.FreeNormalPageMemory(writable_normal_base,
-                               FreeMemoryHandling::kDoNotDiscard);
+  backend.FreeNormalPageMemory(writable_normal_base);
 
   ASSERT_EQ(reserved_large_base, tree.Lookup(reserved_large_base)
                                      ->GetPageMemory()
@@ -249,8 +226,7 @@ TEST(PageBackendPoolTest, AddTake) {
   auto* writable_base1 = backend.TryAllocateNormalPageMemory();
   EXPECT_TRUE(raw_pool.empty());
 
-  backend.FreeNormalPageMemory(writable_base1,
-                               FreeMemoryHandling::kDoNotDiscard);
+  backend.FreeNormalPageMemory(writable_base1);
   EXPECT_FALSE(raw_pool.empty());
   EXPECT_TRUE(raw_pool[0].region);
   EXPECT_EQ(raw_pool[0].region->GetPageMemory().writeable_region().base(),
@@ -274,8 +250,7 @@ void AddTakeWithDiscardInBetween(bool decommit_pooled_pages) {
   EXPECT_TRUE(raw_pool.empty());
   EXPECT_EQ(0u, pool.PooledMemory());
 
-  backend.FreeNormalPageMemory(writable_base1,
-                               FreeMemoryHandling::kDoNotDiscard);
+  backend.FreeNormalPageMemory(writable_base1);
   EXPECT_FALSE(raw_pool.empty());
   EXPECT_TRUE(raw_pool[0].region);
   EXPECT_EQ(raw_pool[0].region->GetPageMemory().writeable_region().base(),
@@ -283,7 +258,7 @@ void AddTakeWithDiscardInBetween(bool decommit_pooled_pages) {
   size_t size = raw_pool[0].region->GetPageMemory().writeable_region().size();
   EXPECT_EQ(size, pool.PooledMemory());
 
-  backend.DiscardPooledPages();
+  backend.ReleasePooledPages();
   // Not couting discarded memory.
   EXPECT_EQ(0u, pool.PooledMemory());
 
@@ -311,25 +286,22 @@ TEST(PageBackendPoolTest, PoolMemoryAccounting) {
 
   auto* writable_base1 = backend.TryAllocateNormalPageMemory();
   auto* writable_base2 = backend.TryAllocateNormalPageMemory();
-  backend.FreeNormalPageMemory(writable_base1,
-                               FreeMemoryHandling::kDoNotDiscard);
-  backend.FreeNormalPageMemory(writable_base2,
-                               FreeMemoryHandling::kDoNotDiscard);
+  backend.FreeNormalPageMemory(writable_base1);
+  backend.FreeNormalPageMemory(writable_base2);
   size_t normal_page_size = pool.get_raw_pool_for_testing()[0]
                                 .region->GetPageMemory()
                                 .writeable_region()
                                 .size();
 
   EXPECT_EQ(2 * normal_page_size, pool.PooledMemory());
-  backend.DiscardPooledPages();
+  backend.ReleasePooledPages();
   EXPECT_EQ(0u, pool.PooledMemory());
 
   auto* writable_base3 = backend.TryAllocateNormalPageMemory();
-  backend.FreeNormalPageMemory(writable_base3,
-                               FreeMemoryHandling::kDoNotDiscard);
+  backend.FreeNormalPageMemory(writable_base3);
   // One discarded, one not discarded.
   EXPECT_EQ(normal_page_size, pool.PooledMemory());
-  backend.DiscardPooledPages();
+  backend.ReleasePooledPages();
   EXPECT_EQ(0u, pool.PooledMemory());
 }
 
@@ -338,8 +310,7 @@ TEST(PageBackendTest, AllocateNormalUsesPool) {
   PageBackend backend(allocator, allocator);
   Address writeable_base1 = backend.TryAllocateNormalPageMemory();
   EXPECT_NE(nullptr, writeable_base1);
-  backend.FreeNormalPageMemory(writeable_base1,
-                               FreeMemoryHandling::kDoNotDiscard);
+  backend.FreeNormalPageMemory(writeable_base1);
   Address writeable_base2 = backend.TryAllocateNormalPageMemory();
   EXPECT_NE(nullptr, writeable_base2);
   EXPECT_EQ(writeable_base1, writeable_base2);
