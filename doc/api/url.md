@@ -833,7 +833,7 @@ added:
 * `iterable` {Iterable} An iterable object whose elements are key-value pairs
 
 Instantiate a new `URLSearchParams` object with an iterable map in a way that
-is similar to [`Map`][]'s constructor. `iterable` can be an `Array` or any
+is similar to {Map}'s constructor. `iterable` can be an `Array` or any
 iterable object. That means `iterable` can be another `URLSearchParams`, in
 which case the constructor will simply create a clone of the provided
 `URLSearchParams`. Elements of `iterable` are key-value pairs, and can
@@ -1824,7 +1824,6 @@ console.log(myURL.origin);
 [WHATWG URL Standard]: https://url.spec.whatwg.org/
 [`Error`]: errors.md#class-error
 [`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
-[`Map`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map
 [`TypeError`]: errors.md#class-typeerror
 [`URLSearchParams`]: #class-urlsearchparams
 [`array.toString()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/toString
