@@ -1150,16 +1150,16 @@ void MessagePort::ReceiveMessage(const FunctionCallbackInfo<Value>& args) {
   MessagePort* port = Unwrap<MessagePort>(args[0].As<Object>());
   if (port == nullptr) {
     // Return 'no messages' for a closed port.
-    args.GetReturnValue().Set(
-        Environment::GetCurrent(args)->no_message_symbol());
+    args.GetReturnValue().Set(env->no_message_symbol());
     return;
   }
 
-  MaybeLocal<Value> payload =
-      port->ReceiveMessage(port->object()->GetCreationContextChecked(),
-                           MessageProcessingMode::kForceReadMessages);
-  if (!payload.IsEmpty())
-    args.GetReturnValue().Set(payload.ToLocalChecked());
+  Local<Value> payload;
+  if (port->ReceiveMessage(port->object()->GetCreationContextChecked(),
+                           MessageProcessingMode::kForceReadMessages)
+          .ToLocal(&payload)) {
+    args.GetReturnValue().Set(payload);
+  }
 }
 
 void MessagePort::MoveToContext(const FunctionCallbackInfo<Value>& args) {
