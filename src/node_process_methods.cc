@@ -136,14 +136,15 @@ static void Cwd(const FunctionCallbackInfo<Value>& args) {
   char buf[PATH_MAX_BYTES];
   size_t cwd_len = sizeof(buf);
   int err = uv_cwd(buf, &cwd_len);
-  if (err)
+  if (err) {
     return env->ThrowUVException(err, "uv_cwd");
+  }
 
-  Local<String> cwd = String::NewFromUtf8(env->isolate(),
-                                          buf,
-                                          NewStringType::kNormal,
-                                          cwd_len).ToLocalChecked();
-  args.GetReturnValue().Set(cwd);
+  Local<String> cwd;
+  if (String::NewFromUtf8(env->isolate(), buf, NewStringType::kNormal, cwd_len)
+          .ToLocal(&cwd)) {
+    args.GetReturnValue().Set(cwd);
+  }
 }
 
 static void Kill(const FunctionCallbackInfo<Value>& args) {

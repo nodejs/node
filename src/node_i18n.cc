@@ -104,14 +104,15 @@ namespace {
 
 template <typename T>
 MaybeLocal<Object> ToBufferEndian(Environment* env, MaybeStackBuffer<T>* buf) {
-  MaybeLocal<Object> ret = Buffer::New(env, buf);
-  if (ret.IsEmpty())
-    return ret;
+  Local<Object> ret;
+  if (!Buffer::New(env, buf).ToLocal(&ret)) {
+    return {};
+  }
 
   static_assert(sizeof(T) == 1 || sizeof(T) == 2,
                 "Currently only one- or two-byte buffers are supported");
   if constexpr (sizeof(T) > 1 && IsBigEndian()) {
-    SPREAD_BUFFER_ARG(ret.ToLocalChecked(), retbuf);
+    SPREAD_BUFFER_ARG(ret, retbuf);
     CHECK(nbytes::SwapBytes16(retbuf_data, retbuf_length));
   }
 
@@ -317,19 +318,22 @@ void Transcode(const FunctionCallbackInfo<Value>&args) {
     status = U_ILLEGAL_ARGUMENT_ERROR;
   }
 
-  if (result.IsEmpty())
-    return args.GetReturnValue().Set(status);
+  Local<Object> res;
+  if (result.ToLocal(&res)) {
+    return args.GetReturnValue().Set(res);
+  }
 
-  return args.GetReturnValue().Set(result.ToLocalChecked());
+  return args.GetReturnValue().Set(status);
 }
 
 void ICUErrorName(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK(args[0]->IsInt32());
   UErrorCode status = static_cast<UErrorCode>(args[0].As<Int32>()->Value());
-  args.GetReturnValue().Set(
-      String::NewFromUtf8(env->isolate(),
-                          u_errorName(status)).ToLocalChecked());
+  Local<Value> res;
+  if (String::NewFromUtf8(env->isolate(), u_errorName(status)).ToLocal(&res)) {
+    args.GetReturnValue().Set(res);
+  }
 }
 
 }  // anonymous namespace
@@ -390,7 +394,10 @@ void ConverterObject::Create(const FunctionCallbackInfo<Value>& args) {
 
   CHECK_GE(args.Length(), 2);
   Utf8Value label(env->isolate(), args[0]);
-  int flags = args[1]->Uint32Value(env->context()).ToChecked();
+  uint32_t flags;
+  if (!args[1]->Uint32Value(env->context()).To(&flags)) {
+    return;
+  }
   bool fatal =
       (flags & CONVERTER_FLAGS_FATAL) == CONVERTER_FLAGS_FATAL;
 
@@ -430,7 +437,10 @@ void ConverterObject::Decode(const FunctionCallbackInfo<Value>& args) {
   }
 
   ArrayBufferViewContents<char> input(args[1]);
-  int flags = args[2]->Uint32Value(env->context()).ToChecked();
+  uint32_t flags;
+  if (!args[2]->Uint32Value(env->context()).To(&flags)) {
+    return;
+  }
 
   CHECK(args[3]->IsString());
   Local<String> from_encoding = args[3].As<String>();
