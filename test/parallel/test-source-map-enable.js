@@ -1,8 +1,7 @@
 'use strict';
 
-if (!process.features.inspector) return;
-
-const common = require('../common');
+const { isWindows, skipIfInspectorDisabled } = require('../common');
+skipIfInspectorDisabled();
 const assert = require('assert');
 const { dirname } = require('path');
 const fs = require('fs');
@@ -40,7 +39,7 @@ function nextdir() {
   const output = spawnSync(process.execPath, [
     require.resolve('../fixtures/source-map/sigint'),
   ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
-  if (!common.isWindows) {
+  if (!isWindows) {
     if (output.signal !== 'SIGINT') {
       console.log(output.stderr.toString());
     }
@@ -308,7 +307,7 @@ function nextdir() {
   // have been taken as the drive letter on Windows, the scheme on POSIX.
   assert.strictEqual(
     sourceMap.data.sources[0],
-    common.isWindows ?
+    isWindows ?
       'file:///D:/workspaces/node/test/fixtures/source-map/ts-node.ts' :
       'd:/workspaces/node/test/fixtures/source-map/ts-node.ts'
   );

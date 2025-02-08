@@ -1,8 +1,8 @@
 'use strict';
 
-if (!process.features.inspector) return;
+const { skipIfInspectorDisabled } = require('../common');
+skipIfInspectorDisabled();
 
-require('../common');
 const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
 const assert = require('assert');

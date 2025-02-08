@@ -2,10 +2,7 @@
 'use strict';
 
 const common = require('../common');
-
-if (process.features.inspector) {
-  common.skip('V8 inspector is enabled');
-}
+common.skipIfInspectorDisabled();
 
 const inspector = require('internal/util/inspector');
 

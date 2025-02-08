@@ -1,8 +1,7 @@
 'use strict';
 
-if (!process.features.inspector) return;
-
 const common = require('../common');
+common.skipIfInspectorDisabled();
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
