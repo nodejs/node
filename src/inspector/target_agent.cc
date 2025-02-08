@@ -1,4 +1,5 @@
 #include "target_agent.h"
+#include "crdtp/dispatch.h"
 #include "inspector/worker_inspector.h"
 #include "main_thread_interface.h"
 
@@ -19,11 +20,7 @@ class WorkerTargetDelegate : public WorkerDelegate {
                      const std::string& url,
                      bool waiting,
                      std::shared_ptr<MainThreadHandle> worker) override {
-    std::string target_id = std::to_string(target_agent_->getNextTargetId());
-    std::string type = "worker";
-
-    target_agent_->targetCreated(target_id, type, title, url);
-    target_agent_->attachedToTarget(worker, target_id, type, title, url);
+    target_agent_->createAndAttachIfNecessary(worker, title, url);
   }
 
  private:
@@ -47,6 +44,22 @@ std::unique_ptr<Target::TargetInfo> createTargetInfo(const String& target_id,
 void TargetAgent::Wire(UberDispatcher* dispatcher) {
   frontend_ = std::make_unique<Target::Frontend>(dispatcher->channel());
   Target::Dispatcher::wire(dispatcher, this);
+}
+
+void TargetAgent::createAndAttachIfNecessary(
+    std::shared_ptr<MainThreadHandle> worker,
+    const std::string& title,
+    const std::string& url) {
+  std::string target_id = std::to_string(getNextTargetId());
+  std::string type = "worker";
+
+  targetCreated(target_id, type, title, url);
+  bool attached = false;
+  if (auto_attach_) {
+    attached = true;
+    attachedToTarget(worker, target_id, type, title, url);
+  }
+  targets_.push_back({target_id, type, title, url, worker, attached});
 }
 
 void TargetAgent::listenWorker(std::weak_ptr<WorkerManager> worker_manager) {
@@ -91,6 +104,29 @@ void TargetAgent::attachedToTarget(std::shared_ptr<MainThreadHandle> worker,
   frontend_->attachedToTarget(std::to_string(session_id),
                               createTargetInfo(target_id, type, title, url),
                               true);
+}
+
+// TODO(islandryu): Currently, setAutoAttach applies the main thread's value to
+// all threads. Modify it to be managed per worker thread.
+crdtp::DispatchResponse TargetAgent::setAutoAttach(
+    bool auto_attach, bool wait_for_debugger_on_start) {
+  auto_attach_ = auto_attach;
+  wait_for_debugger_on_start_ = wait_for_debugger_on_start;
+
+  if (auto_attach) {
+    for (auto& target : targets_) {
+      if (!target.attached) {
+        target.attached = true;
+        attachedToTarget(target.worker,
+                         target.target_id,
+                         target.type,
+                         target.title,
+                         target.url);
+      }
+    }
+  }
+
+  return DispatchResponse::Success();
 }
 
 }  // namespace protocol

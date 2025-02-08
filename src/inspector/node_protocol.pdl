@@ -241,3 +241,7 @@ experimental domain Target
       SessionID sessionId
       TargetInfo targetInfo
       boolean waitingForDebugger
+  command setAutoAttach
+    parameters
+      boolean autoAttach
+      boolean waitForDebuggerOnStart
