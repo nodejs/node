@@ -1364,9 +1364,11 @@ void GetCLIOptionsValues(const FunctionCallbackInfo<Value>& args) {
         std::string negated_name =
             "--no" + item.first.substr(1, item.first.size());
         Local<Value> negated_value = Boolean::New(isolate, !original_value);
-        Local<Name> negated_name_v8 =
-            ToV8Value(context, negated_name).ToLocalChecked().As<Name>();
-        option_names.push_back(negated_name_v8);
+        Local<Value> negated_name_v8;
+        if (!ToV8Value(context, negated_name).ToLocal(&negated_name_v8)) {
+          return;
+        }
+        option_names.push_back(negated_name_v8.As<Name>());
         option_values.push_back(negated_value);
         break;
       }
@@ -1414,9 +1416,11 @@ void GetCLIOptionsValues(const FunctionCallbackInfo<Value>& args) {
         UNREACHABLE();
     }
     CHECK(!value.IsEmpty());
-    Local<Name> name =
-        ToV8Value(context, item.first).ToLocalChecked().As<Name>();
-    option_names.push_back(name);
+    Local<Value> name;
+    if (!ToV8Value(context, item.first).ToLocal(&name)) {
+      return;
+    }
+    option_names.push_back(name.As<Name>());
     option_values.push_back(value);
   }
 
@@ -1455,10 +1459,10 @@ void GetCLIOptionsInfo(const FunctionCallbackInfo<Value>& args) {
     const auto& option_info = item.second;
     auto field = option_info.field;
 
-    Local<Name> name =
-        ToV8Value(context, item.first).ToLocalChecked().As<Name>();
+    Local<Value> name;
     Local<Value> help_text;
-    if (!ToV8Value(context, option_info.help_text).ToLocal(&help_text)) {
+    if (!ToV8Value(context, item.first).ToLocal(&name) ||
+        !ToV8Value(context, option_info.help_text).ToLocal(&help_text)) {
       return;
     }
     constexpr size_t kInfoSize = 4;
