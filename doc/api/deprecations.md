@@ -2065,6 +2065,9 @@ method.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/56966
+    description: End-of-Life.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18066
     description: Runtime deprecation.
@@ -2079,6 +2082,9 @@ Type: Runtime
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/56966
+    description: End-of-Life.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18066
     description: Runtime deprecation.
@@ -2613,6 +2619,9 @@ The `node:_stream_wrap` module is deprecated.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/56966
+    description: End-of-Life.
   - version: v11.14.0
     pr-url: https://github.com/nodejs/node/pull/26760
     description: Runtime deprecation.
@@ -2629,6 +2638,9 @@ with no performance impact since Node.js 10.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/56966
+    description: End-of-Life.
   - version: v11.14.0
     pr-url: https://github.com/nodejs/node/pull/26760
     description: Runtime deprecation.
