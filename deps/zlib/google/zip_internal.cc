@@ -397,14 +397,14 @@ Compression GetCompressionMethod(const base::FilePath& path) {
 
 
   // Skip the leading dot.
-  base::FilePath::StringPieceType ext_without_dot = ext;
+  base::FilePath::StringViewType ext_without_dot = ext;
   DCHECK_EQ(ext_without_dot.front(), FILE_PATH_LITERAL('.'));
   ext_without_dot.remove_prefix(1);
 
   // Well known filename extensions of files that a likely to be already
   // compressed. The extensions are in lower case without the leading dot.
   static constexpr auto kExts =
-      base::MakeFixedFlatSet<base::FilePath::StringPieceType>({
+      base::MakeFixedFlatSet<base::FilePath::StringViewType>({
           FILE_PATH_LITERAL("3g2"),   //
           FILE_PATH_LITERAL("3gp"),   //
           FILE_PATH_LITERAL("7z"),    //
