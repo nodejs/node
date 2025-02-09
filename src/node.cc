@@ -1258,6 +1258,8 @@ void TearDownOncePerProcess() {
     // will never be fully cleaned up.
     per_process::v8_platform.Dispose();
   }
+
+  crypto::CleanupCachedRootCertificates();
 }
 
 ExitCode GenerateAndWriteSnapshotData(const SnapshotData** snapshot_data_ptr,
