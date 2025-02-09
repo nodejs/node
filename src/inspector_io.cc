@@ -366,12 +366,17 @@ void InspectorIoDelegate::MessageReceived(int session_id,
       GetTargetSessionId(message);
   std::shared_ptr<MainThreadHandle> worker = nullptr;
   int merged_session_id = session_id;
-  if (!target_session_id_str->empty()) {
-    int target_session_id = std::stoi(*target_session_id_str);
-    worker =
-        protocol::TargetAgent::target_session_id_worker_map_[target_session_id];
-    if (worker) {
-      merged_session_id += target_session_id << 16;
+  if (target_session_id_str) {
+    bool is_number = std::all_of(target_session_id_str->begin(),
+                                 target_session_id_str->end(),
+                                 ::isdigit);
+    if (is_number) {
+      int target_session_id = std::stoi(*target_session_id_str);
+      worker = protocol::TargetAgent::target_session_id_worker_map_
+          [target_session_id];
+      if (worker) {
+        merged_session_id += target_session_id << 16;
+      }
     }
   }
 
