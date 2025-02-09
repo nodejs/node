@@ -2648,7 +2648,7 @@ changes:
 
 Type: End-of-Life
 
-The previously undocumented and "private" `timers._unrefActive()` is deprecated.
+The previously undocumented and "private" `timers._unrefActive()` has been removed.
 Please use the publicly documented [`timeout.refresh()`][] instead.
 If unreferencing the timeout is necessary, [`timeout.unref()`][] can be used
 with no performance impact since Node.js 10.
