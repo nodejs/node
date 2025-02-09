@@ -21,7 +21,7 @@ const server = net.createServer(common.mustCall(function(conn) {
       }
 
       while (conn.write(data, 'hex'));
-      globalThis.gc({ type: 'minor' });
+      globalThis.gc({ type: 'major' });
       // The buffer allocated inside the .write() call should still be alive.
     }
 
