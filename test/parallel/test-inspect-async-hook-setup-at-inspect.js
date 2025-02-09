@@ -1,7 +1,6 @@
 'use strict';
 const common = require('../common');
 common.skipIfInspectorDisabled();
-common.skipIf32Bits();
 const { NodeInstance } = require('../common/inspector-helper.js');
 const assert = require('assert');
 

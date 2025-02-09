@@ -1,9 +1,6 @@
 'use strict';
 const common = require('../common');
 
-// Buffer with size > INT32_MAX
-common.skipIf32Bits();
-
 const assert = require('assert');
 const { StringDecoder } = require('node:string_decoder');
 const kStringMaxLength = require('buffer').constants.MAX_STRING_LENGTH;

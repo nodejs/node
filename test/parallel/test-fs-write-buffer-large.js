@@ -6,10 +6,6 @@ const fs = require('fs');
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
-// fs.write with length > INT32_MAX
-
-common.skipIf32Bits();
-
 let buf;
 try {
   buf = Buffer.allocUnsafe(0x7FFFFFFF + 1);

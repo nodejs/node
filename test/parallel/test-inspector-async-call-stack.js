@@ -2,7 +2,6 @@
 'use strict';
 const common = require('../common');
 common.skipIfInspectorDisabled();
-common.skipIf32Bits();
 
 const assert = require('assert');
 const { inspect } = require('util');

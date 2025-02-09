@@ -32,8 +32,6 @@ const { inspect, getCallSites } = require('util');
 const { isMainThread } = require('worker_threads');
 
 const tmpdir = require('./tmpdir');
-const bits = ['arm64', 'loong64', 'mips', 'mipsel', 'ppc64', 'riscv64', 's390x', 'x64']
-  .includes(process.arch) ? 64 : 32;
 const hasIntl = !!process.config.variables.v8_enable_i18n_support;
 
 const {
@@ -676,12 +674,6 @@ function skipIfInspectorDisabled() {
   }
 }
 
-function skipIf32Bits() {
-  if (bits < 64) {
-    skip('The tested feature is not available in 32bit builds');
-  }
-}
-
 function getArrayBufferViews(buf) {
   const { buffer, byteOffset, byteLength } = buf;
 
@@ -897,7 +889,6 @@ const common = {
   requireNoPackageJSONAbove,
   runWithInvalidFD,
   skip,
-  skipIf32Bits,
   skipIfEslintMissing,
   skipIfInspectorDisabled,
   spawnPromisified,

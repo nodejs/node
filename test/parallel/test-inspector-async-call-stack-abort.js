@@ -3,7 +3,6 @@
 'use strict';
 const common = require('../common');
 common.skipIfInspectorDisabled();
-common.skipIf32Bits();
 
 const { strictEqual } = require('assert');
 const eyecatcher = 'nou, houdoe he?';

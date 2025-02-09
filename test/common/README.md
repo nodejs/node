@@ -458,11 +458,6 @@ at `tools/eslint/node_modules/eslint`
 Skip the rest of the tests in the current file when the Inspector
 was disabled at compile time.
 
-### `skipIf32Bits()`
-
-Skip the rest of the tests in the current file when the Node.js executable
-was compiled with a pointer size smaller than 64 bits.
-
 ## ArrayStream module
 
 The `ArrayStream` module provides a simple `Stream` that pushes elements from
