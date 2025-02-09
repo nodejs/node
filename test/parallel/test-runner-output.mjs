@@ -235,6 +235,10 @@ const tests = [
     name: 'test-runner/output/test-runner-plan.js',
     flags: ['--test-reporter=tap'],
   },
+  {
+    name: 'test-runner/output/test-runner-watch-spec.mjs',
+    transform: specTransform,
+  },
   process.features.inspector ? {
     name: 'test-runner/output/coverage_failure.js',
     flags: ['--test-reporter=tap'],
