@@ -2073,7 +2073,7 @@ changes:
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 `timers.enroll()` is deprecated. Please use the publicly documented
 [`setTimeout()`][] or [`setInterval()`][] instead.
@@ -2090,7 +2090,7 @@ changes:
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 `timers.unenroll()` is deprecated. Please use the publicly documented
 [`clearTimeout()`][] or [`clearInterval()`][] instead.
@@ -2627,7 +2627,7 @@ changes:
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 The previously undocumented `timers.active()` is deprecated.
 Please use the publicly documented [`timeout.refresh()`][] instead.
@@ -2646,7 +2646,7 @@ changes:
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 The previously undocumented and "private" `timers._unrefActive()` is deprecated.
 Please use the publicly documented [`timeout.refresh()`][] instead.
