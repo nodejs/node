@@ -9,7 +9,7 @@ on:
       subsystems:
         description: Subsystem to run the update for
         required: false
-        default: '["url", "WebCryptoAPI"]'
+        default: '["url", "urlpattern", "WebCryptoAPI"]'
 
 permissions:
   contents: read
@@ -24,7 +24,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        subsystem: ${{ fromJSON(github.event.inputs.subsystems || '["url", "WebCryptoAPI"]') }}
+        subsystem: ${{ fromJSON(github.event.inputs.subsystems || '["url", "urlpattern", "WebCryptoAPI"]') }}
 
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
