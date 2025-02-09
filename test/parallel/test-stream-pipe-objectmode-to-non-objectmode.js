@@ -4,8 +4,8 @@ const common = require('../common');
 const assert = require('node:assert');
 const { Readable, Transform, Writable } = require('node:stream');
 
-// Pipeine objects from object mode to non-object mode should throw an error and
-// catch by the consumer
+// Piping objects from object mode to non-object mode in a pipeline should throw
+// an error and catch by the consumer
 {
   const objectReadable = Readable.from([
     { hello: 'hello' },
