@@ -1015,6 +1015,11 @@ parser.add_argument('--clang-cl',
     default=None,
     help='Configure for clang-cl on Windows. This flag sets the GYP "clang" ' +
          'variable to 1 and "llvm_version" to the specified value.')
+parser.add_argument('--use-ccache-win',
+    action='store_true',
+    dest='use_ccache_win',
+    default=None,
+    help='Use ccache for compiling on Windows. ')
 
 (options, args) = parser.parse_known_args()
 
@@ -1191,6 +1196,8 @@ def get_gas_version(cc):
 # check involves checking the build number against an allowlist.  I'm not
 # quite prepared to go that far yet.
 def check_compiler(o):
+  o['variables']['use_ccache_win'] = 0
+
   if sys.platform == 'win32':
     if options.clang_cl:
       o['variables']['clang'] = 1
@@ -1198,6 +1205,9 @@ def check_compiler(o):
     else:
       o['variables']['clang'] = 0
       o['variables']['llvm_version'] = '0.0'
+
+    if options.use_ccache_win:
+      o['variables']['use_ccache_win'] = 1
 
     if not options.openssl_no_asm and options.dest_cpu in ('x86', 'x64'):
       nasm_version = get_nasm_version('nasm')

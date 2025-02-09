@@ -576,6 +576,24 @@ export CC="ccache cc"          # add to ~/.zshrc or other shell config file
 export CXX="ccache c++"        # add to ~/.zshrc or other shell config file
 ```
 
+On Windows:
+
+Tips: follow <https://github.com/ccache/ccache/wiki/MS-Visual-Studio>, and you
+should notice that obj file will be bigger the normal one.
+
+First, install ccache, assume ccache install to c:\ccache, copy
+c:\ccache\ccache.exe to c:\ccache\cl.exe with this command
+
+```powershell
+cp c:\ccache\ccache.exe c:\ccache\cl.exe
+```
+
+When building Node.js provide a path to your ccache via the option
+
+```powershell
+.\vcbuild.bat ccache c:\ccache\
+```
+
 This will allow for near-instantaneous rebuilds when switching branches back
 and forth that were built with cache.
 
