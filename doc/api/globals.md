@@ -1145,6 +1145,16 @@ added: v10.0.0
 
 The WHATWG `URL` class. See the [`URL`][] section.
 
+## `URLPattern`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+<!-- type=global -->
+
+The WHATWG `URLPattern` class. See the [`URLPattern`][] section.
+
 ## `URLSearchParams`
 
 <!-- YAML
@@ -1262,6 +1272,7 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [`TextEncoder`]: util.md#class-utiltextencoder
 [`TransformStreamDefaultController`]: webstreams.md#class-transformstreamdefaultcontroller
 [`TransformStream`]: webstreams.md#class-transformstream
+[`URLPattern`]: url.md#class-urlpattern
 [`URLSearchParams`]: url.md#class-urlsearchparams
 [`URL`]: url.md#class-url
 [`WebSocket`]: https://developer.mozilla.org/en-US/docs/Web/API/WebSocket
