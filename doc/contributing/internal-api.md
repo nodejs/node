@@ -39,3 +39,7 @@ Enables tracing of promises for debugging and performance analysis.
 #### `--verify-base-objects`
 
 Allows verification of base objects for debugging purposes.
+
+#### `--experimental-quic`
+
+Enable QUIC Protocol (under development)
