@@ -1088,6 +1088,10 @@ constexpr bool is_uv_error_except_no_entry(int result) {
   return result < 0 && result != UV_ENOENT;
 }
 
+constexpr bool is_uv_error_except_no_entry_dir(int result) {
+  return result < 0 && !(result == UV_ENOENT || result == UV_ENOTDIR);
+}
+
 static void Stat(const FunctionCallbackInfo<Value>& args) {
   Realm* realm = Realm::GetCurrent(args);
   BindingData* binding_data = realm->GetBindingData<BindingData>();
@@ -1121,8 +1125,11 @@ static void Stat(const FunctionCallbackInfo<Value>& args) {
     FS_SYNC_TRACE_BEGIN(stat);
     int result;
     if (do_not_throw_if_no_entry) {
-      result = SyncCallAndThrowIf(
-          is_uv_error_except_no_entry, env, &req_wrap_sync, uv_fs_stat, *path);
+      result = SyncCallAndThrowIf(is_uv_error_except_no_entry_dir,
+                                  env,
+                                  &req_wrap_sync,
+                                  uv_fs_stat,
+                                  *path);
     } else {
       result = SyncCallAndThrowOnError(env, &req_wrap_sync, uv_fs_stat, *path);
     }
