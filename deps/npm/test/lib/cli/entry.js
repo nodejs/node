@@ -1,6 +1,6 @@
 const t = require('tap')
-const { readdirSync } = require('fs')
-const { dirname } = require('path')
+const { readdirSync } = require('node:fs')
+const { dirname } = require('node:path')
 const { load: loadMockNpm } = require('../../fixtures/mock-npm.js')
 const tmock = require('../../fixtures/tmock.js')
 const validateEngines = require('../../../lib/cli/validate-engines.js')
@@ -8,16 +8,22 @@ const validateEngines = require('../../../lib/cli/validate-engines.js')
 const cliMock = async (t, opts) => {
   let exitHandlerArgs = null
   let npm = null
-  const exitHandlerMock = (...args) => {
-    exitHandlerArgs = args
-    npm.unload()
-  }
-  exitHandlerMock.setNpm = _npm => npm = _npm
 
   const { Npm, ...mock } = await loadMockNpm(t, { ...opts, init: false })
   const cli = tmock(t, '{LIB}/cli/entry.js', {
     '{LIB}/npm.js': Npm,
-    '{LIB}/cli/exit-handler.js': exitHandlerMock,
+    '{LIB}/cli/exit-handler.js': class MockExitHandler {
+      exit (...args) {
+        exitHandlerArgs = args
+        npm.unload()
+      }
+
+      registerUncaughtHandlers () {}
+
+      setNpm (_npm) {
+        npm = _npm
+      }
+    },
   })
 
   return {
@@ -108,21 +114,6 @@ t.test('print usage if no params provided', async t => {
   await cli(process)
 
   t.match(outputs[0], 'Usage:', 'outputs npm usage')
-  t.match(exitHandlerCalled(), [], 'should call exitHandler with no args')
-  t.ok(exitHandlerNpm(), 'exitHandler npm is set')
-  t.match(process.exitCode, 1)
-})
-
-t.test('print usage if non-command param provided', async t => {
-  const { cli, outputs, exitHandlerCalled, exitHandlerNpm } = await cliMock(t, {
-    globals: {
-      'process.argv': ['node', 'npm', 'tset'],
-    },
-  })
-  await cli(process)
-
-  t.match(outputs[0], 'Unknown command: "tset"')
-  t.match(outputs[0], 'Did you mean this?')
   t.match(exitHandlerCalled(), [], 'should call exitHandler with no args')
   t.ok(exitHandlerNpm(), 'exitHandler npm is set')
   t.match(process.exitCode, 1)

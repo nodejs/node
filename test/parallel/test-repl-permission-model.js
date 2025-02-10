@@ -1,6 +1,6 @@
 'use strict';
 
-// Flags: --expose-internals --experimental-permission --allow-fs-read=*
+// Flags: --expose-internals --permission --allow-fs-read=*
 
 const common = require('../common');
 const stream = require('stream');

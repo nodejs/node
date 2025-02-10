@@ -24,6 +24,7 @@
 #include "defs.h"
 #include "endpoint.h"
 #include "logstream.h"
+#include "ncrypto.h"
 #include "packet.h"
 #include "preferredaddress.h"
 #include "sessionticket.h"
@@ -531,13 +532,13 @@ Session::Session(Endpoint* endpoint,
 
   auto& state = BindingData::Get(env());
 
-  if (UNLIKELY(config_.options.qlog)) {
+  if (config_.options.qlog) [[unlikely]] {
     qlog_stream_ = LogStream::Create(env());
     if (qlog_stream_)
       defineProperty(state.qlog_string(), qlog_stream_->object());
   }
 
-  if (UNLIKELY(config_.options.tls_options.keylog)) {
+  if (config_.options.tls_options.keylog) [[unlikely]] {
     keylog_stream_ = LogStream::Create(env());
     if (keylog_stream_)
       defineProperty(state.keylog_string(), keylog_stream_->object());
@@ -1307,7 +1308,7 @@ void Session::SendConnectionClose() {
       ssize_t nwrite = ngtcp2_conn_write_connection_close(
           *this, &path, nullptr, vec.base, vec.len, last_error_, uv_hrtime());
 
-      if (UNLIKELY(nwrite < 0)) {
+      if (nwrite < 0) [[unlikely]] {
         packet->Done(UV_ECANCELED);
         last_error_ = QuicError::ForNgtcp2Error(NGTCP2_INTERNAL_ERROR);
         Close(CloseMethod::SILENT);
@@ -1530,7 +1531,7 @@ void Session::EmitDatagram(Store&& datagram, DatagramReceivedFlags flag) {
   DCHECK(!is_destroyed());
   if (!env()->can_call_into_js()) return;
 
-  CallbackScope cbv_scope(this);
+  CallbackScope<Session> cbv_scope(this);
 
   Local<Value> argv[] = {datagram.ToUint8Array(env()),
                          v8::Boolean::New(env()->isolate(), flag.early)};
@@ -1616,7 +1617,9 @@ void Session::EmitPathValidation(PathValidationResult result,
                                  const std::optional<ValidatedPath>& oldPath) {
   DCHECK(!is_destroyed());
   if (!env()->can_call_into_js()) return;
-  if (LIKELY(state_->path_validation == 0)) return;
+  if (state_->path_validation == 0) [[likely]] {
+    return;
+  }
 
   auto isolate = env()->isolate();
   CallbackScope<Session> cb_scope(this);
@@ -1657,7 +1660,7 @@ void Session::EmitSessionTicket(Store&& ticket) {
 
   // If there is nothing listening for the session ticket, don't bother
   // emitting.
-  if (LIKELY(!wants_session_ticket())) {
+  if (!wants_session_ticket()) [[likely]] {
     Debug(this, "Session ticket was discarded");
     return;
   }
@@ -1681,10 +1684,16 @@ void Session::EmitStream(BaseObjectPtr<Stream> stream) {
   if (is_destroyed()) return;
   if (!env()->can_call_into_js()) return;
   CallbackScope<Session> cb_scope(this);
-  Local<Value> arg = stream->object();
+  auto isolate = env()->isolate();
+  Local<Value> argv[] = {
+      stream->object(),
+      Integer::NewFromUnsigned(isolate,
+                               static_cast<uint32_t>(stream->direction())),
+  };
 
   Debug(this, "Notifying JavaScript of stream created");
-  MakeCallback(BindingData::Get(env()).stream_created_callback(), 1, &arg);
+  MakeCallback(
+      BindingData::Get(env()).stream_created_callback(), arraysize(argv), argv);
 }
 
 void Session::EmitVersionNegotiation(const ngtcp2_pkt_hd& hd,
@@ -1708,7 +1717,7 @@ void Session::EmitVersionNegotiation(const ngtcp2_pkt_hd& hd,
   versions.AllocateSufficientStorage(nsv);
   for (size_t n = 0; n < nsv; n++) versions[n] = to_integer(sv[n]);
 
-  // supported are the versons we acutually support expressed as a range.
+  // supported are the versions we acutually support expressed as a range.
   // The first value is the minimum version, the second is the maximum.
   Local<Value> supported[] = {to_integer(config_.options.min_version),
                               to_integer(config_.options.version)};
@@ -1740,7 +1749,9 @@ void Session::EmitKeylog(const char* line) {
 
 #define NGTCP2_CALLBACK_SCOPE(name)                                            \
   auto name = Impl::From(conn, user_data);                                     \
-  if (UNLIKELY(name->is_destroyed())) return NGTCP2_ERR_CALLBACK_FAILURE;      \
+  if (name->is_destroyed()) [[unlikely]] {                                     \
+    return NGTCP2_ERR_CALLBACK_FAILURE;                                        \
+  }                                                                            \
   NgTcp2CallbackScope scope(session->env());
 
 struct Session::Impl {
@@ -1753,14 +1764,14 @@ struct Session::Impl {
 
   static void DoDestroy(const FunctionCallbackInfo<Value>& args) {
     Session* session;
-    ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
     session->Destroy();
   }
 
   static void GetRemoteAddress(const FunctionCallbackInfo<Value>& args) {
     auto env = Environment::GetCurrent(args);
     Session* session;
-    ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
     auto address = session->remote_address();
     args.GetReturnValue().Set(
         SocketAddressBase::Create(env, std::make_shared<SocketAddress>(address))
@@ -1770,7 +1781,7 @@ struct Session::Impl {
   static void GetCertificate(const FunctionCallbackInfo<Value>& args) {
     auto env = Environment::GetCurrent(args);
     Session* session;
-    ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
     Local<Value> ret;
     if (session->tls_session().cert(env).ToLocal(&ret))
       args.GetReturnValue().Set(ret);
@@ -1779,7 +1790,7 @@ struct Session::Impl {
   static void GetEphemeralKeyInfo(const FunctionCallbackInfo<Value>& args) {
     auto env = Environment::GetCurrent(args);
     Session* session;
-    ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
     Local<Object> ret;
     if (!session->is_server() &&
         session->tls_session().ephemeral_key(env).ToLocal(&ret))
@@ -1789,7 +1800,7 @@ struct Session::Impl {
   static void GetPeerCertificate(const FunctionCallbackInfo<Value>& args) {
     auto env = Environment::GetCurrent(args);
     Session* session;
-    ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
     Local<Value> ret;
     if (session->tls_session().peer_cert(env).ToLocal(&ret))
       args.GetReturnValue().Set(ret);
@@ -1797,20 +1808,20 @@ struct Session::Impl {
 
   static void GracefulClose(const FunctionCallbackInfo<Value>& args) {
     Session* session;
-    ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
     session->Close(Session::CloseMethod::GRACEFUL);
   }
 
   static void SilentClose(const FunctionCallbackInfo<Value>& args) {
     // This is exposed for testing purposes only!
     Session* session;
-    ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
     session->Close(Session::CloseMethod::SILENT);
   }
 
   static void UpdateKey(const FunctionCallbackInfo<Value>& args) {
     Session* session;
-    ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
     // Initiating a key update may fail if it is done too early (either
     // before the TLS handshake has been confirmed or while a previous
     // key update is being processed). When it fails, InitiateKeyUpdate()
@@ -1821,7 +1832,7 @@ struct Session::Impl {
 
   static void DoOpenStream(const FunctionCallbackInfo<Value>& args) {
     Session* session;
-    ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
     DCHECK(args[0]->IsUint32());
     auto direction = static_cast<Direction>(args[0].As<Uint32>()->Value());
     BaseObjectPtr<Stream> stream = session->OpenStream(direction);
@@ -1832,7 +1843,7 @@ struct Session::Impl {
   static void DoSendDatagram(const FunctionCallbackInfo<Value>& args) {
     auto env = Environment::GetCurrent(args);
     Session* session;
-    ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
     DCHECK(args[0]->IsArrayBufferView());
     args.GetReturnValue().Set(BigInt::New(
         env->isolate(),
@@ -2017,7 +2028,9 @@ struct Session::Impl {
                                ngtcp2_encryption_level level,
                                void* user_data) {
     auto session = Impl::From(conn, user_data);
-    if (UNLIKELY(session->is_destroyed())) return NGTCP2_ERR_CALLBACK_FAILURE;
+    if (session->is_destroyed()) [[unlikely]] {
+      return NGTCP2_ERR_CALLBACK_FAILURE;
+    }
     CHECK(!session->is_server());
 
     if (level != NGTCP2_ENCRYPTION_LEVEL_1RTT) return NGTCP2_SUCCESS;
@@ -2076,7 +2089,9 @@ struct Session::Impl {
                                ngtcp2_encryption_level level,
                                void* user_data) {
     auto session = Impl::From(conn, user_data);
-    if (UNLIKELY(session->is_destroyed())) return NGTCP2_ERR_CALLBACK_FAILURE;
+    if (session->is_destroyed()) [[unlikely]] {
+      return NGTCP2_ERR_CALLBACK_FAILURE;
+    }
     CHECK(session->is_server());
 
     if (level != NGTCP2_ENCRYPTION_LEVEL_1RTT) return NGTCP2_SUCCESS;
@@ -2163,7 +2178,7 @@ struct Session::Impl {
   static void on_rand(uint8_t* dest,
                       size_t destlen,
                       const ngtcp2_rand_ctx* rand_ctx) {
-    CHECK(crypto::CSPRNG(dest, destlen).is_ok());
+    CHECK(ncrypto::CSPRNG(dest, destlen));
   }
 
   static int on_early_data_rejected(ngtcp2_conn* conn, void* user_data) {
@@ -2356,6 +2371,11 @@ void Session::InitPerContext(Realm* realm, Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, DEFAULT_MAX_HEADER_LENGTH);
   NODE_DEFINE_CONSTANT(target, QUIC_PROTO_MAX);
   NODE_DEFINE_CONSTANT(target, QUIC_PROTO_MIN);
+
+  NODE_DEFINE_STRING_CONSTANT(
+      target, "DEFAULT_CIPHERS", TLSContext::DEFAULT_CIPHERS);
+  NODE_DEFINE_STRING_CONSTANT(
+      target, "DEFAULT_GROUPS", TLSContext::DEFAULT_GROUPS);
 
 #define V(name, _) IDX_STATS_SESSION_##name,
   enum SessionStatsIdx { SESSION_STATS(V) IDX_STATS_SESSION_COUNT };

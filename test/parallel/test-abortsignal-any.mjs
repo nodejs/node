@@ -101,4 +101,21 @@ describe('AbortSignal.any()', { concurrency: !process.env.TEST_PARALLEL }, () =>
     controller.abort();
     assert.strictEqual(result, '01234');
   });
+
+  it('must accept WebIDL sequence', () => {
+    const controller = new AbortController();
+    const iterable = {
+      *[Symbol.iterator]() {
+        yield controller.signal;
+        yield new AbortController().signal;
+        yield new AbortController().signal;
+        yield new AbortController().signal;
+      },
+    };
+    const signal = AbortSignal.any(iterable);
+    let result = 0;
+    signal.addEventListener('abort', () => result += 1);
+    controller.abort();
+    assert.strictEqual(result, 1);
+  });
 });

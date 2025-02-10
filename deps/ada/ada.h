@@ -1,4 +1,4 @@
-/* auto-generated on 2024-04-11 16:39:11 -0400. Do not edit! */
+/* auto-generated on 2024-09-02 20:07:32 -0400. Do not edit! */
 /* begin file include/ada.h */
 /**
  * @file ada.h
@@ -477,6 +477,18 @@ namespace ada {
 
 #if defined(__aarch64__) || defined(_M_ARM64)
 #define ADA_NEON 1
+#endif
+
+#ifndef __has_cpp_attribute
+#define ada_lifetime_bound
+#elif __has_cpp_attribute(msvc::lifetimebound)
+#define ada_lifetime_bound [[msvc::lifetimebound]]
+#elif __has_cpp_attribute(clang::lifetimebound)
+#define ada_lifetime_bound [[clang::lifetimebound]]
+#elif __has_cpp_attribute(lifetimebound)
+#define ada_lifetime_bound [[lifetimebound]]
+#else
+#define ada_lifetime_bound
 #endif
 
 #endif  // ADA_COMMON_DEFS_H
@@ -1214,25 +1226,104 @@ namespace ada {
  * @see https://url.spec.whatwg.org/#url-parsing
  */
 enum class state {
+  /**
+   * @see https://url.spec.whatwg.org/#authority-state
+   */
   AUTHORITY,
+
+  /**
+   * @see https://url.spec.whatwg.org/#scheme-start-state
+   */
   SCHEME_START,
+
+  /**
+   * @see https://url.spec.whatwg.org/#scheme-state
+   */
   SCHEME,
+
+  /**
+   * @see https://url.spec.whatwg.org/#host-state
+   */
   HOST,
+
+  /**
+   * @see https://url.spec.whatwg.org/#no-scheme-state
+   */
   NO_SCHEME,
+
+  /**
+   * @see https://url.spec.whatwg.org/#fragment-state
+   */
   FRAGMENT,
+
+  /**
+   * @see https://url.spec.whatwg.org/#relative-state
+   */
   RELATIVE_SCHEME,
+
+  /**
+   * @see https://url.spec.whatwg.org/#relative-slash-state
+   */
   RELATIVE_SLASH,
+
+  /**
+   * @see https://url.spec.whatwg.org/#file-state
+   */
   FILE,
+
+  /**
+   * @see https://url.spec.whatwg.org/#file-host-state
+   */
   FILE_HOST,
+
+  /**
+   * @see https://url.spec.whatwg.org/#file-slash-state
+   */
   FILE_SLASH,
+
+  /**
+   * @see https://url.spec.whatwg.org/#path-or-authority-state
+   */
   PATH_OR_AUTHORITY,
+
+  /**
+   * @see https://url.spec.whatwg.org/#special-authority-ignore-slashes-state
+   */
   SPECIAL_AUTHORITY_IGNORE_SLASHES,
+
+  /**
+   * @see https://url.spec.whatwg.org/#special-authority-slashes-state
+   */
   SPECIAL_AUTHORITY_SLASHES,
+
+  /**
+   * @see https://url.spec.whatwg.org/#special-relative-or-authority-state
+   */
   SPECIAL_RELATIVE_OR_AUTHORITY,
+
+  /**
+   * @see https://url.spec.whatwg.org/#query-state
+   */
   QUERY,
+
+  /**
+   * @see https://url.spec.whatwg.org/#path-state
+   */
   PATH,
+
+  /**
+   * @see https://url.spec.whatwg.org/#path-start-state
+   */
   PATH_START,
+
+  /**
+   * @see https://url.spec.whatwg.org/#cannot-be-a-base-url-path-state
+   */
   OPAQUE_PATH,
+
+  /**
+   * @see https://url.spec.whatwg.org/#port-state
+   */
   PORT,
 };
 
@@ -1775,6 +1866,9 @@ inline int fast_digit_count(uint32_t x) noexcept {
  */
 #ifndef ADA_PARSER_H
 #define ADA_PARSER_H
+
+#include <optional>
+#include <string_view>
 
 /* begin file include/ada/expected.h */
 /**
@@ -2753,8 +2847,9 @@ struct expected_operations_base<void, E> : expected_storage_base<void, E> {
 // This class manages conditionally having a trivial copy constructor
 // This specialization is for when T and E are trivially copy constructible
 template <class T, class E,
-          bool = is_void_or<T, TL_EXPECTED_IS_TRIVIALLY_COPY_CONSTRUCTIBLE(T)>::
-              value &&TL_EXPECTED_IS_TRIVIALLY_COPY_CONSTRUCTIBLE(E)::value>
+          bool = is_void_or<T, TL_EXPECTED_IS_TRIVIALLY_COPY_CONSTRUCTIBLE(
+                                   T)>::value &&
+                 TL_EXPECTED_IS_TRIVIALLY_COPY_CONSTRUCTIBLE(E)::value>
 struct expected_copy_base : expected_operations_base<T, E> {
   using expected_operations_base<T, E>::expected_operations_base;
 };
@@ -2786,8 +2881,9 @@ struct expected_copy_base<T, E, false> : expected_operations_base<T, E> {
 // move constructible
 #ifndef TL_EXPECTED_GCC49
 template <class T, class E,
-          bool = is_void_or<T, std::is_trivially_move_constructible<T>>::value
-              &&std::is_trivially_move_constructible<E>::value>
+          bool =
+              is_void_or<T, std::is_trivially_move_constructible<T>>::value &&
+              std::is_trivially_move_constructible<E>::value>
 struct expected_move_base : expected_copy_base<T, E> {
   using expected_copy_base<T, E>::expected_copy_base;
 };
@@ -2816,14 +2912,16 @@ struct expected_move_base<T, E, false> : expected_copy_base<T, E> {
 };
 
 // This class manages conditionally having a trivial copy assignment operator
-template <class T, class E,
-          bool = is_void_or<
-              T, conjunction<TL_EXPECTED_IS_TRIVIALLY_COPY_ASSIGNABLE(T),
-                             TL_EXPECTED_IS_TRIVIALLY_COPY_CONSTRUCTIBLE(T),
-                             TL_EXPECTED_IS_TRIVIALLY_DESTRUCTIBLE(T)>>::value
-              &&TL_EXPECTED_IS_TRIVIALLY_COPY_ASSIGNABLE(E)::value
-                  &&TL_EXPECTED_IS_TRIVIALLY_COPY_CONSTRUCTIBLE(E)::value
-                      &&TL_EXPECTED_IS_TRIVIALLY_DESTRUCTIBLE(E)::value>
+template <
+    class T, class E,
+    bool =
+        is_void_or<
+            T, conjunction<TL_EXPECTED_IS_TRIVIALLY_COPY_ASSIGNABLE(T),
+                           TL_EXPECTED_IS_TRIVIALLY_COPY_CONSTRUCTIBLE(T),
+                           TL_EXPECTED_IS_TRIVIALLY_DESTRUCTIBLE(T)>>::value &&
+        TL_EXPECTED_IS_TRIVIALLY_COPY_ASSIGNABLE(E)::value &&
+        TL_EXPECTED_IS_TRIVIALLY_COPY_CONSTRUCTIBLE(E)::value &&
+        TL_EXPECTED_IS_TRIVIALLY_DESTRUCTIBLE(E)::value>
 struct expected_copy_assign_base : expected_move_base<T, E> {
   using expected_move_base<T, E>::expected_move_base;
 };
@@ -2850,14 +2948,15 @@ struct expected_copy_assign_base<T, E, false> : expected_move_base<T, E> {
 // to make do with a non-trivial move assignment operator even if T is trivially
 // move assignable
 #ifndef TL_EXPECTED_GCC49
-template <class T, class E,
-          bool =
-              is_void_or<T, conjunction<std::is_trivially_destructible<T>,
-                                        std::is_trivially_move_constructible<T>,
-                                        std::is_trivially_move_assignable<T>>>::
-                  value &&std::is_trivially_destructible<E>::value
-                      &&std::is_trivially_move_constructible<E>::value
-                          &&std::is_trivially_move_assignable<E>::value>
+template <
+    class T, class E,
+    bool = is_void_or<
+               T, conjunction<std::is_trivially_destructible<T>,
+                              std::is_trivially_move_constructible<T>,
+                              std::is_trivially_move_assignable<T>>>::value &&
+           std::is_trivially_destructible<E>::value &&
+           std::is_trivially_move_constructible<E>::value &&
+           std::is_trivially_move_assignable<E>::value>
 struct expected_move_assign_base : expected_copy_assign_base<T, E> {
   using expected_copy_assign_base<T, E>::expected_copy_assign_base;
 };
@@ -2879,10 +2978,10 @@ struct expected_move_assign_base<T, E, false>
   expected_move_assign_base &operator=(const expected_move_assign_base &rhs) =
       default;
 
-  expected_move_assign_base &
-  operator=(expected_move_assign_base &&rhs) noexcept(
-      std::is_nothrow_move_constructible<T>::value
-          &&std::is_nothrow_move_assignable<T>::value) {
+  expected_move_assign_base &operator=(
+      expected_move_assign_base
+          &&rhs) noexcept(std::is_nothrow_move_constructible<T>::value &&
+                          std::is_nothrow_move_assignable<T>::value) {
     this->assign(std::move(rhs));
     return *this;
   }
@@ -3771,11 +3870,10 @@ class expected : private detail::expected_move_assign_base<T, E>,
                       detail::is_swappable<OE>::value &&
                       (std::is_nothrow_move_constructible<OT>::value ||
                        std::is_nothrow_move_constructible<OE>::value)>
-  swap(expected &rhs) noexcept(
-      std::is_nothrow_move_constructible<T>::value
-          &&detail::is_nothrow_swappable<T>::value
-              &&std::is_nothrow_move_constructible<E>::value
-                  &&detail::is_nothrow_swappable<E>::value) {
+  swap(expected &rhs) noexcept(std::is_nothrow_move_constructible<T>::value &&
+                               detail::is_nothrow_swappable<T>::value &&
+                               std::is_nothrow_move_constructible<E>::value &&
+                               detail::is_nothrow_swappable<E>::value) {
     if (has_value() && rhs.has_value()) {
       swap_where_both_have_value(rhs, typename std::is_void<T>::type{});
     } else if (!has_value() && rhs.has_value()) {
@@ -4294,9 +4392,6 @@ void swap(expected<T, E> &lhs,
 #endif
 /* end file include/ada/expected.h */
 
-#include <optional>
-#include <string_view>
-
 /**
  * @private
  */
@@ -4310,9 +4405,11 @@ struct url;
  * @brief Includes the definitions for supported parsers
  */
 namespace ada::parser {
-
 /**
- * Parses a url.
+ * Parses a url. The parameter user_input is the input to be parsed:
+ * it should be a valid UTF-8 string. The parameter base_url is an optional
+ * parameter that can be used to resolve relative URLs. If the base_url is
+ * provided, the user_input is resolved against the base_url.
  */
 template <typename result_type = ada::url_aggregator>
 result_type parse_url(std::string_view user_input,
@@ -4323,6 +4420,14 @@ extern template url_aggregator parse_url<url_aggregator>(
 extern template url parse_url<url>(std::string_view user_input,
                                    const url* base_url);
 
+template <typename result_type = ada::url_aggregator, bool store_values = true>
+result_type parse_url_impl(std::string_view user_input,
+                           const result_type* base_url = nullptr);
+
+extern template url_aggregator parse_url_impl<url_aggregator>(
+    std::string_view user_input, const url_aggregator* base_url);
+extern template url parse_url_impl<url>(std::string_view user_input,
+                                        const url* base_url);
 }  // namespace ada::parser
 
 #endif  // ADA_PARSER_H
@@ -4529,12 +4634,6 @@ bool to_ascii(std::optional<std::string>& out, std::string_view plain,
 
 /**
  * @private
- * @see https://www.unicode.org/reports/tr46/#ToUnicode
- */
-std::string to_unicode(std::string_view input);
-
-/**
- * @private
  * Checks if the input has tab or newline characters.
  *
  * @attention The has_tabs_or_newline function is a bottleneck and it is simple
@@ -4709,9 +4808,9 @@ constexpr bool to_lower_ascii(char* input, size_t length) noexcept;
 #ifndef ADA_URL_AGGREGATOR_H
 #define ADA_URL_AGGREGATOR_H
 
-
 #include <string>
 #include <string_view>
+
 
 namespace ada {
 
@@ -4758,35 +4857,38 @@ struct url_aggregator : url_base {
    * @see https://url.spec.whatwg.org/#dom-url-href
    * @see https://url.spec.whatwg.org/#concept-url-serializer
    */
-  [[nodiscard]] inline std::string_view get_href() const noexcept;
+  [[nodiscard]] inline std::string_view get_href() const noexcept
+      ada_lifetime_bound;
   /**
    * The username getter steps are to return this's URL's username.
    * This function does not allocate memory.
    * @return a lightweight std::string_view.
    * @see https://url.spec.whatwg.org/#dom-url-username
    */
-  [[nodiscard]] std::string_view get_username() const noexcept;
+  [[nodiscard]] std::string_view get_username() const noexcept
+      ada_lifetime_bound;
   /**
    * The password getter steps are to return this's URL's password.
    * This function does not allocate memory.
    * @return a lightweight std::string_view.
    * @see https://url.spec.whatwg.org/#dom-url-password
    */
-  [[nodiscard]] std::string_view get_password() const noexcept;
+  [[nodiscard]] std::string_view get_password() const noexcept
+      ada_lifetime_bound;
   /**
    * Return this's URL's port, serialized.
    * This function does not allocate memory.
    * @return a lightweight std::string_view.
    * @see https://url.spec.whatwg.org/#dom-url-port
    */
-  [[nodiscard]] std::string_view get_port() const noexcept;
+  [[nodiscard]] std::string_view get_port() const noexcept ada_lifetime_bound;
   /**
    * Return U+0023 (#), followed by this's URL's fragment.
    * This function does not allocate memory.
    * @return a lightweight std::string_view..
    * @see https://url.spec.whatwg.org/#dom-url-hash
    */
-  [[nodiscard]] std::string_view get_hash() const noexcept;
+  [[nodiscard]] std::string_view get_hash() const noexcept ada_lifetime_bound;
   /**
    * Return url's host, serialized, followed by U+003A (:) and url's port,
    * serialized.
@@ -4795,7 +4897,7 @@ struct url_aggregator : url_base {
    * @return a lightweight std::string_view.
    * @see https://url.spec.whatwg.org/#dom-url-host
    */
-  [[nodiscard]] std::string_view get_host() const noexcept;
+  [[nodiscard]] std::string_view get_host() const noexcept ada_lifetime_bound;
   /**
    * Return this's URL's host, serialized.
    * This function does not allocate memory.
@@ -4803,7 +4905,8 @@ struct url_aggregator : url_base {
    * @return a lightweight std::string_view.
    * @see https://url.spec.whatwg.org/#dom-url-hostname
    */
-  [[nodiscard]] std::string_view get_hostname() const noexcept;
+  [[nodiscard]] std::string_view get_hostname() const noexcept
+      ada_lifetime_bound;
   /**
    * The pathname getter steps are to return the result of URL path serializing
    * this's URL.
@@ -4811,7 +4914,8 @@ struct url_aggregator : url_base {
    * @return a lightweight std::string_view.
    * @see https://url.spec.whatwg.org/#dom-url-pathname
    */
-  [[nodiscard]] std::string_view get_pathname() const noexcept;
+  [[nodiscard]] std::string_view get_pathname() const noexcept
+      ada_lifetime_bound;
   /**
    * Compute the pathname length in bytes without instantiating a view or a
    * string.
@@ -4825,7 +4929,7 @@ struct url_aggregator : url_base {
    * @return a lightweight std::string_view.
    * @see https://url.spec.whatwg.org/#dom-url-search
    */
-  [[nodiscard]] std::string_view get_search() const noexcept;
+  [[nodiscard]] std::string_view get_search() const noexcept ada_lifetime_bound;
   /**
    * The protocol getter steps are to return this's URL's scheme, followed by
    * U+003A (:).
@@ -4833,7 +4937,8 @@ struct url_aggregator : url_base {
    * @return a lightweight std::string_view.
    * @see https://url.spec.whatwg.org/#dom-url-protocol
    */
-  [[nodiscard]] std::string_view get_protocol() const noexcept;
+  [[nodiscard]] std::string_view get_protocol() const noexcept
+      ada_lifetime_bound;
 
   /**
    * A URL includes credentials if its username or password is not the empty
@@ -4906,6 +5011,11 @@ struct url_aggregator : url_base {
       std::string_view, const ada::url_aggregator *);
   friend void ada::helpers::strip_trailing_spaces_from_opaque_path<
       ada::url_aggregator>(ada::url_aggregator &url) noexcept;
+  friend ada::url_aggregator ada::parser::parse_url_impl<
+      ada::url_aggregator, true>(std::string_view, const ada::url_aggregator *);
+  friend ada::url_aggregator
+  ada::parser::parse_url_impl<ada::url_aggregator, false>(
+      std::string_view, const ada::url_aggregator *);
 
   std::string buffer{};
   url_components components{};
@@ -5141,13 +5251,13 @@ ada_really_inline constexpr bool verify_dns_length(
 #ifndef ADA_URL_H
 #define ADA_URL_H
 
-
 #include <algorithm>
 #include <charconv>
 #include <iostream>
 #include <optional>
 #include <string>
 #include <string_view>
+
 
 namespace ada {
 
@@ -5422,6 +5532,11 @@ struct url : url_base {
       std::string_view, const ada::url_aggregator *);
   friend void ada::helpers::strip_trailing_spaces_from_opaque_path<ada::url>(
       ada::url &url) noexcept;
+
+  friend ada::url ada::parser::parse_url_impl<ada::url, true>(std::string_view,
+                                                              const ada::url *);
+  friend ada::url_aggregator ada::parser::parse_url_impl<
+      ada::url_aggregator, true>(std::string_view, const ada::url_aggregator *);
 
   inline void update_unencoded_base_hash(std::string_view input);
   inline void update_base_hostname(std::string_view input);
@@ -5731,7 +5846,7 @@ inline void url::set_scheme(std::string &&new_scheme) noexcept {
   type = ada::scheme::get_scheme_type(new_scheme);
   // We only move the 'scheme' if it is non-special.
   if (!is_special()) {
-    non_special_scheme = new_scheme;
+    non_special_scheme = std::move(new_scheme);
   }
 }
 
@@ -5780,10 +5895,15 @@ inline void url::copy_scheme(const ada::url &u) {
 ada_really_inline size_t url::parse_port(std::string_view view,
                                          bool check_trailing_content) noexcept {
   ada_log("parse_port('", view, "') ", view.size());
+  if (!view.empty() && view[0] == '-') {
+    ada_log("parse_port: view[0] == '0' && view.size() > 1");
+    is_valid = false;
+    return 0;
+  }
   uint16_t parsed_port{};
   auto r = std::from_chars(view.data(), view.data() + view.size(), parsed_port);
   if (r.ec == std::errc::result_out_of_range) {
-    ada_log("parse_port: std::errc::result_out_of_range");
+    ada_log("parse_port: r.ec == std::errc::result_out_of_range");
     is_valid = false;
     return 0;
   }
@@ -6679,8 +6799,8 @@ inline bool url_aggregator::has_port() const noexcept {
          buffer[components.host_end + 1] == '.';
 }
 
-[[nodiscard]] inline std::string_view url_aggregator::get_href()
-    const noexcept {
+[[nodiscard]] inline std::string_view url_aggregator::get_href() const noexcept
+    ada_lifetime_bound {
   ada_log("url_aggregator::get_href");
   return buffer;
 }
@@ -6688,10 +6808,15 @@ inline bool url_aggregator::has_port() const noexcept {
 ada_really_inline size_t url_aggregator::parse_port(
     std::string_view view, bool check_trailing_content) noexcept {
   ada_log("url_aggregator::parse_port('", view, "') ", view.size());
+  if (!view.empty() && view[0] == '-') {
+    ada_log("parse_port: view[0] == '0' && view.size() > 1");
+    is_valid = false;
+    return 0;
+  }
   uint16_t parsed_port{};
   auto r = std::from_chars(view.data(), view.data() + view.size(), parsed_port);
   if (r.ec == std::errc::result_out_of_range) {
-    ada_log("parse_port: std::errc::result_out_of_range");
+    ada_log("parse_port: r.ec == std::errc::result_out_of_range");
     is_valid = false;
     return 0;
   }
@@ -6890,6 +7015,14 @@ struct url_search_params {
   inline auto back() const { return params.back(); }
   inline auto operator[](size_t index) const { return params[index]; }
 
+  /**
+   * @private
+   * Used to reset the search params to a new input.
+   * Used primarily for C API.
+   * @param input
+   */
+  void reset(std::string_view input);
+
  private:
   typedef std::pair<std::string, std::string> key_value_pair;
   std::vector<key_value_pair> params{};
@@ -6959,6 +7092,11 @@ namespace ada {
 // A default, empty url_search_params for use with empty iterators.
 template <typename T, ada::url_search_params_iter_type Type>
 url_search_params url_search_params_iter<T, Type>::EMPTY;
+
+inline void url_search_params::reset(std::string_view input) {
+  params.clear();
+  initialize(input);
+}
 
 inline void url_search_params::initialize(std::string_view input) {
   if (!input.empty() && input.front() == '?') {
@@ -7169,14 +7307,14 @@ url_search_params_entries_iter::next() {
 #ifndef ADA_ADA_VERSION_H
 #define ADA_ADA_VERSION_H
 
-#define ADA_VERSION "2.7.8"
+#define ADA_VERSION "2.9.2"
 
 namespace ada {
 
 enum {
   ADA_VERSION_MAJOR = 2,
-  ADA_VERSION_MINOR = 7,
-  ADA_VERSION_REVISION = 8,
+  ADA_VERSION_MINOR = 9,
+  ADA_VERSION_REVISION = 2,
 };
 
 }  // namespace ada

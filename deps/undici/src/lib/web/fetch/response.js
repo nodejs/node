@@ -1,7 +1,7 @@
 'use strict'
 
-const { Headers, HeadersList, fill } = require('./headers')
-const { extractBody, cloneBody, mixinBody } = require('./body')
+const { Headers, HeadersList, fill, getHeadersGuard, setHeadersGuard, setHeadersList } = require('./headers')
+const { extractBody, cloneBody, mixinBody, hasFinalizationRegistry, streamRegistry, bodyUnusable } = require('./body')
 const util = require('../../core/util')
 const nodeUtil = require('node:util')
 const { kEnumerableProperty } = util
@@ -12,18 +12,18 @@ const {
   isBlobLike,
   serializeJavascriptValueToJSONString,
   isErrorLike,
-  isomorphicEncode
+  isomorphicEncode,
+  environmentSettingsObject: relevantRealm
 } = require('./util')
 const {
   redirectStatusSet,
   nullBodyStatus
 } = require('./constants')
-const { kState, kHeaders, kGuard, kRealm } = require('./symbols')
+const { kState, kHeaders } = require('./symbols')
 const { webidl } = require('./webidl')
 const { FormData } = require('./formdata')
-const { getGlobalOrigin } = require('./global')
 const { URLSerializer } = require('./data-url')
-const { kHeadersList, kConstruct } = require('../../core/symbols')
+const { kConstruct } = require('../../core/symbols')
 const assert = require('node:assert')
 const { types } = require('node:util')
 
@@ -33,20 +33,17 @@ const textEncoder = new TextEncoder('utf-8')
 class Response {
   // Creates network error Response.
   static error () {
-    // TODO
-    const relevantRealm = { settingsObject: {} }
-
     // The static error() method steps are to return the result of creating a
     // Response object, given a new network error, "immutable", and this’s
     // relevant Realm.
-    const responseObject = fromInnerResponse(makeNetworkError(), 'immutable', relevantRealm)
+    const responseObject = fromInnerResponse(makeNetworkError(), 'immutable')
 
     return responseObject
   }
 
   // https://fetch.spec.whatwg.org/#dom-response-json
   static json (data, init = {}) {
-    webidl.argumentLengthCheck(arguments, 1, { header: 'Response.json' })
+    webidl.argumentLengthCheck(arguments, 1, 'Response.json')
 
     if (init !== null) {
       init = webidl.converters.ResponseInit(init)
@@ -62,8 +59,7 @@ class Response {
 
     // 3. Let responseObject be the result of creating a Response object, given a new response,
     //    "response", and this’s relevant Realm.
-    const relevantRealm = { settingsObject: {} }
-    const responseObject = fromInnerResponse(makeResponse({}), 'response', relevantRealm)
+    const responseObject = fromInnerResponse(makeResponse({}), 'response')
 
     // 4. Perform initialize a response given responseObject, init, and (body, "application/json").
     initializeResponse(responseObject, init, { body: body[0], type: 'application/json' })
@@ -74,9 +70,7 @@ class Response {
 
   // Creates a redirect Response that redirects to url with status status.
   static redirect (url, status = 302) {
-    const relevantRealm = { settingsObject: {} }
-
-    webidl.argumentLengthCheck(arguments, 1, { header: 'Response.redirect' })
+    webidl.argumentLengthCheck(arguments, 1, 'Response.redirect')
 
     url = webidl.converters.USVString(url)
     status = webidl.converters['unsigned short'](status)
@@ -87,7 +81,7 @@ class Response {
     // TODO: base-URL?
     let parsedURL
     try {
-      parsedURL = new URL(url, getGlobalOrigin())
+      parsedURL = new URL(url, relevantRealm.settingsObject.baseUrl)
     } catch (err) {
       throw new TypeError(`Failed to parse URL from ${url}`, { cause: err })
     }
@@ -99,7 +93,7 @@ class Response {
 
     // 4. Let responseObject be the result of creating a Response object,
     // given a new response, "immutable", and this’s relevant Realm.
-    const responseObject = fromInnerResponse(makeResponse({}), 'immutable', relevantRealm)
+    const responseObject = fromInnerResponse(makeResponse({}), 'immutable')
 
     // 5. Set responseObject’s response’s status to status.
     responseObject[kState].status = status
@@ -116,6 +110,7 @@ class Response {
 
   // https://fetch.spec.whatwg.org/#dom-response
   constructor (body = null, init = {}) {
+    webidl.util.markAsUncloneable(this)
     if (body === kConstruct) {
       return
     }
@@ -126,9 +121,6 @@ class Response {
 
     init = webidl.converters.ResponseInit(init)
 
-    // TODO
-    this[kRealm] = { settingsObject: {} }
-
     // 1. Set this’s response to a new response.
     this[kState] = makeResponse({})
 
@@ -136,9 +128,8 @@ class Response {
     // Realm, whose header list is this’s response’s header list and guard
     // is "response".
     this[kHeaders] = new Headers(kConstruct)
-    this[kHeaders][kGuard] = 'response'
-    this[kHeaders][kHeadersList] = this[kState].headersList
-    this[kHeaders][kRealm] = this[kRealm]
+    setHeadersGuard(this[kHeaders], 'response')
+    setHeadersList(this[kHeaders], this[kState].headersList)
 
     // 3. Let bodyWithType be null.
     let bodyWithType = null
@@ -239,7 +230,7 @@ class Response {
     webidl.brandCheck(this, Response)
 
     // 1. If this is unusable, then throw a TypeError.
-    if (this.bodyUsed || this.body?.locked) {
+    if (bodyUnusable(this)) {
       throw webidl.errors.exception({
         header: 'Response.clone',
         message: 'Body has already been consumed.'
@@ -251,7 +242,7 @@ class Response {
 
     // 3. Return the result of creating a Response object, given
     // clonedResponse, this’s headers’s guard, and this’s relevant Realm.
-    return fromInnerResponse(clonedResponse, this[kHeaders][kGuard], this[kRealm])
+    return fromInnerResponse(clonedResponse, getHeadersGuard(this[kHeaders]))
   }
 
   [nodeUtil.inspect.custom] (depth, options) {
@@ -322,7 +313,7 @@ function cloneResponse (response) {
   // 3. If response’s body is non-null, then set newResponse’s body to the
   // result of cloning response’s body.
   if (response.body != null) {
-    newResponse.body = cloneBody(response.body)
+    newResponse.body = cloneBody(newResponse, response.body)
   }
 
   // 4. Return newResponse.
@@ -512,17 +503,24 @@ function initializeResponse (response, init, body) {
  * @see https://fetch.spec.whatwg.org/#response-create
  * @param {any} innerResponse
  * @param {'request' | 'immutable' | 'request-no-cors' | 'response' | 'none'} guard
- * @param {any} [realm]
  * @returns {Response}
  */
-function fromInnerResponse (innerResponse, guard, realm) {
+function fromInnerResponse (innerResponse, guard) {
   const response = new Response(kConstruct)
   response[kState] = innerResponse
-  response[kRealm] = realm
   response[kHeaders] = new Headers(kConstruct)
-  response[kHeaders][kHeadersList] = innerResponse.headersList
-  response[kHeaders][kGuard] = guard
-  response[kHeaders][kRealm] = realm
+  setHeadersList(response[kHeaders], innerResponse.headersList)
+  setHeadersGuard(response[kHeaders], guard)
+
+  if (hasFinalizationRegistry && innerResponse.body?.stream) {
+    // If the target (response) is reclaimed, the cleanup callback may be called at some point with
+    // the held value provided for it (innerResponse.body.stream). The held value can be any value:
+    // a primitive or an object, even undefined. If the held value is an object, the registry keeps
+    // a strong reference to it (so it can pass it to the cleanup callback later). Reworded from
+    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/FinalizationRegistry
+    streamRegistry.register(response, new WeakRef(innerResponse.body.stream))
+  }
+
   return response
 }
 
@@ -539,34 +537,34 @@ webidl.converters.URLSearchParams = webidl.interfaceConverter(
 )
 
 // https://fetch.spec.whatwg.org/#typedefdef-xmlhttprequestbodyinit
-webidl.converters.XMLHttpRequestBodyInit = function (V) {
+webidl.converters.XMLHttpRequestBodyInit = function (V, prefix, name) {
   if (typeof V === 'string') {
-    return webidl.converters.USVString(V)
+    return webidl.converters.USVString(V, prefix, name)
   }
 
   if (isBlobLike(V)) {
-    return webidl.converters.Blob(V, { strict: false })
+    return webidl.converters.Blob(V, prefix, name, { strict: false })
   }
 
   if (ArrayBuffer.isView(V) || types.isArrayBuffer(V)) {
-    return webidl.converters.BufferSource(V)
+    return webidl.converters.BufferSource(V, prefix, name)
   }
 
   if (util.isFormDataLike(V)) {
-    return webidl.converters.FormData(V, { strict: false })
+    return webidl.converters.FormData(V, prefix, name, { strict: false })
   }
 
   if (V instanceof URLSearchParams) {
-    return webidl.converters.URLSearchParams(V)
+    return webidl.converters.URLSearchParams(V, prefix, name)
   }
 
-  return webidl.converters.DOMString(V)
+  return webidl.converters.DOMString(V, prefix, name)
 }
 
 // https://fetch.spec.whatwg.org/#bodyinit
-webidl.converters.BodyInit = function (V) {
+webidl.converters.BodyInit = function (V, prefix, argument) {
   if (V instanceof ReadableStream) {
-    return webidl.converters.ReadableStream(V)
+    return webidl.converters.ReadableStream(V, prefix, argument)
   }
 
   // Note: the spec doesn't include async iterables,
@@ -575,19 +573,19 @@ webidl.converters.BodyInit = function (V) {
     return V
   }
 
-  return webidl.converters.XMLHttpRequestBodyInit(V)
+  return webidl.converters.XMLHttpRequestBodyInit(V, prefix, argument)
 }
 
 webidl.converters.ResponseInit = webidl.dictionaryConverter([
   {
     key: 'status',
     converter: webidl.converters['unsigned short'],
-    defaultValue: 200
+    defaultValue: () => 200
   },
   {
     key: 'statusText',
     converter: webidl.converters.ByteString,
-    defaultValue: ''
+    defaultValue: () => ''
   },
   {
     key: 'headers',

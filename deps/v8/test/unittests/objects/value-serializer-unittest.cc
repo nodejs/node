@@ -1936,7 +1936,6 @@ TEST_F(ValueSerializerTest, RoundTripArrayBuffer) {
 }
 
 TEST_F(ValueSerializerTest, RoundTripResizableArrayBuffer) {
-  FLAG_SCOPE(harmony_rab_gsab);
   Local<Value> value =
       RoundTripTest("new ArrayBuffer(100, {maxByteLength: 200})");
   ASSERT_TRUE(value->IsArrayBuffer());
@@ -1982,7 +1981,6 @@ TEST_F(ValueSerializerTest, DecodeInvalidArrayBuffer) {
 }
 
 TEST_F(ValueSerializerTest, DecodeInvalidResizableArrayBuffer) {
-  FLAG_SCOPE(harmony_rab_gsab);
   // Enough bytes available after reading the length, but not anymore when
   // reading the max byte length.
   InvalidDecodeTest({0xFF, 0x09, 0x7E, 0x2, 0x10, 0x00});
@@ -2136,7 +2134,6 @@ TEST_F(ValueSerializerTest, RoundTripTypedArray) {
 }
 
 TEST_F(ValueSerializerTest, RoundTripRabBackedLengthTrackingTypedArray) {
-  FLAG_SCOPE(harmony_rab_gsab);
   FLAG_SCOPE(js_float16array);
   // Check that the right type comes out the other side for every kind of typed
   // array.
@@ -2162,7 +2159,6 @@ TEST_F(ValueSerializerTest, RoundTripRabBackedLengthTrackingTypedArray) {
 }
 
 TEST_F(ValueSerializerTest, RoundTripRabBackedNonLengthTrackingTypedArray) {
-  FLAG_SCOPE(harmony_rab_gsab);
   FLAG_SCOPE(js_float16array);
   // Check that the right type comes out the other side for every kind of typed
   // array.
@@ -2539,8 +2535,6 @@ TEST_F(ValueSerializerTest, DecodeDataView) {
 }
 
 TEST_F(ValueSerializerTest, RoundTripRabBackedDataView) {
-  FLAG_SCOPE(harmony_rab_gsab);
-
   Local<Value> value = RoundTripTest(
       "new DataView(new ArrayBuffer(4, {maxByteLength: 8}), 1, 2)");
   ASSERT_TRUE(value->IsDataView());
@@ -2557,8 +2551,6 @@ TEST_F(ValueSerializerTest, RoundTripRabBackedDataView) {
 }
 
 TEST_F(ValueSerializerTest, RoundTripRabBackedLengthTrackingDataView) {
-  FLAG_SCOPE(harmony_rab_gsab);
-
   Local<Value> value =
       RoundTripTest("new DataView(new ArrayBuffer(4, {maxByteLength: 8}), 1)");
   ASSERT_TRUE(value->IsDataView());

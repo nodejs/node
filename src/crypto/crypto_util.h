@@ -12,6 +12,8 @@
 #include "util.h"
 #include "v8.h"
 
+#include "ncrypto.h"
+
 #include <openssl/dsa.h>
 #include <openssl/ec.h>
 #include <openssl/err.h>
@@ -20,9 +22,7 @@
 #include <openssl/kdf.h>
 #include <openssl/rsa.h>
 #include <openssl/ssl.h>
-#ifndef OPENSSL_NO_ENGINE
-#  include <openssl/engine.h>
-#endif  // !OPENSSL_NO_ENGINE
+
 // The FIPS-related functions are only available
 // when the OpenSSL itself was compiled with FIPS support.
 #if defined(OPENSSL_FIPS) && OPENSSL_VERSION_MAJOR < 3
@@ -54,39 +54,32 @@ constexpr size_t kSizeOf_EVP_PKEY_CTX = 80;
 constexpr size_t kSizeOf_HMAC_CTX = 32;
 
 // Define smart pointers for the most commonly used OpenSSL types:
-using X509Pointer = DeleteFnPtr<X509, X509_free>;
-using BIOPointer = DeleteFnPtr<BIO, BIO_free_all>;
-using SSLCtxPointer = DeleteFnPtr<SSL_CTX, SSL_CTX_free>;
-using SSLSessionPointer = DeleteFnPtr<SSL_SESSION, SSL_SESSION_free>;
-using SSLPointer = DeleteFnPtr<SSL, SSL_free>;
-using PKCS8Pointer = DeleteFnPtr<PKCS8_PRIV_KEY_INFO, PKCS8_PRIV_KEY_INFO_free>;
-using EVPKeyPointer = DeleteFnPtr<EVP_PKEY, EVP_PKEY_free>;
-using EVPKeyCtxPointer = DeleteFnPtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free>;
-using EVPMDCtxPointer = DeleteFnPtr<EVP_MD_CTX, EVP_MD_CTX_free>;
-using RSAPointer = DeleteFnPtr<RSA, RSA_free>;
-using ECPointer = DeleteFnPtr<EC_KEY, EC_KEY_free>;
-using BignumPointer = DeleteFnPtr<BIGNUM, BN_clear_free>;
-using BignumCtxPointer = DeleteFnPtr<BN_CTX, BN_CTX_free>;
-using NetscapeSPKIPointer = DeleteFnPtr<NETSCAPE_SPKI, NETSCAPE_SPKI_free>;
-using ECGroupPointer = DeleteFnPtr<EC_GROUP, EC_GROUP_free>;
-using ECPointPointer = DeleteFnPtr<EC_POINT, EC_POINT_free>;
-using ECKeyPointer = DeleteFnPtr<EC_KEY, EC_KEY_free>;
-using DHPointer = DeleteFnPtr<DH, DH_free>;
-using ECDSASigPointer = DeleteFnPtr<ECDSA_SIG, ECDSA_SIG_free>;
-using HMACCtxPointer = DeleteFnPtr<HMAC_CTX, HMAC_CTX_free>;
-using CipherCtxPointer = DeleteFnPtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free>;
-using RsaPointer = DeleteFnPtr<RSA, RSA_free>;
-using DsaPointer = DeleteFnPtr<DSA, DSA_free>;
-using DsaSigPointer = DeleteFnPtr<DSA_SIG, DSA_SIG_free>;
+using X509Pointer = ncrypto::X509Pointer;
+using BIOPointer = ncrypto::BIOPointer;
+using SSLCtxPointer = ncrypto::SSLCtxPointer;
+using SSLSessionPointer = ncrypto::SSLSessionPointer;
+using SSLPointer = ncrypto::SSLPointer;
+using PKCS8Pointer = ncrypto::PKCS8Pointer;
+using EVPKeyPointer = ncrypto::EVPKeyPointer;
+using EVPKeyCtxPointer = ncrypto::EVPKeyCtxPointer;
+using EVPMDCtxPointer = ncrypto::EVPMDCtxPointer;
+using RSAPointer = ncrypto::RSAPointer;
+using ECPointer = ncrypto::ECPointer;
+using BignumPointer = ncrypto::BignumPointer;
+using BignumCtxPointer = ncrypto::BignumCtxPointer;
+using NetscapeSPKIPointer = ncrypto::NetscapeSPKIPointer;
+using ECGroupPointer = ncrypto::ECGroupPointer;
+using ECPointPointer = ncrypto::ECPointPointer;
+using ECKeyPointer = ncrypto::ECKeyPointer;
+using DHPointer = ncrypto::DHPointer;
+using ECDSASigPointer = ncrypto::ECDSASigPointer;
+using HMACCtxPointer = ncrypto::HMACCtxPointer;
+using CipherCtxPointer = ncrypto::CipherCtxPointer;
+using DsaPointer = ncrypto::DSAPointer;
+using DsaSigPointer = ncrypto::DSASigPointer;
 
-// Our custom implementation of the certificate verify callback
-// used when establishing a TLS handshake. Because we cannot perform
-// I/O quickly enough with X509_STORE_CTX_ APIs in this callback,
-// we ignore preverify_ok errors here and let the handshake continue.
-// In other words, this VerifyCallback is a non-op. It is imperative
-// that the user user Connection::VerifyError after the `secure`
-// callback has been made.
-extern int VerifyCallback(int preverify_ok, X509_STORE_CTX* ctx);
+using ClearErrorOnReturn = ncrypto::ClearErrorOnReturn;
+using MarkPopErrorOnReturn = ncrypto::MarkPopErrorOnReturn;
 
 bool ProcessFipsOptions();
 
@@ -96,34 +89,6 @@ void InitCryptoOnce();
 void InitCrypto(v8::Local<v8::Object> target);
 
 extern void UseExtraCaCerts(const std::string& file);
-
-// Forcibly clear OpenSSL's error stack on return. This stops stale errors
-// from popping up later in the lifecycle of crypto operations where they
-// would cause spurious failures. It's a rather blunt method, though.
-// ERR_clear_error() isn't necessarily cheap either.
-struct ClearErrorOnReturn {
-  ~ClearErrorOnReturn() { ERR_clear_error(); }
-};
-
-// Pop errors from OpenSSL's error stack that were added
-// between when this was constructed and destructed.
-struct MarkPopErrorOnReturn {
-  MarkPopErrorOnReturn() { ERR_set_mark(); }
-  ~MarkPopErrorOnReturn() { ERR_pop_to_mark(); }
-};
-
-struct CSPRNGResult {
-  const bool ok;
-  MUST_USE_RESULT bool is_ok() const { return ok; }
-  MUST_USE_RESULT bool is_err() const { return !ok; }
-};
-
-// Either succeeds with exactly |length| bytes of cryptographically
-// strong pseudo-random data, or fails. This function may block.
-// Don't assume anything about the contents of |buffer| on error.
-// As a special case, |length == 0| can be used to check if the CSPRNG
-// is properly seeded without consuming entropy.
-MUST_USE_RESULT CSPRNGResult CSPRNG(void* buffer, size_t length);
 
 int PasswordCallback(char* buf, int size, int rwflag, void* u);
 
@@ -136,7 +101,7 @@ void Decode(const v8::FunctionCallbackInfo<v8::Value>& args,
             void (*callback)(T*, const v8::FunctionCallbackInfo<v8::Value>&,
                              const char*, size_t)) {
   T* ctx;
-  ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&ctx, args.This());
 
   if (args[0]->IsString()) {
     StringBytes::InlineDecoder decoder;
@@ -164,6 +129,21 @@ enum class NodeCryptoError {
   NODE_CRYPTO_ERROR_CODES_MAP(V)
 #undef V
 };
+
+template <typename... Args>
+std::string getNodeCryptoErrorString(const NodeCryptoError error,
+                                     Args&&... args) {
+  const char* error_string = nullptr;
+  switch (error) {
+#define V(CODE, DESCRIPTION)                                                   \
+  case NodeCryptoError::CODE:                                                  \
+    error_string = DESCRIPTION;                                                \
+    break;
+    NODE_CRYPTO_ERROR_CODES_MAP(V)
+#undef V
+  }
+  return SPrintF(error_string, std::forward<Args>(args)...);
+}
 
 // Utility struct used to harvest error information from openssl's error stack
 struct CryptoErrorStore final : public MemoryRetainer {
@@ -200,6 +180,9 @@ void CryptoErrorStore::Insert(const NodeCryptoError error, Args&&... args) {
                                std::forward<Args>(args)...));
 }
 
+v8::MaybeLocal<v8::Value> cryptoErrorListToException(
+    Environment* env, const ncrypto::CryptoErrorList& errors);
+
 template <typename T>
 T* MallocOpenSSL(size_t count) {
   void* mem = OPENSSL_malloc(MultiplyWithOverflowCheck(count, sizeof(T)));
@@ -232,6 +215,9 @@ class ByteSource {
 
     // Returns the (allocated) size in bytes.
     size_t size() const { return size_; }
+
+    // Returns if (allocated) size is zero.
+    bool empty() const { return size_ == 0; }
 
     // Finalizes the Builder and returns a read-only view that is optionally
     // truncated.
@@ -271,10 +257,12 @@ class ByteSource {
 
   size_t size() const { return size_; }
 
+  bool empty() const { return size_ == 0; }
+
   operator bool() const { return data_ != nullptr; }
 
   BignumPointer ToBN() const {
-    return BignumPointer(BN_bin2bn(data<unsigned char>(), size(), nullptr));
+    return BignumPointer(data<unsigned char>(), size());
   }
 
   // Creates a v8::BackingStore that takes over responsibility for
@@ -287,6 +275,12 @@ class ByteSource {
   v8::MaybeLocal<v8::Uint8Array> ToBuffer(Environment* env);
 
   static ByteSource Allocated(void* data, size_t size);
+
+  template <typename T>
+  static ByteSource Allocated(const ncrypto::Buffer<T>& buffer) {
+    return Allocated(buffer.data, buffer.len);
+  }
+
   static ByteSource Foreign(const void* data, size_t size);
 
   static ByteSource FromEncodedString(Environment* env,
@@ -367,31 +361,31 @@ class CryptoJob : public AsyncWrap, public ThreadPoolWork {
     v8::HandleScope handle_scope(env->isolate());
     v8::Context::Scope context_scope(env->context());
 
-    // TODO(tniessen): Remove the exception handling logic here as soon as we
-    // can verify that no code path in ToResult will ever throw an exception.
     v8::Local<v8::Value> exception;
     v8::Local<v8::Value> args[2];
     {
       node::errors::TryCatchScope try_catch(env);
-      v8::Maybe<bool> ret = ptr->ToResult(&args[0], &args[1]);
-      if (!ret.IsJust()) {
+      // If ToResult returns Nothing, then an exception should have been
+      // thrown and we should have caught it. Otherwise, args[0] and args[1]
+      // both should have been set to a value, even if the value is undefined.
+      if (ptr->ToResult(&args[0], &args[1]).IsNothing()) {
         CHECK(try_catch.HasCaught());
+        CHECK(try_catch.CanContinue());
         exception = try_catch.Exception();
-      } else if (!ret.FromJust()) {
-        return;
       }
     }
 
-    if (exception.IsEmpty()) {
-      ptr->MakeCallback(env->ondone_string(), arraysize(args), args);
-    } else {
+    if (!exception.IsEmpty()) {
       ptr->MakeCallback(env->ondone_string(), 1, &exception);
+    } else {
+      CHECK(!args[0].IsEmpty());
+      CHECK(!args[1].IsEmpty());
+      ptr->MakeCallback(env->ondone_string(), arraysize(args), args);
     }
   }
 
-  virtual v8::Maybe<bool> ToResult(
-      v8::Local<v8::Value>* err,
-      v8::Local<v8::Value>* result) = 0;
+  virtual v8::Maybe<void> ToResult(v8::Local<v8::Value>* err,
+                                   v8::Local<v8::Value>* result) = 0;
 
   CryptoJobMode mode() const { return mode_; }
 
@@ -412,15 +406,16 @@ class CryptoJob : public AsyncWrap, public ThreadPoolWork {
     Environment* env = Environment::GetCurrent(args);
 
     CryptoJob<CryptoJobTraits>* job;
-    ASSIGN_OR_RETURN_UNWRAP(&job, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&job, args.This());
     if (job->mode() == kCryptoJobAsync)
       return job->ScheduleWork();
 
     v8::Local<v8::Value> ret[2];
     env->PrintSyncTrace();
     job->DoThreadPoolWork();
-    v8::Maybe<bool> result = job->ToResult(&ret[0], &ret[1]);
-    if (result.IsJust() && result.FromJust()) {
+    if (job->ToResult(&ret[0], &ret[1]).IsJust()) {
+      CHECK(!ret[0].IsEmpty());
+      CHECK(!ret[1].IsEmpty());
       args.GetReturnValue().Set(
           v8::Array::New(env->isolate(), ret, arraysize(ret)));
     }
@@ -510,26 +505,29 @@ class DeriveBitsJob final : public CryptoJob<DeriveBitsTraits> {
     success_ = true;
   }
 
-  v8::Maybe<bool> ToResult(
-      v8::Local<v8::Value>* err,
-      v8::Local<v8::Value>* result) override {
+  v8::Maybe<void> ToResult(v8::Local<v8::Value>* err,
+                           v8::Local<v8::Value>* result) override {
     Environment* env = AsyncWrap::env();
     CryptoErrorStore* errors = CryptoJob<DeriveBitsTraits>::errors();
     if (success_) {
       CHECK(errors->Empty());
       *err = v8::Undefined(env->isolate());
-      return DeriveBitsTraits::EncodeOutput(
-          env,
-          *CryptoJob<DeriveBitsTraits>::params(),
-          &out_,
-          result);
+      if (!DeriveBitsTraits::EncodeOutput(
+               env, *CryptoJob<DeriveBitsTraits>::params(), &out_)
+               .ToLocal(result)) {
+        return v8::Nothing<void>();
+      }
+    } else {
+      if (errors->Empty()) errors->Capture();
+      CHECK(!errors->Empty());
+      *result = v8::Undefined(env->isolate());
+      if (!errors->ToException(env).ToLocal(err)) {
+        return v8::Nothing<void>();
+      }
     }
-
-    if (errors->Empty())
-      errors->Capture();
-    CHECK(!errors->Empty());
-    *result = v8::Undefined(env->isolate());
-    return v8::Just(errors->ToException(env).ToLocal(err));
+    CHECK(!result->IsEmpty());
+    CHECK(!err->IsEmpty());
+    return v8::JustVoid();
   }
 
   SET_SELF_SIZE(DeriveBitsJob)
@@ -546,72 +544,6 @@ class DeriveBitsJob final : public CryptoJob<DeriveBitsTraits> {
 void ThrowCryptoError(Environment* env,
                       unsigned long err,  // NOLINT(runtime/int)
                       const char* message = nullptr);
-
-#ifndef OPENSSL_NO_ENGINE
-struct EnginePointer {
-  ENGINE* engine = nullptr;
-  bool finish_on_exit = false;
-
-  inline EnginePointer() = default;
-
-  inline explicit EnginePointer(ENGINE* engine_, bool finish_on_exit_ = false)
-    : engine(engine_),
-      finish_on_exit(finish_on_exit_) {}
-
-  inline EnginePointer(EnginePointer&& other) noexcept
-      : engine(other.engine),
-        finish_on_exit(other.finish_on_exit) {
-    other.release();
-  }
-
-  inline ~EnginePointer() { reset(); }
-
-  inline EnginePointer& operator=(EnginePointer&& other) noexcept {
-    if (this == &other) return *this;
-    this->~EnginePointer();
-    return *new (this) EnginePointer(std::move(other));
-  }
-
-  inline operator bool() const { return engine != nullptr; }
-
-  inline ENGINE* get() { return engine; }
-
-  inline void reset(ENGINE* engine_ = nullptr, bool finish_on_exit_ = false) {
-    if (engine != nullptr) {
-      if (finish_on_exit) {
-        // This also does the equivalent of ENGINE_free.
-        CHECK_EQ(ENGINE_finish(engine), 1);
-      } else {
-        CHECK_EQ(ENGINE_free(engine), 1);
-      }
-    }
-    engine = engine_;
-    finish_on_exit = finish_on_exit_;
-  }
-
-  inline ENGINE* release() {
-    ENGINE* ret = engine;
-    engine = nullptr;
-    finish_on_exit = false;
-    return ret;
-  }
-};
-
-EnginePointer LoadEngineById(const char* id, CryptoErrorStore* errors);
-
-bool SetEngine(
-    const char* id,
-    uint32_t flags,
-    CryptoErrorStore* errors = nullptr);
-
-void SetEngine(const v8::FunctionCallbackInfo<v8::Value>& args);
-#endif  // !OPENSSL_NO_ENGINE
-
-void GetFipsCrypto(const v8::FunctionCallbackInfo<v8::Value>& args);
-
-void SetFipsCrypto(const v8::FunctionCallbackInfo<v8::Value>& args);
-
-void TestFipsCrypto(const v8::FunctionCallbackInfo<v8::Value>& args);
 
 class CipherPushContext {
  public:
@@ -718,8 +650,7 @@ class ArrayBufferOrViewContents {
     // Ideally, these would return nullptr if IsEmpty() or length_ is zero,
     // but some of the openssl API react badly if given a nullptr even when
     // length is zero, so we have to return something.
-    if (size() == 0)
-      return &buf;
+    if (empty()) return &buf;
     return reinterpret_cast<T*>(data_) + offset_;
   }
 
@@ -727,12 +658,13 @@ class ArrayBufferOrViewContents {
     // Ideally, these would return nullptr if IsEmpty() or length_ is zero,
     // but some of the openssl API react badly if given a nullptr even when
     // length is zero, so we have to return something.
-    if (size() == 0)
-      return &buf;
+    if (empty()) return &buf;
     return reinterpret_cast<T*>(data_) + offset_;
   }
 
   inline size_t size() const { return length_; }
+
+  inline bool empty() const { return length_ == 0; }
 
   // In most cases, input buffer sizes passed in to openssl need to
   // be limited to <= INT_MAX. This utility method helps us check.
@@ -743,26 +675,36 @@ class ArrayBufferOrViewContents {
   }
 
   inline ByteSource ToCopy() const {
-    if (size() == 0) return ByteSource();
+    if (empty()) return ByteSource();
     ByteSource::Builder buf(size());
     memcpy(buf.data<void>(), data(), size());
     return std::move(buf).release();
   }
 
   inline ByteSource ToNullTerminatedCopy() const {
-    if (size() == 0) return ByteSource();
+    if (empty()) return ByteSource();
     ByteSource::Builder buf(size() + 1);
     memcpy(buf.data<void>(), data(), size());
     buf.data<char>()[size()] = 0;
     return std::move(buf).release(size());
   }
 
+  inline ncrypto::DataPointer ToDataPointer() const {
+    if (empty()) return {};
+    if (auto dp = ncrypto::DataPointer::Alloc(size())) {
+      memcpy(dp.get(), data(), size());
+      return dp;
+    }
+    return {};
+  }
+
   template <typename M>
   void CopyTo(M* dest, size_t len) const {
     static_assert(sizeof(M) == 1, "sizeof(M) must equal 1");
     len = std::min(len, size());
-    if (len > 0 && data() != nullptr)
+    if (len > 0 && data() != nullptr) {
       memcpy(dest, data(), len);
+    }
   }
 
  private:
@@ -785,12 +727,11 @@ v8::MaybeLocal<v8::Value> EncodeBignum(
     int size,
     v8::Local<v8::Value>* error);
 
-v8::Maybe<bool> SetEncodedValue(
-    Environment* env,
-    v8::Local<v8::Object> target,
-    v8::Local<v8::String> name,
-    const BIGNUM* bn,
-    int size = 0);
+v8::Maybe<void> SetEncodedValue(Environment* env,
+                                v8::Local<v8::Object> target,
+                                v8::Local<v8::String> name,
+                                const BIGNUM* bn,
+                                int size = 0);
 
 bool SetRsaOaepLabel(const EVPKeyCtxPointer& rsa, const ByteSource& label);
 

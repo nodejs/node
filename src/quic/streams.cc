@@ -128,14 +128,14 @@ struct Stream::Impl {
     std::shared_ptr<DataQueue> dataqueue;
     if (GetDataQueueFromSource(env, args[0]).To(&dataqueue)) {
       Stream* stream;
-      ASSIGN_OR_RETURN_UNWRAP(&stream, args.Holder());
+      ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
       stream->set_outbound(std::move(dataqueue));
     }
   }
 
   static void Destroy(const FunctionCallbackInfo<Value>& args) {
     Stream* stream;
-    ASSIGN_OR_RETURN_UNWRAP(&stream, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
     if (args.Length() > 1) {
       CHECK(args[0]->IsBigInt());
       bool unused = false;
@@ -148,7 +148,7 @@ struct Stream::Impl {
 
   static void SendHeaders(const FunctionCallbackInfo<Value>& args) {
     Stream* stream;
-    ASSIGN_OR_RETURN_UNWRAP(&stream, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
     CHECK(args[0]->IsUint32());  // Kind
     CHECK(args[1]->IsArray());   // Headers
     CHECK(args[2]->IsUint32());  // Flags
@@ -169,7 +169,7 @@ struct Stream::Impl {
   // that has already been received is still readable.
   static void StopSending(const FunctionCallbackInfo<Value>& args) {
     Stream* stream;
-    ASSIGN_OR_RETURN_UNWRAP(&stream, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
     uint64_t code = NGTCP2_APP_NOERROR;
     CHECK_IMPLIES(!args[0]->IsUndefined(), args[0]->IsBigInt());
     if (!args[0]->IsUndefined()) {
@@ -189,7 +189,7 @@ struct Stream::Impl {
   // outbound queue will be dropped. The stream may still be readable.
   static void ResetStream(const FunctionCallbackInfo<Value>& args) {
     Stream* stream;
-    ASSIGN_OR_RETURN_UNWRAP(&stream, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
     uint64_t code = NGTCP2_APP_NOERROR;
     CHECK_IMPLIES(!args[0]->IsUndefined(), args[0]->IsBigInt());
     if (!args[0]->IsUndefined()) {
@@ -210,7 +210,7 @@ struct Stream::Impl {
 
   static void SetPriority(const FunctionCallbackInfo<Value>& args) {
     Stream* stream;
-    ASSIGN_OR_RETURN_UNWRAP(&stream, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
     CHECK(args[0]->IsUint32());  // Priority
     CHECK(args[1]->IsUint32());  // Priority flag
 
@@ -224,14 +224,14 @@ struct Stream::Impl {
 
   static void GetPriority(const FunctionCallbackInfo<Value>& args) {
     Stream* stream;
-    ASSIGN_OR_RETURN_UNWRAP(&stream, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
     auto priority = stream->session().application().GetStreamPriority(*stream);
     args.GetReturnValue().Set(static_cast<uint32_t>(priority));
   }
 
   static void GetReader(const FunctionCallbackInfo<Value>& args) {
     Stream* stream;
-    ASSIGN_OR_RETURN_UNWRAP(&stream, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
     BaseObjectPtr<Blob::Reader> reader = stream->get_reader();
     if (reader) return args.GetReturnValue().Set(reader->object());
     THROW_ERR_INVALID_STATE(Environment::GetCurrent(args),
@@ -871,7 +871,9 @@ bool Stream::AddHeader(const Header& header) {
 
   const auto push = [&](auto raw) {
     Local<Value> value;
-    if (UNLIKELY(!raw.ToLocal(&value))) return false;
+    if (!raw.ToLocal(&value)) [[unlikely]] {
+      return false;
+    }
     headers_.push_back(value);
     return true;
   };

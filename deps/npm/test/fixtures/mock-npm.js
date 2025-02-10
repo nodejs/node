@@ -1,12 +1,12 @@
-const os = require('os')
-const fs = require('fs').promises
-const path = require('path')
+const os = require('node:os')
+const fs = require('node:fs').promises
+const fsSync = require('node:fs')
+const path = require('node:path')
 const tap = require('tap')
-const { output, META } = require('proc-log')
-const errorMessage = require('../../lib/utils/error-message')
 const mockLogs = require('./mock-logs.js')
 const mockGlobals = require('@npmcli/mock-globals')
 const tmock = require('./tmock')
+const MockRegistry = require('@npmcli/mock-registry')
 const defExitCode = process.exitCode
 
 const changeDir = (dir) => {
@@ -81,21 +81,6 @@ const getMockNpm = async (t, { mocks, init, load, npm: npmOpts }) => {
       // is left hanging on purpose as a best-effort and the process gets
       // closed regardless of if it has finished or not.
       await Promise.all(this.unrefPromises)
-      return res
-    }
-
-    async exec (...args) {
-      const [res, err] = await super.exec(...args).then((r) => [r]).catch(e => [null, e])
-      // This mimics how the exit handler flushes output for commands that have
-      // buffered output. It also uses the same json error processing from the
-      // error message fn. This is necessary for commands with buffered output
-      // to read the output after exec is called. This is not *exactly* how it
-      // works in practice, but it is close enough for now.
-      const jsonError = err && errorMessage(err, this).json
-      output.flush({ [META]: true, jsonError })
-      if (err) {
-        throw err
-      }
       return res
     }
   }
@@ -305,6 +290,167 @@ const setupMockNpm = async (t, {
   }
 }
 
+const loadNpmWithRegistry = async (t, opts) => {
+  const mock = await setupMockNpm(t, opts)
+  const registry = new MockRegistry({
+    tap: t,
+    registry: mock.npm.config.get('registry'),
+    strict: true,
+  })
+
+  const fileShouldExist = (filePath) => {
+    t.equal(
+      fsSync.existsSync(path.join(mock.npm.prefix, filePath)), true, `${filePath} should exist`
+    )
+  }
+
+  const fileShouldNotExist = (filePath) => {
+    t.equal(
+      fsSync.existsSync(path.join(mock.npm.prefix, filePath)), false, `${filePath} should not exist`
+    )
+  }
+
+  const packageVersionMatches = (filePath, version) => {
+    t.equal(
+      JSON.parse(fsSync.readFileSync(path.join(mock.npm.prefix, filePath), 'utf8')).version, version
+    )
+  }
+
+  const packageInstalled = (target) => {
+    const spec = path.basename(target)
+    const dirname = path.dirname(target)
+    const [name, version = '1.0.0'] = spec.split('@')
+    fileShouldNotExist(`${dirname}/${name}/${name}@${version}.txt`)
+    packageVersionMatches(`${dirname}/${name}/package.json`, version)
+    fileShouldExist(`${dirname}/${name}/index.js`)
+  }
+
+  const packageMissing = (target) => {
+    const spec = path.basename(target)
+    const dirname = path.dirname(target)
+    const [name, version = '1.0.0'] = spec.split('@')
+    fileShouldNotExist(`${dirname}/${name}/${name}@${version}.txt`)
+    fileShouldNotExist(`${dirname}/${name}/package.json`)
+    fileShouldNotExist(`${dirname}/${name}/index.js`)
+  }
+
+  const packageDirty = (target) => {
+    const spec = path.basename(target)
+    const dirname = path.dirname(target)
+    const [name, version = '1.0.0'] = spec.split('@')
+    fileShouldExist(`${dirname}/${name}/${name}@${version}.txt`)
+    packageVersionMatches(`${dirname}/${name}/package.json`, version)
+    fileShouldNotExist(`${dirname}/${name}/index.js`)
+  }
+
+  const assert = {
+    fileShouldExist,
+    fileShouldNotExist,
+    packageVersionMatches,
+    packageInstalled,
+    packageMissing,
+    packageDirty,
+  }
+
+  return { registry, assert, ...mock }
+}
+
+/** breaks down a spec "abbrev@1.1.1" into different parts for mocking */
+function dependencyDetails (spec, opt = {}) {
+  const [name, version = '1.0.0'] = spec.split('@')
+  const { parent, hoist = true, ws, clean = true } = opt
+  const modulePathPrefix = !hoist && parent ? `${parent}/` : ''
+  const modulePath = `${modulePathPrefix}node_modules/${name}`
+  const resolved = `https://registry.npmjs.org/${name}/-/${name}-${version}.tgz`
+  // deps
+  const wsEntries = Object.entries({ ...ws })
+  const depsMap = wsEntries.map(([s, o]) => dependencyDetails(s, { ...o, parent: name }))
+  const dependencies = Object.assign({}, ...depsMap.map(d => d.packageDependency))
+  const spreadDependencies = depsMap.length ? { dependencies } : {}
+  // package and lock objects
+  const packageDependency = { [name]: version }
+  const packageLockEntry = { [modulePath]: { version, resolved } }
+  const packageLockLink = { [modulePath]: { resolved: name, link: true } }
+  const packageLockLocal = { [name]: { version, dependencies } }
+  // build package.js
+  const packageJSON = { name, version, ...spreadDependencies }
+  const packageJSONString = JSON.stringify(packageJSON)
+  const packageJSONFile = { 'package.json': packageJSONString }
+  // build index.js
+  const indexJSString = 'module.exports = "hello world"'
+  const indexJSFile = { 'index.js': indexJSString }
+  // tarball
+  const packageFiles = { ...packageJSONFile, ...indexJSFile }
+  const nodeModules = Object.assign({}, ...depsMap.map(d => d.hoist ? {} : d.dirtyOrCleanDir))
+  const nodeModulesDir = { node_modules: nodeModules }
+  const packageDir = { [name]: { ...packageFiles, ...nodeModulesDir } }
+  const tarballDir = { [`${name}@${version}`]: packageFiles }
+  // dirty files
+  const dirtyFile = { [`${name}@${version}.txt`]: 'dirty file' }
+  const dirtyFiles = { ...packageJSONFile, ...dirtyFile }
+  const dirtyDir = { [name]: dirtyFiles }
+  const dirtyOrCleanDir = clean ? {} : dirtyDir
+
+  return {
+    packageDependency,
+    hoist,
+    depsMap,
+    dirtyOrCleanDir,
+    tarballDir,
+    packageDir,
+    packageLockEntry,
+    packageLockLink,
+    packageLockLocal,
+  }
+}
+
+function workspaceMock (t, opts) {
+  const toObject = [(a, c) => ({ ...a, ...c }), {}]
+  const { workspaces: workspacesDef, ...rest } = { clean: true, ...opts }
+  const workspaces = Object.fromEntries(Object.entries(workspacesDef).map(([name, ws]) => {
+    return [name, Object.fromEntries(Object.entries(ws).map(([wsPackageDep, wsPackageDepOpts]) => {
+      return [wsPackageDep, { ...rest, ...wsPackageDepOpts }]
+    }))]
+  }))
+  const root = 'workspace-root'
+  const version = '1.0.0'
+  const names = Object.keys(workspaces)
+  const ws = Object.entries(workspaces).map(([name, _ws]) => dependencyDetails(name, { ws: _ws }))
+  const deps = ws.map(({ depsMap }) => depsMap).flat()
+  const tarballs = deps.map(w => w.tarballDir).reduce(...toObject)
+  const symlinks = names
+    .map((name) => ({ [name]: t.fixture('symlink', `../${name}`) })).reduce(...toObject)
+  const hoisted = deps.filter(d => d.hoist).map(w => w.dirtyOrCleanDir).reduce(...toObject)
+  const workspaceFolders = ws.map(w => w.packageDir).reduce(...toObject)
+  const packageJSON = { name: root, version, workspaces: names }
+  const packageLockJSON = ({
+    name: root,
+    version,
+    lockfileVersion: 3,
+    requires: true,
+    packages: {
+      '': { name: root, version, workspaces: names },
+      ...deps.filter(d => d.hoist).map(d => d.packageLockEntry).reduce(...toObject),
+      ...ws.map(d => d.packageLockEntry).flat().reduce(...toObject),
+      ...ws.map(d => d.packageLockLink).flat().reduce(...toObject),
+      ...ws.map(d => d.packageLockLocal).flat().reduce(...toObject),
+      ...deps.filter(d => !d.hoist).map(d => d.packageLockEntry).reduce(...toObject),
+    },
+  })
+  return {
+    tarballs,
+    node_modules: {
+      ...hoisted,
+      ...symlinks,
+    },
+    'package-lock.json': JSON.stringify(packageLockJSON),
+    'package.json': JSON.stringify(packageJSON),
+    ...workspaceFolders,
+  }
+}
+
 module.exports = setupMockNpm
 module.exports.load = setupMockNpm
 module.exports.setGlobalNodeModules = setGlobalNodeModules
+module.exports.loadNpmWithRegistry = loadNpmWithRegistry
+module.exports.workspaceMock = workspaceMock

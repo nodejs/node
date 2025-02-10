@@ -320,7 +320,7 @@ std::vector<char> ReadFileSync(FILE* fp) {
 void DiagnosticFilename::LocalTime(TIME_TYPE* tm_struct) {
 #ifdef _WIN32
   GetLocalTime(tm_struct);
-#else  // UNIX, OSX
+#else  // UNIX, macOS
   struct timeval time_val;
   gettimeofday(&time_val, nullptr);
   localtime_r(&time_val.tv_sec, tm_struct);
@@ -343,7 +343,7 @@ std::string DiagnosticFilename::MakeFilename(
   oss << "." << std::setfill('0') << std::setw(2) << tm_struct.wHour;
   oss << std::setfill('0') << std::setw(2) << tm_struct.wMinute;
   oss << std::setfill('0') << std::setw(2) << tm_struct.wSecond;
-#else  // UNIX, OSX
+#else  // UNIX, macOS
   oss << "."
             << std::setfill('0')
             << std::setw(4)
@@ -675,8 +675,9 @@ void SetConstructorFunction(Local<Context> context,
                             Local<String> name,
                             Local<FunctionTemplate> tmpl,
                             SetConstructorFunctionFlag flag) {
-  if (LIKELY(flag == SetConstructorFunctionFlag::SET_CLASS_NAME))
+  if (flag == SetConstructorFunctionFlag::SET_CLASS_NAME) [[likely]] {
     tmpl->SetClassName(name);
+  }
   that->Set(context, name, tmpl->GetFunction(context).ToLocalChecked()).Check();
 }
 
@@ -694,8 +695,9 @@ void SetConstructorFunction(Isolate* isolate,
                             Local<String> name,
                             Local<FunctionTemplate> tmpl,
                             SetConstructorFunctionFlag flag) {
-  if (LIKELY(flag == SetConstructorFunctionFlag::SET_CLASS_NAME))
+  if (flag == SetConstructorFunctionFlag::SET_CLASS_NAME) [[likely]] {
     tmpl->SetClassName(name);
+  }
   that->Set(name, tmpl);
 }
 
@@ -758,6 +760,16 @@ std::string DetermineSpecificErrorType(Environment* env,
         input.As<v8::Object>()->GetConstructorName();
     Utf8Value name(env->isolate(), constructor_name);
     return SPrintF("an instance of %s", name.out());
+  } else if (input->IsSymbol()) {
+    v8::MaybeLocal<v8::String> str =
+        input.As<v8::Symbol>()->ToDetailString(env->context());
+    v8::Local<v8::String> js_str;
+    if (!str.ToLocal(&js_str)) {
+      return "Symbol";
+    }
+    Utf8Value name(env->isolate(), js_str);
+    // Symbol(xxx)
+    return name.out();
   }
 
   Utf8Value utf8_value(env->isolate(),

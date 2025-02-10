@@ -65,17 +65,6 @@ const LEVEL_METHODS = {
   },
 }
 
-const tryJsonParse = (value) => {
-  if (typeof value === 'string') {
-    try {
-      return JSON.parse(value)
-    } catch {
-      return {}
-    }
-  }
-  return value
-}
-
 const setBlocking = (stream) => {
   // Copied from https://github.com/yargs/set-blocking
   // https://raw.githubusercontent.com/yargs/set-blocking/master/LICENSE.txt
@@ -84,6 +73,70 @@ const setBlocking = (stream) => {
     stream._handle.setBlocking(true)
   }
   return stream
+}
+
+// These are important
+// This is the key that is returned to the user for errors
+const ERROR_KEY = 'error'
+// This is the key producers use to indicate that there
+// is a json error that should be merged into the finished output
+const JSON_ERROR_KEY = 'jsonError'
+
+const isPlainObject = (v) => v && typeof v === 'object' && !Array.isArray(v)
+
+const getArrayOrObject = (items) => {
+  if (items.length) {
+    const foundNonObject = items.find(o => !isPlainObject(o))
+    // Non-objects and arrays cant be merged, so just return the first item
+    if (foundNonObject) {
+      return foundNonObject
+    }
+    // We use objects with 0,1,2,etc keys to merge array
+    if (items.every((o, i) => Object.hasOwn(o, i))) {
+      return Object.assign([], ...items)
+    }
+  }
+  // Otherwise its an object with all object items merged together
+  return Object.assign({}, ...items.filter(o => isPlainObject(o)))
+}
+
+const getJsonBuffer = ({ [JSON_ERROR_KEY]: metaError }, buffer) => {
+  const items = []
+  // meta also contains the meta object passed to flush
+  const errors = metaError ? [metaError] : []
+  // index 1 is the meta, 2 is the logged argument
+  for (const [, { [JSON_ERROR_KEY]: error }, obj] of buffer) {
+    if (obj) {
+      items.push(obj)
+    }
+    if (error) {
+      errors.push(error)
+    }
+  }
+
+  if (!items.length && !errors.length) {
+    return null
+  }
+
+  const res = getArrayOrObject(items)
+
+  // This skips any error checking since we can only set an error property
+  // on an object that can be stringified
+  // XXX(BREAKING_CHANGE): remove this in favor of always returning an object with result and error keys
+  if (isPlainObject(res) && errors.length) {
+    // This is not ideal. JSON output has always been keyed at the root with an `error`
+    // key, so we cant change that without it being a breaking change. At the same time
+    // some commands output arbitrary keys at the top level of the output, such as package
+    // names. So the output could already have the same key. The choice here is to overwrite
+    // it with our error since that is (probably?) more important.
+    // XXX(BREAKING_CHANGE): all json output should be keyed under well known keys, eg `result` and `error`
+    if (res[ERROR_KEY]) {
+      log.warn('', `overwriting existing ${ERROR_KEY} on json output`)
+    }
+    res[ERROR_KEY] = getArrayOrObject(errors)
+  }
+
+  return res
 }
 
 const withMeta = (handler) => (level, ...args) => {
@@ -239,25 +292,21 @@ class Display {
   // Arrow function assigned to a private class field so it can be passed
   // directly as a listener and still reference "this"
   #outputHandler = withMeta((level, meta, ...args) => {
+    this.#json = typeof meta.json === 'boolean' ? meta.json : this.#json
     switch (level) {
-      case output.KEYS.flush:
+      case output.KEYS.flush: {
         this.#outputState.buffering = false
-        if (meta.jsonError && this.#json) {
-          const json = {}
-          for (const item of this.#outputState.buffer) {
-            // index 2 skips the level and meta
-            Object.assign(json, tryJsonParse(item[2]))
+        if (this.#json) {
+          const json = getJsonBuffer(meta, this.#outputState.buffer)
+          if (json) {
+            this.#writeOutput(output.KEYS.standard, meta, JSON.stringify(json, null, 2))
           }
-          this.#writeOutput(
-            output.KEYS.standard,
-            meta,
-            JSON.stringify({ ...json, error: meta.jsonError }, null, 2)
-          )
         } else {
           this.#outputState.buffer.forEach((item) => this.#writeOutput(...item))
         }
         this.#outputState.buffer.length = 0
         break
+      }
 
       case output.KEYS.buffer:
         this.#outputState.buffer.push([output.KEYS.standard, meta, ...args])

@@ -73,6 +73,7 @@ This file documents various terms and definitions used throughout the Node.js co
   contain data and code to manipulate that data. OOP languages include features such as encapsulation, inheritance,
   and polymorphism.
 * **PPC**: [PowerPC][] - A type of microprocessor architecture.
+* **PTAL**: Please Take A Look.
 * **Primordials**: Pristine built-ins in JavaScript that are not affected by prototype pollution.
 * **Prototype Pollution**: Process in which a user mutating object prototypes affects other code.
 * **RAII**: [Resource Acquisition Is Initialization][] - Programming idiom used to manage resources in C++.

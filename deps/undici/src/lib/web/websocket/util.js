@@ -2,8 +2,9 @@
 
 const { kReadyState, kController, kResponse, kBinaryType, kWebSocketURL } = require('./symbols')
 const { states, opcodes } = require('./constants')
-const { MessageEvent, ErrorEvent } = require('./events')
+const { ErrorEvent, createFastMessageEvent } = require('./events')
 const { isUtf8 } = require('node:buffer')
+const { collectASequenceOfCodePointsFast, removeHTTPWhitespace } = require('../fetch/data-url')
 
 /* globals Blob */
 
@@ -51,15 +52,16 @@ function isClosed (ws) {
  * @see https://dom.spec.whatwg.org/#concept-event-fire
  * @param {string} e
  * @param {EventTarget} target
+ * @param {(...args: ConstructorParameters<typeof Event>) => Event} eventFactory
  * @param {EventInit | undefined} eventInitDict
  */
-function fireEvent (e, target, eventConstructor = Event, eventInitDict = {}) {
+function fireEvent (e, target, eventFactory = (type, init) => new Event(type, init), eventInitDict = {}) {
   // 1. If eventConstructor is not given, then let eventConstructor be Event.
 
   // 2. Let event be the result of creating an event given eventConstructor,
   //    in the relevant realm of target.
   // 3. Initialize event’s type attribute to e.
-  const event = new eventConstructor(e, eventInitDict) // eslint-disable-line new-cap
+  const event = eventFactory(e, eventInitDict)
 
   // 4. Initialize any other IDL attributes of event as described in the
   //    invocation of this algorithm.
@@ -103,17 +105,24 @@ function websocketMessageReceived (ws, type, data) {
       // -> type indicates that the data is Binary and binary type is "arraybuffer"
       //      a new ArrayBuffer object, created in the relevant Realm of the
       //      WebSocket object, whose contents are data
-      dataForEvent = new Uint8Array(data).buffer
+      dataForEvent = toArrayBuffer(data)
     }
   }
 
   // 3. Fire an event named message at the WebSocket object, using MessageEvent,
   //    with the origin attribute initialized to the serialization of the WebSocket
   //    object’s url's origin, and the data attribute initialized to dataForEvent.
-  fireEvent('message', ws, MessageEvent, {
+  fireEvent('message', ws, createFastMessageEvent, {
     origin: ws[kWebSocketURL].origin,
     data: dataForEvent
   })
+}
+
+function toArrayBuffer (buffer) {
+  if (buffer.byteLength === buffer.buffer.byteLength) {
+    return buffer.buffer
+  }
+  return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength)
 }
 
 /**
@@ -195,10 +204,77 @@ function failWebsocketConnection (ws, reason) {
 
   if (reason) {
     // TODO: process.nextTick
-    fireEvent('error', ws, ErrorEvent, {
-      error: new Error(reason)
+    fireEvent('error', ws, (type, init) => new ErrorEvent(type, init), {
+      error: new Error(reason),
+      message: reason
     })
   }
+}
+
+/**
+ * @see https://datatracker.ietf.org/doc/html/rfc6455#section-5.5
+ * @param {number} opcode
+ */
+function isControlFrame (opcode) {
+  return (
+    opcode === opcodes.CLOSE ||
+    opcode === opcodes.PING ||
+    opcode === opcodes.PONG
+  )
+}
+
+function isContinuationFrame (opcode) {
+  return opcode === opcodes.CONTINUATION
+}
+
+function isTextBinaryFrame (opcode) {
+  return opcode === opcodes.TEXT || opcode === opcodes.BINARY
+}
+
+function isValidOpcode (opcode) {
+  return isTextBinaryFrame(opcode) || isContinuationFrame(opcode) || isControlFrame(opcode)
+}
+
+/**
+ * Parses a Sec-WebSocket-Extensions header value.
+ * @param {string} extensions
+ * @returns {Map<string, string>}
+ */
+// TODO(@Uzlopak, @KhafraDev): make compliant https://datatracker.ietf.org/doc/html/rfc6455#section-9.1
+function parseExtensions (extensions) {
+  const position = { position: 0 }
+  const extensionList = new Map()
+
+  while (position.position < extensions.length) {
+    const pair = collectASequenceOfCodePointsFast(';', extensions, position)
+    const [name, value = ''] = pair.split('=')
+
+    extensionList.set(
+      removeHTTPWhitespace(name, true, false),
+      removeHTTPWhitespace(value, false, true)
+    )
+
+    position.position++
+  }
+
+  return extensionList
+}
+
+/**
+ * @see https://www.rfc-editor.org/rfc/rfc7692#section-7.1.2.2
+ * @description "client-max-window-bits = 1*DIGIT"
+ * @param {string} value
+ */
+function isValidClientWindowBits (value) {
+  for (let i = 0; i < value.length; i++) {
+    const byte = value.charCodeAt(i)
+
+    if (byte < 0x30 || byte > 0x39) {
+      return false
+    }
+  }
+
+  return true
 }
 
 // https://nodejs.org/api/intl.html#detecting-internationalization-support
@@ -211,19 +287,12 @@ const fatalDecoder = hasIntl ? new TextDecoder('utf-8', { fatal: true }) : undef
  */
 const utf8Decode = hasIntl
   ? fatalDecoder.decode.bind(fatalDecoder)
-  : !isUtf8
-      ? function () { // TODO: remove once node 18 or < node v18.14.0 is dropped
-        process.emitWarning('ICU is not supported and no fallback exists. Please upgrade to at least Node v18.14.0.', {
-          code: 'UNDICI-WS-NO-ICU'
-        })
-        throw new TypeError('Invalid utf-8 received.')
-      }
-      : function (buffer) {
-        if (isUtf8(buffer)) {
-          return buffer.toString('utf-8')
-        }
-        throw new TypeError('Invalid utf-8 received.')
-      }
+  : function (buffer) {
+    if (isUtf8(buffer)) {
+      return buffer.toString('utf-8')
+    }
+    throw new TypeError('Invalid utf-8 received.')
+  }
 
 module.exports = {
   isConnecting,
@@ -235,5 +304,11 @@ module.exports = {
   isValidStatusCode,
   failWebsocketConnection,
   websocketMessageReceived,
-  utf8Decode
+  utf8Decode,
+  isControlFrame,
+  isContinuationFrame,
+  isTextBinaryFrame,
+  isValidOpcode,
+  parseExtensions,
+  isValidClientWindowBits
 }

@@ -48,7 +48,7 @@
       'type': 'none',
       'toolsets': ['host', 'target'],
       'conditions': [
-        ['OS=="win" and clang==0', {
+        ['OS=="win"', {
           'direct_dependent_settings': {
             'msvs_precompiled_header': '<(V8_ROOT)/../../tools/msvs/pch/v8_pch.h',
             'msvs_precompiled_source': '<(V8_ROOT)/../../tools/msvs/pch/v8_pch.cc',
@@ -289,7 +289,6 @@
       'toolsets': ['host', 'target'],
       'dependencies': [
         'torque_generated_initializers',
-        'v8_initializers_slow',
         'v8_base_without_compiler',
         'v8_shared_internal_headers',
         'v8_pch',
@@ -299,18 +298,21 @@
         '<(SHARED_INTERMEDIATE_DIR)',
         '<(generate_bytecode_output_root)',
       ],
-      # Compiled by v8_initializers_slow target.
-      'sources!': [
-        '<(SHARED_INTERMEDIATE_DIR)/torque-generated/src/builtins/js-to-wasm-tq-csa.h',
-        '<(SHARED_INTERMEDIATE_DIR)/torque-generated/src/builtins/js-to-wasm-tq-csa.cc',
-        '<(SHARED_INTERMEDIATE_DIR)/torque-generated/src/builtins/wasm-to-js-tq-csa.h',
-        '<(SHARED_INTERMEDIATE_DIR)/torque-generated/src/builtins/wasm-to-js-tq-csa.cc',
-      ],
       'sources': [
         '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_initializers.*?sources = ")',
       ],
       'conditions': [
         ['v8_enable_webassembly==1', {
+          'dependencies': [
+            'v8_initializers_slow',
+          ],
+          # Compiled by v8_initializers_slow target.
+          'sources!': [
+            '<(SHARED_INTERMEDIATE_DIR)/torque-generated/src/builtins/js-to-wasm-tq-csa.h',
+            '<(SHARED_INTERMEDIATE_DIR)/torque-generated/src/builtins/js-to-wasm-tq-csa.cc',
+            '<(SHARED_INTERMEDIATE_DIR)/torque-generated/src/builtins/wasm-to-js-tq-csa.h',
+            '<(SHARED_INTERMEDIATE_DIR)/torque-generated/src/builtins/wasm-to-js-tq-csa.cc',
+          ],
           'sources': [
             '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_initializers.*?v8_enable_webassembly.*?sources \\+= ")',
           ],
@@ -638,6 +640,11 @@
               '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_enable_webassembly.*?sources \\+= ")',
             ],
           }],
+          ['v8_enable_wasm_simd256_revec==1', {
+            'sources': [
+              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_enable_wasm_simd256_revec.*?sources \\+= ")',
+            ],
+          }],
           ['v8_enable_i18n_support==1', {
             'sources': [
               '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_enable_i18n_support.*?sources \\+= ")',
@@ -872,6 +879,11 @@
           ['v8_enable_webassembly==1', {
             'sources': [
               '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_compiler_sources =.*?v8_enable_webassembly.*?v8_compiler_sources \\+= ")',
+            ],
+          }],
+          ['v8_enable_wasm_simd256_revec==1', {
+            'sources': [
+              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_compiler_sources =.*?v8_enable_wasm_simd256_revec.*?v8_compiler_sources \\+= ")',
             ],
           }],
         ],
@@ -1165,6 +1177,23 @@
         ['v8_target_arch=="riscv64"', {
           'sources': [
             '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_enable_wasm_gdb_remote_debugging.*?v8_current_cpu == \\"riscv64\\".*?sources \\+= ")',
+          ],
+          'conditions': [
+            ['v8_enable_webassembly==1', {
+              'conditions': [
+                ['((_toolset=="host" and host_arch=="riscv64" or _toolset=="target" and target_arch=="riscv64") and (OS=="linux")) or ((_toolset=="host" and host_arch=="x64" or _toolset=="target" and target_arch=="x64") and (OS=="linux"))', {
+                  'sources': [
+                    '<(V8_ROOT)/src/trap-handler/handler-inside-posix.cc',
+                    '<(V8_ROOT)/src/trap-handler/handler-outside-posix.cc',
+                  ],
+                }],
+                ['(_toolset=="host" and host_arch=="x64" or _toolset=="target" and target_arch=="x64") and (OS=="linux")', {
+                  'sources': [
+                    '<(V8_ROOT)/src/trap-handler/handler-outside-simulator.cc',
+                  ],
+                }],
+              ],
+            }],
           ],
         }],
         ['v8_target_arch=="loong64"', {
@@ -1895,7 +1924,31 @@
           ['enable_lto=="true"', {
             'cflags_cc': [ '-fno-lto' ],
           }],
-          ['clang==1 or OS!="win"', {
+          # Changes in push_registers_asm.cc in V8 v12.8 requires using
+          # push_registers_masm on Windows even with ClangCL on x64
+          ['OS=="win"', {
+            'conditions': [
+              ['_toolset == "host" and host_arch == "x64" or _toolset == "target" and target_arch=="x64"', {
+                'sources': [
+                  '<(V8_ROOT)/src/heap/base/asm/x64/push_registers_masm.asm',
+                ],
+              }],
+              ['_toolset == "host" and host_arch == "arm64" or _toolset == "target" and target_arch=="arm64"', {
+                'conditions': [
+                  ['clang==1', {
+                    'sources': [
+                      '<(V8_ROOT)/src/heap/base/asm/arm64/push_registers_asm.cc',
+                    ],
+                  }],
+                  ['clang==0', {
+                    'sources': [
+                      '<(V8_ROOT)/src/heap/base/asm/arm64/push_registers_masm.S',
+                    ],
+                  }],
+                ],
+              }],
+            ],
+          }, { # 'OS!="win"'
             'conditions': [
               ['_toolset == "host" and host_arch == "x64" or _toolset == "target" and target_arch=="x64"', {
                 'sources': [

@@ -5,8 +5,7 @@ const { output } = require('proc-log')
 const npa = require('npm-package-arg')
 const { depth } = require('treeverse')
 const { readTree: getFundingInfo, normalizeFunding, isValidFunding } = require('libnpmfund')
-
-const openUrl = require('../utils/open-url.js')
+const { openUrl } = require('../utils/open-url.js')
 const ArboristWorkspaceCmd = require('../arborist-cmd.js')
 
 const getPrintableName = ({ name, version }) => {
@@ -86,14 +85,10 @@ class Fund extends ArboristWorkspaceCmd {
     })
 
     if (this.npm.config.get('json')) {
-      output.standard(this.printJSON(fundingInfo))
+      output.buffer(fundingInfo)
     } else {
       output.standard(this.printHuman(fundingInfo))
     }
-  }
-
-  printJSON (fundingInfo) {
-    return JSON.stringify(fundingInfo, null, 2)
   }
 
   printHuman (fundingInfo) {

@@ -1,4 +1,4 @@
-// Flags: --experimental-permission --allow-child-process --allow-fs-read=*
+// Flags: --permission --allow-child-process --allow-fs-read=*
 'use strict';
 
 const common = require('../common');
@@ -20,7 +20,7 @@ if (process.argv[2] === 'child') {
 {
   // doesNotThrow
   childProcess.spawnSync(process.execPath, ['--version']);
-  childProcess.execSync(process.execPath, ['--version']);
+  childProcess.execSync(...common.escapePOSIXShell`"${process.execPath}" --version`);
   childProcess.fork(__filename, ['child']);
   childProcess.execFileSync(process.execPath, ['--version']);
 }

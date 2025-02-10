@@ -1,5 +1,5 @@
 // write the json back, preserving the line breaks and indent
-const { writeFile } = require('fs/promises')
+const { writeFile } = require('node:fs/promises')
 const kIndent = Symbol.for('indent')
 const kNewline = Symbol.for('newline')
 

@@ -1,5 +1,46 @@
 # Changelog
 
+## [0.19.1](https://github.com/nodejs/gyp-next/compare/v0.19.0...v0.19.1) (2024-12-09)
+
+
+### Bug Fixes
+
+* fixup for break in EscapeForCString ([#274](https://github.com/nodejs/gyp-next/issues/274)) ([610f661](https://github.com/nodejs/gyp-next/commit/610f661da877a358c8b3cbc106b528fb1d0b8095))
+
+## [0.19.0](https://github.com/nodejs/gyp-next/compare/v0.18.3...v0.19.0) (2024-12-03)
+
+
+### Features
+
+* provide escaped version of `PRODUCT_DIR_ABS` ([#271](https://github.com/nodejs/gyp-next/issues/271)) ([3bf3b1c](https://github.com/nodejs/gyp-next/commit/3bf3b1cda26f16c645e0fdd5582ffbf49d9a2580))
+
+## [0.18.3](https://github.com/nodejs/gyp-next/compare/v0.18.2...v0.18.3) (2024-10-08)
+
+
+### Bug Fixes
+
+* enable pch for clang on windows ([#268](https://github.com/nodejs/gyp-next/issues/268)) ([cc5838c](https://github.com/nodejs/gyp-next/commit/cc5838c4e9260bf459d71de53fbb2eebd1a6f508))
+
+## [0.18.2](https://github.com/nodejs/gyp-next/compare/v0.18.1...v0.18.2) (2024-09-23)
+
+
+### Bug Fixes
+
+* do not assume that /usr/bin/env exists on macOS ([#216](https://github.com/nodejs/gyp-next/issues/216)) ([706d04a](https://github.com/nodejs/gyp-next/commit/706d04aba5bd18f311dc56f84720e99f64c73466))
+* fix E721 lint errors ([#206](https://github.com/nodejs/gyp-next/issues/206)) ([d1299a4](https://github.com/nodejs/gyp-next/commit/d1299a49d313eccabecf97ccb56fc033afad39ad))
+
+## [0.18.1](https://github.com/nodejs/gyp-next/compare/v0.18.0...v0.18.1) (2024-05-26)
+
+
+### Bug Fixes
+
+* **ci:** add Python 3.13 pre-release to test matrix ([#257](https://github.com/nodejs/gyp-next/issues/257)) ([8597203](https://github.com/nodejs/gyp-next/commit/8597203b687325c7516367135e026586279d0583))
+
+
+### Documentation
+
+* vendor docs from gyp.gsrc.io ([#254](https://github.com/nodejs/gyp-next/issues/254)) ([8d7ba6e](https://github.com/nodejs/gyp-next/commit/8d7ba6e784dedf1122a0456150c739d2a09ecf57))
+
 ## [0.18.0](https://github.com/nodejs/gyp-next/compare/v0.17.0...v0.18.0) (2024-05-08)
 
 

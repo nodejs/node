@@ -1,18 +1,20 @@
 const columns = require('cli-columns')
-const { readFile } = require('fs/promises')
+const { readFile } = require('node:fs/promises')
 const jsonParse = require('json-parse-even-better-errors')
-const { log, output } = require('proc-log')
+const { log, output, META } = require('proc-log')
 const npa = require('npm-package-arg')
-const { resolve } = require('path')
+const { resolve } = require('node:path')
 const formatBytes = require('../utils/format-bytes.js')
 const relativeDate = require('tiny-relative-date')
 const semver = require('semver')
-const { inspect } = require('util')
+const { inspect } = require('node:util')
 const { packument } = require('pacote')
 const Queryable = require('../utils/queryable.js')
 const BaseCommand = require('../base-cmd.js')
+const { getError } = require('../utils/error-message.js')
+const { jsonError, outputError } = require('../utils/output-error.js')
 
-const readJson = async file => jsonParse(await readFile(file, 'utf8'))
+const readJson = file => readFile(file, 'utf8').then(jsonParse)
 
 class View extends BaseCommand {
   static description = 'View registry info'
@@ -46,42 +48,11 @@ class View extends BaseCommand {
     const dv = pckmnt.versions[pckmnt['dist-tags'][defaultTag]]
     pckmnt.versions = Object.keys(pckmnt.versions).sort(semver.compareLoose)
 
-    return getFields(pckmnt).concat(getFields(dv))
-
-    function getFields (d, f, pref) {
-      f = f || []
-      pref = pref || []
-      Object.keys(d).forEach((k) => {
-        if (k.charAt(0) === '_' || k.indexOf('.') !== -1) {
-          return
-        }
-        const p = pref.concat(k).join('.')
-        f.push(p)
-        if (Array.isArray(d[k])) {
-          d[k].forEach((val, i) => {
-            const pi = p + '[' + i + ']'
-            if (val && typeof val === 'object') {
-              getFields(val, f, [p])
-            } else {
-              f.push(pi)
-            }
-          })
-          return
-        }
-        if (typeof d[k] === 'object') {
-          getFields(d[k], f, [p])
-        }
-      })
-      return f
-    }
+    return getCompletionFields(pckmnt).concat(getCompletionFields(dv))
   }
 
   async exec (args) {
-    if (!args.length) {
-      args = ['.']
-    }
-    let pkg = args.shift()
-    const local = /^\.@/.test(pkg) || pkg === '.'
+    let { pkg, local, rest } = parseArgs(args)
 
     if (local) {
       if (this.npm.global) {
@@ -96,92 +67,76 @@ class View extends BaseCommand {
       pkg = `${manifest.name}${pkg.slice(1)}`
     }
 
-    let wholePackument = false
-    if (!args.length) {
-      args = ['']
-      wholePackument = true
-    }
-    const [pckmnt, data] = await this.getData(pkg, args)
-
-    if (!this.npm.config.get('json') && wholePackument) {
-      // pretty view (entire packument)
-      data.map((v) => this.prettyView(pckmnt, v[Object.keys(v)[0]]['']))
-    } else {
-      // JSON formatted output (JSON or specific attributes from packument)
-      let reducedData = data.reduce(reducer, {})
-      if (wholePackument) {
-        // No attributes
-        reducedData = cleanBlanks(reducedData)
-        log.silly('view', reducedData)
-      }
-
-      const msg = await this.jsonData(reducedData, pckmnt._id)
-      if (msg !== '') {
-        output.standard(msg)
-      }
-    }
+    await this.#viewPackage(pkg, rest)
   }
 
   async execWorkspaces (args) {
-    if (!args.length) {
-      args = ['.']
-    }
+    const { pkg, local, rest } = parseArgs(args)
 
-    const pkg = args.shift()
-
-    const local = /^\.@/.test(pkg) || pkg === '.'
     if (!local) {
       log.warn('Ignoring workspaces for specified package(s)')
-      return this.exec([pkg, ...args])
+      return this.exec([pkg, ...rest])
     }
-    let wholePackument = false
-    if (!args.length) {
-      wholePackument = true
-      args = [''] // getData relies on this
-    }
-    const results = {}
+
+    const json = this.npm.config.get('json')
     await this.setWorkspaces()
+
     for (const name of this.workspaceNames) {
-      const wsPkg = `${name}${pkg.slice(1)}`
-      const [pckmnt, data] = await this.getData(wsPkg, args)
-
-      let reducedData = data.reduce(reducer, {})
-      if (wholePackument) {
-        // No attributes
-        reducedData = cleanBlanks(reducedData)
-        log.silly('view', reducedData)
-      }
-
-      if (!this.npm.config.get('json')) {
-        if (wholePackument) {
-          data.map((v) => this.prettyView(pckmnt, v[Object.keys(v)[0]]['']))
+      try {
+        await this.#viewPackage(`${name}${pkg.slice(1)}`, rest, { workspace: true })
+      } catch (e) {
+        const err = getError(e, { npm: this.npm, command: this })
+        if (err.code !== 'E404') {
+          throw e
+        }
+        if (json) {
+          output.buffer({ [META]: true, jsonError: { [name]: jsonError(err, this.npm) } })
         } else {
-          output.standard(`${name}:`)
-          const msg = await this.jsonData(reducedData, pckmnt._id)
-          if (msg !== '') {
-            output.standard(msg)
-          }
+          outputError(err)
         }
-      } else {
-        const msg = await this.jsonData(reducedData, pckmnt._id)
-        if (msg !== '') {
-          results[name] = JSON.parse(msg)
-        }
+        process.exitCode = err.exitCode
       }
-    }
-    if (Object.keys(results).length > 0) {
-      output.standard(JSON.stringify(results, null, 2))
     }
   }
 
-  async getData (pkg, args) {
-    const opts = {
+  async #viewPackage (name, args, { workspace } = {}) {
+    const wholePackument = !args.length
+    const json = this.npm.config.get('json')
+
+    // If we are viewing many packages and outputting individual fields then
+    // output the name before doing any async activity
+    if (!json && !wholePackument && workspace) {
+      output.standard(`${name}:`)
+    }
+
+    const [pckmnt, data] = await this.#getData(name, args, wholePackument)
+
+    if (!json && wholePackument) {
+      // pretty view (entire packument)
+      for (const v of data) {
+        output.standard(this.#prettyView(pckmnt, Object.values(v)[0][Queryable.ALL]))
+      }
+      return
+    }
+
+    const res = this.#packageOutput(cleanData(data, wholePackument), pckmnt._id)
+    if (res) {
+      if (json) {
+        output.buffer(workspace ? { [name]: res } : res)
+      } else {
+        output.standard(res)
+      }
+    }
+  }
+
+  async #getData (pkg, args) {
+    const spec = npa(pkg)
+
+    const pckmnt = await packument(spec, {
       ...this.npm.flatOptions,
       preferOnline: true,
       fullMetadata: true,
-    }
-
-    const spec = npa(pkg)
+    })
 
     // get the data about this package
     let version = this.npm.config.get('tag')
@@ -190,22 +145,19 @@ class View extends BaseCommand {
       version = spec.rawSpec
     }
 
-    const pckmnt = await packument(spec, opts)
-
     if (pckmnt['dist-tags']?.[version]) {
       version = pckmnt['dist-tags'][version]
     }
 
-    if (pckmnt.time && pckmnt.time.unpublished) {
+    if (pckmnt.time?.unpublished) {
       const u = pckmnt.time.unpublished
-      const er = new Error(`Unpublished on ${u.time}`)
-      er.statusCode = 404
-      er.code = 'E404'
-      er.pkgid = pckmnt._id
-      throw er
+      throw Object.assign(new Error(`Unpublished on ${u.time}`), {
+        statusCode: 404,
+        code: 'E404',
+        pkgid: pckmnt._id,
+      })
     }
 
-    const data = []
     const versions = pckmnt.versions || {}
     pckmnt.versions = Object.keys(versions).filter(v => {
       if (semver.valid(v)) {
@@ -220,105 +172,99 @@ class View extends BaseCommand {
       delete pckmnt.readme
     }
 
-    Object.keys(versions).forEach((v) => {
-      if (semver.satisfies(v, version, true)) {
-        args.forEach(arg => {
-          // remove readme unless we asked for it
-          if (args.indexOf('readme') !== -1) {
-            delete versions[v].readme
-          }
-
-          data.push(showFields(pckmnt, versions[v], arg))
+    const data = Object.entries(versions)
+      .filter(([v]) => semver.satisfies(v, version, true))
+      .flatMap(([, v]) => {
+        // remove readme unless we asked for it
+        if (args.indexOf('readme') !== -1) {
+          delete v.readme
+        }
+        return showFields({
+          data: pckmnt,
+          version: v,
+          fields: args,
+          json: this.npm.config.get('json'),
         })
-      }
-    })
+      })
 
     // No data has been pushed because no data is matching the specified version
-    if (data.length === 0 && version !== 'latest') {
-      const er = new Error(`No match found for version ${version}`)
-      er.statusCode = 404
-      er.code = 'E404'
-      er.pkgid = `${pckmnt._id}@${version}`
-      throw er
-    }
-
-    if (
-      !this.npm.config.get('json') &&
-      args.length === 1 &&
-      args[0] === ''
-    ) {
-      pckmnt.version = version
+    if (!data.length && version !== 'latest') {
+      throw Object.assign(new Error(`No match found for version ${version}`), {
+        statusCode: 404,
+        code: 'E404',
+        pkgid: `${pckmnt._id}@${version}`,
+      })
     }
 
     return [pckmnt, data]
   }
 
-  async jsonData (data, name) {
-    const versions = Object.keys(data)
-    let msg = ''
-    let msgJson = []
-    const includeVersions = versions.length > 1
-    let includeFields
+  #packageOutput (data, name) {
     const json = this.npm.config.get('json')
+    const versions = Object.keys(data)
+    const includeVersions = versions.length > 1
 
-    versions.forEach((v) => {
-      const fields = Object.keys(data[v])
-      includeFields = includeFields || (fields.length > 1)
-      if (json) {
-        msgJson.push({})
-      }
-      fields.forEach((f) => {
-        let d = cleanup(data[v][f])
-        if (fields.length === 1 && json) {
-          msgJson[msgJson.length - 1][f] = d
+    let includeFields
+    const res = versions.flatMap((v) => {
+      const fields = Object.entries(data[v])
+
+      includeFields ||= (fields.length > 1)
+
+      const msg = json ? {} : []
+
+      for (let [f, d] of fields) {
+        d = cleanup(d)
+
+        if (json) {
+          msg[f] = d
+          continue
         }
 
         if (includeVersions || includeFields || typeof d !== 'string') {
-          if (json) {
-            msgJson[msgJson.length - 1][f] = d
-          } else {
-            d = inspect(d, {
-              showHidden: false,
-              depth: 5,
-              colors: this.npm.color,
-              maxArrayLength: null,
-            })
-          }
-        } else if (typeof d === 'string' && json) {
-          d = JSON.stringify(d)
+          d = inspect(d, {
+            showHidden: false,
+            depth: 5,
+            colors: this.npm.color,
+            maxArrayLength: null,
+          })
         }
 
-        if (!json) {
-          if (f && includeFields) {
-            f += ' = '
-          }
-          msg += (includeVersions ? name + '@' + v + ' ' : '') +
-            (includeFields ? f : '') + d + '\n'
+        if (f && includeFields) {
+          f += ' = '
         }
-      })
+
+        msg.push(`${includeVersions ? `${name}@${v} ` : ''}${includeFields ? f : ''}${d}`)
+      }
+
+      return msg
     })
 
     if (json) {
-      if (msgJson.length && Object.keys(msgJson[0]).length === 1) {
-        const k = Object.keys(msgJson[0])[0]
-        msgJson = msgJson.map(m => m[k])
+      // TODO(BREAKING_CHANGE): all unwrapping should be removed. Users should know
+      // based on their arguments if they can expect an array or an object. And this
+      // unwrapping can break that assumption. Eg `npm view abbrev@^2` should always
+      // return an array, but currently since there is only one version matching `^2`
+      // this will return a single object instead.
+      const first = Object.keys(res[0] || {})
+      const jsonRes = first.length === 1 ? res.map(m => m[first[0]]) : res
+      if (jsonRes.length === 0) {
+        return
       }
-      if (msgJson.length === 1) {
-        msg = JSON.stringify(msgJson[0], null, 2) + '\n'
-      } else if (msgJson.length > 1) {
-        msg = JSON.stringify(msgJson, null, 2) + '\n'
+      if (jsonRes.length === 1) {
+        return jsonRes[0]
       }
+      return jsonRes
     }
 
-    return msg.trim()
+    return res.join('\n').trim()
   }
 
-  prettyView (packu, manifest) {
+  #prettyView (packu, manifest) {
     // More modern, pretty printing of default view
     const unicode = this.npm.config.get('unicode')
     const chalk = this.npm.chalk
-    const deps = Object.keys(manifest.dependencies || {}).map((dep) =>
-      `${chalk.blue(dep)}: ${manifest.dependencies[dep]}`
+    const deps = Object.entries(manifest.dependencies || {}).map(([k, dep]) =>
+      `${chalk.blue(k)}: ${dep}`
     )
     const site = manifest.homepage?.url || manifest.homepage
     const bins = Object.keys(manifest.bin || {})
@@ -327,8 +273,10 @@ class View extends BaseCommand {
       ? licenseField
       : (licenseField.type || 'Proprietary')
 
-    output.standard('')
-    output.standard([
+    const res = []
+
+    res.push('')
+    res.push([
       chalk.underline.cyan(`${manifest.name}@${manifest.version}`),
       license.toLowerCase().trim() === 'proprietary'
         ? chalk.red(license)
@@ -337,56 +285,56 @@ class View extends BaseCommand {
       `versions: ${chalk.cyan(packu.versions.length + '')}`,
     ].join(' | '))
 
-    manifest.description && output.standard(manifest.description)
+    manifest.description && res.push(manifest.description)
     if (site) {
-      output.standard(chalk.blue(site))
+      res.push(chalk.blue(site))
     }
 
-    manifest.deprecated && output.standard(
+    manifest.deprecated && res.push(
       `\n${chalk.redBright('DEPRECATED')}${unicode ? ' ⚠️ ' : '!!'} - ${manifest.deprecated}`
     )
 
     if (packu.keywords?.length) {
-      output.standard(`\nkeywords: ${
+      res.push(`\nkeywords: ${
         packu.keywords.map(k => chalk.cyan(k)).join(', ')
       }`)
     }
 
     if (bins.length) {
-      output.standard(`\nbin: ${chalk.cyan(bins.join(', '))}`)
+      res.push(`\nbin: ${chalk.cyan(bins.join(', '))}`)
     }
 
-    output.standard('\ndist')
-    output.standard(`.tarball: ${chalk.blue(manifest.dist.tarball)}`)
-    output.standard(`.shasum: ${chalk.green(manifest.dist.shasum)}`)
+    res.push('\ndist')
+    res.push(`.tarball: ${chalk.blue(manifest.dist.tarball)}`)
+    res.push(`.shasum: ${chalk.green(manifest.dist.shasum)}`)
     if (manifest.dist.integrity) {
-      output.standard(`.integrity: ${chalk.green(manifest.dist.integrity)}`)
+      res.push(`.integrity: ${chalk.green(manifest.dist.integrity)}`)
     }
     if (manifest.dist.unpackedSize) {
-      output.standard(`.unpackedSize: ${chalk.blue(formatBytes(manifest.dist.unpackedSize, true))}`)
+      res.push(`.unpackedSize: ${chalk.blue(formatBytes(manifest.dist.unpackedSize, true))}`)
     }
 
     if (deps.length) {
       const maxDeps = 24
-      output.standard('\ndependencies:')
-      output.standard(columns(deps.slice(0, maxDeps), { padding: 1 }))
+      res.push('\ndependencies:')
+      res.push(columns(deps.slice(0, maxDeps), { padding: 1 }))
       if (deps.length > maxDeps) {
-        output.standard(chalk.dim(`(...and ${deps.length - maxDeps} more.)`))
+        res.push(chalk.dim(`(...and ${deps.length - maxDeps} more.)`))
       }
     }
 
     if (packu.maintainers?.length) {
-      output.standard('\nmaintainers:')
+      res.push('\nmaintainers:')
       packu.maintainers.forEach(u =>
-        output.standard(`- ${unparsePerson({
+        res.push(`- ${unparsePerson({
           name: chalk.blue(u.name),
           email: chalk.dim(u.email) })}`)
       )
     }
 
-    output.standard('\ndist-tags:')
-    output.standard(columns(Object.keys(packu['dist-tags']).map(t =>
-      `${chalk.blue(t)}: ${packu['dist-tags'][t]}`
+    res.push('\ndist-tags:')
+    res.push(columns(Object.entries(packu['dist-tags']).map(([k, t]) =>
+      `${chalk.blue(k)}: ${t}`
     )))
 
     const publisher = manifest._npmUser && unparsePerson({
@@ -401,52 +349,77 @@ class View extends BaseCommand {
       if (publisher) {
         publishInfo += ` by ${publisher}`
       }
-      output.standard('')
-      output.standard(publishInfo)
+      res.push('')
+      res.push(publishInfo)
     }
+
+    return res.join('\n')
   }
 }
 
 module.exports = View
 
-function cleanBlanks (obj) {
-  const clean = {}
-  Object.keys(obj).forEach((version) => {
-    clean[version] = obj[version]['']
-  })
-  return clean
-}
-
-// takes an array of objects and merges them into one object
-function reducer (acc, cur) {
-  if (cur) {
-    Object.keys(cur).forEach((v) => {
-      acc[v] = acc[v] || {}
-      Object.keys(cur[v]).forEach((t) => {
-        acc[v][t] = cur[v][t]
-      })
-    })
+function parseArgs (args) {
+  if (!args.length) {
+    args = ['.']
   }
 
-  return acc
+  const pkg = args.shift()
+
+  return {
+    pkg,
+    local: /^\.@/.test(pkg) || pkg === '.',
+    rest: args,
+  }
+}
+
+function cleanData (obj, wholePackument) {
+  // JSON formatted output (JSON or specific attributes from packument)
+  const data = obj.reduce((acc, cur) => {
+    if (cur) {
+      Object.entries(cur).forEach(([k, v]) => {
+        acc[k] ||= {}
+        Object.keys(v).forEach((t) => {
+          acc[k][t] = cur[k][t]
+        })
+      })
+    }
+    return acc
+  }, {})
+
+  if (wholePackument) {
+    const cleaned = Object.entries(data).reduce((acc, [k, v]) => {
+      acc[k] = v[Queryable.ALL]
+      return acc
+    }, {})
+    log.silly('view', cleaned)
+    return cleaned
+  }
+
+  return data
 }
 
 // return whatever was printed
-function showFields (data, version, fields) {
-  const o = {}
-  ;[data, version].forEach((s) => {
-    Object.keys(s).forEach((k) => {
-      o[k] = s[k]
+function showFields ({ data, version, fields, json }) {
+  const o = [data, version].reduce((acc, s) => {
+    Object.entries(s).forEach(([k, v]) => {
+      acc[k] = v
     })
-  })
+    return acc
+  }, {})
 
   const queryable = new Queryable(o)
-  const s = queryable.query(fields)
-  const res = { [version.version]: s }
 
-  if (s) {
-    return res
+  if (!fields.length) {
+    return { [version.version]: queryable.query(Queryable.ALL) }
   }
+
+  return fields.map((field) => {
+    const s = queryable.query(field, { unwrapSingleItemArrays: !json })
+    if (s) {
+      return { [version.version]: s }
+    }
+  })
 }
 
 function cleanup (data) {
@@ -459,19 +432,41 @@ function cleanup (data) {
   }
 
   const keys = Object.keys(data)
-  if (keys.length <= 3 &&
-      data.name &&
-      (keys.length === 1 ||
-       (keys.length === 3 && data.email && data.url) ||
-       (keys.length === 2 && (data.email || data.url)))) {
+  if (keys.length <= 3 && data.name && (
+    (keys.length === 1) ||
+    (keys.length === 3 && data.email && data.url) ||
+    (keys.length === 2 && (data.email || data.url))
+  )) {
     data = unparsePerson(data)
   }
 
   return data
 }
 
-function unparsePerson (d) {
-  return d.name +
-    (d.email ? ' <' + d.email + '>' : '') +
-    (d.url ? ' (' + d.url + ')' : '')
+const unparsePerson = (d) =>
+  `${d.name}${d.email ? ` <${d.email}>` : ''}${d.url ? ` (${d.url})` : ''}`
+
+function getCompletionFields (d, f = [], pref = []) {
+  Object.entries(d).forEach(([k, v]) => {
+    if (k.charAt(0) === '_' || k.indexOf('.') !== -1) {
+      return
+    }
+    const p = pref.concat(k).join('.')
+    f.push(p)
+    if (Array.isArray(v)) {
+      v.forEach((val, i) => {
+        const pi = p + '[' + i + ']'
+        if (val && typeof val === 'object') {
+          getCompletionFields(val, f, [p])
+        } else {
+          f.push(pi)
+        }
+      })
+      return
+    }
+    if (typeof v === 'object') {
+      getCompletionFields(v, f, [p])
+    }
+  })
+  return f
 }

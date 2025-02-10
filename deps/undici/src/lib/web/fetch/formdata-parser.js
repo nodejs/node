@@ -3,12 +3,12 @@
 const { isUSVString, bufferToLowerCasedHeaderName } = require('../../core/util')
 const { utf8DecodeBytes } = require('./util')
 const { HTTP_TOKEN_CODEPOINTS, isomorphicDecode } = require('./data-url')
-const { isFileLike, File: UndiciFile } = require('./file')
+const { isFileLike } = require('./file')
 const { makeEntry } = require('./formdata')
 const assert = require('node:assert')
 const { File: NodeFile } = require('node:buffer')
 
-const File = globalThis.File ?? NodeFile ?? UndiciFile
+const File = globalThis.File ?? NodeFile
 
 const formDataNameBuffer = Buffer.from('form-data; name="')
 const filenameBuffer = Buffer.from('; filename')
@@ -87,9 +87,19 @@ function multipartFormDataParser (input, mimeType) {
   //    the first byte.
   const position = { position: 0 }
 
-  // Note: undici addition, allow \r\n before the body.
-  if (input[0] === 0x0d && input[1] === 0x0a) {
+  // Note: undici addition, allows leading and trailing CRLFs.
+  while (input[position.position] === 0x0d && input[position.position + 1] === 0x0a) {
     position.position += 2
+  }
+
+  let trailing = input.length
+
+  while (input[trailing - 1] === 0x0a && input[trailing - 2] === 0x0d) {
+    trailing -= 2
+  }
+
+  if (trailing !== input.length) {
+    input = input.subarray(0, trailing)
   }
 
   // 5. While true:

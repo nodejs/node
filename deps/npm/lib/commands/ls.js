@@ -1,4 +1,4 @@
-const { resolve, relative, sep } = require('path')
+const { resolve, relative, sep } = require('node:path')
 const archy = require('archy')
 const { breadth } = require('treeverse')
 const npa = require('npm-package-arg')
@@ -177,11 +177,14 @@ class LS extends ArboristWorkspaceCmd {
     const [rootError] = tree.errors.filter(e =>
       e.code === 'EJSONPARSE' && e.path === resolve(path, 'package.json'))
 
-    output.buffer(
-      json ? jsonOutput({ path, problems, result, rootError, seenItems }) :
-      parseable ? parseableOutput({ seenNodes, global, long }) :
-      humanOutput({ chalk, result, seenItems, unicode })
-    )
+    if (json) {
+      output.buffer(jsonOutput({ path, problems, result, rootError, seenItems }))
+    } else {
+      output.standard(parseable
+        ? parseableOutput({ seenNodes, global, long })
+        : humanOutput({ chalk, result, seenItems, unicode })
+      )
+    }
 
     // if filtering items, should exit with error code on no results
     if (result && !result[_include] && args.length) {
@@ -554,7 +557,7 @@ const jsonOutput = ({ path, problems, result, rootError, seenItems }) => {
     }
   }
 
-  return JSON.stringify(result, null, 2)
+  return result
 }
 
 const parseableOutput = ({ global, long, seenNodes }) => {

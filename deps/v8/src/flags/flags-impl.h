@@ -5,6 +5,8 @@
 #ifndef V8_FLAGS_FLAGS_IMPL_H_
 #define V8_FLAGS_FLAGS_IMPL_H_
 
+#include <unordered_set>
+
 #include "src/base/macros.h"
 #include "src/base/optional.h"
 #include "src/base/vector.h"
@@ -91,9 +93,12 @@ struct Flag {
 #ifdef DEBUG
   bool ImpliedBy(const void* ptr) const {
     const Flag* current = this->implied_by_ptr_;
+    std::unordered_set<const Flag*> visited_flags;
     while (current != nullptr) {
+      visited_flags.insert(current);
       if (current->PointsTo(ptr)) return true;
       current = current->implied_by_ptr_;
+      if (visited_flags.contains(current)) break;
     }
     return false;
   }

@@ -1,7 +1,7 @@
 const columns = require('cli-columns')
 const libteam = require('libnpmteam')
 const { output } = require('proc-log')
-const otplease = require('../utils/otplease.js')
+const { otplease } = require('../utils/auth.js')
 
 const BaseCommand = require('../base-cmd.js')
 class Team extends BaseCommand {
@@ -68,10 +68,10 @@ class Team extends BaseCommand {
   async create (entity, opts) {
     await libteam.create(entity, opts)
     if (opts.json) {
-      output.standard(JSON.stringify({
+      output.buffer({
         created: true,
         team: entity,
-      }))
+      })
     } else if (opts.parseable) {
       output.standard(`${entity}\tcreated`)
     } else if (!this.npm.silent) {
@@ -82,10 +82,10 @@ class Team extends BaseCommand {
   async destroy (entity, opts) {
     await libteam.destroy(entity, opts)
     if (opts.json) {
-      output.standard(JSON.stringify({
+      output.buffer({
         deleted: true,
         team: entity,
-      }))
+      })
     } else if (opts.parseable) {
       output.standard(`${entity}\tdeleted`)
     } else if (!this.npm.silent) {
@@ -96,11 +96,11 @@ class Team extends BaseCommand {
   async add (entity, user, opts) {
     await libteam.add(user, entity, opts)
     if (opts.json) {
-      output.standard(JSON.stringify({
+      output.buffer({
         added: true,
         team: entity,
         user,
-      }))
+      })
     } else if (opts.parseable) {
       output.standard(`${user}\t${entity}\tadded`)
     } else if (!this.npm.silent) {
@@ -111,11 +111,11 @@ class Team extends BaseCommand {
   async rm (entity, user, opts) {
     await libteam.rm(user, entity, opts)
     if (opts.json) {
-      output.standard(JSON.stringify({
+      output.buffer({
         removed: true,
         team: entity,
         user,
-      }))
+      })
     } else if (opts.parseable) {
       output.standard(`${user}\t${entity}\tremoved`)
     } else if (!this.npm.silent) {
@@ -126,7 +126,7 @@ class Team extends BaseCommand {
   async listUsers (entity, opts) {
     const users = (await libteam.lsUsers(entity, opts)).sort()
     if (opts.json) {
-      output.standard(JSON.stringify(users, null, 2))
+      output.buffer(users)
     } else if (opts.parseable) {
       output.standard(users.join('\n'))
     } else if (!this.npm.silent) {
@@ -140,7 +140,7 @@ class Team extends BaseCommand {
   async listTeams (entity, opts) {
     const teams = (await libteam.lsTeams(entity, opts)).sort()
     if (opts.json) {
-      output.standard(JSON.stringify(teams, null, 2))
+      output.buffer(teams)
     } else if (opts.parseable) {
       output.standard(teams.join('\n'))
     } else if (!this.npm.silent) {

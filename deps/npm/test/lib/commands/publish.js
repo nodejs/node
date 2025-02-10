@@ -4,8 +4,8 @@ const { cleanZlib } = require('../../fixtures/clean-snapshot')
 const MockRegistry = require('@npmcli/mock-registry')
 const pacote = require('pacote')
 const Arborist = require('@npmcli/arborist')
-const path = require('path')
-const fs = require('fs')
+const path = require('node:path')
+const fs = require('node:fs')
 const npa = require('npm-package-arg')
 
 const pkg = 'test-package'
@@ -291,7 +291,7 @@ t.test('shows usage with wrong set of arguments', async t => {
   await t.rejects(publish.exec(['a', 'b', 'c']), publish.usage)
 })
 
-t.test('throws when invalid tag', async t => {
+t.test('throws when invalid tag is semver', async t => {
   const { npm } = await loadMockNpm(t, {
     config: {
       tag: '0.0.13',
@@ -303,6 +303,24 @@ t.test('throws when invalid tag', async t => {
   await t.rejects(
     npm.exec('publish', []),
     { message: 'Tag name must not be a valid SemVer range: 0.0.13' }
+  )
+})
+
+t.test('throws when invalid tag when not url encodable', async t => {
+  const { npm } = await loadMockNpm(t, {
+    config: {
+      tag: '@test',
+    },
+    prefixDir: {
+      'package.json': JSON.stringify(pkgJson, null, 2),
+    },
+  })
+  await t.rejects(
+    npm.exec('publish', []),
+    {
+      /* eslint-disable-next-line max-len */
+      message: 'Invalid tag name "@test" of package "test-package@@test": Tags may not have any characters that encodeURIComponent encodes.',
+    }
   )
 })
 
@@ -599,6 +617,48 @@ t.test('workspaces', t => {
     await t.rejects(npm.exec('publish', []), { code: 'E404' })
   })
 
+  t.test('all workspaces - some marked private', async t => {
+    const testDir = {
+      'package.json': JSON.stringify(
+        {
+          ...pkgJson,
+          workspaces: ['workspace-a', 'workspace-p'],
+        }, null, 2),
+      'workspace-a': {
+        'package.json': JSON.stringify({
+          name: 'workspace-a',
+          version: '1.2.3-a',
+        }),
+      },
+      'workspace-p': {
+        'package.json': JSON.stringify({
+          name: '@scoped/workspace-p',
+          private: true,
+          version: '1.2.3-p-scoped',
+        }),
+      },
+    }
+
+    const { npm, joinedOutput } = await loadMockNpm(t, {
+      config: {
+        ...auth,
+        workspaces: true,
+      },
+      prefixDir: testDir,
+    })
+    const registry = new MockRegistry({
+      tap: t,
+      registry: npm.config.get('registry'),
+      authorization: token,
+    })
+    registry.nock
+      .put('/workspace-a', body => {
+        return t.match(body, { name: 'workspace-a' })
+      }).reply(200, {})
+    await npm.exec('publish', [])
+    t.matchSnapshot(joinedOutput(), 'one marked private')
+  })
+
   t.test('invalid workspace', async t => {
     const { npm } = await loadMockNpm(t, {
       config: {
@@ -640,6 +700,48 @@ t.test('workspaces', t => {
     await npm.exec('publish', [])
     t.matchSnapshot(joinedOutput(), 'all workspaces in json')
   })
+
+  t.test('differet package spec', async t => {
+    const testDir = {
+      'package.json': JSON.stringify(
+        {
+          ...pkgJson,
+          workspaces: ['workspace-a'],
+        }, null, 2),
+      'workspace-a': {
+        'package.json': JSON.stringify({
+          name: 'workspace-a',
+          version: '1.2.3-a',
+        }),
+      },
+      'dir/pkg': {
+        'package.json': JSON.stringify({
+          name: 'pkg',
+          version: '1.2.3',
+        }),
+      },
+    }
+
+    const { npm, joinedOutput } = await loadMockNpm(t, {
+      config: {
+        ...auth,
+      },
+      prefixDir: testDir,
+      chdir: ({ prefix }) => path.resolve(prefix, './workspace-a'),
+    })
+    const registry = new MockRegistry({
+      tap: t,
+      registry: npm.config.get('registry'),
+      authorization: token,
+    })
+    registry.nock
+      .put('/pkg', body => {
+        return t.match(body, { name: 'pkg' })
+      }).reply(200, {})
+    await npm.exec('publish', ['../dir/pkg'])
+    t.matchSnapshot(joinedOutput(), 'publish different package spec')
+  })
+
   t.end()
 })
 

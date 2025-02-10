@@ -9,7 +9,7 @@ const kState = Symbol('ProgressEvent state')
  */
 class ProgressEvent extends Event {
   constructor (type, eventInitDict = {}) {
-    type = webidl.converters.DOMString(type)
+    type = webidl.converters.DOMString(type, 'ProgressEvent constructor', 'type')
     eventInitDict = webidl.converters.ProgressEventInit(eventInitDict ?? {})
 
     super(type, eventInitDict)
@@ -44,32 +44,32 @@ webidl.converters.ProgressEventInit = webidl.dictionaryConverter([
   {
     key: 'lengthComputable',
     converter: webidl.converters.boolean,
-    defaultValue: false
+    defaultValue: () => false
   },
   {
     key: 'loaded',
     converter: webidl.converters['unsigned long long'],
-    defaultValue: 0
+    defaultValue: () => 0
   },
   {
     key: 'total',
     converter: webidl.converters['unsigned long long'],
-    defaultValue: 0
+    defaultValue: () => 0
   },
   {
     key: 'bubbles',
     converter: webidl.converters.boolean,
-    defaultValue: false
+    defaultValue: () => false
   },
   {
     key: 'cancelable',
     converter: webidl.converters.boolean,
-    defaultValue: false
+    defaultValue: () => false
   },
   {
     key: 'composed',
     converter: webidl.converters.boolean,
-    defaultValue: false
+    defaultValue: () => false
   }
 ])
 

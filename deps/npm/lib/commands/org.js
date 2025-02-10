@@ -1,5 +1,5 @@
 const liborg = require('libnpmorg')
-const otplease = require('../utils/otplease.js')
+const { otplease } = require('../utils/auth.js')
 const BaseCommand = require('../base-cmd.js')
 const { output } = require('proc-log')
 
@@ -100,14 +100,12 @@ class Org extends BaseCommand {
     org = org.replace(/^[~@]?/, '')
     const userCount = Object.keys(roster).length
     if (opts.json) {
-      output.standard(
-        JSON.stringify({
-          user,
-          org,
-          userCount,
-          deleted: true,
-        })
-      )
+      output.buffer({
+        user,
+        org,
+        userCount,
+        deleted: true,
+      })
     } else if (opts.parseable) {
       output.standard(['user', 'org', 'userCount', 'deleted'].join('\t'))
       output.standard([user, org, userCount, true].join('\t'))
@@ -135,7 +133,7 @@ class Org extends BaseCommand {
       roster = newRoster
     }
     if (opts.json) {
-      output.standard(JSON.stringify(roster, null, 2))
+      output.buffer(roster)
     } else if (opts.parseable) {
       output.standard(['user', 'role'].join('\t'))
       Object.keys(roster).forEach(u => {

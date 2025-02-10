@@ -1,6 +1,6 @@
 const t = require('tap')
-const { resolve, dirname, join } = require('path')
-const fs = require('fs')
+const { resolve, dirname, join } = require('node:path')
+const fs = require('node:fs')
 const { time } = require('proc-log')
 const { load: loadMockNpm } = require('../fixtures/mock-npm.js')
 const mockGlobals = require('@npmcli/mock-globals')
@@ -149,8 +149,8 @@ t.test('npm.load', async t => {
       'does not change npm.command when another command is called')
 
     t.match(logs, [
+      /timing config:load:flatten Completed in [0-9.]+ms/,
       /timing command:config Completed in [0-9.]+ms/,
-      /timing command:get Completed in [0-9.]+ms/,
     ])
     t.same(outputs, ['scope=@foo\nusage=false'])
   })
@@ -558,4 +558,12 @@ t.test('usage', async t => {
       })
     }
   })
+})
+
+t.test('print usage if non-command param provided', async t => {
+  const { npm, joinedOutput } = await loadMockNpm(t)
+
+  await t.rejects(npm.exec('tset'), { command: 'tset', exitCode: 1 })
+  t.match(joinedOutput(), 'Unknown command: "tset"')
+  t.match(joinedOutput(), 'Did you mean this?')
 })

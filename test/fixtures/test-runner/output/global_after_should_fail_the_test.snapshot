@@ -21,7 +21,6 @@ not ok 2 - /test/fixtures/test-runner/output/global_after_should_fail_the_test.j
     *
     *
     *
-    *
   ...
 1..1
 # tests 1

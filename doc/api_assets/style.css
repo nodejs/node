@@ -40,13 +40,6 @@
   --color-text-secondary: var(--green2);
 }
 
-h2 :target,
-h3 :target,
-h4 :target,
-h5 :target {
-  scroll-margin-top: 55px;
-}
-
 .dark-mode {
   --background-color-highlight: var(--black2);
   --color-critical: var(--red4);
@@ -70,6 +63,7 @@ h5 :target {
 html {
   font-size: 1rem;
   overflow-wrap: break-word;
+  scroll-padding-top: 4rem;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-font-variant-ligatures: none;
@@ -438,7 +432,7 @@ dd + dt.pre {
   padding-top: 1rem;
 }
 
-#apicontent section {
+#api-section-all #apicontent section {
   content-visibility: auto;
   contain-intrinsic-size: 1px auto 5000px;
 }

@@ -3638,6 +3638,96 @@ For ciphers in GCM mode, the [`decipher.setAuthTag()`][] function accepts
 authentication tags of any valid length (see [DEP0090](#DEP0090)). This behavior
 is deprecated to better align with recommendations per [NIST SP 800-38D][].
 
+### DEP0183: OpenSSL engine-based APIs
+
+<!-- YAML
+changes:
+  - version: v22.4.0
+    pr-url: https://github.com/nodejs/node/pull/53329
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+OpenSSL 3 has deprecated support for custom engines with a recommendation to
+switch to its new provider model. The `clientCertEngine` option for
+`https.request()`, [`tls.createSecureContext()`][], and [`tls.createServer()`][];
+the `privateKeyEngine` and `privateKeyIdentifier` for [`tls.createSecureContext()`][];
+and [`crypto.setEngine()`][] all depend on this functionality from OpenSSL.
+
+### DEP0184: Instantiating `node:zlib` classes without `new`
+
+<!-- YAML
+changes:
+  - version: v22.9.0
+    pr-url: https://github.com/nodejs/node/pull/54708
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+Instantiating classes without the `new` qualifier exported by the `node:zlib` module is deprecated.
+It is recommended to use the `new` qualifier instead. This applies to all Zlib classes, such as `Deflate`,
+`DeflateRaw`, `Gunzip`, `Inflate`, `InflateRaw`, `Unzip`, and `Zlib`.
+
+### DEP0185: Instantiating `node:repl` classes without `new`
+
+<!-- YAML
+changes:
+  - version: v22.9.0
+    pr-url: https://github.com/nodejs/node/pull/54842
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+Instantiating classes without the `new` qualifier exported by the `node:repl` module is deprecated.
+It is recommended to use the `new` qualifier instead. This applies to all REPL classes, including
+`REPLServer` and `Recoverable`.
+
+<!-- md-lint skip-deprecation DEP0186 -->
+
+### DEP0187: Passing invalid argument types to `fs.existsSync`
+
+<!-- YAML
+changes:
+  - version: v22.13.0
+    pr-url: https://github.com/nodejs/node/pull/55892
+    description: Documentation-only.
+-->
+
+Type: Documentation-only
+
+Passing non-supported argument types is deprecated and, instead of returning `false`,
+will throw an error in a future version.
+
+### DEP0188: `process.features.ipv6` and `process.features.uv`
+
+<!-- YAML
+changes:
+  - version: v22.13.0
+    pr-url: https://github.com/nodejs/node/pull/55545
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+These properties are unconditionally `true`. Any checks based on these properties are redundant.
+
+### DEP0189: `process.features.tls_*`
+
+<!-- YAML
+changes:
+  - version: v22.13.0
+    pr-url: https://github.com/nodejs/node/pull/55545
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+`process.features.tls_alpn`, `process.features.tls_ocsp`, and `process.features.tls_sni` are
+deprecated, as their values are guaranteed to be identical to that of `process.features.tls`.
+
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
 [RFC 8247 Section 2.4]: https://www.rfc-editor.org/rfc/rfc8247#section-2.4
@@ -3680,6 +3770,7 @@ is deprecated to better align with recommendations per [NIST SP 800-38D][].
 [`crypto.pbkdf2()`]: crypto.md#cryptopbkdf2password-salt-iterations-keylen-digest-callback
 [`crypto.randomBytes()`]: crypto.md#cryptorandombytessize-callback
 [`crypto.scrypt()`]: crypto.md#cryptoscryptpassword-salt-keylen-options-callback
+[`crypto.setEngine()`]: crypto.md#cryptosetengineengine-flags
 [`decipher.final()`]: crypto.md#decipherfinaloutputencoding
 [`decipher.setAuthTag()`]: crypto.md#deciphersetauthtagbuffer-encoding
 [`diagnostics_channel.subscribe(name, onMessage)`]: diagnostics_channel.md#diagnostics_channelsubscribename-onmessage
@@ -3758,6 +3849,7 @@ is deprecated to better align with recommendations per [NIST SP 800-38D][].
 [`tls.TLSSocket`]: tls.md#class-tlstlssocket
 [`tls.checkServerIdentity()`]: tls.md#tlscheckserveridentityhostname-cert
 [`tls.createSecureContext()`]: tls.md#tlscreatesecurecontextoptions
+[`tls.createServer()`]: tls.md#tlscreateserveroptions-secureconnectionlistener
 [`url.format()`]: url.md#urlformaturlobject
 [`url.parse()`]: url.md#urlparseurlstring-parsequerystring-slashesdenotehost
 [`url.resolve()`]: url.md#urlresolvefrom-to

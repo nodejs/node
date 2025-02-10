@@ -1,7 +1,7 @@
-const os = require('os')
-const { join, dirname, basename } = require('path')
+const os = require('node:os')
+const { join, dirname, basename } = require('node:path')
 const fsMiniPass = require('fs-minipass')
-const fs = require('fs/promises')
+const fs = require('node:fs/promises')
 const { log } = require('proc-log')
 const { formatWithOptions } = require('./format')
 
@@ -48,7 +48,11 @@ class LogFiles {
     this.#endStream()
   }
 
-  load ({ path, logsMax = Infinity, timing } = {}) {
+  load ({ command, path, logsMax = Infinity, timing } = {}) {
+    if (['completion'].includes(command)) {
+      return
+    }
+
     // dir is user configurable and is required to exist so
     // this can error if the dir is missing or not configured correctly
     this.#path = path

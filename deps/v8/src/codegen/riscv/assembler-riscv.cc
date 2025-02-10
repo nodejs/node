@@ -83,10 +83,12 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   base::CPU cpu;
   if (cpu.has_fpu()) supported_ |= 1u << FPU;
   if (cpu.has_rvv()) supported_ |= 1u << RISCV_SIMD;
+#ifdef V8_COMPRESS_POINTERS
   if (cpu.riscv_mmu() == base::CPU::RV_MMU_MODE::kRiscvSV57) {
     FATAL("SV57 is not supported");
     UNIMPLEMENTED();
   }
+#endif
   // Set a static value on whether SIMD is supported.
   // This variable is only used for certain archs to query SupportWasmSimd128()
   // at runtime in builtins using an extern ref. Other callers should use
@@ -1085,26 +1087,21 @@ void Assembler::GeneralLi(Register rd, int64_t imm) {
 }
 
 void Assembler::li_ptr(Register rd, int64_t imm) {
-  base::CPU cpu;
-  if (cpu.riscv_mmu() != base::CPU::RV_MMU_MODE::kRiscvSV57) {
-    // Initialize rd with an address
-    // Pointers are 48 bits
-    // 6 fixed instructions are generated
-    DCHECK_EQ((imm & 0xfff0000000000000ll), 0);
-    int64_t a6 = imm & 0x3f;                      // bits 0:5. 6 bits
-    int64_t b11 = (imm >> 6) & 0x7ff;             // bits 6:11. 11 bits
-    int64_t high_31 = (imm >> 17) & 0x7fffffff;   // 31 bits
-    int64_t high_20 = ((high_31 + 0x800) >> 12);  // 19 bits
-    int64_t low_12 = high_31 & 0xfff;             // 12 bits
-    lui(rd, (int32_t)high_20);
-    addi(rd, rd, low_12);  // 31 bits in rd.
-    slli(rd, rd, 11);      // Space for next 11 bis
-    ori(rd, rd, b11);      // 11 bits are put in. 42 bit in rd
-    slli(rd, rd, 6);       // Space for next 6 bits
-    ori(rd, rd, a6);       // 6 bits are put in. 48 bis in rd
-  } else {
-    FATAL("SV57 is not supported");
-  }
+  // Initialize rd with an address
+  // Pointers are 48 bits
+  // 6 fixed instructions are generated
+  DCHECK_EQ((imm & 0xfff0000000000000ll), 0);
+  int64_t a6 = imm & 0x3f;                      // bits 0:5. 6 bits
+  int64_t b11 = (imm >> 6) & 0x7ff;             // bits 6:11. 11 bits
+  int64_t high_31 = (imm >> 17) & 0x7fffffff;   // 31 bits
+  int64_t high_20 = ((high_31 + 0x800) >> 12);  // 19 bits
+  int64_t low_12 = high_31 & 0xfff;             // 12 bits
+  lui(rd, (int32_t)high_20);
+  addi(rd, rd, low_12);  // 31 bits in rd.
+  slli(rd, rd, 11);      // Space for next 11 bis
+  ori(rd, rd, b11);      // 11 bits are put in. 42 bit in rd
+  slli(rd, rd, 6);       // Space for next 6 bits
+  ori(rd, rd, a6);       // 6 bits are put in. 48 bis in rd
 }
 
 void Assembler::li_constant(Register rd, int64_t imm) {

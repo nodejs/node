@@ -1,7 +1,7 @@
 const cacache = require('cacache')
 const pacote = require('pacote')
-const fs = require('fs/promises')
-const { join } = require('path')
+const fs = require('node:fs/promises')
+const { join } = require('node:path')
 const semver = require('semver')
 const BaseCommand = require('../base-cmd.js')
 const npa = require('npm-package-arg')
@@ -132,7 +132,7 @@ class Cache extends BaseCommand {
       try {
         entry = await cacache.get(cachePath, key)
       } catch (err) {
-        log.warn(`Not Found: ${key}`)
+        log.warn('cache', `Not Found: ${key}`)
         break
       }
       output.standard(`Deleted: ${key}`)
@@ -152,15 +152,20 @@ class Cache extends BaseCommand {
       throw this.usageError('First argument to `add` is required')
     }
 
-    return Promise.all(args.map(spec => {
+    await Promise.all(args.map(async spec => {
       log.silly('cache add', 'spec', spec)
       // we ask pacote for the thing, and then just throw the data
       // away so that it tee-pipes it into the cache like it does
       // for a normal request.
-      return pacote.tarball.stream(spec, stream => {
+      await pacote.tarball.stream(spec, stream => {
         stream.resume()
         return stream.promise()
       }, { ...this.npm.flatOptions })
+
+      await pacote.manifest(spec, {
+        ...this.npm.flatOptions,
+        fullMetadata: true,
+      })
     }))
   }
 

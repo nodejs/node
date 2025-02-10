@@ -4,14 +4,9 @@
 :: explicitly allow them to persist in the calling shell.
 endlocal
 
-if /i "%1"=="help" goto help
-if /i "%1"=="--help" goto help
-if /i "%1"=="-help" goto help
-if /i "%1"=="/help" goto help
-if /i "%1"=="?" goto help
-if /i "%1"=="-?" goto help
-if /i "%1"=="--?" goto help
-if /i "%1"=="/?" goto help
+set "arg=%1"
+if /i "%arg:~-1%"=="?" goto help
+if /i "%arg:~-4%"=="help" goto help
 
 cd %~dp0
 
@@ -46,6 +41,8 @@ set msi=
 set upload=
 set licensertf=
 set lint_js=
+set lint_js_build=
+set lint_js_fix=
 set lint_cpp=
 set lint_md=
 set lint_md_build=
@@ -73,6 +70,7 @@ set openssl_no_asm=
 set no_shared_roheap=
 set doc=
 set extra_msbuild_args=
+set compile_commands=
 set exit_code=0
 
 :next-arg
@@ -120,9 +118,10 @@ if /i "%1"=="test-v8-benchmarks" set test_v8_benchmarks=1&set custom_v8_test=1&g
 if /i "%1"=="test-v8-all"       set test_v8=1&set test_v8_intl=1&set test_v8_benchmarks=1&set custom_v8_test=1&goto arg-ok
 if /i "%1"=="lint-cpp"      set lint_cpp=1&goto arg-ok
 if /i "%1"=="lint-js"       set lint_js=1&goto arg-ok
+if /i "%1"=="lint-js-build" set lint_js_build=1&goto arg-ok
+if /i "%1"=="lint-js-fix"   set lint_js_fix=1&goto arg-ok
 if /i "%1"=="jslint"        set lint_js=1&echo Please use lint-js instead of jslint&goto arg-ok
 if /i "%1"=="lint-md"       set lint_md=1&goto arg-ok
-if /i "%1"=="lint-md-build" set lint_md_build=1&goto arg-ok
 if /i "%1"=="lint"          set lint_cpp=1&set lint_js=1&set lint_md=1&goto arg-ok
 if /i "%1"=="lint-ci"       set lint_cpp=1&set lint_js_ci=1&goto arg-ok
 if /i "%1"=="format-md"     set format_md=1&goto arg-ok
@@ -147,7 +146,8 @@ if /i "%1"=="cctest"        set cctest=1&goto arg-ok
 if /i "%1"=="openssl-no-asm"   set openssl_no_asm=1&goto arg-ok
 if /i "%1"=="no-shared-roheap" set no_shared_roheap=1&goto arg-ok
 if /i "%1"=="doc"           set doc=1&goto arg-ok
-if /i "%1"=="binlog"        set extra_msbuild_args=/binaryLogger:%config%\node.binlog&goto arg-ok
+if /i "%1"=="binlog"        set extra_msbuild_args=/binaryLogger:out\%config%\node.binlog&goto arg-ok
+if /i "%1"=="compile-commands" set compile_commands=1&goto arg-ok
 
 echo Error: invalid command line option `%1`.
 exit /b 1
@@ -192,8 +192,6 @@ if defined nosnapshot       set configure_flags=%configure_flags% --without-snap
 if defined nonpm            set configure_flags=%configure_flags% --without-npm
 if defined nocorepack       set configure_flags=%configure_flags% --without-corepack
 if defined ltcg             set configure_flags=%configure_flags% --with-ltcg
-:: If clang-cl build is requested, set it to 17.0, which is the version shipped with VS 2022.
-if defined clang_cl         set configure_flags=%configure_flags% --clang-cl=17.0
 if defined release_urlbase  set configure_flags=%configure_flags% --release-urlbase=%release_urlbase%
 if defined download_arg     set configure_flags=%configure_flags% %download_arg%
 if defined enable_vtune_arg set configure_flags=%configure_flags% --enable-vtune-profiling
@@ -208,6 +206,7 @@ if defined debug_nghttp2    set configure_flags=%configure_flags% --debug-nghttp
 if defined openssl_no_asm   set configure_flags=%configure_flags% --openssl-no-asm
 if defined no_shared_roheap set configure_flags=%configure_flags% --disable-shared-readonly-heap
 if defined DEBUG_HELPER     set configure_flags=%configure_flags% --verbose
+if defined compile_commands set configure_flags=%configure_flags% -C
 if "%target_arch%"=="x86" if "%PROCESSOR_ARCHITECTURE%"=="AMD64" set configure_flags=%configure_flags% --no-cross-compiling
 
 if not exist "%~dp0deps\icu" goto no-depsicu
@@ -259,7 +258,7 @@ echo Looking for Visual Studio 2022
 @rem cleared first as vswhere_usability_wrapper.cmd doesn't when it fails to
 @rem detect the version searched for
 if not defined target_env set "VCINSTALLDIR="
-call tools\msvs\vswhere_usability_wrapper.cmd "[17.6,18.0)" %target_arch% "prerelease"
+call tools\msvs\vswhere_usability_wrapper.cmd "[17.6,18.0)" %target_arch% "prerelease" %clang_cl%
 if "_%VCINSTALLDIR%_" == "__" goto msbuild-not-found
 @rem check if VS2022 is already setup, and for the requested arch
 if "_%VisualStudioVersion%_" == "_17.0_" if "_%VSCMD_ARG_TGT_ARCH%_"=="_%target_arch%_" goto found_vs2022
@@ -279,12 +278,41 @@ set PLATFORM_TOOLSET=v143
 goto msbuild-found
 
 :msbuild-not-found
-echo Failed to find a suitable Visual Studio installation.
+set "clang_echo="
+if defined clang_cl set "clang_echo= or Clang compiler/LLVM toolset"
+echo Failed to find a suitable Visual Studio installation%clang_echo%.
 echo Try to run in a "Developer Command Prompt" or consult
 echo https://github.com/nodejs/node/blob/HEAD/BUILDING.md#windows
 goto exit
 
 :msbuild-found
+
+@rem Visual Studio v17.10 has a bug that causes the build to fail.
+@rem Check if the version is v17.10 and exit if it is.
+echo %VSCMD_VER% | findstr /b /c:"17.10" >nul
+if %errorlevel% neq 1  (
+  echo Node.js doesn't compile with Visual Studio 17.10 Please use a different version.
+  goto exit
+)
+
+@rem check if the clang-cl build is requested
+if not defined clang_cl goto clang-skip
+@rem x64 is hard coded as it is used for both cross and native compilation.
+set "clang_path=%VCINSTALLDIR%\Tools\Llvm\x64\bin\clang.exe"
+for /F "tokens=3" %%i in ('"%clang_path%" --version') do (
+    set clang_version=%%i
+    goto clang-found
+)
+
+:clang-not-found
+echo Failed to find Clang compiler in %clang_path%.
+goto exit
+
+:clang-found
+echo Found Clang version %clang_version%
+set configure_flags=%configure_flags% --clang-cl=%clang_version%
+
+:clang-skip
 
 set project_generated=
 :project-gen
@@ -333,6 +361,7 @@ if "%target%"=="Build" (
   if defined cctest set target="Build"
 )
 if "%target%"=="node" if exist "%config%\cctest.exe" del "%config%\cctest.exe"
+if "%target%"=="node" if exist "%config%\embedtest.exe" del "%config%\embedtest.exe"
 if defined msbuild_args set "extra_msbuild_args=%extra_msbuild_args% %msbuild_args%"
 @rem Setup env variables to use multiprocessor build
 set UseMultiToolTask=True
@@ -517,38 +546,36 @@ if not defined SSHCONFIG (
 )
 
 if not defined STAGINGSERVER set STAGINGSERVER=node-www
-if not defined CLOUDFLARE_ENDPOINT set CLOUDFLARE_ENDPOINT=https://07be8d2fbc940503ca1be344714cb0d1.r2.cloudflarestorage.com
-if not defined CLOUDFLARE_BUCKET set CLOUDFLARE_BUCKET=dist-staging
-if not defined CLOUDFLARE_PROFILE set CLOUDFLARE_PROFILE=worker
+if not defined CLOUDFLARE_BUCKET set CLOUDFLARE_BUCKET=r2:dist-staging
 ssh -F %SSHCONFIG% %STAGINGSERVER% "mkdir -p nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%"
 if errorlevel 1 goto exit
 scp -F %SSHCONFIG% Release\node.exe %STAGINGSERVER%:nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node.exe
 if errorlevel 1 goto exit
-ssh -F %SSHCONFIG% %STAGINGSERVER% "aws s3 cp nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node.exe s3://%CLOUDFLARE_BUCKET%/nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node.exe --endpoint=%CLOUDFLARE_ENDPOINT% --profile=%CLOUDFLARE_PROFILE%"
+ssh -F %SSHCONFIG% %STAGINGSERVER% "rclone copyto nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node.exe %CLOUDFLARE_BUCKET%/nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node.exe"
 if errorlevel 1 goto exit
 scp -F %SSHCONFIG% Release\node.lib %STAGINGSERVER%:nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node.lib
 if errorlevel 1 goto exit
-ssh -F %SSHCONFIG% %STAGINGSERVER% "aws s3 cp nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node.lib s3://%CLOUDFLARE_BUCKET%/nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node.lib --endpoint=%CLOUDFLARE_ENDPOINT% --profile=%CLOUDFLARE_PROFILE%"
+ssh -F %SSHCONFIG% %STAGINGSERVER% "rclone copyto nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node.lib %CLOUDFLARE_BUCKET%/nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node.lib"
 if errorlevel 1 goto exit
 scp -F %SSHCONFIG% Release\node_pdb.zip %STAGINGSERVER%:nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node_pdb.zip
 if errorlevel 1 goto exit
-ssh -F %SSHCONFIG% %STAGINGSERVER% "aws s3 cp nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node_pdb.zip s3://%CLOUDFLARE_BUCKET%/nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node_pdb.zip --endpoint=%CLOUDFLARE_ENDPOINT% --profile=%CLOUDFLARE_PROFILE%"
+ssh -F %SSHCONFIG% %STAGINGSERVER% "rclone copyto nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node_pdb.zip %CLOUDFLARE_BUCKET%/nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node_pdb.zip"
 if errorlevel 1 goto exit
 scp -F %SSHCONFIG% Release\node_pdb.7z %STAGINGSERVER%:nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node_pdb.7z
 if errorlevel 1 goto exit
-ssh -F %SSHCONFIG% %STAGINGSERVER% "aws s3 cp nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node_pdb.7z s3://%CLOUDFLARE_BUCKET%/nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node_pdb.7z --endpoint=%CLOUDFLARE_ENDPOINT% --profile=%CLOUDFLARE_PROFILE%"
+ssh -F %SSHCONFIG% %STAGINGSERVER% "rclone copyto nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node_pdb.7z %CLOUDFLARE_BUCKET%/nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node_pdb.7z"
 if errorlevel 1 goto exit
 scp -F %SSHCONFIG% Release\%TARGET_NAME%.7z %STAGINGSERVER%:nodejs/%DISTTYPEDIR%/v%FULLVERSION%/%TARGET_NAME%.7z
 if errorlevel 1 goto exit
-ssh -F %SSHCONFIG% %STAGINGSERVER% "aws s3 cp nodejs/%DISTTYPEDIR%/v%FULLVERSION%/%TARGET_NAME%.7z s3://%CLOUDFLARE_BUCKET%/nodejs/%DISTTYPEDIR%/v%FULLVERSION%/%TARGET_NAME%.7z --endpoint=%CLOUDFLARE_ENDPOINT% --profile=%CLOUDFLARE_PROFILE%"
+ssh -F %SSHCONFIG% %STAGINGSERVER% "rclone copyto nodejs/%DISTTYPEDIR%/v%FULLVERSION%/%TARGET_NAME%.7z %CLOUDFLARE_BUCKET%/nodejs/%DISTTYPEDIR%/v%FULLVERSION%/%TARGET_NAME%.7z"
 if errorlevel 1 goto exit
 scp -F %SSHCONFIG% Release\%TARGET_NAME%.zip %STAGINGSERVER%:nodejs/%DISTTYPEDIR%/v%FULLVERSION%/%TARGET_NAME%.zip
 if errorlevel 1 goto exit
-ssh -F %SSHCONFIG% %STAGINGSERVER% "aws s3 cp nodejs/%DISTTYPEDIR%/v%FULLVERSION%/%TARGET_NAME%.zip s3://%CLOUDFLARE_BUCKET%/nodejs/%DISTTYPEDIR%/v%FULLVERSION%/%TARGET_NAME%.zip --endpoint=%CLOUDFLARE_ENDPOINT% --profile=%CLOUDFLARE_PROFILE%"
+ssh -F %SSHCONFIG% %STAGINGSERVER% "rclone copyto nodejs/%DISTTYPEDIR%/v%FULLVERSION%/%TARGET_NAME%.zip %CLOUDFLARE_BUCKET%/nodejs/%DISTTYPEDIR%/v%FULLVERSION%/%TARGET_NAME%.zip"
 if errorlevel 1 goto exit
 scp -F %SSHCONFIG% node-v%FULLVERSION%-%target_arch%.msi %STAGINGSERVER%:nodejs/%DISTTYPEDIR%/v%FULLVERSION%/
 if errorlevel 1 goto exit
-ssh -F %SSHCONFIG% %STAGINGSERVER% "aws s3 cp nodejs/%DISTTYPEDIR%/v%FULLVERSION%/node-v%FULLVERSION%-%target_arch%.msi s3://%CLOUDFLARE_BUCKET%/nodejs/%DISTTYPEDIR%/v%FULLVERSION%/node-v%FULLVERSION%-%target_arch%.msi --endpoint=%CLOUDFLARE_ENDPOINT% --profile=%CLOUDFLARE_PROFILE%"
+ssh -F %SSHCONFIG% %STAGINGSERVER% "rclone copyto nodejs/%DISTTYPEDIR%/v%FULLVERSION%/node-v%FULLVERSION%-%target_arch%.msi %CLOUDFLARE_BUCKET%/nodejs/%DISTTYPEDIR%/v%FULLVERSION%/node-v%FULLVERSION%-%target_arch%.msi"
 if errorlevel 1 goto exit
 ssh -F %SSHCONFIG% %STAGINGSERVER% "touch nodejs/%DISTTYPEDIR%/v%FULLVERSION%/node-v%FULLVERSION%-%target_arch%.msi.done nodejs/%DISTTYPEDIR%/v%FULLVERSION%/%TARGET_NAME%.zip.done nodejs/%DISTTYPEDIR%/v%FULLVERSION%/%TARGET_NAME%.7z.done nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%.done && chmod -R ug=rw-x+X,o=r+X nodejs/%DISTTYPEDIR%/v%FULLVERSION%/node-v%FULLVERSION%-%target_arch%.* nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%*"
 if errorlevel 1 goto exit
@@ -675,6 +702,9 @@ if not exist "%config%\cctest.exe" echo cctest.exe not found. Run "vcbuild test"
 echo running 'cctest %cctest_args%'
 "%config%\cctest" %cctest_args%
 if %errorlevel% neq 0 set exit_code=%errorlevel%
+echo running '%node_exe% test\embedding\test-embedding.js'
+"%node_exe%" test\embedding\test-embedding.js
+if %errorlevel% neq 0 set exit_code=%errorlevel%
 :run-test-py
 echo running 'python tools\test.py %test_args%'
 python tools\test.py %test_args%
@@ -700,27 +730,37 @@ goto lint-js
 
 :run-make-lint
 %NODEJS_MAKE% lint-cpp
-goto lint-js
+goto lint-js-build
+
+:lint-js-build
+if not defined lint_js_build if not defined lint_js if not defined lint_js_fix goto lint-md-build
+cd tools\eslint
+%npm_exe% ci
+cd ..\..
 
 :lint-js
-if not defined lint_js goto lint-md-build
-if not exist tools\node_modules\eslint goto no-lint
+if not defined lint_js goto lint-js-fix
+if not exist tools\eslint\node_modules\eslint goto no-lint
 echo running lint-js
-%node_exe% tools\node_modules\eslint\bin\eslint.js --cache --max-warnings=0 --report-unused-disable-directives --rule "linebreak-style: 0" .eslintrc.js benchmark doc lib test tools
-goto lint-md-build
+%node_exe% tools\eslint\node_modules\eslint\bin\eslint.js --cache --max-warnings=0 --report-unused-disable-directives --rule "@stylistic/js/linebreak-style: 0" eslint.config.mjs benchmark doc lib test tools
+goto lint-js-fix
 
-:no-lint
-echo Linting is not available through the source tarball.
-echo Use the git repo instead: $ git clone https://github.com/nodejs/node.git
+:lint-js-fix
+if not defined lint_js_fix goto lint-md
+if not exist tools\eslint\node_modules\eslint goto no-lint
+echo running lint-js-fix
+%node_exe% tools\eslint\node_modules\eslint\bin\eslint.js --cache --max-warnings=0 --report-unused-disable-directives --rule "@stylistic/js/linebreak-style: 0" eslint.config.mjs benchmark doc lib test tools --fix
 goto lint-md-build
 
 :lint-md-build
-if not defined lint_md_build goto lint-md
-echo "Deprecated no-op target 'lint_md_build'"
-goto lint-md
+if not defined lint_md if not defined format_md goto lint-md
+cd tools\lint-md
+%npm_exe% ci
+cd ..\..
 
 :lint-md
 if not defined lint_md goto format-md
+if not exist tools\lint-md\node_modules goto no-lint
 echo Running Markdown linter on docs...
 SETLOCAL ENABLEDELAYEDEXPANSION
 set lint_md_files=
@@ -735,6 +775,7 @@ goto format-md
 
 :format-md
 if not defined format_md goto exit
+if not exist tools\lint-md\node_modules goto no-lint
 echo Running Markdown formatter on docs...
 SETLOCAL ENABLEDELAYEDEXPANSION
 set lint_md_files=
@@ -745,6 +786,10 @@ for /D %%D IN (doc\*) do (
 )
 %node_exe% tools\lint-md\lint-md.mjs --format %lint_md_files%
 ENDLOCAL
+
+:no-lint
+echo Linting is not available through the source tarball.
+echo Use the git repo instead: $ git clone https://github.com/nodejs/node.git
 goto exit
 
 :create-msvs-files-failed

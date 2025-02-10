@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gyp-next"
-version = "0.18.0"
+version = "0.19.1"
 authors = [
   { name="Node.js contributors", email="ryzokuken@disroot.org" },
 ]
@@ -12,7 +12,7 @@ description = "A fork of the GYP build system for use in the Node.js projects"
 readme = "README.md"
 license = { file="LICENSE" }
 requires-python = ">=3.8"
-dependencies = ["packaging>=24.0"]
+dependencies = ["packaging>=24.0", "setuptools>=69.5.1"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Console",
@@ -92,7 +92,6 @@ select = [
   # "TRY",  # tryceratops
 ]
 ignore = [
-  "E721",
   "PLC1901",
   "PLR0402",
   "PLR1714",

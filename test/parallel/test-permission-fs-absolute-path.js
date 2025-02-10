@@ -1,4 +1,4 @@
-// Flags: --experimental-permission --allow-fs-read=* --allow-child-process
+// Flags: --permission --allow-fs-read=* --allow-child-process
 'use strict';
 
 const common = require('../common');
@@ -13,7 +13,7 @@ const { spawnSync } = require('child_process');
   const { status, stdout } = spawnSync(
     process.execPath,
     [
-      '--experimental-permission',
+      '--permission',
       '--allow-fs-read', '*',
       '--allow-fs-write', path.resolve('../fixtures/permission/deny/regular-file.md'),
       '-e',

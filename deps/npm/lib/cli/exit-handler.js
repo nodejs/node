@@ -1,160 +1,174 @@
 const { log, output, META } = require('proc-log')
-const errorMessage = require('../utils/error-message.js')
-const { redactLog: replaceInfo } = require('@npmcli/redact')
+const { errorMessage, getExitCodeFromError } = require('../utils/error-message.js')
 
-let npm = null // set by the cli
-let exitHandlerCalled = false
-let showLogFileError = false
+class ExitHandler {
+  #npm = null
+  #process = null
+  #exited = false
+  #exitErrorMessage = false
 
-process.on('exit', code => {
-  const hasLoadedNpm = npm?.config.loaded
+  #noNpmError = false
 
-  if (!code) {
-    log.info('ok')
-  } else {
-    log.verbose('code', code)
+  get #hasNpm () {
+    return !!this.#npm
   }
 
-  if (!exitHandlerCalled) {
-    process.exitCode = code || 1
-    log.error('', 'Exit handler never called!')
-    log.error('', 'This is an error with npm itself. Please report this error at:')
-    log.error('', '    <https://github.com/npm/cli/issues>')
-    // eslint-disable-next-line no-console
-    console.error('')
-    showLogFileError = true
+  get #loaded () {
+    return !!this.#npm?.loaded
   }
 
-  // npm must be loaded to know where the log file was written
-  if (hasLoadedNpm) {
-    npm.finish({ showLogFileError })
-    // This removes any listeners npm setup, mostly for tests to avoid max listener warnings
-    npm.unload()
+  get #showExitErrorMessage () {
+    if (!this.#loaded) {
+      return false
+    }
+    if (!this.#exited) {
+      return true
+    }
+    return this.#exitErrorMessage
   }
 
-  // these are needed for the tests to have a clean slate in each test case
-  exitHandlerCalled = false
-  showLogFileError = false
-})
-
-const exitHandler = err => {
-  exitHandlerCalled = true
-
-  const hasLoadedNpm = npm?.config.loaded
-
-  if (!npm) {
-    err = err || new Error('Exit prior to setting npm in exit handler')
-    // Don't use proc-log here since npm was never set
-    // eslint-disable-next-line no-console
-    console.error(err.stack || err.message)
-    return process.exit(1)
+  get #notLoadedOrExited () {
+    return !this.#loaded && !this.#exited
   }
 
-  if (!hasLoadedNpm) {
-    err = err || new Error('Exit prior to config file resolving.')
-    // Don't use proc-log here since npm was never loaded
-    // eslint-disable-next-line no-console
-    console.error(err.stack || err.message)
+  setNpm (npm) {
+    this.#npm = npm
   }
 
-  // only show the notification if it finished.
-  if (typeof npm.updateNotification === 'string') {
-    log.notice('', npm.updateNotification, { [META]: true, force: true })
+  constructor ({ process }) {
+    this.#process = process
+    this.#process.on('exit', this.#handleProcesExitAndReset)
   }
 
-  let exitCode = process.exitCode || 0
-  let noLogMessage = exitCode !== 0
-  let jsonError
+  registerUncaughtHandlers () {
+    this.#process.on('uncaughtException', this.#handleExit)
+    this.#process.on('unhandledRejection', this.#handleExit)
+  }
 
-  if (err) {
-    exitCode = 1
-    // if we got a command that just shells out to something else, then it
-    // will presumably print its own errors and exit with a proper status
-    // code if there's a problem.  If we got an error with a code=0, then...
-    // something else went wrong along the way, so maybe an npm problem?
-    const isShellout = npm.isShellout
-    const quietShellout = isShellout && typeof err.code === 'number' && err.code
-    if (quietShellout) {
-      exitCode = err.code
-      noLogMessage = true
-    } else if (typeof err === 'string') {
-      // XXX: we should stop throwing strings
-      log.error('', err)
-      noLogMessage = true
-    } else if (!(err instanceof Error)) {
-      log.error('weird error', err)
-      noLogMessage = true
+  exit (err) {
+    this.#handleExit(err)
+  }
+
+  #handleProcesExitAndReset = (code) => {
+    this.#handleProcessExit(code)
+
+    // Reset all the state. This is only relevant for tests since
+    // in reality the process fully exits here.
+    this.#process.off('exit', this.#handleProcesExitAndReset)
+    this.#process.off('uncaughtException', this.#handleExit)
+    this.#process.off('unhandledRejection', this.#handleExit)
+    if (this.#loaded) {
+      this.#npm.unload()
+    }
+    this.#npm = null
+    this.#exited = false
+    this.#exitErrorMessage = false
+  }
+
+  #handleProcessExit (code) {
+    const numCode = Number(code) || 0
+    // Always exit w/ a non-zero code if exit handler was not called
+    const exitCode = this.#exited ? numCode : (numCode || 1)
+    this.#process.exitCode = exitCode
+
+    if (this.#notLoadedOrExited) {
+      // Exit handler was not called and npm was not loaded so we have to log something
+      this.#logConsoleError(new Error(`Process exited unexpectedly with code: ${exitCode}`))
+      return
+    }
+
+    if (this.#logNoNpmError()) {
+      return
+    }
+
+    const os = require('node:os')
+    log.verbose('cwd', this.#process.cwd())
+    log.verbose('os', `${os.type()} ${os.release()}`)
+    log.verbose('node', this.#process.version)
+    log.verbose('npm ', `v${this.#npm.version}`)
+
+    // only show the notification if it finished
+    if (typeof this.#npm.updateNotification === 'string') {
+      log.notice('', this.#npm.updateNotification, { [META]: true, force: true })
+    }
+
+    if (!this.#exited) {
+      log.error('', 'Exit handler never called!')
+      log.error('', 'This is an error with npm itself. Please report this error at:')
+      log.error('', '  <https://github.com/npm/cli/issues>')
+      if (this.#npm.silent) {
+        output.error('')
+      }
+    }
+
+    log.verbose('exit', exitCode)
+
+    if (exitCode) {
+      log.verbose('code', exitCode)
     } else {
-      const os = require('node:os')
-      const fs = require('node:fs')
-      if (!err.code) {
-        const matchErrorCode = err.message.match(/^(?:Error: )?(E[A-Z]+)/)
-        err.code = matchErrorCode && matchErrorCode[1]
-      }
+      log.info('ok')
+    }
 
-      for (const k of ['type', 'stack', 'statusCode', 'pkgid']) {
-        const v = err[k]
-        if (v) {
-          log.verbose(k, replaceInfo(v))
-        }
-      }
-
-      log.verbose('cwd', process.cwd())
-      log.verbose('', os.type() + ' ' + os.release())
-      log.verbose('node', process.version)
-      log.verbose('npm ', 'v' + npm.version)
-
-      for (const k of ['code', 'syscall', 'file', 'path', 'dest', 'errno']) {
-        const v = err[k]
-        if (v) {
-          log.error(k, v)
-        }
-      }
-
-      const { summary, detail, json, files = [] } = errorMessage(err, npm)
-      jsonError = json
-
-      for (let [file, content] of files) {
-        file = `${npm.logPath}${file}`
-        content = `'Log files:\n${npm.logFiles.join('\n')}\n\n${content.trim()}\n`
-        try {
-          fs.writeFileSync(file, content)
-          detail.push(['', `\n\nFor a full report see:\n${file}`])
-        } catch (logFileErr) {
-          log.warn('', `Could not write error message to ${file} due to ${logFileErr}`)
-        }
-      }
-
-      for (const errline of [...summary, ...detail]) {
-        log.error(...errline)
-      }
-
-      if (typeof err.errno === 'number') {
-        exitCode = err.errno
-      } else if (typeof err.code === 'number') {
-        exitCode = err.code
-      }
+    if (this.#showExitErrorMessage) {
+      log.error('', this.#npm.exitErrorMessage())
     }
   }
 
-  if (hasLoadedNpm) {
-    output.flush({ [META]: true, jsonError })
+  #logConsoleError (err) {
+    // Run our error message formatters on all errors even if we
+    // have no npm or an unloaded npm. This will clean the error
+    // and possible return a formatted message about EACCESS or something.
+    const { summary, detail } = errorMessage(err, this.#npm)
+    const formatted = [...new Set([...summary, ...detail].flat().filter(Boolean))].join('\n')
+    // If we didn't get anything from the formatted message then just display the full stack
+    // eslint-disable-next-line no-console
+    console.error(formatted === err.message ? err.stack : formatted)
   }
 
-  log.verbose('exit', exitCode || 0)
+  #logNoNpmError (err) {
+    if (this.#hasNpm) {
+      return false
+    }
+    // Make sure we only log this error once
+    if (!this.#noNpmError) {
+      this.#noNpmError = true
+      this.#logConsoleError(
+        new Error(`Exit prior to setting npm in exit handler`, err ? { cause: err } : {})
+      )
+    }
+    return true
+  }
 
-  showLogFileError = (hasLoadedNpm && npm.silent) || noLogMessage
-    ? false
-    : !!exitCode
+  #handleExit = (err) => {
+    this.#exited = true
 
-  // explicitly call process.exit now so we don't hang on things like the
-  // update notifier, also flush stdout/err beforehand because process.exit doesn't
-  // wait for that to happen.
-  let flushed = 0
-  const flush = [process.stderr, process.stdout]
-  const exit = () => ++flushed === flush.length && process.exit(exitCode)
-  flush.forEach((f) => f.write('', exit))
+    // No npm at all
+    if (this.#logNoNpmError(err)) {
+      return this.#process.exit(this.#process.exitCode || getExitCodeFromError(err) || 1)
+    }
+
+    // npm was never loaded but we still might have a config loading error or
+    // something similar that we can run through the error message formatter
+    // to give the user a clue as to what happened.s
+    if (!this.#loaded) {
+      this.#logConsoleError(new Error('Exit prior to config file resolving', { cause: err }))
+      return this.#process.exit(this.#process.exitCode || getExitCodeFromError(err) || 1)
+    }
+
+    this.#exitErrorMessage = err?.suppressError === true ? false : !!err
+
+    // Prefer the exit code of the error, then the current process exit code,
+    // then set it to 1 if we still have an error. Otherwise we call process.exit
+    // with undefined so that it can determine the final exit code
+    const exitCode = err?.exitCode ?? this.#process.exitCode ?? (err ? 1 : undefined)
+
+    // explicitly call process.exit now so we don't hang on things like the
+    // update notifier, also flush stdout/err beforehand because process.exit doesn't
+    // wait for that to happen.
+    this.#process.stderr.write('', () => this.#process.stdout.write('', () => {
+      this.#process.exit(exitCode)
+    }))
+  }
 }
 
-module.exports = exitHandler
-module.exports.setNpm = n => (npm = n)
+module.exports = ExitHandler

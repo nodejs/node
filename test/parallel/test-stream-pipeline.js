@@ -1331,12 +1331,13 @@ const tsp = require('timers/promises');
 
 {
   const ac = new AbortController();
+  const reason = new Error('Reason');
   const r = Readable.from(async function* () {
     for (let i = 0; i < 10; i++) {
       await Promise.resolve();
       yield String(i);
       if (i === 5) {
-        ac.abort();
+        ac.abort(reason);
       }
     }
   }());
@@ -1349,6 +1350,7 @@ const tsp = require('timers/promises');
   });
   const cb = common.mustCall((err) => {
     assert.strictEqual(err.name, 'AbortError');
+    assert.strictEqual(err.cause, reason);
     assert.strictEqual(res, '012345');
     assert.strictEqual(w.destroyed, true);
     assert.strictEqual(r.destroyed, true);
@@ -1664,5 +1666,47 @@ const tsp = require('timers/promises');
   pipeline(r, w, common.mustCall((err) => {
     assert.strictEqual(err, undefined);
   }));
+}
 
+{
+  // See https://github.com/nodejs/node/issues/51540 for the following 2 tests
+  const src = new Readable();
+  const dst = new Writable({
+    destroy(error, cb) {
+      // Takes a while to destroy
+      setImmediate(cb);
+    },
+  });
+
+  pipeline(src, dst, (err) => {
+    assert.strictEqual(src.closed, true);
+    assert.strictEqual(dst.closed, true);
+    assert.strictEqual(err.message, 'problem');
+  });
+  src.destroy(new Error('problem'));
+}
+
+{
+  const src = new Readable();
+  const dst = new Writable({
+    destroy(error, cb) {
+      // Takes a while to destroy
+      setImmediate(cb);
+    },
+  });
+  const passThroughs = [];
+  for (let i = 0; i < 10; i++) {
+    passThroughs.push(new PassThrough());
+  }
+
+  pipeline(src, ...passThroughs, dst, (err) => {
+    assert.strictEqual(src.closed, true);
+    assert.strictEqual(dst.closed, true);
+    assert.strictEqual(err.message, 'problem');
+
+    for (let i = 0; i < passThroughs.length; i++) {
+      assert.strictEqual(passThroughs[i].closed, true);
+    }
+  });
+  src.destroy(new Error('problem'));
 }

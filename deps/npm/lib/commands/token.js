@@ -1,6 +1,6 @@
 const { log, output } = require('proc-log')
-const profile = require('npm-profile')
-const otplease = require('../utils/otplease.js')
+const { listTokens, createToken, removeToken } = require('npm-profile')
+const { otplease } = require('../utils/auth.js')
 const readUserInfo = require('../utils/read-user-info.js')
 const BaseCommand = require('../base-cmd.js')
 
@@ -48,9 +48,9 @@ class Token extends BaseCommand {
     const json = this.npm.config.get('json')
     const parseable = this.npm.config.get('parseable')
     log.info('token', 'getting list')
-    const tokens = await profile.listTokens(this.npm.flatOptions)
+    const tokens = await listTokens(this.npm.flatOptions)
     if (json) {
-      output.standard(JSON.stringify(tokens, null, 2))
+      output.buffer(tokens)
       return
     }
     if (parseable) {
@@ -92,7 +92,7 @@ class Token extends BaseCommand {
     const toRemove = []
     const opts = { ...this.npm.flatOptions }
     log.info('token', `removing ${toRemove.length} tokens`)
-    const tokens = await profile.listTokens(opts)
+    const tokens = await listTokens(opts)
     args.forEach(id => {
       const matches = tokens.filter(token => token.key.indexOf(id) === 0)
       if (matches.length === 1) {
@@ -113,11 +113,11 @@ class Token extends BaseCommand {
     })
     await Promise.all(
       toRemove.map(key => {
-        return otplease(this.npm, opts, c => profile.removeToken(key, c))
+        return otplease(this.npm, opts, c => removeToken(key, c))
       })
     )
     if (json) {
-      output.standard(JSON.stringify(toRemove))
+      output.buffer(toRemove)
     } else if (parseable) {
       output.standard(toRemove.join('\t'))
     } else {
@@ -137,12 +137,12 @@ class Token extends BaseCommand {
     const result = await otplease(
       this.npm,
       { ...this.npm.flatOptions },
-      c => profile.createToken(password, readonly, validCIDR, c)
+      c => createToken(password, readonly, validCIDR, c)
     )
     delete result.key
     delete result.updated
     if (json) {
-      output.standard(JSON.stringify(result))
+      output.buffer(result)
     } else if (parseable) {
       Object.keys(result).forEach(k => output.standard(k + '\t' + result[k]))
     } else {

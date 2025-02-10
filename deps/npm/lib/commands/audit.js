@@ -90,7 +90,7 @@ class Audit extends ArboristWorkspaceCmd {
       )
     }
 
-    log.verbose('loading installed dependencies')
+    log.verbose('audit', 'loading installed dependencies')
     const Arborist = require('@npmcli/arborist')
     const opts = {
       ...this.npm.flatOptions,

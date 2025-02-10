@@ -86,6 +86,7 @@
 !/third_party/v8
 !/third_party/wasm-api
 /tools/builtins-pgo/profiles/*.profile
+/tools/builtins-pgo/profiles/profiles_version
 /tools/clang
 /tools/gcmole/bootstrap
 /tools/gcmole/gcmole-tools

@@ -10,6 +10,11 @@ Package         Current  Wanted  Latest  Location          Depended by
 cat:dog@latest    1.0.0   2.0.0   2.0.0  node_modules/cat  prefix
 `
 
+exports[`test/lib/commands/outdated.js TAP aliases with version range > should display aliased outdated dep output with correct wanted values 1`] = `
+Package         Current  Wanted  Latest  Location          Depended by
+cat:dog@^1.0.0    1.0.0   1.0.1   2.0.0  node_modules/cat  prefix
+`
+
 exports[`test/lib/commands/outdated.js TAP should display outdated deps outdated --all > must match snapshot 1`] = `
 Package  Current  Wanted  Latest  Location           Depended by
 cat        1.0.0   1.0.1   1.0.1  node_modules/cat   prefix
@@ -152,6 +157,8 @@ cat        1.0.0   1.0.1   1.0.1  node_modules/cat   a@1.0.0
 chai       1.0.0   1.0.1   1.0.1  node_modules/chai  foo
 dog        1.0.1   1.0.1   2.0.0  node_modules/dog   prefix
 theta    MISSING   1.0.1   1.0.1  -                  c@1.0.0
+theta    MISSING   1.0.1   1.0.1  -                  d@1.0.0
+theta    MISSING   1.0.1   1.0.1  -                  e@1.0.0
 `
 
 exports[`test/lib/commands/outdated.js TAP workspaces should display json results filtered by ws > output 1`] = `
@@ -199,6 +206,8 @@ Package  Current  Wanted  Latest  Location          Depended by
 cat        1.0.0   1.0.1   1.0.1  node_modules/cat  a@1.0.0
 dog        1.0.1   1.0.1   2.0.0  node_modules/dog  prefix
 theta    MISSING   1.0.1   1.0.1  -                 c@1.0.0
+theta    MISSING   1.0.1   1.0.1  -                 d@1.0.0
+theta    MISSING   1.0.1   1.0.1  -                 e@1.0.0
 `
 
 exports[`test/lib/commands/outdated.js TAP workspaces should display ws outdated deps json output > output 1`] = `
@@ -217,11 +226,23 @@ exports[`test/lib/commands/outdated.js TAP workspaces should display ws outdated
     "dependent": "prefix",
     "location": "{CWD}/prefix/node_modules/dog"
   },
-  "theta": {
-    "wanted": "1.0.1",
-    "latest": "1.0.1",
-    "dependent": "c"
-  }
+  "theta": [
+    {
+      "wanted": "1.0.1",
+      "latest": "1.0.1",
+      "dependent": "c"
+    },
+    {
+      "wanted": "1.0.1",
+      "latest": "1.0.1",
+      "dependent": "d"
+    },
+    {
+      "wanted": "1.0.1",
+      "latest": "1.0.1",
+      "dependent": "e"
+    }
+  ]
 }
 `
 
@@ -229,6 +250,8 @@ exports[`test/lib/commands/outdated.js TAP workspaces should display ws outdated
 {CWD}/prefix/node_modules/cat:cat@1.0.1:cat@1.0.0:cat@1.0.1:a
 {CWD}/prefix/node_modules/dog:dog@1.0.1:dog@1.0.1:dog@2.0.0:prefix
 :theta@1.0.1:MISSING:theta@1.0.1:c
+:theta@1.0.1:MISSING:theta@1.0.1:d
+:theta@1.0.1:MISSING:theta@1.0.1:e
 `
 
 exports[`test/lib/commands/outdated.js TAP workspaces should highlight ws in dependend by section > output 1`] = `
@@ -236,4 +259,6 @@ exports[`test/lib/commands/outdated.js TAP workspaces should highlight ws in dep
 [31mcat[39m        1.0.0   [36m1.0.1[39m   [34m1.0.1[39m  node_modules/cat  [34ma@1.0.0[39m
 [33mdog[39m        1.0.1   [36m1.0.1[39m   [34m2.0.0[39m  node_modules/dog  prefix
 [31mtheta[39m    MISSING   [36m1.0.1[39m   [34m1.0.1[39m  -                 [34mc@1.0.0[39m
+[31mtheta[39m    MISSING   [36m1.0.1[39m   [34m1.0.1[39m  -                 [34md@1.0.0[39m
+[31mtheta[39m    MISSING   [36m1.0.1[39m   [34m1.0.1[39m  -                 [34me@1.0.0[39m
 `

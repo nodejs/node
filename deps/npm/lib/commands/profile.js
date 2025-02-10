@@ -1,9 +1,9 @@
-const { inspect } = require('util')
-const { URL } = require('url')
+const { inspect } = require('node:util')
+const { URL } = require('node:url')
 const { log, output } = require('proc-log')
-const npmProfile = require('npm-profile')
+const { get, set, createToken } = require('npm-profile')
 const qrcodeTerminal = require('qrcode-terminal')
-const otplease = require('../utils/otplease.js')
+const { otplease } = require('../utils/auth.js')
 const readUserInfo = require('../utils/read-user-info.js')
 const BaseCommand = require('../base-cmd.js')
 
@@ -101,14 +101,14 @@ class Profile extends BaseCommand {
 
   async get (args) {
     const tfa = 'two-factor auth'
-    const info = await npmProfile.get({ ...this.npm.flatOptions })
+    const info = await get({ ...this.npm.flatOptions })
 
     if (!info.cidr_whitelist) {
       delete info.cidr_whitelist
     }
 
     if (this.npm.config.get('json')) {
-      output.standard(JSON.stringify(info, null, 2))
+      output.buffer(info)
       return
     }
 
@@ -199,7 +199,7 @@ class Profile extends BaseCommand {
     }
 
     // FIXME: Work around to not clear everything other than what we're setting
-    const user = await npmProfile.get(conf)
+    const user = await get(conf)
     const newUser = {}
 
     for (const key of writableProfileKeys) {
@@ -208,10 +208,10 @@ class Profile extends BaseCommand {
 
     newUser[prop] = value
 
-    const result = await otplease(this.npm, conf, c => npmProfile.set(newUser, c))
+    const result = await otplease(this.npm, conf, c => set(newUser, c))
 
     if (this.npm.config.get('json')) {
-      output.standard(JSON.stringify({ [prop]: result[prop] }, null, 2))
+      output.buffer({ [prop]: result[prop] })
     } else if (this.npm.config.get('parseable')) {
       output.standard(prop + '\t' + result[prop])
     } else if (result[prop] != null) {
@@ -273,7 +273,7 @@ class Profile extends BaseCommand {
 
     if (auth.basic) {
       log.info('profile', 'Updating authentication to bearer token')
-      const result = await npmProfile.createToken(
+      const result = await createToken(
         auth.basic.password, false, [], { ...this.npm.flatOptions }
       )
 
@@ -297,12 +297,12 @@ class Profile extends BaseCommand {
     info.tfa.password = password
 
     log.info('profile', 'Determine if tfa is pending')
-    const userInfo = await npmProfile.get({ ...this.npm.flatOptions })
+    const userInfo = await get({ ...this.npm.flatOptions })
 
     const conf = { ...this.npm.flatOptions }
     if (userInfo && userInfo.tfa && userInfo.tfa.pending) {
       log.info('profile', 'Resetting two-factor authentication')
-      await npmProfile.set({ tfa: { password, mode: 'disable' } }, conf)
+      await set({ tfa: { password, mode: 'disable' } }, conf)
     } else if (userInfo && userInfo.tfa) {
       if (!conf.otp) {
         conf.otp = await readUserInfo.otp(
@@ -312,7 +312,7 @@ class Profile extends BaseCommand {
     }
 
     log.info('profile', 'Setting two-factor authentication to ' + mode)
-    const challenge = await npmProfile.set(info, conf)
+    const challenge = await set(info, conf)
 
     if (challenge.tfa === null) {
       output.standard('Two factor authentication mode changed to: ' + mode)
@@ -341,7 +341,7 @@ class Profile extends BaseCommand {
 
     log.info('profile', 'Finalizing two-factor authentication')
 
-    const result = await npmProfile.set({ tfa: [interactiveOTP] }, conf)
+    const result = await set({ tfa: [interactiveOTP] }, conf)
 
     output.standard(
       '2FA successfully enabled. Below are your recovery codes, ' +
@@ -359,7 +359,7 @@ class Profile extends BaseCommand {
 
   async disable2fa () {
     const conf = { ...this.npm.flatOptions }
-    const info = await npmProfile.get(conf)
+    const info = await get(conf)
 
     if (!info.tfa || info.tfa.pending) {
       output.standard('Two factor authentication not enabled.')
@@ -375,10 +375,10 @@ class Profile extends BaseCommand {
 
     log.info('profile', 'disabling tfa')
 
-    await npmProfile.set({ tfa: { password: password, mode: 'disable' } }, conf)
+    await set({ tfa: { password: password, mode: 'disable' } }, conf)
 
     if (this.npm.config.get('json')) {
-      output.standard(JSON.stringify({ tfa: false }, null, 2))
+      output.buffer({ tfa: false })
     } else if (this.npm.config.get('parseable')) {
       output.standard('tfa\tfalse')
     } else {

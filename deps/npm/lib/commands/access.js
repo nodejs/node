@@ -3,7 +3,7 @@ const npa = require('npm-package-arg')
 const { output } = require('proc-log')
 const pkgJson = require('@npmcli/package-json')
 const localeCompare = require('@isaacs/string-locale-compare')('en')
-const otplease = require('../utils/otplease.js')
+const { otplease } = require('../utils/auth.js')
 const getIdentity = require('../utils/get-identity.js')
 const BaseCommand = require('../base-cmd.js')
 
@@ -208,7 +208,7 @@ class Access extends BaseCommand {
       outputs[item] = lookup[val] || val
     }
     if (this.npm.config.get('json')) {
-      output.standard(JSON.stringify(outputs, null, 2))
+      output.buffer(outputs)
     } else {
       for (const item of Object.keys(outputs).sort(localeCompare)) {
         if (!limiter || limiter === item) {

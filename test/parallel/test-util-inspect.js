@@ -1644,6 +1644,15 @@ util.inspect(process);
 
   assert.throws(() => util.inspect(new ThrowingClass()), /toStringTag error/);
 
+  const y = {
+    get [Symbol.toStringTag]() {
+      return JSON.stringify(this);
+    }
+  };
+  const x = { y };
+  y.x = x;
+  assert.throws(() => util.inspect(x), /TypeError: Converting circular structure to JSON/);
+
   class NotStringClass {
     get [Symbol.toStringTag]() {
       return null;
@@ -3313,4 +3322,75 @@ assert.strictEqual(
       throw new Error();
     }
   }), '{ [Symbol(Symbol.iterator)]: [Getter] }');
+}
+
+{
+  const o = {};
+  const { prototype: BuiltinPrototype } = Object;
+  const desc = Reflect.getOwnPropertyDescriptor(BuiltinPrototype, 'constructor');
+  Object.defineProperty(BuiltinPrototype, 'constructor', {
+    get: () => BuiltinPrototype,
+    configurable: true,
+  });
+  assert.strictEqual(
+    util.inspect(o),
+    '{}',
+  );
+  Object.defineProperty(BuiltinPrototype, 'constructor', desc);
+}
+
+{
+  const o = { f() {} };
+  const { prototype: BuiltinPrototype } = Function;
+  const desc = Reflect.getOwnPropertyDescriptor(BuiltinPrototype, 'constructor');
+  Object.defineProperty(BuiltinPrototype, 'constructor', {
+    get: () => BuiltinPrototype,
+    configurable: true,
+  });
+  assert.strictEqual(
+    util.inspect(o),
+    '{ f: [Function: f] }',
+  );
+  Object.defineProperty(BuiltinPrototype, 'constructor', desc);
+}
+{
+  const prototypes = [
+    Array.prototype,
+    ArrayBuffer.prototype,
+    Buffer.prototype,
+    Function.prototype,
+    Map.prototype,
+    Object.prototype,
+    Reflect.getPrototypeOf(Uint8Array.prototype),
+    Set.prototype,
+    Uint8Array.prototype,
+  ];
+  const descriptors = new Map();
+  const buffer = Buffer.from('Hello');
+  const o = {
+    arrayBuffer: new ArrayBuffer(), buffer, typedArray: Uint8Array.from(buffer),
+    array: [], func() {}, set: new Set([1]), map: new Map(),
+  };
+  for (const BuiltinPrototype of prototypes) {
+    descriptors.set(BuiltinPrototype, Reflect.getOwnPropertyDescriptor(BuiltinPrototype, 'constructor'));
+    Object.defineProperty(BuiltinPrototype, 'constructor', {
+      get: () => BuiltinPrototype,
+      configurable: true,
+    });
+  }
+  assert.strictEqual(
+    util.inspect(o),
+    '{\n' +
+    '  arrayBuffer: ArrayBuffer { [Uint8Contents]: <>, byteLength: 0 },\n' +
+    '  buffer: <Buffer 48 65 6c 6c 6f>,\n' +
+    '  typedArray: TypedArray(5) [Uint8Array] [ 72, 101, 108, 108, 111 ],\n' +
+    '  array: [],\n' +
+    '  func: [Function: func],\n' +
+    '  set: Set(1) { 1 },\n' +
+    '  map: Map(0) {}\n' +
+    '}',
+  );
+  for (const [BuiltinPrototype, desc] of descriptors) {
+    Object.defineProperty(BuiltinPrototype, 'constructor', desc);
+  }
 }

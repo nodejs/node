@@ -65,7 +65,17 @@ const uint8ArrayTraversalPath = new TextEncoder().encode(traversalPath);
   fs.readFile(bufferTraversalPath, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemRead',
-    resource: traversalPath,
+    resource: path.toNamespacedPath(traversalPath),
+  }));
+}
+
+{
+  fs.lstat(bufferTraversalPath, common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemRead',
+    // lstat checks and throw on JS side.
+    // resource is only resolved on C++ (is_granted)
+    resource: bufferTraversalPath.toString(),
   }));
 }
 
@@ -73,27 +83,7 @@ const uint8ArrayTraversalPath = new TextEncoder().encode(traversalPath);
   fs.readFile(uint8ArrayTraversalPath, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemRead',
-    resource: traversalPath,
-  }));
-}
-
-// Monkey-patching path module should also not allow path traversal.
-{
-  const fs = require('fs');
-  const path = require('path');
-
-  const cwd = Buffer.from('.');
-  try {
-    path.toNamespacedPath = (path) => { return traversalPath; };
-    assert.fail('should throw error when pacthing');
-  } catch { }
-
-  assert.throws(() => {
-    fs.readFileSync(cwd);
-  }, common.expectsError({
-    code: 'ERR_ACCESS_DENIED',
-    permission: 'FileSystemRead',
-    resource: cwd.toString(),
+    resource: path.toNamespacedPath(traversalPath),
   }));
 }
 
@@ -118,7 +108,7 @@ const uint8ArrayTraversalPath = new TextEncoder().encode(traversalPath);
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemRead',
-    resource: traversalPathWithExtraChars,
+    resource: path.toNamespacedPath(traversalPathWithExtraChars),
   }));
 
   assert.throws(() => {
@@ -126,7 +116,7 @@ const uint8ArrayTraversalPath = new TextEncoder().encode(traversalPath);
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemRead',
-    resource: traversalPathWithExtraChars,
+    resource: path.toNamespacedPath(traversalPathWithExtraChars),
   }));
 }
 

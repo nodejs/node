@@ -7,8 +7,6 @@ prefix v8-updates
 [true] # This section applies to all platforms
 # https://github.com/nodejs/node/issues/50079
 test-linux-perf: SKIP
-# https://github.com/nodejs/node/issues/51308
-test-linux-perf-logger: SKIP
 
 [$system==win32]
 

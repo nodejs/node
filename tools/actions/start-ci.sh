@@ -10,7 +10,7 @@ for pr in "$@"; do
 
   ci_started=yes
   rm -f output;
-  ncu-ci run --certify-safe "$pr" >output 2>&1 || ci_started=no
+  ncu-ci run "$pr" >output 2>&1 || ci_started=no
   cat output
 
   if [ "$ci_started" = "no" ]; then

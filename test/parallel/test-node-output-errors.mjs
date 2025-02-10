@@ -3,11 +3,10 @@ import * as fixtures from '../common/fixtures.mjs';
 import * as snapshot from '../common/assertSnapshot.js';
 import * as os from 'node:os';
 import { describe, it } from 'node:test';
+import { basename } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const skipForceColors =
-  process.config.variables.icu_gyp_path !== 'tools/icu/icu-generic.gyp' ||
-  process.config.variables.node_shared_openssl ||
   (common.isWindows && (Number(os.release().split('.')[0]) !== 10 || Number(os.release().split('.')[2]) < 14393)); // See https://github.com/nodejs/node/pull/33132
 
 
@@ -22,13 +21,15 @@ function replaceForceColorsStackTrace(str) {
 
 describe('errors output', { concurrency: !process.env.TEST_PARALLEL }, () => {
   function normalize(str) {
+    const baseName = basename(process.argv0 || 'node', '.exe');
     return str.replaceAll(snapshot.replaceWindowsPaths(process.cwd()), '')
       .replaceAll(pathToFileURL(process.cwd()).pathname, '')
       .replaceAll('//', '*')
       .replaceAll(/\/(\w)/g, '*$1')
       .replaceAll('*test*', '*')
       .replaceAll('*fixtures*errors*', '*')
-      .replaceAll('file:**', 'file:*/');
+      .replaceAll('file:**', 'file:*/')
+      .replaceAll(`${baseName} --`, '* --');
   }
 
   function normalizeNoNumbers(str) {
@@ -76,7 +77,7 @@ describe('errors output', { concurrency: !process.env.TEST_PARALLEL }, () => {
   ];
   for (const { name, transform = defaultTransform, env, skip = false } of tests) {
     it(name, { skip }, async () => {
-      await snapshot.spawnAndAssert(fixtures.path(name), transform, { env });
+      await snapshot.spawnAndAssert(fixtures.path(name), transform, { env: { ...env, ...process.env } });
     });
   }
 });

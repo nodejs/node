@@ -1,6 +1,6 @@
 'use strict'
 
-const URL = require('url').URL
+const URL = require('node:url').URL
 const Arborist = require('@npmcli/arborist')
 
 // supports object funding and string shorthand, or an array of these

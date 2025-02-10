@@ -6,27 +6,22 @@
 namespace node::task_runner {
 
 #ifdef _WIN32
-static constexpr const char* bin_path = "\\node_modules\\.bin";
+static constexpr const char* env_var_separator = ";";
 #else
-static constexpr const char* bin_path = "/node_modules/.bin";
+static constexpr const char* env_var_separator = ":";
 #endif  // _WIN32
 
 ProcessRunner::ProcessRunner(std::shared_ptr<InitializationResultImpl> result,
+                             const std::filesystem::path& package_json_path,
+                             std::string_view script_name,
                              std::string_view command,
-                             const PositionalArgs& positional_args) {
+                             std::string_view path_env_var,
+                             const PositionalArgs& positional_args)
+    : init_result(std::move(result)),
+      package_json_path_(package_json_path),
+      script_name_(script_name),
+      path_env_var_(path_env_var) {
   memset(&options_, 0, sizeof(uv_process_options_t));
-
-  // Get the current working directory.
-  char cwd[PATH_MAX_BYTES];
-  size_t cwd_size = PATH_MAX_BYTES;
-  CHECK_EQ(uv_cwd(cwd, &cwd_size), 0);
-  CHECK_GT(cwd_size, 0);
-
-#ifdef _WIN32
-  std::string current_bin_path = cwd + std::string(bin_path) + ";";
-#else
-  std::string current_bin_path = cwd + std::string(bin_path) + ":";
-#endif  // _WIN32
 
   // Inherit stdin, stdout, and stderr from the parent process.
   options_.stdio_count = 3;
@@ -43,47 +38,15 @@ ProcessRunner::ProcessRunner(std::shared_ptr<InitializationResultImpl> result,
   options_.flags |= UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS;
 #endif
 
-  init_result = std::move(result);
-
   // Set the process handle data to this class instance.
   // This is used to access the class instance from the OnExit callback.
   // It is required because libuv doesn't allow passing lambda functions as a
   // callback.
   process_.data = this;
 
+  SetEnvironmentVariables();
+
   std::string command_str(command);
-
-  // Set environment variables
-  uv_env_item_t* env_items;
-  int env_count;
-  CHECK_EQ(0, uv_os_environ(&env_items, &env_count));
-  env = std::unique_ptr<char*[]>(new char*[env_count + 1]);
-  options_.env = env.get();
-
-  // Iterate over environment variables once to store them in the current
-  // ProcessRunner instance.
-  for (int i = 0; i < env_count; i++) {
-    std::string name = env_items[i].name;
-    auto value = env_items[i].value;
-
-#ifdef _WIN32
-    // We use comspec environment variable to find cmd.exe path on Windows
-    // Example: 'C:\\Windows\\system32\\cmd.exe'
-    // If we don't find it, we fallback to 'cmd.exe' for Windows
-    if (StringEqualNoCase(name.c_str(), "comspec")) {
-      file_ = value;
-    }
-#endif  // _WIN32
-
-    // Check if environment variable key is matching case-insensitive "path"
-    if (StringEqualNoCase(name.c_str(), "path")) {
-      env_vars_.push_back(name + "=" + current_bin_path + value);
-    } else {
-      // Environment variables should be in "KEY=value" format
-      env_vars_.push_back(name + "=" + value);
-    }
-  }
-  uv_os_free_environ(env_items, env_count);
 
   // Use the stored reference on the instance.
   options_.file = file_.c_str();
@@ -97,12 +60,7 @@ ProcessRunner::ProcessRunner(std::shared_ptr<InitializationResultImpl> result,
   }
 
 #ifdef _WIN32
-  // We check whether file_ ends with cmd.exe in a case-insensitive manner.
-  // C++20 provides ends_with, but we roll our own for compatibility.
-  const char* cmdexe = "cmd.exe";
-  if (file_.size() >= strlen(cmdexe) &&
-      StringEqualNoCase(cmdexe,
-                        file_.c_str() + file_.size() - strlen(cmdexe))) {
+  if (file_.ends_with("cmd.exe")) {
     // If the file is cmd.exe, use the following command line arguments:
     // "/c" Carries out the command and exit.
     // "/d" Disables execution of AutoRun commands.
@@ -111,7 +69,7 @@ ProcessRunner::ProcessRunner(std::shared_ptr<InitializationResultImpl> result,
     command_args_ = {
         options_.file, "/d", "/s", "/c", "\"" + command_str + "\""};
   } else {
-    // If the file is not cmd.exe, and it is unclear wich shell is being used,
+    // If the file is not cmd.exe, and it is unclear which shell is being used,
     // so assume -c is the correct syntax (Unix-like shells use -c for this
     // purpose).
     command_args_ = {options_.file, "-c", command_str};
@@ -128,11 +86,51 @@ ProcessRunner::ProcessRunner(std::shared_ptr<InitializationResultImpl> result,
     options_.args[i] = const_cast<char*>(command_args_[i].c_str());
   }
   options_.args[argc] = nullptr;
+}
 
+void ProcessRunner::SetEnvironmentVariables() {
+  uv_env_item_t* env_items;
+  int env_count;
+  CHECK_EQ(0, uv_os_environ(&env_items, &env_count));
+
+  // Iterate over environment variables once to store them in the current
+  // ProcessRunner instance.
   for (int i = 0; i < env_count; i++) {
+    std::string name = env_items[i].name;
+    std::string value = env_items[i].value;
+
+#ifdef _WIN32
+    // We use comspec environment variable to find cmd.exe path on Windows
+    // Example: 'C:\\Windows\\system32\\cmd.exe'
+    // If we don't find it, we fallback to 'cmd.exe' for Windows
+    if (StringEqualNoCase(name.c_str(), "comspec")) {
+      file_ = value;
+    }
+#endif  // _WIN32
+
+    if (StringEqualNoCase(name.c_str(), "path")) {
+      // Add path env variable to the beginning of the PATH
+      value = path_env_var_ + value;
+    }
+    env_vars_.push_back(name + "=" + value);
+  }
+  uv_os_free_environ(env_items, env_count);
+
+  // Add NODE_RUN_SCRIPT_NAME environment variable to the environment
+  // to indicate which script is being run.
+  env_vars_.push_back("NODE_RUN_SCRIPT_NAME=" + script_name_);
+
+  // Add NODE_RUN_PACKAGE_JSON_PATH environment variable to the environment to
+  // indicate which package.json is being processed.
+  env_vars_.push_back("NODE_RUN_PACKAGE_JSON_PATH=" +
+                      package_json_path_.string());
+
+  env = std::unique_ptr<char*[]>(new char*[env_vars_.size() + 1]);
+  options_.env = env.get();
+  for (size_t i = 0; i < env_vars_.size(); i++) {
     options_.env[i] = const_cast<char*>(env_vars_[i].c_str());
   }
-  options_.env[env_count] = nullptr;
+  options_.env[env_vars_.size()] = nullptr;
 }
 
 // EscapeShell escapes a string to be used as a command line argument.
@@ -151,7 +149,7 @@ std::string EscapeShell(const std::string_view input) {
 #endif
   }
 
-  static const std::string_view forbidden_characters =
+  static constexpr std::string_view forbidden_characters =
       "[\t\n\r \"#$&'()*;<>?\\\\`|~]";
 
   // Check if input contains any forbidden characters
@@ -193,7 +191,7 @@ std::string EscapeShell(const std::string_view input) {
 void ProcessRunner::ExitCallback(uv_process_t* handle,
                                  int64_t exit_status,
                                  int term_signal) {
-  auto self = reinterpret_cast<ProcessRunner*>(handle->data);
+  const auto self = static_cast<ProcessRunner*>(handle->data);
   uv_close(reinterpret_cast<uv_handle_t*>(handle), nullptr);
   self->OnExit(exit_status, term_signal);
 }
@@ -207,6 +205,9 @@ void ProcessRunner::OnExit(int64_t exit_status, int term_signal) {
 }
 
 void ProcessRunner::Run() {
+  // keeps the string alive until destructor
+  cwd = package_json_path_.parent_path().string();
+  options_.cwd = cwd.c_str();
   if (int r = uv_spawn(loop_, &process_, &options_)) {
     fprintf(stderr, "Error: %s\n", uv_strerror(r));
   }
@@ -214,27 +215,78 @@ void ProcessRunner::Run() {
   uv_run(loop_, UV_RUN_DEFAULT);
 }
 
-void RunTask(std::shared_ptr<InitializationResultImpl> result,
+std::optional<std::tuple<std::filesystem::path, std::string, std::string>>
+FindPackageJson(const std::filesystem::path& cwd) {
+  auto package_json_path = cwd / "package.json";
+  std::string raw_content;
+  std::string path_env_var;
+  auto root_path = cwd.root_path();
+
+  for (auto directory_path = cwd;
+       !std::filesystem::equivalent(root_path, directory_path);
+       directory_path = directory_path.parent_path()) {
+    // Append "path/node_modules/.bin" to the env var, if it is a directory.
+    auto node_modules_bin = directory_path / "node_modules" / ".bin";
+    if (std::filesystem::is_directory(node_modules_bin)) {
+      path_env_var += node_modules_bin.string() + env_var_separator;
+    }
+
+    if (raw_content.empty()) {
+      package_json_path = directory_path / "package.json";
+      // This is required for Windows because std::filesystem::path::c_str()
+      // returns wchar_t* on Windows, and char* on other platforms.
+      std::string contents = package_json_path.string();
+      USE(ReadFileSync(&raw_content, contents.c_str()) > 0);
+    }
+  }
+
+  // This means that there is no package.json until the root directory.
+  // In this case, we just return nullopt, which will terminate the process..
+  if (raw_content.empty()) {
+    return std::nullopt;
+  }
+
+  return {{package_json_path, raw_content, path_env_var}};
+}
+
+void RunTask(const std::shared_ptr<InitializationResultImpl>& result,
              std::string_view command_id,
              const std::vector<std::string_view>& positional_args) {
-  std::string_view path = "package.json";
-  std::string raw_json;
+  auto cwd = std::filesystem::current_path();
+  auto package_json = FindPackageJson(cwd);
 
-  // No need to exclude BOM since simdjson will skip it.
-  if (ReadFileSync(&raw_json, path.data()) < 0) {
-    fprintf(stderr, "Can't read package.json\n");
+  if (!package_json.has_value()) {
+    fprintf(stderr,
+            "Can't find package.json for directory %s\n",
+            cwd.string().c_str());
     result->exit_code_ = ExitCode::kGenericUserError;
     return;
   }
 
+  // - path: Path to the package.json file.
+  // - raw_json: Raw content of the package.json file.
+  // - path_env_var: This represents the `PATH` environment variable.
+  //   It always ends with ";" or ":" depending on the platform.
+  auto [path, raw_json, path_env_var] = *package_json;
+
   simdjson::ondemand::parser json_parser;
   simdjson::ondemand::document document;
   simdjson::ondemand::object main_object;
-  simdjson::error_code error = json_parser.iterate(raw_json).get(document);
 
+  if (json_parser.iterate(raw_json).get(document)) {
+    fprintf(stderr, "Can't parse %s\n", path.string().c_str());
+    result->exit_code_ = ExitCode::kGenericUserError;
+    return;
+  }
   // If document is not an object, throw an error.
-  if (error || document.get_object().get(main_object)) {
-    fprintf(stderr, "Can't parse package.json\n");
+  if (auto root_error = document.get_object().get(main_object)) {
+    if (root_error == simdjson::error_code::INCORRECT_TYPE) {
+      fprintf(stderr,
+              "Root value unexpected not an object for %s\n\n",
+              path.string().c_str());
+    } else {
+      fprintf(stderr, "Can't parse %s\n", path.string().c_str());
+    }
     result->exit_code_ = ExitCode::kGenericUserError;
     return;
   }
@@ -242,41 +294,53 @@ void RunTask(std::shared_ptr<InitializationResultImpl> result,
   // If package_json object doesn't have "scripts" field, throw an error.
   simdjson::ondemand::object scripts_object;
   if (main_object["scripts"].get_object().get(scripts_object)) {
-    fprintf(stderr, "Can't find \"scripts\" field in package.json\n");
+    fprintf(
+        stderr, "Can't find \"scripts\" field in %s\n", path.string().c_str());
     result->exit_code_ = ExitCode::kGenericUserError;
     return;
   }
 
   // If the command_id is not found in the scripts object, throw an error.
   std::string_view command;
-  if (scripts_object[command_id].get_string().get(command)) {
-    fprintf(stderr,
-            "Missing script: \"%.*s\"\n\n",
-            static_cast<int>(command_id.size()),
-            command_id.data());
-    fprintf(stderr, "Available scripts are:\n");
+  if (auto command_error =
+          scripts_object[command_id].get_string().get(command)) {
+    if (command_error == simdjson::error_code::INCORRECT_TYPE) {
+      fprintf(stderr,
+              "Script \"%.*s\" is unexpectedly not a string for %s\n\n",
+              static_cast<int>(command_id.size()),
+              command_id.data(),
+              path.string().c_str());
+    } else {
+      fprintf(stderr,
+              "Missing script: \"%.*s\" for %s\n\n",
+              static_cast<int>(command_id.size()),
+              command_id.data(),
+              path.string().c_str());
+      fprintf(stderr, "Available scripts are:\n");
 
-    // Reset the object to iterate over it again
-    scripts_object.reset();
-    simdjson::ondemand::value value;
-    for (auto field : scripts_object) {
-      std::string_view key_str;
-      std::string_view value_str;
-      if (!field.unescaped_key().get(key_str) && !field.value().get(value) &&
-          !value.get_string().get(value_str)) {
-        fprintf(stderr,
-                "  %.*s: %.*s\n",
-                static_cast<int>(key_str.size()),
-                key_str.data(),
-                static_cast<int>(value_str.size()),
-                value_str.data());
+      // Reset the object to iterate over it again
+      scripts_object.reset();
+      simdjson::ondemand::value value;
+      for (auto field : scripts_object) {
+        std::string_view key_str;
+        std::string_view value_str;
+        if (!field.unescaped_key().get(key_str) && !field.value().get(value) &&
+            !value.get_string().get(value_str)) {
+          fprintf(stderr,
+                  "  %.*s: %.*s\n",
+                  static_cast<int>(key_str.size()),
+                  key_str.data(),
+                  static_cast<int>(value_str.size()),
+                  value_str.data());
+        }
       }
     }
     result->exit_code_ = ExitCode::kGenericUserError;
     return;
   }
 
-  auto runner = ProcessRunner(result, command, positional_args);
+  auto runner = ProcessRunner(
+      result, path, command_id, command, path_env_var, positional_args);
   runner.Run();
 }
 
@@ -290,10 +354,11 @@ PositionalArgs GetPositionalArgs(const std::vector<std::string>& args) {
   if (auto dash_dash = std::find(args.begin(), args.end(), "--");
       dash_dash != args.end()) {
     PositionalArgs positional_args{};
+    positional_args.reserve(args.size() - (dash_dash - args.begin()));
     for (auto it = dash_dash + 1; it != args.end(); ++it) {
       // SAFETY: The following code is safe because the lifetime of the
       // arguments is guaranteed to be valid until the end of the task runner.
-      positional_args.push_back(std::string_view(it->c_str(), it->size()));
+      positional_args.emplace_back(it->c_str(), it->size());
     }
     return positional_args;
   }

@@ -74,6 +74,6 @@ test('planning with streams', (t, done) => {
   });
 
   stream.on('end', () => {
-   done();
+    done();
   });
 })

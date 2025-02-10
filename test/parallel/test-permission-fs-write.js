@@ -1,4 +1,4 @@
-// Flags: --experimental-permission --allow-fs-read=* --allow-child-process
+// Flags: --permission --allow-fs-read=* --allow-child-process
 'use strict';
 
 const common = require('../common');
@@ -24,7 +24,7 @@ const file = fixtures.path('permission', 'fs-write.js');
   const { status, stderr } = spawnSync(
     process.execPath,
     [
-      '--experimental-permission',
+      '--permission',
       '--allow-fs-read=*',
       `--allow-fs-write=${regularFile}`, `--allow-fs-write=${commonPath}`,
       file,

@@ -7,10 +7,11 @@ const usage = require('./utils/npm-usage.js')
 const LogFile = require('./utils/log-file.js')
 const Timers = require('./utils/timers.js')
 const Display = require('./utils/display.js')
-const { log, time, output } = require('proc-log')
+const { log, time, output, META } = require('proc-log')
 const { redactLog: replaceInfo } = require('@npmcli/redact')
 const pkg = require('../package.json')
 const { deref } = require('./utils/cmd-list.js')
+const { jsonError, outputError } = require('./utils/output-error.js')
 
 class Npm {
   static get version () {
@@ -73,76 +74,14 @@ class Npm {
     })
   }
 
-  get version () {
-    return this.constructor.version
-  }
-
-  // Call an npm command
-  async exec (cmd, args = this.argv) {
-    const Command = Npm.cmd(cmd)
-    const command = new Command(this)
-
-    // since 'test', 'start', 'stop', etc. commands re-enter this function
-    // to call the run-script command, we need to only set it one time.
-    if (!this.#command) {
-      this.#command = command
-      process.env.npm_command = this.command
-    }
-
-    return time.start(`command:${cmd}`, () => command.cmdExec(args))
-  }
-
   async load () {
-    return time.start('npm:load', () => this.#load())
-  }
-
-  get loaded () {
-    return this.config.loaded
-  }
-
-  // This gets called at the end of the exit handler and
-  // during any tests to cleanup all of our listeners
-  // Everything in here should be synchronous
-  unload () {
-    this.#timers.off()
-    this.#display.off()
-    this.#logFile.off()
-  }
-
-  finish ({ showLogFileError } = {}) {
-    this.#timers.finish({
-      id: this.#runId,
-      command: this.#argvClean,
-      logfiles: this.logFiles,
-      version: this.version,
-    })
-
-    if (showLogFileError) {
-      if (!this.silent) {
-        // just a line break if not in silent mode
-        output.error('')
-      }
-
-      if (this.logFiles.length) {
-        return log.error('', `A complete log of this run can be found in: ${this.logFiles}`)
-      }
-
-      const logsMax = this.config.get('logs-max')
-      if (logsMax <= 0) {
-        // user specified no log file
-        log.error('', `Log files were not written due to the config logs-max=${logsMax}`)
-      } else {
-        // could be an error writing to the directory
-        log.error('',
-          `Log files were not written due to an error writing to the directory: ${this.#logsDir}` +
-          '\nYou can rerun the command with `--loglevel=verbose` to see the logs in your terminal'
-        )
-      }
+    let err
+    try {
+      return await time.start('npm:load', () => this.#load())
+    } catch (e) {
+      err = e
     }
-  }
-
-  get title () {
-    return this.#title
+    return this.#handleError(err)
   }
 
   async #load () {
@@ -238,6 +177,7 @@ class Npm {
     // take a long time to resolve, but that is why process.exit is called explicitly
     // in the exit-handler.
     this.unrefPromises.push(this.#logFile.load({
+      command,
       path: this.logPath,
       logsMax: this.config.get('logs-max'),
       timing: this.config.get('timing'),
@@ -260,8 +200,155 @@ class Npm {
     return { exec: true, command: commandArg, args: this.argv }
   }
 
-  get isShellout () {
-    return this.#command?.constructor?.isShellout
+  async exec (cmd, args = this.argv) {
+    if (!this.#command) {
+      let err
+      try {
+        await this.#exec(cmd, args)
+      } catch (e) {
+        err = e
+      }
+      return this.#handleError(err)
+    } else {
+      return this.#exec(cmd, args)
+    }
+  }
+
+  // Call an npm command
+  async #exec (cmd, args) {
+    const Command = this.constructor.cmd(cmd)
+    const command = new Command(this)
+
+    // since 'test', 'start', 'stop', etc. commands re-enter this function
+    // to call the run-script command, we need to only set it one time.
+    if (!this.#command) {
+      this.#command = command
+      process.env.npm_command = this.command
+    }
+
+    if (this.config.get('usage')) {
+      return output.standard(command.usage)
+    }
+
+    let execWorkspaces = false
+    const hasWsConfig = this.config.get('workspaces') || this.config.get('workspace').length
+    // if cwd is a workspace, the default is set to [that workspace]
+    const implicitWs = this.config.get('workspace', 'default').length
+    // (-ws || -w foo) && (cwd is not a workspace || command is not ignoring implicit workspaces)
+    if (hasWsConfig && (!implicitWs || !Command.ignoreImplicitWorkspace)) {
+      if (this.global) {
+        throw new Error('Workspaces not supported for global packages')
+      }
+      if (!Command.workspaces) {
+        throw Object.assign(new Error('This command does not support workspaces.'), {
+          code: 'ENOWORKSPACES',
+        })
+      }
+      execWorkspaces = true
+    }
+
+    if (command.checkDevEngines && !this.global) {
+      await command.checkDevEngines()
+    }
+
+    return time.start(`command:${cmd}`, () =>
+      execWorkspaces ? command.execWorkspaces(args) : command.exec(args))
+  }
+
+  // This gets called at the end of the exit handler and
+  // during any tests to cleanup all of our listeners
+  // Everything in here should be synchronous
+  unload () {
+    this.#timers.off()
+    this.#display.off()
+    this.#logFile.off()
+  }
+
+  finish (err) {
+    // Finish all our timer work, this will write the file if requested, end timers, etc
+    this.#timers.finish({
+      id: this.#runId,
+      command: this.#argvClean,
+      logfiles: this.logFiles,
+      version: this.version,
+    })
+
+    output.flush({
+      [META]: true,
+      // json can be set during a command so we send the
+      // final value of it to the display layer here
+      json: this.loaded && this.config.get('json'),
+      jsonError: jsonError(err, this),
+    })
+  }
+
+  exitErrorMessage () {
+    if (this.logFiles.length) {
+      return `A complete log of this run can be found in: ${this.logFiles}`
+    }
+
+    const logsMax = this.config.get('logs-max')
+    if (logsMax <= 0) {
+      // user specified no log file
+      return `Log files were not written due to the config logs-max=${logsMax}`
+    }
+
+    // could be an error writing to the directory
+    return `Log files were not written due to an error writing to the directory: ${this.#logsDir}` +
+      '\nYou can rerun the command with `--loglevel=verbose` to see the logs in your terminal'
+  }
+
+  async #handleError (err) {
+    if (err) {
+      // Get the local package if it exists for a more helpful error message
+      const localPkg = await require('@npmcli/package-json')
+        .normalize(this.localPrefix)
+        .then(p => p.content)
+        .catch(() => null)
+      Object.assign(err, this.#getError(err, { pkg: localPkg }))
+    }
+
+    this.finish(err)
+
+    if (err) {
+      throw err
+    }
+  }
+
+  #getError (rawErr, opts) {
+    const { files = [], ...error } = require('./utils/error-message.js').getError(rawErr, {
+      npm: this,
+      command: this.#command,
+      ...opts,
+    })
+
+    const { writeFileSync } = require('node:fs')
+    for (const [file, content] of files) {
+      const filePath = `${this.logPath}${file}`
+      const fileContent = `'Log files:\n${this.logFiles.join('\n')}\n\n${content.trim()}\n`
+      try {
+        writeFileSync(filePath, fileContent)
+        error.detail.push(['', `\n\nFor a full report see:\n${filePath}`])
+      } catch (fileErr) {
+        log.warn('', `Could not write error message to ${file} due to ${fileErr}`)
+      }
+    }
+
+    outputError(error)
+
+    return error
+  }
+
+  get title () {
+    return this.#title
+  }
+
+  get loaded () {
+    return this.config.loaded
+  }
+
+  get version () {
+    return this.constructor.version
   }
 
   get command () {

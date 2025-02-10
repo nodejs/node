@@ -30,7 +30,7 @@ const net = require('net');
 // Do not require 'os' until needed so that test-os-checked-function can
 // monkey patch it. If 'os' is required here, that test will fail.
 const path = require('path');
-const { inspect } = require('util');
+const { inspect, getCallSites } = require('util');
 const { isMainThread } = require('worker_threads');
 const { isModuleNamespaceObject } = require('util/types');
 
@@ -57,11 +57,24 @@ const noop = () => {};
 const hasCrypto = Boolean(process.versions.openssl) &&
                   !process.env.NODE_SKIP_CRYPTO;
 
-const hasOpenSSL3 = hasCrypto &&
-    require('crypto').constants.OPENSSL_VERSION_NUMBER >= 0x30000000;
+// Synthesize OPENSSL_VERSION_NUMBER format with the layout 0xMNN00PPSL
+const opensslVersionNumber = (major = 0, minor = 0, patch = 0) => {
+  assert(major >= 0 && major <= 0xf);
+  assert(minor >= 0 && minor <= 0xff);
+  assert(patch >= 0 && patch <= 0xff);
+  return (major << 28) | (minor << 20) | (patch << 4);
+};
 
-const hasOpenSSL31 = hasCrypto &&
-    require('crypto').constants.OPENSSL_VERSION_NUMBER >= 0x30100000;
+let OPENSSL_VERSION_NUMBER;
+const hasOpenSSL = (major = 0, minor = 0, patch = 0) => {
+  if (!hasCrypto) return false;
+  if (OPENSSL_VERSION_NUMBER === undefined) {
+    const regexp = /(?<m>\d+)\.(?<n>\d+)\.(?<p>\d+)/;
+    const { m, n, p } = process.versions.openssl.match(regexp).groups;
+    OPENSSL_VERSION_NUMBER = opensslVersionNumber(m, n, p);
+  }
+  return OPENSSL_VERSION_NUMBER >= opensslVersionNumber(major, minor, patch);
+};
 
 const hasQuic = hasCrypto && !!process.config.variables.openssl_quic;
 
@@ -128,8 +141,10 @@ const isSunOS = process.platform === 'sunos';
 const isFreeBSD = process.platform === 'freebsd';
 const isOpenBSD = process.platform === 'openbsd';
 const isLinux = process.platform === 'linux';
-const isOSX = process.platform === 'darwin';
+const isMacOS = process.platform === 'darwin';
 const isASan = process.config.variables.asan === 1;
+const isRiscv64 = process.arch === 'riscv64';
+const isDebug = process.features.debug;
 const isPi = (() => {
   try {
     // Normal Raspberry Pi detection is to find the `Raspberry Pi` string in
@@ -189,7 +204,7 @@ if (process.env.NODE_TEST_WITH_ASYNC_HOOKS) {
       }
       initHandles[id] = {
         resource,
-        stack: inspect(new Error()).substr(6),
+        stack: inspect(new Error()).slice(6),
       };
     },
     before() { },
@@ -234,15 +249,13 @@ const PIPE = (() => {
 // `$node --abort-on-uncaught-exception $file child`
 // the process aborts.
 function childShouldThrowAndAbort() {
-  let testCmd = '';
+  const escapedArgs = escapePOSIXShell`"${process.argv[0]}" --abort-on-uncaught-exception "${process.argv[1]}" child`;
   if (!isWindows) {
     // Do not create core files, as it can take a lot of disk space on
     // continuous testing and developers' machines
-    testCmd += 'ulimit -c 0 && ';
+    escapedArgs[0] = 'ulimit -c 0 && ' + escapedArgs[0];
   }
-  testCmd += `"${process.argv[0]}" --abort-on-uncaught-exception `;
-  testCmd += `"${process.argv[1]}" child`;
-  const child = exec(testCmd);
+  const child = exec(...escapedArgs);
   child.on('exit', function onExit(exitCode, signal) {
     const errMsg = 'Test should have aborted ' +
                    `but instead exited with exit code ${exitCode}` +
@@ -267,7 +280,7 @@ function platformTimeout(ms) {
   const multipliers = typeof ms === 'bigint' ?
     { two: 2n, four: 4n, seven: 7n } : { two: 2, four: 4, seven: 7 };
 
-  if (process.features.debug)
+  if (isDebug)
     ms = multipliers.two * ms;
 
   if (exports.isAIX || exports.isIBMi)
@@ -276,10 +289,15 @@ function platformTimeout(ms) {
   if (isPi)
     return multipliers.two * ms;  // Raspberry Pi devices
 
+  if (isRiscv64) {
+    return multipliers.four * ms;
+  }
+
   return ms;
 }
 
 let knownGlobals = [
+  AbortController,
   atob,
   btoa,
   clearImmediate,
@@ -291,15 +309,6 @@ let knownGlobals = [
   setTimeout,
   queueMicrotask,
 ];
-
-// TODO(@jasnell): This check can be temporary. AbortController is
-// not currently supported in either Node.js 12 or 10, making it
-// difficult to run tests comparatively on those versions. Once
-// all supported versions have AbortController as a global, this
-// check can be removed and AbortController can be added to the
-// knownGlobals list above.
-if (global.AbortController)
-  knownGlobals.push(global.AbortController);
 
 if (global.gc) {
   knownGlobals.push(global.gc);
@@ -333,6 +342,10 @@ if (global.structuredClone) {
   knownGlobals.push(global.structuredClone);
 }
 
+if (global.EventSource) {
+  knownGlobals.push(EventSource);
+}
+
 if (global.fetch) {
   knownGlobals.push(fetch);
 }
@@ -364,6 +377,14 @@ if (global.ReadableStream) {
     global.TextDecoderStream,
     global.CompressionStream,
     global.DecompressionStream,
+  );
+}
+
+if (global.Storage) {
+  knownGlobals.push(
+    global.localStorage,
+    global.sessionStorage,
+    global.Storage,
   );
 }
 
@@ -500,7 +521,7 @@ function hasMultiLocalhost() {
 
 function skipIfEslintMissing() {
   if (!fs.existsSync(
-    path.join(__dirname, '..', '..', 'tools', 'node_modules', 'eslint'),
+    path.join(__dirname, '..', '..', 'tools', 'eslint', 'node_modules', 'eslint'),
   )) {
     skip('missing ESLint');
   }
@@ -528,25 +549,13 @@ function canCreateSymLink() {
   return true;
 }
 
-function getCallSite(top) {
-  const originalStackFormatter = Error.prepareStackTrace;
-  Error.prepareStackTrace = (err, stack) =>
-    `${stack[0].getFileName()}:${stack[0].getLineNumber()}`;
-  const err = new Error();
-  Error.captureStackTrace(err, top);
-  // With the V8 Error API, the stack is not formatted until it is accessed
-  err.stack; // eslint-disable-line no-unused-expressions
-  Error.prepareStackTrace = originalStackFormatter;
-  return err.stack;
-}
-
 function mustNotCall(msg) {
-  const callSite = getCallSite(mustNotCall);
+  const callSite = getCallSites()[1];
   return function mustNotCall(...args) {
     const argsInfo = args.length > 0 ?
       `\ncalled with arguments: ${args.map((arg) => inspect(arg)).join(', ')}` : '';
     assert.fail(
-      `${msg || 'function should not have been called'} at ${callSite}` +
+      `${msg || 'function should not have been called'} at ${callSite.scriptName}:${callSite.lineNumber}` +
       argsInfo);
   };
 }
@@ -833,30 +842,6 @@ function skipIfDumbTerminal() {
   }
 }
 
-function gcUntil(name, condition) {
-  if (typeof name === 'function') {
-    condition = name;
-    name = undefined;
-  }
-  return new Promise((resolve, reject) => {
-    let count = 0;
-    function gcAndCheck() {
-      setImmediate(() => {
-        count++;
-        global.gc();
-        if (condition()) {
-          resolve();
-        } else if (count < 10) {
-          gcAndCheck();
-        } else {
-          reject(name === undefined ? undefined : 'Test ' + name + ' failed');
-        }
-      });
-    }
-    gcAndCheck();
-  });
-}
-
 function requireNoPackageJSONAbove(dir = __dirname) {
   let possiblePackage = path.join(dir, '..', 'package.json');
   let lastPackage = null;
@@ -900,6 +885,32 @@ function spawnPromisified(...args) {
     });
   });
 }
+
+/**
+ * Escape values in a string template literal. On Windows, this function
+ * does not escape anything (which is fine for paths, as `"` is not a valid char
+ * in a path on Windows), so you should use it only to escape paths – or other
+ * values on tests which are skipped on Windows.
+ * This function is meant to be used for tagged template strings.
+ * @returns {[string, object | undefined]} An array that can be passed as
+ *                                         arguments to `exec` or `execSync`.
+ */
+function escapePOSIXShell(cmdParts, ...args) {
+  if (common.isWindows) {
+    // On Windows, paths cannot contain `"`, so we can return the string unchanged.
+    return [String.raw({ raw: cmdParts }, ...args)];
+  }
+  // On POSIX shells, we can pass values via the env, as there's a standard way for referencing a variable.
+  const env = { ...process.env };
+  let cmd = cmdParts[0];
+  for (let i = 0; i < args.length; i++) {
+    const envVarName = `ESCAPED_${i}`;
+    env[envVarName] = args[i];
+    cmd += '${' + envVarName + '}' + cmdParts[i + 1];
+  }
+
+  return [cmd, { env }];
+};
 
 function getPrintedStackTrace(stderr) {
   const lines = stderr.split('\n');
@@ -947,9 +958,14 @@ function getPrintedStackTrace(stderr) {
  * @param {object} mod result returned by require()
  * @param {object} expectation shape of expected namespace.
  */
-function expectRequiredModule(mod, expectation) {
+function expectRequiredModule(mod, expectation, checkESModule = true) {
+  const clone = { ...mod };
+  if (Object.hasOwn(mod, 'default') && checkESModule) {
+    assert.strictEqual(mod.__esModule, true);
+    delete clone.__esModule;
+  }
   assert(isModuleNamespaceObject(mod));
-  assert.deepStrictEqual({ ...mod }, { ...expectation });
+  assert.deepStrictEqual(clone, { ...expectation });
 }
 
 const common = {
@@ -959,30 +975,29 @@ const common = {
   childShouldThrowAndAbort,
   createZeroFilledFile,
   defaultAutoSelectFamilyAttemptTimeout,
+  escapePOSIXShell,
   expectsError,
   expectRequiredModule,
   expectWarning,
-  gcUntil,
   getArrayBufferViews,
   getBufferSources,
-  getCallSite,
   getPrintedStackTrace,
   getTTYfd,
   hasIntl,
   hasCrypto,
-  hasOpenSSL3,
-  hasOpenSSL31,
+  hasOpenSSL,
   hasQuic,
   hasMultiLocalhost,
   invalidArgTypeHelper,
   isAlive,
   isASan,
+  isDebug,
   isDumbTerminal,
   isFreeBSD,
   isLinux,
   isMainThread,
   isOpenBSD,
-  isOSX,
+  isMacOS,
   isPi,
   isSunOS,
   isWindows,
@@ -1030,6 +1045,10 @@ const common = {
       return re.test(name) &&
              iFaces[name].some(({ family }) => family === 'IPv6');
     });
+  },
+
+  get hasOpenSSL3() {
+    return hasOpenSSL(3);
   },
 
   get inFreeBSDJail() {

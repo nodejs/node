@@ -2,17 +2,15 @@
 
 'use strict'
 
-const { extractBody, mixinBody, cloneBody } = require('./body')
-const { Headers, fill: fillHeaders, HeadersList } = require('./headers')
+const { extractBody, mixinBody, cloneBody, bodyUnusable } = require('./body')
+const { Headers, fill: fillHeaders, HeadersList, setHeadersGuard, getHeadersGuard, setHeadersList, getHeadersList } = require('./headers')
 const { FinalizationRegistry } = require('./dispatcher-weakref')()
 const util = require('../../core/util')
 const nodeUtil = require('node:util')
 const {
   isValidHTTPToken,
   sameOrigin,
-  normalizeMethod,
-  makePolicyContainer,
-  normalizeMethodRecord
+  environmentSettingsObject
 } = require('./util')
 const {
   forbiddenMethodsSet,
@@ -24,12 +22,11 @@ const {
   requestCache,
   requestDuplex
 } = require('./constants')
-const { kEnumerableProperty } = util
-const { kHeaders, kSignal, kState, kGuard, kRealm, kDispatcher } = require('./symbols')
+const { kEnumerableProperty, normalizedMethodRecordsBase, normalizedMethodRecords } = util
+const { kHeaders, kSignal, kState, kDispatcher } = require('./symbols')
 const { webidl } = require('./webidl')
-const { getGlobalOrigin } = require('./global')
 const { URLSerializer } = require('./data-url')
-const { kHeadersList, kConstruct } = require('../../core/symbols')
+const { kConstruct } = require('../../core/symbols')
 const assert = require('node:assert')
 const { getMaxListeners, setMaxListeners, getEventListeners, defaultMaxListeners } = require('node:events')
 
@@ -39,31 +36,62 @@ const requestFinalizer = new FinalizationRegistry(({ signal, abort }) => {
   signal.removeEventListener('abort', abort)
 })
 
+const dependentControllerMap = new WeakMap()
+
+function buildAbort (acRef) {
+  return abort
+
+  function abort () {
+    const ac = acRef.deref()
+    if (ac !== undefined) {
+      // Currently, there is a problem with FinalizationRegistry.
+      // https://github.com/nodejs/node/issues/49344
+      // https://github.com/nodejs/node/issues/47748
+      // In the case of abort, the first step is to unregister from it.
+      // If the controller can refer to it, it is still registered.
+      // It will be removed in the future.
+      requestFinalizer.unregister(abort)
+
+      // Unsubscribe a listener.
+      // FinalizationRegistry will no longer be called, so this must be done.
+      this.removeEventListener('abort', abort)
+
+      ac.abort(this.reason)
+
+      const controllerList = dependentControllerMap.get(ac.signal)
+
+      if (controllerList !== undefined) {
+        if (controllerList.size !== 0) {
+          for (const ref of controllerList) {
+            const ctrl = ref.deref()
+            if (ctrl !== undefined) {
+              ctrl.abort(this.reason)
+            }
+          }
+          controllerList.clear()
+        }
+        dependentControllerMap.delete(ac.signal)
+      }
+    }
+  }
+}
+
 let patchMethodWarning = false
 
 // https://fetch.spec.whatwg.org/#request-class
 class Request {
   // https://fetch.spec.whatwg.org/#dom-request
   constructor (input, init = {}) {
+    webidl.util.markAsUncloneable(this)
     if (input === kConstruct) {
       return
     }
 
-    webidl.argumentLengthCheck(arguments, 1, { header: 'Request constructor' })
+    const prefix = 'Request constructor'
+    webidl.argumentLengthCheck(arguments, 1, prefix)
 
-    input = webidl.converters.RequestInfo(input)
-    init = webidl.converters.RequestInit(init)
-
-    // https://html.spec.whatwg.org/multipage/webappapis.html#environment-settings-object
-    this[kRealm] = {
-      settingsObject: {
-        baseUrl: getGlobalOrigin(),
-        get origin () {
-          return this.baseUrl?.origin
-        },
-        policyContainer: makePolicyContainer()
-      }
-    }
+    input = webidl.converters.RequestInfo(input, prefix, 'input')
+    init = webidl.converters.RequestInit(init, prefix, 'init')
 
     // 1. Let request be null.
     let request = null
@@ -72,7 +100,7 @@ class Request {
     let fallbackMode = null
 
     // 3. Let baseURL be this’s relevant settings object’s API base URL.
-    const baseUrl = this[kRealm].settingsObject.baseUrl
+    const baseUrl = environmentSettingsObject.settingsObject.baseUrl
 
     // 4. Let signal be null.
     let signal = null
@@ -119,7 +147,7 @@ class Request {
     }
 
     // 7. Let origin be this’s relevant settings object’s origin.
-    const origin = this[kRealm].settingsObject.origin
+    const origin = environmentSettingsObject.settingsObject.origin
 
     // 8. Let window be "client".
     let window = 'client'
@@ -155,7 +183,7 @@ class Request {
       // unsafe-request flag Set.
       unsafeRequest: request.unsafeRequest,
       // client This’s relevant settings object.
-      client: this[kRealm].settingsObject,
+      client: environmentSettingsObject.settingsObject,
       // window window.
       window,
       // priority request’s priority.
@@ -244,7 +272,7 @@ class Request {
         // then set request’s referrer to "client".
         if (
           (parsedReferrer.protocol === 'about:' && parsedReferrer.hostname === 'client') ||
-          (origin && !sameOrigin(parsedReferrer, this[kRealm].settingsObject.baseUrl))
+          (origin && !sameOrigin(parsedReferrer, environmentSettingsObject.settingsObject.baseUrl))
         ) {
           request.referrer = 'client'
         } else {
@@ -320,7 +348,7 @@ class Request {
       // 1. Let method be init["method"].
       let method = init.method
 
-      const mayBeNormalized = normalizeMethodRecord[method]
+      const mayBeNormalized = normalizedMethodRecords[method]
 
       if (mayBeNormalized !== undefined) {
         // Note: Bypass validation DELETE, GET, HEAD, OPTIONS, POST, PUT, PATCH and these lowercase ones
@@ -332,12 +360,16 @@ class Request {
           throw new TypeError(`'${method}' is not a valid HTTP method.`)
         }
 
-        if (forbiddenMethodsSet.has(method.toUpperCase())) {
+        const upperCase = method.toUpperCase()
+
+        if (forbiddenMethodsSet.has(upperCase)) {
           throw new TypeError(`'${method}' HTTP method is unsupported.`)
         }
 
         // 3. Normalize method.
-        method = normalizeMethod(method)
+        // https://fetch.spec.whatwg.org/#concept-method-normalize
+        // Note: must be in uppercase
+        method = normalizedMethodRecordsBase[upperCase] ?? method
 
         // 4. Set request’s method to method.
         request.method = method
@@ -366,7 +398,6 @@ class Request {
     // (https://dom.spec.whatwg.org/#dom-abortsignal-any)
     const ac = new AbortController()
     this[kSignal] = ac.signal
-    this[kSignal][kRealm] = this[kRealm]
 
     // 29. If signal is not null, then make this’s signal follow signal.
     if (signal != null) {
@@ -390,24 +421,7 @@ class Request {
         this[kAbortController] = ac
 
         const acRef = new WeakRef(ac)
-        const abort = function () {
-          const ac = acRef.deref()
-          if (ac !== undefined) {
-            // Currently, there is a problem with FinalizationRegistry.
-            // https://github.com/nodejs/node/issues/49344
-            // https://github.com/nodejs/node/issues/47748
-            // In the case of abort, the first step is to unregister from it.
-            // If the controller can refer to it, it is still registered.
-            // It will be removed in the future.
-            requestFinalizer.unregister(abort)
-
-            // Unsubscribe a listener.
-            // FinalizationRegistry will no longer be called, so this must be done.
-            this.removeEventListener('abort', abort)
-
-            ac.abort(this.reason)
-          }
-        }
+        const abort = buildAbort(acRef)
 
         // Third-party AbortControllers may not work with these.
         // See, https://github.com/nodejs/undici/pull/1910#issuecomment-1464495619.
@@ -415,9 +429,9 @@ class Request {
           // If the max amount of listeners is equal to the default, increase it
           // This is only available in node >= v19.9.0
           if (typeof getMaxListeners === 'function' && getMaxListeners(signal) === defaultMaxListeners) {
-            setMaxListeners(100, signal)
+            setMaxListeners(1500, signal)
           } else if (getEventListeners(signal, 'abort').length >= defaultMaxListeners) {
-            setMaxListeners(100, signal)
+            setMaxListeners(1500, signal)
           }
         } catch {}
 
@@ -434,9 +448,8 @@ class Request {
     // Realm, whose header list is request’s header list and guard is
     // "request".
     this[kHeaders] = new Headers(kConstruct)
-    this[kHeaders][kHeadersList] = request.headersList
-    this[kHeaders][kGuard] = 'request'
-    this[kHeaders][kRealm] = this[kRealm]
+    setHeadersList(this[kHeaders], request.headersList)
+    setHeadersGuard(this[kHeaders], 'request')
 
     // 31. If this’s request’s mode is "no-cors", then:
     if (mode === 'no-cors') {
@@ -449,13 +462,13 @@ class Request {
       }
 
       // 2. Set this’s headers’s guard to "request-no-cors".
-      this[kHeaders][kGuard] = 'request-no-cors'
+      setHeadersGuard(this[kHeaders], 'request-no-cors')
     }
 
     // 32. If init is not empty, then:
     if (initHasKey) {
       /** @type {HeadersList} */
-      const headersList = this[kHeaders][kHeadersList]
+      const headersList = getHeadersList(this[kHeaders])
       // 1. Let headers be a copy of this’s headers and its associated header
       // list.
       // 2. If init["headers"] exists, then set headers to init["headers"].
@@ -467,8 +480,8 @@ class Request {
       // 4. If headers is a Headers object, then for each header in its header
       // list, append header’s name/header’s value to this’s headers.
       if (headers instanceof HeadersList) {
-        for (const [key, val] of headers) {
-          headersList.append(key, val)
+        for (const { name, value } of headers.rawValues()) {
+          headersList.append(name, value, false)
         }
         // Note: Copy the `set-cookie` meta-data.
         headersList.cookies = headers.cookies
@@ -509,7 +522,7 @@ class Request {
       // 3, If Content-Type is non-null and this’s headers’s header list does
       // not contain `Content-Type`, then append `Content-Type`/Content-Type to
       // this’s headers.
-      if (contentType && !this[kHeaders][kHeadersList].contains('content-type', true)) {
+      if (contentType && !getHeadersList(this[kHeaders]).contains('content-type', true)) {
         this[kHeaders].append('content-type', contentType)
       }
     }
@@ -545,7 +558,7 @@ class Request {
     // 40. If initBody is null and inputBody is non-null, then:
     if (initBody == null && inputBody != null) {
       // 1. If input is unusable, then throw a TypeError.
-      if (util.isDisturbed(inputBody.stream) || inputBody.stream.locked) {
+      if (bodyUnusable(input)) {
         throw new TypeError(
           'Cannot construct a Request with a Request object that has already been used.'
         )
@@ -747,7 +760,7 @@ class Request {
     webidl.brandCheck(this, Request)
 
     // 1. If this is unusable, then throw a TypeError.
-    if (this.bodyUsed || this.body?.locked) {
+    if (bodyUnusable(this)) {
       throw new TypeError('unusable')
     }
 
@@ -761,16 +774,21 @@ class Request {
     if (this.signal.aborted) {
       ac.abort(this.signal.reason)
     } else {
+      let list = dependentControllerMap.get(this.signal)
+      if (list === undefined) {
+        list = new Set()
+        dependentControllerMap.set(this.signal, list)
+      }
+      const acRef = new WeakRef(ac)
+      list.add(acRef)
       util.addAbortListener(
-        this.signal,
-        () => {
-          ac.abort(this.signal.reason)
-        }
+        ac.signal,
+        buildAbort(acRef)
       )
     }
 
     // 4. Return clonedRequestObject.
-    return fromInnerRequest(clonedRequest, ac.signal, this[kHeaders][kGuard], this[kRealm])
+    return fromInnerRequest(clonedRequest, ac.signal, getHeadersGuard(this[kHeaders]))
   }
 
   [nodeUtil.inspect.custom] (depth, options) {
@@ -804,51 +822,50 @@ class Request {
 
 mixinBody(Request)
 
+// https://fetch.spec.whatwg.org/#requests
 function makeRequest (init) {
-  // https://fetch.spec.whatwg.org/#requests
-  const request = {
-    method: 'GET',
-    localURLsOnly: false,
-    unsafeRequest: false,
-    body: null,
-    client: null,
-    reservedClient: null,
-    replacesClientId: '',
-    window: 'client',
-    keepalive: false,
-    serviceWorkers: 'all',
-    initiator: '',
-    destination: '',
-    priority: null,
-    origin: 'client',
-    policyContainer: 'client',
-    referrer: 'client',
-    referrerPolicy: '',
-    mode: 'no-cors',
-    useCORSPreflightFlag: false,
-    credentials: 'same-origin',
-    useCredentials: false,
-    cache: 'default',
-    redirect: 'follow',
-    integrity: '',
-    cryptoGraphicsNonceMetadata: '',
-    parserMetadata: '',
-    reloadNavigation: false,
-    historyNavigation: false,
-    userActivation: false,
-    taintedOrigin: false,
-    redirectCount: 0,
-    responseTainting: 'basic',
-    preventNoCacheCacheControlHeaderModification: false,
-    done: false,
-    timingAllowFailed: false,
-    ...init,
+  return {
+    method: init.method ?? 'GET',
+    localURLsOnly: init.localURLsOnly ?? false,
+    unsafeRequest: init.unsafeRequest ?? false,
+    body: init.body ?? null,
+    client: init.client ?? null,
+    reservedClient: init.reservedClient ?? null,
+    replacesClientId: init.replacesClientId ?? '',
+    window: init.window ?? 'client',
+    keepalive: init.keepalive ?? false,
+    serviceWorkers: init.serviceWorkers ?? 'all',
+    initiator: init.initiator ?? '',
+    destination: init.destination ?? '',
+    priority: init.priority ?? null,
+    origin: init.origin ?? 'client',
+    policyContainer: init.policyContainer ?? 'client',
+    referrer: init.referrer ?? 'client',
+    referrerPolicy: init.referrerPolicy ?? '',
+    mode: init.mode ?? 'no-cors',
+    useCORSPreflightFlag: init.useCORSPreflightFlag ?? false,
+    credentials: init.credentials ?? 'same-origin',
+    useCredentials: init.useCredentials ?? false,
+    cache: init.cache ?? 'default',
+    redirect: init.redirect ?? 'follow',
+    integrity: init.integrity ?? '',
+    cryptoGraphicsNonceMetadata: init.cryptoGraphicsNonceMetadata ?? '',
+    parserMetadata: init.parserMetadata ?? '',
+    reloadNavigation: init.reloadNavigation ?? false,
+    historyNavigation: init.historyNavigation ?? false,
+    userActivation: init.userActivation ?? false,
+    taintedOrigin: init.taintedOrigin ?? false,
+    redirectCount: init.redirectCount ?? 0,
+    responseTainting: init.responseTainting ?? 'basic',
+    preventNoCacheCacheControlHeaderModification: init.preventNoCacheCacheControlHeaderModification ?? false,
+    done: init.done ?? false,
+    timingAllowFailed: init.timingAllowFailed ?? false,
+    urlList: init.urlList,
+    url: init.urlList[0],
     headersList: init.headersList
       ? new HeadersList(init.headersList)
       : new HeadersList()
   }
-  request.url = request.urlList[0]
-  return request
 }
 
 // https://fetch.spec.whatwg.org/#concept-request-clone
@@ -861,7 +878,7 @@ function cloneRequest (request) {
   // 2. If request’s body is non-null, set newRequest’s body to the
   // result of cloning request’s body.
   if (request.body != null) {
-    newRequest.body = cloneBody(request.body)
+    newRequest.body = cloneBody(newRequest, request.body)
   }
 
   // 3. Return newRequest.
@@ -873,19 +890,15 @@ function cloneRequest (request) {
  * @param {any} innerRequest
  * @param {AbortSignal} signal
  * @param {'request' | 'immutable' | 'request-no-cors' | 'response' | 'none'} guard
- * @param {any} [realm]
  * @returns {Request}
  */
-function fromInnerRequest (innerRequest, signal, guard, realm) {
+function fromInnerRequest (innerRequest, signal, guard) {
   const request = new Request(kConstruct)
   request[kState] = innerRequest
-  request[kRealm] = realm
   request[kSignal] = signal
-  request[kSignal][kRealm] = realm
   request[kHeaders] = new Headers(kConstruct)
-  request[kHeaders][kHeadersList] = innerRequest.headersList
-  request[kHeaders][kGuard] = guard
-  request[kHeaders][kRealm] = realm
+  setHeadersList(request[kHeaders], innerRequest.headersList)
+  setHeadersGuard(request[kHeaders], guard)
   return request
 }
 
@@ -921,16 +934,16 @@ webidl.converters.Request = webidl.interfaceConverter(
 )
 
 // https://fetch.spec.whatwg.org/#requestinfo
-webidl.converters.RequestInfo = function (V) {
+webidl.converters.RequestInfo = function (V, prefix, argument) {
   if (typeof V === 'string') {
-    return webidl.converters.USVString(V)
+    return webidl.converters.USVString(V, prefix, argument)
   }
 
   if (V instanceof Request) {
-    return webidl.converters.Request(V)
+    return webidl.converters.Request(V, prefix, argument)
   }
 
-  return webidl.converters.USVString(V)
+  return webidl.converters.USVString(V, prefix, argument)
 }
 
 webidl.converters.AbortSignal = webidl.interfaceConverter(
@@ -1000,6 +1013,8 @@ webidl.converters.RequestInit = webidl.dictionaryConverter([
     converter: webidl.nullableConverter(
       (signal) => webidl.converters.AbortSignal(
         signal,
+        'RequestInit',
+        'signal',
         { strict: false }
       )
     )

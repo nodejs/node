@@ -6,13 +6,10 @@ if ((!common.hasCrypto) || (!common.hasIntl)) {
 }
 common.skipIfEslintMissing();
 
-const RuleTester = require('../../tools/node_modules/eslint').RuleTester;
+const RuleTester = require('../../tools/eslint/node_modules/eslint').RuleTester;
 const rule = require('../../tools/eslint-rules/alphabetize-errors');
 
-new RuleTester({
-  parserOptions: { ecmaVersion: 6 },
-  env: { es6: true }
-}).run('alphabetize-errors', rule, {
+new RuleTester().run('alphabetize-errors', rule, {
   valid: [
     { code: `
       E('AAA', 'foo');

@@ -488,11 +488,13 @@ The `RequestOptions.method` property should not be value `'CONNECT'`.
 
 `body` contains the following additional [body mixin](https://fetch.spec.whatwg.org/#body-mixin) methods and properties:
 
-- `text()`
-- `json()`
-- `arrayBuffer()`
-- `body`
-- `bodyUsed`
+* [`.arrayBuffer()`](https://fetch.spec.whatwg.org/#dom-body-arraybuffer)
+* [`.blob()`](https://fetch.spec.whatwg.org/#dom-body-blob)
+* [`.bytes()`](https://fetch.spec.whatwg.org/#dom-body-bytes)
+* [`.json()`](https://fetch.spec.whatwg.org/#dom-body-json)
+* [`.text()`](https://fetch.spec.whatwg.org/#dom-body-text)
+* `body`
+* `bodyUsed`
 
 `body` can not be consumed twice. For example, calling `text()` after `json()` throws `TypeError`.
 
@@ -951,6 +953,286 @@ const client = new Client("http://example.com").compose(
   })
 );
 ```
+
+##### `dump`
+
+The `dump` interceptor enables you to dump the response body from a request upon a given limit.
+
+**Options**
+- `maxSize` - The maximum size (in bytes) of the response body to dump. If the size of the request's body exceeds this value then the connection will be closed. Default: `1048576`.
+
+> The `Dispatcher#options` also gets extended with the options `dumpMaxSize`, `abortOnDumped`, and `waitForTrailers` which can be used to configure the interceptor at a request-per-request basis.
+
+**Example - Basic Dump Interceptor**
+
+```js
+const { Client, interceptors } = require("undici");
+const { dump } = interceptors;
+
+const client = new Client("http://example.com").compose(
+  dump({
+    maxSize: 1024,
+  })
+);
+
+// or 
+client.dispatch(
+  {
+    path: "/",
+    method: "GET",
+    dumpMaxSize: 1024,
+  },
+  handler
+);
+```
+
+##### `dns`
+
+The `dns` interceptor enables you to cache DNS lookups for a given duration, per origin.
+
+>It is well suited for scenarios where you want to cache DNS lookups to avoid the overhead of resolving the same domain multiple times
+
+**Options**
+- `maxTTL` - The maximum time-to-live (in milliseconds) of the DNS cache. It should be a positive integer. Default: `10000`.
+  - Set `0` to disable TTL.
+- `maxItems` - The maximum number of items to cache. It should be a positive integer. Default: `Infinity`.
+- `dualStack` - Whether to resolve both IPv4 and IPv6 addresses. Default: `true`.
+  - It will also attempt a happy-eyeballs-like approach to connect to the available addresses in case of a connection failure.
+- `affinity` - Whether to use IPv4 or IPv6 addresses. Default: `4`.
+  - It can be either `'4` or `6`.
+  - It will only take effect if `dualStack` is `false`.
+- `lookup: (hostname: string, options: LookupOptions, callback: (err: NodeJS.ErrnoException | null, addresses: DNSInterceptorRecord[]) => void) => void` - Custom lookup function. Default: `dns.lookup`.
+  - For more info see [dns.lookup](https://nodejs.org/api/dns.html#dns_dns_lookup_hostname_options_callback).
+- `pick: (origin: URL, records: DNSInterceptorRecords, affinity: 4 | 6) => DNSInterceptorRecord` - Custom pick function. Default: `RoundRobin`.
+  - The function should return a single record from the records array.
+  - By default a simplified version of Round Robin is used.
+  - The `records` property can be mutated to store the state of the balancing algorithm.
+
+> The `Dispatcher#options` also gets extended with the options `dns.affinity`, `dns.dualStack`, `dns.lookup` and `dns.pick` which can be used to configure the interceptor at a request-per-request basis.
+
+
+**DNSInterceptorRecord**
+It represents a DNS record.
+- `family` - (`number`) The IP family of the address. It can be either `4` or `6`.
+- `address` - (`string`) The IP address.
+
+**DNSInterceptorOriginRecords**
+It represents a map of DNS IP addresses records for a single origin.
+- `4.ips` - (`DNSInterceptorRecord[] | null`) The IPv4 addresses.
+- `6.ips` - (`DNSInterceptorRecord[] | null`) The IPv6 addresses.
+
+**Example - Basic DNS Interceptor**
+
+```js
+const { Client, interceptors } = require("undici");
+const { dns } = interceptors;
+
+const client = new Agent().compose([
+  dns({ ...opts })
+])
+
+const response = await client.request({
+  origin: `http://localhost:3030`,
+  ...requestOpts
+})
+```
+
+##### `Response Error Interceptor`
+
+**Introduction**
+
+The Response Error Interceptor is designed to handle HTTP response errors efficiently. It intercepts responses and throws detailed errors for responses with status codes indicating failure (4xx, 5xx). This interceptor enhances error handling by providing structured error information, including response headers, data, and status codes.
+
+**ResponseError Class**
+
+The `ResponseError` class extends the `UndiciError` class and encapsulates detailed error information. It captures the response status code, headers, and data, providing a structured way to handle errors.
+
+**Definition**
+
+```js
+class ResponseError extends UndiciError {
+  constructor (message, code, { headers, data }) {
+    super(message);
+    this.name = 'ResponseError';
+    this.message = message || 'Response error';
+    this.code = 'UND_ERR_RESPONSE';
+    this.statusCode = code;
+    this.data = data;
+    this.headers = headers;
+  }
+}
+```
+
+**Interceptor Handler**
+
+The interceptor's handler class extends `DecoratorHandler` and overrides methods to capture response details and handle errors based on the response status code.
+
+**Methods**
+
+- **onConnect**: Initializes response properties.
+- **onHeaders**: Captures headers and status code. Decodes body if content type is `application/json` or `text/plain`.
+- **onData**: Appends chunks to the body if status code indicates an error.
+- **onComplete**: Finalizes error handling, constructs a `ResponseError`, and invokes the `onError` method.
+- **onError**: Propagates errors to the handler.
+
+**Definition**
+
+```js
+class Handler extends DecoratorHandler {
+  // Private properties
+  #handler;
+  #statusCode;
+  #contentType;
+  #decoder;
+  #headers;
+  #body;
+
+  constructor (opts, { handler }) {
+    super(handler);
+    this.#handler = handler;
+  }
+
+  onConnect (abort) {
+    this.#statusCode = 0;
+    this.#contentType = null;
+    this.#decoder = null;
+    this.#headers = null;
+    this.#body = '';
+    return this.#handler.onConnect(abort);
+  }
+
+  onHeaders (statusCode, rawHeaders, resume, statusMessage, headers = parseHeaders(rawHeaders)) {
+    this.#statusCode = statusCode;
+    this.#headers = headers;
+    this.#contentType = headers['content-type'];
+
+    if (this.#statusCode < 400) {
+      return this.#handler.onHeaders(statusCode, rawHeaders, resume, statusMessage, headers);
+    }
+
+    if (this.#contentType === 'application/json' || this.#contentType === 'text/plain') {
+      this.#decoder = new TextDecoder('utf-8');
+    }
+  }
+
+  onData (chunk) {
+    if (this.#statusCode < 400) {
+      return this.#handler.onData(chunk);
+    }
+    this.#body += this.#decoder?.decode(chunk, { stream: true }) ?? '';
+  }
+
+  onComplete (rawTrailers) {
+    if (this.#statusCode >= 400) {
+      this.#body += this.#decoder?.decode(undefined, { stream: false }) ?? '';
+      if (this.#contentType === 'application/json') {
+        try {
+          this.#body = JSON.parse(this.#body);
+        } catch {
+          // Do nothing...
+        }
+      }
+
+      let err;
+      const stackTraceLimit = Error.stackTraceLimit;
+      Error.stackTraceLimit = 0;
+      try {
+        err = new ResponseError('Response Error', this.#statusCode, this.#headers, this.#body);
+      } finally {
+        Error.stackTraceLimit = stackTraceLimit;
+      }
+
+      this.#handler.onError(err);
+    } else {
+      this.#handler.onComplete(rawTrailers);
+    }
+  }
+
+  onError (err) {
+    this.#handler.onError(err);
+  }
+}
+
+module.exports = (dispatch) => (opts, handler) => opts.throwOnError
+  ? dispatch(opts, new Handler(opts, { handler }))
+  : dispatch(opts, handler);
+```
+
+**Tests**
+
+Unit tests ensure the interceptor functions correctly, handling both error and non-error responses appropriately.
+
+**Example Tests**
+
+- **No Error if `throwOnError` is False**:
+
+```js
+test('should not error if request is not meant to throw error', async (t) => {
+  const opts = { throwOnError: false };
+  const handler = { onError: () => {}, onData: () => {}, onComplete: () => {} };
+  const interceptor = createResponseErrorInterceptor((opts, handler) => handler.onComplete());
+  assert.doesNotThrow(() => interceptor(opts, handler));
+});
+```
+
+- **Error if Status Code is in Specified Error Codes**:
+
+```js
+test('should error if request status code is in the specified error codes', async (t) => {
+  const opts = { throwOnError: true, statusCodes: [500] };
+  const response = { statusCode: 500 };
+  let capturedError;
+  const handler = {
+    onError: (err) => { capturedError = err; },
+    onData: () => {},
+    onComplete: () => {}
+  };
+
+  const interceptor = createResponseErrorInterceptor((opts, handler) => {
+    if (opts.throwOnError && opts.statusCodes.includes(response.statusCode)) {
+      handler.onError(new Error('Response Error'));
+    } else {
+      handler.onComplete();
+    }
+  });
+
+  interceptor({ ...opts, response }, handler);
+
+  await new Promise(resolve => setImmediate(resolve));
+
+  assert(capturedError, 'Expected error to be captured but it was not.');
+  assert.strictEqual(capturedError.message, 'Response Error');
+  assert.strictEqual(response.statusCode, 500);
+});
+```
+
+- **No Error if Status Code is Not in Specified Error Codes**:
+
+```js
+test('should not error if request status code is not in the specified error codes', async (t) => {
+  const opts = { throwOnError: true, statusCodes: [500] };
+  const response = { statusCode: 404 };
+  const handler = {
+    onError: () => {},
+    onData: () => {},
+    onComplete: () => {}
+  };
+
+  const interceptor = createResponseErrorInterceptor((opts, handler) => {
+    if (opts.throwOnError && opts.statusCodes.includes(response.statusCode)) {
+      handler.onError(new Error('Response Error'));
+    } else {
+      handler.onComplete();
+    }
+  });
+
+  assert.doesNotThrow(() => interceptor({ ...opts, response }, handler));
+});
+```
+
+**Conclusion**
+
+The Response Error Interceptor provides a robust mechanism for handling HTTP response errors by capturing detailed error information and propagating it through a structured `ResponseError` class. This enhancement improves error handling and debugging capabilities in applications using the interceptor.
 
 ## Instance Events
 

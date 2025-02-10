@@ -6,10 +6,8 @@ const {
   ClientClosedError,
   InvalidArgumentError
 } = require('../core/errors')
-const { kDestroy, kClose, kDispatch, kInterceptors } = require('../core/symbols')
+const { kDestroy, kClose, kClosed, kDestroyed, kDispatch, kInterceptors } = require('../core/symbols')
 
-const kDestroyed = Symbol('destroyed')
-const kClosed = Symbol('closed')
 const kOnDestroyed = Symbol('onDestroyed')
 const kOnClosed = Symbol('onClosed')
 const kInterceptedDispatch = Symbol('Intercepted Dispatch')

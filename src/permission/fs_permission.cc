@@ -57,15 +57,18 @@ bool is_tree_granted(
     const std::string_view& param) {
   std::string resolved_param = node::PathResolve(env, {param});
 #ifdef _WIN32
-  // is UNC file path
-  if (resolved_param.rfind("\\\\", 0) == 0) {
-    // return lookup with normalized param
-    size_t starting_pos = 4;  // "\\?\"
-    if (resolved_param.rfind("\\\\?\\UNC\\") == 0) {
-      starting_pos += 4;  // "UNC\"
-    }
-    auto normalized = param.substr(starting_pos);
-    return granted_tree->Lookup(normalized, true);
+  // Remove leading "\\?\" from UNC path
+  if (resolved_param.substr(0, 4) == "\\\\?\\") {
+    resolved_param.erase(0, 4);
+  }
+
+  // Remove leading "UNC\" from UNC path
+  if (resolved_param.substr(0, 4) == "UNC\\") {
+    resolved_param.erase(0, 4);
+  }
+  // Remove leading "//" from UNC path
+  if (resolved_param.substr(0, 2) == "//") {
+    resolved_param.erase(0, 2);
   }
 #endif
   return granted_tree->Lookup(resolved_param, true);
@@ -177,7 +180,7 @@ FSPermission::RadixTree::~RadixTree() {
 bool FSPermission::RadixTree::Lookup(const std::string_view& s,
                                      bool when_empty_return) const {
   FSPermission::RadixTree::Node* current_node = root_node_;
-  if (current_node->children.size() == 0) {
+  if (current_node->children.empty()) {
     return when_empty_return;
   }
   size_t parent_node_prefix_len = current_node->prefix.length();
@@ -224,8 +227,8 @@ void FSPermission::RadixTree::Insert(const std::string& path) {
     }
   }
 
-  if (UNLIKELY(per_process::enabled_debug_list.enabled(
-          DebugCategory::PERMISSION_MODEL))) {
+  if (per_process::enabled_debug_list.enabled(DebugCategory::PERMISSION_MODEL))
+      [[unlikely]] {
     per_process::Debug(DebugCategory::PERMISSION_MODEL, "Inserting %s\n", path);
     PrintTree(root_node_);
   }

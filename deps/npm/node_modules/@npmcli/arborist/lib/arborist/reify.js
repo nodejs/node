@@ -11,14 +11,14 @@ const { log, time } = require('proc-log')
 const hgi = require('hosted-git-info')
 const rpj = require('read-package-json-fast')
 
-const { dirname, resolve, relative, join } = require('path')
+const { dirname, resolve, relative, join } = require('node:path')
 const { depth: dfwalk } = require('treeverse')
 const {
   lstat,
   mkdir,
   rm,
   symlink,
-} = require('fs/promises')
+} = require('node:fs/promises')
 const { moveFile } = require('@npmcli/fs')
 const PackageJson = require('@npmcli/package-json')
 const packageContents = require('@npmcli/installed-package-contents')

@@ -107,7 +107,7 @@ class Calculator {
 
     const timeEnd = time.start(`metavuln:packument:${name}`)
     const p = pacote.packument(name, { ...this[_options] })
-      .catch((er) => {
+      .catch(() => {
         // presumably not something from the registry.
         // an empty packument will have an effective range of *
         return {

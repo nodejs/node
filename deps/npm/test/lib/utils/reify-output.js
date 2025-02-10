@@ -23,6 +23,7 @@ const mockReify = async (t, reify, { command, ...config } = {}) => {
   })
 
   reifyOutput(mock.npm, reify)
+  mock.npm.finish()
 
   return mock.joinedOutput()
 }

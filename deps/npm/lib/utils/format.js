@@ -1,4 +1,4 @@
-const { formatWithOptions: baseFormatWithOptions } = require('util')
+const { formatWithOptions: baseFormatWithOptions } = require('node:util')
 
 // These are most assuredly not a mistake
 // https://eslint.org/docs/latest/rules/no-control-regex

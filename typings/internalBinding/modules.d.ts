@@ -23,4 +23,5 @@ export interface ModulesBinding {
   getNearestParentPackageJSONType(path: string): PackageConfig['type']
   getPackageScopeConfig(path: string): SerializedPackageConfig | undefined
   getPackageJSONScripts(): string | undefined
+  flushCompileCache(keepDeserializedCache?: boolean): void
 }

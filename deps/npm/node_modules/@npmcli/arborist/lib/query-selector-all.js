@@ -1,6 +1,6 @@
 'use strict'
 
-const { resolve } = require('path')
+const { resolve } = require('node:path')
 const { parser, arrayDelimiter } = require('@npmcli/query')
 const localeCompare = require('@isaacs/string-locale-compare')('en')
 const { log } = require('proc-log')

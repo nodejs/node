@@ -83,7 +83,7 @@ except ImportError:
 
 
 logger = logging.getLogger('testrunner')
-skip_regex = re.compile(r'# SKIP\S*\s+(.*)', re.IGNORECASE)
+skip_regex = re.compile(r'(?:\d+\.\.\d+|ok|not ok).*# SKIP\S*\s+(.*)', re.IGNORECASE)
 
 VERBOSE = False
 
@@ -1584,6 +1584,7 @@ IGNORED_SUITES = [
   'js-native-api',
   'node-api',
   'pummel',
+  'sqlite',
   'tick-processor',
   'v8-updates'
 ]

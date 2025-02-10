@@ -13,13 +13,13 @@ const fixtures = require('../common/fixtures');
 const file = fixtures.path('permission', 'processbinding.js');
 
 // Due to linting rules-utils.js:isBinding check, process.binding() should
-// not be called when --experimental-permission is enabled.
+// not be called when --permission is enabled.
 // Always spawn a child process
 {
   const { status, stderr } = spawnSync(
     process.execPath,
     [
-      '--experimental-permission', '--allow-fs-read=*', file,
+      '--permission', '--allow-fs-read=*', file,
     ],
   );
   assert.strictEqual(status, 0, stderr.toString());

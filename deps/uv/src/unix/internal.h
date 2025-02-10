@@ -71,8 +71,11 @@
 # include <poll.h>
 #endif /* _AIX */
 
-#if defined(__APPLE__) && !TARGET_OS_IPHONE
-# include <AvailabilityMacros.h>
+#if defined(__APPLE__)
+# include "darwin-syscalls.h"
+# if !TARGET_OS_IPHONE
+#  include <AvailabilityMacros.h>
+# endif
 #endif
 
 /*
@@ -157,7 +160,8 @@ typedef struct uv__stream_queued_fds_s uv__stream_queued_fds_t;
 /* loop flags */
 enum {
   UV_LOOP_BLOCK_SIGPROF = 0x1,
-  UV_LOOP_REAP_CHILDREN = 0x2
+  UV_LOOP_REAP_CHILDREN = 0x2,
+  UV_LOOP_ENABLE_IO_URING_SQPOLL = 0x4
 };
 
 /* flags of excluding ifaddr */
@@ -243,6 +247,7 @@ int uv__close(int fd); /* preserves errno */
 int uv__close_nocheckstdio(int fd);
 int uv__close_nocancel(int fd);
 int uv__socket(int domain, int type, int protocol);
+int uv__sock_reuseport(int fd);
 ssize_t uv__recvmsg(int fd, struct msghdr *msg, int flags);
 void uv__make_close_pending(uv_handle_t* handle);
 int uv__getiovmax(void);
@@ -286,6 +291,9 @@ int uv__slurp(const char* filename, char* buf, size_t len);
 int uv__tcp_listen(uv_tcp_t* tcp, int backlog, uv_connection_cb cb);
 int uv__tcp_nodelay(int fd, int on);
 int uv__tcp_keepalive(int fd, int on, unsigned int delay);
+
+/* tty */
+void uv__tty_close(uv_tty_t* handle);
 
 /* pipe */
 int uv__pipe_listen(uv_pipe_t* handle, int backlog, uv_connection_cb cb);
@@ -332,6 +340,7 @@ int uv__random_sysctl(void* buf, size_t buflen);
 /* io_uring */
 #ifdef __linux__
 int uv__iou_fs_close(uv_loop_t* loop, uv_fs_t* req);
+int uv__iou_fs_ftruncate(uv_loop_t* loop, uv_fs_t* req);
 int uv__iou_fs_fsync_or_fdatasync(uv_loop_t* loop,
                                   uv_fs_t* req,
                                   uint32_t fsync_flags);
@@ -350,6 +359,7 @@ int uv__iou_fs_symlink(uv_loop_t* loop, uv_fs_t* req);
 int uv__iou_fs_unlink(uv_loop_t* loop, uv_fs_t* req);
 #else
 #define uv__iou_fs_close(loop, req) 0
+#define uv__iou_fs_ftruncate(loop, req) 0
 #define uv__iou_fs_fsync_or_fdatasync(loop, req, fsync_flags) 0
 #define uv__iou_fs_link(loop, req) 0
 #define uv__iou_fs_mkdir(loop, req) 0
@@ -470,6 +480,28 @@ uv__fs_copy_file_range(int fd_in,
 #define UV__CPU_AFFINITY_SUPPORTED 1
 #else
 #define UV__CPU_AFFINITY_SUPPORTED 0
+#endif
+
+#ifdef __linux__
+typedef struct {
+  long long quota_per_period;
+  long long period_length;
+  double proportions;
+} uv__cpu_constraint;
+
+int uv__get_constrained_cpu(uv__cpu_constraint* constraint);
+#endif
+
+#if defined(__sun) && !defined(__illumos__)
+#ifdef SO_FLOW_NAME
+/* Since it's impossible to detect the Solaris 11.4 version via OS macros,
+ * so we check the presence of the socket option SO_FLOW_NAME that was first
+ * introduced to Solaris 11.4 and define a custom macro for determining 11.4.
+ */
+#define UV__SOLARIS_11_4 (1)
+#else
+#define UV__SOLARIS_11_4 (0)
+#endif
 #endif
 
 #endif /* UV_UNIX_INTERNAL_H_ */

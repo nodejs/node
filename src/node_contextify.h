@@ -19,6 +19,7 @@ struct ContextOptions {
   v8::Local<v8::Boolean> allow_code_gen_wasm;
   std::unique_ptr<v8::MicrotaskQueue> own_microtask_queue;
   v8::Local<v8::Symbol> host_defined_options_id;
+  bool vanilla = false;
 };
 
 class ContextifyContext : public BaseObject {
@@ -43,8 +44,7 @@ class ContextifyContext : public BaseObject {
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
   static ContextifyContext* ContextFromContextifiedSandbox(
-      Environment* env,
-      const v8::Local<v8::Object>& sandbox);
+      Environment* env, const v8::Local<v8::Object>& wrapper_holder);
 
   inline v8::Local<v8::Context> context() const {
     return PersistentToLocal::Default(env()->isolate(), context_);
@@ -55,8 +55,12 @@ class ContextifyContext : public BaseObject {
   }
 
   inline v8::Local<v8::Object> sandbox() const {
-    return context()->GetEmbedderData(ContextEmbedderIndex::kSandboxObject)
-        .As<v8::Object>();
+    // Only vanilla contexts have undefined sandboxes. sandbox() is only used by
+    // interceptors who are not supposed to be called on vanilla contexts.
+    v8::Local<v8::Value> result =
+        context()->GetEmbedderData(ContextEmbedderIndex::kSandboxObject);
+    CHECK(!result->IsUndefined());
+    return result.As<v8::Object>();
   }
 
   inline v8::MicrotaskQueue* microtask_queue() const {
@@ -94,8 +98,9 @@ class ContextifyContext : public BaseObject {
       bool produce_cached_data,
       v8::Local<v8::Symbol> id_symbol,
       const errors::TryCatchScope& try_catch);
-  static void WeakCallback(
-      const v8::WeakCallbackInfo<ContextifyContext>& data);
+  static v8::Intercepted PropertyQueryCallback(
+      v8::Local<v8::Name> property,
+      const v8::PropertyCallbackInfo<v8::Integer>& args);
   static v8::Intercepted PropertyGetterCallback(
       v8::Local<v8::Name> property,
       const v8::PropertyCallbackInfo<v8::Value>& args);
@@ -115,6 +120,8 @@ class ContextifyContext : public BaseObject {
       const v8::PropertyCallbackInfo<v8::Boolean>& args);
   static void PropertyEnumeratorCallback(
       const v8::PropertyCallbackInfo<v8::Array>& args);
+  static v8::Intercepted IndexedPropertyQueryCallback(
+      uint32_t index, const v8::PropertyCallbackInfo<v8::Integer>& args);
   static v8::Intercepted IndexedPropertyGetterCallback(
       uint32_t index, const v8::PropertyCallbackInfo<v8::Value>& args);
   static v8::Intercepted IndexedPropertySetterCallback(
@@ -129,6 +136,8 @@ class ContextifyContext : public BaseObject {
       const v8::PropertyCallbackInfo<void>& args);
   static v8::Intercepted IndexedPropertyDeleterCallback(
       uint32_t index, const v8::PropertyCallbackInfo<v8::Boolean>& args);
+  static void IndexedPropertyEnumeratorCallback(
+      const v8::PropertyCallbackInfo<v8::Array>& args);
 
   v8::Global<v8::Context> context_;
   std::unique_ptr<v8::MicrotaskQueue> microtask_queue_;
@@ -168,7 +177,7 @@ class ContextifyScript : public BaseObject {
   v8::Global<v8::UnboundScript> script_;
 };
 
-v8::Maybe<bool> StoreCodeCacheResult(
+v8::Maybe<void> StoreCodeCacheResult(
     Environment* env,
     v8::Local<v8::Object> target,
     v8::ScriptCompiler::CompileOptions compile_options,

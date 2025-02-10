@@ -1,4 +1,4 @@
-const crypto = require('crypto')
+const crypto = require('node:crypto')
 const normalizeData = require('normalize-package-data')
 const parseLicense = require('spdx-expression-parse')
 const npa = require('npm-package-arg')

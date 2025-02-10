@@ -16,12 +16,33 @@ const { kState } = require('./symbols')
 const { webidl } = require('./webidl')
 const { Blob } = require('node:buffer')
 const assert = require('node:assert')
-const { isErrored } = require('../../core/util')
+const { isErrored, isDisturbed } = require('node:stream')
 const { isArrayBuffer } = require('node:util/types')
 const { serializeAMimeType } = require('./data-url')
 const { multipartFormDataParser } = require('./formdata-parser')
+let random
+
+try {
+  const crypto = require('node:crypto')
+  random = (max) => crypto.randomInt(0, max)
+} catch {
+  random = (max) => Math.floor(Math.random(max))
+}
 
 const textEncoder = new TextEncoder()
+function noop () {}
+
+const hasFinalizationRegistry = globalThis.FinalizationRegistry && process.version.indexOf('v18') !== 0
+let streamRegistry
+
+if (hasFinalizationRegistry) {
+  streamRegistry = new FinalizationRegistry((weakRef) => {
+    const stream = weakRef.deref()
+    if (stream && !stream.locked && !isDisturbed(stream) && !isErrored(stream)) {
+      stream.cancel('Response object has been garbage collected').catch(noop)
+    }
+  })
+}
 
 // https://fetch.spec.whatwg.org/#concept-bodyinit-extract
 function extractBody (object, keepalive = false) {
@@ -100,7 +121,7 @@ function extractBody (object, keepalive = false) {
     // Set source to a copy of the bytes held by object.
     source = new Uint8Array(object.buffer.slice(object.byteOffset, object.byteOffset + object.byteLength))
   } else if (util.isFormDataLike(object)) {
-    const boundary = `----formdata-undici-0${`${Math.floor(Math.random() * 1e11)}`.padStart(11, '0')}`
+    const boundary = `----formdata-undici-0${`${random(1e11)}`.padStart(11, '0')}`
     const prefix = `--${boundary}\r\nContent-Disposition: form-data`
 
     /*! formdata-polyfill. MIT License. Jimmy Wärting <https://jimmy.warting.se/opensource> */
@@ -264,13 +285,17 @@ function safelyExtractBody (object, keepalive = false) {
   return extractBody(object, keepalive)
 }
 
-function cloneBody (body) {
+function cloneBody (instance, body) {
   // To clone a body body, run these steps:
 
   // https://fetch.spec.whatwg.org/#concept-body-clone
 
   // 1. Let « out1, out2 » be the result of teeing body’s stream.
   const [out1, out2] = body.stream.tee()
+
+  if (hasFinalizationRegistry) {
+    streamRegistry.register(instance, new WeakRef(out1))
+  }
 
   // 2. Set body’s stream to out1.
   body.stream = out1
@@ -384,6 +409,15 @@ function bodyMixinMethods (instance) {
           'Content-Type was not one of "multipart/form-data" or "application/x-www-form-urlencoded".'
         )
       }, instance)
+    },
+
+    bytes () {
+      // The bytes() method steps are to return the result of running consume body
+      // with this and the following step given a byte sequence bytes: return the
+      // result of creating a Uint8Array from bytes in this’s relevant realm.
+      return consumeBody(this, (bytes) => {
+        return new Uint8Array(bytes)
+      }, instance)
     }
   }
 
@@ -405,8 +439,8 @@ async function consumeBody (object, convertBytesToJSValue, instance) {
 
   // 1. If object is unusable, then return a promise rejected
   //    with a TypeError.
-  if (bodyUnusable(object[kState].body)) {
-    throw new TypeError('Body is unusable')
+  if (bodyUnusable(object)) {
+    throw new TypeError('Body is unusable: Body has already been read')
   }
 
   throwIfAborted(object[kState])
@@ -432,7 +466,7 @@ async function consumeBody (object, convertBytesToJSValue, instance) {
   // 5. If object’s body is null, then run successSteps with an
   //    empty byte sequence.
   if (object[kState].body == null) {
-    successSteps(new Uint8Array())
+    successSteps(Buffer.allocUnsafe(0))
     return promise.promise
   }
 
@@ -445,7 +479,9 @@ async function consumeBody (object, convertBytesToJSValue, instance) {
 }
 
 // https://fetch.spec.whatwg.org/#body-unusable
-function bodyUnusable (body) {
+function bodyUnusable (object) {
+  const body = object[kState].body
+
   // An object including the Body interface mixin is
   // said to be unusable if its body is non-null and
   // its body’s stream is disturbed or locked.
@@ -487,5 +523,8 @@ module.exports = {
   extractBody,
   safelyExtractBody,
   cloneBody,
-  mixinBody
+  mixinBody,
+  streamRegistry,
+  hasFinalizationRegistry,
+  bodyUnusable
 }

@@ -12,10 +12,11 @@ module.exports = async (process, validateEngines) => {
   }
 
   // Patch the global fs module here at the app level
-  require('graceful-fs').gracefulify(require('fs'))
+  require('graceful-fs').gracefulify(require('node:fs'))
 
   const satisfies = require('semver/functions/satisfies')
-  const exitHandler = require('./exit-handler.js')
+  const ExitHandler = require('./exit-handler.js')
+  const exitHandler = new ExitHandler({ process })
   const Npm = require('../npm.js')
   const npm = new Npm()
   exitHandler.setNpm(npm)
@@ -28,8 +29,7 @@ module.exports = async (process, validateEngines) => {
 
   // At this point we've required a few files and can be pretty sure we dont contain invalid syntax for this version of node. It's possible a lazy require would, but that's unlikely enough that it's not worth catching anymore and we attach the more important exit handlers.
   validateEngines.off()
-  process.on('uncaughtException', exitHandler)
-  process.on('unhandledRejection', exitHandler)
+  exitHandler.registerUncaughtHandlers()
 
   // It is now safe to log a warning if they are using a version of node that is not going to fail on syntax errors but is still unsupported and untested and might not work reliably. This is safe to use the logger now which we want since this will show up in the error log too.
   if (!satisfies(validateEngines.node, validateEngines.engines)) {
@@ -42,13 +42,13 @@ module.exports = async (process, validateEngines) => {
     const { exec, command, args } = await npm.load()
 
     if (!exec) {
-      return exitHandler()
+      return exitHandler.exit()
     }
 
     if (!command) {
       output.standard(npm.usage)
       process.exitCode = 1
-      return exitHandler()
+      return exitHandler.exit()
     }
 
     // Options are prefixed by a hyphen-minus (-, \u2d).
@@ -72,16 +72,8 @@ module.exports = async (process, validateEngines) => {
     updateNotifier(npm).then((msg) => (npm.updateNotification = msg))
 
     await execPromise
-    return exitHandler()
+    return exitHandler.exit()
   } catch (err) {
-    if (err.code === 'EUNKNOWNCOMMAND') {
-      const didYouMean = require('../utils/did-you-mean.js')
-      const suggestions = await didYouMean(npm.localPrefix, err.command)
-      output.standard(`Unknown command: "${err.command}"${suggestions}\n`)
-      output.standard('To see a list of supported npm commands, run:\n  npm help')
-      process.exitCode = 1
-      return exitHandler()
-    }
-    return exitHandler(err)
+    return exitHandler.exit(err)
   }
 }

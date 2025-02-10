@@ -1,4 +1,4 @@
-const { resolve } = require('path')
+const { resolve } = require('node:path')
 const semver = require('semver')
 const libnpmdiff = require('libnpmdiff')
 const npa = require('npm-package-arg')

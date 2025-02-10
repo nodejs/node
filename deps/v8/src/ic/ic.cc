@@ -2377,15 +2377,16 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
               isolate()),
       IsStoreInArrayLiteralIC());
 
-  if (IsJSProxyMap(*receiver_map)) {
+  if (!IsJSObjectMap(*receiver_map)) {
     // DefineKeyedOwnIC, which is used to define computed fields in instances,
-    // should be handled by the slow stub.
-    if (IsDefineKeyedOwnIC()) {
-      TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_SlowStub);
-      return StoreHandler::StoreSlow(isolate(), store_mode);
+    // should handled by the slow stub below instead of the proxy stub.
+    if (IsJSProxyMap(*receiver_map) && !IsDefineKeyedOwnIC()) {
+      return StoreHandler::StoreProxy(isolate());
     }
 
-    return StoreHandler::StoreProxy(isolate());
+    // Wasm objects or other kind of special objects go through the slow stub.
+    TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_SlowStub);
+    return StoreHandler::StoreSlow(isolate(), store_mode);
   }
 
   // TODO(ishell): move to StoreHandler::StoreElement().

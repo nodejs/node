@@ -25,6 +25,7 @@ using v8::Global;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Just;
+using v8::JustVoid;
 using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
@@ -337,7 +338,11 @@ class SerializerDelegate : public ValueSerializer::Delegate {
       // methods like toString(). It's probably confusing if that gets lost
       // in transmission.
       Local<Object> normal_object = Object::New(isolate);
-      env_->env_vars()->AssignToObject(isolate, env_->context(), normal_object);
+      if (env_->env_vars()
+              ->AssignToObject(isolate, env_->context(), normal_object)
+              .IsNothing()) {
+        return Nothing<bool>();
+      }
       serializer->WriteUint32(kNormalObject);  // Instead of a BaseObject.
       return serializer->WriteValue(env_->context(), normal_object);
     }
@@ -566,7 +571,9 @@ Maybe<bool> Message::Serialize(Environment* env,
     if (host_object &&
         host_object->GetTransferMode() == TransferMode::kTransferable) {
       delegate.AddHostObject(host_object);
-      continue;
+    } else {
+      ThrowDataCloneException(context, env->clone_untransferable_str());
+      return Nothing<bool>();
     }
   }
   if (delegate.AddNestedHostObjects().IsNothing())
@@ -795,7 +802,7 @@ void MessagePort::OnMessage(MessageProcessingMode mode) {
   // The data_ could be freed or, the handle has been/is being closed.
   // A possible case for this, is transfer the MessagePort to another
   // context, it will call the constructor and trigger the async handle empty.
-  // Because all data was sent from the preivous context.
+  // Because all data was sent from the previous context.
   if (IsDetached()) return;
 
   HandleScope handle_scope(env()->isolate());
@@ -1387,25 +1394,25 @@ JSTransferable::NestedTransferables() const {
   return Just(ret);
 }
 
-Maybe<bool> JSTransferable::FinalizeTransferRead(
+Maybe<void> JSTransferable::FinalizeTransferRead(
     Local<Context> context, ValueDeserializer* deserializer) {
   // Call `this[kDeserialize](data)` where `data` comes from the return value
   // of `this[kTransfer]()` or `this[kClone]()`.
   HandleScope handle_scope(env()->isolate());
   Local<Value> data;
-  if (!deserializer->ReadValue(context).ToLocal(&data)) return Nothing<bool>();
+  if (!deserializer->ReadValue(context).ToLocal(&data)) return Nothing<void>();
 
   Local<Symbol> method_name = env()->messaging_deserialize_symbol();
   Local<Value> method;
   if (!target()->Get(context, method_name).ToLocal(&method)) {
-    return Nothing<bool>();
+    return Nothing<void>();
   }
-  if (!method->IsFunction()) return Just(true);
+  if (!method->IsFunction()) return JustVoid();
 
   if (method.As<Function>()->Call(context, target(), 1, &data).IsEmpty()) {
-    return Nothing<bool>();
+    return Nothing<void>();
   }
-  return Just(true);
+  return JustVoid();
 }
 
 JSTransferable::Data::Data(std::string&& deserialize_info,
@@ -1571,28 +1578,21 @@ static void StructuredClone(const FunctionCallbackInfo<Value>& args) {
   Realm* realm = Realm::GetCurrent(context);
   Environment* env = realm->env();
 
-  if (args.Length() == 0) {
-    return THROW_ERR_MISSING_ARGS(env, "The value argument must be specified");
-  }
-
   Local<Value> value = args[0];
 
   TransferList transfer_list;
-  if (!args[1]->IsNullOrUndefined()) {
-    if (!args[1]->IsObject()) {
-      return THROW_ERR_INVALID_ARG_TYPE(
-          env, "The options argument must be either an object or undefined");
-    }
-    Local<Object> options = args[1].As<Object>();
-    Local<Value> transfer_list_v;
-    if (!options->Get(context, env->transfer_string())
-             .ToLocal(&transfer_list_v)) {
-      return;
-    }
+  Local<Object> options = args[1].As<Object>();
+  Local<Value> transfer_list_v;
+  if (!options->Get(context, env->transfer_string())
+           .ToLocal(&transfer_list_v)) {
+    return;
+  }
 
-    // TODO(joyeecheung): implement this in JS land to avoid the C++ -> JS
-    // cost to convert a sequence into an array.
-    if (!GetTransferList(env, context, transfer_list_v, &transfer_list)) {
+  Local<Array> arr = transfer_list_v.As<Array>();
+  size_t length = arr->Length();
+  transfer_list.AllocateSufficientStorage(length);
+  for (size_t i = 0; i < length; i++) {
+    if (!arr->Get(context, i).ToLocal(&transfer_list[i])) {
       return;
     }
   }

@@ -14,11 +14,11 @@ const clientConfigs = [
   {
     secureProtocol: 'TLSv1_method',
     version: 'TLSv1',
-    ciphers: (common.hasOpenSSL31 ? 'DEFAULT:@SECLEVEL=0' : 'DEFAULT')
+    ciphers: (common.hasOpenSSL(3, 1) ? 'DEFAULT:@SECLEVEL=0' : 'DEFAULT')
   }, {
     secureProtocol: 'TLSv1_1_method',
     version: 'TLSv1.1',
-    ciphers: (common.hasOpenSSL31 ? 'DEFAULT:@SECLEVEL=0' : 'DEFAULT')
+    ciphers: (common.hasOpenSSL(3, 1) ? 'DEFAULT:@SECLEVEL=0' : 'DEFAULT')
   }, {
     secureProtocol: 'TLSv1_2_method',
     version: 'TLSv1.2'

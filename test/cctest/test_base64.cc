@@ -1,12 +1,11 @@
-#include "base64-inl.h"
+#include "nbytes.h"
 #include "simdutf.h"
+#include "util-inl.h"
 
 #include <cstddef>
 #include <cstring>
 
 #include "gtest/gtest.h"
-
-using node::base64_decode;
 
 TEST(Base64Test, Encode) {
   auto test = [](const char* string, const char* base64_string) {
@@ -70,7 +69,7 @@ TEST(Base64Test, Decode) {
     const size_t len = strlen(string);
     char* const buffer = new char[len + 1];
     buffer[len] = 0;
-    base64_decode(buffer, len, base64_string, strlen(base64_string));
+    nbytes::Base64Decode(buffer, len, base64_string, strlen(base64_string));
     EXPECT_STREQ(string, buffer);
     delete[] buffer;
   };

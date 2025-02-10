@@ -30,6 +30,8 @@ expected.beforePreExec = new Set([
   'NativeModule internal/errors',
   'Internal Binding config',
   'Internal Binding timers',
+  'Internal Binding async_context_frame',
+  'NativeModule internal/async_context_frame',
   'Internal Binding async_wrap',
   'Internal Binding task_queue',
   'Internal Binding symbols',
@@ -44,6 +46,7 @@ expected.beforePreExec = new Set([
   'NativeModule internal/assert',
   'NativeModule internal/util/inspect',
   'NativeModule internal/util/debuglog',
+  'NativeModule internal/streams/utils',
   'NativeModule internal/timers',
   'NativeModule events',
   'Internal Binding buffer',
@@ -98,8 +101,10 @@ expected.beforePreExec = new Set([
   'NativeModule internal/modules/package_json_reader',
   'Internal Binding module_wrap',
   'NativeModule internal/modules/cjs/loader',
+  'NativeModule diagnostics_channel',
   'Internal Binding wasm_web_api',
   'NativeModule internal/events/abort_listener',
+  'NativeModule internal/modules/typescript',
 ]);
 
 expected.atRunTime = new Set([
@@ -113,7 +118,6 @@ expected.atRunTime = new Set([
 
 if (common.isMainThread) {
   [
-    'NativeModule internal/idna',
     'NativeModule url',
   ].forEach(expected.beforePreExec.add.bind(expected.beforePreExec));
 } else {  // Worker.
@@ -127,6 +131,7 @@ if (common.isMainThread) {
     'NativeModule internal/streams/compose',
     'NativeModule internal/streams/destroy',
     'NativeModule internal/streams/duplex',
+    'NativeModule internal/streams/duplexpair',
     'NativeModule internal/streams/end-of-stream',
     'NativeModule internal/streams/from',
     'NativeModule internal/streams/legacy',
@@ -140,6 +145,7 @@ if (common.isMainThread) {
     'NativeModule internal/streams/writable',
     'NativeModule internal/worker',
     'NativeModule internal/worker/io',
+    'NativeModule internal/worker/messaging',
     'NativeModule stream',
     'NativeModule stream/promises',
     'NativeModule string_decoder',
@@ -162,16 +168,12 @@ if (process.features.inspector) {
   expected.beforePreExec.add('Internal Binding inspector');
   expected.beforePreExec.add('NativeModule internal/util/inspector');
   expected.atRunTime.add('NativeModule internal/inspector_async_hook');
-
-  // This is loaded if the test is run with NODE_V8_COVERAGE.
-  if (process.env.NODE_V8_COVERAGE) {
-    expected.atRunTime.add('Internal Binding profiler');
-  }
 }
 
-const difference = (setA, setB) => {
-  return new Set([...setA].filter((x) => !setB.has(x)));
-};
+// This is loaded if the test is run with NODE_V8_COVERAGE.
+if (process.env.NODE_V8_COVERAGE) {
+  expected.atRunTime.add('Internal Binding profiler');
+}
 
 // Accumulate all the errors and print them at the end instead of throwing
 // immediately which makes it harder to update the test.
@@ -186,8 +188,8 @@ function err(message) {
 }
 
 if (common.isMainThread) {
-  const missing = difference(expected.beforePreExec, actual.beforePreExec);
-  const extra = difference(actual.beforePreExec, expected.beforePreExec);
+  const missing = expected.beforePreExec.difference(actual.beforePreExec);
+  const extra = actual.beforePreExec.difference(expected.beforePreExec);
   if (missing.size !== 0) {
     err('These builtins are now no longer loaded before pre-execution.');
     err('If this is intentional, remove them from `expected.beforePreExec`.');
@@ -221,8 +223,8 @@ if (!common.isMainThread) {
 }
 
 {
-  const missing = difference(expected.atRunTime, actual.atRunTime);
-  const extra = difference(actual.atRunTime, expected.atRunTime);
+  const missing = expected.atRunTime.difference(actual.atRunTime);
+  const extra = actual.atRunTime.difference(expected.atRunTime);
   if (missing.size !== 0) {
     err('These builtins are now no longer loaded at run time.');
     err('If this is intentional, remove them from `expected.atRunTime`.');

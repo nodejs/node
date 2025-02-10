@@ -13,7 +13,7 @@ const {
   unlink,
   stat,
   mkdir,
-} = require('fs/promises')
+} = require('node:fs/promises')
 
 const fileExists = (...p) => stat(resolve(...p))
   .then((st) => st.isFile())
@@ -585,7 +585,7 @@ class Config {
 
   async #loadFile (file, type) {
     // only catch the error from readFile, not from the loadObject call
-    log.silly(`config:load:file:${file}`)
+    log.silly('config', `load:file:${file}`)
     await readFile(file, 'utf8').then(
       data => {
         const parsedConfig = ini.parse(data)
@@ -669,12 +669,12 @@ class Config {
       }
 
       if (this.localPrefix && hasPackageJson) {
-        const rpj = require('read-package-json-fast')
+        const pkgJson = require('@npmcli/package-json')
         // if we already set localPrefix but this dir has a package.json
         // then we need to see if `p` is a workspace root by reading its package.json
         // however, if reading it fails then we should just move on
-        const pkg = await rpj(resolve(p, 'package.json')).catch(() => false)
-        if (!pkg) {
+        const { content: pkg } = await pkgJson.normalize(p).catch(() => ({ content: {} }))
+        if (!pkg?.workspaces) {
           continue
         }
 
@@ -684,7 +684,7 @@ class Config {
           if (w === this.localPrefix) {
             // see if there's a .npmrc file in the workspace, if so log a warning
             if (await fileExists(this.localPrefix, '.npmrc')) {
-              log.warn(`ignoring workspace config at ${this.localPrefix}/.npmrc`)
+              log.warn('config', `ignoring workspace config at ${this.localPrefix}/.npmrc`)
             }
 
             // set the workspace in the default layer, which allows it to be overridden easily
@@ -692,7 +692,7 @@ class Config {
             data.workspace = [this.localPrefix]
             this.localPrefix = p
             this.localPackage = hasPackageJson
-            log.info(`found workspace root at ${this.localPrefix}`)
+            log.info('config', `found workspace root at ${this.localPrefix}`)
             // we found a root, so we return now
             return
           }

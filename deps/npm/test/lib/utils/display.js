@@ -3,7 +3,7 @@ const timers = require('node:timers/promises')
 const tmock = require('../../fixtures/tmock')
 const mockLogs = require('../../fixtures/mock-logs')
 const mockGlobals = require('@npmcli/mock-globals')
-const { inspect } = require('util')
+const { inspect } = require('node:util')
 
 const mockDisplay = async (t, { mocks, load } = {}) => {
   const procLog = require('proc-log')

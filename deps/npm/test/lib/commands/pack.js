@@ -1,8 +1,8 @@
 const t = require('tap')
 const { load: loadMockNpm } = require('../../fixtures/mock-npm')
 const { cleanZlib } = require('../../fixtures/clean-snapshot')
-const path = require('path')
-const fs = require('fs')
+const path = require('node:path')
+const fs = require('node:fs')
 
 t.cleanSnapshot = data => cleanZlib(data)
 
@@ -82,7 +82,10 @@ t.test('should log scoped package output as valid json', async t => {
         },
       }),
     },
-    config: { json: true },
+    config: {
+      json: true,
+      progress: false,
+    },
   })
   await npm.exec('pack', [])
   const filename = 'myscope-test-package-1.0.0.tgz'

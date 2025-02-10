@@ -1,5 +1,5 @@
-const { join } = require('path')
-const fs = require('fs/promises')
+const { join } = require('node:path')
+const fs = require('node:fs/promises')
 const ini = require('ini')
 const tspawk = require('../../fixtures/tspawk')
 const t = require('tap')
@@ -37,7 +37,7 @@ const loadMockNpm = (t, opts = {}) => _loadMockNpm(t, {
     // Reset configs that mock npm sets by default
     'fetch-retries': undefined,
     loglevel: undefined,
-    color: undefined,
+    color: false,
   },
 })
 
@@ -80,7 +80,13 @@ t.test('config list', async t => {
       },
     },
     homeDir: {
-      '.npmrc': 'userloaded=yes',
+      '.npmrc': [
+        'userloaded=yes',
+        'auth=bad',
+        '_auth=bad',
+        '//nerfdart:auth=bad',
+        '//nerfdart:_auth=bad',
+      ].join('\n'),
     },
   })
 
@@ -487,10 +493,35 @@ t.test('config get private key', async t => {
   )
 
   await t.rejects(
+    npm.exec('config', ['get', 'authToken']),
+    /authToken option is protected/,
+    'rejects with protected string'
+  )
+
+  await t.rejects(
     npm.exec('config', ['get', '//localhost:8080/:_password']),
     /_password option is protected/,
     'rejects with protected string'
   )
+})
+
+t.test('config redacted values', async t => {
+  const { npm, joinedOutput, clearOutput } = await loadMockNpm(t)
+
+  await npm.exec('config', ['set', 'proxy', 'https://proxy.npmjs.org/'])
+  await npm.exec('config', ['get', 'proxy'])
+
+  t.equal(joinedOutput(), 'https://proxy.npmjs.org/')
+  clearOutput()
+
+  await npm.exec('config', ['set', 'proxy', 'https://u:password@proxy.npmjs.org/'])
+
+  await t.rejects(npm.exec('config', ['get', 'proxy']), /proxy option is protected/)
+
+  await npm.exec('config', ['ls'])
+
+  t.match(joinedOutput(), 'proxy = "https://u:***@proxy.npmjs.org/"')
+  clearOutput()
 })
 
 t.test('config edit', async t => {

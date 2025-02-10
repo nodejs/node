@@ -1,8 +1,8 @@
 const spawn = require('@npmcli/promise-spawn')
-const path = require('path')
-const openUrl = require('../utils/open-url.js')
+const path = require('node:path')
+const { openUrl } = require('../utils/open-url.js')
 const { glob } = require('glob')
-const { output } = require('proc-log')
+const { output, input } = require('proc-log')
 const localeCompare = require('@isaacs/string-locale-compare')('en')
 const { deref } = require('../utils/cmd-list.js')
 const BaseCommand = require('../base-cmd.js')
@@ -95,13 +95,15 @@ class Help extends BaseCommand {
       args = ['emacsclient', ['-e', `(woman-find-file '${man}')`]]
     }
 
-    return spawn(...args, { stdio: 'inherit' }).catch(err => {
+    try {
+      await input.start(() => spawn(...args, { stdio: 'inherit' }))
+    } catch (err) {
       if (err.code) {
         throw new Error(`help process exited with code: ${err.code}`)
       } else {
         throw err
       }
-    })
+    }
   }
 
   // Returns the path to the html version of the man page

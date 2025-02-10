@@ -14,6 +14,7 @@
 #include "bindingdata.h"
 #include "cid.h"
 #include "defs.h"
+#include "ncrypto.h"
 #include "tokens.h"
 
 namespace node {
@@ -116,10 +117,10 @@ Packet* Packet::Create(Environment* env,
                        const char* diagnostic_label) {
   if (BindingData::Get(env).packet_freelist.empty()) {
     Local<Object> obj;
-    if (UNLIKELY(!GetConstructorTemplate(env)
-                      ->InstanceTemplate()
-                      ->NewInstance(env->context())
-                      .ToLocal(&obj))) {
+    if (!GetConstructorTemplate(env)
+             ->InstanceTemplate()
+             ->NewInstance(env->context())
+             .ToLocal(&obj)) [[unlikely]] {
       return nullptr;
     }
 
@@ -137,10 +138,10 @@ Packet* Packet::Clone() const {
   auto& binding = BindingData::Get(env());
   if (binding.packet_freelist.empty()) {
     Local<Object> obj;
-    if (UNLIKELY(!GetConstructorTemplate(env())
-                      ->InstanceTemplate()
-                      ->NewInstance(env()->context())
-                      .ToLocal(&obj))) {
+    if (!GetConstructorTemplate(env())
+             ->InstanceTemplate()
+             ->NewInstance(env()->context())
+             .ToLocal(&obj)) [[unlikely]] {
       return nullptr;
     }
 
@@ -331,7 +332,7 @@ Packet* Packet::CreateStatelessResetPacket(
 
   StatelessResetToken token(token_secret, path_descriptor.dcid);
   uint8_t random[kRandlen];
-  CHECK(crypto::CSPRNG(random, kRandlen).is_ok());
+  CHECK(ncrypto::CSPRNG(random, kRandlen));
 
   auto packet = Create(env,
                        listener,

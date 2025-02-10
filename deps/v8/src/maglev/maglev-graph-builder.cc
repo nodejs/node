@@ -4001,19 +4001,28 @@ ReduceResult MaglevGraphBuilder::TryBuildPropertyStore(
         access_info.holder().value());
   }
 
-  if (access_info.IsFastAccessorConstant()) {
-    return TryBuildPropertySetterCall(access_info, receiver,
-                                      GetAccumulatorTagged());
-  } else {
-    DCHECK(access_info.IsDataField() || access_info.IsFastDataConstant());
-    ReduceResult res = TryBuildStoreField(access_info, receiver, access_mode);
-    if (res.IsDone()) {
-      RecordKnownProperty(receiver, name,
-                          current_interpreter_frame_.accumulator(),
-                          AccessInfoGuaranteedConst(access_info), access_mode);
-      return res;
+  switch (access_info.kind()) {
+    case compiler::PropertyAccessInfo::kFastAccessorConstant:
+      return TryBuildPropertySetterCall(access_info, receiver,
+                                        GetAccumulatorTagged());
+    case compiler::PropertyAccessInfo::kDataField:
+    case compiler::PropertyAccessInfo::kFastDataConstant: {
+      ReduceResult res = TryBuildStoreField(access_info, receiver, access_mode);
+      if (res.IsDone()) {
+        RecordKnownProperty(
+            receiver, name, current_interpreter_frame_.accumulator(),
+            AccessInfoGuaranteedConst(access_info), access_mode);
+        return res;
+      }
+      return ReduceResult::Fail();
     }
-    return ReduceResult::Fail();
+    case compiler::PropertyAccessInfo::kInvalid:
+    case compiler::PropertyAccessInfo::kNotFound:
+    case compiler::PropertyAccessInfo::kDictionaryProtoDataConstant:
+    case compiler::PropertyAccessInfo::kDictionaryProtoAccessorConstant:
+    case compiler::PropertyAccessInfo::kModuleExport:
+    case compiler::PropertyAccessInfo::kStringLength:
+      UNREACHABLE();
   }
 }
 
@@ -6515,6 +6524,21 @@ ReduceResult MaglevGraphBuilder::TryReduceStringPrototypeLocaleCompare(
   return ReduceResult::Fail();
 #endif
 }
+
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+ReduceResult MaglevGraphBuilder::TryReduceGetContinuationPreservedEmbedderData(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  return AddNewNode<GetContinuationPreservedEmbedderData>({});
+}
+
+ReduceResult MaglevGraphBuilder::TryReduceSetContinuationPreservedEmbedderData(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  if (args.count() == 0) return ReduceResult::Fail();
+
+  AddNewNode<SetContinuationPreservedEmbedderData>({GetTaggedValue(args[0])});
+  return GetRootConstant(RootIndex::kUndefinedValue);
+}
+#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 
 template <typename LoadNode>
 ReduceResult MaglevGraphBuilder::TryBuildLoadDataView(const CallArguments& args,

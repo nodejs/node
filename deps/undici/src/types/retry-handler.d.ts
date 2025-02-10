@@ -32,7 +32,7 @@ declare namespace RetryHandler {
       };
     },
     callback: OnRetryCallback
-  ) => number | null;
+  ) => void
 
   export interface RetryOptions {
     /**

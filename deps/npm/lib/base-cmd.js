@@ -1,10 +1,12 @@
-const { log, output } = require('proc-log')
+const { log } = require('proc-log')
 
 class BaseCommand {
+  // these defaults can be overridden by individual commands
   static workspaces = false
   static ignoreImplicitWorkspace = true
+  static checkDevEngines = false
 
-  // these are all overridden by individual commands
+  // these should always be overridden by individual commands
   static name = null
   static description = null
   static params = null
@@ -111,33 +113,6 @@ class BaseCommand {
     })
   }
 
-  async cmdExec (args) {
-    const { config } = this.npm
-
-    if (config.get('usage')) {
-      return output.standard(this.usage)
-    }
-
-    const hasWsConfig = config.get('workspaces') || config.get('workspace').length
-    // if cwd is a workspace, the default is set to [that workspace]
-    const implicitWs = config.get('workspace', 'default').length
-
-    // (-ws || -w foo) && (cwd is not a workspace || command is not ignoring implicit workspaces)
-    if (hasWsConfig && (!implicitWs || !this.constructor.ignoreImplicitWorkspace)) {
-      if (this.npm.global) {
-        throw new Error('Workspaces not supported for global packages')
-      }
-      if (!this.constructor.workspaces) {
-        throw Object.assign(new Error('This command does not support workspaces.'), {
-          code: 'ENOWORKSPACES',
-        })
-      }
-      return this.execWorkspaces(args)
-    }
-
-    return this.exec(args)
-  }
-
   // Compare the number of entries with what was expected
   checkExpected (entries) {
     if (!this.npm.config.isDefault('expect-results')) {
@@ -153,6 +128,63 @@ class BaseCommand {
         log.warn(this.name, `Expected ${expected} result${expected === 1 ? '' : 's'}, got ${entries}`)
         process.exitCode = 1
       }
+    }
+  }
+
+  // Checks the devEngines entry in the package.json at this.localPrefix
+  async checkDevEngines () {
+    const force = this.npm.flatOptions.force
+
+    const { devEngines } = await require('@npmcli/package-json')
+      .normalize(this.npm.config.localPrefix)
+      .then(p => p.content)
+      .catch(() => ({}))
+
+    if (typeof devEngines === 'undefined') {
+      return
+    }
+
+    const { checkDevEngines, currentEnv } = require('npm-install-checks')
+    const current = currentEnv.devEngines({
+      nodeVersion: this.npm.nodeVersion,
+      npmVersion: this.npm.version,
+    })
+
+    const failures = checkDevEngines(devEngines, current)
+    const warnings = failures.filter(f => f.isWarn)
+    const errors = failures.filter(f => f.isError)
+
+    const genMsg = (failure, i = 0) => {
+      return [...new Set([
+        // eslint-disable-next-line
+        i === 0 ? 'The developer of this package has specified the following through devEngines' : '',
+        `${failure.message}`,
+        `${failure.errors.map(e => e.message).join('\n')}`,
+      ])].filter(v => v).join('\n')
+    }
+
+    [...warnings, ...(force ? errors : [])].forEach((failure, i) => {
+      const message = genMsg(failure, i)
+      log.warn('EBADDEVENGINES', message)
+      log.warn('EBADDEVENGINES', {
+        current: failure.current,
+        required: failure.required,
+      })
+    })
+
+    if (force) {
+      return
+    }
+
+    if (errors.length) {
+      const failure = errors[0]
+      const message = genMsg(failure)
+      throw Object.assign(new Error(message), {
+        engine: failure.engine,
+        code: 'EBADDEVENGINES',
+        current: failure.current,
+        required: failure.required,
+      })
     }
   }
 

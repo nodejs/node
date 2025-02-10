@@ -26,11 +26,9 @@
       *
       *
       *
-      *
 
  before throws - no subtests (*ms)
   Error: before
-      *
       *
       *
       *
@@ -55,9 +53,11 @@
       *
       *
       *
+      *
 
  after throws - no subtests (*ms)
   Error: after
+      *
       *
       *
       *
@@ -78,9 +78,9 @@
         *
         *
         *
-        at async Promise.all (index 0)
         *
         *
+        at new Promise (<anonymous>)
 
    2 (*ms)
     Error: beforeEach
@@ -92,6 +92,8 @@
         *
         *
         *
+        *
+        at async Promise.all (index 0)
 
  beforeEach throws (*ms)
  afterEach throws
@@ -242,11 +244,9 @@
       *
       *
       *
-      *
 
  t.after throws - no subtests (*ms)
   Error: after
-      *
       *
       *
       *
@@ -390,7 +390,6 @@
       *
       *
       *
-      *
 
  test hooks - async
    1 (*ms)
@@ -430,7 +429,6 @@
       *
       *
       *
-      *
 
 *
  before throws - no subtests (*ms)
@@ -443,11 +441,11 @@
       *
       *
       *
-      *
 
 *
  after throws (*ms)
   Error: after
+      *
       *
       *
       *
@@ -470,6 +468,7 @@
       *
       *
       *
+      *
 
 *
  1 (*ms)
@@ -481,9 +480,9 @@
       *
       *
       *
-      at async Promise.all (index 0)
       *
       *
+      at new Promise (<anonymous>)
 
 *
  2 (*ms)
@@ -496,6 +495,8 @@
       *
       *
       *
+      *
+      at async Promise.all (index 0)
 
 *
  1 (*ms)
@@ -633,12 +634,10 @@
       *
       *
       *
-      *
 
 *
  t.after throws - no subtests (*ms)
   Error: after
-      *
       *
       *
       *
@@ -768,7 +767,6 @@
 *
  run after when before throws (*ms)
   Error: before
-      *
       *
       *
       *

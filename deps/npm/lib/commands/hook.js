@@ -1,5 +1,5 @@
 const hookApi = require('libnpmhook')
-const otplease = require('../utils/otplease.js')
+const { otplease } = require('../utils/auth.js')
 const relativeDate = require('tiny-relative-date')
 const { output } = require('proc-log')
 const BaseCommand = require('../base-cmd.js')
@@ -40,7 +40,7 @@ class Hook extends BaseCommand {
   async add (pkg, uri, secret, opts) {
     const hook = await hookApi.add(pkg, uri, secret, opts)
     if (opts.json) {
-      output.standard(JSON.stringify(hook, null, 2))
+      output.buffer(hook)
     } else if (opts.parseable) {
       output.standard(Object.keys(hook).join('\t'))
       output.standard(Object.keys(hook).map(k => hook[k]).join('\t'))
@@ -53,7 +53,7 @@ class Hook extends BaseCommand {
     const hooks = await hookApi.ls({ ...opts, package: pkg })
 
     if (opts.json) {
-      output.standard(JSON.stringify(hooks, null, 2))
+      output.buffer(hooks)
     } else if (opts.parseable) {
       output.standard(Object.keys(hooks[0]).join('\t'))
       hooks.forEach(hook => {
@@ -80,7 +80,7 @@ class Hook extends BaseCommand {
   async rm (id, opts) {
     const hook = await hookApi.rm(id, opts)
     if (opts.json) {
-      output.standard(JSON.stringify(hook, null, 2))
+      output.buffer(hook)
     } else if (opts.parseable) {
       output.standard(Object.keys(hook).join('\t'))
       output.standard(Object.keys(hook).map(k => hook[k]).join('\t'))
@@ -92,7 +92,7 @@ class Hook extends BaseCommand {
   async update (id, uri, secret, opts) {
     const hook = await hookApi.update(id, uri, secret, opts)
     if (opts.json) {
-      output.standard(JSON.stringify(hook, null, 2))
+      output.buffer(hook)
     } else if (opts.parseable) {
       output.standard(Object.keys(hook).join('\t'))
       output.standard(Object.keys(hook).map(k => hook[k]).join('\t'))
