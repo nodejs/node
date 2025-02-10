@@ -20,6 +20,8 @@ test-http-max-sockets: PASS, FLAKY
 [$system==macos]
 
 [$system==solaris] # Also applies to SmartOS
+# https://github.com/nodejs/node/issues/57000
+test-perf-hooks: SKIP
 
 [$system==freebsd]
 
