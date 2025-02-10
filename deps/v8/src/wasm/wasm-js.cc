@@ -1982,12 +1982,14 @@ void EncodeExceptionValues(v8::Isolate* isolate,
         values_out->set(index++, *value_handle);
         break;
       }
+      case i::wasm::kS128:
+        thrower->TypeError("Invalid type v128");
+        return;
       case i::wasm::kRtt:
       case i::wasm::kI8:
       case i::wasm::kI16:
       case i::wasm::kVoid:
       case i::wasm::kBottom:
-      case i::wasm::kS128:
         UNREACHABLE();
     }
   }
@@ -2799,12 +2801,14 @@ void WebAssemblyExceptionGetArgImpl(
       return WasmObjectToJSReturnValue(return_value, obj, signature->get(index),
                                        i_isolate, &thrower);
     }
+    case i::wasm::kS128:
+      thrower.TypeError("Invalid type v128");
+      return;
     case i::wasm::kRtt:
     case i::wasm::kI8:
     case i::wasm::kI16:
     case i::wasm::kVoid:
     case i::wasm::kBottom:
-    case i::wasm::kS128:
       UNREACHABLE();
   }
   info.GetReturnValue().Set(result);
