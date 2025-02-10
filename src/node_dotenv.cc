@@ -120,10 +120,6 @@ std::string_view trim_spaces(std::string_view input) {
     return input.substr(pos_start);
   }
 
-  if (pos_start == pos_end) {
-    return "";
-  }
-
   return input.substr(pos_start, pos_end - pos_start + 1);
 }
 
