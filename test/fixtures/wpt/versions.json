@@ -104,7 +104,7 @@
     "path": "webmessaging/broadcastchannel"
   },
   "webstorage": {
-    "commit": "9dafa892146c4b5b1f604a39b3cf8677f8f70d44",
+    "commit": "1291340aaaa6e73db43b412e47401eca3830c556",
     "path": "webstorage"
   }
 }
