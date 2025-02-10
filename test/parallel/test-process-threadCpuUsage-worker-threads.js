@@ -25,7 +25,7 @@ function performLoad() {
   // Do some work
   return setInterval(() => {
     createHash('sha256').update(buffer).end(buffer);
-  }, platformTimeout(isMainThread ? 100 : workerData.frequency));
+  }, platformTimeout(workerData?.frequency ?? 100));
 }
 
 function getUsages() {
