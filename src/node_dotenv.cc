@@ -154,6 +154,13 @@ void Dotenv::ParseContent(const std::string_view input) {
     key = content.substr(0, equal);
     content.remove_prefix(equal + 1);
     key = trim_spaces(key);
+
+    // If the value is not present (e.g. KEY=) set is to an empty string
+    if (content.front() == '\n') {
+      store_.insert_or_assign(std::string(key), "");
+      continue;
+    }
+
     content = trim_spaces(content);
 
     if (key.empty()) {
