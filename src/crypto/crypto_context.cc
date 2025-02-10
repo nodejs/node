@@ -42,6 +42,7 @@ using ncrypto::MarkPopErrorOnReturn;
 using ncrypto::SSLPointer;
 using ncrypto::StackOfX509;
 using ncrypto::X509Pointer;
+using ncrypto::X509View;
 using v8::Array;
 using v8::ArrayBufferView;
 using v8::Boolean;
@@ -57,7 +58,9 @@ using v8::Integer;
 using v8::Isolate;
 using v8::JustVoid;
 using v8::Local;
+using v8::LocalVector;
 using v8::Maybe;
+using v8::MaybeLocal;
 using v8::Nothing;
 using v8::Object;
 using v8::PropertyAttribute;
@@ -689,7 +692,7 @@ static std::vector<X509*> InitializeSystemStoreCertificates() {
   return system_store_certs;
 }
 
-static std::vector<X509*>& GetSystemStoreRootCertificates() {
+static std::vector<X509*>& GetSystemStoreCACertificates() {
   // Use function-local static to guarantee thread safety.
   static std::vector<X509*> system_store_certs =
       InitializeSystemStoreCertificates();
@@ -761,7 +764,7 @@ X509_STORE* NewRootCertStore() {
       CHECK_EQ(1, X509_STORE_add_cert(store, cert));
     }
     if (per_process::cli_options->use_system_ca) {
-      for (X509* cert : GetSystemStoreRootCertificates()) {
+      for (X509* cert : GetSystemStoreCACertificates()) {
         CHECK_EQ(1, X509_STORE_add_cert(store, cert));
       }
     }
@@ -783,7 +786,7 @@ void CleanupCachedRootCertificates() {
     }
   }
   if (has_cached_system_root_certs.load()) {
-    for (X509* cert : GetSystemStoreRootCertificates()) {
+    for (X509* cert : GetSystemStoreCACertificates()) {
       X509_free(cert);
     }
   }
@@ -795,7 +798,7 @@ void CleanupCachedRootCertificates() {
   }
 }
 
-void GetRootCertificates(const FunctionCallbackInfo<Value>& args) {
+void GetBundledRootCertificates(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Local<Value> result[arraysize(root_certs)];
 
@@ -810,6 +813,58 @@ void GetRootCertificates(const FunctionCallbackInfo<Value>& args) {
 
   args.GetReturnValue().Set(
       Array::New(env->isolate(), result, arraysize(root_certs)));
+}
+
+MaybeLocal<Array> X509sToArrayOfStrings(Environment* env,
+                                        const std::vector<X509*>& certs) {
+  ClearErrorOnReturn clear_error_on_return;
+  v8::EscapableHandleScope scope(env->isolate());
+
+  LocalVector<Value> result(env->isolate(), certs.size());
+  for (size_t i = 0; i < certs.size(); ++i) {
+    X509View view(certs[i]);
+    auto pem_bio = view.toPEM();
+    if (!pem_bio) {
+      ThrowCryptoError(env, ERR_get_error(), "X509 to PEM conversion");
+      return MaybeLocal<Array>();
+    }
+
+    char* pem_data = nullptr;
+    auto pem_size = BIO_get_mem_data(pem_bio.get(), &pem_data);
+    if (pem_size <= 0 || !pem_data) {
+      ThrowCryptoError(env, ERR_get_error(), "Reading PEM data");
+      return MaybeLocal<Array>();
+    }
+    // PEM is base64-encoded, so it must be one-byte.
+    if (!String::NewFromOneByte(env->isolate(),
+                                reinterpret_cast<uint8_t*>(pem_data),
+                                v8::NewStringType::kNormal,
+                                pem_size)
+             .ToLocal(&result[i])) {
+      return MaybeLocal<Array>();
+    }
+  }
+  return scope.Escape(Array::New(env->isolate(), result.data(), result.size()));
+}
+
+void GetSystemCACertificates(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Local<Array> results;
+  if (X509sToArrayOfStrings(env, GetSystemStoreCACertificates())
+          .ToLocal(&results)) {
+    args.GetReturnValue().Set(results);
+  }
+}
+
+void GetExtraCACertificates(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (extra_root_certs_file.empty()) {
+    return args.GetReturnValue().Set(Array::New(env->isolate()));
+  }
+  Local<Array> results;
+  if (X509sToArrayOfStrings(env, GetExtraCACertificates()).ToLocal(&results)) {
+    args.GetReturnValue().Set(results);
+  }
 }
 
 bool SecureContext::HasInstance(Environment* env, const Local<Value>& value) {
@@ -895,8 +950,14 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
                          GetConstructorTemplate(env),
                          SetConstructorFunctionFlag::NONE);
 
+  SetMethodNoSideEffect(context,
+                        target,
+                        "getBundledRootCertificates",
+                        GetBundledRootCertificates);
   SetMethodNoSideEffect(
-      context, target, "getRootCertificates", GetRootCertificates);
+      context, target, "getSystemCACertificates", GetSystemCACertificates);
+  SetMethodNoSideEffect(
+      context, target, "getExtraCACertificates", GetExtraCACertificates);
 }
 
 void SecureContext::RegisterExternalReferences(
@@ -936,7 +997,9 @@ void SecureContext::RegisterExternalReferences(
 
   registry->Register(CtxGetter);
 
-  registry->Register(GetRootCertificates);
+  registry->Register(GetBundledRootCertificates);
+  registry->Register(GetSystemCACertificates);
+  registry->Register(GetExtraCACertificates);
 }
 
 SecureContext* SecureContext::Create(Environment* env) {
