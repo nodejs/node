@@ -172,9 +172,9 @@ class BackupJob : public ThreadPoolWork {
         env_(env),
         source_(source),
         pages_(pages),
-        source_db_(source_db),
-        destination_name_(destination_name),
-        dest_db_(dest_db) {
+        source_db_(std::move(source_db)),
+        destination_name_(std::move(destination_name)),
+        dest_db_(std::move(dest_db)) {
     resolver_.Reset(env->isolate(), resolver);
     progressFunc_.Reset(env->isolate(), progressFunc);
   }
@@ -315,7 +315,7 @@ class BackupJob : public ThreadPoolWork {
   sqlite3* dest_ = nullptr;
   sqlite3_backup* backup_ = nullptr;
   int pages_;
-  int backup_status_;
+  int backup_status_ = SQLITE_OK;
   std::string source_db_;
   std::string destination_name_;
   std::string dest_db_;
@@ -1145,8 +1145,14 @@ void Backup(const FunctionCallbackInfo<Value>& args) {
 
   args.GetReturnValue().Set(resolver->GetPromise());
 
-  BackupJob* job = new BackupJob(
-      env, db, resolver, source_db, *dest_path, dest_db, rate, progressFunc);
+  BackupJob* job = new BackupJob(env,
+                                 db,
+                                 resolver,
+                                 std::move(source_db),
+                                 *dest_path,
+                                 std::move(dest_db),
+                                 rate,
+                                 progressFunc);
   db->AddBackup(job);
   job->ScheduleBackup();
 }
