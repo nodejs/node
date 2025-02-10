@@ -1045,6 +1045,7 @@ void NativeKeyObject::New(const FunctionCallbackInfo<Value>& args) {
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsObject());
   KeyObjectHandle* handle = Unwrap<KeyObjectHandle>(args[0].As<Object>());
+  CHECK_NOT_NULL(handle);
   new NativeKeyObject(env, args.This(), handle->Data());
 }
 
