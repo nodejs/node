@@ -586,8 +586,84 @@ bool DatabaseSync::ShouldIgnoreSQLiteError() {
   return ignore_next_sqlite_error_;
 }
 
-bool IsURL(Local<Value> value) {
-  return false;
+bool IsURL(Environment* env, Local<Value> path) {
+  Local<Object> url;
+  if (!path->ToObject(env->context()).ToLocal(&url)) {
+    return false;
+  }
+
+  Local<Value> href;
+  if (!url->Get(env->context(), FIXED_ONE_BYTE_STRING(env->isolate(), "href"))
+           .ToLocal(&href)) {
+    return false;
+  }
+
+  if (!href->IsString()) {
+    return false;
+  }
+
+  return true;
+}
+
+Local<String> BufferToString(Environment* env, Local<Uint8Array> buffer) {
+  size_t byteOffset = buffer->ByteOffset();
+  size_t byteLength = buffer->ByteLength();
+  if (byteLength == 0) {
+    THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
+                               "The \"path\" argument must not be empty.");
+    return Local<String>();
+  }
+
+  auto data =
+      static_cast<const uint8_t*>(buffer->Buffer()->Data()) + byteOffset;
+  if (std::find(data, data + byteLength, 0) != data + byteLength) {
+    THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
+                               "The \"path\" argument must not contain null "
+                               "bytes.");
+    return Local<String>();
+  }
+
+  auto path = std::string(reinterpret_cast<const char*>(data), byteLength);
+  return String::NewFromUtf8(
+             env->isolate(), path.c_str(), NewStringType::kNormal)
+      .ToLocalChecked();
+}
+
+Local<String> ToPathIfURL(Environment* env, Local<Value> path) {
+  if (!IsURL(env, path)) {
+    if (path->IsString()) {
+      return path.As<String>();
+    }
+
+    return BufferToString(env, path.As<Uint8Array>());
+  }
+
+  Local<Object> url = path.As<Object>();
+  Local<Value> href;
+  Local<Value> protocol;
+  if (!url->Get(env->context(), FIXED_ONE_BYTE_STRING(env->isolate(), "href"))
+           .ToLocal(&href)) {
+    return Local<String>();
+  }
+
+  if (!url->Get(env->context(),
+                FIXED_ONE_BYTE_STRING(env->isolate(), "protocol"))
+           .ToLocal(&protocol)) {
+    return Local<String>();
+  }
+
+  if (!href->IsString() || !protocol->IsString()) {
+    return Local<String>();
+  }
+
+  std::string protocol_v =
+      Utf8Value(env->isolate(), protocol.As<String>()).ToString();
+  if (protocol_v != "file:") {
+    THROW_ERR_INVALID_URL_SCHEME(env->isolate());
+    return Local<String>();
+  }
+
+  return href.As<String>();
 }
 
 void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
@@ -598,40 +674,20 @@ void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  Local<Value> path = args[0];  // if object, it's a URL, so path will be the
-                                // "href" property then i can check the scheme
-                                // and if it's not file, throw an error
-  if (!path->IsString() && !path->IsUint8Array() && !IsURL(path)) {
+  Local<Value> path = args[0];
+  if (!path->IsString() && !path->IsUint8Array() && !IsURL(env, path)) {
     THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
                                "The \"path\" argument must be a string, "
                                "Uint8Array, or URL without null bytes.");
     return;
   }
 
-  std::string location;
-  if (path->IsUint8Array()) {
-    Local<Uint8Array> buffer = path.As<Uint8Array>();
-    size_t byteOffset = buffer->ByteOffset();
-    size_t byteLength = buffer->ByteLength();
-    if (byteLength == 0) {
-      THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
-                                 "The \"path\" argument must not be empty.");
-      return;
-    }
-
-    auto data =
-        static_cast<const uint8_t*>(buffer->Buffer()->Data()) + byteOffset;
-    if (std::find(data, data + byteLength, 0) != data + byteLength) {
-      THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
-                                 "The \"path\" argument must not contain null "
-                                 "bytes.");
-      return;
-    }
-
-    location = std::string(reinterpret_cast<const char*>(data), byteLength);
-  } else {
-    location = Utf8Value(env->isolate(), args[0].As<String>()).ToString();
+  Local<String> path_str = ToPathIfURL(env, path);
+  if (path_str.IsEmpty()) {
+    return;
   }
+
+  std::string location = Utf8Value(env->isolate(), p).ToString();
 
   // TODO: uncomment this we still need to handle URLs
   /* auto parsed_url = ada::parse<ada::url_aggregator>(location, nullptr); */

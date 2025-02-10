@@ -32,6 +32,10 @@ function makeSourceDb(dbPath = ':memory:') {
   return database;
 }
 
+test.only('location as an URL object', (t) => {
+  new DatabaseSync(new URL('https://google.com'))
+});
+
 describe('backup()', () => {
   test('throws if the source database is not provided', (t) => {
     t.assert.throws(() => {
@@ -43,9 +47,7 @@ describe('backup()', () => {
   });
 
   test('throws if path is not a string', (t) => {
-    // const database = makeSourceDb();
-    // TODO: have a separate test handling buffer
-    const database = makeSourceDb(Buffer.from(':memory:'));
+    const database = makeSourceDb();
 
     t.assert.throws(() => {
       backup(database);
