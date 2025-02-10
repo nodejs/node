@@ -2868,7 +2868,10 @@ The following values are valid for `mode`:
 ### `--use-system-ca`
 
 Node.js uses the trusted CA certificates present in the system store along with
-the `--use-bundled-ca`, `--use-openssl-ca` options.
+the `--use-bundled-ca` option and the `NODE_EXTRA_CA_CERTS` environment variable.
+On platform other than Windows and macOS, this loads certificates from the directory
+and file trusted by OpenSSL, similar to `--use-openssl-ca`, with the difference being
+that it caches the certificates after first load.
 
 This option is only supported on Windows and macOS, and the certificate trust policy
 is planned to follow [Chromium's policy for locally trusted certificates][]:
@@ -2899,8 +2902,14 @@ Chromium's policy, distrust is not currently supported):
     * Trusted Root Certification Authorities
     * Enterprise Trust -> Group Policy -> Trusted Root Certification Authorities
 
-On any supported system, Node.js would check that the certificate's key usage and extended key
+On Windows and macOS, Node.js would check that the certificate's key usage and extended key
 usage are consistent with TLS use cases before using it for server authentication.
+
+On other systems, Node.js loads certificates from the default file
+(typically `/etc/ssl/cert.pem`) and default directory (typically `/etc/ssl/certs`)
+that the version of OpenSSL that Node.js links to respects.
+If the overriding OpenSSL environment variables (typically `SSL_CERT_FILE` and
+`SSL_CERT_DIR`) are set, they will be used to load certificates from instead.
 
 ### `--v8-options`
 
@@ -3541,7 +3550,8 @@ variable is ignored.
 added: v7.7.0
 -->
 
-If `--use-openssl-ca` is enabled, this overrides and sets OpenSSL's directory
+If `--use-openssl-ca` is enabled, or if `--use-system-ca` is enabled on
+platforms other than macOS and Windows, this overrides and sets OpenSSL's directory
 containing trusted certificates.
 
 Be aware that unless the child environment is explicitly set, this environment
@@ -3554,7 +3564,8 @@ may cause them to trust the same CAs as node.
 added: v7.7.0
 -->
 
-If `--use-openssl-ca` is enabled, this overrides and sets OpenSSL's file
+If `--use-openssl-ca` is enabled, or if `--use-system-ca` is enabled on
+platforms other than macOS and Windows, this overrides and sets OpenSSL's file
 containing trusted certificates.
 
 Be aware that unless the child environment is explicitly set, this environment
