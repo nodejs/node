@@ -13,8 +13,8 @@ function nextDb() {
   return join(tmpdir.path, `database-${cnt++}.db`);
 }
 
-function makeSourceDb() {
-  const database = new DatabaseSync(':memory:');
+function makeSourceDb(dbPath = ':memory:') {
+  const database = new DatabaseSync(dbPath);
 
   database.exec(`
     CREATE TABLE data(
@@ -43,7 +43,9 @@ describe('backup()', () => {
   });
 
   test('throws if path is not a string', (t) => {
-    const database = makeSourceDb();
+    // const database = makeSourceDb();
+    // TODO: have a separate test handling buffer
+    const database = makeSourceDb(Buffer.from(':memory:'));
 
     t.assert.throws(() => {
       backup(database);

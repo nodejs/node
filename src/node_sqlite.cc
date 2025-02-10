@@ -1,5 +1,6 @@
 #include "node_sqlite.h"
 #include <path.h>
+#include "ada.h"
 #include "base_object-inl.h"
 #include "debug_utils-inl.h"
 #include "env-inl.h"
@@ -585,6 +586,10 @@ bool DatabaseSync::ShouldIgnoreSQLiteError() {
   return ignore_next_sqlite_error_;
 }
 
+bool IsURL(Local<Value> value) {
+  return false;
+}
+
 void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -593,19 +598,50 @@ void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  if (!args[0]->IsString()) {
+  Local<Value> path = args[0];  // if object, it's a URL, so path will be the
+                                // "href" property then i can check the scheme
+                                // and if it's not file, throw an error
+  if (!path->IsString() && !path->IsUint8Array() && !IsURL(path)) {
     THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
-                               "The \"path\" argument must be a string.");
+                               "The \"path\" argument must be a string, "
+                               "Uint8Array, or URL without null bytes.");
     return;
   }
 
-  std::string location =
-      Utf8Value(env->isolate(), args[0].As<String>()).ToString();
-  DatabaseOpenConfiguration open_config(std::move(location));
+  std::string location;
+  if (path->IsUint8Array()) {
+    Local<Uint8Array> buffer = path.As<Uint8Array>();
+    size_t byteOffset = buffer->ByteOffset();
+    size_t byteLength = buffer->ByteLength();
+    if (byteLength == 0) {
+      THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
+                                 "The \"path\" argument must not be empty.");
+      return;
+    }
 
+    auto data =
+        static_cast<const uint8_t*>(buffer->Buffer()->Data()) + byteOffset;
+    if (std::find(data, data + byteLength, 0) != data + byteLength) {
+      THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
+                                 "The \"path\" argument must not contain null "
+                                 "bytes.");
+      return;
+    }
+
+    location = std::string(reinterpret_cast<const char*>(data), byteLength);
+  } else {
+    location = Utf8Value(env->isolate(), args[0].As<String>()).ToString();
+  }
+
+  // TODO: uncomment this we still need to handle URLs
+  /* auto parsed_url = ada::parse<ada::url_aggregator>(location, nullptr); */
+  /* if (parsed_url && parsed_url->type != ada::scheme::FILE) { */
+  /*   THROW_ERR_INVALID_URL_SCHEME(env->isolate()); */
+  /* } */
+
+  DatabaseOpenConfiguration open_config(std::move(location));
   bool open = true;
   bool allow_load_extension = false;
-
   if (args.Length() > 1) {
     if (!args[1]->IsObject()) {
       THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
