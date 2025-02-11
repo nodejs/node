@@ -1,9 +1,9 @@
 # QUIC
 
-<!-- introduced_in=REPLACEME-->
+<!-- introduced_in=v23.8.0-->
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 > Stability: 1.0 - Early development
@@ -26,7 +26,7 @@ The module is only available under the `node:` scheme.
 ## `quic.connect(address[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * `address` {string|net.SocketAddress}
@@ -66,7 +66,7 @@ const client = await connect('123.123.123.123:8888', { endpoint });
 ## `quic.listen(onsession,[options])`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * `onsession` {quic.OnSessionCallback}
@@ -109,7 +109,7 @@ used as both a client and a server.
 ### `new QuicEndpoint([options])`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * `options` {quic.EndpointOptions}
@@ -117,7 +117,7 @@ added: REPLACEME
 ### `endpoint.address`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {net.SocketAddress|undefined}
@@ -129,7 +129,7 @@ If the endpoint is not currently bound then the value will be `undefined`. Read 
 ### `endpoint.busy`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {boolean}
@@ -151,7 +151,7 @@ temporarily reject new sessions while it catches up.
 ### `endpoint.close()`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * Returns: {Promise}
@@ -164,7 +164,7 @@ Returns a promise that is fulfilled when the endpoint is destroyed.
 ### `endpoint.closed`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {Promise}
@@ -175,7 +175,7 @@ returned by the `endpoint.close()` function. Read only.
 ### `endpoint.closing`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {boolean}
@@ -186,7 +186,7 @@ Read only.
 ### `endpoint.destroy([error])`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * `error` {any}
@@ -197,7 +197,7 @@ closed.
 ### `endpoint.destroyed`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {boolean}
@@ -207,7 +207,7 @@ True if `endpoint.destroy()` has been called. Read only.
 ### `endpoint.stats`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {quic.QuicEndpoint.Stats}
@@ -217,7 +217,7 @@ The statistics collected for an active session. Read only.
 ### `endpoint[Symbol.asyncDispose]()`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 Calls `endpoint.close()` and returns a promise that fulfills when the
@@ -226,7 +226,7 @@ endpoint has closed.
 ## Class: `QuicEndpoint.Stats`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 A view of the collected statistics for an endpoint.
@@ -234,7 +234,7 @@ A view of the collected statistics for an endpoint.
 ### `endpointStats.createdAt`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint} A timestamp indicating the moment the endpoint was created. Read only.
@@ -242,7 +242,7 @@ added: REPLACEME
 ### `endpointStats.destroyedAt`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint} A timestamp indicating the moment the endpoint was destroyed. Read only.
@@ -250,7 +250,7 @@ added: REPLACEME
 ### `endpointStats.bytesReceived`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint} The total number of bytes received by this endpoint. Read only.
@@ -258,7 +258,7 @@ added: REPLACEME
 ### `endpointStats.bytesSent`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint} The total number of bytes sent by this endpoint. Read only.
@@ -266,7 +266,7 @@ added: REPLACEME
 ### `endpointStats.packetsReceived`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint} The total number of QUIC packets successfully received by this endpoint. Read only.
@@ -274,7 +274,7 @@ added: REPLACEME
 ### `endpointStats.packetsSent`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint} The total number of QUIC packets successfully sent by this endpoint. Read only.
@@ -282,7 +282,7 @@ added: REPLACEME
 ### `endpointStats.serverSessions`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint} The total number of peer-initiated sessions received by this endpoint. Read only.
@@ -290,7 +290,7 @@ added: REPLACEME
 ### `endpointStats.clientSessions`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint} The total number of sessions initiated by this endpoint. Read only.
@@ -298,7 +298,7 @@ added: REPLACEME
 ### `endpointStats.serverBusyCount`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint} The total number of times an initial packet was rejected due to the
@@ -307,7 +307,7 @@ added: REPLACEME
 ### `endpointStats.retryCount`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint} The total number of QUIC retry attempts on this endpoint. Read only.
@@ -315,7 +315,7 @@ added: REPLACEME
 ### `endpointStats.versionNegotiationCount`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint} The total number sessions rejected due to QUIC version mismatch. Read only.
@@ -323,7 +323,7 @@ added: REPLACEME
 ### `endpointStats.statelessResetCount`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint} The total number of stateless resets handled by this endpoint. Read only.
@@ -331,7 +331,7 @@ added: REPLACEME
 ### `endpointStats.immediateCloseCount`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint} The total number of sessions that were closed before handshake completed. Read only.
@@ -339,7 +339,7 @@ added: REPLACEME
 ## Class: `QuicSession`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 A `QuicSession` represents the local side of a QUIC connection.
@@ -347,7 +347,7 @@ A `QuicSession` represents the local side of a QUIC connection.
 ### `session.close()`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * Returns: {Promise}
@@ -360,7 +360,7 @@ the session has been destroyed.
 ### `session.closed`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {Promise}
@@ -370,7 +370,7 @@ A promise that is fulfilled once the session is destroyed.
 ### `session.destroy([error])`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * `error` {any}
@@ -381,7 +381,7 @@ session will be closed.
 ### `session.destroyed`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {boolean}
@@ -391,7 +391,7 @@ True if `session.destroy()` has been called. Read only.
 ### `session.endpoint`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {quic.QuicEndpoint}
@@ -401,7 +401,7 @@ The endpoint that created this session. Read only.
 ### `session.onstream`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {quic.OnStreamCallback}
@@ -411,7 +411,7 @@ The callback to invoke when a new stream is initiated by a remote peer. Read/wri
 ### `session.ondatagram`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {quic.OnDatagramCallback}
@@ -421,7 +421,7 @@ The callback to invoke when a new datagram is received from a remote peer. Read/
 ### `session.ondatagramstatus`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {quic.OnDatagramStatusCallback}
@@ -431,7 +431,7 @@ The callback to invoke when the status of a datagram is updated. Read/write.
 ### `session.onpathvalidation`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {quic.OnPathValidationCallback}
@@ -441,7 +441,7 @@ The callback to invoke when the path validation is updated. Read/write.
 ### `seesion.onsessionticket`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {quic.OnSessionTicketCallback}
@@ -451,7 +451,7 @@ The callback to invoke when a new session ticket is received. Read/write.
 ### `session.onversionnegotiation`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {quic.OnVersionNegotiationCallback}
@@ -461,7 +461,7 @@ The callback to invoke when a version negotiation is initiated. Read/write.
 ### `session.onhandshake`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {quic.OnHandshakeCallback}
@@ -471,7 +471,7 @@ The callback to invoke when the TLS handshake is completed. Read/write.
 ### `session.createBidirectionalStream([options])`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * `options` {Object}
@@ -485,7 +485,7 @@ the outgoing stream will be half-closed.
 ### `session.createUnidirectionalStream([options])`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * `options` {Object}
@@ -499,7 +499,7 @@ the outgoing stream will be closed.
 ### `session.path`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {Object|undefined}
@@ -511,7 +511,7 @@ The local and remote socket addresses associated with the session. Read only.
 ### `session.sendDatagram(datagram)`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * `datagram` {string|ArrayBufferView}
@@ -524,7 +524,7 @@ that view will be transfered to the underlying stream.
 ### `session.stats`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {quic.QuicSession.Stats}
@@ -534,7 +534,7 @@ Return the current statistics for the session. Read only.
 ### `session.updateKey()`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 Initiate a key update for the session.
@@ -542,7 +542,7 @@ Initiate a key update for the session.
 ### `session[Symbol.asyncDispose]()`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 Calls `session.close()` and returns a promise that fulfills when the
@@ -551,13 +551,13 @@ session has closed.
 ## Class: `QuicSession.Stats`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 ### `sessionStats.createdAt`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint}
@@ -565,7 +565,7 @@ added: REPLACEME
 ### `sessionStats.closingAt`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint}
@@ -573,7 +573,7 @@ added: REPLACEME
 ### `sessionStats.handshakeCompletedAt`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint}
@@ -581,7 +581,7 @@ added: REPLACEME
 ### `sessionStats.handshakeConfirmedAt`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint}
@@ -589,7 +589,7 @@ added: REPLACEME
 ### `sessionStats.bytesReceived`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint}
@@ -597,7 +597,7 @@ added: REPLACEME
 ### `sessionStats.bytesSent`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint}
@@ -605,7 +605,7 @@ added: REPLACEME
 ### `sessionStats.bidiInStreamCount`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint}
@@ -613,7 +613,7 @@ added: REPLACEME
 ### `sessionStats.bidiOutStreamCount`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint}
@@ -621,7 +621,7 @@ added: REPLACEME
 ### `sessionStats.uniInStreamCount`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint}
@@ -629,7 +629,7 @@ added: REPLACEME
 ### `sessionStats.uniOutStreamCount`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint}
@@ -637,7 +637,7 @@ added: REPLACEME
 ### `sessionStats.maxBytesInFlights`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint}
@@ -645,7 +645,7 @@ added: REPLACEME
 ### `sessionStats.bytesInFlight`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint}
@@ -653,7 +653,7 @@ added: REPLACEME
 ### `sessionStats.blockCount`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint}
@@ -661,7 +661,7 @@ added: REPLACEME
 ### `sessionStats.cwnd`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint}
@@ -669,7 +669,7 @@ added: REPLACEME
 ### `sessionStats.latestRtt`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint}
@@ -677,7 +677,7 @@ added: REPLACEME
 ### `sessionStats.minRtt`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint}
@@ -685,7 +685,7 @@ added: REPLACEME
 ### `sessionStats.rttVar`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint}
@@ -693,7 +693,7 @@ added: REPLACEME
 ### `sessionStats.smoothedRtt`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint}
@@ -701,7 +701,7 @@ added: REPLACEME
 ### `sessionStats.ssthresh`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint}
@@ -709,7 +709,7 @@ added: REPLACEME
 ### `sessionStats.datagramsReceived`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint}
@@ -717,7 +717,7 @@ added: REPLACEME
 ### `sessionStats.datagramsSent`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint}
@@ -725,7 +725,7 @@ added: REPLACEME
 ### `sessionStats.datagramsAcknowledged`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint}
@@ -733,7 +733,7 @@ added: REPLACEME
 ### `sessionStats.datagramsLost`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint}
@@ -741,13 +741,13 @@ added: REPLACEME
 ## Class: `QuicStream`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 ### `stream.closed`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {Promise}
@@ -757,7 +757,7 @@ A promise that is fulfilled when the stream is fully closed.
 ### `stream.destroy([error])`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * `error` {any}
@@ -767,7 +767,7 @@ Immediately and abruptly destroys the stream.
 ### `stream.destroyed`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {boolean}
@@ -777,7 +777,7 @@ True if `stream.destroy()` has been called.
 ### `stream.direction`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {string} One of either `'bidi'` or `'uni'`.
@@ -787,7 +787,7 @@ The directionality of the stream. Read only.
 ### `stream.id`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint}
@@ -797,7 +797,7 @@ The stream ID. Read only.
 ### `stream.onblocked`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {quic.OnBlockedCallback}
@@ -807,7 +807,7 @@ The callback to invoke when the stream is blocked. Read/write.
 ### `stream.onreset`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {quic.OnStreamErrorCallback}
@@ -817,7 +817,7 @@ The callback to invoke when the stream is reset. Read/write.
 ### `stream.readable`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {ReadableStream}
@@ -825,7 +825,7 @@ added: REPLACEME
 ### `stream.session`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {quic.QuicSession}
@@ -835,7 +835,7 @@ The session that created this stream. Read only.
 ### `stream.stats`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {quic.QuicStream.Stats}
@@ -845,13 +845,13 @@ The current statistics for the stream. Read only.
 ## Class: `QuicStream.Stats`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 ### `streamStats.ackedAt`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint}
@@ -859,7 +859,7 @@ added: REPLACEME
 ### `streamStats.bytesReceived`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint}
@@ -867,7 +867,7 @@ added: REPLACEME
 ### `streamStats.bytesSent`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint}
@@ -875,7 +875,7 @@ added: REPLACEME
 ### `streamStats.createdAt`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint}
@@ -883,7 +883,7 @@ added: REPLACEME
 ### `streamStats.destroyedAt`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint}
@@ -891,7 +891,7 @@ added: REPLACEME
 ### `streamStats.finalSize`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint}
@@ -899,7 +899,7 @@ added: REPLACEME
 ### `streamStats.isConnected`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint}
@@ -907,7 +907,7 @@ added: REPLACEME
 ### `streamStats.maxOffset`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint}
@@ -915,7 +915,7 @@ added: REPLACEME
 ### `streamStats.maxOffsetAcknowledged`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint}
@@ -923,7 +923,7 @@ added: REPLACEME
 ### `streamStats.maxOffsetReceived`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint}
@@ -931,7 +931,7 @@ added: REPLACEME
 ### `streamStats.openedAt`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint}
@@ -939,7 +939,7 @@ added: REPLACEME
 ### `streamStats.receivedAt`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint}
@@ -949,7 +949,7 @@ added: REPLACEME
 ### Type: `EndpointOptions`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {Object}
@@ -959,7 +959,7 @@ The endpoint configuration options passed when constructing a new `QuicEndpoint`
 #### `endpointOptions.address`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {net.SocketAddress | string} The local UDP address and port the endpoint should bind to.
@@ -969,7 +969,7 @@ If not specified the endpoint will bind to IPv4 `localhost` on a random port.
 #### `endpointOptions.addressLRUSize`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint|number}
@@ -982,7 +982,7 @@ need to specify.
 #### `endpointOptions.ipv6Only`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {boolean}
@@ -992,7 +992,7 @@ When `true`, indicates that the endpoint should bind only to IPv6 addresses.
 #### `endpointOptions.maxConnectionsPerHost`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint|number}
@@ -1002,7 +1002,7 @@ Specifies the maximum number of concurrent sessions allowed per remote peer addr
 #### `endpointOptions.maxConnectionsTotal`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint|number}
@@ -1012,7 +1012,7 @@ Specifies the maximum total number of concurrent sessions.
 #### `endpointOptions.maxRetries`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint|number}
@@ -1022,7 +1022,7 @@ Specifies the maximum number of QUIC retry attempts allowed per remote peer addr
 #### `endpointOptions.maxStatelessResetsPerHost`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint|number}
@@ -1032,7 +1032,7 @@ Specifies the maximum number of stateless resets that are allowed per remote pee
 #### `endpointOptions.retryTokenExpiration`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint|number}
@@ -1042,7 +1042,7 @@ Specifies the length of time a QUIC retry token is considered valid.
 #### `endpointOptions.resetTokenSecret`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {ArrayBufferView}
@@ -1052,7 +1052,7 @@ Specifies the 16-byte secret used to generate QUIC retry tokens.
 #### `endpointOptions.tokenExpiration`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint|number}
@@ -1062,7 +1062,7 @@ Specifies the length of time a QUIC token is considered valid.
 #### `endpointOptions.tokenSecret`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {ArrayBufferView}
@@ -1072,7 +1072,7 @@ Specifies the 16-byte secret used to generate QUIC tokens.
 #### `endpointOptions.udpReceiveBufferSize`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {number}
@@ -1080,7 +1080,7 @@ added: REPLACEME
 #### `endpointOptions.udpSendBufferSize`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {number}
@@ -1088,7 +1088,7 @@ added: REPLACEME
 #### `endpointOptions.udpTTL`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {number}
@@ -1096,7 +1096,7 @@ added: REPLACEME
 #### `endpointOptions.validateAddress`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {boolean}
@@ -1107,13 +1107,13 @@ while establishing a new connection.
 ### Type: `SessionOptions`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 #### `sessionOptions.alpn`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {string}
@@ -1123,7 +1123,7 @@ The ALPN protocol identifier.
 #### `sessionOptions.ca`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {ArrayBuffer|ArrayBufferView|ArrayBuffer\[]|ArrayBufferView\[]}
@@ -1133,7 +1133,7 @@ The CA certificates to use for sessions.
 #### `sessionOptions.cc`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {string}
@@ -1146,7 +1146,7 @@ This is an advanced option that users typically won't have need to specify.
 #### `sessionOptions.certs`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {ArrayBuffer|ArrayBufferView|ArrayBuffer\[]|ArrayBufferView\[]}
@@ -1156,7 +1156,7 @@ The TLS certificates to use for sessions.
 #### `sessionOptions.ciphers`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {string}
@@ -1166,7 +1166,7 @@ The list of supported TLS 1.3 cipher algorithms.
 #### `sessionOptions.crl`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {ArrayBuffer|ArrayBufferView|ArrayBuffer\[]|ArrayBufferView\[]}
@@ -1176,7 +1176,7 @@ The CRL to use for sessions.
 #### `sessionOptions.groups`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {string}
@@ -1186,7 +1186,7 @@ The list of support TLS 1.3 cipher groups.
 #### `sessionOptions.keylog`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {boolean}
@@ -1196,7 +1196,7 @@ True to enable TLS keylogging output.
 #### `sessionOptions.keys`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {KeyObject|CryptoKey|KeyObject\[]|CryptoKey\[]}
@@ -1206,7 +1206,7 @@ The TLS crypto keys to use for sessions.
 #### `sessionOptions.maxPayloadSize`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint|number}
@@ -1216,7 +1216,7 @@ Specifies the maximum UDP packet payload size.
 #### `sessionOptions.maxStreamWindow`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint|number}
@@ -1226,7 +1226,7 @@ Specifies the maximum stream flow-control window size.
 #### `sessionOptions.maxWindow`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint|number}
@@ -1236,7 +1236,7 @@ Specifies the maxumum session flow-control window size.
 #### `sessionOptions.minVersion`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {number}
@@ -1247,7 +1247,7 @@ typically won't have need to specify.
 #### `sessionOptions.preferredAddressPolicy`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {string} One of `'use'`, `'ignore'`, or `'default'`.
@@ -1258,7 +1258,7 @@ to use it or ignore it.
 #### `sessionOptions.qlog`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {boolean}
@@ -1268,7 +1268,7 @@ True if qlog output should be enabled.
 #### `sessionOptions.sessionTicket`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {ArrayBufferView} A session ticket to use for 0RTT session resumption.
@@ -1276,7 +1276,7 @@ added: REPLACEME
 #### `sessionOptions.handshakeTimeout`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint|number}
@@ -1287,7 +1287,7 @@ to complete before timing out.
 #### `sessionOptions.sni`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {string}
@@ -1297,7 +1297,7 @@ The peer server name to target.
 #### `sessionOptions.tlsTrace`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {boolean}
@@ -1307,7 +1307,7 @@ True to enable TLS tracing output.
 #### `sessionOptions.transportParams`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {quic.TransportParams}
@@ -1317,7 +1317,7 @@ The QUIC transport parameters to use for the session.
 #### `sessionOptions.unacknowledgedPacketThreshold`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint|number}
@@ -1327,7 +1327,7 @@ Specifies the maximum number of unacknowledged packets a session should allow.
 #### `sessionOptions.verifyClient`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {boolean}
@@ -1337,7 +1337,7 @@ True to require verification of TLS client certificate.
 #### `sessionOptions.verifyPrivateKey`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {boolean}
@@ -1347,7 +1347,7 @@ True to require private key verification.
 #### `sessionOptions.version`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {number}
@@ -1358,13 +1358,13 @@ won't have need to specify.
 ### Type: `TransportParams`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 #### `transportParams.preferredAddressIpv4`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {net.SocketAddress} The preferred IPv4 address to advertise.
@@ -1372,7 +1372,7 @@ added: REPLACEME
 #### `transportParams.preferredAddressIpv6`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {net.SocketAddress} The preferred IPv6 address to advertise.
@@ -1380,7 +1380,7 @@ added: REPLACEME
 #### `transportParams.initialMaxStreamDataBidiLocal`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint|number}
@@ -1388,7 +1388,7 @@ added: REPLACEME
 #### `transportParams.initialMaxStreamDataBidiRemote`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint|number}
@@ -1396,7 +1396,7 @@ added: REPLACEME
 #### `transportParams.initialMaxStreamDataUni`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint|number}
@@ -1404,7 +1404,7 @@ added: REPLACEME
 #### `transportParams.initialMaxData`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint|number}
@@ -1412,7 +1412,7 @@ added: REPLACEME
 #### `transportParams.initialMaxStreamsBidi`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint|number}
@@ -1420,7 +1420,7 @@ added: REPLACEME
 #### `transportParams.initialMaxStreamsUni`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint|number}
@@ -1428,7 +1428,7 @@ added: REPLACEME
 #### `transportParams.maxIdleTimeout`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint|number}
@@ -1436,7 +1436,7 @@ added: REPLACEME
 #### `transportParams.activeConnectionIDLimit`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint|number}
@@ -1444,7 +1444,7 @@ added: REPLACEME
 #### `transportParams.ackDelayExponent`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint|number}
@@ -1452,7 +1452,7 @@ added: REPLACEME
 #### `transportParams.maxAckDelay`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint|number}
@@ -1460,7 +1460,7 @@ added: REPLACEME
 #### `transportParams.maxDatagramFrameSize`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * {bigint|number}
@@ -1470,7 +1470,7 @@ added: REPLACEME
 ### Callback: `OnSessionCallback`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * `this` {quic.QuicEndpoint}
@@ -1481,7 +1481,7 @@ The callback function that is invoked when a new session is initiated by a remot
 ### Callback: `OnStreamCallback`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * `this` {quic.QuicSession}
@@ -1490,7 +1490,7 @@ added: REPLACEME
 ### Callback: `OnDatagramCallback`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * `this` {quic.QuicSession}
@@ -1500,7 +1500,7 @@ added: REPLACEME
 ### Callback: `OnDatagramStatusCallback`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * `this` {quic.QuicSession}
@@ -1510,7 +1510,7 @@ added: REPLACEME
 ### Callback: `OnPathValidationCallback`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * `this` {quic.QuicSession}
@@ -1524,7 +1524,7 @@ added: REPLACEME
 ### Callback: `OnSessionTicketCallback`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * `this` {quic.QuicSession}
@@ -1533,7 +1533,7 @@ added: REPLACEME
 ### Callback: `OnVersionNegotiationCallback`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * `this` {quic.QuicSession}
@@ -1544,7 +1544,7 @@ added: REPLACEME
 ### Callback: `OnHandshakeCallback`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * `this` {quic.QuicSession}
@@ -1559,7 +1559,7 @@ added: REPLACEME
 ### Callback: `OnBlockedCallback`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * `this` {quic.QuicStream}
@@ -1567,7 +1567,7 @@ added: REPLACEME
 ### Callback: `OnStreamErrorCallback`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * `this` {quic.QuicStream}
@@ -1578,7 +1578,7 @@ added: REPLACEME
 ### Channel: `quic.endpoint.created`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * `endpoint` {quic.QuicEndpoint}
@@ -1587,7 +1587,7 @@ added: REPLACEME
 ### Channel: `quic.endpoint.listen`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * `endpoint` {quic.QuicEndpoint}
@@ -1596,7 +1596,7 @@ added: REPLACEME
 ### Channel: `quic.endpoint.closing`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * `endpoint` {quic.QuicEndpoint}
@@ -1605,7 +1605,7 @@ added: REPLACEME
 ### Channel: `quic.endpoint.closed`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * `endpoint` {quic.QuicEndpoint}
@@ -1613,7 +1613,7 @@ added: REPLACEME
 ### Channel: `quic.endpoint.error`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * `endpoint` {quic.QuicEndpoint}
@@ -1622,7 +1622,7 @@ added: REPLACEME
 ### Channel: `quic.endpoint.busy.change`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 * `endpoint` {quic.QuicEndpoint}
@@ -1631,83 +1631,83 @@ added: REPLACEME
 ### Channel: `quic.session.created.client`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 ### Channel: `quic.session.created.server`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 ### Channel: `quic.session.open.stream`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 ### Channel: `quic.session.received.stream`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 ### Channel: `quic.session.send.datagram`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 ### Channel: `quic.session.update.key`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 ### Channel: `quic.session.closing`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 ### Channel: `quic.session.closed`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 ### Channel: `quic.session.receive.datagram`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 ### Channel: `quic.session.receive.datagram.status`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 ### Channel: `quic.session.path.validation`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 ### Channel: `quic.session.ticket`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 ### Channel: `quic.session.version.negotiation`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 ### Channel: `quic.session.handshake`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
