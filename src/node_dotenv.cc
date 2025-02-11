@@ -105,15 +105,22 @@ Local<Object> Dotenv::ToObject(Environment* env) const {
   return result;
 }
 
+// Removes space characters (spaces, tabs and newlines) from
+// the start and end of a given input string
 std::string_view trim_spaces(std::string_view input) {
   if (input.empty()) return "";
-  if (input.front() == ' ') {
-    input.remove_prefix(input.find_first_not_of(' '));
+
+  auto pos_start = input.find_first_not_of(" \t\n");
+  if (pos_start == std::string_view::npos) {
+    return "";
   }
-  if (!input.empty() && input.back() == ' ') {
-    input = input.substr(0, input.find_last_not_of(' ') + 1);
+
+  auto pos_end = input.find_last_not_of(" \t\n");
+  if (pos_end == std::string_view::npos) {
+    return input.substr(pos_start);
   }
-  return input;
+
+  return input.substr(pos_start, pos_end - pos_start + 1);
 }
 
 void Dotenv::ParseContent(const std::string_view input) {
@@ -147,6 +154,13 @@ void Dotenv::ParseContent(const std::string_view input) {
     key = content.substr(0, equal);
     content.remove_prefix(equal + 1);
     key = trim_spaces(key);
+
+    // If the value is not present (e.g. KEY=) set is to an empty string
+    if (content.front() == '\n') {
+      store_.insert_or_assign(std::string(key), "");
+      continue;
+    }
+
     content = trim_spaces(content);
 
     if (key.empty()) {
