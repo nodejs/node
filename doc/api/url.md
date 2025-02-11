@@ -719,7 +719,7 @@ if `input` is not a valid.
 > Stability: 1 - Experimental
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 The `URLPattern` API provides an interface to match URLs or parts of URLs

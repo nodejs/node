@@ -1001,7 +1001,7 @@ top-level awaits, and print their location to help users find them.
 ### `--experimental-quic`
 
 <!--
-added: REPLACEME
+added: v23.8.0
 -->
 
 Enables the experimental `node:quic` built-in module.
