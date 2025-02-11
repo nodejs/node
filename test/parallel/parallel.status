@@ -26,6 +26,8 @@ test-worker-nearheaplimit-deadlock: PASS, FLAKY
 [$system==linux]
 # https://github.com/nodejs/node/issues/54803
 test-performance-function: PASS, FLAKY
+# https://github.com/nodejs/node/issues/34730
+test-inspector-multisession-ws: PASS, FLAKY
 # https://github.com/nodejs/node/issues/39368
 test-domain-error-types: PASS,FLAKY
 # https://github.com/nodejs/node/issues/47420
