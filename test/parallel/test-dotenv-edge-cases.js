@@ -137,6 +137,25 @@ describe('.env supports edge cases', () => {
     assert.strictEqual(child.code, 0);
   });
 
+  it('should handle lines that come after lines with only spaces (and tabs)', async () => {
+    // Ref: https://github.com/nodejs/node/issues/56686
+    const code = `
+      process.loadEnvFile('./lines-with-only-spaces.env');
+      assert.strictEqual(process.env.EMPTY_LINE, 'value after an empty line');
+      assert.strictEqual(process.env.SPACES_LINE, 'value after a line with just some spaces');
+      assert.strictEqual(process.env.TABS_LINE, 'value after a line with just some tabs');
+      assert.strictEqual(process.env.SPACES_TABS_LINE, 'value after a line with just some spaces and tabs');
+    `.trim();
+    const child = await common.spawnPromisified(
+      process.execPath,
+      [ '--eval', code ],
+      { cwd: fixtures.path('dotenv') },
+    );
+    assert.strictEqual(child.stdout, '');
+    assert.strictEqual(child.stderr, '');
+    assert.strictEqual(child.code, 0);
+  });
+
   it('should handle when --env-file is passed along with --', async () => {
     const child = await common.spawnPromisified(
       process.execPath,
