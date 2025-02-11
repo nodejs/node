@@ -34,6 +34,8 @@ test-domain-error-types: PASS,FLAKY
 test-file-write-stream4: PASS,FLAKY
 # https://github.com/nodejs/node/issues/43465
 test-http-server-request-timeouts-mixed: PASS, FLAKY
+# https://github.com/nodejs/node/issues/50046
+test-inspector-stop-profile-after-done: PASS, FLAKY
 
 [$system==linux || $system==win32]
 # https://github.com/nodejs/node/issues/49605
