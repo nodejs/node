@@ -878,7 +878,7 @@ class ZstdStream final : public CompressionStream<CompressionContext> {
     CHECK(args.Length() == 4 &&
           "init(params, pledgedSrcSize, writeResult, writeCallback)");
     ZstdStream* wrap;
-    ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
 
     CHECK(args[2]->IsUint32Array());
     uint32_t* write_result = reinterpret_cast<uint32_t*>(Buffer::Data(args[2]));
