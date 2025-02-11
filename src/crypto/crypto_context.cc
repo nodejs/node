@@ -40,7 +40,6 @@ using ncrypto::MarkPopErrorOnReturn;
 using ncrypto::SSLPointer;
 using ncrypto::StackOfX509;
 using ncrypto::X509Pointer;
-using ncrypto::X509View;
 using v8::Array;
 using v8::ArrayBufferView;
 using v8::Boolean;
@@ -664,7 +663,6 @@ static std::vector<X509*> InitializeBundledRootCertificates() {
   return bundled_root_certs;
 }
 
-
 // TODO(joyeecheung): it is a bit excessive to do this PEM -> X509
 // dance when we could've just pass everything around in binary. Change the
 // root_certs to be embedded as DER so that we can save the serialization
@@ -787,7 +785,7 @@ void CleanupCachedRootCertificates() {
     }
   }
 
-  if (has_cached_system_root_certs.load()) {
+  if (has_cached_extra_root_certs.load()) {
     for (X509* cert : GetExtraCACertificates()) {
       X509_free(cert);
     }
