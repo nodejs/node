@@ -717,7 +717,7 @@ if `input` is not a valid.
 ### Class: `URLPattern`
 
 <!-- YAML
-added: REPLACEME
+added: v23.8.0
 -->
 
 > Stability: 1 - Experimental
