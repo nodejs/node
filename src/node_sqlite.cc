@@ -743,26 +743,28 @@ void DatabaseSync::CreateSession(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(session->object());
 }
 
+struct ConflictCallbackContext {
+  std::function<bool(std::string)> filterCallback;
+  std::function<int(int)> conflictCallback;
+};
+
 // the reason for using static functions here is that SQLite needs a
 // function pointer
-static std::function<int(int)> conflictCallback;
 
 static int xConflict(void* pCtx, int eConflict, sqlite3_changeset_iter* pIter) {
-  if (!conflictCallback) return SQLITE_CHANGESET_ABORT;
-  return conflictCallback(eConflict);
+  auto ctx = static_cast<ConflictCallbackContext*>(pCtx);
+  if (!ctx->conflictCallback) return SQLITE_CHANGESET_ABORT;
+  return ctx->conflictCallback(eConflict);
 }
 
-static std::function<bool(std::string)> filterCallback;
-
 static int xFilter(void* pCtx, const char* zTab) {
-  if (!filterCallback) return 1;
-
-  return filterCallback(zTab) ? 1 : 0;
+    auto ctx = static_cast<ConflictCallbackContext*>(pCtx);
+    if (!ctx->filterCallback) return 1;
+    return ctx->filterCallback(zTab) ? 1 : 0;
 }
 
 void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
-  conflictCallback = nullptr;
-  filterCallback = nullptr;
+  ConflictCallbackContext context;
 
   DatabaseSync* db;
   ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
@@ -794,7 +796,7 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
         return;
       }
       Local<Function> conflictFunc = conflictValue.As<Function>();
-      conflictCallback = [env, conflictFunc](int conflictType) -> int {
+      context.conflictCallback = [env, conflictFunc](int conflictType) -> int {
         Local<Value> argv[] = {Integer::New(env->isolate(), conflictType)};
         TryCatch try_catch(env->isolate());
         Local<Value> result =
@@ -824,22 +826,21 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
 
       Local<Function> filterFunc = filterValue.As<Function>();
 
-      filterCallback = [env, filterFunc](std::string item) -> bool {
-        TryCatch try_catch(env->isolate());
+      context.filterCallback = [env, filterFunc](std::string item) -> bool {
         Local<Value> argv[] = {String::NewFromUtf8(env->isolate(),
                                                   item.c_str(),
                                                   NewStringType::kNormal)
                                   .ToLocalChecked()};
         MaybeLocal<Value> maybe_result =
             filterFunc->Call(env->context(), Null(env->isolate()), 1, argv);
-        if (try_catch.HasCaught()) {
-          try_catch.ReThrow();
-          return false;
-        }
+
         if (maybe_result.IsEmpty()) {
           return false;
         }
-        Local<Value> result = maybe_result.ToLocalChecked();
+        Local<Value> result;
+        if (!maybe_result.ToLocal(&result)) {
+          return false;
+        }
         return result->BooleanValue(env->isolate());
       };
     }
@@ -852,7 +853,7 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
       const_cast<void*>(static_cast<const void*>(buf.data())),
       xFilter,
       xConflict,
-      nullptr);
+      static_cast<void*>(&context));
   if (r == SQLITE_OK) {
     args.GetReturnValue().Set(true);
     return;

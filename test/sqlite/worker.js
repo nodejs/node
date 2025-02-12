@@ -15,6 +15,8 @@ options.onConflict = () => mode;
 try {
   const result = db.applyChangeset(changeset, options);
   parentPort.postMessage({ mode, result, error: null });
-} catch (e) {
-  parentPort.postMessage({ mode, result: null, error: e.message });
+} catch (error) {
+  parentPort.postMessage({ mode, result: null, errorMessage: error.message, errcode: error.errcode });
+} finally {
+  db.close();  // just to make sure it is closed ASAP
 }
