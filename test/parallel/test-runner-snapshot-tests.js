@@ -158,6 +158,8 @@ suite('SnapshotManager', () => {
 
     file.setSnapshot('foo`${x}` 1', 'test');
     t.assert.strictEqual(file.getSnapshot('foo\\`\\${x}\\` 1'), 'test');
+    file.setSnapshot('\r 1', 'test');
+    t.assert.strictEqual(file.getSnapshot('\\r 1'), 'test');
   });
 
   test('throws if snapshot file cannot be resolved', (t) => {
