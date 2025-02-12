@@ -1893,10 +1893,17 @@ A number which will be the process exit code, when the process either
 exits gracefully, or is exited via [`process.exit()`][] without specifying
 a code.
 
-The value of `process.exitCode` can be updated by either setting the value
-directly (e.g. `process.exitCode = 9`), or by specifying a code to
-[`process.exit(code)`][`process.exit()`] (the latter takes
-precedence and will override any previous setting of `process.exitCode`).
+The value of `process.exitCode` can be updated by either assigning a value to
+`process.exitCode` or by passing an argument to [`process.exit()`][]:
+
+```console
+$ node -e 'process.exitCode = 9'; echo $?
+9
+$ node -e 'process.exit(42)'; echo $?
+42
+$ node -e 'process.exitCode = 9; process.exit(42)'; echo $?
+42
+```
 
 The value can also be set implicitly by Node.js when unrecoverable errors occur (e.g.
 such as the encountering of an unsettled top-level await). However explicit
