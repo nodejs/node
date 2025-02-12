@@ -6,6 +6,7 @@
     "@babel/core": "^7.26.7",
     "@babel/eslint-parser": "^7.26.5",
     "@babel/plugin-syntax-import-attributes": "^7.26.0",
+    "@babel/plugin-syntax-import-source": "^7.25.9",
     "@stylistic/eslint-plugin-js": "^3.0.1",
     "eslint": "^9.19.0",
     "eslint-formatter-tap": "^8.40.0",
