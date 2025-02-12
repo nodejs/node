@@ -1907,9 +1907,14 @@ $ node -e 'process.exitCode = 9; process.exit(42)'; echo $?
 
 The value can also be set implicitly by Node.js when unrecoverable errors occur (e.g.
 such as the encountering of an unsettled top-level await). However explicit
-manipulations of the exit code always take precedence over implicit ones (meaning that
-for example updating `process.exitCode` to `9` guarantees that the program's exit code
-will be `9` regardless on other errors Node.js might encounter).
+manipulations of the exit code always take precedence over implicit ones:
+
+```console
+$ node --input-type=module -e 'await new Promise(() => {})'; echo $?
+13
+$ node --input-type=module -e 'process.exitCode = 9; await new Promise(() => {})'; echo $?
+9
+```
 
 ## `process.features.cached_builtins`
 
