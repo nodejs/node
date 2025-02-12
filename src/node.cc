@@ -1259,7 +1259,9 @@ void TearDownOncePerProcess() {
     per_process::v8_platform.Dispose();
   }
 
+#if HAVE_OPENSSL
   crypto::CleanupCachedRootCertificates();
+#endif  // HAVE_OPENSSL
 }
 
 ExitCode GenerateAndWriteSnapshotData(const SnapshotData** snapshot_data_ptr,
