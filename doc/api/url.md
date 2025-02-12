@@ -716,11 +716,11 @@ if `input` is not a valid.
 
 ### Class: `URLPattern`
 
-> Stability: 1 - Experimental
-
 <!-- YAML
 added: v23.8.0
 -->
+
+> Stability: 1 - Experimental
 
 The `URLPattern` API provides an interface to match URLs or parts of URLs
 against a pattern.
