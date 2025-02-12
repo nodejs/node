@@ -648,6 +648,7 @@ static std::vector<X509*> InitializeBundledRootCertificates() {
   // bundled_root_certs_vector.
   std::vector<X509*> bundled_root_certs;
   size_t bundled_root_cert_count = arraysize(root_certs);
+  bundled_root_certs.reserve(bundled_root_cert_count);
   for (size_t i = 0; i < bundled_root_cert_count; i++) {
     X509* x509 = PEM_read_bio_X509(
         NodeBIO::NewFixed(root_certs[i], strlen(root_certs[i])).get(),
