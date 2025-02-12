@@ -6,6 +6,9 @@ const {
   constants,
 } = require('node:sqlite');
 const { test, suite } = require('node:test');
+const { nextDb } = require("../sqlite/next-db.js");
+const { Worker } = require('worker_threads');
+const { once } = require('events');
 
 /**
  * Convenience wrapper around assert.deepStrictEqual that sets a null
@@ -377,14 +380,10 @@ suite('filter tables', () => {
     const applyChangeset = () => database2.applyChangeset(session.changeset(), {
       ...(options.filter ? { filter: options.filter } : {})
     });
-    if (options.error) {
-      t.assert.throws(applyChangeset, options.error);
+    if (options.apply) {
+      options.apply(applyChangeset);
     } else {
-      try {
-        applyChangeset();
-      } catch (error) {
-        if (!options.expectError) throw error;
-      }
+      applyChangeset();
     }
 
     t.assert.strictEqual(database2.prepare('SELECT * FROM data1').all().length, options.data1);
@@ -414,14 +413,24 @@ suite('filter tables', () => {
   test('database.createSession() - throw sometimes in filter callback', (t) => {
     testFilter(t, {
       filter: (tableName) => { if (tableName === 'data2') throw new Error(); else { return true; } },
-      // Only changes to data1 should be applied
-      // note that the changeset was not aborted
-      data1: 3,
+      data1: 0,
       data2: 0,
       expectError: true
     });
   });
 
+  test('database.createSession() - throw sometimes in filter callback', (t) => {
+    testFilter(t, {
+      filter: (tableName) => {
+        if (tableName === "data1")
+          throw new Error(tableName);
+        return true;
+      },
+      data1: 0,
+      data2: 0,
+      expectError: true
+    });
+  });
 
   test('database.createSession() - do not return anything in filter callback', (t) => {
     testFilter(t, {
@@ -613,4 +622,64 @@ test('session.close() - closing twice', (t) => {
     name: 'Error',
     message: 'session is not open'
   });
+});
+
+test('concurrent applyChangeset with workers', async (t) => {
+  function modeToString(mode) {
+    if (mode === constants.SQLITE_CHANGESET_ABORT) return 'SQLITE_CHANGESET_ABORT';
+    if (mode === constants.SQLITE_CHANGESET_OMIT) return 'SQLITE_CHANGESET_OMIT';
+  }
+
+  const dbPath = nextDb();
+  const db1 = new DatabaseSync(dbPath);
+  const db2 = new DatabaseSync(':memory:');
+  const createTable = `
+    CREATE TABLE data(
+      key INTEGER PRIMARY KEY,
+      value TEXT
+    ) STRICT`;
+  db1.exec(createTable);
+  db2.exec(createTable);
+  db1.prepare('INSERT INTO data (key, value) VALUES (?, ?)').run(1, 'hello');
+  const session = db2.createSession();
+  db2.prepare('INSERT INTO data (key, value) VALUES (?, ?)').run(1, 'world');
+  const changeset = session.changeset(); // changeset with conflict (for db1)
+
+  const iterations = 100; // Increase chances of race condition
+  for (let i = 0; i < iterations; i++) {
+    const workers = [];
+    const expectedResults = new Map([[constants.SQLITE_CHANGESET_ABORT, false], [constants.SQLITE_CHANGESET_OMIT, true]]);
+
+    // Launch two workers (abort and omit modes)
+    for (const mode of [constants.SQLITE_CHANGESET_ABORT, constants.SQLITE_CHANGESET_OMIT]) {
+      const worker = new Worker(`${__dirname}/../sqlite/worker.js`, {
+        workerData: {
+          dbPath,
+          changeset,
+          mode
+        },
+      });
+      workers.push(worker);
+    }
+
+    const results = await Promise.all(workers.map(async (worker) => {
+      const [message] = await once(worker, 'message');
+      return message;
+    }));
+
+    // Verify each result
+    for (const res of results) {
+      if (res.error) {
+        t.assert.fail(`Worker error: ${res.error}`);
+      }
+      const expected = expectedResults.get(res.mode);
+      t.assert.strictEqual(
+        res.result,
+        expected,
+        `Iteration ${i}: Worker (${modeToString(res.mode)}) expected ${expected} but got ${res.result}`
+      );
+    }
+
+    workers.forEach(worker => worker.terminate()); // Cleanup
+  }
 });
