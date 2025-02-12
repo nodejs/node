@@ -1122,6 +1122,63 @@
     }
   },
   {
+    "pattern": ["http://\uD83D\uDEB2.com/"],
+    "inputs": ["http://\uD83D\uDEB2.com/"],
+    "exactly_empty_components": [ "port" ],
+    "expected_obj": {
+      "protocol": "http",
+      "hostname": "xn--h78h.com",
+      "pathname": "/"
+    },
+    "expected_match": {
+      "protocol": { "input": "http", "groups": {}},
+      "hostname": { "input": "xn--h78h.com", "groups": {}},
+      "pathname": { "input": "/", "groups": {}}
+    }
+  },
+  {
+    "pattern": ["http://\uD83D \uDEB2"],
+    "expected_obj": "error"
+  },
+  {
+    "pattern": [{"hostname":"\uD83D \uDEB2"}],
+    "expected_obj": "error"
+  },
+  {
+    "pattern": [{"pathname":"\uD83D \uDEB2"}],
+    "inputs": [],
+    "expected_obj": {
+      "pathname": "%EF%BF%BD%20%EF%BF%BD"
+    },
+    "expected_match": null
+  },
+  {
+    "pattern": [{"pathname":":\uD83D \uDEB2"}],
+    "expected_obj": "error"
+  },
+  {
+    "pattern": [{"pathname":":a\uDB40\uDD00b"}],
+    "inputs": [],
+    "expected_obj": {
+      "pathname": ":a\uDB40\uDD00b"
+    },
+    "expected_match": null
+  },
+  {
+    "pattern": [{"pathname":"test/:a\uD801\uDC50b"}],
+    "inputs": [{"pathname":"test/foo"}],
+    "expected_obj": {
+      "pathname": "test/:a\uD801\uDC50b"
+    },
+    "expected_match": {
+      "pathname": { "input": "test/foo", "groups": { "a\uD801\uDC50b": "foo" }}
+    }
+  },
+  {
+    "pattern": [{"pathname":":\uD83D\uDEB2"}],
+    "expected_obj": "error"
+  },
+  {
     "pattern": [{ "port": "" }],
     "inputs": [{ "protocol": "http", "port": "80" }],
     "exactly_empty_components": [ "port" ],
