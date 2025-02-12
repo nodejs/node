@@ -90,7 +90,7 @@ template("uv_gn_build") {
       ldflags = [ "-pthread" ]
     }
     if (is_linux) {
-      libs += [
+      libs = [
         "m",
         "dl",
         "rt",
