@@ -592,13 +592,13 @@ Disable the ability of starting a debugging session by sending a
 
 ### `--disable-warning=code-or-type`
 
-> Stability: 1.1 - Active development
-
 <!-- YAML
 added:
   - v21.3.0
   - v20.11.0
 -->
+
+> Stability: 1.1 - Active development
 
 Disable specific process warnings by `code` or `type`.
 
@@ -802,18 +802,16 @@ node --entry-url 'data:text/javascript,console.log("Hello")'
 
 ### `--env-file-if-exists=config`
 
-> Stability: 1.1 - Active development
-
 <!-- YAML
 added: v22.9.0
 -->
+
+> Stability: 1.1 - Active development
 
 Behavior is the same as [`--env-file`][], but an error is not thrown if the file
 does not exist.
 
 ### `--env-file=config`
-
-> Stability: 1.1 - Active development
 
 <!-- YAML
 added: v20.6.0
@@ -824,6 +822,8 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/51289
     description: Add support to multi-line values.
 -->
+
+> Stability: 1.1 - Active development
 
 Loads environment variables from a file relative to the current directory,
 making them available to applications on `process.env`. The [environment
