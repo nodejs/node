@@ -22,7 +22,7 @@ If you find a potential security vulnerability, please refer to our
 
 Code integrity is an opt-in feature that leverages Window Defender Application Control
 to verify the code executing conforms to system policy and has not been modified since
-signing time. 
+signing time.
 
 There are three audiences that are involved when using Node.js in an
 environment enforcing code integrity: the application developers,
@@ -60,7 +60,7 @@ Be sure that the catalog is generated using the final version of the files that 
 The application developer should then sign the generated catalog with their Code Signing certificate
 to ensure the catalog is not tampered with between distribution and execution.
 
-This can be done with the [Set-AuthenticodeSignature](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.security/set-authenticodesignature) commandlet.
+This can be done with the [Set-AuthenticodeSignature commandlet](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.security/set-authenticodesignature).
 
 ### Windows Code Integrity and System Administrators
 
@@ -121,7 +121,7 @@ On older Windows versions, use the `Settings` section of your WDAC Policy.
 
 Code integrity on Linux is not yet implemented. Plans for implementation will
 be made once the necessary APIs on Linux have been upstreamed. More information
-can be found here: https://github.com/nodejs/security-wg/issues/1388
+can be found here: <https://github.com/nodejs/security-wg/issues/1388>
 
 ## Code Integrity on MacOS
 
