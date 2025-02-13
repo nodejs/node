@@ -186,9 +186,6 @@
         "experimental-vm-modules": {
           "type": "boolean"
         },
-        "experimental-wasm-modules": {
-          "type": "boolean"
-        },
         "experimental-websocket": {
           "type": "boolean"
         },
