@@ -170,7 +170,7 @@ security announcements for more information.
       Then uncheck the Public Disclosure on HackerOne box at the bottom of the
       page.
       ![screenshot of HackerOne CVE form](https://github.com/nodejs/node/assets/26234614/e22e4f33-7948-4dd2-952e-2f9166f5568d)
-  * [ ] PR machine-readable JSON descriptions of the vulnerabilities to the [core](https://github.com/nodejs/security-wg/tree/HEAD/vuln/core)
+  * PR machine-readable JSON descriptions of the vulnerabilities to the [core](https://github.com/nodejs/security-wg/tree/HEAD/vuln/core)
     vulnerability DB.
   * [ ] Add yourself as a steward in the [Security Release Stewards](https://github.com/nodejs/node/blob/HEAD/doc/contributing/security-release-process.md#security-release-stewards)
 
