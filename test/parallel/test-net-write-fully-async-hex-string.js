@@ -8,7 +8,7 @@ const net = require('net');
 const data = Buffer.alloc(1000000).toString('hex');
 
 const server = net.createServer(common.mustCall(function(conn) {
-  // communicate to the client that the server is ready to receive data
+  // Communicate to the client that the server is ready to receive data
   conn.write('start');
   conn.resume();
 })).listen(0, common.mustCall(function() {
@@ -36,6 +36,6 @@ const server = net.createServer(common.mustCall(function(conn) {
       conn.on('drain', writeLoop);
       conn.resume();
       writeLoop();
-    }))
+    }));
   }));
 }));
