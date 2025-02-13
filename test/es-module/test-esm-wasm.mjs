@@ -9,7 +9,6 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
   it('should load exports', async () => {
     const { code, stderr, stdout } = await spawnPromisified(execPath, [
       '--no-warnings',
-      '--experimental-wasm-modules',
       '--input-type=module',
       '--eval',
       [
@@ -32,7 +31,6 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
   it('should not allow code injection through export names', async () => {
     const { code, stderr, stdout } = await spawnPromisified(execPath, [
       '--no-warnings',
-      '--experimental-wasm-modules',
       '--input-type=module',
       '--eval',
       `import * as wasmExports from ${JSON.stringify(fixtures.fileURL('es-modules/export-name-code-injection.wasm'))};`,
@@ -46,7 +44,6 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
   it('should allow non-identifier export names', async () => {
     const { code, stderr, stdout } = await spawnPromisified(execPath, [
       '--no-warnings',
-      '--experimental-wasm-modules',
       '--input-type=module',
       '--eval',
       [
@@ -64,7 +61,6 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
   it('should properly handle all WebAssembly global types', async () => {
     const { code, stderr, stdout } = await spawnPromisified(execPath, [
       '--no-warnings',
-      '--experimental-wasm-modules',
       '--input-type=module',
       '--eval',
       [
@@ -211,7 +207,6 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
   it('should properly escape import names as well', async () => {
     const { code, stderr, stdout } = await spawnPromisified(execPath, [
       '--no-warnings',
-      '--experimental-wasm-modules',
       '--input-type=module',
       '--eval',
       [
@@ -226,22 +221,20 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
     strictEqual(code, 0);
   });
 
-  it('should emit experimental warning', async () => {
+  it('should emit experimental warning for module instances', async () => {
     const { code, signal, stderr } = await spawnPromisified(execPath, [
-      '--experimental-wasm-modules',
       fixtures.path('es-modules/wasm-modules.mjs'),
     ]);
 
     strictEqual(code, 0);
     strictEqual(signal, null);
     match(stderr, /ExperimentalWarning/);
-    match(stderr, /WebAssembly/);
+    match(stderr, /Importing WebAssembly module instances/);
   });
 
   it('should support top-level execution', async () => {
     const { code, stderr, stdout } = await spawnPromisified(execPath, [
       '--no-warnings',
-      '--experimental-wasm-modules',
       fixtures.path('es-modules/top-level-wasm.wasm'),
     ]);
 
@@ -254,7 +247,6 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
   it.skip('should support static source phase imports', async () => {
     const { code, stderr, stdout } = await spawnPromisified(execPath, [
       '--no-warnings',
-      '--experimental-wasm-modules',
       '--input-type=module',
       '--eval',
       [
@@ -276,7 +268,6 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
   it.skip('should support dynamic source phase imports', async () => {
     const { code, stderr, stdout } = await spawnPromisified(execPath, [
       '--no-warnings',
-      '--experimental-wasm-modules',
       '--input-type=module',
       '--eval',
       [
@@ -299,7 +290,6 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
   it.skip('should not execute source phase imports', async () => {
     const { code, stderr, stdout } = await spawnPromisified(execPath, [
       '--no-warnings',
-      '--experimental-wasm-modules',
       '--input-type=module',
       '--eval',
       [
@@ -319,7 +309,6 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
   it.skip('should not execute dynamic source phase imports', async () => {
     const { code, stderr, stdout } = await spawnPromisified(execPath, [
       '--no-warnings',
-      '--experimental-wasm-modules',
       '--input-type=module',
       '--eval',
       `await import.source(${JSON.stringify(fixtures.fileURL('es-modules/unimportable.wasm'))})`,
@@ -335,7 +324,6 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
     const fileUrl = fixtures.fileURL('es-modules/wasm-source-phase.js');
     const { code, stderr, stdout } = await spawnPromisified(execPath, [
       '--no-warnings',
-      '--experimental-wasm-modules',
       '--input-type=module',
       '--eval',
       [
@@ -358,7 +346,6 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
     const fileUrl = fixtures.fileURL('es-modules/wasm-source-phase.js');
     const { code, stderr, stdout } = await spawnPromisified(execPath, [
       '--no-warnings',
-      '--experimental-wasm-modules',
       '--input-type=module',
       '--eval',
       `import source nosource from ${JSON.stringify(fileUrl)};`,
@@ -373,7 +360,6 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
   it.skip('should throw for vm source phase static import', async () => {
     const { code, stderr, stdout } = await spawnPromisified(execPath, [
       '--no-warnings',
-      '--experimental-wasm-modules',
       '--experimental-vm-modules',
       '--input-type=module',
       '--eval',
@@ -393,7 +379,6 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
   it.skip('should throw for vm source phase dynamic import', async () => {
     const { code, stderr, stdout } = await spawnPromisified(execPath, [
       '--no-warnings',
-      '--experimental-wasm-modules',
       '--experimental-vm-modules',
       '--input-type=module',
       '--eval',
@@ -414,7 +399,6 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
   it('should reject wasm: import names', async () => {
     const { code, stderr, stdout } = await spawnPromisified(execPath, [
       '--no-warnings',
-      '--experimental-wasm-modules',
       '--input-type=module',
       '--eval',
       `import(${JSON.stringify(fixtures.fileURL('es-modules/invalid-import-name.wasm'))})`,
@@ -428,7 +412,6 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
   it('should reject wasm-js: import names', async () => {
     const { code, stderr, stdout } = await spawnPromisified(execPath, [
       '--no-warnings',
-      '--experimental-wasm-modules',
       '--input-type=module',
       '--eval',
       `import(${JSON.stringify(fixtures.fileURL('es-modules/invalid-import-name-wasm-js.wasm'))})`,
@@ -442,7 +425,6 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
   it('should reject wasm-js: import module names', async () => {
     const { code, stderr, stdout } = await spawnPromisified(execPath, [
       '--no-warnings',
-      '--experimental-wasm-modules',
       '--input-type=module',
       '--eval',
       `import(${JSON.stringify(fixtures.fileURL('es-modules/invalid-import-module.wasm'))})`,
@@ -456,7 +438,6 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
   it('should reject wasm: export names', async () => {
     const { code, stderr, stdout } = await spawnPromisified(execPath, [
       '--no-warnings',
-      '--experimental-wasm-modules',
       '--input-type=module',
       '--eval',
       `import(${JSON.stringify(fixtures.fileURL('es-modules/invalid-export-name.wasm'))})`,
@@ -470,7 +451,6 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
   it('should reject wasm-js: export names', async () => {
     const { code, stderr, stdout } = await spawnPromisified(execPath, [
       '--no-warnings',
-      '--experimental-wasm-modules',
       '--input-type=module',
       '--eval',
       `import(${JSON.stringify(fixtures.fileURL('es-modules/invalid-export-name-wasm-js.wasm'))})`,
@@ -484,7 +464,6 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
   it('should support js-string builtins', async () => {
     const { code, stderr, stdout } = await spawnPromisified(execPath, [
       '--no-warnings',
-      '--experimental-wasm-modules',
       '--input-type=module',
       '--eval',
       [
