@@ -178,15 +178,11 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
       '--eval',
       [
         'import { ok, strictEqual } from "node:assert";',
-        'try {',
-        `  await import.source(${JSON.stringify(fileUrl)});`,
-        '  ok(false);',
-        '}',
-        'catch (e) {',
+        `await assert.rejects(import.source(${JSON.stringify(fileUrl)}), (e) => {`,
         '  strictEqual(e instanceof SyntaxError, true);',
         '  strictEqual(e.message.includes("Source phase import object is not defined for module"), true);',
         `  strictEqual(e.message.includes(${JSON.stringify(fileUrl)}), true);`,
-        '}',
+        '});',
       ].join('\n'),
     ]);
 
@@ -204,7 +200,7 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
       '--eval',
       `import source nosource from ${JSON.stringify(fileUrl)};`,
     ]);
-    ok(stderr.includes('Source phase import object is not defined for module'));
+    match(stderr, /Source phase import object is not defined for module/);
     ok(stderr.includes(fileUrl));
     strictEqual(stdout, '');
     notStrictEqual(code, 0);
@@ -224,7 +220,7 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
         'await m1.evaluate();',
       ].join('\n'),
     ]);
-    ok(stderr.includes('Source phase import object is not defined for module'));
+    match(stderr, /Source phase import object is not defined for module/);
     strictEqual(stdout, '');
     notStrictEqual(code, 0);
   });
@@ -246,7 +242,7 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
         'await m1.evaluate();',
       ].join('\n'),
     ]);
-    ok(stderr.includes('Source phase import object is not defined for module'));
+    match(stderr, /Source phase import object is not defined for module/);
     strictEqual(stdout, '');
     notStrictEqual(code, 0);
   });
