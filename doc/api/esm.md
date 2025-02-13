@@ -705,10 +705,17 @@ imported from the same path.
 
 ## Wasm modules
 
-> Stability: 1 - Experimental
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57038
+    description: Wasm modules no longer require the `--experimental-wasm-modules` flag.
+-->
+
+> Stability: 1.1 - Active development
 
 Importing both WebAssembly module instances and WebAssembly source phase
-imports are supported under the `--experimental-wasm-modules` flag.
+imports is supported.
 
 Both of these integrations are in line with the
 [ES Module Integration Proposal for WebAssembly][].
@@ -726,12 +733,14 @@ console.log(M);
 executed under:
 
 ```bash
-node --experimental-wasm-modules index.mjs
+node index.mjs
 ```
 
 would provide the exports interface for the instantiation of `library.wasm`.
 
 ### Wasm Source Phase Imports
+
+> Stability: 1.2 - Release candidate
 
 <!-- YAML
 added: v24.0.0
@@ -765,6 +774,8 @@ const instance = await WebAssembly.instantiate(dynamicLibrary, importObject);
 ```
 
 ### JavaScript String Builtins
+
+> Stability: 1.2 - Release candidate
 
 <!-- YAML
 added: REPLACEME
@@ -1189,7 +1200,7 @@ _isImports_, _conditions_)
 >    1. Return _"commonjs"_.
 > 4. If _url_ ends in _".json"_, then
 >    1. Return _"json"_.
-> 5. If `--experimental-wasm-modules` is enabled and _url_ ends in
+> 5. If _url_ ends in
 >    _".wasm"_, then
 >    1. Return _"wasm"_.
 > 6. If `--experimental-addon-modules` is enabled and _url_ ends in
@@ -1207,9 +1218,8 @@ _isImports_, _conditions_)
 >        1. Return _"module"_.
 >     3. Return _"commonjs"_.
 > 12. If _url_ does not have any extension, then
->     1. If _packageType_ is _"module"_ and `--experimental-wasm-modules` is
->        enabled and the file at _url_ contains the header for a WebAssembly
->        module, then
+>     1. If _packageType_ is _"module"_ and the file at _url_ contains the
+>        "application/wasm" content type header for a WebAssembly module, then
 >        1. Return _"wasm"_.
 >     2. If _packageType_ is not **null**, then
 >        1. Return _packageType_.
