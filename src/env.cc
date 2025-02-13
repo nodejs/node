@@ -615,6 +615,7 @@ IsolateData::IsolateData(Isolate* isolate,
 
 IsolateData::~IsolateData() {
   if (cpp_heap_ != nullptr) {
+    v8::Locker locker(isolate_);
     // The CppHeap must be detached before being terminated.
     isolate_->DetachCppHeap();
     cpp_heap_->Terminate();
