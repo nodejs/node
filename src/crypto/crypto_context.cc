@@ -40,7 +40,6 @@ using ncrypto::MarkPopErrorOnReturn;
 using ncrypto::SSLPointer;
 using ncrypto::StackOfX509;
 using ncrypto::X509Pointer;
-using ncrypto::X509View;
 using v8::Array;
 using v8::ArrayBufferView;
 using v8::Boolean;
@@ -73,6 +72,10 @@ static const char* const root_certs[] = {
 static const char system_cert_path[] = NODE_OPENSSL_SYSTEM_CERT_PATH;
 
 static std::string extra_root_certs_file;  // NOLINT(runtime/string)
+
+static std::atomic<bool> has_cached_bundled_root_certs{false};
+static std::atomic<bool> has_cached_system_root_certs{false};
+static std::atomic<bool> has_cached_extra_root_certs{false};
 
 X509_STORE* GetOrCreateRootCertStore() {
   // Guaranteed thread-safe by standard, just don't use -fno-threadsafe-statics.
@@ -259,35 +262,6 @@ bool isSelfIssued(X509* cert) {
   auto issuer = X509_get_issuer_name(cert);
 
   return X509_NAME_cmp(subject, issuer) == 0;
-}
-
-// TODO(joyeecheung): it is a bit excessive to do this X509 -> PEM -> X509
-// dance when we could've just pass everything around in binary. Change the
-// root_certs to be embedded as DER so that we can save the serialization
-// and deserialization.
-void X509VectorToPEMVector(const std::vector<X509Pointer>& src,
-                           std::vector<std::string>* dest) {
-  for (size_t i = 0; i < src.size(); i++) {
-    X509View x509_view(src[i].get());
-
-    auto pem_bio = x509_view.toPEM();
-    if (!pem_bio) {
-      fprintf(stderr,
-              "Warning: converting system certificate to PEM format failed\n");
-      continue;
-    }
-
-    char* pem_data = nullptr;
-    auto pem_size = BIO_get_mem_data(pem_bio.get(), &pem_data);
-    if (pem_size <= 0 || !pem_data) {
-      fprintf(
-          stderr,
-          "Warning: cannot read PEM-encoded data from system certificate\n");
-      continue;
-    }
-
-    dest->emplace_back(pem_data, pem_size);
-  }
 }
 
 // The following code is loosely based on
@@ -482,7 +456,7 @@ bool IsCertificateTrustedForPolicy(X509* cert, SecCertificateRef ref) {
 }
 
 void ReadMacOSKeychainCertificates(
-    std::vector<std::string>* system_root_certificates) {
+    std::vector<X509*>* system_root_certificates_X509) {
   CFTypeRef search_keys[] = {kSecClass, kSecMatchLimit, kSecReturnRef};
   CFTypeRef search_values[] = {
       kSecClassCertificate, kSecMatchLimitAll, kCFBooleanTrue};
@@ -504,7 +478,6 @@ void ReadMacOSKeychainCertificates(
 
   CFIndex count = CFArrayGetCount(curr_anchors);
 
-  std::vector<X509Pointer> system_root_certificates_X509;
   for (int i = 0; i < count; ++i) {
     SecCertificateRef cert_ref = reinterpret_cast<SecCertificateRef>(
         const_cast<void*>(CFArrayGetValueAtIndex(curr_anchors, i)));
@@ -521,13 +494,10 @@ void ReadMacOSKeychainCertificates(
     CFRelease(der_data);
     bool is_valid = IsCertificateTrustedForPolicy(cert, cert_ref);
     if (is_valid) {
-      system_root_certificates_X509.emplace_back(cert);
+      system_root_certificates_X509->emplace_back(cert);
     }
   }
   CFRelease(curr_anchors);
-
-  X509VectorToPEMVector(system_root_certificates_X509,
-                        system_root_certificates);
 }
 #endif  // __APPLE__
 
@@ -596,7 +566,7 @@ bool IsCertTrustedForServerAuth(PCCERT_CONTEXT cert) {
   return false;
 }
 
-void GatherCertsForLocation(std::vector<X509Pointer>* vector,
+void GatherCertsForLocation(std::vector<X509*>* vector,
                             DWORD location,
                             LPCWSTR store_name) {
   if (!(location == CERT_SYSTEM_STORE_LOCAL_MACHINE ||
@@ -639,114 +609,142 @@ void GatherCertsForLocation(std::vector<X509Pointer>* vector,
 }
 
 void ReadWindowsCertificates(
-    std::vector<std::string>* system_root_certificates) {
-  std::vector<X509Pointer> system_root_certificates_X509;
+    std::vector<X509*>* system_root_certificates_X509) {
   // TODO(joyeecheung): match Chromium's policy, collect more certificates
   // from user-added CAs and support disallowed (revoked) certificates.
 
   // Grab the user-added roots.
   GatherCertsForLocation(
-      &system_root_certificates_X509, CERT_SYSTEM_STORE_LOCAL_MACHINE, L"ROOT");
-  GatherCertsForLocation(&system_root_certificates_X509,
+      system_root_certificates_X509, CERT_SYSTEM_STORE_LOCAL_MACHINE, L"ROOT");
+  GatherCertsForLocation(system_root_certificates_X509,
                          CERT_SYSTEM_STORE_LOCAL_MACHINE_GROUP_POLICY,
                          L"ROOT");
-  GatherCertsForLocation(&system_root_certificates_X509,
+  GatherCertsForLocation(system_root_certificates_X509,
                          CERT_SYSTEM_STORE_LOCAL_MACHINE_ENTERPRISE,
                          L"ROOT");
   GatherCertsForLocation(
-      &system_root_certificates_X509, CERT_SYSTEM_STORE_CURRENT_USER, L"ROOT");
-  GatherCertsForLocation(&system_root_certificates_X509,
+      system_root_certificates_X509, CERT_SYSTEM_STORE_CURRENT_USER, L"ROOT");
+  GatherCertsForLocation(system_root_certificates_X509,
                          CERT_SYSTEM_STORE_CURRENT_USER_GROUP_POLICY,
                          L"ROOT");
 
   // Grab the user-added trusted server certs. Trusted end-entity certs are
   // only allowed for server auth in the "local machine" store, but not in the
   // "current user" store.
-  GatherCertsForLocation(&system_root_certificates_X509,
+  GatherCertsForLocation(system_root_certificates_X509,
                          CERT_SYSTEM_STORE_LOCAL_MACHINE,
                          L"TrustedPeople");
-  GatherCertsForLocation(&system_root_certificates_X509,
+  GatherCertsForLocation(system_root_certificates_X509,
                          CERT_SYSTEM_STORE_LOCAL_MACHINE_GROUP_POLICY,
                          L"TrustedPeople");
-  GatherCertsForLocation(&system_root_certificates_X509,
+  GatherCertsForLocation(system_root_certificates_X509,
                          CERT_SYSTEM_STORE_LOCAL_MACHINE_ENTERPRISE,
                          L"TrustedPeople");
-
-  X509VectorToPEMVector(system_root_certificates_X509,
-                        system_root_certificates);
 }
 #endif
 
-void ReadSystemStoreCertificates(
-    std::vector<std::string>* system_root_certificates) {
+static std::vector<X509*> InitializeBundledRootCertificates() {
+  // Read the bundled certificates in node_root_certs.h into
+  // bundled_root_certs_vector.
+  std::vector<X509*> bundled_root_certs;
+  size_t bundled_root_cert_count = arraysize(root_certs);
+  bundled_root_certs.reserve(bundled_root_cert_count);
+  for (size_t i = 0; i < bundled_root_cert_count; i++) {
+    X509* x509 = PEM_read_bio_X509(
+        NodeBIO::NewFixed(root_certs[i], strlen(root_certs[i])).get(),
+        nullptr,  // no re-use of X509 structure
+        NoPasswordCallback,
+        nullptr);  // no callback data
+
+    // Parse errors from the built-in roots are fatal.
+    CHECK_NOT_NULL(x509);
+
+    bundled_root_certs.push_back(x509);
+  }
+  return bundled_root_certs;
+}
+
+// TODO(joyeecheung): it is a bit excessive to do this PEM -> X509
+// dance when we could've just pass everything around in binary. Change the
+// root_certs to be embedded as DER so that we can save the serialization
+// and deserialization.
+static std::vector<X509*>& GetBundledRootCertificates() {
+  // Use function-local static to guarantee thread safety.
+  static std::vector<X509*> bundled_root_certs =
+      InitializeBundledRootCertificates();
+  has_cached_bundled_root_certs.store(true);
+  return bundled_root_certs;
+}
+
+static std::vector<X509*> InitializeSystemStoreCertificates() {
+  std::vector<X509*> system_store_certs;
 #ifdef __APPLE__
-  ReadMacOSKeychainCertificates(system_root_certificates);
+  ReadMacOSKeychainCertificates(&system_store_certs);
 #endif
 #ifdef _WIN32
-  ReadWindowsCertificates(system_root_certificates);
+  ReadWindowsCertificates(&system_store_certs);
 #endif
+  return system_store_certs;
 }
 
-std::vector<std::string> getCombinedRootCertificates() {
-  std::vector<std::string> combined_root_certs;
-
-  for (size_t i = 0; i < arraysize(root_certs); i++) {
-    combined_root_certs.emplace_back(root_certs[i]);
-  }
-
-  if (per_process::cli_options->use_system_ca) {
-    ReadSystemStoreCertificates(&combined_root_certs);
-  }
-
-  return combined_root_certs;
+static std::vector<X509*>& GetSystemStoreRootCertificates() {
+  // Use function-local static to guarantee thread safety.
+  static std::vector<X509*> system_store_certs =
+      InitializeSystemStoreCertificates();
+  has_cached_system_root_certs.store(true);
+  return system_store_certs;
 }
 
+static std::vector<X509*> InitializeExtraCACertificates() {
+  std::vector<X509*> extra_certs;
+  unsigned long err = LoadCertsFromFile(  // NOLINT(runtime/int)
+      &extra_certs,
+      extra_root_certs_file.c_str());
+  if (err) {
+    char buf[256];
+    ERR_error_string_n(err, buf, sizeof(buf));
+    fprintf(stderr,
+            "Warning: Ignoring extra certs from `%s`, load failed: %s\n",
+            extra_root_certs_file.c_str(),
+            buf);
+  }
+  return extra_certs;
+}
+
+static std::vector<X509*>& GetExtraCACertificates() {
+  // Use function-local static to guarantee thread safety.
+  static std::vector<X509*> extra_certs = InitializeExtraCACertificates();
+  has_cached_extra_root_certs.store(true);
+  return extra_certs;
+}
+
+// Due to historical reasons the various options of CA certificates
+// may invalid one another. The current rule is:
+// 1. If the configure-time option --openssl-use-def-ca-store is NOT used
+//    (default):
+//    a. If the runtime option --use-openssl-ca is used, load the
+//       CA certificates from the default locations respected by OpenSSL.
+//    b. Otherwise, --use-bundled-ca is assumed to be the default, and we
+//       use the bundled CA certificates.
+// 2. If the configure-time option --openssl-use-def-ca-store IS used,
+//    --use-openssl-ca is assumed to be the default, with the default
+//    location set to the path specified by the configure-time option.
+// 3. --use-openssl-ca and --use-bundled-ca are mutually exclusive.
+// 4. --use-openssl-ca and --use-system-ca are mutually exclusive.
+// 5. --use-bundled-ca and --use-system-ca can be used together.
+//    The certificates can be combined.
+// 6. Independent of all other flags, NODE_EXTRA_CA_CERTS always
+//    adds extra certificates from the specified path, so it works
+//    with all the other flags.
+// 7. Certificates from --use-bundled-ca, --use-system-ca and
+//    NODE_EXTRA_CA_CERTS are cached after first load. Certificates
+//    from --use-system-ca are not cached and always reloaded from
+//    disk.
+// TODO(joyeecheung): maybe these rules need a bit of consolidation?
 X509_STORE* NewRootCertStore() {
-  static std::vector<X509*> root_certs_vector;
-  static bool root_certs_vector_loaded = false;
-  static Mutex root_certs_vector_mutex;
-  Mutex::ScopedLock lock(root_certs_vector_mutex);
-
-  if (!root_certs_vector_loaded) {
-    if (per_process::cli_options->ssl_openssl_cert_store == false) {
-      std::vector<std::string> combined_root_certs =
-          getCombinedRootCertificates();
-
-      for (size_t i = 0; i < combined_root_certs.size(); i++) {
-        X509* x509 =
-            PEM_read_bio_X509(NodeBIO::NewFixed(combined_root_certs[i].data(),
-                                                combined_root_certs[i].length())
-                                  .get(),
-                              nullptr,  // no re-use of X509 structure
-                              NoPasswordCallback,
-                              nullptr);  // no callback data
-
-        // Parse errors from the built-in roots are fatal.
-        CHECK_NOT_NULL(x509);
-
-        root_certs_vector.push_back(x509);
-      }
-    }
-
-    if (!extra_root_certs_file.empty()) {
-      unsigned long err = LoadCertsFromFile(  // NOLINT(runtime/int)
-          &root_certs_vector,
-          extra_root_certs_file.c_str());
-      if (err) {
-        char buf[256];
-        ERR_error_string_n(err, buf, sizeof(buf));
-        fprintf(stderr,
-                "Warning: Ignoring extra certs from `%s`, load failed: %s\n",
-                extra_root_certs_file.c_str(),
-                buf);
-      }
-    }
-
-    root_certs_vector_loaded = true;
-  }
-
   X509_STORE* store = X509_STORE_new();
   CHECK_NOT_NULL(store);
+
   if (*system_cert_path != '\0') {
     ERR_set_mark();
     X509_STORE_load_locations(store, system_cert_path, nullptr);
@@ -756,13 +754,43 @@ X509_STORE* NewRootCertStore() {
   Mutex::ScopedLock cli_lock(node::per_process::cli_options_mutex);
   if (per_process::cli_options->ssl_openssl_cert_store) {
     CHECK_EQ(1, X509_STORE_set_default_paths(store));
+  } else {
+    for (X509* cert : GetBundledRootCertificates()) {
+      CHECK_EQ(1, X509_STORE_add_cert(store, cert));
+    }
+    if (per_process::cli_options->use_system_ca) {
+      for (X509* cert : GetSystemStoreRootCertificates()) {
+        CHECK_EQ(1, X509_STORE_add_cert(store, cert));
+      }
+    }
   }
 
-  for (X509* cert : root_certs_vector) {
-    CHECK_EQ(1, X509_STORE_add_cert(store, cert));
+  if (!extra_root_certs_file.empty()) {
+    for (X509* cert : GetExtraCACertificates()) {
+      CHECK_EQ(1, X509_STORE_add_cert(store, cert));
+    }
   }
 
   return store;
+}
+
+void CleanupCachedRootCertificates() {
+  if (has_cached_bundled_root_certs.load()) {
+    for (X509* cert : GetBundledRootCertificates()) {
+      X509_free(cert);
+    }
+  }
+  if (has_cached_system_root_certs.load()) {
+    for (X509* cert : GetSystemStoreRootCertificates()) {
+      X509_free(cert);
+    }
+  }
+
+  if (has_cached_extra_root_certs.load()) {
+    for (X509* cert : GetExtraCACertificates()) {
+      X509_free(cert);
+    }
+  }
 }
 
 void GetRootCertificates(const FunctionCallbackInfo<Value>& args) {
