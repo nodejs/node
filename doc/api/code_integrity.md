@@ -37,7 +37,7 @@ a file's integrity. Application developers are responsible for generating and
 distributing the signature information for their Node.js application.
 Application developers are also expected to design their application
 in robust ways to avoid unintended code execution. This includes
-use of ```eval``` and loading modules outside of standard methods.
+use of `eval` and loading modules outside of standard methods.
 
 Signature information for files which Node.js is intended to execute
 can be stored in a catalog file. Application developers can generate
