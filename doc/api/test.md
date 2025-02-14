@@ -3381,7 +3381,7 @@ added:
 
 The name of the test.
 
-### `context.plan(count)`
+### `context.plan(count[,options])`
 
 <!-- YAML
 added:
@@ -3400,9 +3400,12 @@ changes:
 -->
 
 * `count` {number} The number of assertions and subtests that are expected to run.
-* `options` {Object} _(Optional)_ Additional options for the plan.
+* `options` {Object} Additional options for the plan.
   * `wait` {boolean|number} The wait time for the plan:
     * If `true`, the plan waits indefinitely for all assertions and subtests to run.
+    * If `false`, the plan performs an immediate check after the test function completes,
+      without waiting for any pending assertions or subtests.
+      Any assertions or subtests that complete after this check will not be counted towards the plan.
     * If a number, it specifies the maximum wait time in milliseconds
       before timing out while waiting for expected assertions and subtests to be matched.
       If the timeout is reached, the test will fail.
@@ -3462,6 +3465,8 @@ test('plan with wait: 2000 waits for async assertions', (t) => {
   asyncActivity(); // The test will pass because the assertion is completed in time.
 });
 ```
+
+Note: If a `wait` timeout is specified, it begins counting down only after the test function finishes executing.
 
 ### `context.runOnly(shouldRunOnlyTests)`
 
