@@ -29,7 +29,9 @@ namespace node {
 using ncrypto::BignumPointer;
 using ncrypto::BIOPointer;
 using ncrypto::CryptoErrorList;
+#ifndef OPENSSL_NO_ENGINE
 using ncrypto::EnginePointer;
+#endif  // !OPENSSL_NO_ENGINE
 using ncrypto::EVPKeyCtxPointer;
 using ncrypto::SSLCtxPointer;
 using ncrypto::SSLPointer;
