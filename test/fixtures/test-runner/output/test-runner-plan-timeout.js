@@ -62,4 +62,16 @@ describe('planning with wait', () => {
 
     asyncActivity();
   });
+
+  it(`planning with wait "options.wait : false" should not wait`, async (t) => {
+    t.plan(1, { wait: false });
+
+    const asyncActivity = () => {
+      setTimeout(() => {
+        t.assert.ok(true);
+      }, platformTimeout(500_000));
+    };
+
+    asyncActivity();
+  })
 });

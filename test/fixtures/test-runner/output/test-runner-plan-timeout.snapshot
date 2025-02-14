@@ -66,21 +66,31 @@ TAP version 13
         *
         *
       ...
-    1..5
+    # Subtest: planning with wait "options.wait : false" should not wait
+    not ok 6 - planning with wait "options.wait : false" should not wait
+      ---
+      duration_ms: *
+      type: 'test'
+      location: '/test/fixtures/test-runner/output/test-runner-plan-timeout.js:(LINE):3'
+      failureType: 'testCodeFailure'
+      error: 'plan expected 1 assertions but received 0'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    1..6
 not ok 1 - planning with wait
   ---
   duration_ms: *
   type: 'suite'
   location: '/test/fixtures/test-runner/output/test-runner-plan-timeout.js:(LINE):1'
   failureType: 'subtestsFailed'
-  error: '3 subtests failed'
+  error: '4 subtests failed'
   code: 'ERR_TEST_FAILURE'
   ...
 1..1
-# tests 5
+# tests 6
 # suites 1
 # pass 2
-# fail 2
+# fail 3
 # cancelled 1
 # skipped 0
 # todo 0
