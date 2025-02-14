@@ -1096,7 +1096,7 @@ added: v19.8.0
 -->
 
 * `view` {TypedArray} The {TypedArray} to copy.
-* `offset` {integer} The starting offset within `view`. **Default:**: `0`.
+* `offset` {integer} The starting offset within `view`. **Default:** `0`.
 * `length` {integer} The number of elements from `view` to copy.
   **Default:** `view.length - offset`.
 * Returns: {Buffer}
