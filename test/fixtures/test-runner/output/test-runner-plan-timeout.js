@@ -1,34 +1,65 @@
 'use strict';
 const { describe, it } = require('node:test');
-const { setTimeout } = require('node:timers/promises');
+const { platformTimeout } = require('../../../common');
 
-describe('planning with timeout', () => {
-  it(`planning should pass if plan it's correct`, async (t) => {
-    t.plan(1, { timeout: 500_000_000 });
-    t.assert.ok(true);
-  });
-  
-  it(`planning should fail if plan it's incorrect`, async (t) => {
-    t.plan(1, { timeout: 500_000_000 });
-    t.assert.ok(true);
-    t.assert.ok(true);
-  });
-  
-  it('planning with timeout', async (t) => {
-    t.plan(1, { timeout: 2000 });
-  
-    while (true) {
-      await setTimeout(5000);
-    }
+describe('planning with wait', () => {
+  it('planning with wait and passing', async (t) => {
+    t.plan(1, { wait: platformTimeout(5000) });
+
+    const asyncActivity = () => {
+      setTimeout(() => {
+        t.assert.ok(true);
+      }, platformTimeout(250));
+    };
+
+    asyncActivity();
   });
 
-  it('nested planning with timeout', async (t) => {
-    t.plan(1, { timeout: 2000 });
-  
-    t.test('nested', async (t) => {
-      while (true) {
-        await setTimeout(5000);
-      }
-    });
+  it('planning with wait and failing', async (t) => {
+    t.plan(1, { wait: platformTimeout(5000) });
+
+    const asyncActivity = () => {
+      setTimeout(() => {
+        t.assert.ok(false);
+      }, platformTimeout(250));
+    };
+
+    asyncActivity();
+  });
+
+  it('planning wait time expires before plan is met', async (t) => {
+    t.plan(2, { wait: platformTimeout(500) });
+
+    const asyncActivity = () => {
+      setTimeout(() => {
+        t.assert.ok(true);
+      }, platformTimeout(50_000_000));
+    };
+
+    asyncActivity();
+  });
+
+  it(`planning with wait "options.wait : true" and passing`, async (t) => {
+    t.plan(1, { wait: true });
+
+    const asyncActivity = () => {
+      setTimeout(() => {
+        t.assert.ok(true);
+      }, platformTimeout(250));
+    };
+
+    asyncActivity();
+  });
+
+  it(`planning with wait "options.wait : true" and failing`, async (t) => {
+    t.plan(1, { wait: true });
+
+    const asyncActivity = () => {
+      setTimeout(() => {
+        t.assert.ok(false);
+      }, platformTimeout(250));
+    };
+
+    asyncActivity();
   });
 });

@@ -1,54 +1,73 @@
 TAP version 13
-# Subtest: planning with timeout
-    # Subtest: planning should pass if plan it's correct
-    ok 1 - planning should pass if plan it's correct
+# Subtest: planning with wait
+    # Subtest: planning with wait and passing
+    ok 1 - planning with wait and passing
       ---
       duration_ms: *
       type: 'test'
       ...
-    # Subtest: planning should fail if plan it's incorrect
-    not ok 2 - planning should fail if plan it's incorrect
+    # Subtest: planning with wait and failing
+    not ok 2 - planning with wait and failing
       ---
       duration_ms: *
       type: 'test'
       location: '/test/fixtures/test-runner/output/test-runner-plan-timeout.js:(LINE):3'
-      failureType: 'testCodeFailure'
-      error: 'plan expected 1 assertions but received 2'
-      code: 'ERR_TEST_FAILURE'
+      failureType: 'uncaughtException'
+      error: |-
+        The expression evaluated to a falsy value:
+        
+          t.assert.ok(false)
+        
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: true
+      actual: false
+      operator: '=='
+      stack: |-
+        *
+        *
+        *
       ...
-    # Subtest: planning with timeout
-    not ok 3 - planning with timeout
+    # Subtest: planning wait time expires before plan is met
+    not ok 3 - planning wait time expires before plan is met
       ---
       duration_ms: *
       type: 'test'
       location: '/test/fixtures/test-runner/output/test-runner-plan-timeout.js:(LINE):3'
       failureType: 'testTimeoutFailure'
-      error: 'plan timed out after 2000ms with 0 assertions when expecting 1'
+      error: 'plan timed out after 500ms with 0 assertions when expecting 2'
       code: 'ERR_TEST_FAILURE'
       ...
-    # Subtest: nested planning with timeout
-        # Subtest: nested
-        not ok 1 - nested
-          ---
-          duration_ms: *
-          type: 'test'
-          location: '/test/fixtures/test-runner/output/test-runner-plan-timeout.js:(LINE):7'
-          failureType: 'cancelledByParent'
-          error: 'test did not finish before its parent and was cancelled'
-          code: 'ERR_TEST_FAILURE'
-          ...
-        1..1
-    not ok 4 - nested planning with timeout
+    # Subtest: planning with wait "options.wait : true" and passing
+    ok 4 - planning with wait "options.wait : true" and passing
+      ---
+      duration_ms: *
+      type: 'test'
+      ...
+    # Subtest: planning with wait "options.wait : true" and failing
+    not ok 5 - planning with wait "options.wait : true" and failing
       ---
       duration_ms: *
       type: 'test'
       location: '/test/fixtures/test-runner/output/test-runner-plan-timeout.js:(LINE):3'
-      failureType: 'subtestsFailed'
-      error: '1 subtest failed'
-      code: 'ERR_TEST_FAILURE'
+      failureType: 'uncaughtException'
+      error: |-
+        The expression evaluated to a falsy value:
+        
+          t.assert.ok(false)
+        
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: true
+      actual: false
+      operator: '=='
+      stack: |-
+        *
+        *
+        *
       ...
-    1..4
-not ok 1 - planning with timeout
+    1..5
+not ok 1 - planning with wait
   ---
   duration_ms: *
   type: 'suite'
@@ -60,9 +79,9 @@ not ok 1 - planning with timeout
 1..1
 # tests 5
 # suites 1
-# pass 1
+# pass 2
 # fail 2
-# cancelled 2
+# cancelled 1
 # skipped 0
 # todo 0
 # duration_ms *
