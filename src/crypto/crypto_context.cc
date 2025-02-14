@@ -34,7 +34,9 @@ using ncrypto::BIOPointer;
 using ncrypto::ClearErrorOnReturn;
 using ncrypto::CryptoErrorList;
 using ncrypto::DHPointer;
+#ifndef OPENSSL_NO_ENGINE
 using ncrypto::EnginePointer;
+#endif  // !OPENSSL_NO_ENGINE
 using ncrypto::EVPKeyPointer;
 using ncrypto::MarkPopErrorOnReturn;
 using ncrypto::SSLPointer;

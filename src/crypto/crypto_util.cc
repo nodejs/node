@@ -30,7 +30,9 @@ using ncrypto::BignumPointer;
 using ncrypto::BIOPointer;
 using ncrypto::CryptoErrorList;
 using ncrypto::DataPointer;
+#ifndef OPENSSL_NO_ENGINE
 using ncrypto::EnginePointer;
+#endif  // !OPENSSL_NO_ENGINE
 using ncrypto::EVPKeyCtxPointer;
 using ncrypto::SSLCtxPointer;
 using ncrypto::SSLPointer;
