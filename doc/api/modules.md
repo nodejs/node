@@ -91,8 +91,8 @@ By default, Node.js will treat the following as CommonJS modules:
   interpreted.
 
 * Files with an extension that is not `.mjs`, `.cjs`, `.json`, `.node`, or `.js`
-  (when the nearest parent `package.json` file contains a top-level field
-  [`"type"`][] with a value of `"module"`, those files will be recognized as
+  when the nearest parent `package.json` file contains a top-level field
+  [`"type"`][] with a value of `"module"` (those files will be recognized as
   CommonJS modules only if they are being included via `require()`, not when
   used as the command-line entry point of the program).
 
@@ -109,7 +109,7 @@ When a file is run directly from Node.js, `require.main` is set to its
 `module`. That means that it is possible to determine whether a file has been
 run directly by testing `require.main === module`.
 
-For a file `foo.js`, this will be `true` if run via `node foo.js`, but
+For example given a file `foo.js`, this will be `true` if run via `node foo.js`, but
 `false` if run by `require('./foo')`.
 
 When the entry point is not a CommonJS module, `require.main` is `undefined`,
@@ -208,8 +208,8 @@ regarding which files are parsed as ECMAScript modules.
   3. The file has a `.js` extension, the closest `package.json` does not contain
      `"type": "commonjs"`, and the module contains ES module syntax.
 
-If the ES Module being loaded meet the requirements, `require()` can load it and
-return the module namespace object. In this case it is similar to dynamic
+If the ES Module being loaded meets the requirements, `require()` can load it and
+return the [module namespace object][]. In this case it is similar to dynamic
 `import()` but is run synchronously and returns the name space object
 directly.
 
@@ -253,8 +253,8 @@ This property is experimental and can change in the future. It should only be us
 by tools converting ES modules into CommonJS modules, following existing ecosystem
 conventions. Code authored directly in CommonJS should avoid depending on it.
 
-When a ES Module contains both named exports and a default export, the result returned by `require()`
-is the module namespace object, which places the default export in the `.default` property, similar to
+When an ES Module contains both named exports and a default export, the result returned by `require()`
+is the [module namespace object][], which places the default export in the `.default` property, similar to
 the results returned by `import()`.
 To customize what should be returned by `require(esm)` directly, the ES Module can export the
 desired value using the string name `"module.exports"`.
@@ -346,7 +346,7 @@ require(X) from module at path Y
    a. return the core module
    b. STOP
 2. If X begins with '/'
-   a. set Y to be the file system root
+   a. set Y to the file system root
 3. If X begins with './' or '/' or '../'
    a. LOAD_AS_FILE(Y + X)
    b. LOAD_AS_DIRECTORY(Y + X)
@@ -357,14 +357,6 @@ require(X) from module at path Y
 6. LOAD_NODE_MODULES(X, dirname(Y))
 7. THROW "not found"
 
-MAYBE_DETECT_AND_LOAD(X)
-1. If X parses as a CommonJS module, load X as a CommonJS module. STOP.
-2. Else, if the source code of X can be parsed as ECMAScript module using
-  <a href="esm.md#resolver-algorithm-specification">DETECT_MODULE_SYNTAX defined in
-  the ESM resolver</a>,
-  a. Load X as an ECMAScript module. STOP.
-3. THROW the SyntaxError from attempting to parse X as CommonJS in 1. STOP.
-
 LOAD_AS_FILE(X)
 1. If X is a file, load X as its file extension format. STOP
 2. If X.js is a file,
@@ -373,20 +365,17 @@ LOAD_AS_FILE(X)
       1. MAYBE_DETECT_AND_LOAD(X.js)
     c. If the SCOPE/package.json contains "type" field,
       1. If the "type" field is "module", load X.js as an ECMAScript module. STOP.
-      2. If the "type" field is "commonjs", load X.js as an CommonJS module. STOP.
+      2. If the "type" field is "commonjs", load X.js as a CommonJS module. STOP.
     d. MAYBE_DETECT_AND_LOAD(X.js)
 3. If X.json is a file, load X.json to a JavaScript Object. STOP
 4. If X.node is a file, load X.node as binary addon. STOP
 
-LOAD_INDEX(X)
-1. If X/index.js is a file
-    a. Find the closest package scope SCOPE to X.
-    b. If no scope was found, load X/index.js as a CommonJS module. STOP.
-    c. If the SCOPE/package.json contains "type" field,
-      1. If the "type" field is "module", load X/index.js as an ECMAScript module. STOP.
-      2. Else, load X/index.js as an CommonJS module. STOP.
-2. If X/index.json is a file, parse X/index.json to a JavaScript object. STOP
-3. If X/index.node is a file, load X/index.node as binary addon. STOP
+MAYBE_DETECT_AND_LOAD(X)
+1. If X parses as a CommonJS module, load X as a CommonJS module. STOP.
+2. If the source code of X can be parsed as an ECMAScript module using
+  <a href="esm.md#resolver-algorithm-specification">DETECT_MODULE_SYNTAX defined in
+  the ESM resolver</a>, Load X as an ECMAScript module. STOP.
+3. THROW the SyntaxError from attempting to parse X as CommonJS in 1. STOP.
 
 LOAD_AS_DIRECTORY(X)
 1. If X/package.json is a file,
@@ -398,6 +387,16 @@ LOAD_AS_DIRECTORY(X)
    f. LOAD_INDEX(X) DEPRECATED
    g. THROW "not found"
 2. LOAD_INDEX(X)
+
+LOAD_INDEX(X)
+1. If X/index.js is a file
+    a. Find the closest package scope SCOPE to X.
+    b. If no scope was found, load X/index.js as a CommonJS module. STOP.
+    c. If the SCOPE/package.json contains "type" field,
+      1. If the "type" field is "module", load X/index.js as an ECMAScript module. STOP.
+      2. Else, load X/index.js as a CommonJS module. STOP.
+2. If X/index.json is a file, parse X/index.json to a JavaScript object. STOP
+3. If X/index.node is a file, load X/index.node as binary addon. STOP
 
 LOAD_NODE_MODULES(X, START)
 1. let DIRS = NODE_MODULES_PATHS(START)
@@ -472,8 +471,8 @@ will not cause the module code to be executed multiple times. This is an
 important feature. With it, "partially done" objects can be returned, thus
 allowing transitive dependencies to be loaded even when they would cause cycles.
 
-To have a module execute code multiple times, export a function, and call that
-function.
+To have a module execute code multiple times, move such code into an exported function
+and call that function.
 
 ### Module caching caveats
 
@@ -488,7 +487,7 @@ Additionally, on case-insensitive file systems or operating systems, different
 resolved filenames can point to the same file, but the cache will still treat
 them as different modules and will reload the file multiple times. For example,
 `require('./foo')` and `require('./FOO')` return two different objects,
-irrespective of whether or not `./foo` and `./FOO` are the same file.
+irrespective of whether or not `./foo` and `./FOO` point to the same file.
 
 ## Built-in modules
 
@@ -516,9 +515,11 @@ by that name.
 
 Some built-in modules are always preferentially loaded if their identifier is
 passed to `require()`. For instance, `require('http')` will always
-return the built-in HTTP module, even if there is a file by that name. The list
-of built-in modules that can be loaded without using the `node:` prefix is exposed
-in [`module.builtinModules`][], listed without the prefix.
+return the built-in HTTP module, even if there is a file by that name.
+
+The list of all the built-in modules can be retrieved from [`module.builtinModules`][].
+The modules being all listed without the `node:` prefix, except those that mandate such
+prefix (as explained in the next section).
 
 ### Built-in modules with mandatory `node:` prefix
 
@@ -532,8 +533,6 @@ taken the name. Currently the built-in modules that requires the `node:` prefix 
 * [`node:test`][]
 * [`node:test/reporters`][]
 
-The list of these modules is exposed in [`module.builtinModules`][], including the prefix.
-
 ## Cycles
 
 <!--type=misc-->
@@ -543,9 +542,9 @@ executing when it is returned.
 
 Consider this situation:
 
-`a.js`:
-
 ```js
+// a.js
+
 console.log('a starting');
 exports.done = false;
 const b = require('./b.js');
@@ -554,9 +553,9 @@ exports.done = true;
 console.log('a done');
 ```
 
-`b.js`:
-
 ```js
+// b.js
+
 console.log('b starting');
 exports.done = false;
 const a = require('./a.js');
@@ -565,20 +564,22 @@ exports.done = true;
 console.log('b done');
 ```
 
-`main.js`:
-
 ```js
+// main.js
+
 console.log('main starting');
 const a = require('./a.js');
 const b = require('./b.js');
 console.log('in main, a.done = %j, b.done = %j', a.done, b.done);
 ```
 
-When `main.js` loads `a.js`, then `a.js` in turn loads `b.js`. At that
-point, `b.js` tries to load `a.js`. In order to prevent an infinite
-loop, an **unfinished copy** of the `a.js` exports object is returned to the
-`b.js` module. `b.js` then finishes loading, and its `exports` object is
-provided to the `a.js` module.
+Where `main.js` loads `a.js`, then `a.js` in turn loads `b.js`, and
+`b.js` loads `a.js`.
+
+In order to prevent an infinite loop, an **unfinished copy** of the
+`a.js` exports object is returned to the `b.js` module. `b.js` then
+finishes loading, and its `exports` object is provided to the `a.js`
+module.
 
 By the time `main.js` has loaded both modules, they're both finished.
 The output of this program would thus be:
@@ -618,12 +619,12 @@ A required module prefixed with `'/'` is an absolute path to the file. For
 example, `require('/home/marco/foo.js')` will load the file at
 `/home/marco/foo.js`.
 
-A required module prefixed with `'./'` is relative to the file calling
+A required module prefixed with `'./'` or `'../'` is relative to the file calling
 `require()`. That is, `circle.js` must be in the same directory as `foo.js` for
 `require('./circle')` to find it.
 
 Without a leading `'/'`, `'./'`, or `'../'` to indicate a file, the module must
-either be a core module or is loaded from a `node_modules` folder.
+either be a core module or being loaded from a `node_modules` folder.
 
 If the given path does not exist, `require()` will throw a
 [`MODULE_NOT_FOUND`][] error.
@@ -677,13 +678,13 @@ folders as modules, and work for both `require` and `import`.
 
 If the module identifier passed to `require()` is not a
 [built-in](#built-in-modules) module, and does not begin with `'/'`, `'../'`, or
-`'./'`, then Node.js starts at the directory of the current module, and
+`'./'`, then Node.js starts at the directory of the current module,
 adds `/node_modules`, and attempts to load the module from that location.
 Node.js will not append `node_modules` to a path already ending in
 `node_modules`.
 
-If it is not found there, then it moves to the parent directory, and so
-on, until the root of the file system is reached.
+If it is not found there, then Node.js moves to the parent directory and repeats
+the process until either the module is found or the root of the file system is reached.
 
 For example, if the file at `'/home/ry/projects/foo.js'` called
 `require('bar.js')`, then Node.js would look in the following locations, in
@@ -741,7 +742,7 @@ folder. These will be loaded faster, and more reliably.
 
 <!-- type=misc -->
 
-Before a module's code is executed, Node.js will wrap it with a function
+Before a CommonJS module's code is executed, Node.js will wrap it with a function
 wrapper that looks like the following:
 
 ```js
@@ -805,24 +806,24 @@ See [`__dirname`][] for the directory name of the current module.
 
 Examples:
 
-Running `node example.js` from `/Users/mjr`
+* Running `node example.js` from `/Users/mjr`
 
-```js
-console.log(__filename);
-// Prints: /Users/mjr/example.js
-console.log(__dirname);
-// Prints: /Users/mjr
-```
+  ```js
+  console.log(__filename);
+  // Prints: /Users/mjr/example.js
+  console.log(__dirname);
+  // Prints: /Users/mjr
+  ```
 
-Given two modules: `a` and `b`, where `b` is a dependency of
-`a` and there is a directory structure of:
+* Given two modules: `a` and `b`, where `b` is a dependency of
+  `a` and there is a directory structure of:
 
-* `/Users/mjr/app/a.js`
-* `/Users/mjr/app/node_modules/b/b.js`
+  * `/Users/mjr/app/a.js`
+  * `/Users/mjr/app/node_modules/b/b.js`
 
-References to `__filename` within `b.js` will return
-`/Users/mjr/app/node_modules/b/b.js` while references to `__filename` within
-`a.js` will return `/Users/mjr/app/a.js`.
+  References to `__filename` within `b.js` will return
+  `/Users/mjr/app/node_modules/b/b.js` while references to `__filename` within
+  `a.js` will return `/Users/mjr/app/a.js`.
 
 ### `exports`
 
@@ -871,15 +872,17 @@ the current working directory. The relative paths of POSIX style are resolved
 in an OS independent fashion, meaning that the examples above will work on
 Windows in the same way they would on Unix systems.
 
+Example:
+
 ```js
 // Importing a local module with a path relative to the `__dirname` or current
-// working directory. (On Windows, this would resolve to .\path\myLocalModule.)
+// working directory. (On Windows, this would resolve to .\path\myLocalModule)
 const myLocalModule = require('./path/myLocalModule');
 
 // Importing a JSON file:
 const jsonData = require('./path/filename.json');
 
-// Importing a module from node_modules or Node.js built-in module:
+// Importing a module from node_modules or a Node.js built-in module:
 const crypto = require('node:crypto');
 ```
 
@@ -1001,10 +1004,10 @@ changes:
     is checked from this location.
 * Returns: {string}
 
-Use the internal `require()` machinery to look up the location of a module,
-but rather than loading the module, just return the resolved filename.
+Uses the internal `require()` machinery to look up the location of a module,
+but rather than loading the module, just returns the resolved filename.
 
-If the module can not be found, a `MODULE_NOT_FOUND` error is thrown.
+If the module can not be found, a [`MODULE_NOT_FOUND`][] error is thrown.
 
 ##### `require.resolve.paths(request)`
 
@@ -1084,19 +1087,19 @@ a.on('ready', () => {
 ```
 
 Assignment to `module.exports` must be done immediately. It cannot be
-done in any callbacks. This does not work:
-
-`x.js`:
+done in any callbacks. For example this does not work:
 
 ```js
+// x.js
+
 setTimeout(() => {
   module.exports = { a: 'hello' };
 }, 0);
 ```
 
-`y.js`:
-
 ```js
+// y.js
+
 const x = require('./x');
 console.log(x.a);
 ```
@@ -1209,7 +1212,7 @@ deprecated:
 
 The module that first required this one, or `null` if the current module is the
 entry point of the current process, or `undefined` if the module was loaded by
-something that is not a CommonJS module (E.G.: REPL or `import`).
+something that is not a CommonJS module (e.g.: REPL or `import`).
 
 ### `module.path`
 
@@ -1269,9 +1272,9 @@ This section was moved to
 
 * <a id="modules_module_findsourcemap_path_error" href="module.html#modulefindsourcemappath">`module.findSourceMap(path)`</a>
 * <a id="modules_class_module_sourcemap" href="module.html#class-modulesourcemap">Class: `module.SourceMap`</a>
-  * <a id="modules_new_sourcemap_payload" href="module.html#new-sourcemappayload">`new SourceMap(payload)`</a>
-  * <a id="modules_sourcemap_payload" href="module.html#sourcemappayload">`sourceMap.payload`</a>
-  * <a id="modules_sourcemap_findentry_linenumber_columnnumber" href="module.html#sourcemapfindentrylinenumber-columnnumber">`sourceMap.findEntry(lineNumber, columnNumber)`</a>
+* <a id="modules_new_sourcemap_payload" href="module.html#new-sourcemappayload">`new SourceMap(payload)`</a>
+* <a id="modules_sourcemap_payload" href="module.html#sourcemappayload">`sourceMap.payload`</a>
+* <a id="modules_sourcemap_findentry_linenumber_columnnumber" href="module.html#sourcemapfindentrylinenumber-columnnumber">`sourceMap.findEntry(lineNumber, columnNumber)`</a>
 
 [Determining module system]: packages.md#determining-module-system
 [ECMAScript Modules]: esm.md
@@ -1299,6 +1302,7 @@ This section was moved to
 [`process.features.require_module`]: process.md#processfeaturesrequire_module
 [`require.main`]: #requiremain
 [exports shortcut]: #exports-shortcut
+[module namespace object]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import#module_namespace_object
 [module resolution]: #all-together
 [native addons]: addons.md
 [subpath exports]: packages.md#subpath-exports
