@@ -438,6 +438,7 @@ TEST_F(EnvironmentTest, InspectorMultipleEmbeddedEnvironments) {
   // This test sets a global variable in the child Environment, and reads it
   // back both through the inspector and inside the child Environment, and
   // makes sure that those correspond to the value that was originally set.
+  v8::Locker locker(isolate_);
   const v8::HandleScope handle_scope(isolate_);
   const Argv argv;
   Env env {handle_scope, argv};
@@ -507,6 +508,7 @@ TEST_F(EnvironmentTest, InspectorMultipleEmbeddedEnvironments) {
     CHECK_NOT_NULL(isolate);
 
     {
+      v8::Locker locker(isolate);
       v8::Isolate::Scope isolate_scope(isolate);
       v8::HandleScope handle_scope(isolate);
 
@@ -630,6 +632,7 @@ TEST_F(NodeZeroIsolateTestFixture, CtrlCWithOnlySafeTerminationTest) {
 
   // Try creating Context + IsolateData + Environment.
   {
+    v8::Locker locker(isolate);
     v8::Isolate::Scope isolate_scope(isolate);
     v8::HandleScope handle_scope(isolate);
 
