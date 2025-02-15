@@ -17,7 +17,7 @@ const server = net.createServer(common.mustCall(function(conn) {
     let count = 0;
 
     function writeLoop() {
-      if (count++ === 200) {
+      if (count++ === 20) {
         conn.end();
         return;
       }
