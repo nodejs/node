@@ -10,8 +10,6 @@ const net = require('net');
 const data = Buffer.alloc(1000000);
 
 const server = net.createServer(common.mustCall(function(conn) {
-  // Communicate to the client that the server is ready to receive data
-  conn.write('start');
   conn.resume();
 })).listen(0, common.mustCall(function() {
   const conn = net.createConnection(this.address().port, common.mustCall(() => {
@@ -19,7 +17,7 @@ const server = net.createServer(common.mustCall(function(conn) {
 
     function writeLoop() {
       if (count++ === 200) {
-        conn.destroy();
+        conn.end();
         server.close();
         return;
       }
@@ -29,13 +27,8 @@ const server = net.createServer(common.mustCall(function(conn) {
       // The buffer allocated above should still be alive.
     }
 
-    // Wait for the server to be ready to receive data
-    // otherwise the test might be flaky as the mustCall above
-    // might not be invoked.
-    conn.once('data', common.mustCall(() => {
-      conn.on('drain', writeLoop);
-      conn.resume();
-      writeLoop();
-    }));
+    conn.on('drain', writeLoop);
+
+    writeLoop();
   }));
 }));
