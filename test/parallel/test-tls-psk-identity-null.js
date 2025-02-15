@@ -14,7 +14,7 @@ const tls = require('tls');
     }
   });
 
-  server.listen(0, common.mustCall(() => {
+  server.listen(0, () => {
     const client = tls.connect({
       port: server.address().port,
       pskIdentity: 'test',
@@ -23,11 +23,11 @@ const tls = require('tls');
       }
     });
 
-    client.on('error', common.mustCall((err) => {
+    client.on('error', (err) => {
       assert.strictEqual(err.code, 'ERR_SSL_SSLV3_ALERT_HANDSHAKE_FAILURE');
       server.close();
-    }));
-  }));
+    });
+  });
 }
 
 {
@@ -37,7 +37,7 @@ const tls = require('tls');
     }
   });
 
-  server.listen(0, common.mustCall(() => {
+  server.listen(0, () => {
     const client = tls.connect({
       port: server.address().port,
       pskIdentity: 'test',
@@ -46,9 +46,9 @@ const tls = require('tls');
       }
     });
 
-    client.on('error', common.mustCall((err) => {
+    client.on('error', (err) => {
       assert.strictEqual(err.code, 'ERR_SSL_SSLV3_ALERT_HANDSHAKE_FAILURE');
       server.close();
-    }));
-  }));
+    });
+  });
 }
