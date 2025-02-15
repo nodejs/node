@@ -19,6 +19,7 @@ template("zstd_gn_build") {
     public_configs = [ ":zstd_config" ]
     sources = gypi_values.zstd_sources
     defines = [ "XXH_NAMESPACE=ZSTD_", "ZSTD_MULTITHREAD", "ZSTD_DISABLE_ASM" ]
+    cflags_c = [ "-Wno-unused-function" ]
 
     if (is_posix) {
       ldflags = [ "-pthread" ]
