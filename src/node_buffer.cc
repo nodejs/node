@@ -154,7 +154,7 @@ CallbackInfo::CallbackInfo(Environment* env,
       hint_(hint),
       env_(env) {
   env->cleanable_queue()->PushFront(this);
-  env->isolate()->AdjustAmountOfExternalAllocatedMemory(sizeof(*this));
+  env->external_memory_accounter()->Increase(env->isolate(), sizeof(*this));
 }
 
 void CallbackInfo::Clean() {
@@ -182,8 +182,7 @@ void CallbackInfo::CallAndResetCallback() {
   if (callback != nullptr) {
     // Clean up all Environment-related state and run the callback.
     cleanable_queue_.Remove();
-    int64_t change_in_bytes = -static_cast<int64_t>(sizeof(*this));
-    env_->isolate()->AdjustAmountOfExternalAllocatedMemory(change_in_bytes);
+    env_->external_memory_accounter()->Decrease(env_->isolate(), sizeof(*this));
 
     callback(data_, hint_);
   }
