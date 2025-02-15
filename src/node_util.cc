@@ -348,6 +348,43 @@ static void IsInsideNodeModules(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(result);
 }
 
+static void DefineLazyPropertiesGetter(v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  Realm* realm = Realm::GetCurrent(info);
+  Isolate* isolate = realm->isolate();
+  auto context = isolate->GetCurrentContext();
+  Local<Value> arg = info.Data();
+  auto require_result = realm->builtin_module_require()
+        ->Call(context, Null(isolate), 1, &arg).ToLocalChecked();
+  info.GetReturnValue().Set(require_result.As<v8::Object>()->Get(context, name).ToLocalChecked());
+}
+static void DefineLazyProperties(const FunctionCallbackInfo<Value>& args) {
+  CHECK_GE(args.Length(), 3); // target, id, keys, enumerable = true
+  CHECK(args[0]->IsObject()); // target: Object where to define the lazy properties.
+  CHECK(args[1]->IsString()); // id: Internal module to lazy-load where the API to expose are implemented.
+  CHECK(args[2]->IsArray()); // keys: Keys to map from `require(id)` and `target`.
+  CHECK(args.Length() == 3 || args[3]->IsBoolean()); // enumerable: Whether the property should be enumerable.
+
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+  auto context = isolate->GetCurrentContext();
+
+  auto target = args[0].As<v8::Object>();
+  Local<Value> id = args[1];
+  v8::PropertyAttribute attribute = args.Length() == 3 || args[3]->IsTrue() ? v8::None : v8::DontEnum;
+
+  const Local<Array> keys = args[2].As<Array>();
+  size_t length = keys->Length();
+  for(size_t i = 0; i < length; i++) {
+    Local<Value> key;
+    if (!keys->Get(context, i).ToLocal(&key)) {
+      // V8 will have scheduled an error to be thrown.
+      return;
+    }
+    CHECK(key->IsString());
+    target->SetLazyDataProperty(context, key.As<v8::String>(), DefineLazyPropertiesGetter, id, attribute).Check();
+  }
+}
+
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetPromiseDetails);
   registry->Register(GetProxyDetails);
@@ -448,6 +485,7 @@ void Initialize(Local<Object> target,
   }
 
   SetMethod(context, target, "isInsideNodeModules", IsInsideNodeModules);
+  SetMethod(context, target, "defineLazyProperties", DefineLazyProperties);
   SetMethodNoSideEffect(
       context, target, "getPromiseDetails", GetPromiseDetails);
   SetMethodNoSideEffect(context, target, "getProxyDetails", GetProxyDetails);

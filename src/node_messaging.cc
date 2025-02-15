@@ -1645,6 +1645,32 @@ static void BroadcastChannel(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+
+static void ExposeLazyDOMExceptionPropertyGetter(v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  Realm* realm = Realm::GetCurrent(info);
+  Isolate* isolate = realm->isolate();
+  auto context = isolate->GetCurrentContext();
+  Local<Function> domexception = GetDOMException(context).ToLocalChecked();
+  info.GetReturnValue().Set(domexception);
+}
+static void ExposeLazyDOMExceptionProperty(const FunctionCallbackInfo<Value>& args) {
+  CHECK_GE(args.Length(), 1); // target[, enumerable = true]
+  CHECK(args[0]->IsObject()); // target: Object where to define the lazy properties.
+  // CHECK(args.Length() == 1 || args[1]->IsBoolean()); // enumerable: Whether the property should be enumerable.
+
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+  auto target = args[0].As<v8::Object>();
+  // v8::PropertyAttribute attribute = args.Length() == 1 || args[1]->IsTrue() ? v8::None : ;
+  target->SetLazyDataProperty(
+    isolate->GetCurrentContext(),
+    FIXED_ONE_BYTE_STRING(isolate, "DOMException"),
+    ExposeLazyDOMExceptionPropertyGetter,
+    Null(isolate),
+    v8::DontEnum
+  ).Check();
+}
+
 static void CreatePerIsolateProperties(IsolateData* isolate_data,
                                        Local<ObjectTemplate> target) {
   Isolate* isolate = isolate_data->isolate();
@@ -1671,6 +1697,7 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
 
   // These are not methods on the MessagePort prototype, because
   // the browser equivalents do not provide them.
+  SetMethod(isolate, target, "exposeLazyDOMExceptionProperty", ExposeLazyDOMExceptionProperty);
   SetMethod(isolate, target, "stopMessagePort", MessagePort::Stop);
   SetMethod(isolate, target, "checkMessagePort", MessagePort::CheckType);
   SetMethod(isolate, target, "drainMessagePort", MessagePort::Drain);
