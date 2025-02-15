@@ -346,8 +346,8 @@ require(X) from module at path Y
    a. return the core module
    b. STOP
 2. If X begins with '/'
-   a. set Y to the file system root
-3. If X begins with './' or '/' or '../'
+   a. set Y to be the file system root
+3. If X is equal to '.', or X begins with './', '/' or '../'
    a. LOAD_AS_FILE(Y + X)
    b. LOAD_AS_DIRECTORY(Y + X)
    c. THROW "not found"
