@@ -48,6 +48,7 @@ using v8::CppHeap;
 using v8::CppHeapCreateParams;
 using v8::EmbedderGraph;
 using v8::EscapableHandleScope;
+using v8::ExternalMemoryAccounter;
 using v8::Function;
 using v8::HandleScope;
 using v8::HeapProfiler;
@@ -801,6 +802,7 @@ Environment::Environment(IsolateData* isolate_data,
                          EnvironmentFlags::Flags flags,
                          ThreadId thread_id)
     : isolate_(isolate),
+      external_memory_accounter_(new ExternalMemoryAccounter()),
       isolate_data_(isolate_data),
       async_hooks_(isolate, MAYBE_FIELD_PTR(env_info, async_hooks)),
       immediate_info_(isolate, MAYBE_FIELD_PTR(env_info, immediate_info)),
@@ -1054,6 +1056,8 @@ Environment::~Environment() {
       addon.Close();
     }
   }
+
+  delete external_memory_accounter_;
 }
 
 void Environment::InitializeLibuv() {
