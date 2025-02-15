@@ -4,7 +4,7 @@ This directory contains modules used to test the Node.js implementation.
 All tests must begin by requiring the `common` module:
 
 ```js
-require('./common');
+require('../common');
 ```
 
 This is not just a convenience for exporting helper functions etc; it also performs
