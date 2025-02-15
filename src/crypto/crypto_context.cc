@@ -223,7 +223,7 @@ int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
                                        issuer);
 }
 
-unsigned long LoadCertsFromFile(  // NOLINT(runtime/int)
+static unsigned long LoadCertsFromFile(  // NOLINT(runtime/int)
     std::vector<X509*>* certs,
     const char* file) {
   MarkPopErrorOnReturn mark_pop_error_on_return;
@@ -645,6 +645,74 @@ void ReadWindowsCertificates(
 }
 #endif
 
+static void LoadCertsFromDir(std::vector<X509*>* certs,
+                             std::string_view cert_dir) {
+  uv_fs_t dir_req;
+  auto cleanup = OnScopeLeave([&dir_req]() { uv_fs_req_cleanup(&dir_req); });
+  int err = uv_fs_scandir(nullptr, &dir_req, cert_dir.data(), 0, nullptr);
+  if (err < 0) {
+    fprintf(stderr,
+            "Cannot open directory %s to load OpenSSL certificates.\n",
+            cert_dir.data());
+    return;
+  }
+
+  uv_fs_t stats_req;
+  auto cleanup_stats =
+      OnScopeLeave([&stats_req]() { uv_fs_req_cleanup(&stats_req); });
+  for (;;) {
+    uv_dirent_t ent;
+
+    int r = uv_fs_scandir_next(&dir_req, &ent);
+    if (r == UV_EOF) {
+      break;
+    }
+    if (r < 0) {
+      char message[64];
+      uv_strerror_r(r, message, sizeof(message));
+      fprintf(stderr,
+              "Cannot scan directory %s to load OpenSSL certificates.\n",
+              cert_dir.data());
+      return;
+    }
+
+    std::string file_path = std::string(cert_dir) + "/" + ent.name;
+    int stats_r = uv_fs_stat(nullptr, &stats_req, file_path.c_str(), nullptr);
+    if (stats_r == 0 &&
+        (static_cast<uv_stat_t*>(stats_req.ptr)->st_mode & S_IFREG)) {
+      LoadCertsFromFile(certs, file_path.c_str());
+    }
+  }
+}
+
+// Loads CA certificates from the default certificate paths respected by
+// OpenSSL.
+void GetOpenSSLSystemCertificates(std::vector<X509*>* system_store_certs) {
+  std::string cert_file;
+  // While configurable when OpenSSL is built, this is usually SSL_CERT_FILE.
+  if (!credentials::SafeGetenv(X509_get_default_cert_file_env(), &cert_file)) {
+    // This is usually /etc/ssl/cert.pem if we are using the OpenSSL statically
+    // linked and built with default configurations.
+    cert_file = X509_get_default_cert_file();
+  }
+
+  std::string cert_dir;
+  // While configurable when OpenSSL is built, this is usually SSL_CERT_DIR.
+  if (!credentials::SafeGetenv(X509_get_default_cert_dir_env(), &cert_dir)) {
+    // This is usually /etc/ssl/certs if we are using the OpenSSL statically
+    // linked and built with default configurations.
+    cert_dir = X509_get_default_cert_dir();
+  }
+
+  if (!cert_file.empty()) {
+    LoadCertsFromFile(system_store_certs, cert_file.c_str());
+  }
+
+  if (!cert_dir.empty()) {
+    LoadCertsFromDir(system_store_certs, cert_dir.c_str());
+  }
+}
+
 static std::vector<X509*> InitializeBundledRootCertificates() {
   // Read the bundled certificates in node_root_certs.h into
   // bundled_root_certs_vector.
@@ -685,6 +753,9 @@ static std::vector<X509*> InitializeSystemStoreCertificates() {
 #endif
 #ifdef _WIN32
   ReadWindowsCertificates(&system_store_certs);
+#endif
+#if !defined(__APPLE__) && !defined(_WIN32)
+  GetOpenSSLSystemCertificates(&system_store_certs);
 #endif
   return system_store_certs;
 }
