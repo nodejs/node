@@ -40,7 +40,7 @@ if (!common.hasCrypto) {
 //     $ sudo rm /usr/local/share/ca-certificates/fake-startcom-root-cert.crt
 //     $ sudo update-ca-certificates --fresh
 //
-// For other UNIX-like systems, consult their manuals, there are usually
+// For other Unix-like systems, consult their manuals, there are usually
 // file-based processes similar to the Debian/Ubuntu one but with different
 // file locations and update commands.
 const handleRequest = (req, res) => {

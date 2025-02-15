@@ -2909,7 +2909,7 @@ On other systems, Node.js loads certificates from the default certificate file
 (typically `/etc/ssl/cert.pem`) and default certificate directory (typically
 `/etc/ssl/certs`) that the version of OpenSSL that Node.js links to respects.
 This typically works with the convention on major Linux distributions and other
-UNIX-like systems. If the overriding OpenSSL environment variables
+Unix-like systems. If the overriding OpenSSL environment variables
 (typically `SSL_CERT_FILE` and `SSL_CERT_DIR`, depending on the configuration
 of the OpenSSL that Node.js links to) are set, the specified paths will be used to load
 certificates instead. These environment variables can be used as workarounds
