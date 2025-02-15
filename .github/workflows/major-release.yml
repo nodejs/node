@@ -9,6 +9,7 @@ permissions:
 
 jobs:
   create-issue:
+    if: github.repository == 'nodejs/node'
     runs-on: ubuntu-latest
     permissions:
       issues: write
