@@ -49,6 +49,7 @@ describe('without AsyncContextFrame', {
     it(test, async () => {
       const proc = spawn(python, [
         testRunner,
+        `--mode=${process.features.debug ? 'debug' : 'release'}`,
         '--node-args=--no-async-context-frame',
         test,
       ], {
