@@ -1,6 +1,6 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 
 async function test() {
@@ -28,4 +28,4 @@ async function test() {
   assert.strictEqual(value2, 3);
 }
 
-test(common.mustCall());
+test();
