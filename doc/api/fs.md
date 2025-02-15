@@ -4451,11 +4451,11 @@ Stats {
 }
 ```
 
-### fs.statfs(path[, options], callback)
+### `fs.statfs(path[, options], callback)`
 
 `fs.statfs` retrieves information about the file system where the given `path` resides.
 
-#### **Parameters**
+**Parameters**
 - `path` **{string|Buffer|URL}** - The file or directory path to query.
 - `options` **{Object}** *(Optional)*
   - `bigint` **{boolean}** - If `true`, numeric values in the returned `fs.StatFs` object will be `BigInt` instead of `number`. Default: `false`.
@@ -4463,7 +4463,7 @@ Stats {
   - `err` **{Error}** - If an error occurs, contains error details.
   - `stats` **{fs.StatFs}** - Contains file system statistics.
 
-#### **Returned `fs.StatFs` Object Properties**
+**Returned `fs.StatFs` Object Properties**
 The returned `fs.StatFs` object contains:
 - `type` **{number}** - The type of filesystem.
 - `bsize` **{number}** - Optimal transfer block size.
@@ -4477,9 +4477,9 @@ The returned `fs.StatFs` object contains:
 
 ---
 
-### **🔹 Example Usage**
+**🔹 Example Usage**
 
-#### **Basic Usage**
+**Basic Usage**
 ```javascript
 const fs = require('fs');
 
@@ -4492,7 +4492,7 @@ fs.statfs('/path/to/directory', (err, stats) => {
 });
 ```
 
-#### **Using bigint: true**
+**Using bigint: true**
 
 ```javascript
 fs.statfs('/path/to/directory', { bigint: true }, (err, stats) => {
