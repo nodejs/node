@@ -28,4 +28,4 @@ async function test() {
   assert.strictEqual(value2, 3);
 }
 
-test();
+test(common.mustCall());
