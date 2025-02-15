@@ -7,10 +7,6 @@ import fixtures from '../common/fixtures.js';
 import { it, beforeEach, afterEach, describe } from 'node:test';
 import { once } from 'events';
 
-if (!common.isMacOS && !common.isWindows) {
-  common.skip('--use-system-ca is only supported on macOS and Windows');
-}
-
 if (!common.hasCrypto) {
   common.skip('requires crypto');
 }
@@ -34,6 +30,19 @@ if (!common.hasCrypto) {
 //    $  $thumbprint = (Get-ChildItem -Path Cert:\CurrentUser\Root | \
 //          Where-Object { $_.Subject -match "StartCom Certification Authority" }).Thumbprint
 //    $  Remove-Item -Path "Cert:\CurrentUser\Root\$thumbprint"
+//
+// On Debian/Ubuntu:
+//   1. To add the certificate:
+//     $ sudo cp test/fixtures/keys/fake-startcom-root-cert.pem \
+//       /usr/local/share/ca-certificates/fake-startcom-root-cert.crt
+//     $ sudo update-ca-certificates
+//   2. To remove the certificate
+//     $ sudo rm /usr/local/share/ca-certificates/fake-startcom-root-cert.crt
+//     $ sudo update-ca-certificates --fresh
+//
+// For other Unix-like systems, consult their manuals, there are usually
+// file-based processes similar to the Debian/Ubuntu one but with different
+// file locations and update commands.
 const handleRequest = (req, res) => {
   const path = req.url;
   switch (path) {
