@@ -2,7 +2,7 @@
 
 <!--introduced_in=v20.0.0-->
 
-<!-- source_link=src/permission.cc -->
+<!-- source_link=src/permission/permission.cc -->
 
 Permissions can be used to control what system resources the
 Node.js process has access to or what actions the process can take
