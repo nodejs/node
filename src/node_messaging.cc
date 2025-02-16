@@ -1659,13 +1659,16 @@ static void ExposeLazyDOMExceptionProperty(
   Isolate* isolate = args.GetIsolate();
   auto target = args[0].As<v8::Object>();
 
-  target
-      ->SetLazyDataProperty(isolate->GetCurrentContext(),
-                            FIXED_ONE_BYTE_STRING(isolate, "DOMException"),
-                            ExposeLazyDOMExceptionPropertyGetter,
-                            Local<Value>(),
-                            v8::DontEnum)
-      .Check();
+  if (target
+          ->SetLazyDataProperty(isolate->GetCurrentContext(),
+                                FIXED_ONE_BYTE_STRING(isolate, "DOMException"),
+                                ExposeLazyDOMExceptionPropertyGetter,
+                                Local<Value>(),
+                                v8::DontEnum)
+          .IsNothing()) {
+    // V8 will have scheduled an error to be thrown.
+    return;
+  }
 }
 
 static void CreatePerIsolateProperties(IsolateData* isolate_data,

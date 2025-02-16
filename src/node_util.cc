@@ -398,13 +398,16 @@ static void DefineLazyProperties(const FunctionCallbackInfo<Value>& args) {
       return;
     }
     CHECK(key->IsString());
-    target
-        ->SetLazyDataProperty(context,
-                              key.As<v8::String>(),
-                              DefineLazyPropertiesGetter,
-                              id,
-                              attribute)
-        .Check();
+    if (target
+            ->SetLazyDataProperty(context,
+                                  key.As<v8::String>(),
+                                  DefineLazyPropertiesGetter,
+                                  id,
+                                  attribute)
+            .IsNothing()) {
+      // V8 will have scheduled an error to be thrown.
+      return;
+    };
   }
 }
 
