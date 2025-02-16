@@ -204,7 +204,7 @@ regarding which files are parsed as ECMAScript modules.
   3. The file has a `.js` extension, the closest `package.json` does not contain
      `"type": "commonjs"`, and the module contains ES module syntax.
 
-If the ES Module being loaded meet the requirements, `require()` can load it and
+If the ES Module being loaded meets the requirements, `require()` can load it and
 return the module namespace object. In this case it is similar to dynamic
 `import()` but is run synchronously and returns the name space object
 directly.
