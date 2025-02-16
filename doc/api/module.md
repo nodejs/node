@@ -1664,6 +1664,13 @@ added:
 
 #### `new SourceMap(payload[, { lineLengths }])`
 
+<!-- YAML
+changes:
+  - version: v20.5.0
+    pr-url: https://github.com/nodejs/node/pull/48461
+    description: Add support for `lineLengths`.
+-->
+
 * `payload` {Object}
 * `lineLengths` {number\[]}
 
@@ -1725,6 +1732,12 @@ and CallSite objects, use `sourceMap.findOrigin(lineNumber,
 columnNumber)`
 
 #### `sourceMap.findOrigin(lineNumber, columnNumber)`
+
+<!-- YAML
+added:
+  - v20.4.0
+  - v18.18.0
+-->
 
 * `lineNumber` {number} The 1-indexed line number of the call
   site in the generated source
