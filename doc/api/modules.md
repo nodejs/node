@@ -516,9 +516,11 @@ by that name.
 
 Some built-in modules are always preferentially loaded if their identifier is
 passed to `require()`. For instance, `require('http')` will always
-return the built-in HTTP module, even if there is a file by that name. The list
-of built-in modules that can be loaded without using the `node:` prefix is exposed
-in [`module.builtinModules`][], listed without the prefix.
+return the built-in HTTP module, even if there is a file by that name.
+
+The list of all the built-in modules can be retrieved from [`module.builtinModules`][].
+The modules being all listed without the `node:` prefix, except those that mandate such
+prefix (as explained in the next section).
 
 ### Built-in modules with mandatory `node:` prefix
 
