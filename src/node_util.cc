@@ -349,18 +349,18 @@ static void IsInsideNodeModules(const FunctionCallbackInfo<Value>& args) {
 }
 
 static void DefineLazyPropertiesGetter(
-    v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+    Local<v8::Name> name, const v8::PropertyCallbackInfo<Value>& info) {
   Realm* realm = Realm::GetCurrent(info);
   Isolate* isolate = realm->isolate();
   auto context = isolate->GetCurrentContext();
   Local<Value> arg = info.Data();
   Local<Value> require_result;
   if (!realm->builtin_module_require()
-         ->Call(context, Null(isolate), 1, &arg)
-             .ToLocal(&require_result)) {
-   // V8 will have scheduled an error to be thrown.
-   return;
-  }                          
+           ->Call(context, Null(isolate), 1, &arg)
+           .ToLocal(&require_result)) {
+    // V8 will have scheduled an error to be thrown.
+    return;
+  }
   Local<Value> ret;
   if (!require_result.As<v8::Object>()->Get(context, name).ToLocal(&ret)) {
     // V8 will have scheduled an error to be thrown.
@@ -384,7 +384,7 @@ static void DefineLazyProperties(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = env->isolate();
   auto context = isolate->GetCurrentContext();
 
-  auto target = args[0].As<v8::Object>();
+  auto target = args[0].As<Object>();
   Local<Value> id = args[1];
   v8::PropertyAttribute attribute =
       args.Length() == 3 || args[3]->IsTrue() ? v8::None : v8::DontEnum;
@@ -400,7 +400,7 @@ static void DefineLazyProperties(const FunctionCallbackInfo<Value>& args) {
     CHECK(key->IsString());
     if (target
             ->SetLazyDataProperty(context,
-                                  key.As<v8::String>(),
+                                  key.As<String>(),
                                   DefineLazyPropertiesGetter,
                                   id,
                                   attribute)

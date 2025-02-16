@@ -1646,7 +1646,7 @@ static void BroadcastChannel(const FunctionCallbackInfo<Value>& args) {
 }
 
 static void ExposeLazyDOMExceptionPropertyGetter(
-    v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+    Local<v8::Name> name, const v8::PropertyCallbackInfo<Value>& info) {
   auto context = info.GetIsolate()->GetCurrentContext();
   Local<Function> domexception = GetDOMException(context).ToLocalChecked();
   info.GetReturnValue().Set(domexception);
@@ -1657,7 +1657,7 @@ static void ExposeLazyDOMExceptionProperty(
   CHECK(args[0]->IsObject());
 
   Isolate* isolate = args.GetIsolate();
-  auto target = args[0].As<v8::Object>();
+  auto target = args[0].As<Object>();
 
   if (target
           ->SetLazyDataProperty(isolate->GetCurrentContext(),
