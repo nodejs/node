@@ -358,12 +358,15 @@ static void DefineLazyPropertiesGetter(
   if (!realm->builtin_module_require()
          ->Call(context, Null(isolate), 1, &arg)
              .ToLocal(&require_result)) {
+   // V8 will have scheduled an error to be thrown.
    return;
   }                          
   Local<Value> ret;
-  if (require_result.As<v8::Object>()->Get(context, name).ToLocal(&ret)) {
-    info.GetReturnValue().Set(ret);
+  if (!require_result.As<v8::Object>()->Get(context, name).ToLocal(&ret)) {
+    // V8 will have scheduled an error to be thrown.
+    return;
   }
+  info.GetReturnValue().Set(ret);
 }
 static void DefineLazyProperties(const FunctionCallbackInfo<Value>& args) {
   // target: object, id: string, keys: string[][, enumerable = true]
