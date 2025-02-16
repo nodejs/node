@@ -1648,7 +1648,11 @@ static void BroadcastChannel(const FunctionCallbackInfo<Value>& args) {
 static void ExposeLazyDOMExceptionPropertyGetter(
     Local<v8::Name> name, const v8::PropertyCallbackInfo<Value>& info) {
   auto context = info.GetIsolate()->GetCurrentContext();
-  Local<Function> domexception = GetDOMException(context).ToLocalChecked();
+  Local<Function> domexception;
+  if (!GetDOMException(context).ToLocal(&domexception)) {
+    // V8 will have scheduled an error to be thrown.
+    return;
+  }
   info.GetReturnValue().Set(domexception);
 }
 static void ExposeLazyDOMExceptionProperty(
