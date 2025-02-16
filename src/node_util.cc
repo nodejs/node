@@ -354,11 +354,16 @@ static void DefineLazyPropertiesGetter(
   Isolate* isolate = realm->isolate();
   auto context = isolate->GetCurrentContext();
   Local<Value> arg = info.Data();
-  auto require_result = realm->builtin_module_require()
-                            ->Call(context, Null(isolate), 1, &arg)
-                            .ToLocalChecked();
-  info.GetReturnValue().Set(
-      require_result.As<v8::Object>()->Get(context, name).ToLocalChecked());
+  Local<Value> require_result;
+  if (!realm->builtin_module_require()
+         ->Call(context, Null(isolate), 1, &arg)
+             .ToLocal(&require_result)) {
+   return;
+  }                          
+  Local<Value> ret;
+  if (require_result.As<v8::Object>()->Get(context, name).ToLocal(&ret)) {
+    info.GetReturnValue().Set(ret);
+  }
 }
 static void DefineLazyProperties(const FunctionCallbackInfo<Value>& args) {
   // target: object, id: string, keys: string[][, enumerable = true]
