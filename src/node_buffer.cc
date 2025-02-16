@@ -72,7 +72,6 @@ using v8::Just;
 using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
-using v8::NewStringType;
 using v8::Nothing;
 using v8::Number;
 using v8::Object;
@@ -1307,12 +1306,9 @@ static void Btoa(const FunctionCallbackInfo<Value>& args) {
     written = simdutf::binary_to_base64(*stack_buf, out_len, buffer.out());
   }
 
-  auto value =
-      String::NewFromOneByte(env->isolate(),
-                             reinterpret_cast<const uint8_t*>(buffer.out()),
-                             NewStringType::kNormal,
-                             written)
-          .ToLocalChecked();
+  auto value = OneByteString(
+      env->isolate(), reinterpret_cast<const uint8_t*>(buffer.out()), written);
+
   return args.GetReturnValue().Set(value);
 }
 
@@ -1362,12 +1358,9 @@ static void Atob(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (result.error == simdutf::error_code::SUCCESS) {
-    auto value =
-        String::NewFromOneByte(env->isolate(),
+    auto value = OneByteString(env->isolate(),
                                reinterpret_cast<const uint8_t*>(buffer.out()),
-                               NewStringType::kNormal,
-                               result.count)
-            .ToLocalChecked();
+                               result.count);
     return args.GetReturnValue().Set(value);
   }
 

@@ -330,10 +330,7 @@ void ICUErrorName(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK(args[0]->IsInt32());
   UErrorCode status = static_cast<UErrorCode>(args[0].As<Int32>()->Value());
-  Local<Value> res;
-  if (String::NewFromUtf8(env->isolate(), u_errorName(status)).ToLocal(&res)) {
-    args.GetReturnValue().Set(res);
-  }
+  args.GetReturnValue().Set(OneByteString(env->isolate(), u_errorName(status)));
 }
 
 }  // anonymous namespace
