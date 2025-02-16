@@ -1653,10 +1653,8 @@ static void ExposeLazyDOMExceptionPropertyGetter(
 }
 static void ExposeLazyDOMExceptionProperty(
     const FunctionCallbackInfo<Value>& args) {
-  CHECK_GE(args.Length(), 1);  // target
-  CHECK(
-      args[0]
-          ->IsObject());  // target: Object where to define the lazy properties.
+  CHECK_GE(args.Length(), 1);
+  CHECK(args[0]->IsObject());
 
   Isolate* isolate = args.GetIsolate();
   auto target = args[0].As<v8::Object>();
@@ -1665,7 +1663,7 @@ static void ExposeLazyDOMExceptionProperty(
       ->SetLazyDataProperty(isolate->GetCurrentContext(),
                             FIXED_ONE_BYTE_STRING(isolate, "DOMException"),
                             ExposeLazyDOMExceptionPropertyGetter,
-                            Null(isolate),
+                            Local<Value>(),
                             v8::DontEnum)
       .Check();
 }

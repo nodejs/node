@@ -361,19 +361,16 @@ static void DefineLazyPropertiesGetter(
       require_result.As<v8::Object>()->Get(context, name).ToLocalChecked());
 }
 static void DefineLazyProperties(const FunctionCallbackInfo<Value>& args) {
-  CHECK_GE(
-      args.Length(),
-      3);  // target: object, id: string, keys: string[][, enumerable = true]
-  CHECK(
-      args[0]
-          ->IsObject());  // target: Object where to define the lazy properties.
-  CHECK(args[1]->IsString());  // id: Internal module to lazy-load where the API
-                               // to expose are implemented.
-  CHECK(args[2]
-            ->IsArray());  // keys: Keys to map from `require(id)` and `target`.
-  CHECK(args.Length() == 3 ||
-        args[3]->IsBoolean());  // enumerable: Whether the property should be
-                                // enumerable.
+  // target: object, id: string, keys: string[][, enumerable = true]
+  CHECK_GE(args.Length(), 3);
+  // target: Object where to define the lazy properties.
+  CHECK(args[0]->IsObject());
+  // id: Internal module to lazy-load where the API to expose are implemented.
+  CHECK(args[1]->IsString());
+  // keys: Keys to map from `require(id)` and `target`.
+  CHECK(args[2]->IsArray());
+  // enumerable: Whether the property should be enumerable.
+  CHECK(args.Length() == 3 || args[3]->IsBoolean());
 
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
