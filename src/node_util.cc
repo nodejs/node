@@ -427,6 +427,8 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(fast_guess_handle_type_.GetTypeInfo());
   registry->Register(ParseEnv);
   registry->Register(IsInsideNodeModules);
+  registry->Register(DefineLazyProperties);
+  registry->Register(DefineLazyPropertiesGetter);
 }
 
 void Initialize(Local<Object> target,

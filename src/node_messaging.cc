@@ -1748,6 +1748,8 @@ static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(MessagePort::MoveToContext);
   registry->Register(SetDeserializerCreateObjectFunction);
   registry->Register(StructuredClone);
+  registry->Register(ExposeLazyDOMExceptionProperty);
+  registry->Register(ExposeLazyDOMExceptionPropertyGetter);
 }
 
 }  // anonymous namespace
