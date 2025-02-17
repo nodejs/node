@@ -648,7 +648,7 @@ void ModuleWrap::EvaluateSync(const FunctionCallbackInfo<Value>& args) {
         FPrintF(stderr, "%s\n", reason);
       }
     }
-    THROW_ERR_REQUIRE_ASYNC_MODULE(env);
+    THROW_ERR_REQUIRE_ASYNC_MODULE(env, args[0], args[1]);
     return;
   }
 
@@ -678,7 +678,7 @@ void ModuleWrap::GetNamespaceSync(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (module->IsGraphAsync()) {
-    return THROW_ERR_REQUIRE_ASYNC_MODULE(realm->env());
+    return THROW_ERR_REQUIRE_ASYNC_MODULE(realm->env(), args[0], args[1]);
   }
   Local<Value> result = module->GetModuleNamespace();
   args.GetReturnValue().Set(result);

@@ -208,10 +208,6 @@ ERRORS_WITH_CODE(V)
     "creating Workers")                                                        \
   V(ERR_NON_CONTEXT_AWARE_DISABLED,                                            \
     "Loading non context-aware native addons has been disabled")               \
-  V(ERR_REQUIRE_ASYNC_MODULE,                                                  \
-    "require() cannot be used on an ESM graph with top-level await. Use "      \
-    "import() instead. To see where the top-level await comes from, use "      \
-    "--experimental-print-required-tla.")                                      \
   V(ERR_SCRIPT_EXECUTION_INTERRUPTED,                                          \
     "Script execution was interrupted by `SIGINT`")                            \
   V(ERR_TLS_PSK_SET_IDENTIY_HINT_FAILED, "Failed to set PSK identity hint")    \
@@ -239,6 +235,28 @@ inline void THROW_ERR_SCRIPT_EXECUTION_TIMEOUT(Environment* env,
   message << "Script execution timed out after ";
   message << timeout << "ms";
   THROW_ERR_SCRIPT_EXECUTION_TIMEOUT(env, message.str().c_str());
+}
+
+inline void THROW_ERR_REQUIRE_ASYNC_MODULE(
+    Environment* env,
+    v8::Local<v8::Value> filename,
+    v8::Local<v8::Value> parent_filename) {
+  static constexpr const char* prefix =
+      "require() cannot be used on an ESM graph with top-level await. Use "
+      "import() instead. To see where the top-level await comes from, use "
+      "--experimental-print-required-tla.";
+  std::string message = prefix;
+  if (!parent_filename.IsEmpty() && parent_filename->IsString()) {
+    Utf8Value utf8(env->isolate(), parent_filename);
+    message += "\n  From ";
+    message += utf8.out();
+  }
+  if (!filename.IsEmpty() && filename->IsString()) {
+    Utf8Value utf8(env->isolate(), filename);
+    message += "\n  Requiring ";
+    message += +utf8.out();
+  }
+  THROW_ERR_REQUIRE_ASYNC_MODULE(env, message.c_str());
 }
 
 inline v8::Local<v8::Object> ERR_BUFFER_TOO_LARGE(v8::Isolate* isolate) {
