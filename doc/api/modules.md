@@ -249,7 +249,7 @@ This property is experimental and can change in the future. It should only be us
 by tools converting ES modules into CommonJS modules, following existing ecosystem
 conventions. Code authored directly in CommonJS should avoid depending on it.
 
-When a ES Module contains both named exports and a default export, the result returned by `require()`
+When an ES Module contains both named exports and a default export, the result returned by `require()`
 is the module namespace object, which places the default export in the `.default` property, similar to
 the results returned by `import()`.
 To customize what should be returned by `require(esm)` directly, the ES Module can export the
@@ -369,7 +369,7 @@ LOAD_AS_FILE(X)
       1. MAYBE_DETECT_AND_LOAD(X.js)
     c. If the SCOPE/package.json contains "type" field,
       1. If the "type" field is "module", load X.js as an ECMAScript module. STOP.
-      2. If the "type" field is "commonjs", load X.js as an CommonJS module. STOP.
+      2. If the "type" field is "commonjs", load X.js as a CommonJS module. STOP.
     d. MAYBE_DETECT_AND_LOAD(X.js)
 3. If X.json is a file, load X.json to a JavaScript Object. STOP
 4. If X.node is a file, load X.node as binary addon. STOP
@@ -380,7 +380,7 @@ LOAD_INDEX(X)
     b. If no scope was found, load X/index.js as a CommonJS module. STOP.
     c. If the SCOPE/package.json contains "type" field,
       1. If the "type" field is "module", load X/index.js as an ECMAScript module. STOP.
-      2. Else, load X/index.js as an CommonJS module. STOP.
+      2. Else, load X/index.js as a CommonJS module. STOP.
 2. If X/index.json is a file, parse X/index.json to a JavaScript object. STOP
 3. If X/index.node is a file, load X/index.node as binary addon. STOP
 
