@@ -327,6 +327,18 @@ possible to record such errors in an error log, either periodically (which is
 likely best for long-running application) or upon process exit (which is likely
 most convenient for scripts).
 
+### Event: `'workerMessage'`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `value` {any} A value transmitted using [`postMessageToThread()`][].
+* `source` {number} The transmitting worker thread ID or `0` for the main thread.
+
+The `'workerMessage'` event is emitted for any incoming message send by the other
+party by using [`postMessageToThread()`][].
+
 ### Event: `'uncaughtException'`
 
 <!-- YAML
@@ -4173,6 +4185,7 @@ cases:
 [`net.Server`]: net.md#class-netserver
 [`net.Socket`]: net.md#class-netsocket
 [`os.constants.dlopen`]: os.md#dlopen-constants
+[`postMessageToThread()`]: worker_threads.md#workerpostmessagetothreadthreadid-value-transferlist-timeout
 [`process.argv`]: #processargv
 [`process.config`]: #processconfig
 [`process.execPath`]: #processexecpath
