@@ -1,0 +1,17 @@
+exports[`\r 1`] = `
+{
+  "key": "value"
+}
+`;
+
+exports[`\ud800 1`] = `
+{
+  "key": "value"
+}
+`;
+
+exports[`\udfff 1`] = `
+{
+  "key": "value"
+}
+`;
