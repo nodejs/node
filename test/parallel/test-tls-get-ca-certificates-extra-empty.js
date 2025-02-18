@@ -5,20 +5,25 @@
 const common = require('../common');
 if (!common.hasCrypto) common.skip('missing crypto');
 
+const tmpdir = require('../common/tmpdir');
+const fs = require('fs');
+
 const assert = require('assert');
-const { spawnSyncAndAssert } = require('../common/child_process');
+const { spawnSyncAndExitWithoutError } = require('../common/child_process');
 const fixtures = require('../common/fixtures');
 
+tmpdir.refresh();
+const certsJSON = tmpdir.resolve('certs.json');
+
 // If NODE_EXTRA_CA_CERTS is not set, it should be an empty array.
-spawnSyncAndAssert(process.execPath, [fixtures.path('tls-get-ca-certificates.js')], {
+spawnSyncAndExitWithoutError(process.execPath, [fixtures.path('tls-get-ca-certificates.js')], {
   env: {
     ...process.env,
     NODE_EXTRA_CA_CERTS: undefined,
     CA_TYPE: 'extra',
-  }
-}, {
-  stdout(output) {
-    const parsed = JSON.parse(output);
-    assert.deepStrictEqual(parsed, []);
+    CA_OUT: certsJSON,
   }
 });
+
+const parsed = JSON.parse(fs.readFileSync(certsJSON, 'utf-8'));
+assert.deepStrictEqual(parsed, []);

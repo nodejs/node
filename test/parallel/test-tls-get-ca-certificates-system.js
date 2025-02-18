@@ -11,7 +11,14 @@ const tls = require('tls');
 const { assertIsCAArray } = require('../common/tls');
 
 const systemCerts = tls.getCACertificates('system');
-assertIsCAArray(systemCerts);
+// Usually Windows come with some certificates installed by default.
+// This can't be said about other systems, in that case check that
+// at least systemCerts is an array (which may be empty).
+if (common.isWindows) {
+  assertIsCAArray(systemCerts);
+} else {
+  assert(Array.isArray(systemCerts));
+}
 
 // When --use-system-ca is true, default is a superset of system
 // certificates.
