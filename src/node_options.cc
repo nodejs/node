@@ -3,6 +3,7 @@
 
 #include "env-inl.h"
 #include "node_binding.h"
+#include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_internals.h"
 #include "node_sea.h"
@@ -1362,8 +1363,8 @@ void GetCLIOptionsValues(const FunctionCallbackInfo<Value>& args) {
 
   if (!env->has_run_bootstrapping_code()) {
     // No code because this is an assertion.
-    return env->ThrowError(
-        "Should not query options before bootstrapping is done");
+    THROW_ERR_OPTIONS_BEFORE_BOOTSTRAPPING(
+        isolate, "Should not query options before bootstrapping is done");
   }
   env->set_has_serialized_options(true);
 
@@ -1480,8 +1481,8 @@ void GetCLIOptionsInfo(const FunctionCallbackInfo<Value>& args) {
 
   if (!env->has_run_bootstrapping_code()) {
     // No code because this is an assertion.
-    return env->ThrowError(
-        "Should not query options before bootstrapping is done");
+    THROW_ERR_OPTIONS_BEFORE_BOOTSTRAPPING(
+        isolate, "Should not query options before bootstrapping is done");
   }
 
   Mutex::ScopedLock lock(per_process::cli_options_mutex);
@@ -1547,7 +1548,8 @@ void GetEmbedderOptions(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   if (!env->has_run_bootstrapping_code()) {
     // No code because this is an assertion.
-    return env->ThrowError(
+    THROW_ERR_OPTIONS_BEFORE_BOOTSTRAPPING(
+        env->isolate(),
         "Should not query options before bootstrapping is done");
   }
   Isolate* isolate = args.GetIsolate();
@@ -1583,8 +1585,8 @@ void GetEnvOptionsInputType(const FunctionCallbackInfo<Value>& args) {
 
   if (!env->has_run_bootstrapping_code()) {
     // No code because this is an assertion.
-    return env->ThrowError(
-        "Should not query options before bootstrapping is done");
+    THROW_ERR_OPTIONS_BEFORE_BOOTSTRAPPING(
+        isolate, "Should not query options before bootstrapping is done");
   }
 
   Mutex::ScopedLock lock(per_process::cli_options_mutex);
