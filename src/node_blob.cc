@@ -207,7 +207,7 @@ void Blob::New(const FunctionCallbackInfo<Value>& args) {
           return nullptr;
         }
         return DataQueue::CreateInMemoryEntryFromBackingStore(
-            store, byte_offset, byte_length);
+            std::move(store), byte_offset, byte_length);
       }
 
       // If the ArrayBuffer is not detachable, we will copy from it instead.
@@ -216,7 +216,7 @@ void Blob::New(const FunctionCallbackInfo<Value>& args) {
       uint8_t* ptr = static_cast<uint8_t*>(buf->Data()) + byte_offset;
       std::copy(ptr, ptr + byte_length, static_cast<uint8_t*>(store->Data()));
       return DataQueue::CreateInMemoryEntryFromBackingStore(
-          store, 0, byte_length);
+          std::move(store), 0, byte_length);
     };
 
     // Every entry should be either an ArrayBuffer, ArrayBufferView, or Blob.
