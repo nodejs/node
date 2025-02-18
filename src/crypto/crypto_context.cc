@@ -48,6 +48,7 @@ using v8::ArrayBufferView;
 using v8::Boolean;
 using v8::Context;
 using v8::DontDelete;
+using v8::EscapableHandleScope;
 using v8::Exception;
 using v8::External;
 using v8::FunctionCallbackInfo;
@@ -818,7 +819,7 @@ void GetBundledRootCertificates(const FunctionCallbackInfo<Value>& args) {
 MaybeLocal<Array> X509sToArrayOfStrings(Environment* env,
                                         const std::vector<X509*>& certs) {
   ClearErrorOnReturn clear_error_on_return;
-  v8::EscapableHandleScope scope(env->isolate());
+  EscapableHandleScope scope(env->isolate());
 
   LocalVector<Value> result(env->isolate(), certs.size());
   for (size_t i = 0; i < certs.size(); ++i) {

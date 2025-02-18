@@ -2376,7 +2376,8 @@ added: REPLACEME
 * `type` {string|undefined} The type of CA certificates that will be returned. Valid values
   are `"default"`, `"system"`, `"bundled"` and `"extra"`.
   **Default:** `"default"`.
-* Returns: {string\[]}
+* Returns: {string\[]} An array of PEM-encoded certificates. The array may contain duplicates
+  if the same certificate is repeatedly stored in multiple sources.
 
 Returns an array containing the CA certificates from various sources, depending on `type`:
 
