@@ -31,6 +31,8 @@ file a new issue.
     * [Building a debug build](#building-a-debug-build)
     * [Building an ASan build](#building-an-asan-build)
     * [Speeding up frequent rebuilds when developing](#speeding-up-frequent-rebuilds-when-developing)
+      * [ccache](#ccache)
+      * [Loading JS files from disk instead of embedding](#loading-js-files-from-disk-instead-of-embedding)
     * [Troubleshooting Unix and macOS builds](#troubleshooting-unix-and-macos-builds)
   * [Windows](#windows)
     * [Windows Prerequisites](#windows-prerequisites)
@@ -540,6 +542,8 @@ make test-only
 
 #### Speeding up frequent rebuilds when developing
 
+##### ccache
+
 Tips: The `ccache` utility is widely used and should generally work fine.
 If you encounter any difficulties, consider disabling `mold` as a
 troubleshooting step.
@@ -575,17 +579,26 @@ export CXX="ccache c++"        # add to ~/.zshrc or other shell config file
 
 On Windows:
 
-Tips: follow <https://github.com/ccache/ccache/wiki/MS-Visual-Studio>, and you
-should notice that obj file will be bigger the normal one.
+Follow <https://github.com/ccache/ccache/wiki/MS-Visual-Studio>, and you
+should notice that obj file will be bigger than the normal one.
 
-First, install ccache, assume ccache install to c:\ccache, copy
-c:\ccache\ccache.exe to c:\ccache\cl.exe with this command
+First, install ccache. Assuming the installation of ccache is in `c:\ccache`
+(where you can find `ccache.exe`), copy `c:\ccache\ccache.exe` to `c:\ccache\cl.exe`
+with this command.
 
 ```powershell
 cp c:\ccache\ccache.exe c:\ccache\cl.exe
 ```
 
-When building Node.js provide a path to your ccache via the option
+With newer version of Visual Studio, it may need the copy to be `clang-cl.exe`
+instead. If the output of `vcbuild.bat` suggestion missing `clang-cl.exe`, copy
+it differently:
+
+```powershell
+cp c:\ccache\ccache.exe c:\ccache\clang-cl.exe
+```
+
+When building Node.js, provide a path to your ccache via the option:
 
 ```powershell
 .\vcbuild.bat ccache c:\ccache\
@@ -593,6 +606,14 @@ When building Node.js provide a path to your ccache via the option
 
 This will allow for near-instantaneous rebuilds when switching branches back
 and forth that were built with cache.
+
+To use it with ClangCL, run this instead:
+
+```powershell
+.\vcbuild.bat clang-cl ccache c:\ccache\
+```
+
+##### Loading JS files from disk instead of embedding
 
 When modifying only the JS layer in `lib`, it is possible to externally load it
 without modifying the executable:
@@ -678,13 +699,18 @@ Optional requirements for compiling for Windows on ARM (ARM64):
   * Visual C++ ATL for ARM64
 * Windows 10 SDK 10.0.17763.0 or newer
 
-Optional requirements for compiling with ClangCL:
+Optional requirements for compiling with ClangCL (search for `clang` in Visual Studio
+Installer's "individual component" tab):
 
-* Visual Studio optional components
+* Visual Studio individual components
   * C++ Clang Compiler for Windows
   * MSBuild support for LLVM toolset
 
 NOTE: Currently we only support compiling with Clang that comes from Visual Studio.
+
+When building with ClangCL, if the output from `vcbuild.bat` shows that the components are not installed
+even when the Visual Studio Installer shows that they are installed, try removing the components
+first and then reinstalling them again.
 
 ##### Option 2: Automated install with WinGet
 
