@@ -97,6 +97,8 @@ main() {
     * )
       echo "unknown command: $1"
       help 1
+
+      # shellcheck disable=SC2317
       exit 1
     ;;
   esac

@@ -128,6 +128,19 @@ a.type {
   font-size: .9em;
 }
 
+.skip-to-content {
+  position: fixed;
+  top: -300%;
+}
+.skip-to-content:focus {
+  display: block;
+  top: 0;
+  left: 0;
+  background-color: var(--green1);
+  padding: 1rem;
+  z-index: 999999;
+}
+
 #content {
   position: relative;
 }
@@ -183,35 +196,35 @@ li.picker-header {
   position: relative;
 }
 
-li.picker-header .collapsed-arrow, li.picker-header .expanded-arrow {
-  width: 1.5ch;
-  height: 1.5em;
-}
-
-li.picker-header .collapsed-arrow {
+li.picker-header .picker-arrow {
   display: inline-block;
+  width: .6rem;
+  height: .6rem;
+  border-top: .3rem solid transparent;
+  border-bottom: .3rem solid transparent;
+  border-left: .6rem solid currentColor;
+  border-right: none;
+  margin: 0 .2rem .05rem 0;
 }
 
-li.picker-header .expanded-arrow {
-  display: none;
-}
-
-li.picker-header.expanded .collapsed-arrow, 
-:root:not(.has-js) li.picker-header:hover .collapsed-arrow {
-  display: none;
-}
-
-li.picker-header.expanded .expanded-arrow, 
-:root:not(.has-js) li.picker-header:hover .expanded-arrow {
-  display: inline-block;
+li.picker-header.expanded .picker-arrow,
+:root:not(.has-js) li.picker-header:focus-within .picker-arrow,
+:root:not(.has-js) li.picker-header:hover .picker-arrow  {
+  border-top: .6rem solid currentColor;
+  border-bottom: none;
+  border-left: .35rem solid transparent;
+  border-right: .35rem solid transparent;
+  margin-bottom: 0;
 }
 
 li.picker-header.expanded > a,
+:root:not(.has-js) li.picker-header:focus-within > a,
 :root:not(.has-js) li.picker-header:hover > a {
   border-radius: 2px 2px 0 0;
 }
 
 li.picker-header.expanded > .picker, 
+:root:not(.has-js) li.picker-header:focus-within > .picker,
 :root:not(.has-js) li.picker-header:hover > .picker {
   display: block;
   z-index: 1;
@@ -950,7 +963,7 @@ kbd {
   display: block;
 }
 
-.js-flavor-selector {
+.js-flavor-toggle {
   -webkit-appearance: none;
   appearance: none;
   float: right;
@@ -963,14 +976,14 @@ kbd {
   cursor: pointer;
   margin: 0;
 }
-.js-flavor-selector:checked {
+.js-flavor-toggle:checked {
   background-image: url(./js-flavor-esm.svg);
 }
-.js-flavor-selector:not(:checked) ~ .mjs,
-.js-flavor-selector:checked ~ .cjs {
+.js-flavor-toggle:not(:checked) ~ .mjs,
+.js-flavor-toggle:checked ~ .cjs {
   display: none;
 }
-.dark-mode .js-flavor-selector {
+.dark-mode .js-flavor-toggle {
   filter: invert(1);
 }
 
@@ -1001,7 +1014,7 @@ kbd {
 }
 
 @supports (aspect-ratio: 1 / 1) {
-  .js-flavor-selector {
+  .js-flavor-toggle {
     height: 1.5em;
     width: auto;
     aspect-ratio: 2719 / 384;
@@ -1058,24 +1071,24 @@ kbd {
   #apicontent {
     overflow: hidden;
   }
-  .js-flavor-selector {
+  .js-flavor-toggle {
     display: none;
   }
-  .js-flavor-selector + * {
+  .js-flavor-toggle + * {
     margin-bottom: 2rem;
     padding-bottom: 2rem;
     border-bottom: 1px solid var(--color-text-primary);
   }
-  .js-flavor-selector ~ * {
+  .js-flavor-toggle ~ * {
     display: block !important;
     background-position: top right;
     background-size: 142px 20px;
     background-repeat: no-repeat;
   }
-  .js-flavor-selector ~ .cjs {
+  .js-flavor-toggle ~ .cjs {
     background-image: url(./js-flavor-cjs.svg);
   }
-  .js-flavor-selector ~ .mjs {
+  .js-flavor-toggle ~ .mjs {
     background-image: url(./js-flavor-esm.svg);
   }
 }

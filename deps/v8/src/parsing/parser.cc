@@ -1371,6 +1371,9 @@ ImportAssertions* Parser::ParseImportAssertClause() {
 
     // NOTE(Node.js): Commented out to avoid backporting this use counter to Node.js 18
     // ++use_counts_[v8::Isolate::kImportAssertionDeprecatedSyntax];
+    info_->pending_error_handler()->ReportWarningAt(
+        position(), end_position(), MessageTemplate::kImportAssertDeprecated,
+        "a future version");
   } else {
     return import_assertions;
   }

@@ -24,12 +24,18 @@ test-worker-nearheaplimit-deadlock: PASS, FLAKY
 [$system==win32 && $arch==arm64]
 
 [$system==linux]
+# https://github.com/nodejs/node/issues/54803
+test-performance-function: PASS, FLAKY
+# https://github.com/nodejs/node/issues/34730
+test-inspector-multisession-ws: PASS, FLAKY
 # https://github.com/nodejs/node/issues/39368
 test-domain-error-types: PASS,FLAKY
 # https://github.com/nodejs/node/issues/47420
 test-file-write-stream4: PASS,FLAKY
 # https://github.com/nodejs/node/issues/43465
 test-http-server-request-timeouts-mixed: PASS, FLAKY
+# https://github.com/nodejs/node/issues/50046
+test-inspector-stop-profile-after-done: PASS, FLAKY
 
 [$system==linux || $system==win32]
 # https://github.com/nodejs/node/issues/49605
