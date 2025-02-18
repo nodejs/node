@@ -105,11 +105,21 @@ void OOMErrorHandler(const char* location, const v8::OOMDetails& details);
   V(ERR_WORKER_INIT_FAILED, Error)                                             \
   V(ERR_PROTO_ACCESS, Error)
 
+// If the macros are used as ERR_*(isolate, message) or
+// THROW_ERR_*(isolate, message) with a single string argument, do run
+// formatter on the message, and allow the caller to pass in a message
+// directly with characters that would otherwise need escaping if used
+// as format string unconditionally.
 #define V(code, type)                                                          \
   template <typename... Args>                                                  \
   inline v8::Local<v8::Object> code(                                           \
       v8::Isolate* isolate, const char* format, Args&&... args) {              \
-    std::string message = SPrintF(format, std::forward<Args>(args)...);        \
+    std::string message;                                                       \
+    if (sizeof...(Args) == 0) {                                                \
+      message = format;                                                        \
+    } else {                                                                   \
+      message = SPrintF(format, std::forward<Args>(args)...);                  \
+    }                                                                          \
     v8::Local<v8::String> js_code = OneByteString(isolate, #code);             \
     v8::Local<v8::String> js_msg =                                             \
         v8::String::NewFromUtf8(isolate,                                       \
