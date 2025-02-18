@@ -1660,11 +1660,9 @@ void CanonicalizeIP(const FunctionCallbackInfo<Value>& args) {
       uv_inet_pton(af = AF_INET6, *ip, result) != 0)
     return;
 
-  char canonical_ip[INET6_ADDRSTRLEN];
+  char canonical_ip[INET6_ADDRSTRLEN]{};
   CHECK_EQ(0, uv_inet_ntop(af, result, canonical_ip, sizeof(canonical_ip)));
-  Local<String> val = String::NewFromUtf8(isolate, canonical_ip)
-      .ToLocalChecked();
-  args.GetReturnValue().Set(val);
+  args.GetReturnValue().Set(OneByteString(isolate, canonical_ip));
 }
 
 void ConvertIpv6StringToBuffer(const FunctionCallbackInfo<Value>& args) {
