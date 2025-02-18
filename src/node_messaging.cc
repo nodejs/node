@@ -1645,6 +1645,36 @@ static void BroadcastChannel(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+static void ExposeLazyDOMExceptionPropertyGetter(
+    Local<v8::Name> name, const v8::PropertyCallbackInfo<Value>& info) {
+  auto context = info.GetIsolate()->GetCurrentContext();
+  Local<Function> domexception;
+  if (!GetDOMException(context).ToLocal(&domexception)) {
+    // V8 will have scheduled an error to be thrown.
+    return;
+  }
+  info.GetReturnValue().Set(domexception);
+}
+static void ExposeLazyDOMExceptionProperty(
+    const FunctionCallbackInfo<Value>& args) {
+  CHECK_GE(args.Length(), 1);
+  CHECK(args[0]->IsObject());
+
+  Isolate* isolate = args.GetIsolate();
+  auto target = args[0].As<Object>();
+
+  if (target
+          ->SetLazyDataProperty(isolate->GetCurrentContext(),
+                                FIXED_ONE_BYTE_STRING(isolate, "DOMException"),
+                                ExposeLazyDOMExceptionPropertyGetter,
+                                Local<Value>(),
+                                v8::DontEnum)
+          .IsNothing()) {
+    // V8 will have scheduled an error to be thrown.
+    return;
+  }
+}
+
 static void CreatePerIsolateProperties(IsolateData* isolate_data,
                                        Local<ObjectTemplate> target) {
   Isolate* isolate = isolate_data->isolate();
@@ -1669,6 +1699,10 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
                          isolate_data->message_port_constructor_string(),
                          GetMessagePortConstructorTemplate(isolate_data));
 
+  SetMethod(isolate,
+            target,
+            "exposeLazyDOMExceptionProperty",
+            ExposeLazyDOMExceptionProperty);
   // These are not methods on the MessagePort prototype, because
   // the browser equivalents do not provide them.
   SetMethod(isolate, target, "stopMessagePort", MessagePort::Stop);
@@ -1714,6 +1748,8 @@ static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(MessagePort::MoveToContext);
   registry->Register(SetDeserializerCreateObjectFunction);
   registry->Register(StructuredClone);
+  registry->Register(ExposeLazyDOMExceptionProperty);
+  registry->Register(ExposeLazyDOMExceptionPropertyGetter);
 }
 
 }  // anonymous namespace
