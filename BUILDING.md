@@ -116,8 +116,8 @@ platforms. This is true regardless of entries in the table below.
 | GNU/Linux        | loong64          | kernel >= 5.19, glibc >= 2.36     | Experimental |                                      |
 | Windows          | x64              | >= Windows 10/Server 2016         | Tier 1       | [^2],[^3]                            |
 | Windows          | arm64            | >= Windows 10                     | Tier 2       |                                      |
-| macOS            | x64              | >= 11.0                           | Tier 1       | For notes about compilation see [^4] |
-| macOS            | arm64            | >= 11.0                           | Tier 1       |                                      |
+| macOS            | x64              | >= 13.5                           | Tier 1       | For notes about compilation see [^4] |
+| macOS            | arm64            | >= 13.5                           | Tier 1       |                                      |
 | SmartOS          | x64              | >= 18                             | Tier 2       |                                      |
 | AIX              | ppc64be >=power8 | >= 7.2 TL04                       | Tier 2       |                                      |
 | FreeBSD          | x64              | >= 13.2                           | Experimental |                                      |
@@ -142,7 +142,7 @@ platforms. This is true regardless of entries in the table below.
     Windows binary (`node.exe`) in WSL will not work without workarounds such as
     stdio redirection.
 
-[^4]: Our macOS Binaries are compiled with 11.0 as a target. Xcode 16 is
+[^4]: Our macOS Binaries are compiled with 13.5 as a target. Xcode 16 is
     required to compile.
 
 <!--lint enable final-definition-->
@@ -164,8 +164,8 @@ Binaries at <https://nodejs.org/download/release/> are produced on:
 | Binary package          | Platform and Toolchain                                                                                        |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------- |
 | aix-ppc64               | AIX 7.2 TL04 on PPC64BE with GCC 12[^5]                                                                       |
-| darwin-x64              | macOS 13, Xcode 16 with -mmacosx-version-min=11.0                                                             |
-| darwin-arm64 (and .pkg) | macOS 13 (arm64), Xcode 16 with -mmacosx-version-min=11.0                                                     |
+| darwin-x64              | macOS 13, Xcode 16 with -mmacosx-version-min=13.5                                                             |
+| darwin-arm64 (and .pkg) | macOS 13 (arm64), Xcode 16 with -mmacosx-version-min=13.5                                                     |
 | linux-arm64             | RHEL 8 with gcc-toolset-12[^6]                                                                                |
 | linux-armv7l            | Cross-compiled on RHEL 9 x64 with a [custom GCC toolchain](https://github.com/rvagg/rpi-newer-crosstools)[^7] |
 | linux-ppc64le           | RHEL 8 with gcc-toolset-12[^6]                                                                                |
