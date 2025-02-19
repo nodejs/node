@@ -443,7 +443,13 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             true);
   AddOption("--experimental-quic",
             "" /* undocumented until its development */,
+#ifdef NODE_OPENSSL_HAS_QUIC
             &EnvironmentOptions::experimental_quic,
+#else
+            // Option is a no-op if the NODE_OPENSSL_HAS_QUIC
+            // compile flag is not enabled
+            NoOp{},
+#endif
             kAllowedInEnvvar);
   AddOption("--experimental-webstorage",
             "experimental Web Storage API",
