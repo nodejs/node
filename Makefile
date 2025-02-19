@@ -1400,6 +1400,7 @@ lint-md: lint-js-doc | tools/.mdlintstamp ## Lint the markdown documents maintai
 run-format-md = tools/lint-md/lint-md.mjs --format $(LINT_MD_FILES)
 .PHONY: format-md
 format-md: tools/lint-md/node_modules/remark-parse/package.json ## Format the markdown documents maintained by us in the codebase.
+	$(info Formatting Markdown...)
 	@$(call available-node,$(run-format-md))
 
 
