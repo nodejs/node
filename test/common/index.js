@@ -54,7 +54,7 @@ const noop = () => {};
 const hasCrypto = Boolean(process.versions.openssl) &&
                   !process.env.NODE_SKIP_CRYPTO;
 
-const hasQuic = hasCrypto && !!process.config.variables.openssl_quic;
+const hasQuic = hasCrypto && !!process.config.variables.node_quic;
 
 function parseTestFlags(filename = process.argv[1]) {
   // The copyright notice is relatively big and the flags could come afterwards.

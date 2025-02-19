@@ -927,10 +927,14 @@
         [ 'node_use_openssl=="true"', {
           'sources': [
             '<@(node_crypto_sources)',
-            '<@(node_quic_sources)',
           ],
           'dependencies': [
             'deps/ncrypto/ncrypto.gyp:ncrypto',
+          ],
+        }],
+        [ 'node_quic=="true"', {
+          'sources': [
+            '<@(node_quic_sources)',
           ],
         }],
         [ 'OS in "linux freebsd mac solaris" and '
