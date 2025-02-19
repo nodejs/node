@@ -127,7 +127,9 @@ class EnvironmentOptions : public Options {
   bool experimental_websocket = true;
   bool experimental_sqlite = true;
   bool experimental_webstorage = false;
+#ifdef NODE_OPENSSL_HAS_QUIC
   bool experimental_quic = false;
+#endif
   std::string localstorage_file;
   bool experimental_global_navigator = true;
   bool experimental_global_web_crypto = true;
