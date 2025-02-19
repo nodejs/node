@@ -13,8 +13,8 @@ function nextDb() {
   return join(tmpdir.path, `database-${cnt++}.db`);
 }
 
-function makeSourceDb() {
-  const database = new DatabaseSync(':memory:');
+function makeSourceDb(dbPath = ':memory:') {
+  const database = new DatabaseSync(dbPath);
 
   database.exec(`
     CREATE TABLE data(
@@ -31,6 +31,10 @@ function makeSourceDb() {
 
   return database;
 }
+
+test.only('location as an URL object', (t) => {
+  new DatabaseSync(new URL('https://google.com'))
+});
 
 describe('backup()', () => {
   test('throws if the source database is not provided', (t) => {
