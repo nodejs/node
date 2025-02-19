@@ -1908,6 +1908,7 @@ has the following signature:
 * `importAttributes` {Object} The `"with"` value passed to the
   [`optionsExpression`][] optional parameter, or an empty object if no value was
   provided.
+* `phase` {string} The phase of the dynamic import (`"source"` or `"evaluation"`).
 * Returns: {Module Namespace Object|vm.Module} Returning a `vm.Module` is
   recommended in order to take advantage of error tracking, and to avoid issues
   with namespaces that contain `then` function exports.

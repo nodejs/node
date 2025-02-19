@@ -33,11 +33,17 @@ enum HostDefinedOptions : int {
   kLength = 9,
 };
 
+enum ModulePhase : int {
+  kSourcePhase = 1,
+  kEvaluationPhase = 2,
+};
+
 class ModuleWrap : public BaseObject {
  public:
   enum InternalFields {
     kModuleSlot = BaseObject::kInternalFieldCount,
     kURLSlot,
+    kModuleSourceObjectSlot,
     kSyntheticEvaluationStepsSlot,
     kContextObjectSlot,  // Object whose creation context is the target Context
     kInternalFieldCount
@@ -106,6 +112,10 @@ class ModuleWrap : public BaseObject {
   static void InstantiateSync(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void EvaluateSync(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetNamespaceSync(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetModuleSourceObject(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetModuleSourceObject(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static void Link(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Instantiate(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -125,6 +135,11 @@ class ModuleWrap : public BaseObject {
   static void CreateCachedData(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static v8::MaybeLocal<v8::Module> ResolveModuleCallback(
+      v8::Local<v8::Context> context,
+      v8::Local<v8::String> specifier,
+      v8::Local<v8::FixedArray> import_attributes,
+      v8::Local<v8::Module> referrer);
+  static v8::MaybeLocal<v8::Object> ResolveSourceCallback(
       v8::Local<v8::Context> context,
       v8::Local<v8::String> specifier,
       v8::Local<v8::FixedArray> import_attributes,
