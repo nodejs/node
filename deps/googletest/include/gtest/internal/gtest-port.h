@@ -275,8 +275,8 @@
 #endif
 
 #if !defined(GTEST_INTERNAL_CPLUSPLUS_LANG) || \
-    GTEST_INTERNAL_CPLUSPLUS_LANG < 201402L
-#error C++ versions less than C++14 are not supported.
+    GTEST_INTERNAL_CPLUSPLUS_LANG < 201703L
+#error C++ versions less than C++17 are not supported.
 #endif
 
 // MSVC >= 19.11 (VS 2017 Update 3) supports __has_include.
