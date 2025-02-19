@@ -227,8 +227,7 @@ class ExternalReferenceRegistry {
 #define EXTERNAL_REFERENCE_BINDING_LIST_OS_SPECIFIC(V)
 
 #ifdef _WIN32
-#define EXTERNAL_REFERENCE_BINDING_LIST_OS_SPECIFIC(V)                         \
-  V(code_integrity)
+#define EXTERNAL_REFERENCE_BINDING_LIST_OS_SPECIFIC(V) V(code_integrity)
 #endif
 
 #define EXTERNAL_REFERENCE_BINDING_LIST(V)                                     \

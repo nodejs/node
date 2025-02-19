@@ -102,8 +102,7 @@
 #define NODE_BUILTIN_OS_SPECIFIC_BINDINGS(V)
 
 #ifdef _WIN32
-#define NODE_BUILTIN_OS_SPECIFIC_BINDINGS(V)                                   \
-  V(code_integrity)
+#define NODE_BUILTIN_OS_SPECIFIC_BINDINGS(V) V(code_integrity)
 #endif
 
 #define NODE_BUILTIN_BINDINGS(V)                                               \
