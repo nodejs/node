@@ -7,6 +7,8 @@ changes:
     description: Added `--experimental-transform-types` flag.
 -->
 
+<!--introduced_in=v23.6.0-->
+
 > Stability: 1.1 - Active development
 
 ## Enabling
