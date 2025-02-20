@@ -200,3 +200,11 @@
 /lib/url.js @nodejs/url
 /src/node_url.* @nodejs/url
 /test/fixtures/wpt/url @nodejs/url
+
+# SQLite
+/deps/sqlite/ @nodejs/sqlite
+/doc/api/sqlite.md @nodejs/sqlite
+/src/node_sqlite.* @nodejs/sqlite
+/test/parallel/test-sqlite* @nodejs/sqlite
+/test/sqlite/ @nodejs/sqlite
+/tools/dep_updaters/update-sqlite.sh @nodejs/sqlite
