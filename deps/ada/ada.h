@@ -1,4 +1,4 @@
-/* auto-generated on 2025-01-30 18:48:55 -0500. Do not edit! */
+/* auto-generated on 2025-02-11 09:47:50 -0500. Do not edit! */
 /* begin file include/ada.h */
 /**
  * @file ada.h
@@ -1219,6 +1219,7 @@ constexpr ada::scheme::type get_scheme_type(std::string_view scheme) noexcept;
 #endif  // ADA_SCHEME_H
 /* end file include/ada/scheme.h */
 
+#include <string>
 #include <string_view>
 
 namespace ada {
@@ -1352,6 +1353,7 @@ struct url_base {
 #endif
 /* end file include/ada/url_base.h */
 
+#include <string>
 #include <string_view>
 #include <optional>
 
@@ -4118,6 +4120,9 @@ void swap(expected<T, E> &lhs,
 #ifndef ADA_URL_PATTERN_REGEX_H
 #define ADA_URL_PATTERN_REGEX_H
 
+#include <string>
+#include <string_view>
+
 #ifdef ADA_USE_UNSAFE_STD_REGEX_PROVIDER
 #include <regex>
 #endif  // ADA_USE_UNSAFE_STD_REGEX_PROVIDER
@@ -4216,7 +4221,9 @@ concept url_pattern_encoding_callback = requires(F f, std::string_view sv) {
 // either a string or a URLPatternInit struct. If a string is given,
 // it will be parsed to create a URLPatternInit. The URLPatternInit
 // API is defined as part of the URLPattern specification.
+// All provided strings must be valid UTF-8.
 struct url_pattern_init {
+  // All strings must be valid UTF-8.
   // @see https://urlpattern.spec.whatwg.org/#process-a-urlpatterninit
   static tl::expected<url_pattern_init, errors> process(
       url_pattern_init init, std::string_view type,
@@ -4276,15 +4283,23 @@ struct url_pattern_init {
 #endif  // ADA_TESTING
 
   bool operator==(const url_pattern_init&) const;
-
+  // If present, must be valid UTF-8.
   std::optional<std::string> protocol{};
+  // If present, must be valid UTF-8.
   std::optional<std::string> username{};
+  // If present, must be valid UTF-8.
   std::optional<std::string> password{};
+  // If present, must be valid UTF-8.
   std::optional<std::string> hostname{};
+  // If present, must be valid UTF-8.
   std::optional<std::string> port{};
+  // If present, must be valid UTF-8.
   std::optional<std::string> pathname{};
+  // If present, must be valid UTF-8.
   std::optional<std::string> search{};
+  // If present, must be valid UTF-8.
   std::optional<std::string> hash{};
+  // If present, must be valid UTF-8.
   std::optional<std::string> base_url{};
 };
 }  // namespace ada
@@ -4366,6 +4381,7 @@ tl::expected<url_pattern<regex_provider>, errors> parse_url_pattern_impl(
 #ifndef ADA_IMPLEMENTATION_H
 #define ADA_IMPLEMENTATION_H
 
+#include <string>
 #include <string_view>
 #include <optional>
 
@@ -4379,6 +4395,7 @@ tl::expected<url_pattern<regex_provider>, errors> parse_url_pattern_impl(
 
 #include <algorithm>
 #include <optional>
+#include <ostream>
 #include <string>
 #include <string_view>
 
@@ -5040,7 +5057,9 @@ std::string href_from_file(std::string_view path);
 #endif  // ADA_IMPLEMENTATION_H
 /* end file include/ada/implementation.h */
 
+#include <ostream>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <variant>
 #include <vector>
@@ -5219,6 +5238,8 @@ class url_pattern_component {
   bool has_regexp_groups = false;
 };
 
+// A URLPattern input can be either a string or a URLPatternInit object.
+// If it is a string, it must be a valid UTF-8 string.
 using url_pattern_input = std::variant<std::string_view, url_pattern_init>;
 
 // A struct providing the URLPattern matching results for all
@@ -5251,12 +5272,16 @@ struct url_pattern_options {
 // defined in https://wicg.github.io/urlpattern.
 // More information about the URL Pattern syntax can be found at
 // https://developer.mozilla.org/en-US/docs/Web/API/URL_Pattern_API
+//
+// We require all strings to be valid UTF-8: it is the user's responsibility
+// to ensure that the provided strings are valid UTF-8.
 template <url_pattern_regex::regex_concept regex_provider>
 class url_pattern {
  public:
   url_pattern() = default;
 
   /**
+   * If non-null, base_url must pointer at a valid UTF-8 string.
    * @see https://urlpattern.spec.whatwg.org/#dom-urlpattern-exec
    */
   result<std::optional<url_pattern_result>> exec(
@@ -5264,6 +5289,7 @@ class url_pattern {
       const std::string_view* base_url = nullptr);
 
   /**
+   * If non-null, base_url must pointer at a valid UTF-8 string.
    * @see https://urlpattern.spec.whatwg.org/#dom-urlpattern-test
    */
   result<bool> test(const url_pattern_input& input,
@@ -5725,6 +5751,7 @@ std::string generate_segment_wildcard_regexp(
 #endif
 /* end file include/ada/url_pattern_helpers.h */
 
+#include <string>
 #include <string_view>
 #include <variant>
 
@@ -6257,6 +6284,7 @@ ada_warn_unused std::string to_string(ada::state s);
 
 
 #include <string>
+#include <string_view>
 #include <optional>
 
 /**
@@ -6870,6 +6898,7 @@ namespace ada {
 #ifndef ADA_URL_AGGREGATOR_H
 #define ADA_URL_AGGREGATOR_H
 
+#include <ostream>
 #include <string>
 #include <string_view>
 #include <variant>
@@ -7255,6 +7284,7 @@ ada_really_inline size_t percent_encode_index(const std::string_view input,
 /* end file include/ada/unicode-inl.h */
 
 #include <charconv>
+#include <ostream>
 #include <string_view>
 
 namespace ada {
@@ -8406,6 +8436,8 @@ using url_search_params_entries_iter =
                            url_search_params_iter_type::ENTRIES>;
 
 /**
+ * We require all strings to be valid UTF-8. It is the user's responsibility to
+ * ensure that the provided strings are valid UTF-8.
  * @see https://url.spec.whatwg.org/#interface-urlsearchparams
  */
 struct url_search_params {
@@ -8428,6 +8460,7 @@ struct url_search_params {
   [[nodiscard]] inline size_t size() const noexcept;
 
   /**
+   * Both key and value must be valid UTF-8.
    * @see https://url.spec.whatwg.org/#dom-urlsearchparams-append
    */
   inline void append(std::string_view key, std::string_view value);
@@ -8455,6 +8488,7 @@ struct url_search_params {
   inline bool has(std::string_view key, std::string_view value) noexcept;
 
   /**
+   * Both key and value must be valid UTF-8.
    * @see https://url.spec.whatwg.org/#dom-urlsearchparams-set
    */
   inline void set(std::string_view key, std::string_view value);
@@ -8518,6 +8552,7 @@ struct url_search_params {
   std::vector<key_value_pair> params{};
 
   /**
+   * The init parameter must be valid UTF-8.
    * @see https://url.spec.whatwg.org/#concept-urlencoded-parser
    */
   void initialize(std::string_view init);
@@ -8724,10 +8759,80 @@ inline void url_search_params::remove(const std::string_view key,
 }
 
 inline void url_search_params::sort() {
-  std::ranges::stable_sort(
-      params, [](const key_value_pair &lhs, const key_value_pair &rhs) {
-        return lhs.first < rhs.first;
-      });
+  // We rely on the fact that the content is valid UTF-8.
+  std::ranges::stable_sort(params, [](const key_value_pair &lhs,
+                                      const key_value_pair &rhs) {
+    size_t i = 0, j = 0;
+    uint32_t low_surrogate1 = 0, low_surrogate2 = 0;
+    while ((i < lhs.first.size() || low_surrogate1 != 0) &&
+           (j < rhs.first.size() || low_surrogate2 != 0)) {
+      uint32_t codePoint1 = 0, codePoint2 = 0;
+
+      if (low_surrogate1 != 0) {
+        codePoint1 = low_surrogate1;
+        low_surrogate1 = 0;
+      } else {
+        uint8_t c1 = uint8_t(lhs.first[i]);
+        if (c1 <= 0x7F) {
+          codePoint1 = c1;
+          i++;
+        } else if (c1 <= 0xDF) {
+          codePoint1 = ((c1 & 0x1F) << 6) | (uint8_t(lhs.first[i + 1]) & 0x3F);
+          i += 2;
+        } else if (c1 <= 0xEF) {
+          codePoint1 = ((c1 & 0x0F) << 12) |
+                       ((uint8_t(lhs.first[i + 1]) & 0x3F) << 6) |
+                       (uint8_t(lhs.first[i + 2]) & 0x3F);
+          i += 3;
+        } else {
+          codePoint1 = ((c1 & 0x07) << 18) |
+                       ((uint8_t(lhs.first[i + 1]) & 0x3F) << 12) |
+                       ((uint8_t(lhs.first[i + 2]) & 0x3F) << 6) |
+                       (uint8_t(lhs.first[i + 3]) & 0x3F);
+          i += 4;
+
+          codePoint1 -= 0x10000;
+          uint16_t high_surrogate = uint16_t(0xD800 + (codePoint1 >> 10));
+          low_surrogate1 = uint16_t(0xDC00 + (codePoint1 & 0x3FF));
+          codePoint1 = high_surrogate;
+        }
+      }
+
+      if (low_surrogate2 != 0) {
+        codePoint2 = low_surrogate2;
+        low_surrogate2 = 0;
+      } else {
+        uint8_t c2 = uint8_t(rhs.first[j]);
+        if (c2 <= 0x7F) {
+          codePoint2 = c2;
+          j++;
+        } else if (c2 <= 0xDF) {
+          codePoint2 = ((c2 & 0x1F) << 6) | (uint8_t(rhs.first[j + 1]) & 0x3F);
+          j += 2;
+        } else if (c2 <= 0xEF) {
+          codePoint2 = ((c2 & 0x0F) << 12) |
+                       ((uint8_t(rhs.first[j + 1]) & 0x3F) << 6) |
+                       (uint8_t(rhs.first[j + 2]) & 0x3F);
+          j += 3;
+        } else {
+          codePoint2 = ((c2 & 0x07) << 18) |
+                       ((uint8_t(rhs.first[j + 1]) & 0x3F) << 12) |
+                       ((uint8_t(rhs.first[j + 2]) & 0x3F) << 6) |
+                       (uint8_t(rhs.first[j + 3]) & 0x3F);
+          j += 4;
+          codePoint2 -= 0x10000;
+          uint16_t high_surrogate = uint16_t(0xD800 + (codePoint2 >> 10));
+          low_surrogate2 = uint16_t(0xDC00 + (codePoint2 & 0x3FF));
+          codePoint2 = high_surrogate;
+        }
+      }
+
+      if (codePoint1 != codePoint2) {
+        return (codePoint1 < codePoint2);
+      }
+    }
+    return (j < rhs.first.size() || low_surrogate2 != 0);
+  });
 }
 
 inline url_search_params_keys_iter url_search_params::get_keys() {
@@ -10330,14 +10435,14 @@ constructor_string_parser<regex_provider>::parse(std::string_view input) {
 #ifndef ADA_ADA_VERSION_H
 #define ADA_ADA_VERSION_H
 
-#define ADA_VERSION "3.0.1"
+#define ADA_VERSION "3.1.0"
 
 namespace ada {
 
 enum {
   ADA_VERSION_MAJOR = 3,
-  ADA_VERSION_MINOR = 0,
-  ADA_VERSION_REVISION = 1,
+  ADA_VERSION_MINOR = 1,
+  ADA_VERSION_REVISION = 0,
 };
 
 }  // namespace ada
