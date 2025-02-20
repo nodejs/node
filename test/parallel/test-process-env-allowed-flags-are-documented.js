@@ -93,6 +93,10 @@ const difference = (setA, setB) => {
 // Refs: https://github.com/nodejs/node/pull/54259#issuecomment-2308256647
 if (!process.features.inspector) {
   [
+    '--cpu-prof-dir',
+    '--cpu-prof-interval',
+    '--cpu-prof-name',
+    '--cpu-prof',
     '--heap-prof-dir',
     '--heap-prof-interval',
     '--heap-prof-name',
