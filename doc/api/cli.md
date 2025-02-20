@@ -3146,6 +3146,10 @@ one is included in the list below.
 * `--allow-wasi`
 * `--allow-worker`
 * `--conditions`, `-C`
+* `--cpu-prof-dir`
+* `--cpu-prof-interval`
+* `--cpu-prof-name`
+* `--cpu-prof`
 * `--diagnostic-dir`
 * `--disable-proto`
 * `--disable-sigusr1`
