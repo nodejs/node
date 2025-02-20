@@ -31175,3 +31175,10 @@ TEST(WrappedFunctionWithClass) {
   maybe_instance = the_class->NewInstance(context, 0, nullptr);
   CHECK(!maybe_instance.IsEmpty());
 }
+
+TEST(GettingHashSeed) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  // Validate existence of the function.
+  CHECK_GT(isolate->GetHashSeed(), 0);
+}
