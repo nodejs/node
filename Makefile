@@ -654,10 +654,6 @@ test-internet: all ## Run internet tests.
 test-tick-processor: all ## Run tick processor tests.
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) tick-processor
 
-.PHONY: test-hash-seed
-test-hash-seed: all ## Verifu that the hash seed used by V8 for hashing is random.
-	$(NODE) test/pummel/test-hash-seed.js
-
 .PHONY: test-doc
 test-doc: doc-only lint-md ## Build, lint, and verify the docs.
 	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
@@ -751,8 +747,6 @@ test-v8: v8  ## Run the V8 test suite on deps/v8.
 				mjsunit cctest debugger inspector message preparser \
 				$(TAP_V8)
 	$(call convert_to_junit,$(TAP_V8_JSON))
-	$(info Testing hash seed)
-	$(MAKE) test-hash-seed
 
 test-v8-intl: v8 ## Run the v8 test suite, intl tests.
 	export PATH="$(NO_BIN_OVERRIDE_PATH)" && \
@@ -768,7 +762,7 @@ test-v8-benchmarks: v8 ## Run the v8 test suite, benchmarks.
 				$(TAP_V8_BENCHMARKS)
 	$(call convert_to_junit,$(TAP_V8_BENCHMARKS_JSON))
 
-test-v8-updates: ## Run the v8 test suite, updates.
+test-v8-updates: all ## Run the v8 test suite, updates.
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) v8-updates
 
 test-v8-all: test-v8 test-v8-intl test-v8-benchmarks test-v8-updates ## Run the entire V8 test suite, including intl, benchmarks, and updates.
