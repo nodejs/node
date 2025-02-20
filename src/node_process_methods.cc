@@ -136,9 +136,9 @@ static void Cwd(const FunctionCallbackInfo<Value>& args) {
   char buf[PATH_MAX_BYTES];
   size_t cwd_len = sizeof(buf);
   int err = uv_cwd(buf, &cwd_len);
-  if (err) {
-    return env->ThrowError("process.cwd() failed: The current working directory no longer exists. "
-                           "Use process.chdir() to change to a valid directory before calling process.cwd().");
+  if (err == UV_ENOENT) {
+    THROW_ERR_CWD_DELETED(env);
+    return;
   }
 
   Local<String> cwd = String::NewFromUtf8(env->isolate(),

@@ -37,6 +37,7 @@ void OOMErrorHandler(const char* location, const v8::OOMDetails& details);
 
 #define ERRORS_WITH_CODE(V)                                                    \
   V(ERR_ACCESS_DENIED, Error)                                                  \
+  V(ERR_CWD_DELETED, Error)                                                    \
   V(ERR_BUFFER_CONTEXT_NOT_AVAILABLE, Error)                                   \
   V(ERR_BUFFER_OUT_OF_BOUNDS, RangeError)                                      \
   V(ERR_BUFFER_TOO_LARGE, Error)                                               \
@@ -160,6 +161,10 @@ ERRORS_WITH_CODE(V)
   V(ERR_ACCESS_DENIED, "Access to this API has been restricted")               \
   V(ERR_BUFFER_CONTEXT_NOT_AVAILABLE,                                          \
     "Buffer is not available for the current Context")                         \
+  V(ERR_CWD_DELETED,                                                           \
+    "Current working directory does not exist. "                               \
+    "It may have been deleted while the process was still "                    \
+    "inside it. Use process.chdir() to change to a valid directory.")          \
   V(ERR_CLOSED_MESSAGE_PORT, "Cannot send data on closed MessagePort")         \
   V(ERR_CONSTRUCT_CALL_INVALID, "Constructor cannot be called")                \
   V(ERR_CONSTRUCT_CALL_REQUIRED, "Cannot call constructor without `new`")      \
