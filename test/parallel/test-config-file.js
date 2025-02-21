@@ -162,7 +162,7 @@ test('should throw at flag not available in NODE_OPTIONS', async () => {
     fixtures.path('rc/not-node-options-flag.json'),
     '-p', '"Hello, World!"',
   ]);
-  match(result.stderr, /Unknown or not allowed option --test/);
+  match(result.stderr, /Unknown or not allowed option test/);
   strictEqual(result.stdout, '');
   strictEqual(result.code, 9);
 });
