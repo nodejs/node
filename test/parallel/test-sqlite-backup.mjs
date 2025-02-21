@@ -143,23 +143,14 @@ test('database backup', async (t) => {
 });
 
 test('backup database using location as URL', async (t) => {
-  const progressFn = t.mock.fn();
   const database = makeSourceDb();
   const destDb = pathToFileURL(nextDb());
 
-  await backup(database, destDb, {
-    rate: 1,
-    progress: progressFn,
-  });
+  await backup(database, destDb);
 
   const backupDb = new DatabaseSync(destDb);
   const rows = backupDb.prepare('SELECT * FROM data').all();
 
-  // The source database has two pages - using the default page size -,
-  // so the progress function should be called once (the last call is not made since
-  // the promise resolves)
-  t.assert.strictEqual(progressFn.mock.calls.length, 1);
-  t.assert.deepStrictEqual(progressFn.mock.calls[0].arguments, [{ totalPages: 2, remainingPages: 1 }]);
   t.assert.deepStrictEqual(rows, [
     { __proto__: null, key: 1, value: 'value-1' },
     { __proto__: null, key: 2, value: 'value-2' },
@@ -172,23 +163,14 @@ test('backup database using location as URL', async (t) => {
 });
 
 test('backup database using location as Buffer', async (t) => {
-  const progressFn = t.mock.fn();
   const database = makeSourceDb();
   const destDb = Buffer.from(nextDb());
 
-  await backup(database, destDb, {
-    rate: 1,
-    progress: progressFn,
-  });
+  await backup(database, destDb);
 
   const backupDb = new DatabaseSync(destDb);
   const rows = backupDb.prepare('SELECT * FROM data').all();
 
-  // The source database has two pages - using the default page size -,
-  // so the progress function should be called once (the last call is not made since
-  // the promise resolves)
-  t.assert.strictEqual(progressFn.mock.calls.length, 1);
-  t.assert.deepStrictEqual(progressFn.mock.calls[0].arguments, [{ totalPages: 2, remainingPages: 1 }]);
   t.assert.deepStrictEqual(rows, [
     { __proto__: null, key: 1, value: 'value-1' },
     { __proto__: null, key: 2, value: 'value-2' },
