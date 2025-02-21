@@ -591,7 +591,8 @@ bool DatabaseSync::ShouldIgnoreSQLiteError() {
 
 bool ValidateDatabasePath(Environment* env,
                           Local<Value> path,
-                          std::string* location) {
+                          std::string* location,
+                          std::string field_name) {
   if (path->IsString()) {
     *location = Utf8Value(env->isolate(), path.As<String>()).ToString();
     return true;
@@ -637,10 +638,10 @@ bool ValidateDatabasePath(Environment* env,
     }
   }
 
-  THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
-                             "The \"path\" argument must be a string, "
-                             "Uint8Array, or URL without null bytes.");
-
+  std::string error_message =
+      "The \"" + field_name +
+      "\" argument must be a string, Uint8Array, or URL without null bytes.";
+  THROW_ERR_INVALID_ARG_TYPE(env->isolate(), error_message.c_str());
   return false;
 }
 
@@ -652,7 +653,7 @@ void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
   }
 
   std::string location;
-  if (!ValidateDatabasePath(env, args[0], &location)) {
+  if (!ValidateDatabasePath(env, args[0], &location, "path")) {
     return;
   }
 
@@ -1038,7 +1039,7 @@ void Backup(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&db, args[0].As<Object>());
   THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
   std::string dest_path;
-  if (!ValidateDatabasePath(env, args[1], &dest_path)) {
+  if (!ValidateDatabasePath(env, args[1], &dest_path, "destination")) {
     return;
   }
 

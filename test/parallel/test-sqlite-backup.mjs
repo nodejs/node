@@ -146,6 +146,11 @@ test('backup database using location as URL', async (t) => {
   const database = makeSourceDb();
   const destDb = pathToFileURL(nextDb());
 
+  t.after(() => {
+    database.close();
+    backupDb.close();
+  });
+
   await backup(database, destDb);
 
   const backupDb = new DatabaseSync(destDb);
@@ -155,17 +160,17 @@ test('backup database using location as URL', async (t) => {
     { __proto__: null, key: 1, value: 'value-1' },
     { __proto__: null, key: 2, value: 'value-2' },
   ]);
-
-  t.after(() => {
-    database.close();
-    backupDb.close();
-  });
 });
 
 test('backup database using location as Buffer', async (t) => {
   const database = makeSourceDb();
   const destDb = Buffer.from(nextDb());
 
+  t.after(() => {
+    database.close();
+    backupDb.close();
+  });
+
   await backup(database, destDb);
 
   const backupDb = new DatabaseSync(destDb);
@@ -175,11 +180,6 @@ test('backup database using location as Buffer', async (t) => {
     { __proto__: null, key: 1, value: 'value-1' },
     { __proto__: null, key: 2, value: 'value-2' },
   ]);
-
-  t.after(() => {
-    database.close();
-    backupDb.close();
-  });
 });
 
 test('database backup in a single call', async (t) => {
@@ -223,15 +223,13 @@ test('throws exception when trying to start backup from a closed database', (t) 
 test('throws if URL is not file: scheme', (t) => {
   const database = new DatabaseSync(':memory:');
 
+  t.after(() => { database.close(); });
+
   t.assert.throws(() => {
     backup(database, new URL('http://example.com/backup.db'));
   }, {
     code: 'ERR_INVALID_URL_SCHEME',
     message: 'The URL must be of scheme file:',
-  });
-
-  t.after(() => {
-    database.close();
   });
 });
 
