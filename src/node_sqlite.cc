@@ -589,67 +589,59 @@ bool DatabaseSync::ShouldIgnoreSQLiteError() {
   return ignore_next_sqlite_error_;
 }
 
-bool HandleDatabaseLocationFromString(Environment* env,
-                                      Local<Value> path,
-                                      std::string* location) {
-  if (!path->IsString()) {
-    return false;
-  }
-
-  *location = Utf8Value(env->isolate(), path.As<String>()).ToString();
-  return true;
-}
-
-bool HandleDatabaseLocationFromBuffer(Environment* env,
-                                      Local<Value> path,
-                                      std::string* location) {
-  if (!path->IsUint8Array()) {
-    return false;
-  }
-
-  Local<Uint8Array> buffer = path.As<Uint8Array>();
-  size_t byteOffset = buffer->ByteOffset();
-  size_t byteLength = buffer->ByteLength();
-  auto data =
-      static_cast<const uint8_t*>(buffer->Buffer()->Data()) + byteOffset;
-  if (std::find(data, data + byteLength, 0) != data + byteLength) {
-    return false;
-  }
-
-  Local<Value> out;
-  if (String::NewFromUtf8(env->isolate(),
-                          reinterpret_cast<const char*>(data),
-                          NewStringType::kNormal,
-                          static_cast<int>(byteLength))
-          .ToLocal(&out)) {
-    *location = Utf8Value(env->isolate(), out.As<String>()).ToString();
+bool ValidateDatabasePath(Environment* env,
+                          Local<Value> path,
+                          std::string* location) {
+  if (path->IsString()) {
+    *location = Utf8Value(env->isolate(), path.As<String>()).ToString();
     return true;
   }
 
+  if (path->IsUint8Array()) {
+    Local<Uint8Array> buffer = path.As<Uint8Array>();
+    size_t byteOffset = buffer->ByteOffset();
+    size_t byteLength = buffer->ByteLength();
+    auto data =
+        static_cast<const uint8_t*>(buffer->Buffer()->Data()) + byteOffset;
+    if (!(std::find(data, data + byteLength, 0) != data + byteLength)) {
+      Local<Value> out;
+      if (String::NewFromUtf8(env->isolate(),
+                              reinterpret_cast<const char*>(data),
+                              NewStringType::kNormal,
+                              static_cast<int>(byteLength))
+              .ToLocal(&out)) {
+        *location = Utf8Value(env->isolate(), out.As<String>()).ToString();
+        return true;
+      }
+    }
+  }
+
+  // When is URL
+  if (path->IsObject()) {
+    Local<Object> url = path.As<Object>();
+    Local<Value> href;
+    Local<Value> protocol;
+    if (url->Get(env->context(), env->href_string()).ToLocal(&href) &&
+        href->IsString() &&
+        url->Get(env->context(), env->protocol_string()).ToLocal(&protocol) &&
+        protocol->IsString()) {
+      std::string url_protocol =
+          Utf8Value(env->isolate(), protocol.As<String>()).ToString();
+      *location = Utf8Value(env->isolate(), href.As<String>()).ToString();
+      if (url_protocol != "" && url_protocol != "file:") {
+        THROW_ERR_INVALID_URL_SCHEME(env->isolate());
+        return false;
+      }
+
+      return true;
+    }
+  }
+
+  THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
+                             "The \"path\" argument must be a string, "
+                             "Uint8Array, or URL without null bytes.");
+
   return false;
-}
-
-bool HandleDatabaseLocationFromURL(Environment* env,
-                                   Local<Value> path,
-                                   std::string* location,
-                                   std::string* protocol_v) {
-  if (!path->IsObject()) {
-    return false;
-  }
-
-  Local<Object> url = path.As<Object>();
-  Local<Value> href;
-  Local<Value> protocol;
-  if (!url->Get(env->context(), env->href_string()).ToLocal(&href) ||
-      !href->IsString() ||
-      !url->Get(env->context(), env->protocol_string()).ToLocal(&protocol) ||
-      !protocol->IsString()) {
-    return false;
-  }
-
-  *protocol_v = Utf8Value(env->isolate(), protocol.As<String>()).ToString();
-  *location = Utf8Value(env->isolate(), href.As<String>()).ToString();
-  return true;
 }
 
 void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
@@ -660,21 +652,7 @@ void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
   }
 
   std::string location;
-  std::string url_protocol;
-  Local<Value> path = args[0];
-  bool valid_path =
-      HandleDatabaseLocationFromString(env, path, &location) ||
-      HandleDatabaseLocationFromBuffer(env, path, &location) ||
-      HandleDatabaseLocationFromURL(env, path, &location, &url_protocol);
-  if (!valid_path) {
-    THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
-                               "The \"path\" argument must be a string, "
-                               "Uint8Array, or URL without null bytes.");
-    return;
-  }
-
-  if (url_protocol != "" && url_protocol != "file:") {
-    THROW_ERR_INVALID_URL_SCHEME(env->isolate());
+  if (!ValidateDatabasePath(env, args[0], &location)) {
     return;
   }
 
@@ -1060,21 +1038,7 @@ void Backup(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&db, args[0].As<Object>());
   THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
   std::string dest_path;
-  std::string url_protocol;
-  Local<Value> path = args[1];
-  bool valid_path =
-      HandleDatabaseLocationFromString(env, path, &dest_path) ||
-      HandleDatabaseLocationFromBuffer(env, path, &dest_path) ||
-      HandleDatabaseLocationFromURL(env, path, &dest_path, &url_protocol);
-  if (!valid_path) {
-    THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
-                               "The \"destination\" argument must be a string, "
-                               "Uint8Array, or URL without null bytes.");
-    return;
-  }
-
-  if (url_protocol != "" && url_protocol != "file:") {
-    THROW_ERR_INVALID_URL_SCHEME(env->isolate());
+  if (!ValidateDatabasePath(env, args[1], &dest_path)) {
     return;
   }
 
