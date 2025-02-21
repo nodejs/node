@@ -1,3 +1,5 @@
 {
-  "test-reporter": "dot"
+  "nodeOptions": {
+    "test-reporter": "dot"
+  }
 }

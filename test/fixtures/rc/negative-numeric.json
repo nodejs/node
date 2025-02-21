@@ -1,3 +1,5 @@
 {
-  "max-http-header-size": -1
+  "nodeOptions": {
+    "max-http-header-size": -1
+  }
 }

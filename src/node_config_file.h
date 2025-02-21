@@ -33,7 +33,9 @@ class ConfigReader {
   size_t GetFlagsSize();
 
  private:
-  std::vector<std::string> flags_;
+  ParseResult ParseNodeOptions(simdjson::ondemand::object* node_options_object);
+
+  std::vector<std::string> node_options_;
 };
 
 }  // namespace node

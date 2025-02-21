@@ -958,17 +958,19 @@ with the following structure:
 ```json
 {
   "$schema": "https://nodejs.org/dist/REPLACEME/docs/node_config_json_schema.json",
-  "experimental-transform-types": true,
-  "import": [
-    "amaro/transform"
-  ],
-  "disable-warning": "ExperimentalWarning",
-  "watch-path": "src",
-  "watch-preserve-output": true
+  "nodeOptions": {
+    "experimental-transform-types": true,
+    "import": [
+      "amaro/transform"
+    ],
+    "disable-warning": "ExperimentalWarning",
+    "watch-path": "src",
+    "watch-preserve-output": true
+  }
 }
 ```
 
-Only flags that are allowed in [`NODE_OPTIONS`][] are supported.
+In the `nodeOptions` field, only flags that are allowed in [`NODE_OPTIONS`][] are supported.
 No-op flags are not supported.
 Not all V8 flags are currently supported.
 

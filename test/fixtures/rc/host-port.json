@@ -1,3 +1,5 @@
 {
-  "inspect-port": 65535
+  "nodeOptions": {
+    "inspect-port": 65535
+  }
 }
