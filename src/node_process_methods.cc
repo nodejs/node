@@ -140,6 +140,8 @@ static void Cwd(const FunctionCallbackInfo<Value>& args) {
     THROW_ERR_CWD_DELETED(env);
     return;
   }
+  if (err)
+    return env->ThrowUVException(err, "uv_cwd");
 
   Local<String> cwd = String::NewFromUtf8(env->isolate(),
                                           buf,
