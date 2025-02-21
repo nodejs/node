@@ -1073,6 +1073,11 @@ void Backup(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
+  if (url_protocol != "" && url_protocol != "file:") {
+    THROW_ERR_INVALID_URL_SCHEME(env->isolate());
+    return;
+  }
+
   int rate = 100;
   std::string source_db = "main";
   std::string dest_db = "main";

@@ -220,6 +220,21 @@ test('throws exception when trying to start backup from a closed database', (t) 
   });
 });
 
+test('throws if URL is not file: scheme', (t) => {
+  const database = new DatabaseSync(':memory:');
+
+  t.assert.throws(() => {
+    backup(database, new URL('http://example.com/backup.db'));
+  }, {
+    code: 'ERR_INVALID_URL_SCHEME',
+    message: 'The URL must be of scheme file:',
+  });
+
+  t.after(() => {
+    database.close();
+  });
+});
+
 test('database backup fails when dest file is not writable', async (t) => {
   const readonlyDestDb = nextDb();
   writeFileSync(readonlyDestDb, '', { mode: 0o444 });

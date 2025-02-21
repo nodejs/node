@@ -256,6 +256,15 @@ suite('DatabaseSync.prototype.exec()', () => {
     });
   });
 
+  test('throws if the URL does not have the file: scheme', (t) => {
+    t.assert.throws(() => {
+      new DatabaseSync(new URL('http://example.com'));
+    }, {
+      code: 'ERR_INVALID_URL_SCHEME',
+      message: 'The URL must be of scheme file:',
+    });
+  });
+
   test('throws if database is not open', (t) => {
     const db = new DatabaseSync(nextDb(), { open: false });
 
