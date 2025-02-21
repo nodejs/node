@@ -181,10 +181,11 @@ class BackupJob : public ThreadPoolWork {
   void ScheduleBackup() {
     Isolate* isolate = env()->isolate();
     HandleScope handle_scope(isolate);
-    backup_status_ = sqlite3_open_v2(destination_name_.c_str(),
-                                     &dest_,
-                                     SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE,
-                                     nullptr);
+    backup_status_ = sqlite3_open_v2(
+        destination_name_.c_str(),
+        &dest_,
+        SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_URI,
+        nullptr);
     Local<Promise::Resolver> resolver =
         Local<Promise::Resolver>::New(env()->isolate(), resolver_);
     if (backup_status_ != SQLITE_OK) {
@@ -503,11 +504,14 @@ bool DatabaseSync::Open() {
   }
 
   // TODO(cjihrig): Support additional flags.
+  int default_flags = SQLITE_OPEN_URI;
   int flags = open_config_.get_read_only()
                   ? SQLITE_OPEN_READONLY
                   : SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
-  int r = sqlite3_open_v2(
-      open_config_.location().c_str(), &connection_, flags, nullptr);
+  int r = sqlite3_open_v2(open_config_.location().c_str(),
+                          &connection_,
+                          flags | default_flags,
+                          nullptr);
   CHECK_ERROR_OR_THROW(env()->isolate(), this, r, SQLITE_OK, false);
 
   r = sqlite3_db_config(connection_,
@@ -585,27 +589,101 @@ bool DatabaseSync::ShouldIgnoreSQLiteError() {
   return ignore_next_sqlite_error_;
 }
 
+bool HandleDatabaseLocationFromString(Environment* env,
+                                      Local<Value> path,
+                                      std::string* location) {
+  if (!path->IsString()) {
+    return false;
+  }
+
+  *location = Utf8Value(env->isolate(), path.As<String>()).ToString();
+  return true;
+}
+
+bool HandleDatabaseLocationFromBuffer(Environment* env,
+                                      Local<Value> path,
+                                      std::string* location) {
+  if (!path->IsUint8Array()) {
+    return false;
+  }
+
+  Local<Uint8Array> buffer = path.As<Uint8Array>();
+  size_t byteOffset = buffer->ByteOffset();
+  size_t byteLength = buffer->ByteLength();
+  auto data =
+      static_cast<const uint8_t*>(buffer->Buffer()->Data()) + byteOffset;
+  if (std::find(data, data + byteLength, 0) != data + byteLength) {
+    return false;
+  }
+
+  Local<Value> out;
+  if (String::NewFromUtf8(env->isolate(),
+                          reinterpret_cast<const char*>(data),
+                          NewStringType::kNormal,
+                          static_cast<int>(byteLength))
+          .ToLocal(&out)) {
+    *location = Utf8Value(env->isolate(), out.As<String>()).ToString();
+    return true;
+  }
+
+  return false;
+}
+
+bool HandleDatabaseLocationFromURL(Environment* env,
+                                   Local<Value> path,
+                                   std::string* location,
+                                   std::string* protocol_v) {
+  if (!path->IsObject()) {
+    return false;
+  }
+
+  Local<Object> url = path.As<Object>();
+  Local<Value> href;
+  Local<Value> protocol;
+  if (!url->Get(env->context(), FIXED_ONE_BYTE_STRING(env->isolate(), "href"))
+           .ToLocal(&href) ||
+      !href->IsString() ||
+      !url->Get(env->context(),
+                FIXED_ONE_BYTE_STRING(env->isolate(), "protocol"))
+           .ToLocal(&protocol) ||
+      !protocol->IsString()) {
+    return false;
+  }
+
+  *protocol_v = Utf8Value(env->isolate(), protocol.As<String>()).ToString();
+  *location = Utf8Value(env->isolate(), href.As<String>()).ToString();
+  return true;
+}
+
 void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-
   if (!args.IsConstructCall()) {
     THROW_ERR_CONSTRUCT_CALL_REQUIRED(env);
     return;
   }
 
-  if (!args[0]->IsString()) {
+  std::string location;
+  std::string url_protocol;
+  Local<Value> path = args[0];
+  bool valid_path =
+      HandleDatabaseLocationFromString(env, path, &location) ||
+      HandleDatabaseLocationFromBuffer(env, path, &location) ||
+      HandleDatabaseLocationFromURL(env, path, &location, &url_protocol);
+  if (!valid_path) {
     THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
-                               "The \"path\" argument must be a string.");
+                               "The \"path\" argument must be a string, "
+                               "Uint8Array, or URL without null bytes.");
     return;
   }
 
-  std::string location =
-      Utf8Value(env->isolate(), args[0].As<String>()).ToString();
-  DatabaseOpenConfiguration open_config(std::move(location));
+  if (url_protocol != "" && url_protocol != "file:") {
+    THROW_ERR_INVALID_URL_SCHEME(env->isolate());
+    return;
+  }
 
+  DatabaseOpenConfiguration open_config(std::move(location));
   bool open = true;
   bool allow_load_extension = false;
-
   if (args.Length() > 1) {
     if (!args[1]->IsObject()) {
       THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
@@ -984,17 +1062,23 @@ void Backup(const FunctionCallbackInfo<Value>& args) {
   DatabaseSync* db;
   ASSIGN_OR_RETURN_UNWRAP(&db, args[0].As<Object>());
   THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
-  if (!args[1]->IsString()) {
-    THROW_ERR_INVALID_ARG_TYPE(
-        env->isolate(), "The \"destination\" argument must be a string.");
+  std::string dest_path;
+  std::string url_protocol;
+  Local<Value> path = args[1];
+  bool valid_path =
+      HandleDatabaseLocationFromString(env, path, &dest_path) ||
+      HandleDatabaseLocationFromBuffer(env, path, &dest_path) ||
+      HandleDatabaseLocationFromURL(env, path, &dest_path, &url_protocol);
+  if (!valid_path) {
+    THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
+                               "The \"destination\" argument must be a string, "
+                               "Uint8Array, or URL without null bytes.");
     return;
   }
 
   int rate = 100;
   std::string source_db = "main";
   std::string dest_db = "main";
-
-  Utf8Value dest_path(env->isolate(), args[1].As<String>());
   Local<Function> progressFunc = Local<Function>();
 
   if (args.Length() > 2) {
@@ -1077,15 +1161,8 @@ void Backup(const FunctionCallbackInfo<Value>& args) {
   }
 
   args.GetReturnValue().Set(resolver->GetPromise());
-
-  BackupJob* job = new BackupJob(env,
-                                 db,
-                                 resolver,
-                                 std::move(source_db),
-                                 *dest_path,
-                                 std::move(dest_db),
-                                 rate,
-                                 progressFunc);
+  BackupJob* job = new BackupJob(
+      env, db, resolver, source_db, dest_path, dest_db, rate, progressFunc);
   db->AddBackup(job);
   job->ScheduleBackup();
 }
