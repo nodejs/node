@@ -1,3 +1,5 @@
 {
-  "some-unknown-flag": true
+  "nodeOptions": {
+    "some-unknown-flag": true
+  }
 }

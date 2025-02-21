@@ -1,3 +1,5 @@
 {
-  "abort-on-uncaught-exception": true
+  "nodeOptions": {
+   "abort-on-uncaught-exception": true
+  }
 }

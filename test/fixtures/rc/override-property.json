@@ -1,4 +1,6 @@
 {
-  "experimental-transform-types": true,
-  "experimental-transform-types": false
+  "nodeOptions": {
+    "experimental-transform-types": true,
+    "experimental-transform-types": false
+  }
 }

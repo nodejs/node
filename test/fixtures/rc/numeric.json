@@ -1,3 +1,5 @@
 {
-  "max-http-header-size": 4294967295
+  "nodeOptions": {
+    "max-http-header-size": 4294967295
+  }
 }
