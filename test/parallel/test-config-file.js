@@ -254,3 +254,53 @@ test('should not allow users to sneak in a flag', async () => {
   strictEqual(result.stdout, '');
   strictEqual(result.code, 9);
 });
+
+test('non object root', async () => {
+  const result = await spawnPromisified(process.execPath, [
+    '--no-warnings',
+    '--experimental-config-file',
+    fixtures.path('rc/non-object-root.json'),
+    '-p', '"Hello, World!"',
+  ]);
+  match(result.stderr, /Root value unexpected not an object for/);
+  strictEqual(result.stdout, '');
+  strictEqual(result.code, 9);
+});
+
+test('non object node options', async () => {
+  const result = await spawnPromisified(process.execPath, [
+    '--no-warnings',
+    '--experimental-config-file',
+    fixtures.path('rc/non-object-node-options.json'),
+    '-p', '"Hello, World!"',
+  ]);
+  match(result.stderr, /"nodeOptions" value unexpected for/);
+  strictEqual(result.stdout, '');
+  strictEqual(result.code, 9);
+});
+
+test('should throw correct error when a json is broken', async () => {
+  const result = await spawnPromisified(process.execPath, [
+    '--no-warnings',
+    '--experimental-config-file',
+    fixtures.path('rc/broken.json'),
+    '-p', '"Hello, World!"',
+  ]);
+  match(result.stderr, /Can't parse/);
+  match(result.stderr, /broken\.json: invalid content/);
+  strictEqual(result.stdout, '');
+  strictEqual(result.code, 9);
+});
+
+test('broken value in node_options', async () => {
+  const result = await spawnPromisified(process.execPath, [
+    '--no-warnings',
+    '--experimental-config-file',
+    fixtures.path('rc/broken-node-options.json'),
+    '-p', '"Hello, World!"',
+  ]);
+  match(result.stderr, /Can't parse/);
+  match(result.stderr, /broken-node-options\.json: invalid content/);
+  strictEqual(result.stdout, '');
+  strictEqual(result.code, 9);
+});
