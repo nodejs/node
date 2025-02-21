@@ -1,3 +1,5 @@
 {
-  "--test": true
+  "nodeOptions": {
+    "test": true
+  }
 }
