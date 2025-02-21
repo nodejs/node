@@ -640,12 +640,9 @@ bool HandleDatabaseLocationFromURL(Environment* env,
   Local<Object> url = path.As<Object>();
   Local<Value> href;
   Local<Value> protocol;
-  if (!url->Get(env->context(), FIXED_ONE_BYTE_STRING(env->isolate(), "href"))
-           .ToLocal(&href) ||
+  if (!url->Get(env->context(), env->href_string()).ToLocal(&href) ||
       !href->IsString() ||
-      !url->Get(env->context(),
-                FIXED_ONE_BYTE_STRING(env->isolate(), "protocol"))
-           .ToLocal(&protocol) ||
+      !url->Get(env->context(), env->protocol_string()).ToLocal(&protocol) ||
       !protocol->IsString()) {
     return false;
   }
