@@ -66,7 +66,7 @@ const handleRequest = (req, res) => {
 };
 
 describe('use-system-ca', function() {
-  
+
   async function setupServer(key, cert) {
     const theServer = https.createServer({
       key: fixtures.readKey(key),
@@ -75,7 +75,7 @@ describe('use-system-ca', function() {
     theServer.listen(0);
     await once(theServer, 'listening');
 
-    return theServer
+    return theServer;
   }
 
   describe('signed with a root certificate', () => {
@@ -84,11 +84,11 @@ describe('use-system-ca', function() {
     beforeEach(async function() {
       server = await setupServer('agent8-key.pem', 'agent8-cert.pem');
     });
-  
+
     it('can connect successfully', async function() {
       await fetch(`https://localhost:${server.address().port}/hello-world`);
     });
-  
+
     afterEach(async function() {
       server?.close();
     });
@@ -100,11 +100,11 @@ describe('use-system-ca', function() {
     beforeEach(async function() {
       server = await setupServer('leaf-from-intermediate-key.pem', 'leaf-from-intermediate-cert.pem');
     });
-  
+
     it('can connect successfully', async function() {
       await fetch(`https://localhost:${server.address().port}/hello-world`);
     });
-  
+
     afterEach(async function() {
       server?.close();
     });
