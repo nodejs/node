@@ -45,9 +45,12 @@ if (!common.hasCrypto) {
 //   1. To add the certificate:
 //     $ sudo cp test/fixtures/keys/fake-startcom-root-cert.pem \
 //       /usr/local/share/ca-certificates/fake-startcom-root-cert.crt
+//     $ sudo cp test/fixtures/keys/intermediate-ca.pem \
+//       /usr/local/share/ca-certificates/intermediate-ca.crt
 //     $ sudo update-ca-certificates
 //   2. To remove the certificate
-//     $ sudo rm /usr/local/share/ca-certificates/fake-startcom-root-cert.crt
+//     $ sudo rm /usr/local/share/ca-certificates/fake-startcom-root-cert.crt \
+//       /usr/local/share/ca-certificates/intermediate-ca.crt
 //     $ sudo update-ca-certificates --fresh
 //
 // For other Unix-like systems, consult their manuals, there are usually
