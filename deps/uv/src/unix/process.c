@@ -31,15 +31,17 @@
 
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
+#include <sys/ioctl.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <poll.h>
+#include <termios.h>
 
 #if defined(__APPLE__)
 # include <spawn.h>
 # include <paths.h>
 # include <sys/kauth.h>
-# include <sys/types.h>
 # include <sys/sysctl.h>
 # include <dlfcn.h>
 # include <crt_externs.h>
@@ -287,7 +289,11 @@ static void uv__write_errno(int error_fd) {
 static void uv__process_child_init(const uv_process_options_t* options,
                                    int stdio_count,
                                    int (*pipes)[2],
-                                   int error_fd) {
+                                   int error_fd,
+                                   int also_close_fd) {
+  if (also_close_fd >= 0)
+    uv__close(also_close_fd);
+
   sigset_t signewset;
   int close_fd;
   int use_fd;
@@ -313,9 +319,6 @@ static void uv__process_child_init(const uv_process_options_t* options,
 
     uv__write_errno(error_fd);
   }
-
-  if (options->flags & UV_PROCESS_DETACHED)
-    setsid();
 
   /* First duplicate low numbered fds, since it's not safe to duplicate them,
    * they could get replaced. Example: swapping stdout and stderr; without
@@ -378,6 +381,20 @@ static void uv__process_child_init(const uv_process_options_t* options,
     if (close_fd >= stdio_count)
       uv__close(close_fd);
   }
+
+  if (options->flags & UV_PROCESS_PTY) {
+    // Put ourself into a new session and process group, making us session
+    // and process group leader.
+    if (setsid() < 0) {
+        uv__write_errno(error_fd);
+    }
+
+    // Make our dear terminal the controlling terminal.
+    if (ioctl(STDIN_FILENO, TIOCSCTTY) < 0)
+        uv__write_errno(error_fd);
+  }
+  else if (options->flags & UV_PROCESS_DETACHED)
+    setsid();
 
   if (options->cwd != NULL && chdir(options->cwd))
     uv__write_errno(error_fd);
@@ -820,7 +837,8 @@ static int uv__spawn_and_init_child_fork(const uv_process_options_t* options,
                                          int stdio_count,
                                          int (*pipes)[2],
                                          int error_fd,
-                                         pid_t* pid) {
+                                         pid_t* pid,
+                                         int close_fd) {
   sigset_t signewset;
   sigset_t sigoldset;
 
@@ -842,7 +860,7 @@ static int uv__spawn_and_init_child_fork(const uv_process_options_t* options,
 
   if (*pid == 0) {
     /* Fork succeeded, in the child process */
-    uv__process_child_init(options, stdio_count, pipes, error_fd);
+    uv__process_child_init(options, stdio_count, pipes, error_fd, close_fd);
     abort();
   }
 
@@ -862,7 +880,8 @@ static int uv__spawn_and_init_child(
     const uv_process_options_t* options,
     int stdio_count,
     int (*pipes)[2],
-    pid_t* pid) {
+    pid_t* pid,
+    int close_fd) {
   int signal_pipe[2] = { -1, -1 };
   int status;
   int err;
@@ -870,33 +889,34 @@ static int uv__spawn_and_init_child(
   ssize_t r;
 
 #if defined(__APPLE__)
-  uv_once(&posix_spawn_init_once, uv__spawn_init_posix_spawn);
+  if (!(options->flags & UV_PROCESS_PTY)) {
+    uv_once(&posix_spawn_init_once, uv__spawn_init_posix_spawn);
 
-  /* Special child process spawn case for macOS Big Sur (11.0) onwards
-   *
-   * Big Sur introduced a significant performance degradation on a call to
-   * fork/exec when the process has many pages mmaped in with MAP_JIT, like, say
-   * a javascript interpreter. Electron-based applications, for example,
-   * are impacted; though the magnitude of the impact depends on how much the
-   * app relies on subprocesses.
-   *
-   * On macOS, though, posix_spawn is implemented in a way that does not
-   * exhibit the problem. This block implements the forking and preparation
-   * logic with posix_spawn and its related primitives. It also takes advantage of
-   * the macOS extension POSIX_SPAWN_CLOEXEC_DEFAULT that makes impossible to
-   * leak descriptors to the child process. */
-  err = uv__spawn_and_init_child_posix_spawn(options,
-                                             stdio_count,
-                                             pipes,
-                                             pid,
-                                             &posix_spawn_fncs);
+    /* Special child process spawn case for macOS Big Sur (11.0) onwards
+     *
+     * Big Sur introduced a significant performance degradation on a call to
+     * fork/exec when the process has many pages mmaped in with MAP_JIT, like, say
+     * a javascript interpreter. Electron-based applications, for example,
+     * are impacted; though the magnitude of the impact depends on how much the
+     * app relies on subprocesses.
+     *
+     * On macOS, though, posix_spawn is implemented in a way that does not
+     * exhibit the problem. This block implements the forking and preparation
+     * logic with posix_spawn and its related primitives. It also takes advantage of
+     * the macOS extension POSIX_SPAWN_CLOEXEC_DEFAULT that makes impossible to
+     * leak descriptors to the child process. */
+    err = uv__spawn_and_init_child_posix_spawn(options,
+                                               stdio_count,
+                                               pipes,
+                                               pid,
+                                               &posix_spawn_fncs);
 
-  /* The posix_spawn flow will return UV_ENOSYS if any of the posix_spawn_x_np
-   * non-standard functions is both _needed_ and _undefined_. In those cases,
-   * default back to the fork/execve strategy. For all other errors, just fail. */
-  if (err != UV_ENOSYS)
-    return err;
-
+    /* The posix_spawn flow will return UV_ENOSYS if any of the posix_spawn_x_np
+     * non-standard functions is both _needed_ and _undefined_. In those cases,
+     * default back to the fork/execve strategy. For all other errors, just fail. */
+    if (err != UV_ENOSYS)
+      return err;
+  }
 #endif
 
   /* This pipe is used by the parent to wait until
@@ -926,7 +946,7 @@ static int uv__spawn_and_init_child(
   /* Acquire write lock to prevent opening new fds in worker threads */
   uv_rwlock_wrlock(&loop->cloexec_lock);
 
-  err = uv__spawn_and_init_child_fork(options, stdio_count, pipes, signal_pipe[1], pid);
+  err = uv__spawn_and_init_child_fork(options, stdio_count, pipes, signal_pipe[1], pid, close_fd);
 
   /* Release lock in parent process */
   uv_rwlock_wrunlock(&loop->cloexec_lock);
@@ -963,6 +983,74 @@ static int uv__spawn_and_init_child(
 }
 #endif /* ISN'T TARGET_OS_TV || TARGET_OS_WATCH */
 
+int uv__pty_resize_fd(int pty_fd,
+                  unsigned short cols,
+                  unsigned short rows) {
+  struct winsize winp;
+  winp.ws_col = cols;
+  winp.ws_row = rows;
+  winp.ws_xpixel = 0;
+  winp.ws_ypixel = 0;
+  if (ioctl(pty_fd, TIOCSWINSZ, &winp) < 0)
+    return UV__ERR(errno);
+  return 0;
+}
+
+int uv__spawn_make_pty(int *fd_pty, int *fd_tty, int cols, int rows) {
+    int ret;
+    int my_errno;
+
+    *fd_pty = posix_openpt(O_RDWR);
+    if (*fd_pty < 0)
+        return UV__ERR(errno);
+
+    if (grantpt(*fd_pty) < 0) {
+        my_errno = UV__ERR(errno);
+        close(*fd_pty);
+        return my_errno;
+    }
+
+    if (unlockpt(*fd_pty) < 0) {
+        my_errno = UV__ERR(errno);
+        close(*fd_pty);
+        return my_errno;
+    }
+
+    int path_tty_size = 40;
+    char *path_tty = uv__malloc(path_tty_size * sizeof(char));
+    // Apple and linux both have ptsname_r.
+    // Use TIOCGPTPEER. (see man ioctl_tty) Where is that available?
+    // There is no ptsname_r on OpenBSD.
+    while ((ret = ptsname_r(*fd_pty, path_tty, path_tty_size)) == ERANGE) {
+        path_tty_size *= 2;
+        path_tty = uv__realloc(path_tty, path_tty_size * sizeof(char));
+    }
+    if (ret != 0) {
+        my_errno = UV__ERR(errno);
+        uv__free(path_tty);
+        close(*fd_pty);
+        return my_errno;
+    }
+
+    *fd_tty = open(path_tty, O_RDWR | O_NOCTTY);
+    if (*fd_tty < 0) {
+        my_errno = UV__ERR(errno);
+        uv__free(path_tty);
+        close(*fd_pty);
+        return my_errno;
+    }
+
+    uv__free(path_tty);
+
+    if ((my_errno = uv__pty_resize_fd(*fd_pty, cols, rows)) != 0) {
+        close(*fd_pty);
+        close(*fd_tty);
+        return my_errno;
+    }
+
+    return 0;
+}
+
 int uv_spawn(uv_loop_t* loop,
              uv_process_t* process,
              const uv_process_options_t* options) {
@@ -977,6 +1065,19 @@ int uv_spawn(uv_loop_t* loop,
   int err;
   int exec_errorno;
   int i;
+  int fd_tty;
+
+  if (options->flags & UV_PROCESS_PTY) {
+    if (options->stdio[0].flags != (UV_CREATE_PIPE | UV_READABLE_PIPE) ||
+        options->stdio[0].data.stream->type != UV_NAMED_PIPE ||
+        options->stdio[1].flags != (UV_CREATE_PIPE | UV_WRITABLE_PIPE) ||
+        options->stdio[1].data.stream->type != UV_NAMED_PIPE ||
+        options->stdio[2].flags != UV_IGNORE)
+      return UV_EINVAL;
+    if (options->pty_rows == 0 |
+        options->pty_cols == 0)
+      return UV_EINVAL;
+  }
 
   assert(options->file != NULL);
   assert(!(options->flags & ~(UV_PROCESS_DETACHED |
@@ -986,11 +1087,13 @@ int uv_spawn(uv_loop_t* loop,
                               UV_PROCESS_WINDOWS_HIDE |
                               UV_PROCESS_WINDOWS_HIDE_CONSOLE |
                               UV_PROCESS_WINDOWS_HIDE_GUI |
-                              UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS)));
+                              UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS |
+                              UV_PROCESS_PTY)));
 
   uv__handle_init(loop, (uv_handle_t*)process, UV_PROCESS);
   uv__queue_init(&process->queue);
   process->status = 0;
+  process->pty_fd = -1;
 
   stdio_count = options->stdio_count;
   if (stdio_count < 3)
@@ -1009,18 +1112,33 @@ int uv_spawn(uv_loop_t* loop,
     pipes[i][1] = -1;
   }
 
-  for (i = 0; i < options->stdio_count; i++) {
+  for (i = (options->flags & UV_PROCESS_PTY) ? 3 : 0; i < options->stdio_count; i++) {
     err = uv__process_init_stdio(options->stdio + i, pipes[i]);
     if (err)
       goto error;
   }
+
+  if (options->flags & UV_PROCESS_PTY) {
+    if ((err = uv__spawn_make_pty(&process->pty_fd, &fd_tty, options->pty_cols, options->pty_rows)) != 0)
+      goto error;
+
+    pipes[0][1] = fd_tty;
+    pipes[1][1] = fd_tty;
+    pipes[2][1] = fd_tty;
+    pipes[0][0] = process->pty_fd;
+    if ((pipes[1][0] = dup(process->pty_fd)) < 0) {
+        err = UV__ERR(errno);
+        goto error;
+    }
+  }
+
 
 #ifdef UV_USE_SIGCHLD
   uv_signal_start(&loop->child_watcher, uv__chld, SIGCHLD);
 #endif
 
   /* Spawn the child */
-  exec_errorno = uv__spawn_and_init_child(loop, options, stdio_count, pipes, &pid);
+  exec_errorno = uv__spawn_and_init_child(loop, options, stdio_count, pipes, &pid, process->pty_fd);
 
 #if 0
   /* This runs into a nodejs issue (it expects initialized streams, even if the
@@ -1056,7 +1174,19 @@ int uv_spawn(uv_loop_t* loop,
     uv__handle_start(process);
   }
 
-  for (i = 0; i < options->stdio_count; i++) {
+  // We could special case this (do it as part of the below for loop) if it's ok for the pipe to be non-blocking.
+  // TODO: Validate this.
+  if (options->flags & UV_PROCESS_PTY) {
+    err = uv__close(fd_tty);
+
+    if ((err = uv_pipe_open((uv_pipe_t *)(options->stdio[0].data.stream), pipes[0][0])) != 0)
+        printf("uv_pipe_open 0 ret: %i\n", err);
+
+    if ((err = uv_pipe_open((uv_pipe_t *)(options->stdio[1].data.stream), pipes[1][0])) != 0)
+        printf("uv_pipe_open 1 ret: %i\n", err);
+  }
+
+  for (i = (options->flags & UV_PROCESS_PTY) ? 3 : 0; i < options->stdio_count; i++) {
     err = uv__process_open_stream(options->stdio + i, pipes[i]);
     if (err == 0)
       continue;
@@ -1121,4 +1251,12 @@ void uv__process_close(uv_process_t* handle) {
   if (uv__queue_empty(&handle->loop->process_handles))
     uv_signal_stop(&handle->loop->child_watcher);
 #endif
+}
+
+int uv_pty_resize(uv_process_t* process,
+                  unsigned short cols,
+                  unsigned short rows) {
+  if (process->pty_fd == -1)
+    return UV_EINVAL;
+  return uv__pty_resize_fd(process->pty_fd, cols, rows);
 }

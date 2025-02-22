@@ -24,6 +24,7 @@
 #include <string.h>
 
 #ifdef _WIN32
+#include <windows.h>
 # include <io.h>
 # define read _read
 #else
@@ -247,6 +248,49 @@ static int maybe_run_test(int argc, char **argv) {
     spawn_stdin_stdout();
     return 1;
   }
+  if (strcmp(argv[1], "spawn_helper10") == 0) {
+    char buffer[256];
+    int cols, rows;
+    uv_tty_t tty;
+    notify_parent_process();
+    uv_tty_init(uv_default_loop(), &tty, 1, 0);
+
+    ASSERT_PTR_EQ(buffer, fgets(buffer, sizeof(buffer) - 1, stdin));
+    buffer[sizeof(buffer) - 1] = '\0';
+
+    ASSERT_OK(uv_tty_get_winsize(&tty, &cols, &rows));
+#ifdef _WIN32
+    printf("Is a TTY: %s\nWinSize: %ix%i\nRead: %s\n", _isatty(_fileno(stdin)) ? "true" : "false", cols, rows, buffer);
+#else
+    printf("Is a TTY: %s\nWinSize: %ix%i\nRead: %s\n", isatty(STDIN_FILENO) ? "true" : "false", cols, rows, buffer);
+#endif
+
+    return 1;
+  }
+  if (strcmp(argv[1], "spawn_helper11") == 0) {
+    char inbuffer[256];
+    char outbuffer[256];
+    notify_parent_process();
+
+    ASSERT_PTR_EQ(inbuffer, fgets(inbuffer, sizeof(inbuffer) - 1, stdin));
+    inbuffer[sizeof(inbuffer) - 1] = '\0';
+
+#ifdef _WIN32
+    snprintf(outbuffer, sizeof(outbuffer), "Is a TTY: %s\nRead: %s\n", _isatty(_fileno(stdin)) ? "true" : "false", inbuffer);
+    DWORD bytes;
+    WriteFile((HANDLE) _get_osfhandle(3), outbuffer, sizeof(outbuffer) - 1, &bytes, NULL);
+#else
+    snprintf(outbuffer, sizeof(outbuffer), "Is a TTY: %s\nRead: %s\n", isatty(STDIN_FILENO) ? "true" : "false", inbuffer);
+    ssize_t r;
+    do
+      r = write(3, outbuffer, sizeof(outbuffer) - 1);
+    while (r == -1 && errno == EINTR);
+    fsync(3);
+#endif
+
+    return 1;
+  }
+
 
 #ifndef _WIN32
   if (strcmp(argv[1], "spawn_helper_setuid_setgid") == 0) {

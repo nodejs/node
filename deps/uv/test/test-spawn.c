@@ -29,6 +29,7 @@
 #include <string.h>
 
 #ifdef _WIN32
+# include <synchapi.h>
 # include <shellapi.h>
 # include <wchar.h>
   typedef BOOL (WINAPI *sCompareObjectHandles)(_In_ HANDLE, _In_ HANDLE);
@@ -52,6 +53,7 @@ static char* args[5];
 static int no_term_signal;
 static int timer_counter;
 static uv_tcp_t tcp_server;
+uv_pipe_t pty_in;
 
 #define OUTPUT_SIZE 1024
 static char output[OUTPUT_SIZE];
@@ -59,18 +61,28 @@ static int output_used;
 
 
 static void close_cb(uv_handle_t* handle) {
-  printf("close_cb\n");
   close_cb_called++;
 }
 
 static void exit_cb(uv_process_t* process,
                     int64_t exit_status,
                     int term_signal) {
-  printf("exit_cb\n");
   exit_cb_called++;
   ASSERT_EQ(1, exit_status);
   ASSERT_OK(term_signal);
   uv_close((uv_handle_t*) process, close_cb);
+}
+
+static void pty_exit_cb(uv_process_t* process,
+                    int64_t exit_status,
+                    int term_signal) {
+  exit_cb_called++;
+  ASSERT_EQ(1, exit_status);
+  ASSERT_OK(term_signal);
+  uv_close((uv_handle_t*) process, close_cb);
+#ifdef _WIN32
+  uv_close((uv_handle_t*)&pty_in, close_cb);
+#endif
 }
 
 
@@ -86,7 +98,6 @@ static void kill_cb(uv_process_t* process,
                     int term_signal) {
   int err;
 
-  printf("exit_cb\n");
   exit_cb_called++;
 #ifdef _WIN32
   ASSERT_EQ(1, exit_status);
@@ -117,7 +128,6 @@ static void kill_cb(uv_process_t* process,
 static void detach_failure_cb(uv_process_t* process,
                               int64_t exit_status,
                               int term_signal) {
-  printf("detach_cb\n");
   exit_cb_called++;
 }
 
@@ -138,18 +148,36 @@ static void on_read(uv_stream_t* tcp, ssize_t nread, const uv_buf_t* buf) {
   }
 }
 
+static void pty_on_read(uv_stream_t* tcp, ssize_t nread, const uv_buf_t* buf) {
+  if (nread > 0) {
+    output_used += nread;
+  } else if (nread < 0) {
+#if defined(_WIN32) || defined(__APPLE__)
+    ASSERT_EQ(nread, UV_EOF);
+#elif defined(__ANDROID__)
+    ASSERT(nread == UV_EIO || nread == UV_EOF);
+#else
+    ASSERT_EQ(nread, UV_EIO);
+#endif
+    uv_close((uv_handle_t*) tcp, close_cb);
+  }
+}
 
 static void on_read_once(uv_stream_t* tcp, ssize_t nread, const uv_buf_t* buf) {
   uv_read_stop(tcp);
   on_read(tcp, nread, buf);
 }
 
-
 static void write_cb(uv_write_t* req, int status) {
   ASSERT_OK(status);
   uv_close((uv_handle_t*) req->handle, close_cb);
 }
-
+static void pty_write_cb(uv_write_t* req, int status) {
+  ASSERT_OK(status);
+#ifndef _WIN32
+  uv_close((uv_handle_t*) req->handle, close_cb);
+#endif
+}
 
 static void write_null_cb(uv_write_t* req, int status) {
   ASSERT_OK(status);
@@ -183,6 +211,35 @@ static void timer_counter_cb(uv_timer_t* handle) {
   ++timer_counter;
 }
 
+void filter_vt(char *t, char with_nl_and_sp) {
+  int wi = 0, len = strlen(t), csi = 0, osc = 0;
+  for (int ri = 0; ri < len; ri++) {
+    if (with_nl_and_sp && t[ri] == 13 && t[ri+1] == 10) {
+        ri++;
+    }
+    else if (with_nl_and_sp && t[ri] == ' ') {
+        // skip
+    }
+    else if (csi && 64 <= t[ri] && t[ri] <= 126) {
+        csi--;
+    }
+    else if (osc && t[ri] == 7) {
+        osc--;
+    }
+    else if (t[ri] == 27 && t[ri+1] == '[') { // ESC [ == CSI
+      ri++;
+      csi++;
+    }
+    else if (t[ri] == 27 && t[ri+1] == ']') { // ESC ] == OSC
+      ri++;
+      osc++;
+    }
+    else if (!csi && !osc) {
+        t[wi++] = t[ri];
+    }
+  }
+  t[wi] = 0;
+}
 
 TEST_IMPL(spawn_fails) {
   int r;
@@ -2107,6 +2164,217 @@ TEST_IMPL(spawn_relative_path) {
 
   ASSERT_EQ(1, exit_cb_called);
   ASSERT_EQ(1, close_cb_called);
+
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
+  return 0;
+}
+
+TEST_IMPL(spawn_pty_setup_succeeds) {
+  int r;
+  uv_pipe_t pty_out;
+  uv_write_t write_req;
+  uv_buf_t buf;
+  uv_stdio_container_t stdio[3];
+#ifdef _WIN32
+  char buffer[] = "hello from parent\r\n";
+#else
+  char buffer[] = "hello from parent\n";
+#endif
+
+  init_process_options("spawn_helper10", pty_exit_cb);
+
+  uv_pipe_init(uv_default_loop(), &pty_in, 0);
+  uv_pipe_init(uv_default_loop(), &pty_out, 0);
+
+  options.flags |= UV_PROCESS_PTY | UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS;
+  options.stdio = stdio;
+  options.stdio[0].flags = UV_CREATE_PIPE | UV_READABLE_PIPE;
+  options.stdio[0].data.stream = (uv_stream_t*) &pty_in;
+  options.stdio[1].flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
+  options.stdio[1].data.stream = (uv_stream_t*) &pty_out;
+  options.stdio[2].flags = UV_IGNORE;
+  options.stdio_count = 3;
+  options.pty_cols = 72;
+  options.pty_rows = 24;
+
+  r = uv_spawn(uv_default_loop(), &process, &options);
+  ASSERT_OK(r);
+
+  // We don't want to write the trailing \0
+  buf = uv_buf_init(buffer, sizeof(buffer) - 1);
+
+  r = uv_write(&write_req, (uv_stream_t*) &pty_in, &buf, 1, pty_write_cb);
+  ASSERT_OK(r);
+
+  r = uv_read_start((uv_stream_t*) &pty_out, on_alloc, pty_on_read);
+  ASSERT_OK(r);
+
+  r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+  ASSERT_OK(r);
+
+  ASSERT_EQ(1, exit_cb_called);
+  ASSERT_EQ(3, close_cb_called); /* Once for process twice for the pipes. */
+
+  /* We see the "hello from parent" string twice. The first is the terminal echo,
+   * the second is the reply from the child.
+   */
+#ifdef _WIN32
+  /* We're trimming VT sequences that ConPTY sprinkles the output with. Also
+   * we're allowing trailing and leading stuff, because ConPTY sometimes
+   * adds '\r\n's at the start followed by a 'ESC[H' which moves the cursor
+   * back to the start, effectively a no-op.
+   */
+  filter_vt(output, 0);
+  printf("Output: %s\n", output);
+  ASSERT_PTR_NE(strstr(output, "hello from parent\r\nIs a TTY: true\r\nWinSize: 72x24\r\nRead: hello from parent"), NULL);
+#else
+  printf("Output: %s\n", output);
+  ASSERT_OK(strcmp("hello from parent\r\nIs a TTY: true\r\nWinSize: 72x24\r\nRead: hello from parent\r\n\r\n", output));
+#endif
+
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
+  return 0;
+}
+
+TEST_IMPL(spawn_pty_stdio_greater_than_3) {
+  int r;
+  uv_pipe_t pty_out, pipe4;
+  uv_write_t write_req;
+  uv_buf_t buf;
+  uv_stdio_container_t stdio[4];
+#ifdef _WIN32
+  char buffer[] = "hello from parent\r\n";
+#else
+  char buffer[] = "hello from parent\n";
+#endif
+
+  init_process_options("spawn_helper11", pty_exit_cb);
+
+  uv_pipe_init(uv_default_loop(), &pty_in, 0);
+  uv_pipe_init(uv_default_loop(), &pty_out, 0);
+  uv_pipe_init(uv_default_loop(), &pipe4, 0);
+
+  options.flags |= UV_PROCESS_PTY | UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS;
+  options.stdio = stdio;
+  options.stdio[0].flags = UV_CREATE_PIPE | UV_READABLE_PIPE;
+  options.stdio[0].data.stream = (uv_stream_t*) &pty_in;
+  options.stdio[1].flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
+  options.stdio[1].data.stream = (uv_stream_t*) &pty_out;
+  options.stdio[2].flags = UV_IGNORE;
+  options.stdio[3].flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
+  options.stdio[3].data.stream = (uv_stream_t*) &pipe4;
+  options.stdio_count = 4;
+  options.pty_cols = 72;
+  options.pty_rows = 24;
+
+  r = uv_spawn(uv_default_loop(), &process, &options);
+  ASSERT_OK(r);
+
+  // We don't want to write the trailing \0
+  buf = uv_buf_init(buffer, sizeof(buffer) - 1);
+
+  r = uv_write(&write_req, (uv_stream_t*) &pty_in, &buf, 1, pty_write_cb);
+  ASSERT_OK(r);
+
+  r = uv_read_start((uv_stream_t*) &pipe4, on_alloc, on_read);
+  ASSERT_OK(r);
+
+  r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+  ASSERT_OK(r);
+
+  ASSERT_EQ(1, exit_cb_called);
+  ASSERT_EQ(3, close_cb_called); /* Once for process twice for the pipes. */
+
+  printf("Output: %s\n", output);
+#ifdef _WIN32
+  ASSERT_OK(strcmp("Is a TTY: true\nRead: hello from parent\r\n\n", output));
+#else
+  ASSERT_OK(strcmp("Is a TTY: true\nRead: hello from parent\n\n", output));
+#endif
+
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
+  return 0;
+}
+
+TEST_IMPL(spawn_pty_resize) {
+  int r;
+  uv_pipe_t pty_out;
+  uv_write_t write_req;
+  uv_buf_t buf;
+  uv_stdio_container_t stdio[3];
+#ifdef _WIN32
+  char buffer[] = "hello from parent\r\n";
+#else
+  char buffer[] = "hello from parent\n";
+#endif
+
+  init_process_options("spawn_helper10", pty_exit_cb);
+
+  uv_pipe_init(uv_default_loop(), &pty_in, 0);
+  uv_pipe_init(uv_default_loop(), &pty_out, 0);
+
+  options.flags |= UV_PROCESS_PTY | UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS;
+  options.stdio = stdio;
+  options.stdio[0].flags = UV_CREATE_PIPE | UV_READABLE_PIPE;
+  options.stdio[0].data.stream = (uv_stream_t*) &pty_in;
+  options.stdio[1].flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
+  options.stdio[1].data.stream = (uv_stream_t*) &pty_out;
+  options.stdio[2].flags = UV_IGNORE;
+  options.stdio_count = 3;
+  options.pty_cols = 72;
+  options.pty_rows = 24;
+
+  r = uv_spawn(uv_default_loop(), &process, &options);
+  ASSERT_OK(r);
+
+  // Workaround for https://github.com/microsoft/terminal/pull/10449.
+  // On older (Windows 10) ConPTY versions, the resize can be lost if it
+  // happens shortly after process startup.
+#ifdef _WIN32
+  Sleep(250);
+#endif
+
+  r = uv_pty_resize(&process, 10, 15);
+  ASSERT_OK(r);
+
+  // We don't want to write the trailing \0
+  buf = uv_buf_init(buffer, sizeof(buffer) - 1);
+
+  r = uv_write(&write_req, (uv_stream_t*) &pty_in, &buf, 1, pty_write_cb);
+  ASSERT_OK(r);
+
+  r = uv_read_start((uv_stream_t*) &pty_out, on_alloc, pty_on_read);
+  ASSERT_OK(r);
+
+  r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+  ASSERT_OK(r);
+
+  ASSERT_EQ(1, exit_cb_called);
+  ASSERT_EQ(3, close_cb_called); /* Once for process twice for the pipes. */
+
+  /* We see the "hello from parent" string twice. The first is the terminal echo,
+   * the second is the reply from the child.
+   */
+#ifdef _WIN32
+  /* We're trimming VT sequences that ConPTY sprinkles the output with. Also
+   * we're allowing trailing and leading stuff, because ConPTY sometimes
+   * adds '\r\n's at the start followed by a 'ESC[H' which moves the cursor
+   * back to the start, effectively a no-op.
+   */
+
+  /* In addition older ConPTY versions (Windows 10) emit newlines when the
+   * terminal width is reached and put multiple spaces at the end of lines.
+   * so we'll filter out spaces and newlines as well. This abomination can be
+   * removed again, once Windows 10 support is dropped.
+   */
+  filter_vt(output, 1);
+  printf("Output: %s\n", output);
+  ASSERT_PTR_NE(strstr(output, "hellofromparentIsaTTY:trueWinSize:10x15Read:hellofromparent"), NULL);
+  // ASSERT_PTR_NE(strstr(output, "hello from parent\r\nIs a TTY: true\r\nWinSize: 10x15\r\nRead: hello from parent"), NULL);
+#else
+  printf("Output: %s\n", output);
+  ASSERT_OK(strcmp("hello from parent\r\nIs a TTY: true\r\nWinSize: 10x15\r\nRead: hello from parent\r\n\r\n", output));
+#endif
 
   MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;

@@ -92,7 +92,16 @@ Data types
              * search for the exact file name before trying variants with
              * extensions like '.exe' or '.cmd'.
              */
-            UV_PROCESS_WINDOWS_FILE_PATH_EXACT_NAME = (1 << 7)
+            UV_PROCESS_WINDOWS_FILE_PATH_EXACT_NAME = (1 << 7),
+            /*
+             * Start subprocess with a pseudo terminal. To use this flag, set
+             * stdio[0] to UV_CREATE_PIPE | UV_READABLE_PIPE and
+             * stdio[1] to UV_CREATE_PIPE | UV_WRITABLE_PIPE and
+             * stdio[2] to UV_IGNORE. The first pipe will be the PTY in (write here),
+             * while the second pipe will be the PTY out (read here). The child will have
+             * all standard FDs (0, 1 and 2) connected to the PTY as it should.
+             */
+            UV_PROCESS_PTY = (1 << 8)
         };
 
 .. c:type:: uv_stdio_container_t
@@ -264,13 +273,16 @@ API
     Possible reasons for failing to spawn would include (but not be limited to)
     the file to execute not existing, not having permissions to use the setuid or
     setgid specified, or not having enough memory to allocate for the new
-    process.
+    process. If the OS does not support PTYs and `UV_PROCESS_PTY` is passed
+    the error will be `UV_ENOTSUP`.
 
     .. versionchanged:: 1.24.0 Added `UV_PROCESS_WINDOWS_HIDE_CONSOLE` and
                         `UV_PROCESS_WINDOWS_HIDE_GUI` flags.
 
     .. versionchanged:: 1.48.0 Added the
                         `UV_PROCESS_WINDOWS_FILE_PATH_EXACT_NAME` flag.
+
+    .. versionchanged:: 1.51.0 Added the `UV_PROCESS_PTY` flag.
 
 .. c:function:: int uv_process_kill(uv_process_t* handle, int signum)
 
@@ -285,6 +297,14 @@ API
 .. c:function:: uv_pid_t uv_process_get_pid(const uv_process_t* handle)
 
     Returns `handle->pid`.
+
+    .. versionadded:: 1.19.0
+
+.. c:function:: int uv_pty_resize(uv_process_t* process, unsigned short cols, unsigned short rows)
+
+    For a PTY enabled process, change the size of the terminal. Returns 0 on
+    success, `UV_EINVAL` when the `process` is not PTY enabled, `UV_ENOTSUP`
+    when the OS does not support PTYs.
 
     .. versionadded:: 1.19.0
 

@@ -192,12 +192,20 @@ int uv__stdio_create(uv_loop_t* loop,
   /* Prepopulate the buffer with INVALID_HANDLE_VALUE handles so we can clean
    * up on failure. */
   CHILD_STDIO_COUNT(buffer) = count;
+
   for (i = 0; i < count; i++) {
     CHILD_STDIO_CRT_FLAGS(buffer, i) = 0;
     memset(CHILD_STDIO_HANDLE(buffer, i), 0xFF, sizeof(HANDLE));
   }
 
-  for (i = 0; i < count; i++) {
+  /* In PTY mode the STDIO handles are connected via a separate mechanism. Skip
+   * them here. */
+  if (options->flags & UV_PROCESS_PTY)
+    i = 3;
+  else
+    i = 0;
+
+  for (; i < count; i++) {
     uv_stdio_container_t fdopt;
     if (i < options->stdio_count) {
       fdopt = options->stdio[i];

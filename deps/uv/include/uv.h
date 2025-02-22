@@ -1099,6 +1099,12 @@ typedef struct uv_process_options_s {
   int stdio_count;
   uv_stdio_container_t* stdio;
   /*
+   * When starting the child with a PTY, these set the initial width and
+   * height.
+   */
+  unsigned int pty_cols;
+  unsigned int pty_rows;
+  /*
    * Libuv can change the child process' user/group id. This happens only when
    * the appropriate bits are set in the flags fields. This is not supported on
    * windows; uv_spawn() will fail and set the error to UV_ENOTSUP.
@@ -1160,7 +1166,16 @@ enum uv_process_flags {
    * search for the exact file name before trying variants with
    * extensions like '.exe' or '.cmd'.
    */
-  UV_PROCESS_WINDOWS_FILE_PATH_EXACT_NAME = (1 << 7)
+  UV_PROCESS_WINDOWS_FILE_PATH_EXACT_NAME = (1 << 7),
+  /*
+   * Start subprocess with a pseudo terminal. To use this flag, set
+   * stdio[0] to UV_CREATE_PIPE | UV_READABLE_PIPE and
+   * stdio[1] to UV_CREATE_PIPE | UV_WRITABLE_PIPE and
+   * stdio[2] to UV_IGNORE. The first pipe will be the PTY in (write here),
+   * while the second pipe will be the PTY out (read here). The child will have
+   * all standard FDs (0, 1 and 2) connected to the PTY as it should.
+   */
+  UV_PROCESS_PTY = (1 << 8)
 };
 
 /*
@@ -1176,6 +1191,9 @@ struct uv_process_s {
 UV_EXTERN int uv_spawn(uv_loop_t* loop,
                        uv_process_t* handle,
                        const uv_process_options_t* options);
+UV_EXTERN int uv_pty_resize(uv_process_t* process,
+                            unsigned short cols,
+                            unsigned short rows);
 UV_EXTERN int uv_process_kill(uv_process_t*, int signum);
 UV_EXTERN int uv_kill(int pid, int signum);
 UV_EXTERN uv_pid_t uv_process_get_pid(const uv_process_t*);
