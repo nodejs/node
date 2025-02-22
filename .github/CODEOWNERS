@@ -124,11 +124,14 @@
 /benchmark/misc/startup-* @nodejs/startup
 /lib/internal/bootstrap/* @nodejs/startup
 /src/node_builtins* @nodejs/startup
+/src/node_config.cc @nodejs/startup
 /src/node_realm* @nodejs/startup @nodejs/realm
 /src/node_snapshot* @nodejs/startup
 /src/node.cc @nodejs/startup
 /test/parallel/test-bootstrap-* @nodejs/startup
+/test/parallel/test-config-* @nodejs/startup
 /test/parallel/test-snapshot-* @nodejs/startup
+/tools/doc/generate-json-schema.mjs @nodejs/startup
 /tools/snapshot/* @nodejs/startup
 
 # V8
