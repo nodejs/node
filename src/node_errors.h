@@ -102,6 +102,7 @@ void OOMErrorHandler(const char* location, const v8::OOMDetails& details);
   V(ERR_MODULE_NOT_FOUND, Error)                                               \
   V(ERR_NON_CONTEXT_AWARE_DISABLED, Error)                                     \
   V(ERR_OPERATION_FAILED, TypeError)                                           \
+  V(ERR_OPTIONS_BEFORE_BOOTSTRAPPING, Error)                                   \
   V(ERR_OUT_OF_RANGE, RangeError)                                              \
   V(ERR_REQUIRE_ASYNC_MODULE, Error)                                           \
   V(ERR_SCRIPT_EXECUTION_INTERRUPTED, Error)                                   \
@@ -116,11 +117,21 @@ void OOMErrorHandler(const char* location, const v8::OOMDetails& details);
   V(ERR_WORKER_INIT_FAILED, Error)                                             \
   V(ERR_PROTO_ACCESS, Error)
 
+// If the macros are used as ERR_*(isolate, message) or
+// THROW_ERR_*(isolate, message) with a single string argument, do run
+// formatter on the message, and allow the caller to pass in a message
+// directly with characters that would otherwise need escaping if used
+// as format string unconditionally.
 #define V(code, type)                                                          \
   template <typename... Args>                                                  \
   inline v8::Local<v8::Object> code(                                           \
       v8::Isolate* isolate, const char* format, Args&&... args) {              \
-    std::string message = SPrintF(format, std::forward<Args>(args)...);        \
+    std::string message;                                                       \
+    if (sizeof...(Args) == 0) {                                                \
+      message = format;                                                        \
+    } else {                                                                   \
+      message = SPrintF(format, std::forward<Args>(args)...);                  \
+    }                                                                          \
     v8::Local<v8::String> js_code = FIXED_ONE_BYTE_STRING(isolate, #code);     \
     v8::Local<v8::String> js_msg =                                             \
         v8::String::NewFromUtf8(isolate,                                       \
@@ -210,10 +221,6 @@ ERRORS_WITH_CODE(V)
     "creating Workers")                                                        \
   V(ERR_NON_CONTEXT_AWARE_DISABLED,                                            \
     "Loading non context-aware native addons has been disabled")               \
-  V(ERR_REQUIRE_ASYNC_MODULE,                                                  \
-    "require() cannot be used on an ESM graph with top-level await. Use "      \
-    "import() instead. To see where the top-level await comes from, use "      \
-    "--experimental-print-required-tla.")                                      \
   V(ERR_SCRIPT_EXECUTION_INTERRUPTED,                                          \
     "Script execution was interrupted by `SIGINT`")                            \
   V(ERR_TLS_PSK_SET_IDENTITY_HINT_FAILED, "Failed to set PSK identity hint")   \
@@ -241,6 +248,28 @@ inline void THROW_ERR_SCRIPT_EXECUTION_TIMEOUT(Environment* env,
   message << "Script execution timed out after ";
   message << timeout << "ms";
   THROW_ERR_SCRIPT_EXECUTION_TIMEOUT(env, message.str().c_str());
+}
+
+inline void THROW_ERR_REQUIRE_ASYNC_MODULE(
+    Environment* env,
+    v8::Local<v8::Value> filename,
+    v8::Local<v8::Value> parent_filename) {
+  static constexpr const char* prefix =
+      "require() cannot be used on an ESM graph with top-level await. Use "
+      "import() instead. To see where the top-level await comes from, use "
+      "--experimental-print-required-tla.";
+  std::string message = prefix;
+  if (!parent_filename.IsEmpty() && parent_filename->IsString()) {
+    Utf8Value utf8(env->isolate(), parent_filename);
+    message += "\n  From ";
+    message += utf8.out();
+  }
+  if (!filename.IsEmpty() && filename->IsString()) {
+    Utf8Value utf8(env->isolate(), filename);
+    message += "\n  Requiring ";
+    message += +utf8.out();
+  }
+  THROW_ERR_REQUIRE_ASYNC_MODULE(env, message.c_str());
 }
 
 inline v8::Local<v8::Object> ERR_BUFFER_TOO_LARGE(v8::Isolate* isolate) {

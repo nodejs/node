@@ -409,11 +409,10 @@ void GCProfiler::Stop(const FunctionCallbackInfo<v8::Value>& args) {
   profiler->writer()->json_end();
   profiler->state = GCProfiler::GCProfilerState::kStopped;
   auto string = profiler->out_stream()->str();
-  args.GetReturnValue().Set(String::NewFromUtf8(env->isolate(),
-                                                string.data(),
-                                                v8::NewStringType::kNormal,
-                                                string.size())
-                                .ToLocalChecked());
+  Local<Value> ret;
+  if (ToV8Value(env->context(), string, env->isolate()).ToLocal(&ret)) {
+    args.GetReturnValue().Set(ret);
+  }
 }
 
 void Initialize(Local<Object> target,

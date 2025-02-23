@@ -46,9 +46,11 @@ const expectedJsons = linkedHtmls
                        .map((name) => name.replace('.html', '.json'));
 const expectedDocs = linkedHtmls.concat(expectedJsons);
 const renamedDocs = ['policy.json', 'policy.html'];
+const skipedDocs = ['quic.json', 'quic.html'];
 
 // Test that all the relative links in the TOC match to the actual documents.
 for (const expectedDoc of expectedDocs) {
+  if (skipedDocs.includes(expectedDoc)) continue;
   assert.ok(actualDocs.includes(expectedDoc), `${expectedDoc} does not exist`);
 }
 

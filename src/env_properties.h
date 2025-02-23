@@ -91,6 +91,7 @@
   V(cached_data_rejected_string, "cachedDataRejected")                         \
   V(cached_data_string, "cachedData")                                          \
   V(cache_key_string, "cacheKey")                                              \
+  V(cert_usage_string, "certUsage")                                            \
   V(change_string, "change")                                                   \
   V(changes_string, "changes")                                                 \
   V(channel_string, "channel")                                                 \
@@ -135,6 +136,7 @@
   V(dns_ptr_string, "PTR")                                                     \
   V(dns_soa_string, "SOA")                                                     \
   V(dns_srv_string, "SRV")                                                     \
+  V(dns_tlsa_string, "TLSA")                                                   \
   V(dns_txt_string, "TXT")                                                     \
   V(done_string, "done")                                                       \
   V(duration_string, "duration")                                               \
@@ -237,6 +239,7 @@
   V(line_number_string, "lineNumber")                                          \
   V(loop_count, "loopCount")                                                   \
   V(mac_string, "mac")                                                         \
+  V(match_string, "match")                                                     \
   V(max_buffer_string, "maxBuffer")                                            \
   V(max_concurrent_streams_string, "maxConcurrentStreams")                     \
   V(message_port_constructor_string, "MessagePort")                            \
@@ -336,6 +339,7 @@
   V(script_id_string, "scriptId")                                              \
   V(script_name_string, "scriptName")                                          \
   V(search_string, "search")                                                   \
+  V(selector_string, "selector")                                               \
   V(serial_number_string, "serialNumber")                                      \
   V(serial_string, "serial")                                                   \
   V(servername_string, "servername")                                           \
