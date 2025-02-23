@@ -53,7 +53,7 @@ help, questions, and discussions.
 development of Node.js core specifically.
 
 Node.js also has an unofficial IRC channel:
-[#Node.js](https://web.libera.chat/?channels=node.js).
+[#Node.js](https://web.libera.chat/#node.js).
 
 ## Setting up your local environment
 
