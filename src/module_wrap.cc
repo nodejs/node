@@ -241,8 +241,10 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
       uint32_t len = export_names_arr->Length();
       LocalVector<String> export_names(realm->isolate(), len);
       for (uint32_t i = 0; i < len; i++) {
-        Local<Value> export_name_val =
-            export_names_arr->Get(context, i).ToLocalChecked();
+        Local<Value> export_name_val;
+        if (!export_names_arr->Get(context, i).ToLocal(&export_name_val)) {
+          return;
+        }
         CHECK(export_name_val->IsString());
         export_names[i] = export_name_val.As<String>();
       }
@@ -612,7 +614,10 @@ void ModuleWrap::Evaluate(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  args.GetReturnValue().Set(result.ToLocalChecked());
+  Local<Value> res;
+  if (result.ToLocal(&res)) {
+    args.GetReturnValue().Set(res);
+  }
 }
 
 void ModuleWrap::InstantiateSync(const FunctionCallbackInfo<Value>& args) {
@@ -862,10 +867,10 @@ static MaybeLocal<Promise> ImportModuleDynamically(
   // from the realm global object.
   if (options->Length() == HostDefinedOptions::kLength) {
     id = options->Get(context, HostDefinedOptions::kID).As<Symbol>();
-  } else {
-    id = context->Global()
-             ->GetPrivate(context, env->host_defined_option_symbol())
-             .ToLocalChecked();
+  } else if (!context->Global()
+                  ->GetPrivate(context, env->host_defined_option_symbol())
+                  .ToLocal(&id)) {
+    return MaybeLocal<Promise>();
   }
 
   Local<Object> attributes =
@@ -985,7 +990,9 @@ MaybeLocal<Value> ModuleWrap::SyntheticModuleEvaluationStepsCallback(
     return MaybeLocal<Value>();
   }
 
-  resolver->Resolve(context, Undefined(isolate)).ToChecked();
+  if (resolver->Resolve(context, Undefined(isolate)).IsNothing()) {
+    return MaybeLocal<Value>();
+  }
   return resolver->GetPromise();
 }
 
@@ -1027,15 +1034,18 @@ void ModuleWrap::CreateCachedData(const FunctionCallbackInfo<Value>& args) {
   std::unique_ptr<ScriptCompiler::CachedData> cached_data(
       ScriptCompiler::CreateCodeCache(unbound_module_script));
   Environment* env = Environment::GetCurrent(args);
+  Local<Object> result;
   if (!cached_data) {
-    args.GetReturnValue().Set(Buffer::New(env, 0).ToLocalChecked());
-  } else {
-    MaybeLocal<Object> buf =
-        Buffer::Copy(env,
-                     reinterpret_cast<const char*>(cached_data->data),
-                     cached_data->length);
-    args.GetReturnValue().Set(buf.ToLocalChecked());
+    if (!Buffer::New(env, 0).ToLocal(&result)) {
+      return;
+    }
+  } else if (!Buffer::Copy(env,
+                           reinterpret_cast<const char*>(cached_data->data),
+                           cached_data->length)
+                  .ToLocal(&result)) {
+    return;
   }
+  args.GetReturnValue().Set(result);
 }
 
 // This v8::Module::ResolveModuleCallback simply links `import 'original'`
@@ -1082,8 +1092,10 @@ void ModuleWrap::CreateRequiredModuleFacade(
 
   // The module facade instantiation simply links `import 'original'` in the
   // facade with the original module and should never fail.
-  Local<Module> facade =
-      ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+  Local<Module> facade;
+  if (!ScriptCompiler::CompileModule(isolate, &source).ToLocal(&facade)) {
+    return;
+  }
   // Stash the original module in temporary_required_module_facade_original
   // for the LinkRequireFacadeWithOriginal() callback to pick it up.
   CHECK(env->temporary_required_module_facade_original.IsEmpty());
@@ -1094,7 +1106,10 @@ void ModuleWrap::CreateRequiredModuleFacade(
   env->temporary_required_module_facade_original.Reset();
 
   // The evaluation of the facade is synchronous.
-  Local<Value> evaluated = facade->Evaluate(context).ToLocalChecked();
+  Local<Value> evaluated;
+  if (!facade->Evaluate(context).ToLocal(&evaluated)) {
+    return;
+  }
   CHECK(evaluated->IsPromise());
   CHECK_EQ(evaluated.As<Promise>()->State(), Promise::PromiseState::kFulfilled);
 
