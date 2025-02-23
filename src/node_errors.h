@@ -84,6 +84,7 @@ void OOMErrorHandler(const char* location, const v8::OOMDetails& details);
   V(ERR_INVALID_ARG_TYPE, TypeError)                                           \
   V(ERR_INVALID_FILE_URL_HOST, TypeError)                                      \
   V(ERR_INVALID_FILE_URL_PATH, TypeError)                                      \
+  V(ERR_INVALID_INVOCATION, TypeError)                                         \
   V(ERR_INVALID_PACKAGE_CONFIG, Error)                                         \
   V(ERR_INVALID_OBJECT_DEFINE_PROPERTY, TypeError)                             \
   V(ERR_INVALID_MODULE, Error)                                                 \
@@ -201,6 +202,7 @@ ERRORS_WITH_CODE(V)
     "Context not associated with Node.js environment")                         \
   V(ERR_ILLEGAL_CONSTRUCTOR, "Illegal constructor")                            \
   V(ERR_INVALID_ADDRESS, "Invalid socket address")                             \
+  V(ERR_INVALID_INVOCATION, "Invalid invocation")                              \
   V(ERR_INVALID_MODULE, "No such module")                                      \
   V(ERR_INVALID_STATE, "Invalid state")                                        \
   V(ERR_INVALID_THIS, "Value of \"this\" is the wrong type")                   \
