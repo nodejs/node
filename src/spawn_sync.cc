@@ -707,10 +707,10 @@ Local<Object> SyncProcessRunner::BuildResultObject() {
   }
 
   if (term_signal_ > 0)
-    js_result->Set(context, env()->signal_string(),
-                   String::NewFromUtf8(env()->isolate(),
-                                       signo_string(term_signal_))
-                       .ToLocalChecked())
+    js_result
+        ->Set(context,
+              env()->signal_string(),
+              OneByteString(env()->isolate(), signo_string(term_signal_)))
         .Check();
   else
     js_result->Set(context, env()->signal_string(),

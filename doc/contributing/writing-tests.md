@@ -21,9 +21,22 @@ Add tests when:
 ## Test directory structure
 
 See [directory structure overview][] for outline of existing test and locations.
-When deciding on whether to expand an existing test file or create a new one,
-consider going through the files related to the subsystem.
-For example, look for `test-streams` when writing a test for `lib/streams.js`.
+
+## How to write a good test
+
+A good test should be written in a style that is optimial for debugging
+when it fails.
+
+In principle, when adding a new test, it should be placed in a new file.
+Unless there is strong motivation to do so, refrain from appending
+new test cases to an existing file. Similar to the reproductions we ask
+for in the issue tracker, a good test should be as minimal and isolated as
+possible to facilitate debugging.
+
+A good test should come with comments explaining what it tries to test,
+so that when it fails, other contributors can fix it with the full context
+of its intention, and be able to modify it in good confidence when the context
+changes.
 
 ## Test structure
 

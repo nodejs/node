@@ -780,7 +780,9 @@ test-v8 test-v8-intl test-v8-benchmarks test-v8-all:
 endif
 
 apidoc_dirs = out/doc out/doc/api out/doc/api/assets
-apidoc_sources = $(wildcard doc/api/*.md)
+skip_apidoc_files = doc/api/quic.md
+
+apidoc_sources = $(filter-out $(skip_apidoc_files), $(wildcard doc/api/*.md))
 apidocs_html = $(addprefix out/,$(apidoc_sources:.md=.html))
 apidocs_json = $(addprefix out/,$(apidoc_sources:.md=.json))
 
@@ -807,6 +809,7 @@ doc: $(NODE_EXE) doc-only ## Build Node.js, and then build the documentation wit
 
 out/doc:
 	mkdir -p $@
+	cp doc/node_config_json_schema.json $@
 
 # If it's a source tarball, doc/api already contains the generated docs.
 # Just copy everything under doc/api over.
@@ -1398,6 +1401,7 @@ lint-md: lint-js-doc | tools/.mdlintstamp ## Lint the markdown documents maintai
 run-format-md = tools/lint-md/lint-md.mjs --format $(LINT_MD_FILES)
 .PHONY: format-md
 format-md: tools/lint-md/node_modules/remark-parse/package.json ## Format the markdown documents maintained by us in the codebase.
+	$(info Formatting Markdown...)
 	@$(call available-node,$(run-format-md))
 
 
