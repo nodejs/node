@@ -661,9 +661,6 @@ static void LoadCertsFromDir(std::vector<X509*>* certs,
     return;
   }
 
-  uv_fs_t stats_req;
-  auto cleanup_stats =
-      OnScopeLeave([&stats_req]() { uv_fs_req_cleanup(&stats_req); });
   for (;;) {
     uv_dirent_t ent;
 
@@ -680,12 +677,14 @@ static void LoadCertsFromDir(std::vector<X509*>* certs,
       return;
     }
 
+    uv_fs_t stats_req;
     std::string file_path = std::string(cert_dir) + "/" + ent.name;
     int stats_r = uv_fs_stat(nullptr, &stats_req, file_path.c_str(), nullptr);
     if (stats_r == 0 &&
         (static_cast<uv_stat_t*>(stats_req.ptr)->st_mode & S_IFREG)) {
       LoadCertsFromFile(certs, file_path.c_str());
     }
+    uv_fs_req_cleanup(&stats_req);
   }
 }
 
