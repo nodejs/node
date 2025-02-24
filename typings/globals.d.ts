@@ -1,5 +1,6 @@
 import { AsyncWrapBinding } from './internalBinding/async_wrap';
 import { BlobBinding } from './internalBinding/blob';
+import { CodeIntegrityBinding } from './internalBinding/code_integrity';
 import { ConfigBinding } from './internalBinding/config';
 import { ConstantsBinding } from './internalBinding/constants';
 import { DebugBinding } from './internalBinding/debug';
@@ -26,6 +27,7 @@ import { ZlibBinding } from './internalBinding/zlib';
 interface InternalBindingMap {
   async_wrap: AsyncWrapBinding;
   blob: BlobBinding;
+  code_integrity: CodeIntegrityBinding;
   config: ConfigBinding;
   constants: ConstantsBinding;
   debug: DebugBinding;
