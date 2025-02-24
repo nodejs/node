@@ -7,6 +7,7 @@
 #include "node.h"
 #include "node_errors.h"
 #include "node_mem-inl.h"
+#include "node_url.h"
 #include "sqlite3.h"
 #include "threadpoolwork-inl.h"
 #include "util-inl.h"
@@ -592,8 +593,15 @@ bool DatabaseSync::ShouldIgnoreSQLiteError() {
 std::optional<std::string> ValidateDatabasePath(Environment* env,
                                                 Local<Value> path,
                                                 const std::string& field_name) {
+  auto has_null_bytes = [](const std::string& str) {
+    return str.find('\0') != std::string::npos;
+  };
+  std::string location;
   if (path->IsString()) {
-    return Utf8Value(env->isolate(), path.As<String>()).ToString();
+    location = Utf8Value(env->isolate(), path.As<String>()).ToString();
+    if (!has_null_bytes(location)) {
+      return location;
+    }
   }
 
   if (path->IsUint8Array()) {
@@ -623,14 +631,12 @@ std::optional<std::string> ValidateDatabasePath(Environment* env,
         href->IsString() &&
         url->Get(env->context(), env->protocol_string()).ToLocal(&protocol) &&
         protocol->IsString()) {
-      std::string url_protocol =
-          Utf8Value(env->isolate(), protocol.As<String>()).ToString();
-      if (url_protocol != "" && url_protocol != "file:") {
-        THROW_ERR_INVALID_URL_SCHEME(env->isolate());
-        return std::nullopt;
+      location = Utf8Value(env->isolate(), href.As<String>()).ToString();
+      if (!has_null_bytes(location)) {
+        auto file_url = ada::parse(location);
+        CHECK(file_url);
+        return url::FileURLToPath(env, *file_url);
       }
-
-      return Utf8Value(env->isolate(), href.As<String>()).ToString();
     }
   }
 
@@ -1130,9 +1136,9 @@ void Backup(const FunctionCallbackInfo<Value>& args) {
   BackupJob* job = new BackupJob(env,
                                  db,
                                  resolver,
-                                 source_db,
+                                 std::move(source_db),
                                  dest_path.value(),
-                                 dest_db,
+                                 std::move(dest_db),
                                  rate,
                                  progressFunc);
   db->AddBackup(job);

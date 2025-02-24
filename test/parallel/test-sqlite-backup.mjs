@@ -61,6 +61,24 @@ describe('backup()', () => {
     });
   });
 
+  test('throws if the database destination contains null bytes', (t) => {
+    const database = makeSourceDb();
+
+    t.assert.throws(() => {
+      backup(database, Buffer.from('l\0cation'));
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: 'The "destination" argument must be a string, Uint8Array, or URL without null bytes.'
+    });
+
+    t.assert.throws(() => {
+      backup(database, 'l\0cation');
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: 'The "destination" argument must be a string, Uint8Array, or URL without null bytes.'
+    });
+  });
+
   test('throws if options is not an object', (t) => {
     const database = makeSourceDb();
 
@@ -146,14 +164,14 @@ test('backup database using location as URL', async (t) => {
   const database = makeSourceDb();
   const destDb = pathToFileURL(nextDb());
 
-  t.after(() => {
-    database.close();
-    backupDb.close();
-  });
+  t.after(() => { database.close(); });
 
   await backup(database, destDb);
 
   const backupDb = new DatabaseSync(destDb);
+
+  t.after(() => { backupDb.close(); });
+
   const rows = backupDb.prepare('SELECT * FROM data').all();
 
   t.assert.deepStrictEqual(rows, [
@@ -166,14 +184,14 @@ test('backup database using location as Buffer', async (t) => {
   const database = makeSourceDb();
   const destDb = Buffer.from(nextDb());
 
-  t.after(() => {
-    database.close();
-    backupDb.close();
-  });
+  t.after(() => { database.close(); });
 
   await backup(database, destDb);
 
   const backupDb = new DatabaseSync(destDb);
+
+  t.after(() => { backupDb.close(); });
+
   const rows = backupDb.prepare('SELECT * FROM data').all();
 
   t.assert.deepStrictEqual(rows, [
