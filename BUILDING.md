@@ -728,7 +728,7 @@ easily. These files will install the following
 To install Node.js prerequisites from Powershell Terminal:
 
 ```powershell
-winget configure .\configurations\configuration.dsc.yaml
+winget configure .\.configurations\configuration.dsc.yaml
 ```
 
 Alternatively, you can use [Dev Home](https://learn.microsoft.com/en-us/windows/dev-home/)
