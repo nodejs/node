@@ -170,3 +170,10 @@ void ngtcp2_pv_cancel_expired_timer(ngtcp2_pv *pv, ngtcp2_tstamp ts) {
 
   pv->flags |= NGTCP2_PV_FLAG_CANCEL_TIMER;
 }
+
+void ngtcp2_pv_set_fallback(ngtcp2_pv *pv, const ngtcp2_dcid *dcid,
+                            ngtcp2_duration pto) {
+  pv->flags |= NGTCP2_PV_FLAG_FALLBACK_PRESENT;
+  ngtcp2_dcid_copy(&pv->fallback_dcid, dcid);
+  pv->fallback_pto = pto;
+}

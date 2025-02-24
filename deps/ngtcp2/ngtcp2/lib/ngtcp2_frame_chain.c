@@ -29,17 +29,6 @@
 
 ngtcp2_objalloc_def(frame_chain, ngtcp2_frame_chain, oplent)
 
-int ngtcp2_frame_chain_new(ngtcp2_frame_chain **pfrc, const ngtcp2_mem *mem) {
-  *pfrc = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_frame_chain));
-  if (*pfrc == NULL) {
-    return NGTCP2_ERR_NOMEM;
-  }
-
-  ngtcp2_frame_chain_init(*pfrc);
-
-  return 0;
-}
-
 int ngtcp2_frame_chain_objalloc_new(ngtcp2_frame_chain **pfrc,
                                     ngtcp2_objalloc *objalloc) {
   *pfrc = ngtcp2_objalloc_frame_chain_get(objalloc);
@@ -83,13 +72,13 @@ int ngtcp2_frame_chain_new_token_objalloc_new(ngtcp2_frame_chain **pfrc,
                                               size_t tokenlen,
                                               ngtcp2_objalloc *objalloc,
                                               const ngtcp2_mem *mem) {
-  size_t avail = sizeof(ngtcp2_frame) - sizeof(ngtcp2_new_token);
   int rv;
   uint8_t *p;
   ngtcp2_frame *fr;
 
-  if (tokenlen > avail) {
-    rv = ngtcp2_frame_chain_extralen_new(pfrc, tokenlen - avail, mem);
+  if (tokenlen > NGTCP2_FRAME_CHAIN_NEW_TOKEN_THRES) {
+    rv = ngtcp2_frame_chain_extralen_new(
+      pfrc, tokenlen - NGTCP2_FRAME_CHAIN_NEW_TOKEN_THRES, mem);
   } else {
     rv = ngtcp2_frame_chain_objalloc_new(pfrc, objalloc);
   }
@@ -144,8 +133,7 @@ void ngtcp2_frame_chain_objalloc_del(ngtcp2_frame_chain *frc,
 
     break;
   case NGTCP2_FRAME_NEW_TOKEN:
-    if (frc->fr.new_token.tokenlen >
-        sizeof(ngtcp2_frame) - sizeof(ngtcp2_new_token)) {
+    if (frc->fr.new_token.tokenlen > NGTCP2_FRAME_CHAIN_NEW_TOKEN_THRES) {
       ngtcp2_frame_chain_del(frc, mem);
 
       return;

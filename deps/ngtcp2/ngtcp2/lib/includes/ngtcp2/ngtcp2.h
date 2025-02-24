@@ -167,8 +167,12 @@ typedef void *(*ngtcp2_realloc)(void *ptr, size_t size, void *user_data);
  *     }
  *
  *     void conn_new() {
- *       ngtcp2_mem mem = {NULL, my_malloc_cb, my_free_cb, my_calloc_cb,
- *                         my_realloc_cb};
+ *       ngtcp2_mem mem = {
+ *         .malloc = my_malloc_cb,
+ *         .free = my_free_cb,
+ *         .calloc = my_calloc_cb,
+ *         .realloc = my_realloc_cb,
+ *       };
  *
  *       ...
  *     }

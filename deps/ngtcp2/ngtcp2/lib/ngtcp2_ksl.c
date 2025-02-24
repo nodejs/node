@@ -33,7 +33,7 @@
 #include "ngtcp2_mem.h"
 #include "ngtcp2_range.h"
 
-static ngtcp2_ksl_blk null_blk = {{{NULL, NULL, 0, 0, {0}}}};
+static ngtcp2_ksl_blk null_blk;
 
 ngtcp2_objalloc_def(ksl_blk, ngtcp2_ksl_blk, oplent)
 
