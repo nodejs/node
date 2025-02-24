@@ -1,0 +1,92 @@
+import * as common from '../common/index.mjs';
+import * as fixtures from '../common/fixtures.mjs';
+import { describe, it, run } from 'node:test';
+import { join } from 'node:path';
+
+const testFixtures = fixtures.path('test-runner');
+
+describe('test planning', () => {
+  it('should pass when assertions match plan', async () => {
+    const stream = run({
+      files: [join(testFixtures, 'plan', 'match.mjs')]
+    });
+    
+    stream.on('test:fail', common.mustNotCall());
+    stream.on('test:pass', common.mustCall(1));
+    
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream);
+  });
+
+  it('should fail when less assertions than planned', async () => {
+    const stream = run({
+      files: [join(testFixtures, 'plan', 'less.mjs')]
+    });
+    
+    stream.on('test:fail', common.mustCall(1));
+    stream.on('test:pass', common.mustNotCall());
+    
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream);
+  });
+
+  it('should fail when more assertions than planned', async () => {
+    const stream = run({
+      files: [join(testFixtures, 'plan', 'more.mjs')]
+    });
+    
+    stream.on('test:fail', common.mustCall(1));
+    stream.on('test:pass', common.mustNotCall());
+    
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream);
+  });
+
+  it('should handle plan with subtests correctly', async () => {
+    const stream = run({
+      files: [join(testFixtures, 'plan', 'subtest.mjs')]
+    });
+    
+    stream.on('test:fail', common.mustNotCall());
+    stream.on('test:pass', common.mustCall(2)); // Parent + child test
+    
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream);
+  });
+
+  it('should handle plan via options', async () => {
+    const stream = run({
+      files: [join(testFixtures, 'plan', 'plan-via-options.mjs')]
+    });
+    
+    stream.on('test:fail', common.mustCall(1));
+    stream.on('test:pass', common.mustCall(1));
+    
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream);
+  });
+
+  it('should handle streaming with plan', async () => {
+    const stream = run({
+      files: [join(testFixtures, 'plan', 'streaming.mjs')]
+    });
+    
+    stream.on('test:fail', common.mustNotCall());
+    stream.on('test:pass', common.mustCall(1));
+    
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream);
+  });
+
+  it('should handle nested subtests with plan', async () => {
+    const stream = run({
+      files: [join(testFixtures, 'plan', 'nested-subtests.mjs')]
+    });
+    
+    stream.on('test:fail', common.mustNotCall());
+    stream.on('test:pass', common.mustCall(3)); // Parent + 2 levels of nesting
+    
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream);
+  });
+});
