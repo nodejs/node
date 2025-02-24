@@ -589,13 +589,11 @@ bool DatabaseSync::ShouldIgnoreSQLiteError() {
   return ignore_next_sqlite_error_;
 }
 
-bool ValidateDatabasePath(Environment* env,
-                          Local<Value> path,
-                          std::string* location,
-                          std::string field_name) {
+std::optional<std::string> ValidateDatabasePath(Environment* env,
+                                                Local<Value> path,
+                                                const std::string& field_name) {
   if (path->IsString()) {
-    *location = Utf8Value(env->isolate(), path.As<String>()).ToString();
-    return true;
+    return Utf8Value(env->isolate(), path.As<String>()).ToString();
   }
 
   if (path->IsUint8Array()) {
@@ -611,8 +609,7 @@ bool ValidateDatabasePath(Environment* env,
                               NewStringType::kNormal,
                               static_cast<int>(byteLength))
               .ToLocal(&out)) {
-        *location = Utf8Value(env->isolate(), out.As<String>()).ToString();
-        return true;
+        return Utf8Value(env->isolate(), out.As<String>()).ToString();
       }
     }
   }
@@ -628,21 +625,21 @@ bool ValidateDatabasePath(Environment* env,
         protocol->IsString()) {
       std::string url_protocol =
           Utf8Value(env->isolate(), protocol.As<String>()).ToString();
-      *location = Utf8Value(env->isolate(), href.As<String>()).ToString();
       if (url_protocol != "" && url_protocol != "file:") {
         THROW_ERR_INVALID_URL_SCHEME(env->isolate());
-        return false;
+        return std::nullopt;
       }
 
-      return true;
+      return Utf8Value(env->isolate(), href.As<String>()).ToString();
     }
   }
 
-  std::string error_message =
-      "The \"" + field_name +
-      "\" argument must be a string, Uint8Array, or URL without null bytes.";
-  THROW_ERR_INVALID_ARG_TYPE(env->isolate(), error_message.c_str());
-  return false;
+  THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
+                             "The \"%s\" argument must be a string, "
+                             "Uint8Array, or URL without null bytes.",
+                             field_name.c_str());
+
+  return std::nullopt;
 }
 
 void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
@@ -652,12 +649,13 @@ void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  std::string location;
-  if (!ValidateDatabasePath(env, args[0], &location, "path")) {
+  std::optional<std::string> location =
+      ValidateDatabasePath(env, args[0], "path");
+  if (!location.has_value()) {
     return;
   }
 
-  DatabaseOpenConfiguration open_config(std::move(location));
+  DatabaseOpenConfiguration open_config(std::move(location.value()));
   bool open = true;
   bool allow_load_extension = false;
   if (args.Length() > 1) {
@@ -1038,8 +1036,9 @@ void Backup(const FunctionCallbackInfo<Value>& args) {
   DatabaseSync* db;
   ASSIGN_OR_RETURN_UNWRAP(&db, args[0].As<Object>());
   THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
-  std::string dest_path;
-  if (!ValidateDatabasePath(env, args[1], &dest_path, "destination")) {
+  std::optional<std::string> dest_path =
+      ValidateDatabasePath(env, args[1], "destination");
+  if (!dest_path.has_value()) {
     return;
   }
 
@@ -1128,8 +1127,14 @@ void Backup(const FunctionCallbackInfo<Value>& args) {
   }
 
   args.GetReturnValue().Set(resolver->GetPromise());
-  BackupJob* job = new BackupJob(
-      env, db, resolver, source_db, dest_path, dest_db, rate, progressFunc);
+  BackupJob* job = new BackupJob(env,
+                                 db,
+                                 resolver,
+                                 source_db,
+                                 dest_path.value(),
+                                 dest_db,
+                                 rate,
+                                 progressFunc);
   db->AddBackup(job);
   job->ScheduleBackup();
 }
