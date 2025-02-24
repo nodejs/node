@@ -6,7 +6,6 @@
 #include <map>
 #include <string>
 #include <variant>
-#include "simdjson.h"
 #include "util-inl.h"
 
 namespace node {
