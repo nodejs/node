@@ -511,7 +511,7 @@ static void LoadEnvFile(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   switch (dotenv.ParsePath(path)) {
     case dotenv.ParseResult::Valid: {
-      dotenv.SetEnvironment(env);
+      USE(dotenv.SetEnvironment(env));
       break;
     }
     case dotenv.ParseResult::InvalidContent: {

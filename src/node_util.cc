@@ -244,7 +244,10 @@ static void ParseEnv(const FunctionCallbackInfo<Value>& args) {
   Utf8Value content(env->isolate(), args[0]);
   Dotenv dotenv{};
   dotenv.ParseContent(content.ToStringView());
-  args.GetReturnValue().Set(dotenv.ToObject(env));
+  Local<Object> obj;
+  if (dotenv.ToObject(env).ToLocal(&obj)) {
+    args.GetReturnValue().Set(obj);
+  }
 }
 
 static void GetCallSites(const FunctionCallbackInfo<Value>& args) {
