@@ -6,10 +6,15 @@
 
 namespace node {
 
+using v8::EscapableHandleScope;
+using v8::JustVoid;
 using v8::Local;
-using v8::NewStringType;
+using v8::Maybe;
+using v8::MaybeLocal;
+using v8::Nothing;
 using v8::Object;
 using v8::String;
+using v8::Value;
 
 std::vector<Dotenv::env_file_data> Dotenv::GetDataFromArgs(
     const std::vector<std::string>& args) {
@@ -59,50 +64,42 @@ std::vector<Dotenv::env_file_data> Dotenv::GetDataFromArgs(
   return env_files;
 }
 
-void Dotenv::SetEnvironment(node::Environment* env) {
-  auto isolate = env->isolate();
+Maybe<void> Dotenv::SetEnvironment(node::Environment* env) {
+  Local<Value> name;
+  Local<Value> val;
+  auto context = env->context();
 
   for (const auto& entry : store_) {
-    auto key = entry.first;
-    auto value = entry.second;
-
-    auto existing = env->env_vars()->Get(key.data());
-
+    auto existing = env->env_vars()->Get(entry.first.data());
     if (!existing.has_value()) {
-      env->env_vars()->Set(
-          isolate,
-          v8::String::NewFromUtf8(
-              isolate, key.data(), NewStringType::kNormal, key.size())
-              .ToLocalChecked(),
-          v8::String::NewFromUtf8(
-              isolate, value.data(), NewStringType::kNormal, value.size())
-              .ToLocalChecked());
+      if (!ToV8Value(context, entry.first).ToLocal(&name) ||
+          !ToV8Value(context, entry.second).ToLocal(&val)) {
+        return Nothing<void>();
+      }
+      env->env_vars()->Set(env->isolate(), name.As<String>(), val.As<String>());
     }
   }
+
+  return JustVoid();
 }
 
-Local<Object> Dotenv::ToObject(Environment* env) const {
+MaybeLocal<Object> Dotenv::ToObject(Environment* env) const {
+  EscapableHandleScope scope(env->isolate());
   Local<Object> result = Object::New(env->isolate());
 
-  for (const auto& entry : store_) {
-    auto key = entry.first;
-    auto value = entry.second;
+  Local<Value> name;
+  Local<Value> val;
+  auto context = env->context();
 
-    result
-        ->Set(
-            env->context(),
-            v8::String::NewFromUtf8(
-                env->isolate(), key.data(), NewStringType::kNormal, key.size())
-                .ToLocalChecked(),
-            v8::String::NewFromUtf8(env->isolate(),
-                                    value.data(),
-                                    NewStringType::kNormal,
-                                    value.size())
-                .ToLocalChecked())
-        .Check();
+  for (const auto& entry : store_) {
+    if (!ToV8Value(context, entry.first).ToLocal(&name) ||
+        !ToV8Value(context, entry.second).ToLocal(&val) ||
+        result->Set(context, name, val).IsNothing()) {
+      return MaybeLocal<Object>();
+    }
   }
 
-  return result;
+  return scope.Escape(result);
 }
 
 // Removes space characters (spaces, tabs and newlines) from
