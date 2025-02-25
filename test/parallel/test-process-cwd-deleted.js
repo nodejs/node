@@ -31,6 +31,6 @@ proc.on('exit', common.mustCall((code) => {
   strictEqual(code, 1);
   proc.stderr.toArray().then(common.mustCall((chunks) => {
     const buf = Buffer.concat(chunks);
-    ok(/Current working directory does not exist/.test(buf.toString()));
+    assert.match(buf.toString(), /Current working directory does not exist/);
   }));
 }));
