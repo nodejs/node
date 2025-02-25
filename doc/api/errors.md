@@ -1120,6 +1120,10 @@ An attempt to invoke an unsupported crypto operation was made.
 
 ### `ERR_CWD_DELETED`
 
+<!-- YAML
+added: REPLACEME
+-->
+
 The current working directory has been deleted during the process' lifetime.
 
 <a id="ERR_DEBUGGER_ERROR"></a>
