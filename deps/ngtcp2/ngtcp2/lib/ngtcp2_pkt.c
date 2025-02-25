@@ -145,8 +145,7 @@ int ngtcp2_pkt_decode_version_cid(ngtcp2_version_cid *dest, const uint8_t *data,
 
 void ngtcp2_pkt_hd_init(ngtcp2_pkt_hd *hd, uint8_t flags, uint8_t type,
                         const ngtcp2_cid *dcid, const ngtcp2_cid *scid,
-                        int64_t pkt_num, size_t pkt_numlen, uint32_t version,
-                        size_t len) {
+                        int64_t pkt_num, size_t pkt_numlen, uint32_t version) {
   hd->flags = flags;
   hd->type = type;
 
@@ -167,7 +166,7 @@ void ngtcp2_pkt_hd_init(ngtcp2_pkt_hd *hd, uint8_t flags, uint8_t type,
   hd->tokenlen = 0;
   hd->pkt_numlen = pkt_numlen;
   hd->version = version;
-  hd->len = len;
+  hd->len = 0;
 }
 
 ngtcp2_ssize ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
@@ -2285,8 +2284,7 @@ ngtcp2_ssize ngtcp2_pkt_write_retry(
   }
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, NGTCP2_PKT_RETRY, dcid,
-                     scid, /* pkt_num = */ 0, /* pkt_numlen = */ 1, version,
-                     /* len = */ 0);
+                     scid, /* pkt_num = */ 0, /* pkt_numlen = */ 1, version);
 
   pseudo_retrylen =
     ngtcp2_pkt_encode_pseudo_retry(pseudo_retry, sizeof(pseudo_retry), &hd,

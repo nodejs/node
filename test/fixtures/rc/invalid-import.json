@@ -1,3 +1,7 @@
 {
-  "import": [1]
+  "nodeOptions": {
+    "import": [
+      1
+    ]
+  }
 }
