@@ -25,6 +25,7 @@
 #include "ngtcp2_acktr.h"
 
 #include <assert.h>
+#include <string.h>
 
 #include "ngtcp2_macro.h"
 #include "ngtcp2_tstamp.h"
@@ -70,6 +71,9 @@ void ngtcp2_acktr_init(ngtcp2_acktr *acktr, ngtcp2_log *log,
   acktr->flags = NGTCP2_ACKTR_FLAG_NONE;
   acktr->first_unacked_ts = UINT64_MAX;
   acktr->rx_npkt = 0;
+  acktr->max_pkt_num = -1;
+  acktr->max_pkt_ts = UINT64_MAX;
+  memset(&acktr->ecn, 0, sizeof(acktr->ecn));
 }
 
 void ngtcp2_acktr_free(ngtcp2_acktr *acktr) {
@@ -178,6 +182,11 @@ int ngtcp2_acktr_add(ngtcp2_acktr *acktr, int64_t pkt_num, int active_ack,
     delent = ngtcp2_ksl_it_get(&it);
     ngtcp2_ksl_remove_hint(&acktr->ents, NULL, &it, &delent->pkt_num);
     ngtcp2_acktr_entry_objalloc_del(delent, &acktr->objalloc);
+  }
+
+  if (acktr->max_pkt_num < pkt_num) {
+    acktr->max_pkt_num = pkt_num;
+    acktr->max_pkt_ts = ts;
   }
 
   return 0;
@@ -322,4 +331,109 @@ int ngtcp2_acktr_require_active_ack(const ngtcp2_acktr *acktr,
 
 void ngtcp2_acktr_immediate_ack(ngtcp2_acktr *acktr) {
   acktr->flags |= NGTCP2_ACKTR_FLAG_IMMEDIATE_ACK;
+}
+
+ngtcp2_frame *ngtcp2_acktr_create_ack_frame(ngtcp2_acktr *acktr,
+                                            ngtcp2_frame *fr, uint8_t type,
+                                            ngtcp2_tstamp ts,
+                                            ngtcp2_duration ack_delay,
+                                            uint64_t ack_delay_exponent) {
+  int64_t last_pkt_num;
+  ngtcp2_ack_range *range;
+  ngtcp2_ksl_it it;
+  ngtcp2_acktr_entry *rpkt;
+  ngtcp2_ack *ack = &fr->ack;
+  ngtcp2_tstamp largest_ack_ts;
+  size_t num_acks;
+
+  if (acktr->flags & NGTCP2_ACKTR_FLAG_IMMEDIATE_ACK) {
+    ack_delay = 0;
+  }
+
+  if (!ngtcp2_acktr_require_active_ack(acktr, ack_delay, ts)) {
+    return NULL;
+  }
+
+  it = ngtcp2_acktr_get(acktr);
+  if (ngtcp2_ksl_it_end(&it)) {
+    ngtcp2_acktr_commit_ack(acktr);
+    return NULL;
+  }
+
+  num_acks = ngtcp2_ksl_len(&acktr->ents);
+
+  if (acktr->ecn.ect0 || acktr->ecn.ect1 || acktr->ecn.ce) {
+    ack->type = NGTCP2_FRAME_ACK_ECN;
+    ack->ecn.ect0 = acktr->ecn.ect0;
+    ack->ecn.ect1 = acktr->ecn.ect1;
+    ack->ecn.ce = acktr->ecn.ce;
+  } else {
+    ack->type = NGTCP2_FRAME_ACK;
+  }
+  ack->rangecnt = 0;
+
+  rpkt = ngtcp2_ksl_it_get(&it);
+
+  if (rpkt->pkt_num == acktr->max_pkt_num) {
+    last_pkt_num = rpkt->pkt_num - (int64_t)(rpkt->len - 1);
+    largest_ack_ts = rpkt->tstamp;
+    ack->largest_ack = rpkt->pkt_num;
+    ack->first_ack_range = rpkt->len - 1;
+
+    ngtcp2_ksl_it_next(&it);
+    --num_acks;
+  } else if (rpkt->pkt_num + 1 == acktr->max_pkt_num) {
+    last_pkt_num = rpkt->pkt_num - (int64_t)(rpkt->len - 1);
+    largest_ack_ts = acktr->max_pkt_ts;
+    ack->largest_ack = acktr->max_pkt_num;
+    ack->first_ack_range = rpkt->len;
+
+    ngtcp2_ksl_it_next(&it);
+    --num_acks;
+  } else {
+    assert(rpkt->pkt_num < acktr->max_pkt_num);
+
+    last_pkt_num = acktr->max_pkt_num;
+    largest_ack_ts = acktr->max_pkt_ts;
+    ack->largest_ack = acktr->max_pkt_num;
+    ack->first_ack_range = 0;
+  }
+
+  if (type == NGTCP2_PKT_1RTT) {
+    ack->ack_delay_unscaled = ts - largest_ack_ts;
+    ack->ack_delay = ack->ack_delay_unscaled / NGTCP2_MICROSECONDS /
+                     (1ULL << ack_delay_exponent);
+  } else {
+    ack->ack_delay_unscaled = 0;
+    ack->ack_delay = 0;
+  }
+
+  num_acks = ngtcp2_min_size(num_acks, NGTCP2_MAX_ACK_RANGES);
+
+  for (; ack->rangecnt < num_acks; ngtcp2_ksl_it_next(&it)) {
+    rpkt = ngtcp2_ksl_it_get(&it);
+
+    range = &ack->ranges[ack->rangecnt++];
+    range->gap = (uint64_t)(last_pkt_num - rpkt->pkt_num - 2);
+    range->len = rpkt->len - 1;
+
+    last_pkt_num = rpkt->pkt_num - (int64_t)(rpkt->len - 1);
+  }
+
+  return fr;
+}
+
+void ngtcp2_acktr_increase_ecn_counts(ngtcp2_acktr *acktr,
+                                      const ngtcp2_pkt_info *pi) {
+  switch (pi->ecn & NGTCP2_ECN_MASK) {
+  case NGTCP2_ECN_ECT_0:
+    ++acktr->ecn.ect0;
+    break;
+  case NGTCP2_ECN_ECT_1:
+    ++acktr->ecn.ect1;
+    break;
+  case NGTCP2_ECN_CE:
+    ++acktr->ecn.ce;
+    break;
+  }
 }
