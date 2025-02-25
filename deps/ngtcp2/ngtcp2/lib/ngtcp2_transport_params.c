@@ -410,7 +410,7 @@ static int decode_varint(uint64_t *pdest, const uint8_t **pp,
   }
 
   len = ngtcp2_get_uvarintlen(p);
-  if ((uint64_t)(end - p) < len) {
+  if ((size_t)(end - p) < len) {
     return -1;
   }
 
@@ -530,8 +530,11 @@ int ngtcp2_transport_params_decode_versioned(int transport_params_version,
   params->active_connection_id_limit =
     NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
 
-  p = data;
-  end = data + datalen;
+  p = end = data;
+
+  if (datalen) {
+    end += datalen;
+  }
 
   for (; (size_t)(end - p) >= 2;) {
     if (decode_varint(&param_type, &p, end) != 0) {

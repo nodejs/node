@@ -113,7 +113,7 @@ void *ngtcp2_ringbuf_get(const ngtcp2_ringbuf *rb, size_t offset);
 #define ngtcp2_ringbuf_len(RB) ((RB)->len)
 
 /* ngtcp2_ringbuf_full returns nonzero if |rb| is full. */
-int ngtcp2_ringbuf_full(ngtcp2_ringbuf *rb);
+int ngtcp2_ringbuf_full(const ngtcp2_ringbuf *rb);
 
 /* ngtcp2_static_ringbuf_def defines ngtcp2_ringbuf struct wrapper
    which uses a statically allocated buffer.  ngtcp2_ringbuf_free

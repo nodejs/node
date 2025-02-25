@@ -119,7 +119,11 @@ void ngtcp2_map_print_distance(const ngtcp2_map *map) {
 static int insert(ngtcp2_map_bucket *table, size_t hashbits,
                   ngtcp2_map_key_type key, void *data) {
   size_t idx = hash(key, hashbits);
-  ngtcp2_map_bucket b = {0, key, data}, *bkt;
+  ngtcp2_map_bucket b = {
+    .key = key,
+    .data = data,
+  };
+  ngtcp2_map_bucket *bkt;
   size_t mask = (1u << hashbits) - 1;
 
   for (;;) {
