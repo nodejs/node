@@ -7,14 +7,20 @@
 // while it is starting up.
 
 const common = require('../common');
-
 const { fork } = require('node:child_process');
 const { rmSync } = require('node:fs');
-const { strictEqual, ok } = require('node:assert');
+const assert = require('node:assert'); // Import assert properly
 const { Buffer } = require('node:buffer');
 
 if (process.argv[2] === 'child') {
-  return;
+  try {
+    while (true) {
+      process.cwd(); // Continuously call process.cwd()
+    }
+  } catch (err) {
+    console.error(err);
+    process.exit(1); // Ensure the process exits with failure
+  }
 }
 
 const tmpdir = require('../common/tmpdir');
@@ -25,10 +31,11 @@ const proc = fork(__filename, ['child'], {
   cwd: tmpDir,
   silent: true,
 });
+
 proc.on('spawn', common.mustCall(() => rmSync(tmpDir, { recursive: true })));
 
 proc.on('exit', common.mustCall((code) => {
-  strictEqual(code, 1);
+  assert.strictEqual(code, 1);
   proc.stderr.toArray().then(common.mustCall((chunks) => {
     const buf = Buffer.concat(chunks);
     assert.match(buf.toString(), /Current working directory does not exist/);
