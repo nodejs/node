@@ -1120,9 +1120,7 @@ An attempt to invoke an unsupported crypto operation was made.
 
 ### `ERR_CWD_DELETED`
 
-The current working directory has been deleted while the process was still inside it.
-
-To resolve this, use `process.chdir()` to switch to a valid directory.
+The current working directory has been deleted during the process' lifetime.
 
 <a id="ERR_DEBUGGER_ERROR"></a>
 
