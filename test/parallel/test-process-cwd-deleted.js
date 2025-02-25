@@ -9,17 +9,13 @@
 const common = require('../common');
 const { fork } = require('node:child_process');
 const { rmSync } = require('node:fs');
-const assert = require('node:assert'); // Import assert properly
+const assert = require('node:assert'); 
 const { Buffer } = require('node:buffer');
 
 if (process.argv[2] === 'child') {
-  try {
-    while (true) {
-      process.cwd(); // Continuously call process.cwd()
-    }
-  } catch (err) {
-    console.error(err);
-    process.exit(1); // Ensure the process exits with failure
+  while (true) {
+    process.cwd();  // Call process.cwd() to trigger failure
+    process.chdir('.'); // Reset the cache to force re-evaluation
   }
 }
 
