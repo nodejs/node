@@ -128,6 +128,26 @@ typedef struct ngtcp2_acktr {
   /* rx_npkt is the number of ACK eliciting packets received without
      sending ACK. */
   size_t rx_npkt;
+  /* max_pkt_num is the largest packet number received so far. */
+  int64_t max_pkt_num;
+  /* max_pkt_ts is the timestamp when max_pkt_num packet is
+     received. */
+  ngtcp2_tstamp max_pkt_ts;
+
+  struct {
+    /* ect0, ect1, and ce are the number of QUIC packets received
+       with those markings. */
+    size_t ect0;
+    size_t ect1;
+    size_t ce;
+    struct {
+      /* ect0, ect1, ce are the ECN counts received in the latest
+         ACK frame. */
+      uint64_t ect0;
+      uint64_t ect1;
+      uint64_t ce;
+    } ack;
+  } ecn;
 } ngtcp2_acktr;
 
 /*
@@ -165,7 +185,7 @@ int ngtcp2_acktr_add(ngtcp2_acktr *acktr, int64_t pkt_num, int active_ack,
 void ngtcp2_acktr_forget(ngtcp2_acktr *acktr, ngtcp2_acktr_entry *ent);
 
 /*
- * ngtcp2_acktr_get returns the pointer to pointer to the entry which
+ * ngtcp2_acktr_get returns the iterator to pointer to the entry which
  * has the largest packet number to be acked.  If there is no entry,
  * returned value satisfies ngtcp2_ksl_it_end(&it) != 0.
  */
@@ -212,5 +232,27 @@ int ngtcp2_acktr_require_active_ack(const ngtcp2_acktr *acktr,
  * acknowledgement is required.
  */
 void ngtcp2_acktr_immediate_ack(ngtcp2_acktr *acktr);
+
+/*
+ * ngtcp2_acktr_create_ack_frame creates ACK frame in the object
+ * pointed by |fr|, and returns |fr| if there are any received packets
+ * to acknowledge.  If there are no packets to acknowledge, this
+ * function returns NULL.  fr->ack.ranges must be able to contain at
+ * least NGTCP2_MAX_ACK_RANGES elements.
+ *
+ * Call ngtcp2_acktr_commit_ack after a created ACK frame is
+ * successfully serialized into a packet.
+ */
+ngtcp2_frame *ngtcp2_acktr_create_ack_frame(ngtcp2_acktr *acktr,
+                                            ngtcp2_frame *fr, uint8_t type,
+                                            ngtcp2_tstamp ts,
+                                            ngtcp2_duration ack_delay,
+                                            uint64_t ack_delay_exponent);
+
+/*
+ * ngtcp2_acktr_increase_ecn_counts increases ECN counts from |pi|.
+ */
+void ngtcp2_acktr_increase_ecn_counts(ngtcp2_acktr *acktr,
+                                      const ngtcp2_pkt_info *pi);
 
 #endif /* !defined(NGTCP2_ACKTR_H) */
