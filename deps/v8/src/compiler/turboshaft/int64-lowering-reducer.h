@@ -637,7 +637,8 @@ class Int64LoweringReducer : public Next {
       result = __ Word32CountLeadingZeros(high);
     }
 
-    return __ Tuple<Word32, Word32>(result, __ Word32Constant(0));
+    V<Word32> result_ = result;
+    return __ Tuple(result_, __ Word32Constant(0));
   }
 
   V<Word32Pair> LowerCtz(V<Word32Pair> input) {
@@ -650,7 +651,8 @@ class Int64LoweringReducer : public Next {
       result = __ Word32CountTrailingZeros(low);
     }
 
-    return __ Tuple<Word32, Word32>(result, __ Word32Constant(0));
+    V<Word32> result_ = result;
+    return __ Tuple(result_, __ Word32Constant(0));
   }
 
   V<Word32Pair> LowerPopCount(V<Word32Pair> input) {
