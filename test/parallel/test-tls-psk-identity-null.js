@@ -8,13 +8,10 @@ const assert = require('assert');
 const tls = require('tls');
 
 {
-  const server = tls.createServer({
-    pskCallback: (socket, identity) => {
-      return undefined;
-    }
-  });
+  const pskCallback = () => undefined;
+  const server = tls.createServer({ pskCallback });
 
-  server.listen(0, () => {
+  server.listen(0, common.mustCall(() => {
     const client = tls.connect({
       port: server.address().port,
       pskIdentity: 'test',
@@ -27,17 +24,14 @@ const tls = require('tls');
       assert.strictEqual(err.code, 'ERR_SSL_SSLV3_ALERT_HANDSHAKE_FAILURE');
       server.close();
     });
-  });
+  }));
 }
 
 {
-  const server = tls.createServer({
-    pskCallback: (socket, identity) => {
-      return null;
-    }
-  });
+  const pskCallback = () => null;
+  const server = tls.createServer({ pskCallback });
 
-  server.listen(0, () => {
+  server.listen(0, common.mustCall(() => {
     const client = tls.connect({
       port: server.address().port,
       pskIdentity: 'test',
@@ -50,5 +44,5 @@ const tls = require('tls');
       assert.strictEqual(err.code, 'ERR_SSL_SSLV3_ALERT_HANDSHAKE_FAILURE');
       server.close();
     });
-  });
+  }));
 }
