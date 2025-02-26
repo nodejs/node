@@ -50,6 +50,7 @@ describe('AsyncContextFrame', {
       const proc = spawn(python, [
         testRunner,
         `--mode=${process.features.debug ? 'debug' : 'release'}`,
+        `--shell=${process.execPath}`,
         '--node-args=--experimental-async-context-frame',
         test,
       ], {
