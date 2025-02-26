@@ -143,7 +143,6 @@ test('URL is supported as the database path', (t) => {
   );
 });
 
-
 test('URL query params are supported', (t) => {
   const url = pathToFileURL(nextDb());
   const db = new DatabaseSync(url);

@@ -80,21 +80,21 @@ added: v22.5.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/56991
-    description: The `location` argument now supports Buffer and URL objects.
+    description: The `path` argument now supports Buffer and URL objects.
 -->
 
 This class represents a single [connection][] to a SQLite database. All APIs
 exposed by this class execute synchronously.
 
-### `new DatabaseSync(location[, options])`
+### `new DatabaseSync(path[, options])`
 
 <!-- YAML
 added: v22.5.0
 -->
 
-* `location` {string | Buffer | URL} The location of the database. A SQLite database can be
+* `path` {string | Buffer | URL} The path of the database. A SQLite database can be
   stored in a file or completely [in memory][]. To use a file-backed database,
-  the location should be a file path. To use an in-memory database, the location
+  the path should be a file path. To use an in-memory database, the path
   should be the special name `':memory:'`.
 * `options` {Object} Configuration options for the database connection. The
   following options are supported:
@@ -204,7 +204,7 @@ wrapper around [`sqlite3_create_function_v2()`][].
 added: v22.5.0
 -->
 
-Opens the database specified in the `location` argument of the `DatabaseSync`
+Opens the database specified in the `path` argument of the `DatabaseSync`
 constructor. This method should only be used when the database is not opened via
 the constructor. An exception is thrown if the database is already open.
 
@@ -538,18 +538,18 @@ exception.
 | `TEXT`    | {string}                   |
 | `BLOB`    | {TypedArray} or {DataView} |
 
-## `sqlite.backup(sourceDb, destination[, options])`
+## `sqlite.backup(sourceDb, path[, options])`
 
 <!-- YAML
 added: v23.8.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/56991
-    description: The `destination` argument now supports Buffer and URL objects.
+    description: The `path` argument now supports Buffer and URL objects.
 -->
 
 * `sourceDb` {DatabaseSync} The database to backup. The source database must be open.
-* `destination` {string | Buffer | URL} The path where the backup will be created. If the file already exists,
+* `path` {string | Buffer | URL} The path where the backup will be created. If the file already exists,
   the contents will be overwritten.
 * `options` {Object} Optional configuration for the backup. The
   following properties are supported:

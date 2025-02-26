@@ -50,32 +50,32 @@ describe('backup()', () => {
       backup(database);
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: 'The "destination" argument must be a string, Uint8Array, or URL without null bytes.'
+      message: 'The "path" argument must be a string, Uint8Array, or URL without null bytes.'
     });
 
     t.assert.throws(() => {
       backup(database, {});
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: 'The "destination" argument must be a string, Uint8Array, or URL without null bytes.'
+      message: 'The "path" argument must be a string, Uint8Array, or URL without null bytes.'
     });
   });
 
-  test('throws if the database destination contains null bytes', (t) => {
+  test('throws if the database path contains null bytes', (t) => {
     const database = makeSourceDb();
 
     t.assert.throws(() => {
       backup(database, Buffer.from('l\0cation'));
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: 'The "destination" argument must be a string, Uint8Array, or URL without null bytes.'
+      message: 'The "path" argument must be a string, Uint8Array, or URL without null bytes.'
     });
 
     t.assert.throws(() => {
       backup(database, 'l\0cation');
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: 'The "destination" argument must be a string, Uint8Array, or URL without null bytes.'
+      message: 'The "path" argument must be a string, Uint8Array, or URL without null bytes.'
     });
   });
 
@@ -297,7 +297,7 @@ test('backup fails when source db is invalid', async (t) => {
   });
 });
 
-test('backup fails when destination cannot be opened', async (t) => {
+test('backup fails when path cannot be opened', async (t) => {
   const database = makeSourceDb();
 
   await t.assert.rejects(async () => {

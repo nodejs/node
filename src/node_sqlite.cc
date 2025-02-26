@@ -1048,7 +1048,7 @@ void Backup(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&db, args[0].As<Object>());
   THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
   std::optional<std::string> dest_path =
-      ValidateDatabasePath(env, args[1], "destination");
+      ValidateDatabasePath(env, args[1], "path");
   if (!dest_path.has_value()) {
     return;
   }
