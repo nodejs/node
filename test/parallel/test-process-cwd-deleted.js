@@ -28,12 +28,15 @@ const proc = fork(__filename, ['child'], {
   silent: true,
 });
 
+let stderrData = '';
+
+proc.stderr.on('data', (chunk) => {
+  stderrData += chunk.toString(); // Collect stderr output
+});
+
 proc.on('spawn', common.mustCall(() => rmSync(tmpDir, { recursive: true })));
 
 proc.on('exit', common.mustCall((code) => {
-  assert.strictEqual(code, 1);
-  proc.stderr.toArray().then(common.mustCall((chunks) => {
-    const buf = Buffer.concat(chunks);
-    assert.match(buf.toString(), /Current working directory does not exist/);
-  }));
+  assert.strictEqual(code, 1); // Ensure process exits with error
+  assert.match(stderrData, /Current working directory does not exist/);
 }));
