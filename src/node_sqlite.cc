@@ -635,7 +635,12 @@ std::optional<std::string> ValidateDatabasePath(Environment* env,
       if (!has_null_bytes(location)) {
         auto file_url = ada::parse(location);
         CHECK(file_url);
-        return url::FileURLToPath(env, *file_url);
+        if (file_url->type != ada::scheme::FILE) {
+          THROW_ERR_INVALID_URL_SCHEME(env->isolate());
+          return std::nullopt;
+        }
+
+        return location;
       }
     }
   }

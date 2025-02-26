@@ -114,8 +114,9 @@ test('math functions are enabled', (t) => {
   );
 });
 
-test('Buffer is supported as the database location', (t) => {
+test('Buffer is supported as the database path', (t) => {
   const db = new DatabaseSync(Buffer.from(nextDb()));
+  t.after(() => { db.close(); });
   db.exec(`
     CREATE TABLE data(key INTEGER PRIMARY KEY);
     INSERT INTO data (key) VALUES (1);
@@ -127,9 +128,10 @@ test('Buffer is supported as the database location', (t) => {
   );
 });
 
-test('URL is supported as the database location', (t) => {
+test('URL is supported as the database path', (t) => {
   const url = pathToFileURL(nextDb());
   const db = new DatabaseSync(url);
+  t.after(() => { db.close(); });
   db.exec(`
     CREATE TABLE data(key INTEGER PRIMARY KEY);
     INSERT INTO data (key) VALUES (1);
@@ -139,4 +141,29 @@ test('URL is supported as the database location', (t) => {
     db.prepare('SELECT * FROM data').all(),
     [{ __proto__: null, key: 1 }]
   );
+});
+
+
+test('URL query params are supported', (t) => {
+  const url = pathToFileURL(nextDb());
+  const db = new DatabaseSync(url);
+  t.after(() => { db.close(); });
+  db.exec(`
+    CREATE TABLE data(key INTEGER PRIMARY KEY);
+    INSERT INTO data (key) VALUES (1);
+  `);
+
+  const readOnlyDB = new DatabaseSync(`${url}?mode=ro`);
+  t.after(() => { readOnlyDB.close(); });
+
+  t.assert.deepStrictEqual(
+    readOnlyDB.prepare('SELECT * FROM data').all(),
+    [{ __proto__: null, key: 1 }]
+  );
+  t.assert.throws(() => {
+    readOnlyDB.exec('INSERT INTO data (key) VALUES (1);');
+  }, {
+    code: 'ERR_SQLITE_ERROR',
+    message: 'attempt to write a readonly database',
+  });
 });
