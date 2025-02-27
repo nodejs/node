@@ -5,7 +5,6 @@ const { join } = require('node:path');
 const { DatabaseSync, constants } = require('node:sqlite');
 const { suite, test } = require('node:test');
 const { pathToFileURL } = require('node:url');
-
 let cnt = 0;
 
 tmpdir.refresh();
@@ -143,26 +142,71 @@ test('URL is supported as the database path', (t) => {
   );
 });
 
-test('URL query params are supported', (t) => {
-  const url = pathToFileURL(nextDb());
-  const db = new DatabaseSync(url);
-  t.after(() => { db.close(); });
-  db.exec(`
+
+suite('URI query params', () => {
+  const baseDbPath = nextDb();
+  const baseDb = new DatabaseSync(baseDbPath);
+  baseDb.exec(`
     CREATE TABLE data(key INTEGER PRIMARY KEY);
     INSERT INTO data (key) VALUES (1);
   `);
+  baseDb.close();
 
-  const readOnlyDB = new DatabaseSync(`${url}?mode=ro`);
-  t.after(() => { readOnlyDB.close(); });
+  test('query params are supported with URL objects', (t) => {
+    const url = pathToFileURL(baseDbPath);
+    url.searchParams.set('mode', 'ro');
+    const readOnlyDB = new DatabaseSync(url);
+    t.after(() => { readOnlyDB.close(); });
 
-  t.assert.deepStrictEqual(
-    readOnlyDB.prepare('SELECT * FROM data').all(),
-    [{ __proto__: null, key: 1 }]
-  );
-  t.assert.throws(() => {
-    readOnlyDB.exec('INSERT INTO data (key) VALUES (1);');
-  }, {
-    code: 'ERR_SQLITE_ERROR',
-    message: 'attempt to write a readonly database',
+    t.assert.deepStrictEqual(
+      readOnlyDB.prepare('SELECT * FROM data').all(),
+      [{ __proto__: null, key: 1 }]
+    );
+    t.assert.throws(() => {
+      readOnlyDB.exec('INSERT INTO data (key) VALUES (1);');
+    }, {
+      code: 'ERR_SQLITE_ERROR',
+      message: 'attempt to write a readonly database',
+    });
+  });
+
+  test('query params are supported with string', (t) => {
+    const url = pathToFileURL(baseDbPath);
+    url.searchParams.set('mode', 'ro');
+
+    // Ensures a valid URI passed as a string is supported
+    const readOnlyDB = new DatabaseSync(url.toString());
+    t.after(() => { readOnlyDB.close(); });
+
+    t.assert.deepStrictEqual(
+      readOnlyDB.prepare('SELECT * FROM data').all(),
+      [{ __proto__: null, key: 1 }]
+    );
+    t.assert.throws(() => {
+      readOnlyDB.exec('INSERT INTO data (key) VALUES (1);');
+    }, {
+      code: 'ERR_SQLITE_ERROR',
+      message: 'attempt to write a readonly database',
+    });
+  });
+
+  test('query params are supported with Buffer', (t) => {
+    const url = pathToFileURL(baseDbPath);
+    url.searchParams.set('mode', 'ro');
+
+    // Ensures a valid URI passed as a Buffer is supported
+    const readOnlyDB = new DatabaseSync(Buffer.from(url.toString()));
+    t.after(() => { readOnlyDB.close(); });
+
+    t.assert.deepStrictEqual(
+      readOnlyDB.prepare('SELECT * FROM data').all(),
+      [{ __proto__: null, key: 1 }]
+    );
+    t.assert.throws(() => {
+      readOnlyDB.exec('INSERT INTO data (key) VALUES (1);');
+    }, {
+      code: 'ERR_SQLITE_ERROR',
+      message: 'attempt to write a readonly database',
+    });
   });
 });
