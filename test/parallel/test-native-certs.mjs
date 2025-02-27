@@ -138,9 +138,9 @@ describe('use-system-ca', function() {
         await fetch(`https://localhost:${server.address().port}/hello-world`);
       } catch (err) {
         if (common.isWindows) {
-          assert.equal(err.cause.code, "UNABLE_TO_GET_ISSUER_CERT")
+          assert.equal(err.cause.code, "UNABLE_TO_GET_ISSUER_CERT");
         } else {
-          assert.equal(err.cause.code, "UNABLE_TO_VERIFY_LEAF_SIGNATURE")
+          assert.equal(err.cause.code, "UNABLE_TO_VERIFY_LEAF_SIGNATURE");
         }
       }
     });
