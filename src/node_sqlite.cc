@@ -597,7 +597,7 @@ std::optional<std::string> ValidateDatabasePath(Environment* env,
     return str.find('\0') != std::string_view::npos;
   };
   if (path->IsString()) {
-    auto location = Utf8Value(env->isolate(), path.As<String>());
+    Utf8Value location(env->isolate(), path.As<String>());
     if (!has_null_bytes(location.ToStringView())) {
       return location.ToString();
     }
@@ -615,7 +615,7 @@ std::optional<std::string> ValidateDatabasePath(Environment* env,
     Local<Value> href;
     if (url->Get(env->context(), env->href_string()).ToLocal(&href) &&
         href->IsString()) {
-      const auto location_value = Utf8Value(env->isolate(), href.As<String>());
+      Utf8Value location_value(env->isolate(), href.As<String>());
       auto location = location_value.ToStringView();
       if (!has_null_bytes(location)) {
         CHECK(ada::can_parse(location));
