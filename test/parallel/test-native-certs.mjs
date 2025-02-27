@@ -130,7 +130,10 @@ describe('use-system-ca', function() {
     let server;
 
     beforeEach(async function() {
-      server = await setupServer('non-trusted-leaf-from-intermediate-key.pem', 'non-trusted-leaf-from-intermediate-cert.pem');
+      server = await setupServer(
+        'non-trusted-leaf-from-intermediate-key.pem',
+        'non-trusted-leaf-from-intermediate-cert.pem'
+      );
     });
 
     it('can connect successfully', async function() {
@@ -138,9 +141,9 @@ describe('use-system-ca', function() {
         await fetch(`https://localhost:${server.address().port}/hello-world`);
       } catch (err) {
         if (common.isWindows) {
-          assert.equal(err.cause.code, "UNABLE_TO_GET_ISSUER_CERT");
+          assert.strictEqual(err.cause.code, 'UNABLE_TO_GET_ISSUER_CERT');
         } else {
-          assert.equal(err.cause.code, "UNABLE_TO_VERIFY_LEAF_SIGNATURE");
+          assert.strictEqual(err.cause.code, 'UNABLE_TO_VERIFY_LEAF_SIGNATURE');
         }
       }
     });
