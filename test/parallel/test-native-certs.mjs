@@ -38,12 +38,17 @@ if (!common.hasCrypto) {
 //       -CertStoreLocation Cert:\CurrentUser\Root
 //    $ Import-Certificate -FilePath .\test\fixtures\keys\intermediate-ca.pem \
 //       -CertStoreLocation Cert:\CurrentUser\CA
+//    $ Import-Certificate -FilePath .\test\fixtures\keys\non-trusted-intermediate-ca.pem \
+//       -CertStoreLocation Cert:\CurrentUser\CA
 //   2. To remove the certificate by the thumbprint:
 //    $  $thumbprint = (Get-ChildItem -Path Cert:\CurrentUser\Root | \
 //          Where-Object { $_.Subject -match "StartCom Certification Authority" }).Thumbprint
 //    $  Remove-Item -Path "Cert:\CurrentUser\Root\$thumbprint"
 //    $  $thumbprint = (Get-ChildItem -Path Cert:\CurrentUser\CA | \
 //          Where-Object { $_.Subject -match "NodeJS-Test-Intermediate-CA" }).Thumbprint
+//    $  Remove-Item -Path "Cert:\CurrentUser\CA\$thumbprint"
+//    $  $thumbprint = (Get-ChildItem -Path Cert:\CurrentUser\CA | \
+//          Where-Object { $_.Subject -match "NodeJS-Non-Trusted-Test-Intermediate-CA" }).Thumbprint
 //    $  Remove-Item -Path "Cert:\CurrentUser\CA\$thumbprint"
 //
 // On Debian/Ubuntu:
@@ -52,10 +57,13 @@ if (!common.hasCrypto) {
 //       /usr/local/share/ca-certificates/fake-startcom-root-cert.crt
 //     $ sudo cp test/fixtures/keys/intermediate-ca.pem \
 //       /usr/local/share/ca-certificates/intermediate-ca.crt
+//     $ sudo cp test/fixtures/keys/non-trusted-intermediate-ca.pem \
+//       /usr/local/share/ca-certificates/non-trusted-intermediate-ca.crt
 //     $ sudo update-ca-certificates
 //   2. To remove the certificate
 //     $ sudo rm /usr/local/share/ca-certificates/fake-startcom-root-cert.crt \
-//       /usr/local/share/ca-certificates/intermediate-ca.crt
+//       /usr/local/share/ca-certificates/intermediate-ca.crt \
+//       /usr/local/share/ca-certificates/non-trusted-intermediate-ca.crt
 //     $ sudo update-ca-certificates --fresh
 //
 // For other Unix-like systems, consult their manuals, there are usually
@@ -129,7 +137,11 @@ describe('use-system-ca', function() {
       try {
         await fetch(`https://localhost:${server.address().port}/hello-world`);
       } catch (err) {
-        assert.equal(err.cause.code, "UNABLE_TO_VERIFY_LEAF_SIGNATURE")
+        if (common.isWindows) {
+          assert.equal(err.cause.code, "UNABLE_TO_GET_ISSUER_CERT")
+        } else {
+          assert.equal(err.cause.code, "UNABLE_TO_VERIFY_LEAF_SIGNATURE")
+        }
       }
     });
 
