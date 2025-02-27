@@ -44,6 +44,10 @@ all: \
   intermediate-ca-key.pem \
   leaf-from-intermediate-cert.pem \
   leaf-from-intermediate-key.pem \
+  non-trusted-intermediate-ca-cert.pem \
+  non-trusted-intermediate-ca-key.pem \
+  non-trusted-leaf-from-intermediate-cert.pem \
+  non-trusted-leaf-from-intermediate-key.pem \
   rsa_private.pem \
   rsa_private_encrypted.pem \
   rsa_private_pkcs8.pem \
@@ -287,6 +291,54 @@ leaf-from-intermediate-cert.pem: leaf-from-intermediate-key.pem
 			-sha256
 
 	rm -f leaf-from-intermediate-cert.csr
+
+non-trusted-intermediate-ca-key.pem:
+	openssl genrsa -out non-trusted-intermediate.key 2048
+
+non-trusted-intermediate-ca-cert.pem: non-trusted-intermediate-ca-key.pem
+	openssl req -new \
+			-sha256 \
+			-nodes \
+			-key non-trusted-intermediate.key  \
+			-subj "/C=US/ST=CA/L=SF/O=NODEJS/CN=NodeJS-Non-Trusted-Test-Intermediate-CA" \
+			-out non-trusted-test-intermediate-ca.csr
+
+	openssl x509 -req \
+			-extensions v3_ca \
+			-extfile fake-startcom-root.cnf \
+			-in non-trusted-test-intermediate-ca.csr \
+			-passin "pass:password" \
+			-CA ca1-cert.pem \
+			-CAkey ca1-key.pem \
+			-CAcreateserial \
+			-out non-trusted-intermediate-ca.pem \
+			-days 99999 \
+			-sha256
+	rm -f non-trusted-test-intermediate-ca.csr
+
+non-trusted-leaf-from-intermediate-key.pem:
+	openssl genrsa -out non-trusted-leaf-from-intermediate-key.pem 2048
+
+non-trusted-leaf-from-intermediate-cert.pem: non-trusted-leaf-from-intermediate-key.pem
+	openssl genrsa -out non-trusted-leaf-from-intermediate-key.pem 2048
+	openssl req -new \
+			-sha256 \
+			-nodes \
+			-key non-trusted-leaf-from-intermediate-key.pem \
+			-addext "subjectAltName = DNS:localhost" \
+			-subj "/C=US/ST=CA/L=SF/O=NODEJS/CN=localhost" \
+			-out non-trusted-leaf-from-intermediate-cert.csr
+	openssl x509 -req \
+			-in non-trusted-leaf-from-intermediate-cert.csr \
+			-CA non-trusted-intermediate-ca.pem \
+			-CAkey non-trusted-intermediate.key \
+			-CAcreateserial \
+			-out non-trusted-leaf-from-intermediate-cert.pem \
+			-days 99999 \
+			-copy_extensions copy \
+			-sha256
+
+	rm -f non-trusted-leaf-from-intermediate-cert.csr
 
 #
 # agent1 is signed by ca1.

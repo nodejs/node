@@ -21,10 +21,15 @@ if (!common.hasCrypto) {
 //    $ security add-certificates \
 //        -k /Users/$USER/Library/Keychains/login.keychain-db \
 //        test/fixtures/keys/intermediate-ca.pem
+//    $ security add-certificates \
+//        -k /Users/$USER/Library/Keychains/login.keychain-db \
+//        test/fixtures/keys/non-trusted-intermediate-ca.pem
 //   2. To remove the certificate:
 //     $ security delete-certificate -c 'StartCom Certification Authority' \
 //         -t /Users/$USER/Library/Keychains/login.keychain-db
 //     $ security delete-certificate -c 'NodeJS-Test-Intermediate-CA' \
+//         -t /Users/$USER/Library/Keychains/login.keychain-db
+//     $ security delete-certificate -c 'NodeJS-Non-Trusted-Test-Intermediate-CA' \
 //         -t /Users/$USER/Library/Keychains/login.keychain-db
 //
 // On Windows:
@@ -106,6 +111,26 @@ describe('use-system-ca', function() {
 
     it('can connect successfully', async function() {
       await fetch(`https://localhost:${server.address().port}/hello-world`);
+    });
+
+    afterEach(async function() {
+      server?.close();
+    });
+  });
+
+  describe('signed with a trusted intermediate but not trusted root CA certificate', () => {
+    let server;
+
+    beforeEach(async function() {
+      server = await setupServer('non-trusted-leaf-from-intermediate-key.pem', 'non-trusted-leaf-from-intermediate-cert.pem');
+    });
+
+    it('can connect successfully', async function() {
+      try {
+        await fetch(`https://localhost:${server.address().port}/hello-world`);
+      } catch (err) {
+        assert.equal(err.cause.code, "UNABLE_TO_VERIFY_LEAF_SIGNATURE")
+      }
     });
 
     afterEach(async function() {
