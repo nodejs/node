@@ -253,6 +253,7 @@ class EnvironmentOptions : public Options {
 
   bool experimental_strip_types = true;
   bool experimental_transform_types = false;
+  bool experimental_strip_node_modules = false;
 
   std::vector<std::string> user_argv;
 

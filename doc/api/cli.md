@@ -1113,6 +1113,16 @@ added:
 
 Use this flag to enable [ShadowRealm][] support.
 
+### `--experimental-strip-node-modules`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+This flag enables Type Stripping in `node_modules`.
+
 ### `--experimental-test-coverage`
 
 <!-- YAML

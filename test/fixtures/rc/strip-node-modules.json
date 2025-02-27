@@ -1,0 +1,5 @@
+{
+  "nodeOptions": {
+    "experimental-strip-node-modules": true
+  }
+}

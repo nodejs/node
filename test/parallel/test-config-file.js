@@ -350,3 +350,15 @@ test('should throw an error when the file is non readable', { skip: common.isWin
   chmodSync(fixtures.path('rc/non-readable/node.config.json'),
             constants.S_IRWXU | constants.S_IRWXG | constants.S_IRWXO);
 });
+
+test('--experimental-strip-node-modules should not be allowed', async () => {
+  const result = await spawnPromisified(process.execPath, [
+    '--no-warnings',
+    '--experimental-config-file',
+    fixtures.path('rc/strip-node-modules.json'),
+    '-p', '"Hello, World!"',
+  ]);
+  match(result.stderr, /Unknown or not allowed option experimental-strip-node-modules/);
+  strictEqual(result.stdout, '');
+  strictEqual(result.code, 9);
+});

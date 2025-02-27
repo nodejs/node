@@ -881,6 +881,9 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "ES module to preload (option can be repeated)",
             &EnvironmentOptions::preload_esm_modules,
             kAllowedInEnvvar);
+  AddOption("--experimental-strip-node-modules",
+            "Allow type-stripping in node_modules",
+            &EnvironmentOptions::experimental_strip_node_modules);
   AddOption("--experimental-strip-types",
             "Experimental type-stripping for TypeScript files.",
             &EnvironmentOptions::experimental_strip_types,

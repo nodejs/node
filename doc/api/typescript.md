@@ -198,6 +198,9 @@ are enabled by default.
 To discourage package authors from publishing packages written in TypeScript,
 Node.js will by default refuse to handle TypeScript files inside folders under
 a `node_modules` path.
+It is possible to use the [`--experimental-strip-node-modules`][] flag to change
+the default behavior and allow Node.js to handle TypeScript files in dependencies.
+It's only recommended for development purposes.
 
 ### Paths aliases
 
@@ -208,6 +211,7 @@ with `#`.
 [CommonJS]: modules.md
 [ES Modules]: esm.md
 [Full TypeScript support]: #full-typescript-support
+[`--experimental-strip-node-modules`]: cli.md#--experimental-strip-node-modules
 [`--experimental-transform-types`]: cli.md#--experimental-transform-types
 [`--no-experimental-strip-types`]: cli.md#--no-experimental-strip-types
 [`ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`]: errors.md#err_unsupported_typescript_syntax

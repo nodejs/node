@@ -331,3 +331,14 @@ test('execute invalid TypeScript syntax', async () => {
   strictEqual(result.stdout, '');
   strictEqual(result.code, 1);
 });
+
+test('execute CommonJS TypeScript file from node_modules with require-module', async () => {
+  const result = await spawnPromisified(process.execPath, [
+    '--experimental-strip-node-modules',
+    fixtures.path('typescript/ts/test-import-ts-node-modules.ts'),
+  ]);
+
+  match(result.stderr, /--experimental-strip-node-modules is an experimental feature and might change at any time/);
+  strictEqual(result.stdout, 'Hello, TypeScript!\n');
+  strictEqual(result.code, 0);
+});
