@@ -65,8 +65,9 @@ test('expect failure of an .mts file with CommonJS syntax', async () => {
   assert.strictEqual(result.stdout, '');
 
   const expectedWarning = `Failed to load the ES module: ${testFilePath}. Make sure to set "type": "module" in the nearest package.json file or use the .mjs extension.`;
+
   try {
-    assert.ok(result.stderr.includes(expectedWarning));
+    assert.match(result.stderr, /Failed to load the ES module:.*test-cts-but-module-syntax\.cts/);
   } catch (e) {
     if (e?.code === 'ERR_ASSERTION') {
       e.expected = expectedWarning;
@@ -76,8 +77,9 @@ test('expect failure of an .mts file with CommonJS syntax', async () => {
     throw e;
   }
 
-  strictEqual(result.code, 1);
+  assert.strictEqual(result.code, 1);
 });
+
 
 test('execute a .cts file importing a .cts file', async () => {
   const result = await spawnPromisified(process.execPath, [
