@@ -337,6 +337,8 @@ For information about the governance of the Node.js project, see
   **Gerhard Stöbich** <<deb2001-github@yahoo.de>> (he/they)
 * [gabrielschulhof](https://github.com/gabrielschulhof) -
   **Gabriel Schulhof** <<gabrielschulhof@gmail.com>>
+* [geeksilva97](https://github.com/geeksilva97) -
+  **Edy Silva** <<edigleyssonsilva@gmail.com>> (he/him)
 * [gengjiawen](https://github.com/gengjiawen) -
   **Jiawen Geng** <<technicalcute@gmail.com>>
 * [GeoffreyBooth](https://github.com/GeoffreyBooth) -
