@@ -105,7 +105,8 @@ Local<Context> ModuleWrap::context() const {
   return obj.As<Object>()->GetCreationContextChecked();
 }
 
-ModuleWrap* ModuleWrap::GetFromModule(Environment* env, Local<Module> module) {
+ModuleWrap* ModuleWrap::GetFromModule(Environment* env,
+                                      Local<Module> module) {
   auto range = env->hash_to_module_map.equal_range(module->GetIdentityHash());
   for (auto it = range.first; it != range.second; ++it) {
     if (it->second->module_ == module) {
@@ -540,8 +541,8 @@ void ModuleWrap::Instantiate(const FunctionCallbackInfo<Value>& args) {
   Local<Context> context = obj->context();
   Local<Module> module = obj->module_.Get(isolate);
   TryCatchScope try_catch(realm->env());
-  USE(module->InstantiateModule(context, ResolveModuleCallback,
-                                ResolveSourceCallback));
+  USE(module->InstantiateModule(
+      context, ResolveModuleCallback, ResolveSourceCallback));
 
   // clear resolve cache on instantiate
   obj->resolve_cache_.clear();
@@ -647,8 +648,8 @@ void ModuleWrap::InstantiateSync(const FunctionCallbackInfo<Value>& args) {
 
   {
     TryCatchScope try_catch(env);
-    USE(module->InstantiateModule(context, ResolveModuleCallback,
-                                  ResolveSourceCallback));
+    USE(module->InstantiateModule(
+        context, ResolveModuleCallback, ResolveSourceCallback));
 
     // clear resolve cache on instantiate
     obj->resolve_cache_.clear();
@@ -989,10 +990,10 @@ static MaybeLocal<Promise> ImportModuleDynamicallyWithPhase(
 
   Local<Value> result;
   if (import_callback->Call(
-          context,
-          Undefined(isolate),
-          arraysize(import_args),
-          import_args).ToLocal(&result)) {
+        context,
+        Undefined(isolate),
+        arraysize(import_args),
+        import_args).ToLocal(&result)) {
     CHECK(result->IsPromise());
     return handle_scope.Escape(result.As<Promise>());
   }
@@ -1032,9 +1033,8 @@ void ModuleWrap::SetImportModuleDynamicallyCallback(
   //     ImportModuleDynamicallyWithPhase);
 }
 
-void ModuleWrap::HostInitializeImportMetaObjectCallback(Local<Context> context,
-                                                        Local<Module> module,
-                                                        Local<Object> meta) {
+void ModuleWrap::HostInitializeImportMetaObjectCallback(
+    Local<Context> context, Local<Module> module, Local<Object> meta) {
   Environment* env = Environment::GetCurrent(context);
   if (env == nullptr)
     return;
