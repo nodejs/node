@@ -540,8 +540,8 @@ void ModuleWrap::Instantiate(const FunctionCallbackInfo<Value>& args) {
   Local<Context> context = obj->context();
   Local<Module> module = obj->module_.Get(isolate);
   TryCatchScope try_catch(realm->env());
-  USE(module->InstantiateModule(
-      context, ResolveModuleCallback, ResolveSourceCallback));
+  USE(module->InstantiateModule(context, ResolveModuleCallback,
+                                ResolveSourceCallback));
 
   // clear resolve cache on instantiate
   obj->resolve_cache_.clear();
@@ -569,7 +569,7 @@ void ModuleWrap::Evaluate(const FunctionCallbackInfo<Value>& args) {
   ContextifyContext* contextify_context = obj->contextify_context_;
   MicrotaskQueue* microtask_queue = nullptr;
   if (contextify_context != nullptr)
-    microtask_queue = contextify_context->microtask_queue();
+      microtask_queue = contextify_context->microtask_queue();
 
   // module.evaluate(timeout, breakOnSigint)
   CHECK_EQ(args.Length(), 2);
@@ -625,7 +625,8 @@ void ModuleWrap::Evaluate(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (try_catch.HasCaught()) {
-    if (!try_catch.HasTerminated()) try_catch.ReThrow();
+    if (!try_catch.HasTerminated())
+      try_catch.ReThrow();
     return;
   }
 
@@ -646,8 +647,8 @@ void ModuleWrap::InstantiateSync(const FunctionCallbackInfo<Value>& args) {
 
   {
     TryCatchScope try_catch(env);
-    USE(module->InstantiateModule(
-        context, ResolveModuleCallback, ResolveSourceCallback));
+    USE(module->InstantiateModule(context, ResolveModuleCallback,
+                                  ResolveSourceCallback));
 
     // clear resolve cache on instantiate
     obj->resolve_cache_.clear();
@@ -987,10 +988,11 @@ static MaybeLocal<Promise> ImportModuleDynamicallyWithPhase(
   };
 
   Local<Value> result;
-  if (import_callback
-          ->Call(
-              context, Undefined(isolate), arraysize(import_args), import_args)
-          .ToLocal(&result)) {
+  if (import_callback->Call(
+          context,
+          Undefined(isolate),
+          arraysize(import_args),
+          import_args).ToLocal(&result)) {
     CHECK(result->IsPromise());
     return handle_scope.Escape(result.As<Promise>());
   }
@@ -1034,7 +1036,8 @@ void ModuleWrap::HostInitializeImportMetaObjectCallback(Local<Context> context,
                                                         Local<Module> module,
                                                         Local<Object> meta) {
   Environment* env = Environment::GetCurrent(context);
-  if (env == nullptr) return;
+  if (env == nullptr)
+    return;
   ModuleWrap* module_wrap = GetFromModule(env, module);
 
   if (module_wrap == nullptr) {
@@ -1091,10 +1094,10 @@ MaybeLocal<Value> ModuleWrap::SyntheticModuleEvaluationStepsCallback(
           ->GetInternalField(kSyntheticEvaluationStepsSlot)
           .As<Value>()
           .As<Function>();
-  obj->object()->SetInternalField(kSyntheticEvaluationStepsSlot,
-                                  Undefined(isolate));
-  MaybeLocal<Value> ret =
-      synthetic_evaluation_steps->Call(context, obj->object(), 0, nullptr);
+  obj->object()->SetInternalField(
+      kSyntheticEvaluationStepsSlot, Undefined(isolate));
+  MaybeLocal<Value> ret = synthetic_evaluation_steps->Call(context,
+      obj->object(), 0, nullptr);
   if (ret.IsEmpty()) {
     CHECK(try_catch.HasCaught());
   }

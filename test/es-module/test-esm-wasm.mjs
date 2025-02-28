@@ -145,6 +145,7 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
         'import { strictEqual } from "node:assert";',
         `import source mod from ${JSON.stringify(fixtures.fileURL('es-modules/unimportable.wasm'))};`,
         'assert.strictEqual(mod instanceof WebAssembly.Module, true);',
+        `await assert.rejects(import(${JSON.stringify(fixtures.fileURL('es-modules/unimportable.wasm'))}));`,
       ].join('\n'),
     ]);
 
